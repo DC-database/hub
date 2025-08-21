@@ -1,1 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="handheldfriendly" content="true">
+  <meta name="mobileoptimized" content="width">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="format-detection" content="telephone=no">
+  <title>LETTER CODE GENERATOR | IBA</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <div id="mobile-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fas fa-mobile-alt"></i> Employee Verification</h3>
+      </div>
+      <div class="modal-body">
+        <p>Please enter your registered mobile number to access the system:</p>
+        <div class="form-group">
+          <div class="mobile-input-container">
+            <span class="country-code">974</span>
+            <input type="tel" id="mobile-input" placeholder="XXXXXXX" pattern="[0-9]{7,8}" required maxlength="8">
+          </div>
+        </div>
+        <div id="mobile-error" class="error-message hidden"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="verify-btn" class="primary-btn">
+          <i class="fas fa-check-circle"></i> Verify
+        </button>
+      </div>
+      <div id="unregistered-message" class="hidden">
+        <p>You are not a registered employee. Please contact 50992023 via WhatsApp to request access.</p>
+        <button id="whatsapp-btn" class="whatsapp-btn">
+          <i class="fab fa-whatsapp"></i> Contact via WhatsApp
+        </button>
+      </div>
+    </div>
+  </div>
 
+  <div class="app-container hidden">
+    <header class="app-header">
+      <div class="logo-container">
+        <div class="logo-icon">
+          <i class="fas fa-file-contract"></i>
+        </div>
+        <div class="logo-text">
+          <h1>IBA Trading & Contracting & Transportation Wll</h1>
+          <p>Document Management System</p>
+        </div>
+      </div>
+      <button id="go-back-btn" class="go-back-btn">
+        <i class="fas fa-arrow-left"></i> Go Back
+      </button>
+    </header>
+
+    <main class="app-content">
+      <div class="form-card">
+        <div class="card-header">
+          <h2><i class="fas fa-barcode"></i> LETTER CODE GENERATOR</h2>
+        </div>
+        
+        <div class="form-body">
+          <div id="success-message" class="hidden">
+            <!-- Content will be added by JavaScript -->
+          </div>
+
+          <form id="document-form" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+            <div class="form-group">
+              <label for="from">
+                <i class="fas fa-user-tie"></i> From
+              </label>
+              <input type="text" id="from" required placeholder="Enter sender name" value="IBA">
+            </div>
+
+            <div class="form-group autocomplete">
+              <label for="site">
+                <i class="fas fa-building"></i> Site
+              </label>
+              <input type="text" id="site" required placeholder="Type or select site">
+            </div>
+
+            <div class="form-group autocomplete">
+              <label for="class">
+                <i class="fas fa-tag"></i> Document Class
+              </label>
+              <input type="text" id="class" required placeholder="Type or select class">
+            </div>
+
+            <div class="form-group">
+              <label for="dateSent">
+                <i class="fas fa-calendar-alt"></i> Date Sent
+              </label>
+              <input type="date" id="dateSent" required>
+            </div>
+
+            <div class="form-group">
+              <label for="purpose">
+                <i class="fas fa-comment-alt"></i> Purpose
+              </label>
+              <input type="text" id="purpose" required placeholder="Document purpose">
+            </div>
+
+            <div class="form-actions">
+              <button type="button" id="submit-btn" class="primary-btn">
+                <i class="fas fa-paper-plane"></i> Generate Code
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
+
+    <footer class="app-footer">
+      <p>© 2025 IBA Document Management System | v2.4</p>
+    </footer>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
