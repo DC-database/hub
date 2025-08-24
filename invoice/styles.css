@@ -2278,160 +2278,44 @@ tr:hover {
 }
 
 
-/* ===== Mobile App–style UI (portrait) ===== */
+/* ===== Mobile App–style UI (portrait) v2 ===== */
 @media screen and (max-width: 768px) and (orientation: portrait) {
-  /* Base app look */
+  /* Appy look */
   body {
     background: linear-gradient(180deg, #eaf3ff 0%, #ffffff 40%);
   }
-  .container {
-    padding: 14px 14px 90px; /* leave room for bottom nav */
-  }
-  .content-section h1 {
-    font-size: 18px;
-    font-weight: 800;
-    letter-spacing: .2px;
-    color: #0c2a4d;
-    margin: 6px 2px 12px;
-  }
+  .container { padding-bottom: 90px; }
 
-  /* Dashboard metric cards -> soft rounded tiles */
-  .overdue-cards-container {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 14px;
-  }
-  .overdue-card {
-    border-radius: 18px;
-    box-shadow: 0 6px 18px rgba(24, 39, 75, 0.12);
-    padding: 14px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    background: #ffffff;
-    border: none;
-  }
-  .overdue-card .overdue-icon {
-    width: 42px;
-    height: 42px;
-    border-radius: 12px;
-    display: grid;
-    place-items: center;
-    background: rgba(12, 42, 77, .06);
-  }
-  .overdue-card .overdue-title {
-    font-size: 13px;
-    color: #0c2a4d;
-    font-weight: 700;
-    margin-bottom: 2px;
-  }
-  .overdue-card .overdue-count {
-    font-size: 20px;
-    font-weight: 800;
-  }
-  .overdue-card .overdue-subtitle {
-    font-size: 11px;
-    opacity: .7;
-  }
-
-  /* Quick actions (buttons) */
-  .section-actions,
-  .action-buttons,
-  .btn-group, 
-  .top-actions {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
-  .section-actions .btn,
-  .action-buttons .btn,
-  .btn-group .btn,
-  .top-actions .btn {
-    border-radius: 14px;
-    padding: 10px 14px;
-    box-shadow: 0 6px 16px rgba(24,39,75,.12);
-    border: none;
-  }
-  .btn-primary { background:#0a7cff; color:#fff; }
-  .btn-secondary { background:#f2f6ff; color:#0c2a4d; }
-
-  /* Card containers */
-  .card, .card-box, .chart-box, .table-card, .filter-card {
+  /* Card polish */
+  .card, .table-card, .chart-box, .filter-card, .overdue-card {
     border-radius: 18px !important;
     border: none !important;
     box-shadow: 0 6px 18px rgba(24,39,75,.08);
-    background: #ffffff;
   }
 
-  /* Tables: compact, clean */
-  .table-responsive {
-    background: #ffffff;
-    border-radius: 18px;
-    box-shadow: 0 6px 18px rgba(24,39,75,.08);
-    padding: 6px;
-  }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-  }
-  table th, table td {
-    padding: 10px 8px;
-    border-bottom: 1px solid #eef2f7;
-  }
-  table thead th {
-    position: sticky;
-    top: 0;
-    background: #f6f9ff;
-    z-index: 1;
-    font-weight: 700;
-    color: #0c2a4d;
-  }
+  /* Sticky table header */
+  .table-responsive { padding: 6px; border-radius: 18px; background:#fff; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table th, table td { padding: 10px 8px; border-bottom: 1px solid #eef2f7; }
+  table thead th { position: sticky; top: 0; background:#f6f9ff; z-index:1; font-weight:700; color:#0c2a4d; }
 
-  /* Keep only Site, Vendor, Status in dashboard table */
-  #siteRecordsTable th, #siteRecordsTable td { display: none; }
+  /* --- DASHBOARD TABLE: show only Site, Vendor, Status --- */
+  /* siteRecordsTable has a leading checkbox column and 'ID' -> Site=4, Vendor=6, Status=9 */
+  #siteRecordsTable th, #siteRecordsTable td { display: none !important; }
   #siteRecordsTable th:nth-child(4),
-  #siteRecordsTable td:nth-child(4), /* Site */
+  #siteRecordsTable td:nth-child(4),
   #siteRecordsTable th:nth-child(6),
-  #siteRecordsTable td:nth-child(6), /* Vendor */
+  #siteRecordsTable td:nth-child(6),
   #siteRecordsTable th:nth-child(9),
-  #siteRecordsTable td:nth-child(9)  /* Status */ {
-    display: table-cell;
-  }
+  #siteRecordsTable td:nth-child(9) { display: table-cell !important; }
 
-  /* Convert each data row into tappable card feeling */
-  #siteRecordsTable tbody tr {
-    background: #fff;
-    border-radius: 14px;
-  }
-  #siteRecordsTable tbody tr:hover {
-    background: #f8fbff;
-  }
-
-  /* Bottom app nav (uses your existing mobile menu trigger as FAB) */
-  .mobile-menu-btn {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    width: 54px;
-    height: 54px;
-    border-radius: 16px;
-    display: grid;
-    place-items: center;
-    background: #0a7cff;
-    color: #fff;
-    box-shadow: 0 10px 22px rgba(10,124,255,.35);
-    z-index: 1001;
-  }
-
-  /* Modal look */
-  .modal-content, .invoice-preview-modal, #dashboardPreviewModal .modal-content {
-    border-radius: 18px;
-  }
-}
-
-/* Small phones */
-@media screen and (max-width: 400px) {
-  .overdue-cards-container { grid-template-columns: 1fr; }
+  /* Some screens render the 'collectionTable' in main dashboard; handle both just in case */
+  /* collectionTable index: Site=3, Vendor=5, Status=8 */
+  #collectionTable th, #collectionTable td { display: none !important; }
+  #collectionTable th:nth-child(3),
+  #collectionTable td:nth-child(3),
+  #collectionTable th:nth-child(5),
+  #collectionTable td:nth-child(5),
+  #collectionTable th:nth-child(8),
+  #collectionTable td:nth-child(8) { display: table-cell !important; }
 }
