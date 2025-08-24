@@ -1,36 +1,21 @@
-// Minimal offline-capable service worker for ibaport.site
 const CACHE_NAME = 'ibaport-cache-v1';
-const ASSETS = [
-  '/', // make sure your server serves index for '/'
-  '/index.html',
-  '/manifest.webmanifest',
-  '/install.js',
-  '/icons/iba-192.png',
-  '/icons/iba-512.png'
-];
+const ASSETS = ['/', '/index.html', '/manifest.webmanifest', '/install.js', '/icons/iba-192.png', '/icons/iba-512.png'];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
-  );
+  event.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(ASSETS)));
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then(keys => Promise.all(
-      keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
-    ))
+    caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
   );
   self.clients.claim();
 });
 
-// Network-first for navigations; cache-first for static assets
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
-
-  // For document navigations, try network then cache
   if (req.mode === 'navigate') {
     event.respondWith((async () => {
       try {
@@ -38,16 +23,13 @@ self.addEventListener('fetch', (event) => {
         const cache = await caches.open(CACHE_NAME);
         cache.put(req, fresh.clone());
         return fresh;
-      } catch (err) {
+      } catch {
         const cache = await caches.open(CACHE_NAME);
-        const cached = await cache.match(req) || await cache.match('/index.html');
-        return cached || Response.error();
+        return (await cache.match(req)) || (await cache.match('/index.html')) || Response.error();
       }
     })());
     return;
   }
-
-  // For same-origin static assets: cache-first
   if (url.origin === self.location.origin) {
     event.respondWith((async () => {
       const cache = await caches.open(CACHE_NAME);
