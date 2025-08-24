@@ -688,5 +688,22 @@
   </div>
 </div>
 
+
+<!-- Bottom App Nav (fixed, always visible) -->
+<nav class="bottom-app-nav" id="bottomAppNav" aria-label="Primary">
+  <button class="nav-btn" data-target="mainPageSection" onclick="handleBottomNav(this)">
+    <i class="fas fa-home"></i><span>Home</span>
+  </button>
+  <button class="nav-btn" data-target="invoiceSection" onclick="handleBottomNav(this)">
+    <i class="fas fa-file-invoice"></i><span>Invoices</span>
+  </button>
+  <button class="nav-btn" data-target="statementSection" onclick="handleBottomNav(this)">
+    <i class="fas fa-list"></i><span>Statement</span>
+  </button>
+  <button class="nav-btn" onclick="openIPCFromBottom()">
+    <i class="fas fa-database"></i><span>IPC</span>
+  </button>
+</nav>
+
 </body>
 </html>

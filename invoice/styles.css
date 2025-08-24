@@ -152,6 +152,8 @@ body {
     overflow-y: auto;
     transform: translateX(-100%);
     transition: transform 0.3s ease-out;
+
+  padding-bottom: calc(64px + env(safe-area-inset-bottom));
 }
 
 .mobile-menu.show {
@@ -1375,7 +1377,9 @@ tr:hover {
     
     .mobile-menu {
         width: 85%;
-    }
+    
+  padding-bottom: calc(64px + env(safe-area-inset-bottom));
+}
     
     .report-actions {
         justify-content: center;
@@ -1440,7 +1444,9 @@ tr:hover {
 @media (max-width: 480px) {
     .mobile-menu {
         width: 90%;
-    }
+    
+  padding-bottom: calc(64px + env(safe-area-inset-bottom));
+}
     
     .year-selector {
         flex-direction: column;
@@ -2480,3 +2486,37 @@ tr:hover {
 @media screen and (max-width: 400px) {
   .overdue-cards-container { grid-template-columns: 1fr; }
 }
+
+
+/* Bottom app-style nav */
+.bottom-app-nav {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  height: 64px;
+  background: #fff;
+  border-top: 1px solid #e6e6e6;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  align-items: center;
+  z-index: 1200;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.bottom-app-nav .nav-btn {
+  appearance: none;
+  background: none;
+  border: 0;
+  height: 100%;
+  font: inherit;
+  color: #6b7280;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  gap:4px;
+  cursor:pointer;
+}
+.bottom-app-nav .nav-btn i { font-size: 18px; line-height: 1; }
+.bottom-app-nav .nav-btn span { font-size: 11px; }
+.bottom-app-nav .nav-btn.active { color: var(--primary); }
+.bottom-app-nav .nav-btn:active { transform: translateY(1px); }
+
+/* keep content above the bar */
+.container { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }

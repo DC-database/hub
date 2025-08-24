@@ -3080,3 +3080,46 @@ function uploadApproverCSV() {
   };
   reader.readAsText(file);
 }
+
+
+// --- Bottom App Nav wiring ---
+function handleBottomNav(btn) {
+  const target = btn.getAttribute('data-target');
+  if (!target) return;
+  if (typeof showSection === 'function') showSection(target);
+  document.querySelectorAll('.bottom-app-nav .nav-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  // sync with hamburger
+  const map = {
+    mainPageSection: '.mobile-menu .menu-item.main-page, .menu-item.main-page',
+    invoiceSection: '.mobile-menu .menu-item[data-section="invoiceSection"], .menu-item[data-section="invoiceSection"]',
+    statementSection: '.mobile-menu .menu-item[data-section="statementSection"], .menu-item[data-section="statementSection"]'
+  };
+  document.querySelectorAll('.mobile-menu .menu-item, .menu-item').forEach(mi => mi.classList.remove('active'));
+  if (map[target]) {
+    const el = document.querySelector(map[target]);
+    if (el) el.classList.add('active');
+  }
+}
+
+// Keep bottom nav active state if other code calls showSection
+(function(){
+  if (typeof showSection !== 'function') return;
+  const orig = showSection;
+  window.showSection = function(sectionId){
+    orig(sectionId);
+    const btn = document.querySelector(`.bottom-app-nav .nav-btn[data-target="${sectionId}"]`);
+    if (btn){
+      document.querySelectorAll('.bottom-app-nav .nav-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+  };
+})();
+
+function openIPCFromBottom(){
+  document.querySelectorAll('.bottom-app-nav .nav-btn').forEach(b=>b.classList.remove('active'));
+  const ipcBtn = Array.from(document.querySelectorAll('.bottom-app-nav .nav-btn span')).find(s=>s.textContent.trim()==='IPC');
+  if(ipcBtn) ipcBtn.parentElement.classList.add('active');
+  window.open('https://dc-database.github.io/IPC/', '_blank');
+}
