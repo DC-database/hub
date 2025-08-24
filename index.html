@@ -407,6 +407,40 @@
 /* Desktop: hide the mobile app buttons */
 @media (min-width:1024px){ .app-buttons{display:none!important} }
 
+
+/* -- Mobile IBA logo above buttons -- */
+.mobile-logo { height: 64px; margin-bottom: 16px; display: block; }
+
+@media (max-width: 768px) {
+  .app-buttons { min-height: 100vh; justify-content: center; }
+  .mobile-logo { display: block; }
+}
+
+@media (min-width: 1024px) {
+  .mobile-logo { display: none; }
+}
+
+
+/* Ensure embedded SVG logo scales nicely on mobile */
+.mobile-logo { height: 64px; width: auto; display: block; margin-bottom: 16px; }
+
+
+/* Ensure mobile logo displays correctly */
+.mobile-logo { max-height: 70px; width: auto; display: block; margin-bottom: 20px; }
+
+
+/* Mobile text brand in place of logo */
+.mobile-brand{ text-align:center; margin: 0 auto 10px; }
+.brand-iba{ font-family: "Bookman Old Style", Georgia, serif; font-weight:700; font-size: 1.9rem; color:#003A5C; line-height:1; letter-spacing:.5px; }
+.brand-name{ font-weight:600; font-size:.86rem; color:#003A5C; opacity:.9; line-height:1.15; max-width: 90%; margin:4px auto 0; }
+/* keep hidden on desktop */
+@media (min-width:1024px){ .mobile-brand{ display:none; } }
+
+
+/* Adjust button height for better balance */
+.app-btn { padding: 20px 22px !important; font-size: 1.15rem !important; border-radius: 18px !important; }
+.app-btn i { font-size: 1.35rem !important; }
+
 </style>
 </head>
 <body>
@@ -440,7 +474,12 @@
 
 <!-- Mobile App Menu (shown only on small screens) -->
 <nav class="app-buttons" id="appButtons">
-  <a id="btnInvoices" class="app-btn invoices" href="#"><i class="fas fa-file-invoice"></i><span>Invoices</span></a>
+  
+  <div class="mobile-brand">
+    <div class="brand-iba">IBA</div>
+    <div class="brand-name">Ismail Bin Ali Trading &amp; Contracting Co. W.L.L.</div>
+  </div>
+<a id="btnInvoices" class="app-btn invoices" href="#"><i class="fas fa-file-invoice"></i><span>Invoices</span></a>
   <a id="btnVehicles" class="app-btn vehicles" href="#"><i class="fas fa-car"></i><span>Vehicles</span></a>
   <a id="btnCash" class="app-btn cash" href="#"><i class="fas fa-code"></i><span>Letter Code Generator</span></a>
 </nav>
