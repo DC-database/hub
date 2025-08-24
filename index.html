@@ -462,6 +462,30 @@
   margin: 0 auto 18px;
 }
 
+
+/* --- Mobile: brand at the very top, bigger buttons --- */
+@media (max-width: 768px) {
+  .app-buttons {
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;  /* keep brand at top */
+    min-height: 100vh;
+    padding: 30px 16px 20px;      /* top spacing from screen edge */
+    gap: 16px;
+  }
+  .mobile-brand { margin-bottom: 10px; }
+  .app-btn {
+    width: 92%;
+    max-width: 460px;
+    padding: 26px 24px;           /* taller buttons */
+    border-radius: 22px;
+    font-size: 1.25rem;
+    font-weight: 700;
+  }
+  .app-btn i { font-size: 1.55rem; }
+}
+
 </style>
 </head>
 <body>
