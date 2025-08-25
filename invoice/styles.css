@@ -2520,3 +2520,348 @@ tr:hover {
 
 /* keep content above the bar */
 .container { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+
+
+/* ===== Admin Upload Look (copied style without breaking functions) ===== */
+#dataManagementSection {
+  --card-bg: #ffffff;
+  --card-border: rgba(0,0,0,0.08);
+  --muted: #667085;
+  --title: #0f172a;
+  --sub: #111827;
+  --pill: #eef2ff;
+  --pill-text: #3730a3;
+}
+
+#dataManagementSection .section-header h1 {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  color: #111827;
+}
+
+#dataManagementSection .data-management-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 18px;
+}
+
+#dataManagementSection .management-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(16,24,40,.04);
+}
+
+#dataManagementSection .management-card h2 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--title);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#dataManagementSection .management-card h2::before {
+  content: "\f56e";
+  font-family: "Font Awesome 6 Free";
+  font-weight: 900;
+  font-size: 1rem;
+  color: var(--primary);
+  display: inline-block;
+}
+
+#dataManagementSection .upload-card h2::before { content: "\f6dd"; } /* file-csv */
+#dataManagementSection .auth-card h2::before { content: "\f023"; } /* lock */
+#dataManagementSection .manage-card h2::before { content: "\f1b2"; } /* database */
+
+#dataManagementSection .file-input-container {
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+#dataManagementSection .file-input-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+#dataManagementSection .file-input {
+  display: none;
+}
+
+#dataManagementSection .upload-status {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+#dataManagementSection .template-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  margin-top: 8px;
+  font-size: 14px;
+  color: #1d4ed8;
+}
+
+#dataManagementSection .template-download:hover { text-decoration: underline; }
+
+/* Auth strip layout like screenshot */
+#dataManagementSection .auth-card {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 240px 1fr 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+}
+
+#dataManagementSection .auth-card #loginInfo strong {
+  color: #111827;
+  font-weight: 700;
+}
+
+#dataManagementSection .auth-card .auth-input {
+  margin: 0;
+  min-height: 40px;
+}
+
+#dataManagementSection .auth-card .auth-message {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+/* Buttons appearance to match pill-y rounded look */
+#dataManagementSection .btn {
+  border-radius: 10px;
+  padding: 10px 12px;
+  min-height: 40px;
+}
+
+#dataManagementSection .year-selector {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+#dataManagementSection .year-option {
+  background: #f8fafc;
+  border-radius: 999px;
+  padding: 6px 10px;
+  border: 1px solid #e5e7eb;
+}
+
+#dataManagementSection .year-text {
+  font-weight: 600;
+  color: #111827;
+}
+
+/* Subtle "Parsed rows" and debug area */
+#dataManagementSection .debug-note,
+#dataManagementSection .parsed-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: #475569;
+  margin-top: 8px;
+}
+
+#dataManagementSection details.debug {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #334155;
+}
+
+#dataManagementSection .current-data-info {
+  margin-top: 16px;
+  background: #fafafa;
+  border: 1px solid #eee;
+  padding: 12px;
+  border-radius: 12px;
+}
+
+/* Tighten inputs inside upload cards */
+#dataManagementSection .upload-card .file-input-label i { color: var(--primary); }
+#dataManagementSection .upload-card .btn { margin-top: 6px; }
+
+
+/* ===== Screenshot-accurate layout ===== */
+#dataManagementSection .auth-card {
+  grid-template-columns: 220px 1fr 1fr auto auto;
+  background: #ffffff;
+  border: 1px solid #e6e9ef;
+  border-radius: 10px;
+  padding: 10px;
+  align-items: center;
+}
+
+#dataManagementSection .auth-card .auth-strip-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+#dataManagementSection .auth-card .back-inline {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #3b82f6;
+  border-color: #3b82f6;
+}
+
+#dataManagementSection .auth-card #logoutBtn.btn.btn-danger {
+  background: #ef4444;
+  border-color: #ef4444;
+}
+
+#dataManagementSection .management-card h2 {
+  font-size: .95rem;
+  letter-spacing: .2px;
+}
+
+#dataManagementSection .management-card h2 i {
+  margin-right: 6px;
+  color: #253b7d;
+}
+
+#dataManagementSection .file-input-container {
+  border-radius: 10px;
+  padding: 12px;
+  border: 1px dashed #cfd6e4;
+  background: #f1f5f9;
+}
+
+#dataManagementSection .btn.btn-primary i,
+#dataManagementSection .btn.btn-danger i,
+#dataManagementSection .template-download i {
+  margin-right: 6px;
+}
+
+/* Year bubbles */
+#dataManagementSection .year-selector {
+  gap: 14px;
+}
+#dataManagementSection .year-option {
+  border-radius: 999px;
+  padding: 4px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Big red clear panel like screenshot */
+#dataManagementSection #clearDataBtn.btn.btn-danger {
+  background: #dc2626;
+  border: none;
+  height: 160px;
+  border-radius: 12px;
+  width: 100%;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 15px;
+}
+#dataManagementSection #clearDataBtn .fa-trash {
+  font-size: 18px;
+}
+
+/* Current Data Information card centered */
+#dataManagementSection .current-data-info {
+  background: #ffffff;
+  border: 1px solid #e6e9ef;
+  border-radius: 12px;
+  padding: 12px 16px;
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
+}
+#dataManagementSection .current-data-info h2 {
+  text-align: center;
+  font-size: 1rem;
+  color: #0f172a;
+  margin-bottom: 8px;
+}
+#dataManagementSection .current-data-info .detail-row,
+#dataManagementSection .current-data-info strong {
+  color: #0f172a;
+}
+
+
+/* Order the auth strip first and make cards appear below */
+#dataManagementSection .data-management-grid { align-items: start; }
+#dataManagementSection .auth-card { order: -1; margin-bottom: 12px; grid-column: 1 / -1; }
+
+/* Place items inside auth strip as one horizontal bar */
+#dataManagementSection .auth-card {
+  display: grid;
+  grid-template-columns: auto auto 1fr 220px 220px;
+  gap: 10px;
+}
+#dataManagementSection .auth-card .login-info { display: flex; align-items: center; padding-left: 6px; }
+#dataManagementSection .auth-card .auth-message:empty { display: none; }
+#dataManagementSection .auth-card .auth-message { background: transparent; padding: 0; margin: 0; border: 0; }
+
+/* Keep card order for the three tiles */
+#dataManagementSection .upload-card, #dataManagementSection .manage-card { order: 0; }
+
+/* Match screenshot spacing and subtle borders */
+#dataManagementSection .management-card { border-radius: 10px; border: 1px solid #dfe5ef; }
+#dataManagementSection .management-card h2 { margin-bottom: 10px; }
+
+
+/* Fix order and include Sign in button */
+#dataManagementSection .auth-card {
+  display: grid;
+  grid-template-columns: auto auto auto 1fr 220px 220px auto;
+  gap: 10px;
+  align-items: center;
+}
+#dataManagementSection .auth-card #loginBtn { min-height: 40px; }
+#dataManagementSection .auth-card .auth-message { grid-column: 1 / -1; }
+
+
+/* Ensure login/logout occupy the same grid cell */
+#dataManagementSection .auth-card {
+  display: grid;
+  grid-template-columns: auto auto 1fr 220px 220px 140px;
+  gap: 10px;
+  align-items: center;
+}
+#dataManagementSection .auth-card #loginBtn,
+#dataManagementSection .auth-card #logoutBtn {
+  grid-column: 6;
+  justify-self: end;
+  min-width: 120px;
+}
+#dataManagementSection .auth-card #logoutBtn { display:none; }
+
+
+/* --- Auth strip: compact grid with no empty spacer column --- */
+#dataManagementSection .auth-card {
+  display: grid;
+  grid-template-columns: auto auto minmax(220px,1fr) minmax(220px,1fr) 140px;
+  gap: 10px;
+  align-items: center;
+}
+#dataManagementSection .auth-card .auth-strip-title { grid-column: 1; }
+#dataManagementSection .auth-card .back-inline { grid-column: 2; }
+#dataManagementSection .auth-card #emailInput { grid-column: 3; }
+#dataManagementSection .auth-card #passwordInput { grid-column: 4; }
+#dataManagementSection .auth-card #loginBtn,
+#dataManagementSection .auth-card #logoutBtn { grid-column: 5; min-width: 120px; justify-self: end; }

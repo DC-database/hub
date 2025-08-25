@@ -140,7 +140,7 @@
 <div class="section-header">
 <h1>INVOICE STATUS TRACKER</h1>
 <div class="section-actions">
-<button class="btn btn-primary back-btn" onclick="showSection('mainPageSection')">
+<button class="btn btn-primary back-btn" style="display:none;" onclick="showSection('mainPageSection')" style="display:none;">
 <i class="fas fa-arrow-left"></i> <span class="btn-text">Back</span>
 </button>
 <button class="btn btn-primary" onclick="addToCollectionFromTracker()">
@@ -208,7 +208,7 @@
 <div class="content-section" id="statementSection">
 <div class="section-header">
 <h1>Statement of Account</h1>
-<button class="btn btn-primary back-btn" onclick="showSection('invoiceSection')">
+<button class="btn btn-primary back-btn" style="display:none;" onclick="showSection('invoiceSection')">
 <i class="fas fa-arrow-left"></i> <span class="btn-text">Back</span>
 </button>
 </div>
@@ -304,7 +304,7 @@
 <div class="content-section" id="pettyCashSection">
 <div class="section-header">
 <h1>Petty Cash Summary</h1>
-<button class="btn btn-primary back-btn" onclick="showSection('invoiceSection')">
+<button class="btn btn-primary back-btn" style="display:none;" onclick="showSection('invoiceSection')">
 <i class="fas fa-arrow-left"></i> <span class="btn-text">Back</span>
 </button>
 </div>
@@ -366,13 +366,13 @@
 <div class="content-section" id="dataManagementSection">
 <div class="section-header">
 <h1>Data Management</h1>
-<button class="btn btn-primary back-btn" onclick="showSection('mainPageSection')">
+<button class="btn btn-primary back-btn" style="display:none;" onclick="showSection('mainPageSection')" style="display:none;">
 <i class="fas fa-arrow-left"></i> <span class="btn-text">Back</span>
 </button>
 </div>
 <div class="data-management-grid">
 <!-- Approver Master (Upload & Template) -->
-<div class="management-card">
+<div class="management-card upload-card">
   <h2>Approver List</h2>
   <div class="file-input-container">
     <label class="file-input-label" for="approverCsvInput">
@@ -391,20 +391,10 @@
 </div>
 
 <!-- Admin Authentication Section -->
-<div class="management-card">
-<h2>Admin Authentication</h2>
-<div class="login-info" id="loginInfo">
-<strong id="loggedInAs">Not logged in</strong>
-</div>
-<input class="auth-input" id="emailInput" placeholder="Admin Email" type="email"/>
-<input class="auth-input" id="passwordInput" placeholder="Password" type="password"/>
-<button class="btn btn-primary" id="loginBtn" onclick="login()">Login</button>
-<button class="btn btn-danger" id="logoutBtn" onclick="logout()" style="display: none;">Logout</button>
-<div class="auth-message" id="authMessage"></div>
-</div>
+<div class="management-card auth-card">  <div class="auth-strip-title"><i class="fas fa-lock"></i><span>Admin Authentication</span></div>  <button class="btn btn-secondary back-inline" onclick="showSection('mainPageSection')">    <i class="fas fa-arrow-left"></i> Back  </button>  <button class="btn btn-danger" id="logoutBtn" onclick="logout()" style="display: none;">Logout</button>  <div class="login-info" id="loginInfo"><strong id="loggedInAs" style="display:none;"></strong></div>  <input class="auth-input" id="emailInput" placeholder="Admin Email" type="email"/>  <input class="auth-input" id="passwordInput" placeholder="Password" type="password"/>  <button class="btn btn-primary" id="loginBtn" onclick="login()">Sign in</button>  <div class="auth-message" id="authMessage"></div></div>
 <!-- Upload CSV Data -->
-<div class="management-card">
-<h2>Upload CSV Data</h2>
+<div class="management-card upload-card">
+<h2><i class="fas fa-file-upload"></i> Upload CSV Data</h2>
 <div class="year-selector">
 <label class="year-option">
 <input checked="" name="uploadYear" type="radio" value="2025"/>
@@ -430,8 +420,8 @@
                     </a>
 </div>
 <!-- Manage Data -->
-<div class="management-card">
-<h2>Manage Data</h2>
+<div class="management-card manage-card">
+<h2><i class="fas fa-database"></i> Manage Data</h2>
 <div class="year-selector">
 <label class="year-option">
 <input checked="" name="manageYear" type="radio" value="2025"/>
