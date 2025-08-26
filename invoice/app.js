@@ -1875,7 +1875,16 @@ function printReport() {
     const reportSection = document.getElementById('statementSection');
     const reportContent = reportSection.cloneNode(true);
     
-    // Remove elements we don't want to print
+    
+    // Normalize status cells so printing shows the text (avoid white-on-white badge styles)
+    try {
+        const badgeNodes = reportContent.querySelectorAll('.compact-table .status-badge');
+        badgeNodes.forEach(badge => {
+            const td = badge.closest('td');
+            if (td) td.textContent = badge.textContent || '';
+        });
+    } catch (e) { /* no-op */ }
+// Remove elements we don't want to print
     const elementsToRemove = reportContent.querySelectorAll('.report-controls, .report-actions, .back-btn');
     elementsToRemove.forEach(el => el.remove());
     
@@ -1887,7 +1896,7 @@ function printReport() {
             th, td { padding: 8px; border: 1px solid #ddd; text-align: left; }
             th { background-color: #f2f2f2; }
             .numeric { text-align: right; }
-            .status-badge { padding: 4px 8px; border-radius: 4px; color: white; }
+            .status-badge { padding: 4px 8px; border-radius: 4px; color: #000; background: transparent; border: 1px solid #ccc; }
             .financial-summary { margin: 20px 0; padding: 15px; background-color: #f9f9f9; border-radius: 5px; }
             .financial-summary div { margin-bottom: 10px; }
             @page { size: auto; margin: 10mm; }
@@ -2070,7 +2079,7 @@ function printPettyCashReport() {
             th, td { padding: 8px; border: 1px solid #ddd; text-align: left; }
             th { background-color: #f2f2f2; }
             .numeric { text-align: right; }
-            .status-badge { padding: 4px 8px; border-radius: 4px; color: white; }
+            .status-badge { padding: 4px 8px; border-radius: 4px; color: #000; background: transparent; border: 1px solid #ccc; }
             .financial-summary { margin: 20px 0; padding: 15px; background-color: #f9f9f9; border-radius: 5px; }
             .financial-summary div { margin-bottom: 10px; }
             @page { size: auto; margin: 10mm; }
