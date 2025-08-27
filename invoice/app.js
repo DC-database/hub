@@ -293,13 +293,13 @@ function getStatusPercentage(status) {
 // Connection status
 function updateConnectionStatus(connected) {
     if (connected) {
-        domCache.statusIndicator.className = 'status-indicator connected';
-        domCache.connectionStatus.textContent = `Connected to: Firebase (${currentYear})`;
-        domCache.connectBtn.innerHTML = `<i class="fas fa-sync-alt"></i> <span class="btn-text">Data Updated (${currentYear})</span>`;
+        if (domCache.statusIndicator) domCache.statusIndicator.className = 'status-indicator connected';
+        if (domCache.connectionStatus) domCache.connectionStatus.textContent = `Connected to: Firebase (${currentYear})`;
+        if (domCache.connectBtn) domCache.connectBtn.innerHTML = `<i class="fas fa-sync-alt"></i> <span class="btn-text">Data Updated (${currentYear})</span>`;
     } else {
-        domCache.statusIndicator.className = 'status-indicator disconnected';
-        domCache.connectionStatus.textContent = 'Not connected to data source';
-        domCache.connectBtn.innerHTML = `<i class="fas fa-sync-alt"></i> <span class="btn-text">Refresh Data</span>`;
+        if (domCache.statusIndicator) domCache.statusIndicator.className = 'status-indicator disconnected';
+        if (domCache.connectionStatus) domCache.connectionStatus.textContent = 'Not connected to data source';
+        if (domCache.connectBtn) domCache.connectBtn.innerHTML = `<i class="fas fa-sync-alt"></i> <span class="btn-text">Refresh Data</span>`;
     }
     
     updateFileInfo();
@@ -568,7 +568,7 @@ function updateFileInfo() {
     infoHTML += `<strong>Last Updated:</strong> ${timestamp}<br>`;
     infoHTML += `<strong>Records Loaded:</strong> ${records.length}`;
     
-    domCache.fileInfo.innerHTML = infoHTML;
+    if (domCache.fileInfo) { domCache.fileInfo.innerHTML = infoHTML; }
 }
 
 // Optimized UI updates
@@ -785,10 +785,10 @@ function searchRecords() {
     }
     
     if (releaseDateInput) {
-        const filterDate = new Date(releaseDateInput);
+        const filterDate = parseReleaseDate(releaseDateInput);
         filtered = filtered.filter(record => {
             if (!record.releaseDate) return false;
-            const recordDate = new Date(record.releaseDate);
+            const recordDate = parseReleaseDate(record.releaseDate);
             return recordDate.toDateString() === filterDate.toDateString();
         });
     }
@@ -1071,7 +1071,7 @@ function initializeOverdueChart(filteredRecords = null) {
         if (!record.releaseDate || !['For SRV', 'For IPC'].includes(record.status)) return false;
         
         try {
-            const releaseDate = new Date(record.releaseDate);
+            const releaseDate = parseReleaseDate(record.releaseDate);
             const workingDaysPassed = getWorkingDays(releaseDate, today);
             return workingDaysPassed >= 7;
         } catch (e) {
@@ -1086,7 +1086,7 @@ function initializeOverdueChart(filteredRecords = null) {
     overdueRecords.forEach(record => {
         if (!record.site) return;
         
-        const releaseDate = new Date(record.releaseDate);
+        const releaseDate = parseReleaseDate(record.releaseDate);
         const workingDaysPassed = getWorkingDays(releaseDate, today);
         
         if (!siteOverdueData[record.site]) {
@@ -1249,7 +1249,7 @@ function filterSiteTableOnly(site, status) {
             filtered = filtered.filter(record => {
                 if (!record.releaseDate) return false;
                 try {
-                    const releaseDate = new Date(record.releaseDate);
+                    const releaseDate = parseReleaseDate(record.releaseDate);
                     const workingDaysPassed = getWorkingDays(releaseDate, today);
                     return workingDaysPassed >= 7;
                 } catch (e) {
@@ -1308,7 +1308,7 @@ function filterSiteRecords(status, fromOverdue = false) {
             filtered = filtered.filter(record => {
                 if (!record.releaseDate) return false;
                 try {
-                    const releaseDate = new Date(record.releaseDate);
+                    const releaseDate = parseReleaseDate(record.releaseDate);
                     const workingDaysPassed = getWorkingDays(releaseDate, today);
                     return workingDaysPassed >= 7;
                 } catch (e) {
@@ -1339,11 +1339,29 @@ function filterSiteRecords(status, fromOverdue = false) {
     initializeOverdueChart(filtered);
     domCache.siteRecordsTable.style.display = filtered.length > 0 ? 'table' : 'none';
 }
+// Robust date parser for ISO (YYYY-MM-DD) and D/M/Y or D-M-Y
+function parseReleaseDate(value) {
+    if (!value) return null;
+    if (value instanceof Date) return value;
+    const str = String(value).trim();
+    // ISO format 2025-08-27
+    let m = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (m) {
+        return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    }
+    // D/M/Y or D-M-Y
+    m = str.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+    if (m) {
+        return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+    }
+    // Fallback
+    return new Date(str);
+}
 function getWorkingDays(startDate, endDate) {
     let count = 0;
-    const current = new Date(startDate);
+    const current = (startDate instanceof Date) ? new Date(startDate) : parseReleaseDate(startDate);
     current.setHours(0, 0, 0, 0);
-    const end = new Date(endDate);
+    const end = (endDate instanceof Date) ? new Date(endDate) : parseReleaseDate(endDate);
     end.setHours(0, 0, 0, 0);
     
     if (current.getTime() === end.getTime()) {
@@ -2326,7 +2344,7 @@ function checkOverdueProgression() {
             record.status === 'Cancelled') return;
         
         try {
-            const releaseDate = new Date(record.releaseDate);
+            const releaseDate = parseReleaseDate(record.releaseDate);
             const workingDaysPassed = getWorkingDays(releaseDate, today);
             
             if (record.status === 'For SRV' && workingDaysPassed >= 7) {
@@ -2464,21 +2482,21 @@ document.addEventListener('DOMContentLoaded', function() {
         if (user) {
             updateAuthUI(true, user.email);
             loadFromFirebase().finally(() => {
-                connectBtn.disabled = false;
-                connectBtn.innerHTML = originalHTML;
+                if (connectBtn) connectBtn.disabled = false;
+                if (connectBtn) connectBtn.innerHTML = originalHTML;
             });
         } else {
             updateAuthUI(false);
             loadFromFirebase().finally(() => {
-                connectBtn.disabled = false;
-                connectBtn.innerHTML = originalHTML;
+                if (connectBtn) connectBtn.disabled = false;
+                if (connectBtn) connectBtn.innerHTML = originalHTML;
             });
         }
     });
     
     window.addEventListener('resize', setupResponsiveElements);
     
-    domCache.connectBtn.addEventListener('click', async function() {
+    if (domCache.connectBtn) domCache.connectBtn.addEventListener('click', async function() {
         const btn = this;
         const originalHTML = btn.innerHTML;
         
@@ -2523,8 +2541,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error loading data:', error);
                 updateConnectionStatus(false);
             } finally {
-                connectBtn.disabled = false;
-                connectBtn.innerHTML = originalHTML;
+                if (connectBtn) connectBtn.disabled = false;
+                if (connectBtn) connectBtn.innerHTML = originalHTML;
             }
         });
     });
@@ -3130,5 +3148,5 @@ function openIPCFromBottom(){
   document.querySelectorAll('.bottom-app-nav .nav-btn').forEach(b=>b.classList.remove('active'));
   const ipcBtn = Array.from(document.querySelectorAll('.bottom-app-nav .nav-btn span')).find(s=>s.textContent.trim()==='IPC');
   if(ipcBtn) ipcBtn.parentElement.classList.add('active');
-  window.open('https://ibaport.site/IPC/', '_blank');
+  window.open('https://dc-database.github.io/IPC/', '_blank');
 }

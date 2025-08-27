@@ -2891,3 +2891,6 @@ select {
     background-size: 10px 6px;
     padding-right: 30px;
 }
+
+/* Hide mobile menu data controls (year/refresh/connection/info) */
+.menu-data-info{display:none !important;}

@@ -27,8 +27,7 @@
 <div class="menu-item" onclick="showSection('invoiceSection')">
 <i class="fas fa-file-invoice"></i> <span class="menu-text">Invoice Status Tracker</span>
 </div>
-
-<div class="menu-item" onclick="window.open('https://ibaport.site/IPC/', '_blank')">
+<div class="menu-item" onclick="window.open('https://dc-database.github.io/IPC/', '_blank')">
 <i class="fas fa-database"></i> <span class="menu-text">IPC Records</span>
 </div>
 <div class="menu-item" onclick="window.open('https://dc-database.github.io/Progress-PO/', '_blank')"><i class="fas fa-clipboard-list"></i><span class="menu-text">Progress PO Log</span></div><div class="menu-item admin" onclick="showSection('dataManagementSection')">
@@ -80,7 +79,7 @@
 </div>
 </div>
 <div class="search-container">
-<input class="search-input" id="siteSearchTerm" list="siteSuggestionsMain" placeholder="Search by site..." type="text"/>
+<input autocomplete="off" class="search-input" id="siteSearchTerm" list="siteSuggestionsMain" placeholder="Search by site..." type="text"/>
 <datalist id="siteSuggestionsMain"></datalist>
 <button class="btn btn-primary search-btn" onclick="searchSiteRecords()">
 <i class="fas fa-search"></i> <span class="btn-text">Search</span>
@@ -140,7 +139,7 @@
 <div class="section-header">
 <h1>INVOICE STATUS TRACKER</h1>
 <div class="section-actions">
-<button class="btn btn-primary back-btn" style="display:none;" onclick="showSection('mainPageSection')" style="display:none;">
+<button class="btn btn-primary back-btn" onclick="showSection('mainPageSection')" style="display:none;">
 <i class="fas fa-arrow-left"></i> <span class="btn-text">Back</span>
 </button>
 <button class="btn btn-primary" onclick="addToCollectionFromTracker()">
@@ -208,7 +207,7 @@
 <div class="content-section" id="statementSection">
 <div class="section-header">
 <h1>Statement of Account</h1>
-<button class="btn btn-primary back-btn" style="display:none;" onclick="showSection('invoiceSection')">
+<button class="btn btn-primary back-btn" onclick="showSection('invoiceSection')" style="display:none;">
 <i class="fas fa-arrow-left"></i> <span class="btn-text">Back</span>
 </button>
 </div>
@@ -304,7 +303,7 @@
 <div class="content-section" id="pettyCashSection">
 <div class="section-header">
 <h1>Petty Cash Summary</h1>
-<button class="btn btn-primary back-btn" style="display:none;" onclick="showSection('invoiceSection')">
+<button class="btn btn-primary back-btn" onclick="showSection('invoiceSection')" style="display:none;">
 <i class="fas fa-arrow-left"></i> <span class="btn-text">Back</span>
 </button>
 </div>
@@ -366,32 +365,31 @@
 <div class="content-section" id="dataManagementSection">
 <div class="section-header">
 <h1>Data Management</h1>
-<button class="btn btn-primary back-btn" style="display:none;" onclick="showSection('mainPageSection')" style="display:none;">
+<button class="btn btn-primary back-btn" onclick="showSection('mainPageSection')" style="display:none;">
 <i class="fas fa-arrow-left"></i> <span class="btn-text">Back</span>
 </button>
 </div>
 <div class="data-management-grid">
 <!-- Approver Master (Upload & Template) -->
 <div class="management-card upload-card">
-  <h2>Approver List</h2>
-  <div class="file-input-container">
-    <label class="file-input-label" for="approverCsvInput">
-      <i class="fas fa-file-csv"></i> Choose Approver CSV
+<h2>Approver List</h2>
+<div class="file-input-container">
+<label class="file-input-label" for="approverCsvInput">
+<i class="fas fa-file-csv"></i> Choose Approver CSV
     </label>
-    <input id="approverCsvInput" type="file" accept=".csv" class="file-input" />
-  </div>
-  <button class="btn btn-primary" id="uploadApproverBtn" onclick="uploadApproverCSV()">
-    <i class="fas fa-upload"></i> Upload Approver CSV
-  </button>
-  <div class="upload-status" id="approverUploadStatus"></div>
-  <a class="template-download" href="#" onclick="downloadApproverTemplate()">
-    <i class="fas fa-download"></i> Download Approver CSV Template
-  </a>
-  <p style="margin-top:8px;font-size:13px;color:#666">Headers: <b>Name, Position, Mobile Number, Email</b> (Email optional)</p>
+<input accept=".csv" class="file-input" id="approverCsvInput" type="file"/>
 </div>
-
+<button class="btn btn-primary" id="uploadApproverBtn" onclick="uploadApproverCSV()">
+<i class="fas fa-upload"></i> Upload Approver CSV
+  </button>
+<div class="upload-status" id="approverUploadStatus"></div>
+<a class="template-download" href="#" onclick="downloadApproverTemplate()">
+<i class="fas fa-download"></i> Download Approver CSV Template
+  </a>
+<p style="margin-top:8px;font-size:13px;color:#666">Headers: <b>Name, Position, Mobile Number, Email</b> (Email optional)</p>
+</div>
 <!-- Admin Authentication Section -->
-<div class="management-card auth-card">  <div class="auth-strip-title"><i class="fas fa-lock"></i><span>Admin Authentication</span></div>  <button class="btn btn-secondary back-inline" onclick="showSection('mainPageSection')">    <i class="fas fa-arrow-left"></i> Back  </button>  <button class="btn btn-danger" id="logoutBtn" onclick="logout()" style="display: none;">Logout</button>  <div class="login-info" id="loginInfo"><strong id="loggedInAs" style="display:none;"></strong></div>  <input class="auth-input" id="emailInput" placeholder="Admin Email" type="email"/>  <input class="auth-input" id="passwordInput" placeholder="Password" type="password"/>  <button class="btn btn-primary" id="loginBtn" onclick="login()">Sign in</button>  <div class="auth-message" id="authMessage"></div></div>
+<div class="management-card auth-card"> <div class="auth-strip-title"><i class="fas fa-lock"></i><span>Admin Authentication</span></div> <button class="btn btn-secondary back-inline" onclick="showSection('mainPageSection')"> <i class="fas fa-arrow-left"></i> Back  </button> <button class="btn btn-danger" id="logoutBtn" onclick="logout()" style="display: none;">Logout</button> <div class="login-info" id="loginInfo"><strong id="loggedInAs" style="display:none;"></strong></div> <input class="auth-input" id="emailInput" placeholder="Admin Email" type="email"/> <input class="auth-input" id="passwordInput" placeholder="Password" type="password"/> <button class="btn btn-primary" id="loginBtn" onclick="login()">Sign in</button> <div class="auth-message" id="authMessage"></div></div>
 <!-- Upload CSV Data -->
 <div class="management-card upload-card">
 <h2><i class="fas fa-file-upload"></i> Upload CSV Data</h2>
@@ -474,10 +472,10 @@
 <span class="detail-label">Status:</span>
 <span class="detail-value" id="previewStatus"></span>
 </div>
-        <div class="detail-row">
-          <span class="detail-label">Release Date:</span>
-          <span class="detail-value" id="previewReleaseDate"></span>
-        </div>
+<div class="detail-row">
+<span class="detail-label">Release Date:</span>
+<span class="detail-value" id="previewReleaseDate"></span>
+</div>
 <div class="detail-row">
 <span class="detail-label">Notes:</span>
 <span class="detail-value" id="previewNotes"></span>
@@ -644,60 +642,56 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
 <script>
 // Register Chart.js plugins if present
 if (window.Chart && window.ChartDataLabels) { Chart.register(window.ChartDataLabels); }
 </script>
 <script src="app.js"></script>
-
 <!-- Send Approval Modal -->
 <div class="modal" id="approvalModal">
-  <div class="modal-content">
-    <span class="close-modal" onclick="closeApprovalModal()">×</span>
-    <h2>Send Approval via WhatsApp</h2>
-    <div class="preview-details">
-      <div class="detail-row"><span class="detail-label">Site:</span><span class="detail-value" id="apprSite"></span></div>
-      <div class="detail-row"><span class="detail-label">PO Number:</span><span class="detail-value" id="apprPO"></span></div>
-      <div class="detail-row"><span class="detail-label">Vendor:</span><span class="detail-value" id="apprVendor"></span></div>
-      <div class="detail-row"><span class="detail-label">Amount:</span><span class="detail-value" id="apprAmount"></span></div>
-    </div>
-    <div style="margin:12px 0">
-      <label for="approverSelect" class="detail-label" style="display:block;margin-bottom:6px;">Send to Approver</label>
-      <select id="approverSelect" class="auth-input"></select>
-      <small style="display:block;margin-top:6px;color:#666">Approver list is loaded from Firebase → <b>Approver</b></small>
-    </div>
-    <div style="margin:12px 0">
-      <label for="approvalMessage" class="detail-label" style="display:block;margin-bottom:6px;">Optional Message</label>
-      <textarea id="approvalMessage" class="auth-input" rows="3" placeholder="Add a short note (optional)"></textarea>
-    </div>
-    <div class="action-btns" style="margin-top: 12px; justify-content:center;">
-      <button class="btn btn-success" id="sendApprovalBtn">
-        <i class="fab fa-whatsapp"></i> Send via WhatsApp
-      </button>
-    </div>
-  </div>
+<div class="modal-content">
+<span class="close-modal" onclick="closeApprovalModal()">×</span>
+<h2>Send Approval via WhatsApp</h2>
+<div class="preview-details">
+<div class="detail-row"><span class="detail-label">Site:</span><span class="detail-value" id="apprSite"></span></div>
+<div class="detail-row"><span class="detail-label">PO Number:</span><span class="detail-value" id="apprPO"></span></div>
+<div class="detail-row"><span class="detail-label">Vendor:</span><span class="detail-value" id="apprVendor"></span></div>
+<div class="detail-row"><span class="detail-label">Amount:</span><span class="detail-value" id="apprAmount"></span></div>
 </div>
-
-
+<div style="margin:12px 0">
+<label class="detail-label" for="approverSelect" style="display:block;margin-bottom:6px;">Send to Approver</label>
+<select class="auth-input" id="approverSelect"></select>
+<small style="display:block;margin-top:6px;color:#666">Approver list is loaded from Firebase → <b>Approver</b></small>
+</div>
+<div style="margin:12px 0">
+<label class="detail-label" for="approvalMessage" style="display:block;margin-bottom:6px;">Optional Message</label>
+<textarea class="auth-input" id="approvalMessage" placeholder="Add a short note (optional)" rows="3"></textarea>
+</div>
+<div class="action-btns" style="margin-top: 12px; justify-content:center;">
+<button class="btn btn-success" id="sendApprovalBtn">
+<i class="fab fa-whatsapp"></i> Send via WhatsApp
+      </button>
+</div>
+</div>
+</div>
 <!-- Bottom App Nav (fixed, always visible) -->
-<nav class="bottom-app-nav" id="bottomAppNav" aria-label="Primary">
-  <button class="nav-btn" data-target="mainPageSection" onclick="handleBottomNav(this)">
-    <i class="fas fa-home"></i><span>Home</span>
-  </button>
-  <button class="nav-btn" data-target="invoiceSection" onclick="handleBottomNav(this)">
-    <i class="fas fa-file-invoice"></i><span>Invoices</span>
-  </button>
-  <button class="nav-btn" data-target="statementSection" onclick="handleBottomNav(this)">
-    <i class="fas fa-list"></i><span>Statement</span>
-  </button>
-  <button class="nav-btn" onclick="openIPCFromBottom()">
-    <i class="fas fa-database"></i><span>IPC</span>
-  </button>
+<nav aria-label="Primary" class="bottom-app-nav" id="bottomAppNav">
+<button class="nav-btn" data-target="mainPageSection" onclick="handleBottomNav(this)">
+<i class="fas fa-home"></i><span>Home</span>
+</button>
+<button class="nav-btn" data-target="invoiceSection" onclick="handleBottomNav(this)">
+<i class="fas fa-file-invoice"></i><span>Invoices</span>
+</button>
+<button class="nav-btn" data-target="statementSection" onclick="handleBottomNav(this)">
+<i class="fas fa-list"></i><span>Statement</span>
+</button>
+<button class="nav-btn" onclick="openIPCFromBottom()">
+<i class="fas fa-database"></i><span>IPC</span>
+</button>
 </nav>
-
 </body>
 </html>
