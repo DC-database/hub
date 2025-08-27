@@ -1,229 +1,208 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>IPC System</title>
-  <link rel="stylesheet" href="style.css" />
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>IPC System</title>
+<link href="style.css" rel="stylesheet"/>
 </head>
 <body>
-  <!-- overlay for mobile sidebar -->
-  <div id="overlay" onclick="closeSidebar()" aria-hidden="true"></div>
-
-  <!-- Sidebar -->
-  <div class="sidebar" id="sidebar">
-    <button class="close-sidebar" onclick="closeSidebar()" aria-label="Close menu">✕</button>
-    <h2>📋 IPC Portal</h2>
-    <ul>
-      <li id="authButton" onclick="navigateFromSidebar('loginSection')">🔑 Login</li>
-      <li id="ipcMenu" style="display:none;" onclick="navigateFromSidebar('ipcSection')">📝 IPC Management</li>
-      <li id="activeIPCMenu" onclick="navigateFromSidebar('activeIPCSection')">📊 View Active IPC</li>
-      <li id="settingsMenu" style="display:none;" onclick="navigateFromSidebar('settingsSection')">⚙️ Settings</li>
-      <li id="logoutButton" style="display:none;" onclick="logout()">🚪 Logout</li>
-    </ul>
-    <div id="userDisplay" style="display:none;"></div>
-  </div>
-
-  <!-- Topbar -->
-  <div class="topbar">
-    <button id="hamburgerBtn" class="hamburger" onclick="toggleSidebar()" aria-label="Open menu">☰</button>
-    <div class="topbar-title">IPC System</div>
-  </div>
-
-  <div class="main">
-   <section id="loginSection">
-  <div id="loginBox">
-    <h2>User Login</h2>
-    <input type="email" id="loginEmail" placeholder="Email"
-      onkeypress="if(event.key === 'Enter'){ loginUser(); }" />
-    <input type="password" id="loginPassword" placeholder="Password"
-      onkeypress="if(event.key === 'Enter'){ loginUser(); }" />
-    <button onclick="loginUser()">Login</button>
-  <div id="welcomeBox" style="display:none;">
-        <h2 id="welcomeMsg"></h2>
-        <button id="startIPCBtn" class="welcome-add-ipc" onclick="startIPC()">➕ Click here to add IPC</button>
-      </div></div></section>
-
-    <!-- Existing IPC Entry page -->
-    <section id="ipcSection" style="display:none;">
-      <h2>IPC Entry</h2>
-      <div class="ipc-flex-container">
-        <!-- LEFT -->
-        <div class="ipc-left-column">
-          <input type="text" id="poInput" placeholder="Enter PO Number" / class="po-input">
-          <button onclick="fetchPO()">Fetch PO</button>
-
-          <!-- PO Information (default open with +/- toggle) -->
-          <div class="poinfo-card">
-            <div class="toggle-row" onclick="togglePOInfo()" role="button" aria-expanded="true" aria-controls="poInfoWrap">
-              <span class="toggle-label">PO Information</span>
-              <span id="poInfoIcon" class="toggle-icon">−</span>
-            </div>
-
-            <div id="poInfoWrap" class="toggle-content">
-              <div id="poDetails" style="display:none;">
-                <div class="form-group" id="poInfoCard" style="display:none;">
-                  <label><strong>Site</strong></label>
-                  <input type="text" id="site" readonly />
-                  <label><strong>ID No</strong></label>
-                  <input type="text" id="idNo" readonly />
-                  <label><strong>Vendor</strong></label>
-                  <input type="text" id="vendor" readonly />
-                  <label><strong>Value</strong></label>
-                  <input type="text" id="value" readonly />
-                </div>
-              </div>
-
-              <div id="poInfoDisplay" class="form-group" style="display:none;">
-                <p><strong>Site:</strong> <span id="infoSite"></span></p>
-                <p><strong>ID No:</strong> <span id="infoIdNo"></span></p>
-                <p><strong>Vendor:</strong> <span id="infoVendor"></span></p>
-                <p><strong>Value:</strong> <span id="infoValue"></span></p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- RIGHT -->
-        <div class="ipc-right-column" style="display:none;">
-          <h3>Add IPC Entry</h3>
-          <div id="ipcEntrySection" style="display:none;">
-            <div class="form-group">
-              <label for="certifiedAmount">Certified Amount</label>
-              <input type="number" id="certifiedAmount" placeholder="Enter certified amount" title="Certified Amount" />
-
-              <label for="previousPayment">Previous Payment</label>
-              <input type="text" id="previousPayment" placeholder="Previous payment" title="Previous Payment" readonly />
-
-              <label for="retention">Retention</label>
-              <input type="number" id="retention" placeholder="Enter retention" title="Retention" />
-              
-<div class="retention-calc">
-  <div class="retention-row">
-    <label class="mini" for="retentionPercent">Ret.%</label>
-    <input type="number" id="retentionPercent" min="0" step="0.01" placeholder="%" title="Retention percent" />
-  </div>
-  <div class="retention-row">
-    <label class="mini" for="retentionBase">Base</label>
-    <input type="number" id="retentionBase" min="0" step="0.01" placeholder="amount" title="Retention base amount" />
-  </div>
+<!-- overlay for mobile sidebar -->
+<div aria-hidden="true" id="overlay" onclick="closeSidebar()"></div>
+<!-- Sidebar -->
+<div class="sidebar" id="sidebar">
+<button aria-label="Close menu" class="close-sidebar" onclick="closeSidebar()">✕</button>
+<h2>📋 IPC Portal</h2>
+<ul>
+<li id="authButton" onclick="navigateFromSidebar('loginSection')">🔑 Login</li>
+<li id="ipcMenu" onclick="navigateFromSidebar('ipcSection')" style="display:none;">📝 IPC Management</li>
+<li id="activeIPCMenu" onclick="navigateFromSidebar('activeIPCSection')">📊 View Active IPC</li>
+<li id="settingsMenu" onclick="navigateFromSidebar('settingsSection')" style="display:none;">⚙️ Settings</li>
+<li onclick="window.open('https://dc-database.github.io/001/', '_blank')">📂 INVOICE TRACKER</li><li id="logoutButton" onclick="logout()" style="display:none;">🚪 Logout</li>
+</ul>
+<div id="userDisplay" style="display:none;"></div>
 </div>
-
-
-
-              <label for="amountToPaid">Amount To Paid</label>
-              <input data-manual="1" type="text" id="amountToPaid" placeholder="QAR 0.00" title="Amount To Paid" />
-
-              <div class="button-row">
-                <button onclick="addIPC()">Add IPC</button>
-                <button onclick="clearIPCFields()">Clear</button>
-              </div>
-            </div>
-
-            <h3 class="ipc-entries-title">IPC Entries</h3>
-            <table>
-              <thead>
-                <tr>
-                  <th>IPC No</th>
-                  <th>Certified Amount</th>
-                  <th>Previous Payment</th>
-                  <th>Retention</th>
-                  <th>Amount To Paid</th>
-                  <th>Date</th><th>Remarks</th><th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="ipcTableBody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- New: Active IPC page -->
-    <section id="activeIPCSection" style="display:none;">
-      <h2>View Active IPC</h2>
-      <div class="form-group" style="max-width:800px;">
-        <label for="activePOSearch" style="font-weight:600;">Search PO / Site / ID / Vendor</label>
-        <input type="text" id="activePOSearch" placeholder="Type to filter…" oninput="filterActivePOs()" />
-      </div>
-
-      <div class="form-group" style="max-width:100%;">
-        <div class="table-responsive">
-          <table class="active-po-table">
-            <thead>
-              <tr>
-                <th style="width:50px;"></th>
-                <th>PO</th>
-                <th>Site</th>
-                <th>ID No</th>
-                <th>Vendor</th>
-                <th>Value</th>
-              </tr>
-            </thead>
-            <tbody id="activePOTableBody"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- Settings page unchanged -->
-    <section id="settingsSection" style="display:none;">
-      <h2 id="settingsTitle">Settings</h2>
-      <div id="userInfoSection" style="display:none;">
-        <div class="form-group">
-          <h3>Your Account Information</h3>
-          <table class="info-table">
-            <tr><td><strong>Name:</strong></td><td><span id="userInfoName"></span></td></tr>
-            <tr><td><strong>Email:</strong></td><td><span id="userInfoEmail"></span></td></tr>
-          </table>
-        </div>
-      </div>
-      <div id="changePasswordSection" style="display:none;">
-        <div class="form-group">
-          <h3>Change Password</h3>
-          <table class="info-table">
-            <tr><td><strong>Current Password</strong></td><td><input type="password" id="currentPassword" required></td></tr>
-            <tr><td><strong>New Password</strong></td><td><input type="password" id="newPassword" required></td></tr>
-            <tr><td><strong>Confirm Password</strong></td><td><input type="password" id="confirmPassword" required></td></tr>
-          </table>
-          <button onclick="changePassword()">Save Password</button>
-          <p id="passwordChangeMessage" style="display:none;"></p>
-        </div>
-      </div>
-      <div id="userManagementSection" style="display:none;">
-        <div class="form-group">
-          <h3>User List</h3>
-          <table class="users-table styled-table">
-            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
-            <tbody id="usersTableBody"></tbody>
-          </table>
-        </div>
-        <div class="form-group">
-          <h3>Add/Update User</h3>
-          <table class="info-table">
-            <tr><td><strong>Name</strong></td><td><input type="text" id="newName" placeholder="Full Name"></td></tr>
-            <tr><td><strong>Email</strong></td><td><input type="email" id="newEmail" placeholder="Email"></td></tr>
-            <tr><td><strong>Role</strong></td><td>
-              <select id="userRole">
-                <option value="user">User</option>
-                <option value="admin">Admin</option>
-              </select>
-            </td></tr>
-            <tr><td><strong>Password</strong></td><td><input type="password" id="tempPassword" placeholder="Password"></td></tr>
-          </table>
-          <div class="button-group">
-            <button id="addNewUserBtn" onclick="addNewUser()">Add New User</button>
-            <button id="updateUserBtn" onclick="updateUser()" style="display:none;">Update User</button>
-            <button id="cancelEditBtn" onclick="cancelEdit()" style="display:none;">Cancel</button>
-          </div>
-        </div>
-      </div>
-    </section>
-  </div>
-
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script src="app.js"></script>
+<!-- Topbar -->
+<div class="topbar">
+<button aria-label="Open menu" class="hamburger" id="hamburgerBtn" onclick="toggleSidebar()">☰</button>
+<div class="topbar-title">IPC System</div>
+</div>
+<div class="main">
+<section id="loginSection">
+<div id="loginBox">
+<h2>User Login</h2>
+<input id="loginEmail" onkeypress="if(event.key === 'Enter'){ loginUser(); }" placeholder="Email" type="email"/>
+<input id="loginPassword" onkeypress="if(event.key === 'Enter'){ loginUser(); }" placeholder="Password" type="password"/>
+<button onclick="loginUser()">Login</button>
+<div id="welcomeBox" style="display:none;">
+<h2 id="welcomeMsg"></h2>
+<button class="welcome-add-ipc" id="startIPCBtn" onclick="startIPC()">➕ Click here to add IPC</button>
+</div></div></section>
+<!-- Existing IPC Entry page -->
+<section id="ipcSection" style="display:none;">
+<h2>IPC Entry</h2>
+<div class="ipc-flex-container">
+<!-- LEFT -->
+<div class="ipc-left-column">
+<input class="po-input" id="poInput" placeholder="Enter PO Number" type="text"/>
+<button onclick="fetchPO()">Fetch PO</button>
+<!-- PO Information (default open with +/- toggle) -->
+<div class="poinfo-card">
+<div aria-controls="poInfoWrap" aria-expanded="true" class="toggle-row" onclick="togglePOInfo()" role="button">
+<span class="toggle-label">PO Information</span>
+<span class="toggle-icon" id="poInfoIcon">−</span>
+</div>
+<div class="toggle-content" id="poInfoWrap">
+<div id="poDetails" style="display:none;">
+<div class="form-group" id="poInfoCard" style="display:none;">
+<label><strong>Site</strong></label>
+<input id="site" readonly="" type="text"/>
+<label><strong>ID No</strong></label>
+<input id="idNo" readonly="" type="text">
+<label><strong>Vendor</strong></label>
+<input id="vendor" readonly="" type="text"/>
+<label><strong>Value</strong></label>
+<input id="value" readonly="" type="text"/>
+</input></div>
+</div>
+<div class="form-group" id="poInfoDisplay" style="display:none;">
+<p><strong>Site:</strong> <span id="infoSite"></span></p>
+<p><strong>ID No:</strong> <span id="infoIdNo"></span></p>
+<p><strong>Vendor:</strong> <span id="infoVendor"></span></p>
+<p><strong>Value:</strong> <span id="infoValue"></span></p>
+</div>
+</div>
+</div>
+</div>
+<!-- RIGHT -->
+<div class="ipc-right-column" style="display:none;">
+<h3>Add IPC Entry</h3>
+<div id="ipcEntrySection" style="display:none;">
+<div class="form-group">
+<label for="certifiedAmount">Certified Amount</label>
+<input id="certifiedAmount" placeholder="Enter certified amount" title="Certified Amount" type="number"/>
+<label for="previousPayment">Previous Payment</label>
+<input id="previousPayment" placeholder="Previous payment" readonly="" title="Previous Payment" type="text"/>
+<label for="retention">Retention</label>
+<input id="retention" placeholder="Enter retention" title="Retention" type="number"/>
+<div class="retention-calc">
+<div class="retention-row">
+<label class="mini" for="retentionPercent">Ret.%</label>
+<input id="retentionPercent" min="0" placeholder="%" step="0.01" title="Retention percent" type="number"/>
+</div>
+<div class="retention-row">
+<label class="mini" for="retentionBase">Base</label>
+<input id="retentionBase" min="0" placeholder="amount" step="0.01" title="Retention base amount" type="number"/>
+</div>
+</div>
+<label for="amountToPaid">Amount To Paid</label>
+<input data-manual="1" id="amountToPaid" placeholder="QAR 0.00" title="Amount To Paid" type="text"/>
+<div class="button-row">
+<button onclick="addIPC()">Add IPC</button>
+<button onclick="clearIPCFields()">Clear</button>
+</div>
+</div>
+<h3 class="ipc-entries-title">IPC Entries</h3>
+<table>
+<thead>
+<tr>
+<th>IPC No</th>
+<th>Certified Amount</th>
+<th>Previous Payment</th>
+<th>Retention</th>
+<th>Amount To Paid</th>
+<th>Date</th><th>Remarks</th><th>Actions</th>
+</tr>
+</thead>
+<tbody id="ipcTableBody"></tbody>
+</table>
+</div>
+</div>
+</div>
+</section>
+<!-- New: Active IPC page -->
+<section id="activeIPCSection" style="display:none;">
+<h2>View Active IPC</h2>
+<div class="form-group" style="max-width:800px;">
+<label for="activePOSearch" style="font-weight:600;">Search PO / Site / ID / Vendor</label>
+<input id="activePOSearch" oninput="filterActivePOs()" placeholder="Type to filter…" type="text"/>
+</div>
+<div class="form-group" style="max-width:100%;">
+<div class="table-responsive">
+<table class="active-po-table">
+<thead>
+<tr>
+<th style="width:50px;"></th>
+<th>PO</th>
+<th>Site</th>
+<th>ID No</th>
+<th>Vendor</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody id="activePOTableBody"></tbody>
+</table>
+</div>
+</div>
+</section>
+<!-- Settings page unchanged -->
+<section id="settingsSection" style="display:none;">
+<h2 id="settingsTitle">Settings</h2>
+<div id="userInfoSection" style="display:none;">
+<div class="form-group">
+<h3>Your Account Information</h3>
+<table class="info-table">
+<tr><td><strong>Name:</strong></td><td><span id="userInfoName"></span></td></tr>
+<tr><td><strong>Email:</strong></td><td><span id="userInfoEmail"></span></td></tr>
+</table>
+</div>
+</div>
+<div id="changePasswordSection" style="display:none;">
+<div class="form-group">
+<h3>Change Password</h3>
+<table class="info-table">
+<tr><td><strong>Current Password</strong></td><td><input id="currentPassword" required="" type="password"/></td></tr>
+<tr><td><strong>New Password</strong></td><td><input id="newPassword" required="" type="password"/></td></tr>
+<tr><td><strong>Confirm Password</strong></td><td><input id="confirmPassword" required="" type="password"/></td></tr>
+</table>
+<button onclick="changePassword()">Save Password</button>
+<p id="passwordChangeMessage" style="display:none;"></p>
+</div>
+</div>
+<div id="userManagementSection" style="display:none;">
+<div class="form-group">
+<h3>User List</h3>
+<table class="users-table styled-table">
+<thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
+<tbody id="usersTableBody"></tbody>
+</table>
+</div>
+<div class="form-group">
+<h3>Add/Update User</h3>
+<table class="info-table">
+<tr><td><strong>Name</strong></td><td><input id="newName" placeholder="Full Name" type="text"/></td></tr>
+<tr><td><strong>Email</strong></td><td><input id="newEmail" placeholder="Email" type="email"/></td></tr>
+<tr><td><strong>Role</strong></td><td>
+<select id="userRole">
+<option value="user">User</option>
+<option value="admin">Admin</option>
+</select>
+</td></tr>
+<tr><td><strong>Password</strong></td><td><input id="tempPassword" placeholder="Password" type="password"/></td></tr>
+</table>
+<div class="button-group">
+<button id="addNewUserBtn" onclick="addNewUser()">Add New User</button>
+<button id="updateUserBtn" onclick="updateUser()" style="display:none;">Update User</button>
+<button id="cancelEditBtn" onclick="cancelEdit()" style="display:none;">Cancel</button>
+</div>
+</div>
+</div>
+</section>
+</div>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
