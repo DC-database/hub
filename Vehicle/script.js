@@ -1,3 +1,19 @@
+
+// ==== Firebase Config (provided) ====
+const firebaseConfig = {
+  apiKey: "AIzaSyDeb_IqhFmvkzwD1kmzVqznul9uZZWju3M",
+  authDomain: "vehicle-4441a.firebaseapp.com",
+  databaseURL: "https://vehicle-4441a-default-rtdb.firebaseio.com",
+  projectId: "vehicle-4441a",
+  storageBucket: "vehicle-4441a.firebasestorage.app",
+  messagingSenderId: "1081587346093",
+  appId: "1:1081587346093:web:d92f6ad09e0fdbbc25b424",
+  measurementId: "G-CKLQ1RTLHZ"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const auth = firebase.auth();
+
 // Global variables
 let allData = [];
 let vehicleDataMap = new Map();
@@ -27,6 +43,8 @@ const closingValueSpan = document.getElementById('closingValue');
 
 // Dashboard elements
 const dashboardSection = document.getElementById('dashboard');
+const adminSection = document.getElementById('adminSection');
+const adminBtn = document.getElementById('adminBtn');
 const singleReportSection = document.getElementById('singleReport');
 const fullReportSection = document.getElementById('fullReport');
 const dashboardBtn = document.getElementById('dashboardBtn');
@@ -56,7 +74,7 @@ const printFullReportBtn = document.getElementById('printFullReportBtn');
 const fullReportPreview = document.getElementById('fullReportPreview');
 
 // Book8.csv data (converted to array)
-const book8Data = [
+let book8Data = [
     {plate: "102095", type: "BUS 66 SEATER - TATA", fleetNo: "IBA/BUS/011", driver: "ARBAB KHAN PIR GUL - 01666"},
     {plate: "104498", type: "BUS 66 SEATER - ASHOK LEYLAND", fleetNo: "IBA/BUS/003", driver: "NAEEM AHMED - 01712"},
     {plate: "105086", type: "3 TON SINGLE CABIN PICKUP - MITSUBISHI", fleetNo: "IBA/TS2/002", driver: "MOHAMMAD USUF A.KHA - 01711"},
@@ -179,6 +197,11 @@ function setupEventListeners() {
         switchReport('full');
         toggleMenu();
     });
+
+    adminBtn.addEventListener('click', () => {
+        switchReport('admin');
+        toggleMenu();
+    });
     
     // Dashboard controls
     dashboardYearFilter.addEventListener('change', updateDashboard);
@@ -226,19 +249,50 @@ function switchReport(type) {
         dashboardBtn.classList.remove('active');
         singleReportBtn.classList.add('active');
         fullReportBtn.classList.remove('active');
+    } else if (type === 'admin') {
+        dashboardSection.classList.remove('active');
+        singleReportSection.classList.remove('active');
+        fullReportSection.classList.remove('active');
+        adminSection.classList.add('active');
+        dashboardBtn.classList.remove('active');
+        singleReportBtn.classList.remove('active');
+        fullReportBtn.classList.remove('active');
+        adminBtn.classList.add('active');
     } else {
         dashboardSection.classList.remove('active');
         singleReportSection.classList.remove('active');
         fullReportSection.classList.add('active');
+        adminSection.classList.remove('active');
         dashboardBtn.classList.remove('active');
         singleReportBtn.classList.remove('active');
         fullReportBtn.classList.add('active');
+        adminBtn.classList.remove('active');
         generateFullReportPreview();
     }
 }
 
 function formatFinancial(num) {
     return parseFloat(num || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+
+async function loadBook8FromRTDB(){
+  try{
+    const snap = await db.ref('registered vehicle').get();
+    const val = snap.val();
+    let rows = [];
+    if (Array.isArray(val)) rows = val.filter(Boolean);
+    else if (val && typeof val === 'object') rows = Object.values(val);
+    if (rows.length){
+      // Normalize header keys
+      book8Data = rows.map(r=>({ 
+        plate: String(r.plate || r.Plate || r.PlateNo || '').trim(),
+        type: String(r.type || r.Type || '').trim(),
+        fleetNo: String(r.fleetNo || r['fleet no'] || r.FleetNo || '').trim(),
+        driver: String(r.driver || r.Driver || '').trim()
+      })).filter(r=>r.plate);
+    }
+  }catch(e){ console.error('loadBook8FromRTDB error', e); }
 }
 
 function loadCSVFromURL() {
@@ -1424,3 +1478,80 @@ function printFullReport() {
 
 // Initialize the app
 document.addEventListener('DOMContentLoaded', init);
+
+
+// ===== Admin: Auth + Book8 uploader =====
+const signInBtn = document.getElementById('signInBtn');
+const signOutBtn = document.getElementById('signOutBtn');
+const authEmail = document.getElementById('authEmail');
+const authPass = document.getElementById('authPass');
+const authStatus = document.getElementById('authStatus');
+const book8AdminInput = document.getElementById('book8AdminInput');
+const uploadBook8Btn = document.getElementById('uploadBook8Btn');
+const dlBook8TemplateBtn = document.getElementById('dlBook8TemplateBtn');
+const book8AdminStatus = document.getElementById('book8AdminStatus');
+
+const ADMIN_UID = 'uX2za3AV63XYj2AGAQfPHDYCiYr1';
+
+auth.onAuthStateChanged(user => {
+  if (user) {
+    authStatus.textContent = `Signed in: ${user.email} (UID: ${user.uid})`;
+  } else {
+    authStatus.textContent = 'Not signed in';
+  }
+});
+
+if (signInBtn) signInBtn.addEventListener('click', async () => {
+  try{
+    await auth.signInWithEmailAndPassword(authEmail.value.trim(), authPass.value);
+  }catch(e){ alert('Sign-in failed: ' + (e.message||e)); }
+});
+if (signOutBtn) signOutBtn.addEventListener('click', () => auth.signOut());
+
+function downloadBook8Template(){
+  const csv = 'plate,type,fleetNo,driver\n102095,BUS 66 SEATER - TATA,IBA/BUS/011,ARBAB KHAN PIR GUL - 0168\n104498,BUS 66 SEATER - TATA,IBA/BUS/012,ABDUL RAHIM - 0169';
+  // Fix the sample to valid CSV
+}
+
+if (dlBook8TemplateBtn) dlBook8TemplateBtn.addEventListener('click', ()=>{
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download = 'book8_template.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+});
+
+if (uploadBook8Btn) uploadBook8Btn.addEventListener('click', ()=>{
+  if (!auth.currentUser || auth.currentUser.uid !== ADMIN_UID){
+    alert('You must sign in as admin to upload.');
+    return;
+  }
+  const f = book8AdminInput.files && book8AdminInput.files[0];
+  if (!f){ alert('Choose Book8.csv first.'); return; }
+  book8AdminStatus.textContent = 'Parsing CSV…';
+  Papa.parse(f, {
+    header: true,
+    skipEmptyLines: true,
+    complete: async (res)=>{
+      try{
+        let rows = (res.data||[]).map(r=>({ 
+          plate: String(r.plate || r.Plate || r.PlateNo || '').trim(),
+          type: String(r.type || r.Type || '').trim(),
+          fleetNo: String(r.fleetNo || r['fleet no'] || r.FleetNo || '').trim(),
+          driver: String(r.driver || r.Driver || '').trim()
+        })).filter(r=>r.plate);
+        if (!rows.length){ throw new Error('CSV empty or headers missing (need plate,type,fleetNo,driver).'); }
+        book8AdminStatus.textContent = 'Writing to Realtime Database…';
+        await db.ref('registered vehicle').set(rows);
+        book8AdminStatus.innerHTML = '<span style="color:green">Uploaded & saved to <b>registered vehicle</b>. Reloading data…</span>';
+        await loadBook8FromRTDB();
+        updateDashboard(); // refresh cards that depend on book8 types
+      }catch(e){
+        console.error(e);
+        book8AdminStatus.innerHTML = '<span style="color:red">Upload failed: '+(e.message||e)+'</span>';
+      }
+    },
+    error: (err)=>{
+      book8AdminStatus.innerHTML = '<span style="color:red">Parse error: '+(err.message||err)+'</span>';
+    }
+  });
+});

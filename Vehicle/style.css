@@ -862,3 +862,5 @@ footer {
     70% { box-shadow: 0 0 0 10px rgba(52, 152, 219, 0); }
     100% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0); }
 }
+.auth-card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:12px;margin-bottom:12px}
+.auth-status{font-weight:600}

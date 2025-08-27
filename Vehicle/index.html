@@ -7,6 +7,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 </head>
 <body>
     <div class="mobile-header">
@@ -38,6 +41,11 @@
             <li>
                 <button id="fullReportBtn" class="report-btn">
                     <i class="fas fa-book"></i> Full Report
+                </button>
+            </li>
+                    <li>
+                <button id="adminBtn" class="report-btn">
+                    <i class="fas fa-cloud-upload-alt"></i> Admin Upload
                 </button>
             </li>
         </ul>
@@ -249,6 +257,41 @@
             <div id="fullReportPreview"></div>
         </section>
 
+        
+        <!-- Admin Upload Section -->
+        <section id="adminSection" class="report-section">
+            <div class="dashboard-header">
+                <h2><i class="fas fa-cloud-upload-alt"></i> Admin Upload (Book8.csv)</h2>
+            </div>
+            <div class="auth-card" style="background:#fff;border:1px solid #ddd;border-radius:10px;padding:12px;margin-bottom:12px">
+                <div id="authStatus" class="auth-status">Not signed in</div>
+                <div class="auth-actions" style="display:flex;gap:8px;flex-wrap:wrap">
+                    <input id="authEmail" type="email" placeholder="Email" style="padding:8px;border:1px solid #ddd;border-radius:6px">
+                    <input id="authPass" type="password" placeholder="Password" style="padding:8px;border:1px solid #ddd;border-radius:6px">
+                    <button id="signInBtn" class="refresh-btn"><i class="fas fa-sign-in-alt"></i> Sign in</button>
+                    <button id="signOutBtn" class="refresh-btn" style="background:#e74c3c"><i class="fas fa-sign-out-alt"></i> Sign out</button>
+                </div>
+                <div class="hint" style="margin-top:6px;color:#666">Writes are allowed only for the admin UID.</div>
+            </div>
+            <div class="dashboard-grid">
+                <div class="dashboard-card">
+                    <div class="card-content">
+                        <div class="card-icon"><i class="fas fa-file-csv"></i></div>
+                        <div class="card-text">
+                            <h3>Upload <code>Book8.csv</code></h3>
+                            <p>To RTDB <b>registered vehicle</b>.</p>
+                        </div>
+                    </div>
+                    <div style="margin-top:12px">
+                        <input type="file" id="book8AdminInput" accept=".csv">
+                        <button class="refresh-btn" id="uploadBook8Btn" style="margin-top:8px"><i class="fas fa-upload"></i> Upload Book8.csv</button>
+                        <button class="refresh-btn" id="dlBook8TemplateBtn" style="margin-top:8px"><i class="fas fa-download"></i> Download template</button>
+                        <div id="book8AdminStatus" style="margin-top:8px;font-size:.9rem;color:#333"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    
         <footer>
             <p>IBA Trading & Transportation WLL</p>
             <p>System Generated Report - <span id="footerDate"></span></p>
