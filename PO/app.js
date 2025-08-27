@@ -117,8 +117,7 @@ function generateAZFilter(){
     const btn=document.createElement("button"); btn.textContent=letter; btn.onclick=()=>filterByVendorLetter(letter); c.appendChild(btn);
   });
 }
-function renderRow(childKey, data){
-  lastRenderedRows[childKey]=data;
+function renderRow(childKey, data){lastRenderedRows[childKey]=data;
   const checked = selectedPOs[childKey] ? 'checked' : '';
   const tr=document.createElement('tr');
   tr.innerHTML =
@@ -369,3 +368,82 @@ window.uploadCSV=uploadCSV; window.uploadMasterPO=uploadMasterPO; window.deleteA
 window.downloadMainTemplate=downloadMainTemplate; window.downloadMasterTemplate=downloadMasterTemplate;
 window.addCheckedToCollection=addCheckedToCollection; window.viewCollection=viewCollection; window.clearCollection=clearCollection;
 window.sendWhatsAppRequestAuto=sendWhatsAppRequestAuto;
+
+
+
+// === Delegated single-click-to-select on table rows (non-destructive) ===
+(function attachRowClickDelegation(){
+  try {
+    var tbody = document.querySelector('#poTable tbody');
+    if (!tbody) return;
+    // avoid double-binding
+    if (tbody.__rowClickBound) return;
+    tbody.__rowClickBound = true;
+
+    tbody.addEventListener('click', function(e){
+      // ignore clicks on interactive controls
+      var ctrl = e.target.closest('input,button,a,select,label,textarea,svg');
+      if (ctrl) return;
+
+      var tr = e.target.closest('tr');
+      if (!tr) return;
+
+      var checkbox = tr.querySelector('input.rowSelect');
+      if (!checkbox) return;
+
+      // toggle checkbox and trigger existing logic
+      checkbox.checked = !checkbox.checked;
+      checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  } catch (err) {
+    console && console.warn && console.warn('Row click delegation failed:', err);
+  }
+})();
+
+
+
+
+// === Delegated single-click add/remove to collection (WITHOUT touching checkbox UI) ===
+(function attachRowCollectDelegation(){
+  try {
+    var tbody = document.querySelector('#poTable tbody');
+    if (!tbody) return;
+    if (tbody.__rowCollectBound) return;
+    tbody.__rowCollectBound = true;
+
+    tbody.addEventListener('click', function(e){
+      // Ignore clicks on interactive controls
+      var ctrl = e.target.closest('input,button,a,select,label,textarea,svg');
+      if (ctrl) return;
+
+      var tr = e.target.closest('tr');
+      if (!tr) return;
+
+      // Get key from <tr data-key> first, else from the checkbox data-key
+      var key = tr.getAttribute('data-key');
+      var checkbox = tr.querySelector('input.rowSelect');
+      if (!key && checkbox) key = checkbox.getAttribute('data-key');
+      if (!key) return;
+
+      // Ensure globals exist
+      if (typeof selectedPOs !== 'object') { window.selectedPOs = {}; }
+      if (typeof lastRenderedRows !== 'object') { window.lastRenderedRows = {}; }
+
+      // Toggle in collection WITHOUT changing checkbox state
+      if (selectedPOs[key]) {
+        delete selectedPOs[key];
+        tr.classList.remove('row-selected');
+      } else {
+        if (lastRenderedRows[key]) {
+          selectedPOs[key] = lastRenderedRows[key];
+          tr.classList.add('row-selected');
+        }
+      }
+
+      if (typeof persistSelected === 'function') persistSelected();
+    });
+  } catch (err) {
+    console && console.warn && console.warn('Row collect delegation failed:', err);
+  }
+})();
+

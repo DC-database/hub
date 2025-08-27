@@ -373,3 +373,10 @@ th {
   min-width: 140px;
   text-align: right;
 }
+
+
+/* Row click-to-collect: minimal, non-destructive */
+#poTable tbody tr { cursor: pointer; transition: background-color .15s ease; }
+#poTable tbody tr:hover { background-color: rgba(0,58,92,.06); }
+#poTable tbody tr.row-selected { background-color: rgba(46,134,193,.15); }
+#poTable tbody tr input[type="checkbox"], #poTable tbody tr button { cursor: pointer; }
