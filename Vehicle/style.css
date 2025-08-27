@@ -1055,3 +1055,327 @@ body{
     transform: none !important;
   }
 }
+
+
+/* ===== Modern Card Animations (non-destructive) ===== */
+.dashboard-card {
+    will-change: transform, opacity;
+}
+.dashboard-card:hover {
+    transition: transform .25s ease, box-shadow .25s ease;
+    transform: translateY(-6px) scale(1.01);
+    box-shadow: 0 12px 24px rgba(0,0,0,.12);
+}
+
+/* ===== Top Spender Special Effects ===== */
+.highest-spender {
+    position: relative;
+    overflow: hidden;
+}
+
+/* Car movement */
+.highest-spender .top-spender-car {
+    position: absolute;
+    bottom: 6px;
+    left: -64px;
+    z-index: 1;
+    opacity: .9;
+}
+.highest-spender .top-spender-car i {
+    font-size: 28px;
+    display: inline-block;
+    animation: drive 5.5s linear infinite, carbounce 1.2s ease-in-out infinite;
+}
+@keyframes drive {
+    0%   { transform: translateX(0); }
+    50%  { transform: translateX(calc(100% + 90px)); }
+    100% { transform: translateX(0); }
+}
+@keyframes carbounce {
+    0%,100% { transform: translateY(0); }
+    50%     { transform: translateY(-2px); }
+}
+
+/* Confetti burst (triggered when .celebrate is on the card) */
+.highest-spender .confetti {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+}
+.highest-spender .confetti .p {
+    position: absolute;
+    width: 8px;
+    height: 14px;
+    border-radius: 2px;
+    opacity: 0;
+    transform: translateY(0) rotate(0);
+}
+
+/* Randomized positions, colors, and delays for 15 pieces */
+.highest-spender .confetti .p1  { left: 6%;  top: 45%; background:#ff6b6b;  }
+.highest-spender .confetti .p2  { left: 14%; top: 30%; background:#ffd93d; }
+.highest-spender .confetti .p3  { left: 22%; top: 35%; background:#6bcBef; }
+.highest-spender .confetti .p4  { left: 30%; top: 25%; background:#51cf66; }
+.highest-spender .confetti .p5  { left: 38%; top: 40%; background:#845ef7; }
+.highest-spender .confetti .p6  { left: 46%; top: 28%; background:#ffa94d; }
+.highest-spender .confetti .p7  { left: 54%; top: 38%; background:#ff8787; }
+.highest-spender .confetti .p8  { left: 62%; top: 26%; background:#74c0fc; }
+.highest-spender .confetti .p9  { left: 70%; top: 36%; background:#63e6be; }
+.highest-spender .confetti .p10 { left: 78%; top: 22%; background:#b197fc; }
+.highest-spender .confetti .p11 { left: 86%; top: 34%; background:#ffd8a8; }
+.highest-spender .confetti .p12 { left: 12%; top: 20%; background:#fcc2d7; }
+.highest-spender .confetti .p13 { left: 28%; top: 18%; background:#d0ebff; }
+.highest-spender .confetti .p14 { left: 66%; top: 16%; background:#c3fae8; }
+.highest-spender .confetti .p15 { left: 84%; top: 14%; background:#e5dbff; }
+
+/* Celebrate state: play falling confetti animation */
+.highest-spender.celebrate .confetti .p {
+    opacity: 1;
+    animation: confettiFall 900ms ease-out forwards, confettiSpin 900ms linear forwards;
+}
+/* Staggered delays for each piece */
+.highest-spender.celebrate .confetti .p1  { animation-delay: 0ms;  }
+.highest-spender.celebrate .confetti .p2  { animation-delay: 30ms; }
+.highest-spender.celebrate .confetti .p3  { animation-delay: 60ms; }
+.highest-spender.celebrate .confetti .p4  { animation-delay: 90ms; }
+.highest-spender.celebrate .confetti .p5  { animation-delay: 120ms;}
+.highest-spender.celebrate .confetti .p6  { animation-delay: 150ms;}
+.highest-spender.celebrate .confetti .p7  { animation-delay: 180ms;}
+.highest-spender.celebrate .confetti .p8  { animation-delay: 210ms;}
+.highest-spender.celebrate .confetti .p9  { animation-delay: 240ms;}
+.highest-spender.celebrate .confetti .p10 { animation-delay: 270ms;}
+.highest-spender.celebrate .confetti .p11 { animation-delay: 300ms;}
+.highest-spender.celebrate .confetti .p12 { animation-delay: 330ms;}
+.highest-spender.celebrate .confetti .p13 { animation-delay: 360ms;}
+.highest-spender.celebrate .confetti .p14 { animation-delay: 390ms;}
+.highest-spender.celebrate .confetti .p15 { animation-delay: 420ms;}
+
+@keyframes confettiFall {
+    0%   { transform: translateY(-10px); }
+    100% { transform: translateY(60px); }
+}
+@keyframes confettiSpin {
+    0%   { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+
+/* ===== Modern Card Entrance & Hover ===== */
+@keyframes cardIntro {
+  0% { opacity: 0; transform: translateY(24px) scale(0.98); filter: blur(1px); }
+  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+.dashboard-card {
+  opacity: 0;
+  transform: translateY(24px) scale(0.98);
+  animation: cardIntro .6s ease forwards;
+  animation-delay: .08s;
+  will-change: transform, opacity;
+  position: relative;
+}
+
+.dashboard-card:nth-child(1){ animation-delay:.10s; }
+.dashboard-card:nth-child(2){ animation-delay:.18s; }
+.dashboard-card:nth-child(3){ animation-delay:.26s; }
+.dashboard-card:nth-child(4){ animation-delay:.34s; }
+
+.dashboard-card:hover {
+  transform: translateY(-6px) scale(1.01);
+  transition: transform .25s ease, box-shadow .25s ease;
+  box-shadow: 0 14px 28px rgba(0,0,0,.12);
+}
+
+/* Subtle sheen on hover */
+.dashboard-card::after{
+  content:"";
+  position:absolute; inset:0;
+  background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,.25) 20%, transparent 40%);
+  transform: translateX(-120%);
+  opacity: 0; pointer-events:none;
+}
+.dashboard-card:hover::after{
+  opacity:1;
+  animation: sheen 1.2s ease;
+}
+@keyframes sheen{
+  from{ transform: translateX(-120%); }
+  to{ transform: translateX(120%); }
+}
+
+/* ===== Count-up pulse when values update ===== */
+.metric-pulse {
+  animation: metricPulse .6s ease;
+}
+@keyframes metricPulse {
+  0% { transform: scale(0.98); opacity:.85; }
+  50% { transform: scale(1.02); opacity:1; }
+  100% { transform: scale(1); }
+}
+
+/* ===== Top Spender: driving car (already present) & fireworks ===== */
+.highest-spender { position: relative; overflow:hidden; }
+.highest-spender .top-spender-car {
+  position:absolute; bottom:8px; left:-64px; z-index:2; opacity:.95;
+}
+.highest-spender .top-spender-car i{
+  font-size:28px;
+  animation: drive 6s linear infinite, carbounce 1.4s ease-in-out infinite;
+}
+@keyframes drive{ 0%{transform: translateX(0)} 50%{transform: translateX(calc(100% + 110px))} 100%{transform: translateX(0)} }
+@keyframes carbounce{ 0%,100%{transform: translateY(0)} 50%{transform: translateY(-2px)} }
+
+/* Fireworks bursts */
+.highest-spender .fireworks{ position:absolute; inset:0; pointer-events:none; z-index:1; }
+.highest-spender .fireworks .burst{
+  position:absolute; width:6px; height:6px; border-radius:50%;
+  background: currentColor; opacity:0; transform: translate(-50%, -50%) scale(0);
+  top: 50%; left: 50%;
+  color:#ff6b6b;
+}
+.highest-spender .fireworks .b2{ color:#ffd93d; }
+.highest-spender .fireworks .b3{ color:#51cf66; }
+.highest-spender .fireworks .b4{ color:#74c0fc; }
+.highest-spender .fireworks .b5{ color:#b197fc; }
+.highest-spender .fireworks .b6{ color:#ffa94d; }
+
+.highest-spender.fire .fireworks .burst{
+  animation: explode 900ms ease-out forwards, spin 900ms linear forwards;
+}
+.highest-spender.fire .fireworks .b1{ animation-delay:0ms; }
+.highest-spender.fire .fireworks .b2{ animation-delay:60ms; }
+.highest-spender.fire .fireworks .b3{ animation-delay:120ms; }
+.highest-spender.fire .fireworks .b4{ animation-delay:180ms; }
+.highest-spender.fire .fireworks .b5{ animation-delay:240ms; }
+.highest-spender.fire .fireworks .b6{ animation-delay:300ms; }
+
+@keyframes explode{
+  0% { opacity:0; transform: translate(-50%, -50%) scale(0); }
+  20%{ opacity:1; }
+  100%{ opacity:0; transform: translate(-50%, -250%) scale(10); }
+}
+@keyframes spin{ to{ transform: rotate(360deg); } }
+
+
+/* ===== Ultra-Modern Card System ===== */
+:root{
+  --pop-duration:.8s;
+  --tilt: 8deg;
+  --glow: 28px;
+}
+
+.dashboard-card{
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform .25s ease, box-shadow .25s ease;
+  background: radial-gradient(120% 120% at 10% 0%, #ffffff 0%, #f7f9fc 45%, #eef3fb 100%);
+}
+
+/* Animated gradient border */
+.dashboard-card::before{
+  content:"";
+  position:absolute; inset: -1px;
+  border-radius: 14px;
+  background: conic-gradient(from 180deg, #7cc6ff, #bdb2ff, #ffd6a5, #9bf6ff, #7cc6ff);
+  z-index: -1;
+  filter: blur(6px);
+  opacity:.6;
+  animation: borderSpin 6s linear infinite;
+}
+@keyframes borderSpin{ to{ transform: rotate(360deg); } }
+
+/* Sheen overlay */
+.dashboard-card::after{
+  content:"";
+  position:absolute; inset:0;
+  border-radius:12px;
+  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,.35) 50%, transparent 70%);
+  transform: translateX(-120%);
+  opacity:0; pointer-events:none;
+}
+.dashboard-card:hover::after{
+  opacity:1; animation: sheenPass 1.2s ease;
+}
+@keyframes sheenPass{ to{ transform: translateX(120%); } }
+
+/* 3D Tilt on hover (JS supplies --mx / --my in range [-0.5,0.5]) */
+.dashboard-card:hover{
+  transform: perspective(900px) rotateX(calc(var(--my, 0) * var(--tilt))) rotateY(calc(var(--mx, 0) * var(--tilt))) translateY(-6px) scale(1.01);
+  box-shadow: 0 var(--glow) var(--glow) -16px rgba(0,0,0,.25);
+}
+
+/* Reveal on scroll */
+[data-animate]{
+  opacity:0; transform: translateY(28px) scale(.98);
+}
+[data-animate].in-view{
+  animation: popIn var(--pop-duration) cubic-bezier(.22,.9,.24,1) forwards;
+}
+@keyframes popIn{
+  0%{ opacity:0; transform: translateY(28px) scale(.98); filter: blur(2px); }
+  100%{ opacity:1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+/* Metric pulse remains */
+.metric-pulse{ animation: metricPulse .6s ease; }
+@keyframes metricPulse{
+  0%{ transform: scale(.98); opacity:.85; }
+  50%{ transform: scale(1.02); opacity:1; }
+  100%{ transform: scale(1); }
+}
+
+/* ===== Top Spender: road + exhaust + car ===== */
+.highest-spender{ overflow:hidden; }
+.highest-spender .road-stripe{
+  position:absolute; left:-20%; right:-20%; bottom:14px; height:2px;
+  background: repeating-linear-gradient(90deg, rgba(0,0,0,.08), rgba(0,0,0,.08) 12px, transparent 12px, transparent 24px);
+  transform: translateX(0);
+  animation: roadMove 2.2s linear infinite;
+  z-index:0;
+}
+@keyframes roadMove{
+  to{ transform: translateX(20%); }
+}
+
+.highest-spender .exhaust{
+  position:absolute; bottom:12px; left: calc(50% - 80px);
+  width: 6px; height: 6px; border-radius:50%;
+  background: radial-gradient(circle at 40% 40%, #bbb, #999);
+  filter: blur(1px);
+  opacity:.0;
+  animation: puff 1.4s ease-in-out infinite;
+  z-index:1;
+}
+@keyframes puff{
+  0%{ transform: translateX(0) translateY(0) scale(.6); opacity:.0; }
+  30%{ opacity:.5; }
+  100%{ transform: translateX(-40px) translateY(-8px) scale(1.8); opacity:0; }
+}
+
+.highest-spender .top-spender-car{
+  position:absolute; bottom:6px; left:-80px; z-index:2; opacity:.97;
+}
+.highest-spender .top-spender-car i{
+  font-size:30px;
+  animation: drive 6s linear infinite, carbounce 1.2s ease-in-out infinite;
+}
+@keyframes drive{ 0%{transform: translateX(0)} 50%{transform: translateX(calc(100% + 140px))} 100%{transform: translateX(0)} }
+@keyframes carbounce{ 0%,100%{transform: translateY(0)} 50%{transform: translateY(-3px)} }
+
+/* Fireworks burst (reuse .fire class) */
+.highest-spender.fire .fireworks .burst{
+  animation: explode 950ms ease-out forwards, spin 950ms linear forwards;
+}
+@keyframes explode{
+  0%{ opacity:0; transform: translate(-50%, -50%) scale(0) }
+  20%{ opacity:1; }
+  100%{ opacity:0; transform: translate(-50%, -250%) scale(10) }
+}
+@keyframes spin{ to{ transform: rotate(360deg) } }
+
+/* Respect Reduced Motion */
+@media (prefers-reduced-motion: reduce){
+  .dashboard-card, .dashboard-card::before, .dashboard-card::after,
+  .top-spender-car i, .road-stripe, .exhaust { animation: none !important; transition: none !important; }
+}

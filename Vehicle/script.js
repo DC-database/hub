@@ -22,7 +22,6 @@ let openingValue = 0;
 let closingValue = 0;
 let currentVehicleNumber = '';
 let yearlySpendingChart;
-let vehicleTypeChart;
 let currentChartType = 'bar'; // 'bar' or 'line'
 
 // DOM elements
@@ -405,8 +404,7 @@ function updateDashboard() {
     generateVehicleSummary(selectedYear);
     updateDashboardCards(selectedYear);
     renderYearlySpendingChart(selectedYear);
-    renderVehicleTypeChart(selectedYear);
-    renderDashboardTable(selectedYear);
+renderDashboardTable(selectedYear);
 }
 
 function updateDashboardCards(selectedYear) {
@@ -461,7 +459,40 @@ function updateDashboardCards(selectedYear) {
     } else {
         dashboardHighestSpender.textContent = 'N/A';
     }
-}
+
+    
+    // Animate metrics after values computed
+    try {
+        const totalVeh = parseFloat(dashboardTotalVehicles.textContent.replace(/,/g,'')) || 0;
+        const yearAll = parseFloat(dashboardYearlySpending.textContent.replace(/,/g,'')) || 0;
+        const yearSel = parseFloat(dashboardCurrentYear.textContent.replace(/,/g,'')) || 0;
+        animateCount(dashboardTotalVehicles, totalVeh, {currency:false});
+        animateCount(dashboardYearlySpending, yearAll, {currency:true});
+        animateCount(dashboardCurrentYear, yearSel, {currency:true});
+    } catch(e){ console.warn('metric animation err', e); }
+
+    // Fireworks for top spender
+    try {
+        const hs = document.querySelector('.highest-spender');
+        if (hs) {
+            hs.classList.remove('fire');
+            void hs.offsetWidth; // reflow to restart
+            hs.classList.add('fire');
+            setTimeout(()=>hs.classList.remove('fire'), 1100);
+        }
+    } catch(e){ console.warn('fireworks err', e); }
+    // Trigger a brief celebration animation on the Top Spender card
+    try {
+        const hsCard = document.querySelector('.highest-spender');
+        if (hsCard) {
+            hsCard.classList.remove('celebrate');
+            // Force reflow to restart animation
+            void hsCard.offsetWidth;
+            hsCard.classList.add('celebrate');
+            setTimeout(()=>hsCard.classList.remove('celebrate'), 1200);
+        }
+    } catch(e) { console.warn('celebrate animation error', e); }
+    }
 function renderYearlySpendingChart(selectedYear) {
     const ctx = document.getElementById('yearlySpendingChart').getContext('2d');
     
@@ -559,81 +590,6 @@ function toggleChartType() {
     currentChartType = currentChartType === 'bar' ? 'line' : 'bar';
     toggleChartTypeBtn.innerHTML = `<i class="fas fa-exchange-alt"></i> ${currentChartType === 'bar' ? 'Line' : 'Bar'} Chart`;
     renderYearlySpendingChart(dashboardYearFilter.value);
-}
-
-function renderVehicleTypeChart(selectedYear) {
-    const ctx = document.getElementById('vehicleTypeChart').getContext('2d');
-    
-    // Destroy previous chart if it exists
-    if (vehicleTypeChart) {
-        vehicleTypeChart.destroy();
-    }
-    
-    // Group by vehicle type
-    const typeMap = {};
-    
-    book8Data.forEach(vehicle => {
-        const type = vehicle.type.split(' - ')[0] || 'Other';
-        if (!typeMap[type]) {
-            typeMap[type] = 0;
-        }
-        
-        const transactions = vehicleDataMap.get(vehicle.plate) || [];
-        transactions.forEach(t => {
-            if (selectedYear === 'all' || t.year === selectedYear) {
-                typeMap[type] += parseFloat(t.amount) || 0;
-            }
-        });
-    });
-    
-    // Prepare data for chart
-    const labels = Object.keys(typeMap);
-    const data = Object.values(typeMap);
-    
-    // Generate colors
-    const backgroundColors = labels.map((_, i) => {
-        const hue = (i * 137.508) % 360; // Golden angle approximation
-        return `hsla(${hue}, 70%, 60%, 0.7)`;
-    });
-    
-    const borderColors = backgroundColors.map(color => color.replace('0.7', '1'));
-    
-    const chartData = {
-        labels: labels,
-        datasets: [{
-            data: data,
-            backgroundColor: backgroundColors,
-            borderColor: borderColors,
-            borderWidth: 1
-        }]
-    };
-    
-    const config = {
-        type: 'pie',
-        data: chartData,
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'right',
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.raw || 0;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = Math.round((value / total) * 100);
-                            return `${label}: ${formatFinancial(value)} (${percentage}%)`;
-                        }
-                    }
-                }
-            }
-        }
-    };
-    
-    vehicleTypeChart = new Chart(ctx, config);
 }
 
 function renderDashboardTable(selectedYear) {
@@ -1626,3 +1582,74 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 // === End Bottom Mobile Navigation wiring ===
 
+
+// (replaced by modern animation system)
+function animateCount(el, toValue, opts={}){
+    const duration = opts.duration || 800;
+    const isCurrency = !!opts.currency;
+    const startText = (el.textContent||"").replace(/,/g,'').replace(/[^\d.-]/g,'');
+    const fromValue = parseFloat(startText) || 0;
+    const start = performance.now();
+    function frame(now){
+        const t = Math.min((now - start)/duration, 1);
+        const val = fromValue + (toValue - fromValue)*t;
+        el.textContent = isCurrency ? formatFinancial(val) : Math.round(val);
+        if (t < 1){ requestAnimationFrame(frame); }
+    }
+    el.classList.add('metric-pulse');
+    setTimeout(()=>el.classList.remove('metric-pulse'), 600);
+    requestAnimationFrame(frame);
+}
+
+
+// ===== Modern Animation Enhancements =====
+(function(){
+  // 3D Tilt based on mouse position
+  const cards = document.querySelectorAll('.dashboard-card');
+  cards.forEach(card => {
+    card.addEventListener('mousemove', (e) => {
+      const rect = card.getBoundingClientRect();
+      const mx = ((e.clientX - rect.left) / rect.width) - 0.5; // -0.5..0.5
+      const my = ((e.clientY - rect.top) / rect.height) - 0.5;
+      card.style.setProperty('--mx', mx.toFixed(3));
+      card.style.setProperty('--my', my.toFixed(3));
+    });
+    card.addEventListener('mouseleave', ()=>{
+      card.style.removeProperty('--mx');
+      card.style.removeProperty('--my');
+    });
+  });
+
+  // Reveal on scroll with stagger
+  const revealItems = document.querySelectorAll('[data-animate]');
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach((entry, idx)=>{
+      if(entry.isIntersecting){
+        entry.target.classList.add('in-view');
+        entry.target.style.setProperty('--pop-duration', (0.55 + Math.random()*0.2).toFixed(2) + 's');
+        io.unobserve(entry.target);
+      }
+    });
+  }, {threshold: 0.15});
+  revealItems.forEach(el=>io.observe(el));
+})();
+
+// Eased number animation
+function easeOutCubic(t){ return 1 - Math.pow(1 - t, 3); }
+function animateCount(el, toValue, opts={}){
+  const duration = opts.duration || 1000;
+  const isCurrency = !!opts.currency;
+  const currentText = (el.textContent||'').replace(/,/g,'').replace(/[^\d.-]/g,'');
+  const fromValue = parseFloat(currentText) || 0;
+  const start = performance.now();
+  function frame(now){
+    const t = Math.min((now - start)/duration, 1);
+    const eased = easeOutCubic(t);
+    const val = fromValue + (toValue - fromValue)*eased;
+    el.textContent = isCurrency ? formatFinancial(val) : Math.round(val);
+    if (t < 1) requestAnimationFrame(frame);
+  }
+  el.classList.add('metric-pulse');
+  setTimeout(()=>el.classList.remove('metric-pulse'), 600);
+  requestAnimationFrame(frame);
+}
