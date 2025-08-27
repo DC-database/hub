@@ -1555,3 +1555,50 @@ if (uploadBook8Btn) uploadBook8Btn.addEventListener('click', ()=>{
     }
   });
 });
+
+
+// === Bottom Mobile Navigation wiring ===
+document.addEventListener('DOMContentLoaded', function(){
+  function q(id){ return document.getElementById(id); }
+  const bnDashboard = q('bnDashboard');
+  const bnSingle    = q('bnSingle');
+  const bnFull      = q('bnFull');
+  const bnAdmin     = q('bnAdmin');
+
+  function setBottomNavActive(el){
+    const items = [bnDashboard, bnSingle, bnFull, bnAdmin];
+    items.forEach(i => i && i.classList.remove('active'));
+    if(el && el.classList) el.classList.add('active');
+  }
+
+  // Bind clicks
+  if (bnDashboard) bnDashboard.addEventListener('click', ()=>{ switchReport('dashboard'); setBottomNavActive(bnDashboard); });
+  if (bnSingle)    bnSingle.addEventListener('click',    ()=>{ switchReport('single');    setBottomNavActive(bnSingle);    });
+  if (bnFull)      bnFull.addEventListener('click',      ()=>{ switchReport('full');      setBottomNavActive(bnFull);      });
+  if (bnAdmin)     bnAdmin.addEventListener('click',     ()=>{ switchReport('admin');     setBottomNavActive(bnAdmin);     });
+
+  // Sync when using sidebar/top buttons too
+  const dashboardBtn    = q('dashboardBtn');
+  const singleReportBtn = q('singleReportBtn');
+  const fullReportBtn   = q('fullReportBtn');
+  const adminBtn        = q('adminBtn');
+
+  if (dashboardBtn)    dashboardBtn.addEventListener('click', ()=> setBottomNavActive(bnDashboard));
+  if (singleReportBtn) singleReportBtn.addEventListener('click', ()=> setBottomNavActive(bnSingle));
+  if (fullReportBtn)   fullReportBtn.addEventListener('click', ()=> setBottomNavActive(bnFull));
+  if (adminBtn)        adminBtn.addEventListener('click', ()=> setBottomNavActive(bnAdmin));
+
+  // Initialize default active to whatever section is visible
+  const dashboardSection    = document.getElementById('dashboard');
+  const singleReportSection = document.getElementById('singleReport');
+  const fullReportSection   = document.getElementById('fullReport');
+  const adminSection        = document.getElementById('adminSection') || document.getElementById('admin');
+
+  if (dashboardSection && dashboardSection.classList.contains('active')) setBottomNavActive(bnDashboard);
+  else if (singleReportSection && singleReportSection.classList.contains('active')) setBottomNavActive(bnSingle);
+  else if (fullReportSection && fullReportSection.classList.contains('active')) setBottomNavActive(bnFull);
+  else if (adminSection && adminSection.classList.contains('active')) setBottomNavActive(bnAdmin);
+  else setBottomNavActive(bnDashboard);
+});
+// === End Bottom Mobile Navigation wiring ===
+

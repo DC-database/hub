@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     <title>Vehicle Transaction Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
@@ -16,7 +16,7 @@
         <button class="menu-toggle" aria-label="Menu">
             <i class="fas fa-bars"></i>
         </button>
-        <h1> </h1>
+        <h1>Vehicle Dashboard</h1>
         <div class="header-time" id="currentDate"></div>
     </div>
 
@@ -46,10 +46,14 @@
                     <li>
                 <button id="adminBtn" class="report-btn">
                     <i class="fas fa-cloud-upload-alt"></i> Admin Upload
-                </button>
-            </li>
+                </button></li>
+<li>
+    <button id="mainHubBtn" class="report-btn" onclick="window.open('https://ibaport.site','_blank')">
+        <i class="fas fa-home"></i> Main HUB
+    </button>
+</li>
         </ul>
-    </nav>
+</nav>
 
     <div class="overlay"></div>
 
@@ -320,7 +324,7 @@
             <i class="fas fa-user-cog"></i>
             <span>Admin</span>
         </button>
-    </nav>
+</nav>
 
 </body>
 </html>
