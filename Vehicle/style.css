@@ -999,60 +999,59 @@ body{
 }
 .top-btn:hover{ background: #fff; }
 
-/* --- FIX: Make bottom navigation always visible & sticky, and prevent overlap --- */
+
+
+/* --- Performance & Tablet Fixes --- */
 .bottom-nav {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 60px;
-    background: #ffffff;
-    border-top: 1px solid #ddd;
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    z-index: 1000; /* above content */
+    padding-bottom: env(safe-area-inset-bottom);
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    will-change: transform;
 }
 
-.bottom-nav .nav-item {
-    flex: 1 1 0;
-    text-align: center;
-    padding: 8px 0;
-    color: #333;
-    font-size: 0.9rem;
-    background: none;
-    border: none;
-    cursor: pointer;
+/* Reduce heavy visual effects on mobile/tablet to improve smoothness */
+@media (max-width: 1199.98px) {
+    .dashboard-card,
+    .dashboard-chart,
+    .dashboard-table {
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+        transition: none;
+        animation: none;
+    }
+    .dashboard-card:hover { transform: none; box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
 }
 
-.bottom-nav .nav-item i {
-    display: block;
-    font-size: 1.1rem;
-    line-height: 1.1;
-}
-
-.bottom-nav .nav-item span {
-    display: block;
-    font-size: 0.75rem;
-    line-height: 1.1;
-    margin-top: 2px;
-}
-
-.bottom-nav .nav-item.active {
-    color: #3498db;
-    font-weight: 600;
-}
-
-/* Add padding so content isn't hidden behind the fixed bottom nav (mobile only) */
-@media (max-width: 991.98px) {
-    .container {
-        padding-bottom: 90px !important;
+/* Respect user reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation: none !important;
+        transition: none !important;
+        scroll-behavior: auto !important;
     }
 }
 
-/* Hide the bottom nav on desktop if desired */
-@media (min-width: 992px) {
-    .bottom-nav {
-        display: none;
-    }
+
+/* --- Tablet/Mobile: prevent header overlap & speed up initial paint --- */
+@media (max-width: 1199.98px) {
+  .container {
+    margin-top: 90px !important; /* ensure content clears fixed mobile header */
+  }
+  /* Speed: let browser skip offscreen sections until scrolled into view */
+  #dashboard, #singleReport, #fullReport, #adminSection {
+    content-visibility: auto;
+    contain-intrinsic-size: 1200px;
+  }
+}
+
+
+/* --- Fix: Ensure dashboard blocks are visible when animations are disabled on mobile/tablet --- */
+@media (max-width: 1199.98px) {
+  .dashboard-card,
+  .dashboard-chart,
+  .dashboard-table {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1 !important; /* base CSS sets opacity:0; force visible */
+    transform: none !important;
+  }
 }
