@@ -1,0 +1,383 @@
+/* Base and existing styles trimmed for brevity; mobile-friendly layout */
+body { margin:0; font-family: Arial, sans-serif; display:flex; }
+.sidebar { width:220px; background:#2c3e50; color:#fff; height:100vh; padding:20px; position:fixed; z-index:1000; transition:transform .25s ease; }
+.main { margin-left:240px; padding:40px; flex:1; background:#ecf0f1; min-height:100vh; }
+.topbar { position:fixed; top:0; left:0; height:56px; width:100%; background:#2c3e50; color:#fff; display:flex; align-items:center; gap:12px; padding:0 12px 0 60px; z-index:900; }
+.hamburger { position:fixed; top:10px; left:14px; background:transparent; border:none; color:#fff; font-size:22px; cursor:pointer; z-index:1001; }
+.main { margin-top:56px; }
+#overlay { position:fixed; inset:0; background:rgba(0,0,0,.35); display:none; z-index:800; }
+.close-sidebar { display:none; background:transparent; color:#fff; border:none; font-size:20px; position:absolute; top:10px; right:10px; cursor:pointer; }
+
+/* IPC entry layout */
+.ipc-flex-container { display:flex; flex-wrap:wrap; gap:30px; align-items:flex-start; }
+.ipc-left-column { flex:1; min-width:300px; max-width:400px; }
+.ipc-right-column { flex:2; min-width:400px; }
+#ipcSection .form-group { background:#fff; border-radius:8px; padding:25px; max-width:450px; box-shadow:0 1px 3px rgba(0,0,0,.1); }
+input, button { display:block; margin:10px 0; padding:10px; width:100%; max-width:400px; }
+button { background:#2980b9; color:#fff; border:none; cursor:pointer; }
+button:hover { background:#3498db; }
+
+/* PO info card */
+.poinfo-card { background:#fff; border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,.08); overflow:hidden; }
+.toggle-row { display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:#f7f8fa; cursor:pointer; user-select:none; }
+.toggle-label { font-weight:600; font-size:15px; color:#2c3e50; }
+.toggle-icon { font-size:20px; width:22px; text-align:center; color:#2c3e50; }
+.toggle-content { padding:12px 14px; background:#fff; transition:max-height .25s ease, opacity .2s ease; overflow:hidden; max-height:999px; opacity:1; }
+
+/* Active IPC page */
+.table-responsive { overflow-x:auto; background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.1); }
+.active-po-table { width:100%; border-collapse:collapse; }
+.active-po-table th, .active-po-table td { padding:12px; border-bottom:1px solid #eee; text-align:left; }
+.active-po-table th { background:#f7f8fa; font-weight:600; }
+.mini-toggle { width:28px; height:28px; border-radius:6px; border:none; background:#ecf0f1; cursor:pointer; font-size:16px; }
+.mini-toggle:hover { background:#e2e6ea; }
+.details-row td { background:#fafbfc; padding:0; }
+.entries-wrap { padding:14px; }
+.entries-title { font-weight:600; margin-bottom:8px; }
+.entries-table-container { overflow-x:auto; }
+.inner-table { width:100%; border-collapse:collapse; background:#fff; border-radius:6px; }
+.inner-table th, .inner-table td { padding:10px; border-bottom:1px solid #f0f0f0; text-align:left; }
+.inner-table th { background:#f9fafb; }
+
+.form-group { background:#fff; padding:15px; border-radius:8px; margin-bottom:20px; }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .sidebar { transform:translateX(-100%); width:260px; }
+  .sidebar.open { transform:translateX(0); }
+  #overlay.show { display:block; }
+  .close-sidebar { display:block; }
+  .main { margin-left:0 !important; padding:16px; }
+  .ipc-flex-container { flex-direction:column; }
+  .ipc-left-column, .ipc-right-column { min-width:100%; max-width:100%; }
+  input, button { max-width:100%; }
+}
+
+/* Sidebar hover cursor and highlight */
+.sidebar ul { list-style: none; padding: 0; margin: 16px 0; }
+.sidebar ul li {
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.sidebar ul li:hover {
+  background: #34495e;
+}
+.sidebar ul li.active {
+  background: #1f2d3a;
+  box-shadow: inset 3px 0 0 #1abc9c;
+}
+
+/* Stronger sidebar pointer + hover highlight */
+.sidebar ul { list-style:none; padding:0; margin:16px 0; }
+.sidebar ul li, .sidebar ul li * { cursor: pointer; }
+.sidebar ul li {
+  padding: 10px 12px;
+  border-radius: 8px;
+  user-select: none;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.sidebar ul li:hover {
+  background: #2f4253;
+  color: #ffffff;
+}
+.sidebar ul li.active {
+  background: #1f2d3a;
+  color: #ffffff;
+  box-shadow: inset 3px 0 0 #1abc9c;
+}
+
+.po-input { width: 250px; }
+
+/* ===== Improved IPC Entries table look ===== */
+#ipcSection .ipc-entries-title { margin-top: 20px; margin-bottom: 10px; font-weight: 700; }
+
+#ipcSection table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid #dfe4ea;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  margin-top: 8px;
+}
+
+#ipcSection thead th {
+  background: #f1f5f9;
+  font-weight: 600;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+#ipcSection th, #ipcSection td {
+  padding: 10px 12px;
+  border-right: 1px solid #eef2f7;
+  text-align: left;
+}
+
+#ipcSection th:last-child, #ipcSection td:last-child { border-right: none; }
+
+#ipcSection tbody tr { border-bottom: 1px solid #eef2f7; }
+#ipcSection tbody tr:nth-child(odd) { background: #fafbfc; }  /* zebra rows */
+
+/* === Global table header theme: white text on theme blue === */
+table thead th {
+  background-color: #2c3e50;
+  color: #fff;
+}
+#ipcSection thead th {
+  background-color: #2c3e50;
+  color: #fff;
+}
+
+/* === View Active IPC table header theme === */
+#activeIPCSection thead th {
+  background-color: #2c3e50;
+  color: #fff;
+}
+
+/* === View Active IPC table header themes === */
+#activeIPCSection .po-table thead th { background-color: #2c3e50; color: #fff; }
+#activeIPCSection .ipc-table thead th { background-color: #4f6f8f; color: #fff; }
+
+/* === Lighter blue for IPC sub-table headers in View Active IPC === */
+#activeIPCSection .ipc-sub-table thead th { background-color: #4f6f8f; color: #fff; }
+
+/* Retention quick calculator layout (kept but hidden in UI overrides below) */
+.retention-calc { display: none !important; }
+label[for="retentionPercent"], #retentionPercent,
+label[for="retentionBase"], #retentionBase { display: none !important; }
+
+/* === OVERRIDES requested === */
+
+/* Hide fields/cols not needed in UI */
+label[for="certifiedAmount"], #certifiedAmount,
+label[for="previousPayment"], #previousPayment,
+label[for="retention"], #retention { display: none !important; }
+
+#ipcSection table thead th:nth-child(2),
+#ipcSection table thead th:nth-child(3),
+#ipcSection table thead th:nth-child(4),
+#ipcSection table tbody td:nth-child(2),
+#ipcSection table tbody td:nth-child(3),
+#ipcSection table tbody td:nth-child(4) { display: none !important; }
+
+/* Removed: previously hid Amount/Date/Remarks in View Active IPC */
+
+/* Under/Ready success + disabled */
+.ipc-action-buttons button.done { background: #27ae60 !important; }
+.ipc-action-buttons button:disabled { cursor: not-allowed; opacity: 0.9; filter: saturate(0.9); }
+
+/* Tidy action buttons layout */
+.ipc-action-buttons { display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
+.ipc-action-buttons button { width: 100%; padding: 6px 8px; font-size: 13px; line-height: 1.2; }
+.ipc-action-buttons br { display: none; } /* in case leftover <br> exist */
+
+/* Force left-align for all cells in IPC table */
+#ipcSection table th, #ipcSection table td { text-align: left !important; }
+
+
+/* Ensure View Active IPC inner-table is left-aligned and fully visible */
+#activeIPCSection .inner-table th,
+#activeIPCSection .inner-table td {
+  text-align: left !important;
+}
+/* Make +/- buttons in View Active IPC clearly visible */
+.view-active-ipc-btn {
+  background-color: #007bff; /* blue background */
+  color: #fff;               /* white text */
+  border: none;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-weight: bold;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.view-active-ipc-btn:disabled {
+  background-color: #6c757d; /* gray for disabled */
+  cursor: not-allowed;
+}
+
+
+/* === Visible theme-blue +/- buttons in View Active IPC === */
+#activeIPCSection .mini-toggle {
+  background-color: #2c3e50 !important; /* theme blue */
+  color: #ffffff !important;            /* white text */
+  border: 1px solid #1a252f !important; /* subtle darker border */
+  border-radius: 6px !important;
+  padding: 2px 8px !important;
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  line-height: 1.1 !important;
+  cursor: pointer !important;
+}
+#activeIPCSection .mini-toggle:hover,
+#activeIPCSection .mini-toggle:focus {
+  background-color: #1a252f !important; /* darker on hover/focus */
+  outline: 2px solid rgba(255,255,255,0.25) !important;
+  outline-offset: 2px !important;
+}
+
+
+/* === Lighter blue headers for 'IPC Entries' subtable on View Active IPC === */
+#activeIPCSection .entries-table-container .inner-table thead th {
+  background-color: #5f86a6 !important; /* lighter shade of blue */
+  color: #ffffff !important;
+  border-bottom: 1px solid #d8e2ee !important;
+}
+
+/* Tint the 'IPC Entries for PO …' title to the same lighter blue */
+#activeIPCSection .entries-title {
+  color: #5f86a6 !important;
+}
+
+
+/* Compact, clean 'Click here to add IPC' CTA */
+.welcome-add-ipc {
+  display: inline-block;
+  margin: 0 !important;
+  padding: 10px 12px !important;
+  width: auto;
+}
+
+
+/* === IPC form buttons inline + compact (2025-08-14) === */
+#ipcSection .button-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 8px;
+}
+
+#ipcSection .button-row button {
+  width: auto !important;
+  max-width: none !important;
+  padding: 8px 12px !important;
+  font-size: 14px !important;
+  line-height: 1.2 !important;
+}
+
+
+/* === IPC actions compact layout (2025-08-14) === */
+.ipc-action-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.ipc-action-buttons button {
+  padding: 6px 10px !important;
+  font-size: 13px !important;
+  line-height: 1.2 !important;
+  width: auto !important;
+  max-width: none !important;
+}
+
+/* ===== Button normalization (2025-08-14) ===== */
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 14px;
+  font-size: 14px;
+  line-height: 1.2;
+  border-radius: 8px;
+  width: auto !important;
+  max-width: none !important;
+  min-height: 36px;
+}
+
+/* Keep grouped action buttons tidy */
+.button-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.button-row button { flex: 0 0 auto; }
+
+/* Keep form buttons from stretching full-width */
+#ipcSection .form-group button { width: auto !important; max-width: none !important; }
+
+/* Icon / tiny toggles */
+.mini-toggle {
+  width: 28px; min-width: 28px; height: 28px;
+  padding: 0; line-height: 1;
+}
+
+/* Action buttons share same size */
+.under-btn, .ready-btn, .delete-btn {
+  padding: 8px 14px;
+  min-height: 36px;
+}
+
+/* Don't let toolbar buttons get blue backgrounds */
+.hamburger, .close-sidebar {
+  background: transparent !important;
+  width: auto !important;
+  max-width: none !important;
+  padding: 0 !important;
+  min-height: unset !important;
+}
+/* ============================================ */
+
+/* === IPC action buttons stacked & same size === */
+.ipc-action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+.ipc-action-buttons button {
+  width: 160px;           /* consistent width for the three buttons */
+  max-width: 160px;
+  min-height: 36px;
+}
+/* ============================================= */
+
+/* === IPC stacked buttons: no vertical space === */
+.ipc-action-buttons { gap: 0 !important; }
+.ipc-action-buttons button { margin: 0 !important; }
+/* ============================================= */
+
+/* === IPC stacked buttons: small gap === */
+.ipc-action-buttons { gap: 4px !important; }
+.ipc-action-buttons button { margin: 0 !important; }
+/* ===================================== */
+
+/* === Delete button color === */
+.delete-btn { background:#e74c3c !important; }
+.delete-btn:hover { background:#c0392b !important; }
+/* =========================== */
+
+/* IPC Ready disabled appearance */
+.ready-btn:disabled { background:#95a5a6 !important; cursor:not-allowed; }
+
+/* === Highlight for TOTAL row in View Active IPC === */
+.entries-total-row td {
+  background: #fff7cc;          /* soft highlight */
+  color: #2c3e50;
+  font-weight: 600;
+  border-top: 2px solid #2980b9; /* ties to theme blue */
+}
+/* ================================================ */
+
+/* === Active IPC table border === */
+.active-ipc-table { 
+  border: 1.5px solid #2980b9; 
+  border-collapse: collapse; 
+  width: 100%;
+}
+.active-ipc-table th, .active-ipc-table td { 
+  border: 1px solid #d9e2ec; 
+  padding: 8px; 
+}
+.active-ipc-table thead th { 
+  background: #f1f6fb; 
+  color: #2c3e50; 
+  font-weight: 700; 
+}
+/* ================================= */
