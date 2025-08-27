@@ -999,3 +999,60 @@ body{
 }
 .top-btn:hover{ background: #fff; }
 
+/* --- FIX: Make bottom navigation always visible & sticky, and prevent overlap --- */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: #ffffff;
+    border-top: 1px solid #ddd;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    z-index: 1000; /* above content */
+}
+
+.bottom-nav .nav-item {
+    flex: 1 1 0;
+    text-align: center;
+    padding: 8px 0;
+    color: #333;
+    font-size: 0.9rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+.bottom-nav .nav-item i {
+    display: block;
+    font-size: 1.1rem;
+    line-height: 1.1;
+}
+
+.bottom-nav .nav-item span {
+    display: block;
+    font-size: 0.75rem;
+    line-height: 1.1;
+    margin-top: 2px;
+}
+
+.bottom-nav .nav-item.active {
+    color: #3498db;
+    font-weight: 600;
+}
+
+/* Add padding so content isn't hidden behind the fixed bottom nav (mobile only) */
+@media (max-width: 991.98px) {
+    .container {
+        padding-bottom: 90px !important;
+    }
+}
+
+/* Hide the bottom nav on desktop if desired */
+@media (min-width: 992px) {
+    .bottom-nav {
+        display: none;
+    }
+}
