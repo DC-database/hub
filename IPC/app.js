@@ -913,3 +913,52 @@ function startIPC() {
   }, 0);
 }
 
+
+
+/* ===== Bottom Nav Routing ===== */
+function setActiveBottom(id) {
+  try {
+    document.querySelectorAll('.bottom-nav .nav-item').forEach(b => b.classList.remove('active'));
+    const el = document.getElementById(id);
+    if (el) el.classList.add('active');
+  } catch(e){}
+}
+
+function navIPC() {
+  // Only allow accessing IPC if logged in; else send to Login
+  if (!currentUserData) {
+    showSection('loginSection');
+    setActiveBottom('navIPC');
+    alert('Please login to access IPC Entry.');
+    return;
+  }
+  showSection('ipcSection');
+  setActiveBottom('navIPC');
+  // Close sidebar overlay if open (mobile)
+  closeSidebar();
+}
+
+function navActive() {
+  showSection('activeIPCSection');
+  setActiveBottom('navActive');
+  closeSidebar();
+}
+
+function navSettings() {
+  if (!currentUserData) {
+    showSection('loginSection');
+  } else {
+    showSection('settingsSection');
+  }
+  setActiveBottom('navSettings');
+  closeSidebar();
+}
+
+/* keep bottom nav state in sync on direct section changes */
+const _origShowSection = showSection;
+showSection = function(id){
+  _origShowSection(id);
+  if (id === 'ipcSection') setActiveBottom('navIPC');
+  else if (id === 'activeIPCSection') setActiveBottom('navActive');
+  else if (id === 'settingsSection' || id === 'loginSection') setActiveBottom('navSettings');
+}

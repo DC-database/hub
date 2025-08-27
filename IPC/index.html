@@ -15,6 +15,7 @@
 <button aria-label="Close menu" class="close-sidebar" onclick="closeSidebar()">✕</button>
 <h2>📋 IPC Portal</h2>
 <ul>
+<li onclick="location.href='https://ibaport.site'">🏠 Main HUB</li>
 <li id="authButton" onclick="navigateFromSidebar('loginSection')">🔑 Login</li>
 <li id="ipcMenu" onclick="navigateFromSidebar('ipcSection')" style="display:none;">📝 IPC Management</li>
 <li id="activeIPCMenu" onclick="navigateFromSidebar('activeIPCSection')">📊 View Active IPC</li>
@@ -29,6 +30,7 @@
 <div class="topbar-title">IPC System</div>
 </div>
 <div class="main">
+<div id="mainSpacer" style="height:0"></div>
 <section id="loginSection">
 <div id="loginBox">
 <h2>User Login</h2>
@@ -204,5 +206,22 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <script src="app.js"></script>
+
+<!-- Bottom Navigation (Mobile App Style) -->
+<nav id="bottomNav" class="bottom-nav" aria-label="Primary">
+  <button class="nav-item" id="navIPC" aria-label="IPC" onclick="navIPC()">
+    <span class="icon">📝</span>
+    <span class="label">IPC</span>
+  </button>
+  <button class="nav-item" id="navActive" aria-label="Active" onclick="navActive()">
+    <span class="icon">📊</span>
+    <span class="label">Active</span>
+  </button>
+  <button class="nav-item" id="navSettings" aria-label="Settings" onclick="navSettings()">
+    <span class="icon">⚙️</span>
+    <span class="label">Settings</span>
+  </button>
+</nav>
+
 </body>
 </html>

@@ -381,3 +381,80 @@ button {
   font-weight: 700; 
 }
 /* ================================= */
+
+
+/* ===== Bottom Navigation (mobile app style) ===== */
+.bottom-nav {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  height: 64px;
+  background: #ffffff;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 8px;
+  z-index: 950;
+}
+
+.bottom-nav .nav-item {
+  background: transparent;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 10px;
+}
+
+.bottom-nav .nav-item .icon { font-size: 18px; line-height: 1; }
+
+.bottom-nav .nav-item.active {
+  background: #ecf0f1;
+}
+
+@media (max-width: 900px) {
+  /* ensure content isn't hidden behind bottom nav */
+  .main { padding-bottom: 84px; }
+}
+
+@media (min-width: 901px) {
+  /* keep bottom nav visible on desktop too */
+  .main { padding-bottom: 84px; }
+}
+
+
+/* ===== Bottom Nav labels visible ===== */
+.bottom-nav {
+  height: 72px; /* taller so labels don’t get clipped */
+}
+
+.bottom-nav .label {
+  display: block !important;
+  font-size: 12px;
+  margin-top: 2px;
+  color: #2c3e50;
+  line-height: 1.1;
+}
+
+/* Desktop: hide bottom nav entirely */
+@media (min-width: 901px) {
+  .bottom-nav { display: none !important; }
+}
+
+
+/* ===== Fix login input width on mobile ===== */
+@media (max-width: 480px) {
+  #loginSection input[type="email"],
+  #loginSection input[type="password"] {
+    width: 92% !important;
+    max-width: 320px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    box-sizing: border-box !important;
+    display: block !important;
+  }
+}
