@@ -1555,3 +1555,49 @@ if (uploadBook8Btn) uploadBook8Btn.addEventListener('click', ()=>{
     }
   });
 });
+
+
+
+// === Bottom Mobile Navigation wiring ===
+const bnDashboard = document.getElementById('bnDashboard');
+const bnSingle = document.getElementById('bnSingle');
+const bnFull = document.getElementById('bnFull');
+const bnAdmin = document.getElementById('bnAdmin');
+
+function setBottomNavActive(which){
+    const items = [bnDashboard, bnSingle, bnFull, bnAdmin];
+    items.forEach(el => el && el.classList.remove('active'));
+    if (which && which.classList) which.classList.add('active');
+}
+
+if (bnDashboard){
+    bnDashboard.addEventListener('click', ()=>{ switchReport('dashboard'); setBottomNavActive(bnDashboard); });
+}
+if (bnSingle){
+    bnSingle.addEventListener('click',   ()=>{ switchReport('single'); setBottomNavActive(bnSingle);   });
+}
+if (bnFull){
+    bnFull.addEventListener('click',     ()=>{ switchReport('full');   setBottomNavActive(bnFull);     });
+}
+if (bnAdmin){
+    bnAdmin.addEventListener('click',    ()=>{ switchReport('admin');  setBottomNavActive(bnAdmin);    });
+}
+
+// Keep bottom nav state in sync when using the sidebar buttons
+if (dashboardBtn){
+    dashboardBtn.addEventListener('click', ()=> setBottomNavActive(bnDashboard));
+}
+if (singleReportBtn){
+    singleReportBtn.addEventListener('click', ()=> setBottomNavActive(bnSingle));
+}
+if (fullReportBtn){
+    fullReportBtn.addEventListener('click', ()=> setBottomNavActive(bnFull));
+}
+if (adminBtn){
+    adminBtn.addEventListener('click', ()=> setBottomNavActive(bnAdmin));
+}
+
+// Initialize the correct active nav after page load
+document.addEventListener('DOMContentLoaded', ()=>{
+    setBottomNavActive(bnDashboard);
+});

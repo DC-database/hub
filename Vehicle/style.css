@@ -864,3 +864,53 @@ footer {
 }
 .auth-card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:12px;margin-bottom:12px}
 .auth-status{font-weight:600}
+
+
+
+/* === Bottom Mobile Navigation === */
+.bottom-nav{
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 64px;
+    background: #ffffff;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    z-index: 1001;
+    /* subtle shadow */
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
+}
+.bottom-nav .nav-item{
+    background: transparent;
+    border: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 0.7rem;
+    color: #666;
+    width: 25%;
+    height: 100%;
+    cursor: pointer;
+}
+.bottom-nav .nav-item i{
+    font-size: 1.1rem;
+}
+.bottom-nav .nav-item.active,
+.bottom-nav .nav-item:active{
+    color: var(--secondary-color);
+}
+/* Give page bottom padding so content isn't hidden behind nav */
+body{
+    padding-bottom: 70px;
+}
+
+/* Hide bottom nav on large screens; keep hamburger + sidebar for all */
+@media (min-width: 900px){
+    .bottom-nav{ display: none; }
+    body{ padding-bottom: 0; }
+}
