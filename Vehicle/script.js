@@ -64,6 +64,20 @@ const dashboardCurrentYear = document.getElementById('dashboardCurrentYear');
 const dashboardHighestSpender = document.getElementById('dashboardHighestSpender');
 
 // Mobile menu elements
+// ===== Added: Bottom nav buttons & universal auto-close =====
+const bnDashboard = document.getElementById('bnDashboard');
+const bnSingle = document.getElementById('bnSingle');
+const bnFull = document.getElementById('bnFull');
+const bnAdmin = document.getElementById('bnAdmin');
+
+function closeMenuIfOpen(){
+    if (sidebar && sidebar.classList.contains('active')) {
+        sidebar.classList.remove('active');
+        overlay && overlay.classList.remove('active');
+        document.body.classList.remove('no-scroll');
+    }
+}
+
 const menuToggle = document.querySelector('.menu-toggle');
 const closeMenu = document.querySelector('.close-menu');
 const sidebar = document.querySelector('.sidebar');
@@ -226,7 +240,20 @@ function setupEventListeners() {
 
     // Full report listeners
     printFullReportBtn.addEventListener('click', printFullReport);
+
+    // Close sidebar when any sidebar item or bottom-nav item is clicked
+    document.querySelectorAll('.report-btn, .bottom-nav .nav-item').forEach(btn => {
+        btn.addEventListener('click', () => closeMenuIfOpen());
+    });
+
+    // Bottom nav actions (mirror sidebar)
+    if (bnDashboard) bnDashboard.addEventListener('click', () => { switchReport('dashboard'); });
+    if (bnSingle) bnSingle.addEventListener('click', () => { switchReport('single'); });
+    if (bnFull) bnFull.addEventListener('click', () => { switchReport('full'); });
+    if (bnAdmin) bnAdmin.addEventListener('click', () => { switchReport('admin'); });
+
 }
+
 
 function toggleMenu() {
     sidebar.classList.toggle('active');
@@ -235,41 +262,38 @@ function toggleMenu() {
 }
 
 function switchReport(type) {
+    // Always close the menu if open
+    closeMenuIfOpen && closeMenuIfOpen();
+
+    // Hide all sections
+    dashboardSection.classList.remove('active');
+    singleReportSection.classList.remove('active');
+    fullReportSection.classList.remove('active');
+    adminSection.classList.remove('active');
+
+    // Reset all nav button active states
+    dashboardBtn.classList.remove('active');
+    singleReportBtn.classList.remove('active');
+    fullReportBtn.classList.remove('active');
+    adminBtn.classList.remove('active');
+
+    // Show selected section + mark current nav
     if (type === 'dashboard') {
         dashboardSection.classList.add('active');
-        singleReportSection.classList.remove('active');
-        fullReportSection.classList.remove('active');
         dashboardBtn.classList.add('active');
-        singleReportBtn.classList.remove('active');
-        fullReportBtn.classList.remove('active');
     } else if (type === 'single') {
-        dashboardSection.classList.remove('active');
         singleReportSection.classList.add('active');
-        fullReportSection.classList.remove('active');
-        dashboardBtn.classList.remove('active');
         singleReportBtn.classList.add('active');
-        fullReportBtn.classList.remove('active');
     } else if (type === 'admin') {
-        dashboardSection.classList.remove('active');
-        singleReportSection.classList.remove('active');
-        fullReportSection.classList.remove('active');
         adminSection.classList.add('active');
-        dashboardBtn.classList.remove('active');
-        singleReportBtn.classList.remove('active');
-        fullReportBtn.classList.remove('active');
         adminBtn.classList.add('active');
     } else {
-        dashboardSection.classList.remove('active');
-        singleReportSection.classList.remove('active');
         fullReportSection.classList.add('active');
-        adminSection.classList.remove('active');
-        dashboardBtn.classList.remove('active');
-        singleReportBtn.classList.remove('active');
         fullReportBtn.classList.add('active');
-        adminBtn.classList.remove('active');
-        generateFullReportPreview();
+        generateFullReportPreview && generateFullReportPreview();
     }
 }
+
 
 function formatFinancial(num) {
     return parseFloat(num || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
