@@ -866,7 +866,6 @@ footer {
 .auth-status{font-weight:600}
 
 
-
 /* === Bottom Mobile Navigation === */
 .bottom-nav{
     position: fixed;
@@ -879,9 +878,9 @@ footer {
     display: flex;
     justify-content: space-around;
     align-items: center;
-    z-index: 1001;
-    /* subtle shadow */
+    z-index: 10010;
     box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
+    padding-bottom: env(safe-area-inset-bottom);
 }
 .bottom-nav .nav-item{
     background: transparent;
@@ -896,21 +895,19 @@ footer {
     width: 25%;
     height: 100%;
     cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
 }
-.bottom-nav .nav-item i{
-    font-size: 1.1rem;
-}
+.bottom-nav .nav-item i{ font-size: 1.1rem; }
 .bottom-nav .nav-item.active,
-.bottom-nav .nav-item:active{
-    color: var(--secondary-color);
-}
-/* Give page bottom padding so content isn't hidden behind nav */
+.bottom-nav .nav-item:active{ color: var(--secondary-color); }
+
+/* Prevent overlap with content */
 body{
-    padding-bottom: 70px;
+    padding-bottom: calc(70px + env(safe-area-inset-bottom));
 }
 
-/* Hide bottom nav on large screens; keep hamburger + sidebar for all */
 @media (min-width: 900px){
     .bottom-nav{ display: none; }
     body{ padding-bottom: 0; }
 }
+
