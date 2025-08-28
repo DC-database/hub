@@ -1379,3 +1379,15 @@ body{
   .dashboard-card, .dashboard-card::before, .dashboard-card::after,
   .top-spender-car i, .road-stripe, .exhaust { animation: none !important; transition: none !important; }
 }
+
+
+/* Disabled input styling for admin auth fields */
+input:disabled, select:disabled, button:disabled {
+  opacity: 0.8;
+  cursor: not-allowed;
+}
+#authEmail:disabled, #authPass:disabled {
+  background: #f1f3f5;
+  color: #666;
+  border-color: #d0d7de;
+}

@@ -1475,16 +1475,22 @@ const ADMIN_UID = 'uX2za3AV63XYj2AGAQfPHDYCiYr1';
 
 auth.onAuthStateChanged(user => {
   if (user) {
-    authStatus.textContent = `Signed in: ${user.email} (UID: ${user.uid})`;
+    // Safer status: no UID shown
+    authStatus.textContent = `Signed in`;
+    // Lock inputs
+    if (authEmail) { authEmail.value = user.email || ''; authEmail.disabled = true; }
+    if (authPass) { authPass.value = '********'; authPass.disabled = true; }
   } else {
     authStatus.textContent = 'Not signed in';
+    // Unlock inputs
+    if (authEmail) { authEmail.disabled = false; authEmail.value = ''; }
+    if (authPass) { authPass.disabled = false; authPass.value = ''; }
   }
 });
-
 if (signInBtn) signInBtn.addEventListener('click', async () => {
   try{
     await auth.signInWithEmailAndPassword(authEmail.value.trim(), authPass.value);
-  }catch(e){ alert('Sign-in failed: ' + (e.message||e)); }
+  authPass.value = '';}catch(e){ alert('Sign-in failed: ' + (e.message||e)); }
 });
 if (signOutBtn) signOutBtn.addEventListener('click', () => auth.signOut());
 
