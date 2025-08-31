@@ -654,7 +654,7 @@ function refreshTable(filteredRecords = null) {
                 </button>
             
                 <button class="btn btn-primary" 
-                    onclick='openApprovalModal(${JSON.stringify({ 
+                    onclick='openWhatsAppModal(${JSON.stringify({ 
                         site: record.site||"", 
                         poNumber: record.poNumber||"", 
                         vendor: record.vendor||"", 
@@ -662,7 +662,7 @@ function refreshTable(filteredRecords = null) {
                         fileName: record.fileName||"", 
                         invoiceNumber: record.invoiceNumber||"", 
                         status: record.status||"" 
-                    })})'>
+                    })}, "approval")'>
                     <i class="fab fa-whatsapp"></i> Approval
                 </button>
     
@@ -2185,29 +2185,14 @@ function showInvoicePreview(record) {
         }
     });
     
-    // Update WhatsApp buttons
-    const whatsappBtn = document.getElementById('whatsappReminderBtn');
-    const whatsappSiteBtn = document.getElementById('whatsappSiteReminderBtn');
-    let whatsappNumber = '50992023'; // Default HO number
-    
-    // Extract site number from the record's site
-    let siteWhatsappNumber = '50992023'; // Default if no site match
-    if (record.site) {
-        for (const [sitePattern, number] of Object.entries(SITE_WHATSAPP_NUMBERS)) {
-            if (record.site.includes(sitePattern)) {
-                siteWhatsappNumber = number;
-                break;
-            }
-        }
+    // Setup for Request Update button
+    const requestUpdateBtn = document.getElementById('requestUpdateBtn');
+    if (requestUpdateBtn) {
+        requestUpdateBtn.onclick = () => {
+            closeInvoicePreview(); // Close current modal
+            openWhatsAppModal(record, 'update'); // Open the other modal for update request
+        };
     }
-    
-    whatsappBtn.onclick = function() {
-        sendWhatsAppReminder(record, whatsappNumber);
-    };
-    
-    whatsappSiteBtn.onclick = function() {
-        sendWhatsAppReminder(record, siteWhatsappNumber);
-    };
     
     document.getElementById('invoicePreviewModal').style.display = 'block';
     document.body.style.overflow = 'hidden';
@@ -2934,7 +2919,7 @@ function sendHOReminder() {
 
 // === Approval/Approver Feature (Injected) ===
 let approvers = [];
-let pendingApprovalRecord = null;
+let pendingWhatsAppRecord = null;
 
 function loadApprovers() {
   return database.ref('Approver').once('value').then(snap => {
@@ -2953,9 +2938,24 @@ function loadApprovers() {
   });
 }
 
-function openApprovalModal(rec) {
-  pendingApprovalRecord = rec;
+function openWhatsAppModal(rec, type) {
+  pendingWhatsAppRecord = rec;
   const el = (id) => document.getElementById(id);
+  
+  const modal = el('approvalModal');
+  const titleEl = modal.querySelector('h2');
+  const sendBtn = el('sendApprovalBtn');
+
+  if (type === 'approval') {
+      titleEl.textContent = 'Send Approval via WhatsApp';
+      sendBtn.innerHTML = '<i class="fab fa-whatsapp"></i> Send via WhatsApp';
+      sendBtn.onclick = () => sendWhatsAppMessage('approval');
+  } else if (type === 'update') {
+      titleEl.textContent = 'Request Update via WhatsApp';
+      sendBtn.innerHTML = '<i class="fab fa-whatsapp"></i> Send Request';
+      sendBtn.onclick = () => sendWhatsAppMessage('update');
+  }
+
 
   if (el('apprSite'))   el('apprSite').textContent   = rec.site || '-';
   if (el('apprPO'))     el('apprPO').textContent     = rec.poNumber || '-';
@@ -2964,45 +2964,29 @@ function openApprovalModal(rec) {
 
   const sel = el('approverSelect');
   if (sel) {
-    // Start with a blank placeholder
-    sel.innerHTML = '';
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = '— Select approver —';
-    sel.appendChild(placeholder);
+    sel.innerHTML = '<option value="">— Select person —</option>';
   }
 
-  // Load/refresh approvers and append options; do NOT auto-select any
   loadApprovers().then(() => {
     if (!sel) return;
-    // Keep only the placeholder, then append options
-    sel.options.length = 1;
     if (!approvers || approvers.length === 0) {
-      sel.options[0].textContent = 'No approvers found (upload in Data Management)';
-      sel.value = '';
+      sel.options[0].textContent = 'No contacts found (upload in Data Management)';
       return;
     }
     approvers.forEach((a, idx) => {
       const opt = document.createElement('option');
       opt.value = (a.mobile || '').toString().replace(/\D/g,'');
-      opt.setAttribute('data-index', idx.toString());
       opt.textContent = `${a.name} — ${a.position}`;
       sel.appendChild(opt);
     });
-    sel.value = ''; // force user to choose
-  }).catch(err => console.warn('Approver refresh failed:', err));
+  });
 
-  const btn = el('sendApprovalBtn');
-  if (btn) btn.onclick = sendApprovalWhatsApp;
-
-  const modal = el('approvalModal');
   if (modal) {
     modal.style.display = 'block';
     document.body.style.overflow = 'hidden';
-  } else {
-    console.warn('approvalModal not found in DOM.');
   }
 }
+
 
 function closeApprovalModal() {
   const modal = document.getElementById('approvalModal');
@@ -3010,25 +2994,24 @@ function closeApprovalModal() {
   document.body.style.overflow = '';
   const msg = document.getElementById('approvalMessage');
   if (msg) msg.value = '';
-  pendingApprovalRecord = null;
+  pendingWhatsAppRecord = null;
 }
 
-function sendApprovalWhatsApp() {
-  if (!pendingApprovalRecord) return;
+function sendWhatsAppMessage(type) {
+  if (!pendingWhatsAppRecord) return;
   const sel = document.getElementById('approverSelect');
   const msgExtra = (document.getElementById('approvalMessage')?.value || '').trim();
 
-  // Must pick someone
   const waNumber = (sel && sel.value ? sel.value : '').replace(/\D/g,'');
-  if (!waNumber) { alert('Please choose an approver'); return; }
-
-  // Find current approver by mobile; fallback to exact label match if needed
-  const approver = (approvers.find(a => (a.mobile||'').replace(/\D/g,'') === waNumber) || null);
-  if (!approver) { alert('Approver not found. Try re-opening the modal.'); return; }
-
-  const r = pendingApprovalRecord;
-
-  let message = `*Invoice Approval Request*\n\n`;
+  if (!waNumber) { alert('Please choose a person to send to.'); return; }
+  
+  const r = pendingWhatsAppRecord;
+  
+  let messageHeader = (type === 'approval')
+        ? `*Invoice Approval Request*\n\n`
+        : `*Invoice Status Update Request*\n\n`;
+  
+  let message = messageHeader;
   message += `Site: ${r.site || 'N/A'}\n`;
   message += `PO: ${r.poNumber || 'N/A'}\n`;
   message += `Vendor: ${r.vendor || 'N/A'}\n`;
@@ -3038,9 +3021,6 @@ function sendApprovalWhatsApp() {
   if (r.fileName) {
     const pdfUrl = `${PDF_BASE_PATH}${encodeURIComponent(r.fileName)}`;
     message += `\nInvoice PDF: ${pdfUrl}\n`;
-    message += `If it doesn't open, please use your phone's PDF app.\n`;
-  } else {
-    message += `\n[No PDF linked in the system]\n`;
   }
 
   if (msgExtra) message += `\nNote: ${msgExtra}\n`;

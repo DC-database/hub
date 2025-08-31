@@ -1568,9 +1568,9 @@ tr:hover {
     .compact-table .status-badge {
         display: inline-block !important;
         visibility: visible !important;
-        color: white !important;
-        padding: 2px 5px !important;
-        font-size: 10px !important;
+        color: #000 !important;
+        background: transparent !important;
+        border: 1px solid #ccc !important;
     }
     
     /* Remove search controls from print */
@@ -1904,9 +1904,6 @@ tr:hover {
 /* Enhanced modern step progress style */
 .step-progress-container {
     position: relative;
-    padding: 25px 0 5px;
-    width: 100%;
-    position: relative;
     padding: 10px 0;
 }
 
@@ -2061,7 +2058,9 @@ tr:hover {
     #siteRecordsTable .status-badge {
         display: inline-block !important;
         visibility: visible !important;
-        color: white !important;
+        color: #000 !important;
+        background: transparent !important;
+        border: 1px solid #ccc !important;
         padding: 2px 5px !important;
         font-size: 10px !important;
     }
