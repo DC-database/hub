@@ -1,1 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supplier Invoice Inquiry</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+<body>
 
+    <div class="container">
+        <div id="auth-container">
+            <div id="login-form-container">
+                <h2>Supplier Portal Login</h2>
+                <form id="login-form">
+                    <div class="input-group">
+                        <label for="login-email">Email</label>
+                        <input type="email" id="login-email" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="login-password">Password</label>
+                        <input type="password" id="login-password" required>
+                    </div>
+                    <button type="submit" class="btn">Sign In</button>
+                    <p class="form-switch">Don't have an account? <a href="#" id="show-signup">Sign Up</a></p>
+                </form>
+            </div>
+
+            <div id="signup-form-container" class="hidden">
+                <h2>Create Supplier Account</h2>
+                <form id="signup-form">
+                     <div class="input-group">
+                        <label for="signup-company-name">Company Name</label>
+                        <input type="text" id="signup-company-name" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="signup-email">Company Email</label>
+                        <input type="email" id="signup-email" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="signup-password">Password</label>
+                        <input type="password" id="signup-password" required>
+                    </div>
+                    <button type="submit" class="btn">Sign Up</button>
+                    <p class="form-switch">Already have an account? <a href="#" id="show-login">Sign In</a></p>
+                </form>
+            </div>
+             <p id="auth-error" class="error-message"></p>
+        </div>
+
+        <div id="inquiry-container" class="hidden">
+            <header class="app-header">
+                <h2>Invoice Payment Inquiry</h2>
+                <div class="user-info">
+                    <span id="user-company-name"></span>
+                    <button id="signout-btn" class="btn btn-secondary">Sign Out</button>
+                </div>
+            </header>
+            <form id="inquiry-form">
+                <div class="form-row">
+                    <div class="input-group">
+                        <label for="invoice-number">Invoice Number</label>
+                        <input type="text" id="invoice-number" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="invoice-amount">Invoice Amount</label>
+                        <input type="number" step="0.01" id="invoice-amount" required>
+                    </div>
+                </div>
+                 <div class="form-row">
+                    <div class="input-group">
+                        <label for="date-submitted">Date Submitted</label>
+                        <input type="date" id="date-submitted" required>
+                    </div>
+                    <div class="input-group" style="position: relative;">
+                        <label for="project-name">Project Name / Site</label>
+                        <input type="text" id="project-name" required autocomplete="off">
+                        <div id="site-suggestions" class="suggestions-container hidden"></div>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label for="notes">Notes / Remarks</label>
+                    <textarea id="notes" rows="4"></textarea>
+                </div>
+                <button type="submit" class="btn">Submit Inquiry</button>
+                <p id="form-message" class="success-message"></p>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-database.js"></script>
+    <script src="app.js"></script>
+
+</body>
+</html>
