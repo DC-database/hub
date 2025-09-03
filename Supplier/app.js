@@ -31,35 +31,98 @@ const userCompanyNameEl = document.getElementById('user-company-name');
 const authErrorEl = document.getElementById('auth-error');
 const formMessageEl = document.getElementById('form-message');
 
-// --- Autocomplete UI Elements ---
+const navSubmitInquiry = document.getElementById('nav-submit-inquiry');
+const navViewInquiries = document.getElementById('nav-view-inquiries');
+const submitInquiryView = document.getElementById('submit-inquiry-view');
+const viewInquiriesView = document.getElementById('view-inquiries-view');
+const inquiriesTbody = document.getElementById('inquiries-tbody');
+const noInquiriesMessage = document.getElementById('no-inquiries-message');
+
 const projectNameInput = document.getElementById('project-name');
 const siteSuggestionsContainer = document.getElementById('site-suggestions');
 
-// --- Session Management & UI Functions ---
-let sitesData = []; // Variable to store site data for autocomplete
+let sitesData = [];
+
+// --- NEW Date Formatting Helper Function ---
+function formatDate(dateInput) {
+    if (!dateInput) return ''; // Return empty string if date is null, undefined, or empty
+
+    const date = new Date(dateInput);
+    // Check if the date is valid
+    if (isNaN(date.getTime())) {
+        return ''; 
+    }
+
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    const dayName = days[date.getDay()];
+    const monthName = months[date.getMonth()];
+    const dayOfMonth = String(date.getDate()).padStart(2, '0');
+    const year = date.getFullYear();
+
+    return `(${dayName}) ${monthName}-${dayOfMonth}-${year}`;
+}
+
 
 // Function to fetch sites from Firebase
 function fetchSites() {
-    console.log("1. Attempting to fetch site data from Firebase...");
-    database.ref('site').once('value', snapshot => {
+    database.ref('sites').once('value', snapshot => {
         if (snapshot.exists()) {
-            // Convert the object of objects to an array
             const sitesObject = snapshot.val();
-            sitesData = Object.keys(sitesObject).map(key => {
-                return {
-                    id: key,
-                    warehouse: sitesObject[key].warehouse || '',
-                    description: sitesObject[key].description || ''
-                };
-            });
-            console.log("2. SUCCESS: Site data loaded successfully.", sitesData);
+            sitesData = Object.keys(sitesObject).map(key => ({
+                id: key,
+                warehouse: sitesObject[key].warehouse || '',
+                description: sitesObject[key].description || ''
+            }));
         } else {
-            console.warn("2. FAILED: No data found at the '/site' path in your database.");
+            console.warn("No data found at the '/sites' path.");
             sitesData = [];
         }
+    }).catch(error => console.error("Firebase error on fetchSites:", error.message));
+}
+
+// --- UPDATED FUNCTION ---
+// Now uses the new formatDate helper
+function fetchAndDisplayUserInquiries() {
+    const user = JSON.parse(sessionStorage.getItem('loggedInUser'));
+    if (!user) return;
+
+    const inquiriesRef = database.ref('inquiries');
+    inquiriesTbody.innerHTML = '';
+    noInquiriesMessage.classList.add('hidden');
+
+    inquiriesRef.orderByChild('userId').equalTo(user.id).once('value', snapshot => {
+        if (snapshot.exists()) {
+            const inquiries = snapshot.val();
+            const inquiriesArray = Object.values(inquiries).sort((a, b) => b.timestamp - a.timestamp);
+
+            inquiriesArray.forEach(inquiry => {
+                const row = inquiriesTbody.insertRow();
+                const formattedAmount = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'QAR' }).format(inquiry.invoiceAmount);
+                const status = inquiry.status || 'Submitted';
+                
+                // Use the new date formatter
+                const submittedDate = formatDate(inquiry.timestamp);
+                const attendedDate = formatDate(inquiry.attendedDate);
+
+                row.innerHTML = `
+                    <td>${submittedDate}</td>
+                    <td>${inquiry.invoiceNumber || ''}</td>
+                    <td>${formattedAmount}</td>
+                    <td>${inquiry.projectName || ''}</td>
+                    <td>${inquiry.notes || ''}</td>
+                    <td>${inquiry.adminNotes || ''}</td>
+                    <td>${attendedDate}</td>
+                    <td><span class="status-button">${status}</span></td>
+                `;
+            });
+        } else {
+            noInquiriesMessage.classList.remove('hidden');
+        }
     }).catch(error => {
-        console.error("2. FAILED WITH ERROR: Firebase blocked the request.", error.message);
-        sitesData = [];
+        console.error("Error fetching inquiries:", error);
+        inquiriesTbody.innerHTML = `<tr><td colspan="8" style="color:var(--error-color);">Error loading inquiries.</td></tr>`;
     });
 }
 
@@ -68,7 +131,8 @@ function showInquiryPage(userData) {
     userCompanyNameEl.textContent = userData.companyName;
     authContainer.classList.add('hidden');
     inquiryContainer.classList.remove('hidden');
-    fetchSites(); // Fetch site data after the user logs in
+    navSubmitInquiry.click(); 
+    fetchSites();
 }
 
 // Function to show the authentication page
@@ -79,22 +143,23 @@ function showAuthPage() {
     userCompanyNameEl.textContent = '';
 }
 
-// --- Form Toggling ---
-showSignupLink.addEventListener('click', (e) => {
-    e.preventDefault();
-    loginFormContainer.classList.add('hidden');
-    signupFormContainer.classList.remove('hidden');
-    authErrorEl.textContent = '';
+// Tab Navigation Logic
+navSubmitInquiry.addEventListener('click', () => {
+    submitInquiryView.classList.remove('hidden');
+    viewInquiriesView.classList.add('hidden');
+    navSubmitInquiry.classList.add('active');
+    navViewInquiries.classList.remove('active');
 });
 
-showLoginLink.addEventListener('click', (e) => {
-    e.preventDefault();
-    signupFormContainer.classList.add('hidden');
-    loginFormContainer.classList.remove('hidden');
-    authErrorEl.textContent = '';
+navViewInquiries.addEventListener('click', () => {
+    viewInquiriesView.classList.remove('hidden');
+    submitInquiryView.classList.add('hidden');
+    navViewInquiries.classList.add('active');
+    navSubmitInquiry.classList.remove('active');
+    fetchAndDisplayUserInquiries();
 });
 
-// --- ORIGINAL (WORKING) Authentication Logic ---
+// Authentication Logic (unchanged)
 signupForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const companyName = document.getElementById('signup-company-name').value.trim();
@@ -146,7 +211,7 @@ loginForm.addEventListener('submit', (e) => {
 
 signoutBtn.addEventListener('click', showAuthPage);
 
-// --- Inquiry Form Submission ---
+// Inquiry Form Submission (unchanged)
 inquiryForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const user = JSON.parse(sessionStorage.getItem('loggedInUser'));
@@ -162,54 +227,50 @@ inquiryForm.addEventListener('submit', (e) => {
         };
         database.ref('inquiries').push(inquiryData).then(() => {
             formMessageEl.textContent = 'Inquiry submitted successfully!';
+            formMessageEl.classList.remove('error-message');
+            formMessageEl.classList.add('success-message');
             inquiryForm.reset();
-            setTimeout(() => { formMessageEl.textContent = ''; }, 4000);
-        }).catch((error) => { formMessageEl.textContent = `Error: ${error.message}`; });
+            setTimeout(() => { 
+                formMessageEl.textContent = ''; 
+                navViewInquiries.click();
+            }, 2000);
+        }).catch((error) => { 
+            formMessageEl.textContent = `Error: ${error.message}`;
+            formMessageEl.classList.add('error-message');
+            formMessageEl.classList.remove('success-message');
+        });
     } else {
         formMessageEl.textContent = 'Your session has expired. Please log in again.';
+        formMessageEl.classList.add('error-message');
+        formMessageEl.classList.remove('success-message');
         setTimeout(showAuthPage, 3000);
     }
 });
 
-// --- Enhanced Autocomplete Logic ---
+// Autocomplete Logic (unchanged)
 projectNameInput.addEventListener('input', () => {
     const inputValue = projectNameInput.value.toLowerCase().trim();
-    siteSuggestionsContainer.innerHTML = ''; 
-    console.log(`3. User typed: "${inputValue}". Filtering data...`);
-
+    siteSuggestionsContainer.innerHTML = '';
     if (inputValue.length === 0 || sitesData.length === 0) {
         siteSuggestionsContainer.classList.add('hidden');
         return;
     }
-
     const filteredSites = sitesData.filter(site => {
         const warehouse = site.warehouse ? String(site.warehouse).toLowerCase() : '';
         const description = site.description ? String(site.description).toLowerCase() : '';
-        const combinedText = `${warehouse} ${description}`.toLowerCase();
-        
-        return warehouse.includes(inputValue) || 
-               description.includes(inputValue) || 
-               combinedText.includes(inputValue);
+        const combinedText = `${warehouse} ${description}`;
+        return warehouse.includes(inputValue) || description.includes(inputValue) || combinedText.includes(inputValue);
     });
-    
-    console.log(`4. Found ${filteredSites.length} matching sites.`);
-
     if (filteredSites.length > 0) {
         siteSuggestionsContainer.classList.remove('hidden');
         filteredSites.forEach(site => {
             const suggestionDiv = document.createElement('div');
             suggestionDiv.classList.add('suggestion-item');
-            
-            // Format the display text as "Warehouse - Description"
             const displayText = `${site.warehouse} - ${site.description}`;
             suggestionDiv.textContent = displayText;
-            
-            // Store the original data as a data attribute
             suggestionDiv.dataset.warehouse = site.warehouse;
             suggestionDiv.dataset.description = site.description;
-            
             suggestionDiv.addEventListener('click', () => {
-                // Set the input value to the formatted text
                 projectNameInput.value = displayText;
                 siteSuggestionsContainer.classList.add('hidden');
             });
@@ -219,44 +280,33 @@ projectNameInput.addEventListener('input', () => {
         siteSuggestionsContainer.classList.add('hidden');
     }
 });
-
-// Hide suggestions when clicking outside
 document.addEventListener('click', (e) => {
     if (e.target !== projectNameInput && !siteSuggestionsContainer.contains(e.target)) {
         siteSuggestionsContainer.classList.add('hidden');
     }
 });
-
-// Keyboard navigation for suggestions
 projectNameInput.addEventListener('keydown', (e) => {
     const suggestions = siteSuggestionsContainer.querySelectorAll('.suggestion-item');
     if (!suggestions.length) return;
-    
     const activeSuggestion = siteSuggestionsContainer.querySelector('.suggestion-item.active');
-    let index = -1;
-    
-    if (activeSuggestion) {
-        index = Array.from(suggestions).indexOf(activeSuggestion);
-        activeSuggestion.classList.remove('active');
-    }
-    
+    let index = activeSuggestion ? Array.from(suggestions).indexOf(activeSuggestion) : -1;
+    if (activeSuggestion) activeSuggestion.classList.remove('active');
     if (e.key === 'ArrowDown') {
         e.preventDefault();
         index = (index + 1) % suggestions.length;
-        suggestions[index].classList.add('active');
-        suggestions[index].scrollIntoView({ block: 'nearest' });
     } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         index = (index - 1 + suggestions.length) % suggestions.length;
-        suggestions[index].classList.add('active');
-        suggestions[index].scrollIntoView({ block: 'nearest' });
     } else if (e.key === 'Enter' && activeSuggestion) {
         e.preventDefault();
         activeSuggestion.click();
-    }
+        return;
+    } else { return; }
+    suggestions[index].classList.add('active');
+    suggestions[index].scrollIntoView({ block: 'nearest' });
 });
 
-// --- Initial Page Load ---
+// Initial Page Load
 document.addEventListener('DOMContentLoaded', () => {
     const loggedInUser = sessionStorage.getItem('loggedInUser'); 
     if (loggedInUser) {

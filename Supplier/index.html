@@ -26,7 +26,6 @@
                     <p class="form-switch">Don't have an account? <a href="#" id="show-signup">Sign Up</a></p>
                 </form>
             </div>
-
             <div id="signup-form-container" class="hidden">
                 <h2>Create Supplier Account</h2>
                 <form id="signup-form">
@@ -57,35 +56,67 @@
                     <button id="signout-btn" class="btn btn-secondary">Sign Out</button>
                 </div>
             </header>
-            <form id="inquiry-form">
-                <div class="form-row">
-                    <div class="input-group">
-                        <label for="invoice-number">Invoice Number</label>
-                        <input type="text" id="invoice-number" required>
+
+            <nav class="app-nav">
+                <button id="nav-submit-inquiry" class="nav-btn active">Submit Inquiry</button>
+                <button id="nav-view-inquiries" class="nav-btn">View My Inquiries</button>
+            </nav>
+            
+            <div id="submit-inquiry-view">
+                <form id="inquiry-form">
+                    <div class="form-row">
+                        <div class="input-group">
+                            <label for="invoice-number">Invoice Number</label>
+                            <input type="text" id="invoice-number" required>
+                        </div>
+                        <div class="input-group">
+                            <label for="invoice-amount">Invoice Amount</label>
+                            <input type="number" step="0.01" id="invoice-amount" required>
+                        </div>
+                    </div>
+                     <div class="form-row">
+                        <div class="input-group">
+                            <label for="date-submitted">Date Submitted</label>
+                            <input type="date" id="date-submitted" required>
+                        </div>
+                        <div class="input-group" style="position: relative;">
+                            <label for="project-name">Project Name / Site</label>
+                            <input type="text" id="project-name" required autocomplete="off">
+                            <div id="site-suggestions" class="suggestions-container hidden"></div>
+                        </div>
                     </div>
                     <div class="input-group">
-                        <label for="invoice-amount">Invoice Amount</label>
-                        <input type="number" step="0.01" id="invoice-amount" required>
+                        <label for="notes">Notes / Remarks</label>
+                        <textarea id="notes" rows="4"></textarea>
                     </div>
+                    <button type="submit" class="btn">Submit Inquiry</button>
+                    <p id="form-message" class="success-message"></p>
+                </form>
+            </div>
+
+            <div id="view-inquiries-view" class="hidden">
+                 <div class="table-container">
+                    <table id="inquiries-table">
+                        <thead>
+                            <tr>
+                                <th>Submitted On</th>
+                                <th>Invoice #</th>
+                                <th>Amount</th>
+                                <th>Project</th>
+                                <th>Notes</th>
+                                <th>IBA Comment</th>
+                                <th>Date Attended</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inquiries-tbody">
+                            </tbody>
+                    </table>
                 </div>
-                 <div class="form-row">
-                    <div class="input-group">
-                        <label for="date-submitted">Date Submitted</label>
-                        <input type="date" id="date-submitted" required>
-                    </div>
-                    <div class="input-group" style="position: relative;">
-                        <label for="project-name">Project Name / Site</label>
-                        <input type="text" id="project-name" required autocomplete="off">
-                        <div id="site-suggestions" class="suggestions-container hidden"></div>
-                    </div>
-                </div>
-                <div class="input-group">
-                    <label for="notes">Notes / Remarks</label>
-                    <textarea id="notes" rows="4"></textarea>
-                </div>
-                <button type="submit" class="btn">Submit Inquiry</button>
-                <p id="form-message" class="success-message"></p>
-            </form>
+                <p id="no-inquiries-message" class="hidden" style="text-align: center; margin-top: 1rem;">
+                    You have not submitted any inquiries yet.
+                </p>
+            </div>
         </div>
     </div>
 
