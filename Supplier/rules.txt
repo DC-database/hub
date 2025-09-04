@@ -1,0 +1,17 @@
+{
+  "rules": {
+    "inquiries": {
+      ".read": "auth != null",
+      ".write": true
+    },
+    "users": {
+      ".read": true,
+      ".write": true,
+      ".indexOn": "email"
+    },
+    "sites": {
+      ".read": true,
+      ".write": "auth != null"
+    }
+  }
+}

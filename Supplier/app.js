@@ -41,6 +41,7 @@ const projectNameInput = document.getElementById('project-name');
 const siteSuggestionsContainer = document.getElementById('site-suggestions');
 const bottomNavView = document.getElementById('bottom-nav-view');
 const bottomNavSubmit = document.getElementById('bottom-nav-submit');
+const bottomNavSignout = document.getElementById('bottom-nav-signout'); // <-- ADDED
 let sitesData = [];
 
 // --- REFACTORED NAVIGATION LOGIC ---
@@ -217,6 +218,12 @@ loginForm.addEventListener('submit', (e) => {
 });
 
 signoutBtn.addEventListener('click', showAuthPage);
+
+// ADDED FOR MOBILE SIGN OUT
+bottomNavSignout.addEventListener('click', (e) => {
+    e.preventDefault();
+    showAuthPage();
+});
 
 // --- Inquiry Form Submission ---
 inquiryForm.addEventListener('submit', (e) => {
