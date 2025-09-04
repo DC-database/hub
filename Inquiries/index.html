@@ -4,132 +4,143 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
 </head>
 <body>
 
-    <div id="login-container">
-        <div class="login-box">
-            <h2 class="form-title">Dashboard Login</h2>
+    <div id="auth-container">
+        <div id="login-form-container">
+            <h2>Admin Dashboard Login</h2>
             <form id="login-form">
-                <div class="input-group"><label for="login-email">Email</label><input type="email" id="login-email" required></div>
-                <div class="input-group"><label for="login-password">Password</label><input type="password" id="login-password" required></div>
-                <button type="submit" class="btn">Sign In</button>
-                <p id="login-error" class="error-message"></p>
+                <div class="form-group">
+                    <label for="login-email">Email</label>
+                    <i class="fas fa-envelope input-icon"></i>
+                    <input type="email" id="login-email" placeholder="Enter your admin email" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <i class="fas fa-lock input-icon"></i>
+                    <input type="password" id="login-password" placeholder="Enter your password" required>
+                </div>
+                <p id="auth-error"></p>
+                <button type="submit" class="auth-button">SIGN IN</button>
             </form>
         </div>
     </div>
 
-    <div id="dashboard-container" class="hidden">
-        <header class="main-header">
-            <div class="header-left">
-                <h1>IBA Dashboard</h1>
-                <nav class="main-nav-desktop">
-                    <button id="nav-inquiries-desktop" class="nav-btn active">Inquiries</button>
-                    <button id="nav-archive-desktop" class="nav-btn">Archive</button>
-                    <button id="nav-upload-csv-desktop" class="nav-btn">Upload CSV</button>
-                </nav>
+    <div id="dashboard-container" class="dashboard-layout hidden">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <i class="fa-solid fa-shield-halved logo-icon"></i>
+                <h1 class="logo-text">IBA Admin</h1>
             </div>
-            <button id="sign-out-btn" class="btn btn-secondary">Sign Out</button>
-        </header>
+            <nav class="sidebar-nav">
+                <a href="#" id="nav-inquiries" class="nav-link active">
+                    <i class="fa-solid fa-table-list"></i>
+                    <span>Inquiries</span>
+                </a>
+                <a href="#" id="nav-archive" class="nav-link">
+                    <i class="fa-solid fa-box-archive"></i>
+                    <span>Archive</span>
+                </a>
+                <a href="#" id="nav-upload-csv" class="nav-link">
+                    <i class="fa-solid fa-file-csv"></i>
+                    <span>Upload CSV</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="signout-btn" class="signout-button">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    <span>Sign Out</span>
+                </button>
+            </div>
+        </aside>
 
-        <main class="container">
-            <div id="inquiries-view">
-                <div class="controls-container">
-                    <div class="search-wrapper">
-                         <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                        <input type="text" id="search-box" placeholder="Search Open Inquiries...">
-                    </div>
+        <main class="main-content">
+            <header class="main-header">
+                <h2 id="page-title">Open Inquiries</h2>
+                <div class="user-info">
+                    <span id="user-email-display"></span>
+                    <i class="fa-solid fa-user-circle user-avatar"></i>
                 </div>
-                <div class="card">
+            </header>
+
+            <div id="inquiries-view" class="content-view">
+                <div class="table-card">
+                    <div class="controls-container">
+                        <input type="text" id="search-box" placeholder="Search inquiries by company or project...">
+                    </div>
                     <div class="table-container">
-                        <table id="inquiries-table">
+                        <table class="data-table">
                             <thead>
                                 <tr>
-                                    <th data-column="projectName" class="sortable">Project / Site <span></span></th>
-                                    <th data-column="companyName" class="sortable">Company Name <span></span></th>
-                                    <th data-column="invoiceAmount" class="sortable">Amount <span></span></th>
-                                    <th data-column="dateSubmitted" class="sortable">Date Submitted <span></span></th>
-                                    <th>Supplier Note</th>
+                                    <th>Project / Site</th>
+                                    <th>Company</th>
+                                    <th>Amount</th>
+                                    <th>Date Submitted</th>
                                     <th>Last Update</th>
-                                    <th>Attended Date</th>
+                                    <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="inquiries-table-body"></tbody>
                         </table>
                     </div>
-                     <p id="no-results-message" class="empty-message">No open inquiries found.</p>
+                    <p id="no-results-message" class="empty-message hidden">No open inquiries found.</p>
                 </div>
             </div>
 
-            <div id="archive-view" class="hidden">
-                 <div class="controls-container">
-                    <h2>Archived Inquiries</h2>
-                </div>
-                <div class="card">
+            <div id="archive-view" class="content-view hidden">
+                <div class="table-card">
                     <div class="table-container">
-                        <table id="archive-table">
+                        <table class="data-table">
                             <thead>
                                 <tr>
                                     <th>Project / Site</th>
-                                    <th>Company Name</th>
+                                    <th>Company</th>
                                     <th>Amount</th>
-                                    <th>Date Submitted</th>
-                                    <th>Supplier Note</th>
-                                    <th>Final Update</th>
-                                    <th>Attended Date</th>
+                                    <th>Date Closed</th>
+                                    <th>Last Update</th>
+                                    <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="archive-table-body"></tbody>
                         </table>
                     </div>
-                     <p id="no-archive-message" class="empty-message">No archived inquiries found.</p>
+                    <p id="no-archive-message" class="empty-message hidden">No archived inquiries found.</p>
                 </div>
             </div>
             
-            <div id="upload-csv-view" class="hidden">
-                <div class="content-card">
-                    <h2 class="form-title">Upload Site Data via CSV</h2>
+            <div id="upload-csv-view" class="content-view hidden">
+                <div class="form-card">
+                    <h3>Upload Site Data via CSV</h3>
                     <p class="subtitle">Select a CSV file with "Warehouse" and "Description" headers.</p>
                     <div class="file-input-wrapper">
                         <input type="file" id="csv-file-input" accept=".csv">
-                        <label for="csv-file-input" id="file-input-label"><span>Choose a file...</span></label>
+                        <label for="csv-file-input" id="file-input-label">Choose a file...</label>
                     </div>
-                    <button id="upload-btn" class="btn">Upload to Firebase</button>
-                    <div id="status-area"><p id="status-message"></p></div>
+                    <div class="form-actions">
+                        <button id="upload-btn" class="btn-primary"><i class="fa-solid fa-upload"></i> Upload to Firebase</button>
+                        <p id="status-message"></p>
+                    </div>
                 </div>
             </div>
         </main>
-        
-        <nav id="mobile-nav">
-            <button id="nav-inquiries-mobile" class="mobile-nav-btn active">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
-                <span>Inquiries</span>
-            </button>
-            <button id="nav-archive-mobile" class="mobile-nav-btn">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" y2="9"></line></svg>
-                <span>Archive</span>
-            </button>
-            <button id="nav-upload-csv-mobile" class="mobile-nav-btn">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                <span>Upload</span>
-            </button>
-        </nav>
     </div>
 
-    <div id="update-modal" class="modal-backdrop hidden">
+     <div id="update-modal" class="modal-backdrop hidden">
         <div class="modal-content">
-            <h2 class="form-title">Update Inquiry Status</h2>
+            <h2>Update Inquiry Status</h2>
             <form id="update-form">
-                <div class="input-group"><label for="update-notes">Update Notes</label><textarea id="update-notes" rows="4" required></textarea></div>
+                <div class="input-group">
+                    <label for="update-notes">Update Notes</label>
+                    <textarea id="update-notes" rows="4" required></textarea>
+                </div>
                 <div class="modal-actions">
-                    <button type="button" id="cancel-update-btn" class="btn btn-secondary">Cancel</button>
-                    <button type="submit" class="btn">Save Update</button>
+                    <button type="button" id="cancel-update-btn" class="btn-secondary">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Update</button>
                 </div>
             </form>
         </div>
