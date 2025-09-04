@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
         archive: document.getElementById('bottom-nav-archive'),
         upload: document.getElementById('bottom-nav-upload-csv')
     };
+    const bottomNavSignout = document.getElementById('bottom-nav-signout');
 
     const views = {
         inquiries: document.getElementById('inquiries-view'),
@@ -87,7 +88,9 @@ document.addEventListener('DOMContentLoaded', () => {
             .catch(error => { authErrorEl.textContent = 'Invalid email or password.'; });
     });
 
-    signoutBtn.addEventListener('click', () => auth.signOut());
+    const signOutUser = () => auth.signOut();
+    signoutBtn.addEventListener('click', signOutUser);
+    bottomNavSignout.addEventListener('click', signOutUser);
 
     // --- Navigation ---
     function switchToView(viewName) {
@@ -166,7 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td data-label="Amount">${parseFloat(inquiry.invoiceAmount || 0).toLocaleString('en-US', { style: 'currency', currency: 'QAR' })}</td>
                     <td data-label="Date Submitted">${new Date(inquiry.timestamp).toLocaleDateString()}</td>
                     <td data-label="Last Update">${inquiry.adminNotes || 'N/A'}</td>
-                    <td data-label="Status"><span class="status-pill ${status.toLowerCase()}">${status}</span></td>
+                    <td data-label="Status" class="status-text">${status}</td>
                     <td data-label="Actions" class="actions-cell">
                         <button class="actions-button btn-update" data-id="${inquiry.id}">Update</button>
                         <button class="actions-button btn-close" data-id="${inquiry.id}">Close</button>
@@ -188,7 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td data-label="Amount">${parseFloat(inquiry.invoiceAmount || 0).toLocaleString('en-US', { style: 'currency', currency: 'QAR' })}</td>
                     <td data-label="Date Closed">${inquiry.attendedDate ? new Date(inquiry.attendedDate).toLocaleDateString() : 'N/A'}</td>
                     <td data-label="Last Update">${inquiry.adminNotes || 'N/A'}</td>
-                    <td data-label="Status"><span class="status-pill closed">Closed</span></td>
+                    <td data-label="Status" class="status-text">Closed</td>
                     <td data-label="Actions" class="actions-cell">
                         <button class="actions-button btn-reopen" data-id="${inquiry.id}">Re-open</button>
                     </td>
