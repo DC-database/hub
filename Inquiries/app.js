@@ -161,13 +161,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const status = inquiry.status || 'New';
             const row = `
                 <tr>
-                    <td>${inquiry.projectName || ''}</td>
-                    <td>${inquiry.companyName || ''}</td>
-                    <td>${parseFloat(inquiry.invoiceAmount || 0).toLocaleString('en-US', { style: 'currency', currency: 'QAR' })}</td>
-                    <td>${new Date(inquiry.timestamp).toLocaleDateString()}</td>
-                    <td>${inquiry.adminNotes || 'N/A'}</td>
-                    <td><span class="status-pill ${status.toLowerCase()}">${status}</span></td>
-                    <td class="actions-cell">
+                    <td data-label="Project / Site">${inquiry.projectName || ''}</td>
+                    <td data-label="Company">${inquiry.companyName || ''}</td>
+                    <td data-label="Amount">${parseFloat(inquiry.invoiceAmount || 0).toLocaleString('en-US', { style: 'currency', currency: 'QAR' })}</td>
+                    <td data-label="Date Submitted">${new Date(inquiry.timestamp).toLocaleDateString()}</td>
+                    <td data-label="Last Update">${inquiry.adminNotes || 'N/A'}</td>
+                    <td data-label="Status"><span class="status-pill ${status.toLowerCase()}">${status}</span></td>
+                    <td data-label="Actions" class="actions-cell">
                         <button class="actions-button btn-update" data-id="${inquiry.id}">Update</button>
                         <button class="actions-button btn-close" data-id="${inquiry.id}">Close</button>
                         <button class="actions-button btn-danger btn-delete" data-id="${inquiry.id}">Delete</button>
@@ -183,13 +183,13 @@ document.addEventListener('DOMContentLoaded', () => {
         data.forEach(inquiry => {
             const row = `
                 <tr>
-                    <td>${inquiry.projectName || ''}</td>
-                    <td>${inquiry.companyName || ''}</td>
-                    <td>${parseFloat(inquiry.invoiceAmount || 0).toLocaleString('en-US', { style: 'currency', currency: 'QAR' })}</td>
-                    <td>${inquiry.attendedDate ? new Date(inquiry.attendedDate).toLocaleDateString() : 'N/A'}</td>
-                    <td>${inquiry.adminNotes || 'N/A'}</td>
-                    <td><span class="status-pill closed">Closed</span></td>
-                    <td class="actions-cell">
+                    <td data-label="Project / Site">${inquiry.projectName || ''}</td>
+                    <td data-label="Company">${inquiry.companyName || ''}</td>
+                    <td data-label="Amount">${parseFloat(inquiry.invoiceAmount || 0).toLocaleString('en-US', { style: 'currency', currency: 'QAR' })}</td>
+                    <td data-label="Date Closed">${inquiry.attendedDate ? new Date(inquiry.attendedDate).toLocaleDateString() : 'N/A'}</td>
+                    <td data-label="Last Update">${inquiry.adminNotes || 'N/A'}</td>
+                    <td data-label="Status"><span class="status-pill closed">Closed</span></td>
+                    <td data-label="Actions" class="actions-cell">
                         <button class="actions-button btn-reopen" data-id="${inquiry.id}">Re-open</button>
                     </td>
                 </tr>`;

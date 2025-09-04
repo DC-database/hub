@@ -191,4 +191,44 @@ body {
         padding: 16px;
         padding-bottom: 80px; /* Add padding to prevent overlap with bottom nav */
     }
+
+    /* Responsive Table Styles (Card View) */
+    .data-table thead {
+        display: none;
+    }
+    .data-table tr {
+        display: block;
+        margin-bottom: 1rem;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .data-table td {
+        display: block;
+        text-align: right;
+        position: relative;
+        padding-left: 50%;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .data-table td:last-child {
+        border-bottom: none;
+    }
+    .data-table td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 1rem;
+        width: 45%;
+        padding-right: 10px;
+        white-space: nowrap;
+        text-align: left;
+        font-weight: 600;
+        color: var(--text-color-dark);
+    }
+    .actions-cell {
+        text-align: left;
+        padding-left: 1rem;
+    }
+     .actions-cell::before {
+        display: none;
+    }
 }
