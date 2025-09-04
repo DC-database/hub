@@ -23,10 +23,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const userEmailDisplay = document.getElementById('user-email-display');
     const pageTitleEl = document.getElementById('page-title');
 
+    // Sidebar Navigation
     const navLinks = {
         inquiries: document.getElementById('nav-inquiries'),
         archive: document.getElementById('nav-archive'),
         upload: document.getElementById('nav-upload-csv')
+    };
+
+    // Bottom Mobile Navigation
+    const bottomNavLinks = {
+        inquiries: document.getElementById('bottom-nav-inquiries'),
+        archive: document.getElementById('bottom-nav-archive'),
+        upload: document.getElementById('bottom-nav-upload-csv')
     };
 
     const views = {
@@ -83,18 +91,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Navigation ---
     function switchToView(viewName) {
+        // Hide all views
         Object.values(views).forEach(view => view.classList.add('hidden'));
+        // Deactivate all nav links (sidebar and bottom)
         Object.values(navLinks).forEach(link => link.classList.remove('active'));
+        Object.values(bottomNavLinks).forEach(link => link.classList.remove('active'));
 
-        if (views[viewName] && navLinks[viewName]) {
+        if (views[viewName] && navLinks[viewName] && bottomNavLinks[viewName]) {
+            // Show the correct view
             views[viewName].classList.remove('hidden');
+            // Activate the correct links in both navs
             navLinks[viewName].classList.add('active');
+            bottomNavLinks[viewName].classList.add('active');
+            // Update page title
             pageTitleEl.textContent = viewName.charAt(0).toUpperCase() + viewName.slice(1);
         }
     }
+    // Attach listeners to sidebar links
     navLinks.inquiries.addEventListener('click', (e) => { e.preventDefault(); switchToView('inquiries'); });
     navLinks.archive.addEventListener('click', (e) => { e.preventDefault(); switchToView('archive'); });
     navLinks.upload.addEventListener('click', (e) => { e.preventDefault(); switchToView('upload'); });
+
+    // Attach listeners to bottom nav links
+    bottomNavLinks.inquiries.addEventListener('click', (e) => { e.preventDefault(); switchToView('inquiries'); });
+    bottomNavLinks.archive.addEventListener('click', (e) => { e.preventDefault(); switchToView('archive'); });
+    bottomNavLinks.upload.addEventListener('click', (e) => { e.preventDefault(); switchToView('upload'); });
 
     // --- Database Logic ---
     function attachDatabaseListener() {
