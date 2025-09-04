@@ -41,8 +41,9 @@ const projectNameInput = document.getElementById('project-name');
 const siteSuggestionsContainer = document.getElementById('site-suggestions');
 const bottomNavView = document.getElementById('bottom-nav-view');
 const bottomNavSubmit = document.getElementById('bottom-nav-submit');
-const bottomNavSignout = document.getElementById('bottom-nav-signout'); // <-- ADDED
+const bottomNavSignout = document.getElementById('bottom-nav-signout');
 let sitesData = [];
+let inquiriesListener = null; // Holds the active database listener
 
 // --- REFACTORED NAVIGATION LOGIC ---
 function showViewInquiriesPage() {
@@ -56,7 +57,7 @@ function showViewInquiriesPage() {
     bottomNavSubmit.classList.remove('active');
 
     pageTitleEl.textContent = 'Manage Inquiries';
-    fetchAndDisplayUserInquiries();
+    fetchAndDisplayUserInquiries(); // This function now manages the listener
 }
 
 function showSubmitInquiryPage() {
@@ -86,11 +87,16 @@ function showInquiryPage(userData) {
     userCompanyNameEl.textContent = userData.companyName;
     authContainer.classList.add('hidden');
     inquiryContainer.classList.remove('hidden');
-    showViewInquiriesPage(); // Set the initial view using the new function
+    showViewInquiriesPage(); // Set the initial view
     fetchSites();
 }
 
 function showAuthPage() {
+    // Detach the listener when the user signs out to prevent errors/memory leaks
+    if (inquiriesListener) {
+        inquiriesListener.off(); 
+        inquiriesListener = null;
+    }
     inquiryContainer.classList.add('hidden');
     authContainer.classList.remove('hidden');
     sessionStorage.removeItem('loggedInUser');
@@ -129,11 +135,18 @@ function fetchAndDisplayUserInquiries() {
     const user = JSON.parse(sessionStorage.getItem('loggedInUser'));
     if (!user) return;
 
-    const inquiriesRef = database.ref('inquiries');
-    inquiriesTbody.innerHTML = '';
-    noInquiriesMessage.classList.add('hidden');
+    const inquiriesRef = database.ref('inquiries').orderByChild('userId').equalTo(user.id);
 
-    inquiriesRef.orderByChild('userId').equalTo(user.id).once('value', snapshot => {
+    // If a listener is already active, remove it before creating a new one
+    if (inquiriesListener) {
+        inquiriesListener.off();
+    }
+
+    // Use .on() to create a persistent, real-time listener
+    inquiriesListener = inquiriesRef.on('value', snapshot => {
+        inquiriesTbody.innerHTML = ''; // Clear table each time new data arrives
+        noInquiriesMessage.classList.add('hidden');
+
         if (snapshot.exists()) {
             const inquiries = snapshot.val();
             const inquiriesArray = Object.values(inquiries).sort((a, b) => b.timestamp - a.timestamp);
@@ -145,7 +158,6 @@ function fetchAndDisplayUserInquiries() {
                 const submittedDate = formatDate(inquiry.timestamp);
                 const attendedDate = formatDate(inquiry.attendedDate);
 
-                // === ⭐️ MODIFIED SECTION START ⭐️ ===
                 row.innerHTML = `
                     <td data-label="Submitted On">${submittedDate}</td>
                     <td data-label="Invoice #">${inquiry.invoiceNumber || ''}</td>
@@ -156,13 +168,12 @@ function fetchAndDisplayUserInquiries() {
                     <td data-label="Date Attended">${attendedDate}</td>
                     <td data-label="Status"><span class="status-button" data-status="${status}">${status}</span></td>
                 `;
-                // === ⭐️ MODIFIED SECTION END ⭐️ ===
             });
         } else {
             noInquiriesMessage.classList.remove('hidden');
         }
-    }).catch(error => {
-        console.error("Error fetching inquiries:", error);
+    }, error => {
+        console.error("Error with inquiry listener:", error);
     });
 }
 
@@ -220,8 +231,6 @@ loginForm.addEventListener('submit', (e) => {
 });
 
 signoutBtn.addEventListener('click', showAuthPage);
-
-// ADDED FOR MOBILE SIGN OUT
 bottomNavSignout.addEventListener('click', (e) => {
     e.preventDefault();
     showAuthPage();
@@ -244,10 +253,14 @@ inquiryForm.addEventListener('submit', (e) => {
         database.ref('inquiries').push(inquiryData).then(() => {
             formMessageEl.textContent = 'Inquiry submitted successfully!';
             inquiryForm.reset();
+            
+            // The listener will handle the table update automatically.
+            // We just switch views after a short delay for the message to be seen.
             setTimeout(() => {
-                formMessageEl.textContent = '';
-                showViewInquiriesPage();
-            }, 2000);
+                 formMessageEl.textContent = '';
+                 showViewInquiriesPage();
+            }, 1000);
+
         }).catch((error) => {
             formMessageEl.textContent = `Error: ${error.message}`;
         });
