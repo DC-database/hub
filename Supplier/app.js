@@ -145,16 +145,18 @@ function fetchAndDisplayUserInquiries() {
                 const submittedDate = formatDate(inquiry.timestamp);
                 const attendedDate = formatDate(inquiry.attendedDate);
 
+                // === ⭐️ MODIFIED SECTION START ⭐️ ===
                 row.innerHTML = `
-                    <td>${submittedDate}</td>
-                    <td>${inquiry.invoiceNumber || ''}</td>
-                    <td>${formattedAmount}</td>
-                    <td>${inquiry.projectName || ''}</td>
-                    <td>${inquiry.notes || ''}</td>
-                    <td>${inquiry.adminNotes || ''}</td>
-                    <td>${attendedDate}</td>
-                    <td><span class="status-button" data-status="${status}">${status}</span></td>
+                    <td data-label="Submitted On">${submittedDate}</td>
+                    <td data-label="Invoice #">${inquiry.invoiceNumber || ''}</td>
+                    <td data-label="Amount">${formattedAmount}</td>
+                    <td data-label="Project">${inquiry.projectName || ''}</td>
+                    <td data-label="Notes">${inquiry.notes || ''}</td>
+                    <td data-label="IBA Comment">${inquiry.adminNotes || ''}</td>
+                    <td data-label="Date Attended">${attendedDate}</td>
+                    <td data-label="Status"><span class="status-button" data-status="${status}">${status}</span></td>
                 `;
+                // === ⭐️ MODIFIED SECTION END ⭐️ ===
             });
         } else {
             noInquiriesMessage.classList.remove('hidden');
