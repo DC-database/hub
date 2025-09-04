@@ -3128,5 +3128,5 @@ function openIPCFromBottom(){
   document.querySelectorAll('.bottom-app-nav .nav-btn').forEach(b=>b.classList.remove('active'));
   const ipcBtn = Array.from(document.querySelectorAll('.bottom-app-nav .nav-btn span')).find(s=>s.textContent.trim()==='IPC');
   if(ipcBtn) ipcBtn.parentElement.classList.add('active');
-  window.open('https://dc-database.github.io/IPC/', '_blank');
+  window.open('https://ibaport.site/IPC/', '_blank');
 }
