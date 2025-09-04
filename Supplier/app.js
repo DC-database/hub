@@ -42,29 +42,29 @@ const siteSuggestionsContainer = document.getElementById('site-suggestions');
 const bottomNavView = document.getElementById('bottom-nav-view');
 const bottomNavSubmit = document.getElementById('bottom-nav-submit');
 const bottomNavSignout = document.getElementById('bottom-nav-signout');
+
 let sitesData = [];
-let inquiriesListener = null; // Holds the active database listener
+// --- MODIFICATION: We will store the database reference itself ---
+let userInquiriesRef = null; 
 
 // --- REFACTORED NAVIGATION LOGIC ---
 function showViewInquiriesPage() {
     viewInquiriesView.classList.remove('hidden');
     submitInquiryView.classList.add('hidden');
     
-    // Sync sidebar and bottom nav active states
     navViewInquiries.classList.add('active');
     navSubmitInquiry.classList.remove('active');
     bottomNavView.classList.add('active');
     bottomNavSubmit.classList.remove('active');
 
     pageTitleEl.textContent = 'Manage Inquiries';
-    fetchAndDisplayUserInquiries(); // This function now manages the listener
+    fetchAndDisplayUserInquiries();
 }
 
 function showSubmitInquiryPage() {
     submitInquiryView.classList.remove('hidden');
     viewInquiriesView.classList.add('hidden');
 
-    // Sync sidebar and bottom nav active states
     navSubmitInquiry.classList.add('active');
     navViewInquiries.classList.remove('active');
     bottomNavSubmit.classList.add('active');
@@ -73,30 +73,32 @@ function showSubmitInquiryPage() {
     pageTitleEl.textContent = 'Submit New Inquiry';
 }
 
-// Attach event listeners to all navigation controls
 navViewInquiries.addEventListener('click', (e) => { e.preventDefault(); showViewInquiriesPage(); });
 bottomNavView.addEventListener('click', (e) => { e.preventDefault(); showViewInquiriesPage(); });
-
 navSubmitInquiry.addEventListener('click', (e) => { e.preventDefault(); showSubmitInquiryPage(); });
 addInquiryBtn.addEventListener('click', () => showSubmitInquiryPage());
 bottomNavSubmit.addEventListener('click', (e) => { e.preventDefault(); showSubmitInquiryPage(); });
-
 
 // --- Page & View Management ---
 function showInquiryPage(userData) {
     userCompanyNameEl.textContent = userData.companyName;
     authContainer.classList.add('hidden');
     inquiryContainer.classList.remove('hidden');
-    showViewInquiriesPage(); // Set the initial view
+    showViewInquiriesPage();
     fetchSites();
 }
 
+/**
+ * SIGNOUT FUNCTION - FINAL FIX
+ * This version now correctly calls .off() on the database reference.
+ */
 function showAuthPage() {
-    // Detach the listener when the user signs out to prevent errors/memory leaks
-    if (inquiriesListener) {
-        inquiriesListener.off(); 
-        inquiriesListener = null;
+    // Detach the listener when the user signs out.
+    if (userInquiriesRef) {
+        userInquiriesRef.off(); // This is the correct way to remove the listener.
+        userInquiriesRef = null; // Reset the reference for the next user.
     }
+
     inquiryContainer.classList.add('hidden');
     authContainer.classList.remove('hidden');
     sessionStorage.removeItem('loggedInUser');
@@ -135,16 +137,16 @@ function fetchAndDisplayUserInquiries() {
     const user = JSON.parse(sessionStorage.getItem('loggedInUser'));
     if (!user) return;
 
-    const inquiriesRef = database.ref('inquiries').orderByChild('userId').equalTo(user.id);
-
-    // If a listener is already active, remove it before creating a new one
-    if (inquiriesListener) {
-        inquiriesListener.off();
+    // If a listener from a previous session exists, turn it off.
+    if (userInquiriesRef) {
+        userInquiriesRef.off();
     }
 
-    // Use .on() to create a persistent, real-time listener
-    inquiriesListener = inquiriesRef.on('value', snapshot => {
-        inquiriesTbody.innerHTML = ''; // Clear table each time new data arrives
+    // Assign the new query to our globally scoped reference variable.
+    userInquiriesRef = database.ref('inquiries').orderByChild('userId').equalTo(user.id);
+
+    userInquiriesRef.on('value', snapshot => {
+        inquiriesTbody.innerHTML = ''; 
         noInquiriesMessage.classList.add('hidden');
 
         if (snapshot.exists()) {
@@ -230,6 +232,7 @@ loginForm.addEventListener('submit', (e) => {
     }).catch(error => { authErrorEl.textContent = `Login failed: ${error.message}`; });
 });
 
+// --- SIGNOUT EVENT LISTENERS ---
 signoutBtn.addEventListener('click', showAuthPage);
 bottomNavSignout.addEventListener('click', (e) => {
     e.preventDefault();
@@ -253,9 +256,6 @@ inquiryForm.addEventListener('submit', (e) => {
         database.ref('inquiries').push(inquiryData).then(() => {
             formMessageEl.textContent = 'Inquiry submitted successfully!';
             inquiryForm.reset();
-            
-            // The listener will handle the table update automatically.
-            // We just switch views after a short delay for the message to be seen.
             setTimeout(() => {
                  formMessageEl.textContent = '';
                  showViewInquiriesPage();
