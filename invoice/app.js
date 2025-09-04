@@ -1522,39 +1522,12 @@ function showDashboardRecordPreview(record) {
         }
     });
     
-    // Update WhatsApp buttons with site-specific number
-    const whatsappHOBtn = document.getElementById('dashboardWhatsappHOReminderBtn');
-    const whatsappSiteBtn = document.getElementById('dashboardWhatsappSiteReminderBtn');
-    let whatsappHONumber = '50992023'; // Default HO number
-    let whatsappSiteNumber = '50992023'; // Default if no site match
-    
-    // Extract site number from the record's site
-    if (record.site) {
-        for (const [sitePattern, number] of Object.entries(SITE_WHATSAPP_NUMBERS)) {
-            if (record.site.includes(sitePattern)) {
-                whatsappSiteNumber = number;
-                break;
-            }
-        }
-    }
-    
-    whatsappHOBtn.onclick = function() {
-        sendWhatsAppReminder(record, whatsappHONumber);
-    };
-    
-    whatsappSiteBtn.onclick = function() {
-        sendWhatsAppReminder(record, whatsappSiteNumber);
-    };
-    
-    // Add the "View in Tracker" button functionality
-    const viewInTrackerBtn = document.getElementById('dashboardViewInTrackerBtn');
-    if (record.poNumber) {
-        viewInTrackerBtn.style.display = 'inline-block';
-        viewInTrackerBtn.onclick = function() {
-            viewInInvoiceTracker(record.poNumber);
+    const requestUpdateBtn = document.getElementById('dashboardRequestUpdateBtn');
+    if (requestUpdateBtn) {
+        requestUpdateBtn.onclick = () => {
+            closeDashboardPreview(); // Close the dashboard preview modal
+            openWhatsAppModal(record, 'update'); // Open the WhatsApp modal in 'update' mode
         };
-    } else {
-        viewInTrackerBtn.style.display = 'none';
     }
     
     document.getElementById('dashboardPreviewModal').style.display = 'block';
