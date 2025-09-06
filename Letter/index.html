@@ -33,11 +33,12 @@
           <i class="fas fa-check-circle"></i> Verify
         </button>
       </div>
-      <div id="unregistered-message" class="hidden">
+      <div id="unregistered-message" class="unregistered-container hidden">
         <p>You are not a registered employee. Please contact 50992023 via WhatsApp to request access.</p>
         <button id="whatsapp-btn" class="whatsapp-btn">
           <i class="fab fa-whatsapp"></i> Contact via WhatsApp
         </button>
+        <a href="#" id="try-again-btn" class="try-again-link">Enter a different number</a>
       </div>
     </div>
   </div>
@@ -53,9 +54,13 @@
           <p>Document Management System</p>
         </div>
       </div>
-      <button id="go-back-btn" class="go-back-btn">
-        <i class="fas fa-arrow-left"></i> Go Back
-      </button>
+      <!-- NEW: Wrapper for right-side elements -->
+      <div class="header-controls">
+        <div id="welcome-message" class="welcome-message hidden"></div>
+        <button id="go-back-btn" class="go-back-btn">
+          <i class="fas fa-sign-out-alt"></i> Sign Out
+        </button>
+      </div>
     </header>
 
     <main class="app-content">
@@ -113,13 +118,31 @@
           </form>
         </div>
       </div>
+      
+      <div id="recent-codes-card" class="form-card">
+        <div class="card-header">
+          <h2><i class="fas fa-history"></i> Recent Codes</h2>
+        </div>
+        <div class="form-body">
+          <ul id="recent-codes-list">
+            <!-- Recent codes will be populated by JavaScript -->
+          </ul>
+        </div>
+      </div>
+
     </main>
 
     <footer class="app-footer">
-      <p>© 2025 IBA Document Management System | v2.4</p>
+      <p>© 2025 IBA Document Management System | v3.1 (Welcome User)</p>
     </footer>
   </div>
 
-  <script src="script.js"></script>
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+  <!-- Updated Script for Firebase -->
+  <script src="app.js"></script>
 </body>
 </html>
+

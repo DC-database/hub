@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Data Migration Tool</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; background-color: #f4f7f6; color: #333; margin: 0; padding: 2rem; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .container { background: #fff; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); padding: 2.5rem; max-width: 600px; width: 100%; }
+        h1 { color: #0056b3; margin-top: 0; text-align: center; }
+        p { text-align: center; color: #666; margin-bottom: 2rem; }
+        .form-group { margin-bottom: 1.5rem; }
+        label { display: block; font-weight: 600; margin-bottom: 0.5rem; color: #003d7a; }
+        input[type="file"] { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 4px; background: #f9f9f9; }
+        button { background: #0056b3; color: white; border: none; padding: 1rem; font-size: 1rem; border-radius: 4px; cursor: pointer; transition: background 0.3s ease; width: 100%; font-weight: bold; }
+        button:hover { background: #003d7a; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        #status { margin-top: 2rem; text-align: center; font-weight: bold; padding: 1rem; border-radius: 4px; display: none; }
+        .status-success { background: #e9f7ef; color: #28a745; }
+        .status-error { background: #fbe9e7; color: #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Firebase Data Management Tool</h1>
+        <p>Upload your CSV files to overwrite the data in the Realtime Database. Ensure you have set temporary security rules before proceeding.</p>
+        
+        <div class="form-group">
+            <label for="users-csv">Users (Users)</label>
+            <input type="file" id="users-csv" accept=".csv">
+        </div>
+
+        <div class="form-group">
+            <label for="sites-csv">Sites (Sites)</label>
+            <input type="file" id="sites-csv" accept=".csv">
+        </div>
+
+        <div class="form-group">
+            <label for="class-csv">Document Class (Document Class)</label>
+            <input type="file" id="class-csv" accept=".csv">
+        </div>
+        
+        <div class="form-group">
+            <label for="records-csv">Letter Records (Letter Records)</label>
+            <input type="file" id="records-csv" accept=".csv">
+        </div>
+
+        <button id="migrate-btn">Upload and Overwrite Data</button>
+
+        <div id="status"></div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDuiAFUGfraypOe_Ytrvp2SL5MEeAMRh1Q",
+            authDomain: "letter-64b85.firebaseapp.com",
+            databaseURL: "https://letter-64b85-default-rtdb.firebaseio.com",
+            projectId: "letter-64b85",
+            storageBucket: "letter-64b85.firebasestorage.app",
+            messagingSenderId: "931954127691",
+            appId: "1:931954127691:web:7af38c0a71685af4c26ece"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        const migrateBtn = document.getElementById('migrate-btn');
+        const statusDiv = document.getElementById('status');
+        
+        const fileInputs = {
+            'Users': { el: document.getElementById('users-csv'), headers: ['Name', 'Mob'] },
+            'Sites': { el: document.getElementById('sites-csv'), headers: ['Warehouse', 'Description'] },
+            'Document Class': { el: document.getElementById('class-csv'), headers: ['Ref', 'Description'] },
+            'Letter Records': { el: document.getElementById('records-csv'), headers: ['Document Code', 'From', 'Site Name', 'Document Class', 'Date Sent', 'Sequence Number', 'Remarks', 'Submission Time', 'Mobile Number'] }
+        };
+
+        migrateBtn.addEventListener('click', async () => {
+            migrateBtn.disabled = true;
+            migrateBtn.textContent = 'Processing...';
+            showStatus('', 'success');
+            statusDiv.style.display = 'none';
+
+            try {
+                for (const nodeName in fileInputs) {
+                    const file = fileInputs[nodeName].el.files[0];
+                    if (file) {
+                        await processFile(file, nodeName, fileInputs[nodeName].headers);
+                    }
+                }
+                showStatus('Data successfully uploaded and overwritten!', 'success');
+            } catch (error) {
+                console.error("Migration failed:", error);
+                showStatus(`Error: ${error.message}`, 'error');
+            } finally {
+                migrateBtn.disabled = false;
+                migrateBtn.textContent = 'Upload and Overwrite Data';
+            }
+        });
+
+        function processFile(file, nodeName, expectedHeaders) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    try {
+                        const csv = event.target.result;
+                        const lines = csv.split(/\r\n|\n/).filter(line => line.trim() !== '');
+                        const headers = lines[0].split(',').map(h => h.trim());
+
+                        const headersMatch = expectedHeaders.length === headers.length && expectedHeaders.every((h, i) => h === headers[i]);
+                        if (!headersMatch) {
+                            return reject(new Error(`Invalid headers for ${nodeName}. Expected: ${expectedHeaders.join(', ')}. Found: ${headers.join(', ')}`));
+                        }
+
+                        const jsonData = [];
+                        for (let i = 1; i < lines.length; i++) {
+                            const values = lines[i].split(',');
+                            const entry = {};
+                            headers.forEach((header, index) => {
+                                let value = values[index] ? values[index].trim() : '';
+                                // Convert numeric strings to numbers if they are valid
+                                if (header === 'Sequence Number' && !isNaN(value) && value !== '') {
+                                    value = Number(value);
+                                }
+                                entry[header] = value;
+                            });
+                            jsonData.push(entry);
+                        }
+                        
+                        await db.ref(nodeName).set(jsonData);
+                        console.log(`${nodeName} data successfully written to Firebase.`);
+                        resolve();
+                    } catch (err) {
+                        reject(err);
+                    }
+                };
+                reader.onerror = (err) => reject(err);
+                reader.readAsText(file);
+            });
+        }
+
+        function showStatus(message, type) {
+            statusDiv.textContent = message;
+            statusDiv.className = type === 'success' ? 'status-success' : 'status-error';
+            statusDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
+

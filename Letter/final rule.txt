@@ -1,0 +1,22 @@
+{
+  "rules": {
+    "Users": {
+      ".read": true,
+      ".write": false,
+      ".indexOn": "Mob"
+    },
+    "Sites": {
+      ".read": true,
+      ".write": false
+    },
+    "Document Class": {
+      ".read": true,
+      ".write": false
+    },
+    "Letter Records": {
+      ".read": true,
+      ".write": true,
+      ".indexOn": "Sequence Number" 
+    }
+  }
+}
