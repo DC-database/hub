@@ -38,7 +38,6 @@ const elements = {
   successMessage: document.getElementById('success-message'),
   goBackBtn: document.getElementById('go-back-btn'),
   recentCodesList: document.getElementById('recent-codes-list'),
-  // NEW: Element for the welcome message
   welcomeMessage: document.getElementById('welcome-message')
 };
 
@@ -79,7 +78,6 @@ async function showApp() {
   elements.appContainer.classList.remove('hidden');
   
   try {
-    // NEW: Display welcome message
     displayWelcomeMessage();
     await initializeForm();
     await displayRecentCodes();
@@ -115,14 +113,12 @@ async function verifyMobile() {
     const snapshot = await usersRef.orderByChild('Mob').equalTo(fullMobile).once('value');
 
     if (snapshot.exists()) {
-      let userName = 'User'; // Default name
+      let userName = 'User'; 
       snapshot.forEach(childSnapshot => {
-        // Get the user's name from the record
         userName = childSnapshot.val().Name; 
       });
 
       sessionStorage.setItem('verifiedMobile', fullMobile);
-      // NEW: Store user name in session
       sessionStorage.setItem('verifiedUserName', userName); 
       showApp();
     } else {
@@ -269,15 +265,32 @@ async function displayRecentCodes() {
       recentCodes.reverse().forEach(record => {
         const li = document.createElement('li');
         
-        const submissionDate = new Date(record['Submission Time']);
-        const day = String(submissionDate.getDate()).padStart(2, '0');
-        const month = String(submissionDate.getMonth() + 1).padStart(2, '0');
-        const year = submissionDate.getFullYear().toString().slice(-2);
-        const formattedDate = `${day}-${month}-${year}`;
+        const siteName = record['Site Name'] || 'N/A';
+        const dateSent = record['Date Sent'];
+        let formattedDate = dateSent; // Fallback to original string
+
+        // CORRECTED LOGIC: Create a date object and format it to DD-MMM-YYYY
+        if (dateSent) {
+            // The date picker returns YYYY-MM-DD. We need to create a date object
+            // that doesn't get affected by timezone shifts when we only want the date parts.
+            const parts = dateSent.split('-');
+            if (parts.length === 3) {
+                // new Date(year, monthIndex, day)
+                const dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
+                if (!isNaN(dateObj.getTime())) {
+                    const day = String(dateObj.getDate()).padStart(2, '0');
+                    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                    const monthAbbr = monthNames[dateObj.getMonth()];
+                    const year = dateObj.getFullYear();
+                    
+                    formattedDate = `${day}-${monthAbbr}-${year}`;
+                }
+            }
+        }
 
         li.innerHTML = `
           <strong>${record['Document Code']}</strong>
-          <span>Date Added: ${formattedDate}</span>
+          <span>${siteName} : ${formattedDate}</span>
         `;
         listElement.appendChild(li);
       });
@@ -335,7 +348,6 @@ function openWhatsApp() {
 }
 
 function goBack() {
-  // NEW: Clear user name on go back
   sessionStorage.removeItem('verifiedUserName');
   sessionStorage.removeItem('verifiedMobile');
   window.location.reload(); 
