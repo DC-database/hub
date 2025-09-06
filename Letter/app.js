@@ -41,6 +41,8 @@ const elements = {
   welcomeMessage: document.getElementById('welcome-message')
 };
 
+let datePickerInstance = null; // To hold the flatpickr instance
+
 // --- App Initialization ---
 document.addEventListener('DOMContentLoaded', function() {
   showMobileVerification();
@@ -144,6 +146,13 @@ async function initializeForm() {
     convertToAutocomplete('site', sites);
     convertToAutocomplete('class', documentClasses);
     
+    // Initialize flatpickr on the date input
+    datePickerInstance = flatpickr("#dateSent", {
+      altInput: true,
+      altFormat: "d-M-Y", // Format for the user
+      dateFormat: "Y-m-d", // Format for the actual input value
+    });
+
     elements.form.addEventListener('submit', (e) => e.preventDefault());
     elements.submitBtn.addEventListener('click', handleFormSubmit);
   } catch (error) {
@@ -267,15 +276,11 @@ async function displayRecentCodes() {
         
         const siteName = record['Site Name'] || 'N/A';
         const dateSent = record['Date Sent'];
-        let formattedDate = dateSent; // Fallback to original string
+        let formattedDate = dateSent;
 
-        // CORRECTED LOGIC: Create a date object and format it to DD-MMM-YYYY
         if (dateSent) {
-            // The date picker returns YYYY-MM-DD. We need to create a date object
-            // that doesn't get affected by timezone shifts when we only want the date parts.
             const parts = dateSent.split('-');
             if (parts.length === 3) {
-                // new Date(year, monthIndex, day)
                 const dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
                 if (!isNaN(dateObj.getTime())) {
                     const day = String(dateObj.getDate()).padStart(2, '0');
@@ -405,7 +410,9 @@ function convertToAutocomplete(elementId, items) {
 
 
 function setDefaultDate() {
-  elements.dateSent.value = new Date().toISOString().split('T')[0];
+  if (datePickerInstance) {
+    datePickerInstance.setDate(new Date());
+  }
 }
 
 function validateForm() {
@@ -476,6 +483,9 @@ function showError(message) {
 
 function resetForm() {
   elements.form.reset();
+  if (datePickerInstance) {
+    datePickerInstance.clear();
+  }
   setDefaultDate();
   elements.from.value = "IBA";
   elements.site.focus();

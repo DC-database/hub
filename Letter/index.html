@@ -54,7 +54,6 @@
           <p>Document Management System</p>
         </div>
       </div>
-      <!-- NEW: Wrapper for right-side elements -->
       <div class="header-controls">
         <div id="welcome-message" class="welcome-message hidden"></div>
         <button id="go-back-btn" class="go-back-btn">
@@ -100,7 +99,7 @@
               <label for="dateSent">
                 <i class="fas fa-calendar-alt"></i> Date Sent
               </label>
-              <input type="date" id="dateSent" required>
+              <input type="text" id="dateSent" required placeholder="Select a date">
             </div>
 
             <div class="form-group">
@@ -133,15 +132,19 @@
     </main>
 
     <footer class="app-footer">
-      <p>© 2025 IBA Document Management System | v3.1 (Welcome User)</p>
+      <p>© 2025 IBA Document Management System | v4.0 (Letter Code Generator)</p>
     </footer>
   </div>
 
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  
+  <!-- Flatpickr Date Picker -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
-  <!-- Updated Script for Firebase -->
+  <!-- Application Script -->
   <script src="app.js"></script>
 </body>
 </html>

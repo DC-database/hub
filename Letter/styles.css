@@ -37,7 +37,6 @@ body {
   color: white;
   padding: 1rem 2rem;
   box-shadow: var(--box-shadow);
-  /* NEW: Using Flexbox for layout */
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -65,7 +64,6 @@ body {
   opacity: 0.9;
 }
 
-/* NEW: Styles for the right-side controls */
 .header-controls {
   display: flex;
   flex-direction: column;
@@ -212,21 +210,6 @@ body {
   border: none;
   border-radius: 0;
   flex: 1;
-}
-
-select {
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230056b3'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e");
-  background-repeat: no-repeat;
-  background-position: right 1rem center;
-  background-size: 1.5rem;
-  padding-right: 3rem !important;
-}
-
-input[type="date"] {
-  min-height: 48px;
 }
 
 .form-actions {
@@ -580,7 +563,6 @@ input[type="date"] {
     flex-direction: column;
     align-items: center;
     gap: 0.5rem;
-    padding-right: 0;
   }
   
   .header-controls {
