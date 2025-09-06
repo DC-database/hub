@@ -35,6 +35,7 @@ const yearFilter = document.getElementById('yearFilter');
 const descriptionFilter = document.getElementById('descriptionFilter');
 const clearBtn = document.getElementById('clearBtn');
 const resultsTableBody = document.getElementById('resultsTable').getElementsByTagName('tbody')[0];
+const resultsTableFooter = document.getElementById('resultsTable').getElementsByTagName('tfoot')[0];
 const totalTransactionsSpan = document.getElementById('totalTransactions');
 const totalAmountSpan = document.getElementById('totalAmount');
 const openingValueSpan = document.getElementById('openingValue');
@@ -160,8 +161,17 @@ function formatFinancial(num) {
 
 async function loadInitialData() {
     try {
+        // Give the user immediate feedback on what's happening
+        loadingIndicator.querySelector('p').textContent = 'Fetching transaction records...';
+        
         // Fetch CSV and Firebase data concurrently for better performance
         await Promise.all([loadBook8FromRTDB(), loadCSVFromURL()]);
+
+        // Update the status before the heavy processing begins
+        loadingIndicator.querySelector('p').textContent = 'Processing data and building dashboard...';
+        
+        // Allow the UI to repaint the new message before the potentially blocking code runs
+        await new Promise(resolve => setTimeout(resolve, 50)); 
 
         // Once both are done, process and render the UI
         processData(allData);
@@ -505,6 +515,19 @@ function filterResults() {
         }
     }
     updateSummaryValues(visibleCount, filteredAmount, openingValue, closingValue);
+
+    // Add total row to the table footer
+    resultsTableFooter.innerHTML = ''; // Clear previous total
+
+    if (visibleCount > 0) {
+        const footerRow = resultsTableFooter.insertRow();
+        footerRow.className = 'total-row'; // Reuse existing style for totals
+        const totalLabel = (year || description) ? "Filtered Total" : "Grand Total";
+        footerRow.innerHTML = `
+            <td colspan="4"><strong>${totalLabel}</strong></td>
+            <td class="financial"><strong>${formatFinancial(filteredAmount)}</strong></td>
+        `;
+    }
 }
 
 function clearFilters() {
@@ -570,7 +593,14 @@ function printReport() {
             </tr>`;
         }
     }
-    tableHTML += '</tbody></table>';
+    tableHTML += '</tbody>';
+    
+    // Add the total row from the footer to the printout
+    if(resultsTableFooter.rows.length > 0) {
+        tableHTML += `<tfoot>${resultsTableFooter.innerHTML}</tfoot>`;
+    }
+    
+    tableHTML += '</table>';
 
     const printContent = `
         <!DOCTYPE html>
@@ -583,6 +613,8 @@ function printReport() {
                 table { width: 100%; border-collapse: collapse; font-size: 0.9em; margin-top: 20px; }
                 th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
                 th { background-color: #f2f2f2; }
+                tfoot .total-row { font-weight: bold; background-color: #f0f7ff; }
+                tfoot .total-row td { border-top: 2px solid #2c3e50; }
                 .summary-container, .yearly-summary { margin-bottom: 20px; border: 1px solid #ddd; padding: 15px; border-radius: 5px; }
                 .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
                 .summary-item { display: flex; justify-content: space-between; }
