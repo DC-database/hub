@@ -453,7 +453,7 @@ function showCodeConfirmation(message) {
     <div class="code-display">
       <div class="code-header"><i class="fas fa-check-circle"></i> Your Document Code</div>
       <div class="code-value">${code}</div>
-      <p class="code-explanation">This code has been recorded in the Firebase database.</p>
+      <p class="code-explanation">This code has been recorded in the database.</p>
       <button class="copy-btn" onclick="copyToClipboard('${code}')"><i class="fas fa-copy"></i> Copy Code</button>
     </div>`;
   elements.successMessage.classList.remove('hidden');
@@ -490,4 +490,5 @@ function resetForm() {
   elements.from.value = "IBA";
   elements.site.focus();
 }
+
 
