@@ -220,11 +220,21 @@ function loadCSVFromURL() {
     });
 }
 
+/**
+ * **PERFORMANCE OPTIMIZATION**
+ * This function processes the raw CSV data to map transactions to vehicles.
+ * The original implementation used a slow, nested loop (O(N*M)).
+ * This optimized version uses a Set for fast lookups (O(1)), significantly
+ * reducing the processing time from potentially millions of operations to thousands.
+ */
 function processData(data) {
     vehicleDataMap.clear();
-    const knownVehicleNumbers = book8Data.map(item => item.plate);
+    // Use a Set for O(1) average time complexity lookups. Much faster than array iteration.
+    const knownVehicleNumbers = new Set(book8Data.map(item => item.plate));
+    const nonVehicleKeys = new Set(['Year', 'PO #', 'Project #', 'Description', 'Delivered Amount']);
 
     data.forEach(row => {
+        // Create the base transaction object once per row.
         const transaction = {
             year: row['Year'],
             poNumber: row['PO #'],
@@ -232,20 +242,24 @@ function processData(data) {
             description: row['Description'],
             amount: row['Delivered Amount']
         };
-        
-        knownVehicleNumbers.forEach(num => {
-            if (row[num] && String(row[num]).trim() !== '') {
-                if (!vehicleDataMap.has(num)) {
-                    vehicleDataMap.set(num, []);
+
+        // Iterate over the columns (keys) of the current row.
+        for (const key in row) {
+            // If the key is a known vehicle number and has a value, link the transaction.
+            // This is far more efficient than the original nested loop.
+            if (!nonVehicleKeys.has(key) && knownVehicleNumbers.has(key) && row[key] && String(row[key]).trim() !== '') {
+                if (!vehicleDataMap.has(key)) {
+                    vehicleDataMap.set(key, []);
                 }
-                vehicleDataMap.get(num).push(transaction);
+                vehicleDataMap.get(key).push(transaction);
             }
-        });
+        }
     });
 
     populateYearFilter(data);
     populateVehicleDatalist();
 }
+
 
 function populateYearFilter(data) {
     const years = [...new Set(data.map(row => row.Year).filter(Boolean))].sort((a, b) => b - a);
@@ -362,7 +376,6 @@ function toggleChartType() {
     renderYearlySpendingChart();
 }
 
-// **PERFORMANCE** Use DocumentFragment for faster table rendering
 function renderDashboardTable(selectedYear) {
     dashboardVehiclesTableBody.innerHTML = '';
     const fragment = document.createDocumentFragment();
@@ -449,7 +462,6 @@ function updateSummaryValues(total, amount, opening, closing) {
     closingValueSpan.textContent = formatFinancial(closing);
 }
 
-// **PERFORMANCE** Use DocumentFragment for faster table rendering
 function displayResults(results) {
     resultsTableBody.innerHTML = '';
     const fragment = document.createDocumentFragment();
@@ -462,11 +474,12 @@ function displayResults(results) {
             row.dataset.year = t.year;
             row.dataset.description = t.description;
             row.dataset.amount = t.amount;
+            // LAYOUT FIX: Added a class to the description cell to control text wrapping in CSS.
             row.innerHTML = `
                 <td>${t.year || ''}</td>
                 <td>${t.poNumber || ''}</td>
                 <td>${t.site || ''}</td>
-                <td>${t.description || ''}</td>
+                <td class="description-cell">${t.description || ''}</td>
                 <td class="financial">${formatFinancial(t.amount)}</td>
             `;
             fragment.appendChild(row);
@@ -530,11 +543,6 @@ function generateYearlySummary(vehicleNumber) {
     return html;
 }
 
-/**
- * **FIXED**
- * Opens a new window and prints a formatted report for the currently viewed vehicle.
- * It includes a header, filtered summary, yearly breakdown, and the filtered transaction list.
- */
 function printReport() {
     if (!currentVehicleNumber || resultsTableBody.rows.length === 0 || (resultsTableBody.rows.length === 1 && resultsTableBody.rows[0].cells[0].colSpan === 5)) {
         alert('No data available to print.');
@@ -649,7 +657,6 @@ function generateVehicleSummary() {
     });
 }
 
-// **PERFORMANCE** Use DocumentFragment for faster full report table rendering
 function generateFullReportPreview() {
     const previewContainer = document.getElementById('fullReportPreview');
     previewContainer.innerHTML = '';
@@ -691,11 +698,6 @@ function generateFullReportPreview() {
     previewContainer.appendChild(fragment);
 }
 
-/**
- * **FIXED**
- * Opens a new window and prints the full vehicle summary report.
- * It uses the content from the preview table and adds print-friendly styling.
- */
 function printFullReport() {
     const previewContent = document.getElementById('fullReportPreview').innerHTML;
     if (!previewContent.trim()) {
