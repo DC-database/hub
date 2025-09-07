@@ -422,82 +422,6 @@ h2, h3 {
     box-shadow: 0 0 0 2px rgba(74, 111, 165, 0.2);
 }
 
-/* Filter Dropdown */
-.filter-dropdown {
-    position: relative;
-    display: inline-block;
-    width: 100%;
-    margin-bottom: 15px;
-}
-
-.filter-dropbtn {
-    background-color: white;
-    color: var(--dark);
-    padding: 12px;
-    font-size: 16px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    cursor: pointer;
-    width: 100%;
-    text-align: left;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    transition: all 0.2s;
-    min-height: 44px;
-}
-
-.filter-dropbtn:hover {
-    border-color: var(--primary);
-}
-
-.filter-text {
-    flex: 1;
-}
-
-.filter-dropdown-content {
-    display: none;
-    position: absolute;
-    background-color: white;
-    min-width: 160px;
-    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-    z-index: 1;
-    border-radius: 6px;
-    max-height: 300px;
-    overflow-y: auto;
-    width: 100%;
-    animation: fadeInDropdown 0.2s ease-out;
-}
-
-@keyframes fadeInDropdown {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.filter-dropdown-content.show {
-    display: block;
-}
-
-.filter-btn {
-    padding: 12px;
-    background: white;
-    border: none;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 16px;
-    text-align: left;
-    width: 100%;
-}
-
-.filter-btn:hover {
-    background-color: #f0f0f0;
-}
-
-.filter-btn.active {
-    background-color: var(--primary);
-    color: white;
-}
-
 .btn {
     padding: 12px 15px;
     border: none;
@@ -1267,6 +1191,16 @@ tr:hover {
     text-decoration: underline;
 }
 
+/* Paid row highlight */
+#recordsTable tbody tr.paid-row {
+    background-color: rgba(40, 167, 69, 0.15) !important;
+    border-left: 4px solid var(--success);
+}
+
+#recordsTable tbody tr.paid-row:hover {
+    background-color: rgba(40, 167, 69, 0.25) !important;
+}
+
 /* Responsive adjustments */
 @media (max-width: 1024px) {
     .container {
@@ -1438,108 +1372,6 @@ tr:hover {
     
     .step-labels {
         font-size: 9px;
-    }
-}
-
-@media (max-width: 480px) {
-    .mobile-menu {
-        width: 90%;
-    
-  padding-bottom: calc(64px + env(safe-area-inset-bottom));
-}
-    
-    .year-selector {
-        flex-direction: column;
-    }
-    
-    .year-option {
-        width: 100%;
-    }
-    
-    .btn .fas + span {
-        display: none;
-    }
-    
-    .btn-text {
-        display: none;
-    }
-    
-    .action-btns {
-        flex-direction: column;
-    }
-    
-    .action-btns .btn {
-        min-width: 44px;
-        padding: 8px;
-    }
-    
-    #recordsTable th:nth-child(2), 
-    #recordsTable td:nth-child(2),
-    #recordsTable th:nth-child(4), 
-    #recordsTable td:nth-child(4),
-    #recordsTable th:nth-child(6), 
-    #recordsTable td:nth-child(6),
-    #recordsTable th:nth-child(8), 
-    #recordsTable td:nth-child(8) {
-        display: none;
-    }
-
-    /* Main Dashboard Table adjustments - Updated to show only checkbox, site, PO, vendor, status */
-    #siteRecordsTable th:not(:first-child):not(:nth-child(3)):not(:nth-child(4)):not(:nth-child(5)):not(:nth-child(8)),
-    #siteRecordsTable td:not(:first-child):not(:nth-child(3)):not(:nth-child(4)):not(:nth-child(5)):not(:nth-child(8)) {
-        display: none;
-    }
-    
-    /* Keep checkbox (1st col), site (3rd col), PO (4th col), vendor (5th col), and status (8th col) */
-    #siteRecordsTable th:nth-child(1),
-    #siteRecordsTable td:nth-child(1),
-    #siteRecordsTable th:nth-child(3),
-    #siteRecordsTable td:nth-child(3),
-    #siteRecordsTable th:nth-child(4),
-    #siteRecordsTable td:nth-child(4),
-    #siteRecordsTable th:nth-child(5),
-    #siteRecordsTable td:nth-child(5),
-    #siteRecordsTable th:nth-child(8),
-    #siteRecordsTable td:nth-child(8) {
-        display: table-cell;
-    }
-    
-    .report-actions .btn {
-        flex: 1 1 100%;
-    }
-    
-    .financial-summary-item {
-        padding: 8px;
-    }
-    
-    .financial-summary-label {
-        font-size: 12px;
-    }
-    
-    .financial-summary-value {
-        font-size: 16px;
-    }
-
-    /* Modal adjustments */
-    .modal-content {
-        width: 98%;
-        padding: 10px;
-    }
-    
-    .preview-details {
-        gap: 8px;
-    }
-    
-    .detail-value {
-        font-size: 12px;
-    }
-    
-    .progress-legend {
-        padding: 10px;
-    }
-    
-    .legend-description {
-        font-size: 12px;
     }
     
     .step-labels span {
@@ -2458,6 +2290,9 @@ tr:hover {
   #collectionTable td:nth-child(8)  /* Status */ {
     display: table-cell !important;
   }
+  
+  #invoicePaymentsTable th:nth-child(4), #invoicePaymentsTable td:nth-child(4) { display: none !important; }
+  #invoicePaymentsTable th:nth-child(5), #invoicePaymentsTable td:nth-child(5) { display: table-cell !important; }
 
   /* Bottom app nav */
   .mobile-menu-btn {
@@ -2811,6 +2646,7 @@ tr:hover {
   display: grid;
   grid-template-columns: auto auto 1fr 220px 220px;
   gap: 10px;
+  align-items: center;
 }
 #dataManagementSection .auth-card .login-info { display: flex; align-items: center; padding-left: 6px; }
 #dataManagementSection .auth-card .auth-message:empty { display: none; }
@@ -2893,3 +2729,128 @@ select {
 
 /* Hide mobile menu data controls (year/refresh/connection/info) */
 .menu-data-info{display:none !important;}
+
+.payments .fas {
+    color: var(--success);
+}
+
+/* === Invoice Payments Grouped Layout Styles === */
+.payment-group-row {
+    cursor: pointer;
+    background-color: #ffffff;
+    transition: background-color 0.2s;
+}
+
+.payment-group-row:hover {
+    background-color: #f5f5f5;
+}
+
+.toggle-details-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid #ddd;
+    background-color: #f8f9fa;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary);
+    transition: all 0.2s;
+}
+
+.toggle-details-btn:hover {
+    background-color: var(--primary);
+    color: white;
+}
+
+.payment-details-row {
+    display: none; /* Hidden by default */
+}
+
+.payment-details-row > td {
+    padding: 0 !important;
+    background-color: #f9fafb;
+    border-top: none;
+    border-bottom: 2px solid var(--primary);
+}
+
+.payment-details-table {
+    width: calc(100% - 80px);
+    margin: 15px 40px 15px 40px; /* Top, Right, Bottom, Left */
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background-color: #ffffff;
+}
+
+.payment-details-table th {
+    background-color: #6c757d;
+}
+
+.payment-details-table td {
+    text-align: left; /* Align all cells to the left */
+}
+
+.payment-details-table tfoot td {
+    font-weight: bold;
+    background-color: #f8f9fa;
+    border-top: 2px solid #6c757d;
+}
+
+.payment-details-table tfoot .total-row {
+    text-align: left; /* Ensure total row cells are also left-aligned */
+}
+
+/* --- New Filter Pills Styles --- */
+.filter-pills-container {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 10px; /* For scrollbar spacing */
+    margin-bottom: 15px;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    scrollbar-width: thin; /* Firefox */
+}
+
+/* Hide scrollbar but keep it scrollable */
+.filter-pills-container::-webkit-scrollbar {
+    height: 5px;
+}
+.filter-pills-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+.filter-pills-container::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 10px;
+}
+.filter-pills-container::-webkit-scrollbar-thumb:hover {
+    background: #aaa;
+}
+
+
+.filter-pill {
+    padding: 8px 16px;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    background-color: #f8f9fa;
+    color: #495057;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap; /* Prevent wrapping */
+    transition: all 0.2s ease-in-out;
+}
+
+.filter-pill:hover {
+    background-color: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.filter-pill.active {
+    background-color: var(--primary);
+    color: white;
+    border-color: var(--primary);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+

@@ -1,0 +1,10 @@
+{
+  "rules": {
+    ".read": true,
+    "records": { ".write": true },
+    "invoicePayments": { ".write": true },
+    "Approver": {
+      ".write": "auth != null && auth.uid === 'RtPOO70y0Kdnw0ondHqh0wlaBY13'"
+    }
+  }
+}

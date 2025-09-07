@@ -25,6 +25,9 @@
 <div class="menu-item" onclick="showSection('invoiceSection')">
 <i class="fas fa-file-invoice"></i> <span class="menu-text">Invoice Status Tracker</span>
 </div>
+<div class="menu-item payments" onclick="showSection('invoicePaymentsSection')">
+<i class="fas fa-money-check-alt"></i> <span class="menu-text">Invoice Payments</span>
+</div>
 <div class="menu-item" onclick="window.open('https://ibaport.site/IPC/', '_blank')">
 <i class="fas fa-database"></i> <span class="menu-text">IPC Records</span>
 </div>
@@ -147,6 +150,9 @@
 <button class="btn btn-primary" onclick="viewCollection()">
 <i class="fas fa-list"></i> <span class="btn-text">View Collection</span>
 </button>
+<button class="btn btn-success" onclick="openAddPaymentModal()">
+<i class="fas fa-money-bill-wave"></i> <span class="btn-text">Add to Accounts Entry</span>
+</button>
 </div>
 </div>
 <div class="search-container">
@@ -161,26 +167,18 @@
 <button class="btn clear-date-btn" onclick="clearDate()">
 <i class="fas fa-times"></i>
 </button>
-<button class="btn btn-success help-btn" onclick="contactAboutMissingData()">
-<i class="fab fa-whatsapp"></i>
-</button>
 </div>
-<div class="filter-dropdown">
-<button class="filter-dropbtn" onclick="toggleFilterDropdown()">
-<i class="fas fa-filter"></i> <span class="filter-text">Filter</span>
-</button>
-<div class="filter-dropdown-content" id="filterDropdown">
-<div class="filter-btn active" onclick="filterRecords('all')">All</div>
-<div class="filter-btn" onclick="filterRecords('Open')">Open</div>
-<div class="filter-btn" onclick="filterRecords('Pending')">Pending</div>
-<div class="filter-btn" onclick="filterRecords('No Invoice')">No INV</div>
-<div class="filter-btn" onclick="filterRecords('For SRV')">SRV</div>
-<div class="filter-btn" onclick="filterRecords('For IPC')">IPC</div>
-<div class="filter-btn" onclick="filterRecords('Report')">Report</div>
-<div class="filter-btn" onclick="filterRecords('Under Review')">Review</div>
-<div class="filter-btn" onclick="filterRecords('CEO Approval')">CEO</div>
-<div class="filter-btn" onclick="filterRecords('With Accounts')">Accounts</div>
-</div>
+<div class="filter-pills-container" id="invoiceFilterContainer">
+    <button class="filter-pill active" data-status="all" onclick="filterRecords(this.dataset.status)">All</button>
+    <button class="filter-pill" data-status="Open" onclick="filterRecords(this.dataset.status)">Open</button>
+    <button class="filter-pill" data-status="Pending" onclick="filterRecords(this.dataset.status)">Pending</button>
+    <button class="filter-pill" data-status="No Invoice" onclick="filterRecords(this.dataset.status)">No INV</button>
+    <button class="filter-pill" data-status="For SRV" onclick="filterRecords(this.dataset.status)">SRV</button>
+    <button class="filter-pill" data-status="For IPC" onclick="filterRecords(this.dataset.status)">IPC</button>
+    <button class="filter-pill" data-status="Report" onclick="filterRecords(this.dataset.status)">Report</button>
+    <button class="filter-pill" data-status="Under Review" onclick="filterRecords(this.dataset.status)">Review</button>
+    <button class="filter-pill" data-status="CEO Approval" onclick="filterRecords(this.dataset.status)">CEO</button>
+    <button class="filter-pill" data-status="With Accounts" onclick="filterRecords(this.dataset.status)">Accounts</button>
 </div>
 <div class="table-responsive">
 <table id="recordsTable" style="display: none;">
@@ -200,6 +198,31 @@
 </thead>
 <tbody></tbody>
 </table>
+</div>
+</div>
+<div class="content-section" id="invoicePaymentsSection">
+<h1>INVOICE PAYMENTS</h1>
+<div class="search-container">
+<input class="search-input" id="paymentsSearchTerm" placeholder="Search payments by PO, vendor, or site..." type="text"/>
+<button class="btn btn-primary search-btn" onclick="searchPayments()">
+<i class="fas fa-search"></i> <span class="btn-text">Search</span>
+</button>
+<button class="btn clear-search-btn" onclick="clearPaymentsSearch()">
+<i class="fas fa-times"></i>
+</button>
+</div>
+<div class="table-responsive">
+    <table id="invoicePaymentsTable">
+        <thead>
+            <tr>
+                <th style="width: 50px;"></th> <th>PO Number</th>
+                <th>Site</th>
+                <th>Vendor</th>
+            </tr>
+        </thead>
+        <tbody>
+            </tbody>
+    </table>
 </div>
 </div>
 <div class="content-section" id="statementSection">
@@ -656,19 +679,73 @@ if (window.Chart && window.ChartDataLabels) { Chart.register(window.ChartDataLab
 </div>
 </div>
 </div>
+<div class="modal" id="addPaymentModal">
+<div class="modal-content">
+<span class="close-modal" onclick="closeAddPaymentModal()">×</span>
+<h2>Confirm Add to Accounts Entry</h2>
+<div class="payment-details-container">
+<p>You are about to create payment entries for the following invoices:</p>
+<ul id="paymentInvoiceList"></ul>
+<div class="detail-row">
+<label class="detail-label">Total Invoice Value</label>
+<input type="text" id="paymentTotalAmount" class="auth-input" readonly style="font-weight: bold; background-color: #e9ecef;">
+</div>
+<div class="detail-row">
+<label for="datePaidInput" class="detail-label">Payment Date for this Batch</label>
+<input type="date" id="datePaidInput" class="auth-input" required>
+</div>
+</div>
+<div class="action-btns" style="margin-top: 20px; justify-content: center;">
+<button class="btn btn-success" onclick="addPaymentEntry()">
+<i class="fas fa-save"></i> Save Payments
+</button>
+</div>
+</div>
+</div>
+<div class="modal" id="editPaymentModal">
+<div class="modal-content">
+<span class="close-modal" onclick="closeEditPaymentModal()">×</span>
+<h2>Edit Payment Entry</h2>
+<div class="payment-details-container">
+<p><strong>Editing Payment for:</strong> <span id="editPaymentIdentifier"></span></p>
+<input type="hidden" id="editPaymentKey">
+<input type="hidden" id="editPaymentEntryKey">
+<div class="detail-row">
+<label for="editPaymentNumberInput" class="detail-label">Payment Number</label>
+<input type="text" id="editPaymentNumberInput" class="auth-input" readonly style="background-color: #e9ecef;">
+</div>
+<div class="detail-row">
+<label for="editAmountPaidInput" class="detail-label">Amount Paid</label>
+<input type="number" id="editAmountPaidInput" class="auth-input" step="0.01" required>
+</div>
+<div class="detail-row">
+<label for="editDatePaidInput" class="detail-label">Date Paid</label>
+<input type="date" id="editDatePaidInput" class="auth-input" required>
+</div>
+</div>
+<div class="action-btns" style="margin-top: 20px; justify-content: center;">
+<button class="btn btn-success" onclick="savePaymentUpdate()">
+<i class="fas fa-save"></i> Save Changes
+</button>
+</div>
+</div>
+</div>
 <nav aria-label="Primary" class="bottom-app-nav" id="bottomAppNav">
-<button class="nav-btn" data-target="mainPageSection" onclick="handleBottomNav(this)">
-<i class="fas fa-home"></i><span>Home</span>
-</button>
-<button class="nav-btn" data-target="invoiceSection" onclick="handleBottomNav(this)">
-<i class="fas fa-file-invoice"></i><span>Invoices</span>
-</button>
-<button class="nav-btn" data-target="statementSection" onclick="handleBottomNav(this)">
-<i class="fas fa-list"></i><span>Statement</span>
-</button>
-<button class="nav-btn" onclick="openIPCFromBottom()">
-<i class="fas fa-database"></i><span>IPC</span>
-</button>
+    <button class="nav-btn" data-target="mainPageSection" onclick="handleBottomNav(this)">
+        <i class="fas fa-home"></i><span>Home</span>
+    </button>
+    <button class="nav-btn" data-target="invoiceSection" onclick="handleBottomNav(this)">
+        <i class="fas fa-file-invoice"></i><span>Invoices</span>
+    </button>
+    <button class="nav-btn" data-target="invoicePaymentsSection" onclick="handleBottomNav(this)">
+        <i class="fas fa-money-check-alt"></i><span>Payments</span>
+    </button>
+    <button class="nav-btn" data-target="statementSection" onclick="handleBottomNav(this)">
+        <i class="fas fa-list"></i><span>Statement</span>
+    </button>
+    <button class="nav-btn" onclick="openIPCFromBottom()">
+        <i class="fas fa-database"></i><span>IPC</span>
+    </button>
 </nav>
 </body>
 </html>
