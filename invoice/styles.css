@@ -476,6 +476,12 @@ h2, h3 {
     background-color: var(--secondary);
 }
 
+.btn-secondary {
+    background-color: #f0f2f5;
+    color: #333;
+    border: 1px solid #ddd;
+}
+
 .btn-danger {
     background-color: var(--danger);
 }
@@ -1719,7 +1725,7 @@ tr:hover {
 #pettyCashTable tbody tr,
 #reportTable tbody tr {
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color: 0.2s;
 }
 
 #pettyCashTable tbody tr:hover,
@@ -1754,7 +1760,7 @@ tr:hover {
     background-color: #ccc;
     border-radius: 50%;
     z-index: 2;
-    transition: background-color 0.3s;
+    transition: background-color: 0.3s;
 }
 
 .step.active, .step.current {
@@ -2738,7 +2744,7 @@ select {
 .payment-group-row {
     cursor: pointer;
     background-color: #ffffff;
-    transition: background-color 0.2s;
+    transition: background-color: 0.2s;
 }
 
 .payment-group-row:hover {
@@ -2854,3 +2860,83 @@ select {
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
+.payment-details-table .clickable-row {
+    cursor: pointer;
+}
+.payment-details-table .clickable-row:hover {
+    background-color: #f0f8ff; /* A light blue hover effect */
+}
+
+/* --- RTL Styles for Arabic --- */
+[dir="rtl"] {
+    text-align: right;
+}
+
+/* Flip flexbox layouts */
+[dir="rtl"] .d-flex, [dir="rtl"] .flex-row, [dir="rtl"] .search-container, [dir="rtl"] .section-header, [dir="rtl"] .action-btns, [dir="rtl"] .menu-item, [dir="rtl"] .overdue-card, [dir="rtl"] .auth-card, [dir="rtl"] .language-switcher {
+    flex-direction: row-reverse;
+}
+
+/* Adjust margins and paddings */
+[dir="rtl"] {
+    --bs-border-left: var(--bs-border-right);
+    --bs-border-right: var(--bs-border-left);
+}
+[dir="rtl"] .border-start {
+    border-left: 0 !important;
+    border-right: var(--bs-border-width) var(--bs-border-style) var(--bs-border-color) !important;
+}
+[dir="rtl"] .ms-auto {
+    margin-left: 0 !important;
+    margin-right: auto !important;
+}
+[dir="rtl"] .me-auto {
+    margin-right: 0 !important;
+    margin-left: auto !important;
+}
+[dir="rtl"] .text-start { text-align: right !important; }
+[dir="rtl"] .text-end { text-align: left !important; }
+
+/* Flip specific elements */
+[dir="rtl"] .close-modal {
+    float: left;
+}
+[dir="rtl"] .status-indicator {
+    margin-left: 8px;
+    margin-right: 0;
+}
+[dir="rtl"] .menu-item i {
+    margin-left: 10px;
+    margin-right: 0;
+}
+[dir="rtl"] .paid-row {
+    border-left: none;
+    border-right: 4px solid var(--success);
+}
+[dir="rtl"] .detail-row {
+    grid-template-columns: 1fr 120px;
+}
+[dir="rtl"] .back-btn {
+    margin-left: 0;
+    margin-right: 10px;
+}
+[dir="rtl"] select {
+    background-position: left 10px center;
+    padding-left: 30px;
+    padding-right: 10px;
+}
+
+
+/* Position language switcher */
+.language-switcher {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    z-index: 100;
+    display: flex;
+    gap: 10px;
+}
+[dir="rtl"] .language-switcher {
+    right: auto;
+    left: 15px;
+}

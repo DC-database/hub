@@ -46,6 +46,86 @@ let statusPieChart = null;
 let statusBarChart = null;
 let overdueBarChart = null;
 
+// --- Language and Translation Store ---
+const translations = {
+    'en': {
+        // Main Dashboard
+        'main_dashboard_title': 'INVOICE PROGRESSION (SITE & HO)',
+        'overdue_srv_title': 'Overdue SRV',
+        'overdue_ipc_title': 'Overdue IPC',
+        'search_by_site': 'Search by site...',
+        'search_btn': 'Search',
+        'print_selected_btn': 'Print Selected',
+        'view_selected_btn': 'View Selected',
+        'add_to_collection_btn': 'Add to Collection',
+        'view_collection_btn': 'View Collection',
+
+        // Invoice Status Tracker
+        'tracker_title': 'INVOICE STATUS TRACKER',
+        'add_to_accounts_btn': 'Add to Accounts Entry',
+        'search_placeholder': 'Search...',
+        'date_placeholder': 'Date',
+        
+        // --- Add ALL other text from your app here ---
+    },
+    'ar': {
+        // Main Dashboard
+        'main_dashboard_title': 'متابعة الفواتير (الموقع والمكتب الرئيسي)',
+        'overdue_srv_title': 'SRV متأخرة',
+        'overdue_ipc_title': 'IPC متأخرة',
+        'search_by_site': 'البحث حسب الموقع...',
+        'search_btn': 'بحث',
+        'print_selected_btn': 'طباعة المحدد',
+        'view_selected_btn': 'عرض المحدد',
+        'add_to_collection_btn': 'إضافة للمجموعة',
+        'view_collection_btn': 'عرض المجموعة',
+
+        // Invoice Status Tracker
+        'tracker_title': 'متتبع حالة الفواتير',
+        'add_to_accounts_btn': 'إضافة قيد محاسبي',
+        'search_placeholder': 'بحث...',
+        'date_placeholder': 'التاريخ',
+
+        // --- Add ALL other translations here ---
+    }
+};
+// --- End of Language Store ---
+
+function setLanguage(lang) {
+    // Save the user's choice in their browser
+    localStorage.setItem('language', lang);
+    applyTranslations();
+}
+
+function applyTranslations() {
+    const lang = localStorage.getItem('language') || 'en'; // Default to English
+
+    // Find all elements that need translation
+    document.querySelectorAll('[data-i18n-key]').forEach(element => {
+        const key = element.getAttribute('data-i18n-key');
+        const translation = translations[lang][key];
+        
+        if (translation) {
+            // Check if the element is an input placeholder
+            if (element.tagName === 'INPUT' && element.placeholder) {
+                element.placeholder = translation;
+            } else {
+                // Otherwise, change the text content
+                element.textContent = translation;
+            }
+        }
+    });
+
+    // Handle Right-to-Left (RTL) layout for Arabic
+    if (lang === 'ar') {
+        document.documentElement.setAttribute('dir', 'rtl');
+        document.documentElement.setAttribute('lang', 'ar');
+    } else {
+        document.documentElement.setAttribute('dir', 'ltr');
+        document.documentElement.setAttribute('lang', 'en');
+    }
+}
+
 function isDarkColor(color) {
     // Convert hex to RGB
     let r, g, b;
@@ -2417,6 +2497,7 @@ function printDashboardResults() {
 document.addEventListener('DOMContentLoaded', function() {
     cacheDOM();
     detectDeviceType();
+    applyTranslations(); // Apply translations on page load
     updateConnectionStatus(false);
     updateAuthUI(false);
     
@@ -2887,7 +2968,6 @@ function addToCollectionFromTracker() {
     showToast(`${selectedRecords.length} item(s) added to collection. Total: ${invoiceCollection.length}`);
 }
 
-// REFACTORED: openAddPaymentModal
 function openAddPaymentModal() {
     const selected = getSelectedTrackerRecords();
     if (selected.length === 0) {
@@ -2895,7 +2975,56 @@ function openAddPaymentModal() {
         return;
     }
 
-    pendingPaymentRecords = selected;
+    // Build a set of already paid invoices for quick checking
+    const paidInvoices = new Set();
+    if (payments && payments.length > 0) {
+        payments.forEach(payment => {
+            if (payment.paymentEntries) {
+                Object.values(payment.paymentEntries).forEach(entry => {
+                    const poToUse = String(entry.originalPoNumber || payment.poNumber || '').trim();
+                    if (!poToUse) return;
+                    const normalizedInvoice = normalizeInvoiceNumber(entry.invoiceNumber);
+                    const exactIdentifier = [String(payment.site || '').trim(), poToUse, String(payment.vendor || '').trim(), normalizedInvoice].join('-');
+                    paidInvoices.add(exactIdentifier);
+                    const integerPO = parseInt(poToUse, 10);
+                    if (!isNaN(integerPO) && String(integerPO) !== poToUse) {
+                        const integerIdentifier = [String(payment.site || '').trim(), String(integerPO), String(payment.vendor || '').trim(), normalizedInvoice].join('-');
+                        paidInvoices.add(integerIdentifier);
+                    }
+                });
+            }
+        });
+    }
+
+    // Filter out any selected records that have already been paid
+    let alreadyPaidCount = 0;
+    const recordsForPayment = selected.filter(record => {
+        const recordIdentifier = [
+            String(record.site || '').trim(),
+            String(record.poNumber || '').trim(),
+            String(record.vendor || '').trim(),
+            normalizeInvoiceNumber(record.invoiceNumber)
+        ].join('-');
+        
+        if (paidInvoices.has(recordIdentifier)) {
+            alreadyPaidCount++;
+            return false; // Exclude this already-paid record
+        }
+        return true; // Include this unpaid record
+    });
+
+    // Show alerts and stop if necessary
+    if (recordsForPayment.length === 0) {
+        alert('All selected invoices have already been paid and cannot be added again.');
+        return;
+    }
+
+    if (alreadyPaidCount > 0) {
+        showToast(`${alreadyPaidCount} selected invoice(s) were already paid and have been skipped.`);
+    }
+
+    // Proceed with only the unpaid records
+    pendingPaymentRecords = recordsForPayment;
     const paymentList = document.getElementById('paymentInvoiceList');
     paymentList.innerHTML = '';
     
@@ -2915,7 +3044,6 @@ function openAddPaymentModal() {
     document.body.style.overflow = 'hidden';
 }
 
-// REFACTORED: closeAddPaymentModal
 function closeAddPaymentModal() {
     document.getElementById('addPaymentModal').style.display = 'none';
     document.body.style.overflow = '';
@@ -3030,7 +3158,6 @@ function clearPaymentsSearch() {
     refreshPaymentsTable(); // Resets to empty
 }
 
-// REFACTORED: refreshPaymentsTable to implement the new grouped layout
 function refreshPaymentsTable(filteredPayments = []) {
     const tableBody = document.querySelector('#invoicePaymentsTable tbody');
     tableBody.innerHTML = '';
@@ -3086,15 +3213,21 @@ function refreshPaymentsTable(filteredPayments = []) {
                 const entry = payment.paymentEntries[entryKey];
                 const paymentKey = `${payment.site}-${po}-${payment.vendor}`.replace(/[.#$/[\]]/g, '_');
                 const onclickAction = `openEditPaymentModal(${JSON.stringify(paymentKey)}, ${JSON.stringify(entryKey)}, ${JSON.stringify(entry)})`;
+                
+                // Prepare variables for the new findInvoiceInTracker function
+                const poToPass = JSON.stringify(entry.originalPoNumber || payment.poNumber || '');
+                const invToPass = JSON.stringify(entry.invoiceNumber || '');
+                const findAction = `findInvoiceInTracker(${poToPass}, ${invToPass})`;
+
                 totalPaid += parseFloat(entry.amountPaid) || 0;
                 
                 detailsHtml += `
-                    <tr>
+                    <tr class="clickable-row" onclick="${findAction}" title="Click to find this invoice in the tracker">
                         <td>${entry.paymentNumber || '-'}</td>
                         <td>${entry.amountPaid ? formatNumber(entry.amountPaid) : '-'}</td>
                         <td>${entry.datePaid ? formatDate(entry.datePaid) : '-'}</td>
                         <td class="action-btns">
-                            <button class="btn btn-primary" style="padding: 6px 10px; font-size: 14px;" onclick='${onclickAction}'>
+                            <button class="btn btn-primary" style="padding: 6px 10px; font-size: 14px;" onclick='event.stopPropagation(); ${onclickAction}'>
                                 <i class="fas fa-edit"></i>
                             </button>
                         </td>
@@ -3159,6 +3292,37 @@ function openEditPaymentModal(paymentKey, entryKey, entryData) {
 function closeEditPaymentModal() {
     document.getElementById('editPaymentModal').style.display = 'none';
     document.body.style.overflow = '';
+}
+
+function findInvoiceInTracker(poNumber, invoiceNumber) {
+    // 1. Switch to the Invoice Tracker section
+    showSection('invoiceSection');
+
+    // 2. Set the search term to the PO number so the user sees it in the search bar
+    domCache.searchTerm.value = poNumber;
+
+    // 3. Directly filter all records to find the specific invoice
+    const normalizedInv = normalizeInvoiceNumber(invoiceNumber);
+    const exactMatch = records.find(record => {
+        const recordPO = String(record.poNumber || '').trim();
+        const recordINV = normalizeInvoiceNumber(record.invoiceNumber);
+
+        // This handles cases where one PO is "53779" and the other is "53779.21"
+        const poMatches = (recordPO === poNumber) || 
+                          (String(parseInt(recordPO, 10)) === poNumber) ||
+                          (recordPO === String(parseInt(poNumber, 10)));
+
+        return poMatches && recordINV === normalizedInv;
+    });
+
+    // 4. Display either the single exact match or all results for the PO as a fallback
+    if (exactMatch) {
+        refreshTable([exactMatch]); // Display only the single matching record
+        showToast(`Showing exact match for PO: ${poNumber}`);
+    } else {
+        searchRecords(); // Fallback to searching by the PO number
+        showToast(`Showing all results for PO: ${poNumber}`);
+    }
 }
 
 function savePaymentUpdate() {
