@@ -2868,7 +2868,7 @@ select {
 }
 
 /* Flip flexbox layouts */
-[dir="rtl"] .d-flex, [dir="rtl"] .flex-row, [dir="rtl"] .search-container, [dir="rtl"] .section-header, [dir="rtl"] .action-btns, [dir="rtl"] .menu-item, [dir="rtl"] .overdue-card, [dir="rtl"] .auth-card {
+[dir="rtl"] .d-flex, [dir="rtl"] .flex-row, [dir="rtl"] .search-container, [dir="rtl"] .section-header, [dir="rtl"] .action-btns, [dir="rtl"] .menu-item, [dir="rtl"] .overdue-card, [dir="rtl"] .auth-card, [dir="rtl"] .language-switcher {
     flex-direction: row-reverse;
 }
 
@@ -2956,14 +2956,13 @@ body.admin-logged-in .btn-delete-entry {
     display: flex;
     gap: 10px;
     align-items: center;
-    margin-bottom: 15px;
+    flex-wrap: wrap; /* Allow wrapping on smaller modal views */
 }
 
 .modal-actions .search-input {
-    flex-grow: 1;
+    flex: 2 1 250px; /* Allow it to grow, with a larger base size */
 }
 
 .modal-actions .btn {
-    flex-grow: 0;
-    flex-shrink: 0;
+    flex: 1 1 auto; /* Allow buttons to take up remaining space if needed */
 }
