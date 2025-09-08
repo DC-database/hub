@@ -49,74 +49,304 @@ let overdueBarChart = null;
 // --- Language and Translation Store ---
 const translations = {
     'en': {
-        // Main Dashboard
+        'menu_title': 'Menu',
+        'menu_dashboard': 'Main Dashboard',
+        'menu_tracker': 'Invoice Status Tracker',
+        'menu_payments': 'Invoice Payments',
+        'menu_ipc': 'IPC Records',
+        'menu_progress_po': 'Progress PO',
+        'menu_main_hub': 'Main Hub',
+        'menu_data_management': 'Data Management',
+        'refresh_data_btn': 'Refresh Data',
+        'status_not_connected': 'Not connected to data source',
         'main_dashboard_title': 'INVOICE PROGRESSION (SITE & HO)',
         'overdue_srv_title': 'Overdue SRV',
         'overdue_ipc_title': 'Overdue IPC',
-        'search_by_site': 'Search by site...',
+        'overdue_subtitle': '(more than a week)',
+        'search_by_site_placeholder': 'Search by site...',
         'search_btn': 'Search',
         'print_selected_btn': 'Print Selected',
         'view_selected_btn': 'View Selected',
         'add_to_collection_btn': 'Add to Collection',
         'view_collection_btn': 'View Collection',
-
-        // Invoice Status Tracker
+        'th_id': 'ID',
+        'th_release_date': 'Release Date',
+        'th_site': 'Site',
+        'th_po': 'PO',
+        'th_vendor': 'Vendor',
+        'th_invoice': 'Invoice',
+        'th_amount': 'Amount',
+        'th_status': 'Status',
+        'th_note': 'Note',
         'tracker_title': 'INVOICE STATUS TRACKER',
+        'back_btn': 'Back',
         'add_to_accounts_btn': 'Add to Accounts Entry',
         'search_placeholder': 'Search...',
         'date_placeholder': 'Date',
-        
-        // --- Add ALL other text from your app here ---
+        'filter_all': 'All',
+        'filter_open': 'Open',
+        'filter_pending': 'Pending',
+        'filter_no_inv': 'No INV',
+        'filter_srv': 'SRV',
+        'filter_ipc': 'IPC',
+        'filter_report': 'Report',
+        'filter_review': 'Review',
+        'filter_ceo': 'CEO',
+        'filter_accounts': 'Accounts',
+        'th_date': 'Date',
+        'th_release': 'Release',
+        'th_actions': 'Actions',
+        'payments_title': 'INVOICE PAYMENTS',
+        'search_payments_placeholder': 'Search payments by PO, vendor, or site...',
+        'add_invoice_btn': 'Add Invoice',
+        'th_po_number': 'PO Number',
+        'statement_title': 'Statement of Account',
+        'statement_type_po': 'PO Number',
+        'statement_type_vendor': 'Vendor',
+        'statement_type_site': 'Site',
+        'search_term_placeholder': 'Search term...',
+        'filter_all_statuses': 'All Statuses',
+        'include_notes_label': 'Include Notes',
+        'generate_btn': 'Generate',
+        'financial_summary_title': 'Financial Summary',
+        'summary_po_value': 'PO Value',
+        'summary_total_amount': 'Total Amount',
+        'summary_with_accounts': 'With Accounts',
+        'summary_balance': 'Balance',
+        'th_notes': 'Notes',
+        'total_label': 'Total',
+        'print_btn': 'Print',
+        'share_btn': 'Share',
+        'petty_cash_title': 'Petty Cash Summary',
+        'search_by_note_placeholder': 'Search by note...',
+        'summary_title': 'Summary',
+        'summary_records': 'Records',
+        'data_management_title': 'Data Management',
+        'dm_approver_list': 'Approver List',
+        'dm_choose_approver_csv': 'Choose Approver CSV',
+        'dm_upload_approver_csv': 'Upload Approver CSV',
+        'dm_download_approver_template': 'Download Approver CSV Template',
+        'dm_admin_auth': 'Admin Authentication',
+        'logout_btn': 'Logout',
+        'admin_email_placeholder': 'Admin Email',
+        'password_placeholder': 'Password',
+        'signin_btn': 'Sign in',
+        'dm_upload_csv': 'Upload CSV Data',
+        'dm_choose_csv': 'Choose CSV File',
+        'dm_upload_csv_btn': 'Upload CSV',
+        'dm_download_template': 'Download CSV Template',
+        'dm_manage_data': 'Manage Data',
+        'dm_clear_data_btn': 'Clear Data',
+        'dm_current_data_info': 'Current Data Information',
+        'dm_info_year': 'Current Year:',
+        'dm_info_records': 'Record Count:',
+        'dm_info_updated': 'Last Updated:',
+        'modal_invoice_details': 'Invoice Details',
+        'th_invoice_number': 'Invoice Number',
+        'legend_title': 'Invoice Progress Legend:',
+        'legend_srv': 'Stock Receipt Voucher',
+        'legend_ipc': 'Interim Payment Certificate/Accounts Report',
+        'legend_review': 'Under Management Review',
+        'legend_ceo': 'Awaiting CEO Approval',
+        'legend_accounts': 'Processed by Accounts Department',
+        'request_update_btn': 'Request Update',
+        'collection_title': 'Invoice Collection',
+        'collection_total_items': 'Total Items:',
+        'collection_total_amount': 'Total Amount:',
+        'collection_print': 'Print Collection',
+        'collection_clear': 'Clear Collection',
+        'loading_title': 'Loading Data...',
+        'loading_message': 'Please wait while we process your request',
+        'modal_search_add_title': 'Search and Add Invoice to Payments',
+        'search_invoices_placeholder': 'Search invoices...',
+        'add_selected_btn': 'Add Selected to Payments',
+        'modal_approval_title': 'Send Approval via WhatsApp',
+        'modal_send_to': 'Send to Below List',
+        'modal_optional_message': 'Optional Message',
+        'modal_message_placeholder': 'Add a short note (optional)',
+        'modal_send_whatsapp': 'Send via WhatsApp',
+        'modal_confirm_payment_title': 'Confirm Add to Accounts Entry',
+        'modal_confirm_payment_message': 'You are about to create payment entries for the following invoices:',
+        'modal_total_invoice_value': 'Total Invoice Value',
+        'modal_payment_date': 'Payment Date for this Batch',
+        'modal_save_payments': 'Save Payments',
+        'modal_edit_payment_title': 'Edit Payment Entry',
+        'modal_editing_for': 'Editing Payment for:',
+        'th_payment_no': 'Payment Number',
+        'th_amount_paid': 'Amount Paid',
+        'th_date_paid': 'Date Paid',
+        'modal_save_changes': 'Save Changes',
+        'nav_home': 'Home',
+        'nav_invoices': 'Invoices',
+        'nav_payments': 'Payments',
+        'nav_statement': 'Statement',
+        'nav_ipc': 'IPC',
+        'toggle_language_btn': 'Switch Language'
     },
     'ar': {
-        // Main Dashboard
-        'main_dashboard_title': 'متابعة الفواتير (الموقع والمكتب الرئيسي)',
+        'menu_title': 'القائمة',
+        'menu_dashboard': 'لوحة التحكم الرئيسية',
+        'menu_tracker': 'متتبع حالة الفواتير',
+        'menu_payments': 'دفعات الفواتير',
+        'menu_ipc': 'سجلات IPC',
+        'menu_progress_po': 'تقدم طلبات الشراء',
+        'menu_main_hub': 'المركز الرئيسي',
+        'menu_data_management': 'إدارة البيانات',
+        'refresh_data_btn': 'تحديث البيانات',
+        'status_not_connected': 'غير متصل بمصدر البيانات',
+        'main_dashboard_title': 'تقدم الفواتير (الموقع والمكتب الرئيسي)',
         'overdue_srv_title': 'SRV متأخرة',
         'overdue_ipc_title': 'IPC متأخرة',
-        'search_by_site': 'البحث حسب الموقع...',
+        'overdue_subtitle': '(أكثر من أسبوع)',
+        'search_by_site_placeholder': 'البحث حسب الموقع...',
         'search_btn': 'بحث',
         'print_selected_btn': 'طباعة المحدد',
         'view_selected_btn': 'عرض المحدد',
         'add_to_collection_btn': 'إضافة للمجموعة',
         'view_collection_btn': 'عرض المجموعة',
-
-        // Invoice Status Tracker
+        'th_id': 'م',
+        'th_release_date': 'تاريخ الإصدار',
+        'th_site': 'الموقع',
+        'th_po': 'طلب الشراء',
+        'th_vendor': 'المورد',
+        'th_invoice': 'فاتورة',
+        'th_amount': 'المبلغ',
+        'th_status': 'الحالة',
+        'th_note': 'ملاحظة',
         'tracker_title': 'متتبع حالة الفواتير',
+        'back_btn': 'رجوع',
         'add_to_accounts_btn': 'إضافة قيد محاسبي',
         'search_placeholder': 'بحث...',
         'date_placeholder': 'التاريخ',
-
-        // --- Add ALL other translations here ---
+        'filter_all': 'الكل',
+        'filter_open': 'مفتوح',
+        'filter_pending': 'معلق',
+        'filter_no_inv': 'لا فاتورة',
+        'filter_srv': 'SRV',
+        'filter_ipc': 'IPC',
+        'filter_report': 'تقرير',
+        'filter_review': 'مراجعة',
+        'filter_ceo': 'موافقة المدير التنفيذي',
+        'filter_accounts': 'الحسابات',
+        'th_date': 'التاريخ',
+        'th_release': 'الإصدار',
+        'th_actions': 'إجراءات',
+        'payments_title': 'دفعات الفواتير',
+        'search_payments_placeholder': 'البحث في الدفعات...',
+        'add_invoice_btn': 'إضافة فاتورة',
+        'th_po_number': 'رقم طلب الشراء',
+        'statement_title': 'كشف حساب',
+        'statement_type_po': 'رقم طلب الشراء',
+        'statement_type_vendor': 'المورد',
+        'statement_type_site': 'الموقع',
+        'search_term_placeholder': 'مصطلح البحث...',
+        'filter_all_statuses': 'كل الحالات',
+        'include_notes_label': 'تضمين الملاحظات',
+        'generate_btn': 'إنشاء',
+        'financial_summary_title': 'ملخص مالي',
+        'summary_po_value': 'قيمة طلب الشراء',
+        'summary_total_amount': 'المبلغ الإجمالي',
+        'summary_with_accounts': 'لدى الحسابات',
+        'summary_balance': 'الرصيد',
+        'th_notes': 'ملاحظات',
+        'total_label': 'الإجمالي',
+        'print_btn': 'طباعة',
+        'share_btn': 'مشاركة',
+        'petty_cash_title': 'ملخص المصاريف النثرية',
+        'search_by_note_placeholder': 'البحث بالملاحظة...',
+        'summary_title': 'ملخص',
+        'summary_records': 'السجلات',
+        'data_management_title': 'إدارة البيانات',
+        'dm_approver_list': 'قائمة الموافقين',
+        'dm_choose_approver_csv': 'اختر ملف الموافقين CSV',
+        'dm_upload_approver_csv': 'رفع ملف الموافقين CSV',
+        'dm_download_approver_template': 'تنزيل قالب الموافقين CSV',
+        'dm_admin_auth': 'مصادقة المسؤول',
+        'logout_btn': 'تسجيل الخروج',
+        'admin_email_placeholder': 'بريد المسؤول الإلكتروني',
+        'password_placeholder': 'كلمة المرور',
+        'signin_btn': 'تسجيل الدخول',
+        'dm_upload_csv': 'رفع بيانات CSV',
+        'dm_choose_csv': 'اختر ملف CSV',
+        'dm_upload_csv_btn': 'رفع CSV',
+        'dm_download_template': 'تنزيل القالب',
+        'dm_manage_data': 'إدارة البيانات',
+        'dm_clear_data_btn': 'مسح البيانات',
+        'dm_current_data_info': 'معلومات البيانات الحالية',
+        'dm_info_year': 'السنة الحالية:',
+        'dm_info_records': 'عدد السجلات:',
+        'dm_info_updated': 'آخر تحديث:',
+        'modal_invoice_details': 'تفاصيل الفاتورة',
+        'th_invoice_number': 'رقم الفاتورة',
+        'legend_title': 'دليل تقدم الفاتورة:',
+        'legend_srv': 'قسيمة استلام المخزون',
+        'legend_ipc': 'شهادة دفع مؤقتة/تقرير حسابات',
+        'legend_review': 'تحت مراجعة الإدارة',
+        'legend_ceo': 'بانتظار موافقة المدير التنفيذي',
+        'legend_accounts': 'تمت معالجتها بواسطة قسم الحسابات',
+        'request_update_btn': 'طلب تحديث',
+        'collection_title': 'مجموعة الفواتير',
+        'collection_total_items': 'إجمالي العناصر:',
+        'collection_total_amount': 'المبلغ الإجمالي:',
+        'collection_print': 'طباعة المجموعة',
+        'collection_clear': 'مسح المجموعة',
+        'loading_title': 'جاري تحميل البيانات...',
+        'loading_message': 'يرجى الانتظار بينما نعالج طلبك',
+        'modal_search_add_title': 'بحث وإضافة فاتورة للدفعات',
+        'search_invoices_placeholder': 'بحث في الفواتير...',
+        'add_selected_btn': 'إضافة المحدد للدفعات',
+        'modal_approval_title': 'إرسال طلب موافقة عبر واتساب',
+        'modal_send_to': 'إرسال إلى القائمة أدناه',
+        'modal_optional_message': 'رسالة اختيارية',
+        'modal_message_placeholder': 'أضف ملاحظة قصيرة (اختياري)',
+        'modal_send_whatsapp': 'إرسال عبر واتساب',
+        'modal_confirm_payment_title': 'تأكيد الإضافة إلى قيود الحسابات',
+        'modal_confirm_payment_message': 'أنت على وشك إنشاء قيود دفع للفواتير التالية:',
+        'modal_total_invoice_value': 'إجمالي قيمة الفاتورة',
+        'modal_payment_date': 'تاريخ الدفع لهذه الدفعة',
+        'modal_save_payments': 'حفظ الدفعات',
+        'modal_edit_payment_title': 'تعديل قيد الدفع',
+        'modal_editing_for': 'جاري تعديل الدفعة لـ:',
+        'th_payment_no': 'رقم الدفعة',
+        'th_amount_paid': 'المبلغ المدفوع',
+        'th_date_paid': 'تاريخ الدفع',
+        'modal_save_changes': 'حفظ التغييرات',
+        'nav_home': 'الرئيسية',
+        'nav_invoices': 'الفواتير',
+        'nav_payments': 'الدفعات',
+        'nav_statement': 'الكشف',
+        'nav_ipc': 'IPC',
+        'toggle_language_btn': 'تغيير اللغة'
     }
 };
 // --- End of Language Store ---
 
 function setLanguage(lang) {
-    // Save the user's choice in their browser
     localStorage.setItem('language', lang);
     applyTranslations();
+}
+
+function toggleLanguage() {
+    const currentLang = localStorage.getItem('language') || 'en';
+    const newLang = currentLang === 'en' ? 'ar' : 'en';
+    setLanguage(newLang);
 }
 
 function applyTranslations() {
     const lang = localStorage.getItem('language') || 'en'; // Default to English
 
-    // Find all elements that need translation
     document.querySelectorAll('[data-i18n-key]').forEach(element => {
         const key = element.getAttribute('data-i18n-key');
-        const translation = translations[lang][key];
-        
-        if (translation) {
-            // Check if the element is an input placeholder
-            if (element.tagName === 'INPUT' && element.placeholder) {
+        if (translations[lang] && translations[lang][key]) {
+            const translation = translations[lang][key];
+            if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
                 element.placeholder = translation;
             } else {
-                // Otherwise, change the text content
                 element.textContent = translation;
             }
         }
     });
 
-    // Handle Right-to-Left (RTL) layout for Arabic
     if (lang === 'ar') {
         document.documentElement.setAttribute('dir', 'rtl');
         document.documentElement.setAttribute('lang', 'ar');
@@ -157,10 +387,6 @@ const domCache = {
     reportSearchTerm: null,
     reportType: null,
     reportStatusFilter: null,
-    connectBtn: null,
-    statusIndicator: null,
-    connectionStatus: null,
-    fileInfo: null,
     recordsTable: null,
     siteRecordsTable: null,
     reportTable: null,
@@ -197,10 +423,6 @@ function cacheDOM() {
     domCache.reportSearchTerm = document.getElementById('reportSearchTerm');
     domCache.reportType = document.getElementById('reportType');
     domCache.reportStatusFilter = document.getElementById('reportStatusFilter');
-    domCache.connectBtn = document.getElementById('connectBtn');
-    domCache.statusIndicator = document.getElementById('statusIndicator');
-    domCache.connectionStatus = document.getElementById('connectionStatus');
-    domCache.fileInfo = document.getElementById('fileInfo');
     domCache.recordsTable = document.getElementById('recordsTable');
     domCache.siteRecordsTable = document.getElementById('siteRecordsTable');
     domCache.reportTable = document.getElementById('reportTable');
@@ -343,21 +565,6 @@ function getStatusPercentage(status) {
     return statusProgress[status] || 0;
 }
 
-// Connection status
-function updateConnectionStatus(connected) {
-    if (connected) {
-        if (domCache.statusIndicator) domCache.statusIndicator.className = 'status-indicator connected';
-        if (domCache.connectionStatus) domCache.connectionStatus.textContent = `Connected to: Firebase (${currentYear})`;
-        if (domCache.connectBtn) domCache.connectBtn.innerHTML = `<i class="fas fa-sync-alt"></i> <span class="btn-text">Data Updated (${currentYear})</span>`;
-    } else {
-        if (domCache.statusIndicator) domCache.statusIndicator.className = 'status-indicator disconnected';
-        if (domCache.connectionStatus) domCache.connectionStatus.textContent = 'Not connected to data source';
-        if (domCache.connectBtn) domCache.connectBtn.innerHTML = `<i class="fas fa-sync-alt"></i> <span class="btn-text">Refresh Data</span>`;
-    }
-    
-    updateFileInfo();
-}
-
 // Data processing
 function processCSVData(data) {
     return data.map(item => ({
@@ -415,7 +622,6 @@ function logout() {
     auth.signOut().then(() => {
         updateAuthUI(false);
         records = [];
-        updateUI();
         checkOverdueProgression();
     }).catch((error) => {
         console.error('Logout error:', error);
@@ -460,29 +666,19 @@ function loadFromFirebase() {
                 updateNoteSuggestions();
                 updateVendorSuggestions();
                 updateSiteSuggestions();
-                updateUI();
                 checkOverdueProgression();
-                updateConnectionStatus(true);
                 
-                // Update data info
-                domCache.currentYearDisplay.textContent = currentYear;
                 domCache.recordCount.textContent = records.length;
                 domCache.lastUpdated.textContent = new Date().toLocaleString();
                 
-                // Initialize charts only, don't show table
                 initializeCharts();
                 initializeOverdueChart();
                 domCache.siteRecordsTable.style.display = 'none';
             } else {
                 records = [];
-                updateConnectionStatus(false);
-                
-                // Update data info
-                domCache.currentYearDisplay.textContent = currentYear;
                 domCache.recordCount.textContent = '0';
                 domCache.lastUpdated.textContent = 'Never';
                 
-                // Clear charts and table
                 if (statusPieChart) statusPieChart.destroy();
                 if (statusBarChart) statusBarChart.destroy();
                 if (overdueBarChart) overdueBarChart.destroy();
@@ -492,7 +688,6 @@ function loadFromFirebase() {
         })
         .catch((error) => {
             console.error('Error loading data from Firebase:', error);
-            updateConnectionStatus(false);
             hideLoading();
             throw error;
         });
@@ -623,7 +818,6 @@ function clearFirebaseData() {
             // Clear local data if current year matches
             if (currentYear === year) {
                 records = [];
-                updateUI();
                 checkOverdueProgression();
             }
         })
@@ -632,21 +826,6 @@ function clearFirebaseData() {
             domCache.manageStatus.className = 'upload-status error';
             hideLoading();
         });
-}
-
-function updateFileInfo() {
-    const timestamp = new Date().toLocaleString();
-    let infoHTML = `<strong>Data Source:</strong> Firebase (${currentYear})<br>`;
-    infoHTML += `<strong>Last Updated:</strong> ${timestamp}<br>`;
-    infoHTML += `<strong>Records Loaded:</strong> ${records.length}`;
-    
-    if (domCache.fileInfo) { domCache.fileInfo.innerHTML = infoHTML; }
-}
-
-// Optimized UI updates
-function updateUI() {
-    updateConnectionStatus(true);
-    updateFileInfo();
 }
 
 // Helper function to standardize invoice numbers for matching
@@ -2447,89 +2626,14 @@ document.addEventListener('DOMContentLoaded', function() {
     cacheDOM();
     detectDeviceType();
     applyTranslations(); // Apply translations on page load
-    updateConnectionStatus(false);
     updateAuthUI(false);
     
     // Automatically load data on initial load
-    const connectBtn = domCache.connectBtn;
-    const originalHTML = connectBtn.innerHTML;
-    
-    connectBtn.disabled = true;
-    connectBtn.innerHTML = `<div class="corporate-spinner" style="width: 20px; height: 20px; display: inline-block; margin-right: 10px;"></div> Loading...`;
-    
-    // Check if user is already logged in and load data
-    auth.onAuthStateChanged((user) => {
-        if (user) {
-            updateAuthUI(true, user.email);
-            loadFromFirebase().then(() => {
-                loadPaymentsFromFirebase(false); // Load payments data in the background
-            }).finally(() => {
-                if (connectBtn) connectBtn.disabled = false;
-                if (connectBtn) connectBtn.innerHTML = originalHTML;
-            });
-        } else {
-            updateAuthUI(false);
-            loadFromFirebase().then(() => {
-                loadPaymentsFromFirebase(false); // Also load here for non-authed view
-            }).finally(() => {
-                if (connectBtn) connectBtn.disabled = false;
-                if (connectBtn) connectBtn.innerHTML = originalHTML;
-            });
-        }
+    loadFromFirebase().then(() => {
+        loadPaymentsFromFirebase(false);
     });
     
     window.addEventListener('resize', setupResponsiveElements);
-    
-    if (domCache.connectBtn) domCache.connectBtn.addEventListener('click', async function() {
-        const btn = this;
-        const originalHTML = btn.innerHTML;
-        
-        btn.disabled = true;
-        btn.innerHTML = `<div class="corporate-spinner" style="width: 20px; height: 20px; display: inline-block; margin-right: 10px;"></div> Loading...`;
-        
-        try {
-            await loadFromFirebase();
-        } catch (error) {
-            console.error('Error loading data:', error);
-            updateConnectionStatus(false);
-        } finally {
-            btn.disabled = false;
-            btn.innerHTML = originalHTML;
-        }
-    });
-    
-    // Add click handlers for overdue cards
-    domCache.overdueSRVCard.addEventListener('click', function() {
-        filterSiteRecords('For SRV', true);
-    });
-    
-    domCache.overdueIPCCard.addEventListener('click', function() {
-        filterSiteRecords('For IPC', true);
-    });
-    
-    document.querySelectorAll('.mobile-menu input[name="dataSource"], input[name="uploadYear"], input[name="manageYear"]').forEach(radio => {
-        radio.addEventListener('change', async function() {
-            currentYear = this.value;
-            const connectBtn = domCache.connectBtn;
-            const originalHTML = connectBtn.innerHTML;
-            
-            records = [];
-            domCache.recordsTable.style.display = 'none';
-            domCache.siteRecordsTable.style.display = 'none';
-            connectBtn.disabled = true;
-            connectBtn.innerHTML = `<div class="corporate-spinner" style="width: 20px; height: 20px; display: inline-block; margin-right: 10px;"></div> Loading ${currentYear} Data...`;
-            
-            try {
-                await loadFromFirebase();
-            } catch (error) {
-                console.error('Error loading data:', error);
-                updateConnectionStatus(false);
-            } finally {
-                if (connectBtn) connectBtn.disabled = false;
-                if (connectBtn) connectBtn.innerHTML = originalHTML;
-            }
-        });
-    });
     
     domCache.searchTerm.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
@@ -2567,7 +2671,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     domCache.includeNotes.addEventListener('change', function() {
-        // When the checkbox changes, regenerate the report if one is already displayed
         if (document.querySelector('#reportTable tbody').children.length > 0) {
             generateReport();
         }
@@ -3096,6 +3199,36 @@ function clearPaymentsSearch() {
     refreshPaymentsTable(); // Resets to empty
 }
 
+function findInvoiceInTracker(poNumber, invoiceNumber) {
+    // 1. Switch to the Invoice Tracker section
+    showSection('invoiceSection');
+
+    // 2. Set the search term to the PO number so the user sees it in the search bar
+    domCache.searchTerm.value = poNumber;
+
+    // 3. Directly filter all records to find the specific invoice
+    const normalizedInv = normalizeInvoiceNumber(invoiceNumber);
+    const exactMatch = records.find(record => {
+        const recordPO = String(record.poNumber || '').trim();
+        const recordINV = normalizeInvoiceNumber(record.invoiceNumber);
+
+        const poMatches = (recordPO === poNumber) || 
+                          (String(parseInt(recordPO, 10)) === poNumber) ||
+                          (recordPO === String(parseInt(poNumber, 10)));
+
+        return poMatches && recordINV === normalizedInv;
+    });
+
+    // 4. Display either the single exact match or all results for the PO as a fallback
+    if (exactMatch) {
+        refreshTable([exactMatch]); // Display only the single matching record
+        showToast(`Showing exact match for PO: ${poNumber}`);
+    } else {
+        searchRecords(); // Fallback to searching by the PO number
+        showToast(`Showing all results for PO: ${poNumber}`);
+    }
+}
+
 function refreshPaymentsTable(filteredPayments = []) {
     const tableBody = document.querySelector('#invoicePaymentsTable tbody');
     tableBody.innerHTML = '';
@@ -3230,36 +3363,6 @@ function openEditPaymentModal(paymentKey, entryKey, entryData) {
 function closeEditPaymentModal() {
     document.getElementById('editPaymentModal').style.display = 'none';
     document.body.style.overflow = '';
-}
-
-function findInvoiceInTracker(poNumber, invoiceNumber) {
-    // 1. Switch to the Invoice Tracker section
-    showSection('invoiceSection');
-
-    // 2. Set the search term to the PO number so the user sees it in the search bar
-    domCache.searchTerm.value = poNumber;
-
-    // 3. Directly filter all records to find the specific invoice
-    const normalizedInv = normalizeInvoiceNumber(invoiceNumber);
-    const exactMatch = records.find(record => {
-        const recordPO = String(record.poNumber || '').trim();
-        const recordINV = normalizeInvoiceNumber(record.invoiceNumber);
-
-        const poMatches = (recordPO === poNumber) || 
-                          (String(parseInt(recordPO, 10)) === poNumber) ||
-                          (recordPO === String(parseInt(poNumber, 10)));
-
-        return poMatches && recordINV === normalizedInv;
-    });
-
-    // 4. Display either the single exact match or all results for the PO as a fallback
-    if (exactMatch) {
-        refreshTable([exactMatch]); // Display only the single matching record
-        showToast(`Showing exact match for PO: ${poNumber}`);
-    } else {
-        searchRecords(); // Fallback to searching by the PO number
-        showToast(`Showing all results for PO: ${poNumber}`);
-    }
 }
 
 function savePaymentUpdate() {
