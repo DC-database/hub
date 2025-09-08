@@ -3204,17 +3204,27 @@ function findInvoiceInTracker(poNumber, invoiceNumber) {
     showSection('invoiceSection');
 
     // 2. Set the search term to the PO number so the user sees it in the search bar
-    domCache.searchTerm.value = poNumber;
+    const poString = String(poNumber || '').trim();
+    domCache.searchTerm.value = poString;
 
     // 3. Directly filter all records to find the specific invoice
     const normalizedInv = normalizeInvoiceNumber(invoiceNumber);
+    
     const exactMatch = records.find(record => {
         const recordPO = String(record.poNumber || '').trim();
         const recordINV = normalizeInvoiceNumber(record.invoiceNumber);
 
-        const poMatches = (recordPO === poNumber) || 
-                          (String(parseInt(recordPO, 10)) === poNumber) ||
-                          (recordPO === String(parseInt(poNumber, 10)));
+        // More robust comparison to handle "1234" vs "1234.0" or other variations
+        const poIsNumeric = !isNaN(parseFloat(poString)) && isFinite(poString);
+        let poMatches = false;
+
+        if (poIsNumeric) {
+            // If the PO is numeric, compare the parsed float values
+            poMatches = parseFloat(recordPO) === parseFloat(poString);
+        } else {
+            // Otherwise, do a case-insensitive string comparison
+            poMatches = recordPO.toLowerCase() === poString.toLowerCase();
+        }
 
         return poMatches && recordINV === normalizedInv;
     });
@@ -3222,13 +3232,12 @@ function findInvoiceInTracker(poNumber, invoiceNumber) {
     // 4. Display either the single exact match or all results for the PO as a fallback
     if (exactMatch) {
         refreshTable([exactMatch]); // Display only the single matching record
-        showToast(`Showing exact match for PO: ${poNumber}`);
+        showToast(`Showing exact match for PO: ${poString}`);
     } else {
-        searchRecords(); // Fallback to searching by the PO number
-        showToast(`Showing all results for PO: ${poNumber}`);
+        searchRecords(); // Fallback to searching by the PO number if no exact match is found
+        showToast(`Could not find exact invoice. Showing all results for PO: ${poString}`);
     }
 }
-
 function refreshPaymentsTable(filteredPayments = []) {
     const tableBody = document.querySelector('#invoicePaymentsTable tbody');
     tableBody.innerHTML = '';
