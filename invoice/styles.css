@@ -409,7 +409,9 @@ h2, h3 {
 }
 
 .search-input {
-    flex: 1 1 200px;
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 200px;
 }
 
 .date-input {
@@ -420,6 +422,11 @@ h2, h3 {
     border-color: var(--primary);
     outline: none;
     box-shadow: 0 0 0 2px rgba(74, 111, 165, 0.2);
+}
+
+.search-container .btn {
+    flex-grow: 0;
+    flex-shrink: 0;
 }
 
 .btn {
@@ -436,8 +443,6 @@ h2, h3 {
     align-items: center;
     justify-content: center;
     gap: 8px;
-    flex: 1;
-    min-width: 60px;
     box-shadow: 0 2px 3px rgba(0,0,0,0.1);
     touch-action: manipulation;
 }
@@ -462,10 +467,6 @@ h2, h3 {
 
 .btn-admin:hover {
     background-color: #7b1fa2;
-}
-
-.search-btn, .generate-btn {
-    flex: 0 0 auto;
 }
 
 .btn-primary {
@@ -528,7 +529,6 @@ h2, h3 {
     color: white;
     min-width: 44px;
     padding: 12px;
-    flex: 0 0 auto;
 }
 
 .clear-search-btn:hover, .clear-date-btn:hover {
@@ -1725,7 +1725,7 @@ tr:hover {
 #pettyCashTable tbody tr,
 #reportTable tbody tr {
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color: 0.2s;
 }
 
 #pettyCashTable tbody tr:hover,
@@ -1971,6 +1971,7 @@ tr:hover {
     display: flex;
     gap: 8px;
     align-items: center;
+    flex-wrap: wrap; /* Allow wrapping on small screens */
 }
 
 @media (max-width: 768px) {
@@ -2145,6 +2146,7 @@ tr:hover {
   /* --- DASHBOARD TABLE: show only Site, Vendor, Status --- */
   /* siteRecordsTable has a leading checkbox column and 'ID' -> Site=4, Vendor=6, Status=9 */
   #siteRecordsTable th, #siteRecordsTable td { display: none !important; }
+  #siteRecordsTable th:first-child, #siteRecordsTable td:first-child,
   #siteRecordsTable th:nth-child(4),
   #siteRecordsTable td:nth-child(4),
   #siteRecordsTable th:nth-child(6),
@@ -2152,15 +2154,19 @@ tr:hover {
   #siteRecordsTable th:nth-child(9),
   #siteRecordsTable td:nth-child(9) { display: table-cell !important; }
 
-  /* Some screens render the 'collectionTable' in main dashboard; handle both just in case */
   /* collectionTable index: Site=3, Vendor=5, Status=8 */
   #collectionTable th, #collectionTable td { display: none !important; }
   #collectionTable th:nth-child(3),
-  #collectionTable td:nth-child(3),
+  #collectionTable td:nth-child(3), /* Site */
   #collectionTable th:nth-child(5),
-  #collectionTable td:nth-child(5),
+  #collectionTable td:nth-child(5), /* Vendor */
   #collectionTable th:nth-child(8),
-  #collectionTable td:nth-child(8) { display: table-cell !important; }
+  #collectionTable td:nth-child(8)  /* Status */ {
+    display: table-cell !important;
+  }
+  
+  #invoicePaymentsTable th:nth-child(4), #invoicePaymentsTable td:nth-child(4) { display: none !important; }
+  #invoicePaymentsTable th:nth-child(5), #invoicePaymentsTable td:nth-child(5) { display: table-cell !important; }
 }
 
 
@@ -2275,30 +2281,6 @@ tr:hover {
     font-weight: 700;
     color: #0c2a4d;
   }
-
-  /* Keep only Site, Vendor, Status in dashboard table(s) */
-  #siteRecordsTable th, #siteRecordsTable td { display: none !important; }
-  #siteRecordsTable th:nth-child(4),
-  #siteRecordsTable td:nth-child(4), /* Site */
-  #siteRecordsTable th:nth-child(6),
-  #siteRecordsTable td:nth-child(6), /* Vendor */
-  #siteRecordsTable th:nth-child(9),
-  #siteRecordsTable td:nth-child(9)  /* Status */ {
-    display: table-cell !important;
-  }
-
-  #collectionTable th, #collectionTable td { display: none !important; }
-  #collectionTable th:nth-child(3),
-  #collectionTable td:nth-child(3), /* Site */
-  #collectionTable th:nth-child(5),
-  #collectionTable td:nth-child(5), /* Vendor */
-  #collectionTable th:nth-child(8),
-  #collectionTable td:nth-child(8)  /* Status */ {
-    display: table-cell !important;
-  }
-  
-  #invoicePaymentsTable th:nth-child(4), #invoicePaymentsTable td:nth-child(4) { display: none !important; }
-  #invoicePaymentsTable th:nth-child(5), #invoicePaymentsTable td:nth-child(5) { display: table-cell !important; }
 
   /* Bottom app nav */
   .mobile-menu-btn {
@@ -2867,13 +2849,26 @@ select {
     background-color: #f0f8ff; /* A light blue hover effect */
 }
 
+/* Checkbox styles for Invoice Tracker table */
+#recordsTable th:first-child,
+#recordsTable td:first-child {
+    width: 30px;
+    text-align: center;
+}
+
+#recordsTable input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
 /* --- RTL Styles for Arabic --- */
 [dir="rtl"] {
     text-align: right;
 }
 
 /* Flip flexbox layouts */
-[dir="rtl"] .d-flex, [dir="rtl"] .flex-row, [dir="rtl"] .search-container, [dir="rtl"] .section-header, [dir="rtl"] .action-btns, [dir="rtl"] .menu-item, [dir="rtl"] .overdue-card, [dir="rtl"] .auth-card, [dir="rtl"] .language-switcher {
+[dir="rtl"] .d-flex, [dir="rtl"] .flex-row, [dir="rtl"] .search-container, [dir="rtl"] .section-header, [dir="rtl"] .action-btns, [dir="rtl"] .menu-item, [dir="rtl"] .overdue-card, [dir="rtl"] .auth-card {
     flex-direction: row-reverse;
 }
 
@@ -2927,26 +2922,48 @@ select {
 }
 
 
-/* Language Switcher Fix */
+/* Position language switcher */
 .language-switcher {
     display: flex;
     gap: 10px;
+    z-index: 100;
+}
+
+/* Admin-only delete button styles */
+.btn-delete-entry {
+    background-color: var(--danger);
+    padding: 6px 10px;
+    font-size: 14px;
+    display: none; /* Hidden by default */
+}
+
+body.admin-logged-in .btn-delete-entry {
+    display: inline-flex; /* Show only for admins */
+}
+
+/* Disabled row in search-add modal */
+#searchAddTableBody tr.disabled-row {
+    background-color: #f2f2f2;
+    color: #999;
+    cursor: not-allowed;
+}
+
+#searchAddTableBody tr.disabled-row:hover {
+    background-color: #f2f2f2;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.modal-actions .search-input {
+    flex-grow: 1;
+}
+
+.modal-actions .btn {
+    flex-grow: 0;
     flex-shrink: 0;
-}
-
-[dir="rtl"] .language-switcher {
-    flex-direction: row-reverse;
-}
-
-/* Checkbox styles for Invoice Tracker table */
-#recordsTable th:first-child,
-#recordsTable td:first-child {
-    width: 30px;
-    text-align: center;
-}
-
-#recordsTable input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
 }

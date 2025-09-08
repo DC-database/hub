@@ -424,12 +424,14 @@ function logout() {
 
 function updateAuthUI(isLoggedIn, email = null) {
     if (isLoggedIn) {
+        document.body.classList.add('admin-logged-in'); // Add class for admin styles
         domCache.loginBtn.style.display = 'none';
         domCache.logoutBtn.style.display = 'block';
         domCache.uploadBtn.disabled = false;
         domCache.clearDataBtn.disabled = false;
         domCache.loggedInAs.textContent = `Logged in as: ${email}`;
     } else {
+        document.body.classList.remove('admin-logged-in'); // Remove class on logout
         domCache.loginBtn.style.display = 'block';
         domCache.logoutBtn.style.display = 'none';
         domCache.uploadBtn.disabled = true;
@@ -437,6 +439,10 @@ function updateAuthUI(isLoggedIn, email = null) {
         domCache.loggedInAs.textContent = 'Not logged in';
         domCache.emailInput.value = '';
         domCache.passwordInput.value = '';
+    }
+    // Refresh the payments table to show/hide delete buttons
+    if(document.getElementById('invoicePaymentsSection').classList.contains('active')) {
+        refreshPaymentsTable(payments);
     }
 }
 
@@ -2574,6 +2580,7 @@ window.addEventListener('click', function(event) {
     const dashboardModal = document.getElementById('dashboardPreviewModal');
     const paymentModal = document.getElementById('addPaymentModal');
     const editPaymentModal = document.getElementById('editPaymentModal');
+    const searchAddModal = document.getElementById('searchAddModal');
     
     if (event.target === modal) {
         closeInvoicePreview();
@@ -2589,6 +2596,10 @@ window.addEventListener('click', function(event) {
     
     if (event.target === editPaymentModal) {
         closeEditPaymentModal();
+    }
+
+    if (event.target == searchAddModal) {
+        closeSearchAddModal();
     }
 });
 
@@ -2977,15 +2988,16 @@ function closeAddPaymentModal() {
     pendingPaymentRecords = [];
 }
 
-async function addPaymentEntry() {
-    const datePaid = document.getElementById('datePaidInput').value.trim();
+async function addPaymentEntry(recordsToAdd = pendingPaymentRecords) {
+    const datePaidInput = document.getElementById('datePaidInput');
+    const datePaid = datePaidInput ? datePaidInput.value.trim() : new Date().toISOString().split('T')[0];
 
     if (!datePaid) {
         alert('Please select a payment date for this batch.');
         return;
     }
     
-    if (pendingPaymentRecords.length === 0) {
+    if (recordsToAdd.length === 0) {
         alert('No records selected for payment.');
         return;
     }
@@ -2996,27 +3008,23 @@ async function addPaymentEntry() {
     let successCount = 0;
     let errorCount = 0;
 
-    for (const record of pendingPaymentRecords) {
+    for (const record of recordsToAdd) {
         try {
-            const originalPo = record.poNumber; // e.g., "53779.22"
+            const originalPo = record.poNumber;
             
-            // The "mother PO" for grouping is the integer part of the original PO.
             let motherPo = parseInt(originalPo, 10);
             if (isNaN(motherPo)) {
-                // Fallback for non-numeric POs to avoid errors
                 motherPo = originalPo;
             }
 
-            // The key for grouping in Firebase should ALWAYS use the mother PO.
             const paymentKey = `${record.site}-${motherPo}-${record.vendor}`.replace(/[.#$/[\]]/g, '_');
             const recordRef = paymentsRef.child(paymentKey);
 
             await recordRef.transaction(currentData => {
                 if (currentData === null) {
-                    // This is the first payment for this mother PO group
                     return {
                         site: record.site || '',
-                        poNumber: motherPo, // Store the mother PO for the group
+                        poNumber: motherPo,
                         vendor: record.vendor || '',
                         paymentEntries: {
                             [new Date().getTime()]: {
@@ -3024,27 +3032,23 @@ async function addPaymentEntry() {
                                 amountPaid: parseFloat(record.value) || 0,
                                 datePaid: datePaid,
                                 invoiceNumber: record.invoiceNumber || '',
-                                originalPoNumber: originalPo, // ALWAYS store the specific PO with the entry
+                                originalPoNumber: originalPo,
                                 timestamp: new Date().toISOString()
                             }
                         }
                     };
                 } else {
-                    // This is a subsequent payment for an existing group
                     const paymentCount = currentData.paymentEntries ? Object.keys(currentData.paymentEntries).length : 0;
                     const nextPaymentNum = `P${paymentCount + 1}`;
-                    
                     if (!currentData.paymentEntries) {
                         currentData.paymentEntries = {};
                     }
-                    
-                    // Add the new entry under the existing mother PO group
                     currentData.paymentEntries[new Date().getTime()] = {
                         paymentNumber: nextPaymentNum,
                         amountPaid: parseFloat(record.value) || 0,
                         datePaid: datePaid,
                         invoiceNumber: record.invoiceNumber || '',
-                        originalPoNumber: originalPo, // ALWAYS store the specific PO with the entry
+                        originalPoNumber: originalPo,
                         timestamp: new Date().toISOString()
                     };
                     return currentData;
@@ -3061,12 +3065,16 @@ async function addPaymentEntry() {
 
     hideLoading();
     showToast(`${successCount} payment entries added. ${errorCount > 0 ? `${errorCount} failed.` : ''}`);
-    closeAddPaymentModal();
     
-    // Refresh payments data and UI
-    loadPaymentsFromFirebase().then(() => {
-        refreshPaymentsTable(payments);
-    });
+    if (document.getElementById('addPaymentModal').style.display === 'block') {
+        closeAddPaymentModal();
+    }
+    if (document.getElementById('searchAddModal').style.display === 'block') {
+        closeSearchAddModal();
+    }
+    
+    await loadPaymentsFromFirebase();
+    refreshPaymentsTable(payments);
 }
 
 // New function to search the payments table
@@ -3092,7 +3100,7 @@ function refreshPaymentsTable(filteredPayments = []) {
     const tableBody = document.querySelector('#invoicePaymentsTable tbody');
     tableBody.innerHTML = '';
     
-    const displayPayments = filteredPayments;
+    const displayPayments = filteredPayments.length > 0 ? filteredPayments : payments;
     
     if (displayPayments.length === 0) {
         domCache.invoicePaymentsTable.style.display = 'none';
@@ -3103,12 +3111,11 @@ function refreshPaymentsTable(filteredPayments = []) {
 
     displayPayments.forEach(payment => {
         const po = formatPoNumber(payment.poNumber);
-        // Main Group Row
         const groupRow = document.createElement('tr');
         groupRow.className = 'payment-group-row';
         groupRow.innerHTML = `
             <td>
-                <button class="toggle-details-btn" data-target="details-${po}">
+                <button class="toggle-details-btn" data-target="details-${po}-${payment.vendor.replace(/\s/g, '')}">
                     <i class="fas fa-plus"></i>
                 </button>
             </td>
@@ -3118,10 +3125,9 @@ function refreshPaymentsTable(filteredPayments = []) {
         `;
         tableBody.appendChild(groupRow);
 
-        // Hidden Details Row
         const detailsRow = document.createElement('tr');
         detailsRow.className = 'payment-details-row';
-        detailsRow.id = `details-${po}`;
+        detailsRow.id = `details-${po}-${payment.vendor.replace(/\s/g, '')}`;
         
         let totalPaid = 0;
         let detailsHtml = `
@@ -3142,9 +3148,9 @@ function refreshPaymentsTable(filteredPayments = []) {
             sortedEntryKeys.forEach(entryKey => {
                 const entry = payment.paymentEntries[entryKey];
                 const paymentKey = `${payment.site}-${po}-${payment.vendor}`.replace(/[.#$/[\]]/g, '_');
-                const onclickAction = `openEditPaymentModal(${JSON.stringify(paymentKey)}, ${JSON.stringify(entryKey)}, ${JSON.stringify(entry)})`;
+                const onclickEdit = `openEditPaymentModal(${JSON.stringify(paymentKey)}, ${JSON.stringify(entryKey)}, ${JSON.stringify(entry)})`;
+                const onclickDelete = `deletePaymentEntry(${JSON.stringify(paymentKey)}, ${JSON.stringify(entryKey)})`;
                 
-                // Prepare variables for the new findInvoiceInTracker function
                 const poToPass = JSON.stringify(entry.originalPoNumber || payment.poNumber || '');
                 const invToPass = JSON.stringify(entry.invoiceNumber || '');
                 const findAction = `findInvoiceInTracker(${poToPass}, ${invToPass})`;
@@ -3157,8 +3163,11 @@ function refreshPaymentsTable(filteredPayments = []) {
                         <td>${entry.amountPaid ? formatNumber(entry.amountPaid) : '-'}</td>
                         <td>${entry.datePaid ? formatDate(entry.datePaid) : '-'}</td>
                         <td class="action-btns">
-                            <button class="btn btn-primary" style="padding: 6px 10px; font-size: 14px;" onclick='event.stopPropagation(); ${onclickAction}'>
+                            <button class="btn btn-primary" style="padding: 6px 10px; font-size: 14px;" onclick='event.stopPropagation(); ${onclickEdit}'>
                                 <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-delete-entry" onclick='event.stopPropagation(); ${onclickDelete}'>
+                                <i class="fas fa-trash"></i>
                             </button>
                         </td>
                     </tr>`;
@@ -3181,7 +3190,6 @@ function refreshPaymentsTable(filteredPayments = []) {
         tableBody.appendChild(detailsRow);
     });
 
-    // Add event listeners to toggle buttons
     document.querySelectorAll('.toggle-details-btn').forEach(button => {
         button.addEventListener('click', function() {
             const targetId = this.getAttribute('data-target');
@@ -3237,7 +3245,6 @@ function findInvoiceInTracker(poNumber, invoiceNumber) {
         const recordPO = String(record.poNumber || '').trim();
         const recordINV = normalizeInvoiceNumber(record.invoiceNumber);
 
-        // This handles cases where one PO is "53779" and the other is "53779.21"
         const poMatches = (recordPO === poNumber) || 
                           (String(parseInt(recordPO, 10)) === poNumber) ||
                           (recordPO === String(parseInt(poNumber, 10)));
@@ -3277,13 +3284,50 @@ function savePaymentUpdate() {
         hideLoading();
         showToast('Payment updated successfully!');
         closeEditPaymentModal();
-        loadPaymentsFromFirebase();
+        loadPaymentsFromFirebase().then(() => refreshPaymentsTable(payments));
     }).catch(error => {
         hideLoading();
         showToast('Error updating payment: ' + error.message);
         console.error('Update error:', error);
     });
 }
+
+function deletePaymentEntry(paymentKey, entryKey) {
+    if (!confirm('Are you sure you want to permanently delete this payment entry? This action cannot be undone.')) {
+        return;
+    }
+    
+    showLoading();
+    const entryRef = database.ref(`invoicePayments/${paymentKey}/paymentEntries/${entryKey}`);
+    
+    entryRef.remove()
+        .then(() => {
+            // Check if there are any other entries left under this payment
+            const paymentRef = database.ref(`invoicePayments/${paymentKey}/paymentEntries`);
+            return paymentRef.once('value');
+        })
+        .then(snapshot => {
+            if (!snapshot.exists() || snapshot.numChildren() === 0) {
+                // If no entries are left, delete the parent payment object
+                return database.ref(`invoicePayments/${paymentKey}`).remove();
+            }
+        })
+        .then(() => {
+            hideLoading();
+            showToast('Payment entry deleted successfully.');
+            return loadPaymentsFromFirebase();
+        })
+        .then(() => {
+            refreshPaymentsTable(payments);
+            refreshTable(currentFilteredRecords || []); // Refresh tracker in case the deleted payment was highlighting a row
+        })
+        .catch(error => {
+            hideLoading();
+            showToast('Error deleting payment entry: ' + error.message);
+            console.error('Delete error:', error);
+        });
+}
+
 
 // === Approval/Approver Feature (Injected) ===
 let approvers = [];
@@ -3498,4 +3542,86 @@ function openIPCFromBottom(){
   const ipcBtn = Array.from(document.querySelectorAll('.bottom-app-nav .nav-btn span')).find(s=>s.textContent.trim()==='IPC');
   if(ipcBtn) ipcBtn.parentElement.classList.add('active');
   window.open('https://ibaport.site/IPC/', '_blank');
+}
+
+// === Search and Add Modal Functions ===
+function openSearchAddModal() {
+    document.getElementById('searchAddModal').style.display = 'block';
+    document.getElementById('searchAddInput').value = '';
+    document.getElementById('searchAddTableBody').innerHTML = '';
+}
+
+function closeSearchAddModal() {
+    document.getElementById('searchAddModal').style.display = 'none';
+}
+
+function handleSearchAddKeyPress(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        searchInvoicesToAdd();
+    }
+}
+
+function searchInvoicesToAdd() {
+    const term = document.getElementById('searchAddInput').value.toLowerCase();
+    const tableBody = document.getElementById('searchAddTableBody');
+    tableBody.innerHTML = '';
+
+    if (!term) return;
+
+    const filtered = records.filter(record =>
+        (record.poNumber && String(record.poNumber).toLowerCase().includes(term)) ||
+        (record.vendor && record.vendor.toLowerCase().includes(term)) ||
+        (record.invoiceNumber && record.invoiceNumber.toLowerCase().includes(term))
+    );
+
+    const paidInvoices = new Set();
+    if (payments && payments.length > 0) {
+        payments.forEach(p => {
+            if (p.paymentEntries) Object.values(p.paymentEntries).forEach(e => {
+                paidInvoices.add(`${e.originalPoNumber}-${e.invoiceNumber}`);
+            });
+        });
+    }
+
+    filtered.forEach(record => {
+        const isPaid = paidInvoices.has(`${record.poNumber}-${record.invoiceNumber}`);
+        const row = document.createElement('tr');
+        if (isPaid) row.classList.add('disabled-row');
+
+        row.innerHTML = `
+            <td><input type="checkbox" class="search-add-checkbox" ${isPaid ? 'disabled' : ''}></td>
+            <td>${record.poNumber || '-'}</td>
+            <td>${record.invoiceNumber || '-'}</td>
+            <td>${record.vendor || '-'}</td>
+            <td class="numeric">${record.value ? formatNumber(record.value) : '-'}</td>
+        `;
+        // Store the full record object on the row element for easy access later
+        row.dataset.record = JSON.stringify(record);
+        tableBody.appendChild(row);
+    });
+}
+
+function toggleAllSearchAdd(checkbox) {
+    document.querySelectorAll('#searchAddTableBody .search-add-checkbox:not(:disabled)').forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+}
+
+async function addSelectedInvoicesFromSearch() {
+    const selectedCheckboxes = document.querySelectorAll('#searchAddTableBody .search-add-checkbox:checked');
+    if (selectedCheckboxes.length === 0) {
+        alert('Please select at least one invoice to add.');
+        return;
+    }
+
+    const recordsToAdd = [];
+    selectedCheckboxes.forEach(cb => {
+        const row = cb.closest('tr');
+        recordsToAdd.push(JSON.parse(row.dataset.record));
+    });
+
+    // We can reuse the addPaymentEntry logic, but we need to supply a date.
+    // For simplicity, we'll use today's date automatically for this quick-add feature.
+    await addPaymentEntry(recordsToAdd);
 }

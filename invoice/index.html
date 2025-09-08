@@ -63,15 +63,7 @@
 </div>
 <div class="container">
 <div class="content-section active" id="mainPageSection">
-<div class="section-header">
-    <h1 data-i18n-key="main_dashboard_title">INVOICE PROGRESSION (SITE & HO)</h1>
-    <div class="section-actions">
-        <div class="language-switcher">
-            <button class="btn btn-secondary" onclick="setLanguage('en')">English</button>
-            <button class="btn btn-secondary" onclick="setLanguage('ar')">العربية</button>
-        </div>
-    </div>
-</div>
+<h1 data-i18n-key="main_dashboard_title">INVOICE PROGRESSION (SITE & HO)</h1>
 <div class="overdue-cards-container">
 <div class="overdue-card srv" onclick="filterSiteRecords('For SRV')">
 <div class="overdue-icon"><i class="fas fa-file-invoice"></i></div>
@@ -222,6 +214,9 @@
 </button>
 <button class="btn clear-search-btn" onclick="clearPaymentsSearch()">
 <i class="fas fa-times"></i>
+</button>
+<button class="btn btn-success" onclick="openSearchAddModal()" style="margin-left: auto;">
+    <i class="fas fa-plus"></i> <span class="btn-text" data-i18n-key="add_invoice_btn">Add Invoice</span>
 </button>
 </div>
 <div class="table-responsive">
@@ -653,6 +648,35 @@
 <h3 data-i18n-key="loading_title">Loading Data...</h3>
 <p data-i18n-key="loading_message">Please wait while we process your request</p>
 </div>
+</div>
+<div class="modal" id="searchAddModal">
+    <div class="modal-content" style="max-width: 800px;">
+        <span class="close-modal" onclick="closeSearchAddModal()">×</span>
+        <h2 data-i18n-key="modal_search_add_title">Search and Add Invoice to Payments</h2>
+        <div class="modal-actions">
+            <input class="search-input" id="searchAddInput" onkeypress="handleSearchAddKeyPress(event)" placeholder="Search invoices..." data-i18n-key="search_invoices_placeholder" type="text"/>
+            <button class="btn btn-primary search-btn" onclick="searchInvoicesToAdd()">
+                <i class="fas fa-search"></i> <span class="btn-text" data-i18n-key="search_btn">Search</span>
+            </button>
+            <button class="btn btn-success" onclick="addSelectedInvoicesFromSearch()">
+                <i class="fas fa-plus"></i> <span class="btn-text" data-i18n-key="add_selected_btn">Add Selected to Payments</span>
+            </button>
+        </div>
+        <div class="table-responsive" style="max-height: 40vh; margin-top: 15px;">
+            <table id="searchAddTable">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" onchange="toggleAllSearchAdd(this)"></th>
+                        <th data-i18n-key="th_po">PO</th>
+                        <th data-i18n-key="th_invoice">Invoice</th>
+                        <th data-i18n-key="th_vendor">Vendor</th>
+                        <th data-i18n-key="th_amount">Amount</th>
+                    </tr>
+                </thead>
+                <tbody id="searchAddTableBody"></tbody>
+            </table>
+        </div>
+    </div>
 </div>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
