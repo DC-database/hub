@@ -62,12 +62,16 @@
 </div>
 </div>
 <div class="container">
-<div class="language-switcher">
-    <button class="btn btn-secondary" onclick="setLanguage('en')">English</button>
-    <button class="btn btn-secondary" onclick="setLanguage('ar')">العربية</button>
-</div>
 <div class="content-section active" id="mainPageSection">
-<h1 data-i18n-key="main_dashboard_title">INVOICE PROGRESSION (SITE & HO)</h1>
+<div class="section-header">
+    <h1 data-i18n-key="main_dashboard_title">INVOICE PROGRESSION (SITE & HO)</h1>
+    <div class="section-actions">
+        <div class="language-switcher">
+            <button class="btn btn-secondary" onclick="setLanguage('en')">English</button>
+            <button class="btn btn-secondary" onclick="setLanguage('ar')">العربية</button>
+        </div>
+    </div>
+</div>
 <div class="overdue-cards-container">
 <div class="overdue-card srv" onclick="filterSiteRecords('For SRV')">
 <div class="overdue-icon"><i class="fas fa-file-invoice"></i></div>
@@ -157,6 +161,10 @@
 <button class="btn btn-success" onclick="openAddPaymentModal()">
 <i class="fas fa-money-bill-wave"></i> <span class="btn-text" data-i18n-key="add_to_accounts_btn">Add to Accounts Entry</span>
 </button>
+<div class="language-switcher">
+    <button class="btn btn-secondary" onclick="setLanguage('en')">English</button>
+    <button class="btn btn-secondary" onclick="setLanguage('ar')">العربية</button>
+</div>
 </div>
 </div>
 <div class="search-container">
@@ -188,6 +196,7 @@
 <table id="recordsTable" style="display: none;">
 <thead>
 <tr>
+<th><input id="selectAllTrackerCheckbox" onclick="toggleSelectAllTracker(this)" type="checkbox"/></th>
 <th data-i18n-key="th_id">ID</th>
 <th data-i18n-key="th_date">Date</th>
 <th data-i18n-key="th_site">Site</th>

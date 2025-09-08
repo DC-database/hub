@@ -661,36 +661,19 @@ function refreshTable(filteredRecords = []) {
     const displayRecords = filteredRecords;
     currentFilteredRecords = displayRecords;
 
-    // Create a set of paid invoice identifiers for quick lookup
     const paidInvoices = new Set();
     if (payments && payments.length > 0) {
         payments.forEach(payment => {
             if (payment.paymentEntries) {
                 Object.values(payment.paymentEntries).forEach(entry => {
                     const poToUse = String(entry.originalPoNumber || payment.poNumber || '').trim();
-                    if (!poToUse) return; // Skip if no PO number
-
-                    // Normalize the invoice number for consistent matching
+                    if (!poToUse) return;
                     const normalizedInvoice = normalizeInvoiceNumber(entry.invoiceNumber);
-
-                    // Identifier 1: Using the exact PO number
-                    const exactIdentifier = [
-                        String(payment.site || '').trim(),
-                        poToUse,
-                        String(payment.vendor || '').trim(),
-                        normalizedInvoice
-                    ].join('-');
+                    const exactIdentifier = [String(payment.site || '').trim(), poToUse, String(payment.vendor || '').trim(), normalizedInvoice].join('-');
                     paidInvoices.add(exactIdentifier);
-
-                    // Identifier 2: Using only the integer part of the PO number
                     const integerPO = parseInt(poToUse, 10);
                     if (!isNaN(integerPO) && String(integerPO) !== poToUse) {
-                         const integerIdentifier = [
-                            String(payment.site || '').trim(),
-                            String(integerPO),
-                            String(payment.vendor || '').trim(),
-                            normalizedInvoice
-                        ].join('-');
+                         const integerIdentifier = [String(payment.site || '').trim(), String(integerPO), String(payment.vendor || '').trim(), normalizedInvoice].join('-');
                         paidInvoices.add(integerIdentifier);
                     }
                 });
@@ -717,7 +700,6 @@ function refreshTable(filteredRecords = []) {
         
         const row = document.createElement('tr');
 
-        // Normalize the record's invoice number before checking for a match
         const recordIdentifier = [
             String(record.site || '').trim(),
             String(record.poNumber || '').trim(),
@@ -730,6 +712,7 @@ function refreshTable(filteredRecords = []) {
         }
 
         row.innerHTML = `
+            <td><input type="checkbox" class="row-checkbox"></td>
             <td>${index + 1}</td>
             <td>${formatDate(record.entryDate)}</td>
             <td>${record.site || '-'}</td>
@@ -772,82 +755,36 @@ function refreshTable(filteredRecords = []) {
                     ${!record.details ? 'disabled' : ''}>
                     <i class="fas fa-file-alt"></i> SRV
                 </button>
-            
                 <button class="btn btn-primary" 
                     onclick='openWhatsAppModal(${JSON.stringify({ 
-                        site: record.site||"", 
-                        poNumber: record.poNumber||"", 
-                        vendor: record.vendor||"", 
-                        value: record.value||"", 
-                        fileName: record.fileName||"", 
-                        invoiceNumber: record.invoiceNumber||"", 
-                        status: record.status||"" 
+                        site: record.site||"", poNumber: record.poNumber||"", vendor: record.vendor||"", value: record.value||"", 
+                        fileName: record.fileName||"", invoiceNumber: record.invoiceNumber||"", status: record.status||"" 
                     })}, "approval")'>
                     <i class="fab fa-whatsapp"></i> Approval
                 </button>
-    
             </td>
         `;
         
-        // Touch handling variables
-        let touchTimer;
-        let isLongPress = false;
-        
-        // Touch start - start timer for long press
+        let touchTimer, isLongPress = false;
         row.addEventListener('touchstart', function(e) {
-            if (isMobileDevice()) {
+            if (isMobileDevice() && !e.target.closest('input[type="checkbox"]')) {
                 isLongPress = false;
-                touchTimer = setTimeout(() => {
-                    isLongPress = true;
-                    showInvoicePreview(record);
-                }, 500); // 500ms for long press
+                touchTimer = setTimeout(() => { isLongPress = true; showInvoicePreview(record); }, 500);
             }
         });
-        
-        // Touch end - clear timer if not long press
         row.addEventListener('touchend', function(e) {
-            if (isMobileDevice()) {
-                if (touchTimer) clearTimeout(touchTimer);
-                if (!isLongPress && !e.target.closest('.action-btns')) {
-                    // Handle single tap for selection
-                    this.classList.toggle('selected-row');
-                }
-                isLongPress = false;
-            }
+            if (isMobileDevice()) { if (touchTimer) clearTimeout(touchTimer); isLongPress = false; }
         });
-        
-        // Touch move - cancel long press if user moves finger
         row.addEventListener('touchmove', function(e) {
-            if (isMobileDevice()) {
-                if (touchTimer) clearTimeout(touchTimer);
-                isLongPress = false;
-            }
+            if (isMobileDevice()) { if (touchTimer) clearTimeout(touchTimer); }
         });
-        
-        // Prevent default touch behavior to avoid conflicts
-        row.addEventListener('touchcancel', function(e) {
-            if (isMobileDevice()) {
-                if (touchTimer) clearTimeout(touchTimer);
-                isLongPress = false;
-            }
-        });
-        
-        // Keep double click for desktop preview
         if (!isMobileDevice()) {
             row.addEventListener('dblclick', function(e) {
-                if (!e.target.closest('.action-btns')) {
+                if (!e.target.closest('.action-btns') && !e.target.closest('input[type="checkbox"]')) {
                     showInvoicePreview(record);
                 }
             });
         }
-        
-        // Keep single click for desktop selection
-        row.addEventListener('click', function(e) {
-            if (!isMobileDevice() && !e.target.closest('.action-btns')) {
-                this.classList.toggle('selected-row');
-                e.stopPropagation();
-            }
-        });
         
         tableBody.appendChild(row);
     });
@@ -855,13 +792,19 @@ function refreshTable(filteredRecords = []) {
     setupResponsiveElements();
 }
 
+function toggleSelectAllTracker(checkbox) {
+    const checkboxes = document.querySelectorAll('#recordsTable tbody input[type="checkbox"]');
+    checkboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+}
 
-// Helper function to get selected records from tracker
 function getSelectedTrackerRecords() {
-    const selectedRows = document.querySelectorAll('#recordsTable tbody tr.selected-row');
+    const selectedRows = document.querySelectorAll('#recordsTable tbody input[type="checkbox"]:checked');
     const selectedRecords = [];
     
-    selectedRows.forEach(row => {
+    selectedRows.forEach(checkbox => {
+        const row = checkbox.closest('tr');
         const rowIndex = Array.from(row.parentNode.children).indexOf(row);
         if (currentFilteredRecords && rowIndex < currentFilteredRecords.length) {
             selectedRecords.push(currentFilteredRecords[rowIndex]);
@@ -2921,23 +2864,6 @@ function showToast(message) {
     }, 3000);
 }
 
-// Get selected records from the tracker table
-function getSelectedTrackerRecords() {
-    const rows = document.querySelectorAll('#recordsTable tbody tr');
-    const selectedRecords = [];
-    
-    rows.forEach((row, index) => {
-        // We'll use visual selection (highlighted row) for tracker selection
-        if (row.classList.contains('selected-row')) {
-            if (currentFilteredRecords && index < currentFilteredRecords.length) {
-                selectedRecords.push(currentFilteredRecords[index]);
-            }
-        }
-    });
-    
-    return selectedRecords;
-}
-
 // Add to collection from tracker
 function addToCollectionFromTracker() {
     const selectedRows = document.querySelectorAll('#recordsTable tbody tr.selected-row');
@@ -3051,7 +2977,6 @@ function closeAddPaymentModal() {
     pendingPaymentRecords = [];
 }
 
-// REFACTORED & FIXED: addPaymentEntry
 async function addPaymentEntry() {
     const datePaid = document.getElementById('datePaidInput').value.trim();
 
@@ -3073,18 +2998,25 @@ async function addPaymentEntry() {
 
     for (const record of pendingPaymentRecords) {
         try {
-            const originalPo = record.poNumber;
-            const formattedPo = formatPoNumber(record.poNumber);
-            const paymentKey = `${record.site}-${formattedPo}-${record.vendor}`.replace(/[.#$/[\]]/g, '_');
+            const originalPo = record.poNumber; // e.g., "53779.22"
+            
+            // The "mother PO" for grouping is the integer part of the original PO.
+            let motherPo = parseInt(originalPo, 10);
+            if (isNaN(motherPo)) {
+                // Fallback for non-numeric POs to avoid errors
+                motherPo = originalPo;
+            }
+
+            // The key for grouping in Firebase should ALWAYS use the mother PO.
+            const paymentKey = `${record.site}-${motherPo}-${record.vendor}`.replace(/[.#$/[\]]/g, '_');
             const recordRef = paymentsRef.child(paymentKey);
 
-            // Using a transaction to safely read and update the payment count
-            const { committed, snapshot } = await recordRef.transaction(currentData => {
+            await recordRef.transaction(currentData => {
                 if (currentData === null) {
-                    // This is the first payment (P1)
+                    // This is the first payment for this mother PO group
                     return {
                         site: record.site || '',
-                        poNumber: formattedPo,
+                        poNumber: motherPo, // Store the mother PO for the group
                         vendor: record.vendor || '',
                         paymentEntries: {
                             [new Date().getTime()]: {
@@ -3092,13 +3024,13 @@ async function addPaymentEntry() {
                                 amountPaid: parseFloat(record.value) || 0,
                                 datePaid: datePaid,
                                 invoiceNumber: record.invoiceNumber || '',
-                                originalPoNumber: originalPo, // Store the original PO for matching
+                                originalPoNumber: originalPo, // ALWAYS store the specific PO with the entry
                                 timestamp: new Date().toISOString()
                             }
                         }
                     };
                 } else {
-                    // This is a subsequent payment
+                    // This is a subsequent payment for an existing group
                     const paymentCount = currentData.paymentEntries ? Object.keys(currentData.paymentEntries).length : 0;
                     const nextPaymentNum = `P${paymentCount + 1}`;
                     
@@ -3106,24 +3038,20 @@ async function addPaymentEntry() {
                         currentData.paymentEntries = {};
                     }
                     
+                    // Add the new entry under the existing mother PO group
                     currentData.paymentEntries[new Date().getTime()] = {
                         paymentNumber: nextPaymentNum,
                         amountPaid: parseFloat(record.value) || 0,
                         datePaid: datePaid,
                         invoiceNumber: record.invoiceNumber || '',
-                        originalPoNumber: originalPo, // Store the original PO for matching
+                        originalPoNumber: originalPo, // ALWAYS store the specific PO with the entry
                         timestamp: new Date().toISOString()
                     };
                     return currentData;
                 }
             });
 
-            if (committed) {
-                successCount++;
-            } else {
-                console.log(`Transaction for PO ${formattedPo} was aborted.`);
-                errorCount++;
-            }
+            successCount++;
         } catch (error) {
             console.error('Firebase Transaction Failed!', error);
             alert(`An error occurred while saving payment for PO: ${formatPoNumber(record.poNumber)}. Check the console for details.`);
@@ -3135,8 +3063,10 @@ async function addPaymentEntry() {
     showToast(`${successCount} payment entries added. ${errorCount > 0 ? `${errorCount} failed.` : ''}`);
     closeAddPaymentModal();
     
-    // Refresh the payments table with the latest data
-    loadPaymentsFromFirebase();
+    // Refresh payments data and UI
+    loadPaymentsFromFirebase().then(() => {
+        refreshPaymentsTable(payments);
+    });
 }
 
 // New function to search the payments table

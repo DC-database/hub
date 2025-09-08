@@ -1725,7 +1725,7 @@ tr:hover {
 #pettyCashTable tbody tr,
 #reportTable tbody tr {
     cursor: pointer;
-    transition: background-color: 0.2s;
+    transition: background-color 0.2s;
 }
 
 #pettyCashTable tbody tr:hover,
@@ -2105,7 +2105,7 @@ tr:hover {
 .touch-device #recordsTable tbody tr:active,
 .touch-device #siteRecordsTable tbody tr:active {
     background-color: rgba(74, 111, 165, 0.2) !important;
-    transition: background-color 0.1s;
+    transition: background-color: 0.1s;
 }
 /* Add this to your existing styles.css */
 @media (max-width: 480px) {
@@ -2927,16 +2927,26 @@ select {
 }
 
 
-/* Position language switcher */
+/* Language Switcher Fix */
 .language-switcher {
-    position: absolute;
-    top: 15px;
-    right: 15px;
-    z-index: 100;
     display: flex;
     gap: 10px;
+    flex-shrink: 0;
 }
+
 [dir="rtl"] .language-switcher {
-    right: auto;
-    left: 15px;
+    flex-direction: row-reverse;
+}
+
+/* Checkbox styles for Invoice Tracker table */
+#recordsTable th:first-child,
+#recordsTable td:first-child {
+    width: 30px;
+    text-align: center;
+}
+
+#recordsTable input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
 }
