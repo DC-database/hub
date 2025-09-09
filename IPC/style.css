@@ -1,6 +1,18 @@
 /* Base and existing styles trimmed for brevity; mobile-friendly layout */
 body { margin:0; font-family: Arial, sans-serif; display:flex; }
-.sidebar { width:220px; background:#2c3e50; color:#fff; height:100vh; padding:20px; position:fixed; z-index:1000; transition:transform .25s ease; }
+.sidebar {
+  width: 240px; /* Changed from 220px to 240px to fix gap and text wrap */
+  background:#2c3e50;
+  color:#fff;
+  height:100vh;
+  position:fixed;
+  z-index:1000;
+  transition:transform .25s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0;
+}
 .main { margin-left:240px; padding:40px; flex:1; background:#ecf0f1; min-height:100vh; }
 .topbar { position:fixed; top:0; left:0; height:56px; width:100%; background:#2c3e50; color:#fff; display:flex; align-items:center; gap:12px; padding:0 12px 0 60px; z-index:900; }
 .hamburger { position:fixed; top:10px; left:14px; background:transparent; border:none; color:#fff; font-size:22px; cursor:pointer; z-index:1001; }
@@ -52,6 +64,22 @@ button:hover { background:#3498db; }
   .ipc-left-column, .ipc-right-column { min-width:100%; max-width:100%; }
   input, button { max-width:100%; }
 }
+
+/* === NEW Sidebar Layout Engine === */
+.sidebar-top, .sidebar-bottom {
+  padding: 20px; /* Add padding to sections instead */
+}
+.sidebar-bottom {
+  padding-top: 0;
+}
+#userDisplay {
+  padding: 10px 12px;
+  margin-top: 15px;
+  border-top: 1px solid #3e5771; /* A subtle separator */
+  color: #bdc3c7; /* Lighter color for user info */
+}
+/* =============================== */
+
 
 /* Sidebar hover cursor and highlight */
 .sidebar ul { list-style: none; padding: 0; margin: 16px 0; }
@@ -457,4 +485,38 @@ button {
     box-sizing: border-box !important;
     display: block !important;
   }
+}
+
+/* Styles for the new "Comments" column cell */
+.comment-cell {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  max-width: 300px; /* Adjust as needed */
+}
+
+.comment-cell span {
+  flex-grow: 1; /* Allows comment text to take available space */
+  word-break: break-word; /* Wraps long comments */
+}
+
+/* Style for the small Add/Edit button inside the cell */
+.edit-comment-btn {
+  background: #7f8c8d !important; /* Neutral grey color */
+  padding: 4px 8px !important;
+  font-size: 12px !important;
+  min-height: unset !important;
+  line-height: 1.2 !important;
+  flex-shrink: 0; /* Prevents the button from shrinking */
+}
+
+.edit-comment-btn:hover {
+  background: #95a5a6 !important;
+}
+
+/* Word wrapping for comments in Active IPC view */
+#activeIPCSection .inner-table td:nth-child(5) { /* Comments column */
+  max-width: 250px;
+  word-wrap: break-word;
 }

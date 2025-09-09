@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
@@ -8,23 +7,29 @@
 <link href="style.css" rel="stylesheet"/>
 </head>
 <body>
-<!-- overlay for mobile sidebar -->
 <div aria-hidden="true" id="overlay" onclick="closeSidebar()"></div>
-<!-- Sidebar -->
+
 <div class="sidebar" id="sidebar">
-<button aria-label="Close menu" class="close-sidebar" onclick="closeSidebar()">✕</button>
-<h2>📋 IPC Portal</h2>
-<ul>
-<li onclick="location.href='https://ibaport.site'">🏠 Main HUB</li>
-<li id="authButton" onclick="navigateFromSidebar('loginSection')">🔑 Login</li>
-<li id="ipcMenu" onclick="navigateFromSidebar('ipcSection')" style="display:none;">📝 IPC Management</li>
-<li id="activeIPCMenu" onclick="navigateFromSidebar('activeIPCSection')">📊 View Active IPC</li>
-<li id="settingsMenu" onclick="navigateFromSidebar('settingsSection')" style="display:none;">⚙️ Settings</li>
-<li onclick="window.open('https://ibaport.site/invoice/', '_blank')">📂 INVOICE TRACKER</li><li id="logoutButton" onclick="logout()" style="display:none;">🚪 Logout</li>
-</ul>
-<div id="userDisplay" style="display:none;"></div>
+  <div class="sidebar-top">
+    <button aria-label="Close menu" class="close-sidebar" onclick="closeSidebar()">✕</button>
+    <h2>📋 IPC Portal</h2>
+    <ul>
+      <li id="authButton" onclick="navigateFromSidebar('loginSection')">🔑 Login</li>
+      <li id="ipcMenu" onclick="navigateFromSidebar('ipcSection')" style="display:none;">📝 IPC Management</li>
+      <li id="activeIPCMenu" onclick="navigateFromSidebar('activeIPCSection')">📊 View Active IPC</li>
+      <li id="settingsMenu" onclick="navigateFromSidebar('settingsSection')" style="display:none;">⚙️ Settings</li>
+      <li id="logoutButton" onclick="logout()" style="display:none;">🚪 Logout</li>
+    </ul>
+    <div id="userDisplay" style="display:none;"></div>
+  </div>
+  <div class="sidebar-bottom">
+    <ul>
+      <li onclick="location.href='https://ibaport.site'">🏠 Main HUB</li>
+      <li onclick="window.open('https://ibaport.site/invoice/', '_blank')">📂 INVOICE TRACKER</li>
+    </ul>
+  </div>
 </div>
-<!-- Topbar -->
+
 <div class="topbar">
 <button aria-label="Open menu" class="hamburger" id="hamburgerBtn" onclick="toggleSidebar()">☰</button>
 <div class="topbar-title">IPC System</div>
@@ -41,15 +46,12 @@
 <h2 id="welcomeMsg"></h2>
 <button class="welcome-add-ipc" id="startIPCBtn" onclick="startIPC()">➕ Click here to add IPC</button>
 </div></div></section>
-<!-- Existing IPC Entry page -->
 <section id="ipcSection" style="display:none;">
 <h2>IPC Entry</h2>
 <div class="ipc-flex-container">
-<!-- LEFT -->
 <div class="ipc-left-column">
-<input class="po-input" id="poInput" placeholder="Enter PO Number" type="text"/>
+<input class="po-input" id="poInput" onkeypress="if(event.key === 'Enter'){ fetchPO(); }" placeholder="Enter PO Number" type="text"/>
 <button onclick="fetchPO()">Fetch PO</button>
-<!-- PO Information (default open with +/- toggle) -->
 <div class="poinfo-card">
 <div aria-controls="poInfoWrap" aria-expanded="true" class="toggle-row" onclick="togglePOInfo()" role="button">
 <span class="toggle-label">PO Information</span>
@@ -77,7 +79,6 @@
 </div>
 </div>
 </div>
-<!-- RIGHT -->
 <div class="ipc-right-column" style="display:none;">
 <h3>Add IPC Entry</h3>
 <div id="ipcEntrySection" style="display:none;">
@@ -114,7 +115,10 @@
 <th>Previous Payment</th>
 <th>Retention</th>
 <th>Amount To Paid</th>
-<th>Date</th><th>Remarks</th><th>Actions</th>
+<th>Date</th>
+<th>Remarks</th>
+<th>Comments</th>
+<th>Actions</th>
 </tr>
 </thead>
 <tbody id="ipcTableBody"></tbody>
@@ -123,12 +127,11 @@
 </div>
 </div>
 </section>
-<!-- New: Active IPC page -->
 <section id="activeIPCSection" style="display:none;">
 <h2>View Active IPC</h2>
 <div class="form-group" style="max-width:800px;">
 <label for="activePOSearch" style="font-weight:600;">Search PO / Site / ID / Vendor</label>
-<input id="activePOSearch" oninput="filterActivePOs()" placeholder="Type to filter…" type="text"/>
+<input id="activePOSearch" oninput="filterActivePOs()" onkeypress="if(event.key === 'Enter'){ filterActivePOs(); }" placeholder="Type to filter…" type="text"/>
 </div>
 <div class="form-group" style="max-width:100%;">
 <div class="table-responsive">
@@ -148,7 +151,6 @@
 </div>
 </div>
 </section>
-<!-- Settings page unchanged -->
 <section id="settingsSection" style="display:none;">
 <h2 id="settingsTitle">Settings</h2>
 <div id="userInfoSection" style="display:none;">
@@ -207,7 +209,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <script src="app.js"></script>
 
-<!-- Bottom Navigation (Mobile App Style) -->
 <nav id="bottomNav" class="bottom-nav" aria-label="Primary">
   <button class="nav-item" id="navIPC" aria-label="IPC" onclick="navIPC()">
     <span class="icon">📝</span>

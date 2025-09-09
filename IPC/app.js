@@ -447,7 +447,8 @@ async function addIPC() {
       CertifiedAmount: document.getElementById('certifiedAmount').value || '0',
       PreviousPayment: document.getElementById('previousPayment').value || '0',
       Retention: document.getElementById('retention').value || '0',
-      AmountToPaid: (parseQAR(document.getElementById('amountToPaid')?.value)||0).toFixed(2)
+      AmountToPaid: (parseQAR(document.getElementById('amountToPaid')?.value)||0).toFixed(2),
+      Comments: ''
     };
 
     await ipcRef.child(ipcNo).set(entry);
@@ -467,11 +468,10 @@ async function loadIPCEntries(po) {
     const tbody = document.getElementById('ipcTableBody');
     tbody.innerHTML = '';
     let __mgrTotalATP = 0;
-    let __mgrTotal = 0;
     if (!po) po = currentPO;
     const snapshot = await db.ref('IPC/' + po + '/entries').once('value');
     if (!snapshot.exists()) {
-      tbody.innerHTML = '<tr><td colspan="8">No IPC entries found for this PO</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9">No IPC entries found for this PO</td></tr>';
       return;
     }
 
@@ -479,10 +479,10 @@ async function loadIPCEntries(po) {
       const ipcNo = child.key;
       const data = child.val();
       __mgrTotalATP += parseQAR(data && data.AmountToPaid != null ? data.AmountToPaid : 0);
-      __mgrTotal += parseQAR(data && data.AmountToPaid != null ? data.AmountToPaid : 0);
+      
       const remarks = (data.Remarks || '').toLowerCase();
+      const comments = data.Comments || ''; // Get comments
 
-      // Ready implies Under
       const isUnderDone = remarks === 'under process' || remarks === 'ipc completed';
       const isReadyDone = remarks === 'ipc completed';
 
@@ -495,16 +495,22 @@ async function loadIPCEntries(po) {
         <td>${formatQAR(data.AmountToPaid) || 'QAR 0.00'}</td>
         <td>${data.Date || ""}</td>
         <td>${data.Remarks || ""}</td>
+        <td class="comment-cell">
+          <span>${comments}</span>
+          <button class="edit-comment-btn" onclick="editComment('${ipcNo}')">
+            ${comments ? 'Edit' : 'Add'}
+          </button>
+        </td>
         <td>
           <div class="ipc-action-buttons">
-  <button class="delete-btn" onclick="deleteIPC('${ipcNo}')">Delete</button>
-  <button
+            <button class="delete-btn" onclick="deleteIPC('${ipcNo}')">Delete</button>
+            <button
               class="under-btn ${isUnderDone ? 'done' : ''}"
               onclick="markUnderProcess('${ipcNo}')"
               ${isUnderDone ? 'disabled' : ''}>
               Under Process
             </button>
-  <button
+            <button
               class="ready-btn ${isReadyDone ? 'done' : ''}"
               onclick="markIPCReady('${ipcNo}')"
               ${(!isUnderDone || isReadyDone) ? 'disabled' : ''}>
@@ -516,9 +522,6 @@ async function loadIPCEntries(po) {
       tbody.appendChild(row);
     });
 
-  
-
-    // TOTAL row for IPC Management (Amount To Paid)
     const totalTr = document.createElement('tr');
     totalTr.className = 'entries-total-row';
     totalTr.innerHTML = `
@@ -530,10 +533,39 @@ async function loadIPCEntries(po) {
       <td></td>
       <td></td>
       <td></td>
+      <td></td> 
     `;
-tbody.appendChild(totalTr);
-} catch (err) {
+    tbody.appendChild(totalTr);
+  } catch (err) {
     handleError(err, "loadIPCEntries");
+  }
+}
+
+async function editComment(ipcNo) {
+  if (!currentPO || !ipcNo) return;
+
+  try {
+    // Get the current comment to pre-fill the prompt
+    const snap = await db.ref(`IPC/${currentPO}/entries/${ipcNo}/Comments`).once('value');
+    const currentComment = snap.val() || '';
+
+    const newComment = prompt("Enter comment for " + ipcNo + ":", currentComment);
+
+    // If the user clicks "Cancel", the prompt returns null
+    if (newComment === null) {
+      return; 
+    }
+
+    // Update the comment in Firebase
+    await db.ref(`IPC/${currentPO}/entries/${ipcNo}`).update({
+      Comments: newComment.trim()
+    });
+
+    // Refresh the IPC list to show the new comment
+    loadIPCEntries(currentPO);
+
+  } catch (err) {
+    handleError(err, 'editComment');
   }
 }
 
@@ -704,10 +736,11 @@ function renderActivePOs(list) {
                   <th>Amount To Paid</th>
                   <th>Date</th>
                   <th>Remarks</th>
+                  <th>Comments</th>
                 </tr>
               </thead>
               <tbody id="entries-body-${item.po}">
-                <tr><td colspan="4" class="muted">Click + to load entries…</td></tr>
+                <tr><td colspan="5" class="muted">Click + to load entries…</td></tr>
               </tbody>
             </table>
           </div>
@@ -732,12 +765,12 @@ async function togglePOEntries(po, btn) {
   btn.textContent = '−';
 
   const body = document.getElementById(`entries-body-${po}`);
-  body.innerHTML = '<tr><td colspan="4" class="muted">Loading…</td></tr>';
+  body.innerHTML = '<tr><td colspan="5" class="muted">Loading…</td></tr>';
 
   try {
     const snap = await db.ref(`IPC/${po}/entries`).once('value');
     if (!snap.exists()) {
-      body.innerHTML = '<tr><td colspan="4" class="muted">No entries for this PO</td></tr>';
+      body.innerHTML = '<tr><td colspan="5" class="muted">No entries for this PO</td></tr>';
       return;
     }
     const entries = snap.val();
@@ -753,12 +786,14 @@ async function togglePOEntries(po, btn) {
       const amount = (e && e.AmountToPaid != null) ? formatQAR(e.AmountToPaid) : 'QAR 0.00';
       const date   = (e && e.Date) ? e.Date : '—';
       const remarks= (e && e.Remarks) ? e.Remarks : '—';
+      const comments = (e && e.Comments) ? e.Comments : '—';
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${k}</td>
         <td>${amount}</td>
         <td>${date}</td>
         <td>${remarks}</td>
+        <td>${comments}</td>
       `;
       body.appendChild(tr);
     });
@@ -769,6 +804,7 @@ async function togglePOEntries(po, btn) {
     totalRow.innerHTML = `
       <td style="font-weight:600">TOTAL</td>
       <td style="font-weight:700">${formatQAR(__totalAmountToPaid)}</td>
+      <td></td>
       <td></td>
       <td></td>
     `;
