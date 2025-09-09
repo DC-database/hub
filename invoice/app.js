@@ -15,6 +15,11 @@ firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 const auth = firebase.auth();
 
+// Add these new global variables at the top of your app.js file
+let currentUser = null;
+let pendingUserForPasswordCreation = null;
+
+
 // Enhanced device detection with touch support
 function detectDeviceType() {
     const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -539,12 +544,14 @@ function viewSRV(fileName) {
 
 // Loading overlay functions
 function showLoading() {
+    if (!domCache.loadingOverlay) return;
     isLoading = true;
     domCache.loadingOverlay.style.display = 'flex';
     document.body.style.overflow = 'hidden';
 }
 
 function hideLoading() {
+    if (!domCache.loadingOverlay) return;
     isLoading = false;
     domCache.loadingOverlay.style.display = 'none';
     document.body.style.overflow = '';
@@ -619,6 +626,12 @@ function login() {
 }
 
 function logout() {
+    // New lines for custom auth logout
+    sessionStorage.removeItem('currentUser');
+    currentUser = null;
+    window.location.reload(); // Easiest way to reset the app state to the login screen
+    
+    // Original super-admin logout logic
     auth.signOut().then(() => {
         updateAuthUI(false);
         records = [];
@@ -2621,62 +2634,6 @@ function printDashboardResults() {
     printWindow.document.close();
 }
 
-// Initialization
-document.addEventListener('DOMContentLoaded', function() {
-    cacheDOM();
-    detectDeviceType();
-    applyTranslations(); // Apply translations on page load
-    updateAuthUI(false);
-    
-    // Automatically load data on initial load
-    loadFromFirebase().then(() => {
-        loadPaymentsFromFirebase(false);
-    });
-    
-    window.addEventListener('resize', setupResponsiveElements);
-    
-    domCache.searchTerm.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            searchRecords();
-        }
-    });
-    
-    domCache.reportSearchTerm.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            generateReport();
-        }
-    });
-    
-    domCache.pettyCashSearchTerm.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            generatePettyCashReport();
-        }
-    });
-    
-    domCache.siteSearchTerm.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            searchSiteRecords();
-        }
-    });
-    
-    document.getElementById('paymentsSearchTerm').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            searchPayments();
-        }
-    });
-
-    domCache.includeNotes.addEventListener('change', function() {
-        if (document.querySelector('#reportTable tbody').children.length > 0) {
-            generateReport();
-        }
-    });
-});
-
 // Close modal when clicking outside of it
 window.addEventListener('click', function(event) {
     const modal = document.getElementById('invoicePreviewModal');
@@ -3649,13 +3606,6 @@ function handleBottomNav(btn) {
   };
 })();
 
-function openIPCFromBottom(){
-  document.querySelectorAll('.bottom-app-nav .nav-btn').forEach(b=>b.classList.remove('active'));
-  const ipcBtn = Array.from(document.querySelectorAll('.bottom-app-nav .nav-btn span')).find(s=>s.textContent.trim()==='IPC');
-  if(ipcBtn) ipcBtn.parentElement.classList.add('active');
-  window.open('https://ibaport.site/IPC/', '_blank');
-}
-
 // === Search and Add Modal Functions ===
 function openSearchAddModal() {
     document.getElementById('searchAddModal').style.display = 'block';
@@ -3737,3 +3687,247 @@ async function addSelectedInvoicesFromSearch() {
     // For simplicity, we'll use today's date automatically for this quick-add feature.
     await addPaymentEntry(recordsToAdd);
 }
+
+// === NEW LOGIN SYSTEM FUNCTIONS ===
+
+// NEW: Handle 'Enter' key press on login forms
+function handleKeyPress(event, action) {
+    if (event.key === 'Enter') {
+        event.preventDefault(); // Prevent default form submission
+        if (action === 'verify') {
+            handleVerify();
+        } else if (action === 'login') {
+            handleLogin();
+        } else if (action === 'create') {
+            handleCreatePassword();
+        }
+    }
+}
+
+function showApp(user) {
+    currentUser = user;
+    sessionStorage.setItem('currentUser', JSON.stringify(user));
+
+    // Hide login screen, show main app
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+
+    // Proceed with loading app data
+    cacheDOM();
+    detectDeviceType();
+    applyTranslations();
+    updateAuthUI(false); // Manages super-admin login, not this new one
+    loadFromFirebase().then(() => {
+        loadPaymentsFromFirebase(false);
+        // Add event listeners that depend on the DOM being visible
+        window.addEventListener('resize', setupResponsiveElements);
+        domCache.searchTerm.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                searchRecords();
+            }
+        });
+        domCache.reportSearchTerm.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                generateReport();
+            }
+        });
+        domCache.pettyCashSearchTerm.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                generatePettyCashReport();
+            }
+        });
+        domCache.siteSearchTerm.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                searchSiteRecords();
+            }
+        });
+        document.getElementById('paymentsSearchTerm').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                searchPayments();
+            }
+        });
+        domCache.includeNotes.addEventListener('change', function() {
+            if (document.querySelector('#reportTable tbody').children.length > 0) {
+                generateReport();
+            }
+        });
+    });
+}
+
+// UPDATED: Two-step login verification
+async function handleVerify() {
+    const identifier = document.getElementById('loginIdentifier').value.trim();
+    const loginMessage = document.getElementById('loginMessage');
+    loginMessage.textContent = '';
+
+    if (!identifier) {
+        loginMessage.textContent = 'Please enter your Email or Mobile Number.';
+        return;
+    }
+
+    showLoading();
+
+    try {
+        const snapshot = await database.ref('Approver').once('value');
+        const approversData = snapshot.val();
+        if (!approversData) {
+            loginMessage.textContent = 'No approver data found.';
+            return;
+        }
+
+        let foundUser = null;
+        let userKey = null;
+
+        for (const key in approversData) {
+            const user = approversData[key];
+            const mobile = user['Mobile Number'] || user.mobile || '';
+            
+            // Check for direct email or full mobile number match
+            if ((user.email && user.email.toLowerCase() === identifier.toLowerCase()) || mobile === identifier) {
+                foundUser = user;
+                userKey = key;
+                break;
+            }
+            
+            // NEW: Check for 8-digit mobile number match (ignoring country code '974')
+            if (/^\d{8}$/.test(identifier) && mobile.endsWith(identifier)) {
+                foundUser = user;
+                userKey = key;
+                break;
+            }
+        }
+
+        if (foundUser) {
+            pendingUserForPasswordCreation = { ...foundUser, key: userKey };
+            
+            if (!foundUser.password || foundUser.password === "") {
+                // First-time login: show create password form
+                const createEmailInput = document.getElementById('createEmail');
+                createEmailInput.value = foundUser.email || '';
+                createEmailInput.disabled = !!foundUser.email;
+                if (!foundUser.email) {
+                    createEmailInput.placeholder = "Please enter and save your email";
+                }
+                
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('createPasswordForm').style.display = 'block';
+            } else {
+                // Existing user: show password form
+                document.getElementById('verifiedIdentifier').textContent = foundUser.name || foundUser.email;
+                document.getElementById('loginStep1').style.display = 'none';
+                document.getElementById('loginStep2').style.display = 'block';
+            }
+        } else {
+            // NEW: Smarter error message
+            if (identifier.includes('@')) {
+                loginMessage.textContent = 'User not found with this email. Please try your mobile number.';
+            } else {
+                loginMessage.textContent = 'User not registered. Please check your mobile or email.';
+            }
+        }
+
+    } catch (error) {
+        loginMessage.textContent = 'An error occurred: ' + error.message;
+        console.error("Verification Error:", error);
+    } finally {
+        hideLoading();
+    }
+}
+
+// UPDATED: Now handles the second step of login
+async function handleLogin() {
+    const password = document.getElementById('loginPassword').value;
+    const loginMessage = document.getElementById('loginMessage');
+    loginMessage.textContent = '';
+
+    if (!password) {
+        loginMessage.textContent = 'Please enter your password.';
+        return;
+    }
+
+    if (!pendingUserForPasswordCreation) {
+         loginMessage.textContent = 'Verification error. Please try again.';
+         resetLoginFlow();
+         return;
+    }
+
+    if (pendingUserForPasswordCreation.password === password) {
+        showApp(pendingUserForPasswordCreation);
+    } else {
+        loginMessage.textContent = 'Incorrect password.';
+    }
+}
+
+
+async function handleCreatePassword() {
+    const createMessage = document.getElementById('createPasswordMessage');
+    const emailInput = document.getElementById('createEmail');
+    const email = emailInput.value.trim();
+    const newPassword = document.getElementById('createPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    createMessage.textContent = '';
+
+    if ((!email && !emailInput.disabled) || !newPassword || !confirmPassword) {
+        createMessage.textContent = 'All fields are required.';
+        return;
+    }
+
+    if (newPassword !== confirmPassword) {
+        createMessage.textContent = 'Passwords do not match.';
+        return;
+    }
+    
+    showLoading();
+    
+    const userKey = pendingUserForPasswordCreation.key;
+    const userUpdateRef = database.ref(`Approver/${userKey}`);
+    
+    const updateData = { password: newPassword };
+    if (!emailInput.disabled) {
+        updateData.email = email;
+    }
+    
+    try {
+        await userUpdateRef.update(updateData);
+        const updatedUser = { ...pendingUserForPasswordCreation, ...updateData };
+        showApp(updatedUser);
+    } catch (error) {
+        createMessage.textContent = 'Failed to save password: ' + error.message;
+        console.error("Password creation error:", error);
+    } finally {
+        hideLoading();
+        pendingUserForPasswordCreation = null;
+    }
+}
+
+// NEW: Function to go back to the first step of login
+function resetLoginFlow() {
+    pendingUserForPasswordCreation = null;
+    document.getElementById('loginStep1').style.display = 'block';
+    document.getElementById('loginStep2').style.display = 'none';
+    document.getElementById('loginIdentifier').value = '';
+    document.getElementById('loginPassword').value = '';
+    document.getElementById('loginMessage').textContent = '';
+}
+
+
+function checkLoginState() {
+    const storedUser = sessionStorage.getItem('currentUser');
+    if (storedUser) {
+        showApp(JSON.parse(storedUser));
+    } else {
+        // If no user in session, ensure login screen is visible and app is hidden
+        document.getElementById('loginScreen').style.display = 'flex';
+        document.getElementById('mainApp').style.display = 'none';
+    }
+}
+
+// Replace your entire DOMContentLoaded event listener with this new one
+document.addEventListener('DOMContentLoaded', function() {
+    checkLoginState(); // This function will now control what is displayed on load
+});
