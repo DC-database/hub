@@ -11,788 +11,755 @@
 <link href="manifest.json" rel="manifest"/>
 </head>
 <body>
-
-<div id="loginScreen">
-    <div class="auth-container">
-        <h2>Invoice System Login</h2>
-        <div id="loginForm">
-            <div id="loginStep1">
-                <input type="text" id="loginIdentifier" class="auth-input" placeholder="Enter Email or Mobile Number" onkeypress="handleKeyPress(event, 'verify')">
-                <button class="btn btn-primary" onclick="handleVerify()">Continue</button>
-            </div>
-            <div id="loginStep2" style="display: none;">
-                <p class="login-identifier-display">Welcome, <strong id="verifiedIdentifier"></strong></p>
-                <input type="password" id="loginPassword" class="auth-input" placeholder="Password" onkeypress="handleKeyPress(event, 'login')">
-                <button class="btn btn-primary" onclick="handleLogin()">Login</button>
-                <a href="#" class="back-to-verify" onclick="resetLoginFlow()">Use a different account</a>
-            </div>
-             <p id="loginMessage" class="auth-message"></p>
-        </div>
-        <div id="createPasswordForm" style="display: none;">
-            <h4>Create Your Password</h4>
-            <p>Welcome! Since this is your first time, please create a password.</p>
-            <input type="email" id="createEmail" class="auth-input" placeholder="Confirm your Email" onkeypress="handleKeyPress(event, 'create')">
-            <input type="password" id="createPassword" class="auth-input" placeholder="New Password" onkeypress="handleKeyPress(event, 'create')">
-            <input type="password" id="confirmPassword" class="auth-input" placeholder="Confirm New Password" onkeypress="handleKeyPress(event, 'create')">
-            <button class="btn btn-primary" onclick="handleCreatePassword()">Set Password & Login</button>
-            <p id="createPasswordMessage" class="auth-message"></p>
-        </div>
+<div class="mobile-menu-btn" onclick="toggleMobileMenu()">
+<i class="fas fa-bars"></i>
+</div>
+<div class="mobile-menu" id="mobileMenu">
+    <div class="menu-header">
+        <h3 data-i18n-key="menu_title">Menu</h3>
+        <span class="close-menu" onclick="toggleMobileMenu()">×</span>
+    </div>
+    <div class="menu-item main-page active" onclick="showSection('mainPageSection')">
+        <i class="fas fa-home"></i> <span class="menu-text" data-i18n-key="menu_dashboard">Main Dashboard</span>
+    </div>
+    <div class="menu-item" onclick="showSection('invoiceSection')">
+        <i class="fas fa-file-invoice"></i> <span class="menu-text" data-i18n-key="menu_tracker">Invoice Status Tracker</span>
+    </div>
+    <div class="menu-item payments" onclick="showSection('invoicePaymentsSection')">
+        <i class="fas fa-money-check-alt"></i> <span class="menu-text" data-i18n-key="menu_payments">Invoice Payments</span>
+    </div>
+    <div class="menu-item" onclick="window.open('https://ibaport.site/IPC/', '_blank')">
+        <i class="fas fa-database"></i> <span class="menu-text" data-i18n-key="menu_ipc">IPC Records</span>
+    </div>
+    <div class="menu-item" onclick="window.open('https://ibaport.site/PO/', '_blank')">
+        <i class="fas fa-tasks"></i> <span class="menu-text" data-i18n-key="menu_progress_po">Progress PO</span>
+    </div>
+    <div class="menu-item" onclick="window.open('https://ibaport.site', '_blank')">
+        <i class="fas fa-globe"></i> <span class="menu-text" data-i18n-key="menu_main_hub">Main Hub</span>
+    </div>
+    <div class="menu-item admin" onclick="showSection('dataManagementSection')">
+        <i class="fas fa-database"></i> <span class="menu-text" data-i18n-key="menu_data_management">Data Management</span>
+    </div>
+    <div class="menu-item language-switcher-menu" onclick="toggleLanguage()">
+        <i class="fas fa-language"></i> <span class="menu-text" data-i18n-key="toggle_language_btn">Switch Language</span>
     </div>
 </div>
-
-
-<div id="mainApp" style="display: none;">
-    <div class="mobile-menu-btn" onclick="toggleMobileMenu()">
-    <i class="fas fa-bars"></i>
-    </div>
-    <div class="mobile-menu" id="mobileMenu">
-        <div class="menu-header">
-            <h3 data-i18n-key="menu_title">Menu</h3>
-            <span class="close-menu" onclick="toggleMobileMenu()">×</span>
-        </div>
-        <div class="menu-item main-page active" onclick="showSection('mainPageSection')">
-            <i class="fas fa-home"></i> <span class="menu-text" data-i18n-key="menu_dashboard">Main Dashboard</span>
-        </div>
-        <div class="menu-item" onclick="showSection('invoiceSection')">
-            <i class="fas fa-file-invoice"></i> <span class="menu-text" data-i18n-key="menu_tracker">Invoice Status Tracker</span>
-        </div>
-        <div class="menu-item payments" onclick="showSection('invoicePaymentsSection')">
-            <i class="fas fa-money-check-alt"></i> <span class="menu-text" data-i18n-key="menu_payments">Invoice Payments</span>
-        </div>
-        <div class="menu-item" onclick="window.open('https://ibaport.site/IPC/', '_blank')">
-            <i class="fas fa-database"></i> <span class="menu-text" data-i18n-key="menu_ipc">IPC Records</span>
-        </div>
-        <div class="menu-item" onclick="window.open('https://ibaport.site/PO/', '_blank')">
-            <i class="fas fa-tasks"></i> <span class="menu-text" data-i18n-key="menu_progress_po">Progress PO</span>
-        </div>
-        <div class="menu-item" onclick="window.open('https://ibaport.site', '_blank')">
-            <i class="fas fa-globe"></i> <span class="menu-text" data-i18n-key="menu_main_hub">Main Hub</span>
-        </div>
-        <div class="menu-item admin" onclick="showSection('dataManagementSection')">
-            <i class="fas fa-database"></i> <span class="menu-text" data-i18n-key="menu_data_management">Data Management</span>
-        </div>
-        <div class="menu-item language-switcher-menu" onclick="toggleLanguage()">
-            <i class="fas fa-language"></i> <span class="menu-text" data-i18n-key="toggle_language_btn">Switch Language</span>
-        </div>
-    </div>
-    <div class="container">
-    <div class="content-section active" id="mainPageSection">
-    <h1 data-i18n-key="main_dashboard_title">INVOICE PROGRESSION (SITE & HO)</h1>
-    <div class="overdue-cards-container">
-    <div class="overdue-card srv" onclick="filterSiteRecords('For SRV')">
-    <div class="overdue-icon"><i class="fas fa-file-invoice"></i></div>
-    <div class="overdue-content">
-    <div class="overdue-title" data-i18n-key="overdue_srv_title">Overdue SRV</div>
-    <div class="overdue-count" id="overdueSRVCount">0</div>
-    <div class="overdue-subtitle" data-i18n-key="overdue_subtitle">(more than a week)</div>
-    </div>
-    </div>
-    <div class="overdue-card ipc" onclick="filterSiteRecords('For IPC')">
-    <div class="overdue-icon"><i class="fas fa-file-invoice-dollar"></i></div>
-    <div class="overdue-content">
-    <div class="overdue-title" data-i18n-key="overdue_ipc_title">Overdue IPC</div>
-    <div class="overdue-count" id="overdueIPCCount">0</div>
-    <div class="overdue-subtitle" data-i18n-key="overdue_subtitle">(more than a week)</div>
-    </div>
-    </div>
-    </div>
-    <div class="search-container">
-    <input autocomplete="off" class="search-input" id="siteSearchTerm" list="siteSuggestionsMain" placeholder="Search by site..." data-i18n-key="search_by_site_placeholder" type="text"/>
-    <datalist id="siteSuggestionsMain"></datalist>
-    <button class="btn btn-primary search-btn" onclick="searchSiteRecords()">
-    <i class="fas fa-search"></i> <span class="btn-text" data-i18n-key="search_btn">Search</span>
-    </button>
-    <button class="btn clear-search-btn" onclick="clearSiteSearch()">
-    <i class="fas fa-times"></i>
-    </button>
-    </div>
-    <div class="charts-container">
-    <div class="chart-box">
-    <canvas id="statusPieChart"></canvas>
-    </div>
-    <div class="chart-box">
-    <canvas id="statusBarChart"></canvas>
-    </div>
-    <div class="chart-box full-width">
-    <canvas id="overdueBarChart"></canvas>
-    </div>
-    </div>
-    <div class="dashboard-actions">
-    <button class="btn btn-primary" onclick="printSelectedDashboardResults()">
-    <i class="fas fa-print"></i> <span class="btn-text" data-i18n-key="print_selected_btn">Print Selected</span>
-    </button>
-    <button class="btn btn-primary" onclick="viewSelectedInTracker()">
-    <i class="fas fa-eye"></i> <span class="btn-text" data-i18n-key="view_selected_btn">View Selected</span>
-    </button>
-    <button class="btn btn-primary" onclick="addToCollection()">
-    <i class="fas fa-plus"></i> <span class="btn-text" data-i18n-key="add_to_collection_btn">Add to Collection</span>
-    </button>
-    <button class="btn btn-primary" onclick="viewCollection()">
-    <i class="fas fa-list"></i> <span class="btn-text" data-i18n-key="view_collection_btn">View Collection</span>
-    </button>
-    </div>
-    <div class="table-responsive">
-    <table id="siteRecordsTable">
-    <thead>
-    <tr>
-    <th><input id="selectAllCheckbox" onclick="toggleSelectAll(this)" type="checkbox"/></th>
-    <th data-i18n-key="th_id">ID</th>
-    <th data-i18n-key="th_release_date">Release Date</th>
-    <th data-i18n-key="th_site">Site</th>
-    <th data-i18n-key="th_po">PO</th>
-    <th data-i18n-key="th_vendor">Vendor</th>
-    <th data-i18n-key="th_invoice">Invoice</th>
-    <th data-i18n-key="th_amount">Amount</th>
-    <th data-i18n-key="th_status">Status</th>
-    <th data-i18n-key="th_note">Note</th>
-    </tr>
-    </thead>
-    <tbody></tbody>
+<div class="container">
+<div class="content-section active" id="mainPageSection">
+<h1 data-i18n-key="main_dashboard_title">INVOICE PROGRESSION (SITE & HO)</h1>
+<div class="overdue-cards-container">
+<div class="overdue-card srv" onclick="filterSiteRecords('For SRV')">
+<div class="overdue-icon"><i class="fas fa-file-invoice"></i></div>
+<div class="overdue-content">
+<div class="overdue-title" data-i18n-key="overdue_srv_title">Overdue SRV</div>
+<div class="overdue-count" id="overdueSRVCount">0</div>
+<div class="overdue-subtitle" data-i18n-key="overdue_subtitle">(more than a week)</div>
+</div>
+</div>
+<div class="overdue-card ipc" onclick="filterSiteRecords('For IPC')">
+<div class="overdue-icon"><i class="fas fa-file-invoice-dollar"></i></div>
+<div class="overdue-content">
+<div class="overdue-title" data-i18n-key="overdue_ipc_title">Overdue IPC</div>
+<div class="overdue-count" id="overdueIPCCount">0</div>
+<div class="overdue-subtitle" data-i18n-key="overdue_subtitle">(more than a week)</div>
+</div>
+</div>
+</div>
+<div class="search-container">
+<input autocomplete="off" class="search-input" id="siteSearchTerm" list="siteSuggestionsMain" placeholder="Search by site..." data-i18n-key="search_by_site_placeholder" type="text"/>
+<datalist id="siteSuggestionsMain"></datalist>
+<button class="btn btn-primary search-btn" onclick="searchSiteRecords()">
+<i class="fas fa-search"></i> <span class="btn-text" data-i18n-key="search_btn">Search</span>
+</button>
+<button class="btn clear-search-btn" onclick="clearSiteSearch()">
+<i class="fas fa-times"></i>
+</button>
+</div>
+<div class="charts-container">
+<div class="chart-box">
+<canvas id="statusPieChart"></canvas>
+</div>
+<div class="chart-box">
+<canvas id="statusBarChart"></canvas>
+</div>
+<div class="chart-box full-width">
+<canvas id="overdueBarChart"></canvas>
+</div>
+</div>
+<div class="dashboard-actions">
+<button class="btn btn-primary" onclick="printSelectedDashboardResults()">
+<i class="fas fa-print"></i> <span class="btn-text" data-i18n-key="print_selected_btn">Print Selected</span>
+</button>
+<button class="btn btn-primary" onclick="viewSelectedInTracker()">
+<i class="fas fa-eye"></i> <span class="btn-text" data-i18n-key="view_selected_btn">View Selected</span>
+</button>
+<button class="btn btn-primary" onclick="addToCollection()">
+<i class="fas fa-plus"></i> <span class="btn-text" data-i18n-key="add_to_collection_btn">Add to Collection</span>
+</button>
+<button class="btn btn-primary" onclick="viewCollection()">
+<i class="fas fa-list"></i> <span class="btn-text" data-i18n-key="view_collection_btn">View Collection</span>
+</button>
+</div>
+<div class="table-responsive">
+<table id="siteRecordsTable">
+<thead>
+<tr>
+<th><input id="selectAllCheckbox" onclick="toggleSelectAll(this)" type="checkbox"/></th>
+<th data-i18n-key="th_id">ID</th>
+<th data-i18n-key="th_release_date">Release Date</th>
+<th data-i18n-key="th_site">Site</th>
+<th data-i18n-key="th_po">PO</th>
+<th data-i18n-key="th_vendor">Vendor</th>
+<th data-i18n-key="th_invoice">Invoice</th>
+<th data-i18n-key="th_amount">Amount</th>
+<th data-i18n-key="th_status">Status</th>
+<th data-i18n-key="th_note">Note</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+<div class="content-section" id="invoiceSection">
+<div class="section-header">
+<h1 data-i18n-key="tracker_title">INVOICE STATUS TRACKER</h1>
+<div class="section-actions">
+<button class="btn btn-primary back-btn" onclick="showSection('mainPageSection')" style="display:none;">
+<i class="fas fa-arrow-left"></i> <span class="btn-text" data-i18n-key="back_btn">Back</span>
+</button>
+<button class="btn btn-primary" onclick="addToCollectionFromTracker()">
+<i class="fas fa-plus"></i> <span class="btn-text" data-i18n-key="add_to_collection_btn">Add to Collection</span>
+</button>
+<button class="btn btn-primary" onclick="viewCollection()">
+<i class="fas fa-list"></i> <span class="btn-text" data-i18n-key="view_collection_btn">View Collection</span>
+</button>
+<button class="btn btn-success" onclick="openAddPaymentModal()">
+<i class="fas fa-money-bill-wave"></i> <span class="btn-text" data-i18n-key="add_to_accounts_btn">Add to Accounts Entry</span>
+</button>
+</div>
+</div>
+<div class="search-container">
+<input class="search-input" id="searchTerm" placeholder="Search..." data-i18n-key="search_placeholder" required="" type="text"/>
+<button class="btn btn-primary search-btn" onclick="searchRecords()">
+<i class="fas fa-search"></i> <span class="btn-text" data-i18n-key="search_btn">Search</span>
+</button>
+<button class="btn clear-search-btn" onclick="clearSearch()">
+<i class="fas fa-times"></i>
+</button>
+<input class="date-input" id="releaseDateFilter" onblur="(this.type='text')" onfocus="(this.type='date')" placeholder="Date" data-i18n-key="date_placeholder" type="text"/>
+<button class="btn clear-date-btn" onclick="clearDate()">
+<i class="fas fa-times"></i>
+</button>
+</div>
+<div class="filter-pills-container" id="invoiceFilterContainer">
+    <button class="filter-pill active" data-status="all" onclick="filterRecords(this.dataset.status)" data-i18n-key="filter_all">All</button>
+    <button class="filter-pill" data-status="Open" onclick="filterRecords(this.dataset.status)" data-i18n-key="filter_open">Open</button>
+    <button class="filter-pill" data-status="Pending" onclick="filterRecords(this.dataset.status)" data-i18n-key="filter_pending">Pending</button>
+    <button class="filter-pill" data-status="No Invoice" onclick="filterRecords(this.dataset.status)" data-i18n-key="filter_no_inv">No INV</button>
+    <button class="filter-pill" data-status="For SRV" onclick="filterRecords(this.dataset.status)" data-i18n-key="filter_srv">SRV</button>
+    <button class="filter-pill" data-status="For IPC" onclick="filterRecords(this.dataset.status)" data-i18n-key="filter_ipc">IPC</button>
+    <button class="filter-pill" data-status="Report" onclick="filterRecords(this.dataset.status)" data-i18n-key="filter_report">Report</button>
+    <button class="filter-pill" data-status="Under Review" onclick="filterRecords(this.dataset.status)" data-i18n-key="filter_review">Review</button>
+    <button class="filter-pill" data-status="CEO Approval" onclick="filterRecords(this.dataset.status)" data-i18n-key="filter_ceo">CEO</button>
+    <button class="filter-pill" data-status="With Accounts" onclick="filterRecords(this.dataset.status)" data-i18n-key="filter_accounts">Accounts</button>
+</div>
+<div class="table-responsive">
+<table id="recordsTable" style="display: none;">
+<thead>
+<tr>
+<th><input id="selectAllTrackerCheckbox" onclick="toggleSelectAllTracker(this)" type="checkbox"/></th>
+<th data-i18n-key="th_id">ID</th>
+<th data-i18n-key="th_date">Date</th>
+<th data-i18n-key="th_site">Site</th>
+<th data-i18n-key="th_po">PO</th>
+<th data-i18n-key="th_vendor">Vendor</th>
+<th data-i18n-key="th_invoice">Invoice</th>
+<th data-i18n-key="th_amount">Amount</th>
+<th data-i18n-key="th_release">Release</th>
+<th data-i18n-key="th_status">Status</th>
+<th data-i18n-key="th_actions">Actions</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+<div class="content-section" id="invoicePaymentsSection">
+<h1 data-i18n-key="payments_title">INVOICE PAYMENTS</h1>
+<div class="search-container">
+<input class="search-input" id="paymentsSearchTerm" placeholder="Search payments by PO, vendor, or site..." data-i18n-key="search_payments_placeholder" type="text"/>
+<button class="btn btn-primary search-btn" onclick="searchPayments()">
+<i class="fas fa-search"></i> <span class="btn-text" data-i18n-key="search_btn">Search</span>
+</button>
+<button class="btn clear-search-btn" onclick="clearPaymentsSearch()">
+<i class="fas fa-times"></i>
+</button>
+<button class="btn btn-success" onclick="openSearchAddModal()" style="margin-left: auto;">
+    <i class="fas fa-plus"></i> <span class="btn-text" data-i18n-key="add_invoice_btn">Add Invoice</span>
+</button>
+</div>
+<div class="table-responsive">
+    <table id="invoicePaymentsTable">
+        <thead>
+            <tr>
+                <th style="width: 50px;"></th>
+                <th data-i18n-key="th_po_number">PO Number</th>
+                <th data-i18n-key="th_site">Site</th>
+                <th data-i18n-key="th_vendor">Vendor</th>
+            </tr>
+        </thead>
+        <tbody>
+            </tbody>
     </table>
-    </div>
-    </div>
-    <div class="content-section" id="invoiceSection">
-    <div class="section-header">
-    <h1 data-i18n-key="tracker_title">INVOICE STATUS TRACKER</h1>
-    <div class="section-actions">
-    <button class="btn btn-primary back-btn" onclick="showSection('mainPageSection')" style="display:none;">
-    <i class="fas fa-arrow-left"></i> <span class="btn-text" data-i18n-key="back_btn">Back</span>
-    </button>
-    <button class="btn btn-primary" onclick="addToCollectionFromTracker()">
-    <i class="fas fa-plus"></i> <span class="btn-text" data-i18n-key="add_to_collection_btn">Add to Collection</span>
-    </button>
-    <button class="btn btn-primary" onclick="viewCollection()">
-    <i class="fas fa-list"></i> <span class="btn-text" data-i18n-key="view_collection_btn">View Collection</span>
-    </button>
-    <button class="btn btn-success" onclick="openAddPaymentModal()">
-    <i class="fas fa-money-bill-wave"></i> <span class="btn-text" data-i18n-key="add_to_accounts_btn">Add to Accounts Entry</span>
-    </button>
-    </div>
-    </div>
-    <div class="search-container">
-    <input class="search-input" id="searchTerm" placeholder="Search..." data-i18n-key="search_placeholder" required="" type="text"/>
-    <button class="btn btn-primary search-btn" onclick="searchRecords()">
-    <i class="fas fa-search"></i> <span class="btn-text" data-i18n-key="search_btn">Search</span>
-    </button>
-    <button class="btn clear-search-btn" onclick="clearSearch()">
-    <i class="fas fa-times"></i>
-    </button>
-    <input class="date-input" id="releaseDateFilter" onblur="(this.type='text')" onfocus="(this.type='date')" placeholder="Date" data-i18n-key="date_placeholder" type="text"/>
-    <button class="btn clear-date-btn" onclick="clearDate()">
-    <i class="fas fa-times"></i>
-    </button>
-    </div>
-    <div class="filter-pills-container" id="invoiceFilterContainer">
-        <button class="filter-pill active" data-status="all" onclick="filterRecords(this.dataset.status)" data-i18n-key="filter_all">All</button>
-        <button class="filter-pill" data-status="Open" onclick="filterRecords(this.dataset.status)" data-i18n-key="filter_open">Open</button>
-        <button class="filter-pill" data-status="Pending" onclick="filterRecords(this.dataset.status)" data-i18n-key="filter_pending">Pending</button>
-        <button class="filter-pill" data-status="No Invoice" onclick="filterRecords(this.dataset.status)" data-i18n-key="filter_no_inv">No INV</button>
-        <button class="filter-pill" data-status="For SRV" onclick="filterRecords(this.dataset.status)" data-i18n-key="filter_srv">SRV</button>
-        <button class="filter-pill" data-status="For IPC" onclick="filterRecords(this.dataset.status)" data-i18n-key="filter_ipc">IPC</button>
-        <button class="filter-pill" data-status="Report" onclick="filterRecords(this.dataset.status)" data-i18n-key="filter_report">Report</button>
-        <button class="filter-pill" data-status="Under Review" onclick="filterRecords(this.dataset.status)" data-i18n-key="filter_review">Review</button>
-        <button class="filter-pill" data-status="CEO Approval" onclick="filterRecords(this.dataset.status)" data-i18n-key="filter_ceo">CEO</button>
-        <button class="filter-pill" data-status="With Accounts" onclick="filterRecords(this.dataset.status)" data-i18n-key="filter_accounts">Accounts</button>
-    </div>
-    <div class="table-responsive">
-    <table id="recordsTable" style="display: none;">
-    <thead>
-    <tr>
-    <th><input id="selectAllTrackerCheckbox" onclick="toggleSelectAllTracker(this)" type="checkbox"/></th>
-    <th data-i18n-key="th_id">ID</th>
-    <th data-i18n-key="th_date">Date</th>
-    <th data-i18n-key="th_site">Site</th>
-    <th data-i18n-key="th_po">PO</th>
-    <th data-i18n-key="th_vendor">Vendor</th>
-    <th data-i18n-key="th_invoice">Invoice</th>
-    <th data-i18n-key="th_amount">Amount</th>
-    <th data-i18n-key="th_release">Release</th>
-    <th data-i18n-key="th_status">Status</th>
-    <th data-i18n-key="th_actions">Actions</th>
-    </tr>
-    </thead>
-    <tbody></tbody>
-    </table>
-    </div>
-    </div>
-    <div class="content-section" id="invoicePaymentsSection">
-    <h1 data-i18n-key="payments_title">INVOICE PAYMENTS</h1>
-    <div class="search-container">
-    <input class="search-input" id="paymentsSearchTerm" placeholder="Search payments by PO, vendor, or site..." data-i18n-key="search_payments_placeholder" type="text"/>
-    <button class="btn btn-primary search-btn" onclick="searchPayments()">
-    <i class="fas fa-search"></i> <span class="btn-text" data-i18n-key="search_btn">Search</span>
-    </button>
-    <button class="btn clear-search-btn" onclick="clearPaymentsSearch()">
-    <i class="fas fa-times"></i>
-    </button>
-    <button class="btn btn-success" onclick="openSearchAddModal()" style="margin-left: auto;">
-        <i class="fas fa-plus"></i> <span class="btn-text" data-i18n-key="add_invoice_btn">Add Invoice</span>
-    </button>
-    </div>
-    <div class="table-responsive">
-        <table id="invoicePaymentsTable">
-            <thead>
-                <tr>
-                    <th style="width: 50px;"></th>
-                    <th data-i18n-key="th_po_number">PO Number</th>
-                    <th data-i18n-key="th_site">Site</th>
-                    <th data-i18n-key="th_vendor">Vendor</th>
-                </tr>
-            </thead>
-            <tbody>
-                </tbody>
-        </table>
-    </div>
-    </div>
-    <div class="content-section" id="statementSection">
-    <div class="section-header">
-    <h1 data-i18n-key="statement_title">Statement of Account</h1>
-    <button class="btn btn-primary back-btn" onclick="showSection('invoiceSection')" style="display:none;">
-    <i class="fas fa-arrow-left"></i> <span class="btn-text" data-i18n-key="back_btn">Back</span>
-    </button>
-    </div>
-    <div class="report-controls">
-    <select class="report-select" id="reportType">
-    <option value="po" data-i18n-key="statement_type_po">PO Number</option>
-    <option value="vendor" data-i18n-key="statement_type_vendor">Vendor</option>
-    <option value="site" data-i18n-key="statement_type_site">Site</option>
-    </select>
-    <input class="report-input" id="reportSearchTerm" list="vendorSuggestions" placeholder="Search term..." data-i18n-key="search_term_placeholder" type="text"/>
-    <datalist id="vendorSuggestions"></datalist>
-    <datalist id="siteSuggestions"></datalist>
-    <select class="status-select" id="reportStatusFilter">
-    <option value="all" data-i18n-key="filter_all_statuses">All Statuses</option>
-    <option value="Open">Open</option>
-    <option value="Pending">Pending</option>
-    <option value="No Invoice">No INV</option>
-    <option value="For SRV">SRV</option>
-    <option value="For IPC">IPC</option>
-    <option value="Report">Report</option>
-    <option value="Under Review">Review</option>
-    <option value="CEO Approval">CEO</option>
-    <option value="With Accounts">Accounts</option>
-    </select>
-    <div class="notes-checkbox">
-    <input checked="" id="includeNotes" type="checkbox"/>
-    <label for="includeNotes" data-i18n-key="include_notes_label">Include Notes</label>
-    </div>
-    <button class="btn btn-primary generate-btn" onclick="generateReport()">
-    <i class="fas fa-calculator"></i>
-    <span class="btn-text" data-i18n-key="generate_btn">Generate</span>
-    </button>
-    <button class="btn clear-search-btn" onclick="clearReportSearch()">
-    <i class="fas fa-times"></i>
-    </button>
-    </div>
-    <div class="report-header" id="reportHeader"></div>
-    <div class="financial-summary">
-    <div class="financial-summary-header">
-    <h3 data-i18n-key="financial_summary_title">Financial Summary</h3>
-    </div>
-    <div class="financial-summary-item" id="poTotalContainer">
-    <span class="financial-summary-label" data-i18n-key="summary_po_value">PO Value</span>
-    <span class="financial-summary-value" id="poTotal">0.00</span>
-    </div>
-    <div class="financial-summary-item">
-    <span class="financial-summary-label" data-i18n-key="summary_total_amount">Total Amount</span>
-    <span class="financial-summary-value" id="grandTotal">0.00</span>
-    </div>
-    <div class="financial-summary-item">
-    <span class="financial-summary-label" data-i18n-key="summary_with_accounts">With Accounts</span>
-    <span class="financial-summary-value" id="accountsTotal">0.00</span>
-    </div>
-    <div class="financial-summary-item">
-    <span class="financial-summary-label" data-i18n-key="summary_balance">Balance</span>
-    <span class="financial-summary-value balance" id="balanceTotal">0.00</span>
-    </div>
-    </div>
-    <div class="table-responsive">
-    <table class="compact-table" id="reportTable">
-    <thead>
-    <tr>
-    <th data-i18n-key="th_id">ID</th>
-    <th data-i18n-key="th_po">PO</th>
-    <th data-i18n-key="th_vendor">Vendor</th>
-    <th data-i18n-key="th_invoice">Invoice</th>
-    <th data-i18n-key="th_amount">Amount</th>
-    <th data-i18n-key="th_release">Release</th>
-    <th data-i18n-key="th_status">Status</th>
-    <th class="notes-column" data-i18n-key="th_notes">Notes</th>
-    </tr>
-    </thead>
-    <tbody></tbody>
-    <tfoot>
-    <tr>
-    <td class="total-row" colspan="4" data-i18n-key="total_label">Total</td>
-    <td class="total-row numeric" id="reportTotalAmount">0.00</td>
-    <td colspan="3"></td>
-    </tr>
-    </tfoot>
-    </table>
-    </div>
-    <div class="report-actions">
-    <button class="btn btn-primary" onclick="printReport()">
-    <i class="fas fa-print"></i> <span class="btn-text" data-i18n-key="print_btn">Print</span>
-    </button>
-    <button class="btn btn-success" onclick="shareReportViaWhatsApp()">
-    <i class="fab fa-whatsapp"></i> <span class="btn-text" data-i18n-key="share_btn">Share</span>
-    </button>
-    </div>
-    </div>
-    <div class="content-section" id="pettyCashSection">
-    <div class="section-header">
-    <h1 data-i18n-key="petty_cash_title">Petty Cash Summary</h1>
-    <button class="btn btn-primary back-btn" onclick="showSection('invoiceSection')" style="display:none;">
-    <i class="fas fa-arrow-left"></i> <span class="btn-text" data-i18n-key="back_btn">Back</span>
-    </button>
-    </div>
-    <div class="search-container">
-    <input class="search-input" id="pettyCashSearchTerm" list="noteSuggestions" placeholder="Search by note..." data-i18n-key="search_by_note_placeholder" type="text"/>
-    <datalist id="noteSuggestions"></datalist>
-    <button class="btn btn-primary search-btn" onclick="generatePettyCashReport()">
-    <i class="fas fa-search"></i> <span class="btn-text" data-i18n-key="search_btn">Search</span>
-    </button>
-    <button class="btn clear-search-btn" onclick="clearPettyCashSearch()">
-    <i class="fas fa-times"></i>
-    </button>
-    </div>
-    <div class="financial-summary">
-    <div class="financial-summary-header">
-    <h3 data-i18n-key="summary_title">Summary</h3>
-    </div>
-    <div class="financial-summary-item">
-    <span class="financial-summary-label" data-i18n-key="summary_total_amount">Total Amount</span>
-    <span class="financial-summary-value" id="pettyCashTotal">0.00</span>
-    </div>
-    <div class="financial-summary-item">
-    <span class="financial-summary-label" data-i18n-key="summary_records">Records</span>
-    <span class="financial-summary-value" id="pettyCashCount">0</span>
-    </div>
-    </div>
-    <div class="table-responsive">
-    <table class="compact-table" id="pettyCashTable">
-    <thead>
-    <tr>
-    <th data-i18n-key="th_id">ID</th>
-    <th data-i18n-key="th_po">PO</th>
-    <th data-i18n-key="th_site">Site</th>
-    <th data-i18n-key="th_vendor">Vendor</th>
-    <th data-i18n-key="th_amount">Amount</th>
-    <th data-i18n-key="th_status">Status</th>
-    </tr>
-    </thead>
-    <tbody></tbody>
-    <tfoot>
-    <tr>
-    <td class="total-row" colspan="4" data-i18n-key="total_label">Total</td>
-    <td class="total-row numeric" id="pettyCashTableTotal">0.00</td>
-    <td></td>
-    </tr>
-    </tfoot>
-    </table>
-    </div>
-    <div class="report-actions">
-    <button class="btn btn-primary" onclick="printPettyCashReport()">
-    <i class="fas fa-print"></i> <span class="btn-text" data-i18n-key="print_btn">Print</span>
-    </button>
-    <button class="btn btn-success" onclick="sharePettyCashViaWhatsApp()">
-    <i class="fab fa-whatsapp"></i> <span class="btn-text" data-i18n-key="share_btn">Share</span>
-    </button>
-    </div>
-    </div>
-    <div class="content-section" id="dataManagementSection">
-    <div class="section-header">
-    <h1 data-i18n-key="data_management_title">Data Management</h1>
-    <button class="btn btn-primary back-btn" onclick="showSection('mainPageSection')" style="display:none;">
-    <i class="fas fa-arrow-left"></i> <span class="btn-text" data-i18n-key="back_btn">Back</span>
-    </button>
-    </div>
-    <div class="data-management-grid">
-    <div class="management-card upload-card">
-    <h2 data-i18n-key="dm_approver_list">Approver List</h2>
-    <div class="file-input-container">
-    <label class="file-input-label" for="approverCsvInput">
-    <i class="fas fa-file-csv"></i> <span data-i18n-key="dm_choose_approver_csv">Choose Approver CSV</span>
-        </label>
-    <input accept=".csv" class="file-input" id="approverCsvInput" type="file"/>
-    </div>
-    <button class="btn btn-primary" id="uploadApproverBtn" onclick="uploadApproverCSV()">
-    <i class="fas fa-upload"></i> <span data-i18n-key="dm_upload_approver_csv">Upload Approver CSV</span>
-      </button>
-    <div class="upload-status" id="approverUploadStatus"></div>
-    <a class="template-download" href="#" onclick="downloadApproverTemplate()">
-    <i class="fas fa-download"></i> <span data-i18n-key="dm_download_approver_template">Download Approver CSV Template</span>
-      </a>
-    <p style="margin-top:8px;font-size:13px;color:#666">Headers: <b>Name, Position, Mobile Number, Email</b> (Email optional)</p>
-    </div>
-    <div class="management-card auth-card"> <div class="auth-strip-title"><i class="fas fa-lock"></i><span data-i18n-key="dm_admin_auth">Admin Authentication</span></div> <button class="btn btn-secondary back-inline" onclick="showSection('mainPageSection')"> <i class="fas fa-arrow-left"></i> <span data-i18n-key="back_btn">Back</span>  </button> <button class="btn btn-danger" id="logoutBtn" onclick="logout()" style="display: none;" data-i18n-key="logout_btn">Logout</button> <div class="login-info" id="loginInfo"><strong id="loggedInAs" style="display:none;"></strong></div> <input class="auth-input" id="emailInput" placeholder="Admin Email" data-i18n-key="admin_email_placeholder" type="email"/> <input class="auth-input" id="passwordInput" placeholder="Password" data-i18n-key="password_placeholder" type="password"/> <button class="btn btn-primary" id="loginBtn" onclick="login()" data-i18n-key="signin_btn">Sign in</button> <div class="auth-message" id="authMessage"></div></div>
-    <div class="management-card upload-card">
-    <h2><i class="fas fa-file-upload"></i> <span data-i18n-key="dm_upload_csv">Upload CSV Data</span></h2>
-    <div class="year-selector">
-    <label class="year-option">
-    <input checked="" name="uploadYear" type="radio" value="2025"/>
-    <span class="year-text">2025 Data</span>
+</div>
+</div>
+<div class="content-section" id="statementSection">
+<div class="section-header">
+<h1 data-i18n-key="statement_title">Statement of Account</h1>
+<button class="btn btn-primary back-btn" onclick="showSection('invoiceSection')" style="display:none;">
+<i class="fas fa-arrow-left"></i> <span class="btn-text" data-i18n-key="back_btn">Back</span>
+</button>
+</div>
+<div class="report-controls">
+<select class="report-select" id="reportType">
+<option value="po" data-i18n-key="statement_type_po">PO Number</option>
+<option value="vendor" data-i18n-key="statement_type_vendor">Vendor</option>
+<option value="site" data-i18n-key="statement_type_site">Site</option>
+</select>
+<input class="report-input" id="reportSearchTerm" list="vendorSuggestions" placeholder="Search term..." data-i18n-key="search_term_placeholder" type="text"/>
+<datalist id="vendorSuggestions"></datalist>
+<datalist id="siteSuggestions"></datalist>
+<select class="status-select" id="reportStatusFilter">
+<option value="all" data-i18n-key="filter_all_statuses">All Statuses</option>
+<option value="Open">Open</option>
+<option value="Pending">Pending</option>
+<option value="No Invoice">No INV</option>
+<option value="For SRV">SRV</option>
+<option value="For IPC">IPC</option>
+<option value="Report">Report</option>
+<option value="Under Review">Review</option>
+<option value="CEO Approval">CEO</option>
+<option value="With Accounts">Accounts</option>
+</select>
+<div class="notes-checkbox">
+<input checked="" id="includeNotes" type="checkbox"/>
+<label for="includeNotes" data-i18n-key="include_notes_label">Include Notes</label>
+</div>
+<button class="btn btn-primary generate-btn" onclick="generateReport()">
+<i class="fas fa-calculator"></i>
+<span class="btn-text" data-i18n-key="generate_btn">Generate</span>
+</button>
+<button class="btn clear-search-btn" onclick="clearReportSearch()">
+<i class="fas fa-times"></i>
+</button>
+</div>
+<div class="report-header" id="reportHeader"></div>
+<div class="financial-summary">
+<div class="financial-summary-header">
+<h3 data-i18n-key="financial_summary_title">Financial Summary</h3>
+</div>
+<div class="financial-summary-item" id="poTotalContainer">
+<span class="financial-summary-label" data-i18n-key="summary_po_value">PO Value</span>
+<span class="financial-summary-value" id="poTotal">0.00</span>
+</div>
+<div class="financial-summary-item">
+<span class="financial-summary-label" data-i18n-key="summary_total_amount">Total Amount</span>
+<span class="financial-summary-value" id="grandTotal">0.00</span>
+</div>
+<div class="financial-summary-item">
+<span class="financial-summary-label" data-i18n-key="summary_with_accounts">With Accounts</span>
+<span class="financial-summary-value" id="accountsTotal">0.00</span>
+</div>
+<div class="financial-summary-item">
+<span class="financial-summary-label" data-i18n-key="summary_balance">Balance</span>
+<span class="financial-summary-value balance" id="balanceTotal">0.00</span>
+</div>
+</div>
+<div class="table-responsive">
+<table class="compact-table" id="reportTable">
+<thead>
+<tr>
+<th data-i18n-key="th_id">ID</th>
+<th data-i18n-key="th_po">PO</th>
+<th data-i18n-key="th_vendor">Vendor</th>
+<th data-i18n-key="th_invoice">Invoice</th>
+<th data-i18n-key="th_amount">Amount</th>
+<th data-i18n-key="th_release">Release</th>
+<th data-i18n-key="th_status">Status</th>
+<th class="notes-column" data-i18n-key="th_notes">Notes</th>
+</tr>
+</thead>
+<tbody></tbody>
+<tfoot>
+<tr>
+<td class="total-row" colspan="4" data-i18n-key="total_label">Total</td>
+<td class="total-row numeric" id="reportTotalAmount">0.00</td>
+<td colspan="3"></td>
+</tr>
+</tfoot>
+</table>
+</div>
+<div class="report-actions">
+<button class="btn btn-primary" onclick="printReport()">
+<i class="fas fa-print"></i> <span class="btn-text" data-i18n-key="print_btn">Print</span>
+</button>
+<button class="btn btn-success" onclick="shareReportViaWhatsApp()">
+<i class="fab fa-whatsapp"></i> <span class="btn-text" data-i18n-key="share_btn">Share</span>
+</button>
+</div>
+</div>
+<div class="content-section" id="pettyCashSection">
+<div class="section-header">
+<h1 data-i18n-key="petty_cash_title">Petty Cash Summary</h1>
+<button class="btn btn-primary back-btn" onclick="showSection('invoiceSection')" style="display:none;">
+<i class="fas fa-arrow-left"></i> <span class="btn-text" data-i18n-key="back_btn">Back</span>
+</button>
+</div>
+<div class="search-container">
+<input class="search-input" id="pettyCashSearchTerm" list="noteSuggestions" placeholder="Search by note..." data-i18n-key="search_by_note_placeholder" type="text"/>
+<datalist id="noteSuggestions"></datalist>
+<button class="btn btn-primary search-btn" onclick="generatePettyCashReport()">
+<i class="fas fa-search"></i> <span class="btn-text" data-i18n-key="search_btn">Search</span>
+</button>
+<button class="btn clear-search-btn" onclick="clearPettyCashSearch()">
+<i class="fas fa-times"></i>
+</button>
+</div>
+<div class="financial-summary">
+<div class="financial-summary-header">
+<h3 data-i18n-key="summary_title">Summary</h3>
+</div>
+<div class="financial-summary-item">
+<span class="financial-summary-label" data-i18n-key="summary_total_amount">Total Amount</span>
+<span class="financial-summary-value" id="pettyCashTotal">0.00</span>
+</div>
+<div class="financial-summary-item">
+<span class="financial-summary-label" data-i18n-key="summary_records">Records</span>
+<span class="financial-summary-value" id="pettyCashCount">0</span>
+</div>
+</div>
+<div class="table-responsive">
+<table class="compact-table" id="pettyCashTable">
+<thead>
+<tr>
+<th data-i18n-key="th_id">ID</th>
+<th data-i18n-key="th_po">PO</th>
+<th data-i18n-key="th_site">Site</th>
+<th data-i18n-key="th_vendor">Vendor</th>
+<th data-i18n-key="th_amount">Amount</th>
+<th data-i18n-key="th_status">Status</th>
+</tr>
+</thead>
+<tbody></tbody>
+<tfoot>
+<tr>
+<td class="total-row" colspan="4" data-i18n-key="total_label">Total</td>
+<td class="total-row numeric" id="pettyCashTableTotal">0.00</td>
+<td></td>
+</tr>
+</tfoot>
+</table>
+</div>
+<div class="report-actions">
+<button class="btn btn-primary" onclick="printPettyCashReport()">
+<i class="fas fa-print"></i> <span class="btn-text" data-i18n-key="print_btn">Print</span>
+</button>
+<button class="btn btn-success" onclick="sharePettyCashViaWhatsApp()">
+<i class="fab fa-whatsapp"></i> <span class="btn-text" data-i18n-key="share_btn">Share</span>
+</button>
+</div>
+</div>
+<div class="content-section" id="dataManagementSection">
+<div class="section-header">
+<h1 data-i18n-key="data_management_title">Data Management</h1>
+<button class="btn btn-primary back-btn" onclick="showSection('mainPageSection')" style="display:none;">
+<i class="fas fa-arrow-left"></i> <span class="btn-text" data-i18n-key="back_btn">Back</span>
+</button>
+</div>
+<div class="data-management-grid">
+<div class="management-card upload-card">
+<h2 data-i18n-key="dm_approver_list">Approver List</h2>
+<div class="file-input-container">
+<label class="file-input-label" for="approverCsvInput">
+<i class="fas fa-file-csv"></i> <span data-i18n-key="dm_choose_approver_csv">Choose Approver CSV</span>
     </label>
-    <label class="year-option">
-    <input name="uploadYear" type="radio" value="2022-2024"/>
-    <span class="year-text">2022-2024 Data</span>
-    </label>
-    </div>
-    <div class="file-input-container">
-    <label class="file-input-label" for="csvFileInput">
-    <i class="fas fa-file-csv"></i> <span data-i18n-key="dm_choose_csv">Choose CSV File</span>
-                            </label>
-    <input accept=".csv" class="file-input" id="csvFileInput" type="file"/>
-    </div>
-    <button class="btn btn-primary" disabled="" id="uploadBtn" onclick="uploadCSV()">
-    <i class="fas fa-upload"></i> <span data-i18n-key="dm_upload_csv_btn">Upload CSV</span>
-                        </button>
-    <div class="upload-status" id="uploadStatus"></div>
-    <a class="template-download" href="#" onclick="downloadTemplate()">
-    <i class="fas fa-download"></i> <span data-i18n-key="dm_download_template">Download CSV Template</span>
-                        </a>
-    </div>
-    <div class="management-card manage-card">
-    <h2><i class="fas fa-database"></i> <span data-i18n-key="dm_manage_data">Manage Data</span></h2>
-    <div class="year-selector">
-    <label class="year-option">
-    <input checked="" name="manageYear" type="radio" value="2025"/>
-    <span class="year-text">2025 Data</span>
-    </label>
-    <label class="year-option">
-    <input name="manageYear" type="radio" value="2022-2024"/>
-    <span class="year-text">2022-2024 Data</span>
-    </label>
-    </div>
-    <button class="btn btn-danger" disabled="" id="clearDataBtn" onclick="clearFirebaseData()">
-    <i class="fas fa-trash"></i> <span data-i18n-key="dm_clear_data_btn">Clear Data</span>
-                        </button>
-    <div class="upload-status" id="manageStatus"></div>
-    </div>
-    </div>
-    <div class="current-data-info">
-    <h2 data-i18n-key="dm_current_data_info">Current Data Information</h2>
-    <div class="storage-info" id="currentDataInfo">
-    <strong data-i18n-key="dm_info_year">Current Year:</strong> <span id="currentYearDisplay">2025</span><br/>
-    <strong data-i18n-key="dm_info_records">Record Count:</strong> <span id="recordCount">0</span><br/>
-    <strong data-i18n-key="dm_info_updated">Last Updated:</strong> <span id="lastUpdated">Never</span>
-    </div>
-    </div>
-    </div>
-    </div>
-    <div class="modal" id="invoicePreviewModal">
-    <div class="modal-content">
-    <span class="close-modal" onclick="closeInvoicePreview()">×</span>
-    <h2 id="invoiceModalTitle" data-i18n-key="modal_invoice_details">Invoice Details</h2>
-    <div class="preview-details">
-    <div class="detail-row">
-    <span class="detail-label" data-i18n-key="th_vendor">Vendor:</span>
-    <span class="detail-value" id="previewVendor"></span>
-    </div>
-    <div class="detail-row">
-    <span class="detail-label" data-i18n-key="th_po_number">PO Number:</span>
-    <span class="detail-value" id="previewPoNumber"></span>
-    </div>
-    <div class="detail-row">
-    <span class="detail-label" data-i18n-key="th_invoice_number">Invoice Number:</span>
-    <span class="detail-value" id="previewInvoiceNumber"></span>
-    </div>
-    <div class="detail-row">
-    <span class="detail-label" data-i18n-key="th_amount">Amount:</span>
-    <span class="detail-value" id="previewAmount"></span>
-    </div>
-    <div class="detail-row">
-    <span class="detail-label" data-i18n-key="th_status">Status:</span>
-    <span class="detail-value" id="previewStatus"></span>
-    </div>
-    <div class="detail-row">
-    <span class="detail-label" data-i18n-key="th_release_date">Release Date:</span>
-    <span class="detail-value" id="previewReleaseDate"></span>
-    </div>
-    <div class="detail-row">
-    <span class="detail-label" data-i18n-key="th_notes">Notes:</span>
-    <span class="detail-value" id="previewNotes"></span>
-    </div>
-    </div>
-    <div class="step-progress-container">
-    <div class="step-progress">
-    <div class="step step-1"></div>
-    <div class="step-connector"></div>
-    <div class="step step-2"></div>
-    <div class="step-connector"></div>
-    <div class="step step-3"></div>
-    <div class="step-connector"></div>
-    <div class="step step-4"></div>
-    <div class="step-connector"></div>
-    <div class="step step-5"></div>
-    </div>
-    <div class="step-labels">
-    <span class="step-label">SRV</span>
-    <span class="step-label">IPC/Report</span>
-    <span class="step-label">Review</span>
-    <span class="step-label">CEO</span>
-    <span class="step-label">Accounts</span>
-    </div>
-    </div>
-    <div class="progress-legend">
-    <div class="legend-description">
-    <p><strong data-i18n-key="legend_title">Invoice Progress Legend:</strong></p>
-    <ul>
-    <li><strong>SRV:</strong> <span data-i18n-key="legend_srv">Stock Receipt Voucher</span></li>
-    <li><strong>IPC/Report:</strong> <span data-i18n-key="legend_ipc">Interim Payment Certificate/Accounts Report</span></li>
-    <li><strong>Review:</strong> <span data-i18n-key="legend_review">Under Management Review</span></li>
-    <li><strong>CEO:</strong> <span data-i18n-key="legend_ceo">Awaiting CEO Approval</span></li>
-    <li><strong>Accounts:</strong> <span data-i18n-key="legend_accounts">Processed by Accounts Department</span></li>
-    </ul>
-    </div>
-    </div>
-    <div class="action-btns" style="margin-top: 20px; justify-content: center;">
-    <button class="btn btn-primary" id="requestUpdateBtn">
-        <i class="fas fa-comment-dots"></i> <span data-i18n-key="request_update_btn">Request Update</span>
-    </button>
-    </div>
-    </div>
-    </div>
-    <div class="modal" id="dashboardPreviewModal">
-    <div class="modal-content">
-    <span class="close-modal" onclick="closeDashboardPreview()">×</span>
-    <h2 id="invoiceModalTitle" data-i18n-key="modal_invoice_details">Invoice Details</h2>
-    <div class="preview-details">
-    <div class="detail-row">
-    <span class="detail-label" data-i18n-key="th_vendor">Vendor:</span>
-    <span class="detail-value" id="dashboardPreviewVendor"></span>
-    </div>
-    <div class="detail-row">
-    <span class="detail-label" data-i18n-key="th_po_number">PO Number:</span>
-    <span class="detail-value" id="dashboardPreviewPoNumber"></span>
-    </div>
-    <div class="detail-row">
-    <span class="detail-label" data-i18n-key="th_invoice_number">Invoice Number:</span>
-    <span class="detail-value" id="dashboardPreviewInvoiceNumber"></span>
-    </div>
-    <div class="detail-row">
-    <span class="detail-label" data-i18n-key="th_amount">Amount:</span>
-    <span class="detail-value" id="dashboardPreviewAmount"></span>
-    </div>
-    <div class="detail-row">
-    <span class="detail-label" data-i18n-key="th_status">Status:</span>
-    <span class="detail-value" id="dashboardPreviewStatus"></span>
-    </div>
-    <div class="detail-row">
-    <span class="detail-label" data-i18n-key="th_notes">Notes:</span>
-    <span class="detail-value" id="dashboardPreviewNotes"></span>
-    </div>
-    </div>
-    <div class="step-progress-container">
-    <div class="step-progress">
-    <div class="step step-1"></div>
-    <div class="step-connector"></div>
-    <div class="step step-2"></div>
-    <div class="step-connector"></div>
-    <div class="step step-3"></div>
-    <div class="step-connector"></div>
-    <div class="step step-4"></div>
-    <div class="step-connector"></div>
-    <div class="step step-5"></div>
-    </div>
-    <div class="step-labels">
-    <span class="step-label">SRV</span>
-    <span class="step-label">IPC/Report</span>
-    <span class="step-label">Review</span>
-    <span class="step-label">CEO</span>
-    <span class="step-label">Accounts</span>
-    </div>
-    </div>
-    <div class="action-btns" style="margin-top: 20px; justify-content: center;">
-    <button class="btn btn-primary" id="dashboardRequestUpdateBtn">
+<input accept=".csv" class="file-input" id="approverCsvInput" type="file"/>
+</div>
+<button class="btn btn-primary" id="uploadApproverBtn" onclick="uploadApproverCSV()">
+<i class="fas fa-upload"></i> <span data-i18n-key="dm_upload_approver_csv">Upload Approver CSV</span>
+  </button>
+<div class="upload-status" id="approverUploadStatus"></div>
+<a class="template-download" href="#" onclick="downloadApproverTemplate()">
+<i class="fas fa-download"></i> <span data-i18n-key="dm_download_approver_template">Download Approver CSV Template</span>
+  </a>
+<p style="margin-top:8px;font-size:13px;color:#666">Headers: <b>Name, Position, Mobile Number, Email</b> (Email optional)</p>
+</div>
+<div class="management-card auth-card"> <div class="auth-strip-title"><i class="fas fa-lock"></i><span data-i18n-key="dm_admin_auth">Admin Authentication</span></div> <button class="btn btn-secondary back-inline" onclick="showSection('mainPageSection')"> <i class="fas fa-arrow-left"></i> <span data-i18n-key="back_btn">Back</span>  </button> <button class="btn btn-danger" id="logoutBtn" onclick="logout()" style="display: none;" data-i18n-key="logout_btn">Logout</button> <div class="login-info" id="loginInfo"><strong id="loggedInAs" style="display:none;"></strong></div> <input class="auth-input" id="emailInput" placeholder="Admin Email" data-i18n-key="admin_email_placeholder" type="email"/> <input class="auth-input" id="passwordInput" placeholder="Password" data-i18n-key="password_placeholder" type="password"/> <button class="btn btn-primary" id="loginBtn" onclick="login()" data-i18n-key="signin_btn">Sign in</button> <div class="auth-message" id="authMessage"></div></div>
+<div class="management-card upload-card">
+<h2><i class="fas fa-file-upload"></i> <span data-i18n-key="dm_upload_csv">Upload CSV Data</span></h2>
+<div class="year-selector">
+<label class="year-option">
+<input checked="" name="uploadYear" type="radio" value="2025"/>
+<span class="year-text">2025 Data</span>
+</label>
+<label class="year-option">
+<input name="uploadYear" type="radio" value="2022-2024"/>
+<span class="year-text">2022-2024 Data</span>
+</label>
+</div>
+<div class="file-input-container">
+<label class="file-input-label" for="csvFileInput">
+<i class="fas fa-file-csv"></i> <span data-i18n-key="dm_choose_csv">Choose CSV File</span>
+                        </label>
+<input accept=".csv" class="file-input" id="csvFileInput" type="file"/>
+</div>
+<button class="btn btn-primary" disabled="" id="uploadBtn" onclick="uploadCSV()">
+<i class="fas fa-upload"></i> <span data-i18n-key="dm_upload_csv_btn">Upload CSV</span>
+                    </button>
+<div class="upload-status" id="uploadStatus"></div>
+<a class="template-download" href="#" onclick="downloadTemplate()">
+<i class="fas fa-download"></i> <span data-i18n-key="dm_download_template">Download CSV Template</span>
+                    </a>
+</div>
+<div class="management-card manage-card">
+<h2><i class="fas fa-database"></i> <span data-i18n-key="dm_manage_data">Manage Data</span></h2>
+<div class="year-selector">
+<label class="year-option">
+<input checked="" name="manageYear" type="radio" value="2025"/>
+<span class="year-text">2025 Data</span>
+</label>
+<label class="year-option">
+<input name="manageYear" type="radio" value="2022-2024"/>
+<span class="year-text">2022-2024 Data</span>
+</label>
+</div>
+<button class="btn btn-danger" disabled="" id="clearDataBtn" onclick="clearFirebaseData()">
+<i class="fas fa-trash"></i> <span data-i18n-key="dm_clear_data_btn">Clear Data</span>
+                    </button>
+<div class="upload-status" id="manageStatus"></div>
+</div>
+</div>
+<div class="current-data-info">
+<h2 data-i18n-key="dm_current_data_info">Current Data Information</h2>
+<div class="storage-info" id="currentDataInfo">
+<strong data-i18n-key="dm_info_year">Current Year:</strong> <span id="currentYearDisplay">2025</span><br/>
+<strong data-i18n-key="dm_info_records">Record Count:</strong> <span id="recordCount">0</span><br/>
+<strong data-i18n-key="dm_info_updated">Last Updated:</strong> <span id="lastUpdated">Never</span>
+</div>
+</div>
+</div>
+</div>
+<div class="modal" id="invoicePreviewModal">
+<div class="modal-content">
+<span class="close-modal" onclick="closeInvoicePreview()">×</span>
+<h2 id="invoiceModalTitle" data-i18n-key="modal_invoice_details">Invoice Details</h2>
+<div class="preview-details">
+<div class="detail-row">
+<span class="detail-label" data-i18n-key="th_vendor">Vendor:</span>
+<span class="detail-value" id="previewVendor"></span>
+</div>
+<div class="detail-row">
+<span class="detail-label" data-i18n-key="th_po_number">PO Number:</span>
+<span class="detail-value" id="previewPoNumber"></span>
+</div>
+<div class="detail-row">
+<span class="detail-label" data-i18n-key="th_invoice_number">Invoice Number:</span>
+<span class="detail-value" id="previewInvoiceNumber"></span>
+</div>
+<div class="detail-row">
+<span class="detail-label" data-i18n-key="th_amount">Amount:</span>
+<span class="detail-value" id="previewAmount"></span>
+</div>
+<div class="detail-row">
+<span class="detail-label" data-i18n-key="th_status">Status:</span>
+<span class="detail-value" id="previewStatus"></span>
+</div>
+<div class="detail-row">
+<span class="detail-label" data-i18n-key="th_release_date">Release Date:</span>
+<span class="detail-value" id="previewReleaseDate"></span>
+</div>
+<div class="detail-row">
+<span class="detail-label" data-i18n-key="th_notes">Notes:</span>
+<span class="detail-value" id="previewNotes"></span>
+</div>
+</div>
+<div class="step-progress-container">
+<div class="step-progress">
+<div class="step step-1"></div>
+<div class="step-connector"></div>
+<div class="step step-2"></div>
+<div class="step-connector"></div>
+<div class="step step-3"></div>
+<div class="step-connector"></div>
+<div class="step step-4"></div>
+<div class="step-connector"></div>
+<div class="step step-5"></div>
+</div>
+<div class="step-labels">
+<span class="step-label">SRV</span>
+<span class="step-label">IPC/Report</span>
+<span class="step-label">Review</span>
+<span class="step-label">CEO</span>
+<span class="step-label">Accounts</span>
+</div>
+</div>
+<div class="progress-legend">
+<div class="legend-description">
+<p><strong data-i18n-key="legend_title">Invoice Progress Legend:</strong></p>
+<ul>
+<li><strong>SRV:</strong> <span data-i18n-key="legend_srv">Stock Receipt Voucher</span></li>
+<li><strong>IPC/Report:</strong> <span data-i18n-key="legend_ipc">Interim Payment Certificate/Accounts Report</span></li>
+<li><strong>Review:</strong> <span data-i18n-key="legend_review">Under Management Review</span></li>
+<li><strong>CEO:</strong> <span data-i18n-key="legend_ceo">Awaiting CEO Approval</span></li>
+<li><strong>Accounts:</strong> <span data-i18n-key="legend_accounts">Processed by Accounts Department</span></li>
+</ul>
+</div>
+</div>
+<div class="action-btns" style="margin-top: 20px; justify-content: center;">
+<button class="btn btn-primary" id="requestUpdateBtn">
     <i class="fas fa-comment-dots"></i> <span data-i18n-key="request_update_btn">Request Update</span>
-        </button>
-    </div>
-    </div>
-    </div>
-    <div class="modal" id="collectionModal">
-    <div class="modal-content" style="width: 95%; max-width: 1200px; max-height: 90vh;">
-    <span class="close-modal" onclick="closeCollectionModal()">×</span>
-    <h2 style="font-size: 1.8rem; margin-bottom: 20px;" data-i18n-key="collection_title">Invoice Collection</h2>
-    <div class="collection-info" style="display: flex; justify-content: space-between; margin-bottom: 25px;">
-    <div class="info-item" style="flex: 1; margin: 0 10px;">
-    <span class="info-label" style="font-size: 1.2rem;" data-i18n-key="collection_total_items">Total Items:</span>
-    <span class="info-value" id="collectionCount" style="font-size: 1.5rem; font-weight: bold;">0</span>
-    </div>
-    <div class="info-item" style="flex: 1; margin: 0 10px;">
-    <span class="info-label" style="font-size: 1.2rem;" data-i18n-key="collection_total_amount">Total Amount:</span>
-    <span class="info-value" id="collectionTotalAmount" style="font-size: 1.5rem; font-weight: bold;">0.00</span>
-    </div>
-    </div>
-    <div class="collection-actions" style="display: flex; justify-content: center; gap: 20px; margin-bottom: 25px;">
-    <button class="btn btn-primary" onclick="printCollection()" style="padding: 12px 24px; font-size: 1.1rem;">
-    <i class="fas fa-print"></i> <span data-i18n-key="collection_print">Print Collection</span>
-                </button>
-    <button class="btn btn-danger" onclick="clearCollection()" style="padding: 12px 24px; font-size: 1.1rem;">
-    <i class="fas fa-trash"></i> <span data-i18n-key="collection_clear">Clear Collection</span>
-                </button>
-    </div>
-    <div class="table-responsive" style="max-height: 60vh; overflow-y: auto;">
-    <table id="collectionTable" style="width: 100%; font-size: 1rem;">
-    <thead>
-    <tr>
-    <th style="padding: 15px; min-width: 50px;" data-i18n-key="th_id">ID</th>
-    <th style="padding: 15px; min-width: 120px;" data-i18n-key="th_release_date">Release Date</th>
-    <th style="padding: 15px; min-width: 100px;" data-i18n-key="th_site">Site</th>
-    <th style="padding: 15px; min-width: 150px;" data-i18n-key="th_po">PO</th>
-    <th style="padding: 15px; min-width: 200px;" data-i18n-key="th_vendor">Vendor</th>
-    <th style="padding: 15px; min-width: 150px;" data-i18n-key="th_invoice">Invoice</th>
-    <th style="padding: 15px; min-width: 120px;" data-i18n-key="th_amount">Amount</th>
-    <th style="padding: 15px; min-width: 120px;" data-i18n-key="th_status">Status</th>
-    <th style="padding: 15px; min-width: 250px;" data-i18n-key="th_note">Note</th>
-    </tr>
-    </thead>
-    <tbody></tbody>
-    </table>
-    </div>
-    </div>
-    </div>
-    <div class="loading-overlay" id="loadingOverlay">
-    <div class="loading-content">
-    <div class="corporate-spinner"></div>
-    <h3 data-i18n-key="loading_title">Loading Data...</h3>
-    <p data-i18n-key="loading_message">Please wait while we process your request</p>
-    </div>
-    </div>
-    <div class="modal" id="searchAddModal">
-        <div class="modal-content" style="max-width: 800px;">
-            <span class="close-modal" onclick="closeSearchAddModal()">×</span>
-            <h2 data-i18n-key="modal_search_add_title">Search and Add Invoice to Payments</h2>
-            <div class="modal-actions">
-                <input class="search-input" id="searchAddInput" onkeypress="handleSearchAddKeyPress(event)" placeholder="Search invoices..." data-i18n-key="search_invoices_placeholder" type="text"/>
-                <button class="btn btn-primary search-btn" onclick="searchInvoicesToAdd()">
-                    <i class="fas fa-search"></i> <span class="btn-text" data-i18n-key="search_btn">Search</span>
-                </button>
-                <button class="btn btn-success" onclick="addSelectedInvoicesFromSearch()">
-                    <i class="fas fa-plus"></i> <span class="btn-text" data-i18n-key="add_selected_btn">Add Selected to Payments</span>
-                </button>
-            </div>
-            <div class="table-responsive" style="max-height: 40vh; margin-top: 15px;">
-                <table id="searchAddTable">
-                    <thead>
-                        <tr>
-                            <th><input type="checkbox" onchange="toggleAllSearchAdd(this)"></th>
-                            <th data-i18n-key="th_po">PO</th>
-                            <th data-i18n-key="th_invoice">Invoice</th>
-                            <th data-i18n-key="th_vendor">Vendor</th>
-                            <th data-i18n-key="th_amount">Amount</th>
-                        </tr>
-                    </thead>
-                    <tbody id="searchAddTableBody"></tbody>
-                </table>
-            </div>
+</button>
+</div>
+</div>
+</div>
+<div class="modal" id="dashboardPreviewModal">
+<div class="modal-content">
+<span class="close-modal" onclick="closeDashboardPreview()">×</span>
+<h2 id="invoiceModalTitle" data-i18n-key="modal_invoice_details">Invoice Details</h2>
+<div class="preview-details">
+<div class="detail-row">
+<span class="detail-label" data-i18n-key="th_vendor">Vendor:</span>
+<span class="detail-value" id="dashboardPreviewVendor"></span>
+</div>
+<div class="detail-row">
+<span class="detail-label" data-i18n-key="th_po_number">PO Number:</span>
+<span class="detail-value" id="dashboardPreviewPoNumber"></span>
+</div>
+<div class="detail-row">
+<span class="detail-label" data-i18n-key="th_invoice_number">Invoice Number:</span>
+<span class="detail-value" id="dashboardPreviewInvoiceNumber"></span>
+</div>
+<div class="detail-row">
+<span class="detail-label" data-i18n-key="th_amount">Amount:</span>
+<span class="detail-value" id="dashboardPreviewAmount"></span>
+</div>
+<div class="detail-row">
+<span class="detail-label" data-i18n-key="th_status">Status:</span>
+<span class="detail-value" id="dashboardPreviewStatus"></span>
+</div>
+<div class="detail-row">
+<span class="detail-label" data-i18n-key="th_notes">Notes:</span>
+<span class="detail-value" id="dashboardPreviewNotes"></span>
+</div>
+</div>
+<div class="step-progress-container">
+<div class="step-progress">
+<div class="step step-1"></div>
+<div class="step-connector"></div>
+<div class="step step-2"></div>
+<div class="step-connector"></div>
+<div class="step step-3"></div>
+<div class="step-connector"></div>
+<div class="step step-4"></div>
+<div class="step-connector"></div>
+<div class="step step-5"></div>
+</div>
+<div class="step-labels">
+<span class="step-label">SRV</span>
+<span class="step-label">IPC/Report</span>
+<span class="step-label">Review</span>
+<span class="step-label">CEO</span>
+<span class="step-label">Accounts</span>
+</div>
+</div>
+<div class="action-btns" style="margin-top: 20px; justify-content: center;">
+<button class="btn btn-primary" id="dashboardRequestUpdateBtn">
+<i class="fas fa-comment-dots"></i> <span data-i18n-key="request_update_btn">Request Update</span>
+    </button>
+</div>
+</div>
+</div>
+<div class="modal" id="collectionModal">
+<div class="modal-content" style="width: 95%; max-width: 1200px; max-height: 90vh;">
+<span class="close-modal" onclick="closeCollectionModal()">×</span>
+<h2 style="font-size: 1.8rem; margin-bottom: 20px;" data-i18n-key="collection_title">Invoice Collection</h2>
+<div class="collection-info" style="display: flex; justify-content: space-between; margin-bottom: 25px;">
+<div class="info-item" style="flex: 1; margin: 0 10px;">
+<span class="info-label" style="font-size: 1.2rem;" data-i18n-key="collection_total_items">Total Items:</span>
+<span class="info-value" id="collectionCount" style="font-size: 1.5rem; font-weight: bold;">0</span>
+</div>
+<div class="info-item" style="flex: 1; margin: 0 10px;">
+<span class="info-label" style="font-size: 1.2rem;" data-i18n-key="collection_total_amount">Total Amount:</span>
+<span class="info-value" id="collectionTotalAmount" style="font-size: 1.5rem; font-weight: bold;">0.00</span>
+</div>
+</div>
+<div class="collection-actions" style="display: flex; justify-content: center; gap: 20px; margin-bottom: 25px;">
+<button class="btn btn-primary" onclick="printCollection()" style="padding: 12px 24px; font-size: 1.1rem;">
+<i class="fas fa-print"></i> <span data-i18n-key="collection_print">Print Collection</span>
+            </button>
+<button class="btn btn-danger" onclick="clearCollection()" style="padding: 12px 24px; font-size: 1.1rem;">
+<i class="fas fa-trash"></i> <span data-i18n-key="collection_clear">Clear Collection</span>
+            </button>
+</div>
+<div class="table-responsive" style="max-height: 60vh; overflow-y: auto;">
+<table id="collectionTable" style="width: 100%; font-size: 1rem;">
+<thead>
+<tr>
+<th style="padding: 15px; min-width: 50px;" data-i18n-key="th_id">ID</th>
+<th style="padding: 15px; min-width: 120px;" data-i18n-key="th_release_date">Release Date</th>
+<th style="padding: 15px; min-width: 100px;" data-i18n-key="th_site">Site</th>
+<th style="padding: 15px; min-width: 150px;" data-i18n-key="th_po">PO</th>
+<th style="padding: 15px; min-width: 200px;" data-i18n-key="th_vendor">Vendor</th>
+<th style="padding: 15px; min-width: 150px;" data-i18n-key="th_invoice">Invoice</th>
+<th style="padding: 15px; min-width: 120px;" data-i18n-key="th_amount">Amount</th>
+<th style="padding: 15px; min-width: 120px;" data-i18n-key="th_status">Status</th>
+<th style="padding: 15px; min-width: 250px;" data-i18n-key="th_note">Note</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+</div>
+<div class="loading-overlay" id="loadingOverlay">
+<div class="loading-content">
+<div class="corporate-spinner"></div>
+<h3 data-i18n-key="loading_title">Loading Data...</h3>
+<p data-i18n-key="loading_message">Please wait while we process your request</p>
+</div>
+</div>
+<div class="modal" id="searchAddModal">
+    <div class="modal-content" style="max-width: 800px;">
+        <span class="close-modal" onclick="closeSearchAddModal()">×</span>
+        <h2 data-i18n-key="modal_search_add_title">Search and Add Invoice to Payments</h2>
+        <div class="modal-actions">
+            <input class="search-input" id="searchAddInput" onkeypress="handleSearchAddKeyPress(event)" placeholder="Search invoices..." data-i18n-key="search_invoices_placeholder" type="text"/>
+            <button class="btn btn-primary search-btn" onclick="searchInvoicesToAdd()">
+                <i class="fas fa-search"></i> <span class="btn-text" data-i18n-key="search_btn">Search</span>
+            </button>
+            <button class="btn btn-success" onclick="addSelectedInvoicesFromSearch()">
+                <i class="fas fa-plus"></i> <span class="btn-text" data-i18n-key="add_selected_btn">Add Selected to Payments</span>
+            </button>
+        </div>
+        <div class="table-responsive" style="max-height: 40vh; margin-top: 15px;">
+            <table id="searchAddTable">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" onchange="toggleAllSearchAdd(this)"></th>
+                        <th data-i18n-key="th_po">PO</th>
+                        <th data-i18n-key="th_invoice">Invoice</th>
+                        <th data-i18n-key="th_vendor">Vendor</th>
+                        <th data-i18n-key="th_amount">Amount</th>
+                    </tr>
+                </thead>
+                <tbody id="searchAddTableBody"></tbody>
+            </table>
         </div>
     </div>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
-    <script>
-    // Register Chart.js plugins if present
-    if (window.Chart && window.ChartDataLabels) { Chart.register(window.ChartDataLabels); }
-    </script>
-    <script src="app.js"></script>
-    <div class="modal" id="approvalModal">
-    <div class="modal-content">
-    <span class="close-modal" onclick="closeApprovalModal()">×</span>
-    <h2 data-i18n-key="modal_approval_title">Send Approval via WhatsApp</h2>
-    <div class="preview-details">
-    <div class="detail-row"><span class="detail-label" data-i18n-key="th_site">Site:</span><span class="detail-value" id="apprSite"></span></div>
-    <div class="detail-row"><span class="detail-label" data-i18n-key="th_po_number">PO Number:</span><span class="detail-value" id="apprPO"></span></div>
-    <div class="detail-row"><span class="detail-label" data-i18n-key="th_vendor">Vendor:</span><span class="detail-value" id="apprVendor"></span></div>
-    <div class="detail-row"><span class="detail-label" data-i18n-key="th_amount">Amount:</span><span class="detail-value" id="apprAmount"></span></div>
-    </div>
-    <div style="margin:12px 0">
-    <label class="detail-label" for="approverSelect" style="display:block;margin-bottom:6px;" data-i18n-key="modal_send_to">Send to Below List</label>
-    <select class="auth-input" id="approverSelect"></select>
-    <small style="display:block;margin-top:6px;color:#666">  <b> </b></small>
-    </div>
-    <div style="margin:12px 0">
-    <label class="detail-label" for="approvalMessage" style="display:block;margin-bottom:6px;" data-i18n-key="modal_optional_message">Optional Message</label>
-    <textarea class="auth-input" id="approvalMessage" placeholder="Add a short note (optional)" data-i18n-key="modal_message_placeholder" rows="3"></textarea>
-    </div>
-    <div class="action-btns" style="margin-top: 12px; justify-content:center;">
-    <button class="btn btn-success" id="sendApprovalBtn">
-    <i class="fab fa-whatsapp"></i> <span data-i18n-key="modal_send_whatsapp">Send via WhatsApp</span>
-          </button>
-    </div>
-    </div>
-    </div>
-    <div class="modal" id="addPaymentModal">
-    <div class="modal-content">
-    <span class="close-modal" onclick="closeAddPaymentModal()">×</span>
-    <h2 data-i18n-key="modal_confirm_payment_title">Confirm Add to Accounts Entry</h2>
-    <div class="payment-details-container">
-    <p data-i18n-key="modal_confirm_payment_message">You are about to create payment entries for the following invoices:</p>
-    <ul id="paymentInvoiceList"></ul>
-    <div class="detail-row">
-    <label class="detail-label" data-i18n-key="modal_total_invoice_value">Total Invoice Value</label>
-    <input type="text" id="paymentTotalAmount" class="auth-input" readonly style="font-weight: bold; background-color: #e9ecef;">
-    </div>
-    <div class="detail-row">
-    <label for="datePaidInput" class="detail-label" data-i18n-key="modal_payment_date">Payment Date for this Batch</label>
-    <input type="date" id="datePaidInput" class="auth-input" required>
-    </div>
-    </div>
-    <div class="action-btns" style="margin-top: 20px; justify-content: center;">
-    <button class="btn btn-success" onclick="addPaymentEntry()">
-    <i class="fas fa-save"></i> <span data-i18n-key="modal_save_payments">Save Payments</span>
-    </button>
-    </div>
-    </div>
-    </div>
-    <div class="modal" id="editPaymentModal">
-    <div class="modal-content">
-    <span class="close-modal" onclick="closeEditPaymentModal()">×</span>
-    <h2 data-i18n-key="modal_edit_payment_title">Edit Payment Entry</h2>
-    <div class="payment-details-container">
-    <p><strong data-i18n-key="modal_editing_for">Editing Payment for:</strong> <span id="editPaymentIdentifier"></span></p>
-    <input type="hidden" id="editPaymentKey">
-    <input type="hidden" id="editPaymentEntryKey">
-    <div class="detail-row">
-    <label for="editPaymentNumberInput" class="detail-label" data-i18n-key="th_payment_no">Payment Number</label>
-    <input type="text" id="editPaymentNumberInput" class="auth-input" readonly style="background-color: #e9ecef;">
-    </div>
-    <div class="detail-row">
-    <label for="editAmountPaidInput" class="detail-label" data-i18n-key="th_amount_paid">Amount Paid</label>
-    <input type="number" id="editAmountPaidInput" class="auth-input" step="0.01" required>
-    </div>
-    <div class="detail-row">
-    <label for="editDatePaidInput" class="detail-label" data-i18n-key="th_date_paid">Date Paid</label>
-    <input type="date" id="editDatePaidInput" class="auth-input" required>
-    </div>
-    </div>
-    <div class="action-btns" style="margin-top: 20px; justify-content: center;">
-    <button class="btn btn-success" onclick="savePaymentUpdate()">
-    <i class="fas fa-save"></i> <span data-i18n-key="modal_save_changes">Save Changes</span>
-    </button>
-    </div>
-    </div>
-    </div>
-    <nav aria-label="Primary" class="bottom-app-nav" id="bottomAppNav">
-        <button class="nav-btn" data-target="mainPageSection" onclick="handleBottomNav(this)">
-            <i class="fas fa-home"></i><span data-i18n-key="nav_home">Home</span>
-        </button>
-        <button class="nav-btn" data-target="invoiceSection" onclick="handleBottomNav(this)">
-            <i class="fas fa-file-invoice"></i><span data-i18n-key="nav_invoices">Invoices</span>
-        </button>
-        <button class="nav-btn" data-target="invoicePaymentsSection" onclick="handleBottomNav(this)">
-            <i class="fas fa-money-check-alt"></i><span data-i18n-key="nav_payments">Payments</span>
-        </button>
-        <button class="nav-btn" data-target="statementSection" onclick="handleBottomNav(this)">
-            <i class="fas fa-list"></i><span data-i18n-key="nav_statement">Statement</span>
-        </button>
-    </nav>
 </div>
-
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+<script>
+// Register Chart.js plugins if present
+if (window.Chart && window.ChartDataLabels) { Chart.register(window.ChartDataLabels); }
+</script>
+<script src="app.js"></script>
+<div class="modal" id="approvalModal">
+<div class="modal-content">
+<span class="close-modal" onclick="closeApprovalModal()">×</span>
+<h2 data-i18n-key="modal_approval_title">Send Approval via WhatsApp</h2>
+<div class="preview-details">
+<div class="detail-row"><span class="detail-label" data-i18n-key="th_site">Site:</span><span class="detail-value" id="apprSite"></span></div>
+<div class="detail-row"><span class="detail-label" data-i18n-key="th_po_number">PO Number:</span><span class="detail-value" id="apprPO"></span></div>
+<div class="detail-row"><span class="detail-label" data-i18n-key="th_vendor">Vendor:</span><span class="detail-value" id="apprVendor"></span></div>
+<div class="detail-row"><span class="detail-label" data-i18n-key="th_amount">Amount:</span><span class="detail-value" id="apprAmount"></span></div>
+</div>
+<div style="margin:12px 0">
+<label class="detail-label" for="approverSelect" style="display:block;margin-bottom:6px;" data-i18n-key="modal_send_to">Send to Below List</label>
+<select class="auth-input" id="approverSelect"></select>
+<small style="display:block;margin-top:6px;color:#666">  <b> </b></small>
+</div>
+<div style="margin:12px 0">
+<label class="detail-label" for="approvalMessage" style="display:block;margin-bottom:6px;" data-i18n-key="modal_optional_message">Optional Message</label>
+<textarea class="auth-input" id="approvalMessage" placeholder="Add a short note (optional)" data-i18n-key="modal_message_placeholder" rows="3"></textarea>
+</div>
+<div class="action-btns" style="margin-top: 12px; justify-content:center;">
+<button class="btn btn-success" id="sendApprovalBtn">
+<i class="fab fa-whatsapp"></i> <span data-i18n-key="modal_send_whatsapp">Send via WhatsApp</span>
+      </button>
+</div>
+</div>
+</div>
+<div class="modal" id="addPaymentModal">
+<div class="modal-content">
+<span class="close-modal" onclick="closeAddPaymentModal()">×</span>
+<h2 data-i18n-key="modal_confirm_payment_title">Confirm Add to Accounts Entry</h2>
+<div class="payment-details-container">
+<p data-i18n-key="modal_confirm_payment_message">You are about to create payment entries for the following invoices:</p>
+<ul id="paymentInvoiceList"></ul>
+<div class="detail-row">
+<label class="detail-label" data-i18n-key="modal_total_invoice_value">Total Invoice Value</label>
+<input type="text" id="paymentTotalAmount" class="auth-input" readonly style="font-weight: bold; background-color: #e9ecef;">
+</div>
+<div class="detail-row">
+<label for="datePaidInput" class="detail-label" data-i18n-key="modal_payment_date">Payment Date for this Batch</label>
+<input type="date" id="datePaidInput" class="auth-input" required>
+</div>
+</div>
+<div class="action-btns" style="margin-top: 20px; justify-content: center;">
+<button class="btn btn-success" onclick="addPaymentEntry()">
+<i class="fas fa-save"></i> <span data-i18n-key="modal_save_payments">Save Payments</span>
+</button>
+</div>
+</div>
+</div>
+<div class="modal" id="editPaymentModal">
+<div class="modal-content">
+<span class="close-modal" onclick="closeEditPaymentModal()">×</span>
+<h2 data-i18n-key="modal_edit_payment_title">Edit Payment Entry</h2>
+<div class="payment-details-container">
+<p><strong data-i18n-key="modal_editing_for">Editing Payment for:</strong> <span id="editPaymentIdentifier"></span></p>
+<input type="hidden" id="editPaymentKey">
+<input type="hidden" id="editPaymentEntryKey">
+<div class="detail-row">
+<label for="editPaymentNumberInput" class="detail-label" data-i18n-key="th_payment_no">Payment Number</label>
+<input type="text" id="editPaymentNumberInput" class="auth-input" readonly style="background-color: #e9ecef;">
+</div>
+<div class="detail-row">
+<label for="editAmountPaidInput" class="detail-label" data-i18n-key="th_amount_paid">Amount Paid</label>
+<input type="number" id="editAmountPaidInput" class="auth-input" step="0.01" required>
+</div>
+<div class="detail-row">
+<label for="editDatePaidInput" class="detail-label" data-i18n-key="th_date_paid">Date Paid</label>
+<input type="date" id="editDatePaidInput" class="auth-input" required>
+</div>
+</div>
+<div class="action-btns" style="margin-top: 20px; justify-content: center;">
+<button class="btn btn-success" onclick="savePaymentUpdate()">
+<i class="fas fa-save"></i> <span data-i18n-key="modal_save_changes">Save Changes</span>
+</button>
+</div>
+</div>
+</div>
+<nav aria-label="Primary" class="bottom-app-nav" id="bottomAppNav">
+    <button class="nav-btn" data-target="mainPageSection" onclick="handleBottomNav(this)">
+        <i class="fas fa-home"></i><span data-i18n-key="nav_home">Home</span>
+    </button>
+    <button class="nav-btn" data-target="invoiceSection" onclick="handleBottomNav(this)">
+        <i class="fas fa-file-invoice"></i><span data-i18n-key="nav_invoices">Invoices</span>
+    </button>
+    <button class="nav-btn" data-target="invoicePaymentsSection" onclick="handleBottomNav(this)">
+        <i class="fas fa-money-check-alt"></i><span data-i18n-key="nav_payments">Payments</span>
+    </button>
+    <button class="nav-btn" data-target="statementSection" onclick="handleBottomNav(this)">
+        <i class="fas fa-list"></i><span data-i18n-key="nav_statement">Statement</span>
+    </button>
+</nav>
 </body>
 </html>
