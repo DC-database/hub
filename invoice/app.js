@@ -3827,7 +3827,7 @@ async function handleVerify() {
             if (identifier.includes('@')) {
                 loginMessage.textContent = 'User not found with this email. Please try your mobile number.';
             } else {
-                loginMessage.textContent = 'User not registered. Please check your mobile or email.';
+                loginMessage.textContent = 'User not registered. Please Type Company Issued Mobile Number.';
             }
         }
 
