@@ -189,7 +189,7 @@ function verifyPassword() {
     showApp(); // Success!
   } else {
     // --- THIS IS THE ONLY LINE THAT CHANGED ---
-    showPasswordError('Incorrect password. Please ensure CAPS LOCK is on and try again.');
+    showPasswordError('Incorrect password. Please ensure PASSWORD IN ALL CAPITAL LETTER.');
   }
 }
 
@@ -503,4 +503,5 @@ function resetForm() {
   setDefaultDate();
   elements.from.value = "IBA";
   elements.site.focus();
+
 }
