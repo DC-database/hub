@@ -189,7 +189,7 @@ function verifyPassword() {
     showApp(); // Success!
   } else {
     // --- THIS IS THE ONLY LINE THAT CHANGED ---
-    showPasswordError('Incorrect password. Please ensure PASSWORD IN ALL CAPITAL LETTER.');
+    showPasswordError('Incorrect password. Please Try Again.');
   }
 }
 
@@ -505,3 +505,4 @@ function resetForm() {
   elements.site.focus();
 
 }
+
