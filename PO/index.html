@@ -66,7 +66,7 @@
 
       <div id="adminTab" class="tabContent hidden">
         <h2>Admin Login</h2>
-        <input type="email" id="email" placeholder="Email" />
+        <input type="email" id="email" placeholder="Email" autocomplete="off" />
         <input type="password" id="password" placeholder="Password" />
         <button onclick="login()">Login</button>
         <button onclick="logout()">Logout</button>
@@ -96,7 +96,7 @@
         <div class="modal-content">
           <span class="close" onclick="toggleLoginModal()">&times;</span>
           <h3>Login</h3>
-          <input type="email" id="popupEmail" placeholder="Email" />
+          <input type="email" id="popupEmail" placeholder="Email" autocomplete="off" />
           <input type="password" id="popupPassword" placeholder="Password" />
           <button onclick="popupLogin()">Login</button>
         </div>
