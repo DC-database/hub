@@ -2980,18 +2980,12 @@ function showToast(message) {
 
 // Add to collection from tracker
 function addToCollectionFromTracker() {
-    const selectedRows = document.querySelectorAll('#recordsTable tbody tr.selected-row');
-    const selectedRecords = [];
-    
-    selectedRows.forEach(row => {
-        const rowIndex = Array.from(row.parentNode.children).indexOf(row);
-        if (currentFilteredRecords && rowIndex < currentFilteredRecords.length) {
-            selectedRecords.push(currentFilteredRecords[rowIndex]);
-        }
-    });
+    // FIX: Use the correct function that checks for ticked checkboxes.
+    const selectedRecords = getSelectedTrackerRecords();
     
     if (selectedRecords.length === 0) {
-        alert('Please select at least one record (click on a row) to add to collection');
+        // FIX: Updated the alert to be more accurate.
+        alert('Please select at least one record by ticking the checkbox to add to collection');
         return;
     }
     
