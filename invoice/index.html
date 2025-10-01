@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-f-8"/>
+<meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
 <meta content="yes" name="apple-mobile-web-app-capable"/>
 <meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
@@ -48,22 +48,46 @@
 <div class="content-section active" id="mainPageSection">
 <h1 data-i18n-key="main_dashboard_title">INVOICE PROGRESSION (SITE & HO)</h1>
 <div class="overdue-cards-container">
-<div class="overdue-card srv" onclick="filterSiteRecords('For SRV', true)">
-<div class="overdue-icon"><i class="fas fa-file-invoice"></i></div>
-<div class="overdue-content">
-<div class="overdue-title" data-i18n-key="overdue_srv_title">Overdue SRV</div>
-<div class="overdue-count" id="overdueSRVCount">0</div>
-<div class="overdue-subtitle" data-i18n-key="overdue_subtitle">(more than a week)</div>
-</div>
-</div>
-<div class="overdue-card ipc" onclick="filterSiteRecords('For IPC', true)">
-<div class="overdue-icon"><i class="fas fa-file-invoice-dollar"></i></div>
-<div class="overdue-content">
-<div class="overdue-title" data-i18n-key="overdue_ipc_title">Overdue IPC</div>
-<div class="overdue-count" id="overdueIPCCount">0</div>
-<div class="overdue-subtitle" data-i18n-key="overdue_subtitle">(more than a week)</div>
-</div>
-</div>
+    <div class="overdue-card srv-week" onclick="filterOverdueSRVByWeek(1)">
+        <div class="overdue-icon"><i class="fas fa-file-invoice"></i></div>
+        <div class="overdue-content">
+            <div class="overdue-title">Overdue SRV</div>
+            <div class="overdue-count" id="overdueSRVCountW1">0</div>
+            <div class="overdue-subtitle">(1 Week)</div>
+        </div>
+    </div>
+    <div class="overdue-card srv-week" onclick="filterOverdueSRVByWeek(2)">
+        <div class="overdue-icon"><i class="fas fa-file-invoice"></i></div>
+        <div class="overdue-content">
+            <div class="overdue-title">Overdue SRV</div>
+            <div class="overdue-count" id="overdueSRVCountW2">0</div>
+            <div class="overdue-subtitle">(2 Weeks)</div>
+        </div>
+    </div>
+    <div class="overdue-card srv-week" onclick="filterOverdueSRVByWeek(3)">
+        <div class="overdue-icon"><i class="fas fa-file-invoice"></i></div>
+        <div class="overdue-content">
+            <div class="overdue-title">Overdue SRV</div>
+            <div class="overdue-count" id="overdueSRVCountW3">0</div>
+            <div class="overdue-subtitle">(3 Weeks)</div>
+        </div>
+    </div>
+    <div class="overdue-card srv-week" onclick="filterOverdueSRVByWeek(4)">
+        <div class="overdue-icon"><i class="fas fa-file-invoice"></i></div>
+        <div class="overdue-content">
+            <div class="overdue-title">Overdue SRV</div>
+            <div class="overdue-count" id="overdueSRVCountW4">0</div>
+            <div class="overdue-subtitle">(3+ Weeks)</div>
+        </div>
+    </div>
+    <div class="overdue-card ipc" onclick="filterSiteRecords('For IPC', true)">
+        <div class="overdue-icon"><i class="fas fa-file-invoice-dollar"></i></div>
+        <div class="overdue-content">
+            <div class="overdue-title" data-i18n-key="overdue_ipc_title">Overdue IPC</div>
+            <div class="overdue-count" id="overdueIPCCount">0</div>
+            <div class="overdue-subtitle" data-i18n-key="overdue_subtitle">(more than a week)</div>
+        </div>
+    </div>
 </div>
 <div class="search-container">
 <input autocomplete="off" class="search-input" id="siteSearchTerm" list="siteSuggestionsMain" placeholder="Search by site..." data-i18n-key="search_by_site_placeholder" type="text"/>

@@ -901,7 +901,7 @@ function refreshTable(filteredRecords = []) {
             <td>${index + 1}</td>
             <td>${formatDate(record.entryDate)}</td>
             <td>${record.site || '-'}</td>
-            <td>${record.poNumber || '-'}</td>
+            <td>${formatPoNumber(record.poNumber) || '-'}</td>
             <td>${record.vendor || '-'}</td>
             <td>${record.invoiceNumber || '-'}</td>
             <td class="numeric">${record.value ? formatNumber(record.value) : '-'}</td>
@@ -2490,8 +2490,14 @@ function setupResponsiveElements() {
 
 // Overdue progression check
 function checkOverdueProgression() {
-    const overdueSRV = [];
+    // MODIFICATION START: Initialize counters for the new SRV cards and the existing IPC card
+    let overdueSRV_W1 = 0;
+    let overdueSRV_W2 = 0;
+    let overdueSRV_W3 = 0;
+    let overdueSRV_W4 = 0; // for >3 weeks
     const overdueIPC = [];
+    // MODIFICATION END
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
@@ -2505,9 +2511,21 @@ function checkOverdueProgression() {
             const releaseDate = parseReleaseDate(record.releaseDate);
             const workingDaysPassed = getWorkingDays(releaseDate, today);
             
-            if (record.status === 'For SRV' && workingDaysPassed >= 7) {
-                overdueSRV.push(record);
+            // MODIFICATION START: Logic for new SRV categories based on working days passed
+            if (record.status === 'For SRV') {
+                if (workingDaysPassed >= 7 && workingDaysPassed < 14) {
+                    overdueSRV_W1++;
+                } else if (workingDaysPassed >= 14 && workingDaysPassed < 21) {
+                    overdueSRV_W2++;
+                } else if (workingDaysPassed >= 21 && workingDaysPassed < 28) {
+                    overdueSRV_W3++;
+                } else if (workingDaysPassed >= 28) {
+                    overdueSRV_W4++;
+                }
             }
+            // MODIFICATION END
+
+            // Keep original logic for IPC
             if (record.status === 'For IPC' && workingDaysPassed >= 7) {
                 overdueIPC.push(record);
             }
@@ -2516,8 +2534,70 @@ function checkOverdueProgression() {
         }
     });
 
-    document.getElementById('overdueSRVCount').textContent = overdueSRV.length;
+    // MODIFICATION START: Update the DOM and card visibility based on the new counts
+    const countElW1 = document.getElementById('overdueSRVCountW1');
+    countElW1.textContent = overdueSRV_W1;
+    // This line hides the parent card if the count is 0, and shows it if it's greater than 0
+    countElW1.closest('.overdue-card').style.display = overdueSRV_W1 > 0 ? 'flex' : 'none';
+
+    const countElW2 = document.getElementById('overdueSRVCountW2');
+    countElW2.textContent = overdueSRV_W2;
+    countElW2.closest('.overdue-card').style.display = overdueSRV_W2 > 0 ? 'flex' : 'none';
+
+    const countElW3 = document.getElementById('overdueSRVCountW3');
+    countElW3.textContent = overdueSRV_W3;
+    countElW3.closest('.overdue-card').style.display = overdueSRV_W3 > 0 ? 'flex' : 'none';
+
+    const countElW4 = document.getElementById('overdueSRVCountW4');
+    countElW4.textContent = overdueSRV_W4;
+    countElW4.closest('.overdue-card').style.display = overdueSRV_W4 > 0 ? 'flex' : 'none';
+    
+    // Keep original IPC logic (you can add the hide/show logic here too if you like)
     document.getElementById('overdueIPCCount').textContent = overdueIPC.length;
+    // MODIFICATION END
+}
+
+// NEW FUNCTION: Filters and displays overdue SRV records based on the selected week range
+function filterOverdueSRVByWeek(weekRange) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const filtered = records.filter(record => {
+        if (record.status !== 'For SRV' || !record.releaseDate) {
+            return false;
+        }
+        
+        try {
+            const releaseDate = parseReleaseDate(record.releaseDate);
+            const workingDaysPassed = getWorkingDays(releaseDate, today);
+            
+            switch(weekRange) {
+                case 1: // 1 Week overdue (7-13 days)
+                    return workingDaysPassed >= 7 && workingDaysPassed < 14;
+                case 2: // 2 Weeks overdue (14-20 days)
+                    return workingDaysPassed >= 14 && workingDaysPassed < 21;
+                case 3: // 3 Weeks overdue (21-27 days)
+                    return workingDaysPassed >= 21 && workingDaysPassed < 28;
+                case 4: // More than 3 weeks overdue (28+ days)
+                    return workingDaysPassed >= 28;
+                default:
+                    return false;
+            }
+        } catch (e) {
+            console.error('Error processing record for filtering:', record, e);
+            return false;
+        }
+    });
+    
+    // Hide status charts and show the results table, similar to the original overdue filter logic
+    domCache.statusPieChartContainer.style.display = 'none';
+    domCache.statusBarChartContainer.style.display = 'none';
+    document.getElementById('overdueBarChart').parentElement.style.display = 'block';
+
+    currentFilteredRecords = filtered;
+    refreshSiteTable(filtered);
+    initializeOverdueChart(filtered); // Update the overdue chart with the filtered data
+    domCache.siteRecordsTable.style.display = filtered.length > 0 ? 'table' : 'none';
 }
 
 // Dashboard Print Function

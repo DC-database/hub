@@ -1502,14 +1502,13 @@ tr:hover {
 
 /* Overdue Cards */
 .overdue-cards-container {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 15px;
     margin-bottom: 20px;
-    flex-wrap: wrap;
 }
 
 .overdue-card {
-    flex: 1;
     min-width: 150px;
     background: white;
     border-radius: 8px;
@@ -1531,6 +1530,10 @@ tr:hover {
     border-left: 4px solid #4e73df;
 }
 
+.overdue-card.srv-week {
+    border-left: 4px solid #4e73df;
+}
+
 .overdue-card.ipc {
     border-left: 4px solid #1cc88a;
 }
@@ -1547,6 +1550,10 @@ tr:hover {
 }
 
 .overdue-card.srv .overdue-icon {
+    background-color: #4e73df;
+}
+
+.overdue-card.srv-week .overdue-icon {
     background-color: #4e73df;
 }
 
@@ -1571,6 +1578,10 @@ tr:hover {
 }
 
 .overdue-card.srv .overdue-count {
+    color: #4e73df;
+}
+
+.overdue-card.srv-week .overdue-count {
     color: #4e73df;
 }
 
@@ -1606,13 +1617,7 @@ tr:hover {
 
 /* Responsive adjustments for overdue cards */
 @media (max-width: 768px) {
-    .overdue-cards-container {
-        flex-direction: column;
-    }
-    
-    .overdue-card {
-        min-width: 100%;
-    }
+    /* The grid layout handles this automatically, so the old rule is removed. */
 }
 
 /* Notes column in report table */
