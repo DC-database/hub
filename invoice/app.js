@@ -1,3815 +1,1189 @@
-let currentSearchedSite = '';
-// Firebase configuration - REPLACE WITH YOUR CONFIG
-const firebaseConfig = {
-  apiKey: "AIzaSyDtEp9HL7MfOlnrCI-MWuTY4k6vuGTMCIs",
-  authDomain: "invoice-ac1bc.firebaseapp.com",
-  projectId: "invoice-ac1bc",
-  storageBucket: "invoice-ac1bc.appspot.com",
-  messagingSenderId: "345752448964",
-  appId: "1:345752448964:web:e57f43e36ad3aa11efbe91",
-  measurementId: "G-H23T739E19"
-};
-
-// Initialize Firebase
+// --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
+const firebaseConfig = { apiKey: "AIzaSyBH3MgLP2wEdxaSWaGK0r8MN0f3doR5Z3U", authDomain: "ibainvoice-57cf4.firebaseapp.com", databaseURL: "https://ibainvoice-57cf4-default-rtdb.firebaseio.com", projectId: "ibainvoice-57cf4", storageBucket: "ibainvoice-57cf4.appspot.com", messagingSenderId: "170378572965", appId: "1:170378572965:web:dd29f69279d9ecf858094c", measurementId: "G-LD4B2RBSDV" };
 firebase.initializeApp(firebaseConfig);
-const database = firebase.database();
-const auth = firebase.auth();
+const db = firebase.database();
 
-// Enhanced device detection with touch support
-function detectDeviceType() {
-    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    document.body.classList.toggle('touch-device', isTouchDevice);
-}
+// --- 3. DOM ELEMENT REFERENCES & 4. GLOBAL STATE ---
+const views = { login: document.getElementById('login-view'), password: document.getElementById('password-view'), setup: document.getElementById('setup-view'), dashboard: document.getElementById('dashboard-view'), workdesk: document.getElementById('workdesk-view') };
+const loginForm = document.getElementById('login-form'); const loginIdentifierInput = document.getElementById('login-identifier'); const loginError = document.getElementById('login-error');
+const passwordForm = document.getElementById('password-form'); const passwordInput = document.getElementById('login-password'); const passwordUserIdentifier = document.getElementById('password-user-identifier'); const passwordError = document.getElementById('password-error');
+const setupForm = document.getElementById('setup-form'); const setupEmailContainer = document.getElementById('setup-email-container'); const setupEmailInput = document.getElementById('setup-email'); const setupSiteContainer = document.getElementById('setup-site-container'); const setupSiteInput = document.getElementById('setup-site'); const setupPositionContainer = document.getElementById('setup-position-container'); const setupPositionInput = document.getElementById('setup-position'); const setupPasswordInput = document.getElementById('setup-password'); const setupError = document.getElementById('setup-error');
+const dashboardUsername = document.getElementById('dashboard-username'); const datetimeElement = document.getElementById('datetime'); const logoutButton = document.getElementById('logout-button');
+const workdeskButton = document.getElementById('workdesk-button'); const wdUsername = document.getElementById('wd-username'); const wdUserIdentifier = document.getElementById('wd-user-identifier'); const workdeskNav = document.getElementById('workdesk-nav'); const workdeskSections = document.querySelectorAll('.workdesk-section'); const wdLogoutButton = document.getElementById('wd-logout-button');
+const jobEntryForm = document.getElementById('jobentry-form'); const jobForSelect = document.getElementById('job-for'); const jobDateInput = document.getElementById('job-date'); const jobEntrySearchInput = document.getElementById('job-entry-search'); const jobEntryTableWrapper = document.getElementById('job-entry-table-wrapper'); const jobEntryTableBody = document.getElementById('job-entry-table-body');
+const jobEntryFormTitle = document.getElementById('jobentry-form-title');
+const addJobButton = document.getElementById('add-job-button'); const updateJobButton = document.getElementById('update-job-button'); const clearJobButton = document.getElementById('clear-job-button');
+const activeTaskTableBody = document.getElementById('active-task-table-body');
+const taskHistoryTableBody = document.getElementById('task-history-table-body');
+const reportingTableBody = document.getElementById('reporting-table-body');
+const workdeskDatetimeElement = document.getElementById('workdesk-datetime');
+const activeTaskSearchInput = document.getElementById('active-task-search');
+const taskHistorySearchInput = document.getElementById('task-history-search');
+const reportingSearchInput = document.getElementById('reporting-search');
+const reportTabsContainer = document.getElementById('report-tabs');
+const printReportButton = document.getElementById('print-report-button');
+const dbActiveTasksCount = document.getElementById('db-active-tasks-count');
+const dbPendingEntriesCount = document.getElementById('db-pending-entries-count');
+const dbCompletedTasksCount = document.getElementById('db-completed-tasks-count');
+const dbSiteStatsContainer = document.getElementById('dashboard-site-stats');
+const dbRecentTasksBody = document.getElementById('db-recent-tasks-body');
 
-// Environment detection
-const isLocal = window.location.protocol === 'file:' || 
-                window.location.hostname === 'localhost' || 
-                window.location.hostname.endsWith('.local');
+// +++ INVOICE MANAGEMENT REFERENCES +++
+const invoiceManagementView = document.getElementById('invoice-management-view');
+const imNav = document.getElementById('im-nav');
+const imContentArea = document.getElementById('im-content-area');
+const invoiceManagementButton = document.getElementById('invoice-mgmt-button'); 
+const imUsername = document.getElementById('im-username');
+const imUserIdentifier = document.getElementById('im-user-identifier');
+const imLogoutButton = document.getElementById('im-logout-button');
+const imDatetimeElement = document.getElementById('im-datetime');
+const imPOSearchInput = document.getElementById('im-po-search-input');
+const imPOSearchButton = document.getElementById('im-po-search-button');
+const imPODetailsContainer = document.getElementById('im-po-details-container');
+const imPONo = document.getElementById('im-po-no');
+const imPOSite = document.getElementById('im-po-site');
+const imPOValue = document.getElementById('im-po-value');
+const imPOVendor = document.getElementById('im-po-vendor');
+const imNewInvoiceForm = document.getElementById('im-new-invoice-form');
+const imInvEntryIdInput = document.getElementById('im-inv-entry-id');
+const imFormTitle = document.getElementById('im-form-title');
+const imAttentionSelect = document.getElementById('im-attention');
+const imAddInvoiceButton = document.getElementById('im-add-invoice-button');
+const imUpdateInvoiceButton = document.getElementById('im-update-invoice-button');
+const imClearFormButton = document.getElementById('im-clear-form-button');
+const imExistingInvoicesContainer = document.getElementById('im-existing-invoices-container');
+const imInvoicesTableBody = document.getElementById('im-invoices-table-body');
+const imReportingForm = document.getElementById('im-reporting-form');
+const imReportingContent = document.getElementById('im-reporting-content');
+const imReportingSearchInput = document.getElementById('im-reporting-search');
+const imReportingClearButton = document.getElementById('im-reporting-clear-button');
+const imReportingDownloadCSVButton = document.getElementById('im-reporting-download-csv-button');
+const imInvoiceDateInput = document.getElementById('im-invoice-date');
+const imReleaseDateInput = document.getElementById('im-release-date');
 
-// Path configurations
-const PDF_BASE_PATH = "https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/DC%20Files/INVOICE/";
-const SRV_BASE_PATH = "https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/DC%20Files/SRV/";
 
-// Application state
-let records = [];
-let payments = []; // New state variable
-let activeFilter = 'all';
-let isLoading = false;
-let currentYear = '2025';
-let currentFilteredRecords = null;
-let isViewingSelected = false;
-let selectedRecords = [];
-let pendingPaymentRecords = []; // New variable to hold records for payment modal
+let currentApprover = null; let dateTimeInterval = null; let workdeskDateTimeInterval = null;
+let siteSelectChoices = null; let attentionSelectChoices = null;
+let currentlyEditingKey = null; let allJobEntries = []; let userJobEntries = [];
+let userActiveTasks = [];
+let userTaskHistory = [];
+let allSystemEntries = [];
+let currentReportFilter = 'All';
 
-// Chart instances
-let statusPieChart = null;
-let statusBarChart = null;
-let overdueBarChart = null;
+// +++ INVOICE MANAGEMENT STATE +++
+let imDateTimeInterval = null;
+let currentPO = null;
+let imAttentionSelectChoices = null; 
+let currentlyEditingInvoiceKey = null;
+let currentPOInvoices = {};
+let currentReportData = [];
 
 
-// --- Language and Translation Store ---
-const translations = {
-    'en': {
-        'menu_title': 'Menu',
-        'menu_dashboard': 'Main Dashboard',
-        'menu_tracker': 'Invoice Status Tracker',
-        'menu_payments': 'Invoice Payments',
-        'menu_ipc': 'IPC Records',
-        'menu_progress_po': 'Progress PO',
-        'menu_main_hub': 'Main Hub',
-        'menu_data_management': 'Data Management',
-        'refresh_data_btn': 'Refresh Data',
-        'status_not_connected': 'Not connected to data source',
-        'main_dashboard_title': 'INVOICE PROGRESSION (SITE & HO)',
-        'overdue_srv_title_card': 'Overdue SRV', // New key
-        'overdue_srv_w1': '(1 Week)',           // New key
-        'overdue_srv_w2': '(2 Weeks)',          // New key
-        'overdue_srv_w3': '(3 Weeks)',          // New key
-        'overdue_srv_w4': '(>3 Weeks)',         // New key
-        'overdue_ipc_title': 'Overdue IPC',
-        'overdue_subtitle': '(more than a week)',
-        'search_by_site_placeholder': 'Search by site...',
-        'search_btn': 'Search',
-        'print_selected_btn': 'Print Selected',
-        'view_selected_btn': 'View Selected',
-        'add_to_collection_btn': 'Add to Collection',
-        'view_collection_btn': 'View Collection',
-        'th_id': 'ID',
-        'th_release_date': 'Release Date',
-        'th_site': 'Site',
-        'th_po': 'PO',
-        'th_vendor': 'Vendor',
-        'th_invoice': 'Invoice',
-        'th_amount': 'Amount',
-        'th_status': 'Status',
-        'th_note': 'Note',
-        'tracker_title': 'INVOICE STATUS TRACKER',
-        'back_btn': 'Back',
-        'add_to_accounts_btn': 'Add to Accounts Entry',
-        'search_placeholder': 'Search...',
-        'date_placeholder': 'Date',
-        'filter_all': 'All',
-        'filter_open': 'Open',
-        'filter_pending': 'Pending',
-        'filter_no_inv': 'No INV',
-        'filter_srv': 'SRV',
-        'filter_ipc': 'IPC',
-        'filter_report': 'Report',
-        'filter_review': 'Review',
-        'filter_ceo': 'CEO',
-        'filter_accounts': 'Accounts',
-        'th_date': 'Date',
-        'th_release': 'Release',
-        'th_actions': 'Actions',
-        'payments_title': 'INVOICE PAYMENTS',
-        'search_payments_placeholder': 'Search payments by PO, vendor, or site...',
-        'add_invoice_btn': 'Add Invoice',
-        'th_po_number': 'PO Number',
-        'statement_title': 'Statement of Account',
-        'statement_type_po': 'PO Number',
-        'statement_type_vendor': 'Vendor',
-        'statement_type_site': 'Site',
-        'search_term_placeholder': 'Search term...',
-        'filter_all_statuses': 'All Statuses',
-        'include_notes_label': 'Include Notes',
-        'generate_btn': 'Generate',
-        'financial_summary_title': 'Financial Summary',
-        'summary_po_value': 'PO Value',
-        'summary_total_amount': 'Total Amount',
-        'summary_with_accounts': 'With Accounts',
-        'summary_balance': 'Balance',
-        'th_notes': 'Notes',
-        'total_label': 'Total',
-        'print_btn': 'Print',
-        'share_btn': 'Share',
-        'petty_cash_title': 'Petty Cash Summary',
-        'search_by_note_placeholder': 'Search by note...',
-        'summary_title': 'Summary',
-        'summary_records': 'Records',
-        'data_management_title': 'Data Management',
-        'dm_approver_list': 'Approver List',
-        'dm_choose_approver_csv': 'Choose Approver CSV',
-        'dm_upload_approver_csv': 'Upload Approver CSV',
-        'dm_download_approver_template': 'Download Approver CSV Template',
-        'dm_admin_auth': 'Admin Authentication',
-        'logout_btn': 'Logout',
-        'admin_email_placeholder': 'Admin Email',
-        'password_placeholder': 'Password',
-        'signin_btn': 'Sign in',
-        'dm_upload_csv': 'Upload CSV Data',
-        'dm_choose_csv': 'Choose CSV File',
-        'dm_upload_csv_btn': 'Upload CSV',
-        'dm_download_template': 'Download CSV Template',
-        'dm_manage_data': 'Manage Data',
-        'dm_clear_data_btn': 'Clear Data',
-        'dm_current_data_info': 'Current Data Information',
-        'dm_info_year': 'Current Year:',
-        'dm_info_records': 'Record Count:',
-        'dm_info_updated': 'Last Updated:',
-        'modal_invoice_details': 'Invoice Details',
-        'th_invoice_number': 'Invoice Number',
-        'legend_title': 'Invoice Progress Legend:',
-        'legend_srv': 'Stock Receipt Voucher',
-        'legend_ipc': 'Interim Payment Certificate/Accounts Report',
-        'legend_review': 'Under Management Review',
-        'legend_ceo': 'Awaiting CEO Approval',
-        'legend_accounts': 'Processed by Accounts Department',
-        'request_update_btn': 'Request Update',
-        'collection_title': 'Invoice Collection',
-        'collection_total_items': 'Total Items:',
-        'collection_total_amount': 'Total Amount:',
-        'collection_print': 'Print Collection',
-        'collection_clear': 'Clear Collection',
-        'loading_title': 'Loading Data...',
-        'loading_message': 'Please wait while we process your request',
-        'modal_search_add_title': 'Search and Add Invoice to Payments',
-        'search_invoices_placeholder': 'Search invoices...',
-        'add_selected_btn': 'Add Selected to Payments',
-        'modal_approval_title': 'Send Approval via WhatsApp',
-        'modal_send_to': 'Send to Below List',
-        'modal_optional_message': 'Optional Message',
-        'modal_message_placeholder': 'Add a short note (optional)',
-        'modal_send_whatsapp': 'Send via WhatsApp',
-        'modal_confirm_payment_title': 'Confirm Add to Accounts Entry',
-        'modal_confirm_payment_message': 'You are about to create payment entries for the following invoices:',
-        'modal_total_invoice_value': 'Total Invoice Value',
-        'modal_payment_date': 'Payment Date for this Batch',
-        'modal_save_payments': 'Save Payments',
-        'modal_edit_payment_title': 'Edit Payment Entry',
-        'modal_editing_for': 'Editing Payment for:',
-        'th_payment_no': 'Payment Number',
-        'th_amount_paid': 'Amount Paid',
-        'th_date_paid': 'Date Paid',
-        'modal_save_changes': 'Save Changes',
-        'nav_home': 'Home',
-        'nav_invoices': 'Invoices',
-        'nav_payments': 'Payments',
-        'nav_statement': 'Statement',
-        'nav_ipc': 'IPC',
-        'toggle_language_btn': 'العربية'
-    },
-    'ar': {
-        'menu_title': 'القائمة',
-        'menu_dashboard': 'لوحة التحكم',
-        'menu_tracker': 'متتبع الفواتير',
-        'menu_payments': 'المدفوعات',
-        'menu_ipc': 'الدفعات المرحلية',
-        'menu_progress_po': 'تقدم الطلبات',
-        'menu_main_hub': 'المنصة الرئيسية',
-        'menu_data_management': 'إدارة البيانات',
-        'refresh_data_btn': 'تحديث البيانات',
-        'status_not_connected': 'غير متصل بمصدر البيانات',
-        'main_dashboard_title': 'متابعة تقدم الفواتير',
-        'overdue_srv_title_card': 'قسائم استلام متأخرة', // New key
-        'overdue_srv_w1': '(أسبوع واحد)',             // New key
-        'overdue_srv_w2': '(أسبوعان)',                // New key
-        'overdue_srv_w3': '(3 أسابيع)',              // New key
-        'overdue_srv_w4': '(>3 أسابيع)',             // New key
-        'overdue_ipc_title': 'دفعات مرحلية متأخرة',
-        'overdue_subtitle': '(أكثر من أسبوع)',
-        'search_by_site_placeholder': 'البحث حسب الموقع...',
-        'search_btn': 'بحث',
-        'print_selected_btn': 'طباعة المحدد',
-        'view_selected_btn': 'عرض المحدد',
-        'add_to_collection_btn': 'إضافة للمجموعة',
-        'view_collection_btn': 'عرض المجموعة',
-        'th_id': 'م',
-        'th_release_date': 'تاريخ الإصدار',
-        'th_site': 'الموقع',
-        'th_po': 'طلب الشراء',
-        'th_vendor': 'المورد',
-        'th_invoice': 'الفاتورة',
-        'th_amount': 'المبلغ',
-        'th_status': 'الحالة',
-        'th_note': 'ملاحظات',
-        'tracker_title': 'متتبع حالة الفواتير',
-        'back_btn': 'رجوع',
-        'add_to_accounts_btn': 'إضافة للحسابات',
-        'search_placeholder': 'أدخل كلمة البحث...',
-        'date_placeholder': 'اختر التاريخ',
-        'filter_all': 'الكل',
-        'filter_open': 'مفتوحة',
-        'filter_pending': 'معلقة',
-        'filter_no_inv': 'بدون فاتورة',
-        'filter_srv': 'قسيمة استلام',
-        'filter_ipc': 'دفعة مرحلية',
-        'filter_report': 'تقرير',
-        'filter_review': 'قيد المراجعة',
-        'filter_ceo': 'موافقة المدير',
-        'filter_accounts': 'مع الحسابات',
-        'th_date': 'التاريخ',
-        'th_release': 'الإصدار',
-        'th_actions': 'إجراءات',
-        'payments_title': 'مدفوعات الفواتير',
-        'search_payments_placeholder': 'البحث بالطلب، المورد، أو الموقع...',
-        'add_invoice_btn': 'إضافة فاتورة',
-        'th_po_number': 'رقم طلب الشراء',
-        'statement_title': 'كشف حساب',
-        'statement_type_po': 'رقم طلب الشراء',
-        'statement_type_vendor': 'المورد',
-        'statement_type_site': 'الموقع',
-        'search_term_placeholder': 'أدخل مصطلح البحث...',
-        'filter_all_statuses': 'جميع الحالات',
-        'include_notes_label': 'تضمين الملاحظات',
-        'generate_btn': 'إنشاء التقرير',
-        'financial_summary_title': 'الملخص المالي',
-        'summary_po_value': 'قيمة طلب الشراء',
-        'summary_total_amount': 'المبلغ الإجمالي',
-        'summary_with_accounts': 'مع الحسابات',
-        'summary_balance': 'الرصيد المتبقي',
-        'th_notes': 'ملاحظات',
-        'total_label': 'الإجمالي',
-        'print_btn': 'طباعة',
-        'share_btn': 'مشاركة',
-        'petty_cash_title': 'ملخص المصاريف النثرية',
-        'search_by_note_placeholder': 'البحث بالملاحظات...',
-        'summary_title': 'ملخص',
-        'summary_records': 'عدد السجلات',
-        'data_management_title': 'إدارة البيانات',
-        'dm_approver_list': 'قائمة الموافقين',
-        'dm_choose_approver_csv': 'اختر ملف الموافقين (CSV)',
-        'dm_upload_approver_csv': 'رفع ملف الموافقين',
-        'dm_download_approver_template': 'تنزيل قالب الموافقين',
-        'dm_admin_auth': 'مصادقة المسؤول',
-        'logout_btn': 'تسجيل الخروج',
-        'admin_email_placeholder': 'البريد الإلكتروني للمسؤول',
-        'password_placeholder': 'كلمة المرور',
-        'signin_btn': 'تسجيل الدخول',
-        'dm_upload_csv': 'رفع بيانات CSV',
-        'dm_choose_csv': 'اختر ملف CSV',
-        'dm_upload_csv_btn': 'رفع الملف',
-        'dm_download_template': 'تنزيل قالب البيانات',
-        'dm_manage_data': 'التحكم بالبيانات',
-        'dm_clear_data_btn': 'مسح البيانات',
-        'dm_current_data_info': 'معلومات البيانات الحالية',
-        'dm_info_year': 'السنة الحالية:',
-        'dm_info_records': 'عدد السجلات:',
-        'dm_info_updated': 'آخر تحديث:',
-        'modal_invoice_details': 'تفاصيل الفاتورة',
-        'th_invoice_number': 'رقم الفاتورة',
-        'legend_title': 'دليل مراحل تقدم الفاتورة:',
-        'legend_srv': 'قسيمة استلام المخزون (SRV)',
-        'legend_ipc': 'شهادة دفع مرحلية/تقرير حسابات',
-        'legend_review': 'قيد مراجعة الإدارة',
-        'legend_ceo': 'بانتظار موافقة المدير التنفيذي',
-        'legend_accounts': 'تمت معالجتها بواسطة الحسابات',
-        'request_update_btn': 'طلب تحديث للحالة',
-        'collection_title': 'مجموعة الفواتير',
-        'collection_total_items': 'إجمالي الفواتير:',
-        'collection_total_amount': 'المبلغ الإجمالي:',
-        'collection_print': 'طباعة المجموعة',
-        'collection_clear': 'مسح المجموعة',
-        'loading_title': 'جاري تحميل البيانات...',
-        'loading_message': 'يرجى الانتظار بينما نعالج طلبك',
-        'modal_search_add_title': 'بحث وإضافة فاتورة للمدفوعات',
-        'search_invoices_placeholder': 'البحث في الفواتير...',
-        'add_selected_btn': 'إضافة المحدد للمدفوعات',
-        'modal_approval_title': 'إرسال طلب موافقة عبر واتساب',
-        'modal_send_to': 'إرسال إلى:',
-        'modal_optional_message': 'رسالة إضافية',
-        'modal_message_placeholder': 'أضف ملاحظة (اختياري)',
-        'modal_send_whatsapp': 'إرسال عبر واتساب',
-        'modal_confirm_payment_title': 'تأكيد الإضافة إلى قيود الحسابات',
-        'modal_confirm_payment_message': 'أنت على وشك إنشاء قيود دفع للفواتير التالية:',
-        'modal_total_invoice_value': 'إجمالي قيمة الفواتير',
-        'modal_payment_date': 'تاريخ الدفع لهذه الدفعة',
-        'modal_save_payments': 'حفظ المدفوعات',
-        'modal_edit_payment_title': 'تعديل قيد الدفع',
-        'modal_editing_for': 'جاري تعديل الدفعة لـ:',
-        'th_payment_no': 'رقم الدفعة',
-        'th_amount_paid': 'المبلغ المدفوع',
-        'th_date_paid': 'تاريخ الدفع',
-        'modal_save_changes': 'حفظ التغييرات',
-        'nav_home': 'الرئيسية',
-        'nav_invoices': 'الفواتير',
-        'nav_payments': 'المدفوعات',
-        'nav_statement': 'كشف حساب',
-        'nav_ipc': 'الدفعات',
-        'toggle_language_btn': 'English'
-    }
-};
-// --- End of Language Store ---
-
-function setLanguage(lang) {
-    localStorage.setItem('language', lang);
-    applyTranslations();
-}
-
-function toggleLanguage() {
-    const currentLang = localStorage.getItem('language') || 'en';
-    const newLang = currentLang === 'en' ? 'ar' : 'en';
-    setLanguage(newLang);
-}
-
-function applyTranslations() {
-    const lang = localStorage.getItem('language') || 'en'; // Default to English
-
-    document.querySelectorAll('[data-i18n-key]').forEach(element => {
-        const key = element.getAttribute('data-i18n-key');
-        if (translations[lang] && translations[lang][key]) {
-            const translation = translations[lang][key];
-            if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
-                element.placeholder = translation;
-            } else {
-                element.textContent = translation;
-            }
-        }
+// --- 5. HELPER FUNCTIONS ---
+function showView(viewName) {
+    Object.keys(views).forEach(key => {
+        if (views[key]) views[key].classList.add('hidden');
     });
+    if (invoiceManagementView) invoiceManagementView.classList.add('hidden');
 
-    if (lang === 'ar') {
-        document.documentElement.setAttribute('dir', 'rtl');
-        document.documentElement.setAttribute('lang', 'ar');
+    if (viewName === 'workdesk' || viewName === 'invoice-management') {
+        document.body.classList.remove('login-background');
+        document.getElementById('app-container').style.display = 'none';
     } else {
-        document.documentElement.setAttribute('dir', 'ltr');
-        document.documentElement.setAttribute('lang', 'en');
+        document.body.classList.add('login-background');
+        document.getElementById('app-container').style.display = 'block';
+    }
+
+    if (views[viewName]) {
+        views[viewName].classList.remove('hidden');
+    } else if (viewName === 'invoice-management' && invoiceManagementView) {
+        invoiceManagementView.classList.remove('hidden');
     }
 }
+function normalizeMobile(mobile) { const digitsOnly = mobile.replace(/\D/g, ''); if (digitsOnly.length === 8) { return `974${digitsOnly}`; } return digitsOnly; }
+async function findApprover(identifier) { const isEmail = identifier.includes('@'); const searchKey = isEmail ? 'Email' : 'Mobile'; const searchValue = isEmail ? identifier : normalizeMobile(identifier); const snapshot = await db.ref('approvers').once('value'); const approversData = snapshot.val(); if (!approversData) return null; for (const key in approversData) { const record = approversData[key]; const dbValue = record[searchKey]; if (dbValue) { if (isEmail) { if (dbValue.toLowerCase() === searchValue.toLowerCase()) { return { key, ...record }; } } else { const normalizedDbMobile = dbValue.replace(/\D/g, ''); if (normalizedDbMobile === searchValue) { return { key, ...record }; } } } } return null; }
+function updateDashboardDateTime() { const now = new Date(); const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }; datetimeElement.textContent = now.toLocaleDateString('en-GB', options); }
+function updateWorkdeskDateTime() { const now = new Date(); const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }; const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }; const dateString = now.toLocaleDateString('en-GB', dateOptions); const timeString = now.toLocaleTimeString('en-GB', timeOptions); workdeskDatetimeElement.textContent = `${dateString} at ${timeString}`; }
+function handleSuccessfulLogin() { dashboardUsername.textContent = `Welcome ${currentApprover.Name || currentApprover.Email}`; updateDashboardDateTime(); if(dateTimeInterval) clearInterval(dateTimeInterval); dateTimeInterval = setInterval(updateDashboardDateTime, 1000); showView('dashboard'); }
+function showWorkdeskSection(sectionId) {
+    workdeskSections.forEach(section => { section.classList.add('hidden'); });
+    const targetSection = document.getElementById(sectionId);
+    if(targetSection) { targetSection.classList.remove('hidden'); }
+    if (sectionId === 'wd-dashboard') { populateWorkdeskDashboard(); }
+    if(sectionId === 'wd-jobentry') { fetchAndDisplayJobEntries(); }
+    if (sectionId === 'wd-activetask') { populateActiveTasks(); }
+    if (sectionId === 'wd-taskhistory') { populateTaskHistory(); }
+    if (sectionId === 'wd-reporting') { populateReporting(); }
+}
+function formatDate(date) { const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]; const day = String(date.getDate()).padStart(2, '0'); const month = months[date.getMonth()]; const year = date.getFullYear(); return `${day}-${month}-${year}`; }
 
-function isDarkColor(color) {
-    // Convert hex to RGB
-    let r, g, b;
-    if (color.match(/^rgb/)) {
-        const rgb = color.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*(\d+(?:\.\d+)?))?\)$/);
-        r = rgb[1];
-        g = rgb[2];
-        b = rgb[3];
-    } else {
-        // Hex to RGB conversion
-        const hex = color.replace('#', '');
-        r = parseInt(hex.substring(0, 2), 16);
-        g = parseInt(hex.substring(2, 4), 16);
-        b = parseInt(hex.substring(4, 6), 16);
+function normalizeDateForInput(dateString) {
+    if (!dateString || typeof dateString !== 'string') return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        return dateString;
     }
-    
-    // Calculate luminance
-    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    return luminance < 0.5; // Returns true for dark colors
+    if (/^\d{2}-\d{2}-\d{2}$/.test(dateString)) {
+        const parts = dateString.split('-');
+        const day = parts[0];
+        const month = parts[1];
+        const year = `20${parts[2]}`;
+        return `${year}-${month}-${day}`;
+    }
+    console.warn("Unrecognized date format:", dateString);
+    return '';
 }
 
-// DOM Cache
-const domCache = {
-    mobileMenu: null,
-    siteSearchTerm: null,
-    searchTerm: null,
-    releaseDateFilter: null,
-    pettyCashSearchTerm: null,
-    reportSearchTerm: null,
-    reportType: null,
-    reportStatusFilter: null,
-    recordsTable: null,
-    siteRecordsTable: null,
-    reportTable: null,
-    pettyCashTable: null,
-    invoicePaymentsTable: null, // New DOM element
-    loadingOverlay: null,
-    authMessage: null,
-    uploadStatus: null,
-    manageStatus: null,
-    emailInput: null,
-    passwordInput: null,
-    loginBtn: null,
-    logoutBtn: null,
-    uploadBtn: null,
-    clearDataBtn: null,
-    loggedInAs: null,
-    currentYearDisplay: null,
-    recordCount: null,
-    lastUpdated: null,
-    includeNotes: null,
-    overdueSRVCard: null,
-    overdueIPCCard: null,
-    statusPieChartContainer: null,
-    statusBarChartContainer: null
-};
-
-// Initialize DOM cache
-function cacheDOM() {
-    domCache.mobileMenu = document.getElementById('mobileMenu');
-    domCache.siteSearchTerm = document.getElementById('siteSearchTerm');
-    domCache.searchTerm = document.getElementById('searchTerm');
-    domCache.releaseDateFilter = document.getElementById('releaseDateFilter');
-    domCache.pettyCashSearchTerm = document.getElementById('pettyCashSearchTerm');
-    domCache.reportSearchTerm = document.getElementById('reportSearchTerm');
-    domCache.reportType = document.getElementById('reportType');
-    domCache.reportStatusFilter = document.getElementById('reportStatusFilter');
-    domCache.recordsTable = document.getElementById('recordsTable');
-    domCache.siteRecordsTable = document.getElementById('siteRecordsTable');
-    domCache.reportTable = document.getElementById('reportTable');
-    domCache.pettyCashTable = document.getElementById('pettyCashTable');
-    domCache.invoicePaymentsTable = document.getElementById('invoicePaymentsTable'); // New cache
-    domCache.loadingOverlay = document.getElementById('loadingOverlay');
-    domCache.authMessage = document.getElementById('authMessage');
-    domCache.uploadStatus = document.getElementById('uploadStatus');
-    domCache.manageStatus = document.getElementById('manageStatus');
-    domCache.emailInput = document.getElementById('emailInput');
-    domCache.passwordInput = document.getElementById('passwordInput');
-    domCache.loginBtn = document.getElementById('loginBtn');
-    domCache.logoutBtn = document.getElementById('logoutBtn');
-    domCache.uploadBtn = document.getElementById('uploadBtn');
-    domCache.clearDataBtn = document.getElementById('clearDataBtn');
-    domCache.loggedInAs = document.getElementById('loggedInAs');
-    domCache.currentYearDisplay = document.getElementById('currentYearDisplay');
-    domCache.recordCount = document.getElementById('recordCount');
-    domCache.lastUpdated = document.getElementById('lastUpdated');
-    domCache.includeNotes = document.getElementById('includeNotes');
-    domCache.overdueSRVCard = document.querySelector('.overdue-card.srv');
-    domCache.overdueIPCCard = document.querySelector('.overdue-card.ipc');
-    domCache.statusPieChartContainer = document.getElementById('statusPieChart').parentElement;
-    domCache.statusBarChartContainer = document.getElementById('statusBarChart').parentElement;
+function getTodayDateString() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
 
-// Mobile detection
-function isMobileDevice() {
-    return (('ontouchstart' in window) ||
-        (navigator.maxTouchPoints > 0) ||
-        (navigator.msMaxTouchPoints > 0)) &&
-        window.innerWidth <= 768;
-}
-
-// Mobile menu functions
-function toggleMobileMenu() {
-    domCache.mobileMenu.classList.toggle('show');
-    document.body.style.overflow = domCache.mobileMenu.classList.contains('show') ? 'hidden' : '';
-}
-
-function showSection(sectionId) {
-    document.querySelectorAll('.content-section').forEach(section => {
-        section.classList.remove('active');
+function formatCurrency(value) {
+    const number = parseFloat(value);
+    if (isNaN(number)) {
+        return '0.00';
+    }
+    return number.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
     });
-    document.getElementById(sectionId).classList.add('active');
-    domCache.mobileMenu.classList.remove('show');
-    document.body.style.overflow = '';
-    
-    if (sectionId === 'pettyCashSection') {
-        updateNoteSuggestions();
-    }
-    
-    if (sectionId === 'statementSection') {
-        updateVendorSuggestions();
-        updateSiteSuggestions();
-    }
-    
-    // Clear filters when switching to invoice section
-    if (sectionId === 'invoiceSection') {
-        domCache.searchTerm.value = '';
-        domCache.releaseDateFilter.value = '';
-        activeFilter = 'all';
-        refreshTable(); // Make table empty by default
-    }
-    
-    if (sectionId === 'mainPageSection') {
-        searchSiteRecords();
-    }
-
-    if (sectionId === 'invoicePaymentsSection') {
-        loadPaymentsFromFirebase().then(() => {
-            refreshPaymentsTable(); // Make table empty by default
-        });
-    }
-    
-    document.querySelectorAll('.menu-item').forEach(item => {
-        item.classList.remove('active');
-    });
-    
-    if (sectionId === 'mainPageSection') {
-        document.querySelector('.menu-item.main-page').classList.add('active');
-    } else if (sectionId === 'invoiceSection') {
-        document.querySelector('.menu-item:nth-child(2)').classList.add('active');
-    } else if (sectionId === 'invoicePaymentsSection') {
-        document.querySelector('.menu-item.payments').classList.add('active');
-    } else if (sectionId === 'statementSection') {
-        // No separate menu item for statement section, it's part of Invoice Tracker flow
-    } else if (sectionId === 'pettyCashSection') {
-        // No separate menu item for petty cash section
-    } else if (sectionId === 'dataManagementSection') {
-        document.querySelector('.menu-item.admin').classList.add('active');
-    }
 }
 
-// View PDF file
-function viewPDF(fileName) {
-    if (!fileName) {
-        alert("No PDF file linked to this record.");
-        return;
-    }
-    
-    window.open(`${PDF_BASE_PATH}${encodeURIComponent(fileName)}`, '_blank');
-}
 
-// View SRV file
-function viewSRV(fileName) {
-    if (!fileName) {
-        alert("No SRV file linked to this record.");
-        return;
-    }
-    
-    window.open(`${SRV_BASE_PATH}${encodeURIComponent(fileName)}`, '_blank');
-}
+// --- WORKDESK LOGIC ---
+async function ensureAllEntriesFetched() {
+    const [jobEntriesSnapshot, invoiceEntriesSnapshot, poSnapshot] = await Promise.all([
+        db.ref('job_entries').orderByChild('timestamp').once('value'),
+        db.ref('invoice_entries').once('value'),
+        db.ref('purchase_orders').once('value')
+    ]);
 
-// Loading overlay functions
-function showLoading() {
-    isLoading = true;
-    domCache.loadingOverlay.style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-}
-
-function hideLoading() {
-    isLoading = false;
-    domCache.loadingOverlay.style.display = 'none';
-    document.body.style.overflow = '';
-}
-
-// Status progress calculation
-function getStatusPercentage(status) {
-    const statusProgress = {
-        'Open': 0,
-        'For SRV': 10,
-        'For IPC': 25,
-        'No Invoice': 25,
-        'Report': 25,
-        'Under Review': 50,
-        'CEO Approval': 75,
-        'With Accounts': 100
-    };
-    return statusProgress[status] || 0;
-}
-
-// Data processing
-function processCSVData(data) {
-    return data.map(item => ({
-        entryDate: item['Entered Date'] || new Date().toISOString().split('T')[0],
-        site: item['Site'] || '',
-        poNumber: item['PO Number'] || '',
-        poValue: item['PO Value'] || '',
-        vendor: item['Vendor'] || '',
-        invoiceNumber: item['Invoice Number'] || '',
-        value: item['Value'] || '',
-        details: item['Details'] || '',
-        releaseDate: item['Release Date'] || '',
-        status: item['Status'] || 'For SRV',
-        fileName: item['FileName'] || '',
-        note: item['Note'] || item['Notes'] || item['Description'] || '',
-        lastUpdated: new Date().toISOString()
+    const jobEntriesData = jobEntriesSnapshot.val() || {};
+    const processedJobEntries = Object.entries(jobEntriesData).map(([key, value]) => ({ 
+        key, 
+        ...value,
+        source: 'job_entry' 
     }));
-}
 
-function migrateStatus(records) {
-    return records.map(record => {
-        if (record.status === 'Under Process') {
-            record.status = 'CEO Approval';
-        }
-        return record;
-    });
-}
+    const invoiceEntriesData = invoiceEntriesSnapshot.val() || {};
+    const purchaseOrdersData = poSnapshot.val() || {};
+    const processedInvoiceEntries = [];
 
-// Firebase Functions
-function login() {
-    const email = domCache.emailInput.value;
-    const password = domCache.passwordInput.value;
-    
-    if (!email || !password) {
-        domCache.authMessage.textContent = 'Please enter both email and password';
-        return;
-    }
-    
-    showLoading();
-    
-    auth.signInWithEmailAndPassword(email, password)
-        .then((userCredential) => {
-            hideLoading();
-            domCache.authMessage.textContent = '';
-            updateAuthUI(true, email);
-            loadFromFirebase();
-        })
-        .catch((error) => {
-            hideLoading();
-            domCache.authMessage.textContent = error.message;
-        });
-}
+    for (const poNumber in invoiceEntriesData) {
+        const invoices = invoiceEntriesData[poNumber];
+        const site = purchaseOrdersData[poNumber]?.['Project ID'] || 'N/A';
 
-function logout() {
-    auth.signOut().then(() => {
-        updateAuthUI(false);
-        records = [];
-        checkOverdueProgression();
-    }).catch((error) => {
-        console.error('Logout error:', error);
-    });
-}
-
-function updateAuthUI(isLoggedIn, email = null) {
-    if (isLoggedIn) {
-        document.body.classList.add('admin-logged-in'); // Add class for admin styles
-        domCache.loginBtn.style.display = 'none';
-        domCache.logoutBtn.style.display = 'block';
-        domCache.uploadBtn.disabled = false;
-        domCache.clearDataBtn.disabled = false;
-        domCache.loggedInAs.textContent = `Logged in as: ${email}`;
-    } else {
-        document.body.classList.remove('admin-logged-in'); // Remove class on logout
-        domCache.loginBtn.style.display = 'block';
-        domCache.logoutBtn.style.display = 'none';
-        domCache.uploadBtn.disabled = true;
-        domCache.clearDataBtn.disabled = true;
-        domCache.loggedInAs.textContent = 'Not logged in';
-        domCache.emailInput.value = '';
-        domCache.passwordInput.value = '';
-    }
-    // Refresh the payments table to show/hide delete buttons
-    if(document.getElementById('invoicePaymentsSection').classList.contains('active')) {
-        refreshPaymentsTable(payments);
-    }
-}
-
-function loadFromFirebase() {
-    showLoading();
-    
-    const recordsRef = database.ref(`records/${currentYear}`);
-    
-    return recordsRef.once('value')
-        .then((snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                records = Object.values(data);
-                records = migrateStatus(records);
-                updateNoteSuggestions();
-                updateVendorSuggestions();
-                updateSiteSuggestions();
-                checkOverdueProgression();
-                
-                domCache.recordCount.textContent = records.length;
-                domCache.lastUpdated.textContent = new Date().toLocaleString();
-                
-                initializeCharts();
-                initializeOverdueChart();
-                domCache.siteRecordsTable.style.display = 'none';
-            } else {
-                records = [];
-                domCache.recordCount.textContent = '0';
-                domCache.lastUpdated.textContent = 'Never';
-                
-                if (statusPieChart) statusPieChart.destroy();
-                if (statusBarChart) statusBarChart.destroy();
-                if (overdueBarChart) overdueBarChart.destroy();
-                domCache.siteRecordsTable.style.display = 'none';
-            }
-            hideLoading();
-        })
-        .catch((error) => {
-            console.error('Error loading data from Firebase:', error);
-            hideLoading();
-            throw error;
-        });
-}
-
-function loadPaymentsFromFirebase(showLoader = true) {
-    if (showLoader) showLoading();
-    const paymentsRef = database.ref('invoicePayments');
-    return paymentsRef.once('value').then(snapshot => { // Return promise for chaining
-        const data = snapshot.val();
-        payments = data ? Object.values(data) : [];
-        if (showLoader) hideLoading();
-    }).catch(error => {
-        console.error('Error loading payments from Firebase:', error);
-        if (showLoader) hideLoading();
-    });
-}
-
-function uploadCSV() {
-    const fileInput = document.getElementById('csvFileInput');
-    const year = document.querySelector('input[name="uploadYear"]:checked').value;
-    const file = fileInput.files[0];
-    
-    if (!file) {
-        domCache.uploadStatus.textContent = 'Please select a CSV file';
-        domCache.uploadStatus.className = 'upload-status error';
-        return;
-    }
-    
-    showLoading();
-    domCache.uploadStatus.textContent = 'Processing file...';
-    domCache.uploadStatus.className = 'upload-status';
-    
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const csvData = e.target.result;
-        
-        Papa.parse(csvData, {
-            header: true,
-            skipEmptyLines: true,
-            complete: (results) => {
-                if (results.data.length === 0) {
-                    domCache.uploadStatus.textContent = 'No valid data found in CSV';
-                    domCache.uploadStatus.className = 'upload-status error';
-                    hideLoading();
-                    return;
-                }
-                
-                const processedData = processCSVData(results.data);
-                const migratedData = migrateStatus(processedData);
-                
-                // Save to Firebase
-                const recordsRef = database.ref(`records/${year}`);
-                
-                // Convert array to object with keys
-                const recordsObj = {};
-                migratedData.forEach((record, index) => {
-                    recordsObj[index] = record;
-                });
-                
-                recordsRef.set(recordsObj)
-                    .then(() => {
-                        domCache.uploadStatus.textContent = `Successfully uploaded ${migratedData.length} records to Firebase (${year})`;
-                        domCache.uploadStatus.className = 'upload-status success';
-                        hideLoading();
-                        
-                        // Reload data if current year matches
-                        if (currentYear === year) {
-                            loadFromFirebase();
-                        }
-                    })
-                    .catch((error) => {
-                        domCache.uploadStatus.textContent = `Error uploading data: ${error.message}`;
-                        domCache.uploadStatus.className = 'upload-status error';
-                        hideLoading();
-                    });
-            },
-            error: (error) => {
-                domCache.uploadStatus.textContent = `Error parsing CSV: ${error.message}`;
-                domCache.uploadStatus.className = 'upload-status error';
-                hideLoading();
-            }
-        });
-    };
-    
-    reader.readAsText(file);
-}
-
-function downloadTemplate() {
-    // Create template CSV content
-    const headers = [
-        'Entered Date', 'Site', 'PO Number', 'PO Value', 'Vendor', 
-        'Invoice Number', 'Value', 'Details', 'Release Date', 
-        'Status', 'FileName', 'Note'
-    ].join(',');
-    
-    const blob = new Blob([headers], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'invoice_template.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}
-
-function clearFirebaseData() {
-    const year = document.querySelector('input[name="manageYear"]:checked').value;
-    
-    if (!confirm(`Are you sure you want to clear all ${year} data? This cannot be undone.`)) {
-        return;
-    }
-    
-    showLoading();
-    domCache.manageStatus.textContent = 'Clearing data...';
-    domCache.manageStatus.className = 'upload-status';
-    
-    const recordsRef = database.ref(`records/${year}`);
-    
-    recordsRef.remove()
-        .then(() => {
-            domCache.manageStatus.textContent = `Successfully cleared ${year} data`;
-            domCache.manageStatus.className = 'upload-status success';
-            hideLoading();
+        for (const invoiceKey in invoices) {
+            const invoice = invoices[invoiceKey];
             
-            // Clear local data if current year matches
-            if (currentYear === year) {
-                records = [];
-                checkOverdueProgression();
+            if (!invoice.attention || invoice.attention.trim() === '') {
+                continue;
             }
-        })
-        .catch((error) => {
-            domCache.manageStatus.textContent = `Error clearing data: ${error.message}`;
-            domCache.manageStatus.className = 'upload-status error';
-            hideLoading();
-        });
-}
 
-// Helper function to standardize invoice numbers for matching
-function normalizeInvoiceNumber(inv) {
-    const val = String(inv || '').trim().toLowerCase();
-    // Treat common "empty" values (like '', 'n/a', '-') as the same thing
-    if (val === '' || val === 'n/a' || val === '-' || val === 'na') {
-        return ''; // Return a single, standard "empty" value
-    }
-    return String(inv).trim(); // Otherwise, return the actual invoice number
-}
-
-// Table functions
-function refreshTable(filteredRecords = []) {
-    const tableBody = document.querySelector('#recordsTable tbody');
-    tableBody.innerHTML = '';
-    
-    const displayRecords = filteredRecords;
-    currentFilteredRecords = displayRecords;
-
-    const paidInvoices = new Set();
-    if (payments && payments.length > 0) {
-        payments.forEach(payment => {
-            if (payment.paymentEntries) {
-                Object.values(payment.paymentEntries).forEach(entry => {
-                    const poToUse = String(entry.originalPoNumber || payment.poNumber || '').trim();
-                    if (!poToUse) return;
-                    const normalizedInvoice = normalizeInvoiceNumber(entry.invoiceNumber);
-                    const exactIdentifier = [String(payment.site || '').trim(), poToUse, String(payment.vendor || '').trim(), normalizedInvoice].join('-');
-                    paidInvoices.add(exactIdentifier);
-                    const integerPO = parseInt(poToUse, 10);
-                    if (!isNaN(integerPO) && String(integerPO) !== poToUse) {
-                         const integerIdentifier = [String(payment.site || '').trim(), String(integerPO), String(payment.vendor || '').trim(), normalizedInvoice].join('-');
-                        paidInvoices.add(integerIdentifier);
-                    }
-                });
-            }
-        });
-    }
-    
-    if (displayRecords.length > 0) {
-        domCache.recordsTable.style.display = 'table';
-    } else {
-        domCache.recordsTable.style.display = 'none';
-        return;
-    }
-    
-    domCache.recordsTable.style.display = 'table';
-    
-    displayRecords.forEach((record, index) => {
-        const percentage = getStatusPercentage(record.status);
-        const statusSteps = {
-            'Open': 0, 'For SRV': 1, 'For IPC': 2, 'No Invoice': 2, 'Report': 2,
-            'Under Review': 3, 'CEO Approval': 4, 'With Accounts': 5
-        };
-        const currentStep = statusSteps[record.status] || 0;
-        
-        const row = document.createElement('tr');
-
-        const recordIdentifier = [
-            String(record.site || '').trim(),
-            String(record.poNumber || '').trim(),
-            String(record.vendor || '').trim(),
-            normalizeInvoiceNumber(record.invoiceNumber)
-        ].join('-');
-        
-        if (paidInvoices.has(recordIdentifier)) {
-            row.classList.add('paid-row');
-        }
-
-        row.innerHTML = `
-            <td><input type="checkbox" class="row-checkbox"></td>
-            <td>${index + 1}</td>
-            <td>${formatDate(record.entryDate)}</td>
-            <td>${record.site || '-'}</td>
-            <td>${formatPoNumber(record.poNumber) || '-'}</td>
-            <td>${record.vendor || '-'}</td>
-            <td>${record.invoiceNumber || '-'}</td>
-            <td class="numeric">${record.value ? formatNumber(record.value) : '-'}</td>
-            <td>${record.releaseDate ? formatDate(record.releaseDate) : '-'}</td>
-            <td class="status-cell">
-                <div class="step-progress-container">
-                    <div class="step-progress" data-percentage="${percentage}">
-                        <div class="step step-1 ${currentStep > 1 ? 'active' : ''} ${currentStep === 1 ? 'current' : ''}"></div>
-                        <div class="step-connector ${currentStep > 1 ? 'active' : ''}"></div>
-                        <div class="step step-2 ${currentStep > 2 ? 'active' : ''} ${currentStep === 2 ? 'current' : ''}"></div>
-                        <div class="step-connector ${currentStep > 2 ? 'active' : ''}"></div>
-                        <div class="step step-3 ${currentStep > 3 ? 'active' : ''} ${currentStep === 3 ? 'current' : ''}"></div>
-                        <div class="step-connector ${currentStep > 3 ? 'active' : ''}"></div>
-                        <div class="step step-4 ${currentStep > 4 ? 'active' : ''} ${currentStep === 4 ? 'current' : ''}"></div>
-                        <div class="step-connector ${currentStep > 4 ? 'active' : ''}"></div>
-                        <div class="step step-5 ${currentStep > 5 ? 'active' : ''} ${currentStep === 5 ? 'current' : ''}"></div>
-                    </div>
-                    <div class="step-labels">
-                        <span class="step-label">SRV</span>
-                        <span class="step-label">IPC/Report</span>
-                        <span class="step-label">Review</span>
-                        <span class="step-label">CEO</span>
-                        <span class="step-label">Accounts</span>
-                    </div>
-                    <div class="status-tooltip">${record.status} - ${percentage}%</div>
-                </div>
-            </td>
-            <td class="action-btns">
-                <button class="btn btn-inv ${!record.fileName ? 'disabled' : ''}" 
-                    onclick="viewPDF('${record.fileName || ''}')" 
-                    ${!record.fileName ? 'disabled' : ''}>
-                    <i class="fas fa-file-pdf"></i> INV
-                </button>
-                <button class="btn btn-srv ${!record.details ? 'disabled' : ''}" 
-                    onclick="viewSRV('${record.details || ''}')" 
-                    ${!record.details ? 'disabled' : ''}>
-                    <i class="fas fa-file-alt"></i> SRV
-                </button>
-                <button class="btn btn-primary" 
-                    onclick='openWhatsAppModal(${JSON.stringify({ 
-                        site: record.site||"", poNumber: record.poNumber||"", vendor: record.vendor||"", value: record.value||"", 
-                        fileName: record.fileName||"", invoiceNumber: record.invoiceNumber||"", status: record.status||"" 
-                    })}, "approval")'>
-                    <i class="fab fa-whatsapp"></i> Approval
-                </button>
-            </td>
-        `;
-        
-        let touchTimer, isLongPress = false;
-        row.addEventListener('touchstart', function(e) {
-            if (isMobileDevice() && !e.target.closest('input[type="checkbox"]')) {
-                isLongPress = false;
-                touchTimer = setTimeout(() => { isLongPress = true; showInvoicePreview(record); }, 500);
-            }
-        });
-        row.addEventListener('touchend', function(e) {
-            if (isMobileDevice()) { if (touchTimer) clearTimeout(touchTimer); isLongPress = false; }
-        });
-        row.addEventListener('touchmove', function(e) {
-            if (isMobileDevice()) { if (touchTimer) clearTimeout(touchTimer); }
-        });
-        if (!isMobileDevice()) {
-            row.addEventListener('dblclick', function(e) {
-                if (!e.target.closest('.action-btns') && !e.target.closest('input[type="checkbox"]')) {
-                    showInvoicePreview(record);
-                }
-            });
-        }
-        
-        tableBody.appendChild(row);
-    });
-    
-    setupResponsiveElements();
-}
-
-function toggleSelectAllTracker(checkbox) {
-    const checkboxes = document.querySelectorAll('#recordsTable tbody input[type="checkbox"]');
-    checkboxes.forEach(cb => {
-        cb.checked = checkbox.checked;
-    });
-}
-
-function getSelectedTrackerRecords() {
-    const selectedRows = document.querySelectorAll('#recordsTable tbody input[type="checkbox"]:checked');
-    const selectedRecords = [];
-    
-    selectedRows.forEach(checkbox => {
-        const row = checkbox.closest('tr');
-        const rowIndex = Array.from(row.parentNode.children).indexOf(row);
-        if (currentFilteredRecords && rowIndex < currentFilteredRecords.length) {
-            selectedRecords.push(currentFilteredRecords[rowIndex]);
-        }
-    });
-    
-    return selectedRecords;
-}
-
-// Search and filter
-function searchRecords() {
-    if (isViewingSelected && selectedRecords.length > 0) {
-        renderTable(selectedRecords);
-        return;
-    }
-    const term = domCache.searchTerm.value.toLowerCase();
-    const releaseDateInput = domCache.releaseDateFilter.value;
-    
-    if (!term && !releaseDateInput && activeFilter === 'all') {
-        refreshTable();
-        return;
-    }
-    
-    let filtered = records;
-    
-    if (term) {
-        filtered = filtered.filter(record =>
-            (record.site && record.site.toLowerCase().includes(term)) ||
-            (record.poNumber && String(record.poNumber).toLowerCase().includes(term)) ||
-            (record.vendor && record.vendor.toLowerCase().includes(term)) ||
-            (record.invoiceNumber && record.invoiceNumber.toLowerCase().includes(term)) ||
-            (record.details && record.details.toLowerCase().includes(term)) ||
-            (record.fileName && record.fileName.toLowerCase().includes(term)) ||
-            (record.note && record.note.toLowerCase().includes(term))
-        );
-    }
-    
-    if (activeFilter !== 'all') {
-        filtered = filtered.filter(record => record.status === activeFilter);
-    }
-    
-    if (releaseDateInput) {
-        const filterDate = parseReleaseDate(releaseDateInput);
-        filtered = filtered.filter(record => {
-            if (!record.releaseDate) return false;
-            const recordDate = parseReleaseDate(record.releaseDate);
-            return recordDate.toDateString() === filterDate.toDateString();
-        });
-    }
-    
-    refreshTable(filtered);
-}
-
-function filterRecords(status) {
-    activeFilter = status;
-    
-    // Update active state on filter pills
-    document.querySelectorAll('#invoiceFilterContainer .filter-pill').forEach(btn => {
-        if (btn.dataset.status === status) {
-            btn.classList.add('active');
-        } else {
-            btn.classList.remove('active');
-        }
-    });
-    
-    searchRecords();
-}
-
-function clearSearch() {
-    // Clear search inputs
-    domCache.searchTerm.value = '';
-    domCache.releaseDateFilter.value = '';
-    
-    // Reset filter to 'All'
-    activeFilter = 'all';
-    document.querySelectorAll('.filter-pill').forEach(pill => {
-        pill.classList.toggle('active', pill.dataset.status === 'all');
-    });
-    
-    refreshTable();
-    
-    // Reset selection states
-    isViewingSelected = false;
-    selectedRecords = [];
-    
-    // Show toast message
-    showToast('Search cleared');
-}
-
-function clearDate() {
-    domCache.releaseDateFilter.value = '';
-    searchRecords();
-}
-
-// Main Dashboard Functions
-function initializeCharts(filteredRecords = null) {
-    // Always use all records for the charts, excluding specific statuses
-    const excludedStatuses = ['With Accounts', 'Closed', 'Cancelled', 'No Invoice'];
-    const chartRecords = records.filter(record => !excludedStatuses.includes(record.status));
-    
-    // Only initialize charts if their containers are visible
-    if (domCache.statusPieChartContainer.style.display !== 'none') {
-        // Prepare data for pie chart
-        const statusCounts = {};
-        chartRecords.forEach(record => {
-            statusCounts[record.status] = (statusCounts[record.status] || 0) + 1;
-        });
-        
-        const statusLabels = Object.keys(statusCounts);
-        const statusData = Object.values(statusCounts);
-        const total = statusData.reduce((a, b) => a + b, 0);
-        
-        // Vibrant unique colors for each status
-        const backgroundColors = statusLabels.map(status => {
-            const statusColors = {
-                'For SRV': '#4E79A7', // Blue
-                'For IPC': '#F28E2B', // Orange
-                'Under Review': '#E15759', // Red
-                'CEO Approval': '#76B7B2', // Teal
-                'Open': '#59A14F', // Green
-                'Pending': '#EDC948', // Yellow
-                'Report': '#B07AA1', // Purple
-                'No Invoice': '#FF9DA7', // Pink
-                'With Accounts': '#9C755F' // Brown
+            const normalizedDate = normalizeDateForInput(invoice.releaseDate);
+            
+            const transformedInvoice = {
+                key: `${poNumber}_${invoice.invEntryID || invoiceKey}`,
+                for: 'Invoice',
+                ref: invoice.invNumber || '',
+                po: poNumber,
+                amount: invoice.invValue || '',
+                site: site,
+                group: 'N/A',
+                attention: invoice.attention,
+                enteredBy: 'Irwin',
+                date: normalizedDate ? formatDate(new Date(normalizedDate + 'T00:00:00')) : 'N/A',
+                dateResponded: 'N/A',
+                remarks: invoice.status || 'Pending',
+                timestamp: normalizedDate ? new Date(normalizedDate).getTime() : Date.now(),
+                source: 'invoice'
             };
-            return statusColors[status] || '#BAB0AC'; // Default color
-        });
+            processedInvoiceEntries.push(transformedInvoice);
+        }
+    }
 
-        // Pie Chart
-        const pieCtx = document.getElementById('statusPieChart').getContext('2d');
-        if (statusPieChart) statusPieChart.destroy();
-        statusPieChart = new Chart(pieCtx, {
-            type: 'pie',
-            data: {
-                labels: statusLabels,
-                datasets: [{
-                    data: statusData,
-                    backgroundColor: backgroundColors,
-                    borderWidth: 1,
-                    borderColor: '#fff'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'right',
-                        labels: {
-                            padding: 20,
-                            boxWidth: 15,
-                            font: {
-                                size: 12
-                            }
-                        }
-                    },
-                    title: {
-                        display: true,
-                        text: 'Invoice Status Distribution',
-                        font: {
-                            size: 16
-                        },
-                        padding: {
-                            bottom: 20
-                        }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const label = context.label || '';
-                                const value = context.raw || 0;
-                                const percentage = ((value / total) * 100).toFixed(1);
-                                return `${label}: ${value} (${percentage}%)`;
-                            }
-                        }
-                    },
-                    datalabels: {
-                        formatter: (value, ctx) => {
-                            const percentage = ((value / total) * 100).toFixed(1) + '%';
-                            return percentage;
-                        },
-                        color: function(context) {
-                            const bgColor = context.dataset.backgroundColor[context.dataIndex];
-                            return isDarkColor(bgColor) ? '#fff' : '#333';
-                        },
-                        font: {
-                            weight: 'bold',
-                            size: 12
-                        },
-                        anchor: 'center',
-                        align: 'center',
-                        display: function(context) {
-                            return true; // Always show labels
-                        },
-                        textShadowBlur: 3,
-                        textShadowColor: 'rgba(0,0,0,0.5)'
-                    }
-                },
-                cutout: '50%',
-                animation: {
-                    animateScale: true,
-                    animateRotate: true
-                },
-                onClick: function(evt, elements) {
-        if (elements.length > 0) {
-            const clickedIndex = elements[0].index;
-            const status = statusLabels[clickedIndex];
-            filterRecordsByStatus(status);
-        }
-    }
-            },
-            plugins: [ChartDataLabels]
-        });
-    }
-    
-    if (domCache.statusBarChartContainer.style.display !== 'none') {
-        // Prepare data for horizontal bar chart
-        const statusCounts = {};
-        chartRecords.forEach(record => {
-            statusCounts[record.status] = (statusCounts[record.status] || 0) + 1;
-        });
-        
-        const statusLabels = Object.keys(statusCounts);
-        const statusData = Object.values(statusCounts);
-        
-        // Same vibrant colors as pie chart for consistency
-        const backgroundColors = statusLabels.map(status => {
-            const statusColors = {
-                'For SRV': '#4E79A7',
-                'For IPC': '#F28E2B',
-                'Under Review': '#E15759',
-                'CEO Approval': '#76B7B2',
-                'Open': '#59A14F',
-                'Pending': '#EDC948',
-                'Report': '#B07AA1',
-                'No Invoice': '#FF9DA7',
-                'With Accounts': '#9C755F'
-            };
-            return statusColors[status] || '#BAB0AC';
-        });
-        
-        // Horizontal Bar Chart
-        const barCtx = document.getElementById('statusBarChart').getContext('2d');
-        if (statusBarChart) statusBarChart.destroy();
-        statusBarChart = new Chart(barCtx, {
-            type: 'bar',
-            data: {
-                labels: statusLabels,
-                datasets: [{
-                    label: 'Count',
-                    data: statusData,
-                    backgroundColor: backgroundColors,
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                indexAxis: 'y', // This makes the bar chart horizontal
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: {
-                        beginAtZero: true,
-                        ticks: {
-                            stepSize: 1
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    title: {
-                        display: true,
-                        text: 'Invoice Count by Status',
-                        font: {
-                            size: 16
-                        }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const label = context.dataset.label || '';
-                                const value = context.raw || 0;
-                                return `${label}: ${value}`;
-                            }
-                        }
-                    }
-                },
-                onClick: function(evt, elements) {
-        if (elements.length > 0) {
-            const clickedIndex = elements[0].index;
-            const status = statusLabels[clickedIndex];
-            filterRecordsByStatus(status);
-        }
-    }
-            }
-        });
-    }
+    allSystemEntries = [...processedJobEntries, ...processedInvoiceEntries];
+    allSystemEntries.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 }
 
-function initializeOverdueChart(filteredRecords = null) {
-    const displayRecords = filteredRecords || records;
+function isTaskComplete(task) {
+    if (!task) return false;
+
+    if (task.source === 'invoice') {
+        const completedStatuses = ['CEO Approval', 'With Accounts'];
+        return completedStatuses.includes(task.remarks);
+    }
     
-    // Filter only overdue SRV and IPC records
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const overdueRecords = displayRecords.filter(record => {
-        if (!record.releaseDate || !['For SRV', 'For IPC'].includes(record.status)) return false;
-        
-        try {
-            const releaseDate = parseReleaseDate(record.releaseDate);
-            const workingDaysPassed = getWorkingDays(releaseDate, today);
-            return workingDaysPassed >= 7;
-        } catch (e) {
-            console.error('Error processing record:', record, e);
-            return false;
-        }
-    });
-    
-    // Group by site and calculate overdue days
-    const siteOverdueData = {};
-    
-    overdueRecords.forEach(record => {
-        if (!record.site) return;
-        
-        const releaseDate = parseReleaseDate(record.releaseDate);
-        const workingDaysPassed = getWorkingDays(releaseDate, today);
-        
-        if (!siteOverdueData[record.site]) {
-            siteOverdueData[record.site] = {
-                srvCount: 0,
-                ipcCount: 0,
-                maxDays: 0,
-                totalDays: 0,
-                recordCount: 0
-            };
-        }
-        
-        if (record.status === 'For SRV') {
-            siteOverdueData[record.site].srvCount++;
-        } else if (record.status === 'For IPC') {
-            siteOverdueData[record.site].ipcCount++;
-        }
-        
-        siteOverdueData[record.site].totalDays += workingDaysPassed;
-        siteOverdueData[record.site].recordCount++;
-        if (workingDaysPassed > siteOverdueData[record.site].maxDays) {
-            siteOverdueData[record.site].maxDays = workingDaysPassed;
-        }
-    });
-    
-    // Prepare data for chart
-    const sites = Object.keys(siteOverdueData).sort();
-    const srvData = sites.map(site => siteOverdueData[site].srvCount);
-    const ipcData = sites.map(site => siteOverdueData[site].ipcCount);
-    const avgDaysData = sites.map(site => 
-        Math.round(siteOverdueData[site].totalDays / siteOverdueData[site].recordCount)
-    );
-    
-    // Create or update chart
-    const ctx = document.getElementById('overdueBarChart').getContext('2d');
-    
-    if (overdueBarChart) {
-        overdueBarChart.data.labels = sites;
-        overdueBarChart.data.datasets[0].data = srvData;
-        overdueBarChart.data.datasets[1].data = ipcData;
-        overdueBarChart.data.datasets[2].data = avgDaysData;
-        overdueBarChart.update();
+    if (task.for === 'Invoice' && task.source === 'job_entry') { return !!task.dateResponded; }
+    if (task.for === 'IPC' && task.attention === 'All') { return true; }
+    return (task.amount && task.amount.trim() !== '' && task.po && task.po.trim() !== '');
+}
+
+function resetJobEntryForm(keepJobType = false) {
+    const jobType = jobForSelect.value;
+    jobEntryForm.reset();
+    if(keepJobType) jobForSelect.value = jobType;
+    currentlyEditingKey = null;
+    ['job-amount', 'job-po'].forEach(id => document.getElementById(id).classList.remove('highlight-field'));
+    if (siteSelectChoices) { siteSelectChoices.clearInput(); siteSelectChoices.removeActiveItems(); }
+    if (attentionSelectChoices) { attentionSelectChoices.clearInput(); attentionSelectChoices.removeActiveItems(); attentionSelectChoices.enable(); }
+    jobEntryFormTitle.textContent = 'Add New Job Entry';
+    addJobButton.classList.remove('hidden');
+    updateJobButton.classList.add('hidden');
+}
+async function populateAttentionDropdown(choicesInstance) {
+    try {
+        if (!choicesInstance) return;
+        choicesInstance.setChoices([{ value: '', label: 'Loading...', disabled: true, selected: true }]);
+        const snapshot = await db.ref('approvers').once('value');
+        const approvers = snapshot.val();
+        if (approvers) {
+            const approverOptions = Object.values(approvers).map(approver => approver.Name ? { value: approver.Name, label: approver.Name } : null).filter(Boolean);
+            choicesInstance.setChoices([{ value: '', label: 'Select Attention', disabled: true }].concat(approverOptions), 'value', 'label', true);
+        } else { choicesInstance.setChoices([{ value: '', label: 'No approvers found', disabled: true }]); }
+    } catch (error) { console.error("Error populating attention dropdown:", error); if (choicesInstance) choicesInstance.setChoices([{ value: '', label: 'Error loading names', disabled: true }]); }
+}
+async function populateSiteDropdown() {
+    try {
+        if (!siteSelectChoices) return;
+        siteSelectChoices.setChoices([{ value: '', label: 'Loading...', disabled: true, selected: true }]);
+        const snapshot = await db.ref('project_sites').once('value');
+        const sites = snapshot.val();
+        if (sites) {
+            const siteOptions = Object.values(sites).map(site => site.Warehouse && site.Description ? { value: site.Warehouse, label: `${site.Warehouse} - ${site.Description}` } : null).filter(Boolean);
+            siteSelectChoices.setChoices([{ value: '', label: 'Select a Site', disabled: true }].concat(siteOptions), 'value', 'label', true);
+        } else { siteSelectChoices.setChoices([{ value: '', label: 'No sites found', disabled: true }]); }
+    } catch (error) { console.error("Error populating site dropdown:", error); if (siteSelectChoices) siteSelectChoices.setChoices([{ value: '', label: 'Error loading sites', disabled: true }]); }
+}
+function renderJobEntryTable(entries) {
+    jobEntryTableBody.innerHTML = '';
+    if (!entries || entries.length === 0) {
+        jobEntryTableBody.innerHTML = `<tr><td colspan="8">No pending entries found.</td></tr>`;
         return;
     }
-    
-    overdueBarChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: sites,
-            datasets: [
-                {
-                    label: 'Overdue SRV',
-                    data: srvData,
-                    backgroundColor: '#4e73df',
-                    borderColor: '#4e73df',
-                    borderWidth: 1
-                },
-                {
-                    label: 'Overdue IPC',
-                    data: ipcData,
-                    backgroundColor: '#1cc88a',
-                    borderColor: '#1cc88a',
-                    borderWidth: 1
-                },
-                {
-                    label: 'Avg Days Overdue',
-                    data: avgDaysData,
-                    backgroundColor: '#f6c23e',
-                    borderColor: '#f6c23e',
-                    borderWidth: 1,
-                    type: 'line',
-                    yAxisID: 'y1'
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Number of Overdue Items'
-                    }
-                },
-                y1: {
-                    position: 'right',
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Average Days Overdue'
-                    },
-                    grid: {
-                        drawOnChartArea: false
-                    }
-                }
-            },
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'Overdue Invoice by Site',
-                    font: {
-                        size: 16
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        afterBody: function(context) {
-                            const site = context[0].label;
-                            const data = siteOverdueData[site];
-                            return [
-                                `Max Days Overdue: ${data.maxDays}`,
-                                `Avg Days Overdue: ${Math.round(data.totalDays / data.recordCount)}`
-                            ];
-                        }
-                    }
-                }
-            },
-            onClick: function(evt, elements) {
-                if (elements.length > 0) {
-                    const clickedIndex = elements[0].index;
-                    const site = this.data.labels[clickedIndex];
-                    const datasetIndex = elements[0].datasetIndex;
-                    const status = datasetIndex === 0 ? 'For SRV' : datasetIndex === 1 ? 'For IPC' : null;
-                    
-                    if (status) {
-                        domCache.siteSearchTerm.value = site;
-                        filterSiteTableOnly(site, status);
-                    } else {
-                        domCache.siteSearchTerm.value = site;
-                        searchSiteRecords();
-                    }
-                }
-            }
+    entries.forEach(entry => { 
+        const row = document.createElement('tr'); 
+        row.setAttribute('data-key', entry.key); 
+        if (entry.source !== 'invoice') {
+            row.style.cursor = 'pointer';
         }
+        row.innerHTML = `
+            <td>${entry.for || ''}</td>
+            <td>${entry.ref || ''}</td>
+            <td>${entry.po || ''}</td>
+            <td>${entry.site || ''}</td>
+            <td>${entry.group || ''}</td>
+            <td>${entry.attention || ''}</td>
+            <td>${entry.date || ''}</td>
+            <td>${entry.remarks || 'Pending'}</td>
+        `; 
+        jobEntryTableBody.appendChild(row); 
     });
 }
+async function fetchAndDisplayJobEntries() {
+    jobEntryTableBody.innerHTML = `<tr><td colspan="8">Loading entries...</td></tr>`;
+    try {
+        await ensureAllEntriesFetched();
+        userJobEntries = allSystemEntries.filter(entry => entry.enteredBy === currentApprover.Name && !isTaskComplete(entry));
+        renderJobEntryTable(userJobEntries);
+    } catch (error) { console.error("Error fetching job entries:", error); jobEntryTableBody.innerHTML = `<tr><td colspan="8">Error loading data.</td></tr>`; }
+}
+function handleJobEntrySearch(searchTerm) {
+    const searchText = searchTerm.toLowerCase();
+    if (!searchText) { renderJobEntryTable(userJobEntries); return; }
+    const filteredEntries = userJobEntries.filter(entry => { return ( (entry.for && entry.for.toLowerCase().includes(searchText)) || (entry.ref && entry.ref.toLowerCase().includes(searchText)) || (entry.site && entry.site.toLowerCase().includes(searchText)) || (entry.group && entry.group.toLowerCase().includes(searchText)) || (entry.attention && entry.attention.toLowerCase().includes(searchText)) ); });
+    renderJobEntryTable(filteredEntries);
+}
+function getJobDataFromForm() {
+    const formData = new FormData(jobEntryForm);
+    const data = { for: formData.get('for'), ref: formData.get('ref') || '', amount: formData.get('amount') || '', po: formData.get('po') || '', site: formData.get('site'), group: formData.get('group'), attention: attentionSelectChoices.getValue(true), date: formatDate(new Date()) };
+    return data;
+}
+async function handleAddJobEntry(e) {
+    e.preventDefault();
+    const jobData = getJobDataFromForm();
+    if (!jobData.for || !jobData.site || !jobData.group || !jobData.attention) { alert('Please fill in all required fields (Job, Site, Group, Attention).'); return; }
 
-function filterSiteTableOnly(site, status) {
-    let filtered = records.filter(record => 
-        record.status !== 'With Accounts' && 
-        record.status !== 'Closed' && 
-        record.status !== 'Cancelled'
-    );
-    
-    if (site) {
-        filtered = filtered.filter(record => 
-            record.site && record.site.toLowerCase().includes(site.toLowerCase())
-        );
-    }
-    
-    if (status) {
-        filtered = filtered.filter(record => record.status === status);
-        
-        if (status === 'For SRV' || status === 'For IPC') {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
-            filtered = filtered.filter(record => {
-                if (!record.releaseDate) return false;
-                try {
-                    const releaseDate = parseReleaseDate(record.releaseDate);
-                    const workingDaysPassed = getWorkingDays(releaseDate, today);
-                    return workingDaysPassed >= 7;
-                } catch (e) {
-                    console.error('Error processing record:', record, e);
-                    return false;
-                }
-            });
+    if (jobData.for === 'IPC') {
+        const isQS = currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'qs';
+        if (isQS) {
+            jobData.remarks = 'Ready';
+            if (!jobData.amount || !jobData.po) { alert('As a QS, IPC jobs require both an Amount and PO number.'); return; }
+        } else {
+            if (!jobData.po) { alert('For IPC jobs, a PO number is required.'); return; }
+        }
+
+        await ensureAllEntriesFetched();
+        const duplicatePO = allSystemEntries.find(entry => entry.for === 'IPC' && entry.po && entry.po.trim() !== '' && entry.po === jobData.po);
+        if (duplicatePO) {
+            const message = `WARNING: An IPC for PO Number "${jobData.po}" already exists.\n\nPress OK if this is a new IPC for this PO.\nPress Cancel to check the Reporting section first.`;
+            if (!confirm(message)) { return; }
         }
     }
-    
-    currentFilteredRecords = filtered;
-    refreshSiteTable(filtered);
-    domCache.siteRecordsTable.style.display = filtered.length > 0 ? 'table' : 'none';
-}
 
-function searchSiteRecords() {
-    currentSearchedSite = domCache.siteSearchTerm.value.trim();
-    const term = domCache.siteSearchTerm.value.toLowerCase();
-    let filtered = records.filter(record => record.status !== 'With Accounts' && record.status !== 'Closed' && record.status !== 'Cancelled');
-    
-    if (term) {
-        filtered = filtered.filter(record => 
-            record.site && record.site.toLowerCase().includes(term)
-        );
-    }
-    
-    // Show all charts for general search
-    domCache.statusPieChartContainer.style.display = 'block';
-    domCache.statusBarChartContainer.style.display = 'block';
-    document.getElementById('overdueBarChart').parentElement.style.display = 'block';
-    
-    currentFilteredRecords = filtered;
-    refreshSiteTable(filtered);
-    initializeCharts(filtered);
-    initializeOverdueChart(filtered);
-    domCache.siteRecordsTable.style.display = term ? 'table' : 'none';
+    jobData.timestamp = Date.now();
+    jobData.enteredBy = currentApprover.Name;
+    try {
+        await db.ref('job_entries').push(jobData);
+        alert('Job Entry Added Successfully!');
+        resetJobEntryForm();
+        fetchAndDisplayJobEntries();
+    } catch (error) { console.error("Error adding job entry:", error); alert('Failed to add Job Entry. Please try again.'); }
 }
+async function handleUpdateJobEntry(e) {
+    e.preventDefault();
+    if (!currentlyEditingKey) { alert("No entry selected for update."); return; }
+    const formData = new FormData(jobEntryForm);
+    const jobData = { for: formData.get('for'), ref: formData.get('ref') || '', amount: formData.get('amount') || '', po: formData.get('po') || '', site: formData.get('site'), group: formData.get('group'), attention: attentionSelectChoices.getValue(true) };
+    if (!jobData.for || !jobData.site || !jobData.group || !jobData.attention) { alert('Please fill in all required fields (Job, Site, Group, Attention).'); return; }
+    try {
+        const originalEntry = allSystemEntries.find(entry => entry.key === currentlyEditingKey);
+        if (originalEntry) { jobData.enteredBy = originalEntry.enteredBy; jobData.timestamp = originalEntry.timestamp; jobData.date = originalEntry.date; }
+        if (originalEntry.for === 'IPC' && jobData.attention === 'All') { jobData.remarks = 'Ready'; }
+        if (originalEntry && currentApprover.Name === originalEntry.attention && !originalEntry.dateResponded) { jobData.dateResponded = formatDate(new Date()); }
+        await db.ref(`job_entries/${currentlyEditingKey}`).update(jobData);
+        alert('Job Entry Updated Successfully!');
+        resetJobEntryForm();
+        fetchAndDisplayJobEntries();
+        populateActiveTasks();
+    } catch (error) { console.error("Error updating job entry:", error); alert('Failed to update Job Entry. Please try again.'); }
+}
+function populateFormForEditing(key) {
+    const entryData = allSystemEntries.find(entry => entry.key === key);
+    if (!entryData || entryData.source === 'invoice') return;
 
-function filterSiteRecords(status, fromOverdue = false) {
-    const term = domCache.siteSearchTerm.value.toLowerCase();
-    let filtered = records.filter(record => record.status !== 'With Accounts' && record.status !== 'Closed' && record.status !== 'Cancelled');
-    
-    if (term) {
-        filtered = filtered.filter(record => 
-            record.site && record.site.toLowerCase().includes(term)
-        );
+    currentlyEditingKey = key;
+    document.getElementById('job-for').value = entryData.for || '';
+    document.getElementById('job-ref').value = entryData.ref || '';
+    const amountInput = document.getElementById('job-amount');
+    const poInput = document.getElementById('job-po');
+    amountInput.value = entryData.amount || '';
+    poInput.value = entryData.po || '';
+    document.getElementById('job-group').value = entryData.group || '';
+    siteSelectChoices.setChoiceByValue(entryData.site || '');
+    attentionSelectChoices.setChoiceByValue(entryData.attention || '');
+    jobEntryFormTitle.textContent = 'Editing Job Entry';
+    addJobButton.classList.add('hidden');
+    updateJobButton.classList.remove('hidden');
+    amountInput.classList.remove('highlight-field');
+    poInput.classList.remove('highlight-field');
+    window.scrollTo(0, 0);
+}
+async function populateActiveTasks() {
+    activeTaskTableBody.innerHTML = '<tr><td colspan="8">Loading tasks...</td></tr>';
+    if (!currentApprover || !currentApprover.Name) { activeTaskTableBody.innerHTML = '<tr><td colspan="8">Could not identify user.</td></tr>'; return; }
+    try {
+        await ensureAllEntriesFetched();
+        userActiveTasks = allSystemEntries.filter(task => task.attention === currentApprover.Name && !isTaskComplete(task));
+        renderActiveTaskTable(userActiveTasks);
+    } catch (error) { console.error("Error fetching active tasks:", error); activeTaskTableBody.innerHTML = '<tr><td colspan="8">Error loading tasks.</td></tr>'; }
+}
+function renderActiveTaskTable(tasks) {
+    activeTaskTableBody.innerHTML = '';
+    if (!tasks || tasks.length === 0) {
+        activeTaskTableBody.innerHTML = '<tr><td colspan="8">You have no active tasks.</td></tr>';
+        return;
     }
-    
-    if (status !== 'all') {
-        filtered = filtered.filter(record => record.status === status);
-        
-        if (status === 'For SRV' || status === 'For IPC') {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
-            filtered = filtered.filter(record => {
-                if (!record.releaseDate) return false;
-                try {
-                    const releaseDate = parseReleaseDate(record.releaseDate);
-                    const workingDaysPassed = getWorkingDays(releaseDate, today);
-                    return workingDaysPassed >= 7;
-                } catch (e) {
-                    console.error('Error processing record:', record, e);
-                    return false;
-                }
-            });
+    tasks.forEach(task => { 
+        const row = document.createElement('tr');
+        const actionButton = task.source === 'invoice' 
+            ? `<button class="respond-btn" data-key="${task.key}" disabled title="Status is managed in Invoice Management">View in IM</button>` 
+            : `<button class="respond-btn" data-key="${task.key}">Respond</button>`;
+        row.innerHTML = `
+            <td>${task.for || ''}</td>
+            <td>${task.ref || ''}</td>
+            <td>${task.po || ''}</td>
+            <td>${task.site || ''}</td>
+            <td>${task.group || ''}</td>
+            <td>${task.date || ''}</td>
+            <td>${task.remarks || 'Pending'}</td>
+            <td>${actionButton}</td>
+        `; 
+        activeTaskTableBody.appendChild(row); 
+    });
+}
+async function populateTaskHistory() {
+    taskHistoryTableBody.innerHTML = '<tr><td colspan="9">Loading history...</td></tr>';
+    if (!currentApprover || !currentApprover.Name) { taskHistoryTableBody.innerHTML = '<tr><td colspan="9">Could not identify user.</td></tr>'; return; }
+    try {
+        await ensureAllEntriesFetched();
+        const userSiteString = currentApprover.Site || '';
+
+        let siteFilteredHistory;
+        if (userSiteString.toLowerCase() === 'all') {
+            siteFilteredHistory = allSystemEntries;
+        } else {
+            const userSites = userSiteString.split(',').map(s => s.trim());
+            siteFilteredHistory = allSystemEntries.filter(task => userSites.includes(task.site));
         }
+
+        userTaskHistory = siteFilteredHistory.filter(task => {
+            const isRelatedToMe = (task.enteredBy === currentApprover.Name || task.attention === currentApprover.Name);
+            return isRelatedToMe && isTaskComplete(task);
+        });
+        
+        renderTaskHistoryTable(userTaskHistory);
+    } catch (error) { console.error("Error fetching task history:", error); taskHistoryTableBody.innerHTML = '<tr><td colspan="9">Error loading task history.</td></tr>'; }
+}
+function renderTaskHistoryTable(tasks) {
+    taskHistoryTableBody.innerHTML = '';
+    if (!tasks || tasks.length === 0) { taskHistoryTableBody.innerHTML = '<tr><td colspan="9">You have no completed tasks in your history.</td></tr>'; return; }
+    tasks.forEach(task => { 
+        const row = document.createElement('tr'); 
+        const remarks = task.remarks || 'Completed'; 
+        row.innerHTML = `<td>${task.for || ''}</td><td>${task.ref || ''}</td><td>${task.amount || ''}</td><td>${task.po || ''}</td><td>${task.site || ''}</td><td>${task.group || ''}</td><td>${task.date || ''}</td><td>${task.dateResponded || 'N/A'}</td><td>${remarks}</td>`; 
+        taskHistoryTableBody.appendChild(row); 
+    });
+}
+async function populateReporting() {
+    reportingTableBody.innerHTML = '<tr><td colspan="10">Loading all entries...</td></tr>';
+    try {
+        await ensureAllEntriesFetched();
+        handleReportingSearch();
+    } catch (error) { console.error("Error fetching all entries for reporting:", error); reportingTableBody.innerHTML = '<tr><td colspan="10">Error loading reporting data.</td></tr>'; }
+}
+function renderReportingTable(entries) {
+    reportingTableBody.innerHTML = '';
+    if (!entries || entries.length === 0) { reportingTableBody.innerHTML = '<tr><td colspan="10">No entries found for the selected criteria.</td></tr>'; return; }
+    entries.forEach(entry => {
+        const status = isTaskComplete(entry) ? (entry.remarks || 'Completed') : (entry.remarks || 'Pending');
+        const row = document.createElement('tr');
+        row.innerHTML = `<td>${entry.for || ''}</td><td>${entry.ref || ''}</td><td>${entry.po || ''}</td><td>${entry.amount || ''}</td><td>${entry.site || ''}</td><td>${entry.attention || ''}</td><td>${entry.enteredBy || ''}</td><td>${entry.date || ''}</td><td>${entry.dateResponded || 'N/A'}</td><td>${status}</td>`;
+        reportingTableBody.appendChild(row);
+    });
+}
+function filterAndRenderReport(baseEntries = []) {
+    let filteredEntries = [...baseEntries];
+    if (currentReportFilter !== 'All') { filteredEntries = filteredEntries.filter(entry => entry.for === currentReportFilter); }
+    const searchText = reportingSearchInput.value.toLowerCase();
+    if (searchText) {
+        filteredEntries = filteredEntries.filter(entry => {
+            return ((entry.for && entry.for.toLowerCase().includes(searchText)) || (entry.ref && entry.ref.toLowerCase().includes(searchText)) || (entry.po && entry.po.toLowerCase().includes(searchText)) || (entry.amount && entry.amount.toString().includes(searchText)) || (entry.site && entry.site.toLowerCase().includes(searchText)) || (entry.attention && entry.attention.toLowerCase().includes(searchText)) || (entry.enteredBy && entry.enteredBy.toLowerCase().includes(searchText)) || (entry.date && entry.date.toLowerCase().includes(searchText)));
+        });
     }
-    
-    // Control chart visibility based on whether it's from overdue cards
-    if (fromOverdue) {
-        // Hide status charts when viewing overdue items from cards
-        domCache.statusPieChartContainer.style.display = 'none';
-        domCache.statusBarChartContainer.style.display = 'none';
-        // Show overdue chart
-        document.getElementById('overdueBarChart').parentElement.style.display = 'block';
+    renderReportingTable(filteredEntries);
+}
+async function populateWorkdeskDashboard() {
+    await ensureAllEntriesFetched();
+    const myActiveTasks = allSystemEntries.filter(task => task.attention === currentApprover.Name && !isTaskComplete(task));
+    const myPendingEntries = allSystemEntries.filter(task => task.enteredBy === currentApprover.Name && !isTaskComplete(task));
+    const myCompletedTasks = allSystemEntries.filter(task => (task.enteredBy === currentApprover.Name || task.attention === currentApprover.Name) && isTaskComplete(task));
+    const myRelatedEntries = allSystemEntries.filter(task => task.enteredBy === currentApprover.Name || task.attention === currentApprover.Name);
+
+    dbActiveTasksCount.textContent = myActiveTasks.length;
+    dbPendingEntriesCount.textContent = myPendingEntries.length;
+    dbCompletedTasksCount.textContent = myCompletedTasks.length;
+
+    const siteStats = {};
+    myRelatedEntries.forEach(entry => {
+        if (!entry.site) return;
+        if (!siteStats[entry.site]) { siteStats[entry.site] = { completed: 0, pending: 0 }; }
+        if (isTaskComplete(entry)) { siteStats[entry.site].completed++; } else { siteStats[entry.site].pending++; }
+    });
+
+    dbSiteStatsContainer.innerHTML = '';
+    if (Object.keys(siteStats).length === 0) {
+        dbSiteStatsContainer.innerHTML = '<p>No data available for your sites yet.</p>';
     } else {
-        // Show all charts for other cases
-        domCache.statusPieChartContainer.style.display = 'block';
-        domCache.statusBarChartContainer.style.display = 'block';
-        document.getElementById('overdueBarChart').parentElement.style.display = 'block';
-    }
-    
-    currentFilteredRecords = filtered;
-    refreshSiteTable(filtered);
-    initializeCharts(filtered);
-    initializeOverdueChart(filtered);
-    domCache.siteRecordsTable.style.display = filtered.length > 0 ? 'table' : 'none';
-}
-// Robust date parser for ISO (YYYY-MM-DD) and D/M/Y or D-M-Y
-function parseReleaseDate(value) {
-    if (!value) return null;
-    if (value instanceof Date) return value;
-    const str = String(value).trim();
-    // ISO format 2025-08-27
-    let m = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (m) {
-        return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-    }
-    // D/M/Y or D-M-Y
-    m = str.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
-    if (m) {
-        return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
-    }
-    // Fallback
-    return new Date(str);
-}
-function getWorkingDays(startDate, endDate) {
-    let count = 0;
-    const current = (startDate instanceof Date) ? new Date(startDate) : parseReleaseDate(startDate);
-    current.setHours(0, 0, 0, 0);
-    const end = (endDate instanceof Date) ? new Date(endDate) : parseReleaseDate(endDate);
-    end.setHours(0, 0, 0, 0);
-    
-    if (current.getTime() === end.getTime()) {
-        return 0;
-    }
-    
-    while (current < end) {
-        const day = current.getDay();
-        if (day !== 5) { // Skip Friday (Qatar weekend)
-            count++;
-        }
-        current.setDate(current.getDate() + 1);
-    }
-    return count;
-}
+        const chartContainer = document.createElement('div');
+        chartContainer.className = 'site-performance-chart';
 
-function refreshSiteTable(filteredRecords = null) {
-    const tableBody = document.querySelector('#siteRecordsTable tbody');
-    tableBody.innerHTML = '';
-    
-    const displayRecords = filteredRecords || records.filter(record => record.status !== 'With Accounts');
-    currentFilteredRecords = displayRecords;
-    
-    if (displayRecords.length === 0) {
-        domCache.siteRecordsTable.style.display = 'none';
-        return;
-    }
-    
-    domCache.siteRecordsTable.style.display = 'table';
-    
-    displayRecords.forEach((record, index) => {
-        const row = document.createElement('tr');
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.className = 'row-checkbox';
-        
-        const firstCell = document.createElement('td');
-        firstCell.appendChild(checkbox);
-        
-        row.appendChild(firstCell);
-        row.innerHTML += `
-            <td>${index + 1}</td>
-            <td>${record.releaseDate ? formatDate(record.releaseDate) : '-'}</td>
-            <td>${record.site || '-'}</td>
-            <td>${formatPoNumber(record.poNumber)}</td>
-            <td>${record.vendor || '-'}</td>
-            <td>${record.invoiceNumber || '-'}</td>
-            <td class="numeric">${record.value ? formatNumber(record.value) : '-'}</td>
-            <td><span class="status-badge ${getStatusClass(record.status)}">${record.status}</span></td>
-            <td>${record.note || '-'}</td>
+        for (const site in siteStats) {
+            const stats = siteStats[site];
+            const total = stats.completed + stats.pending;
+            const completedPercent = total > 0 ? (stats.completed / total) * 100 : 0;
+            const pendingPercent = total > 0 ? (stats.pending / total) * 100 : 0;
+            
+            const barContainer = document.createElement('div');
+            barContainer.className = 'chart-bar-container';
+
+            const bar = document.createElement('div');
+            bar.className = 'chart-bar';
+            bar.title = `${site}: ${stats.completed} Completed, ${stats.pending} Pending`;
+
+            const completedSegment = document.createElement('div');
+            completedSegment.className = 'bar-segment-completed';
+            completedSegment.style.height = `${completedPercent}%`;
+            if (completedPercent > 10) completedSegment.textContent = stats.completed;
+
+            const pendingSegment = document.createElement('div');
+            pendingSegment.className = 'bar-segment-pending';
+            pendingSegment.style.height = `${pendingPercent}%`;
+            if (pendingPercent > 10) pendingSegment.textContent = stats.pending;
+
+            bar.appendChild(completedSegment);
+            bar.appendChild(pendingSegment);
+
+            const label = document.createElement('div');
+            label.className = 'chart-label';
+            label.textContent = site;
+
+            barContainer.appendChild(bar);
+            barContainer.appendChild(label);
+            chartContainer.appendChild(barContainer);
+        }
+        dbSiteStatsContainer.appendChild(chartContainer);
+
+        const legend = document.createElement('div');
+        legend.className = 'chart-legend';
+        legend.innerHTML = `
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #28a745;"></div>
+                <span>Completed</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #ffc107;"></div>
+                <span>Pending</span>
+            </div>
         `;
-        
-        // Mobile-specific touch handling
-        if (isMobileDevice()) {
-            let touchStartTime;
-            let touchMoved = false;
-            
-            // Handle checkbox touch specifically
-            checkbox.addEventListener('touchstart', function(e) {
-                e.stopPropagation(); // Prevent row touch handlers
-                touchMoved = false;
-                touchStartTime = Date.now();
-            });
-            
-            checkbox.addEventListener('touchmove', function() {
-                touchMoved = true;
-            });
-            
-            checkbox.addEventListener('touchend', function(e) {
-                if (!touchMoved && (Date.now() - touchStartTime) < 200) {
-                    // Simple tap - toggle checkbox
-                    this.checked = !this.checked;
-                    e.preventDefault(); // Prevent double-tap zoom
-                }
-            });
-            
-            // For row touches (non-checkbox areas)
-            row.addEventListener('touchstart', function(e) {
-                if (!e.target.closest('input[type="checkbox"]')) {
-                    touchStartTime = Date.now();
-                    touchMoved = false;
-                }
-            });
-            
-            row.addEventListener('touchmove', function(e) {
-                if (!e.target.closest('input[type="checkbox"]')) {
-                    touchMoved = true;
-                }
-            });
-            
-            row.addEventListener('touchend', function(e) {
-                if (!e.target.closest('input[type="checkbox"]') && 
-                    !touchMoved && 
-                    (Date.now() - touchStartTime) < 200) {
-                    // Simple tap on row - show preview
-                    showDashboardRecordPreview(record);
-                    e.preventDefault();
-                }
-            });
-        }
-        
-        // Keep desktop double-click behavior
-        if (!isMobileDevice()) {
-            row.addEventListener('dblclick', function(e) {
-                if (!e.target.closest('input[type="checkbox"]')) {
-                    showDashboardRecordPreview(record);
-                }
-            });
-        }
-        
-        tableBody.appendChild(row);
-    });
-    
-    setupResponsiveElements();
-}
-
-function showDashboardRecordPreview(record) {
-    document.getElementById('dashboardPreviewVendor').textContent = record.vendor || '-';    
-    document.getElementById('dashboardPreviewPoNumber').textContent = formatPoNumber(record.poNumber);
-    document.getElementById('dashboardPreviewInvoiceNumber').textContent = record.invoiceNumber || '-';
-    document.getElementById('dashboardPreviewAmount').textContent = record.value ? formatNumber(record.value) : '-';
-    document.getElementById('dashboardPreviewStatus').textContent = record.status || '-';
-    document.getElementById('dashboardPreviewNotes').textContent = record.note || '-';
-    
-    const statusSteps = {
-        'Open': 0,
-        'For SRV': 1,
-        'For IPC': 2,
-        'No Invoice': 2,
-        'Report': 2,
-        'Under Review': 3,
-        'CEO Approval': 4,
-        'With Accounts': 5
-    };
-    const currentStep = statusSteps[record.status] || 0;
-    
-    document.querySelectorAll('#dashboardPreviewModal .step').forEach((step, index) => {
-        step.classList.remove('current');
-        if (index < currentStep) {
-            step.classList.add('active');
-        } else {
-            step.classList.remove('active');
-        }
-    });
-    
-    if (currentStep > 0) {
-        const currentStepElement = document.querySelector(`#dashboardPreviewModal .step-${currentStep}`);
-        if (currentStepElement) {
-            currentStepElement.classList.add('current');
-        }
-    }
-    
-    document.querySelectorAll('#dashboardPreviewModal .step-connector').forEach((connector, index) => {
-        if (index < currentStep - 1) {
-            connector.classList.add('active');
-        } else {
-            connector.classList.remove('active');
-        }
-    });
-    
-    const requestUpdateBtn = document.getElementById('dashboardRequestUpdateBtn');
-    if (requestUpdateBtn) {
-        requestUpdateBtn.onclick = () => {
-            closeDashboardPreview(); // Close the dashboard preview modal
-            openWhatsAppModal(record, 'update'); // Open the WhatsApp modal in 'update' mode
-        };
-    }
-    
-    document.getElementById('dashboardPreviewModal').style.display = 'block';
-    document.body.style.overflow = 'hidden';
-}
-
-function viewInInvoiceTracker(poNumber) {
-    // Switch to invoice section
-    showSection('invoiceSection');
-    
-    // Set the search term to the PO number
-    domCache.searchTerm.value = formatPoNumber(poNumber);
-    
-    // Trigger the search
-    searchRecords();
-    
-    // Close the preview modal
-    closeDashboardPreview();
-}
-
-function closeDashboardPreview() {
-    document.getElementById('dashboardPreviewModal').style.display = 'none';
-    document.body.style.overflow = '';
-}
-
-function clearSiteSearch() {
-    domCache.siteSearchTerm.value = '';
-    // Show all charts when clearing search
-    domCache.statusPieChartContainer.style.display = 'block';
-    domCache.statusBarChartContainer.style.display = 'block';
-    document.getElementById('overdueBarChart').parentElement.style.display = 'block';
-    searchSiteRecords();
-}
-
-// Utility functions
-function formatDate(dateString) {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-}
-
-function formatNumber(value) {
-    return parseFloat(value).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-}
-
-function formatPoNumber(po) {
-    if (!po) return '-';
-    // Use parseFloat to handle decimals correctly, avoiding truncation.
-    const num = parseFloat(String(po).trim());
-    return isNaN(num) ? po : num;
-}
-
-function getStatusClass(status) {
-    const statusClasses = {
-        'For SRV': 'status-srv',
-        'Report': 'status-report',
-        'Under Review': 'status-review',
-        'Pending': 'status-pending',
-        'With Accounts': 'status-accounts',
-        'CEO Approval': 'status-process',
-        'For IPC': 'status-ipc',
-        'No Invoice': 'status-Invoice',
-        'Open': 'status-Open'
-    };
-    return statusClasses[status] || '';
-}
-
-function clearReportSearch() {
-    domCache.reportSearchTerm.value = '';
-    domCache.reportType.value = 'po';
-    domCache.reportStatusFilter.value = 'all';
-    document.getElementById('reportHeader').innerHTML = '';
-    domCache.reportTable.style.display = 'none';
-    document.getElementById('poTotal').textContent = '0.00';
-    document.getElementById('grandTotal').textContent = '0.00';
-    document.getElementById('accountsTotal').textContent = '0.00';
-    document.getElementById('balanceTotal').textContent = '0.00';
-    document.querySelector('#reportTable tbody').innerHTML = '';
-}
-
-function clearPettyCashSearch() {
-    domCache.pettyCashSearchTerm.value = '';
-    document.getElementById('pettyCashTotal').textContent = '0.00';
-    document.getElementById('pettyCashCount').textContent = '0';
-    domCache.pettyCashTable.style.display = 'none';
-    document.getElementById('pettyCashTableTotal').textContent = '0.00';
-    document.querySelector('#pettyCashTable tbody').innerHTML = '';
-}
-
-// Report functions
-function generateReport() {
-    const reportType = domCache.reportType.value;
-    const searchTerm = domCache.reportSearchTerm.value.trim();
-    const statusFilter = domCache.reportStatusFilter.value;
-    const includeNotes = domCache.includeNotes.checked;
-    
-    if (!searchTerm) {
-        alert('Please enter a search term');
-        return;
-    }
-    
-    let filteredRecords = [];
-    let headerText = '';
-    
-    switch(reportType) {
-        case 'po':
-            filteredRecords = records.filter(record => 
-                record.poNumber && String(record.poNumber).toLowerCase().includes(searchTerm.toLowerCase())
-            );
-            if (filteredRecords.length > 0) {
-                headerText = `PO: ${formatPoNumber(filteredRecords[0].poNumber)}<br>
-                    Vendor: ${filteredRecords[0].vendor || 'N/A'}<br>
-                    Site: ${filteredRecords[0].site || 'N/A'}<br>
-                    Note: ${filteredRecords[0].note || 'N/A'}`;
-            }
-            document.getElementById('poTotalContainer').style.display = 'flex';
-            break;
-            
-        case 'vendor':
-            filteredRecords = records.filter(record => 
-                record.vendor && record.vendor.toLowerCase().includes(searchTerm.toLowerCase())
-            );
-            if (filteredRecords.length > 0) {
-                headerText = `Vendor: ${filteredRecords[0].vendor}<br>
-                    Records: ${filteredRecords.length}`;
-            }
-            document.getElementById('poTotalContainer').style.display = 'none';
-            break;
-            
-        case 'site':
-            filteredRecords = records.filter(record => 
-                record.site && record.site.toLowerCase().includes(searchTerm.toLowerCase())
-            );
-            if (filteredRecords.length > 0) {
-                headerText = `Site: ${filteredRecords[0].site}<br>
-                    Records: ${filteredRecords.length}`;
-            }
-            document.getElementById('poTotalContainer').style.display = 'none';
-            break;
-    }
-    
-    if (statusFilter !== 'all') {
-        filteredRecords = filteredRecords.filter(record => record.status === statusFilter);
-    }
-    
-    if (filteredRecords.length === 0) {
-        alert('No records found matching your search criteria');
-        return;
-    }
-    
-    const invoiceTotal = filteredRecords
-        .reduce((sum, record) => sum + (parseFloat(record.value) || 0), 0);
-        
-    const poTotal = reportType === 'po' && filteredRecords.length > 0 ? 
-        parseFloat(filteredRecords[0].poValue) || 0 : 0;
-    
-    const withAccountsTotal = filteredRecords
-        .filter(record => record.status === 'With Accounts')
-        .reduce((sum, record) => sum + (parseFloat(record.value) || 0), 0);
-    
-    const balance = invoiceTotal - withAccountsTotal;
-
-    document.getElementById('reportHeader').innerHTML = headerText;
-    document.getElementById('poTotal').textContent = formatNumber(poTotal);
-    document.getElementById('grandTotal').textContent = formatNumber(invoiceTotal);
-    document.getElementById('accountsTotal').textContent = formatNumber(withAccountsTotal);
-    document.getElementById('balanceTotal').textContent = formatNumber(balance);
-    
-    const reportTableBody = document.querySelector('#reportTable tbody');
-    reportTableBody.innerHTML = '';
-    
-    filteredRecords.forEach((record, index) => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${index + 1}</td>
-            <td>${formatPoNumber(record.poNumber)}</td>
-            <td>${record.vendor || '-'}</td>
-            <td>${record.invoiceNumber || '-'}</td>
-            <td class="numeric">${record.value ? formatNumber(record.value) : '-'}</td>
-            <td>${record.releaseDate ? formatDate(record.releaseDate) : '-'}</td>
-            <td><span class="status-badge ${getStatusClass(record.status)}">${record.status}</span></td>
-            <td class="notes-column">${includeNotes ? (record.note || '-') : ''}</td>
-        `;
-        
-        // Add click handler to navigate to invoice tracker
-        row.addEventListener('click', function() {
-            if (record.poNumber) {
-                showSection('invoiceSection');
-                domCache.searchTerm.value = formatPoNumber(record.poNumber);
-                searchRecords();
-            }
-        });
-        
-        reportTableBody.appendChild(row);
-    });
-    
-    // Show/hide notes column based on checkbox
-    document.querySelectorAll('#reportTable .notes-column').forEach(col => {
-        col.style.display = includeNotes ? '' : 'none';
-    });
-    
-    document.getElementById('reportTotalAmount').textContent = formatNumber(invoiceTotal);
-    domCache.reportTable.style.display = 'table';
-}
-
-// NOTE SUGGESTIONS FUNCTIONALITY
-function updateNoteSuggestions() {
-    try {
-        const noteSuggestions = document.getElementById('noteSuggestions');
-        if (!noteSuggestions) return;
-        
-        noteSuggestions.innerHTML = '';
-        
-        const allNotes = records
-            .filter(record => record.note && record.note.trim() !== '')
-            .map(record => record.note.trim());
-        
-        const uniqueNotes = [...new Set(allNotes)].sort();
-        
-        uniqueNotes.forEach(note => {
-            const option = document.createElement('option');
-            option.value = note;
-            noteSuggestions.appendChild(option);
-        });
-    } catch (error) {
-        console.error('Error updating note suggestions:', error);
-    }
-}
-
-// Vendor suggestions functionality
-function updateVendorSuggestions() {
-    try {
-        const vendorSuggestions = document.getElementById('vendorSuggestions');
-        if (!vendorSuggestions) return;
-        
-        vendorSuggestions.innerHTML = '';
-        
-        const allVendors = records
-            .filter(record => record.vendor && record.vendor.trim() !== '')
-            .map(record => record.vendor.trim());
-        
-        const uniqueVendors = [...new Set(allVendors)].sort();
-        
-        uniqueVendors.forEach(vendor => {
-            const option = document.createElement('option');
-            option.value = vendor;
-            vendorSuggestions.appendChild(option);
-        });
-    } catch (error) {
-        console.error('Error updating vendor suggestions:', error);
-    }
-}
-
-// Site suggestions functionality
-function updateSiteSuggestions() {
-    try {
-        const siteSuggestions = document.getElementById('siteSuggestions');
-        const siteSuggestionsMain = document.getElementById('siteSuggestionsMain');
-        if (!siteSuggestions || !siteSuggestionsMain) return;
-        
-        siteSuggestions.innerHTML = '';
-        siteSuggestionsMain.innerHTML = '';
-        
-        const allSites = records
-            .filter(record => record.site && record.site.trim() !== '')
-            .map(record => record.site.trim());
-        
-        const uniqueSites = [...new Set(allSites)].sort();
-        
-        uniqueSites.forEach(site => {
-            const option = document.createElement('option');
-            option.value = site;
-            siteSuggestions.appendChild(option);
-            siteSuggestionsMain.appendChild(option.cloneNode(true));
-        });
-    } catch (error) {
-        console.error('Error updating site suggestions:', error);
-    }
-}
-
-function generatePettyCashReport() {
-    const searchTerm = domCache.pettyCashSearchTerm.value.trim();
-    
-    if (!searchTerm) {
-        alert('Please enter a search term for the notes field');
-        return;
-    }
-    
-    const filteredRecords = records.filter(record => 
-        record.note && record.note.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    
-    if (filteredRecords.length === 0) {
-        alert('No petty cash records found matching your search criteria');
-        return;
-    }
-    
-    const totalValue = filteredRecords
-        .reduce((sum, record) => sum + (parseFloat(record.value) || 0), 0);
-    
-    document.getElementById('pettyCashTotal').textContent = formatNumber(totalValue);
-    document.getElementById('pettyCashCount').textContent = filteredRecords.length;
-    
-    const pettyCashTableBody = document.querySelector('#pettyCashTable tbody');
-    pettyCashTableBody.innerHTML = '';
-    
-    filteredRecords.forEach((record, index) => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${index + 1}</td>
-            <td>${formatPoNumber(record.poNumber)}</td>
-            <td>${record.site || '-'}</td>
-            <td>${record.vendor || '-'}</td>
-            <td class="numeric">${record.value ? formatNumber(record.value) : '-'}</td>
-            <td><span class="status-badge ${getStatusClass(record.status)}">${record.status}</span></td>
-        `;
-        
-        // Add click handler to navigate to invoice tracker
-        row.addEventListener('click', function() {
-            if (record.poNumber) {
-                showSection('invoiceSection');
-                domCache.searchTerm.value = formatPoNumber(record.poNumber);
-                searchRecords();
-            }
-        });
-        
-        pettyCashTableBody.appendChild(row);
-    });
-    
-    document.getElementById('pettyCashTableTotal').textContent = formatNumber(totalValue);
-    domCache.pettyCashTable.style.display = 'table';
-    
-    if (window.innerWidth <= 768) {
-        document.getElementById('pettyCashSection').scrollIntoView({ behavior: 'smooth' });
-    }
-}
-
-// Print functions
-function printReport() {
-    // Create a print window
-    const printWindow = window.open('', '_blank');
-    
-    // Get the report content
-    const reportSection = document.getElementById('statementSection');
-    const reportContent = reportSection.cloneNode(true);
-    
-    
-    // Normalize status cells so printing shows the text (avoid white-on-white badge styles)
-    try {
-        const badgeNodes = reportContent.querySelectorAll('.compact-table .status-badge');
-        badgeNodes.forEach(badge => {
-            const td = badge.closest('td');
-            if (td) td.textContent = badge.textContent || '';
-        });
-    } catch (e) { /* no-op */ }
-// Remove elements we don't want to print
-    const elementsToRemove = reportContent.querySelectorAll('.report-controls, .report-actions, .back-btn');
-    elementsToRemove.forEach(el => el.remove());
-    
-    // Create print styles
-    const printStyles = `
-        <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { padding: 8px; border: 1px solid #ddd; text-align: left; }
-            th { background-color: #f2f2f2; }
-            .numeric { text-align: right; }
-            .status-badge { padding: 4px 8px; border-radius: 4px; color: #000; background: transparent; border: 1px solid #ccc; }
-            .financial-summary { margin: 20px 0; padding: 15px; background-color: #f9f9f9; border-radius: 5px; }
-            .financial-summary div { margin-bottom: 10px; }
-            @page { size: auto; margin: 10mm; }
-            @media print {
-                body { padding: 0; margin: 0; }
-                .financial-summary { page-break-inside: avoid; }
-                table { page-break-inside: auto; }
-                tr { page-break-inside: avoid; page-break-after: auto; }
-            }
-        </style>
-    `;
-    
-    // Write the content to the print window
-    printWindow.document.write(`
-        <html>
-            <head>
-                <title>Statement of Account</title>
-                ${printStyles}
-            </head>
-            <body>
-                <h2 style="text-align: center;">Statement of Account</h2>
-                <p style="text-align: center; margin-bottom: 20px;">Generated on: ${new Date().toLocaleString()}</p>
-                ${reportContent.innerHTML}
-                <script>
-                    window.onload = function() {
-                        setTimeout(function() {
-                            window.print();
-                            window.close();
-                        }, 200);
-                    }
-                </script>
-            </body>
-        </html>
-    `);
-    printWindow.document.close();
-}
-
-// Add these new functions to your app.js
-
-function toggleSelectAll(checkbox) {
-    const checkboxes = document.querySelectorAll('#siteRecordsTable tbody input[type="checkbox"]');
-    checkboxes.forEach(cb => {
-        cb.checked = checkbox.checked;
-    });
-}
-
-function getSelectedRecords() {
-    const checkboxes = document.querySelectorAll('#siteRecordsTable tbody input[type="checkbox"]:checked');
-    const selectedRecords = [];
-    checkboxes.forEach(cb => {
-        const row = cb.closest('tr');
-        const recordIndex = parseInt(row.cells[1].textContent) - 1; // Get ID from the second cell (index 1)
-        if (currentFilteredRecords && recordIndex >= 0 && recordIndex < currentFilteredRecords.length) {
-            selectedRecords.push(currentFilteredRecords[recordIndex]);
-        }
-    });
-    return selectedRecords;
-}
-
-function printSelectedDashboardResults() {
-    const selectedRecords = getSelectedRecords();
-    
-    if (selectedRecords.length === 0) {
-        alert('Please select at least one record to print');
-        return;
-    }
-    
-    // Get the most common status from selected records
-    const statusCounts = {};
-    selectedRecords.forEach(record => {
-        statusCounts[record.status] = (statusCounts[record.status] || 0) + 1;
-    });
-    const mostCommonStatus = Object.keys(statusCounts).reduce((a, b) => 
-        statusCounts[a] > statusCounts[b] ? a : b
-    );
-
-    // Create a print window
-    const printWindow = window.open('', '_blank');
-    
-    // Create the table HTML
-    let tableHTML = `
-        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-            <thead>
-                <tr>
-                    <th style="padding: 8px; border: 1px solid #ddd; background-color: #4a6fa5; color: white;">ID</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; background-color: #4a6fa5; color: white;">Release Date</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; background-color: #4a6fa5; color: white;">Site</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; background-color: #4a6fa5; color: white;">PO</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; background-color: #4a6fa5; color: white;">Vendor</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; background-color: #4a6fa5; color: white;">Invoice</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; background-color: #4a6fa5; color: white; text-align: right;">Amount</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; background-color: #4a6fa5; color: white;">Status</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; background-color: #4a6fa5; color: white;">Note</th>
-                </tr>
-            </thead>
-            <tbody>`;
-    
-    // Add rows for selected records
-    selectedRecords.forEach((record, index) => {
-        tableHTML += `
-            <tr>
-                <td style="padding: 8px; border: 1px solid #ddd;">${index + 1}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">${record.releaseDate ? formatDate(record.releaseDate) : '-'}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">${record.site || '-'}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">${formatPoNumber(record.poNumber)}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">${record.vendor || '-'}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">${record.invoiceNumber || '-'}</td>
-                <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${record.value ? formatNumber(record.value) : '-'}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">${record.status || '-'}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">${record.note || '-'}</td>
-            </tr>`;
-    });
-    
-    tableHTML += `</tbody></table>`;
-    
-    // Get the search term for the title
-    const searchTerm = domCache.siteSearchTerm.value;
-    const title = searchTerm ? `Invoice Dashboard Results - Search: "${searchTerm}"` : 'Invoice Dashboard Results';
-    
-    // Write the content to the print window
-    printWindow.document.write(`
-        <html>
-            <head>
-                <title>${title}</title>
-                <style>
-                    body { font-family: Arial, sans-serif; margin: 20px; }
-                    h1 { color: #4a6fa5; text-align: center; }
-                    h2 { color: #4a6fa5; text-align: center; margin-top: 10px; }
-                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                    th, td { padding: 8px; border: 1px solid #ddd; }
-                    th { background-color: #4a6fa5; color: white; }
-                    .numeric { text-align: right; }
-                    @page { size: auto; margin: 10mm; }
-                    @media print {
-                        body { padding: 0; margin: 0; }
-                        table { page-break-inside: auto; }
-                        tr { page-break-inside: avoid; page-break-after: auto; }
-                    }
-                </style>
-            </head>
-            <body>
-                <h1>${title}</h1>
-                <p style="text-align: center; margin-bottom: 5px;">Generated on: ${new Date().toLocaleString()}</p>
-                <h2>Selected Records For: ${mostCommonStatus}</h2>
-                <p style="text-align: center; margin-bottom: 20px; font-weight: bold;">Records: ${selectedRecords.length}</p>
-                ${tableHTML}
-                <script>
-                    window.onload = function() {
-                        setTimeout(function() {
-                            window.print();
-                            window.close();
-                        }, 200);
-                    }
-                </script>
-            </body>
-        </html>
-    `);
-    printWindow.document.close();
-}
-
-
-
-function printPettyCashReport() {
-    // Create a print window
-    const printWindow = window.open('', '_blank');
-    
-    // Get the petty cash content
-    const pettyCashSection = document.getElementById('pettyCashSection');
-    const pettyCashContent = pettyCashSection.cloneNode(true);
-    
-    // Remove elements we don't want to print
-    const elementsToRemove = pettyCashContent.querySelectorAll('.report-controls, .report-actions, .back-btn');
-    elementsToRemove.forEach(el => el.remove());
-    
-    // Create print styles
-    const printStyles = `
-        <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { padding: 8px; border: 1px solid #ddd; text-align: left; }
-            th { background-color: #f2f2f2; }
-            .numeric { text-align: right; }
-            .status-badge { padding: 4px 8px; border-radius: 4px; color: #000; background: transparent; border: 1px solid #ccc; }
-            .financial-summary { margin: 20px 0; padding: 15px; background-color: #f9f9f9; border-radius: 5px; }
-            .financial-summary div { margin-bottom: 10px; }
-            @page { size: auto; margin: 10mm; }
-            @media print {
-                body { padding: 0; margin: 0; }
-                .financial-summary { page-break-inside: avoid; }
-                table { page-break-inside: auto; }
-                tr { page-break-inside: avoid; page-break-after: auto; }
-            }
-        </style>
-    `;
-    
-    // Get the search term for the report title
-    const searchTerm = domCache.pettyCashSearchTerm.value;
-    const title = searchTerm ? `Petty Cash Report - Search: "${searchTerm}"` : 'Petty Cash Report';
-    
-    // Write the content to the print window
-    printWindow.document.write(`
-        <html>
-            <head>
-                <title>${title}</title>
-                ${printStyles}
-            </head>
-            <body>
-                <h2 style="text-align: center;">${title}</h2>
-                <p style="text-align: center; margin-bottom: 20px;">Generated on: ${new Date().toLocaleString()}</p>
-                ${pettyCashContent.innerHTML}
-                <script>
-                    window.onload = function() {
-                        setTimeout(function() {
-                            window.print();
-                            window.close();
-                        }, 200);
-                    }
-                </script>
-            </body>
-        </html>
-    `);
-    printWindow.document.close();
-}
-
-// Invoice Preview Functions
-function showInvoicePreview(record) {
-    document.getElementById('previewVendor').textContent = record.vendor || '-';    
-    document.getElementById('previewPoNumber').textContent = formatPoNumber(record.poNumber);
-    document.getElementById('previewInvoiceNumber').textContent = record.invoiceNumber || '-';
-    document.getElementById('previewAmount').textContent = record.value ? formatNumber(record.value) : '-';
-    document.getElementById('previewStatus').textContent = record.status || '-';
-    document.getElementById('previewReleaseDate').textContent = record.releaseDate ? formatDate(record.releaseDate) : '-';
-    document.getElementById('previewNotes').textContent = record.note || '-';
-    
-    const statusSteps = {
-        'Open': 0,
-        'For SRV': 1,
-        'For IPC': 2,
-        'No Invoice': 2,
-        'Report': 2,
-        'Under Review': 3,
-        'CEO Approval': 4,
-        'With Accounts': 5
-    };
-    const currentStep = statusSteps[record.status] || 0;
-    
-    document.querySelectorAll('#invoicePreviewModal .step').forEach((step, index) => {
-        step.classList.remove('current');
-        if (index < currentStep) {
-            step.classList.add('active');
-        } else {
-            step.classList.remove('active');
-        }
-    });
-    
-    if (currentStep > 0) {
-        const currentStepElement = document.querySelector(`#invoicePreviewModal .step-${currentStep}`);
-        if (currentStepElement) {
-            currentStepElement.classList.add('current');
-        }
-    }
-    
-    document.querySelectorAll('#invoicePreviewModal .step-connector').forEach((connector, index) => {
-        if (index < currentStep - 1) {
-            connector.classList.add('active');
-        } else {
-            connector.classList.remove('active');
-        }
-    });
-    
-    // Setup for Request Update button
-    const requestUpdateBtn = document.getElementById('requestUpdateBtn');
-    if (requestUpdateBtn) {
-        requestUpdateBtn.onclick = () => {
-            closeInvoicePreview(); // Close current modal
-            openWhatsAppModal(record, 'update'); // Open the other modal for update request
-        };
-    }
-    
-    document.getElementById('invoicePreviewModal').style.display = 'block';
-    document.body.style.overflow = 'hidden';
-}
-
-function closeInvoicePreview() {
-    document.getElementById('invoicePreviewModal').style.display = 'none';
-    document.body.style.overflow = '';
-}
-
-// Share functions
-function shareReportViaWhatsApp() {
-    const reportHeader = document.getElementById('reportHeader').textContent;
-    const totalAmount = document.getElementById('grandTotal').textContent;
-    
-    let message = `*Report Summary*\n\n`;
-    message += `${reportHeader}\n\n`;
-    message += `*Total Amount:* ${totalAmount}\n\n`;
-    message += `Generated from IBA Trading Invoice Management System`;
-    
-    const encodedMessage = encodeURIComponent(message);
-    const whatsappNumber = '+97450992023';
-    
-    window.open(`https://wa.me/${whatsappNumber}?text=${encodedMessage}`, '_blank');
-}
-
-function sharePettyCashViaWhatsApp() {
-    const totalAmount = document.getElementById('pettyCashTotal').textContent;
-    const recordCount = document.getElementById('pettyCashCount').textContent;
-    const searchTerm = domCache.pettyCashSearchTerm.value;
-    
-    let message = `*Petty Cash Summary*\n\n`;
-    message += `Search Term: ${searchTerm}\n`;
-    message += `Records Found: ${recordCount}\n`;
-    message += `Total Amount: ${totalAmount}\n\n`;
-    message += `Generated from IBA Trading Invoice Management System`;
-    
-    const encodedMessage = encodeURIComponent(message);
-    const whatsappNumber = '+97450992023';
-    
-    window.open(`https://wa.me/${whatsappNumber}?text=${encodedMessage}`, '_blank');
-}
-
-// Responsive setup
-function setupResponsiveElements() {
-    detectDeviceType();
-    const screenWidth = window.innerWidth;
-    
-    // Reset all hidden columns first
-    document.querySelectorAll('#recordsTable th, #recordsTable td, #siteRecordsTable th, #siteRecordsTable td').forEach(el => {
-        el.style.display = '';
-    });
-    
-    // Records table responsiveness
-    if (screenWidth <= 400) {
-        document.querySelectorAll('#recordsTable th:nth-child(2), #recordsTable td:nth-child(2), #recordsTable th:nth-child(4), #recordsTable td:nth-child(4), #recordsTable th:nth-child(6), #recordsTable td:nth-child(6), #recordsTable th:nth-child(8), #recordsTable td:nth-child(8)').forEach(el => {
-            el.style.display = 'none';
-        });
-    } else if (screenWidth <= 576) {
-        document.querySelectorAll('#recordsTable th:nth-child(2), #recordsTable td:nth-child(2), #recordsTable th:nth-child(3), #recordsTable td:nth-child(3), #recordsTable th:nth-child(7), #recordsTable td:nth-child(7), #recordsTable th:nth-child(8), #recordsTable td:nth-child(8)').forEach(el => {
-            el.style.display = 'none';
-        });
-    } else if (screenWidth <= 768) {
-        document.querySelectorAll('#recordsTable th:nth-child(2), #recordsTable td:nth-child(2), #recordsTable th:nth-child(3), #recordsTable td:nth-child(3), #recordsTable th:nth-child(7), #recordsTable td:nth-child(7), #recordsTable th:nth-child(8), #recordsTable td:nth-child(8)').forEach(el => {
-            el.style.display = 'none';
-        });
-        
-        // Site records table responsiveness - Updated for mobile view
-        document.querySelectorAll('#siteRecordsTable th:nth-child(2), #siteRecordsTable td:nth-child(2), #siteRecordsTable th:nth-child(5), #siteRecordsTable td:nth-child(5), #siteRecordsTable th:nth-child(6), #siteRecordsTable td:nth-child(6), #siteRecordsTable th:nth-child(7), #siteRecordsTable td:nth-child(7), #siteRecordsTable th:nth-child(9), #siteRecordsTable td:nth-child(9)').forEach(el => {
-            el.style.display = 'none';
-        });
-    } else if (screenWidth <= 992) {
-        document.querySelectorAll('#recordsTable th:nth-child(3), #recordsTable td:nth-child(3), #recordsTable th:nth-child(8), #recordsTable td:nth-child(8)').forEach(el => {
-            el.style.display = 'none';
-        });
-    }
-    
-    // Extra small screens
-    if (screenWidth <= 480) {
-        document.querySelectorAll('#siteRecordsTable th:nth-child(4), #siteRecordsTable td:nth-child(4), #siteRecordsTable th:nth-child(5), #siteRecordsTable td:nth-child(5), #siteRecordsTable th:nth-child(6), #siteRecordsTable td:nth-child(6), #siteRecordsTable th:nth-child(7), #siteRecordsTable td:nth-child(7), #siteRecordsTable th:nth-child(9), #siteRecordsTable td:nth-child(9)').forEach(el => {
-            el.style.display = 'none';
-        });
-    }
-}
-
-// Overdue progression check
-function checkOverdueProgression() {
-    // MODIFICATION START: Initialize counters for the new SRV cards and the existing IPC card
-    let overdueSRV_W1 = 0;
-    let overdueSRV_W2 = 0;
-    let overdueSRV_W3 = 0;
-    let overdueSRV_W4 = 0; // for >3 weeks
-    const overdueIPC = [];
-    // MODIFICATION END
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    records.forEach(record => {
-        if (!record.releaseDate || 
-            record.status === 'With Accounts' || 
-            record.status === 'Closed' || 
-            record.status === 'Cancelled') return;
-        
-        try {
-            const releaseDate = parseReleaseDate(record.releaseDate);
-            const workingDaysPassed = getWorkingDays(releaseDate, today);
-            
-            // MODIFICATION START: Logic for new SRV categories based on working days passed
-            if (record.status === 'For SRV') {
-                if (workingDaysPassed >= 7 && workingDaysPassed < 14) {
-                    overdueSRV_W1++;
-                } else if (workingDaysPassed >= 14 && workingDaysPassed < 21) {
-                    overdueSRV_W2++;
-                } else if (workingDaysPassed >= 21 && workingDaysPassed < 28) {
-                    overdueSRV_W3++;
-                } else if (workingDaysPassed >= 28) {
-                    overdueSRV_W4++;
-                }
-            }
-            // MODIFICATION END
-
-            // Keep original logic for IPC
-            if (record.status === 'For IPC' && workingDaysPassed >= 7) {
-                overdueIPC.push(record);
-            }
-        } catch (e) {
-            console.error('Error processing record:', record, e);
-        }
-    });
-
-    // MODIFICATION START: Update the DOM and card visibility based on the new counts
-    const countElW1 = document.getElementById('overdueSRVCountW1');
-    countElW1.textContent = overdueSRV_W1;
-    // This line hides the parent card if the count is 0, and shows it if it's greater than 0
-    countElW1.closest('.overdue-card').style.display = overdueSRV_W1 > 0 ? 'flex' : 'none';
-
-    const countElW2 = document.getElementById('overdueSRVCountW2');
-    countElW2.textContent = overdueSRV_W2;
-    countElW2.closest('.overdue-card').style.display = overdueSRV_W2 > 0 ? 'flex' : 'none';
-
-    const countElW3 = document.getElementById('overdueSRVCountW3');
-    countElW3.textContent = overdueSRV_W3;
-    countElW3.closest('.overdue-card').style.display = overdueSRV_W3 > 0 ? 'flex' : 'none';
-
-    const countElW4 = document.getElementById('overdueSRVCountW4');
-    countElW4.textContent = overdueSRV_W4;
-    countElW4.closest('.overdue-card').style.display = overdueSRV_W4 > 0 ? 'flex' : 'none';
-    
-    // Keep original IPC logic (you can add the hide/show logic here too if you like)
-    document.getElementById('overdueIPCCount').textContent = overdueIPC.length;
-    // MODIFICATION END
-}
-
-// NEW FUNCTION: Filters and displays overdue SRV records based on the selected week range
-function filterOverdueSRVByWeek(weekRange) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const filtered = records.filter(record => {
-        if (record.status !== 'For SRV' || !record.releaseDate) {
-            return false;
-        }
-        
-        try {
-            const releaseDate = parseReleaseDate(record.releaseDate);
-            const workingDaysPassed = getWorkingDays(releaseDate, today);
-            
-            switch(weekRange) {
-                case 1: // 1 Week overdue (7-13 days)
-                    return workingDaysPassed >= 7 && workingDaysPassed < 14;
-                case 2: // 2 Weeks overdue (14-20 days)
-                    return workingDaysPassed >= 14 && workingDaysPassed < 21;
-                case 3: // 3 Weeks overdue (21-27 days)
-                    return workingDaysPassed >= 21 && workingDaysPassed < 28;
-                case 4: // More than 3 weeks overdue (28+ days)
-                    return workingDaysPassed >= 28;
-                default:
-                    return false;
-            }
-        } catch (e) {
-            console.error('Error processing record for filtering:', record, e);
-            return false;
-        }
-    });
-    
-    // Hide status charts and show the results table, similar to the original overdue filter logic
-    domCache.statusPieChartContainer.style.display = 'none';
-    domCache.statusBarChartContainer.style.display = 'none';
-    document.getElementById('overdueBarChart').parentElement.style.display = 'block';
-
-    currentFilteredRecords = filtered;
-    refreshSiteTable(filtered);
-    initializeOverdueChart(filtered); // Update the overdue chart with the filtered data
-    domCache.siteRecordsTable.style.display = filtered.length > 0 ? 'table' : 'none';
-}
-
-// Dashboard Print Function
-function printDashboardResults() {
-    // Create a print window
-    const printWindow = window.open('', '_blank');
-    
-    // Get the current filtered records or all records if no filter is applied
-    const displayRecords = currentFilteredRecords || records.filter(record => record.status !== 'With Accounts');
-    
-    if (displayRecords.length === 0) {
-        alert('No records to print');
-        return;
-    }
-    
-    // Determine the status filter being applied
-    let statusFilter = 'All Statuses';
-    const activeFilterBtn = document.querySelector('.filter-pill.active');
-    if (activeFilterBtn && activeFilterBtn.dataset.status !== 'all') {
-        statusFilter = activeFilterBtn.textContent;
-    }
-    
-    // Create the table HTML
-    let tableHTML = `
-        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-            <thead>
-                <tr>
-                    <th style="padding: 8px; border: 1px solid #ddd; background-color: #4a6fa5; color: white;">ID</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; background-color: #4a6fa5; color: white;">Release Date</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; background-color: #4a6fa5; color: white;">Site</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; background-color: #4a6fa5; color: white;">PO</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; background-color: #4a6fa5; color: white;">Vendor</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; background-color: #4a6fa5; color: white;">Invoice</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; background-color: #4a6fa5; color: white; text-align: right;">Amount</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; background-color: #4a6fa5; color: white;">Status</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; background-color: #4a6fa5; color: white;">Note</th>
-                </tr>
-            </thead>
-            <tbody>`;
-    
-    // Add rows
-    displayRecords.forEach((record, index) => {
-        tableHTML += `
-            <tr>
-                <td style="padding: 8px; border: 1px solid #ddd;">${index + 1}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">${record.releaseDate ? formatDate(record.releaseDate) : '-'}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">${record.site || '-'}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">${formatPoNumber(record.poNumber)}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">${record.vendor || '-'}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">${record.invoiceNumber || '-'}</td>
-                <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${record.value ? formatNumber(record.value) : '-'}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">${record.status || '-'}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">${record.note || '-'}</td>
-            </tr>`;
-    });
-    
-    tableHTML += `</tbody></table>`;
-    
-    // Get the search term for the title
-    const searchTerm = domCache.siteSearchTerm.value;
-    const title = searchTerm ? `Invoice Dashboard Results - Search: "${searchTerm}"` : 'Invoice Dashboard Results';
-    
-    // Write the content to the print window
-    printWindow.document.write(`
-        <html>
-            <head>
-                <title>${title}</title>
-                <style>
-                    body { font-family: Arial, sans-serif; margin: 20px; }
-                    h1 { color: #4a6fa5; text-align: center; }
-                    h2 { color: #4a6fa5; text-align: center; margin-top: 10px; }
-                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                    th, td { padding: 8px; border: 1px solid #ddd; }
-                    th { background-color: #4a6fa5; color: white; }
-                    .numeric { text-align: right; }
-                    @page { size: auto; margin: 10mm; }
-                    @media print {
-                        body { padding: 0; margin: 0; }
-                        table { page-break-inside: auto; }
-                        tr { page-break-inside: avoid; page-break-after: auto; }
-                    }
-                </style>
-            </head>
-            <body>
-                <h1>${title}</h1>
-                <p style="text-align: center; margin-bottom: 5px;">Generated on: ${new Date().toLocaleString()}</p>
-                <h2>Selected Records For: ${statusFilter}</h2>
-                <p style="text-align: center; margin-bottom: 20px;">Records: ${displayRecords.length}</p>
-                ${tableHTML}
-                <script>
-                    window.onload = function() {
-                        setTimeout(function() {
-                            window.print();
-                            window.close();
-                        }, 200);
-                    }
-                </script>
-            </body>
-        </html>
-    `);
-    printWindow.document.close();
-}
-
-// Initialization
-document.addEventListener('DOMContentLoaded', function() {
-    cacheDOM();
-    detectDeviceType();
-    applyTranslations(); // Apply translations on page load
-    updateAuthUI(false);
-    
-    // Automatically load data on initial load
-    loadFromFirebase().then(() => {
-        loadPaymentsFromFirebase(false);
-    });
-    
-    window.addEventListener('resize', setupResponsiveElements);
-    
-    domCache.searchTerm.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            searchRecords();
-        }
-    });
-    
-    domCache.reportSearchTerm.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            generateReport();
-        }
-    });
-    
-    domCache.pettyCashSearchTerm.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            generatePettyCashReport();
-        }
-    });
-    
-    domCache.siteSearchTerm.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            searchSiteRecords();
-        }
-    });
-    
-    document.getElementById('paymentsSearchTerm').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            searchPayments();
-        }
-    });
-
-    domCache.includeNotes.addEventListener('change', function() {
-        if (document.querySelector('#reportTable tbody').children.length > 0) {
-            generateReport();
-        }
-    });
-});
-
-// Close modal when clicking outside of it
-window.addEventListener('click', function(event) {
-    const modal = document.getElementById('invoicePreviewModal');
-    const dashboardModal = document.getElementById('dashboardPreviewModal');
-    const paymentModal = document.getElementById('addPaymentModal');
-    const editPaymentModal = document.getElementById('editPaymentModal');
-    const searchAddModal = document.getElementById('searchAddModal');
-    
-    if (event.target === modal) {
-        closeInvoicePreview();
-    }
-    
-    if (event.target === dashboardModal) {
-        closeDashboardPreview();
+        dbSiteStatsContainer.appendChild(legend);
     }
 
-    if (event.target === paymentModal) {
-        closeAddPaymentModal();
-    }
-    
-    if (event.target === editPaymentModal) {
-        closeEditPaymentModal();
-    }
-
-    if (event.target == searchAddModal) {
-        closeSearchAddModal();
-    }
-});
-
-function handleSiteTableClick(record) {
-    if (record.status === 'Closed' || record.status === 'Cancelled') return;
-    showSection('invoiceSection');
-    domCache.searchTerm.value = formatPoNumber(record.poNumber) || '';
-    searchRecords();
-}
-
-function filterRecordsByStatus(status) {
-    let site = currentSearchedSite.toLowerCase();
-    const filtered = records.filter(r =>
-        r.status === status &&
-        r.site.toLowerCase().includes(site)
-    );
-    refreshSiteTable(filtered);
-}
-function viewSelectedInTracker() {
-    const selectedRecords = getSelectedRecords();
-    
-    if (selectedRecords.length === 0) {
-        alert('Please select at least one record to view');
-        return;
-    }
-    
-    // Switch to invoice section
-    showSection('invoiceSection');
-    
-    // Clear any existing search/filter
-    domCache.searchTerm.value = '';
-    domCache.releaseDateFilter.value = '';
-    activeFilter = 'all';
-    
-    // Update the UI to show selected records
-    currentFilteredRecords = selectedRecords;
-    refreshTable(selectedRecords);
-    
-    // Scroll to the table if on mobile
-    if (window.innerWidth <= 768) {
-        domCache.recordsTable.scrollIntoView({ behavior: 'smooth' });
-    }
-}
-// Collection functionality
-let invoiceCollection = [];
-
-function addToCollection() {
-    const selectedRecords = getSelectedRecords();
-    
-    if (selectedRecords.length === 0) {
-        alert('Please select at least one record to add to collection');
-        return;
-    }
-    
-    // Add only records that aren't already in the collection
-    selectedRecords.forEach(record => {
-        if (!invoiceCollection.some(item => item.poNumber === record.poNumber && 
-                                          item.invoiceNumber === record.invoiceNumber)) {
-            invoiceCollection.push(record);
-        }
-    });
-    
-    // Show success message
-    showToast(`${selectedRecords.length} item(s) added to collection. Total: ${invoiceCollection.length}`);
-}
-
-// Update viewCollection to handle both sources
-function viewCollection() {
-    if (invoiceCollection.length === 0) {
-        alert('Your collection is empty. Please add some items first.');
-        return;
-    }
-
-    // Update the collection table
-    const tableBody = document.querySelector('#collectionTable tbody');
-    tableBody.innerHTML = '';
-    
-    let totalAmount = 0;
-    
-    // Group by PO number for better organization
-    const poGroups = {};
-    invoiceCollection.forEach(record => {
-        const poKey = record.poNumber || 'No PO';
-        if (!poGroups[poKey]) {
-            poGroups[poKey] = [];
-        }
-        poGroups[poKey].push(record);
-    });
-    
-    let rowIndex = 1;
-    
-    // Sort PO groups alphabetically
-    const sortedPoKeys = Object.keys(poGroups).sort();
-    
-    sortedPoKeys.forEach(poKey => {
-        // Add PO header row if it's not "No PO"
-        if (poKey !== 'No PO') {
-            const headerRow = document.createElement('tr');
-            headerRow.className = 'po-header-row';
-            headerRow.innerHTML = `
-                <td colspan="9">
-                    <strong>PO: ${formatPoNumber(poKey)}</strong>
-                </td>
-            `;
-            tableBody.appendChild(headerRow);
-        }
-        
-        // Add records for this PO
-        poGroups[poKey].forEach(record => {
+    dbRecentTasksBody.innerHTML = '';
+    if (myActiveTasks.length === 0) {
+        dbRecentTasksBody.innerHTML = '<tr><td colspan="5">No recent active tasks.</td></tr>';
+    } else {
+        myActiveTasks.slice(0, 5).forEach(task => {
             const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${rowIndex++}</td>
-                <td>${record.releaseDate ? formatDate(record.releaseDate) : '-'}</td>
-                <td>${record.site || '-'}</td>
-                <td>${formatPoNumber(record.poNumber)}</td>
-                <td>${record.vendor || '-'}</td>
-                <td>${record.invoiceNumber || '-'}</td>
-                <td class="numeric">${record.value ? formatNumber(record.value) : '-'}</td>
-                <td><span class="status-badge ${getStatusClass(record.status)}">${record.status}</span></td>
-                <td>${record.note || '-'}</td>
-            `;
-            
-            row.addEventListener('click', function() {
-                showInvoicePreview(record);
-            });
-            
-            tableBody.appendChild(row);
-            
-            // Calculate total amount
-            totalAmount += parseFloat(record.value) || 0;
-        });
-    });
-    
-    // Update collection info
-    document.getElementById('collectionCount').textContent = invoiceCollection.length;
-    document.getElementById('collectionTotalAmount').textContent = formatNumber(totalAmount);
-    
-    // Show the modal
-    document.getElementById('collectionModal').style.display = 'block';
-    document.body.style.overflow = 'hidden';
-    
-    // Scroll to top of the table
-    document.querySelector('.table-responsive').scrollTop = 0;
-}
-
-function closeCollectionModal() {
-    document.getElementById('collectionModal').style.display = 'none';
-    document.body.style.overflow = '';
-}
-
-function clearCollection() {
-    if (confirm('Are you sure you want to clear your collection? This cannot be undone.')) {
-        invoiceCollection = [];
-        closeCollectionModal();
-        showToast('Collection cleared successfully');
-    }
-}
-
-function printCollection() {
-    if (invoiceCollection.length === 0) {
-        alert('Your collection is empty. Nothing to print.');
-        return;
-    }
-    
-    // Create a print window
-    const printWindow = window.open('', '_blank');
-    
-    // Create the table HTML
-    let tableHTML = `
-        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-            <thead>
-                <tr>
-                    <th style="padding: 8px; border: 1px solid #ddd; background-color: #4a6fa5; color: white;">ID</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; background-color: #4a6fa5; color: white;">Release Date</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; background-color: #4a6fa5; color: white;">Site</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; background-color: #4a6fa5; color: white;">PO</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; background-color: #4a6fa5; color: white;">Vendor</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; background-color: #4a6fa5; color: white;">Invoice</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; background-color: #4a6fa5; color: white; text-align: right;">Amount</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; background-color: #4a6fa5; color: white;">Status</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; background-color: #4a6fa5; color: white;">Note</th>
-                </tr>
-            </thead>
-            <tbody>`;
-    
-    // Calculate total amount
-    let totalAmount = 0;
-    
-    // Add rows for collection items
-    invoiceCollection.forEach((record, index) => {
-        tableHTML += `
-            <tr>
-                <td style="padding: 8px; border: 1px solid #ddd;">${index + 1}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">${record.releaseDate ? formatDate(record.releaseDate) : '-'}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">${record.site || '-'}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">${formatPoNumber(record.poNumber)}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">${record.vendor || '-'}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">${record.invoiceNumber || '-'}</td>
-                <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${record.value ? formatNumber(record.value) : '-'}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">${record.status || '-'}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">${record.note || '-'}</td>
-            </tr>`;
-        
-        totalAmount += parseFloat(record.value) || 0;
-    });
-    
-    tableHTML += `</tbody>
-        <tfoot>
-            <tr>
-                <td colspan="6" style="padding: 8px; border: 1px solid #ddd; font-weight: bold; text-align: right;">Total</td>
-                <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; text-align: right;">${formatNumber(totalAmount)}</td>
-                <td colspan="2" style="padding: 8px; border: 1px solid #ddd;"></td>
-            </tr>
-        </tfoot>
-    </table>`;
-    
-    // Write the content to the print window
-    printWindow.document.write(`
-        <html>
-            <head>
-                <title>Invoice Collection Report</title>
-                <style>
-                    body { font-family: Arial, sans-serif; margin: 20px; }
-                    h1 { color: #4a6fa5; text-align: center; }
-                    h2 { color: #4a6fa5; text-align: center; margin-top: 10px; }
-                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                    th, td { padding: 8px; border: 1px solid #ddd; }
-                    th { background-color: #4a6fa5; color: white; }
-                    .numeric { text-align: right; }
-                    @page { size: auto; margin: 10mm; }
-                    @media print {
-                        body { padding: 0; margin: 0; }
-                        table { page-break-inside: auto; }
-                        tr { page-break-inside: avoid; page-break-after: auto; }
-                    }
-                </style>
-            </head>
-            <body>
-                <h1>Invoice Collection Report</h1>
-                <p style="text-align: center; margin-bottom: 5px;">Generated on: ${new Date().toLocaleString()}</p>
-                <p style="text-align: center; margin-bottom: 20px; font-weight: bold;">Total Items: ${invoiceCollection.length}</p>
-                ${tableHTML}
-                <script>
-                    window.onload = function() {
-                        setTimeout(function() {
-                            window.print();
-                            window.close();
-                        }, 200);
-                    }
-                </script>
-            </body>
-        </html>
-    `);
-    printWindow.document.close();
-}
-
-// Helper function to show toast messages
-function showToast(message) {
-    const toast = document.createElement('div');
-    toast.className = 'toast-message';
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    
-    setTimeout(() => {
-        toast.classList.add('show');
-    }, 10);
-    
-    setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => {
-            document.body.removeChild(toast);
-        }, 300);
-    }, 3000);
-}
-
-// Add to collection from tracker
-function addToCollectionFromTracker() {
-    // FIX: Use the correct function that checks for ticked checkboxes.
-    const selectedRecords = getSelectedTrackerRecords();
-    
-    if (selectedRecords.length === 0) {
-        // FIX: Updated the alert to be more accurate.
-        alert('Please select at least one record by ticking the checkbox to add to collection');
-        return;
-    }
-    
-    // Add only records that aren't already in the collection
-    selectedRecords.forEach(record => {
-        if (!invoiceCollection.some(item => 
-            item.poNumber === record.poNumber && 
-            item.invoiceNumber === record.invoiceNumber)) {
-            invoiceCollection.push(record);
-        }
-    });
-    
-    // Show success message
-    showToast(`${selectedRecords.length} item(s) added to collection. Total: ${invoiceCollection.length}`);
-}
-
-function openAddPaymentModal() {
-    const selected = getSelectedTrackerRecords();
-    if (selected.length === 0) {
-        alert('Please select at least one invoice to add a payment entry.');
-        return;
-    }
-
-    // Build a set of already paid invoices for quick checking
-    const paidInvoices = new Set();
-    if (payments && payments.length > 0) {
-        payments.forEach(payment => {
-            if (payment.paymentEntries) {
-                Object.values(payment.paymentEntries).forEach(entry => {
-                    const poToUse = String(entry.originalPoNumber || payment.poNumber || '').trim();
-                    if (!poToUse) return;
-                    const normalizedInvoice = normalizeInvoiceNumber(entry.invoiceNumber);
-                    const exactIdentifier = [String(payment.site || '').trim(), poToUse, String(payment.vendor || '').trim(), normalizedInvoice].join('-');
-                    paidInvoices.add(exactIdentifier);
-                    const integerPO = parseInt(poToUse, 10);
-                    if (!isNaN(integerPO) && String(integerPO) !== poToUse) {
-                        const integerIdentifier = [String(payment.site || '').trim(), String(integerPO), String(payment.vendor || '').trim(), normalizedInvoice].join('-');
-                        paidInvoices.add(integerIdentifier);
-                    }
-                });
-            }
+            row.innerHTML = `<td>${task.for}</td><td>${task.ref}</td><td>${task.site}</td><td>${task.enteredBy}</td><td>${task.date}</td>`;
+            dbRecentTasksBody.appendChild(row);
         });
     }
-
-    // Filter out any selected records that have already been paid
-    let alreadyPaidCount = 0;
-    const recordsForPayment = selected.filter(record => {
-        const recordIdentifier = [
-            String(record.site || '').trim(),
-            String(record.poNumber || '').trim(),
-            String(record.vendor || '').trim(),
-            normalizeInvoiceNumber(record.invoiceNumber)
-        ].join('-');
-        
-        if (paidInvoices.has(recordIdentifier)) {
-            alreadyPaidCount++;
-            return false; // Exclude this already-paid record
-        }
-        return true; // Include this unpaid record
-    });
-
-    // Show alerts and stop if necessary
-    if (recordsForPayment.length === 0) {
-        alert('All selected invoices have already been paid and cannot be added again.');
-        return;
-    }
-
-    if (alreadyPaidCount > 0) {
-        showToast(`${alreadyPaidCount} selected invoice(s) were already paid and have been skipped.`);
-    }
-
-    // Proceed with only the unpaid records
-    pendingPaymentRecords = recordsForPayment;
-    const paymentList = document.getElementById('paymentInvoiceList');
-    paymentList.innerHTML = '';
-    
-    let totalValue = 0;
-    
-    pendingPaymentRecords.forEach((record, index) => {
-        const li = document.createElement('li');
-        const value = parseFloat(record.value) || 0;
-        li.textContent = `${index + 1}. PO: ${formatPoNumber(record.poNumber)} / INV: ${record.invoiceNumber || 'N/A'} — Amount: ${formatNumber(value)}`;
-        paymentList.appendChild(li);
-        totalValue += value;
-    });
-
-    document.getElementById('paymentTotalAmount').value = formatNumber(totalValue);
-    document.getElementById('datePaidInput').valueAsDate = new Date(); // Set default date
-    document.getElementById('addPaymentModal').style.display = 'block';
-    document.body.style.overflow = 'hidden';
 }
+function handleRespondClick(e) {
+    if (!e.target.classList.contains('respond-btn')) return;
+    const key = e.target.getAttribute('data-key');
+    if (!key) return;
+    
+    const taskData = allSystemEntries.find(entry => entry.key === key);
+    if (!taskData || taskData.source === 'invoice') return;
 
-function closeAddPaymentModal() {
-    document.getElementById('addPaymentModal').style.display = 'none';
-    document.body.style.overflow = '';
-    document.getElementById('datePaidInput').value = '';
-    pendingPaymentRecords = [];
+    const isQS = currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'qs';
+    workdeskNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
+    document.querySelector('a[data-section="wd-jobentry"]').classList.add('active');
+    showWorkdeskSection('wd-jobentry');
+    populateFormForEditing(key);
+    if (taskData.for === 'IPC' && isQS) {
+        attentionSelectChoices.clearStore();
+        attentionSelectChoices.setChoices([{ value: 'All', label: 'All', selected: true }], 'value', 'label', false);
+        attentionSelectChoices.disable();
+    }
 }
+function handleActiveTaskSearch(searchTerm) { const searchText = searchTerm.toLowerCase(); if (!searchText) { renderActiveTaskTable(userActiveTasks); return; } const filteredTasks = userActiveTasks.filter(task => { return ((task.for && task.for.toLowerCase().includes(searchText)) || (task.ref && task.ref.toLowerCase().includes(searchText)) || (task.site && task.site.toLowerCase().includes(searchText)) || (task.group && task.group.toLowerCase().includes(searchText)) || (task.date && task.date.toLowerCase().includes(searchText))); }); renderActiveTaskTable(filteredTasks); }
+function handleTaskHistorySearch(searchTerm) { const searchText = searchTerm.toLowerCase(); if (!searchText) { renderTaskHistoryTable(userTaskHistory); return; } const filteredHistory = userTaskHistory.filter(task => { return ((task.for && task.for.toLowerCase().includes(searchText)) || (task.ref && task.ref.toLowerCase().includes(searchText)) || (task.amount && task.amount.toString().includes(searchText)) || (task.po && task.po.toLowerCase().includes(searchText)) || (task.site && task.site.toLowerCase().includes(searchText)) || (task.group && task.group.toLowerCase().includes(searchText)) || (task.date && task.date.toLowerCase().includes(searchText))); }); renderTaskHistoryTable(filteredHistory); }
+function handleReportingSearch() { 
+    const userSiteString = currentApprover.Site || '';
+    let siteFilteredEntries;
 
-async function addPaymentEntry(recordsToAdd = pendingPaymentRecords) {
-    const datePaidInput = document.getElementById('datePaidInput');
-    const datePaid = datePaidInput ? datePaidInput.value.trim() : new Date().toISOString().split('T')[0];
-
-    if (!datePaid) {
-        alert('Please select a payment date for this batch.');
-        return;
-    }
-    
-    if (recordsToAdd.length === 0) {
-        alert('No records selected for payment.');
-        return;
-    }
-
-    showLoading();
-    
-    const paymentsRef = database.ref('invoicePayments');
-    let successCount = 0;
-    let errorCount = 0;
-
-    for (const record of recordsToAdd) {
-        try {
-            const originalPo = record.poNumber;
-            
-            let motherPo = parseInt(originalPo, 10);
-            if (isNaN(motherPo)) {
-                motherPo = originalPo;
-            }
-
-            const paymentKey = `${record.site}-${motherPo}-${record.vendor}`.replace(/[.#$/[\]]/g, '_');
-            const recordRef = paymentsRef.child(paymentKey);
-
-            await recordRef.transaction(currentData => {
-                if (currentData === null) {
-                    return {
-                        site: record.site || '',
-                        poNumber: motherPo,
-                        vendor: record.vendor || '',
-                        paymentEntries: {
-                            [new Date().getTime()]: {
-                                paymentNumber: 'P1',
-                                amountPaid: parseFloat(record.value) || 0,
-                                datePaid: datePaid,
-                                invoiceNumber: record.invoiceNumber || '',
-                                originalPoNumber: originalPo,
-                                timestamp: new Date().toISOString()
-                            }
-                        }
-                    };
-                } else {
-                    const paymentCount = currentData.paymentEntries ? Object.keys(currentData.paymentEntries).length : 0;
-                    const nextPaymentNum = `P${paymentCount + 1}`;
-                    if (!currentData.paymentEntries) {
-                        currentData.paymentEntries = {};
-                    }
-                    currentData.paymentEntries[new Date().getTime()] = {
-                        paymentNumber: nextPaymentNum,
-                        amountPaid: parseFloat(record.value) || 0,
-                        datePaid: datePaid,
-                        invoiceNumber: record.invoiceNumber || '',
-                        originalPoNumber: originalPo,
-                        timestamp: new Date().toISOString()
-                    };
-                    return currentData;
-                }
-            });
-
-            successCount++;
-        } catch (error) {
-            console.error('Firebase Transaction Failed!', error);
-            alert(`An error occurred while saving payment for PO: ${formatPoNumber(record.poNumber)}. Check the console for details.`);
-            errorCount++;
-        }
-    }
-
-    hideLoading();
-    showToast(`${successCount} payment entries added. ${errorCount > 0 ? `${errorCount} failed.` : ''}`);
-    
-    if (document.getElementById('addPaymentModal').style.display === 'block') {
-        closeAddPaymentModal();
-    }
-    if (document.getElementById('searchAddModal').style.display === 'block') {
-        closeSearchAddModal();
-    }
-    
-    await loadPaymentsFromFirebase();
-    refreshPaymentsTable(payments);
-}
-
-// New function to search the payments table
-function searchPayments() {
-    const term = document.getElementById('paymentsSearchTerm').value.toLowerCase();
-    const filtered = payments.filter(payment =>
-        (payment.site && payment.site.toLowerCase().includes(term)) ||
-        (payment.poNumber && String(payment.poNumber).toLowerCase().includes(term)) ||
-        (payment.vendor && payment.vendor.toLowerCase().includes(term)) ||
-        (payment.paymentEntries && Object.values(payment.paymentEntries).some(entry => 
-            (entry.paymentNumber && entry.paymentNumber.toLowerCase().includes(term))
-        ))
-    );
-    refreshPaymentsTable(filtered);
-}
-
-function clearPaymentsSearch() {
-    document.getElementById('paymentsSearchTerm').value = '';
-    refreshPaymentsTable(); // Resets to empty
-}
-
-function findInvoiceInTracker(poNumber, invoiceNumber) {
-    // 1. Switch to the Invoice Tracker section
-    showSection('invoiceSection');
-
-    // 2. Set the search term to the PO number so the user sees it in the search bar
-    const poString = String(poNumber || '').trim();
-    domCache.searchTerm.value = poString;
-
-    // 3. Directly filter all records to find the specific invoice
-    const normalizedInv = normalizeInvoiceNumber(invoiceNumber);
-    
-    const exactMatch = records.find(record => {
-        const recordPO = String(record.poNumber || '').trim();
-        const recordINV = normalizeInvoiceNumber(record.invoiceNumber);
-
-        // More robust comparison to handle "1234" vs "1234.0" or other variations
-        const poIsNumeric = !isNaN(parseFloat(poString)) && isFinite(poString);
-        let poMatches = false;
-
-        if (poIsNumeric) {
-            // If the PO is numeric, compare the parsed float values
-            poMatches = parseFloat(recordPO) === parseFloat(poString);
-        } else {
-            // Otherwise, do a case-insensitive string comparison
-            poMatches = recordPO.toLowerCase() === poString.toLowerCase();
-        }
-
-        return poMatches && recordINV === normalizedInv;
-    });
-
-    // 4. Display either the single exact match or all results for the PO as a fallback
-    if (exactMatch) {
-        refreshTable([exactMatch]); // Display only the single matching record
-        showToast(`Showing exact match for PO: ${poString}`);
+    if (userSiteString.toLowerCase() === 'all') {
+        siteFilteredEntries = allSystemEntries;
     } else {
-        searchRecords(); // Fallback to searching by the PO number if no exact match is found
-        showToast(`Could not find exact invoice. Showing all results for PO: ${poString}`);
+        const userSites = userSiteString.split(',').map(s => s.trim());
+        siteFilteredEntries = allSystemEntries.filter(entry => userSites.includes(entry.site));
+    }
+    
+    filterAndRenderReport(siteFilteredEntries); 
+}
+
+// --- INVOICE MANAGEMENT FUNCTIONS ---
+// ... (The rest of your code is unchanged and goes here) ...
+// ... I've included the full code block below for completeness.
+
+function updateIMDateTime() {
+    const now = new Date();
+    const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+    const dateString = now.toLocaleDateString('en-GB', dateOptions);
+    const timeString = now.toLocaleTimeString('en-GB', timeOptions);
+    if(imDatetimeElement) imDatetimeElement.textContent = `${dateString} at ${timeString}`;
+}
+function showIMSection(sectionId) {
+    const invoiceEntryLink = imNav.querySelector('a[data-section="im-invoice-entry"]');
+    if (sectionId === 'im-invoice-entry' && invoiceEntryLink.classList.contains('disabled')) {
+        alert('You do not have permission to access this section.');
+        return; 
+    }
+
+    imContentArea.querySelectorAll('.workdesk-section').forEach(section => {
+        section.classList.add('hidden');
+    });
+    const targetSection = document.getElementById(sectionId);
+    if (targetSection) {
+        targetSection.classList.remove('hidden');
+    }
+    if(sectionId === 'im-invoice-entry'){
+        resetInvoiceEntryPage();
+    }
+    if (sectionId === 'im-reporting') {
+        imReportingContent.innerHTML = '<p>Enter a search term and click Search to load data.</p>';
+        imReportingSearchInput.value = '';
+        currentReportData = [];
     }
 }
-function refreshPaymentsTable(filteredPayments = []) {
-    const tableBody = document.querySelector('#invoicePaymentsTable tbody');
-    tableBody.innerHTML = '';
+function resetInvoiceForm() {
+    const nextId = imInvEntryIdInput.value;
+    imNewInvoiceForm.reset();
+    imInvEntryIdInput.value = nextId;
+    imReleaseDateInput.value = getTodayDateString();
     
-    const displayPayments = filteredPayments.length > 0 ? filteredPayments : payments;
-    
-    if (displayPayments.length === 0) {
-        domCache.invoicePaymentsTable.style.display = 'none';
-        return;
+    if (imAttentionSelectChoices) {
+        imAttentionSelectChoices.clearInput();
+        imAttentionSelectChoices.removeActiveItems();
     }
     
-    domCache.invoicePaymentsTable.style.display = 'table';
-
-    displayPayments.forEach(payment => {
-        const po = formatPoNumber(payment.poNumber);
-        const groupRow = document.createElement('tr');
-        groupRow.className = 'payment-group-row';
-        groupRow.innerHTML = `
-            <td>
-                <button class="toggle-details-btn" data-target="details-${po}-${payment.vendor.replace(/\s/g, '')}">
-                    <i class="fas fa-plus"></i>
-                </button>
-            </td>
-            <td>${po || '-'}</td>
-            <td>${payment.site || '-'}</td>
-            <td>${payment.vendor || '-'}</td>
-        `;
-        tableBody.appendChild(groupRow);
-
-        const detailsRow = document.createElement('tr');
-        detailsRow.className = 'payment-details-row';
-        detailsRow.id = `details-${po}-${payment.vendor.replace(/\s/g, '')}`;
-        
-        let totalPaid = 0;
-        let detailsHtml = `
-            <td colspan="4">
-                <table class="payment-details-table">
-                    <thead>
-                        <tr>
-                            <th>Payment No.</th>
-                            <th>Amount Paid</th>
-                            <th>Date Paid</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>`;
-        
-        if (payment.paymentEntries) {
-            const sortedEntryKeys = Object.keys(payment.paymentEntries).sort();
-            sortedEntryKeys.forEach(entryKey => {
-                const entry = payment.paymentEntries[entryKey];
-                const paymentKey = `${payment.site}-${po}-${payment.vendor}`.replace(/[.#$/[\]]/g, '_');
-                const onclickEdit = `openEditPaymentModal(${JSON.stringify(paymentKey)}, ${JSON.stringify(entryKey)}, ${JSON.stringify(entry)})`;
-                const onclickDelete = `deletePaymentEntry(${JSON.stringify(paymentKey)}, ${JSON.stringify(entryKey)})`;
-                
-                const poToPass = JSON.stringify(entry.originalPoNumber || payment.poNumber || '');
-                const invToPass = JSON.stringify(entry.invoiceNumber || '');
-                const findAction = `findInvoiceInTracker(${poToPass}, ${invToPass})`;
-
-                totalPaid += parseFloat(entry.amountPaid) || 0;
-                
-                detailsHtml += `
-                    <tr class="clickable-row" onclick="${findAction}" title="Click to find this invoice in the tracker">
-                        <td>${entry.paymentNumber || '-'}</td>
-                        <td>${entry.amountPaid ? formatNumber(entry.amountPaid) : '-'}</td>
-                        <td>${entry.datePaid ? formatDate(entry.datePaid) : '-'}</td>
-                        <td class="action-btns">
-                            <button class="btn btn-primary" style="padding: 6px 10px; font-size: 14px;" onclick='event.stopPropagation(); ${onclickEdit}'>
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn btn-delete-entry" onclick='event.stopPropagation(); ${onclickDelete}'>
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
-                    </tr>`;
-            });
+    currentlyEditingInvoiceKey = null;
+    imFormTitle.textContent = 'Add New Invoice for this PO';
+    imAddInvoiceButton.classList.remove('hidden');
+    imUpdateInvoiceButton.classList.add('hidden');
+}
+function resetInvoiceEntryPage() {
+    currentPO = null;
+    currentPOInvoices = {};
+    imPOSearchInput.value = '';
+    imPODetailsContainer.classList.add('hidden');
+    imNewInvoiceForm.classList.add('hidden');
+    imExistingInvoicesContainer.classList.add('hidden');
+    imInvoicesTableBody.innerHTML = '';
+    resetInvoiceForm();
+}
+async function handlePOSearch() {
+    const poNumber = imPOSearchInput.value.trim().toUpperCase();
+    if (!poNumber) {
+        alert('Please enter a PO Number.');
+        return;
+    }
+    try {
+        const poSnapshot = await db.ref(`purchase_orders/${poNumber}`).once('value');
+        const poData = poSnapshot.val();
+        if (!poData) {
+            alert('PO Number not found in the database.');
+            resetInvoiceEntryPage();
+            return;
         }
-        
-        detailsHtml += `
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <td class="total-row" style="text-align:right; font-weight:bold;">TOTAL</td>
-                            <td class="total-row" style="font-weight:bold;">${formatNumber(totalPaid)}</td>
-                            <td colspan="2"></td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </td>`;
-        
-        detailsRow.innerHTML = detailsHtml;
-        tableBody.appendChild(detailsRow);
-    });
+        currentPO = poNumber;
+        imPONo.textContent = poNumber;
+        imPOSite.textContent = poData['Project ID'] || 'N/A';
+        imPOValue.textContent = poData.Amount ? `QAR ${formatCurrency(poData.Amount)}` : 'N/A';
+        imPOVendor.textContent = poData['Supplier Name'] || 'N/A';
+        imPODetailsContainer.classList.remove('hidden');
+        await fetchAndDisplayInvoices(poNumber);
+    } catch (error) {
+        console.error("Error searching for PO:", error);
+        alert('An error occurred while searching for the PO.');
+    }
+}
+async function fetchAndDisplayInvoices(poNumber) {
+    const invoicesRef = db.ref(`invoice_entries/${poNumber}`);
+    const invoiceSnapshot = await invoicesRef.once('value');
+    const invoicesData = invoiceSnapshot.val();
+    let invoiceCount = 0;
+    imInvoicesTableBody.innerHTML = ''; 
+    currentPOInvoices = invoicesData || {};
 
-    document.querySelectorAll('.toggle-details-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            const targetId = this.getAttribute('data-target');
-            const detailsRow = document.getElementById(targetId);
-            const icon = this.querySelector('i');
-            
-            if (detailsRow.style.display === 'table-row') {
-                detailsRow.style.display = 'none';
-                icon.classList.remove('fa-minus');
-                icon.classList.add('fa-plus');
-            } else {
-                detailsRow.style.display = 'table-row';
-                icon.classList.remove('fa-plus');
-                icon.classList.add('fa-minus');
-            }
+    if (invoicesData) {
+        const invoices = Object.entries(invoicesData).map(([key, value]) => ({ key, ...value }));
+        invoiceCount = invoices.length;
+        invoices.sort((a, b) => (a.invEntryID || '').localeCompare(b.invEntryID || ''));
+        invoices.forEach(inv => {
+            const row = document.createElement('tr');
+            row.style.cursor = 'pointer';
+            row.setAttribute('data-key', inv.key);
+            const normalizedReleaseDate = normalizeDateForInput(inv.releaseDate);
+            const releaseDateDisplay = normalizedReleaseDate ? new Date(normalizedReleaseDate + 'T00:00:00').toLocaleDateString('en-GB') : 'N/A';
+            const normalizedInvoiceDate = normalizeDateForInput(inv.invoiceDate);
+            const invoiceDateDisplay = normalizedInvoiceDate ? new Date(normalizedInvoiceDate + 'T00:00:00').toLocaleDateString('en-GB') : 'N/A';
+            row.innerHTML = `
+                <td>${inv.invEntryID || ''}</td>
+                <td>${inv.invNumber || ''}</td>
+                <td>${invoiceDateDisplay}</td>
+                <td>${formatCurrency(inv.invValue)}</td>
+                <td>${formatCurrency(inv.amountPaid)}</td>
+                <td>${inv.status || ''}</td>
+                <td>${releaseDateDisplay}</td>
+                <td><button class="delete-btn" data-key="${inv.key}">Delete</button></td>
+            `;
+            imInvoicesTableBody.appendChild(row);
         });
-    });
+        imExistingInvoicesContainer.classList.remove('hidden');
+    } else {
+        imInvoicesTableBody.innerHTML = '<tr><td colspan="8">No invoices have been entered for this PO yet.</td></tr>';
+        imExistingInvoicesContainer.classList.remove('hidden');
+    }
+    const nextInvId = `INV-${String(invoiceCount + 1).padStart(2, '0')}`;
+    imInvEntryIdInput.value = nextInvId;
+    resetInvoiceForm();
+    imNewInvoiceForm.classList.remove('hidden');
 }
-
-
-// NEW: Functions for editing payments
-function openEditPaymentModal(paymentKey, entryKey, entryData) {
-    document.getElementById('editPaymentKey').value = paymentKey;
-    document.getElementById('editPaymentEntryKey').value = entryKey;
+function populateInvoiceFormForEditing(invoiceKey) {
+    const invData = currentPOInvoices[invoiceKey];
+    if (!invData) return;
+    resetInvoiceForm();
+    currentlyEditingInvoiceKey = invoiceKey;
+    imInvEntryIdInput.value = invData.invEntryID || '';
+    document.getElementById('im-inv-no').value = invData.invNumber || '';
+    imInvoiceDateInput.value = normalizeDateForInput(invData.invoiceDate);
+    document.getElementById('im-inv-value').value = invData.invValue || '';
+    document.getElementById('im-amount-paid').value = invData.amountPaid || '0';
+    document.getElementById('im-inv-name').value = invData.invName || '';
+    document.getElementById('im-srv-name').value = invData.srvName || '';
     
-    const parentPayment = payments.find(p => `${p.site}-${formatPoNumber(p.poNumber)}-${p.vendor}`.replace(/[.#$/[\]]/g, '_') === paymentKey);
-    const identifier = `${entryData.paymentNumber} for PO ${parentPayment ? formatPoNumber(parentPayment.poNumber) : 'N/A'}`;
-    document.getElementById('editPaymentIdentifier').textContent = identifier;
+    if (invData.status === 'With Accounts') {
+        imReleaseDateInput.value = normalizeDateForInput(invData.releaseDate);
+    } else {
+        imReleaseDateInput.value = getTodayDateString();
+    }
 
-    document.getElementById('editPaymentNumberInput').value = entryData.paymentNumber;
-    document.getElementById('editAmountPaidInput').value = entryData.amountPaid;
-    document.getElementById('editDatePaidInput').value = entryData.datePaid;
-    
-    document.getElementById('editPaymentModal').style.display = 'block';
-    document.body.style.overflow = 'hidden';
+    document.getElementById('im-status').value = invData.status || 'For SRV';
+    document.getElementById('im-note').value = invData.note || '';
+    if (imAttentionSelectChoices && invData.attention) {
+        imAttentionSelectChoices.setChoiceByValue(invData.attention);
+    }
+    imFormTitle.textContent = `Editing Invoice: ${invData.invEntryID}`;
+    imAddInvoiceButton.classList.add('hidden');
+    imUpdateInvoiceButton.classList.remove('hidden');
+    window.scrollTo(0, imNewInvoiceForm.offsetTop);
 }
-
-function closeEditPaymentModal() {
-    document.getElementById('editPaymentModal').style.display = 'none';
-    document.body.style.overflow = '';
-}
-
-function savePaymentUpdate() {
-    const paymentKey = document.getElementById('editPaymentKey').value;
-    const entryKey = document.getElementById('editPaymentEntryKey').value;
-    const newAmount = document.getElementById('editAmountPaidInput').value;
-    const newDate = document.getElementById('editDatePaidInput').value;
-    
-    if (!paymentKey || !entryKey || !newAmount || !newDate) {
-        alert('All fields are required.');
+async function handleAddInvoice(e) {
+    e.preventDefault();
+    if (!currentPO) {
+        alert('No PO is loaded. Please search for a PO first.');
         return;
     }
-    
-    showLoading();
+    const formData = new FormData(imNewInvoiceForm);
+    const invoiceData = Object.fromEntries(formData.entries());
+    invoiceData.attention = imAttentionSelectChoices.getValue(true);
 
-    const entryRef = database.ref(`invoicePayments/${paymentKey}/paymentEntries/${entryKey}`);
-    
-    entryRef.update({
-        amountPaid: parseFloat(newAmount),
-        datePaid: newDate
-    }).then(() => {
-        hideLoading();
-        showToast('Payment updated successfully!');
-        closeEditPaymentModal();
-        loadPaymentsFromFirebase().then(() => refreshPaymentsTable(payments));
-    }).catch(error => {
-        hideLoading();
-        showToast('Error updating payment: ' + error.message);
-        console.error('Update error:', error);
+    Object.keys(invoiceData).forEach(key => {
+        if (invoiceData[key] === null || invoiceData[key] === undefined) {
+            delete invoiceData[key];
+        }
     });
-}
 
-function deletePaymentEntry(paymentKey, entryKey) {
-    if (!confirm('Are you sure you want to permanently delete this payment entry? This action cannot be undone.')) {
+    try {
+        await db.ref(`invoice_entries/${currentPO}`).push(invoiceData);
+        alert('Invoice added successfully!');
+        await fetchAndDisplayInvoices(currentPO);
+    } catch (error) {
+        console.error("Error adding invoice:", error);
+        alert('Failed to add invoice. Please try again.');
+    }
+}
+async function handleUpdateInvoice(e) {
+    e.preventDefault();
+    if (!currentPO || !currentlyEditingInvoiceKey) {
+        alert('No invoice selected for update.');
         return;
     }
-    
-    showLoading();
-    const entryRef = database.ref(`invoicePayments/${paymentKey}/paymentEntries/${entryKey}`);
-    
-    entryRef.remove()
-        .then(() => {
-            // Check if there are any other entries left under this payment
-            const paymentRef = database.ref(`invoicePayments/${paymentKey}/paymentEntries`);
-            return paymentRef.once('value');
-        })
-        .then(snapshot => {
-            if (!snapshot.exists() || snapshot.numChildren() === 0) {
-                // If no entries are left, delete the parent payment object
-                return database.ref(`invoicePayments/${paymentKey}`).remove();
-            }
-        })
-        .then(() => {
-            hideLoading();
-            showToast('Payment entry deleted successfully.');
-            return loadPaymentsFromFirebase();
-        })
-        .then(() => {
-            refreshPaymentsTable(payments);
-            refreshTable(currentFilteredRecords || []); // Refresh tracker in case the deleted payment was highlighting a row
-        })
-        .catch(error => {
-            hideLoading();
-            showToast('Error deleting payment entry: ' + error.message);
-            console.error('Delete error:', error);
-        });
-}
+    const formData = new FormData(imNewInvoiceForm);
+    const invoiceData = Object.fromEntries(formData.entries());
+    invoiceData.attention = imAttentionSelectChoices.getValue(true);
 
-
-// === Approval/Approver Feature (Injected) ===
-let approvers = [];
-let pendingWhatsAppRecord = null;
-
-function loadApprovers() {
-  return database.ref('Approver').once('value').then(snap => {
-    const data = snap.val() || {};
-    approvers = Object.values(data).map(x => {
-      const name    = (x.Name || x.name || '').toString().trim();
-      const pos     = (x.Position || x.position || '').toString().trim();
-      const mobile  = (x['Mobile Number'] || x.Mobile || x.mobile || '').toString().replace(/\D/g,'');
-      const email   = (x.Email || x.email || '').toString().trim();
-      return { name, position: pos, mobile, email };
-    }).filter(a => a.name && a.mobile);
-    console.log(`Approvers loaded: ${approvers.length}`);
-  }).catch(err => {
-    console.error('Approver load error:', err);
-    approvers = [];
-  });
-}
-
-function openWhatsAppModal(rec, type) {
-  pendingWhatsAppRecord = rec;
-  const el = (id) => document.getElementById(id);
-  
-  const modal = el('approvalModal');
-  const titleEl = modal.querySelector('h2');
-  const sendBtn = el('sendApprovalBtn');
-
-  if (type === 'approval') {
-      titleEl.textContent = 'Send Approval via WhatsApp';
-      sendBtn.innerHTML = '<i class="fab fa-whatsapp"></i> Send via WhatsApp';
-      sendBtn.onclick = () => sendWhatsAppMessage('approval');
-  } else if (type === 'update') {
-      titleEl.textContent = 'Request Update via WhatsApp';
-      sendBtn.innerHTML = '<i class="fab fa-whatsapp"></i> Send Request';
-      sendBtn.onclick = () => sendWhatsAppMessage('update');
-  }
-
-
-  if (el('apprSite'))   el('apprSite').textContent   = rec.site || '-';
-  if (el('apprPO'))     el('apprPO').textContent     = formatPoNumber(rec.poNumber);
-  if (el('apprVendor')) el('apprVendor').textContent = rec.vendor || '-';
-  if (el('apprAmount')) el('apprAmount').textContent = rec.value ? formatNumber(rec.value) : '-';
-
-  const sel = el('approverSelect');
-  if (sel) {
-    sel.innerHTML = '<option value="">— Select person —</option>';
-  }
-
-  loadApprovers().then(() => {
-    if (!sel) return;
-    if (!approvers || approvers.length === 0) {
-      sel.options[0].textContent = 'No contacts found (upload in Data Management)';
-      return;
+    if (invoiceData.status === 'With Accounts') {
+        invoiceData.attention = '';
     }
-    approvers.forEach((a, idx) => {
-      const opt = document.createElement('option');
-      opt.value = (a.mobile || '').toString().replace(/\D/g,'');
-      opt.textContent = `${a.name} — ${a.position}`;
-      sel.appendChild(opt);
+
+    Object.keys(invoiceData).forEach(key => {
+        if (invoiceData[key] === null || invoiceData[key] === undefined) {
+            delete invoiceData[key];
+        }
     });
-  });
 
-  if (modal) {
-    modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
-  }
-}
-
-
-function closeApprovalModal() {
-  const modal = document.getElementById('approvalModal');
-  if (modal) modal.style.display = 'none';
-  document.body.style.overflow = '';
-  const msg = document.getElementById('approvalMessage');
-  if (msg) msg.value = '';
-  pendingWhatsAppRecord = null;
-}
-
-function sendWhatsAppMessage(type) {
-  if (!pendingWhatsAppRecord) return;
-  const sel = document.getElementById('approverSelect');
-  const msgExtra = (document.getElementById('approvalMessage')?.value || '').trim();
-
-  const waNumber = (sel && sel.value ? sel.value : '').replace(/\D/g,'');
-  if (!waNumber) { alert('Please choose a person to send to.'); return; }
-  
-  const r = pendingWhatsAppRecord;
-  
-  let messageHeader = (type === 'approval')
-        ? `*Invoice Approval Request*\n\n`
-        : `*Invoice Status Update Request*\n\n`;
-  
-  let message = messageHeader;
-  message += `Site: ${r.site || 'N/A'}\n`;
-  message += `PO: ${formatPoNumber(r.poNumber) || 'N/A'}\n`;
-  message += `Vendor: ${r.vendor || 'N/A'}\n`;
-  message += `Amount: ${r.value ? formatNumber(r.value) : 'N/A'}\n`;
-  if (r.status) message += `Status: ${r.status}\n`;
-
-  if (r.fileName) {
-    const pdfUrl = `${PDF_BASE_PATH}${encodeURIComponent(r.fileName)}`;
-    message += `\nInvoice PDF: ${pdfUrl}\n`;
-  }
-
-  if (msgExtra) message += `\nNote: ${msgExtra}\n`;
-  message += `\nSent from IBA Invoice Status Tracker`;
-
-  const encodedMessage = encodeURIComponent(message);
-  window.open(`https://wa.me/${waNumber}?text=${encodedMessage}`, '_blank');
-  closeApprovalModal();
-}
-
-
-function downloadApproverTemplate() {
-  const headers = ['Name','Position','Mobile Number','Email'].join(',');
-  const blob = new Blob([headers], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'approver_template.csv';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-function uploadApproverCSV() {
-  const file = document.getElementById('approverCsvInput').files[0];
-  const status = document.getElementById('approverUploadStatus');
-  if (!file) { if (status) { status.textContent = 'Please select an Approver CSV file'; status.className = 'upload-status error'; } return; }
-  if (typeof showLoading === 'function') showLoading();
-  if (status) { status.textContent = 'Processing Approver CSV...'; status.className = 'upload-status'; }
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    Papa.parse(e.target.result, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        const rows = results.data || [];
-        if (rows.length === 0) { if (status) { status.textContent = 'No valid rows in CSV'; status.className = 'upload-status error'; } if (typeof hideLoading === 'function') hideLoading(); return; }
-        const obj = {};
-        rows.forEach((r, i) => {
-          const rec = {
-            Name: (r['Name'] || '').toString().trim(),
-            Position: (r['Position'] || '').toString().trim(),
-            'Mobile Number': (r['Mobile Number'] || r['Mobile'] || '').toString().replace(/\D/g,''),
-            Email: (r['Email'] || '').toString().trim()
-          };
-          if (rec.Name && rec['Mobile Number']) obj[i] = rec;
-        });
-        database.ref('Approver').set(obj).then(()=>{
-          if (status) { status.textContent = `Uploaded ${Object.keys(obj).length} approver(s) to Firebase`; status.className = 'upload-status success'; }
-          if (typeof hideLoading === 'function') hideLoading();
-          loadApprovers();
-        }).catch(err=>{
-          if (status) { status.textContent = `Error uploading approvers: ${err.message}`; status.className = 'upload-status error'; }
-          if (typeof hideLoading === 'function') hideLoading();
-        });
-      },
-      error: (error) => {
-        if (status) { status.textContent = `Error parsing CSV: ${error.message}`; status.className = 'upload-status error'; }
-        if (typeof hideLoading === 'function') hideLoading();
-      }
-    });
-  };
-  reader.readAsText(file);
-}
-
-
-// --- Bottom App Nav wiring ---
-function handleBottomNav(btn) {
-  const target = btn.getAttribute('data-target');
-  if (!target) return;
-  if (typeof showSection === 'function') showSection(target);
-  document.querySelectorAll('.bottom-app-nav .nav-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-
-  // sync with hamburger
-  const map = {
-    mainPageSection: '.mobile-menu .menu-item.main-page, .menu-item.main-page',
-    invoiceSection: '.mobile-menu .menu-item[data-section="invoiceSection"], .menu-item[data-section="invoiceSection"]',
-    statementSection: '.mobile-menu .menu-item[data-section="statementSection"], .menu-item[data-section="statementSection"]',
-    invoicePaymentsSection: '.mobile-menu .menu-item.payments, .menu-item.payments'
-  };
-  document.querySelectorAll('.mobile-menu .menu-item, .menu-item').forEach(mi => mi.classList.remove('active'));
-  if (map[target]) {
-    const el = document.querySelector(map[target]);
-    if (el) el.classList.add('active');
-  }
-}
-
-// Keep bottom nav active state if other code calls showSection
-(function(){
-  if (typeof showSection !== 'function') return;
-  const orig = showSection;
-  window.showSection = function(sectionId){
-    orig(sectionId);
-    const btn = document.querySelector(`.bottom-app-nav .nav-btn[data-target="${sectionId}"]`);
-    if (btn){
-      document.querySelectorAll('.bottom-app-nav .nav-btn').forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active');
-    }
-  };
-})();
-
-// === Search and Add Modal Functions ===
-function openSearchAddModal() {
-    document.getElementById('searchAddModal').style.display = 'block';
-    document.getElementById('searchAddInput').value = '';
-    document.getElementById('searchAddTableBody').innerHTML = '';
-}
-
-function closeSearchAddModal() {
-    document.getElementById('searchAddModal').style.display = 'none';
-}
-
-function handleSearchAddKeyPress(event) {
-    if (event.key === 'Enter') {
-        event.preventDefault();
-        searchInvoicesToAdd();
+    try {
+        await db.ref(`invoice_entries/${currentPO}/${currentlyEditingInvoiceKey}`).update(invoiceData);
+        alert('Invoice updated successfully!');
+        await fetchAndDisplayInvoices(currentPO);
+    } catch (error) {
+        console.error("Error updating invoice:", error);
+        alert('Failed to update invoice. Please try again.');
     }
 }
-
-function searchInvoicesToAdd() {
-    const term = document.getElementById('searchAddInput').value.toLowerCase();
-    const tableBody = document.getElementById('searchAddTableBody');
-    tableBody.innerHTML = '';
-
-    if (!term) return;
-
-    const filtered = records.filter(record =>
-        (record.poNumber && String(record.poNumber).toLowerCase().includes(term)) ||
-        (record.vendor && record.vendor.toLowerCase().includes(term)) ||
-        (record.invoiceNumber && record.invoiceNumber.toLowerCase().includes(term))
-    );
-
-    const paidInvoices = new Set();
-    if (payments && payments.length > 0) {
-        payments.forEach(p => {
-            if (p.paymentEntries) Object.values(p.paymentEntries).forEach(e => {
-                paidInvoices.add(`${e.originalPoNumber}-${e.invoiceNumber}`);
-            });
-        });
+async function handleDeleteInvoice(key) {
+    if (!currentPO || !key) {
+        alert("Could not identify the invoice to delete.");
+        return;
     }
+    const confirmed = confirm("Are you sure you want to delete this invoice entry? This action cannot be undone.");
+    if (confirmed) {
+        try {
+            await db.ref(`invoice_entries/${currentPO}/${key}`).remove();
+            alert("Invoice deleted successfully.");
+            await fetchAndDisplayInvoices(currentPO);
+        } catch (error) {
+            console.error("Error deleting invoice:", error);
+            alert("Failed to delete the invoice. Please try again.");
+        }
+    }
+}
+async function populateInvoiceReporting(searchTerm = '') {
+    currentReportData = [];
+    imReportingContent.innerHTML = '<p>Searching... Please wait.</p>';
+    try {
+        const [poSnapshot, invoiceSnapshot] = await Promise.all([
+            db.ref('purchase_orders').once('value'),
+            db.ref('invoice_entries').once('value')
+        ]);
+        const allPOs = poSnapshot.val() || {};
+        const allInvoicesByPO = invoiceSnapshot.val() || {};
+        
+        const searchText = searchTerm.toLowerCase();
+        const filteredPOs = Object.keys(allPOs).filter(poNumber => {
+            const po = allPOs[poNumber];
+            return poNumber.toLowerCase().includes(searchText) ||
+                   (po['Project ID'] && po['Project ID'].toLowerCase().includes(searchText)) ||
+                   (po['Supplier Name'] && po['Supplier Name'].toLowerCase().includes(searchText));
+        });
 
-    filtered.forEach(record => {
-        const isPaid = paidInvoices.has(`${record.poNumber}-${record.invoiceNumber}`);
-        const row = document.createElement('tr');
-        if (isPaid) row.classList.add('disabled-row');
+        if (filteredPOs.length === 0) {
+            imReportingContent.innerHTML = '<p>No results found for your search.</p>';
+            return;
+        }
 
-        row.innerHTML = `
-            <td><input type="checkbox" class="search-add-checkbox" ${isPaid ? 'disabled' : ''}></td>
-            <td>${record.poNumber || '-'}</td>
-            <td>${record.invoiceNumber || '-'}</td>
-            <td>${record.vendor || '-'}</td>
-            <td class="numeric">${record.value ? formatNumber(record.value) : '-'}</td>
+        let tableHTML = `
+            <table>
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>PO</th>
+                        <th>Site</th>
+                        <th>Vendor</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
         `;
-        // Store the full record object on the row element for easy access later
-        row.dataset.record = JSON.stringify(record);
-        tableBody.appendChild(row);
-    });
-}
 
-function toggleAllSearchAdd(checkbox) {
-    document.querySelectorAll('#searchAddTableBody .search-add-checkbox:not(:disabled)').forEach(cb => {
-        cb.checked = checkbox.checked;
-    });
-}
+        for (const poNumber of filteredPOs) {
+            const poDetails = allPOs[poNumber] || {};
+            const invoices = allInvoicesByPO[poNumber] ? Object.values(allInvoicesByPO[poNumber]) : [];
+            
+            if (invoices.length === 0) continue;
 
-async function addSelectedInvoicesFromSearch() {
-    const selectedCheckboxes = document.querySelectorAll('#searchAddTableBody .search-add-checkbox:checked');
-    if (selectedCheckboxes.length === 0) {
-        alert('Please select at least one invoice to add.');
+            const poDataForCSV = {
+                poNumber: poNumber,
+                site: poDetails['Project ID'] || 'N/A',
+                vendor: poDetails['Supplier Name'] || 'N/A',
+                poValue: poDetails.Amount || '0',
+                invoices: []
+            };
+
+            const detailRowId = `detail-${poNumber}`;
+
+            tableHTML += `
+                <tr class="master-row" data-target="#${detailRowId}">
+                    <td><button class="expand-btn">+</button></td>
+                    <td>${poNumber}</td>
+                    <td>${poDataForCSV.site}</td>
+                    <td>${poDataForCSV.vendor}</td>
+                    <td>${poDetails.Amount ? `QAR ${formatCurrency(poDetails.Amount)}` : 'N/A'}</td>
+                </tr>
+            `;
+
+            let totalInvValue = 0;
+            let totalAmountPaid = 0;
+            let nestedTableRows = '';
+
+            invoices.forEach(inv => {
+                const invValue = parseFloat(inv.invValue) || 0;
+                const amountPaid = parseFloat(inv.amountPaid) || 0;
+                totalInvValue += invValue;
+                totalAmountPaid += amountPaid;
+                const normalizedReleaseDate = normalizeDateForInput(inv.releaseDate);
+                const releaseDateDisplay = normalizedReleaseDate ? new Date(normalizedReleaseDate + 'T00:00:00').toLocaleDateString('en-GB') : '';
+                const normalizedInvoiceDate = normalizeDateForInput(inv.invoiceDate);
+                const invoiceDateDisplay = normalizedInvoiceDate ? new Date(normalizedInvoiceDate + 'T00:00:00').toLocaleDateString('en-GB') : '';
+
+                nestedTableRows += `
+                    <tr>
+                        <td>${inv.invEntryID || ''}</td>
+                        <td>${inv.invNumber || ''}</td>
+                        <td>${invoiceDateDisplay}</td>
+                        <td>${inv.status || ''}</td>
+                        <td>${releaseDateDisplay}</td>
+                        <td>${formatCurrency(invValue)}</td>
+                        <td>${formatCurrency(amountPaid)}</td>
+                        <td>${inv.note || ''}</td>
+                    </tr>
+                `;
+                poDataForCSV.invoices.push({ ...inv, invoiceDateDisplay, releaseDateDisplay });
+            });
+            currentReportData.push(poDataForCSV);
+
+            tableHTML += `
+                <tr id="${detailRowId}" class="detail-row hidden">
+                    <td colspan="5">
+                        <div class="detail-content">
+                            <h4>Invoice Entries for PO ${poNumber}</h4>
+                            <table class="nested-invoice-table">
+                                <thead>
+                                    <tr>
+                                        <th>Inv. Entry</th>
+                                        <th>Inv. No.</th>
+                                        <th>Inv. Date</th>
+                                        <th>Status</th>
+                                        <th>Release Date</th>
+                                        <th>Inv. Value</th>
+                                        <th>Amount Paid</th>
+                                        <th>Note</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${nestedTableRows}
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td colspan="5" style="text-align: right;"><strong>TOTAL</strong></td>
+                                        <td><strong>QAR ${formatCurrency(totalInvValue)}</strong></td>
+                                        <td><strong>QAR ${formatCurrency(totalAmountPaid)}</strong></td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+
+        tableHTML += `</tbody></table>`;
+        imReportingContent.innerHTML = tableHTML;
+
+    } catch (error) {
+        console.error("Error generating invoice report:", error);
+        imReportingContent.innerHTML = '<p>An error occurred while generating the report.</p>';
+    }
+}
+async function handleDownloadCSV() {
+    if (currentReportData.length === 0) {
+        alert("No data to download. Please perform a search to generate a report first.");
         return;
     }
 
-    const recordsToAdd = [];
-    selectedCheckboxes.forEach(cb => {
-        const row = cb.closest('tr');
-        recordsToAdd.push(JSON.parse(row.dataset.record));
+    let csvContent = "data:text/csv;charset=utf-8,";
+    const headers = ["PO", "Site", "Vendor", "PO Value", "invEntryID", "invNumber", "invoiceDate", "invValue", "amountPaid", "invName", "srvName", "attention", "releaseDate", "status", "note"];
+    csvContent += headers.join(",") + "\r\n";
+
+    currentReportData.forEach(po => {
+        po.invoices.forEach(inv => {
+            const row = [
+                po.poNumber,
+                po.site,
+                `"${(po.vendor || '').replace(/"/g, '""')}"`,
+                po.poValue,
+                inv.invEntryID || '',
+                `"${(inv.invNumber || '').replace(/"/g, '""')}"`,
+                inv.invoiceDate || '',
+                inv.invValue || '0',
+                inv.amountPaid || '0',
+                `"${(inv.invName || '').replace(/"/g, '""')}"`,
+                `"${(inv.srvName || '').replace(/"/g, '""')}"`,
+                inv.attention || '',
+                inv.releaseDate || '',
+                inv.status || '',
+                `"${(inv.note || '').replace(/"/g, '""')}"`
+            ];
+            csvContent += row.join(",") + "\r\n";
+        });
+    });
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "invoice_report.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+
+// --- EVENT LISTENERS ---
+document.addEventListener('DOMContentLoaded', () => {
+    showView('login');
+    loginForm.addEventListener('submit', async (e) => { e.preventDefault(); loginError.textContent = ''; const identifier = loginIdentifierInput.value.trim(); try { const approver = await findApprover(identifier); if (!approver) { loginError.textContent = 'Access denied. Your email or mobile is not registered as an approver.'; return; } currentApprover = approver; if (!currentApprover.Password || currentApprover.Password === '') { const isEmailMissing = !currentApprover.Email; const isSiteMissing = !currentApprover.Site; const isPositionMissing = !currentApprover.Position; setupEmailContainer.classList.toggle('hidden', !isEmailMissing); setupSiteContainer.classList.toggle('hidden', !isSiteMissing); setupPositionContainer.classList.toggle('hidden', !isPositionMissing); setupEmailInput.required = isEmailMissing; setupSiteInput.required = isSiteMissing; setupPositionInput.required = isPositionMissing; showView('setup'); setupPasswordInput.focus(); } else { passwordUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile; showView('password'); passwordInput.focus(); } } catch (error) { console.error("Error checking approver:", error); loginError.textContent = 'An error occurred. Please try again.'; } });
+    setupForm.addEventListener('submit', async (e) => { e.preventDefault(); setupError.textContent = ''; const newPassword = setupPasswordInput.value; const finalEmail = currentApprover.Email || setupEmailInput.value.trim(); const finalSite = currentApprover.Site || setupSiteInput.value.trim(); const finalPosition = currentApprover.Position || setupPositionInput.value.trim(); if (!finalEmail.toLowerCase().endsWith('@iba.com.qa')) { setupError.textContent = 'Invalid email. Only @iba.com.qa addresses are allowed.'; return; } if (newPassword.length < 6) { setupError.textContent = 'Password must be at least 6 characters long.'; return; } try { const updates = { Password: newPassword, Email: finalEmail, Site: finalSite, Position: finalPosition }; await db.ref(`approvers/${currentApprover.key}`).update(updates); currentApprover = { ...currentApprover, ...updates }; handleSuccessfulLogin(); } catch (error) { console.error("Error during setup:", error); setupError.textContent = 'An error occurred while saving. Please try again.'; } });
+    passwordForm.addEventListener('submit', (e) => { e.preventDefault(); passwordError.textContent = ''; const enteredPassword = passwordInput.value; if (enteredPassword === currentApprover.Password) { handleSuccessfulLogin(); } else { passwordError.textContent = 'Incorrect password. Please try again.'; passwordInput.value = ''; } });
+    function handleLogout() { if(dateTimeInterval) clearInterval(dateTimeInterval); if(workdeskDateTimeInterval) clearInterval(workdeskDateTimeInterval); if(imDateTimeInterval) clearInterval(imDateTimeInterval); location.reload(); }
+    logoutButton.addEventListener('click', handleLogout);
+    wdLogoutButton.addEventListener('click', handleLogout);
+
+    workdeskButton.addEventListener('click', () => {
+        wdUsername.textContent = currentApprover.Name || 'User';
+        wdUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile;
+        if (!siteSelectChoices) {
+            siteSelectChoices = new Choices(document.getElementById('job-site'), { searchEnabled: true, shouldSort: false, itemSelectText: '', });
+            populateSiteDropdown();
+        }
+        if (!attentionSelectChoices) {
+            attentionSelectChoices = new Choices(document.getElementById('job-attention'), { searchEnabled: true, shouldSort: false, itemSelectText: '', });
+            populateAttentionDropdown(attentionSelectChoices);
+        }
+        updateWorkdeskDateTime();
+        if(workdeskDateTimeInterval) clearInterval(workdeskDateTimeInterval);
+        workdeskDateTimeInterval = setInterval(updateWorkdeskDateTime, 1000);
+        showView('workdesk');
+        showWorkdeskSection('wd-dashboard');
     });
 
-    // We can reuse the addPaymentEntry logic, but we need to supply a date.
-    // For simplicity, we'll use today's date automatically for this quick-add feature.
-    await addPaymentEntry(recordsToAdd);
-}
+    workdeskNav.addEventListener('click', (e) => { const link = e.target.closest('a'); if (!link) return; e.preventDefault(); const sectionId = link.getAttribute('data-section'); if (sectionId) { workdeskNav.querySelectorAll('a').forEach(a => a.classList.remove('active')); link.classList.add('active'); showWorkdeskSection(sectionId); } });
+    addJobButton.addEventListener('click', handleAddJobEntry);
+    updateJobButton.addEventListener('click', handleUpdateJobEntry);
+    clearJobButton.addEventListener('click', (e) => resetJobEntryForm(false));
+    jobEntrySearchInput.addEventListener('input', (e) => handleJobEntrySearch(e.target.value));
+    jobEntryTableBody.addEventListener('click', (e) => { 
+        const row = e.target.closest('tr'); 
+        if (!row) return; 
+        const key = row.getAttribute('data-key'); 
+        const entry = allSystemEntries.find(item => item.key === key);
+        if (key && entry && entry.source !== 'invoice') {
+            populateFormForEditing(key); 
+        }
+    });
+    activeTaskTableBody.addEventListener('click', handleRespondClick);
+    jobForSelect.addEventListener('change', (e) => {
+        const isQS = currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'qs';
+        if (e.target.value === 'IPC' && isQS) {
+            attentionSelectChoices.clearStore();
+            attentionSelectChoices.setChoices([{ value: 'All', label: 'All', selected: true }], 'value', 'label', false);
+            attentionSelectChoices.disable();
+        } else {
+            if(attentionSelectChoices.disabled) {
+                attentionSelectChoices.enable();
+                resetJobEntryForm(true);
+            }
+        }
+    });
+    activeTaskSearchInput.addEventListener('input', (e) => handleActiveTaskSearch(e.target.value));
+    taskHistorySearchInput.addEventListener('input', (e) => handleTaskHistorySearch(e.target.value));
+    reportingSearchInput.addEventListener('input', handleReportingSearch);
+    printReportButton.addEventListener('click', () => window.print());
+    reportTabsContainer.addEventListener('click', (e) => {
+        if(e.target.tagName === 'BUTTON') {
+            reportTabsContainer.querySelector('.active').classList.remove('active');
+            e.target.classList.add('active');
+            currentReportFilter = e.target.getAttribute('data-job-type');
+            handleReportingSearch();
+        }
+    });
+    document.querySelectorAll('.back-to-main-dashboard').forEach(button => {
+        button.addEventListener('click', (e) => {
+            e.preventDefault();
+            showView('dashboard');
+        });
+    });
+
+    // +++ INVOICE MANAGEMENT LISTENERS +++
+    invoiceManagementButton.addEventListener('click', () => {
+        imUsername.textContent = currentApprover.Name || 'User';
+        imUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile;
+        if (!imAttentionSelectChoices) {
+            imAttentionSelectChoices = new Choices(imAttentionSelect, {
+                searchEnabled: true, shouldSort: false, itemSelectText: '',
+            });
+            populateAttentionDropdown(imAttentionSelectChoices);
+        }
+        const invoiceEntryLink = imNav.querySelector('a[data-section="im-invoice-entry"]');
+        const isAccounts = currentApprover.Position && currentApprover.Position.toLowerCase() === 'accounts';
+        const isAdmin = currentApprover.Role && currentApprover.Role.toLowerCase() === 'admin';
+        if (isAccounts && isAdmin) {
+            invoiceEntryLink.classList.remove('disabled');
+        } else {
+            invoiceEntryLink.classList.add('disabled');
+        }
+        updateIMDateTime();
+        if(imDateTimeInterval) clearInterval(imDateTimeInterval);
+        imDateTimeInterval = setInterval(updateIMDateTime, 1000);
+        showView('invoice-management');
+        showIMSection('im-dashboard');
+        imNav.querySelector('a.active').classList.remove('active');
+        imNav.querySelector('a[data-section="im-dashboard"]').classList.add('active');
+    });
+
+    imNav.addEventListener('click', (e) => {
+        const link = e.target.closest('a');
+        if (!link) return;
+        e.preventDefault();
+        if (link.classList.contains('disabled')) return;
+        const sectionId = link.getAttribute('data-section');
+        if (sectionId) {
+            imNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
+            link.classList.add('active');
+            showIMSection(sectionId);
+        }
+    });
+
+    imLogoutButton.addEventListener('click', handleLogout);
+    imPOSearchButton.addEventListener('click', handlePOSearch);
+    imPOSearchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handlePOSearch();
+        }
+    });
+    imAddInvoiceButton.addEventListener('click', handleAddInvoice);
+    imUpdateInvoiceButton.addEventListener('click', handleUpdateInvoice);
+    imClearFormButton.addEventListener('click', () => {
+        if (currentPO) {
+           resetInvoiceForm();
+        } else {
+           resetInvoiceEntryPage();
+        }
+    });
+    imInvoicesTableBody.addEventListener('click', (e) => {
+        const deleteBtn = e.target.closest('.delete-btn');
+        if (deleteBtn) {
+            const key = deleteBtn.getAttribute('data-key');
+            if (key) {
+                handleDeleteInvoice(key);
+            }
+            return;
+        }
+
+        const row = e.target.closest('tr');
+        if (!row) return;
+        const key = row.getAttribute('data-key');
+        if (key) {
+            populateInvoiceFormForEditing(key);
+        }
+    });
+    
+    imReportingContent.addEventListener('click', (e) => {
+        const expandBtn = e.target.closest('.expand-btn');
+        if (!expandBtn) return;
+        
+        const masterRow = expandBtn.closest('.master-row');
+        const targetId = masterRow.dataset.target;
+        const detailRow = document.querySelector(targetId);
+
+        if (detailRow) {
+            const isHidden = detailRow.classList.contains('hidden');
+            if (isHidden) {
+                detailRow.classList.remove('hidden');
+                expandBtn.textContent = '−';
+            } else {
+                detailRow.classList.add('hidden');
+                expandBtn.textContent = '+';
+            }
+        }
+    });
+
+    imReportingForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const searchTerm = imReportingSearchInput.value.trim();
+        if (searchTerm) {
+            populateInvoiceReporting(searchTerm);
+        } else {
+            imReportingContent.innerHTML = '<p>Please enter a search term.</p>';
+            currentReportData = [];
+        }
+    });
+
+    imReportingClearButton.addEventListener('click', () => {
+        imReportingSearchInput.value = '';
+        imReportingContent.innerHTML = '<p>Enter a search term and click Search to load data.</p>';
+        currentReportData = [];
+    });
+    
+    imReportingDownloadCSVButton.addEventListener('click', handleDownloadCSV);
+});
