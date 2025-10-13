@@ -261,17 +261,22 @@
                     <h1>Reporting - All Entries</h1>
                     
                     <div class="report-controls">
-                        <div id="report-tabs" class="report-tabs">
-                            <button class="active" data-job-type="All">All Jobs</button>
-                            <button data-job-type="PR">PR</button>
-                            <button data-job-type="Invoice">Invoice</button>
-                            <button data-job-type="IPC">IPC</button>
-                            <button data-job-type="Payment">Payment</button>
-                            <button data-job-type="Transfer">Transfer</button>
-                             <button data-job-type="Trip">Trip</button>
-                             <button data-job-type="Report">Report</button>
+                        <div class="report-tabs-container">
+                            <div id="report-tabs" class="report-tabs">
+                                <button class="active" data-job-type="All">All Jobs</button>
+                                <button data-job-type="PR">PR</button>
+                                <button data-job-type="Invoice">Invoice</button>
+                                <button data-job-type="IPC">IPC</button>
+                                <button data-job-type="Payment">Payment</button>
+                                <button data-job-type="Transfer">Transfer</button>
+                                <button data-job-type="Trip">Trip</button>
+                                <button data-job-type="Report">Report</button>
+                            </div>
                         </div>
-                        <button id="print-report-button" class="print-btn"><i class="fa-solid fa-print"></i> Print Report</button>
+                        <div class="report-buttons-group">
+                           <button id="print-report-button" class="print-btn"><i class="fa-solid fa-print"></i> Print Report</button>
+                           <button id="download-wd-report-csv-button" class="download-btn"><i class="fa-solid fa-file-excel"></i> Save as Excel</button>
+                        </div>
                     </div>
 
                     <div class="search-bar-local">
@@ -342,10 +347,12 @@
                 
                 <section id="im-invoice-entry" class="workdesk-section hidden">
                     <h1>Invoice Entry</h1>
-                    <div class="search-bar-local" style="margin-bottom: 30px; max-width: 500px;">
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                        <input type="text" id="im-po-search-input" placeholder="Enter PO Number to load details...">
-                        <button id="im-po-search-button" style="position: absolute; right: 6px; top: 6px; height: calc(100% - 12px); border-radius: 4px;">Search PO</button>
+                    <div id="im-po-search-container">
+                        <div class="search-bar-local">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="im-po-search-input" placeholder="Enter PO Number...">
+                        </div>
+                        <button id="im-po-search-button">Search PO</button>
                     </div>
 
                     <div id="im-po-details-container" class="hidden">
@@ -449,17 +456,31 @@
 
                 <section id="im-reporting" class="workdesk-section hidden">
                     <h1>Invoice Report</h1>
-                    <form id="im-reporting-form" style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
-                        <div class="search-bar-local" style="margin-bottom: 0; flex-grow: 1;">
-                            <i class="fa-solid fa-magnifying-glass"></i>
-                            <input type="text" id="im-reporting-search" placeholder="Search by PO, Site, or Vendor...">
+                    <form id="im-reporting-form" class="report-controls">
+                        <div class="search-and-filter-group">
+                            <div class="search-bar-local">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                                <input type="text" id="im-reporting-search" placeholder="Search by PO, Site, or Vendor...">
+                            </div>
+                            <select id="im-reporting-filter-column" title="Filter by Column">
+                                <option value="none">No Filter</option>
+                                <option value="invoiceDate">Invoice Date</option>
+                                <option value="releaseDate">Release Date</option>
+                                <option value="status">Status</option>
+                            </select>
+                            <select id="im-reporting-filter-condition" title="Filter Condition">
+                                <option value="is-not-empty">Is Not Empty</option>
+                                <option value="is-empty">Is Empty</option>
+                            </select>
                         </div>
-                        <button type="submit">Search</button>
-                        <button id="im-reporting-clear-button" class="secondary-btn" type="button">Clear</button>
-                        <button id="im-reporting-download-csv-button" class="download-btn" type="button"><i class="fa-solid fa-download"></i> Download CSV</button>
+                        <div class="report-buttons-group">
+                            <button type="submit">Search</button>
+                            <button id="im-reporting-clear-button" class="secondary-btn" type="button">Clear</button>
+                            <button id="im-reporting-download-csv-button" class="download-btn" type="button"><i class="fa-solid fa-download"></i> Download CSV</button>
+                        </div>
                     </form>
                     <div id="im-reporting-content" class="table-wrapper">
-                        <p>Enter a search term and click Search to load data.</p>
+                        <p>Click Search to load all data, or enter a term to narrow your results.</p>
                     </div>
                 </section>
 

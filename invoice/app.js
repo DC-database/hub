@@ -22,6 +22,7 @@ const taskHistorySearchInput = document.getElementById('task-history-search');
 const reportingSearchInput = document.getElementById('reporting-search');
 const reportTabsContainer = document.getElementById('report-tabs');
 const printReportButton = document.getElementById('print-report-button');
+const downloadWdReportButton = document.getElementById('download-wd-report-csv-button');
 const dbActiveTasksCount = document.getElementById('db-active-tasks-count');
 const dbPendingEntriesCount = document.getElementById('db-pending-entries-count');
 const dbCompletedTasksCount = document.getElementById('db-completed-tasks-count');
@@ -587,11 +588,39 @@ function handleReportingSearch() {
     
     filterAndRenderReport(siteFilteredEntries); 
 }
+function handleDownloadWorkdeskCSV() {
+    const table = document.querySelector("#reporting-printable-area table");
+    if (!table) {
+        alert("Report table not found.");
+        return;
+    }
+
+    let csv = [];
+    const headers = [];
+    table.querySelectorAll("thead th").forEach(header => {
+        headers.push(`"${header.innerText.replace(/"/g, '""')}"`);
+    });
+    csv.push(headers.join(","));
+
+    table.querySelectorAll("tbody tr").forEach(row => {
+        const rowData = [];
+        row.querySelectorAll("td").forEach(cell => {
+            rowData.push(`"${cell.innerText.replace(/"/g, '""')}"`);
+        });
+        csv.push(rowData.join(","));
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8," + csv.join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "workdesk_report.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
 
 // --- INVOICE MANAGEMENT FUNCTIONS ---
-// ... (The rest of your code is unchanged and goes here) ...
-// ... I've included the full code block below for completeness.
-
 function updateIMDateTime() {
     const now = new Date();
     const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -618,7 +647,7 @@ function showIMSection(sectionId) {
         resetInvoiceEntryPage();
     }
     if (sectionId === 'im-reporting') {
-        imReportingContent.innerHTML = '<p>Enter a search term and click Search to load data.</p>';
+        imReportingContent.innerHTML = '<p>Click Search to load all data, or enter a term to narrow your results.</p>';
         imReportingSearchInput.value = '';
         currentReportData = [];
     }
@@ -820,6 +849,11 @@ async function handleDeleteInvoice(key) {
 async function populateInvoiceReporting(searchTerm = '') {
     currentReportData = [];
     imReportingContent.innerHTML = '<p>Searching... Please wait.</p>';
+
+    // Get filter values from the new dropdowns
+    const filterColumn = document.getElementById('im-reporting-filter-column').value;
+    const filterCondition = document.getElementById('im-reporting-filter-condition').value;
+
     try {
         const [poSnapshot, invoiceSnapshot] = await Promise.all([
             db.ref('purchase_orders').once('value'),
@@ -829,7 +863,10 @@ async function populateInvoiceReporting(searchTerm = '') {
         const allInvoicesByPO = invoiceSnapshot.val() || {};
         
         const searchText = searchTerm.toLowerCase();
+        
+        // Filter POs based on search text. If no text, include all.
         const filteredPOs = Object.keys(allPOs).filter(poNumber => {
+            if (!searchText) return true; // Include all if search is empty
             const po = allPOs[poNumber];
             return poNumber.toLowerCase().includes(searchText) ||
                    (po['Project ID'] && po['Project ID'].toLowerCase().includes(searchText)) ||
@@ -855,11 +892,31 @@ async function populateInvoiceReporting(searchTerm = '') {
                 <tbody>
         `;
 
+        let resultsFound = false;
+
         for (const poNumber of filteredPOs) {
             const poDetails = allPOs[poNumber] || {};
-            const invoices = allInvoicesByPO[poNumber] ? Object.values(allInvoicesByPO[poNumber]) : [];
+            let invoices = allInvoicesByPO[poNumber] ? Object.values(allInvoicesByPO[poNumber]) : [];
             
-            if (invoices.length === 0) continue;
+            // Apply the column filter if one is selected
+            if (filterColumn !== 'none' && invoices.length > 0) {
+                invoices = invoices.filter(inv => {
+                    const value = inv[filterColumn];
+                    const isEmpty = value === null || value === undefined || String(value).trim() === '';
+
+                    if (filterCondition === 'is-empty') {
+                        return isEmpty;
+                    }
+                    if (filterCondition === 'is-not-empty') {
+                        return !isEmpty;
+                    }
+                    return true; // Should not happen, but good practice
+                });
+            }
+
+            if (invoices.length === 0) continue; // Skip this PO if it has no matching invoices after filtering
+
+            resultsFound = true; // We found at least one PO with matching invoices
 
             const poDataForCSV = {
                 poNumber: poNumber,
@@ -948,7 +1005,12 @@ async function populateInvoiceReporting(searchTerm = '') {
         }
 
         tableHTML += `</tbody></table>`;
-        imReportingContent.innerHTML = tableHTML;
+        
+        if (!resultsFound) {
+            imReportingContent.innerHTML = '<p>No results found for your search and filter criteria.</p>';
+        } else {
+            imReportingContent.innerHTML = tableHTML;
+        }
 
     } catch (error) {
         console.error("Error generating invoice report:", error);
@@ -1058,6 +1120,7 @@ document.addEventListener('DOMContentLoaded', () => {
     taskHistorySearchInput.addEventListener('input', (e) => handleTaskHistorySearch(e.target.value));
     reportingSearchInput.addEventListener('input', handleReportingSearch);
     printReportButton.addEventListener('click', () => window.print());
+    downloadWdReportButton.addEventListener('click', handleDownloadWorkdeskCSV);
     reportTabsContainer.addEventListener('click', (e) => {
         if(e.target.tagName === 'BUTTON') {
             reportTabsContainer.querySelector('.active').classList.remove('active');
@@ -1086,7 +1149,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const invoiceEntryLink = imNav.querySelector('a[data-section="im-invoice-entry"]');
         const isAccounts = currentApprover.Position && currentApprover.Position.toLowerCase() === 'accounts';
         const isAdmin = currentApprover.Role && currentApprover.Role.toLowerCase() === 'admin';
-        if (isAccounts && isAdmin) {
+        if (isAccounts || isAdmin) {
             invoiceEntryLink.classList.remove('disabled');
         } else {
             invoiceEntryLink.classList.add('disabled');
@@ -1171,17 +1234,13 @@ document.addEventListener('DOMContentLoaded', () => {
     imReportingForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const searchTerm = imReportingSearchInput.value.trim();
-        if (searchTerm) {
-            populateInvoiceReporting(searchTerm);
-        } else {
-            imReportingContent.innerHTML = '<p>Please enter a search term.</p>';
-            currentReportData = [];
-        }
+        populateInvoiceReporting(searchTerm);
     });
 
     imReportingClearButton.addEventListener('click', () => {
         imReportingSearchInput.value = '';
-        imReportingContent.innerHTML = '<p>Enter a search term and click Search to load data.</p>';
+        document.getElementById('im-reporting-filter-column').value = 'none';
+        imReportingContent.innerHTML = '<p>Click Search to load all data, or enter a term to narrow your results.</p>';
         currentReportData = [];
     });
     

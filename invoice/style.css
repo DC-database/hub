@@ -99,6 +99,22 @@ input.highlight-field { border-color: #ffc107; box-shadow: 0 0 0 0.2rem rgba(255
 .search-bar-local input { width: 100%; padding: 12px 12px 12px 40px; border-radius: 6px; border: 1px solid #ddd; font-size: 15px; }
 .search-bar-local i { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #999; }
 
+/* ++ NEW: Invoice Entry PO Search Container ++ */
+#im-po-search-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 30px;
+    max-width: 500px;
+}
+#im-po-search-container .search-bar-local {
+    margin-bottom: 0;
+    flex-grow: 1; /* Allows input to take available space */
+}
+#im-po-search-container button {
+    flex-shrink: 0; /* Prevents button from shrinking */
+}
+
 /* Table Styles */
 .table-wrapper { width: 100%; overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
@@ -116,10 +132,10 @@ tbody tr:hover { background-color: #f1f1f1; }
     background-color: #c82333;
 }
 .download-btn {
-    background-color: #28a745;
+    background-color: #1e7e34;
 }
 .download-btn:hover {
-    background-color: #218838;
+    background-color: #155d27;
 }
 .download-btn i {
     margin-right: 8px;
@@ -218,12 +234,32 @@ tbody tr:hover { background-color: #f1f1f1; }
 
 /* REPORTING STYLES */
 .report-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
-.report-tabs { display: flex; gap: 5px; border-bottom: 2px solid #e0e0e0; flex-grow: 1; }
-.report-tabs button { background-color: transparent; border: none; border-bottom: 3px solid transparent; padding: 10px 15px; font-size: 15px; font-weight: 600; color: #555; cursor: pointer; border-radius: 0; margin-bottom: -2px; }
+.report-tabs-container { flex-grow: 1; }
+.report-tabs { display: flex; gap: 5px; border-bottom: 2px solid #e0e0e0; overflow-x: auto; }
+.report-tabs button { background-color: transparent; border: none; border-bottom: 3px solid transparent; padding: 10px 15px; font-size: 15px; font-weight: 600; color: #555; cursor: pointer; border-radius: 0; margin-bottom: -2px; white-space: nowrap; }
 .report-tabs button.active { color: #007bff; border-bottom-color: #007bff; }
 .print-btn { background-color: #17a2b8; padding: 8px 15px; }
 .print-btn:hover { background-color: #138496; }
 .print-btn i { margin-right: 8px; }
+
+/* ++ NEW: Invoice Reporting Form Layout ++ */
+.search-and-filter-group, .report-buttons-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.search-and-filter-group { flex-grow: 1; }
+.report-buttons-group { flex-shrink: 0; }
+.search-and-filter-group .search-bar-local {
+    margin-bottom: 0;
+    min-width: 250px;
+    flex-grow: 1;
+}
+.search-and-filter-group select {
+    margin-bottom: 0; /* Override default margin */
+    padding: 11px;
+}
 
 /* Style for disabled navigation links */
 .workdesk-navigation a.disabled {
