@@ -426,20 +426,19 @@ async function populateTaskHistory() {
     if (!currentApprover || !currentApprover.Name) { taskHistoryTableBody.innerHTML = '<tr><td colspan="9">Could not identify user.</td></tr>'; return; }
     try {
         await ensureAllEntriesFetched();
+        
+        // --- MODIFIED LOGIC START ---
         const userSiteString = currentApprover.Site || '';
+        const userSites = userSiteString.toLowerCase() === 'all' ? null : userSiteString.split(',').map(s => s.trim());
 
-        let siteFilteredHistory;
-        if (userSiteString.toLowerCase() === 'all') {
-            siteFilteredHistory = allSystemEntries;
-        } else {
-            const userSites = userSiteString.split(',').map(s => s.trim());
-            siteFilteredHistory = allSystemEntries.filter(task => userSites.includes(task.site));
-        }
-
-        userTaskHistory = siteFilteredHistory.filter(task => {
+        userTaskHistory = allSystemEntries.filter(task => {
+            const isMySite = userSites === null || (task.site && userSites.includes(task.site));
             const isRelatedToMe = (task.enteredBy === currentApprover.Name || task.attention === currentApprover.Name);
-            return isRelatedToMe && isTaskComplete(task);
+            
+            // A task is visible in history if it's complete AND (it's for my site OR it's related to me)
+            return isTaskComplete(task) && (isMySite || isRelatedToMe);
         });
+        // --- MODIFIED LOGIC END ---
         
         renderTaskHistoryTable(userTaskHistory);
     } catch (error) { console.error("Error fetching task history:", error); taskHistoryTableBody.innerHTML = '<tr><td colspan="9">Error loading task history.</td></tr>'; }
@@ -607,17 +606,19 @@ async function handleRespondClick(e) {
 function handleActiveTaskSearch(searchTerm) { const searchText = searchTerm.toLowerCase(); if (!searchText) { renderActiveTaskTable(userActiveTasks); return; } const filteredTasks = userActiveTasks.filter(task => { return ((task.for && task.for.toLowerCase().includes(searchText)) || (task.ref && task.ref.toLowerCase().includes(searchText)) || (task.site && task.site.toLowerCase().includes(searchText)) || (task.group && task.group.toLowerCase().includes(searchText)) || (task.date && task.date.toLowerCase().includes(searchText))); }); renderActiveTaskTable(filteredTasks); }
 function handleTaskHistorySearch(searchTerm) { const searchText = searchTerm.toLowerCase(); if (!searchText) { renderTaskHistoryTable(userTaskHistory); return; } const filteredHistory = userTaskHistory.filter(task => { return ((task.for && task.for.toLowerCase().includes(searchText)) || (task.ref && task.ref.toLowerCase().includes(searchText)) || (task.amount && task.amount.toString().includes(searchText)) || (task.po && task.po.toLowerCase().includes(searchText)) || (task.site && task.site.toLowerCase().includes(searchText)) || (task.group && task.group.toLowerCase().includes(searchText)) || (task.date && task.date.toLowerCase().includes(searchText))); }); renderTaskHistoryTable(filteredHistory); }
 function handleReportingSearch() { 
+    // --- MODIFIED LOGIC START ---
     const userSiteString = currentApprover.Site || '';
-    let siteFilteredEntries;
+    const userSites = userSiteString.toLowerCase() === 'all' ? null : userSiteString.split(',').map(s => s.trim());
 
-    if (userSiteString.toLowerCase() === 'all') {
-        siteFilteredEntries = allSystemEntries;
-    } else {
-        const userSites = userSiteString.split(',').map(s => s.trim());
-        siteFilteredEntries = allSystemEntries.filter(entry => userSites.includes(entry.site));
-    }
+    // Filter by the new combined rule first
+    const relevantEntries = allSystemEntries.filter(entry => {
+        const isMySite = userSites === null || (entry.site && userSites.includes(entry.site));
+        const isRelatedToMe = (entry.enteredBy === currentApprover.Name || entry.attention === currentApprover.Name);
+        return isMySite || isRelatedToMe;
+    });
+    // --- MODIFIED LOGIC END ---
     
-    filterAndRenderReport(siteFilteredEntries); 
+    filterAndRenderReport(relevantEntries); 
 }
 function handleDownloadWorkdeskCSV() {
     const table = document.querySelector("#reporting-printable-area table");
@@ -1231,18 +1232,26 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- FIX: Listen on the entire sidebar for navigation clicks ---
-    document.querySelector('.workdesk-sidebar').addEventListener('click', (e) => {
+    document.querySelector('#workdesk-view .workdesk-sidebar').addEventListener('click', (e) => {
         const link = e.target.closest('a');
-        if (!link || !link.hasAttribute('data-section')) return; // Ensure it's a section link
-        e.preventDefault();
+        if (!link || !link.hasAttribute('data-section')) {
+             if (link && link.id === 'wd-logout-button') {
+                // This allows the logout button to work, which is handled separately
+             } else {
+                return;
+             }
+        }
+        if (link.hasAttribute('data-section')) {
+            e.preventDefault();
         
-        const allNavLinks = document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a');
-        allNavLinks.forEach(a => a.classList.remove('active'));
-        link.classList.add('active');
+            const allNavLinks = document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a');
+            allNavLinks.forEach(a => a.classList.remove('active'));
+            link.classList.add('active');
 
-        const sectionId = link.getAttribute('data-section');
-        if (sectionId) {
-            showWorkdeskSection(sectionId);
+            const sectionId = link.getAttribute('data-section');
+            if (sectionId) {
+                showWorkdeskSection(sectionId);
+            }
         }
     });
 
