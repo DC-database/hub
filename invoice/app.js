@@ -28,6 +28,17 @@ const dbPendingEntriesCount = document.getElementById('db-pending-entries-count'
 const dbCompletedTasksCount = document.getElementById('db-completed-tasks-count');
 const dbSiteStatsContainer = document.getElementById('dashboard-site-stats');
 const dbRecentTasksBody = document.getElementById('db-recent-tasks-body');
+const settingsForm = document.getElementById('settings-form');
+const settingsNameInput = document.getElementById('settings-name');
+const settingsEmailInput = document.getElementById('settings-email');
+const settingsMobileInput = document.getElementById('settings-mobile');
+const settingsPositionInput = document.getElementById('settings-position');
+const settingsSiteInput = document.getElementById('settings-site');
+const settingsPasswordInput = document.getElementById('settings-password');
+const settingsVacationCheckbox = document.getElementById('settings-vacation');
+const settingsReturnDateContainer = document.getElementById('settings-return-date-container');
+const settingsReturnDateInput = document.getElementById('settings-return-date');
+const settingsMessage = document.getElementById('settings-message');
 
 // +++ INVOICE MANAGEMENT REFERENCES +++
 const invoiceManagementView = document.getElementById('invoice-management-view');
@@ -79,6 +90,9 @@ let currentlyEditingInvoiceKey = null;
 let currentPOInvoices = {};
 let currentReportData = [];
 
+// NEW: Global state variables to manage the new workflow between WorkDesk Active Task and Invoice Entry
+let jobEntryToUpdateAfterInvoice = null; // Stores the key of the job entry to update
+let pendingJobEntryDataForInvoice = null; // Stores the data to pre-fill the invoice form
 
 // --- 5. HELPER FUNCTIONS ---
 function showView(viewName) {
@@ -115,6 +129,7 @@ function showWorkdeskSection(sectionId) {
     if (sectionId === 'wd-activetask') { populateActiveTasks(); }
     if (sectionId === 'wd-taskhistory') { populateTaskHistory(); }
     if (sectionId === 'wd-reporting') { populateReporting(); }
+    if (sectionId === 'wd-settings') { populateSettingsForm(); }
 }
 function formatDate(date) { const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]; const day = String(date.getDate()).padStart(2, '0'); const month = months[date.getMonth()]; const year = date.getFullYear(); return `${day}-${month}-${year}`; }
 
@@ -485,63 +500,50 @@ async function populateWorkdeskDashboard() {
         if (isTaskComplete(entry)) { siteStats[entry.site].completed++; } else { siteStats[entry.site].pending++; }
     });
 
+    // --- START: MODIFIED SECTION ---
+    // This part is completely new to generate the cards instead of the bar chart.
     dbSiteStatsContainer.innerHTML = '';
     if (Object.keys(siteStats).length === 0) {
         dbSiteStatsContainer.innerHTML = '<p>No data available for your sites yet.</p>';
     } else {
-        const chartContainer = document.createElement('div');
-        chartContainer.className = 'site-performance-chart';
+        const siteCardsGrid = document.createElement('div');
+        siteCardsGrid.className = 'site-cards-grid';
 
         for (const site in siteStats) {
             const stats = siteStats[site];
             const total = stats.completed + stats.pending;
-            const completedPercent = total > 0 ? (stats.completed / total) * 100 : 0;
-            const pendingPercent = total > 0 ? (stats.pending / total) * 100 : 0;
-            
-            const barContainer = document.createElement('div');
-            barContainer.className = 'chart-bar-container';
+            const completionPercentage = total > 0 ? (stats.completed / total) * 100 : 0;
 
-            const bar = document.createElement('div');
-            bar.className = 'chart-bar';
-            bar.title = `${site}: ${stats.completed} Completed, ${stats.pending} Pending`;
-
-            const completedSegment = document.createElement('div');
-            completedSegment.className = 'bar-segment-completed';
-            completedSegment.style.height = `${completedPercent}%`;
-            if (completedPercent > 10) completedSegment.textContent = stats.completed;
-
-            const pendingSegment = document.createElement('div');
-            pendingSegment.className = 'bar-segment-pending';
-            pendingSegment.style.height = `${pendingPercent}%`;
-            if (pendingPercent > 10) pendingSegment.textContent = stats.pending;
-
-            bar.appendChild(completedSegment);
-            bar.appendChild(pendingSegment);
-
-            const label = document.createElement('div');
-            label.className = 'chart-label';
-            label.textContent = site;
-
-            barContainer.appendChild(bar);
-            barContainer.appendChild(label);
-            chartContainer.appendChild(barContainer);
+            const card = document.createElement('div');
+            card.className = 'site-performance-card';
+            card.innerHTML = `
+                <div class="card-header">
+                    <h3 class="card-title">${site}</h3>
+                    <div class="card-completion-percent">${completionPercentage.toFixed(0)}% Complete</div>
+                </div>
+                <div class="card-total">
+                    <div class="card-total-value">${total}</div>
+                    <span class="card-total-label">Total Tasks</span>
+                </div>
+                <div class="progress-bar-track">
+                    <div class="progress-bar-fill" style="width: ${completionPercentage}%;"></div>
+                </div>
+                <div class="card-stats-breakdown">
+                    <div class="stat-item completed">
+                        <span class="stat-value">${stats.completed}</span>
+                        <span class="stat-label">Completed</span>
+                    </div>
+                    <div class="stat-item pending">
+                        <span class="stat-value">${stats.pending}</span>
+                        <span class="stat-label">Pending</span>
+                    </div>
+                </div>
+            `;
+            siteCardsGrid.appendChild(card);
         }
-        dbSiteStatsContainer.appendChild(chartContainer);
-
-        const legend = document.createElement('div');
-        legend.className = 'chart-legend';
-        legend.innerHTML = `
-            <div class="legend-item">
-                <div class="legend-color" style="background-color: #28a745;"></div>
-                <span>Completed</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color" style="background-color: #ffc107;"></div>
-                <span>Pending</span>
-            </div>
-        `;
-        dbSiteStatsContainer.appendChild(legend);
+        dbSiteStatsContainer.appendChild(siteCardsGrid);
     }
+    // --- END: MODIFIED SECTION ---
 
     dbRecentTasksBody.innerHTML = '';
     if (myActiveTasks.length === 0) {
@@ -554,7 +556,8 @@ async function populateWorkdeskDashboard() {
         });
     }
 }
-function handleRespondClick(e) {
+// MODIFIED: This function now handles both the old and new response logic.
+async function handleRespondClick(e) {
     if (!e.target.classList.contains('respond-btn')) return;
     const key = e.target.getAttribute('data-key');
     if (!key) return;
@@ -562,6 +565,34 @@ function handleRespondClick(e) {
     const taskData = allSystemEntries.find(entry => entry.key === key);
     if (!taskData || taskData.source === 'invoice') return;
 
+    // NEW: Check for the special 'Invoice for Irwin' case
+    if (taskData.for === 'Invoice' && taskData.attention === 'Irwin') {
+        // 1. Store the task details to be used in the Invoice Management view
+        jobEntryToUpdateAfterInvoice = key;
+        pendingJobEntryDataForInvoice = taskData;
+
+        // 2. Navigate to the Invoice Management view
+        invoiceManagementButton.click(); // This ensures the IM view is initialized correctly
+        
+        // 3. Go directly to the Invoice Entry section
+        const imInvoiceEntryLink = imNav.querySelector('a[data-section="im-invoice-entry"]');
+        if (imInvoiceEntryLink && !imInvoiceEntryLink.classList.contains('disabled')) {
+            imNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
+            imInvoiceEntryLink.classList.add('active');
+            showIMSection('im-invoice-entry');
+
+            // 4. Automatically search for the PO number from the task
+            imPOSearchInput.value = taskData.po || '';
+            await handlePOSearch(); // Use await to ensure PO details are loaded before proceeding
+        } else {
+            alert("You do not have permission to access Invoice Entry.");
+            jobEntryToUpdateAfterInvoice = null;
+            pendingJobEntryDataForInvoice = null;
+        }
+        return;
+    }
+
+    // --- Original logic for all other task types ---
     const isQS = currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'qs';
     workdeskNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
     document.querySelector('a[data-section="wd-jobentry"]').classList.add('active');
@@ -619,6 +650,86 @@ function handleDownloadWorkdeskCSV() {
     link.click();
     document.body.removeChild(link);
 }
+
+// --- NEW SETTINGS PAGE FUNCTIONS ---
+
+function populateSettingsForm() {
+    if (!currentApprover) return;
+
+    // Reset form state
+    settingsMessage.textContent = '';
+    settingsMessage.className = 'error-message'; // Reset to default
+    settingsPasswordInput.value = '';
+
+    // Populate read-only fields
+    settingsNameInput.value = currentApprover.Name || '';
+    settingsEmailInput.value = currentApprover.Email || '';
+    settingsMobileInput.value = currentApprover.Mobile || '';
+    settingsPositionInput.value = currentApprover.Position || '';
+
+    // Populate editable fields
+    settingsSiteInput.value = currentApprover.Site || '';
+    settingsVacationCheckbox.checked = currentApprover.Vacation || false;
+    settingsReturnDateInput.value = currentApprover.DateReturn || '';
+
+    // Toggle visibility of return date based on vacation status
+    if (settingsVacationCheckbox.checked) {
+        settingsReturnDateContainer.classList.remove('hidden');
+    } else {
+        settingsReturnDateContainer.classList.add('hidden');
+    }
+}
+
+async function handleUpdateSettings(e) {
+    e.preventDefault();
+    if (!currentApprover || !currentApprover.key) {
+        settingsMessage.textContent = 'Could not identify user. Please log in again.';
+        settingsMessage.className = 'error-message';
+        return;
+    }
+
+    const updates = {};
+    let passwordChanged = false;
+
+    // Get editable values
+    updates.Site = settingsSiteInput.value.trim();
+    updates.Vacation = settingsVacationCheckbox.checked;
+    updates.DateReturn = settingsVacationCheckbox.checked ? settingsReturnDateInput.value : ''; // Clear date if not on vacation
+    
+    const newPassword = settingsPasswordInput.value;
+
+    if (newPassword) {
+        if (newPassword.length < 6) {
+            settingsMessage.textContent = 'Password must be at least 6 characters long.';
+            settingsMessage.className = 'error-message';
+            return;
+        }
+        updates.Password = newPassword;
+        passwordChanged = true;
+    }
+
+    try {
+        await db.ref(`approvers/${currentApprover.key}`).update(updates);
+        
+        // Update local state
+        currentApprover = { ...currentApprover, ...updates };
+
+        settingsMessage.textContent = 'Settings updated successfully!';
+        settingsMessage.className = 'success-message'; // Use success class
+        settingsPasswordInput.value = '';
+
+        if (passwordChanged) {
+            alert('Password changed successfully! You will now be logged out.');
+            location.reload(); // Reload the page to force re-login
+        }
+
+    } catch (error) {
+        console.error("Error updating settings:", error);
+        settingsMessage.textContent = 'An error occurred. Please try again.';
+        settingsMessage.className = 'error-message';
+    }
+}
+
 
 // --- INVOICE MANAGEMENT FUNCTIONS ---
 function updateIMDateTime() {
@@ -704,6 +815,7 @@ async function handlePOSearch() {
         alert('An error occurred while searching for the PO.');
     }
 }
+// MODIFIED: This function now pre-fills form data if it exists from the WorkDesk workflow
 async function fetchAndDisplayInvoices(poNumber) {
     const invoicesRef = db.ref(`invoice_entries/${poNumber}`);
     const invoiceSnapshot = await invoicesRef.once('value');
@@ -745,6 +857,18 @@ async function fetchAndDisplayInvoices(poNumber) {
     imInvEntryIdInput.value = nextInvId;
     resetInvoiceForm();
     imNewInvoiceForm.classList.remove('hidden');
+
+    // NEW: Check if there is pending data from a job entry and pre-fill the form
+    if (pendingJobEntryDataForInvoice) {
+        if (pendingJobEntryDataForInvoice.amount) {
+            document.getElementById('im-inv-value').value = pendingJobEntryDataForInvoice.amount;
+        }
+        if (pendingJobEntryDataForInvoice.ref) {
+            document.getElementById('im-inv-no').value = pendingJobEntryDataForInvoice.ref;
+        }
+        // Clear the pending data so it doesn't get used again on a normal search
+        pendingJobEntryDataForInvoice = null;
+    }
 }
 function populateInvoiceFormForEditing(invoiceKey) {
     const invData = currentPOInvoices[invoiceKey];
@@ -775,6 +899,7 @@ function populateInvoiceFormForEditing(invoiceKey) {
     imUpdateInvoiceButton.classList.remove('hidden');
     window.scrollTo(0, imNewInvoiceForm.offsetTop);
 }
+// MODIFIED: This function now updates the original job entry after adding the invoice.
 async function handleAddInvoice(e) {
     e.preventDefault();
     if (!currentPO) {
@@ -794,6 +919,26 @@ async function handleAddInvoice(e) {
     try {
         await db.ref(`invoice_entries/${currentPO}`).push(invoiceData);
         alert('Invoice added successfully!');
+        
+        // NEW: Check if this action originated from a job entry task
+        if (jobEntryToUpdateAfterInvoice) {
+            try {
+                // Update the original job entry with the new status and a response date
+                const updates = {
+                    remarks: invoiceData.status,
+                    dateResponded: formatDate(new Date())
+                };
+                await db.ref(`job_entries/${jobEntryToUpdateAfterInvoice}`).update(updates);
+                console.log(`Job entry ${jobEntryToUpdateAfterInvoice} updated successfully.`);
+                
+                // Clear the state variable
+                jobEntryToUpdateAfterInvoice = null;
+            } catch (updateError) {
+                console.error("Error updating the original job entry:", updateError);
+                alert("Invoice was added, but failed to update the original active task.");
+            }
+        }
+        
         await fetchAndDisplayInvoices(currentPO);
     } catch (error) {
         console.error("Error adding invoice:", error);
@@ -850,7 +995,6 @@ async function populateInvoiceReporting(searchTerm = '') {
     currentReportData = [];
     imReportingContent.innerHTML = '<p>Searching... Please wait.</p>';
 
-    // Get filter values from the new dropdowns
     const filterColumn = document.getElementById('im-reporting-filter-column').value;
     const filterCondition = document.getElementById('im-reporting-filter-condition').value;
 
@@ -864,9 +1008,8 @@ async function populateInvoiceReporting(searchTerm = '') {
         
         const searchText = searchTerm.toLowerCase();
         
-        // Filter POs based on search text. If no text, include all.
         const filteredPOs = Object.keys(allPOs).filter(poNumber => {
-            if (!searchText) return true; // Include all if search is empty
+            if (!searchText) return true;
             const po = allPOs[poNumber];
             return poNumber.toLowerCase().includes(searchText) ||
                    (po['Project ID'] && po['Project ID'].toLowerCase().includes(searchText)) ||
@@ -898,7 +1041,6 @@ async function populateInvoiceReporting(searchTerm = '') {
             const poDetails = allPOs[poNumber] || {};
             let invoices = allInvoicesByPO[poNumber] ? Object.values(allInvoicesByPO[poNumber]) : [];
             
-            // Apply the column filter if one is selected
             if (filterColumn !== 'none' && invoices.length > 0) {
                 invoices = invoices.filter(inv => {
                     const value = inv[filterColumn];
@@ -910,13 +1052,13 @@ async function populateInvoiceReporting(searchTerm = '') {
                     if (filterCondition === 'is-not-empty') {
                         return !isEmpty;
                     }
-                    return true; // Should not happen, but good practice
+                    return true;
                 });
             }
 
-            if (invoices.length === 0) continue; // Skip this PO if it has no matching invoices after filtering
+            if (invoices.length === 0) continue;
 
-            resultsFound = true; // We found at least one PO with matching invoices
+            resultsFound = true;
 
             const poDataForCSV = {
                 poNumber: poNumber,
@@ -1088,7 +1230,22 @@ document.addEventListener('DOMContentLoaded', () => {
         showWorkdeskSection('wd-dashboard');
     });
 
-    workdeskNav.addEventListener('click', (e) => { const link = e.target.closest('a'); if (!link) return; e.preventDefault(); const sectionId = link.getAttribute('data-section'); if (sectionId) { workdeskNav.querySelectorAll('a').forEach(a => a.classList.remove('active')); link.classList.add('active'); showWorkdeskSection(sectionId); } });
+    // --- FIX: Listen on the entire sidebar for navigation clicks ---
+    document.querySelector('.workdesk-sidebar').addEventListener('click', (e) => {
+        const link = e.target.closest('a');
+        if (!link || !link.hasAttribute('data-section')) return; // Ensure it's a section link
+        e.preventDefault();
+        
+        const allNavLinks = document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a');
+        allNavLinks.forEach(a => a.classList.remove('active'));
+        link.classList.add('active');
+
+        const sectionId = link.getAttribute('data-section');
+        if (sectionId) {
+            showWorkdeskSection(sectionId);
+        }
+    });
+
     addJobButton.addEventListener('click', handleAddJobEntry);
     updateJobButton.addEventListener('click', handleUpdateJobEntry);
     clearJobButton.addEventListener('click', (e) => resetJobEntryForm(false));
@@ -1245,4 +1402,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     imReportingDownloadCSVButton.addEventListener('click', handleDownloadCSV);
+
+    // +++ SETTINGS PAGE LISTENERS +++
+    settingsForm.addEventListener('submit', handleUpdateSettings);
+
+    settingsVacationCheckbox.addEventListener('change', () => {
+        if (settingsVacationCheckbox.checked) {
+            settingsReturnDateContainer.classList.remove('hidden');
+        } else {
+            settingsReturnDateContainer.classList.add('hidden');
+            settingsReturnDateInput.value = ''; // Clear date when unchecked
+        }
+    });
 });

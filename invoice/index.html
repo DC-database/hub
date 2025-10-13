@@ -307,7 +307,59 @@
                     </div>
                  </section>
 
-                 <section id="wd-settings" class="workdesk-section hidden"><h1>Settings</h1><p>This area is under construction.</p></section>
+                 <section id="wd-settings" class="workdesk-section hidden">
+                    <h1>Account Settings</h1>
+                    <p>Manage your personal information and preferences. Fields that are greyed out are managed by the system administrator.</p>
+
+                    <form id="settings-form">
+                        <div class="jobentry-form-2col">
+                            <div class="form-column">
+                                <div class="form-group">
+                                    <label for="settings-name">Name</label>
+                                    <input type="text" id="settings-name" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label for="settings-email">Email</label>
+                                    <input type="email" id="settings-email" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label for="settings-mobile">Mobile</label>
+                                    <input type="text" id="settings-mobile" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label for="settings-position">Position</label>
+                                    <input type="text" id="settings-position" readonly>
+                                </div>
+                            </div>
+                            <div class="form-column">
+                                <div class="form-group">
+                                    <label for="settings-site">Site</label>
+                                    <input type="text" id="settings-site" placeholder="Your site(s)">
+                                    <p class="input-note">For multiple sites, separate them with a comma (ex. 175,176)</p>
+                                </div>
+                                <div class="form-group">
+                                    <label for="settings-password">New Password</label>
+                                    <input type="password" id="settings-password" placeholder="Leave blank to keep current password">
+                                </div>
+                                <div class="form-group">
+                                    <div class="checkbox-group">
+                                        <input type="checkbox" id="settings-vacation">
+                                        <label for="settings-vacation">On Vacation</label>
+                                    </div>
+                                </div>
+                                <div class="form-group hidden" id="settings-return-date-container">
+                                    <label for="settings-return-date">Return Date</label>
+                                    <input type="date" id="settings-return-date">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-buttons-container" style="justify-content: flex-start; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+                            <button type="submit" id="update-settings-button">Update Settings</button>
+                        </div>
+                        <p id="settings-message" class="error-message" style="text-align: left;"></p>
+                    </form>
+                </section>
             </div>
         </main>
     </div>
