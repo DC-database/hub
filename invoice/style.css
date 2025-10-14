@@ -141,6 +141,10 @@ tbody tr:hover { background-color: #f1f1f1; }
 .download-btn i {
     margin-right: 8px;
 }
+/* New style for clickable rows */
+.clickable-pdf {
+    cursor: pointer;
+}
 
 /* WORKDESK DASHBOARD STYLES */
 .dashboard-summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
@@ -255,7 +259,45 @@ tbody tr:hover { background-color: #f1f1f1; }
 }
 
 /* REPORTING STYLES */
-.report-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+.report-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+.report-header h1 {
+    margin: 0;
+}
+.daily-report-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.daily-report-section input[type="date"] {
+    margin-bottom: 0;
+    padding: 7px;
+    width: auto;
+    border-radius: 4px;
+}
+.daily-report-section .download-btn {
+    padding: 8px 15px;
+    font-weight: normal;
+    font-size: 14px;
+}
+
+.report-controls { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    margin-top: 20px;
+    margin-bottom: 20px;
+    flex-wrap: wrap; 
+    gap: 15px; 
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
 .report-tabs-container { flex-grow: 1; }
 .report-tabs { display: flex; gap: 5px; border-bottom: 2px solid #e0e0e0; overflow-x: auto; }
 .report-tabs button { background-color: transparent; border: none; border-bottom: 3px solid transparent; padding: 10px 15px; font-size: 15px; font-weight: 600; color: #555; cursor: pointer; border-radius: 0; margin-bottom: -2px; white-space: nowrap; }
@@ -264,7 +306,7 @@ tbody tr:hover { background-color: #f1f1f1; }
 .print-btn:hover { background-color: #138496; }
 .print-btn i { margin-right: 8px; }
 
-/* ++ NEW: Invoice Reporting Form Layout ++ */
+/* ++ Invoice Reporting Form Layout ++ */
 .search-and-filter-group, .report-buttons-group {
     display: flex;
     align-items: center;
@@ -385,11 +427,120 @@ tbody tr:hover { background-color: #f1f1f1; }
     font-weight: normal;
 }
 
+/* --- INVOICE MANAGEMENT DASHBOARD --- */
+.im-dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 30px;
+    align-items: flex-start;
+}
+.im-chart-card {
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    height: 100%;
+}
+.im-chart-card h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 1.1rem;
+    border-bottom: 0;
+}
+.im-donut-chart-container {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 20px auto;
+}
+.im-donut-chart {
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    background: conic-gradient(#17a2b8 0deg, #e9ecef 0deg);
+    transition: background 0.5s;
+}
+.donut-center {
+    position: absolute;
+    width: 140px;
+    height: 140px;
+    background: #f8f9fa;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+.donut-percentage {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #333;
+}
+.donut-label {
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+.im-chart-legend {
+    margin-top: 25px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+.im-chart-legend .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.im-chart-legend .legend-color {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+.im-chart-legend .legend-details {
+    display: flex;
+    flex-direction: column;
+}
+.im-chart-legend .legend-label {
+    font-size: 0.85rem;
+    color: #555;
+}
+.im-chart-legend .legend-value {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #333;
+}
+.im-bar-chart-container {
+    width: 100%;
+    height: 300px;
+}
+.im-status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 20px;
+}
+.im-status-card {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+    text-align: center;
+    border-left: 4px solid;
+}
+.im-status-card .card-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+.im-status-card .card-label {
+    font-size: 0.85rem;
+    margin-top: 5px;
+}
+
+
 /* PRINT STYLES */
 @media print {
     body { background-color: #fff; }
     #workdesk-view, #invoice-management-view, .workdesk-main, #workdesk-content-area, #im-content-area, #wd-reporting, #reporting-printable-area { display: block !important; overflow: visible !important; height: auto !important; width: 100% !important; position: static !important; }
-    .workdesk-sidebar, .dashboard-header, .report-controls, .search-bar-local, #workdesk-datetime, #im-datetime, .workdesk-navigation, .workdesk-footer-nav, #logout-button, h1 { display: none !important; }
+    .workdesk-sidebar, .dashboard-header, .report-controls, .search-bar-local, #workdesk-datetime, #im-datetime, .workdesk-navigation, .workdesk-footer-nav, #logout-button, .report-header { display: none !important; }
     #app-container, #wd-dashboard, #wd-jobentry, #wd-activetask, #wd-taskhistory, #wd-settings { display: none !important; }
     .workdesk-main, .workdesk-section { padding: 0; box-shadow: none; border: none; }
     table { width: 100%; font-size: 10pt; }
@@ -402,6 +553,7 @@ tbody tr:hover { background-color: #f1f1f1; }
 @media (max-width: 768px) {
     #workdesk-datetime, #im-datetime { text-align: center; margin-top: 15px; margin-bottom: 0; order: -1; }
     .workdesk-main { padding: 15px; padding-bottom: 80px; display: flex; flex-direction: column; }
+    .report-header { flex-direction: column; align-items: flex-start; }
     .report-controls { flex-direction: column; align-items: stretch; }
     .report-tabs { overflow-x: auto; white-space: nowrap; }
     #app-container, .form-container, .workdesk-section { padding: 15px; }
@@ -428,4 +580,5 @@ tbody tr:hover { background-color: #f1f1f1; }
     .workdesk-navigation a i { font-size: 1.2rem; margin-bottom: 2px; }
     .jobentry-form-2col { grid-template-columns: 1fr; }
     .form-buttons-container { justify-content: center; }
+    .im-dashboard-grid { grid-template-columns: 1fr; }
 }

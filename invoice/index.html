@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -393,8 +394,88 @@
             <div id="im-content-area">
                 
                 <section id="im-dashboard" class="workdesk-section">
-                    <h1>Invoice Dashboard</h1>
-                    <p>Dashboard content for invoices will be built here.</p>
+                    <h1>Invoice Dashboard (2025)</h1>
+                    
+                    <div class="dashboard-summary-cards">
+                        <div class="summary-card">
+                            <div class="card-icon" style="background-color: #007bff;"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+                            <div class="card-details">
+                                <span id="im-total-po-value" class="card-value">0</span>
+                                <span class="card-label">Total PO Value (2025)</span>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="card-icon" style="background-color: #17a2b8;"><i class="fa-solid fa-receipt"></i></div>
+                            <div class="card-details">
+                                <span id="im-total-invoice-value" class="card-value">0</span>
+                                <span class="card-label">Total Invoice Value (2025)</span>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="card-icon" style="background-color: #ffc107;"><i class="fa-solid fa-file-signature"></i></div>
+                            <div class="card-details">
+                                <span id="im-committed-cost" class="card-value">0</span>
+                                <span class="card-label">Remaining Commitment (2025)</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr class="section-divider">
+
+                    <div class="im-dashboard-grid">
+                        <div class="im-chart-card">
+                            <h2>PO Commitment Status (2025)</h2>
+                            <div class="im-donut-chart-container">
+                                <div id="im-donut-chart" class="im-donut-chart"></div>
+                                <div class="donut-center">
+                                    <span id="im-invoiced-percentage" class="donut-percentage">0%</span>
+                                    <span class="donut-label">Invoiced</span>
+                                </div>
+                            </div>
+                            <div class="im-chart-legend">
+                                <div class="legend-item">
+                                    <span class="legend-color" style="background-color: #17a2b8;"></span>
+                                    <div class="legend-details">
+                                        <span class="legend-label">Invoiced Value (2025)</span>
+                                        <span id="im-legend-invoiced" class="legend-value">QAR 0.00</span>
+                                    </div>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-color" style="background-color: #e9ecef;"></span>
+                                    <div class="legend-details">
+                                        <span class="legend-label">Remaining Commitment (2025)</span>
+                                        <span id="im-legend-remaining" class="legend-value">QAR 0.00</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="im-chart-card">
+                            <h2>Invoice Status Breakdown</h2>
+                            <div class="im-bar-chart-container">
+                                <canvas id="im-bar-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="section-divider">
+
+                    <h2>Recent Invoice Activity (2025)</h2>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>PO No.</th>
+                                    <th>Vendor</th>
+                                    <th>Inv. Value</th>
+                                    <th>Status</th>
+                                    <th>Release Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="im-recent-invoices-body">
+                                <tr><td colspan="5">Loading recent activity...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </section>
                 
                 <section id="im-invoice-entry" class="workdesk-section hidden">
@@ -444,7 +525,7 @@
                             </div>
                             <div class="form-column">
                                 <div class="form-group">
-                                    <label for="im-inv-name">Invoice Name / Description</label>
+                                    <label for="im-inv-name">Invoice Name</label>
                                     <input type="text" id="im-inv-name" name="invName">
                                 </div>
                                 <div class="form-group">
@@ -507,28 +588,25 @@
                 </section>
 
                 <section id="im-reporting" class="workdesk-section hidden">
-                    <h1>Invoice Report</h1>
+                    <div class="report-header">
+                        <h1>Invoice Summary Report</h1>
+                        <div class="daily-report-section">
+                           <input type="date" id="im-daily-report-date" title="Select a date for the daily entry report">
+                           <button id="im-download-daily-report-button" class="download-btn" type="button"><i class="fa-solid fa-calendar-day"></i> Daily Entry Report</button>
+                        </div>
+                    </div>
+
                     <form id="im-reporting-form" class="report-controls">
                         <div class="search-and-filter-group">
                             <div class="search-bar-local">
                                 <i class="fa-solid fa-magnifying-glass"></i>
                                 <input type="text" id="im-reporting-search" placeholder="Search by PO, Site, or Vendor...">
                             </div>
-                            <select id="im-reporting-filter-column" title="Filter by Column">
-                                <option value="none">No Filter</option>
-                                <option value="invoiceDate">Invoice Date</option>
-                                <option value="releaseDate">Release Date</option>
-                                <option value="status">Status</option>
-                            </select>
-                            <select id="im-reporting-filter-condition" title="Filter Condition">
-                                <option value="is-not-empty">Is Not Empty</option>
-                                <option value="is-empty">Is Empty</option>
-                            </select>
                         </div>
                         <div class="report-buttons-group">
                             <button type="submit">Search</button>
                             <button id="im-reporting-clear-button" class="secondary-btn" type="button">Clear</button>
-                            <button id="im-reporting-download-csv-button" class="download-btn" type="button"><i class="fa-solid fa-download"></i> Download CSV</button>
+                            <button id="im-reporting-download-csv-button" class="download-btn" type="button"><i class="fa-solid fa-download"></i> Download Full Report</button>
                         </div>
                     </form>
                     <div id="im-reporting-content" class="table-wrapper">

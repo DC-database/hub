@@ -4,6 +4,7 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 // --- 3. DOM ELEMENT REFERENCES & 4. GLOBAL STATE ---
+const PDF_BASE_PATH = "https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/DC%20Files/INVOICE/";
 const views = { login: document.getElementById('login-view'), password: document.getElementById('password-view'), setup: document.getElementById('setup-view'), dashboard: document.getElementById('dashboard-view'), workdesk: document.getElementById('workdesk-view') };
 const loginForm = document.getElementById('login-form'); const loginIdentifierInput = document.getElementById('login-identifier'); const loginError = document.getElementById('login-error');
 const passwordForm = document.getElementById('password-form'); const passwordInput = document.getElementById('login-password'); const passwordUserIdentifier = document.getElementById('password-user-identifier'); const passwordError = document.getElementById('password-error');
@@ -44,7 +45,7 @@ const settingsMessage = document.getElementById('settings-message');
 const invoiceManagementView = document.getElementById('invoice-management-view');
 const imNav = document.getElementById('im-nav');
 const imContentArea = document.getElementById('im-content-area');
-const invoiceManagementButton = document.getElementById('invoice-mgmt-button'); 
+const invoiceManagementButton = document.getElementById('invoice-mgmt-button');
 const imUsername = document.getElementById('im-username');
 const imUserIdentifier = document.getElementById('im-user-identifier');
 const imLogoutButton = document.getElementById('im-logout-button');
@@ -72,6 +73,8 @@ const imReportingClearButton = document.getElementById('im-reporting-clear-butto
 const imReportingDownloadCSVButton = document.getElementById('im-reporting-download-csv-button');
 const imInvoiceDateInput = document.getElementById('im-invoice-date');
 const imReleaseDateInput = document.getElementById('im-release-date');
+const imDailyReportDateInput = document.getElementById('im-daily-report-date');
+const imDownloadDailyReportButton = document.getElementById('im-download-daily-report-button');
 
 
 let currentApprover = null; let dateTimeInterval = null; let workdeskDateTimeInterval = null;
@@ -85,10 +88,11 @@ let currentReportFilter = 'All';
 // +++ INVOICE MANAGEMENT STATE +++
 let imDateTimeInterval = null;
 let currentPO = null;
-let imAttentionSelectChoices = null; 
+let imAttentionSelectChoices = null;
 let currentlyEditingInvoiceKey = null;
 let currentPOInvoices = {};
 let currentReportData = [];
+let imBarChart = null; // To hold the Chart.js instance
 
 // NEW: Global state variables to manage the new workflow between WorkDesk Active Task and Invoice Entry
 let jobEntryToUpdateAfterInvoice = null; // Stores the key of the job entry to update
@@ -119,13 +123,13 @@ function normalizeMobile(mobile) { const digitsOnly = mobile.replace(/\D/g, '');
 async function findApprover(identifier) { const isEmail = identifier.includes('@'); const searchKey = isEmail ? 'Email' : 'Mobile'; const searchValue = isEmail ? identifier : normalizeMobile(identifier); const snapshot = await db.ref('approvers').once('value'); const approversData = snapshot.val(); if (!approversData) return null; for (const key in approversData) { const record = approversData[key]; const dbValue = record[searchKey]; if (dbValue) { if (isEmail) { if (dbValue.toLowerCase() === searchValue.toLowerCase()) { return { key, ...record }; } } else { const normalizedDbMobile = dbValue.replace(/\D/g, ''); if (normalizedDbMobile === searchValue) { return { key, ...record }; } } } } return null; }
 function updateDashboardDateTime() { const now = new Date(); const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }; datetimeElement.textContent = now.toLocaleDateString('en-GB', options); }
 function updateWorkdeskDateTime() { const now = new Date(); const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }; const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }; const dateString = now.toLocaleDateString('en-GB', dateOptions); const timeString = now.toLocaleTimeString('en-GB', timeOptions); workdeskDatetimeElement.textContent = `${dateString} at ${timeString}`; }
-function handleSuccessfulLogin() { dashboardUsername.textContent = `Welcome ${currentApprover.Name || currentApprover.Email}`; updateDashboardDateTime(); if(dateTimeInterval) clearInterval(dateTimeInterval); dateTimeInterval = setInterval(updateDashboardDateTime, 1000); showView('dashboard'); }
+function handleSuccessfulLogin() { dashboardUsername.textContent = `Welcome ${currentApprover.Name || currentApprover.Email}`; updateDashboardDateTime(); if (dateTimeInterval) clearInterval(dateTimeInterval); dateTimeInterval = setInterval(updateDashboardDateTime, 1000); showView('dashboard'); }
 function showWorkdeskSection(sectionId) {
     workdeskSections.forEach(section => { section.classList.add('hidden'); });
     const targetSection = document.getElementById(sectionId);
-    if(targetSection) { targetSection.classList.remove('hidden'); }
+    if (targetSection) { targetSection.classList.remove('hidden'); }
     if (sectionId === 'wd-dashboard') { populateWorkdeskDashboard(); }
-    if(sectionId === 'wd-jobentry') { fetchAndDisplayJobEntries(); }
+    if (sectionId === 'wd-jobentry') { fetchAndDisplayJobEntries(); }
     if (sectionId === 'wd-activetask') { populateActiveTasks(); }
     if (sectionId === 'wd-taskhistory') { populateTaskHistory(); }
     if (sectionId === 'wd-reporting') { populateReporting(); }
@@ -178,10 +182,10 @@ async function ensureAllEntriesFetched() {
     ]);
 
     const jobEntriesData = jobEntriesSnapshot.val() || {};
-    const processedJobEntries = Object.entries(jobEntriesData).map(([key, value]) => ({ 
-        key, 
+    const processedJobEntries = Object.entries(jobEntriesData).map(([key, value]) => ({
+        key,
         ...value,
-        source: 'job_entry' 
+        source: 'job_entry'
     }));
 
     const invoiceEntriesData = invoiceEntriesSnapshot.val() || {};
@@ -194,15 +198,17 @@ async function ensureAllEntriesFetched() {
 
         for (const invoiceKey in invoices) {
             const invoice = invoices[invoiceKey];
-            
+
             if (!invoice.attention || invoice.attention.trim() === '') {
                 continue;
             }
 
             const normalizedDate = normalizeDateForInput(invoice.releaseDate);
-            
+
             const transformedInvoice = {
                 key: `${poNumber}_${invoice.invEntryID || invoiceKey}`,
+                originalKey: invoiceKey, // NEW: Store original Firebase key
+                originalPO: poNumber,   // NEW: Store original PO number
                 for: 'Invoice',
                 ref: invoice.invNumber || '',
                 po: poNumber,
@@ -215,6 +221,7 @@ async function ensureAllEntriesFetched() {
                 dateResponded: 'N/A',
                 remarks: invoice.status || 'Pending',
                 timestamp: normalizedDate ? new Date(normalizedDate).getTime() : Date.now(),
+                invName: invoice.invName || '',
                 source: 'invoice'
             };
             processedInvoiceEntries.push(transformedInvoice);
@@ -229,10 +236,10 @@ function isTaskComplete(task) {
     if (!task) return false;
 
     if (task.source === 'invoice') {
-        const completedStatuses = ['CEO Approval', 'With Accounts'];
+        const completedStatuses = ['CEO Approval', 'With Accounts', 'Under Review']; // 'Under Review' is now a completed step for the user
         return completedStatuses.includes(task.remarks);
     }
-    
+
     if (task.for === 'Invoice' && task.source === 'job_entry') { return !!task.dateResponded; }
     if (task.for === 'IPC' && task.attention === 'All') { return true; }
     return (task.amount && task.amount.trim() !== '' && task.po && task.po.trim() !== '');
@@ -241,7 +248,7 @@ function isTaskComplete(task) {
 function resetJobEntryForm(keepJobType = false) {
     const jobType = jobForSelect.value;
     jobEntryForm.reset();
-    if(keepJobType) jobForSelect.value = jobType;
+    if (keepJobType) jobForSelect.value = jobType;
     currentlyEditingKey = null;
     ['job-amount', 'job-po'].forEach(id => document.getElementById(id).classList.remove('highlight-field'));
     if (siteSelectChoices) { siteSelectChoices.clearInput(); siteSelectChoices.removeActiveItems(); }
@@ -253,7 +260,7 @@ function resetJobEntryForm(keepJobType = false) {
 async function populateAttentionDropdown(choicesInstance) {
     try {
         if (!choicesInstance) return;
-        choicesInstance.setChoices([{ value: '', label: 'Loading...', disabled: true, selected: true }]);
+        choicesInstance.setChoices([{ value: '', label: 'Loading...', disabled: true, selected: true }], 'value', 'label', true);
         const snapshot = await db.ref('approvers').once('value');
         const approvers = snapshot.val();
         if (approvers) {
@@ -280,9 +287,9 @@ function renderJobEntryTable(entries) {
         jobEntryTableBody.innerHTML = `<tr><td colspan="8">No pending entries found.</td></tr>`;
         return;
     }
-    entries.forEach(entry => { 
-        const row = document.createElement('tr'); 
-        row.setAttribute('data-key', entry.key); 
+    entries.forEach(entry => {
+        const row = document.createElement('tr');
+        row.setAttribute('data-key', entry.key);
         if (entry.source !== 'invoice') {
             row.style.cursor = 'pointer';
         }
@@ -295,22 +302,23 @@ function renderJobEntryTable(entries) {
             <td>${entry.attention || ''}</td>
             <td>${entry.date || ''}</td>
             <td>${entry.remarks || 'Pending'}</td>
-        `; 
-        jobEntryTableBody.appendChild(row); 
+        `;
+        jobEntryTableBody.appendChild(row);
     });
 }
 async function fetchAndDisplayJobEntries() {
     jobEntryTableBody.innerHTML = `<tr><td colspan="8">Loading entries...</td></tr>`;
     try {
         await ensureAllEntriesFetched();
-        userJobEntries = allSystemEntries.filter(entry => entry.enteredBy === currentApprover.Name && !isTaskComplete(entry));
+        // Show only job entries in this section
+        userJobEntries = allSystemEntries.filter(entry => entry.source === 'job_entry' && entry.enteredBy === currentApprover.Name && !isTaskComplete(entry));
         renderJobEntryTable(userJobEntries);
     } catch (error) { console.error("Error fetching job entries:", error); jobEntryTableBody.innerHTML = `<tr><td colspan="8">Error loading data.</td></tr>`; }
 }
 function handleJobEntrySearch(searchTerm) {
     const searchText = searchTerm.toLowerCase();
     if (!searchText) { renderJobEntryTable(userJobEntries); return; }
-    const filteredEntries = userJobEntries.filter(entry => { return ( (entry.for && entry.for.toLowerCase().includes(searchText)) || (entry.ref && entry.ref.toLowerCase().includes(searchText)) || (entry.site && entry.site.toLowerCase().includes(searchText)) || (entry.group && entry.group.toLowerCase().includes(searchText)) || (entry.attention && entry.attention.toLowerCase().includes(searchText)) ); });
+    const filteredEntries = userJobEntries.filter(entry => { return ((entry.for && entry.for.toLowerCase().includes(searchText)) || (entry.ref && entry.ref.toLowerCase().includes(searchText)) || (entry.site && entry.site.toLowerCase().includes(searchText)) || (entry.group && entry.group.toLowerCase().includes(searchText)) || (entry.attention && entry.attention.toLowerCase().includes(searchText))); });
     renderJobEntryTable(filteredEntries);
 }
 function getJobDataFromForm() {
@@ -403,11 +411,19 @@ function renderActiveTaskTable(tasks) {
         activeTaskTableBody.innerHTML = '<tr><td colspan="8">You have no active tasks.</td></tr>';
         return;
     }
-    tasks.forEach(task => { 
+    tasks.forEach(task => {
         const row = document.createElement('tr');
-        const actionButton = task.source === 'invoice' 
-            ? `<button class="respond-btn" data-key="${task.key}" disabled title="Status is managed in Invoice Management">View in IM</button>` 
+        row.setAttribute('data-key', task.key); // Set data-key on the row itself
+
+        const isInvoiceFromIrwin = task.source === 'invoice' && task.enteredBy === 'Irwin';
+        if (isInvoiceFromIrwin || (task.source === 'invoice' && task.invName)) {
+            row.classList.add('clickable-pdf');
+        }
+
+        const actionButton = isInvoiceFromIrwin
+            ? `<button class="respond-btn" data-key="${task.key}">Respond</button>` // Make it respondable
             : `<button class="respond-btn" data-key="${task.key}">Respond</button>`;
+        
         row.innerHTML = `
             <td>${task.for || ''}</td>
             <td>${task.ref || ''}</td>
@@ -417,8 +433,8 @@ function renderActiveTaskTable(tasks) {
             <td>${task.date || ''}</td>
             <td>${task.remarks || 'Pending'}</td>
             <td>${actionButton}</td>
-        `; 
-        activeTaskTableBody.appendChild(row); 
+        `;
+        activeTaskTableBody.appendChild(row);
     });
 }
 async function populateTaskHistory() {
@@ -426,31 +442,29 @@ async function populateTaskHistory() {
     if (!currentApprover || !currentApprover.Name) { taskHistoryTableBody.innerHTML = '<tr><td colspan="9">Could not identify user.</td></tr>'; return; }
     try {
         await ensureAllEntriesFetched();
-        
-        // --- MODIFIED LOGIC START ---
+
         const userSiteString = currentApprover.Site || '';
         const userSites = userSiteString.toLowerCase() === 'all' ? null : userSiteString.split(',').map(s => s.trim());
 
+        // Revert to combined view with correct filtering
         userTaskHistory = allSystemEntries.filter(task => {
             const isMySite = userSites === null || (task.site && userSites.includes(task.site));
             const isRelatedToMe = (task.enteredBy === currentApprover.Name || task.attention === currentApprover.Name);
             
-            // A task is visible in history if it's complete AND (it's for my site OR it's related to me)
             return isTaskComplete(task) && (isMySite || isRelatedToMe);
         });
-        // --- MODIFIED LOGIC END ---
-        
+
         renderTaskHistoryTable(userTaskHistory);
     } catch (error) { console.error("Error fetching task history:", error); taskHistoryTableBody.innerHTML = '<tr><td colspan="9">Error loading task history.</td></tr>'; }
 }
 function renderTaskHistoryTable(tasks) {
     taskHistoryTableBody.innerHTML = '';
     if (!tasks || tasks.length === 0) { taskHistoryTableBody.innerHTML = '<tr><td colspan="9">You have no completed tasks in your history.</td></tr>'; return; }
-    tasks.forEach(task => { 
-        const row = document.createElement('tr'); 
-        const remarks = task.remarks || 'Completed'; 
-        row.innerHTML = `<td>${task.for || ''}</td><td>${task.ref || ''}</td><td>${task.amount || ''}</td><td>${task.po || ''}</td><td>${task.site || ''}</td><td>${task.group || ''}</td><td>${task.date || ''}</td><td>${task.dateResponded || 'N/A'}</td><td>${remarks}</td>`; 
-        taskHistoryTableBody.appendChild(row); 
+    tasks.forEach(task => {
+        const row = document.createElement('tr');
+        const remarks = task.remarks || 'Completed';
+        row.innerHTML = `<td>${task.for || ''}</td><td>${task.ref || ''}</td><td>${task.amount || ''}</td><td>${task.po || ''}</td><td>${task.site || ''}</td><td>${task.group || ''}</td><td>${task.date || ''}</td><td>${task.dateResponded || 'N/A'}</td><td>${remarks}</td>`;
+        taskHistoryTableBody.appendChild(row);
     });
 }
 async function populateReporting() {
@@ -499,8 +513,6 @@ async function populateWorkdeskDashboard() {
         if (isTaskComplete(entry)) { siteStats[entry.site].completed++; } else { siteStats[entry.site].pending++; }
     });
 
-    // --- START: MODIFIED SECTION ---
-    // This part is completely new to generate the cards instead of the bar chart.
     dbSiteStatsContainer.innerHTML = '';
     if (Object.keys(siteStats).length === 0) {
         dbSiteStatsContainer.innerHTML = '<p>No data available for your sites yet.</p>';
@@ -542,7 +554,6 @@ async function populateWorkdeskDashboard() {
         }
         dbSiteStatsContainer.appendChild(siteCardsGrid);
     }
-    // --- END: MODIFIED SECTION ---
 
     dbRecentTasksBody.innerHTML = '';
     if (myActiveTasks.length === 0) {
@@ -555,43 +566,48 @@ async function populateWorkdeskDashboard() {
         });
     }
 }
-// MODIFIED: This function now handles both the old and new response logic.
 async function handleRespondClick(e) {
-    if (!e.target.classList.contains('respond-btn')) return;
     const key = e.target.getAttribute('data-key');
     if (!key) return;
-    
+
     const taskData = allSystemEntries.find(entry => entry.key === key);
-    if (!taskData || taskData.source === 'invoice') return;
+    if (!taskData) return;
 
-    // NEW: Check for the special 'Invoice for Irwin' case
-    if (taskData.for === 'Invoice' && taskData.attention === 'Irwin') {
-        // 1. Store the task details to be used in the Invoice Management view
-        jobEntryToUpdateAfterInvoice = key;
-        pendingJobEntryDataForInvoice = taskData;
-
-        // 2. Navigate to the Invoice Management view
-        invoiceManagementButton.click(); // This ensures the IM view is initialized correctly
-        
-        // 3. Go directly to the Invoice Entry section
-        const imInvoiceEntryLink = imNav.querySelector('a[data-section="im-invoice-entry"]');
-        if (imInvoiceEntryLink && !imInvoiceEntryLink.classList.contains('disabled')) {
-            imNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
-            imInvoiceEntryLink.classList.add('active');
-            showIMSection('im-invoice-entry');
-
-            // 4. Automatically search for the PO number from the task
-            imPOSearchInput.value = taskData.po || '';
-            await handlePOSearch(); // Use await to ensure PO details are loaded before proceeding
-        } else {
-            alert("You do not have permission to access Invoice Entry.");
-            jobEntryToUpdateAfterInvoice = null;
-            pendingJobEntryDataForInvoice = null;
+    // Automated response for tasks from Invoice Entry
+    if (taskData.source === 'invoice') {
+        const updates = {
+            releaseDate: getTodayDateString(),
+            status: 'Under Review'
+        };
+        try {
+            await db.ref(`invoice_entries/${taskData.originalPO}/${taskData.originalKey}`).update(updates);
+            alert('Task status updated to "Under Review".');
+            populateActiveTasks(); // Refresh the active tasks list
+        } catch (error) {
+            console.error("Error updating invoice status:", error);
+            alert("Failed to update invoice status. Please try again.");
         }
-        return;
+        return; // Stop further execution
     }
 
-    // --- Original logic for all other task types ---
+    // Automated response for "Irwin"'s Invoice tasks from Job Entry
+    if (taskData.source === 'job_entry' && taskData.enteredBy === 'Irwin' && taskData.for === 'Invoice') {
+        const updates = {
+            dateResponded: formatDate(new Date()),
+            remarks: 'SRV Done'
+        };
+        try {
+            await db.ref(`job_entries/${key}`).update(updates);
+            alert('Task status updated to "SRV Done".');
+            populateActiveTasks(); // Refresh the active tasks list
+        } catch (error) {
+            console.error("Error updating task status:", error);
+            alert("Failed to update task status. Please try again.");
+        }
+        return; // Stop further execution
+    }
+    
+    // Existing logic for other job_entry tasks
     const isQS = currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'qs';
     workdeskNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
     document.querySelector('a[data-section="wd-jobentry"]').classList.add('active');
@@ -605,20 +621,17 @@ async function handleRespondClick(e) {
 }
 function handleActiveTaskSearch(searchTerm) { const searchText = searchTerm.toLowerCase(); if (!searchText) { renderActiveTaskTable(userActiveTasks); return; } const filteredTasks = userActiveTasks.filter(task => { return ((task.for && task.for.toLowerCase().includes(searchText)) || (task.ref && task.ref.toLowerCase().includes(searchText)) || (task.site && task.site.toLowerCase().includes(searchText)) || (task.group && task.group.toLowerCase().includes(searchText)) || (task.date && task.date.toLowerCase().includes(searchText))); }); renderActiveTaskTable(filteredTasks); }
 function handleTaskHistorySearch(searchTerm) { const searchText = searchTerm.toLowerCase(); if (!searchText) { renderTaskHistoryTable(userTaskHistory); return; } const filteredHistory = userTaskHistory.filter(task => { return ((task.for && task.for.toLowerCase().includes(searchText)) || (task.ref && task.ref.toLowerCase().includes(searchText)) || (task.amount && task.amount.toString().includes(searchText)) || (task.po && task.po.toLowerCase().includes(searchText)) || (task.site && task.site.toLowerCase().includes(searchText)) || (task.group && task.group.toLowerCase().includes(searchText)) || (task.date && task.date.toLowerCase().includes(searchText))); }); renderTaskHistoryTable(filteredHistory); }
-function handleReportingSearch() { 
-    // --- MODIFIED LOGIC START ---
+function handleReportingSearch() {
     const userSiteString = currentApprover.Site || '';
     const userSites = userSiteString.toLowerCase() === 'all' ? null : userSiteString.split(',').map(s => s.trim());
 
-    // Filter by the new combined rule first
     const relevantEntries = allSystemEntries.filter(entry => {
         const isMySite = userSites === null || (entry.site && userSites.includes(entry.site));
         const isRelatedToMe = (entry.enteredBy === currentApprover.Name || entry.attention === currentApprover.Name);
         return isMySite || isRelatedToMe;
     });
-    // --- MODIFIED LOGIC END ---
-    
-    filterAndRenderReport(relevantEntries); 
+
+    filterAndRenderReport(relevantEntries);
 }
 function handleDownloadWorkdeskCSV() {
     const table = document.querySelector("#reporting-printable-area table");
@@ -657,23 +670,17 @@ function handleDownloadWorkdeskCSV() {
 function populateSettingsForm() {
     if (!currentApprover) return;
 
-    // Reset form state
     settingsMessage.textContent = '';
-    settingsMessage.className = 'error-message'; // Reset to default
+    settingsMessage.className = 'error-message';
     settingsPasswordInput.value = '';
-
-    // Populate read-only fields
     settingsNameInput.value = currentApprover.Name || '';
     settingsEmailInput.value = currentApprover.Email || '';
     settingsMobileInput.value = currentApprover.Mobile || '';
     settingsPositionInput.value = currentApprover.Position || '';
-
-    // Populate editable fields
     settingsSiteInput.value = currentApprover.Site || '';
     settingsVacationCheckbox.checked = currentApprover.Vacation || false;
     settingsReturnDateInput.value = currentApprover.DateReturn || '';
 
-    // Toggle visibility of return date based on vacation status
     if (settingsVacationCheckbox.checked) {
         settingsReturnDateContainer.classList.remove('hidden');
     } else {
@@ -692,11 +699,10 @@ async function handleUpdateSettings(e) {
     const updates = {};
     let passwordChanged = false;
 
-    // Get editable values
     updates.Site = settingsSiteInput.value.trim();
     updates.Vacation = settingsVacationCheckbox.checked;
-    updates.DateReturn = settingsVacationCheckbox.checked ? settingsReturnDateInput.value : ''; // Clear date if not on vacation
-    
+    updates.DateReturn = settingsVacationCheckbox.checked ? settingsReturnDateInput.value : '';
+
     const newPassword = settingsPasswordInput.value;
 
     if (newPassword) {
@@ -711,17 +717,16 @@ async function handleUpdateSettings(e) {
 
     try {
         await db.ref(`approvers/${currentApprover.key}`).update(updates);
-        
-        // Update local state
+
         currentApprover = { ...currentApprover, ...updates };
 
         settingsMessage.textContent = 'Settings updated successfully!';
-        settingsMessage.className = 'success-message'; // Use success class
+        settingsMessage.className = 'success-message';
         settingsPasswordInput.value = '';
 
         if (passwordChanged) {
             alert('Password changed successfully! You will now be logged out.');
-            location.reload(); // Reload the page to force re-login
+            location.reload();
         }
 
     } catch (error) {
@@ -739,13 +744,13 @@ function updateIMDateTime() {
     const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
     const dateString = now.toLocaleDateString('en-GB', dateOptions);
     const timeString = now.toLocaleTimeString('en-GB', timeOptions);
-    if(imDatetimeElement) imDatetimeElement.textContent = `${dateString} at ${timeString}`;
+    if (imDatetimeElement) imDatetimeElement.textContent = `${dateString} at ${timeString}`;
 }
 function showIMSection(sectionId) {
     const invoiceEntryLink = imNav.querySelector('a[data-section="im-invoice-entry"]');
     if (sectionId === 'im-invoice-entry' && invoiceEntryLink.classList.contains('disabled')) {
         alert('You do not have permission to access this section.');
-        return; 
+        return;
     }
 
     imContentArea.querySelectorAll('.workdesk-section').forEach(section => {
@@ -755,10 +760,19 @@ function showIMSection(sectionId) {
     if (targetSection) {
         targetSection.classList.remove('hidden');
     }
-    if(sectionId === 'im-invoice-entry'){
+    if (sectionId === 'im-dashboard') {
+        populateInvoiceDashboard();
+    }
+    if (sectionId === 'im-invoice-entry') {
         resetInvoiceEntryPage();
+        // The Choices instance is now correctly re-initialized in the main event listener
+        // to prevent bugs. We just need to ensure it gets populated.
+        if (imAttentionSelectChoices) {
+            populateAttentionDropdown(imAttentionSelectChoices);
+        }
     }
     if (sectionId === 'im-reporting') {
+        imDailyReportDateInput.value = getTodayDateString();
         imReportingContent.innerHTML = '<p>Click Search to load all data, or enter a term to narrow your results.</p>';
         imReportingSearchInput.value = '';
         currentReportData = [];
@@ -769,12 +783,12 @@ function resetInvoiceForm() {
     imNewInvoiceForm.reset();
     imInvEntryIdInput.value = nextId;
     imReleaseDateInput.value = getTodayDateString();
-    
+
     if (imAttentionSelectChoices) {
         imAttentionSelectChoices.clearInput();
         imAttentionSelectChoices.removeActiveItems();
     }
-    
+
     currentlyEditingInvoiceKey = null;
     imFormTitle.textContent = 'Add New Invoice for this PO';
     imAddInvoiceButton.classList.remove('hidden');
@@ -816,13 +830,12 @@ async function handlePOSearch() {
         alert('An error occurred while searching for the PO.');
     }
 }
-// MODIFIED: This function now pre-fills form data if it exists from the WorkDesk workflow
 async function fetchAndDisplayInvoices(poNumber) {
     const invoicesRef = db.ref(`invoice_entries/${poNumber}`);
     const invoiceSnapshot = await invoicesRef.once('value');
     const invoicesData = invoiceSnapshot.val();
     let invoiceCount = 0;
-    imInvoicesTableBody.innerHTML = ''; 
+    imInvoicesTableBody.innerHTML = '';
     currentPOInvoices = invoicesData || {};
 
     if (invoicesData) {
@@ -859,7 +872,6 @@ async function fetchAndDisplayInvoices(poNumber) {
     resetInvoiceForm();
     imNewInvoiceForm.classList.remove('hidden');
 
-    // NEW: Check if there is pending data from a job entry and pre-fill the form
     if (pendingJobEntryDataForInvoice) {
         if (pendingJobEntryDataForInvoice.amount) {
             document.getElementById('im-inv-value').value = pendingJobEntryDataForInvoice.amount;
@@ -867,7 +879,6 @@ async function fetchAndDisplayInvoices(poNumber) {
         if (pendingJobEntryDataForInvoice.ref) {
             document.getElementById('im-inv-no').value = pendingJobEntryDataForInvoice.ref;
         }
-        // Clear the pending data so it doesn't get used again on a normal search
         pendingJobEntryDataForInvoice = null;
     }
 }
@@ -883,7 +894,7 @@ function populateInvoiceFormForEditing(invoiceKey) {
     document.getElementById('im-amount-paid').value = invData.amountPaid || '0';
     document.getElementById('im-inv-name').value = invData.invName || '';
     document.getElementById('im-srv-name').value = invData.srvName || '';
-    
+
     if (invData.status === 'With Accounts') {
         imReleaseDateInput.value = normalizeDateForInput(invData.releaseDate);
     } else {
@@ -900,7 +911,6 @@ function populateInvoiceFormForEditing(invoiceKey) {
     imUpdateInvoiceButton.classList.remove('hidden');
     window.scrollTo(0, imNewInvoiceForm.offsetTop);
 }
-// MODIFIED: This function now updates the original job entry after adding the invoice.
 async function handleAddInvoice(e) {
     e.preventDefault();
     if (!currentPO) {
@@ -910,6 +920,21 @@ async function handleAddInvoice(e) {
     const formData = new FormData(imNewInvoiceForm);
     const invoiceData = Object.fromEntries(formData.entries());
     invoiceData.attention = imAttentionSelectChoices.getValue(true);
+    invoiceData.dateAdded = getTodayDateString(); // Add creation date
+    invoiceData.createdAt = firebase.database.ServerValue.TIMESTAMP; // Add server timestamp
+
+    // --- Automatic Invoice Name Logic ---
+    if (!invoiceData.invName) {
+        const site = document.getElementById('im-po-site').textContent;
+        const po = document.getElementById('im-po-no').textContent;
+        const invId = document.getElementById('im-inv-entry-id').value;
+        let vendor = document.getElementById('im-po-vendor').textContent;
+
+        if (vendor.length > 21) {
+            vendor = vendor.substring(0, 21);
+        }
+        invoiceData.invName = `${site}-${po}-${invId}-${vendor}`;
+    }
 
     Object.keys(invoiceData).forEach(key => {
         if (invoiceData[key] === null || invoiceData[key] === undefined) {
@@ -920,26 +945,23 @@ async function handleAddInvoice(e) {
     try {
         await db.ref(`invoice_entries/${currentPO}`).push(invoiceData);
         alert('Invoice added successfully!');
-        
-        // NEW: Check if this action originated from a job entry task
+
         if (jobEntryToUpdateAfterInvoice) {
             try {
-                // Update the original job entry with the new status and a response date
                 const updates = {
                     remarks: invoiceData.status,
                     dateResponded: formatDate(new Date())
                 };
                 await db.ref(`job_entries/${jobEntryToUpdateAfterInvoice}`).update(updates);
                 console.log(`Job entry ${jobEntryToUpdateAfterInvoice} updated successfully.`);
-                
-                // Clear the state variable
+
                 jobEntryToUpdateAfterInvoice = null;
             } catch (updateError) {
                 console.error("Error updating the original job entry:", updateError);
                 alert("Invoice was added, but failed to update the original active task.");
             }
         }
-        
+
         await fetchAndDisplayInvoices(currentPO);
     } catch (error) {
         console.error("Error adding invoice:", error);
@@ -993,11 +1015,9 @@ async function handleDeleteInvoice(key) {
     }
 }
 async function populateInvoiceReporting(searchTerm = '') {
+    const isUserRole = currentApprover && currentApprover.Role && currentApprover.Role.toLowerCase() === 'user';
     currentReportData = [];
     imReportingContent.innerHTML = '<p>Searching... Please wait.</p>';
-
-    const filterColumn = document.getElementById('im-reporting-filter-column').value;
-    const filterCondition = document.getElementById('im-reporting-filter-condition').value;
 
     try {
         const [poSnapshot, invoiceSnapshot] = await Promise.all([
@@ -1006,15 +1026,15 @@ async function populateInvoiceReporting(searchTerm = '') {
         ]);
         const allPOs = poSnapshot.val() || {};
         const allInvoicesByPO = invoiceSnapshot.val() || {};
-        
+
         const searchText = searchTerm.toLowerCase();
-        
+
         const filteredPOs = Object.keys(allPOs).filter(poNumber => {
             if (!searchText) return true;
             const po = allPOs[poNumber];
             return poNumber.toLowerCase().includes(searchText) ||
-                   (po['Project ID'] && po['Project ID'].toLowerCase().includes(searchText)) ||
-                   (po['Supplier Name'] && po['Supplier Name'].toLowerCase().includes(searchText));
+                (po['Project ID'] && po['Project ID'].toLowerCase().includes(searchText)) ||
+                (po['Supplier Name'] && po['Supplier Name'].toLowerCase().includes(searchText));
         });
 
         if (filteredPOs.length === 0) {
@@ -1041,21 +1061,6 @@ async function populateInvoiceReporting(searchTerm = '') {
         for (const poNumber of filteredPOs) {
             const poDetails = allPOs[poNumber] || {};
             let invoices = allInvoicesByPO[poNumber] ? Object.values(allInvoicesByPO[poNumber]) : [];
-            
-            if (filterColumn !== 'none' && invoices.length > 0) {
-                invoices = invoices.filter(inv => {
-                    const value = inv[filterColumn];
-                    const isEmpty = value === null || value === undefined || String(value).trim() === '';
-
-                    if (filterCondition === 'is-empty') {
-                        return isEmpty;
-                    }
-                    if (filterCondition === 'is-not-empty') {
-                        return !isEmpty;
-                    }
-                    return true;
-                });
-            }
 
             if (invoices.length === 0) continue;
 
@@ -1095,6 +1100,9 @@ async function populateInvoiceReporting(searchTerm = '') {
                 const normalizedInvoiceDate = normalizeDateForInput(inv.invoiceDate);
                 const invoiceDateDisplay = normalizedInvoiceDate ? new Date(normalizedInvoiceDate + 'T00:00:00').toLocaleDateString('en-GB') : '';
 
+                const invValueDisplay = isUserRole ? '---' : formatCurrency(invValue);
+                const amountPaidDisplay = isUserRole ? '---' : formatCurrency(amountPaid);
+
                 nestedTableRows += `
                     <tr>
                         <td>${inv.invEntryID || ''}</td>
@@ -1102,14 +1110,17 @@ async function populateInvoiceReporting(searchTerm = '') {
                         <td>${invoiceDateDisplay}</td>
                         <td>${inv.status || ''}</td>
                         <td>${releaseDateDisplay}</td>
-                        <td>${formatCurrency(invValue)}</td>
-                        <td>${formatCurrency(amountPaid)}</td>
+                        <td>${invValueDisplay}</td>
+                        <td>${amountPaidDisplay}</td>
                         <td>${inv.note || ''}</td>
                     </tr>
                 `;
                 poDataForCSV.invoices.push({ ...inv, invoiceDateDisplay, releaseDateDisplay });
             });
             currentReportData.push(poDataForCSV);
+
+            const totalInvValueDisplay = isUserRole ? '---' : `<strong>QAR ${formatCurrency(totalInvValue)}</strong>`;
+            const totalAmountPaidDisplay = isUserRole ? '---' : `<strong>QAR ${formatCurrency(totalAmountPaid)}</strong>`;
 
             tableHTML += `
                 <tr id="${detailRowId}" class="detail-row hidden">
@@ -1135,8 +1146,8 @@ async function populateInvoiceReporting(searchTerm = '') {
                                 <tfoot>
                                     <tr>
                                         <td colspan="5" style="text-align: right;"><strong>TOTAL</strong></td>
-                                        <td><strong>QAR ${formatCurrency(totalInvValue)}</strong></td>
-                                        <td><strong>QAR ${formatCurrency(totalAmountPaid)}</strong></td>
+                                        <td>${totalInvValueDisplay}</td>
+                                        <td>${totalAmountPaidDisplay}</td>
                                         <td></td>
                                     </tr>
                                 </tfoot>
@@ -1148,9 +1159,9 @@ async function populateInvoiceReporting(searchTerm = '') {
         }
 
         tableHTML += `</tbody></table>`;
-        
+
         if (!resultsFound) {
-            imReportingContent.innerHTML = '<p>No results found for your search and filter criteria.</p>';
+            imReportingContent.innerHTML = '<p>No results found for your search criteria.</p>';
         } else {
             imReportingContent.innerHTML = tableHTML;
         }
@@ -1192,7 +1203,7 @@ async function handleDownloadCSV() {
             csvContent += row.join(",") + "\r\n";
         });
     });
-    
+
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -1202,6 +1213,226 @@ async function handleDownloadCSV() {
     document.body.removeChild(link);
 }
 
+// --- NEW INVOICE DASHBOARD FUNCTION ---
+async function populateInvoiceDashboard() {
+    // Card Elements
+    const totalPOValueEl = document.getElementById('im-total-po-value');
+    const totalInvoiceValueEl = document.getElementById('im-total-invoice-value');
+    const committedCostEl = document.getElementById('im-committed-cost');
+
+    // Donut Chart Elements
+    const donutChartEl = document.getElementById('im-donut-chart');
+    const invoicedPercentageEl = document.getElementById('im-invoiced-percentage');
+    const legendInvoicedEl = document.getElementById('im-legend-invoiced');
+    const legendRemainingEl = document.getElementById('im-legend-remaining');
+
+    // Recent Activity Table
+    const recentInvoicesBody = document.getElementById('im-recent-invoices-body');
+
+    try {
+        const [poSnapshot, invoiceSnapshot] = await Promise.all([
+            db.ref('purchase_orders').once('value'),
+            db.ref('invoice_entries').once('value')
+        ]);
+        const allPOs = poSnapshot.val() || {};
+        const allInvoicesByPO = invoiceSnapshot.val() || {};
+
+        let totalPOValueFor2025 = 0;
+        let totalInvoiceValueFor2025 = 0;
+        const relevantPOs = new Set();
+        const invoices2025 = [];
+        const allTimeStatusCounts = {};
+
+        // 1. Loop through ALL invoices to gather data for both 2025 and the status chart
+        for (const poNumber in allInvoicesByPO) {
+            const invoices = allInvoicesByPO[poNumber];
+            for (const key in invoices) {
+                const inv = invoices[key];
+                
+                // --- LOGIC FOR 2025 DASHBOARD CARDS & DONUT ---
+                const is2025 = (inv.invoiceDate && inv.invoiceDate.startsWith('2025')) || (inv.releaseDate && inv.releaseDate.startsWith('2025'));
+                
+                if (is2025) {
+                    relevantPOs.add(poNumber);
+                    const invValue = parseFloat(inv.invValue) || 0;
+                    totalInvoiceValueFor2025 += invValue;
+                    
+                    const releaseDateStr = normalizeDateForInput(inv.releaseDate);
+                    invoices2025.push({
+                        po: poNumber,
+                        vendor: allPOs[poNumber]?.['Supplier Name'] || 'N/A',
+                        value: invValue,
+                        status: inv.status || 'N/A',
+                        releaseDate: releaseDateStr ? new Date(releaseDateStr) : null,
+                        releaseDateDisplay: releaseDateStr ? new Date(releaseDateStr).toLocaleDateString('en-GB') : 'N/A'
+                    });
+                }
+
+                // --- LOGIC FOR ALL-TIME STATUS BREAKDOWN ---
+                const status = inv.status || 'Pending';
+                if (status !== 'With Accounts') {
+                    allTimeStatusCounts[status] = (allTimeStatusCounts[status] || 0) + 1;
+                }
+            }
+        }
+        
+        // 2. Sum the values of only the POs relevant to 2025
+        relevantPOs.forEach(poNumber => {
+            if (allPOs[poNumber] && allPOs[poNumber].Amount) {
+                totalPOValueFor2025 += parseFloat(allPOs[poNumber].Amount) || 0;
+            }
+        });
+
+        // --- 3. Update Cards (2025) ---
+        const remainingCommitment = totalPOValueFor2025 - totalInvoiceValueFor2025;
+        totalPOValueEl.textContent = `QAR ${formatCurrency(totalPOValueFor2025)}`;
+        totalInvoiceValueEl.textContent = `QAR ${formatCurrency(totalInvoiceValueFor2025)}`;
+        committedCostEl.textContent = `QAR ${formatCurrency(remainingCommitment)}`;
+
+        // --- 4. Update Donut Chart (2025 data) ---
+        const invoicedPercentage = totalPOValueFor2025 > 0 ? (totalInvoiceValueFor2025 / totalPOValueFor2025) * 100 : 0;
+        invoicedPercentageEl.textContent = `${invoicedPercentage.toFixed(0)}%`;
+        donutChartEl.style.background = `conic-gradient(#17a2b8 ${invoicedPercentage * 3.6}deg, #e9ecef 0deg)`;
+        legendInvoicedEl.textContent = `QAR ${formatCurrency(totalInvoiceValueFor2025)}`;
+        legendRemainingEl.textContent = `QAR ${formatCurrency(remainingCommitment)}`;
+        
+        // --- 5. Update Recent Activity Table (2025 data) ---
+        invoices2025.sort((a, b) => (b.releaseDate || 0) - (a.releaseDate || 0));
+        recentInvoicesBody.innerHTML = '';
+        if (invoices2025.length > 0) {
+            invoices2025.slice(0, 5).forEach(inv => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${inv.po}</td>
+                    <td>${inv.vendor}</td>
+                    <td>QAR ${formatCurrency(inv.value)}</td>
+                    <td>${inv.status}</td>
+                    <td>${inv.releaseDateDisplay}</td>
+                `;
+                recentInvoicesBody.appendChild(row);
+            });
+        } else {
+             recentInvoicesBody.innerHTML = '<tr><td colspan="5">No invoice activity found for 2025.</td></tr>';
+        }
+
+        // --- 6. Update Bar Chart (All-Time Status Breakdown) ---
+        const statusColors = { "For SRV": "#17a2b8", "Pending": "#ffc107", "For IPC": "#fd7e14", "Under Review": "#6f42c1", "CEO Approval": "#007bff" };
+        const chartLabels = Object.keys(allTimeStatusCounts).sort(); 
+        const chartData = chartLabels.map(label => allTimeStatusCounts[label]);
+        const chartColors = chartLabels.map(label => statusColors[label] || '#6c757d');
+
+        const ctx = document.getElementById('im-bar-chart').getContext('2d');
+        if (imBarChart) {
+            imBarChart.destroy();
+        }
+        imBarChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: chartLabels,
+                datasets: [{
+                    label: 'Invoice Count',
+                    data: chartData,
+                    backgroundColor: chartColors,
+                    borderColor: chartColors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                           stepSize: 1
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error("Error populating Invoice Dashboard:", error);
+    }
+}
+
+
+async function handleDownloadDailyReport() {
+    const selectedDate = imDailyReportDateInput.value;
+    if (!selectedDate) {
+        alert("Please select a date to generate the report.");
+        return;
+    }
+
+    try {
+        const invoiceSnapshot = await db.ref('invoice_entries').once('value');
+        const allInvoicesByPO = invoiceSnapshot.val() || {};
+        const poSnapshot = await db.ref('purchase_orders').once('value');
+        const allPOs = poSnapshot.val() || {};
+
+        const dailyEntries = [];
+
+        for (const poNumber in allInvoicesByPO) {
+            const invoices = allInvoicesByPO[poNumber];
+            for (const key in invoices) {
+                const inv = invoices[key];
+                if (inv.dateAdded === selectedDate) {
+                    dailyEntries.push({
+                        po: poNumber,
+                        site: allPOs[poNumber]?.['Project ID'] || 'N/A',
+                        vendor: allPOs[poNumber]?.['Supplier Name'] || 'N/A',
+                        ...inv
+                    });
+                }
+            }
+        }
+
+        if (dailyEntries.length === 0) {
+            alert(`No new invoices were entered on ${selectedDate}.`);
+            return;
+        }
+
+        let csvContent = "data:text/csv;charset=utf-8,";
+        const headers = ["PO", "Site", "Vendor", "invEntryID", "invNumber", "invoiceDate", "invValue", "amountPaid", "invName", "srvName", "attention", "releaseDate", "status", "note", "dateAdded"];
+        csvContent += headers.join(",") + "\r\n";
+
+        dailyEntries.forEach(entry => {
+            const row = [
+                entry.po,
+                entry.site,
+                `"${(entry.vendor || '').replace(/"/g, '""')}"`,
+                entry.invEntryID || '',
+                `"${(entry.invNumber || '').replace(/"/g, '""')}"`,
+                entry.invoiceDate || '',
+                entry.invValue || '0',
+                entry.amountPaid || '0',
+                `"${(entry.invName || '').replace(/"/g, '""')}"`,
+                `"${(entry.srvName || '').replace(/"/g, '""')}"`,
+                entry.attention || '',
+                entry.releaseDate || '',
+                entry.status || '',
+                `"${(entry.note || '').replace(/"/g, '""')}"`,
+                entry.dateAdded || ''
+            ];
+            csvContent += row.join(",") + "\r\n";
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `daily_invoice_entry_report_${selectedDate}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+    } catch (error) {
+        console.error("Error generating daily report:", error);
+        alert("An error occurred while generating the daily report.");
+    }
+}
 
 // --- EVENT LISTENERS ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -1209,7 +1440,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loginForm.addEventListener('submit', async (e) => { e.preventDefault(); loginError.textContent = ''; const identifier = loginIdentifierInput.value.trim(); try { const approver = await findApprover(identifier); if (!approver) { loginError.textContent = 'Access denied. Your email or mobile is not registered as an approver.'; return; } currentApprover = approver; if (!currentApprover.Password || currentApprover.Password === '') { const isEmailMissing = !currentApprover.Email; const isSiteMissing = !currentApprover.Site; const isPositionMissing = !currentApprover.Position; setupEmailContainer.classList.toggle('hidden', !isEmailMissing); setupSiteContainer.classList.toggle('hidden', !isSiteMissing); setupPositionContainer.classList.toggle('hidden', !isPositionMissing); setupEmailInput.required = isEmailMissing; setupSiteInput.required = isSiteMissing; setupPositionInput.required = isPositionMissing; showView('setup'); setupPasswordInput.focus(); } else { passwordUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile; showView('password'); passwordInput.focus(); } } catch (error) { console.error("Error checking approver:", error); loginError.textContent = 'An error occurred. Please try again.'; } });
     setupForm.addEventListener('submit', async (e) => { e.preventDefault(); setupError.textContent = ''; const newPassword = setupPasswordInput.value; const finalEmail = currentApprover.Email || setupEmailInput.value.trim(); const finalSite = currentApprover.Site || setupSiteInput.value.trim(); const finalPosition = currentApprover.Position || setupPositionInput.value.trim(); if (!finalEmail.toLowerCase().endsWith('@iba.com.qa')) { setupError.textContent = 'Invalid email. Only @iba.com.qa addresses are allowed.'; return; } if (newPassword.length < 6) { setupError.textContent = 'Password must be at least 6 characters long.'; return; } try { const updates = { Password: newPassword, Email: finalEmail, Site: finalSite, Position: finalPosition }; await db.ref(`approvers/${currentApprover.key}`).update(updates); currentApprover = { ...currentApprover, ...updates }; handleSuccessfulLogin(); } catch (error) { console.error("Error during setup:", error); setupError.textContent = 'An error occurred while saving. Please try again.'; } });
     passwordForm.addEventListener('submit', (e) => { e.preventDefault(); passwordError.textContent = ''; const enteredPassword = passwordInput.value; if (enteredPassword === currentApprover.Password) { handleSuccessfulLogin(); } else { passwordError.textContent = 'Incorrect password. Please try again.'; passwordInput.value = ''; } });
-    function handleLogout() { if(dateTimeInterval) clearInterval(dateTimeInterval); if(workdeskDateTimeInterval) clearInterval(workdeskDateTimeInterval); if(imDateTimeInterval) clearInterval(imDateTimeInterval); location.reload(); }
+    function handleLogout() { if (dateTimeInterval) clearInterval(dateTimeInterval); if (workdeskDateTimeInterval) clearInterval(workdeskDateTimeInterval); if (imDateTimeInterval) clearInterval(imDateTimeInterval); location.reload(); }
     logoutButton.addEventListener('click', handleLogout);
     wdLogoutButton.addEventListener('click', handleLogout);
 
@@ -1225,50 +1456,62 @@ document.addEventListener('DOMContentLoaded', () => {
             populateAttentionDropdown(attentionSelectChoices);
         }
         updateWorkdeskDateTime();
-        if(workdeskDateTimeInterval) clearInterval(workdeskDateTimeInterval);
+        if (workdeskDateTimeInterval) clearInterval(workdeskDateTimeInterval);
         workdeskDateTimeInterval = setInterval(updateWorkdeskDateTime, 1000);
         showView('workdesk');
         showWorkdeskSection('wd-dashboard');
     });
 
-    // --- FIX: Listen on the entire sidebar for navigation clicks ---
     document.querySelector('#workdesk-view .workdesk-sidebar').addEventListener('click', (e) => {
         const link = e.target.closest('a');
-        if (!link || !link.hasAttribute('data-section')) {
-             if (link && link.id === 'wd-logout-button') {
-                // This allows the logout button to work, which is handled separately
-             } else {
-                return;
-             }
-        }
+        if (!link || link.classList.contains('back-to-main-dashboard')) return;
+        if (link.id === 'wd-logout-button') return;
+
+        e.preventDefault();
+
         if (link.hasAttribute('data-section')) {
-            e.preventDefault();
-        
             const allNavLinks = document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a');
             allNavLinks.forEach(a => a.classList.remove('active'));
             link.classList.add('active');
-
             const sectionId = link.getAttribute('data-section');
-            if (sectionId) {
-                showWorkdeskSection(sectionId);
-            }
+            showWorkdeskSection(sectionId);
         }
     });
 
     addJobButton.addEventListener('click', handleAddJobEntry);
     updateJobButton.addEventListener('click', handleUpdateJobEntry);
     clearJobButton.addEventListener('click', (e) => resetJobEntryForm(false));
-    jobEntrySearchInput.addEventListener('input', (e) => handleJobEntrySearch(e.target.value));
-    jobEntryTableBody.addEventListener('click', (e) => { 
-        const row = e.target.closest('tr'); 
-        if (!row) return; 
-        const key = row.getAttribute('data-key'); 
+    jobEntryTableBody.addEventListener('click', (e) => {
+        const row = e.target.closest('tr');
+        if (!row) return;
+        const key = row.getAttribute('data-key');
         const entry = allSystemEntries.find(item => item.key === key);
         if (key && entry && entry.source !== 'invoice') {
-            populateFormForEditing(key); 
+            populateFormForEditing(key);
         }
     });
-    activeTaskTableBody.addEventListener('click', handleRespondClick);
+
+    activeTaskTableBody.addEventListener('click', (e) => {
+        const row = e.target.closest('tr');
+        if (!row) return;
+        
+        // Handle respond button click separately
+        if (e.target.classList.contains('respond-btn')) {
+            handleRespondClick(e);
+            return; 
+        }
+
+        // Handle entire row click for PDF
+        const key = row.dataset.key;
+        if (!key) return;
+        
+        const task = allSystemEntries.find(entry => entry.key === key);
+        if (task && task.source === 'invoice' && task.invName) {
+            const pdfUrl = PDF_BASE_PATH + encodeURIComponent(task.invName) + ".pdf";
+            window.open(pdfUrl, '_blank');
+        }
+    });
+
     jobForSelect.addEventListener('change', (e) => {
         const isQS = currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'qs';
         if (e.target.value === 'IPC' && isQS) {
@@ -1276,7 +1519,7 @@ document.addEventListener('DOMContentLoaded', () => {
             attentionSelectChoices.setChoices([{ value: 'All', label: 'All', selected: true }], 'value', 'label', false);
             attentionSelectChoices.disable();
         } else {
-            if(attentionSelectChoices.disabled) {
+            if (attentionSelectChoices.disabled) {
                 attentionSelectChoices.enable();
                 resetJobEntryForm(true);
             }
@@ -1288,7 +1531,7 @@ document.addEventListener('DOMContentLoaded', () => {
     printReportButton.addEventListener('click', () => window.print());
     downloadWdReportButton.addEventListener('click', handleDownloadWorkdeskCSV);
     reportTabsContainer.addEventListener('click', (e) => {
-        if(e.target.tagName === 'BUTTON') {
+        if (e.target.tagName === 'BUTTON') {
             reportTabsContainer.querySelector('.active').classList.remove('active');
             e.target.classList.add('active');
             currentReportFilter = e.target.getAttribute('data-job-type');
@@ -1306,22 +1549,27 @@ document.addEventListener('DOMContentLoaded', () => {
     invoiceManagementButton.addEventListener('click', () => {
         imUsername.textContent = currentApprover.Name || 'User';
         imUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile;
-        if (!imAttentionSelectChoices) {
-            imAttentionSelectChoices = new Choices(imAttentionSelect, {
-                searchEnabled: true, shouldSort: false, itemSelectText: '',
-            });
-            populateAttentionDropdown(imAttentionSelectChoices);
+
+        // Destroy and re-initialize the Choices instance to fix the bug
+        if (imAttentionSelectChoices) {
+            imAttentionSelectChoices.destroy();
         }
+        imAttentionSelectChoices = new Choices(imAttentionSelect, {
+            searchEnabled: true, shouldSort: false, itemSelectText: '',
+        });
+        populateAttentionDropdown(imAttentionSelectChoices);
+
         const invoiceEntryLink = imNav.querySelector('a[data-section="im-invoice-entry"]');
-        const isAccounts = currentApprover.Position && currentApprover.Position.toLowerCase() === 'accounts';
+        const isAccounting = currentApprover.Position && currentApprover.Position.toLowerCase() === 'accounting';
         const isAdmin = currentApprover.Role && currentApprover.Role.toLowerCase() === 'admin';
-        if (isAccounts || isAdmin) {
+
+        if (isAccounting && isAdmin) {
             invoiceEntryLink.classList.remove('disabled');
         } else {
             invoiceEntryLink.classList.add('disabled');
         }
         updateIMDateTime();
-        if(imDateTimeInterval) clearInterval(imDateTimeInterval);
+        if (imDateTimeInterval) clearInterval(imDateTimeInterval);
         imDateTimeInterval = setInterval(updateIMDateTime, 1000);
         showView('invoice-management');
         showIMSection('im-dashboard');
@@ -1354,9 +1602,9 @@ document.addEventListener('DOMContentLoaded', () => {
     imUpdateInvoiceButton.addEventListener('click', handleUpdateInvoice);
     imClearFormButton.addEventListener('click', () => {
         if (currentPO) {
-           resetInvoiceForm();
+            resetInvoiceForm();
         } else {
-           resetInvoiceEntryPage();
+            resetInvoiceEntryPage();
         }
     });
     imInvoicesTableBody.addEventListener('click', (e) => {
@@ -1376,11 +1624,11 @@ document.addEventListener('DOMContentLoaded', () => {
             populateInvoiceFormForEditing(key);
         }
     });
-    
+
     imReportingContent.addEventListener('click', (e) => {
         const expandBtn = e.target.closest('.expand-btn');
         if (!expandBtn) return;
-        
+
         const masterRow = expandBtn.closest('.master-row');
         const targetId = masterRow.dataset.target;
         const detailRow = document.querySelector(targetId);
@@ -1405,12 +1653,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     imReportingClearButton.addEventListener('click', () => {
         imReportingSearchInput.value = '';
-        document.getElementById('im-reporting-filter-column').value = 'none';
         imReportingContent.innerHTML = '<p>Click Search to load all data, or enter a term to narrow your results.</p>';
         currentReportData = [];
     });
-    
+
     imReportingDownloadCSVButton.addEventListener('click', handleDownloadCSV);
+    imDownloadDailyReportButton.addEventListener('click', handleDownloadDailyReport);
 
     // +++ SETTINGS PAGE LISTENERS +++
     settingsForm.addEventListener('submit', handleUpdateSettings);
