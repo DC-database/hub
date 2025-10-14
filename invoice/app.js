@@ -76,6 +76,9 @@ const imInvoiceDateInput = document.getElementById('im-invoice-date');
 const imReleaseDateInput = document.getElementById('im-release-date');
 const imDailyReportDateInput = document.getElementById('im-daily-report-date');
 const imDownloadDailyReportButton = document.getElementById('im-download-daily-report-button');
+const imStatusSelect = document.getElementById('im-status');
+const imInvValueInput = document.getElementById('im-inv-value');
+const imAmountPaidInput = document.getElementById('im-amount-paid');
 
 
 let currentApprover = null; let dateTimeInterval = null; let workdeskDateTimeInterval = null;
@@ -152,6 +155,24 @@ function normalizeDateForInput(dateString) {
     }
     console.warn("Unrecognized date format:", dateString);
     return '';
+}
+
+function convertDisplayDateToInput(displayDate) {
+    if (!displayDate || typeof displayDate !== 'string') return '';
+    const parts = displayDate.split('-'); // e.g., ["14", "Oct", "2025"]
+    if (parts.length !== 3) return '';
+
+    const day = parts[0];
+    const year = parts[2];
+    const monthMap = {
+        "Jan": "01", "Feb": "02", "Mar": "03", "Apr": "04", "May": "05", "Jun": "06",
+        "Jul": "07", "Aug": "08", "Sep": "09", "Oct": "10", "Nov": "11", "Dec": "12"
+    };
+    const month = monthMap[parts[1]];
+
+    if (!month) return ''; // Invalid month name
+
+    return `${year}-${month}-${day}`; // "2025-10-14"
 }
 
 function getTodayDateString() {
@@ -271,7 +292,12 @@ async function populateAttentionDropdown(choicesInstance) {
         const approvers = snapshot.val();
         if (approvers) {
             const approverOptions = Object.values(approvers).map(approver => approver.Name ? { value: approver.Name, label: approver.Name } : null).filter(Boolean);
-            choicesInstance.setChoices([{ value: '', label: 'Select Attention', disabled: true }].concat(approverOptions), 'value', 'label', true);
+            const choiceList = [
+                { value: '', label: 'Select Attention', disabled: true },
+                { value: 'None', label: 'None (Clear Selection)' },
+                ...approverOptions
+            ];
+            choicesInstance.setChoices(choiceList, 'value', 'label', true);
         } else { choicesInstance.setChoices([{ value: '', label: 'No approvers found', disabled: true }]); }
     } catch (error) { console.error("Error populating attention dropdown:", error); if (choicesInstance) choicesInstance.setChoices([{ value: '', label: 'Error loading names', disabled: true }]); }
 }
@@ -449,15 +475,10 @@ async function populateTaskHistory() {
     try {
         await ensureAllEntriesFetched();
 
-        const userSiteString = currentApprover.Site || '';
-        const userSites = userSiteString.toLowerCase() === 'all' ? null : userSiteString.split(',').map(s => s.trim());
-
-        // Revert to combined view with correct filtering
+        // New, stricter filter for personal history
         userTaskHistory = allSystemEntries.filter(task => {
-            const isMySite = userSites === null || (task.site && userSites.includes(task.site));
             const isRelatedToMe = (task.enteredBy === currentApprover.Name || task.attention === currentApprover.Name);
-            
-            return isTaskComplete(task) && (isMySite || isRelatedToMe);
+            return isTaskComplete(task) && isRelatedToMe;
         });
 
         renderTaskHistoryTable(userTaskHistory);
@@ -591,7 +612,32 @@ async function handleRespondClick(e) {
     const taskData = allSystemEntries.find(entry => entry.key === key);
     if (!taskData) return;
 
-    // Automated response for tasks from Invoice Entry
+    // NEW WORKFLOW: Redirect "Invoice" for "Irwin" to Invoice Entry
+    if (taskData.source === 'job_entry' && taskData.for === 'Invoice' && taskData.attention === 'Irwin') {
+        if (!taskData.po) {
+            alert("This job entry is missing a PO number and cannot be processed in Invoice Management.");
+            return;
+        }
+        // 1. Store data for later
+        jobEntryToUpdateAfterInvoice = key;
+        pendingJobEntryDataForInvoice = taskData;
+
+        // 2. Switch views
+        invoiceManagementButton.click(); // Simulates user clicking the main button
+        
+        // Use a short timeout to ensure the view is rendered before manipulating its content
+        setTimeout(() => {
+            imNav.querySelector('a[data-section="im-invoice-entry"]').click(); // Clicks the nav link
+            
+            // 3. Auto-search
+            imPOSearchInput.value = taskData.po;
+            imPOSearchButton.click();
+        }, 100); 
+
+        return; // Stop further execution of this function
+    }
+    
+    // Automated response for tasks that came from the Invoice Entry module
     if (taskData.source === 'invoice') {
         const updates = {
             releaseDate: getTodayDateString(),
@@ -605,10 +651,10 @@ async function handleRespondClick(e) {
             console.error("Error updating invoice status:", error);
             alert("Failed to update invoice status. Please try again.");
         }
-        return; // Stop further execution
+        return; 
     }
 
-    // Automated response for "Irwin"'s Invoice tasks from Job Entry
+    // Automated response for "Invoice" tasks CREATED BY "Irwin"
     if (taskData.source === 'job_entry' && taskData.enteredBy === 'Irwin' && taskData.for === 'Invoice') {
         const updates = {
             dateResponded: formatDate(new Date()),
@@ -617,15 +663,15 @@ async function handleRespondClick(e) {
         try {
             await db.ref(`job_entries/${key}`).update(updates);
             alert('Task status updated to "SRV Done".');
-            populateActiveTasks(); // Refresh the active tasks list
+            populateActiveTasks(); 
         } catch (error) {
             console.error("Error updating task status:", error);
             alert("Failed to update task status. Please try again.");
         }
-        return; // Stop further execution
+        return; 
     }
     
-    // Existing logic for other job_entry tasks
+    // Default logic for all other job_entry tasks (e.g., IPC for QS)
     const isQS = currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'qs';
     workdeskNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
     document.querySelector('a[data-section="wd-jobentry"]').classList.add('active');
@@ -890,14 +936,20 @@ async function fetchAndDisplayInvoices(poNumber) {
     resetInvoiceForm();
     imNewInvoiceForm.classList.remove('hidden');
 
+    // NEW: Check for pending data from WorkDesk and pre-fill the form
     if (pendingJobEntryDataForInvoice) {
         if (pendingJobEntryDataForInvoice.amount) {
-            document.getElementById('im-inv-value').value = pendingJobEntryDataForInvoice.amount;
+            imInvValueInput.value = pendingJobEntryDataForInvoice.amount;
+            imAmountPaidInput.value = pendingJobEntryDataForInvoice.amount; // Also fill amount paid
         }
         if (pendingJobEntryDataForInvoice.ref) {
             document.getElementById('im-inv-no').value = pendingJobEntryDataForInvoice.ref;
         }
-        pendingJobEntryDataForInvoice = null;
+        if (pendingJobEntryDataForInvoice.date) {
+            imInvoiceDateInput.value = convertDisplayDateToInput(pendingJobEntryDataForInvoice.date);
+        }
+        // Clear the state variable so it's not used again
+        pendingJobEntryDataForInvoice = null; 
     }
 }
 function populateInvoiceFormForEditing(invoiceKey) {
@@ -908,8 +960,8 @@ function populateInvoiceFormForEditing(invoiceKey) {
     imInvEntryIdInput.value = invData.invEntryID || '';
     document.getElementById('im-inv-no').value = invData.invNumber || '';
     imInvoiceDateInput.value = normalizeDateForInput(invData.invoiceDate);
-    document.getElementById('im-inv-value').value = invData.invValue || '';
-    document.getElementById('im-amount-paid').value = invData.amountPaid || '0';
+    imInvValueInput.value = invData.invValue || '';
+    imAmountPaidInput.value = invData.amountPaid || '0';
     document.getElementById('im-inv-name').value = invData.invName || '';
     document.getElementById('im-srv-name').value = invData.srvName || '';
 
@@ -919,7 +971,7 @@ function populateInvoiceFormForEditing(invoiceKey) {
         imReleaseDateInput.value = getTodayDateString();
     }
 
-    document.getElementById('im-status').value = invData.status || 'For SRV';
+    imStatusSelect.value = invData.status || 'For SRV';
     document.getElementById('im-note').value = invData.note || '';
     if (imAttentionSelectChoices && invData.attention) {
         imAttentionSelectChoices.setChoiceByValue(invData.attention);
@@ -937,7 +989,8 @@ async function handleAddInvoice(e) {
     }
     const formData = new FormData(imNewInvoiceForm);
     const invoiceData = Object.fromEntries(formData.entries());
-    invoiceData.attention = imAttentionSelectChoices.getValue(true);
+    let attentionValue = imAttentionSelectChoices.getValue(true);
+    invoiceData.attention = (attentionValue === 'None') ? '' : attentionValue;
     invoiceData.dateAdded = getTodayDateString(); // Add creation date
     invoiceData.createdAt = firebase.database.ServerValue.TIMESTAMP; // Add server timestamp
 
@@ -994,7 +1047,8 @@ async function handleUpdateInvoice(e) {
     }
     const formData = new FormData(imNewInvoiceForm);
     const invoiceData = Object.fromEntries(formData.entries());
-    invoiceData.attention = imAttentionSelectChoices.getValue(true);
+    let attentionValue = imAttentionSelectChoices.getValue(true);
+    invoiceData.attention = (attentionValue === 'None') ? '' : attentionValue;
 
     if (invoiceData.status === 'With Accounts') {
         invoiceData.attention = '';
@@ -1697,6 +1751,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     imReportingDownloadCSVButton.addEventListener('click', handleDownloadCSV);
     imDownloadDailyReportButton.addEventListener('click', handleDownloadDailyReport);
+    
+    // ++ NEW: Listeners for Invoice Entry Form automation ++
+    imStatusSelect.addEventListener('change', (e) => {
+        if (e.target.value === 'CEO Approval') {
+            if (imAttentionSelectChoices) {
+                imAttentionSelectChoices.setChoiceByValue('Mr. Hamad');
+            }
+        }
+    });
+    
+    imInvValueInput.addEventListener('input', (e) => {
+        imAmountPaidInput.value = e.target.value;
+    });
 
     // +++ SETTINGS PAGE LISTENERS +++
     settingsForm.addEventListener('submit', handleUpdateSettings);
