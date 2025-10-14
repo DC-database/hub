@@ -351,6 +351,13 @@ tbody tr:hover { background-color: #f1f1f1; }
 .master-row td {
     font-weight: 500;
 }
+/* New Highlighting Rule */
+.master-row.highlight-complete {
+    background-color: #e6ffed !important;
+}
+.master-row.highlight-complete:hover {
+    background-color: #d1f7e0 !important;
+}
 .expand-btn {
     width: 25px;
     height: 25px;
@@ -404,6 +411,24 @@ tbody tr:hover { background-color: #f1f1f1; }
 .nested-invoice-table td:last-child, .nested-invoice-table th:last-child {
     border-right: 0;
 }
+/* New Action Button Styles */
+.action-btn-group {
+    display: flex;
+    gap: 5px;
+}
+.action-btn {
+    padding: 4px 8px;
+    font-size: 12px;
+    text-decoration: none;
+    color: white;
+    border-radius: 4px;
+    display: inline-block;
+    text-align: center;
+}
+.invoice-pdf-btn { background-color: #dc3545; }
+.srv-pdf-btn { background-color: #17a2b8; }
+.invoice-pdf-btn:hover { background-color: #c82333; }
+.srv-pdf-btn:hover { background-color: #138496; }
 
 /* ++ Settings Page Styles ++ */
 #settings-form input[readonly] {

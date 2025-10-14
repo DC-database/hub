@@ -5,6 +5,7 @@ const db = firebase.database();
 
 // --- 3. DOM ELEMENT REFERENCES & 4. GLOBAL STATE ---
 const PDF_BASE_PATH = "https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/DC%20Files/INVOICE/";
+const SRV_BASE_PATH = "https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/DC%20Files/SRV/";
 const views = { login: document.getElementById('login-view'), password: document.getElementById('password-view'), setup: document.getElementById('setup-view'), dashboard: document.getElementById('dashboard-view'), workdesk: document.getElementById('workdesk-view') };
 const loginForm = document.getElementById('login-form'); const loginIdentifierInput = document.getElementById('login-identifier'); const loginError = document.getElementById('login-error');
 const passwordForm = document.getElementById('password-form'); const passwordInput = document.getElementById('login-password'); const passwordUserIdentifier = document.getElementById('password-user-identifier'); const passwordError = document.getElementById('password-error');
@@ -182,19 +183,23 @@ async function ensureAllEntriesFetched() {
     ]);
 
     const jobEntriesData = jobEntriesSnapshot.val() || {};
+    const purchaseOrdersData = poSnapshot.val() || {};
+
     const processedJobEntries = Object.entries(jobEntriesData).map(([key, value]) => ({
         key,
         ...value,
+        vendorName: (value.po && purchaseOrdersData[value.po]) ? purchaseOrdersData[value.po]['Supplier Name'] : 'N/A',
         source: 'job_entry'
     }));
 
+
     const invoiceEntriesData = invoiceEntriesSnapshot.val() || {};
-    const purchaseOrdersData = poSnapshot.val() || {};
     const processedInvoiceEntries = [];
 
     for (const poNumber in invoiceEntriesData) {
         const invoices = invoiceEntriesData[poNumber];
         const site = purchaseOrdersData[poNumber]?.['Project ID'] || 'N/A';
+        const vendorName = purchaseOrdersData[poNumber]?.['Supplier Name'] || 'N/A';
 
         for (const invoiceKey in invoices) {
             const invoice = invoices[invoiceKey];
@@ -207,8 +212,8 @@ async function ensureAllEntriesFetched() {
 
             const transformedInvoice = {
                 key: `${poNumber}_${invoice.invEntryID || invoiceKey}`,
-                originalKey: invoiceKey, // NEW: Store original Firebase key
-                originalPO: poNumber,   // NEW: Store original PO number
+                originalKey: invoiceKey,
+                originalPO: poNumber,
                 for: 'Invoice',
                 ref: invoice.invNumber || '',
                 po: poNumber,
@@ -222,6 +227,7 @@ async function ensureAllEntriesFetched() {
                 remarks: invoice.status || 'Pending',
                 timestamp: normalizedDate ? new Date(normalizedDate).getTime() : Date.now(),
                 invName: invoice.invName || '',
+                vendorName: vendorName,
                 source: 'invoice'
             };
             processedInvoiceEntries.push(transformedInvoice);
@@ -468,19 +474,31 @@ function renderTaskHistoryTable(tasks) {
     });
 }
 async function populateReporting() {
-    reportingTableBody.innerHTML = '<tr><td colspan="10">Loading all entries...</td></tr>';
+    reportingTableBody.innerHTML = '<tr><td colspan="11">Loading all entries...</td></tr>';
     try {
         await ensureAllEntriesFetched();
         handleReportingSearch();
-    } catch (error) { console.error("Error fetching all entries for reporting:", error); reportingTableBody.innerHTML = '<tr><td colspan="10">Error loading reporting data.</td></tr>'; }
+    } catch (error) { console.error("Error fetching all entries for reporting:", error); reportingTableBody.innerHTML = '<tr><td colspan="11">Error loading reporting data.</td></tr>'; }
 }
 function renderReportingTable(entries) {
     reportingTableBody.innerHTML = '';
-    if (!entries || entries.length === 0) { reportingTableBody.innerHTML = '<tr><td colspan="10">No entries found for the selected criteria.</td></tr>'; return; }
+    if (!entries || entries.length === 0) { reportingTableBody.innerHTML = '<tr><td colspan="11">No entries found for the selected criteria.</td></tr>'; return; }
     entries.forEach(entry => {
         const status = isTaskComplete(entry) ? (entry.remarks || 'Completed') : (entry.remarks || 'Pending');
         const row = document.createElement('tr');
-        row.innerHTML = `<td>${entry.for || ''}</td><td>${entry.ref || ''}</td><td>${entry.po || ''}</td><td>${entry.amount || ''}</td><td>${entry.site || ''}</td><td>${entry.attention || ''}</td><td>${entry.enteredBy || ''}</td><td>${entry.date || ''}</td><td>${entry.dateResponded || 'N/A'}</td><td>${status}</td>`;
+        row.innerHTML = `
+            <td>${entry.for || ''}</td>
+            <td>${entry.ref || ''}</td>
+            <td>${entry.site || ''}</td>
+            <td>${entry.po || ''}</td>
+            <td>${entry.vendorName || 'N/A'}</td>
+            <td>${entry.amount || ''}</td>
+            <td>${entry.enteredBy || ''}</td>
+            <td>${entry.date || ''}</td>
+            <td>${entry.attention || ''}</td>
+            <td>${entry.dateResponded || 'N/A'}</td>
+            <td>${status}</td>
+        `;
         reportingTableBody.appendChild(row);
     });
 }
@@ -577,11 +595,11 @@ async function handleRespondClick(e) {
     if (taskData.source === 'invoice') {
         const updates = {
             releaseDate: getTodayDateString(),
-            status: 'Under Review'
+            status: 'SRV Done'
         };
         try {
             await db.ref(`invoice_entries/${taskData.originalPO}/${taskData.originalKey}`).update(updates);
-            alert('Task status updated to "Under Review".');
+            alert('Task status updated to "SRV Done".');
             populateActiveTasks(); // Refresh the active tasks list
         } catch (error) {
             console.error("Error updating invoice status:", error);
@@ -1016,6 +1034,7 @@ async function handleDeleteInvoice(key) {
 }
 async function populateInvoiceReporting(searchTerm = '') {
     const isUserRole = currentApprover && currentApprover.Role && currentApprover.Role.toLowerCase() === 'user';
+    const isAdmin = currentApprover && currentApprover.Role && currentApprover.Role.toLowerCase() === 'admin';
     currentReportData = [];
     imReportingContent.innerHTML = '<p>Searching... Please wait.</p>';
 
@@ -1066,6 +1085,9 @@ async function populateInvoiceReporting(searchTerm = '') {
 
             resultsFound = true;
 
+            let allInvoicesCompleted = invoices.length > 0;
+            const completedStatuses = ['CEO Approval', 'With Accounts'];
+
             const poDataForCSV = {
                 poNumber: poNumber,
                 site: poDetails['Project ID'] || 'N/A',
@@ -1076,21 +1098,15 @@ async function populateInvoiceReporting(searchTerm = '') {
 
             const detailRowId = `detail-${poNumber}`;
 
-            tableHTML += `
-                <tr class="master-row" data-target="#${detailRowId}">
-                    <td><button class="expand-btn">+</button></td>
-                    <td>${poNumber}</td>
-                    <td>${poDataForCSV.site}</td>
-                    <td>${poDataForCSV.vendor}</td>
-                    <td>${poDetails.Amount ? `QAR ${formatCurrency(poDetails.Amount)}` : 'N/A'}</td>
-                </tr>
-            `;
-
             let totalInvValue = 0;
             let totalAmountPaid = 0;
             let nestedTableRows = '';
 
             invoices.forEach(inv => {
+                if (!completedStatuses.includes(inv.status)) {
+                    allInvoicesCompleted = false;
+                }
+
                 const invValue = parseFloat(inv.invValue) || 0;
                 const amountPaid = parseFloat(inv.amountPaid) || 0;
                 totalInvValue += invValue;
@@ -1102,17 +1118,27 @@ async function populateInvoiceReporting(searchTerm = '') {
 
                 const invValueDisplay = isUserRole ? '---' : formatCurrency(invValue);
                 const amountPaidDisplay = isUserRole ? '---' : formatCurrency(amountPaid);
+                
+                let actionButtonsHTML = '';
+                if (isAdmin) {
+                    const invPDF = inv.invName ? `<a href="${PDF_BASE_PATH}${encodeURIComponent(inv.invName)}.pdf" target="_blank" class="action-btn invoice-pdf-btn">Invoice</a>` : '';
+                    const srvPDF = inv.srvName ? `<a href="${SRV_BASE_PATH}${encodeURIComponent(inv.srvName)}.pdf" target="_blank" class="action-btn srv-pdf-btn">SRV</a>` : '';
+                    if (invPDF || srvPDF) {
+                       actionButtonsHTML = `<div class="action-btn-group">${invPDF} ${srvPDF}</div>`;
+                    }
+                }
 
                 nestedTableRows += `
                     <tr>
                         <td>${inv.invEntryID || ''}</td>
                         <td>${inv.invNumber || ''}</td>
                         <td>${invoiceDateDisplay}</td>
-                        <td>${inv.status || ''}</td>
-                        <td>${releaseDateDisplay}</td>
                         <td>${invValueDisplay}</td>
                         <td>${amountPaidDisplay}</td>
+                        <td>${releaseDateDisplay}</td>
+                        <td>${inv.status || ''}</td>
                         <td>${inv.note || ''}</td>
+                        <td>${actionButtonsHTML}</td>
                     </tr>
                 `;
                 poDataForCSV.invoices.push({ ...inv, invoiceDateDisplay, releaseDateDisplay });
@@ -1121,6 +1147,17 @@ async function populateInvoiceReporting(searchTerm = '') {
 
             const totalInvValueDisplay = isUserRole ? '---' : `<strong>QAR ${formatCurrency(totalInvValue)}</strong>`;
             const totalAmountPaidDisplay = isUserRole ? '---' : `<strong>QAR ${formatCurrency(totalAmountPaid)}</strong>`;
+            const highlightClass = allInvoicesCompleted ? 'highlight-complete' : '';
+
+            tableHTML += `
+                <tr class="master-row ${highlightClass}" data-target="#${detailRowId}">
+                    <td><button class="expand-btn">+</button></td>
+                    <td>${poNumber}</td>
+                    <td>${poDataForCSV.site}</td>
+                    <td>${poDataForCSV.vendor}</td>
+                    <td>${poDetails.Amount ? `QAR ${formatCurrency(poDetails.Amount)}` : 'N/A'}</td>
+                </tr>
+            `;
 
             tableHTML += `
                 <tr id="${detailRowId}" class="detail-row hidden">
@@ -1133,11 +1170,12 @@ async function populateInvoiceReporting(searchTerm = '') {
                                         <th>Inv. Entry</th>
                                         <th>Inv. No.</th>
                                         <th>Inv. Date</th>
-                                        <th>Status</th>
-                                        <th>Release Date</th>
                                         <th>Inv. Value</th>
                                         <th>Amount Paid</th>
+                                        <th>Release Date</th>
+                                        <th>Status</th>
                                         <th>Note</th>
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1145,10 +1183,10 @@ async function populateInvoiceReporting(searchTerm = '') {
                                 </tbody>
                                 <tfoot>
                                     <tr>
-                                        <td colspan="5" style="text-align: right;"><strong>TOTAL</strong></td>
+                                        <td colspan="3" style="text-align: right;"><strong>TOTAL</strong></td>
                                         <td>${totalInvValueDisplay}</td>
                                         <td>${totalAmountPaidDisplay}</td>
-                                        <td></td>
+                                        <td colspan="4"></td>
                                     </tr>
                                 </tfoot>
                             </table>
