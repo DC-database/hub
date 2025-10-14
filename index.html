@@ -1,687 +1,702 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
-<title>IBA System Portal</title>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-<style>
-/* Modern loader animation */
-.animated-loader {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 25px;
-}
-.animated-loader .bar {
-  width: 8px;
-  height: 30px;
-  background: #00b4d8;
-  animation: pulse-bar 1s infinite ease-in-out;
-}
-.animated-loader .bar:nth-child(1) { animation-delay: 0s; }
-.animated-loader .bar:nth-child(2) { animation-delay: 0.1s; }
-.animated-loader .bar:nth-child(3) { animation-delay: 0.2s; }
-.animated-loader .bar:nth-child(4) { animation-delay: 0.3s; }
-
-@keyframes pulse-bar {
-  0%, 100% { transform: scaleY(0.4); opacity: 0.5; }
-  50% { transform: scaleY(1); opacity: 1; }
-}
-
-.fade-slide {
-  opacity: 0;
-  transform: translateY(20px);
-  animation: fadeSlideIn 0.8s ease-out forwards;
-}
-.fade-slide.delay {
-  animation-delay: 0.6s;
-}
-@keyframes fadeSlideIn {
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-
-  body {
-    font-family: 'Montserrat', sans-serif;
-    background: #f8fafc;
-    color: #002b45;
-    overflow-x: hidden;
-    line-height: 1.6;
-  }
-
-  .intro {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: linear-gradient(135deg, #001a2c, #002b45);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    overflow: hidden;
-    animation: fadeOut 1s ease-in-out 2s forwards;
-  }
-
-  .logo-animation {
-    position: relative;
-    width: 180px;
-    height: 180px;
-    margin-bottom: 30px;
-    opacity: 0;
-    transform: scale(0.8);
-    animation: logoIntro 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.5s forwards;
-  }
-
-  @keyframes logoIntro {
-    0% { opacity: 0; transform: scale(0.8); }
-    100% { opacity: 1; transform: scale(1); }
-  }
-
-  .logo-circle {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    border: 3px solid rgba(255, 255, 255, 0.1);
-    animation: pulse 2s infinite alternate;
-  }
-
-  .logo-circle:nth-child(2) {
-    animation-delay: 0.5s;
-    width: 90%;
-    height: 90%;
-    top: 5%;
-    left: 5%;
-  }
-
-  .logo-circle:nth-child(3) {
-    animation-delay: 1s;
-    width: 80%;
-    height: 80%;
-    top: 10%;
-    left: 10%;
-  }
-
-  @keyframes pulse {
-    0% { transform: scale(1); opacity: 0.3; }
-    100% { transform: scale(1.05); opacity: 0.1; }
-  }
-
-  .logo-text {
-  font-size: 4rem;
-  font-family: "Bookman Old Style", serif;
-  font-weight: bold;
-  color: white;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-  margin-bottom: 15px;
-}
-
-  .intro h1 {
-    font-size: clamp(2.5rem, 8vw, 4rem);
-    font-weight: 700;
-    color: #ffffff;
-    text-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-    margin: 0;
-    padding: 0 0.5em;
-    opacity: 0;
-    transform: translateY(20px);
-    animation: fadeInUp 0.8s ease-out 1s forwards;
-  }
-
-  .intro p {
-    color: rgba(255, 255, 255, 0.8);
-    font-size: clamp(1rem, 3vw, 1.4rem);
-    margin-top: 1rem;
-    opacity: 0;
-    transform: translateY(20px);
-    animation: fadeInUp 0.8s ease-out 1.2s forwards;
-  }
-
-  .main {
-    opacity: 0;
-    animation: fadeIn 0.5s ease-out 2.8s forwards;
-    padding-top: 40px;
-    text-align: center;
-  }
-
-  @keyframes fadeInUp {
-    0% { opacity: 0; transform: translateY(20px); }
-    100% { opacity: 1; transform: translateY(0); }
-  }
-
-  @keyframes fadeIn {
-    to { opacity: 1; }
-  }
-
-  @keyframes fadeOut {
-    100% {
-      opacity: 0;
-      visibility: hidden;
-      pointer-events: none;
-    }
-  }
-
-  header {
-    margin-bottom: 3rem;
-    position: relative;
-  }
-
-  .header-content {
-    position: relative;
-    z-index: 1;
-    padding: 0 20px;
-  }
-
-.logo-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-bottom: 2rem;
-}
-
-.logo-img { height: 90px; margin-bottom: 15px; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1)); transition: all 0.3s ease; display: block; }
-
-
-  .logo-img { height: 90px; margin-bottom: 15px; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1)); transition: all 0.3s ease; display: block; }
-}
-
-/* Desktop-specific styles - keep buttons switches */
-@media (min-width: 769px) {
-  .cloud-btn { display: none !important; }
-}
-
-  .logo-img { height: 90px; margin-bottom: 15px; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1)); transition: all 0.3s ease; display: block; }
-}
-  .portal-title {
-    font-size: clamp(1.8rem, 5vw, 2.5rem);
-    font-weight: 600;
-    color: #003859;
-    margin-bottom: 1.5rem;
-    padding: 0 20px;
-    opacity: 0;
-    transform: translateY(20px);
-    animation: fadeInUp 0.8s ease-out 3.2s forwards;
-    position: relative;
-    display: inline-block;
-  }
-
-  .portal-title::after {
-    content: '';
-    position: absolute;
-    bottom: -10px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 80px;
-    height: 4px;
-    background: linear-gradient(90deg, #0077b6, #0096c7);
-    border-radius: 2px;
-    animation: underlineGrow 0.8s ease-out 3.4s forwards;
-    transform-origin: center;
-    transform: scaleX(0);
-  }
-
-  @keyframes underlineGrow {
-    0% { transform: translateX(-50%) scaleX(0); }
-    100% { transform: translateX(-50%) scaleX(1); }
-  }
-
-  .decorative-dots {
-    display: flex;
-    justify-content: center;
-    gap: 8px;
-    margin: 20px auto;
-    opacity: 0;
-    animation: fadeIn 0.6s ease-out 3.5s forwards;
-  }
-
-  .decorative-dots span {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #0077b6;
-    opacity: 0.5;
-    transform: translateY(10px);
-  }
-
-  .decorative-dots span:nth-child(1) { animation: dotAppear 0.4s ease-out 3.6s forwards; }
-  .decorative-dots span:nth-child(2) { animation: dotAppear 0.4s ease-out 3.7s forwards; }
-  .decorative-dots span:nth-child(3) { animation: dotAppear 0.4s ease-out 3.8s forwards; }
-
-  @keyframes dotAppear {
-    0% { opacity: 0; transform: translateY(10px); }
-    100% { opacity: 0.5; transform: translateY(0); }
-  }
-
-  .cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 30px;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
-  }
-
-  .card {
-    background: #ffffff;
-    border-radius: 16px;
-    padding: 30px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
-    border: 1px solid rgba(220, 227, 232, 0.6);
-    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-    position: relative;
-    overflow: hidden;
-    opacity: 0;
-    transform: translateY(30px);
-  }
-
-  .card:nth-child(1) { animation: cardAppear 0.6s ease-out 3.6s forwards; }
-  .card:nth-child(2) { animation: cardAppear 0.6s ease-out 3.8s forwards; }
-  .card:nth-child(3) { animation: cardAppear 0.6s ease-out 4.0s forwards; }
-  .card:nth-child(4) { animation: cardAppear 0.6s ease-out 4.2s forwards; }
-
-  @keyframes cardAppear {
-    0% { opacity: 0; transform: translateY(30px); }
-    100% { opacity: 1; transform: translateY(0); }
-  }
-
-  .card h2 {
-    font-size: 1.5rem;
-    margin-bottom: 25px;
-    color: #00466b;
-    font-weight: 600;
-    position: relative;
-    padding-bottom: 15px;
-  }
-
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, #0077b6, #0096c7);
-    color: white;
-    padding: 14px 28px;
-    border-radius: 50px;
-    text-decoration: none;
-    font-weight: 600;
-    font-size: 1rem;
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-    box-shadow: 0 4px 15px rgba(0, 119, 182, 0.2);
-    border: none;
-    cursor: pointer;
-    margin: 8px;
-  }
-
-  .btn i {
-    margin-right: 8px;
-  }
-
-  .download-container {
-    margin-top: 40px;
-    margin-bottom: -40px;
-    text-align: center;
-  }
-
-  .download-btn {
-    background: linear-gradient(135deg, #6c757d, #495057);
-  }
-
-  footer {
-    margin-top: 80px;
-    font-size: 0.9rem;
-    color: #6a7a89;
-    padding: 40px 30px;
-    text-align: center;
-    background: linear-gradient(to right, transparent, #f1f5f9, transparent);
-    opacity: 0;
-    animation: fadeIn 0.8s ease-out 4.2s forwards;
-  }
-
-  /* Mobile-specific styles */
-  @media (max-width: 768px) {
-  .app-buttons { min-height: 55vh; }
-    .network-btn {
-      display: none !important;
-    }
-  }
-
-  /* Desktop-specific styles */
-  @media (min-width: 769px) {
-    .cloud-btn {
-      display: none !important;
-    }
-  }
-
-
-@media (max-width: 768px) {
-  .app-buttons { min-height: 55vh; }
-  .intro h1 {
-    font-size: 1.4rem;
-    text-align: center;
-    padding: 0 10px;
-  }
-  .intro p {
-    font-size: 1rem !important;
-    text-align: center;
-    padding: 0 10px;
-  }
-  .logo-text {
-  font-size: 4rem;
-  font-family: "Bookman Old Style", serif;
-  font-weight: bold;
-  color: white;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-  margin-bottom: 15px;
-}
-}
-
-/* ===== Mobile App-style buttons (clean, professional) ===== */
-.app-buttons{display:none;align-items:center;justify-content:center;gap:14px;padding:16px}
-.app-btn{display:flex;align-items:center;justify-content:center;gap:10px;text-decoration:none;
-  width:90%;max-width:420px;padding:14px 18px;border-radius:16px;font:600 1.08rem Montserrat,system-ui;
-  color:#fff;box-shadow:0 8px 16px rgba(0,58,92,.18);border:0}
-.app-btn i{font-size:1.2rem;opacity:.95}
-.app-btn.invoices{background:linear-gradient(135deg,#0ea5e9,#0369a1)}
-.app-btn.vehicles{background:linear-gradient(135deg,#475569,#1f2937)}
-.app-btn.cash{background:linear-gradient(135deg,#10b981,#059669)}
-.app-btn.inquiries{background:linear-gradient(135deg,#f59e0b,#d97706)}
-.app-btn.supplier{background:linear-gradient(135deg,#8b5cf6,#7c3aed)}
-.app-btn:active{transform:scale(.99)}
-/* Mobile: show ONLY the menu (no header/title/cards/footer) */
-@media (max-width:768px){
-  header,.portal-title,.decorative-dots,.cards,.download-container,footer{display:none!important}
-  .app-buttons{display:flex;flex-direction:column;min-height:100vh}
-}
-/* Desktop: hide the mobile app buttons */
-@media (min-width:1024px){ .app-buttons{display:none!important} }
-
-
-/* -- Mobile IBA logo above buttons -- */
-.mobile-logo { height: 64px; margin-bottom: 16px; display: block; }
-
-@media (max-width: 768px) {
-  .app-buttons { min-height: 100vh; justify-content: center; }
-  .mobile-logo { display: block; }
-}
-
-@media (min-width: 1024px) {
-  .mobile-logo { display: none; }
-}
-
-
-/* Ensure embedded SVG logo scales nicely on mobile */
-.mobile-logo { height: 64px; width: auto; display: block; margin-bottom: 16px; }
-
-
-/* Ensure mobile logo displays correctly */
-.mobile-logo { max-height: 70px; width: auto; display: block; margin-bottom: 20px; }
-
-
-/* Mobile text brand in place of logo */
-.mobile-brand{ text-align:center; margin: 0 auto 10px; }
-.brand-iba{ font-family: "Bookman Old Style", Georgia, serif; font-weight:700; font-size: 1.9rem; color:#003A5C; line-height:1; letter-spacing:.5px; }
-.brand-name{ font-weight:600; font-size:.86rem; color:#003A5C; opacity:.9; line-height:1.15; max-width: 90%; margin:4px auto 0; }
-/* keep hidden on desktop */
-@media (min-width:1024px){ .mobile-brand{ display:none; } }
-
-
-/* Adjust button height for better balance */
-.app-btn { padding: 20px 22px !important; font-size: 1.15rem !important; border-radius: 18px !important; }
-.app-btn i { font-size: 1.35rem !important; }
-
-
-/* Bigger brand text for mobile view */
-.brand-iba {
-  font-family: "Bookman Old Style", Georgia, serif;
-  font-weight: 700;
-  font-size: 2.5rem !important;
-  color: #003A5C;
-  line-height: 1.2;
-  letter-spacing: 0.5px;
-  margin-bottom: 6px;
-}
-.brand-name {
-  font-weight: 600;
-  font-size: 1rem !important;
-  color: #003A5C;
-  opacity: 0.95;
-  line-height: 1.3;
-  max-width: 90%;
-  margin: 0 auto 18px;
-}
-
-
-/* --- Mobile: brand at the very top, bigger buttons --- */
-@media (max-width: 768px) {
-  .app-buttons {
-    display: flex !important;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;  /* keep brand at top */
-    min-height: 100vh;
-    padding: 30px 16px 20px;      /* top spacing from screen edge */
-    gap: 16px;
-  }
-  .mobile-brand { margin-bottom: 10px; }
-  .app-btn {
-    width: 92%;
-    max-width: 460px;
-    padding: 26px 24px;           /* taller buttons */
-    border-radius: 22px;
-    font-size: 1.25rem;
-    font-weight: 700;
-  }
-  .app-btn i { font-size: 1.55rem; }
-}
-
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Login</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
-<div class="intro">
-  <div class="logo-text">IBA</div>
-  <div class="animated-loader">
-    <div class="bar"></div>
-    <div class="bar"></div>
-    <div class="bar"></div>
-    <div class="bar"></div>
-  </div>
-  <h1 class="fade-slide">Launching Portal...</h1>
-  <p class="fade-slide delay">Please wait while we prepare everything.</p>
-</div>
-
-<div class="main">
-  <header>
-    <div class="header-content">
-      <div class="logo-container">
-        <img class="logo-img" alt="IBA Logo" loading="lazy" src="https://raw.githubusercontent.com/DC-database/Invoice/main/logo.png"/>
-      </div>
-      <h1 class="portal-title"><span class="highlight">Welcome to IBA System Portal</span></h1>
-      <div class="decorative-dots"><span></span><span></span><span></span></div>
-    </div>
-  </header>
-
-<!-- Mobile App Menu (shown only on small screens) -->
-<nav class="app-buttons" id="appButtons">
-  
-  <div class="mobile-brand">
-    <div class="brand-iba">IBA</div>
-    <div class="brand-name">Ismail Bin Ali Trading &amp; Contracting Co. W.L.L.</div>
-  </div>
-<a id="btnInvoices" class="app-btn invoices" href="#"><i class="fas fa-file-invoice"></i><span>Invoices</span></a>
-  <a id="btnVehicles" class="app-btn vehicles" href="#"><i class="fas fa-car"></i><span>Vehicles</span></a>
-  <a id="btnCash" class="app-btn cash" href="#"><i class="fas fa-code"></i><span>Letter Code Generator</span></a>
-  <a id="btnInquiries" class="app-btn inquiries" href="#"><i class="fas fa-question-circle"></i><span>Inquiries</span></a>
-  <a id="btnSupplier" class="app-btn supplier" href="#"><i class="fas fa-truck"></i><span>Supplier</span></a>
-</nav>
-
-
-  <div class="cards">
-    
-<div class="card">
-  <h2><i class="fas fa-file-invoice"></i> Invoice Management</h2>
-  <a class="btn" href="https://ibaport.site/invoice/" target="_self">
-    <i class="fas fa-file-invoice"></i> Open Invoice
-  </a>
-</div>
-
-
-    <div class="card">
-      <h2><i class="fas fa-car-alt"></i> Vehicle Reports</h2>
-      <a class="btn" href="https://ibaport.site/Vehicle/" target="_self">
-        <i class="fas fa-chart-line"></i> Open Records
-      </a>
+    <div id="app-container">
+        <div id="login-view"><div class="form-container"><h2>System Login</h2><p>Please enter your email or mobile number to continue.</p><form id="login-form"><input type="text" id="login-identifier" placeholder="Email or Mobile Number" required><button type="submit">Continue</button></form><p id="login-error" class="error-message"></p></div></div>
+        <div id="password-view" class="hidden"><div class="form-container"><h2>Enter Password</h2><p>Welcome back! Please enter your password for <strong id="password-user-identifier"></strong>.</p><form id="password-form"><input type="password" id="login-password" placeholder="Password" required><button type="submit">Login</button></form><p id="password-error" class="error-message"></p></div></div>
+        <div id="setup-view" class="hidden"><div class="form-container"><h2>Complete Your Account Setup</h2><p>This is your first time logging in. Please complete the following steps.</p><form id="setup-form"><div id="setup-email-container" class="hidden"><label for="setup-email">Enter your email address:</label><input type="email" id="setup-email" placeholder="user@example.com" required></div><div id="setup-site-container" class="hidden"><label for="setup-site">Enter your Site:</label><input type="text" id="setup-site" placeholder="Site Name" required><p class="input-note">For multiple sites, separate them with a comma (ex. 175,176)</p></div><div id="setup-position-container" class="hidden"><label for="setup-position">Enter your Position:</label><input type="text" id="setup-position" placeholder="Position" required></div><label for="setup-password">Create Password</label><input type="password" id="setup-password" placeholder="New Password" required><button type="submit">Complete Setup</button></form><p id="setup-error" class="error-message"></p></div></div>
+        
+        <div id="dashboard-view" class="hidden">
+            <div class="form-container">
+                <header class="dashboard-header">
+                    <div id="user-info">
+                        <span id="dashboard-username"></span>
+                        <span id="datetime"></span>
+                    </div>
+                    <button id="logout-button">Logout</button>
+                </header>
+                <main class="dashboard-main">
+                    <div class="button-container">
+                        <button id="workdesk-button" class="circle-button">WorkDesk</button>
+                        <button id="invoice-mgmt-button" class="circle-button">Invoice Management</button>
+                        <button class="circle-button">Accounts & Payments</button>
+                    </div>
+                </main>
+            </div>
+        </div>
     </div>
 
-    <div class="card">
-      <h2><i class="fas fa-code"></i> Code Generator</h2>
-      <a class="btn" href="https://ibaport.site/Letter/" target="_self">
-        <i class="fas fa-keyboard"></i> Letter Code Generator
-      </a>
+    <div id="workdesk-view" class="hidden">
+        <aside class="workdesk-sidebar">
+            <div class="wd-user-profile"><div class="wd-user-avatar"><i class="fa-solid fa-user"></i></div><h3 id="wd-username">User Name</h3><p id="wd-user-identifier">user@iba.com.qa</p></div>
+            
+            <a href="#" id="back-to-dashboard-button" class="wd-back-button back-to-main-dashboard"><i class="fa-solid fa-arrow-left"></i> Welcome Screen</a>
+
+            <nav id="workdesk-nav" class="workdesk-navigation">
+                <ul>
+                    <li><a href="#" data-section="wd-dashboard" class="active"><i class="fa-solid fa-table-columns"></i> Dashboard</a></li>
+                    <li><a href="#" data-section="wd-jobentry"><i class="fa-solid fa-file-pen"></i> Job Entry</a></li>
+                    <li><a href="#" data-section="wd-activetask"><i class="fa-solid fa-list-check"></i> Active Task</a></li>
+                    <li><a href="#" data-section="wd-taskhistory"><i class="fa-solid fa-clock-rotate-left"></i> Task History</a></li>
+                    <li><a href="#" data-section="wd-reporting"><i class="fa-solid fa-chart-line"></i> Reporting</a></li>
+                </ul>
+            </nav>
+            <div class="workdesk-footer-nav">
+                 <ul>
+                    <li><a href="#" data-section="wd-settings"><i class="fa-solid fa-gear"></i> Settings</a></li>
+                    <li><a href="#" id="wd-logout-button"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</a></li>
+                </ul>
+            </div>
+        </aside>
+        
+        <main class="workdesk-main">
+            <span id="workdesk-datetime"></span> 
+            <div id="workdesk-content-area">
+                
+                <section id="wd-dashboard" class="workdesk-section">
+                    <h1>Dashboard</h1>
+                    
+                    <div class="dashboard-summary-cards">
+                        <div class="summary-card">
+                            <div class="card-icon" style="background-color: #ffc107;"><i class="fa-solid fa-list-check"></i></div>
+                            <div class="card-details">
+                                <span id="db-active-tasks-count" class="card-value">0</span>
+                                <span class="card-label">Your Active Tasks</span>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="card-icon" style="background-color: #fd7e14;"><i class="fa-solid fa-file-pen"></i></div>
+                            <div class="card-details">
+                                <span id="db-pending-entries-count" class="card-value">0</span>
+                                <span class="card-label">Your Pending Entries</span>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="card-icon" style="background-color: #28a745;"><i class="fa-solid fa-check-double"></i></div>
+                            <div class="card-details">
+                                <span id="db-completed-tasks-count" class="card-value">0</span>
+                                <span class="card-label">Your Completed Tasks</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="section-divider">
+
+                    <h2>Site Performance</h2>
+                    <div id="dashboard-site-stats">
+                        <p>Loading site data...</p>
+                    </div>
+
+                    <hr class="section-divider">
+                    
+                    <h2>Recent Active Tasks</h2>
+                    <div class="table-wrapper">
+                        <table id="dashboard-recent-tasks">
+                            <thead>
+                                <tr>
+                                    <th>Job</th>
+                                    <th>Ref</th>
+                                    <th>Site</th>
+                                    <th>Entered By</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="db-recent-tasks-body">
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+                
+                <section id="wd-jobentry" class="workdesk-section hidden">
+                    <h1 id="jobentry-form-title">Add New Job Entry</h1>
+                    <form id="jobentry-form" class="jobentry-form-2col">
+                        <div class="form-column">
+                            <div class="form-group">
+                                <label for="job-for">Job</label>
+                                <select id="job-for" name="for" required>
+                                    <option value="" disabled selected>Select a Type</option>
+                                    <option value="PR">PR</option>
+                                    <option value="Invoice">Invoice</option>
+                                    <option value="IPC">IPC</option>
+                                    <option value="Payment">Payment</option>
+                                    <option value="Transfer">Transfer</option>
+                                    <option value="Trip">Trip</option>
+                                    <option value="Report">Report</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="job-ref">Reference</label>
+                                <input type="text" id="job-ref" name="ref">
+                            </div>
+                            <div class="form-group">
+                                <label for="job-po">PO Number</label>
+                                <input type="text" id="job-po" name="po" placeholder="PO Number">
+                            </div>
+                            <div class="form-group">
+                                <label for="job-amount">Amount</label>
+                                <input type="number" id="job-amount" name="amount" placeholder="0.00" step="0.01">
+                            </div>
+                        </div>
+
+                        <div class="form-column">
+                             <div class="form-group">
+                                <label for="job-site">Site / Project No.</label>
+                                <select id="job-site" name="site" required></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="job-group">Group</label>
+                                <select id="job-group" name="group" required>
+                                    <option value="" disabled selected>Select a Group</option>
+                                    <option value="Civil">Civil</option>
+                                    <option value="MEP">MEP</option>
+                                    <option value="Logistic">Logistic</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                               <label for="job-attention">Attention</label>
+                               <select id="job-attention" name="attention" required></select>
+                            </div>
+                             <div class="form-buttons-container">
+                                <button type="button" id="add-job-button">Add</button>
+                                <button type="button" id="update-job-button" class="hidden">Update</button>
+                                <button type="button" id="clear-job-button" class="secondary-btn">Clear</button>
+                            </div>
+                        </div>
+                         <div class="form-group hidden">
+                            <label for="job-date">Date</label>
+                            <input type="text" id="job-date" name="date" readonly>
+                        </div>
+                    </form>
+
+                    <hr class="section-divider">
+
+                    <div class="search-and-table-container">
+                        <h2>Your Pending Job Entries</h2>
+                        <div class="search-bar-local">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="job-entry-search" placeholder="Type to search your entries...">
+                        </div>
+                        <div id="job-entry-table-wrapper" class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Job</th>
+                                        <th>Ref</th>
+                                        <th>PO</th>
+                                        <th>Site</th>
+                                        <th>Group</th>
+                                        <th>Attention</th>
+                                        <th>Date</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="job-entry-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+                
+                <section id="wd-activetask" class="workdesk-section hidden">
+                    <h1>Your Active Tasks</h1>
+                    <div class="search-bar-local">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="active-task-search" placeholder="Type to search your active tasks...">
+                    </div>
+                     <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Job</th>
+                                    <th>Ref</th>
+                                    <th>PO</th>
+                                    <th>Site</th>
+                                    <th>Group</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="active-task-table-body"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                 <section id="wd-taskhistory" class="workdesk-section hidden">
+                    <h1>Task History</h1>
+                    <div class="search-bar-local">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="task-history-search" placeholder="Type to search your task history...">
+                    </div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Job</th>
+                                    <th>Ref</th>
+                                    <th>Amount</th>
+                                    <th>PO</th>
+                                    <th>Site</th>
+                                    <th>Group</th>
+                                    <th>Date Entered</th>
+                                    <th>Date Responded</th>
+                                    <th>Remarks</th>
+                                </tr>
+                            </thead>
+                            <tbody id="task-history-table-body"></tbody>
+                        </table>
+                    </div>
+                </section>
+                
+                 <section id="wd-reporting" class="workdesk-section hidden">
+                    <h1>Reporting - All Entries</h1>
+                    
+                    <div class="report-controls">
+                        <div class="report-tabs-container">
+                            <div id="report-tabs" class="report-tabs">
+                                <button class="active" data-job-type="All">All Jobs</button>
+                                <button data-job-type="PR">PR</button>
+                                <button data-job-type="Invoice">Invoice</button>
+                                <button data-job-type="IPC">IPC</button>
+                                <button data-job-type="Payment">Payment</button>
+                                <button data-job-type="Transfer">Transfer</button>
+                                <button data-job-type="Trip">Trip</button>
+                                <button data-job-type="Report">Report</button>
+                            </div>
+                        </div>
+                        <div class="report-buttons-group">
+                           <button id="print-report-button" class="print-btn"><i class="fa-solid fa-print"></i> Print Report</button>
+                           <button id="download-wd-report-csv-button" class="download-btn"><i class="fa-solid fa-file-excel"></i> Save as Excel</button>
+                        </div>
+                    </div>
+
+                    <div class="search-bar-local">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="reporting-search" placeholder="Type to search all system entries...">
+                    </div>
+
+                    <div id="reporting-printable-area">
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Job</th>
+                                        <th>Ref</th>
+                                        <th>Site</th>
+                                        <th>PO</th>
+                                        <th>Vendor Name</th>
+                                        <th>Amount</th>
+                                        <th>Entered By</th>
+                                        <th>Date Entered</th>
+                                        <th>Attention</th>
+                                        <th>Date Responded</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="reporting-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                 </section>
+
+                 <section id="wd-settings" class="workdesk-section hidden">
+                    <h1>Account Settings</h1>
+                    <p>Manage your personal information and preferences. Fields that are greyed out are managed by the system administrator.</p>
+
+                    <form id="settings-form">
+                        <div class="jobentry-form-2col">
+                            <div class="form-column">
+                                <div class="form-group">
+                                    <label for="settings-name">Name</label>
+                                    <input type="text" id="settings-name" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label for="settings-email">Email</label>
+                                    <input type="email" id="settings-email" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label for="settings-mobile">Mobile</label>
+                                    <input type="text" id="settings-mobile" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label for="settings-position">Position</label>
+                                    <input type="text" id="settings-position" readonly>
+                                </div>
+                            </div>
+                            <div class="form-column">
+                                <div class="form-group">
+                                    <label for="settings-site">Site</label>
+                                    <input type="text" id="settings-site" placeholder="Your site(s)">
+                                    <p class="input-note">For multiple sites, separate them with a comma (ex. 175,176)</p>
+                                </div>
+                                <div class="form-group">
+                                    <label for="settings-password">New Password</label>
+                                    <input type="password" id="settings-password" placeholder="Leave blank to keep current password">
+                                </div>
+                                <div class="form-group">
+                                    <div class="checkbox-group">
+                                        <input type="checkbox" id="settings-vacation">
+                                        <label for="settings-vacation">On Vacation</label>
+                                    </div>
+                                </div>
+                                <div class="form-group hidden" id="settings-return-date-container">
+                                    <label for="settings-return-date">Return Date</label>
+                                    <input type="date" id="settings-return-date">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-buttons-container" style="justify-content: flex-start; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+                            <button type="submit" id="update-settings-button">Update Settings</button>
+                        </div>
+                        <p id="settings-message" class="error-message" style="text-align: left;"></p>
+                    </form>
+                </section>
+            </div>
+        </main>
     </div>
 
-    <div class="card">
-      <h2><i class="fas fa-database"></i> Test Inquiries</h2>
-      <a class="btn" href="https://ibaport.site/Inquiries/" target="_self">
-        <i class="fas fa-question-circle"></i> Inquiries
-      </a>
-      <a class="btn" href="https://ibaport.site/Supplier/" target="_self">
-        <i class="fas fa-truck"></i> Supplier
-      </a>
+    <div id="invoice-management-view" class="hidden">
+        <aside class="workdesk-sidebar">
+            <div class="wd-user-profile">
+                <div class="wd-user-avatar"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+                <h3 id="im-username">User Name</h3>
+                <p id="im-user-identifier">user@iba.com.qa</p>
+            </div>
+            
+            <a href="#" class="wd-back-button back-to-main-dashboard"><i class="fa-solid fa-arrow-left"></i> Welcome Screen</a>
+
+            <nav id="im-nav" class="workdesk-navigation">
+                <ul>
+                    <li><a href="#" data-section="im-dashboard" class="active"><i class="fa-solid fa-table-columns"></i> Dashboard</a></li>
+                    <li><a href="#" data-section="im-invoice-entry"><i class="fa-solid fa-file-pen"></i> Invoice Entry</a></li>
+                    <li><a href="#" id="batch-entry-nav-link" data-section="im-batch-entry"><i class="fa-solid fa-file-excel"></i> Batch Entry</a></li>
+                    <li><a href="#" data-section="im-summary-note"><i class="fa-solid fa-receipt"></i> Summary Note</a></li>
+                    <li><a href="#" data-section="im-reporting"><i class="fa-solid fa-chart-line"></i> Reporting</a></li>
+                </ul>
+            </nav>
+            <div class="workdesk-footer-nav">
+                 <ul>
+                    <li><a href="#" id="im-logout-button"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</a></li>
+                </ul>
+            </div>
+        </aside>
+        
+        <main class="workdesk-main">
+             <span id="im-datetime"></span> 
+            <div id="im-content-area">
+                
+                <section id="im-dashboard" class="workdesk-section">
+                    <h1>Invoice Dashboard (2025)</h1>
+                    
+                    <div class="dashboard-summary-cards">
+                        <div class="summary-card">
+                            <div class="card-icon" style="background-color: #007bff;"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+                            <div class="card-details">
+                                <span id="im-total-po-count" class="card-value">0</span>
+                                <span class="card-label">Total POs (2025)</span>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="card-icon" style="background-color: #17a2b8;"><i class="fa-solid fa-receipt"></i></div>
+                            <div class="card-details">
+                                <span id="im-total-invoice-count" class="card-value">0</span>
+                                <span class="card-label">Invoices Recorded (2025)</span>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="card-icon" style="background-color: #ffc107;"><i class="fa-solid fa-file-signature"></i></div>
+                            <div class="card-details">
+                                <span id="im-po-pending-invoice-count" class="card-value">0</span>
+                                <span class="card-label">POs Pending Invoice (2025)</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr class="section-divider">
+
+                    <div class="im-dashboard-grid">
+                        <div class="im-chart-card">
+                            <h2>Invoice Status Breakdown</h2>
+                             <div id="im-status-grid" class="im-status-grid">
+                                </div>
+                        </div>
+                        <div class="im-chart-card">
+                            <h2>Invoice Status Chart</h2>
+                            <div class="im-bar-chart-container">
+                                <canvas id="im-bar-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="section-divider">
+
+                    <h2>Recent Invoice Activity (2025)</h2>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>PO No.</th>
+                                    <th>Vendor</th>
+                                    <th>Inv. Value</th>
+                                    <th>Status</th>
+                                    <th>Release Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="im-recent-invoices-body">
+                                <tr><td colspan="5">Loading recent activity...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+                
+                <section id="im-invoice-entry" class="workdesk-section hidden">
+                    <h1>Invoice Entry</h1>
+                    <div id="im-po-search-container">
+                        <div class="search-bar-local">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="im-po-search-input" placeholder="Enter PO Number...">
+                        </div>
+                        <button id="im-po-search-button">Search PO</button>
+                    </div>
+
+                    <div id="im-po-details-container" class="hidden">
+                        <div class="po-details-grid">
+                           <p><strong>PO No:</strong> <span id="im-po-no"></span></p>
+                           <p><strong>Site:</strong> <span id="im-po-site"></span></p>
+                           <p><strong>PO Value:</strong> <span id="im-po-value"></span></p>
+                           <p><strong>Vendor:</strong> <span id="im-po-vendor"></span></p>
+                        </div>
+                    </div>
+                    
+                    <form id="im-new-invoice-form" class="hidden">
+                        <hr class="section-divider">
+                        <h2 id="im-form-title">Add New Invoice for this PO</h2>
+                        <div class="jobentry-form-2col">
+                            <div class="form-column">
+                                <div class="form-group">
+                                    <label>Invoice Entry ID</label>
+                                    <input type="text" id="im-inv-entry-id" name="invEntryID" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label for="im-inv-no">Invoice No.</label>
+                                    <input type="text" id="im-inv-no" name="invNumber">
+                                </div>
+                                <div class="form-group">
+                                    <label for="im-details">Details</label>
+                                    <input type="text" id="im-details" name="details">
+                                </div>
+                                <div class="form-group">
+                                    <label for="im-invoice-date">Invoice Date</label>
+                                    <input type="date" id="im-invoice-date" name="invoiceDate">
+                                </div>
+                                <div class="form-group">
+                                    <label for="im-inv-value">Invoice Value</label>
+                                    <input type="number" id="im-inv-value" name="invValue" step="0.01">
+                                </div>
+                                <div class="form-group">
+                                    <label for="im-amount-paid">Amount Paid</label>
+                                    <input type="number" id="im-amount-paid" name="amountPaid" step="0.01" value="0">
+                                </div>
+                            </div>
+                            <div class="form-column">
+                                <div class="form-group">
+                                    <label for="im-inv-name">Invoice Name</label>
+                                    <input type="text" id="im-inv-name" name="invName">
+                                </div>
+                                <div class="form-group">
+                                    <label for="im-srv-name">SRV Name</label>
+                                    <input type="text" id="im-srv-name" name="srvName">
+                                </div>
+                                <div class="form-group">
+                                   <label for="im-attention">Attention</label>
+                                   <select id="im-attention" name="attention"></select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="im-release-date">Release Date</label>
+                                    <input type="date" id="im-release-date" name="releaseDate">
+                                </div>
+                                <div class="form-group">
+                                    <label for="im-status">Status</label>
+                                    <select id="im-status" name="status">
+                                        <option value="For SRV">For SRV</option>
+                                        <option value="Pending">Pending</option>
+                                        <option value="For IPC">For IPC</option>
+                                        <option value="Under Review">Under Review</option>
+                                        <option value="CEO Approval">CEO Approval</option>
+                                        <option value="With Accounts">With Accounts</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-top: 20px;">
+                            <label for="im-note">Note</label>
+                            <textarea id="im-note" name="note" rows="3" style="width: 100%; font: inherit; padding: 10px; border: 1px solid #ccc; border-radius: 4px;"></textarea>
+                        </div>
+                        <div class="form-buttons-container">
+                            <button type="button" id="im-add-invoice-button">Add Invoice</button>
+                            <button type="button" id="im-update-invoice-button" class="hidden">Update Invoice</button>
+                            <button type="button" id="im-clear-form-button" class="secondary-btn">Clear</button>
+                        </div>
+                    </form>
+
+                    <div id="im-existing-invoices-container" class="hidden">
+                         <hr class="section-divider">
+                        <h2>Existing Invoices for this PO</h2>
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Inv Entry ID</th>
+                                        <th>Inv No.</th>
+                                        <th>Invoice Date</th>
+                                        <th>Inv Value</th>
+                                        <th>Amount Paid</th>
+                                        <th>Status</th>
+                                        <th>Release Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="im-invoices-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="im-batch-entry" class="workdesk-section hidden">
+                    <h1>Batch Invoice Entry</h1>
+                    <p>Enter a PO number and click 'Add PO' to create a new invoice row. You can add multiple rows and save all entries at once.</p>
+                    <div id="im-batch-po-add-container" style="display: flex; gap: 10px; margin-bottom: 20px; max-width: 500px;">
+                        <input type="text" id="im-batch-po-input" placeholder="Enter PO Number..." style="flex-grow: 1; margin-bottom: 0;">
+                        <button id="im-batch-add-po-button" type="button">Add PO</button>
+                    </div>
+                    <div class="table-wrapper" style="max-height: 50vh; overflow-y: auto;">
+                        <table id="im-batch-entry-table">
+                            <thead>
+                                <tr>
+                                    <th>PO</th>
+                                    <th>Site</th>
+                                    <th>Vendor</th>
+                                    <th>Inv. No.</th>
+                                    <th>Details</th>
+                                    <th>Inv. Date</th>
+                                    <th>Inv. Value</th>
+                                    <th>Amount Paid</th>
+                                    <th>Attention</th>
+                                    <th>Status</th>
+                                    <th>Note</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="im-batch-table-body">
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="form-buttons-container" style="justify-content: flex-end; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
+                        <button id="im-batch-save-button" type="button" class="download-btn">Save All Invoices</button>
+                    </div>
+                </section>
+
+                <section id="im-summary-note" class="workdesk-section hidden">
+                    <h1>Summary Note Print</h1>
+                    <div id="summary-note-controls">
+                        <div class="form-group">
+                            <label for="summary-note-previous-input">Previous Note</label>
+                            <input type="text" id="summary-note-previous-input" list="note-suggestions" placeholder="e.g., 1st Payment">
+                        </div>
+                        <div class="form-group">
+                            <label for="summary-note-current-input">Current Note</label>
+                            <input type="text" id="summary-note-current-input" list="note-suggestions" placeholder="e.g., 2nd Payment">
+                        </div>
+                         <datalist id="note-suggestions"></datalist>
+                        <div class="form-buttons-container" style="margin-top: 0; padding-top: 25px;">
+                            <button type="button" id="summary-note-generate-btn">Generate Summary</button>
+                            <button type="button" id="summary-note-update-btn" class="secondary-btn">Update Changes</button>
+                            <button type="button" id="summary-note-print-btn" class="print-btn"><i class="fa-solid fa-print"></i> Print</button>
+                        </div>
+                    </div>
+                    <hr class="section-divider">
+                    <div id="summary-note-printable-area" class="hidden">
+                        <div class="sn-header">
+                            <span id="sn-date">Date: 14-October-2025</span>
+                            <div class="sn-vendor-info">
+                                <p><strong>Summary for :</strong> <span id="sn-vendor-name"></span></p>
+                            </div>
+                        </div>
+                        <div class="sn-payment-details">
+                            <div><strong>Previous Payment:</strong> <span id="sn-previous-payment"></span></div>
+                            <div><strong>Current Payment:</strong> <span id="sn-current-payment"></span></div>
+                        </div>
+                        <table class="sn-table">
+                            <thead>
+                                <tr>
+                                    <th>Inv Count</th>
+                                    <th>P.O.No.</th>
+                                    <th>Billing Site</th>
+                                    <th>Bill Description</th>
+                                    <th>Bill Date</th>
+                                    <th>Payment Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sn-table-body">
+                            </tbody>
+                        </table>
+                        <div class="sn-footer">
+                            <span>Total Current Payment</span>
+                            <span id="sn-total-in-words"></span>
+                            <span id="sn-total-numeric"></span>
+                        </div>
+                        <div class="sn-signatures">
+                            <div>Prepared By</div>
+                            <div>CEO</div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="im-reporting" class="workdesk-section hidden">
+                    <div class="report-header">
+                        <h1>Invoice Summary Report</h1>
+                        <div class="daily-report-section">
+                           <input type="date" id="im-daily-report-date" title="Select a date for the daily entry report">
+                           <button id="im-download-daily-report-button" class="download-btn" type="button"><i class="fa-solid fa-calendar-day"></i> Daily Entry Report</button>
+                        </div>
+                    </div>
+
+                    <form id="im-reporting-form" class="report-controls">
+                        <div class="search-and-filter-group">
+                            <div class="search-bar-local">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                                <input type="text" id="im-reporting-search" placeholder="Search by PO, Site, or Vendor...">
+                            </div>
+                        </div>
+                        <div class="report-buttons-group">
+                            <button type="submit">Search</button>
+                            <button id="im-reporting-clear-button" class="secondary-btn" type="button">Clear</button>
+                            <button id="im-reporting-download-csv-button" class="download-btn" type="button"><i class="fa-solid fa-download"></i> Download Full Report</button>
+                        </div>
+                    </form>
+                    <div id="im-reporting-content" class="table-wrapper">
+                        <p>Click Search to load all data, or enter a term to narrow your results.</p>
+                    </div>
+                </section>
+
+            </div>
+        </main>
     </div>
-  </div>
 
-  
-
-  <footer>
-    © 2025 IBA Trading and Contracting W.L.L. All rights reserved.<br>
-    <small>Version 2.1.0</small>
-  </footer>
-</div>
-
-<script>
-async function openNetworkLink(event) {
-  event.preventDefault();
-  const ipUrl = "file:///L:/HTML%20System/Invoice%20Management%20System/index.html";
-  const localUrl = "file:///L:/HTML%20System/Invoice%20Management%20System/index.html";
-  
-  // First try IP access
-  const test = await testConnection(ipUrl);
-  if (test.success) {
-    window.open(ipUrl, "_self");
-  } else {
-    // Fallback to local access
-    alert("Network access failed. Trying local path...");
-    window.open(localUrl, "_self");
-  }
-}
-
-async function testConnection(url) {
-  try {
-    const response = await fetch(url, { method: 'HEAD' });
-    return { success: response.ok };
-  } catch (e) {
-    return { success: false };
-  }
-}
-
-// Hide intro after 3 seconds
-setTimeout(() => {
-  const intro = document.querySelector('.intro');
-  if (intro && getComputedStyle(intro).opacity !== '0') {
-    intro.style.display = 'none';
-  }
-}, 3000);
-
-// LEFT click = open http:// in same tab
-function openNetworkLink(event) {
-  event.preventDefault();
-  const url = "file:///L:/HTML%20System/Invoice%20Management%20System/index.html";
-  window.open(url, "_self");
-}
-
-// RIGHT click = copy + open in same tab
-function copyAndOpen(event) {
-  event.preventDefault();
-  const url = "file:///L:/HTML%20System/Invoice%20Management%20System/index.html";
-  navigator.clipboard.writeText(url).then(() => {
-    alert("Link copied to clipboard:\n" + url);
-    window.open(url, "_self");
-  }).catch(err => {
-    alert("Failed to copy: " + err);
-  });
-}
-
-// Detect if on mobile device
-function isMobileDevice() {
-  return (typeof window.orientation !== "undefined") || (navigator.userAgent.indexOf('IEMobile') !== -1);
-}
-
-// Show appropriate buttons based on device
-document.addEventListener('DOMContentLoaded', function() {
-  if (isMobileDevice()) {
-    document.querySelectorAll('.cloud-btn').forEach(btn => {
-      btn.style.display = 'inline-flex';
-    });
-    document.querySelectorAll('.network-btn').forEach(btn => {
-      btn.style.display = 'none';
-    });
-  } else {
-    document.querySelectorAll('.cloud-btn').forEach(btn => {
-      btn.style.display = 'none';
-    });
-    document.querySelectorAll('.network-btn').forEach(btn => {
-      btn.style.display = 'inline-flex';
-    });
-  }
-  
-  // Set all buttons to open in same tab
-  document.querySelectorAll('a.btn').forEach(btn => {
-    if (!btn.hasAttribute('target')) {
-      btn.setAttribute('target', '_self');
-    }
-  });
-});
-</script>
-
-<script>
-// Auto-link mobile buttons to the same destinations as the desktop cards
-(function(){
-  try {
-    const cardLinks = document.querySelectorAll('.card a.btn');
-    const map = [
-      {el: document.getElementById('btnInvoices'), idx: 0},
-      {el: document.getElementById('btnVehicles'), idx: 1},
-      {el: document.getElementById('btnCash'), idx: 2},
-      {el: document.getElementById('btnInquiries'), idx: 3},
-      {el: document.getElementById('btnSupplier'), idx: 4}
-    ];
-    map.forEach(m => {
-      if (m.el && cardLinks[m.idx]) {
-        m.el.setAttribute('href', cardLinks[m.idx].getAttribute('href'));
-        // If target="_blank" is used on desktop buttons, mirror it
-        const tgt = cardLinks[m.idx].getAttribute('target');
-        if (tgt) m.el.setAttribute('target', tgt);
-      }
-    });
-  } catch(e) { /* no-op */ }
-})();
-</script>
-
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
