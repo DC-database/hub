@@ -397,66 +397,25 @@
             <div id="im-content-area">
                 
                 <section id="im-dashboard" class="workdesk-section">
-                    <h1>Invoice Dashboard (2025)</h1>
-                    
-                    <div class="dashboard-summary-cards">
-                        <div class="summary-card">
-                            <div class="card-icon" style="background-color: #007bff;"><i class="fa-solid fa-file-invoice-dollar"></i></div>
-                            <div class="card-details">
-                                <span id="im-total-po-count" class="card-value">0</span>
-                                <span class="card-label">Total POs (2025)</span>
-                            </div>
-                        </div>
-                        <div class="summary-card">
-                            <div class="card-icon" style="background-color: #17a2b8;"><i class="fa-solid fa-receipt"></i></div>
-                            <div class="card-details">
-                                <span id="im-total-invoice-count" class="card-value">0</span>
-                                <span class="card-label">Invoices Recorded (2025)</span>
-                            </div>
-                        </div>
-                        <div class="summary-card">
-                            <div class="card-icon" style="background-color: #ffc107;"><i class="fa-solid fa-file-signature"></i></div>
-                            <div class="card-details">
-                                <span id="im-po-pending-invoice-count" class="card-value">0</span>
-                                <span class="card-label">POs Pending Invoice (2025)</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <hr class="section-divider">
-
-                    <div class="im-dashboard-grid">
+                    <div class="im-dashboard-full-grid">
                         <div class="im-chart-card">
-                            <h2>Invoice Status Breakdown</h2>
-                             <div id="im-status-grid" class="im-status-grid">
-                                </div>
+                            <h2>Active Invoice Status</h2>
+                            <div class="im-chart-container-half">
+                                <canvas id="im-status-donut-chart"></canvas>
+                            </div>
                         </div>
                         <div class="im-chart-card">
-                            <h2>Invoice Status Chart</h2>
-                            <div class="im-bar-chart-container">
-                                <canvas id="im-bar-chart"></canvas>
+                            <h2>Active Invoice Count</h2>
+                            <div class="im-chart-container-half">
+                                <canvas id="im-status-bar-chart"></canvas>
                             </div>
                         </div>
-                    </div>
-
-                    <hr class="section-divider">
-
-                    <h2>Recent Invoice Activity (2025)</h2>
-                    <div class="table-wrapper">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>PO No.</th>
-                                    <th>Vendor</th>
-                                    <th>Inv. Value</th>
-                                    <th>Status</th>
-                                    <th>Release Date</th>
-                                </tr>
-                            </thead>
-                            <tbody id="im-recent-invoices-body">
-                                <tr><td colspan="5">Loading recent activity...</td></tr>
-                            </tbody>
-                        </table>
+                        <div class="im-chart-card full-width-card">
+                             <h2>Overdue Invoice by Site</h2>
+                            <div class="im-chart-container-full">
+                                <canvas id="im-overdue-chart"></canvas>
+                            </div>
+                        </div>
                     </div>
                 </section>
                 
@@ -505,7 +464,7 @@
                                     <input type="number" id="im-inv-value" name="invValue" step="0.01">
                                 </div>
                                 <div class="form-group">
-                                    <label for="im-amount-paid">Amount Paid</label>
+                                    <label for="im-amount-paid">Amount To Paid</label>
                                     <input type="number" id="im-amount-paid" name="amountPaid" step="0.01" value="0">
                                 </div>
                             </div>
@@ -534,6 +493,7 @@
                                         <option value="For IPC">For IPC</option>
                                         <option value="Under Review">Under Review</option>
                                         <option value="CEO Approval">CEO Approval</option>
+                                        <option value="Report">Report</option>
                                         <option value="With Accounts">With Accounts</option>
                                     </select>
                                 </div>
@@ -547,6 +507,7 @@
                             <button type="button" id="im-add-invoice-button">Add Invoice</button>
                             <button type="button" id="im-update-invoice-button" class="hidden">Update Invoice</button>
                             <button type="button" id="im-clear-form-button" class="secondary-btn">Clear</button>
+                            <button type="button" id="im-back-to-active-task-button" class="secondary-btn hidden">Back to Active Task</button>
                         </div>
                     </form>
 
@@ -561,7 +522,7 @@
                                         <th>Inv No.</th>
                                         <th>Invoice Date</th>
                                         <th>Inv Value</th>
-                                        <th>Amount Paid</th>
+                                        <th>Amount To Paid</th>
                                         <th>Status</th>
                                         <th>Release Date</th>
                                         <th>Actions</th>
@@ -575,11 +536,13 @@
 
                 <section id="im-batch-entry" class="workdesk-section hidden">
                     <h1>Batch Invoice Entry</h1>
-                    <p>Enter a PO number and click 'Add PO' to create a new invoice row. You can add multiple rows and save all entries at once.</p>
-                    <div id="im-batch-po-add-container" style="display: flex; gap: 10px; margin-bottom: 20px; max-width: 500px;">
-                        <input type="text" id="im-batch-po-input" placeholder="Enter PO Number..." style="flex-grow: 1; margin-bottom: 0;">
+                    <p>Add a new PO for a new invoice, or search for a PO to add existing invoices for bulk editing.</p>
+                    <div id="im-batch-po-add-container" class="search-and-filter-group" style="margin-bottom: 20px;">
+                        <input type="text" id="im-batch-po-input" placeholder="Enter PO For NEW Invoice..." style="flex-grow: 1; margin-bottom: 0;">
                         <button id="im-batch-add-po-button" type="button">Add PO</button>
+                        <button id="im-batch-search-existing-button" type="button" class="secondary-btn">Search & Add Existing</button>
                     </div>
+
                     <div class="table-wrapper" style="max-height: 50vh; overflow-y: auto;">
                         <table id="im-batch-entry-table">
                             <thead>
@@ -591,7 +554,7 @@
                                     <th>Details</th>
                                     <th>Inv. Date</th>
                                     <th>Inv. Value</th>
-                                    <th>Amount Paid</th>
+                                    <th>Amount To Paid</th>
                                     <th>Attention</th>
                                     <th>Status</th>
                                     <th>Note</th>
@@ -640,9 +603,9 @@
                         <table class="sn-table">
                             <thead>
                                 <tr>
-                                    <th>Inv Count</th>
                                     <th>P.O.No.</th>
-                                    <th>Billing Site</th>
+                                    <th>Site</th>
+                                    <th>Vendor</th>
                                     <th>Bill Description</th>
                                     <th>Bill Date</th>
                                     <th>Payment Amount</th>
@@ -667,17 +630,25 @@
                     <div class="report-header">
                         <h1>Invoice Summary Report</h1>
                         <div class="daily-report-section">
-                           <input type="date" id="im-daily-report-date" title="Select a date for the daily entry report">
+                           <input type="date" id="im-daily-report-date" title="Select a date for the daily report">
                            <button id="im-download-daily-report-button" class="download-btn" type="button"><i class="fa-solid fa-calendar-day"></i> Daily Entry Report</button>
+                           <button id="im-download-with-accounts-report-button" class="download-btn" type="button"><i class="fa-solid fa-file-invoice-dollar"></i> With Accounts Report</button>
                         </div>
                     </div>
-
+                     <div class="reporting-legend">
+                        <div class="legend-item"><span class="legend-color" style="background-color: #e0f7fa;"></span> Partially Paid</div>
+                        <div class="legend-item"><span class="legend-color" style="background-color: #fff3e0;"></span> Fully Paid</div>
+                    </div>
                     <form id="im-reporting-form" class="report-controls">
                         <div class="search-and-filter-group">
                             <div class="search-bar-local">
                                 <i class="fa-solid fa-magnifying-glass"></i>
-                                <input type="text" id="im-reporting-search" placeholder="Search by PO, Site, or Vendor...">
+                                <input type="text" id="im-reporting-search" placeholder="Search by PO or Vendor...">
                             </div>
+                            <select id="im-reporting-site-filter" name="site-filter">
+                                <option value="">All Sites</option>
+                            </select>
+                            <input type="date" id="im-reporting-date-filter" title="Filter by Release Date">
                         </div>
                         <div class="report-buttons-group">
                             <button type="submit">Search</button>
@@ -693,6 +664,29 @@
             </div>
         </main>
     </div>
+
+    <div id="im-batch-search-modal" class="modal-overlay hidden">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2>Search and Add Existing Invoices</h2>
+                <button class="modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-content">
+                <div class="search-and-filter-group" style="margin-bottom: 15px;">
+                    <input type="text" id="im-batch-modal-po-input" placeholder="Enter PO to Search..." style="flex-grow: 1;">
+                    <button id="im-batch-modal-search-btn">Search</button>
+                </div>
+                <div id="im-batch-modal-results" class="table-wrapper" style="max-height: 40vh; overflow-y: auto;">
+                    <p>Enter a PO number to see existing invoices.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="im-batch-modal-add-selected-btn" class="download-btn">Add Selected to Batch</button>
+                <button class="secondary-btn modal-close-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
