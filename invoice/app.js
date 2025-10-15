@@ -2271,7 +2271,6 @@ async function handleGenerateSummary() {
             row.innerHTML = `
                 <td>${inv.po}</td>
                 <td>${inv.site}</td>
-                <td>${inv.vendor}</td>
                 <td><input type="text" class="summary-edit-input" name="details" value="${inv.details || ''}"></td>
                 <td><input type="date" class="summary-edit-input" name="invoiceDate" value="${normalizeDateForInput(inv.invoiceDate) || ''}"></td>
                 <td>${formatCurrency(inv.invValue)}</td>
