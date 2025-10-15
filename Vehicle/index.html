@@ -4,39 +4,36 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>IBA Vehicle Dashboard</title>
-
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
     <link rel="preconnect" href="https://www.gstatic.com">
     <link rel="preconnect" href="https://raw.githubusercontent.com">
-
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div id="login-overlay">
-        <div class="login-card">
-            <h2><i class="fas fa-lock"></i> Secure Access</h2>
-            <p>Please enter your phone number to receive a verification code.</p>
+    <div id="login-screen">
+        <div class="login-container">
+            <div class="login-header">
+                <h1>IBA Vehicle Dashboard</h1>
+                <p>Please sign in to continue</p>
+            </div>
             <div class="login-form">
                 <div class="input-group">
-                    <i class="fas fa-phone"></i>
-                    <input type="tel" id="phoneNumberInput" placeholder="e.g., +97412345678">
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" id="loginEmail" placeholder="Email" required>
                 </div>
-                <button id="sendPinBtn" class="login-btn">Send Code</button>
-                
-                <div class="input-group hidden" id="pinEntry">
-                    <i class="fas fa-key"></i>
-                    <input type="number" id="pinInput" placeholder="6-Digit Code">
+                <div class="input-group">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="loginPassword" placeholder="Password" required>
                 </div>
-                <button id="verifyPinBtn" class="login-btn hidden">Sign In & View Dashboard</button>
-                <div id="loginStatus" class="login-status"></div>
+                <button id="loginBtn">Sign In</button>
+                <p id="loginStatus" class="login-status"></p>
             </div>
-            <div id="recaptcha-container"></div>
         </div>
     </div>
 
-    <div id="app-container" class="hidden">
+    <div id="app-container" style="display: none;">
         <div class="mobile-header">
             <button class="menu-toggle" aria-label="Menu">
                 <i class="fas fa-bars"></i>
@@ -52,11 +49,36 @@
                 </button>
             </div>
             <ul>
-                <li><button id="dashboardBtn" class="report-btn active"><i class="fas fa-chart-pie"></i> Dashboard</button></li>
-                <li><button id="singleReportBtn" class="report-btn"><i class="fas fa-file-alt"></i> Single Vehicle</button></li>
-                <li><button id="fullReportBtn" class="report-btn"><i class="fas fa-book"></i> Full Report</button></li>
-                <li><button id="adminBtn" class="report-btn"><i class="fas fa-cloud-upload-alt"></i> Admin Upload</button></li>
-                <li><button id="mainHubBtn" class="report-btn" onclick="window.open('https://ibaport.site','_blank')"><i class="fas fa-home"></i> Main HUB</button></li>
+                <li>
+                    <button id="dashboardBtn" class="report-btn active">
+                        <i class="fas fa-chart-pie"></i> Dashboard
+                    </button>
+                </li>
+                <li>
+                    <button id="singleReportBtn" class="report-btn">
+                        <i class="fas fa-file-alt"></i> Single Vehicle
+                    </button>
+                </li>
+                <li>
+                    <button id="fullReportBtn" class="report-btn">
+                        <i class="fas fa-book"></i> Full Report
+                    </button>
+                </li>
+                <li>
+                    <button id="adminBtn" class="report-btn">
+                        <i class="fas fa-cloud-upload-alt"></i> Admin Upload
+                    </button>
+                </li>
+                <li>
+                    <button id="mainHubBtn" class="report-btn" onclick="window.open('https://ibaport.site','_blank')">
+                        <i class="fas fa-home"></i> Main HUB
+                    </button>
+                </li>
+                <li>
+                    <button id="signOutNavBtn" class="report-btn signout-btn">
+                        <i class="fas fa-sign-out-alt"></i> Sign Out
+                    </button>
+                </li>
             </ul>
         </nav>
 
@@ -81,7 +103,7 @@
                         </button>
                     </div>
                 </div>
-    
+
                 <div class="dashboard-grid">
                     <div class="dashboard-card total-vehicles" data-animate>
                         <div class="card-content">
@@ -94,7 +116,6 @@
                             </div>
                         </div>
                     </div>
-    
                     <div class="dashboard-card yearly-spending" data-animate>
                         <div class="card-content">
                             <div class="card-icon">
@@ -106,7 +127,6 @@
                             </div>
                         </div>
                     </div>
-    
                     <div class="dashboard-card current-year" data-animate>
                         <div class="card-content">
                             <div class="card-icon">
@@ -118,7 +138,6 @@
                             </div>
                         </div>
                     </div>
-    
                     <div class="dashboard-card highest-spender" data-animate>
                         <div class="card-content">
                             <div class="card-icon">
@@ -136,7 +155,6 @@
                             </div>
                         </div>
                     </div>
-                    
                     <div class="dashboard-chart" data-animate>
                         <div class="chart-header">
                             <h3><i class="fas fa-chart-bar"></i> Yearly Spending Breakdown</h3>
@@ -152,7 +170,6 @@
                             </div>
                         </div>
                     </div>
-    
                     <div class="dashboard-table" data-animate>
                         <div class="table-header">
                             <h3><i class="fas fa-table"></i> Top 10 Vehicles</h3>
@@ -178,19 +195,16 @@
                     </div>
                 </div>
             </section>
-    
             <section id="singleReport" class="report-section">
                 <div id="loadingIndicator" class="loading-indicator">
                     <div class="spinner"></div>
                     <p>Loading vehicle data...</p>
                 </div>
-                
                 <div class="filters" style="display: none;">
                     <div class="search-box">
                         <input type="text" id="vehicleNumber" placeholder="Enter vehicle number" list="vehicleNumbers">
                         <button id="searchBtn"><i class="fas fa-search"></i> Search</button>
                     </div>
-                    
                     <div class="filter-controls">
                         <select id="yearFilter">
                             <option value="">All Years</option>
@@ -200,7 +214,6 @@
                         <button id="printBtn" class="print-btn"><i class="fas fa-print"></i> Print</button>
                     </div>
                 </div>
-                
                 <div class="results" style="display: none;">
                     <div class="summary">
                         <h2>Summary</h2>
@@ -211,7 +224,6 @@
                             <div class="summary-item"><span>Closing Value</span><span id="closingValue">0.00</span></div>
                         </div>
                     </div>
-                    
                     <div class="table-container">
                         <table id="resultsTable">
                             <thead>
@@ -223,26 +235,18 @@
                     </div>
                 </div>
             </section>
-    
             <section id="fullReport" class="report-section">
                 <div class="full-report-controls">
                     <button id="printFullReportBtn" class="print-btn"><i class="fas fa-print"></i> Print Full Report</button>
                 </div>
                 <div id="fullReportPreview"></div>
             </section>
-    
             <section id="adminSection" class="report-section">
                 <div class="dashboard-header">
                     <h2><i class="fas fa-cloud-upload-alt"></i> Admin Panel</h2>
                 </div>
                 <div class="auth-card">
-                    <div id="authStatus" class="auth-status">Not signed in</div>
-                    <div class="auth-actions">
-                        <input id="authEmail" type="email" placeholder="Email (Admin)">
-                        <input id="authPass" type="password" placeholder="Password">
-                        <button id="emailSignInBtn" class="refresh-btn"><i class="fas fa-sign-in-alt"></i> Sign in</button>
-                        <button id="signOutBtn" class="refresh-btn" style="background:#e74c3c"><i class="fas fa-sign-out-alt"></i> Sign out</button>
-                    </div>
+                    <div id="authStatus" class="auth-status"></div>
                 </div>
                 <div class="dashboard-grid">
                     <div class="dashboard-card">
@@ -262,15 +266,12 @@
                     </div>
                 </div>
             </section>
-        
             <footer>
                 <p>IBA Trading & Transportation WLL</p>
                 <p>System Generated Report - <span id="footerDate"></span></p>
             </footer>
         </main>
-
         <datalist id="vehicleNumbers"></datalist>
-
         <nav class="bottom-nav" role="navigation" aria-label="Primary">
             <button class="nav-item active" id="bnDashboard" aria-label="Dashboard"><i class="fas fa-chart-pie"></i><span>Dashboard</span></button>
             <button class="nav-item" id="bnSingle" aria-label="Single"><i class="fas fa-file-alt"></i><span>Single</span></button>
@@ -278,13 +279,12 @@
             <button class="nav-item" id="bnAdmin" aria-label="Admin"><i class="fas fa-user-cog"></i><span>Admin</span></button>
         </nav>
     </div>
-    
+
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-check-compat.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js" defer></script>
-    <script src="app.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
