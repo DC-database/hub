@@ -380,6 +380,8 @@
                 <ul>
                     <li><a href="#" data-section="im-dashboard" class="active"><i class="fa-solid fa-table-columns"></i> Dashboard</a></li>
                     <li><a href="#" data-section="im-invoice-entry"><i class="fa-solid fa-file-pen"></i> Invoice Entry</a></li>
+                    <li><a href="#" id="batch-entry-nav-link" data-section="im-batch-entry"><i class="fa-solid fa-file-excel"></i> Batch Entry</a></li>
+                    <li><a href="#" data-section="im-summary-note"><i class="fa-solid fa-receipt"></i> Summary Note</a></li>
                     <li><a href="#" data-section="im-reporting"><i class="fa-solid fa-chart-line"></i> Reporting</a></li>
                 </ul>
             </nav>
@@ -401,22 +403,22 @@
                         <div class="summary-card">
                             <div class="card-icon" style="background-color: #007bff;"><i class="fa-solid fa-file-invoice-dollar"></i></div>
                             <div class="card-details">
-                                <span id="im-total-po-value" class="card-value">0</span>
-                                <span class="card-label">Total PO Value (2025)</span>
+                                <span id="im-total-po-count" class="card-value">0</span>
+                                <span class="card-label">Total POs (2025)</span>
                             </div>
                         </div>
                         <div class="summary-card">
                             <div class="card-icon" style="background-color: #17a2b8;"><i class="fa-solid fa-receipt"></i></div>
                             <div class="card-details">
-                                <span id="im-total-invoice-value" class="card-value">0</span>
-                                <span class="card-label">Total Invoice Value (2025)</span>
+                                <span id="im-total-invoice-count" class="card-value">0</span>
+                                <span class="card-label">Invoices Recorded (2025)</span>
                             </div>
                         </div>
                         <div class="summary-card">
                             <div class="card-icon" style="background-color: #ffc107;"><i class="fa-solid fa-file-signature"></i></div>
                             <div class="card-details">
-                                <span id="im-committed-cost" class="card-value">0</span>
-                                <span class="card-label">Remaining Commitment (2025)</span>
+                                <span id="im-po-pending-invoice-count" class="card-value">0</span>
+                                <span class="card-label">POs Pending Invoice (2025)</span>
                             </div>
                         </div>
                     </div>
@@ -425,33 +427,12 @@
 
                     <div class="im-dashboard-grid">
                         <div class="im-chart-card">
-                            <h2>PO Commitment Status (2025)</h2>
-                            <div class="im-donut-chart-container">
-                                <div id="im-donut-chart" class="im-donut-chart"></div>
-                                <div class="donut-center">
-                                    <span id="im-invoiced-percentage" class="donut-percentage">0%</span>
-                                    <span class="donut-label">Invoiced</span>
+                            <h2>Invoice Status Breakdown</h2>
+                             <div id="im-status-grid" class="im-status-grid">
                                 </div>
-                            </div>
-                            <div class="im-chart-legend">
-                                <div class="legend-item">
-                                    <span class="legend-color" style="background-color: #17a2b8;"></span>
-                                    <div class="legend-details">
-                                        <span class="legend-label">Invoiced Value (2025)</span>
-                                        <span id="im-legend-invoiced" class="legend-value">QAR 0.00</span>
-                                    </div>
-                                </div>
-                                <div class="legend-item">
-                                    <span class="legend-color" style="background-color: #e9ecef;"></span>
-                                    <div class="legend-details">
-                                        <span class="legend-label">Remaining Commitment (2025)</span>
-                                        <span id="im-legend-remaining" class="legend-value">QAR 0.00</span>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                         <div class="im-chart-card">
-                            <h2>Invoice Status Breakdown</h2>
+                            <h2>Invoice Status Chart</h2>
                             <div class="im-bar-chart-container">
                                 <canvas id="im-bar-chart"></canvas>
                             </div>
@@ -510,6 +491,10 @@
                                 <div class="form-group">
                                     <label for="im-inv-no">Invoice No.</label>
                                     <input type="text" id="im-inv-no" name="invNumber">
+                                </div>
+                                <div class="form-group">
+                                    <label for="im-details">Details</label>
+                                    <input type="text" id="im-details" name="details">
                                 </div>
                                 <div class="form-group">
                                     <label for="im-invoice-date">Invoice Date</label>
@@ -584,6 +569,96 @@
                                 </thead>
                                 <tbody id="im-invoices-table-body"></tbody>
                             </table>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="im-batch-entry" class="workdesk-section hidden">
+                    <h1>Batch Invoice Entry</h1>
+                    <p>Enter a PO number and click 'Add PO' to create a new invoice row. You can add multiple rows and save all entries at once.</p>
+                    <div id="im-batch-po-add-container" style="display: flex; gap: 10px; margin-bottom: 20px; max-width: 500px;">
+                        <input type="text" id="im-batch-po-input" placeholder="Enter PO Number..." style="flex-grow: 1; margin-bottom: 0;">
+                        <button id="im-batch-add-po-button" type="button">Add PO</button>
+                    </div>
+                    <div class="table-wrapper" style="max-height: 50vh; overflow-y: auto;">
+                        <table id="im-batch-entry-table">
+                            <thead>
+                                <tr>
+                                    <th>PO</th>
+                                    <th>Site</th>
+                                    <th>Vendor</th>
+                                    <th>Inv. No.</th>
+                                    <th>Details</th>
+                                    <th>Inv. Date</th>
+                                    <th>Inv. Value</th>
+                                    <th>Amount Paid</th>
+                                    <th>Attention</th>
+                                    <th>Status</th>
+                                    <th>Note</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="im-batch-table-body">
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="form-buttons-container" style="justify-content: flex-end; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
+                        <button id="im-batch-save-button" type="button" class="download-btn">Save All Invoices</button>
+                    </div>
+                </section>
+
+                <section id="im-summary-note" class="workdesk-section hidden">
+                    <h1>Summary Note Print</h1>
+                    <div id="summary-note-controls">
+                        <div class="form-group">
+                            <label for="summary-note-previous-input">Previous Note</label>
+                            <input type="text" id="summary-note-previous-input" list="note-suggestions" placeholder="e.g., 1st Payment">
+                        </div>
+                        <div class="form-group">
+                            <label for="summary-note-current-input">Current Note</label>
+                            <input type="text" id="summary-note-current-input" list="note-suggestions" placeholder="e.g., 2nd Payment">
+                        </div>
+                         <datalist id="note-suggestions"></datalist>
+                        <div class="form-buttons-container" style="margin-top: 0; padding-top: 25px;">
+                            <button type="button" id="summary-note-generate-btn">Generate Summary</button>
+                            <button type="button" id="summary-note-update-btn" class="secondary-btn">Update Changes</button>
+                            <button type="button" id="summary-note-print-btn" class="print-btn"><i class="fa-solid fa-print"></i> Print</button>
+                        </div>
+                    </div>
+                    <hr class="section-divider">
+                    <div id="summary-note-printable-area" class="hidden">
+                        <div class="sn-header">
+                            <span id="sn-date">Date: 14-October-2025</span>
+                            <div class="sn-vendor-info">
+                                <p><strong>Summary for :</strong> <span id="sn-vendor-name"></span></p>
+                            </div>
+                        </div>
+                        <div class="sn-payment-details">
+                            <div><strong>Previous Payment:</strong> <span id="sn-previous-payment"></span></div>
+                            <div><strong>Current Payment:</strong> <span id="sn-current-payment"></span></div>
+                        </div>
+                        <table class="sn-table">
+                            <thead>
+                                <tr>
+                                    <th>Inv Count</th>
+                                    <th>P.O.No.</th>
+                                    <th>Billing Site</th>
+                                    <th>Bill Description</th>
+                                    <th>Bill Date</th>
+                                    <th>Payment Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sn-table-body">
+                            </tbody>
+                        </table>
+                        <div class="sn-footer">
+                            <span>Total Current Payment</span>
+                            <span id="sn-total-in-words"></span>
+                            <span id="sn-total-numeric"></span>
+                        </div>
+                        <div class="sn-signatures">
+                            <div>Prepared By</div>
+                            <div>CEO</div>
                         </div>
                     </div>
                 </section>

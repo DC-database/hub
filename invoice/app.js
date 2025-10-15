@@ -80,6 +80,21 @@ const imStatusSelect = document.getElementById('im-status');
 const imInvValueInput = document.getElementById('im-inv-value');
 const imAmountPaidInput = document.getElementById('im-amount-paid');
 
+// +++ SUMMARY NOTE REFERENCES +++
+const summaryNotePreviousInput = document.getElementById('summary-note-previous-input');
+const summaryNoteCurrentInput = document.getElementById('summary-note-current-input');
+const summaryNoteGenerateBtn = document.getElementById('summary-note-generate-btn');
+const summaryNoteUpdateBtn = document.getElementById('summary-note-update-btn');
+const summaryNotePrintBtn = document.getElementById('summary-note-print-btn');
+const summaryNotePrintArea = document.getElementById('summary-note-printable-area');
+const snDate = document.getElementById('sn-date');
+const snVendorName = document.getElementById('sn-vendor-name');
+const snPreviousPayment = document.getElementById('sn-previous-payment');
+const snCurrentPayment = document.getElementById('sn-current-payment');
+const snTableBody = document.getElementById('sn-table-body');
+const snTotalInWords = document.getElementById('sn-total-in-words');
+const snTotalNumeric = document.getElementById('sn-total-numeric');
+const noteSuggestionsDatalist = document.getElementById('note-suggestions');
 
 let currentApprover = null; let dateTimeInterval = null; let workdeskDateTimeInterval = null;
 let siteSelectChoices = null; let attentionSelectChoices = null;
@@ -97,6 +112,8 @@ let currentlyEditingInvoiceKey = null;
 let currentPOInvoices = {};
 let currentReportData = [];
 let imBarChart = null; // To hold the Chart.js instance
+let approverListForSelect = []; // For batch entry select elements
+let allUniqueNotes = new Set(); // For summary note suggestions
 
 // NEW: Global state variables to manage the new workflow between WorkDesk Active Task and Invoice Entry
 let jobEntryToUpdateAfterInvoice = null; // Stores the key of the job entry to update
@@ -153,6 +170,14 @@ function normalizeDateForInput(dateString) {
         const year = `20${parts[2]}`;
         return `${year}-${month}-${day}`;
     }
+    // Handle format "14-Oct-2025"
+    const date = new Date(dateString);
+    if (!isNaN(date)) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
     console.warn("Unrecognized date format:", dateString);
     return '';
 }
@@ -192,6 +217,43 @@ function formatCurrency(value) {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     });
+}
+
+function numberToWords(num) {
+    const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    const s = ['', 'Thousand', 'Million', 'Billion'];
+
+    const number = parseFloat(num).toFixed(2);
+    const [integerPart, fractionalPart] = number.split('.');
+
+    function toWords(n) {
+        if (n < 20) return a[n];
+        let digit = n % 10;
+        return b[Math.floor(n / 10)] + (digit ? ' ' + a[digit] : '');
+    }
+
+    function convert(nStr) {
+        if (nStr === '0') return 'Zero';
+        let words = '';
+        let i = nStr.length;
+        while (i > 0) {
+            let chunk = nStr.substring(Math.max(0, i - 3), i);
+            if (chunk !== '000') {
+                let num = parseInt(chunk);
+                words = (chunk.length === 3 && num < 100 ? 'and ' : '') + toWords(num % 100) + (num > 99 ? ' Hundred' + (num % 100 ? ' and ' : '') : '') + ' ' + s[(nStr.length - i) / 3] + ' ' + words;
+            }
+            i -= 3;
+        }
+        return words.trim().replace(/\s+/g, ' ');
+    }
+
+    let words = convert(integerPart);
+    if (fractionalPart && parseInt(fractionalPart) > 0) {
+        words += ' and ' + parseInt(fractionalPart) + '/100';
+    }
+    
+    return words.charAt(0).toUpperCase() + words.slice(1) + " Qatari Riyals Only";
 }
 
 
@@ -812,7 +874,12 @@ function updateIMDateTime() {
 }
 function showIMSection(sectionId) {
     const invoiceEntryLink = imNav.querySelector('a[data-section="im-invoice-entry"]');
+    const batchEntryLink = imNav.querySelector('a[data-section="im-batch-entry"]');
     if (sectionId === 'im-invoice-entry' && invoiceEntryLink.classList.contains('disabled')) {
+        alert('You do not have permission to access this section.');
+        return;
+    }
+    if (sectionId === 'im-batch-entry' && batchEntryLink.classList.contains('disabled')) {
         alert('You do not have permission to access this section.');
         return;
     }
@@ -829,11 +896,17 @@ function showIMSection(sectionId) {
     }
     if (sectionId === 'im-invoice-entry') {
         resetInvoiceEntryPage();
-        // The Choices instance is now correctly re-initialized in the main event listener
-        // to prevent bugs. We just need to ensure it gets populated.
         if (imAttentionSelectChoices) {
             populateAttentionDropdown(imAttentionSelectChoices);
         }
+    }
+     if (sectionId === 'im-batch-entry') {
+        document.getElementById('im-batch-table-body').innerHTML = '';
+        document.getElementById('im-batch-po-input').value = '';
+    }
+    if (sectionId === 'im-summary-note') {
+        summaryNotePrintArea.classList.add('hidden');
+        initializeNoteSuggestions();
     }
     if (sectionId === 'im-reporting') {
         imDailyReportDateInput.value = getTodayDateString();
@@ -882,10 +955,13 @@ async function handlePOSearch() {
             resetInvoiceEntryPage();
             return;
         }
+
+        const isUserRole = currentApprover && currentApprover.Role && currentApprover.Role.toLowerCase() === 'user';
+
         currentPO = poNumber;
         imPONo.textContent = poNumber;
         imPOSite.textContent = poData['Project ID'] || 'N/A';
-        imPOValue.textContent = poData.Amount ? `QAR ${formatCurrency(poData.Amount)}` : 'N/A';
+        imPOValue.textContent = isUserRole ? '---' : (poData.Amount ? `QAR ${formatCurrency(poData.Amount)}` : 'N/A');
         imPOVendor.textContent = poData['Supplier Name'] || 'N/A';
         imPODetailsContainer.classList.remove('hidden');
         await fetchAndDisplayInvoices(poNumber);
@@ -901,6 +977,8 @@ async function fetchAndDisplayInvoices(poNumber) {
     let invoiceCount = 0;
     imInvoicesTableBody.innerHTML = '';
     currentPOInvoices = invoicesData || {};
+    
+    const isUserRole = currentApprover && currentApprover.Role && currentApprover.Role.toLowerCase() === 'user';
 
     if (invoicesData) {
         const invoices = Object.entries(invoicesData).map(([key, value]) => ({ key, ...value }));
@@ -914,12 +992,16 @@ async function fetchAndDisplayInvoices(poNumber) {
             const releaseDateDisplay = normalizedReleaseDate ? new Date(normalizedReleaseDate + 'T00:00:00').toLocaleDateString('en-GB') : 'N/A';
             const normalizedInvoiceDate = normalizeDateForInput(inv.invoiceDate);
             const invoiceDateDisplay = normalizedInvoiceDate ? new Date(normalizedInvoiceDate + 'T00:00:00').toLocaleDateString('en-GB') : 'N/A';
+            
+            const invValueDisplay = isUserRole ? '---' : formatCurrency(inv.invValue);
+            const amountPaidDisplay = isUserRole ? '---' : formatCurrency(inv.amountPaid);
+
             row.innerHTML = `
                 <td>${inv.invEntryID || ''}</td>
                 <td>${inv.invNumber || ''}</td>
                 <td>${invoiceDateDisplay}</td>
-                <td>${formatCurrency(inv.invValue)}</td>
-                <td>${formatCurrency(inv.amountPaid)}</td>
+                <td>${invValueDisplay}</td>
+                <td>${amountPaidDisplay}</td>
                 <td>${inv.status || ''}</td>
                 <td>${releaseDateDisplay}</td>
                 <td><button class="delete-btn" data-key="${inv.key}">Delete</button></td>
@@ -964,6 +1046,7 @@ function populateInvoiceFormForEditing(invoiceKey) {
     imAmountPaidInput.value = invData.amountPaid || '0';
     document.getElementById('im-inv-name').value = invData.invName || '';
     document.getElementById('im-srv-name').value = invData.srvName || '';
+    document.getElementById('im-details').value = invData.details || ''; // Populate new field
 
     if (invData.status === 'With Accounts') {
         imReleaseDateInput.value = normalizeDateForInput(invData.releaseDate);
@@ -991,8 +1074,8 @@ async function handleAddInvoice(e) {
     const invoiceData = Object.fromEntries(formData.entries());
     let attentionValue = imAttentionSelectChoices.getValue(true);
     invoiceData.attention = (attentionValue === 'None') ? '' : attentionValue;
-    invoiceData.dateAdded = getTodayDateString(); // Add creation date
-    invoiceData.createdAt = firebase.database.ServerValue.TIMESTAMP; // Add server timestamp
+    invoiceData.dateAdded = getTodayDateString(); 
+    invoiceData.createdAt = firebase.database.ServerValue.TIMESTAMP;
 
     // --- Automatic Invoice Name Logic ---
     if (!invoiceData.invName) {
@@ -1006,6 +1089,24 @@ async function handleAddInvoice(e) {
         }
         invoiceData.invName = `${site}-${po}-${invId}-${vendor}`;
     }
+    
+    // --- Automatic SRV Name Logic on Create ---
+    if (invoiceData.status === 'With Accounts' && !invoiceData.srvName) {
+        const poSnapshot = await db.ref(`purchase_orders/${currentPO}`).once('value');
+        const poDetails = poSnapshot.val();
+        if(poDetails) {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            const formattedDate = `${yyyy}${mm}${dd}`;
+            let vendor = poDetails['Supplier Name'] || '';
+            if (vendor.length > 21) { vendor = vendor.substring(0, 21); }
+            const site = poDetails['Project ID'] || 'N/A';
+            invoiceData.srvName = `${formattedDate}-${currentPO}-${site}-${vendor}`;
+        }
+    }
+
 
     Object.keys(invoiceData).forEach(key => {
         if (invoiceData[key] === null || invoiceData[key] === undefined) {
@@ -1052,6 +1153,34 @@ async function handleUpdateInvoice(e) {
 
     if (invoiceData.status === 'With Accounts') {
         invoiceData.attention = '';
+    }
+
+    // --- NEW SRV NAME LOGIC ON UPDATE ---
+    const originalInvoiceData = currentPOInvoices[currentlyEditingInvoiceKey];
+    if (invoiceData.status === 'With Accounts' && (!originalInvoiceData || !originalInvoiceData.srvName)) {
+        try {
+            const poSnapshot = await db.ref(`purchase_orders/${currentPO}`).once('value');
+            const poDetails = poSnapshot.val();
+            if (poDetails) {
+                const today = new Date();
+                const yyyy = today.getFullYear();
+                const mm = String(today.getMonth() + 1).padStart(2, '0');
+                const dd = String(today.getDate()).padStart(2, '0');
+                const formattedDate = `${yyyy}${mm}${dd}`;
+
+                let vendor = poDetails['Supplier Name'] || '';
+                if (vendor.length > 21) {
+                    vendor = vendor.substring(0, 21);
+                }
+                const site = poDetails['Project ID'] || 'N/A';
+                
+                invoiceData.srvName = `${formattedDate}-${currentPO}-${site}-${vendor}`;
+                document.getElementById('im-srv-name').value = invoiceData.srvName;
+            }
+        } catch (error) {
+            console.error("Could not generate SRV Name:", error);
+            alert("Warning: Could not automatically generate the SRV Name due to an error.");
+        }
     }
 
     Object.keys(invoiceData).forEach(key => {
@@ -1201,6 +1330,7 @@ async function populateInvoiceReporting(searchTerm = '') {
 
             const totalInvValueDisplay = isUserRole ? '---' : `<strong>QAR ${formatCurrency(totalInvValue)}</strong>`;
             const totalAmountPaidDisplay = isUserRole ? '---' : `<strong>QAR ${formatCurrency(totalAmountPaid)}</strong>`;
+            const poValueDisplay = isUserRole ? '---' : (poDetails.Amount ? `QAR ${formatCurrency(poDetails.Amount)}` : 'N/A');
             const highlightClass = allInvoicesCompleted ? 'highlight-complete' : '';
 
             tableHTML += `
@@ -1209,7 +1339,7 @@ async function populateInvoiceReporting(searchTerm = '') {
                     <td>${poNumber}</td>
                     <td>${poDataForCSV.site}</td>
                     <td>${poDataForCSV.vendor}</td>
-                    <td>${poDetails.Amount ? `QAR ${formatCurrency(poDetails.Amount)}` : 'N/A'}</td>
+                    <td>${poValueDisplay}</td>
                 </tr>
             `;
 
@@ -1305,21 +1435,15 @@ async function handleDownloadCSV() {
     document.body.removeChild(link);
 }
 
-// --- NEW INVOICE DASHBOARD FUNCTION ---
+// --- INVOICE DASHBOARD FUNCTION ---
 async function populateInvoiceDashboard() {
-    // Card Elements
-    const totalPOValueEl = document.getElementById('im-total-po-value');
-    const totalInvoiceValueEl = document.getElementById('im-total-invoice-value');
-    const committedCostEl = document.getElementById('im-committed-cost');
-
-    // Donut Chart Elements
-    const donutChartEl = document.getElementById('im-donut-chart');
-    const invoicedPercentageEl = document.getElementById('im-invoiced-percentage');
-    const legendInvoicedEl = document.getElementById('im-legend-invoiced');
-    const legendRemainingEl = document.getElementById('im-legend-remaining');
-
-    // Recent Activity Table
+    const totalPOCountEl = document.getElementById('im-total-po-count');
+    const totalInvoiceCountEl = document.getElementById('im-total-invoice-count');
+    const poPendingCountEl = document.getElementById('im-po-pending-invoice-count');
     const recentInvoicesBody = document.getElementById('im-recent-invoices-body');
+    const statusGridEl = document.getElementById('im-status-grid');
+
+    const isUserRole = currentApprover && currentApprover.Role && currentApprover.Role.toLowerCase() === 'user';
 
     try {
         const [poSnapshot, invoiceSnapshot] = await Promise.all([
@@ -1329,75 +1453,57 @@ async function populateInvoiceDashboard() {
         const allPOs = poSnapshot.val() || {};
         const allInvoicesByPO = invoiceSnapshot.val() || {};
 
-        let totalPOValueFor2025 = 0;
-        let totalInvoiceValueFor2025 = 0;
-        const relevantPOs = new Set();
-        const invoices2025 = [];
+        let totalPOCount2025 = 0;
+        let totalInvoiceCount2025 = 0;
+        let poWithInvoice2025 = new Set();
         const allTimeStatusCounts = {};
+        const recentInvoices = [];
 
-        // 1. Loop through ALL invoices to gather data for both 2025 and the status chart
+        for (const poNumber in allPOs) {
+            if (poNumber.startsWith('5') || (allPOs[poNumber] && allPOs[poNumber].date && allPOs[poNumber].date.startsWith('2025'))) {
+                 totalPOCount2025++;
+            }
+        }
+        
         for (const poNumber in allInvoicesByPO) {
             const invoices = allInvoicesByPO[poNumber];
             for (const key in invoices) {
                 const inv = invoices[key];
-                
-                // --- LOGIC FOR 2025 DASHBOARD CARDS & DONUT ---
                 const is2025 = (inv.invoiceDate && inv.invoiceDate.startsWith('2025')) || (inv.releaseDate && inv.releaseDate.startsWith('2025'));
                 
                 if (is2025) {
-                    relevantPOs.add(poNumber);
-                    const invValue = parseFloat(inv.invValue) || 0;
-                    totalInvoiceValueFor2025 += invValue;
-                    
-                    const releaseDateStr = normalizeDateForInput(inv.releaseDate);
-                    invoices2025.push({
+                    totalInvoiceCount2025++;
+                    poWithInvoice2025.add(poNumber);
+
+                     const releaseDateStr = normalizeDateForInput(inv.releaseDate);
+                     recentInvoices.push({
                         po: poNumber,
                         vendor: allPOs[poNumber]?.['Supplier Name'] || 'N/A',
-                        value: invValue,
+                        value: inv.invValue,
                         status: inv.status || 'N/A',
                         releaseDate: releaseDateStr ? new Date(releaseDateStr) : null,
                         releaseDateDisplay: releaseDateStr ? new Date(releaseDateStr).toLocaleDateString('en-GB') : 'N/A'
                     });
                 }
-
-                // --- LOGIC FOR ALL-TIME STATUS BREAKDOWN ---
                 const status = inv.status || 'Pending';
-                if (status !== 'With Accounts') {
-                    allTimeStatusCounts[status] = (allTimeStatusCounts[status] || 0) + 1;
-                }
+                allTimeStatusCounts[status] = (allTimeStatusCounts[status] || 0) + 1;
             }
         }
-        
-        // 2. Sum the values of only the POs relevant to 2025
-        relevantPOs.forEach(poNumber => {
-            if (allPOs[poNumber] && allPOs[poNumber].Amount) {
-                totalPOValueFor2025 += parseFloat(allPOs[poNumber].Amount) || 0;
-            }
-        });
 
-        // --- 3. Update Cards (2025) ---
-        const remainingCommitment = totalPOValueFor2025 - totalInvoiceValueFor2025;
-        totalPOValueEl.textContent = `QAR ${formatCurrency(totalPOValueFor2025)}`;
-        totalInvoiceValueEl.textContent = `QAR ${formatCurrency(totalInvoiceValueFor2025)}`;
-        committedCostEl.textContent = `QAR ${formatCurrency(remainingCommitment)}`;
+        totalPOCountEl.textContent = totalPOCount2025;
+        totalInvoiceCountEl.textContent = totalInvoiceCount2025;
+        poPendingCountEl.textContent = totalPOCount2025 - poWithInvoice2025.size;
 
-        // --- 4. Update Donut Chart (2025 data) ---
-        const invoicedPercentage = totalPOValueFor2025 > 0 ? (totalInvoiceValueFor2025 / totalPOValueFor2025) * 100 : 0;
-        invoicedPercentageEl.textContent = `${invoicedPercentage.toFixed(0)}%`;
-        donutChartEl.style.background = `conic-gradient(#17a2b8 ${invoicedPercentage * 3.6}deg, #e9ecef 0deg)`;
-        legendInvoicedEl.textContent = `QAR ${formatCurrency(totalInvoiceValueFor2025)}`;
-        legendRemainingEl.textContent = `QAR ${formatCurrency(remainingCommitment)}`;
-        
-        // --- 5. Update Recent Activity Table (2025 data) ---
-        invoices2025.sort((a, b) => (b.releaseDate || 0) - (a.releaseDate || 0));
+        recentInvoices.sort((a, b) => (b.releaseDate || 0) - (a.releaseDate || 0));
         recentInvoicesBody.innerHTML = '';
-        if (invoices2025.length > 0) {
-            invoices2025.slice(0, 5).forEach(inv => {
+        if (recentInvoices.length > 0) {
+            recentInvoices.slice(0, 5).forEach(inv => {
                 const row = document.createElement('tr');
+                const invValueDisplay = isUserRole ? '---' : `QAR ${formatCurrency(inv.value)}`;
                 row.innerHTML = `
                     <td>${inv.po}</td>
                     <td>${inv.vendor}</td>
-                    <td>QAR ${formatCurrency(inv.value)}</td>
+                    <td>${invValueDisplay}</td>
                     <td>${inv.status}</td>
                     <td>${inv.releaseDateDisplay}</td>
                 `;
@@ -1407,43 +1513,39 @@ async function populateInvoiceDashboard() {
              recentInvoicesBody.innerHTML = '<tr><td colspan="5">No invoice activity found for 2025.</td></tr>';
         }
 
-        // --- 6. Update Bar Chart (All-Time Status Breakdown) ---
-        const statusColors = { "For SRV": "#17a2b8", "Pending": "#ffc107", "For IPC": "#fd7e14", "Under Review": "#6f42c1", "CEO Approval": "#007bff" };
+        const statusColors = { "For SRV": "#17a2b8", "Pending": "#ffc107", "For IPC": "#fd7e14", "Under Review": "#6f42c1", "CEO Approval": "#007bff", "With Accounts": "#28a745" };
         const chartLabels = Object.keys(allTimeStatusCounts).sort(); 
         const chartData = chartLabels.map(label => allTimeStatusCounts[label]);
         const chartColors = chartLabels.map(label => statusColors[label] || '#6c757d');
 
+        statusGridEl.innerHTML = '';
+        chartLabels.forEach(label => {
+            const card = document.createElement('div');
+            card.className = 'im-status-card';
+            card.style.borderColor = statusColors[label] || '#6c757d';
+            card.innerHTML = `
+                <div class="card-value">${allTimeStatusCounts[label]}</div>
+                <div class="card-label">${label}</div>
+            `;
+            statusGridEl.appendChild(card);
+        });
+
         const ctx = document.getElementById('im-bar-chart').getContext('2d');
-        if (imBarChart) {
-            imBarChart.destroy();
-        }
+        if (imBarChart) imBarChart.destroy();
+        
         imBarChart = new Chart(ctx, {
-            type: 'bar',
+            type: 'doughnut',
             data: {
                 labels: chartLabels,
                 datasets: [{
                     label: 'Invoice Count',
                     data: chartData,
                     backgroundColor: chartColors,
-                    borderColor: chartColors,
-                    borderWidth: 1
+                    borderColor: '#f8f9fa',
+                    borderWidth: 2
                 }]
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                           stepSize: 1
-                        }
-                    }
-                },
-                plugins: {
-                    legend: { display: false }
-                }
-            }
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
         });
 
     } catch (error) {
@@ -1526,6 +1628,344 @@ async function handleDownloadDailyReport() {
     }
 }
 
+// --- NEW BATCH INVOICE FUNCTIONS ---
+
+async function populateApproverSelect(selectElement) {
+    if (approverListForSelect.length === 0) {
+        try {
+            const snapshot = await db.ref('approvers').once('value');
+            const approvers = snapshot.val();
+            if (approvers) {
+                const approverOptions = Object.values(approvers)
+                    .map(approver => approver.Name ? { value: approver.Name, label: approver.Name } : null)
+                    .filter(Boolean)
+                    .sort((a, b) => a.label.localeCompare(b.label)); 
+                approverListForSelect = [
+                    { value: '', label: 'Select Attention' },
+                    { value: 'None', label: 'None (Clear)' },
+                    ...approverOptions
+                ];
+            }
+        } catch (error) {
+            console.error("Error fetching approvers for select:", error);
+        }
+    }
+    
+    selectElement.innerHTML = '';
+    approverListForSelect.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.value;
+        option.textContent = opt.label;
+        selectElement.appendChild(option);
+    });
+}
+
+async function handleAddPOToBatch() {
+    const batchPOInput = document.getElementById('im-batch-po-input');
+    const poNumber = batchPOInput.value.trim().toUpperCase();
+    if (!poNumber) return;
+
+    const batchTableBody = document.getElementById('im-batch-table-body');
+    const existingRows = batchTableBody.querySelectorAll(`tr[data-po="${poNumber}"]`);
+    if (existingRows.length > 0) {
+        alert(`PO ${poNumber} is already in the batch list.`);
+        return;
+    }
+
+    try {
+        const poSnapshot = await db.ref(`purchase_orders/${poNumber}`).once('value');
+        const poData = poSnapshot.val();
+        if (!poData) {
+            alert(`PO Number ${poNumber} not found.`);
+            return;
+        }
+
+        const invoiceSnapshot = await db.ref(`invoice_entries/${poNumber}`).once('value');
+        const invoiceCount = invoiceSnapshot.exists() ? Object.keys(invoiceSnapshot.val()).length : 0;
+        const nextInvId = `INV-${String(invoiceCount + 1).padStart(2, '0')}`;
+        
+        const site = poData['Project ID'] || 'N/A';
+        const vendor = poData['Supplier Name'] || 'N/A';
+
+        const row = document.createElement('tr');
+        row.setAttribute('data-po', poNumber);
+        row.setAttribute('data-site', site);
+        row.setAttribute('data-vendor', vendor);
+        row.setAttribute('data-next-invid', nextInvId);
+
+        row.innerHTML = `
+            <td>${poNumber}</td>
+            <td>${site}</td>
+            <td>${vendor}</td>
+            <td><input type="text" name="invNumber" class="batch-input"></td>
+            <td><input type="text" name="details" class="batch-input"></td>
+            <td><input type="date" name="invoiceDate" class="batch-input"></td>
+            <td><input type="number" name="invValue" class="batch-input" step="0.01"></td>
+            <td><input type="number" name="amountPaid" class="batch-input" step="0.01" value="0"></td>
+            <td><select name="attention" class="batch-input"></select></td>
+            <td>
+                <select name="status" class="batch-input">
+                    <option value="For SRV">For SRV</option>
+                    <option value="Pending">Pending</option>
+                    <option value="For IPC">For IPC</option>
+                    <option value="Under Review">Under Review</option>
+                    <option value="CEO Approval">CEO Approval</option>
+                    <option value="With Accounts">With Accounts</option>
+                </select>
+            </td>
+            <td><input type="text" name="note" class="batch-input"></td>
+            <td><button type="button" class="delete-btn batch-remove-btn">&times;</button></td>
+        `;
+        
+        batchTableBody.appendChild(row);
+        
+        const attentionSelect = row.querySelector('select[name="attention"]');
+        await populateApproverSelect(attentionSelect);
+
+        batchPOInput.value = '';
+        batchPOInput.focus();
+
+    } catch (error) {
+        console.error("Error adding PO to batch:", error);
+        alert('An error occurred while adding the PO.');
+    }
+}
+
+async function handleSaveBatchInvoices() {
+    const batchTableBody = document.getElementById('im-batch-table-body');
+    const rows = batchTableBody.querySelectorAll('tr');
+
+    if (rows.length === 0) {
+        alert("There are no invoices to save.");
+        return;
+    }
+
+    const confirmed = confirm(`Are you sure you want to save ${rows.length} new invoice(s)?`);
+    if (!confirmed) return;
+
+    const invoicePromises = [];
+
+    for (const row of rows) {
+        const poNumber = row.dataset.po;
+        const site = row.dataset.site;
+        let vendor = row.dataset.vendor;
+
+        const invoiceData = {
+            invEntryID: row.dataset.nextInvid,
+            invNumber: row.querySelector('[name="invNumber"]').value,
+            details: row.querySelector('[name="details"]').value,
+            invoiceDate: row.querySelector('[name="invoiceDate"]').value,
+            invValue: row.querySelector('[name="invValue"]').value,
+            amountPaid: row.querySelector('[name="amountPaid"]').value,
+            attention: row.querySelector('[name="attention"]').value,
+            status: row.querySelector('[name="status"]').value,
+            note: row.querySelector('[name="note"]').value,
+            releaseDate: getTodayDateString(), // Auto-set release date
+            dateAdded: getTodayDateString(),
+            createdAt: firebase.database.ServerValue.TIMESTAMP
+        };
+
+        if (invoiceData.attention === 'None') invoiceData.attention = '';
+        if (invoiceData.status === 'With Accounts') invoiceData.attention = '';
+        if (!invoiceData.invValue) {
+            alert(`Invoice Value is required for PO ${poNumber}.`);
+            return;
+        }
+
+        if (vendor.length > 21) {
+            vendor = vendor.substring(0, 21);
+        }
+        invoiceData.invName = `${site}-${poNumber}-${invoiceData.invEntryID}-${vendor}`;
+
+        if (invoiceData.status === 'With Accounts') {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            const formattedDate = `${yyyy}${mm}${dd}`;
+            invoiceData.srvName = `${formattedDate}-${poNumber}-${site}-${vendor}`;
+        }
+        
+        const promise = db.ref(`invoice_entries/${poNumber}`).push(invoiceData);
+        invoicePromises.push(promise);
+    }
+
+    try {
+        await Promise.all(invoicePromises);
+        alert(`${rows.length} invoice(s) saved successfully!`);
+        batchTableBody.innerHTML = '';
+    } catch (error) {
+        console.error("Error saving batch invoices:", error);
+        alert("An error occurred while saving the invoices. Please check the data and try again.");
+    }
+}
+
+// --- SUMMARY NOTE FUNCTIONS ---
+async function initializeNoteSuggestions() {
+    if (allUniqueNotes.size > 0) return; // Already initialized
+
+    try {
+        const snapshot = await db.ref('invoice_entries').once('value');
+        const allInvoices = snapshot.val();
+        if (allInvoices) {
+            for (const po in allInvoices) {
+                for (const invKey in allInvoices[po]) {
+                    const invoice = allInvoices[po][invKey];
+                    if (invoice.note) {
+                        allUniqueNotes.add(invoice.note);
+                    }
+                }
+            }
+        }
+        
+        noteSuggestionsDatalist.innerHTML = '';
+        allUniqueNotes.forEach(note => {
+            const option = document.createElement('option');
+            option.value = note;
+            noteSuggestionsDatalist.appendChild(option);
+        });
+
+    } catch (error) {
+        console.error("Error initializing note suggestions:", error);
+    }
+}
+
+async function handleGenerateSummary() {
+    const prevNote = summaryNotePreviousInput.value.trim();
+    const currentNote = summaryNoteCurrentInput.value.trim();
+
+    if (!currentNote) {
+        alert("Please enter a note for the 'Current Note' search.");
+        return;
+    }
+
+    summaryNoteGenerateBtn.textContent = 'Generating...';
+    summaryNoteGenerateBtn.disabled = true;
+
+    try {
+        const [invoiceSnapshot, poSnapshot] = await Promise.all([
+            db.ref('invoice_entries').once('value'),
+            db.ref('purchase_orders').once('value')
+        ]);
+        const allInvoicesByPO = invoiceSnapshot.val() || {};
+        const allPOs = poSnapshot.val() || {};
+        
+        let previousPaymentTotal = 0;
+        let currentPaymentTotal = 0;
+        let allCurrentInvoices = [];
+        
+        for (const poNumber in allInvoicesByPO) {
+            const invoices = allInvoicesByPO[poNumber];
+            for (const key in invoices) {
+                const inv = invoices[key];
+                if (inv.note) {
+                    if (prevNote && inv.note === prevNote) {
+                        previousPaymentTotal += parseFloat(inv.invValue) || 0;
+                    }
+                    if (inv.note === currentNote) {
+                        const site = (allPOs[poNumber] && allPOs[poNumber]['Project ID']) ? allPOs[poNumber]['Project ID'] : 'N/A';
+                        currentPaymentTotal += parseFloat(inv.invValue) || 0;
+                        allCurrentInvoices.push({ po: poNumber, key: key, site: site, ...inv });
+                    }
+                }
+            }
+        }
+        
+        if (allCurrentInvoices.length === 0) {
+            alert(`No invoices found with the note: "${currentNote}"`);
+            summaryNotePrintArea.classList.add('hidden');
+            return;
+        }
+
+        // Sort by Billing Site
+        allCurrentInvoices.sort((a, b) => (a.site || '').localeCompare(b.site || ''));
+
+        const firstPO = allCurrentInvoices[0].po;
+        const vendorData = allPOs[firstPO];
+        snVendorName.textContent = vendorData ? vendorData['Supplier Name'] : 'N/A';
+        
+        const today = new Date();
+        const options = { year: 'numeric', month: 'long', day: 'numeric' };
+        snDate.textContent = `Date: ${today.toLocaleDateString('en-GB', options).replace(/ /g, '-')}`;
+
+        snPreviousPayment.textContent = `${formatCurrency(previousPaymentTotal)} Qatari Riyals`;
+        snCurrentPayment.textContent = `${formatCurrency(currentPaymentTotal)} Qatari Riyals`;
+
+        snTableBody.innerHTML = '';
+        
+        for (const inv of allCurrentInvoices) {
+            const row = document.createElement('tr');
+            row.setAttribute('data-po', inv.po);
+            row.setAttribute('data-key', inv.key);
+            row.innerHTML = `
+                <td>${inv.invEntryID || '1st'}</td>
+                <td>${inv.po}</td>
+                <td>${inv.site}</td>
+                <td><input type="text" class="summary-edit-input" name="details" value="${inv.details || ''}"></td>
+                <td><input type="date" class="summary-edit-input" name="invoiceDate" value="${normalizeDateForInput(inv.invoiceDate) || ''}"></td>
+                <td>${formatCurrency(inv.invValue)}</td>
+            `;
+            snTableBody.appendChild(row);
+        }
+
+        snTotalNumeric.textContent = formatCurrency(currentPaymentTotal);
+        snTotalInWords.textContent = numberToWords(currentPaymentTotal);
+
+        summaryNotePrintArea.classList.remove('hidden');
+        
+    } catch (error) {
+        console.error("Error generating summary:", error);
+        alert("An error occurred. Please check the notes and try again.");
+    } finally {
+        summaryNoteGenerateBtn.textContent = 'Generate Summary';
+        summaryNoteGenerateBtn.disabled = false;
+    }
+}
+
+async function handleUpdateSummaryChanges() {
+    const rows = snTableBody.querySelectorAll('tr');
+    if (rows.length === 0) {
+        alert("No data to update.");
+        return;
+    }
+
+    const confirmed = confirm("Are you sure you want to save the changes to Bill Description and Bill Date for all visible entries?");
+    if (!confirmed) return;
+    
+    summaryNoteUpdateBtn.textContent = "Updating...";
+    summaryNoteUpdateBtn.disabled = true;
+
+    const updatePromises = [];
+    try {
+        rows.forEach(row => {
+            const poNumber = row.dataset.po;
+            const invoiceKey = row.dataset.key;
+            
+            const newDetails = row.querySelector('input[name="details"]').value;
+            const newInvoiceDate = row.querySelector('input[name="invoiceDate"]').value;
+
+            if (poNumber && invoiceKey) {
+                const updates = {
+                    details: newDetails,
+                    invoiceDate: newInvoiceDate
+                };
+                const promise = db.ref(`invoice_entries/${poNumber}/${invoiceKey}`).update(updates);
+                updatePromises.push(promise);
+            }
+        });
+
+        await Promise.all(updatePromises);
+        alert("Changes saved successfully!");
+
+    } catch (error) {
+        console.error("Error updating summary changes:", error);
+        alert("An error occurred while saving the changes.");
+    } finally {
+        summaryNoteUpdateBtn.textContent = "Update Changes";
+        summaryNoteUpdateBtn.disabled = false;
+    }
+}
+
 // --- EVENT LISTENERS ---
 document.addEventListener('DOMContentLoaded', () => {
     showView('login');
@@ -1587,13 +2027,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const row = e.target.closest('tr');
         if (!row) return;
         
-        // Handle respond button click separately
         if (e.target.classList.contains('respond-btn')) {
             handleRespondClick(e);
             return; 
         }
 
-        // Handle entire row click for PDF
         const key = row.dataset.key;
         if (!key) return;
         
@@ -1642,7 +2080,6 @@ document.addEventListener('DOMContentLoaded', () => {
         imUsername.textContent = currentApprover.Name || 'User';
         imUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile;
 
-        // Destroy and re-initialize the Choices instance to fix the bug
         if (imAttentionSelectChoices) {
             imAttentionSelectChoices.destroy();
         }
@@ -1652,14 +2089,18 @@ document.addEventListener('DOMContentLoaded', () => {
         populateAttentionDropdown(imAttentionSelectChoices);
 
         const invoiceEntryLink = imNav.querySelector('a[data-section="im-invoice-entry"]');
+        const batchEntryLink = document.getElementById('batch-entry-nav-link');
         const isAccounting = currentApprover.Position && currentApprover.Position.toLowerCase() === 'accounting';
         const isAdmin = currentApprover.Role && currentApprover.Role.toLowerCase() === 'admin';
 
-        if (isAccounting && isAdmin) {
+        if (isAccounting || isAdmin) {
             invoiceEntryLink.classList.remove('disabled');
+            if(batchEntryLink) batchEntryLink.classList.remove('disabled');
         } else {
             invoiceEntryLink.classList.add('disabled');
+            if(batchEntryLink) batchEntryLink.classList.add('disabled');
         }
+
         updateIMDateTime();
         if (imDateTimeInterval) clearInterval(imDateTimeInterval);
         imDateTimeInterval = setInterval(updateIMDateTime, 1000);
@@ -1752,7 +2193,6 @@ document.addEventListener('DOMContentLoaded', () => {
     imReportingDownloadCSVButton.addEventListener('click', handleDownloadCSV);
     imDownloadDailyReportButton.addEventListener('click', handleDownloadDailyReport);
     
-    // ++ NEW: Listeners for Invoice Entry Form automation ++
     imStatusSelect.addEventListener('change', (e) => {
         if (e.target.value === 'CEO Approval') {
             if (imAttentionSelectChoices) {
@@ -1765,7 +2205,6 @@ document.addEventListener('DOMContentLoaded', () => {
         imAmountPaidInput.value = e.target.value;
     });
 
-    // +++ SETTINGS PAGE LISTENERS +++
     settingsForm.addEventListener('submit', handleUpdateSettings);
 
     settingsVacationCheckbox.addEventListener('change', () => {
@@ -1776,4 +2215,38 @@ document.addEventListener('DOMContentLoaded', () => {
             settingsReturnDateInput.value = ''; // Clear date when unchecked
         }
     });
+
+    // +++ BATCH INVOICE LISTENERS +++
+    const batchAddBtn = document.getElementById('im-batch-add-po-button');
+    const batchSaveBtn = document.getElementById('im-batch-save-button');
+    const batchTableBody = document.getElementById('im-batch-table-body');
+    const batchPOInput = document.getElementById('im-batch-po-input');
+
+    if (batchAddBtn) batchAddBtn.addEventListener('click', handleAddPOToBatch);
+    if (batchSaveBtn) batchSaveBtn.addEventListener('click', handleSaveBatchInvoices);
+    if (batchPOInput) batchPOInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); handleAddPOToBatch(); }
+    });
+    if (batchTableBody) {
+        batchTableBody.addEventListener('click', (e) => {
+            if (e.target.classList.contains('batch-remove-btn')) {
+                e.target.closest('tr').remove();
+            }
+        });
+        batchTableBody.addEventListener('input', (e) => {
+            if (e.target.getAttribute('name') === 'invValue') {
+                const row = e.target.closest('tr');
+                if (row) {
+                    const amountPaidInput = row.querySelector('[name="amountPaid"]');
+                    if (amountPaidInput) amountPaidInput.value = e.target.value;
+                }
+            }
+        });
+    }
+
+    // +++ SUMMARY NOTE LISTENERS +++
+    if(summaryNoteGenerateBtn) summaryNoteGenerateBtn.addEventListener('click', handleGenerateSummary);
+    if(summaryNoteUpdateBtn) summaryNoteUpdateBtn.addEventListener('click', handleUpdateSummaryChanges);
+    if(summaryNotePrintBtn) summaryNotePrintBtn.addEventListener('click', () => window.print());
+
 });

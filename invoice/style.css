@@ -471,70 +471,6 @@ tbody tr:hover { background-color: #f1f1f1; }
     font-size: 1.1rem;
     border-bottom: 0;
 }
-.im-donut-chart-container {
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin: 20px auto;
-}
-.im-donut-chart {
-    width: 180px;
-    height: 180px;
-    border-radius: 50%;
-    background: conic-gradient(#17a2b8 0deg, #e9ecef 0deg);
-    transition: background 0.5s;
-}
-.donut-center {
-    position: absolute;
-    width: 140px;
-    height: 140px;
-    background: #f8f9fa;
-    border-radius: 50%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-}
-.donut-percentage {
-    font-size: 2rem;
-    font-weight: bold;
-    color: #333;
-}
-.donut-label {
-    font-size: 0.9rem;
-    color: #6c757d;
-}
-.im-chart-legend {
-    margin-top: 25px;
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-.im-chart-legend .legend-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-.im-chart-legend .legend-color {
-    width: 18px;
-    height: 18px;
-    border-radius: 4px;
-    flex-shrink: 0;
-}
-.im-chart-legend .legend-details {
-    display: flex;
-    flex-direction: column;
-}
-.im-chart-legend .legend-label {
-    font-size: 0.85rem;
-    color: #555;
-}
-.im-chart-legend .legend-value {
-    font-size: 1rem;
-    font-weight: 600;
-    color: #333;
-}
 .im-bar-chart-container {
     width: 100%;
     height: 300px;
@@ -542,14 +478,15 @@ tbody tr:hover { background-color: #f1f1f1; }
 .im-status-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 20px;
+    gap: 15px;
 }
 .im-status-card {
-    background-color: #f8f9fa;
+    background-color: #fff;
     border-radius: 8px;
     padding: 15px;
     text-align: center;
     border-left: 4px solid;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
 .im-status-card .card-value {
     font-size: 1.8rem;
@@ -561,18 +498,176 @@ tbody tr:hover { background-color: #f1f1f1; }
 }
 
 
+/* --- BATCH INVOICE ENTRY TABLE STYLES --- */
+#im-batch-entry-table {
+    table-layout: auto; /* Allow table to adjust */
+}
+#im-batch-entry-table .batch-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px;
+    font-size: 14px;
+    margin-bottom: 0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    min-width: 120px; /* Ensure inputs are not too small */
+}
+#im-batch-entry-table .batch-remove-btn {
+    padding: 4px 8px;
+    font-size: 1.2rem;
+    line-height: 1;
+}
+
+/* --- SUMMARY NOTE PRINT STYLES --- */
+#summary-note-controls {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+#summary-note-controls .form-group {
+    flex: 1;
+    min-width: 250px;
+}
+#summary-note-controls label {
+    font-size: 0.9rem;
+}
+#summary-note-controls input {
+    margin-bottom: 0;
+}
+
+#summary-note-printable-area {
+    border: 1px solid #ccc;
+    padding: 20px;
+    max-width: 800px;
+    margin: 20px auto;
+    background-color: #fff;
+}
+.sn-header, .sn-payment-details {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 10px 0;
+    font-size: 1rem;
+}
+.sn-header {
+    border-bottom: 2px solid #000;
+}
+.sn-vendor-info p {
+    margin: 0;
+}
+.sn-payment-details {
+    border-bottom: 2px solid #000;
+    font-weight: bold;
+}
+.sn-payment-details div {
+    flex: 1;
+    border-left: 1px solid #000;
+    padding-left: 10px;
+}
+.sn-payment-details div:first-child {
+    border-left: none;
+    padding-left: 0;
+}
+.sn-table {
+    width: 100%;
+    margin-top: 15px;
+    border-collapse: collapse;
+}
+.sn-table th, .sn-table td {
+    border: 1px solid #000;
+    padding: 8px;
+    text-align: left;
+}
+.sn-table th {
+    font-weight: bold;
+}
+.sn-table input {
+    width: 100%;
+    border: 1px solid #ddd;
+    padding: 6px;
+    border-radius: 3px;
+    font-family: inherit;
+    font-size: inherit;
+}
+.sn-footer {
+    border-top: 2px solid #000;
+    padding: 10px 0;
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+}
+.sn-signatures {
+    margin-top: 60px;
+    display: flex;
+    justify-content: space-between;
+}
+.sn-signatures div {
+    flex: 1;
+    text-align: center;
+    border-top: 1px solid #000;
+    padding-top: 10px;
+    margin: 0 20px;
+}
+
 /* PRINT STYLES */
 @media print {
-    body { background-color: #fff; }
-    #workdesk-view, #invoice-management-view, .workdesk-main, #workdesk-content-area, #im-content-area, #wd-reporting, #reporting-printable-area { display: block !important; overflow: visible !important; height: auto !important; width: 100% !important; position: static !important; }
-    .workdesk-sidebar, .dashboard-header, .report-controls, .search-bar-local, #workdesk-datetime, #im-datetime, .workdesk-navigation, .workdesk-footer-nav, #logout-button, .report-header { display: none !important; }
-    #app-container, #wd-dashboard, #wd-jobentry, #wd-activetask, #wd-taskhistory, #wd-settings { display: none !important; }
-    .workdesk-main, .workdesk-section { padding: 0; box-shadow: none; border: none; }
-    table { width: 100%; font-size: 10pt; }
-    th, td { border: 1px solid #ccc; padding: 8px; }
-    thead { display: table-header-group; }
-    tbody tr { page-break-inside: avoid; }
+    @page {
+        size: auto;
+        margin: 20mm;
+    }
+    body {
+        background: white !important;
+    }
+    
+    /* Use visibility to hide everything except the printable area */
+    body * {
+        visibility: hidden;
+    }
+    #summary-note-printable-area, #summary-note-printable-area * {
+        visibility: visible;
+    }
+    #reporting-printable-area, #reporting-printable-area * {
+        visibility: visible;
+    }
+
+    /* Position the printable area to take over the page */
+    #summary-note-printable-area, #reporting-printable-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        border: none;
+    }
+    
+    /* Make inputs look like text and hide calendar icon */
+    .sn-table input {
+        border: none !important;
+        background-color: transparent !important;
+    }
+    .sn-table input[type="date"]::-webkit-calendar-picker-indicator {
+        display: none !important;
+    }
+
+    /* General table styles for printing */
+    table {
+        width: 100%;
+        font-size: 10pt;
+    }
+    thead {
+        display: table-header-group; /* Ensures header repeats on each page */
+    }
+    tbody tr {
+        page-break-inside: avoid; /* Prevents rows from splitting across pages */
+    }
 }
+
 
 /* MOBILE RESPONSIVE STYLES */
 @media (max-width: 768px) {
