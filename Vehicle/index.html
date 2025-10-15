@@ -13,270 +13,276 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="mobile-header">
-        <button class="menu-toggle" aria-label="Menu">
-            <i class="fas fa-bars"></i>
-        </button>
-        <div class="header-time" id="currentDate"></div>
+
+    <div id="login-overlay">
+        <div class="login-card">
+            <h2><i class="fas fa-lock"></i> Secure Access</h2>
+            <p>Please enter your phone number to receive a verification code.</p>
+            <div class="login-form">
+                <div class="input-group">
+                    <i class="fas fa-phone"></i>
+                    <input type="tel" id="phoneNumberInput" placeholder="e.g., +97412345678">
+                </div>
+                <button id="sendPinBtn" class="login-btn">Send Code</button>
+                
+                <div class="input-group hidden" id="pinEntry">
+                    <i class="fas fa-key"></i>
+                    <input type="number" id="pinInput" placeholder="6-Digit Code">
+                </div>
+                <button id="verifyPinBtn" class="login-btn hidden">Sign In & View Dashboard</button>
+                <div id="loginStatus" class="login-status"></div>
+            </div>
+            <div id="recaptcha-container"></div>
+        </div>
     </div>
 
-    <nav class="sidebar">
-        <div class="sidebar-header">
-            <h2>Menu</h2>
-            <button class="close-menu" aria-label="Close menu">
-                <i class="fas fa-times"></i>
+    <div id="app-container" class="hidden">
+        <div class="mobile-header">
+            <button class="menu-toggle" aria-label="Menu">
+                <i class="fas fa-bars"></i>
             </button>
+            <div class="header-time" id="currentDate"></div>
         </div>
-        <ul>
-            <li>
-                <button id="dashboardBtn" class="report-btn active">
-                    <i class="fas fa-chart-pie"></i> Dashboard
-                </button>
-            </li>
-            <li>
-                <button id="singleReportBtn" class="report-btn">
-                    <i class="fas fa-file-alt"></i> Single Vehicle
-                </button>
-            </li>
-            <li>
-                <button id="fullReportBtn" class="report-btn">
-                    <i class="fas fa-book"></i> Full Report
-                </button>
-            </li>
-            <li>
-                <button id="adminBtn" class="report-btn">
-                    <i class="fas fa-cloud-upload-alt"></i> Admin Upload
-                </button>
-            </li>
-            <li>
-                <button id="mainHubBtn" class="report-btn" onclick="window.open('https://ibaport.site','_blank')">
-                    <i class="fas fa-home"></i> Main HUB
-                </button>
-            </li>
-        </ul>
-    </nav>
 
-    <div class="overlay"></div>
-
-    <main class="container">
-        <section id="dashboard" class="report-section active">
-            <div class="dashboard-header">
-                <h2><i class="fas fa-tachometer-alt"></i> Vehicle Transaction Dashboard</h2>
-                <div class="dashboard-controls">
-                    <select id="dashboardYearFilter">
-                        <option value="all">All Years</option>
-                        <option value="2025" selected>2025</option>
-                        <option value="2024">2024</option>
-                        <option value="2023">2023</option>
-                        <option value="2022">2022</option>
-                        <option value="2021">2021</option>
-                        <option value="2020">2020</option>
-                    </select>
-                    <button id="refreshDashboard" class="refresh-btn">
-                        <i class="fas fa-sync-alt"></i> Refresh
-                    </button>
-                </div>
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2>Menu</h2>
+                <button class="close-menu" aria-label="Close menu">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
+            <ul>
+                <li><button id="dashboardBtn" class="report-btn active"><i class="fas fa-chart-pie"></i> Dashboard</button></li>
+                <li><button id="singleReportBtn" class="report-btn"><i class="fas fa-file-alt"></i> Single Vehicle</button></li>
+                <li><button id="fullReportBtn" class="report-btn"><i class="fas fa-book"></i> Full Report</button></li>
+                <li><button id="adminBtn" class="report-btn"><i class="fas fa-cloud-upload-alt"></i> Admin Upload</button></li>
+                <li><button id="mainHubBtn" class="report-btn" onclick="window.open('https://ibaport.site','_blank')"><i class="fas fa-home"></i> Main HUB</button></li>
+            </ul>
+        </nav>
 
-            <div class="dashboard-grid">
-                <div class="dashboard-card total-vehicles" data-animate>
-                    <div class="card-content">
-                        <div class="card-icon">
-                            <i class="fas fa-car"></i>
+        <div class="overlay"></div>
+
+        <main class="container">
+            <section id="dashboard" class="report-section active">
+                <div class="dashboard-header">
+                    <h2><i class="fas fa-tachometer-alt"></i> Vehicle Transaction Dashboard</h2>
+                    <div class="dashboard-controls">
+                        <select id="dashboardYearFilter">
+                            <option value="all">All Years</option>
+                            <option value="2025" selected>2025</option>
+                            <option value="2024">2024</option>
+                            <option value="2023">2023</option>
+                            <option value="2022">2022</option>
+                            <option value="2021">2021</option>
+                            <option value="2020">2020</option>
+                        </select>
+                        <button id="refreshDashboard" class="refresh-btn">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+    
+                <div class="dashboard-grid">
+                    <div class="dashboard-card total-vehicles" data-animate>
+                        <div class="card-content">
+                            <div class="card-icon">
+                                <i class="fas fa-car"></i>
+                            </div>
+                            <div class="card-text">
+                                <h3>Total Vehicles</h3>
+                                <p id="dashboardTotalVehicles">0</p>
+                            </div>
                         </div>
-                        <div class="card-text">
-                            <h3>Total Vehicles</h3>
-                            <p id="dashboardTotalVehicles">0</p>
+                    </div>
+    
+                    <div class="dashboard-card yearly-spending" data-animate>
+                        <div class="card-content">
+                            <div class="card-icon">
+                                <i class="fas fa-money-bill-wave"></i>
+                            </div>
+                            <div class="card-text">
+                                <h3>Total Spending (All Years)</h3>
+                                <p id="dashboardYearlySpending">0.00</p>
+                            </div>
+                        </div>
+                    </div>
+    
+                    <div class="dashboard-card current-year" data-animate>
+                        <div class="card-content">
+                            <div class="card-icon">
+                                <i class="fas fa-calendar-alt"></i>
+                            </div>
+                            <div class="card-text">
+                                <h3 id="yearCardTitle">Selected Year (2025)</h3>
+                                <p id="dashboardCurrentYear">0.00</p>
+                            </div>
+                        </div>
+                    </div>
+    
+                    <div class="dashboard-card highest-spender" data-animate>
+                        <div class="card-content">
+                            <div class="card-icon">
+                                <i class="fas fa-trophy"></i>
+                            </div>
+                            <div class="card-text">
+                                <h3>Top Spender</h3>
+                                <p id="dashboardHighestSpender">N/A</p>
+                            </div>
+                            <div class="fireworks" aria-hidden="true"><span class="burst b1"></span><span class="burst b2"></span><span class="burst b3"></span><span class="burst b4"></span><span class="burst b5"></span><span class="burst b6"></span></div>
+                            <div class="road-stripe" aria-hidden="true"></div>
+                            <div class="exhaust" aria-hidden="true"></div>
+                            <div class="top-spender-car">
+                                <i class="fas fa-car"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="dashboard-chart" data-animate>
+                        <div class="chart-header">
+                            <h3><i class="fas fa-chart-bar"></i> Yearly Spending Breakdown</h3>
+                            <div class="chart-actions">
+                                <button class="chart-action-btn" id="toggleChartType">
+                                    <i class="fas fa-exchange-alt"></i> Switch
+                                </button>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <div class="chart-wrapper">
+                                <canvas id="yearlySpendingChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+    
+                    <div class="dashboard-table" data-animate>
+                        <div class="table-header">
+                            <h3><i class="fas fa-table"></i> Top 10 Vehicles</h3>
+                            <div class="table-search">
+                                <input type="text" id="dashboardSearch" placeholder="Search vehicle...">
+                                <button id="dashboardClearSearch"><i class="fas fa-times"></i></button>
+                            </div>
+                        </div>
+                        <div class="table-container">
+                            <table id="dashboardVehiclesTable">
+                                <thead>
+                                    <tr>
+                                        <th>Plate No.</th>
+                                        <th>Type</th>
+                                        <th>Fleet No.</th>
+                                        <th>Total Amount</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dashboardVehiclesTableBody"></tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
-
-                <div class="dashboard-card yearly-spending" data-animate>
-                    <div class="card-content">
-                        <div class="card-icon">
-                            <i class="fas fa-money-bill-wave"></i>
-                        </div>
-                        <div class="card-text">
-                            <h3>Total Spending (All Years)</h3>
-                            <p id="dashboardYearlySpending">0.00</p>
-                        </div>
-                    </div>
+            </section>
+    
+            <section id="singleReport" class="report-section">
+                <div id="loadingIndicator" class="loading-indicator">
+                    <div class="spinner"></div>
+                    <p>Loading vehicle data...</p>
                 </div>
-
-                <div class="dashboard-card current-year" data-animate>
-                    <div class="card-content">
-                        <div class="card-icon">
-                            <i class="fas fa-calendar-alt"></i>
-                        </div>
-                        <div class="card-text">
-                            <h3 id="yearCardTitle">Selected Year (2025)</h3>
-                            <p id="dashboardCurrentYear">0.00</p>
-                        </div>
+                
+                <div class="filters" style="display: none;">
+                    <div class="search-box">
+                        <input type="text" id="vehicleNumber" placeholder="Enter vehicle number" list="vehicleNumbers">
+                        <button id="searchBtn"><i class="fas fa-search"></i> Search</button>
                     </div>
-                </div>
-
-                <div class="dashboard-card highest-spender" data-animate>
-                    <div class="card-content">
-                        <div class="card-icon">
-                            <i class="fas fa-trophy"></i>
-                        </div>
-                        <div class="card-text">
-                            <h3>Top Spender</h3>
-                            <p id="dashboardHighestSpender">N/A</p>
-                        </div>
-                        <div class="fireworks" aria-hidden="true"><span class="burst b1"></span><span class="burst b2"></span><span class="burst b3"></span><span class="burst b4"></span><span class="burst b5"></span><span class="burst b6"></span></div>
-                        <div class="road-stripe" aria-hidden="true"></div>
-                        <div class="exhaust" aria-hidden="true"></div>
-                        <div class="top-spender-car">
-                            <i class="fas fa-car"></i>
-                        </div>
+                    
+                    <div class="filter-controls">
+                        <select id="yearFilter">
+                            <option value="">All Years</option>
+                        </select>
+                        <input type="text" id="descriptionFilter" placeholder="Filter description">
+                        <button id="clearBtn"><i class="fas fa-times"></i> Clear</button>
+                        <button id="printBtn" class="print-btn"><i class="fas fa-print"></i> Print</button>
                     </div>
                 </div>
                 
-                <div class="dashboard-chart" data-animate>
-                    <div class="chart-header">
-                        <h3><i class="fas fa-chart-bar"></i> Yearly Spending Breakdown</h3>
-                        <div class="chart-actions">
-                            <button class="chart-action-btn" id="toggleChartType">
-                                <i class="fas fa-exchange-alt"></i> Switch
-                            </button>
+                <div class="results" style="display: none;">
+                    <div class="summary">
+                        <h2>Summary</h2>
+                        <div class="summary-grid">
+                            <div class="summary-item"><span>Transactions</span><span id="totalTransactions">0</span></div>
+                            <div class="summary-item"><span>Total Amount</span><span id="totalAmount">0.00</span></div>
+                            <div class="summary-item"><span>Opening Value</span><span id="openingValue">0.00</span></div>
+                            <div class="summary-item"><span>Closing Value</span><span id="closingValue">0.00</span></div>
                         </div>
                     </div>
-                    <div class="chart-container">
-                        <div class="chart-wrapper">
-                            <canvas id="yearlySpendingChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="dashboard-table" data-animate>
-                    <div class="table-header">
-                        <h3><i class="fas fa-table"></i> Top 10 Vehicles</h3>
-                        <div class="table-search">
-                            <input type="text" id="dashboardSearch" placeholder="Search vehicle...">
-                            <button id="dashboardClearSearch"><i class="fas fa-times"></i></button>
-                        </div>
-                    </div>
+                    
                     <div class="table-container">
-                        <table id="dashboardVehiclesTable">
+                        <table id="resultsTable">
                             <thead>
-                                <tr>
-                                    <th>Plate No.</th>
-                                    <th>Type</th>
-                                    <th>Fleet No.</th>
-                                    <th>Total Amount</th>
-                                    <th>Actions</th>
-                                </tr>
+                                <tr><th>Year</th><th>PO #</th><th>Site</th><th>Description</th><th>Amount</th></tr>
                             </thead>
-                            <tbody id="dashboardVehiclesTableBody"></tbody>
+                            <tbody></tbody>
+                            <tfoot></tfoot>
                         </table>
                     </div>
                 </div>
-            </div>
-        </section>
-
-        <section id="singleReport" class="report-section">
-            <div id="loadingIndicator" class="loading-indicator">
-                <div class="spinner"></div>
-                <p>Loading vehicle data...</p>
-            </div>
-            
-            <div class="filters" style="display: none;">
-                <div class="search-box">
-                    <input type="text" id="vehicleNumber" placeholder="Enter vehicle number" list="vehicleNumbers">
-                    <button id="searchBtn"><i class="fas fa-search"></i> Search</button>
+            </section>
+    
+            <section id="fullReport" class="report-section">
+                <div class="full-report-controls">
+                    <button id="printFullReportBtn" class="print-btn"><i class="fas fa-print"></i> Print Full Report</button>
                 </div>
-                
-                <div class="filter-controls">
-                    <select id="yearFilter">
-                        <option value="">All Years</option>
-                    </select>
-                    <input type="text" id="descriptionFilter" placeholder="Filter description">
-                    <button id="clearBtn"><i class="fas fa-times"></i> Clear</button>
-                    <button id="printBtn" class="print-btn"><i class="fas fa-print"></i> Print</button>
+                <div id="fullReportPreview"></div>
+            </section>
+    
+            <section id="adminSection" class="report-section">
+                <div class="dashboard-header">
+                    <h2><i class="fas fa-cloud-upload-alt"></i> Admin Panel</h2>
                 </div>
-            </div>
-            
-            <div class="results" style="display: none;">
-                <div class="summary">
-                    <h2>Summary</h2>
-                    <div class="summary-grid">
-                        <div class="summary-item"><span>Transactions</span><span id="totalTransactions">0</span></div>
-                        <div class="summary-item"><span>Total Amount</span><span id="totalAmount">0.00</span></div>
-                        <div class="summary-item"><span>Opening Value</span><span id="openingValue">0.00</span></div>
-                        <div class="summary-item"><span>Closing Value</span><span id="closingValue">0.00</span></div>
+                <div class="auth-card">
+                    <div id="authStatus" class="auth-status">Not signed in</div>
+                    <div class="auth-actions">
+                        <input id="authEmail" type="email" placeholder="Email (Admin)">
+                        <input id="authPass" type="password" placeholder="Password">
+                        <button id="emailSignInBtn" class="refresh-btn"><i class="fas fa-sign-in-alt"></i> Sign in</button>
+                        <button id="signOutBtn" class="refresh-btn" style="background:#e74c3c"><i class="fas fa-sign-out-alt"></i> Sign out</button>
                     </div>
                 </div>
-                
-                <div class="table-container">
-                    <table id="resultsTable">
-                        <thead>
-                            <tr><th>Year</th><th>PO #</th><th>Site</th><th>Description</th><th>Amount</th></tr>
-                        </thead>
-                        <tbody></tbody>
-                        <tfoot></tfoot>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <section id="fullReport" class="report-section">
-            <div class="full-report-controls">
-                <button id="printFullReportBtn" class="print-btn"><i class="fas fa-print"></i> Print Full Report</button>
-            </div>
-            <div id="fullReportPreview"></div>
-        </section>
-
-        <section id="adminSection" class="report-section">
-            <div class="dashboard-header">
-                <h2><i class="fas fa-cloud-upload-alt"></i> Admin Panel</h2>
-            </div>
-            <div class="auth-card">
-                <div id="authStatus" class="auth-status">Not signed in</div>
-                <div class="auth-actions">
-                    <input id="authEmail" type="email" placeholder="Email">
-                    <input id="authPass" type="password" placeholder="Password">
-                    <button id="signInBtn" class="refresh-btn"><i class="fas fa-sign-in-alt"></i> Sign in</button>
-                    <button id="signOutBtn" class="refresh-btn" style="background:#e74c3c"><i class="fas fa-sign-out-alt"></i> Sign out</button>
-                </div>
-            </div>
-            <div class="dashboard-grid">
-                <div class="dashboard-card">
-                    <div class="card-content">
-                        <div class="card-icon"><i class="fas fa-file-csv"></i></div>
-                        <div class="card-text">
-                            <h3>Update Registered Vehicles</h3>
-                            <p>Upload new `Book8.csv` file.</p>
+                <div class="dashboard-grid">
+                    <div class="dashboard-card">
+                        <div class="card-content">
+                            <div class="card-icon"><i class="fas fa-file-csv"></i></div>
+                            <div class="card-text">
+                                <h3>Update Registered Vehicles</h3>
+                                <p>Upload new `Book8.csv` file.</p>
+                            </div>
+                        </div>
+                        <div style="margin-top:12px">
+                            <input type="file" id="book8AdminInput" accept=".csv">
+                            <button class="refresh-btn" id="uploadBook8Btn" style="margin-top:8px"><i class="fas fa-upload"></i> Upload CSV</button>
+                            <button class="refresh-btn" id="dlBook8TemplateBtn" style="margin-top:8px"><i class="fas fa-download"></i> Download Template</button>
+                            <div id="book8AdminStatus" style="margin-top:8px;font-size:.9rem;color:#333"></div>
                         </div>
                     </div>
-                    <div style="margin-top:12px">
-                        <input type="file" id="book8AdminInput" accept=".csv">
-                        <button class="refresh-btn" id="uploadBook8Btn" style="margin-top:8px"><i class="fas fa-upload"></i> Upload CSV</button>
-                        <button class="refresh-btn" id="dlBook8TemplateBtn" style="margin-top:8px"><i class="fas fa-download"></i> Download Template</button>
-                        <div id="book8AdminStatus" style="margin-top:8px;font-size:.9rem;color:#333"></div>
-                    </div>
                 </div>
-            </div>
-        </section>
-    
-        <footer>
-            <p>IBA Trading & Transportation WLL</p>
-            <p>System Generated Report - <span id="footerDate"></span></p>
-        </footer>
-    </main>
+            </section>
+        
+            <footer>
+                <p>IBA Trading & Transportation WLL</p>
+                <p>System Generated Report - <span id="footerDate"></span></p>
+            </footer>
+        </main>
 
-    <datalist id="vehicleNumbers"></datalist>
+        <datalist id="vehicleNumbers"></datalist>
 
-    <nav class="bottom-nav" role="navigation" aria-label="Primary">
-        <button class="nav-item active" id="bnDashboard" aria-label="Dashboard"><i class="fas fa-chart-pie"></i><span>Dashboard</span></button>
-        <button class="nav-item" id="bnSingle" aria-label="Single"><i class="fas fa-file-alt"></i><span>Single</span></button>
-        <button class="nav-item" id="bnFull" aria-label="Full"><i class="fas fa-book"></i><span>Full</span></button>
-        <button class="nav-item" id="bnAdmin" aria-label="Admin"><i class="fas fa-user-cog"></i><span>Admin</span></button>
-    </nav>
+        <nav class="bottom-nav" role="navigation" aria-label="Primary">
+            <button class="nav-item active" id="bnDashboard" aria-label="Dashboard"><i class="fas fa-chart-pie"></i><span>Dashboard</span></button>
+            <button class="nav-item" id="bnSingle" aria-label="Single"><i class="fas fa-file-alt"></i><span>Single</span></button>
+            <button class="nav-item" id="bnFull" aria-label="Full"><i class="fas fa-book"></i><span>Full</span></button>
+            <button class="nav-item" id="bnAdmin" aria-label="Admin"><i class="fas fa-user-cog"></i><span>Admin</span></button>
+        </nav>
+    </div>
     
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-check-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js" defer></script>
     <script src="app.js" defer></script>
