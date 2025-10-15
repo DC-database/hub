@@ -1216,7 +1216,6 @@ async function handleDeleteInvoice(key) {
     }
 }
 async function populateInvoiceReporting(searchTerm = '') {
-    const isUserRole = currentApprover && currentApprover.Role && currentApprover.Role.toLowerCase() === 'user';
     const isAdmin = currentApprover && currentApprover.Role && currentApprover.Role.toLowerCase() === 'admin';
     currentReportData = [];
     imReportingContent.innerHTML = '<p>Searching... Please wait.</p>';
@@ -1299,8 +1298,8 @@ async function populateInvoiceReporting(searchTerm = '') {
                 const normalizedInvoiceDate = normalizeDateForInput(inv.invoiceDate);
                 const invoiceDateDisplay = normalizedInvoiceDate ? new Date(normalizedInvoiceDate + 'T00:00:00').toLocaleDateString('en-GB') : '';
 
-                const invValueDisplay = isUserRole ? '---' : formatCurrency(invValue);
-                const amountPaidDisplay = isUserRole ? '---' : formatCurrency(amountPaid);
+                const invValueDisplay = !isAdmin ? '---' : formatCurrency(invValue);
+                const amountPaidDisplay = !isAdmin ? '---' : formatCurrency(amountPaid);
                 
                 let actionButtonsHTML = '';
                 if (isAdmin) {
@@ -1328,9 +1327,9 @@ async function populateInvoiceReporting(searchTerm = '') {
             });
             currentReportData.push(poDataForCSV);
 
-            const totalInvValueDisplay = isUserRole ? '---' : `<strong>QAR ${formatCurrency(totalInvValue)}</strong>`;
-            const totalAmountPaidDisplay = isUserRole ? '---' : `<strong>QAR ${formatCurrency(totalAmountPaid)}</strong>`;
-            const poValueDisplay = isUserRole ? '---' : (poDetails.Amount ? `QAR ${formatCurrency(poDetails.Amount)}` : 'N/A');
+            const totalInvValueDisplay = !isAdmin ? '---' : `<strong>QAR ${formatCurrency(totalInvValue)}</strong>`;
+            const totalAmountPaidDisplay = !isAdmin ? '---' : `<strong>QAR ${formatCurrency(totalAmountPaid)}</strong>`;
+            const poValueDisplay = !isAdmin ? '---' : (poDetails.Amount ? `QAR ${formatCurrency(poDetails.Amount)}` : 'N/A');
             const highlightClass = allInvoicesCompleted ? 'highlight-complete' : '';
 
             tableHTML += `
@@ -1443,7 +1442,7 @@ async function populateInvoiceDashboard() {
     const recentInvoicesBody = document.getElementById('im-recent-invoices-body');
     const statusGridEl = document.getElementById('im-status-grid');
 
-    const isUserRole = currentApprover && currentApprover.Role && currentApprover.Role.toLowerCase() === 'user';
+    const isAdmin = currentApprover && currentApprover.Role && currentApprover.Role.toLowerCase() === 'admin';
 
     try {
         const [poSnapshot, invoiceSnapshot] = await Promise.all([
@@ -1460,6 +1459,7 @@ async function populateInvoiceDashboard() {
         const recentInvoices = [];
 
         for (const poNumber in allPOs) {
+            // Simple check if PO is from 2025, assuming format is like '5...'. Adjust if needed.
             if (poNumber.startsWith('5') || (allPOs[poNumber] && allPOs[poNumber].date && allPOs[poNumber].date.startsWith('2025'))) {
                  totalPOCount2025++;
             }
@@ -1499,7 +1499,7 @@ async function populateInvoiceDashboard() {
         if (recentInvoices.length > 0) {
             recentInvoices.slice(0, 5).forEach(inv => {
                 const row = document.createElement('tr');
-                const invValueDisplay = isUserRole ? '---' : `QAR ${formatCurrency(inv.value)}`;
+                const invValueDisplay = !isAdmin ? '---' : `QAR ${formatCurrency(inv.value)}`;
                 row.innerHTML = `
                     <td>${inv.po}</td>
                     <td>${inv.vendor}</td>
@@ -2090,15 +2090,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const invoiceEntryLink = imNav.querySelector('a[data-section="im-invoice-entry"]');
         const batchEntryLink = document.getElementById('batch-entry-nav-link');
-        const isAccounting = currentApprover.Position && currentApprover.Position.toLowerCase() === 'accounting';
-        const isAdmin = currentApprover.Role && currentApprover.Role.toLowerCase() === 'admin';
+        
+        const userRole = (currentApprover.Role || '').toLowerCase();
+        const userPosition = (currentApprover.Position || '').toLowerCase();
 
-        if (isAccounting || isAdmin) {
+        const canAccessEntry = userRole === 'admin' && userPosition === 'accounting';
+
+        if (canAccessEntry) {
             invoiceEntryLink.classList.remove('disabled');
-            if(batchEntryLink) batchEntryLink.classList.remove('disabled');
+            batchEntryLink.classList.remove('disabled');
         } else {
             invoiceEntryLink.classList.add('disabled');
-            if(batchEntryLink) batchEntryLink.classList.add('disabled');
+            batchEntryLink.classList.add('disabled');
         }
 
         updateIMDateTime();
