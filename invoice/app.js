@@ -1493,48 +1493,11 @@ async function handleDownloadCSV() {
 
 // --- INVOICE DASHBOARD FUNCTION ---
 async function populateInvoiceDashboard() {
-    try {
-        const [poSnapshot, invoiceSnapshot] = await Promise.all([
-            db.ref('purchase_orders').once('value'),
-            db.ref('invoice_entries').once('value')
-        ]);
-        const allInvoicesByPO = invoiceSnapshot.val() || {};
-        const statusCounts = {};
-
-        for (const poNumber in allInvoicesByPO) {
-            const invoices = allInvoicesByPO[poNumber];
-            for (const key in invoices) {
-                const inv = invoices[key];
-                const status = inv.status || 'Pending';
-                statusCounts[status] = (statusCounts[status] || 0) + 1;
-            }
-        }
-        
-        const excludedStatuses = ['closed', 'cancelled', 'no invoice', 'on hold', 'with accounts'];
-        
-        const filteredBarStatusCounts = {};
-        for (const status in statusCounts) {
-            if (!excludedStatuses.includes(status.toLowerCase())) {
-                filteredBarStatusCounts[status] = statusCounts[status];
-            }
-        }
-
-        const statusColors = { "Pending": "#f0ad4e", "For IPC": "#f26000", "CREDIT SUMMARY": "#adb5bd", "Under Review": "#d9534f", "CLOSED": "#6c757d", "Report": "#5bc0de", "For SRV": "#0275d8", "On Hold": "#292b2c" };
-        
-        // Bar Chart
-        const barChartLabels = Object.keys(filteredBarStatusCounts).sort();
-        const barChartData = barChartLabels.map(label => filteredBarStatusCounts[label]);
-        const barChartColors = barChartLabels.map(label => statusColors[label] || '#6c757d');
-        const barCtx = document.getElementById('im-status-bar-chart').getContext('2d');
-        if (imStatusBarChart) imStatusBarChart.destroy();
-        imStatusBarChart = new Chart(barCtx, {
-            type: 'bar',
-            data: { labels: barChartLabels, datasets: [{ label: 'Invoice Count', data: barChartData, backgroundColor: barChartColors }] },
-            options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-        });
-
-    } catch (error) {
-        console.error("Error populating Invoice Dashboard:", error);
+    // This function can be left empty or show a simple message
+    // as the charts have been removed from the HTML.
+    const dashboardSection = document.getElementById('im-dashboard');
+    if(dashboardSection.querySelector('canvas')) {
+        dashboardSection.innerHTML = '<h1>Dashboard</h1><p>Dashboard analytics view is currently unavailable.</p>';
     }
 }
 
@@ -1815,6 +1778,9 @@ async function handleSaveBatchInvoices() {
             note: row.querySelector('[name="note"]').value,
         };
 
+        // MODIFICATION: Always set/update the release date to today on any save action from batch.
+        invoiceData.releaseDate = getTodayDateString();
+
         const attentionSelect = row.querySelector('.choices select[name="attention"]');
         if (attentionSelect && attentionSelect.choices) {
             invoiceData.attention = attentionSelect.choices.getValue(true);
@@ -1837,13 +1803,11 @@ async function handleSaveBatchInvoices() {
 
         if (existingKey) {
             // This is an UPDATE
-            // We don't want to overwrite existing names or IDs
             promise = db.ref(`invoice_entries/${poNumber}/${existingKey}`).update(invoiceData);
             updatedInvoicesCount++;
         } else {
             // This is a CREATE
             invoiceData.invEntryID = row.dataset.nextInvid;
-            invoiceData.releaseDate = getTodayDateString();
             invoiceData.dateAdded = getTodayDateString();
             invoiceData.createdAt = firebase.database.ServerValue.TIMESTAMP;
             invoiceData.invName = `${site}-${poNumber}-${invoiceData.invEntryID}-${vendor}`;
@@ -1990,7 +1954,7 @@ async function handleAddSelectedToBatch() {
             <td><input type="text" name="note" class="batch-input" value="${invData.note || ''}"></td>
             <td><button type="button" class="delete-btn batch-remove-btn">&times;</button></td>
         `;
-        batchTableBody.appendChild(row);
+        batchTableBody.prepend(row);
 
         const attentionSelect = row.querySelector('select[name="attention"]');
         // A small timeout ensures the element is fully rendered before initializing the rich select component
