@@ -1258,7 +1258,7 @@ async function populateInvoiceReporting(searchTerm = '') {
     currentReportData = [];
     imReportingContent.innerHTML = '<p>Searching... Please wait.</p>';
 
-    // Get filter values from the new inputs
+    // Get filter values
     const siteFilter = document.getElementById('im-reporting-site-filter').value;
     const monthFilter = document.getElementById('im-reporting-date-filter').value; // e.g., "2025-10"
 
@@ -1303,8 +1303,10 @@ async function populateInvoiceReporting(searchTerm = '') {
 
             let invoices = allInvoicesByPO[poNumber] ? Object.values(allInvoicesByPO[poNumber]) : [];
             
-            // Secondary Invoice-level filtering
-            const filteredInvoices = monthFilter ? invoices.filter(inv => inv.releaseDate && inv.releaseDate.startsWith(monthFilter)) : invoices;
+            // Secondary Invoice-level filtering by month
+            const filteredInvoices = monthFilter 
+                ? invoices.filter(inv => inv.releaseDate && inv.releaseDate.startsWith(monthFilter)) 
+                : invoices;
             
             if (filteredInvoices.length === 0) continue;
 
@@ -1778,7 +1780,7 @@ async function handleSaveBatchInvoices() {
             note: row.querySelector('[name="note"]').value,
         };
 
-        // Always set/update the release date to today on any save action from batch.
+        // MODIFICATION: Always set/update the release date to today on any save action from batch.
         invoiceData.releaseDate = getTodayDateString();
 
         const attentionSelect = row.querySelector('.choices select[name="attention"]');
@@ -2270,28 +2272,18 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         populateAttentionDropdown(imAttentionSelectChoices);
 
-        const invoiceEntryLink = imNav.querySelector('a[data-section="im-invoice-entry"]');
-        const batchEntryLink = document.getElementById('batch-entry-nav-link');
-        
         const userRole = (currentApprover.Role || '').toLowerCase();
         const userPosition = (currentApprover.Position || '').toLowerCase();
 
+        // Control access to invoice/batch entry
         const canAccessEntry = userRole === 'admin' && userPosition === 'accounting';
+        imNav.querySelector('a[data-section="im-invoice-entry"]').classList.toggle('disabled', !canAccessEntry);
+        document.getElementById('batch-entry-nav-link').classList.toggle('disabled', !canAccessEntry);
 
-        if (canAccessEntry) {
-            invoiceEntryLink.classList.remove('disabled');
-            batchEntryLink.classList.remove('disabled');
-        } else {
-            invoiceEntryLink.classList.add('disabled');
-            batchEntryLink.classList.add('disabled');
-        }
-        
+        // Control access to special report buttons
+        const canAccessReports = userRole === 'admin' && userPosition === 'accounting';
         document.querySelectorAll('.admin-accounting-only').forEach(btn => {
-            if (canAccessEntry) {
-                btn.style.display = '';
-            } else {
-                btn.style.display = 'none';
-            }
+            btn.classList.toggle('hidden', !canAccessReports);
         });
 
         updateIMDateTime();
@@ -2299,6 +2291,7 @@ document.addEventListener('DOMContentLoaded', () => {
         imDateTimeInterval = setInterval(updateIMDateTime, 1000);
         showView('invoice-management');
         
+        // MODIFIED: Check for mobile view to show the correct initial section
         if (window.innerWidth <= 768) {
             showIMSection('im-reporting');
             imNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
