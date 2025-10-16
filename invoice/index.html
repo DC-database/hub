@@ -12,12 +12,12 @@
 <body>
 
     <div id="app-container">
-        <div id="login-view"><div class="form-container"><h2>System Login</h2><p>Please enter your email or mobile number to continue.</p><form id="login-form"><input type="text" id="login-identifier" placeholder="Email or Mobile Number" required><button type="submit">Continue</button></form><p id="login-error" class="error-message"></p></div></div>
-        <div id="password-view" class="hidden"><div class="form-container"><h2>Enter Password</h2><p>Welcome back! Please enter your password for <strong id="password-user-identifier"></strong>.</p><form id="password-form"><input type="password" id="login-password" placeholder="Password" required><button type="submit">Login</button></form><p id="password-error" class="error-message"></p></div></div>
-        <div id="setup-view" class="hidden"><div class="form-container"><h2>Complete Your Account Setup</h2><p>This is your first time logging in. Please complete the following steps.</p><form id="setup-form"><div id="setup-email-container" class="hidden"><label for="setup-email">Enter your email address:</label><input type="email" id="setup-email" placeholder="user@example.com" required></div><div id="setup-site-container" class="hidden"><label for="setup-site">Enter your Site:</label><input type="text" id="setup-site" placeholder="Site Name" required><p class="input-note">For multiple sites, separate them with a comma (ex. 175,176)</p></div><div id="setup-position-container" class="hidden"><label for="setup-position">Enter your Position:</label><input type="text" id="setup-position" placeholder="Position" required></div><label for="setup-password">Create Password</label><input type="password" id="setup-password" placeholder="New Password" required><button type="submit">Complete Setup</button></form><p id="setup-error" class="error-message"></p></div></div>
+        <div id="login-view"><div class="form-container animated-card"><h2>System Login</h2><p>Please enter your email or mobile number to continue.</p><form id="login-form"><input type="text" id="login-identifier" placeholder="Email or Mobile Number" required><button type="submit">Continue</button></form><p id="login-error" class="error-message"></p></div></div>
+        <div id="password-view" class="hidden"><div class="form-container animated-card"><h2>Enter Password</h2><p>Welcome back! Please enter your password for <strong id="password-user-identifier"></strong>.</p><form id="password-form"><input type="password" id="login-password" placeholder="Password" required><button type="submit">Login</button></form><p id="password-error" class="error-message"></p></div></div>
+        <div id="setup-view" class="hidden"><div class="form-container animated-card"><h2>Complete Your Account Setup</h2><p>This is your first time logging in. Please complete the following steps.</p><form id="setup-form"><div id="setup-email-container" class="hidden"><label for="setup-email">Enter your email address:</label><input type="email" id="setup-email" placeholder="user@example.com" required></div><div id="setup-site-container" class="hidden"><label for="setup-site">Enter your Site:</label><input type="text" id="setup-site" placeholder="Site Name" required><p class="input-note">For multiple sites, separate them with a comma (ex. 175,176)</p></div><div id="setup-position-container" class="hidden"><label for="setup-position">Enter your Position:</label><input type="text" id="setup-position" placeholder="Position" required></div><label for="setup-password">Create Password</label><input type="password" id="setup-password" placeholder="New Password" required><button type="submit">Complete Setup</button></form><p id="setup-error" class="error-message"></p></div></div>
         
         <div id="dashboard-view" class="hidden">
-            <div class="form-container">
+            <div class="form-container animated-card">
                 <header class="dashboard-header">
                     <div id="user-info">
                         <span id="dashboard-username"></span>
@@ -579,8 +579,8 @@
                         <h1>Invoice Summary Report</h1>
                         <div class="daily-report-section">
                            <input type="date" id="im-daily-report-date" title="Select a date for the daily report">
-                           <button id="im-download-daily-report-button" class="download-btn" type="button"><i class="fa-solid fa-calendar-day"></i> Daily Entry Report</button>
-                           <button id="im-download-with-accounts-report-button" class="download-btn" type="button"><i class="fa-solid fa-file-invoice-dollar"></i> With Accounts Report</button>
+                           <button id="im-download-daily-report-button" class="download-btn admin-accounting-only" type="button"><i class="fa-solid fa-calendar-day"></i> Daily Entry Report</button>
+                           <button id="im-download-with-accounts-report-button" class="download-btn admin-accounting-only" type="button"><i class="fa-solid fa-file-invoice-dollar"></i> With Accounts Report</button>
                         </div>
                     </div>
                      <div class="reporting-legend">
@@ -596,12 +596,12 @@
                             <select id="im-reporting-site-filter" name="site-filter">
                                 <option value="">All Sites</option>
                             </select>
-                            <input type="date" id="im-reporting-date-filter" title="Filter by Release Date">
+                            <input type="month" id="im-reporting-date-filter" title="Filter by Release Month">
                         </div>
                         <div class="report-buttons-group">
                             <button type="submit">Search</button>
                             <button id="im-reporting-clear-button" class="secondary-btn" type="button">Clear</button>
-                            <button id="im-reporting-download-csv-button" class="download-btn" type="button"><i class="fa-solid fa-download"></i> Download Full Report</button>
+                            <button id="im-reporting-download-csv-button" class="download-btn admin-accounting-only" type="button"><i class="fa-solid fa-download"></i> Download Full Report</button>
                         </div>
                     </form>
                     <div id="im-reporting-content" class="table-wrapper">

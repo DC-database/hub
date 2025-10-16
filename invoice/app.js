@@ -1260,7 +1260,7 @@ async function populateInvoiceReporting(searchTerm = '') {
 
     // Get filter values from the new inputs
     const siteFilter = document.getElementById('im-reporting-site-filter').value;
-    const dateFilter = document.getElementById('im-reporting-date-filter').value;
+    const monthFilter = document.getElementById('im-reporting-date-filter').value; // e.g., "2025-10"
 
     try {
         const [poSnapshot, invoiceSnapshot] = await Promise.all([
@@ -1304,7 +1304,7 @@ async function populateInvoiceReporting(searchTerm = '') {
             let invoices = allInvoicesByPO[poNumber] ? Object.values(allInvoicesByPO[poNumber]) : [];
             
             // Secondary Invoice-level filtering
-            const filteredInvoices = dateFilter ? invoices.filter(inv => inv.releaseDate === dateFilter) : invoices;
+            const filteredInvoices = monthFilter ? invoices.filter(inv => inv.releaseDate && inv.releaseDate.startsWith(monthFilter)) : invoices;
             
             if (filteredInvoices.length === 0) continue;
 
@@ -1778,7 +1778,7 @@ async function handleSaveBatchInvoices() {
             note: row.querySelector('[name="note"]').value,
         };
 
-        // MODIFICATION: Always set/update the release date to today on any save action from batch.
+        // Always set/update the release date to today on any save action from batch.
         invoiceData.releaseDate = getTodayDateString();
 
         const attentionSelect = row.querySelector('.choices select[name="attention"]');
@@ -2285,13 +2285,20 @@ document.addEventListener('DOMContentLoaded', () => {
             invoiceEntryLink.classList.add('disabled');
             batchEntryLink.classList.add('disabled');
         }
+        
+        document.querySelectorAll('.admin-accounting-only').forEach(btn => {
+            if (canAccessEntry) {
+                btn.style.display = '';
+            } else {
+                btn.style.display = 'none';
+            }
+        });
 
         updateIMDateTime();
         if (imDateTimeInterval) clearInterval(imDateTimeInterval);
         imDateTimeInterval = setInterval(updateIMDateTime, 1000);
         showView('invoice-management');
         
-        // MODIFIED: Check for mobile view to show the correct initial section
         if (window.innerWidth <= 768) {
             showIMSection('im-reporting');
             imNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
