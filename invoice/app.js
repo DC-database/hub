@@ -26,7 +26,6 @@ const reportTabsContainer = document.getElementById('report-tabs');
 const printReportButton = document.getElementById('print-report-button');
 const downloadWdReportButton = document.getElementById('download-wd-report-csv-button');
 const dbActiveTasksCount = document.getElementById('db-active-tasks-count');
-const dbPendingEntriesCount = document.getElementById('db-pending-entries-count');
 const dbCompletedTasksCount = document.getElementById('db-completed-tasks-count');
 const dbSiteStatsContainer = document.getElementById('dashboard-site-stats');
 const dbRecentTasksBody = document.getElementById('db-recent-tasks-body');
@@ -116,9 +115,7 @@ let imAttentionSelectChoices = null;
 let currentlyEditingInvoiceKey = null;
 let currentPOInvoices = {};
 let currentReportData = [];
-let imStatusDonutChart = null; 
 let imStatusBarChart = null; 
-let imOverdueChart = null;
 let approverListForSelect = []; // For batch entry select elements
 let allUniqueNotes = new Set(); // For summary note suggestions
 
@@ -159,8 +156,13 @@ function showWorkdeskSection(sectionId) {
     if (sectionId === 'wd-dashboard') { populateWorkdeskDashboard(); }
     if (sectionId === 'wd-jobentry') { fetchAndDisplayJobEntries(); }
     if (sectionId === 'wd-activetask') { populateActiveTasks(); }
-    if (sectionId === 'wd-taskhistory') { populateTaskHistory(); }
-    if (sectionId === 'wd-reporting') { populateReporting(); }
+    if (sectionId === 'wd-taskhistory') { 
+        taskHistoryTableBody.innerHTML = '<tr><td colspan="9">Use the search bar to find history.</td></tr>';
+        userTaskHistory = []; // Clear old data to prevent searching stale data
+    }
+    if (sectionId === 'wd-reporting') { 
+        reportingTableBody.innerHTML = '<tr><td colspan="11">Use the search bar and select a filter to see the report.</td></tr>';
+    }
     if (sectionId === 'wd-settings') { populateSettingsForm(); }
 }
 function formatDate(date) { const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]; const day = String(date.getDate()).padStart(2, '0'); const month = months[date.getMonth()]; const year = date.getFullYear(); return `${day}-${month}-${year}`; }
@@ -266,6 +268,10 @@ function numberToWords(num) {
 
 // --- WORKDESK LOGIC ---
 async function ensureAllEntriesFetched() {
+    // To prevent re-downloading within the same session if data exists
+    if (allSystemEntries.length > 0) {
+        return;
+    }
     const [jobEntriesSnapshot, invoiceEntriesSnapshot, poSnapshot] = await Promise.all([
         db.ref('job_entries').orderByChild('timestamp').once('value'),
         db.ref('invoice_entries').once('value'),
@@ -422,6 +428,7 @@ function renderJobEntryTable(entries) {
 async function fetchAndDisplayJobEntries() {
     jobEntryTableBody.innerHTML = `<tr><td colspan="8">Loading entries...</td></tr>`;
     try {
+        allSystemEntries = []; // Clear previous data
         await ensureAllEntriesFetched();
         userJobEntries = allSystemEntries.filter(entry => entry.enteredBy === currentApprover.Name && !isTaskComplete(entry));
         renderJobEntryTable(userJobEntries);
@@ -451,7 +458,7 @@ async function handleAddJobEntry(e) {
         } else {
             if (!jobData.po) { alert('For IPC jobs, a PO number is required.'); return; }
         }
-
+        allSystemEntries = []; // Force refetch to check for duplicates
         await ensureAllEntriesFetched();
         const duplicatePO = allSystemEntries.find(entry => entry.for === 'IPC' && entry.po && entry.po.trim() !== '' && entry.po === jobData.po);
         if (duplicatePO) {
@@ -512,6 +519,7 @@ async function populateActiveTasks() {
     activeTaskTableBody.innerHTML = '<tr><td colspan="8">Loading tasks...</td></tr>';
     if (!currentApprover || !currentApprover.Name) { activeTaskTableBody.innerHTML = '<tr><td colspan="8">Could not identify user.</td></tr>'; return; }
     try {
+        allSystemEntries = []; // Clear previous data
         await ensureAllEntriesFetched();
         userActiveTasks = allSystemEntries.filter(task => task.attention === currentApprover.Name && !isTaskComplete(task));
         renderActiveTaskTable(userActiveTasks);
@@ -549,24 +557,9 @@ function renderActiveTaskTable(tasks) {
         activeTaskTableBody.appendChild(row);
     });
 }
-async function populateTaskHistory() {
-    taskHistoryTableBody.innerHTML = '<tr><td colspan="9">Loading history...</td></tr>';
-    if (!currentApprover || !currentApprover.Name) { taskHistoryTableBody.innerHTML = '<tr><td colspan="9">Could not identify user.</td></tr>'; return; }
-    try {
-        await ensureAllEntriesFetched();
-
-        // New, stricter filter for personal history
-        userTaskHistory = allSystemEntries.filter(task => {
-            const isRelatedToMe = (task.enteredBy === currentApprover.Name || task.attention === currentApprover.Name);
-            return isTaskComplete(task) && isRelatedToMe;
-        });
-
-        renderTaskHistoryTable(userTaskHistory);
-    } catch (error) { console.error("Error fetching task history:", error); taskHistoryTableBody.innerHTML = '<tr><td colspan="9">Error loading task history.</td></tr>'; }
-}
 function renderTaskHistoryTable(tasks) {
     taskHistoryTableBody.innerHTML = '';
-    if (!tasks || tasks.length === 0) { taskHistoryTableBody.innerHTML = '<tr><td colspan="9">You have no completed tasks in your history.</td></tr>'; return; }
+    if (!tasks || tasks.length === 0) { taskHistoryTableBody.innerHTML = '<tr><td colspan="9">No completed tasks found for your search.</td></tr>'; return; }
     tasks.forEach(task => {
         const row = document.createElement('tr');
         const remarks = task.remarks || 'Completed';
@@ -574,12 +567,36 @@ function renderTaskHistoryTable(tasks) {
         taskHistoryTableBody.appendChild(row);
     });
 }
-async function populateReporting() {
-    reportingTableBody.innerHTML = '<tr><td colspan="11">Loading all entries...</td></tr>';
+async function handleTaskHistorySearch(searchTerm) {
+    const searchText = searchTerm.toLowerCase();
+    if (!searchText) {
+        renderTaskHistoryTable([]);
+        return;
+    }
+    taskHistoryTableBody.innerHTML = '<tr><td colspan="9">Searching history...</td></tr>';
     try {
+        allSystemEntries = []; // Force a fresh data fetch for the search
         await ensureAllEntriesFetched();
-        handleReportingSearch();
-    } catch (error) { console.error("Error fetching all entries for reporting:", error); reportingTableBody.innerHTML = '<tr><td colspan="11">Error loading reporting data.</td></tr>'; }
+        const personalHistory = allSystemEntries.filter(task => {
+            const isRelatedToMe = (task.enteredBy === currentApprover.Name || task.attention === currentApprover.Name);
+            return isTaskComplete(task) && isRelatedToMe;
+        });
+        const filteredHistory = personalHistory.filter(task => {
+            return (
+                (task.for && task.for.toLowerCase().includes(searchText)) ||
+                (task.ref && task.ref.toLowerCase().includes(searchText)) ||
+                (task.amount && task.amount.toString().includes(searchText)) ||
+                (task.po && task.po.toLowerCase().includes(searchText)) ||
+                (task.site && task.site.toLowerCase().includes(searchText)) ||
+                (task.group && task.group.toLowerCase().includes(searchText)) ||
+                (task.date && task.date.toLowerCase().includes(searchText))
+            );
+        });
+        renderTaskHistoryTable(filteredHistory);
+    } catch (error) {
+        console.error("Error fetching task history:", error);
+        taskHistoryTableBody.innerHTML = '<tr><td colspan="9">Error loading task history.</td></tr>';
+    }
 }
 function renderReportingTable(entries) {
     reportingTableBody.innerHTML = '';
@@ -615,75 +632,15 @@ function filterAndRenderReport(baseEntries = []) {
     renderReportingTable(filteredEntries);
 }
 async function populateWorkdeskDashboard() {
+    allSystemEntries = [];
     await ensureAllEntriesFetched();
     const myActiveTasks = allSystemEntries.filter(task => task.attention === currentApprover.Name && !isTaskComplete(task));
-    const myPendingEntries = allSystemEntries.filter(task => task.enteredBy === currentApprover.Name && !isTaskComplete(task));
     const myCompletedTasks = allSystemEntries.filter(task => (task.enteredBy === currentApprover.Name || task.attention === currentApprover.Name) && isTaskComplete(task));
-    const myRelatedEntries = allSystemEntries.filter(task => task.enteredBy === currentApprover.Name || task.attention === currentApprover.Name);
-
+    
     dbActiveTasksCount.textContent = myActiveTasks.length;
-    dbPendingEntriesCount.textContent = myPendingEntries.length;
     dbCompletedTasksCount.textContent = myCompletedTasks.length;
 
-    const siteStats = {};
-    myRelatedEntries.forEach(entry => {
-        if (!entry.site) return;
-        if (!siteStats[entry.site]) { siteStats[entry.site] = { completed: 0, pending: 0 }; }
-        if (isTaskComplete(entry)) { siteStats[entry.site].completed++; } else { siteStats[entry.site].pending++; }
-    });
-
-    dbSiteStatsContainer.innerHTML = '';
-    if (Object.keys(siteStats).length === 0) {
-        dbSiteStatsContainer.innerHTML = '<p>No data available for your sites yet.</p>';
-    } else {
-        const siteCardsGrid = document.createElement('div');
-        siteCardsGrid.className = 'site-cards-grid';
-
-        for (const site in siteStats) {
-            const stats = siteStats[site];
-            const total = stats.completed + stats.pending;
-            const completionPercentage = total > 0 ? (stats.completed / total) * 100 : 0;
-
-            const card = document.createElement('div');
-            card.className = 'site-performance-card';
-            card.innerHTML = `
-                <div class="card-header">
-                    <h3 class="card-title">${site}</h3>
-                    <div class="card-completion-percent">${completionPercentage.toFixed(0)}% Complete</div>
-                </div>
-                <div class="card-total">
-                    <div class="card-total-value">${total}</div>
-                    <span class="card-total-label">Total Tasks</span>
-                </div>
-                <div class="progress-bar-track">
-                    <div class="progress-bar-fill" style="width: ${completionPercentage}%;"></div>
-                </div>
-                <div class="card-stats-breakdown">
-                    <div class="stat-item completed">
-                        <span class="stat-value">${stats.completed}</span>
-                        <span class="stat-label">Completed</span>
-                    </div>
-                    <div class="stat-item pending">
-                        <span class="stat-value">${stats.pending}</span>
-                        <span class="stat-label">Pending</span>
-                    </div>
-                </div>
-            `;
-            siteCardsGrid.appendChild(card);
-        }
-        dbSiteStatsContainer.appendChild(siteCardsGrid);
-    }
-
-    dbRecentTasksBody.innerHTML = '';
-    if (myActiveTasks.length === 0) {
-        dbRecentTasksBody.innerHTML = '<tr><td colspan="5">No recent active tasks.</td></tr>';
-    } else {
-        myActiveTasks.slice(0, 5).forEach(task => {
-            const row = document.createElement('tr');
-            row.innerHTML = `<td>${task.for}</td><td>${task.ref}</td><td>${task.site}</td><td>${task.enteredBy}</td><td>${task.date}</td>`;
-            dbRecentTasksBody.appendChild(row);
-        });
-    }
+    // Site performance and recent tasks are removed as requested.
 }
 async function handleRespondClick(e) {
     const key = e.target.getAttribute('data-key');
@@ -784,37 +741,29 @@ function handleActiveTaskSearch(searchTerm) {
     renderActiveTaskTable(filteredTasks);
 }
 
-function handleTaskHistorySearch(searchTerm) {
-    const searchText = searchTerm.toLowerCase();
+async function handleReportingSearch() {
+    const searchText = reportingSearchInput.value.toLowerCase();
     if (!searchText) {
-        renderTaskHistoryTable(userTaskHistory);
+        renderReportingTable([]);
         return;
     }
-    const filteredHistory = userTaskHistory.filter(task => {
-        return (
-            (task.for && task.for.toLowerCase().includes(searchText)) ||
-            (task.ref && task.ref.toLowerCase().includes(searchText)) ||
-            (task.amount && task.amount.toString().includes(searchText)) ||
-            (task.po && task.po.toLowerCase().includes(searchText)) || // <-- FIX: Added PO search
-            (task.site && task.site.toLowerCase().includes(searchText)) ||
-            (task.group && task.group.toLowerCase().includes(searchText)) ||
-            (task.date && task.date.toLowerCase().includes(searchText))
-        );
-    });
-    renderTaskHistoryTable(filteredHistory);
-}
 
-function handleReportingSearch() {
-    const userSiteString = currentApprover.Site || '';
-    const userSites = userSiteString.toLowerCase() === 'all' ? null : userSiteString.split(',').map(s => s.trim());
-
-    const relevantEntries = allSystemEntries.filter(entry => {
-        const isMySite = userSites === null || (entry.site && userSites.includes(entry.site));
-        const isRelatedToMe = (entry.enteredBy === currentApprover.Name || entry.attention === currentApprover.Name);
-        return isMySite || isRelatedToMe;
-    });
-
-    filterAndRenderReport(relevantEntries);
+    reportingTableBody.innerHTML = '<tr><td colspan="11">Searching report data...</td></tr>';
+    try {
+        allSystemEntries = []; // Force fresh fetch for search
+        await ensureAllEntriesFetched();
+        const userSiteString = currentApprover.Site || '';
+        const userSites = userSiteString.toLowerCase() === 'all' ? null : userSiteString.split(',').map(s => s.trim());
+        const relevantEntries = allSystemEntries.filter(entry => {
+            const isMySite = userSites === null || (entry.site && userSites.includes(entry.site));
+            const isRelatedToMe = (entry.enteredBy === currentApprover.Name || entry.attention === currentApprover.Name);
+            return isMySite || isRelatedToMe;
+        });
+        filterAndRenderReport(relevantEntries);
+    } catch (error) {
+        console.error("Error fetching all entries for reporting:", error);
+        reportingTableBody.innerHTML = '<tr><td colspan="11">Error loading reporting data.</td></tr>';
+    }
 }
 function handleDownloadWorkdeskCSV() {
     const table = document.querySelector("#reporting-printable-area table");
@@ -967,7 +916,7 @@ function showIMSection(sectionId) {
     }
     if (sectionId === 'im-reporting') {
         imDailyReportDateInput.value = getTodayDateString();
-        imReportingContent.innerHTML = '<p>Click Search to load all data, or enter a term to narrow your results.</p>';
+        imReportingContent.innerHTML = '<p>Please enter a search term and click Search.</p>';
         imReportingSearchInput.value = '';
         currentReportData = [];
         populateSiteFilterDropdown();
@@ -1549,55 +1498,20 @@ async function populateInvoiceDashboard() {
             db.ref('purchase_orders').once('value'),
             db.ref('invoice_entries').once('value')
         ]);
-        const allPOs = poSnapshot.val() || {};
         const allInvoicesByPO = invoiceSnapshot.val() || {};
-
         const statusCounts = {};
-        const siteOverdue = {};
-
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
 
         for (const poNumber in allInvoicesByPO) {
             const invoices = allInvoicesByPO[poNumber];
-            const site = (allPOs[poNumber] && allPOs[poNumber]['Project ID']) ? allPOs[poNumber]['Project ID'] : 'Unknown';
-            if (!siteOverdue[site]) {
-                siteOverdue[site] = { overdueSrv: 0, overdueIpc: 0, totalDays: 0, count: 0 };
-            }
-
             for (const key in invoices) {
                 const inv = invoices[key];
                 const status = inv.status || 'Pending';
                 statusCounts[status] = (statusCounts[status] || 0) + 1;
-
-                if (status === 'For SRV' || status === 'For IPC') {
-                    const releaseDate = inv.releaseDate ? new Date(normalizeDateForInput(inv.releaseDate)) : null;
-                    if (releaseDate) {
-                        const diffTime = today - releaseDate;
-                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-                        if (diffDays > 3) {
-                            if (status === 'For SRV') siteOverdue[site].overdueSrv++;
-                            if (status === 'For IPC') siteOverdue[site].overdueIpc++;
-                            siteOverdue[site].totalDays += diffDays;
-                            siteOverdue[site].count++;
-                        }
-                    }
-                }
             }
         }
         
         const excludedStatuses = ['closed', 'cancelled', 'no invoice', 'on hold', 'with accounts'];
         
-        // Filter for Donut Chart
-        const filteredDonutStatusCounts = {};
-        for (const status in statusCounts) {
-            if (!excludedStatuses.includes(status.toLowerCase())) {
-                filteredDonutStatusCounts[status] = statusCounts[status];
-            }
-        }
-
-        // **FIX**: Filter for Bar Chart
         const filteredBarStatusCounts = {};
         for (const status in statusCounts) {
             if (!excludedStatuses.includes(status.toLowerCase())) {
@@ -1607,18 +1521,6 @@ async function populateInvoiceDashboard() {
 
         const statusColors = { "Pending": "#f0ad4e", "For IPC": "#f26000", "CREDIT SUMMARY": "#adb5bd", "Under Review": "#d9534f", "CLOSED": "#6c757d", "Report": "#5bc0de", "For SRV": "#0275d8", "On Hold": "#292b2c" };
         
-        // Donut Chart
-        const donutChartLabels = Object.keys(filteredDonutStatusCounts).sort();
-        const donutChartData = donutChartLabels.map(label => filteredDonutStatusCounts[label]);
-        const donutChartColors = donutChartLabels.map(label => statusColors[label] || '#6c757d');
-        const donutCtx = document.getElementById('im-status-donut-chart').getContext('2d');
-        if (imStatusDonutChart) imStatusDonutChart.destroy();
-        imStatusDonutChart = new Chart(donutCtx, {
-            type: 'doughnut',
-            data: { labels: donutChartLabels, datasets: [{ data: donutChartData, backgroundColor: donutChartColors }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
-        });
-
         // Bar Chart
         const barChartLabels = Object.keys(filteredBarStatusCounts).sort();
         const barChartData = barChartLabels.map(label => filteredBarStatusCounts[label]);
@@ -1629,34 +1531,6 @@ async function populateInvoiceDashboard() {
             type: 'bar',
             data: { labels: barChartLabels, datasets: [{ label: 'Invoice Count', data: barChartData, backgroundColor: barChartColors }] },
             options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-        });
-
-        // Overdue Chart
-        const overdueLabels = Object.keys(siteOverdue).sort();
-        const overdueSrvData = overdueLabels.map(site => siteOverdue[site].overdueSrv);
-        const overdueIpcData = overdueLabels.map(site => siteOverdue[site].overdueIpc);
-        const avgDaysData = overdueLabels.map(site => siteOverdue[site].count > 0 ? (siteOverdue[site].totalDays / siteOverdue[site].count).toFixed(0) : 0);
-        
-        const overdueCtx = document.getElementById('im-overdue-chart').getContext('2d');
-        if(imOverdueChart) imOverdueChart.destroy();
-        imOverdueChart = new Chart(overdueCtx, {
-            type: 'bar',
-            data: {
-                labels: overdueLabels,
-                datasets: [
-                    { label: 'Overdue SRV', data: overdueSrvData, backgroundColor: '#0275d8', yAxisID: 'y' },
-                    { label: 'Overdue IPC', data: overdueIpcData, backgroundColor: '#5cb85c', yAxisID: 'y' },
-                    { label: 'Avg Days Overdue', data: avgDaysData, backgroundColor: '#f0ad4e', borderColor: '#f0ad4e', type: 'line', yAxisID: 'y1' }
-                ]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                scales: {
-                    x: { stacked: true },
-                    y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Number of Overdue Items' } },
-                    y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Average Days Overdue' } }
-                }
-            }
         });
 
     } catch (error) {
@@ -2435,7 +2309,7 @@ document.addEventListener('DOMContentLoaded', () => {
             reportTabsContainer.querySelector('.active').classList.remove('active');
             e.target.classList.add('active');
             currentReportFilter = e.target.getAttribute('data-job-type');
-            handleReportingSearch();
+            handleReportingSearch(); // Re-run search when tab changes
         }
     });
     document.querySelectorAll('.back-to-main-dashboard').forEach(button => {
@@ -2561,12 +2435,16 @@ document.addEventListener('DOMContentLoaded', () => {
     imReportingForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const searchTerm = imReportingSearchInput.value.trim();
+        if (!searchTerm) {
+            imReportingContent.innerHTML = '<p style="color: red; font-weight: bold;">Please specify a search term in the box above to begin.</p>';
+            return;
+        }
         populateInvoiceReporting(searchTerm);
     });
 
     imReportingClearButton.addEventListener('click', () => {
         imReportingForm.reset();
-        imReportingContent.innerHTML = '<p>Click Search to load all data, or enter a term to narrow your results.</p>';
+        imReportingContent.innerHTML = '<p>Please enter a search term and click Search.</p>';
         currentReportData = [];
     });
 
