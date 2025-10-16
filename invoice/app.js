@@ -1562,7 +1562,6 @@ async function handleDownloadDailyReport() {
                     dailyEntries.push({
                         po: poNumber,
                         site: allPOs[poNumber]?.['Project ID'] || 'N/A',
-                        vendor: allPOs[poNumber]?.['Supplier Name'] || 'N/A',
                         ...inv
                     });
                 }
@@ -1575,27 +1574,15 @@ async function handleDownloadDailyReport() {
         }
 
         let csvContent = "data:text/csv;charset=utf-8,";
-        const headers = ["PO", "Site", "Vendor", "invEntryID", "invNumber", "invoiceDate", "invValue", "amountPaid", "invName", "srvName", "attention", "releaseDate", "status", "note", "dateAdded"];
+        const headers = ["PO", "Site", "invName"]; // MODIFIED: Reduced headers as requested
         csvContent += headers.join(",") + "\r\n";
 
         dailyEntries.forEach(entry => {
             const row = [
                 entry.po,
                 entry.site,
-                `"${(entry.vendor || '').replace(/"/g, '""')}"`,
-                entry.invEntryID || '',
-                `"${(entry.invNumber || '').replace(/"/g, '""')}"`,
-                entry.invoiceDate || '',
-                entry.invValue || '0',
-                entry.amountPaid || '0',
-                `"${(entry.invName || '').replace(/"/g, '""')}"`,
-                `"${(entry.srvName || '').replace(/"/g, '""')}"`,
-                entry.attention || '',
-                entry.releaseDate || '',
-                entry.status || '',
-                `"${(entry.note || '').replace(/"/g, '""')}"`,
-                entry.dateAdded || ''
-            ];
+                `"${(entry.invName || '').replace(/"/g, '""')}"`
+            ]; // MODIFIED: Reduced row data as requested
             csvContent += row.join(",") + "\r\n";
         });
 
@@ -1636,7 +1623,6 @@ async function handleDownloadWithAccountsReport() {
                     dailyEntries.push({
                         po: poNumber,
                         site: allPOs[poNumber]?.['Project ID'] || 'N/A',
-                        vendor: allPOs[poNumber]?.['Supplier Name'] || 'N/A',
                         ...inv
                     });
                 }
@@ -1649,27 +1635,15 @@ async function handleDownloadWithAccountsReport() {
         }
 
         let csvContent = "data:text/csv;charset=utf-8,";
-        const headers = ["PO", "Site", "Vendor", "invEntryID", "invNumber", "invoiceDate", "invValue", "amountPaid", "invName", "srvName", "attention", "releaseDate", "status", "note", "dateAdded"];
+        const headers = ["PO", "Site", "srvName"]; // MODIFIED: Reduced headers as requested
         csvContent += headers.join(",") + "\r\n";
 
         dailyEntries.forEach(entry => {
             const row = [
                 entry.po,
                 entry.site,
-                `"${(entry.vendor || '').replace(/"/g, '""')}"`,
-                entry.invEntryID || '',
-                `"${(entry.invNumber || '').replace(/"/g, '""')}"`,
-                entry.invoiceDate || '',
-                entry.invValue || '0',
-                entry.amountPaid || '0',
-                `"${(entry.invName || '').replace(/"/g, '""')}"`,
-                `"${(entry.srvName || '').replace(/"/g, '""')}"`,
-                entry.attention || '',
-                entry.releaseDate || '',
-                entry.status || '',
-                `"${(entry.note || '').replace(/"/g, '""')}"`,
-                entry.dateAdded || ''
-            ];
+                `"${(entry.srvName || '').replace(/"/g, '""')}"`
+            ]; // MODIFIED: Reduced row data as requested
             csvContent += row.join(",") + "\r\n";
         });
 
@@ -2352,9 +2326,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (imDateTimeInterval) clearInterval(imDateTimeInterval);
         imDateTimeInterval = setInterval(updateIMDateTime, 1000);
         showView('invoice-management');
-        showIMSection('im-dashboard');
-        imNav.querySelector('a.active').classList.remove('active');
-        imNav.querySelector('a[data-section="im-dashboard"]').classList.add('active');
+        
+        // MODIFIED: Check for mobile view to show the correct initial section
+        if (window.innerWidth <= 768) {
+            showIMSection('im-reporting');
+            imNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
+            const reportingLink = imNav.querySelector('a[data-section="im-reporting"]');
+            if(reportingLink) reportingLink.classList.add('active');
+        } else {
+            showIMSection('im-dashboard');
+            imNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
+            const dashboardLink = imNav.querySelector('a[data-section="im-dashboard"]');
+            if(dashboardLink) dashboardLink.classList.add('active');
+        }
     });
 
     imNav.addEventListener('click', (e) => {

@@ -765,4 +765,14 @@ tbody tr:hover { background-color: #f1f1f1; }
     .jobentry-form-2col { grid-template-columns: 1fr; }
     .form-buttons-container { justify-content: center; }
     .im-dashboard-grid { grid-template-columns: 1fr; }
+
+    /* ++ NEW: Hide dashboard buttons except Invoice Management on mobile ++ */
+    #dashboard-view .button-container .circle-button:not(#invoice-mgmt-button) {
+        display: none;
+    }
+
+    /* ++ NEW: Hide all nav links in Invoice Management except Reporting on mobile ++ */
+    #invoice-management-view .workdesk-navigation ul li:not(:has(a[data-section="im-reporting"])) {
+        display: none;
+    }
 }
