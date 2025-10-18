@@ -29,7 +29,7 @@
                     <div class="button-container">
                         <button id="workdesk-button" class="circle-button">WorkDesk</button>
                         <button id="invoice-mgmt-button" class="circle-button">Invoice Management</button>
-                        <button class="circle-button">Accounts & Payments</button>
+                        <a href="https://ibaport.site/Finance/" target="_blank" class="circle-button">Finance Report</a>
                     </div>
                 </main>
             </div>
@@ -530,7 +530,25 @@
                             <label for="summary-note-current-input">Current Note</label>
                             <input type="text" id="summary-note-current-input" list="note-suggestions" placeholder="e.g., 2nd Payment">
                         </div>
-                         <datalist id="note-suggestions"></datalist>
+                        
+                        <div class="form-group">
+                            <label for="summary-note-status-input">Set Status</label>
+                            <select id="summary-note-status-input">
+                                <option value="">(Keep Existing)</option>
+                                <option value="For SRV">For SRV</option>
+                                <option value="Pending">Pending</option>
+                                <option value="For IPC">For IPC</option>
+                                <option value="Under Review">Under Review</option>
+                                <option value="CEO Approval">CEO Approval</option>
+                                <option value="Report">Report</option>
+                                <option value="With Accounts">With Accounts</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="summary-note-srv-input">Set SRV Name</label>
+                            <input type="text" id="summary-note-srv-input" placeholder="Enter new SRV Name...">
+                        </div>
+                        <datalist id="note-suggestions"></datalist>
                         <div class="form-buttons-container" style="margin-top: 0; padding-top: 25px;">
                             <button type="button" id="summary-note-generate-btn">Generate Summary</button>
                             <button type="button" id="summary-note-update-btn" class="secondary-btn">Update Changes</button>

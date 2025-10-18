@@ -115,7 +115,7 @@ let imAttentionSelectChoices = null;
 let currentlyEditingInvoiceKey = null;
 let currentPOInvoices = {};
 let currentReportData = [];
-let imStatusBarChart = null; 
+let imStatusBarChart = null;
 let approverListForSelect = []; // For batch entry select elements
 let allUniqueNotes = new Set(); // For summary note suggestions
 
@@ -146,9 +146,26 @@ function showView(viewName) {
 }
 function normalizeMobile(mobile) { const digitsOnly = mobile.replace(/\D/g, ''); if (digitsOnly.length === 8) { return `974${digitsOnly}`; } return digitsOnly; }
 async function findApprover(identifier) { const isEmail = identifier.includes('@'); const searchKey = isEmail ? 'Email' : 'Mobile'; const searchValue = isEmail ? identifier : normalizeMobile(identifier); const snapshot = await db.ref('approvers').once('value'); const approversData = snapshot.val(); if (!approversData) return null; for (const key in approversData) { const record = approversData[key]; const dbValue = record[searchKey]; if (dbValue) { if (isEmail) { if (dbValue.toLowerCase() === searchValue.toLowerCase()) { return { key, ...record }; } } else { const normalizedDbMobile = dbValue.replace(/\D/g, ''); if (normalizedDbMobile === searchValue) { return { key, ...record }; } } } } return null; }
+async function getApproverByKey(key) { try { const snapshot = await db.ref(`approvers/${key}`).once('value'); const approverData = snapshot.val(); if (approverData) { return { key, ...approverData }; } else { return null; } } catch (error) { console.error("Error fetching approver by key:", error); return null; } }
 function updateDashboardDateTime() { const now = new Date(); const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }; datetimeElement.textContent = now.toLocaleDateString('en-GB', options); }
 function updateWorkdeskDateTime() { const now = new Date(); const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }; const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }; const dateString = now.toLocaleDateString('en-GB', dateOptions); const timeString = now.toLocaleTimeString('en-GB', timeOptions); workdeskDatetimeElement.textContent = `${dateString} at ${timeString}`; }
-function handleSuccessfulLogin() { dashboardUsername.textContent = `Welcome ${currentApprover.Name || currentApprover.Email}`; updateDashboardDateTime(); if (dateTimeInterval) clearInterval(dateTimeInterval); dateTimeInterval = setInterval(updateDashboardDateTime, 1000); showView('dashboard'); }
+function handleSuccessfulLogin() {
+    // Save user key to session storage
+    if (currentApprover && currentApprover.key) {
+        sessionStorage.setItem('approverKey', currentApprover.key);
+    } else {
+        console.error("Attempted to save login state but currentApprover or key is missing.");
+        // Optionally, force logout or show error
+        handleLogout();
+        return;
+    }
+
+    dashboardUsername.textContent = `Welcome ${currentApprover.Name || currentApprover.Email}`;
+    updateDashboardDateTime();
+    if (dateTimeInterval) clearInterval(dateTimeInterval);
+    dateTimeInterval = setInterval(updateDashboardDateTime, 1000);
+    showView('dashboard');
+}
 function showWorkdeskSection(sectionId) {
     workdeskSections.forEach(section => { section.classList.add('hidden'); });
     const targetSection = document.getElementById(sectionId);
@@ -156,11 +173,11 @@ function showWorkdeskSection(sectionId) {
     if (sectionId === 'wd-dashboard') { populateWorkdeskDashboard(); }
     if (sectionId === 'wd-jobentry') { fetchAndDisplayJobEntries(); }
     if (sectionId === 'wd-activetask') { populateActiveTasks(); }
-    if (sectionId === 'wd-taskhistory') { 
+    if (sectionId === 'wd-taskhistory') {
         taskHistoryTableBody.innerHTML = '<tr><td colspan="9">Use the search bar to find history.</td></tr>';
         userTaskHistory = []; // Clear old data to prevent searching stale data
     }
-    if (sectionId === 'wd-reporting') { 
+    if (sectionId === 'wd-reporting') {
         reportingTableBody.innerHTML = '<tr><td colspan="11">Use the search bar and select a filter to see the report.</td></tr>';
     }
     if (sectionId === 'wd-settings') { populateSettingsForm(); }
@@ -261,7 +278,7 @@ function numberToWords(num) {
     if (fractionalPart && parseInt(fractionalPart) > 0) {
         words += ' and ' + parseInt(fractionalPart) + '/100';
     }
-    
+
     return words.charAt(0).toUpperCase() + words.slice(1) + " Qatari Riyals Only";
 }
 
@@ -348,7 +365,7 @@ function isTaskComplete(task) {
             return false; // Keep it in the pending list
         }
     }
-    
+
     if (task.source === 'invoice') {
         const completedStatuses = ['CEO Approval', 'With Accounts', 'Under Review', 'SRV Done'];
         return completedStatuses.includes(task.remarks);
@@ -543,7 +560,7 @@ function renderActiveTaskTable(tasks) {
         const actionButton = isInvoiceFromIrwin
             ? `<button class="respond-btn" data-key="${task.key}">Respond</button>` // Make it respondable
             : `<button class="respond-btn" data-key="${task.key}">Respond</button>`;
-        
+
         row.innerHTML = `
             <td>${task.for || ''}</td>
             <td>${task.ref || ''}</td>
@@ -636,7 +653,7 @@ async function populateWorkdeskDashboard() {
     await ensureAllEntriesFetched();
     const myActiveTasks = allSystemEntries.filter(task => task.attention === currentApprover.Name && !isTaskComplete(task));
     const myCompletedTasks = allSystemEntries.filter(task => (task.enteredBy === currentApprover.Name || task.attention === currentApprover.Name) && isTaskComplete(task));
-    
+
     dbActiveTasksCount.textContent = myActiveTasks.length;
     dbCompletedTasksCount.textContent = myCompletedTasks.length;
 
@@ -661,20 +678,20 @@ async function handleRespondClick(e) {
 
         // 2. Switch views
         invoiceManagementButton.click(); // Simulates user clicking the main button
-        
+
         // Use a short timeout to ensure the view is rendered before manipulating its content
         setTimeout(() => {
             imNav.querySelector('a[data-section="im-invoice-entry"]').click(); // Clicks the nav link
-            
+
             // 3. Auto-search and show back button
             imPOSearchInput.value = taskData.po;
             imPOSearchButton.click();
             imBackToActiveTaskButton.classList.remove('hidden');
-        }, 100); 
+        }, 100);
 
         return; // Stop further execution of this function
     }
-    
+
     // Automated response for tasks that came from the Invoice Entry module
     if (taskData.source === 'invoice') {
         const updates = {
@@ -689,7 +706,7 @@ async function handleRespondClick(e) {
             console.error("Error updating invoice status:", error);
             alert("Failed to update invoice status. Please try again.");
         }
-        return; 
+        return;
     }
 
     // Automated response for "Invoice" tasks CREATED BY "Irwin"
@@ -701,14 +718,14 @@ async function handleRespondClick(e) {
         try {
             await db.ref(`job_entries/${key}`).update(updates);
             alert('Task status updated to "SRV Done".');
-            populateActiveTasks(); 
+            populateActiveTasks();
         } catch (error) {
             console.error("Error updating task status:", error);
             alert("Failed to update task status. Please try again.");
         }
-        return; 
+        return;
     }
-    
+
     // Default logic for all other job_entry tasks (e.g., IPC for QS)
     const isQS = currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'qs';
     workdeskNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
@@ -858,7 +875,7 @@ async function handleUpdateSettings(e) {
 
         if (passwordChanged) {
             alert('Password changed successfully! You will now be logged out.');
-            location.reload();
+            handleLogout(); // Call logout to clear session
         }
 
     } catch (error) {
@@ -985,7 +1002,7 @@ async function fetchAndDisplayInvoices(poNumber) {
     let invoiceCount = 0;
     imInvoicesTableBody.innerHTML = '';
     currentPOInvoices = invoicesData || {};
-    
+
     const isAdmin = currentApprover && currentApprover.Role && currentApprover.Role.toLowerCase() === 'admin';
 
     if (invoicesData) {
@@ -1000,7 +1017,7 @@ async function fetchAndDisplayInvoices(poNumber) {
             const releaseDateDisplay = normalizedReleaseDate ? new Date(normalizedReleaseDate + 'T00:00:00').toLocaleDateString('en-GB') : 'N/A';
             const normalizedInvoiceDate = normalizeDateForInput(inv.invoiceDate);
             const invoiceDateDisplay = normalizedInvoiceDate ? new Date(normalizedInvoiceDate + 'T00:00:00').toLocaleDateString('en-GB') : 'N/A';
-            
+
             const invValueDisplay = !isAdmin ? '---' : formatCurrency(inv.invValue);
             const amountPaidDisplay = !isAdmin ? '---' : formatCurrency(inv.amountPaid);
 
@@ -1039,7 +1056,7 @@ async function fetchAndDisplayInvoices(poNumber) {
             imInvoiceDateInput.value = convertDisplayDateToInput(pendingJobEntryDataForInvoice.date);
         }
         // Clear the state variable so it's not used again
-        pendingJobEntryDataForInvoice = null; 
+        pendingJobEntryDataForInvoice = null;
     }
 }
 function populateInvoiceFormForEditing(invoiceKey) {
@@ -1082,7 +1099,7 @@ async function handleAddInvoice(e) {
     const invoiceData = Object.fromEntries(formData.entries());
     let attentionValue = imAttentionSelectChoices.getValue(true);
     invoiceData.attention = (attentionValue === 'None') ? '' : attentionValue;
-    invoiceData.dateAdded = getTodayDateString(); 
+    invoiceData.dateAdded = getTodayDateString();
     invoiceData.createdAt = firebase.database.ServerValue.TIMESTAMP;
 
     // --- Automatic Invoice Name Logic ---
@@ -1097,7 +1114,7 @@ async function handleAddInvoice(e) {
         }
         invoiceData.invName = `${site}-${po}-${invId}-${vendor}`;
     }
-    
+
     // --- Automatic SRV Name Logic on Create ---
     if (invoiceData.status === 'With Accounts' && !invoiceData.srvName) {
         const poSnapshot = await db.ref(`purchase_orders/${currentPO}`).once('value');
@@ -1183,7 +1200,7 @@ async function handleUpdateInvoice(e) {
                     vendor = vendor.substring(0, 21);
                 }
                 const site = poDetails['Project ID'] || 'N/A';
-                
+
                 invoiceData.srvName = `${formattedDate}-${currentPO}-${site}-${vendor}`;
                 document.getElementById('im-srv-name').value = invoiceData.srvName;
             }
@@ -1241,7 +1258,7 @@ async function populateSiteFilterDropdown() {
                 sites.add(allPOs[poNumber]['Project ID']);
             }
         }
-        
+
         const sortedSites = Array.from(sites).sort();
         sortedSites.forEach(site => {
             const option = document.createElement('option');
@@ -1294,24 +1311,24 @@ async function populateInvoiceReporting(searchTerm = '') {
             const poDetails = allPOs[poNumber] || {};
             const site = poDetails['Project ID'] || 'N/A';
             const vendor = poDetails['Supplier Name'] || 'N/A';
-            
+
             // Primary PO-level filtering
             const searchMatch = !searchText || poNumber.toLowerCase().includes(searchText) || vendor.toLowerCase().includes(searchText);
             const siteMatch = !siteFilter || site === siteFilter;
-            
+
             if(!searchMatch || !siteMatch) continue;
 
             let invoices = allInvoicesByPO[poNumber] ? Object.values(allInvoicesByPO[poNumber]) : [];
-            
+
             // Secondary Invoice-level filtering by month
-            const filteredInvoices = monthFilter 
-                ? invoices.filter(inv => inv.releaseDate && inv.releaseDate.startsWith(monthFilter)) 
+            const filteredInvoices = monthFilter
+                ? invoices.filter(inv => inv.releaseDate && inv.releaseDate.startsWith(monthFilter))
                 : invoices;
-            
+
             if (filteredInvoices.length === 0) continue;
 
             resultsFound = true;
-            
+
             let totalInvValue = 0;
             let totalAmountPaid = 0;
             let allWithAccounts = filteredInvoices.length > 0;
@@ -1343,7 +1360,7 @@ async function populateInvoiceReporting(searchTerm = '') {
 
                 const invValueDisplay = !isAdmin ? '---' : formatCurrency(invValue);
                 const amountPaidDisplay = !isAdmin ? '---' : formatCurrency(amountPaid);
-                
+
                 let actionButtonsHTML = '';
                 if (isAdmin) {
                     const invPDF = inv.invName ? `<a href="${PDF_BASE_PATH}${encodeURIComponent(inv.invName)}.pdf" target="_blank" class="action-btn invoice-pdf-btn">Invoice</a>` : '';
@@ -1373,10 +1390,10 @@ async function populateInvoiceReporting(searchTerm = '') {
             const totalInvValueDisplay = !isAdmin ? '---' : `<strong>QAR ${formatCurrency(totalInvValue)}</strong>`;
             const totalAmountPaidDisplay = !isAdmin ? '---' : `<strong>QAR ${formatCurrency(totalAmountPaid)}</strong>`;
             const poValueDisplay = !isAdmin ? '---' : (poDetails.Amount ? `QAR ${formatCurrency(poDetails.Amount)}` : 'N/A');
-            
+
             let highlightClass = '';
             const poValueNum = parseFloat(poDetails.Amount) || 0;
-            const epsilon = 0.01; 
+            const epsilon = 0.01;
 
             if (allWithAccounts && poValueNum > 0) {
                 const isInvValueMatch = Math.abs(totalInvValue - poValueNum) < epsilon;
@@ -1638,7 +1655,7 @@ async function populateApproverSelect(selectElement) {
                 const approverOptions = Object.values(approvers)
                     .map(approver => approver.Name ? { value: approver.Name, label: approver.Name } : null)
                     .filter(Boolean)
-                    .sort((a, b) => a.label.localeCompare(b.label)); 
+                    .sort((a, b) => a.label.localeCompare(b.label));
                 approverListForSelect = [
                     { value: '', label: 'Select Attention' },
                     { value: 'None', label: 'None (Clear)' },
@@ -1649,7 +1666,7 @@ async function populateApproverSelect(selectElement) {
             console.error("Error fetching approvers for select:", error);
         }
     }
-    
+
     selectElement.innerHTML = '';
     approverListForSelect.forEach(opt => {
         const option = document.createElement('option');
@@ -1666,7 +1683,7 @@ async function handleAddPOToBatch() {
 
     const batchTableBody = document.getElementById('im-batch-table-body');
     const existingRows = batchTableBody.querySelectorAll(`tr[data-po="${poNumber}"]`);
-    
+
     let isExistingInvoice = false;
     existingRows.forEach(row => {
         if (!row.dataset.key) { // Check if it's a "new" entry row
@@ -1690,7 +1707,7 @@ async function handleAddPOToBatch() {
         const invoiceSnapshot = await db.ref(`invoice_entries/${poNumber}`).once('value');
         const invoiceCount = invoiceSnapshot.exists() ? Object.keys(invoiceSnapshot.val()).length : 0;
         const nextInvId = `INV-${String(invoiceCount + 1).padStart(2, '0')}`;
-        
+
         const site = poData['Project ID'] || 'N/A';
         const vendor = poData['Supplier Name'] || 'N/A';
 
@@ -1724,9 +1741,9 @@ async function handleAddPOToBatch() {
             <td><input type="text" name="note" class="batch-input"></td>
             <td><button type="button" class="delete-btn batch-remove-btn">&times;</button></td>
         `;
-        
+
         batchTableBody.appendChild(row);
-        
+
         const attentionSelect = row.querySelector('select[name="attention"]');
         // Initialize the searchable dropdown on the newly created element
         setTimeout(() => {
@@ -1800,7 +1817,7 @@ async function handleSaveBatchInvoices() {
         if (vendor.length > 21) {
             vendor = vendor.substring(0, 21);
         }
-        
+
         let promise;
 
         if (existingKey) {
@@ -1825,7 +1842,7 @@ async function handleSaveBatchInvoices() {
             promise = db.ref(`invoice_entries/${poNumber}`).push(invoiceData);
             newInvoicesCount++;
         }
-        
+
         savePromises.push(promise);
     }
 
@@ -1918,7 +1935,7 @@ async function handleAddSelectedToBatch() {
 
     for (const checkbox of selectedCheckboxes) {
         const invData = JSON.parse(decodeURIComponent(checkbox.dataset.invoice));
-        
+
         if (batchTableBody.querySelector(`tr[data-key="${invData.key}"]`)) {
             continue; // Skip if already present
         }
@@ -2001,7 +2018,7 @@ async function initializeNoteSuggestions() {
                 }
             }
         }
-        
+
         noteSuggestionsDatalist.innerHTML = '';
         allUniqueNotes.forEach(note => {
             const option = document.createElement('option');
@@ -2033,11 +2050,11 @@ async function handleGenerateSummary() {
         ]);
         const allInvoicesByPO = invoiceSnapshot.val() || {};
         const allPOs = poSnapshot.val() || {};
-        
+
         let previousPaymentTotal = 0;
         let currentPaymentTotal = 0;
         let allCurrentInvoices = [];
-        
+
         for (const poNumber in allInvoicesByPO) {
             const invoices = allInvoicesByPO[poNumber];
             for (const key in invoices) {
@@ -2055,7 +2072,7 @@ async function handleGenerateSummary() {
                 }
             }
         }
-        
+
         if (allCurrentInvoices.length === 0) {
             alert(`No invoices found with the note: "${currentNote}"`);
             summaryNotePrintArea.classList.add('hidden');
@@ -2068,7 +2085,7 @@ async function handleGenerateSummary() {
         const firstPO = allCurrentInvoices[0].po;
         const vendorData = allPOs[firstPO];
         snVendorName.textContent = vendorData ? vendorData['Supplier Name'] : 'N/A';
-        
+
         const today = new Date();
         const options = { year: 'numeric', month: 'long', day: 'numeric' };
         snDate.textContent = `Date: ${today.toLocaleDateString('en-GB', options).replace(/ /g, '-')}`;
@@ -2077,7 +2094,7 @@ async function handleGenerateSummary() {
         snCurrentPayment.textContent = `${formatCurrency(currentPaymentTotal)} Qatari Riyals`;
 
         snTableBody.innerHTML = '';
-        
+
         for (const inv of allCurrentInvoices) {
             const row = document.createElement('tr');
             row.setAttribute('data-po', inv.po);
@@ -2096,7 +2113,7 @@ async function handleGenerateSummary() {
         snTotalInWords.textContent = numberToWords(currentPaymentTotal);
 
         summaryNotePrintArea.classList.remove('hidden');
-        
+
     } catch (error) {
         console.error("Error generating summary:", error);
         alert("An error occurred. Please check the notes and try again.");
@@ -2113,26 +2130,46 @@ async function handleUpdateSummaryChanges() {
         return;
     }
 
-    const confirmed = confirm("Are you sure you want to save the changes to Bill Description and Bill Date for all visible entries?");
+    const confirmed = confirm("Are you sure you want to save the changes for all visible entries?");
     if (!confirmed) return;
-    
+
     summaryNoteUpdateBtn.textContent = "Updating...";
     summaryNoteUpdateBtn.disabled = true;
+
+    // Get the new global values
+    const newGlobalStatus = document.getElementById('summary-note-status-input').value;
+    const newGlobalSRV = document.getElementById('summary-note-srv-input').value.trim();
+    const today = getTodayDateString();
 
     const updatePromises = [];
     try {
         rows.forEach(row => {
             const poNumber = row.dataset.po;
             const invoiceKey = row.dataset.key;
-            
+
             const newDetails = row.querySelector('input[name="details"]').value;
             const newInvoiceDate = row.querySelector('input[name="invoiceDate"]').value;
 
             if (poNumber && invoiceKey) {
                 const updates = {
                     details: newDetails,
-                    invoiceDate: newInvoiceDate
+                    invoiceDate: newInvoiceDate,
+                    releaseDate: today // Set release date to current date
                 };
+
+                // Conditionally add the new global fields
+                if (newGlobalStatus) {
+                    updates.status = newGlobalStatus;
+                }
+                if (newGlobalSRV) {
+                    updates.srvName = newGlobalSRV;
+                }
+
+                // If status is "With Accounts", clear attention
+                if (newGlobalStatus === 'With Accounts') {
+                    updates.attention = '';
+                }
+
                 const promise = db.ref(`invoice_entries/${poNumber}/${invoiceKey}`).update(updates);
                 updatePromises.push(promise);
             }
@@ -2147,20 +2184,55 @@ async function handleUpdateSummaryChanges() {
     } finally {
         summaryNoteUpdateBtn.textContent = "Update Changes";
         summaryNoteUpdateBtn.disabled = false;
+        // Optionally clear the global inputs after save
+        document.getElementById('summary-note-status-input').value = '';
+        document.getElementById('summary-note-srv-input').value = '';
     }
 }
 
+// --- LOGOUT FUNCTION (Modified) ---
+function handleLogout() {
+    // Clear session storage
+    sessionStorage.removeItem('approverKey');
+
+    // Clear intervals
+    if (dateTimeInterval) clearInterval(dateTimeInterval);
+    if (workdeskDateTimeInterval) clearInterval(workdeskDateTimeInterval);
+    if (imDateTimeInterval) clearInterval(imDateTimeInterval);
+
+    // Reload the page (will go back to login)
+    location.reload();
+}
+
 // --- EVENT LISTENERS ---
-document.addEventListener('DOMContentLoaded', () => {
-    showView('login');
+document.addEventListener('DOMContentLoaded', async () => { // Made async
+    // Check for saved session
+    const savedApproverKey = sessionStorage.getItem('approverKey');
+    if (savedApproverKey) {
+        currentApprover = await getApproverByKey(savedApproverKey);
+        if (currentApprover) {
+            console.log("Resuming session for:", currentApprover.Name);
+            handleSuccessfulLogin(); // Go directly to dashboard
+        } else {
+            console.log("Saved key found but no user data fetched, clearing session.");
+            sessionStorage.removeItem('approverKey'); // Clear invalid key
+            showView('login'); // Show login if user fetch failed
+        }
+    } else {
+        showView('login'); // Show login if no key saved
+    }
+
     loginForm.addEventListener('submit', async (e) => { e.preventDefault(); loginError.textContent = ''; const identifier = loginIdentifierInput.value.trim(); try { const approver = await findApprover(identifier); if (!approver) { loginError.textContent = 'Access denied. Your email or mobile is not registered as an approver.'; return; } currentApprover = approver; if (!currentApprover.Password || currentApprover.Password === '') { const isEmailMissing = !currentApprover.Email; const isSiteMissing = !currentApprover.Site; const isPositionMissing = !currentApprover.Position; setupEmailContainer.classList.toggle('hidden', !isEmailMissing); setupSiteContainer.classList.toggle('hidden', !isSiteMissing); setupPositionContainer.classList.toggle('hidden', !isPositionMissing); setupEmailInput.required = isEmailMissing; setupSiteInput.required = isSiteMissing; setupPositionInput.required = isPositionMissing; showView('setup'); setupPasswordInput.focus(); } else { passwordUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile; showView('password'); passwordInput.focus(); } } catch (error) { console.error("Error checking approver:", error); loginError.textContent = 'An error occurred. Please try again.'; } });
     setupForm.addEventListener('submit', async (e) => { e.preventDefault(); setupError.textContent = ''; const newPassword = setupPasswordInput.value; const finalEmail = currentApprover.Email || setupEmailInput.value.trim(); const finalSite = currentApprover.Site || setupSiteInput.value.trim(); const finalPosition = currentApprover.Position || setupPositionInput.value.trim(); if (!finalEmail.toLowerCase().endsWith('@iba.com.qa')) { setupError.textContent = 'Invalid email. Only @iba.com.qa addresses are allowed.'; return; } if (newPassword.length < 6) { setupError.textContent = 'Password must be at least 6 characters long.'; return; } try { const updates = { Password: newPassword, Email: finalEmail, Site: finalSite, Position: finalPosition }; await db.ref(`approvers/${currentApprover.key}`).update(updates); currentApprover = { ...currentApprover, ...updates }; handleSuccessfulLogin(); } catch (error) { console.error("Error during setup:", error); setupError.textContent = 'An error occurred while saving. Please try again.'; } });
     passwordForm.addEventListener('submit', (e) => { e.preventDefault(); passwordError.textContent = ''; const enteredPassword = passwordInput.value; if (enteredPassword === currentApprover.Password) { handleSuccessfulLogin(); } else { passwordError.textContent = 'Incorrect password. Please try again.'; passwordInput.value = ''; } });
-    function handleLogout() { if (dateTimeInterval) clearInterval(dateTimeInterval); if (workdeskDateTimeInterval) clearInterval(workdeskDateTimeInterval); if (imDateTimeInterval) clearInterval(imDateTimeInterval); location.reload(); }
+
+    // --- Logout Listeners ---
     logoutButton.addEventListener('click', handleLogout);
     wdLogoutButton.addEventListener('click', handleLogout);
+    imLogoutButton.addEventListener('click', handleLogout); // Added listener for IM logout
 
     workdeskButton.addEventListener('click', () => {
+        if (!currentApprover) { handleLogout(); return; } // Add check
         wdUsername.textContent = currentApprover.Name || 'User';
         wdUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile;
         if (!siteSelectChoices) {
@@ -2181,7 +2253,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelector('#workdesk-view .workdesk-sidebar').addEventListener('click', (e) => {
         const link = e.target.closest('a');
         if (!link || link.classList.contains('back-to-main-dashboard')) return;
-        if (link.id === 'wd-logout-button') return;
+        if (link.id === 'wd-logout-button') return; // Logout is handled separately
 
         e.preventDefault();
 
@@ -2210,15 +2282,15 @@ document.addEventListener('DOMContentLoaded', () => {
     activeTaskTableBody.addEventListener('click', (e) => {
         const row = e.target.closest('tr');
         if (!row) return;
-        
+
         if (e.target.classList.contains('respond-btn')) {
             handleRespondClick(e);
-            return; 
+            return;
         }
 
         const key = row.dataset.key;
         if (!key) return;
-        
+
         const task = allSystemEntries.find(entry => entry.key === key);
         if (task && task.source === 'invoice' && task.invName) {
             const pdfUrl = PDF_BASE_PATH + encodeURIComponent(task.invName) + ".pdf";
@@ -2235,7 +2307,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             if (attentionSelectChoices.disabled) {
                 attentionSelectChoices.enable();
-                resetJobEntryForm(true);
+                resetJobEntryForm(true); // Keep Job type selected
             }
         }
     });
@@ -2261,16 +2333,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // +++ INVOICE MANAGEMENT LISTENERS +++
     invoiceManagementButton.addEventListener('click', () => {
+        if (!currentApprover) { handleLogout(); return; } // Add check
         imUsername.textContent = currentApprover.Name || 'User';
         imUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile;
 
         if (imAttentionSelectChoices) {
-            imAttentionSelectChoices.destroy();
+            imAttentionSelectChoices.destroy(); // Destroy previous instance if exists
         }
         imAttentionSelectChoices = new Choices(imAttentionSelect, {
             searchEnabled: true, shouldSort: false, itemSelectText: '',
         });
-        populateAttentionDropdown(imAttentionSelectChoices);
+        populateAttentionDropdown(imAttentionSelectChoices); // Populate fresh
 
         const userRole = (currentApprover.Role || '').toLowerCase();
         const userPosition = (currentApprover.Position || '').toLowerCase();
@@ -2290,7 +2363,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (imDateTimeInterval) clearInterval(imDateTimeInterval);
         imDateTimeInterval = setInterval(updateIMDateTime, 1000);
         showView('invoice-management');
-        
+
         // MODIFIED: Check for mobile view to show the correct initial section
         if (window.innerWidth <= 768) {
             showIMSection('im-reporting');
@@ -2318,7 +2391,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    imLogoutButton.addEventListener('click', handleLogout);
+    // imLogoutButton listener moved up to group with other logout buttons
+
     imPOSearchButton.addEventListener('click', handlePOSearch);
     imPOSearchInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
@@ -2383,8 +2457,11 @@ document.addEventListener('DOMContentLoaded', () => {
     imReportingForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const searchTerm = imReportingSearchInput.value.trim();
-        if (!searchTerm) {
-            imReportingContent.innerHTML = '<p style="color: red; font-weight: bold;">Please specify a search term in the box above to begin.</p>';
+        const siteFilter = document.getElementById('im-reporting-site-filter').value;
+        const monthFilter = document.getElementById('im-reporting-date-filter').value;
+
+        if (!searchTerm && !siteFilter && !monthFilter) {
+            imReportingContent.innerHTML = '<p style="color: red; font-weight: bold;">Please specify at least one search criteria (PO/Vendor, Site, or Month) to begin.</p>';
             return;
         }
         populateInvoiceReporting(searchTerm);
@@ -2401,7 +2478,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if(imDownloadWithAccountsReportButton) {
         imDownloadWithAccountsReportButton.addEventListener('click', handleDownloadWithAccountsReport);
     }
-    
+
     imStatusSelect.addEventListener('change', (e) => {
         if (e.target.value === 'CEO Approval') {
             if (imAttentionSelectChoices) {
@@ -2409,7 +2486,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
-    
+
     imInvValueInput.addEventListener('input', (e) => {
         imAmountPaidInput.value = e.target.value;
     });
@@ -2467,13 +2544,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         });
     }
-    
+
     if (imBatchSearchModal) {
         imBatchSearchModal.querySelectorAll('.modal-close-btn').forEach(btn => {
              btn.addEventListener('click', () => imBatchSearchModal.classList.add('hidden'));
         });
         const modalSearchBtn = document.getElementById('im-batch-modal-search-btn');
-        const addSelectedBtn = document.getElementById('im-batch-modal-add-selected-btn'); 
+        const addSelectedBtn = document.getElementById('im-batch-modal-add-selected-btn');
 
         if(modalSearchBtn) modalSearchBtn.addEventListener('click', handleBatchModalPOSearch);
         if(addSelectedBtn) addSelectedBtn.addEventListener('click', handleAddSelectedToBatch);

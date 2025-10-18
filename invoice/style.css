@@ -1,8 +1,9 @@
 /* --- Keyframe animation for the background --- */
 @keyframes glowing-border {
-    0% { border-color: #03a9f4; box-shadow: 0 0 5px #03a9f4, 0 0 10px #03a9f4, 0 0 20px #03a9f4; }
-    50% { border-color: #ffeb3b; box-shadow: 0 0 5px #ffeb3b, 0 0 10px #ffeb3b, 0 0 20px #ffeb3b; }
-    100% { border-color: #03a9f4; box-shadow: 0 0 5px #03a9f4, 0 0 10px #03a9f4, 0 0 20px #03a9f4; }
+    /* MODIFIED: Reduced shadow spread for a thinner glow */
+    0% { border-color: #03a9f4; box-shadow: 0 0 2px #03a9f4, 0 0 5px #03a9f4, 0 0 10px #03a9f4, inset 0 0 0 2px rgba(0,0,0,0.5); }
+    50% { border-color: #ffeb3b; box-shadow: 0 0 2px #ffeb3b, 0 0 5px #ffeb3b, 0 0 10px #ffeb3b, inset 0 0 0 2px rgba(0,0,0,0.5); }
+    100% { border-color: #03a9f4; box-shadow: 0 0 2px #03a9f4, 0 0 5px #03a9f4, 0 0 10px #03a9f4, inset 0 0 0 2px rgba(0,0,0,0.5); }
 }
 
 /* General Body Styles */
@@ -23,7 +24,7 @@ body.login-background {
 /* Card Styling */
 .form-container { background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); text-align: center; }
 
-/* ++ NEW: Animated Card Style for Login/Welcome ++ */
+/* ++ REVERTED: Animated Card Style for Login/Welcome ++ */
 .animated-card {
     background-color: rgba(10, 25, 47, 0.85); /* Dark background with transparency */
     border: 2px solid;
@@ -32,7 +33,7 @@ body.login-background {
     backdrop-filter: blur(5px);
 }
 .animated-card h2, .animated-card p, .animated-card strong {
-    color: #fff;
+    color: #fff; /* White text for dark background */
 }
 
 h2 { margin-top: 0; margin-bottom: 10px; color: #1a1a1a; }
@@ -56,15 +57,35 @@ button:hover { background-color: #0056b3; }
 }
 
 /* Main Dashboard Styles */
+/* MODIFIED: Changed text color for dark card */
 .dashboard-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #4a5568; padding-bottom: 15px; margin-bottom: 30px; }
 #user-info { display: flex; flex-direction: column; align-items: flex-start; text-align: left; }
-#dashboard-username { font-size: 1.1rem; font-weight: 600; color: #fff; }
-#datetime { font-size: 0.85rem; color: #a0aec0; margin-top: 4px; }
+#dashboard-username { font-size: 1.1rem; font-weight: 600; color: #fff; } /* White text */
+#datetime { font-size: 0.85rem; color: #a0aec0; margin-top: 4px; } /* Lighter text */
 #logout-button { background-color: #dc3545; color: white; width: auto; padding: 8px 16px; font-size: 14px; font-weight: normal; }
 #logout-button:hover { background-color: #c82333; }
 .dashboard-main { padding: 10px 0; }
 .button-container { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; }
-.circle-button { width: 120px; height: 120px; border-radius: 50%; background: linear-gradient(145deg, #0088d1, #006da8); color: white; border: 4px solid white; box-shadow: 0 5px 15px rgba(0, 119, 194, 0.4); font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: flex; justify-content: center; align-items: center; text-align: center; }
+/* --- Original Blue Circle Buttons --- */
+.circle-button { 
+    width: 120px; 
+    height: 120px; 
+    border-radius: 50%; 
+    background: linear-gradient(145deg, #0088d1, #006da8); 
+    color: white; 
+    border: 4px solid white; 
+    box-shadow: 0 5px 15px rgba(0, 119, 194, 0.4); 
+    font-size: 1rem; 
+    font-weight: 600; 
+    cursor: pointer; 
+    transition: all 0.3s ease; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    text-align: center; 
+    text-decoration: none; 
+    box-sizing: border-box; /* To keep buttons in one line */
+}
 .circle-button:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0, 119, 194, 0.5); background: linear-gradient(145deg, #0099e1, #007db8); }
 
 /* --- WORKDESK STYLES --- */
@@ -93,7 +114,7 @@ button:hover { background-color: #0056b3; }
 .form-column { display: flex; flex-direction: column; gap: 20px; }
 .form-column .form-group { margin-bottom: 0; }
 .form-buttons-container { margin-top: auto; padding-top: 20px; display: flex; gap: 10px; justify-content: flex-end; }
-.form-buttons-container button { width: auto; min-width: 100px; padding: 10px 15px; }
+.form-buttons-container button, .form-buttons-container a { width: auto; min-width: 100px; padding: 10px 15px; }
 .secondary-btn { background-color: #6c757d; }
 .secondary-btn:hover { background-color: #5a6268; }
 input.highlight-field { border-color: #ffc107; box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25); }
@@ -291,7 +312,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     transition: background-color 0.2s ease;
 }
 .master-row:hover {
-    background-color: #f5f5f5;
+    background-color: #f5f5ff;
 }
 .master-row td {
     font-weight: 500;
@@ -472,7 +493,7 @@ tbody tr:hover { background-color: #f1f1f1; }
 #summary-note-controls label {
     font-size: 0.9rem;
 }
-#summary-note-controls input {
+#summary-note-controls input, #summary-note-controls select {
     margin-bottom: 0;
 }
 
