@@ -14,7 +14,7 @@ const firebaseConfig = {
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
-const auth = firebase.auth(); 
+const auth = firebase.auth();
 const paymentsRef = database.ref('payments');
 const vendorsRef = database.ref('vendors');
 
@@ -32,33 +32,33 @@ const elements = {
   mainApp: document.getElementById('mainApp'),
   logoutLink: document.getElementById('logoutLink'),
   userEmailDisplay: document.getElementById('userEmailDisplay'), // Added this
-  
+
   // Form elements
   paymentForm: document.getElementById('paymentForm'),
   saveBtn: document.getElementById('saveBtn'),
   cancelBtn: document.getElementById('cancelBtn'),
   clearBtn: document.getElementById('clearBtn'),
   addNewPaymentBtn: document.getElementById('addNewPaymentBtn'),
-  
+
   // Vendor elements
   vendorList: document.getElementById('vendorList'),
   vendorUploadForm: document.getElementById('vendorUploadForm'),
-  
+
   // Section elements
   paymentSection: document.getElementById('paymentSection'),
   vendorSection: document.getElementById('vendorSection'),
   recordsSection: document.getElementById('recordsSection'),
-  
+
   // Navigation elements
   paymentLink: document.getElementById('paymentLink'),
   vendorLink: document.getElementById('vendorLink'),
   recordsLink: document.getElementById('recordsLink'),
-  
+
   // Import/Export elements
   importBtn: document.getElementById('importBtn'),
   paymentCsv: document.getElementById('paymentCsv'),
   overwriteData: document.getElementById('overwriteData'),
-  
+
   // Search elements
   searchPoNo: document.getElementById('searchPoNo'),
   searchBtn: document.getElementById('searchBtn'),
@@ -66,18 +66,18 @@ const elements = {
   noResultsAlert: document.getElementById('noResultsAlert'),
   searchResultsBody: document.getElementById('searchResultsBody'),
   addNewBtn: document.getElementById('addNewBtn'),
-  
+
   // Form display elements
   paymentFormCard: document.getElementById('paymentFormCard'),
   formTitle: document.getElementById('formTitle'),
-  
+
   // Delete elements
   deleteAllBtn: document.getElementById('deleteAllBtn'),
   downloadTemplateBtn: document.getElementById('downloadTemplateBtn'),
   confirmDelete: document.getElementById('confirmDelete'),
   confirmDeleteBtn: document.getElementById('confirmDeleteBtn'),
   clearSearchBtn: document.getElementById('clearSearchBtn'),
-  
+
   // Report elements
   reportModal: new bootstrap.Modal(document.getElementById('reportModal')),
   printReportBtn: document.getElementById('printReportBtn'),
@@ -86,7 +86,7 @@ const elements = {
 
 // Form fields
 const fields = [
-  'paymentNo', 'chequeNo', 'site', 'vendor', 'vendorId', 'poNo', 
+  'paymentNo', 'chequeNo', 'site', 'vendor', 'vendorId', 'poNo',
   'poValue', 'certifiedAmount', 'retention', 'payment', 'datePaid'
 ];
 
@@ -128,7 +128,7 @@ function handleLogin(e) {
   e.preventDefault();
   const email = elements.loginEmail.value;
   const password = elements.loginPassword.value;
-  
+
   elements.loginBtn.disabled = true;
   elements.loginBtn.textContent = 'Logging in...';
   elements.loginError.style.display = 'none';
@@ -164,25 +164,25 @@ function setupEventListeners() {
   elements.vendorLink.addEventListener('click', showVendorSection);
   elements.recordsLink.addEventListener('click', showRecordsSection);
   elements.logoutLink.addEventListener('click', handleLogout);
-  
+
   // Form submission
   elements.paymentForm.addEventListener('submit', handleFormSubmit);
-  
+
   // Form buttons
   elements.cancelBtn.addEventListener('click', cancelEdit);
   elements.clearBtn.addEventListener('click', resetForm);
   elements.addNewPaymentBtn.addEventListener('click', addNewPaymentFromEdit);
   elements.addNewBtn.addEventListener('click', showAddNewForm);
-  
+
   // Search functionality
   elements.searchBtn.addEventListener('click', searchPayments);
   elements.searchPoNo.addEventListener('keypress', e => { if (e.key === 'Enter') searchPayments(); });
   elements.clearSearchBtn.addEventListener('click', resetSearch);
-  
+
   // Vendor autocomplete
   document.getElementById('vendor').addEventListener('input', handleVendorInput);
   document.getElementById('vendor').addEventListener('change', handleVendorSelection);
-  
+
   // Calculation events
   document.getElementById('certifiedAmount').addEventListener('input', calculatePayment);
   document.getElementById('retention').addEventListener('input', calculatePayment);
@@ -196,16 +196,16 @@ function setupEventListeners() {
 
   // NEW LOGIC: Use event delegation for dynamic Edit/Delete buttons
   elements.searchResultsBody.addEventListener('click', handleActionClick);
-  
+
   // Import/Export
   elements.vendorUploadForm.addEventListener('submit', uploadVendorCSV);
   elements.importBtn.addEventListener('click', importPaymentCSV);
   elements.downloadTemplateBtn.addEventListener('click', downloadCSVTemplate);
-  
+
   // Delete All
   elements.confirmDelete.addEventListener('change', toggleDeleteButton);
   elements.confirmDeleteBtn.addEventListener('click', deleteAllPayments);
-  
+
   // Report
   elements.printReportBtn.addEventListener('click', printReport);
 }
@@ -213,33 +213,33 @@ function setupEventListeners() {
 // ======================
 // Navigation Functions
 // ======================
-function showPaymentSection(e) { 
-  e.preventDefault(); 
-  elements.paymentSection.style.display = 'block'; 
-  elements.vendorSection.style.display = 'none'; 
-  elements.recordsSection.style.display = 'none'; 
-  elements.paymentLink.classList.add('active'); 
-  elements.vendorLink.classList.remove('active'); 
-  elements.recordsLink.classList.remove('active'); 
-  resetSearch(); 
+function showPaymentSection(e) {
+  e.preventDefault();
+  elements.paymentSection.style.display = 'block';
+  elements.vendorSection.style.display = 'none';
+  elements.recordsSection.style.display = 'none';
+  // Update active class for dropdown
+  document.querySelectorAll('.dropdown-item').forEach(el => el.classList.remove('active'));
+  elements.paymentLink.classList.add('active');
+  resetSearch();
 }
-function showVendorSection(e) { 
-  e.preventDefault(); 
-  elements.paymentSection.style.display = 'none'; 
-  elements.vendorSection.style.display = 'block'; 
-  elements.recordsSection.style.display = 'none'; 
-  elements.paymentLink.classList.remove('active'); 
-  elements.vendorLink.classList.add('active'); 
-  elements.recordsLink.classList.remove('active'); 
+function showVendorSection(e) {
+  e.preventDefault();
+  elements.paymentSection.style.display = 'none';
+  elements.vendorSection.style.display = 'block';
+  elements.recordsSection.style.display = 'none';
+  // Update active class for dropdown
+  document.querySelectorAll('.dropdown-item').forEach(el => el.classList.remove('active'));
+  elements.vendorLink.classList.add('active');
 }
-function showRecordsSection(e) { 
-  e.preventDefault(); 
-  elements.paymentSection.style.display = 'none'; 
-  elements.vendorSection.style.display = 'none'; 
-  elements.recordsSection.style.display = 'block'; 
-  elements.paymentLink.classList.remove('active'); 
-  elements.vendorLink.classList.remove('active'); 
-  elements.recordsLink.classList.add('active'); 
+function showRecordsSection(e) {
+  e.preventDefault();
+  elements.paymentSection.style.display = 'none';
+  elements.vendorSection.style.display = 'none';
+  elements.recordsSection.style.display = 'block';
+  // Update active class for dropdown
+  document.querySelectorAll('.dropdown-item').forEach(el => el.classList.remove('active'));
+  elements.recordsLink.classList.add('active');
 }
 
 // ======================
@@ -256,7 +256,7 @@ function searchPayments() {
     .then(snapshot => {
       elements.searchResults.style.display = 'block';
       elements.searchResultsBody.innerHTML = '';
-      
+
       if (!snapshot.exists()) {
         showNoResults(poNo);
       } else {
@@ -273,15 +273,12 @@ function searchPayments() {
 
 function showNoResults(poNo) {
   elements.noResultsAlert.style.display = 'block';
-  elements.addNewBtn.style.display = 'block';
   elements.paymentFormCard.style.display = 'none';
-  document.getElementById('poNo').value = poNo;
 }
 
 // MODIFIED: This function is completely rewritten for the new UI
 function showSearchResults(payments) {
     elements.noResultsAlert.style.display = 'none';
-    elements.addNewBtn.style.display = 'none';
     elements.searchResultsBody.innerHTML = '';
 
     if (payments.length === 0) return;
@@ -354,7 +351,7 @@ function showSearchResults(payments) {
             </div>
         </div>
     `;
-    
+
     // 3. Append both to the container
     elements.searchResultsBody.innerHTML = summaryHtml + detailsHtml;
 }
@@ -384,7 +381,6 @@ function resetSearch() {
   elements.searchPoNo.value = '';
   elements.searchResults.style.display = 'none';
   elements.noResultsAlert.style.display = 'none';
-  elements.addNewBtn.style.display = 'none';
   elements.paymentFormCard.style.display = 'none';
   allPaymentsData = {};
 }
@@ -411,7 +407,8 @@ function showAddNewForm() {
   elements.formTitle.textContent = 'Add New Payment';
   isEditing = false;
   editId = null;
-  elements.saveBtn.textContent = 'Save';
+  // MODIFIED: Changed button text
+  elements.saveBtn.textContent = 'Add';
   elements.addNewPaymentBtn.style.display = 'none';
 
   // NEW: Also highlight fields for "Add New"
@@ -419,32 +416,37 @@ function showAddNewForm() {
   fieldsToHighlight.forEach(fieldId => {
       document.getElementById(fieldId).classList.add('highlight-field');
   });
+
+  // MODIFIED: Scroll the form into view
+  elements.paymentFormCard.scrollIntoView({ behavior: 'smooth' });
 }
 
 function editPayment(id, payment) {
   editId = id;
   isEditing = true;
-  
+
   fields.forEach(field => {
     document.getElementById(field).value = formatFieldValue(field, payment[field]) || '';
   });
-  
+
   // Also populate base amount from certified amount
   document.getElementById('retentionBaseAmount').value = formatNumber(payment.certifiedAmount) || '';
   document.getElementById('retentionPercentage').value = '';
-  
+
   elements.saveBtn.textContent = 'Update';
   elements.cancelBtn.style.display = 'inline-block';
   elements.addNewPaymentBtn.style.display = 'inline-block';
   elements.formTitle.textContent = 'Edit Payment';
   elements.paymentFormCard.style.display = 'block';
-  window.scrollTo(0, document.body.scrollHeight); // Scroll to form
 
   // NEW LOGIC: Add highlight class to specific fields
   const fieldsToHighlight = ['certifiedAmount', 'retention', 'payment', 'datePaid'];
   fieldsToHighlight.forEach(fieldId => {
       document.getElementById(fieldId).classList.add('highlight-field');
   });
+
+  // MODIFIED: Use scrollIntoView instead of scrolling to bottom
+  elements.paymentFormCard.scrollIntoView({ behavior: 'smooth' });
 }
 
 function handleFormSubmit(e) {
@@ -454,15 +456,15 @@ function handleFormSubmit(e) {
 
 async function savePayment() {
   calculatePayment();
-  
+
   const paymentData = {};
   fields.forEach(field => {
     const value = document.getElementById(field).value;
-    paymentData[field] = ['poValue', 'certifiedAmount', 'retention', 'payment'].includes(field) 
-      ? value.replace(/,/g, '') 
+    paymentData[field] = ['poValue', 'certifiedAmount', 'retention', 'payment'].includes(field)
+      ? value.replace(/,/g, '')
       : value;
   });
-  
+
   try {
     if (isEditing) {
       await paymentsRef.child(editId).update(paymentData);
@@ -480,15 +482,15 @@ async function savePayment() {
 
 async function addNewPaymentFromEdit() {
   if (!isEditing) return;
-  
+
   const paymentData = {};
   fields.forEach(field => {
     const value = document.getElementById(field).value;
-    paymentData[field] = ['poValue', 'certifiedAmount', 'retention', 'payment'].includes(field) 
-      ? value.replace(/,/g, '') 
+    paymentData[field] = ['poValue', 'certifiedAmount', 'retention', 'payment'].includes(field)
+      ? value.replace(/,/g, '')
       : value;
   });
-  
+
   try {
     const nextNumber = await getNextAvailablePVNNumber(paymentData);
     paymentData.paymentNo = generatePaymentNumber(nextNumber);
@@ -496,7 +498,7 @@ async function addNewPaymentFromEdit() {
     paymentData.datePaid = '';
     calculatePayment();
     paymentData.payment = document.getElementById('payment').value.replace(/,/g, '');
-    
+
     await paymentsRef.push(paymentData);
     alert('New payment added successfully!');
     resetForm();
@@ -508,11 +510,12 @@ function resetForm() {
   document.getElementById('paymentForm').reset();
   editId = null;
   isEditing = false;
-  elements.saveBtn.textContent = 'Save';
+  // MODIFIED: Changed button text
+  elements.saveBtn.textContent = 'Add';
   elements.cancelBtn.style.display = 'inline-block';
   elements.addNewPaymentBtn.style.display = 'none';
   elements.formTitle.textContent = 'Add Payment';
-  
+
   // NEW LOGIC: Remove highlight class from all fields
   const fieldsToHighlight = ['certifiedAmount', 'retention', 'payment', 'datePaid'];
   fieldsToHighlight.forEach(fieldId => {
@@ -528,74 +531,74 @@ function cancelEdit() {
 // ======================
 // Vendor Functions
 // ======================
-function handleVendorInput() { 
-  clearTimeout(vendorSearchTimeout); 
-  vendorSearchTimeout = setTimeout(searchVendors, 300); 
+function handleVendorInput() {
+  clearTimeout(vendorSearchTimeout);
+  vendorSearchTimeout = setTimeout(searchVendors, 300);
 }
 
-function handleVendorSelection() { 
-  const selectedValue = this.value; 
-  const selectedOption = Array.from(elements.vendorList.options).find(o => o.value.toLowerCase() === selectedValue.toLowerCase()); 
-  if (selectedOption) { 
-    document.getElementById('vendorId').value = selectedOption.dataset.vendorId; 
-  } else { 
-    document.getElementById('vendorId').value = ''; 
-  } 
+function handleVendorSelection() {
+  const selectedValue = this.value;
+  const selectedOption = Array.from(elements.vendorList.options).find(o => o.value.toLowerCase() === selectedValue.toLowerCase());
+  if (selectedOption) {
+    document.getElementById('vendorId').value = selectedOption.dataset.vendorId;
+  } else {
+    document.getElementById('vendorId').value = '';
+  }
 }
 
-function searchVendors() { 
-  const vendorName = document.getElementById('vendor').value.trim().toLowerCase(); 
-  if (vendorName.length < 1) { 
-    elements.vendorList.innerHTML = ''; 
-    return; 
-  } 
-  vendorsRef.orderByChild('name').once('value', snapshot => { 
-    elements.vendorList.innerHTML = ''; 
-    if (snapshot.exists()) { 
-      snapshot.forEach(childSnapshot => { 
-        const vendor = childSnapshot.val(); 
-        if (vendor.name.toLowerCase().includes(vendorName)) { 
-          const option = document.createElement('option'); 
-          option.value = vendor.name; 
-          option.dataset.vendorId = vendor.id; 
-          elements.vendorList.appendChild(option); 
-        } 
-      }); 
-    } 
-  }).catch(error => console.error('Error fetching vendors:', error)); 
+function searchVendors() {
+  const vendorName = document.getElementById('vendor').value.trim().toLowerCase();
+  if (vendorName.length < 1) {
+    elements.vendorList.innerHTML = '';
+    return;
+  }
+  vendorsRef.orderByChild('name').once('value', snapshot => {
+    elements.vendorList.innerHTML = '';
+    if (snapshot.exists()) {
+      snapshot.forEach(childSnapshot => {
+        const vendor = childSnapshot.val();
+        if (vendor.name.toLowerCase().includes(vendorName)) {
+          const option = document.createElement('option');
+          option.value = vendor.name;
+          option.dataset.vendorId = vendor.id;
+          elements.vendorList.appendChild(option);
+        }
+      });
+    }
+  }).catch(error => console.error('Error fetching vendors:', error));
 }
 
-async function uploadVendorCSV(e) { 
-  e.preventDefault(); 
-  const file = document.getElementById('vendorCsv').files[0]; 
-  if (!file) return; 
-  try { 
-    const content = await readFileAsText(file); 
-    const lines = content.split('\n'); 
-    const headers = lines[0].split(',').map(h => h.trim()); 
-    if (headers.length < 2 || !headers.includes('Name') || !headers.includes('Supplier ID')) { 
-      alert('Invalid CSV format. Please ensure it has "Name" and "Supplier ID" columns.'); 
-      return; 
-    } 
-    const nameIndex = headers.indexOf('Name'); 
-    const idIndex = headers.indexOf('Supplier ID'); 
-    await vendorsRef.remove(); 
-    const uploadPromises = []; 
-    for (let i = 1; i < lines.length; i++) { 
-      if (lines[i].trim() === '') continue; 
-      const values = lines[i].split(','); 
-      const name = values[nameIndex].trim(); 
-      const id = values[idIndex].trim(); 
-      if (name && id) { 
-        uploadPromises.push(vendorsRef.push({ name: name, id: id })); 
-      } 
-    } 
-    await Promise.all(uploadPromises); 
-    alert('Vendors uploaded successfully!'); 
-    elements.vendorUploadForm.reset(); 
-  } catch (error) { 
-    console.error('Error uploading vendors:', error); 
-  } 
+async function uploadVendorCSV(e) {
+  e.preventDefault();
+  const file = document.getElementById('vendorCsv').files[0];
+  if (!file) return;
+  try {
+    const content = await readFileAsText(file);
+    const lines = content.split('\n');
+    const headers = lines[0].split(',').map(h => h.trim());
+    if (headers.length < 2 || !headers.includes('Name') || !headers.includes('Supplier ID')) {
+      alert('Invalid CSV format. Please ensure it has "Name" and "Supplier ID" columns.');
+      return;
+    }
+    const nameIndex = headers.indexOf('Name');
+    const idIndex = headers.indexOf('Supplier ID');
+    await vendorsRef.remove();
+    const uploadPromises = [];
+    for (let i = 1; i < lines.length; i++) {
+      if (lines[i].trim() === '') continue;
+      const values = lines[i].split(',');
+      const name = values[nameIndex].trim();
+      const id = values[idIndex].trim();
+      if (name && id) {
+        uploadPromises.push(vendorsRef.push({ name: name, id: id }));
+      }
+    }
+    await Promise.all(uploadPromises);
+    alert('Vendors uploaded successfully!');
+    elements.vendorUploadForm.reset();
+  } catch (error) {
+    console.error('Error uploading vendors:', error);
+  }
 }
 
 // ======================
@@ -615,7 +618,7 @@ function calculateRetentionFromPercentage() {
     // If percentage field is cleared, clear retention
     retentionInput.value = '';
   }
-  
+
   calculatePayment();
 }
 
@@ -629,385 +632,394 @@ function calculatePayment() {
 // ======================
 // Import/Export & Delete Functions
 // ======================
-async function importPaymentCSV() { 
-  const file = elements.paymentCsv.files[0]; 
-  if (!file) { 
-    alert('Please select a CSV file to import'); 
-    return; 
-  } 
-  const shouldOverwrite = elements.overwriteData.checked; 
-  try { 
-    const content = await readFileAsText(file); 
-    const lines = content.split('\n'); 
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, '')); 
-    const requiredFields = ['Payment No.', 'Cheque No.', 'Site', 'Vendor', 'Vendor ID', 'PO No.', 'PO Value', 'Certified Amount', 'Retention', 'Payment', 'Date Paid']; 
-    const missingFields = requiredFields.filter(field => !headers.includes(field)); 
-    if (missingFields.length > 0) { 
-      alert(`CSV is missing required fields: ${missingFields.join(', ')}`); 
-      return; 
-    } 
-    const fieldIndices = {}; 
-    requiredFields.forEach(field => { 
-      fieldIndices[field] = headers.indexOf(field); 
-    }); 
-    const paymentsToImport = []; 
-    for (let i = 1; i < lines.length; i++) { 
-      if (lines[i].trim() === '') continue; 
-      const values = lines[i].split(',').map(v => v.trim().replace(/"/g, '')); 
-      if (values.length < headers.length) continue; 
-      const paymentData = { 
-        paymentNo: values[fieldIndices['Payment No.']], 
-        chequeNo: values[fieldIndices['Cheque No.']], 
-        site: values[fieldIndices['Site']], 
-        vendor: values[fieldIndices['Vendor']], 
-        vendorId: values[fieldIndices['Vendor ID']], 
-        poNo: values[fieldIndices['PO No.']], 
-        poValue: values[fieldIndices['PO Value']], 
-        certifiedAmount: values[fieldIndices['Certified Amount']], 
-        retention: values[fieldIndices['Retention']], 
-        payment: values[fieldIndices['Payment']], 
-        datePaid: values[fieldIndices['Date Paid']] 
-      }; 
-      paymentsToImport.push(paymentData); 
-    } 
-    if (paymentsToImport.length === 0) { 
-      alert('No valid payment records found in the CSV file'); 
-      return; 
-    } 
-    elements.importBtn.disabled = true; 
-    elements.importBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Importing...'; 
-    if (shouldOverwrite) { 
-      await paymentsRef.remove(); 
-    } 
-    const importPromises = paymentsToImport.map(payment => paymentsRef.push(payment)); 
-    await Promise.all(importPromises); 
-    alert(`Successfully imported ${paymentsToImport.length} payment records`); 
-    document.getElementById('importForm').reset(); 
-  } catch (error) { 
-    console.error('Error importing payments:', error); 
-  } finally { 
-    elements.importBtn.disabled = false; 
-    elements.importBtn.textContent = 'Import'; 
-  } 
+async function importPaymentCSV() {
+  const file = elements.paymentCsv.files[0];
+  if (!file) {
+    alert('Please select a CSV file to import');
+    return;
+  }
+  const shouldOverwrite = elements.overwriteData.checked;
+  try {
+    const content = await readFileAsText(file);
+    const lines = content.split('\n');
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    const requiredFields = ['Payment No.', 'Cheque No.', 'Site', 'Vendor', 'Vendor ID', 'PO No.', 'PO Value', 'Certified Amount', 'Retention', 'Payment', 'Date Paid'];
+    const missingFields = requiredFields.filter(field => !headers.includes(field));
+    if (missingFields.length > 0) {
+      alert(`CSV is missing required fields: ${missingFields.join(', ')}`);
+      return;
+    }
+    const fieldIndices = {};
+    requiredFields.forEach(field => {
+      fieldIndices[field] = headers.indexOf(field);
+    });
+    const paymentsToImport = [];
+    for (let i = 1; i < lines.length; i++) {
+      if (lines[i].trim() === '') continue;
+      const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+      if (values.length < headers.length) continue;
+      const paymentData = {
+        paymentNo: values[fieldIndices['Payment No.']],
+        chequeNo: values[fieldIndices['Cheque No.']],
+        site: values[fieldIndices['Site']],
+        vendor: values[fieldIndices['Vendor']],
+        vendorId: values[fieldIndices['Vendor ID']],
+        poNo: values[fieldIndices['PO No.']],
+        poValue: values[fieldIndices['PO Value']],
+        certifiedAmount: values[fieldIndices['Certified Amount']],
+        retention: values[fieldIndices['Retention']],
+        payment: values[fieldIndices['Payment']],
+        datePaid: values[fieldIndices['Date Paid']]
+      };
+      paymentsToImport.push(paymentData);
+    }
+    if (paymentsToImport.length === 0) {
+      alert('No valid payment records found in the CSV file');
+      return;
+    }
+    elements.importBtn.disabled = true;
+    elements.importBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Importing...';
+    if (shouldOverwrite) {
+      await paymentsRef.remove();
+    }
+    const importPromises = paymentsToImport.map(payment => paymentsRef.push(payment));
+    await Promise.all(importPromises);
+    alert(`Successfully imported ${paymentsToImport.length} payment records`);
+    document.getElementById('importForm').reset();
+  } catch (error) {
+    console.error('Error importing payments:', error);
+  } finally {
+    elements.importBtn.disabled = false;
+    elements.importBtn.textContent = 'Import';
+  }
 }
 
-function downloadCSVTemplate() { 
-  const headers = ['Payment No.', 'Cheque No.', 'Site', 'Vendor', 'Vendor ID', 'PO No.', 'PO Value', 'Certified Amount', 'Retention', 'Payment', 'Date Paid']; 
-  let csvContent = headers.join(',') + '\n'; 
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }); 
-  const link = document.createElement('a'); 
-  const url = URL.createObjectURL(blob); 
-  link.setAttribute('href', url); 
-  link.setAttribute('download', 'payment_template.csv'); 
-  link.style.visibility = 'hidden'; 
-  document.body.appendChild(link); 
-  link.click(); 
-  document.body.removeChild(link); 
-  URL.revokeObjectURL(url); 
+function downloadCSVTemplate() {
+  const headers = ['Payment No.', 'Cheque No.', 'Site', 'Vendor', 'Vendor ID', 'PO No.', 'PO Value', 'Certified Amount', 'Retention', 'Payment', 'Date Paid'];
+  let csvContent = headers.join(',') + '\n';
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', 'payment_template.csv');
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
-function confirmDeletePayment(id) { 
-  if (confirm('Are you sure you want to delete this payment?')) { 
-    deletePayment(id); 
-  } 
+function confirmDeletePayment(id) {
+  if (confirm('Are you sure you want to delete this payment?')) {
+    deletePayment(id);
+  }
 }
 
-function deletePayment(id) { 
+function deletePayment(id) {
   paymentsRef.child(id).remove()
-    .then(() => { 
-      alert('Payment deleted successfully!'); 
-      searchPayments(); 
+    .then(() => {
+      alert('Payment deleted successfully!');
+      searchPayments();
     })
-    .catch(error => console.error('Error deleting payment:', error)); 
+    .catch(error => console.error('Error deleting payment:', error));
 }
 
-function toggleDeleteButton() { 
-  elements.confirmDeleteBtn.disabled = !elements.confirmDelete.checked; 
+function toggleDeleteButton() {
+  elements.confirmDeleteBtn.disabled = !elements.confirmDelete.checked;
 }
 
-function deleteAllPayments() { 
+function deleteAllPayments() {
   paymentsRef.remove()
-    .then(() => { 
-      alert('All payment records have been deleted successfully!'); 
-      const modal = bootstrap.Modal.getInstance(document.getElementById('deleteAllModal')); 
-      modal.hide(); 
-      elements.confirmDelete.checked = false; 
-      elements.confirmDeleteBtn.disabled = true; 
+    .then(() => {
+      alert('All payment records have been deleted successfully!');
+      const modal = bootstrap.Modal.getInstance(document.getElementById('deleteAllModal'));
+      modal.hide();
+      elements.confirmDelete.checked = false;
+      elements.confirmDeleteBtn.disabled = true;
     })
-    .catch(error => console.error('Error deleting all payments:', error)); 
+    .catch(error => console.error('Error deleting all payments:', error));
 }
 
 // ======================
 // Report Functions
 // ======================
-async function generateReport(selectedPayment) { 
-  const poNo = selectedPayment.poNo; 
-  if (!poNo) return; 
-  try { 
-    const snapshot = await paymentsRef.orderByChild('poNo').equalTo(poNo).once('value'); 
-    if (!snapshot.exists()) { 
-      alert('No payments found for this PO No.'); 
-      return; 
-    } 
-    const payments = []; 
-    snapshot.forEach(childSnapshot => { 
-      payments.push(childSnapshot.val()); 
-    }); 
-    payments.sort((a, b) => { 
-      const aNum = parseInt(a.paymentNo.split('-')[1]); 
-      const bNum = parseInt(b.paymentNo.split('-')[1]); 
-      return aNum - bNum; 
-    }); 
-    let totalCertified = 0, totalRetention = 0, totalPayment = 0, totalPrevPayment = 0; 
-    payments.forEach(payment => { 
-      const certified = parseFloat(payment.certifiedAmount || 0); 
-      const retention = parseFloat(payment.retention || 0); 
-      const paymentAmount = parseFloat(payment.payment || 0); 
-      totalCertified += certified; 
-      totalRetention += retention; 
-      totalPayment += paymentAmount; 
-      if (payment.chequeNo && payment.chequeNo.trim() !== '') { 
-        totalPrevPayment += paymentAmount; 
-      } 
-    }); 
-    const totalCommitted = parseFloat(selectedPayment.poValue || 0) - totalCertified; 
-    document.getElementById('reportDate').textContent = formatDateLong(new Date().toISOString()); 
-    document.getElementById('reportPoNo').textContent = poNo; 
-    document.getElementById('reportProject').textContent = selectedPayment.site || ''; 
-    document.getElementById('reportVendorId').textContent = selectedPayment.vendorId || ''; 
-    document.getElementById('reportVendorName').textContent = selectedPayment.vendor || ''; 
-    document.getElementById('reportTotalPoValue').textContent = formatNumber(selectedPayment.poValue); 
-    document.getElementById('reportTotalCertified').textContent = formatNumber(totalCertified); 
-    document.getElementById('reportTotalPrevPayment').textContent = formatNumber(totalPrevPayment); 
-    document.getElementById('reportTotalCommitted').textContent = formatNumber(totalCommitted); 
-    document.getElementById('reportTotalRetention').textContent = formatNumber(totalRetention); 
-    const reportTableBody = document.getElementById('reportTableBody'); 
-    reportTableBody.innerHTML = ''; 
-    payments.forEach(payment => { 
-      const row = document.createElement('tr'); 
-      const pvn = payment.paymentNo ? payment.paymentNo.split('-')[1] : ''; 
-      row.innerHTML = `<td>${pvn}</td><td>${payment.chequeNo || ''}</td><td>${formatNumber(payment.certifiedAmount)}</td><td>${formatNumber(payment.retention)}</td><td>${formatNumber(payment.payment)}</td><td>${payment.datePaid ? formatDateShort(payment.datePaid) : ''}</td>`; 
-      reportTableBody.appendChild(row); 
-    }); 
-    document.getElementById('reportTotalCertifiedAmount').textContent = formatNumber(totalCertified); 
-    document.getElementById('reportTotalRetentionAmount').textContent = formatNumber(totalRetention); 
-    document.getElementById('reportTotalPaymentAmount').textContent = formatNumber(totalPayment); 
-    elements.reportModal.show(); 
-  } catch (error) { 
-    console.error('Error generating report:', error); 
-  } 
+async function generateReport(selectedPayment) {
+  const poNo = selectedPayment.poNo;
+  if (!poNo) return;
+  try {
+    const snapshot = await paymentsRef.orderByChild('poNo').equalTo(poNo).once('value');
+    if (!snapshot.exists()) {
+      alert('No payments found for this PO No.');
+      return;
+    }
+    const payments = [];
+    snapshot.forEach(childSnapshot => {
+      payments.push(childSnapshot.val());
+    });
+    payments.sort((a, b) => {
+      // Handle potential NaN if paymentNo is missing or malformed
+      const aNum = parseInt(String(a.paymentNo).replace('PVN-', ''));
+      const bNum = parseInt(String(b.paymentNo).replace('PVN-', ''));
+      return (isNaN(aNum) ? 0 : aNum) - (isNaN(bNum) ? 0 : bNum);
+    });
+    let totalCertified = 0, totalRetention = 0, totalPayment = 0, totalPrevPayment = 0;
+
+    payments.forEach(payment => {
+      const certified = parseFloat(payment.certifiedAmount || 0);
+      const retention = parseFloat(payment.retention || 0);
+      const paymentAmount = parseFloat(payment.payment || 0);
+
+      totalCertified += certified;
+      totalRetention += retention;
+      totalPayment += paymentAmount;
+
+      // MODIFIED: Changed this logic to check for datePaid
+      if (payment.datePaid && String(payment.datePaid).trim() !== '') {
+        totalPrevPayment += paymentAmount;
+      }
+    });
+
+    const totalCommitted = parseFloat(selectedPayment.poValue || 0) - totalCertified;
+    document.getElementById('reportDate').textContent = formatDateLong(new Date().toISOString());
+    document.getElementById('reportPoNo').textContent = poNo;
+    document.getElementById('reportProject').textContent = selectedPayment.site || '';
+    document.getElementById('reportVendorId').textContent = selectedPayment.vendorId || '';
+    document.getElementById('reportVendorName').textContent = selectedPayment.vendor || '';
+    document.getElementById('reportTotalPoValue').textContent = formatNumber(selectedPayment.poValue);
+    document.getElementById('reportTotalCertified').textContent = formatNumber(totalCertified);
+    document.getElementById('reportTotalPrevPayment').textContent = formatNumber(totalPrevPayment);
+    document.getElementById('reportTotalCommitted').textContent = formatNumber(totalCommitted);
+    document.getElementById('reportTotalRetention').textContent = formatNumber(totalRetention);
+    const reportTableBody = document.getElementById('reportTableBody');
+    reportTableBody.innerHTML = '';
+    payments.forEach(payment => {
+      const row = document.createElement('tr');
+       // Handle potential NaN if paymentNo is missing or malformed
+      const pvn = payment.paymentNo ? String(payment.paymentNo).replace('PVN-', '') : '';
+      row.innerHTML = `<td>${pvn}</td><td>${payment.chequeNo || ''}</td><td>${formatNumber(payment.certifiedAmount)}</td><td>${formatNumber(payment.retention)}</td><td>${formatNumber(payment.payment)}</td><td>${payment.datePaid ? formatDateShort(payment.datePaid) : ''}</td>`;
+      reportTableBody.appendChild(row);
+    });
+    document.getElementById('reportTotalCertifiedAmount').textContent = formatNumber(totalCertified);
+    document.getElementById('reportTotalRetentionAmount').textContent = formatNumber(totalRetention);
+    document.getElementById('reportTotalPaymentAmount').textContent = formatNumber(totalPayment);
+    elements.reportModal.show();
+  } catch (error) {
+    console.error('Error generating report:', error);
+  }
 }
 
-function printReport() { 
-  const printContent = document.getElementById('reportModal').cloneNode(true); 
-  const modalFooter = printContent.querySelector('.modal-footer'); 
-  if (modalFooter) modalFooter.remove(); 
-  const modalHeader = printContent.querySelector('.modal-header'); 
-  if (modalHeader) modalHeader.remove(); 
-  const printWindow = window.open('', '_blank'); 
-  printWindow.document.open(); 
+function printReport() {
+  const printContent = document.getElementById('reportModal').cloneNode(true);
+  const modalFooter = printContent.querySelector('.modal-footer');
+  if (modalFooter) modalFooter.remove();
+  const modalHeader = printContent.querySelector('.modal-header');
+  if (modalHeader) modalHeader.remove();
+  const printWindow = window.open('', '_blank');
+  printWindow.document.open();
   printWindow.document.write(`
     <html>
       <head>
         <title>Payment Certificate</title>
         <style>
-          * { 
-            -webkit-print-color-adjust: exact !important; 
-            print-color-adjust: exact !important; 
-          } 
-          body { 
-            font-family: Arial, sans-serif; 
-            margin: 0; 
-            padding: 20px; 
-            background: white; 
-            font-size: 14pt; 
-          } 
-          .report-header { 
-            border-bottom: 2px solid #000; 
-            padding-bottom: 15px; 
-            margin-bottom: 20px; 
-            text-align: center; 
-          } 
-          .report-header h3 { 
-            font-size: 24px; 
-            margin-bottom: 5px; 
-            font-weight: bold; 
-          } 
-          .report-header h4 { 
-            font-size: 18px; 
-            margin: 10px 0; 
-          } 
-          .report-details { 
-            margin-bottom: 25px; 
-            padding-bottom: 15px; 
-            border-bottom: 1px solid #ddd; 
-            display: flex; 
-            justify-content: space-between; 
-          } 
-          .report-details-col { 
-            width: 48%; 
-          } 
-          .report-summary { 
-            background-color: #f8f9fa; 
-            padding: 15px; 
-            border-radius: 5px; 
-            margin-bottom: 25px; 
-            border: 1px solid #dee2e6; 
-            display: flex; 
-            justify-content: space-between; 
-          } 
-          .report-summary-col { 
-            width: 48%; 
-          } 
-          table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin-bottom: 30px; 
-          } 
-          table th, table td { 
-            border: 1px solid #000; 
-            padding: 8px; 
-          } 
-          table th { 
-            background-color: #343a40; 
-            color: white; 
-            font-weight: bold; 
-            text-align: center; 
-          } 
-          table tfoot { 
-            display: table-footer-group !important; 
-          } 
-          table tfoot tr { 
-            page-break-inside: avoid !important; 
-          } 
-          table tfoot th { 
-            background-color: #e9ecef; 
-            color: #000; 
-            font-weight: bold; 
-            text-align: right; 
-            padding-right: 20px; 
-          } 
-          table tfoot td { 
-            font-weight: bold; 
-            text-align: right; 
-            padding-right: 20px; 
-          } 
-          #reportTotalCertifiedAmount, 
-          #reportTotalRetentionAmount, 
-          #reportTotalPaymentAmount { 
-            text-align: right; 
-            font-family: monospace; 
-            font-weight: bold; 
-          } 
-          .signatures { 
-            display: flex; 
-            justify-content: space-between; 
-            margin-top: 60px; 
-          } 
-          .signature-box { 
-            text-align: center; 
-            width: 30%; 
-          } 
-          .signature-line { 
-            border-top: 1px solid #000; 
-            margin-top: 40px; 
-            padding-top: 10px; 
-            display: inline-block; 
-            width: 80%; 
-          } 
-          @page { 
-            size: auto; 
-            margin: 15mm; 
-          } 
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: white;
+            font-size: 14pt;
+          }
+          .report-header {
+            border-bottom: 2px solid #000;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+          }
+          .report-header h3 {
+            font-size: 24px;
+            margin-bottom: 5px;
+            font-weight: bold;
+          }
+          .report-header h4 {
+            font-size: 18px;
+            margin: 10px 0;
+          }
+          .report-details {
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+          }
+          .report-details-col {
+            width: 48%;
+          }
+          .report-summary {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 25px;
+            border: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+          }
+          .report-summary-col {
+            width: 48%;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+          }
+          table th, table td {
+            border: 1px solid #000;
+            padding: 8px;
+          }
+          table th {
+            background-color: #343a40;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+          }
+          table tfoot {
+            display: table-footer-group !important;
+          }
+          table tfoot tr {
+            page-break-inside: avoid !important;
+          }
+          table tfoot th {
+            background-color: #e9ecef;
+            color: #000;
+            font-weight: bold;
+            text-align: right;
+            padding-right: 20px;
+          }
+          table tfoot td {
+            font-weight: bold;
+            text-align: right;
+            padding-right: 20px;
+          }
+          #reportTotalCertifiedAmount,
+          #reportTotalRetentionAmount,
+          #reportTotalPaymentAmount {
+            text-align: right;
+            font-family: monospace;
+            font-weight: bold;
+          }
+          .signatures {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 60px;
+          }
+          .signature-box {
+            text-align: center;
+            width: 30%;
+          }
+          .signature-line {
+            border-top: 1px solid #000;
+            margin-top: 40px;
+            padding-top: 10px;
+            display: inline-block;
+            width: 80%;
+          }
+          @page {
+            size: auto;
+            margin: 15mm;
+          }
         </style>
       </head>
       <body>
         ${printContent.querySelector('.modal-body').innerHTML}
         <script>
-          setTimeout(function() { 
-            window.print(); 
-            window.close(); 
+          setTimeout(function() {
+            window.print();
+            window.close();
           }, 300);
         </script>
       </body>
     </html>
-  `); 
-  printWindow.document.close(); 
+  `);
+  printWindow.document.close();
 }
 
 // ======================
 // Utility Functions
 // ======================
-function getRelationshipKey(paymentData) { 
-  return `${paymentData.poNo}_${paymentData.site}_${paymentData.vendor}_${paymentData.vendorId}`.toLowerCase(); 
+function getRelationshipKey(paymentData) {
+  return `${paymentData.poNo}_${paymentData.site}_${paymentData.vendor}_${paymentData.vendorId}`.toLowerCase();
 }
 
-function generatePaymentNumber(number) { 
-  return `PVN-${String(number).padStart(3, '0')}`; 
+// MODIFIED: This function no longer pads with zeros
+function generatePaymentNumber(number) {
+  return `PVN-${String(number)}`;
 }
 
-async function getNextAvailablePVNNumber(paymentData) { 
-  const relationshipKey = getRelationshipKey(paymentData); 
-  const snapshot = await paymentsRef.once('value'); 
-  const payments = []; 
-  snapshot.forEach(childSnapshot => { 
-    const payment = childSnapshot.val(); 
-    if (getRelationshipKey(payment) === relationshipKey) { 
-      payments.push({ id: childSnapshot.key, ...payment }); 
-    } 
-  }); 
-  const pvnNumbers = payments.map(p => { 
-    const num = parseInt(p.paymentNo.replace('PVN-', '')); 
-    return isNaN(num) ? 0 : num; 
-  }).sort((a, b) => a - b); 
-  let nextNumber = 1; 
-  for (const num of pvnNumbers) { 
-    if (num === nextNumber) { 
-      nextNumber++; 
-    } else if (num > nextNumber) { 
-      return nextNumber; 
-    } 
-  } 
-  return nextNumber; 
+async function getNextAvailablePVNNumber(paymentData) {
+  const relationshipKey = getRelationshipKey(paymentData);
+  const snapshot = await paymentsRef.once('value');
+  const payments = [];
+  snapshot.forEach(childSnapshot => {
+    const payment = childSnapshot.val();
+    if (getRelationshipKey(payment) === relationshipKey) {
+      payments.push({ id: childSnapshot.key, ...payment });
+    }
+  });
+  const pvnNumbers = payments.map(p => {
+    // Handle potential NaN if paymentNo is missing or malformed
+    const num = parseInt(String(p.paymentNo).replace('PVN-', ''));
+    return isNaN(num) ? 0 : num;
+  }).sort((a, b) => a - b);
+  let nextNumber = 1;
+  for (const num of pvnNumbers) {
+    if (num === nextNumber) {
+      nextNumber++;
+    } else if (num > nextNumber) {
+      return nextNumber;
+    }
+  }
+  return nextNumber;
 }
 
-function formatFieldValue(field, value) { 
-  if (value === undefined || value === null || value === '') return ''; 
-  if (['poValue', 'certifiedAmount', 'retention', 'payment'].includes(field)) { 
-    return formatNumber(value); 
-  } 
-  if (field === 'datePaid') { 
+function formatFieldValue(field, value) {
+  if (value === undefined || value === null || value === '') return '';
+  if (['poValue', 'certifiedAmount', 'retention', 'payment'].includes(field)) {
+    return formatNumber(value);
+  }
+  if (field === 'datePaid') {
     return value; // Keep as YYYY-MM-DD for the input[type=date]
-  } 
-  return value; 
+  }
+  return value;
 }
 
-function formatNumber(value) { 
-  if (value === undefined || value === null || value === '') return ''; 
-  const num = parseFloat(String(value).replace(/,/g, '')); 
-  return isNaN(num) ? value : num.toLocaleString(undefined, { 
-    minimumFractionDigits: 2, 
-    maximumFractionDigits: 2 
-  }); 
+function formatNumber(value) {
+  if (value === undefined || value === null || value === '') return '';
+  const num = parseFloat(String(value).replace(/,/g, ''));
+  return isNaN(num) ? value : num.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
 }
 
-function formatDate(dateStr) { 
-  if (!dateStr) return ''; 
-  const date = new Date(dateStr); 
-  if (isNaN(date.getTime())) return dateStr; 
-  const day = date.getDate().toString().padStart(2, '0'); 
-  const month = date.toLocaleString('default', { month: 'short' }).toUpperCase(); 
-  const year = date.getFullYear().toString().slice(-2); 
-  return `${day}-${month}-${year}`; 
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr;
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = date.toLocaleString('default', { month: 'short' }).toUpperCase();
+  const year = date.getFullYear().toString().slice(-2);
+  return `${day}-${month}-${year}`;
 }
 
-function formatDateShort(dateStr) { 
-  if (!dateStr) return ''; 
-  try { 
+function formatDateShort(dateStr) {
+  if (!dateStr) return '';
+  try {
     // Handle both YYYY-MM-DD and potential other formats gracefully
-    const date = new Date(dateStr); 
-    if (isNaN(date.getTime())) return dateStr; 
-    
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+
     // GetDate() returns the day of the month from the local timezone.
     // We need to use UTC methods if the dateStr is just YYYY-MM-DD
     // to avoid timezone shifts.
@@ -1021,30 +1033,30 @@ function formatDateShort(dateStr) {
     }
 
     // Fallback for other date formats
-    const day = date.getDate().toString().padStart(2, '0'); 
-    const month = (date.getMonth() + 1).toString().padStart(2, '0'); 
-    const year = date.getFullYear(); 
-    return `${day}/${month}/${year}`; 
-  } catch (e) { 
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  } catch (e) {
     return dateStr; // Return original string if formatting fails
-  } 
+  }
 }
 
-function formatDateLong(dateStr) { 
-  if (!dateStr) return ''; 
-  const date = new Date(dateStr); 
-  if (isNaN(date.getTime())) return dateStr; 
-  const day = date.getDate(); 
-  const month = date.toLocaleString('default', { month: 'long' }); 
-  const year = date.getFullYear(); 
-  return `${day}-${month}-${year}`; 
+function formatDateLong(dateStr) {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr;
+  const day = date.getDate();
+  const month = date.toLocaleString('default', { month: 'long' });
+  const year = date.getFullYear();
+  return `${day}-${month}-${year}`;
 }
 
-function readFileAsText(file) { 
-  return new Promise((resolve, reject) => { 
-    const reader = new FileReader(); 
-    reader.onload = e => resolve(e.target.result); 
-    reader.onerror = e => reject(new Error('Failed to read file')); 
-    reader.readAsText(file); 
-  }); 
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = e => reject(new Error('Failed to read file'));
+    reader.readAsText(file);
+  });
 }
