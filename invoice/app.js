@@ -3,6 +3,22 @@ const firebaseConfig = { apiKey: "AIzaSyBH3MgLP2wEdxaSWaGK0r8MN0f3doR5Z3U", auth
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
+// +++ NEW: INITIALIZE 2ND DATABASE FOR PAYMENTS +++
+const paymentFirebaseConfig = {
+  apiKey: "AIzaSyAt0fLWcfgGAWV4yiu4mfhc3xQ5ycolgnU",
+  authDomain: "payment-report-23bda.firebaseapp.com",
+  databaseURL: "https://payment-report-23bda-default-rtdb.firebaseio.com",
+  projectId: "payment-report-23bda",
+  storageBucket: "payment-report-23bda.firebasestorage.app",
+  messagingSenderId: "575646169000",
+  appId: "1:575646169000:web:e7c4a9222ffe7753138f9d",
+  measurementId: "G-X4WBLDGLHQ"
+};
+const paymentApp = firebase.initializeApp(paymentFirebaseConfig, 'paymentReport');
+const paymentDb = paymentApp.database();
+// +++ END OF NEW CODE +++
+
+
 // --- 3. DOM ELEMENT REFERENCES & 4. GLOBAL STATE ---
 const PDF_BASE_PATH = "https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/DC%20Files/INVOICE/";
 const SRV_BASE_PATH = "https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/DC%20Files/SRV/";
@@ -1270,9 +1286,11 @@ async function populateSiteFilterDropdown() {
         console.error("Error populating site filter:", error);
     }
 }
+
+// --- THIS FUNCTION IS UPDATED ---
 async function populateInvoiceReporting(searchTerm = '') {
     const isAdmin = (currentApprover && currentApprover.Role && currentApprover.Role.toLowerCase() === 'admin');
-    currentReportData = [];
+    currentReportData = []; // Clear previous report data structure
     imReportingContent.innerHTML = '<p>Searching... Please wait.</p>';
 
     // Get filter values
@@ -1280,6 +1298,7 @@ async function populateInvoiceReporting(searchTerm = '') {
     const monthFilter = document.getElementById('im-reporting-date-filter').value; // e.g., "2025-10"
 
     try {
+        // Fetch only POs and Invoices initially
         const [poSnapshot, invoiceSnapshot] = await Promise.all([
             db.ref('purchase_orders').once('value'),
             db.ref('invoice_entries').once('value')
@@ -1288,7 +1307,6 @@ async function populateInvoiceReporting(searchTerm = '') {
         const allInvoicesByPO = invoiceSnapshot.val() || {};
 
         const searchText = searchTerm.toLowerCase();
-
         const poNumbers = Object.keys(allPOs);
 
         let tableHTML = `
@@ -1300,12 +1318,16 @@ async function populateInvoiceReporting(searchTerm = '') {
                         <th>Site</th>
                         <th>Vendor</th>
                         <th>Value</th>
+                        <th>Total Paid Amount</th>
+                        <th>Date Paid</th>
                     </tr>
                 </thead>
                 <tbody>
         `;
 
         let resultsFound = false;
+        const paymentPromises = []; // To hold promises for fetching payment data
+        const processedPOData = []; // To store processed data before generating HTML
 
         for (const poNumber of poNumbers) {
             const poDetails = allPOs[poNumber] || {};
@@ -1327,147 +1349,198 @@ async function populateInvoiceReporting(searchTerm = '') {
 
             if (filteredInvoices.length === 0) continue;
 
-            resultsFound = true;
+            resultsFound = true; // Mark that we found at least one PO matching criteria
 
-            let totalInvValue = 0;
-            let totalAmountPaid = 0;
-            let allWithAccounts = filteredInvoices.length > 0;
-
-            const poDataForCSV = {
+            // Store PO details and invoice data temporarily
+            const poReportData = {
                 poNumber: poNumber,
+                poDetails: poDetails,
                 site: site,
                 vendor: vendor,
-                poValue: poDetails.Amount || '0',
-                invoices: []
+                filteredInvoices: filteredInvoices,
+                paymentData: { totalPaidAmount: 'N/A', datePaid: 'N/A' } // Placeholder for payment info
             };
+            processedPOData.push(poReportData); // Add to our temporary array
 
-            const detailRowId = `detail-${poNumber}`;
-            let nestedTableRows = '';
+            // Create a promise to fetch payment data specifically for this PO
+            // This relies on the .indexOn rule being set in Firebase!
+            const paymentPromise = paymentDb.ref('payments')
+                .orderByChild('poNo')
+                .equalTo(poNumber)
+                .once('value')
+                .then(paymentSnapshot => {
+                    const paymentEntries = paymentSnapshot.val();
+                    let calculatedTotalPaid = 0;
+                    let latestDate = null; // Use Date object for comparison
 
-            filteredInvoices.forEach(inv => {
-                if (inv.status !== 'With Accounts') {
-                    allWithAccounts = false;
-                }
+                    if (paymentEntries) {
+                        for (const key in paymentEntries) {
+                            const entry = paymentEntries[key];
+                            const payment = parseFloat(entry.payment);
+                            const dateStr = entry.datePaid;
 
-                const invValue = parseFloat(inv.invValue) || 0;
-                const amountPaid = parseFloat(inv.amountPaid) || 0;
-                totalInvValue += invValue;
-                totalAmountPaid += amountPaid;
-                const normalizedReleaseDate = normalizeDateForInput(inv.releaseDate);
-                const releaseDateDisplay = normalizedReleaseDate ? new Date(normalizedReleaseDate + 'T00:00:00').toLocaleDateString('en-GB') : '';
-                const normalizedInvoiceDate = normalizeDateForInput(inv.invoiceDate);
-                const invoiceDateDisplay = normalizedInvoiceDate ? new Date(normalizedInvoiceDate + 'T00:00:00').toLocaleDateString('en-GB') : '';
+                            if (dateStr && dateStr.trim() !== '' && !isNaN(payment)) {
+                                calculatedTotalPaid += payment;
 
-                const invValueDisplay = !isAdmin ? '---' : formatCurrency(invValue);
-                const amountPaidDisplay = !isAdmin ? '---' : formatCurrency(amountPaid);
+                                // --- Improved Date Parsing and Comparison ---
+                                let currentDate = null;
+                                try {
+                                    if (dateStr.includes('/')) { // DD/MM/YYYY
+                                        const parts = dateStr.split('/');
+                                        // Note: Month is 0-indexed in JS Date constructor
+                                        currentDate = new Date(parts[2], parts[1] - 1, parts[0]);
+                                    } else if (dateStr.includes('-')) { // YYYY-MM-DD
+                                        // Add time to avoid timezone issues with comparison
+                                        currentDate = new Date(dateStr + 'T00:00:00');
+                                    }
+                                } catch (e) {
+                                    console.warn(`Could not parse date "${dateStr}" for PO ${poNumber}`);
+                                }
 
-                let actionButtonsHTML = '';
-                if (isAdmin) {
-                    const invPDF = inv.invName ? `<a href="${PDF_BASE_PATH}${encodeURIComponent(inv.invName)}.pdf" target="_blank" class="action-btn invoice-pdf-btn">Invoice</a>` : '';
-                    const srvPDF = inv.srvName ? `<a href="${SRV_BASE_PATH}${encodeURIComponent(inv.srvName)}.pdf" target="_blank" class="action-btn srv-pdf-btn">SRV</a>` : '';
-                    if (invPDF || srvPDF) {
-                       actionButtonsHTML = `<div class="action-btn-group">${invPDF} ${srvPDF}</div>`;
+                                if (currentDate && !isNaN(currentDate)) {
+                                     if (!latestDate || currentDate.getTime() > latestDate.getTime()) { // Compare time for accuracy
+                                        latestDate = currentDate;
+                                    }
+                                }
+                                // --- End Improved Date Logic ---
+                            }
+                        }
+                    }
+                    // Update the placeholder with calculated data
+                    poReportData.paymentData.totalPaidAmount = (calculatedTotalPaid > 0) ? calculatedTotalPaid : 'N/A';
+                    poReportData.paymentData.datePaid = latestDate ? formatDate(latestDate) : 'N/A'; // Format the latest Date object
+                });
+            paymentPromises.push(paymentPromise);
+        } // End PO loop
+
+        // Wait for all payment fetches to complete
+        await Promise.all(paymentPromises);
+
+        // Update global currentReportData for CSV download after calculations
+        currentReportData = processedPOData;
+
+        // Now that all payment data is fetched and calculated, build the HTML
+        if (!resultsFound) {
+             imReportingContent.innerHTML = '<p>No results found for your search criteria.</p>';
+        } else {
+             // Sort report data if needed, e.g., by PO number
+            processedPOData.sort((a, b) => a.poNumber.localeCompare(b.poNumber));
+
+            processedPOData.forEach(poData => {
+                 let totalInvValue = 0;
+                let totalAmountPaid = 0;
+                let allWithAccounts = poData.filteredInvoices.length > 0;
+                const detailRowId = `detail-${poData.poNumber}`;
+                let nestedTableRows = '';
+
+                poData.filteredInvoices.forEach(inv => {
+                    if (inv.status !== 'With Accounts') {
+                        allWithAccounts = false;
+                    }
+                    const invValue = parseFloat(inv.invValue) || 0;
+                    const amountPaid = parseFloat(inv.amountPaid) || 0;
+                    totalInvValue += invValue;
+                    totalAmountPaid += amountPaid;
+
+                    const normalizedReleaseDate = normalizeDateForInput(inv.releaseDate);
+                    const releaseDateDisplay = normalizedReleaseDate ? new Date(normalizedReleaseDate + 'T00:00:00').toLocaleDateString('en-GB') : '';
+                    const normalizedInvoiceDate = normalizeDateForInput(inv.invoiceDate);
+                    const invoiceDateDisplay = normalizedInvoiceDate ? new Date(normalizedInvoiceDate + 'T00:00:00').toLocaleDateString('en-GB') : '';
+                    const invValueDisplay = !isAdmin ? '---' : formatCurrency(invValue);
+                    const amountPaidDisplay = !isAdmin ? '---' : formatCurrency(amountPaid);
+
+                    let actionButtonsHTML = '';
+                     if (isAdmin) {
+                        const invPDF = inv.invName ? `<a href="${PDF_BASE_PATH}${encodeURIComponent(inv.invName)}.pdf" target="_blank" class="action-btn invoice-pdf-btn">Invoice</a>` : '';
+                        const srvPDF = inv.srvName ? `<a href="${SRV_BASE_PATH}${encodeURIComponent(inv.srvName)}.pdf" target="_blank" class="action-btn srv-pdf-btn">SRV</a>` : '';
+                        if (invPDF || srvPDF) {
+                           actionButtonsHTML = `<div class="action-btn-group">${invPDF} ${srvPDF}</div>`;
+                        }
+                    }
+
+                    nestedTableRows += `
+                        <tr>
+                            <td>${inv.invEntryID || ''}</td>
+                            <td>${inv.invNumber || ''}</td>
+                            <td>${invoiceDateDisplay}</td>
+                            <td>${invValueDisplay}</td>
+                            <td>${amountPaidDisplay}</td>
+                            <td>${releaseDateDisplay}</td>
+                            <td>${inv.status || ''}</td>
+                            <td>${inv.note || ''}</td>
+                            <td>${actionButtonsHTML}</td>
+                        </tr>
+                    `;
+                 });
+
+                const totalInvValueDisplay = !isAdmin ? '---' : `<strong>QAR ${formatCurrency(totalInvValue)}</strong>`;
+                const totalAmountPaidDisplay = !isAdmin ? '---' : `<strong>QAR ${formatCurrency(totalAmountPaid)}</strong>`;
+                const poValueDisplay = !isAdmin ? '---' : (poData.poDetails.Amount ? `QAR ${formatCurrency(poData.poDetails.Amount)}` : 'N/A');
+                const totalPaidDisplay = isAdmin ? (poData.paymentData.totalPaidAmount !== 'N/A' ? `QAR ${formatCurrency(poData.paymentData.totalPaidAmount)}` : 'N/A') : '---';
+                const datePaidDisplay = isAdmin ? poData.paymentData.datePaid : '---';
+
+                 let highlightClass = '';
+                const poValueNum = parseFloat(poData.poDetails.Amount) || 0;
+                const epsilon = 0.01;
+                if (allWithAccounts && poValueNum > 0) {
+                    const isInvValueMatch = Math.abs(totalInvValue - poValueNum) < epsilon;
+                    const isAmountPaidMatch = Math.abs(totalAmountPaid - poValueNum) < epsilon;
+                    if (isInvValueMatch) {
+                        highlightClass = isAmountPaidMatch ? 'highlight-fully-paid' : 'highlight-partial';
                     }
                 }
 
-                nestedTableRows += `
-                    <tr>
-                        <td>${inv.invEntryID || ''}</td>
-                        <td>${inv.invNumber || ''}</td>
-                        <td>${invoiceDateDisplay}</td>
-                        <td>${invValueDisplay}</td>
-                        <td>${amountPaidDisplay}</td>
-                        <td>${releaseDateDisplay}</td>
-                        <td>${inv.status || ''}</td>
-                        <td>${inv.note || ''}</td>
-                        <td>${actionButtonsHTML}</td>
+                tableHTML += `
+                    <tr class="master-row ${highlightClass}" data-target="#${detailRowId}">
+                        <td><button class="expand-btn">+</button></td>
+                        <td>${poData.poNumber}</td>
+                        <td>${poData.site}</td>
+                        <td>${poData.vendor}</td>
+                        <td>${poValueDisplay}</td>
+                        <td>${totalPaidDisplay}</td>
+                        <td>${datePaidDisplay}</td>
                     </tr>
                 `;
-                poDataForCSV.invoices.push({ ...inv, invoiceDateDisplay, releaseDateDisplay });
-            });
-            currentReportData.push(poDataForCSV);
 
-            const totalInvValueDisplay = !isAdmin ? '---' : `<strong>QAR ${formatCurrency(totalInvValue)}</strong>`;
-            const totalAmountPaidDisplay = !isAdmin ? '---' : `<strong>QAR ${formatCurrency(totalAmountPaid)}</strong>`;
-            const poValueDisplay = !isAdmin ? '---' : (poDetails.Amount ? `QAR ${formatCurrency(poDetails.Amount)}` : 'N/A');
+                tableHTML += `
+                    <tr id="${detailRowId}" class="detail-row hidden">
+                        <td colspan="7">
+                            <div class="detail-content">
+                                <h4>Invoice Entries for PO ${poData.poNumber}</h4>
+                                <table class="nested-invoice-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Inv. Entry</th><th>Inv. No.</th><th>Inv. Date</th><th>Inv. Value</th><th>Amount To Paid</th><th>Release Date</th><th>Status</th><th>Note</th><th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>${nestedTableRows}</tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <td colspan="3" style="text-align: right;"><strong>TOTAL</strong></td>
+                                            <td>${totalInvValueDisplay}</td>
+                                            <td>${totalAmountPaidDisplay}</td>
+                                            <td colspan="4"></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }); // End loop through processed PO data
 
-            let highlightClass = '';
-            const poValueNum = parseFloat(poDetails.Amount) || 0;
-            const epsilon = 0.01;
-
-            if (allWithAccounts && poValueNum > 0) {
-                const isInvValueMatch = Math.abs(totalInvValue - poValueNum) < epsilon;
-                const isAmountPaidMatch = Math.abs(totalAmountPaid - poValueNum) < epsilon;
-
-                if (isInvValueMatch) {
-                    if (isAmountPaidMatch) {
-                        highlightClass = 'highlight-fully-paid'; // Light Orange
-                    } else {
-                        highlightClass = 'highlight-partial'; // Light Blue
-                    }
-                }
-            }
-
-            tableHTML += `
-                <tr class="master-row ${highlightClass}" data-target="#${detailRowId}">
-                    <td><button class="expand-btn">+</button></td>
-                    <td>${poNumber}</td>
-                    <td>${poDataForCSV.site}</td>
-                    <td>${poDataForCSV.vendor}</td>
-                    <td>${poValueDisplay}</td>
-                </tr>
-            `;
-
-            tableHTML += `
-                <tr id="${detailRowId}" class="detail-row hidden">
-                    <td colspan="5">
-                        <div class="detail-content">
-                            <h4>Invoice Entries for PO ${poNumber}</h4>
-                            <table class="nested-invoice-table">
-                                <thead>
-                                    <tr>
-                                        <th>Inv. Entry</th>
-                                        <th>Inv. No.</th>
-                                        <th>Inv. Date</th>
-                                        <th>Inv. Value</th>
-                                        <th>Amount To Paid</th>
-                                        <th>Release Date</th>
-                                        <th>Status</th>
-                                        <th>Note</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${nestedTableRows}
-                                </tbody>
-                                <tfoot>
-                                    <tr>
-                                        <td colspan="3" style="text-align: right;"><strong>TOTAL</strong></td>
-                                        <td>${totalInvValueDisplay}</td>
-                                        <td>${totalAmountPaidDisplay}</td>
-                                        <td colspan="4"></td>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        }
-
-        tableHTML += `</tbody></table>`;
-
-        if (!resultsFound) {
-            imReportingContent.innerHTML = '<p>No results found for your search criteria.</p>';
-        } else {
+            tableHTML += `</tbody></table>`;
             imReportingContent.innerHTML = tableHTML;
         }
 
     } catch (error) {
         console.error("Error generating invoice report:", error);
-        imReportingContent.innerHTML = '<p>An error occurred while generating the report.</p>';
+        imReportingContent.innerHTML = '<p>An error occurred while generating the report. Check console for details.</p>';
     }
 }
+// --- END OF REPLACED FUNCTION ---
+
+
 async function handleDownloadCSV() {
     if (currentReportData.length === 0) {
         alert("No data to download. Please perform a search to generate a report first.");
@@ -1475,16 +1548,24 @@ async function handleDownloadCSV() {
     }
 
     let csvContent = "data:text/csv;charset=utf-8,";
-    const headers = ["PO", "Site", "Vendor", "PO Value", "invEntryID", "invNumber", "invoiceDate", "invValue", "amountPaid", "invName", "srvName", "attention", "releaseDate", "status", "note"];
+    // Modified headers to include payment data - fetch it first!
+    const headers = ["PO", "Site", "Vendor", "PO Value", "Total Paid Amount", "Last Paid Date", "invEntryID", "invNumber", "invoiceDate", "invValue", "amountPaid", "invName", "srvName", "attention", "releaseDate", "status", "note"];
     csvContent += headers.join(",") + "\r\n";
 
+    // Need to fetch payment data again or use stored data if available for all POs in currentReportData
+    // This example assumes currentReportData holds necessary info including paymentData
     currentReportData.forEach(po => {
-        po.invoices.forEach(inv => {
+        const totalPaidCSV = (po.paymentData.totalPaidAmount !== 'N/A' ? po.paymentData.totalPaidAmount : '');
+        const datePaidCSV = (po.paymentData.datePaid !== 'N/A' ? po.paymentData.datePaid : ''); // Use the already formatted date
+
+        po.filteredInvoices.forEach(inv => { // Use filteredInvoices from the stored data
             const row = [
                 po.poNumber,
                 po.site,
                 `"${(po.vendor || '').replace(/"/g, '""')}"`,
-                po.poValue,
+                po.poDetails.Amount || '0', // Assuming poDetails is stored
+                totalPaidCSV,
+                datePaidCSV,
                 inv.invEntryID || '',
                 `"${(inv.invNumber || '').replace(/"/g, '""')}"`,
                 inv.invoiceDate || '',
@@ -1500,6 +1581,7 @@ async function handleDownloadCSV() {
             csvContent += row.join(",") + "\r\n";
         });
     });
+
 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -2510,6 +2592,7 @@ document.addEventListener('DOMContentLoaded', async () => { // Made async
 
     if (batchAddBtn) batchAddBtn.addEventListener('click', handleAddPOToBatch);
     if (batchSaveBtn) batchSaveBtn.addEventListener('click', handleSaveBatchInvoices);
+    // This listener handles the 'Enter' key press for batch PO input
     if (batchPOInput) batchPOInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); handleAddPOToBatch(); }
     });
@@ -2545,16 +2628,36 @@ document.addEventListener('DOMContentLoaded', async () => { // Made async
         });
     }
 
+    // --- Batch Modal Listeners ---
     if (imBatchSearchModal) {
+        // Close button listeners
         imBatchSearchModal.querySelectorAll('.modal-close-btn').forEach(btn => {
              btn.addEventListener('click', () => imBatchSearchModal.classList.add('hidden'));
         });
+
+        // Get references to modal elements
         const modalSearchBtn = document.getElementById('im-batch-modal-search-btn');
         const addSelectedBtn = document.getElementById('im-batch-modal-add-selected-btn');
+        const modalPOInput = document.getElementById('im-batch-modal-po-input'); // <-- Get reference to input
 
+        // Add listeners for buttons
         if(modalSearchBtn) modalSearchBtn.addEventListener('click', handleBatchModalPOSearch);
         if(addSelectedBtn) addSelectedBtn.addEventListener('click', handleAddSelectedToBatch);
+
+        // +++ NEW LISTENER FOR ENTER KEY IN MODAL +++
+        if (modalPOInput) {
+            modalPOInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault(); // Prevent default action
+                    if (modalSearchBtn) {
+                        modalSearchBtn.click(); // Trigger the search button click
+                    }
+                }
+            });
+        }
+        // +++ END OF NEW LISTENER +++
     }
+    // --- End Batch Modal Listeners ---
 
 
     // +++ SUMMARY NOTE LISTENERS +++
