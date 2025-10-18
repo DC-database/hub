@@ -1,0 +1,528 @@
+#searchResults {
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    padding: 1rem;
+    background-color: white;
+}
+
+/* This is no longer used, but safe to keep */
+#searchResults table {
+    margin-bottom: 0;
+}
+
+#paymentFormCard {
+    transition: all 0.3s ease;
+}
+
+#addNewBtn i {
+    margin-right: 5px;
+}
+
+/* This is no longer used, but safe to keep */
+#searchResults table th {
+    white-space: nowrap;
+}
+
+/* This is no longer used, but safe to keep */
+#searchResultsBody tr td {
+    vertical-align: middle;
+}
+
+/* These specific nth-child rules are replaced by the new table styles */
+/*
+#searchResultsBody td:nth-child(7),
+#searchResultsBody td:nth-child(8),
+#searchResultsBody td:nth-child(9),
+#searchResultsBody td:nth-child(10) {
+    text-align: right;
+    font-family: monospace;
+    white-space: nowrap;
+}
+#searchResultsBody td:nth-child(11) {
+    text-align: center;
+    white-space: nowrap;
+}
+*/
+
+.btn-edit {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    color: white;
+}
+
+.btn-edit:hover {
+    background-color: #5a6268;
+    border-color: #545b62;
+    color: white;
+}
+
+.btn-delete {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: white;
+}
+
+.btn-delete:hover {
+    background-color: #c82333;
+    border-color: #bd2130;
+    color: white;
+}
+
+.btn-report {
+    background-color: #0dcaf0;
+    border-color: #0dcaf0;
+    color: white;
+}
+
+.btn-report:hover {
+    background-color: #0b9ed8;
+    border-color: #0a95cf;
+    color: white;
+}
+
+#confirmDeleteBtn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+/* Records Management section styles */
+#recordsSection .card {
+    margin-bottom: 1.5rem;
+}
+
+#recordsSection .card-body {
+    padding: 1.5rem;
+}
+
+#recordsSection .btn {
+    margin-top: 0.5rem;
+}
+
+/* Clear search button style */
+#clearSearchBtn {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+/* Enhanced Report Modal Styles */
+#reportModal .modal-content {
+  font-family: Arial, sans-serif;
+  border: 2px solid #000;
+}
+
+.report-header {
+  border-bottom: 2px solid #000;
+  padding-bottom: 15px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.report-header h3 {
+  font-size: 24px;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.report-header h4 {
+  font-size: 18px;
+  margin: 10px 0;
+}
+
+.report-details {
+  margin-bottom: 25px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  justify-content: space-between;
+}
+
+.report-details-col {
+  width: 48%;
+}
+
+.report-details p,
+.report-summary p {
+  margin-bottom: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.report-summary {
+  background-color: #f8f9fa;
+  padding: 15px;
+  border-radius: 5px;
+  margin-bottom: 25px;
+  border: 1px solid #dee2e6;
+  display: flex;
+  justify-content: space-between;
+}
+
+.report-summary-col {
+  width: 48%;
+}
+
+.report-summary p {
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+}
+
+.report-summary p span {
+  font-weight: normal;
+  text-align: right;
+  min-width: 150px;
+  display: inline-block;
+}
+
+#reportModal table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 30px;
+}
+
+#reportModal table th, 
+#reportModal table td {
+  padding: 12px 10px;
+  border: 1px solid #dee2e6;
+}
+
+#reportModal table th {
+  background-color: #343a40;
+  color: white;
+  font-weight: bold;
+  font-size: 14px;
+  text-align: center;
+}
+
+#reportModal table tfoot th {
+  background-color: #e9ecef;
+  color: #000;
+  font-weight: bold;
+  font-size: 15px;
+  text-align: right;
+  padding-right: 20px;
+}
+
+#reportModal table tfoot td {
+  font-weight: bold;
+  text-align: right;
+  padding-right: 20px;
+  font-size: 15px;
+}
+
+#reportModal .signatures {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 60px;
+  padding-top: 20px;
+}
+
+#reportModal .signature-box {
+  text-align: center;
+  width: 30%;
+}
+
+#reportModal .signature-line {
+  border-top: 1px solid #000;
+  margin-top: 40px;
+  padding-top: 10px;
+  display: inline-block;
+  width: 80%;
+}
+
+/* Numeric columns alignment */
+#reportTableBody td:nth-child(3),
+#reportTableBody td:nth-child(4),
+#reportTableBody td:nth-child(5) {
+  text-align: right;
+  font-family: monospace;
+  padding-right: 20px !important;
+}
+
+#reportTotalCertifiedAmount,
+#reportTotalRetentionAmount,
+#reportTotalPaymentAmount {
+  text-align: right;
+  font-family: monospace;
+  font-weight: bold;
+  font-size: 15px;
+  padding-right: 20px !important;
+}
+
+/* Enhanced Print Styles for Report */
+@media print {
+  body {
+    visibility: hidden;
+    margin: 0;
+    padding: 20px !important;
+    background: white;
+    font-size: 14pt !important;
+  }
+  
+  #reportModal, 
+  #reportModal * {
+    visibility: visible;
+  }
+  
+  #reportModal {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: auto;
+    margin: 0;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+    background: white;
+    overflow: visible !important;
+    display: block !important;
+  }
+  
+  .modal-header, 
+  .modal-footer {
+    display: none !important;
+  }
+  
+  .modal-body {
+    padding: 20px !important;
+    margin: 0 !important;
+    border: none !important;
+    font-size: 14pt !important;
+  }
+  
+  .report-header {
+    border-bottom: 2px solid #000 !important;
+    margin-bottom: 15px;
+  }
+  
+  .report-header h3 {
+    font-size: 28px !important;
+    margin-bottom: 10px !important;
+  }
+  
+  .report-header h4 {
+    font-size: 22px !important;
+    margin: 8px 0 !important;
+  }
+  
+  .report-details {
+    margin-bottom: 15px !important;
+    padding-bottom: 10px !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    font-size: 14pt;
+  }
+  
+  .report-details-col {
+    width: 48% !important;
+  }
+  
+  .report-summary {
+    background-color: #f8f9fa !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    padding: 15px !important;
+    border-radius: 5px !important;
+    margin-bottom: 15px !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    border: 1px solid #dee2e6 !important;
+    font-size: 14pt;
+  }
+  
+  .report-summary-col {
+    width: 48% !important;
+  }
+  
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin-bottom: 20px !important;
+    font-size: 12pt;
+  }
+  
+  table th, 
+  table td {
+    border: 1px solid #000 !important;
+    padding: 10px !important;
+  }
+  
+  table th {
+    background-color: #343a40 !important;
+    color: white !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    text-align: center !important;
+    font-size: 13pt;
+  }
+  
+  table tfoot th {
+    background-color: #343a40 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color: #000 !important;
+    text-align: right !important;
+    padding-right: 20px !important;
+    font-size: 14pt;
+  }
+  
+  table tfoot td {
+    font-weight: bold !important;
+    text-align: right !important;
+    padding-right: 20px !important;
+    color: #000 !important;
+    font-size: 14pt;
+  }
+  
+  .signatures {
+    display: flex !important;
+    justify-content: space-between !important;
+    margin-top: 80px !important;
+    font-size: 14pt;
+  }
+  
+  .signature-box {
+    text-align: center !important;
+    width: 30% !important;
+  }
+  
+  .signature-line {
+    border-top: 1px solid #000 !important;
+    margin-top: 60px !important;
+    padding-top: 10px !important;
+    display: inline-block !important;
+    width: 80% !important;
+  }
+  
+  /* Numeric columns */
+  #reportTableBody td:nth-child(3),
+  #reportTableBody td:nth-child(4),
+  #reportTableBody td:nth-child(5),
+  #reportTotalCertifiedAmount,
+  #reportTotalRetentionAmount,
+  #reportTotalPaymentAmount {
+    text-align: right !important;
+    font-family: monospace !important;
+    padding-right: 15px !important;
+  }
+  
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+}
+
+/* NEW: Login Screen Styles */
+#loginScreen {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #f8f9fa;
+    z-index: 2000;
+}
+
+#loginCard {
+    width: 100%;
+    max-width: 400px;
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+#loginBtn {
+    padding: 0.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+/* =================================== */
+/* NEW: Professional Results Table Styles */
+/* =================================== */
+
+.po-summary-table {
+    width: 100%;
+    margin-bottom: 0;
+    border-collapse: collapse;
+}
+
+.po-summary-table th,
+.po-summary-table td {
+    padding: 0.9rem 1rem;
+    vertical-align: middle;
+}
+
+.po-summary-table thead th {
+    background-color: #0d2d52; /* Dark Blue Header */
+    color: #ffffff;
+    font-weight: 600;
+    text-align: left;
+    border: none;
+    font-size: 0.9rem;
+    letter-spacing: 0.5px;
+}
+
+.po-summary-table tbody td {
+    background-color: #f8f9fa; /* Light grey background for data */
+    border: 1px solid #dee2e6;
+    border-top: none;
+    font-size: 1rem;
+}
+
+.payment-details-wrapper {
+    padding: 1rem 1.5rem;
+    border: 1px solid #dee2e6;
+    border-top: none;
+    background-color: #fff;
+    margin-bottom: 1.5rem;
+}
+
+.payment-details-header {
+    font-weight: bold;
+    margin-bottom: 0.75rem;
+    font-size: 1.1rem;
+    color: #343a40;
+}
+
+.payment-details-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.payment-details-table th {
+    text-align: left;
+    background-color: #e9ecef;
+    color: #495057;
+    padding: 0.75rem;
+    border: 1px solid #dee2e6;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+.payment-details-table td {
+    padding: 0.75rem;
+    border: 1px solid #dee2e6;
+    vertical-align: middle;
+}
+
+.payment-details-table tbody tr:nth-of-type(odd) {
+    background-color: #f8f9fa; /* Zebra striping */
+}
+
+/* Align numeric columns */
+.payment-details-table td:nth-child(3),
+.payment-details-table td:nth-child(4),
+.payment-details-table td:nth-child(5) {
+    text-align: right;
+    font-family: monospace;
+}
+
+/* NEW: Highlight class for form fields */
+.highlight-field {
+    background-color: #fff3cd !important; /* Light yellow highlight */
+    border-color: #ffe69c;
+}

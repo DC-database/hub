@@ -1,1 +1,425 @@
-a
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Management System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Print-specific styles for consistency */
+        .report-header {
+            border-bottom: 2px solid #000;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .report-header h3 {
+            font-size: 24px;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .report-header h4 {
+            font-size: 18px;
+            margin: 10px 0;
+        }
+        
+        .report-details {
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .report-details-col {
+            width: 48%;
+        }
+        
+        .report-summary {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 25px;
+            border: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .report-summary-col {
+            width: 48%;
+        }
+        
+        #reportModal table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        
+        #reportModal table th, 
+        #reportModal table td {
+            padding: 12px 10px;
+            border: 1px solid #dee2e6;
+        }
+        
+        #reportModal table th {
+            background-color: #343a40;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            text-align: center;
+        }
+        
+        #reportModal .signatures {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 60px;
+            padding-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loginScreen">
+        <div class="card" id="loginCard">
+            <div class="card-body">
+                <h3 class="card-title text-center mb-4">Payment System Login</h3>
+                <form id="loginForm">
+                    <div class="mb-3">
+                        <label for="loginEmail" class="form-label">Email address</label>
+                        <input type="email" class="form-control" id="loginEmail" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="loginPassword" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="loginPassword" required>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary" id="loginBtn">Login</button>
+                    </div>
+                </form>
+                <div id="loginError" class="alert alert-danger mt-3" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="mainApp" style="display: none;">
+
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">Payment System</a>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav me-auto">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#" id="paymentLink"><i class="bi bi-cash-coin"></i> Payments</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" id="vendorLink"><i class="bi bi-people-fill"></i> Vendors</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" id="recordsLink"><i class="bi bi-database"></i> Records</a>
+                        </li>
+                    </ul>
+                    <ul class="navbar-nav">
+                        <li class="nav-item">
+                            <span class="navbar-text me-3" id="userEmailDisplay">
+                                </span>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" id="logoutLink"><i class="bi bi-box-arrow-right"></i> Logout</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container mt-4" id="paymentSection">
+            <h1 class="text-center mb-4">Payment Management System</h1>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Search Payment</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="input-group mb-3">
+                                <input type="text" class="form-control" id="searchPoNo" placeholder="Enter PO No. to search...">
+                                <button class="btn btn-primary" type="button" id="searchBtn">Search</button>
+                                <button class="btn btn-outline-secondary" type="button" id="clearSearchBtn">
+                                    <i class="bi bi-x-circle"></i> Clear
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <button class="btn btn-success" id="addNewBtn" style="display: none;">
+                                <i class="bi bi-plus-circle"></i> Add New Payment
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="searchResults" class="mt-3" style="display: none;">
+                        <div class="alert alert-info" id="noResultsAlert" style="display: none;">
+                            No payments found for this PO No. Click "Add New Payment" to create one.
+                        </div>
+                        <div id="searchResultsBody"></div>
+                    </div>
+                    
+                </div>
+            </div>
+
+            <div class="card mb-4" id="paymentFormCard" style="display: none;">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 id="formTitle">Add Payment</h5>
+                </div>
+                <div class="card-body">
+                    <form id="paymentForm">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label for="paymentNo" class="form-label">Payment No.</label>
+                                <input type="text" class="form-control" id="paymentNo" required readonly>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="chequeNo" class="form-label">Cheque No.</label>
+                                <input type="text" class="form-control" id="chequeNo">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="site" class="form-label">Site</label>
+                                <input type="text" class="form-control" id="site">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="vendor" class="form-label">Vendor</label>
+                                <input type="text" class="form-control" id="vendor" list="vendorList">
+                                <datalist id="vendorList"></datalist>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="vendorId" class="form-label">Vendor ID</label>
+                                <input type="text" class="form-control" id="vendorId">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="poNo" class="form-label">PO No.</label>
+                                <input type="text" class="form-control" id="poNo" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="poValue" class="form-label">PO Value</label>
+                                <input type="text" class="form-control" id="poValue">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="certifiedAmount" class="form-label">Certified Amount</label>
+                                <input type="text" class="form-control" id="certifiedAmount">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="retention" class="form-label">Retention</label>
+                                <input type="text" class="form-control" id="retention">
+                                <div class="mt-2">
+                                    <small class="text-muted">Or calculate retention:</small>
+                                    <div class="input-group mb-2">
+                                        <input type="number" step="0.01" class="form-control" id="retentionPercentage" placeholder="Percentage">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                    <input type="text" class="form-control" id="retentionBaseAmount" placeholder="Base Amount">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="payment" class="form-label">Payment</label>
+                                <input type="text" class="form-control" id="payment">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="datePaid" class="form-label">Date Paid</label>
+                                <input type="date" class="form-control" id="datePaid">
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <button type="submit" class="btn btn-primary" id="saveBtn">Save</button>
+                            <button type="button" class="btn btn-secondary" id="cancelBtn">Cancel</button>
+                            <button type="button" class="btn btn-success" id="addNewPaymentBtn" style="display: none;">Add New Payment</button>
+                            <button type="button" class="btn btn-warning" id="clearBtn">Clear</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="container mt-4" id="vendorSection" style="display: none;">
+            <h1 class="text-center mb-4">Vendor Management</h1>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Upload Vendor CSV</h5>
+                </div>
+                <div class="card-body">
+                    <form id="vendorUploadForm">
+                        <div class="mb-3">
+                            <label for="vendorCsv" class="form-label">Select CSV File</label>
+                            <input class="form-control" type="file" id="vendorCsv" accept=".csv" required>
+                            <div class="form-text">
+                                CSV should contain two columns: "Name" and "Supplier ID"
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Upload</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="container mt-4" id="recordsSection" style="display: none;">
+            <h1 class="text-center mb-4">Records Management</h1>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Import Payment Records</h5>
+                </div>
+                <div class="card-body">
+                    <form id="importForm">
+                        <div class="mb-3">
+                            <label for="paymentCsv" class="form-label">Select CSV File</label>
+                            <input class="form-control" type="file" id="paymentCsv" accept=".csv" required>
+                            <div class="form-text">
+                                CSV should contain these columns: Payment No., Cheque No., Site, Vendor, Vendor ID, PO No., PO Value, Certified Amount, Retention, Payment, Date Paid
+                            </div>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="overwriteData">
+                            <label class="form-check-label" for="overwriteData">Overwrite existing data</label>
+                        </div>
+                        <button type="button" class="btn btn-primary" id="importBtn">Import</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5>Manage All Records</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <button class="btn btn-danger" id="deleteAllBtn" data-bs-toggle="modal" data-bs-target="#deleteAllModal">
+                            <i class="bi bi-trash"></i> Delete All Records
+                        </button>
+                        <button class="btn btn-secondary" id="downloadTemplateBtn">
+                            <i class="bi bi-download"></i> Download CSV Template
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+    </div> <div class="modal fade" id="deleteAllModal" tabindex="-1" aria-labelledby="deleteAllModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteAllModalLabel">Delete All Payment Records</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete ALL payment records? This action cannot be undone.</p>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="confirmDelete">
+                        <label class="form-check-label" for="confirmDelete">I understand this will delete all payment data</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn" disabled>Delete All</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="reportModal" tabindex="-1" aria-labelledby="reportModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="reportModalLabel">Payment Certificate</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="report-header">
+                        <h3>IBA</h3>
+                        <h4>شركة/سماعيل بن علي للتجارة والمقاولات</h4>
+                        <h4>ISMAIL BIN ALITRADING & CONT. CO. W.L. L</h4>
+                    </div>
+                    
+                    <div class="report-details">
+                        <div class="report-details-col">
+                            <p><strong>Date:</strong> <span id="reportDate"></span></p>
+                            <p><strong>LPO No:</strong> <span id="reportPoNo"></span></p>
+                            <p><strong>Project:</strong> <span id="reportProject"></span></p>
+                        </div>
+                        <div class="report-details-col">
+                            <p><strong>Vendor No:</strong> <span id="reportVendorId"></span></p>
+                            <p><strong>Vendor Name:</strong> <span id="reportVendorName"></span></p>
+                            <p><strong>Total PO Value:</strong> <span id="reportTotalPoValue"></span></p>
+                        </div>
+                    </div>
+                    
+                    <div class="report-summary">
+                        <div class="report-summary-col">
+                            <p><strong>Total Certificate Cost:</strong> <span id="reportTotalCertified"></span></p>
+                            <p><strong>Total Previous Payment:</strong> <span id="reportTotalPrevPayment"></span></p>
+                        </div>
+                        <div class="report-summary-col">
+                            <p><strong>Total Commited Cost:</strong> <span id="reportTotalCommitted"></span></p>
+                            <p><strong>Total Retention To Date:</strong> <span id="reportTotalRetention"></span></p>
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>P/N</th>
+                                    <th>Cheque No.</th>
+                                    <th>CERTIFIED AMOUNT</th>
+                                    <th>RETENTION</th>
+                                    <th>PAYMENT</th>
+                                    <th>DATE PAID</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reportTableBody">
+                                </tbody>
+                            <tfoot>
+                                <tr>
+                                    <th colspan="2" class="text-end">Total Payment:</th>
+                                    <td id="reportTotalCertifiedAmount"></td>
+                                    <td id="reportTotalRetentionAmount"></td>
+                                    <td id="reportTotalPaymentAmount"></td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    
+                    <div class="signatures">
+                        <div class="signature-box">
+                            <p>Prepared By</p>
+                            <div class="signature-line"></div>
+                        </div>
+                        <div class="signature-box">
+                            <p>Finance</p>
+                            <div class="signature-line"></div>
+                        </div>
+                        <div class="signature-box">
+                            <p>CEO</p>
+                            <div class="signature-line"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="printReportBtn">Print Report</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
