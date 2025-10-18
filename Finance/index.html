@@ -111,17 +111,38 @@
             <div class="container-fluid">
                 <a class="navbar-brand" href="#">Payment System</a>
                 <div class="collapse navbar-collapse" id="navbarNav">
+                    
                     <ul class="navbar-nav me-auto">
-                        <li class="nav-item">
-                            <a class="nav-link active" href="#" id="paymentLink"><i class="bi bi-cash-coin"></i> Payments</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" id="vendorLink"><i class="bi bi-people-fill"></i> Vendors</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" id="recordsLink"><i class="bi bi-database"></i> Records</a>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-list"></i> Menu
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
+                                <li>
+                                    <a class="dropdown-item active" href="#" id="paymentLink">
+                                        <i class="bi bi-cash-coin"></i> Payments
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="#" id="vendorLink">
+                                        <i class="bi bi-people-fill"></i> Vendors
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="#" id="recordsLink">
+                                        <i class="bi bi-database"></i> Records
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item" href="https://ibaport.site/invoice/" target="_blank">
+                                        <i class="bi bi-house"></i> Welcome Screen
+                                    </a>
+                                </li>
+                            </ul>
                         </li>
                     </ul>
+                    
                     <ul class="navbar-nav">
                         <li class="nav-item">
                             <span class="navbar-text me-3" id="userEmailDisplay">
