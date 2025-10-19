@@ -252,6 +252,8 @@ function searchPayments() {
     return;
   }
 
+  elements.addNewBtn.disabled = false; // <-- MODIFICATION: Enable button
+
   paymentsRef.orderByChild('poNo').equalTo(poNo).once('value')
     .then(snapshot => {
       elements.searchResults.style.display = 'block';
@@ -383,6 +385,7 @@ function resetSearch() {
   elements.noResultsAlert.style.display = 'none';
   elements.paymentFormCard.style.display = 'none';
   allPaymentsData = {};
+  elements.addNewBtn.disabled = true; // <-- MODIFICATION: Disable button
 }
 
 // ======================
