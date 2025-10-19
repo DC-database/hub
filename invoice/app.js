@@ -27,7 +27,6 @@ const paymentApp = firebase.initializeApp(paymentFirebaseConfig, 'paymentReport'
 const paymentDb = paymentApp.database();
 // +++ END OF NEW CODE +++
 
-
 // --- 3. DOM ELEMENT REFERENCES & 4. GLOBAL STATE ---
 const PDF_BASE_PATH = "https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/DC%20Files/INVOICE/";
 const SRV_BASE_PATH = "https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/DC%20Files/SRV/";
@@ -108,7 +107,6 @@ const imAmountPaidInput = document.getElementById('im-amount-paid');
 const imBatchSearchModal = document.getElementById('im-batch-search-modal');
 const imBatchSearchExistingButton = document.getElementById('im-batch-search-existing-button');
 
-
 // +++ SUMMARY NOTE REFERENCES +++
 const summaryNotePreviousInput = document.getElementById('summary-note-previous-input');
 const summaryNoteCurrentInput = document.getElementById('summary-note-current-input');
@@ -144,11 +142,18 @@ let imStatusBarChart = null;
 let approverListForSelect = []; // For batch entry select elements
 let allUniqueNotes = new Set(); // For summary note suggestions
 
-// +++ NEW: GLOBAL CACHE VARIABLES +++
+// +++ OPTIMIZED CACHE VARIABLES WITH TIMESTAMPS +++
 let allPOData = null;
 let allInvoiceData = null;
 let allApproverData = null;
-// +++ END NEW CACHE VARIABLES +++
+let cacheTimestamps = {
+  poData: 0,
+  invoiceData: 0,
+  approverData: 0,
+  systemEntries: 0
+};
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes cache
+// +++ END OPTIMIZED CACHE VARIABLES +++
 
 // NEW: Global state variables to manage the new workflow between WorkDesk Active Task and Invoice Entry
 let jobEntryToUpdateAfterInvoice = null; // Stores the key of the job entry to update
@@ -324,6 +329,71 @@ function numberToWords(num) {
     return words.charAt(0).toUpperCase() + words.slice(1) + " Qatari Riyals Only";
 }
 
+// +++ OPTIMIZED CACHING FUNCTION +++
+async function ensureInvoiceDataFetched(forceRefresh = false) {
+    const now = Date.now();
+    const shouldUseCache = !forceRefresh && 
+                          allPOData && 
+                          allInvoiceData && 
+                          allApproverData &&
+                          (now - cacheTimestamps.poData < CACHE_DURATION);
+
+    if (shouldUseCache) {
+        return;
+    }
+
+    try {
+        const [poSnapshot, invoiceSnapshot, approverSnapshot] = await Promise.all([
+            db.ref('purchase_orders').once('value'),
+            db.ref('invoice_entries').once('value'),
+            db.ref('approvers').once('value')
+        ]);
+        
+        allPOData = poSnapshot.val() || {};
+        allInvoiceData = invoiceSnapshot.val() || {};
+        allApproverData = approverSnapshot.val() || {};
+        
+        cacheTimestamps.poData = now;
+        cacheTimestamps.invoiceData = now;
+        cacheTimestamps.approverData = now;
+        
+        console.log("Invoice cache refreshed from Firebase.");
+        
+        // After refreshing, also refresh local-use variables
+        approverListForSelect = []; // Clear to force repopulation
+        allUniqueNotes = new Set(); // Clear to force repopulation
+
+    } catch (error) {
+        console.error("Failed to fetch and cache invoice data:", error);
+        alert("Error: Could not load data from database.");
+    }
+}
+// +++ END OPTIMIZED CACHING FUNCTION +++
+
+// +++ LOCAL CACHE UPDATE FUNCTIONS +++
+function updateLocalInvoiceCache(poNumber, invoiceKey, updatedData) {
+    if (allInvoiceData[poNumber] && allInvoiceData[poNumber][invoiceKey]) {
+        allInvoiceData[poNumber][invoiceKey] = { 
+            ...allInvoiceData[poNumber][invoiceKey], 
+            ...updatedData 
+        };
+    }
+}
+
+function addToLocalInvoiceCache(poNumber, newInvoiceData) {
+    if (!allInvoiceData[poNumber]) {
+        allInvoiceData[poNumber] = {};
+    }
+    const newKey = `temp_${Date.now()}`;
+    allInvoiceData[poNumber][newKey] = newInvoiceData;
+}
+
+function removeFromLocalInvoiceCache(poNumber, invoiceKey) {
+    if (allInvoiceData[poNumber] && allInvoiceData[poNumber][invoiceKey]) {
+        delete allInvoiceData[poNumber][invoiceKey];
+    }
+}
+// +++ END LOCAL CACHE UPDATE FUNCTIONS +++
 
 // --- WORKDESK LOGIC ---
 async function ensureAllEntriesFetched() {
@@ -962,43 +1032,6 @@ async function handleUpdateSettings(e) {
 
 // --- INVOICE MANAGEMENT FUNCTIONS ---
 
-// +++ NEW: CACHING FUNCTION +++
-async function ensureInvoiceDataFetched(forceRefresh = false) {
-    // 1. If data exists AND we are not forcing a refresh, exit.
-    if (allPOData && allInvoiceData && allApproverData && !forceRefresh) {
-        return; // Data is already cached. Do nothing.
-    }
-
-    // 2. If data is missing OR we are forcing a refresh, fetch everything.
-    const loadingMessage = forceRefresh ? "Refreshing data..." : "Loading initial data...";
-    console.log(loadingMessage);
-    // You could show a proper loading modal here
-    
-    try {
-        const [poSnapshot, invoiceSnapshot, approverSnapshot] = await Promise.all([
-            db.ref('purchase_orders').once('value'),
-            db.ref('invoice_entries').once('value'),
-            db.ref('approvers').once('value')
-        ]);
-        
-        allPOData = poSnapshot.val() || {};
-        allInvoiceData = invoiceSnapshot.val() || {};
-        allApproverData = approverSnapshot.val() || {};
-        
-        console.log("Invoice cache refreshed from Firebase.");
-        
-        // After refreshing, also refresh local-use variables
-        approverListForSelect = []; // Clear to force repopulation
-        allUniqueNotes = new Set(); // Clear to force repopulation
-
-    } catch (error) {
-        console.error("Failed to fetch and cache invoice data:", error);
-        alert("Error: Could not load data from database.");
-    }
-    // You could hide the loading modal here
-}
-// +++ END NEW CACHING FUNCTION +++
-
 function updateIMDateTime() {
     const now = new Date();
     const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -1279,8 +1312,8 @@ async function handleAddInvoice(e) {
         await db.ref(`invoice_entries/${currentPO}`).push(invoiceData);
         alert('Invoice added successfully! Click Refresh to see the new data.');
 
-        // +++ REMOVED AUTOMATIC REFRESH +++
-        // await ensureInvoiceDataFetched(true); 
+        // +++ OPTIMIZED: Update local cache instead of full refresh +++
+        addToLocalInvoiceCache(currentPO, invoiceData);
 
         if (jobEntryToUpdateAfterInvoice) {
             try {
@@ -1299,9 +1332,6 @@ async function handleAddInvoice(e) {
         }
 
         // Locally update table without full refresh
-        allInvoiceData[currentPO] = allInvoiceData[currentPO] || {};
-        const tempKey = `temp_${Date.now()}`; // Create a placeholder key
-        allInvoiceData[currentPO][tempKey] = invoiceData;
         fetchAndDisplayInvoices(currentPO); // Refresh table from modified cache
         allSystemEntries = []; // Force refetch for workdesk
     } catch (error) {
@@ -1361,11 +1391,10 @@ async function handleUpdateInvoice(e) {
         await db.ref(`invoice_entries/${currentPO}/${currentlyEditingInvoiceKey}`).update(invoiceData);
         alert('Invoice updated successfully! Click Refresh to see the new data.');
 
-        // +++ REMOVED AUTOMATIC REFRESH +++
-        // await ensureInvoiceDataFetched(true); 
+        // +++ OPTIMIZED: Update local cache instead of full refresh +++
+        updateLocalInvoiceCache(currentPO, currentlyEditingInvoiceKey, invoiceData);
 
         // Locally update cache
-        allInvoiceData[currentPO][currentlyEditingInvoiceKey] = {...allInvoiceData[currentPO][currentlyEditingInvoiceKey], ...invoiceData};
         fetchAndDisplayInvoices(currentPO); // Refresh table from modified cache
         allSystemEntries = []; // Force refetch for workdesk
     } catch (error) {
@@ -1384,11 +1413,9 @@ async function handleDeleteInvoice(key) {
             await db.ref(`invoice_entries/${currentPO}/${key}`).remove();
             alert("Invoice deleted successfully. Click Refresh to see the new data.");
 
-            // +++ REMOVED AUTOMATIC REFRESH +++
-            // await ensureInvoiceDataFetched(true); 
+            // +++ OPTIMIZED: Update local cache instead of full refresh +++
+            removeFromLocalInvoiceCache(currentPO, key);
 
-            // Locally update cache
-            delete allInvoiceData[currentPO][key];
             fetchAndDisplayInvoices(currentPO); // Refresh table from modified cache
         } catch (error) {
             console.error("Error deleting invoice:", error);
@@ -2228,9 +2255,7 @@ async function handleSaveBatchInvoices() {
         await Promise.all(savePromises);
         alert(`${newInvoicesCount} new invoice(s) created and ${updatedInvoicesCount} invoice(s) updated successfully!\n\nClick Refresh Data to see the changes reflected everywhere.`);
         
-        // +++ REMOVED AUTOMATIC REFRESH +++
-        // await ensureInvoiceDataFetched(true); 
-
+        // +++ OPTIMIZED: Clear batch table but don't force refresh +++
         batchTableBody.innerHTML = '';
         allSystemEntries = []; // Force refetch for workdesk
     } catch (error) {
@@ -2494,9 +2519,6 @@ async function handleUpdateSummaryChanges() {
 
         await Promise.all(updatePromises);
         
-        // +++ REMOVED AUTOMATIC REFRESH +++
-        // await ensureInvoiceDataFetched(true); 
-
         alert("Changes saved successfully! Click Refresh to see the new data.");
 
     } catch (error) {
@@ -2518,6 +2540,20 @@ function handleLogout() {
     if (imDateTimeInterval) clearInterval(imDateTimeInterval);
     location.reload();
 }
+
+// +++ DEBOUNCE FUNCTION FOR SEARCH OPTIMIZATION +++
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+// +++ END DEBOUNCE FUNCTION +++
 
 // --- EVENT LISTENERS ---
 document.addEventListener('DOMContentLoaded', async () => {
@@ -2614,10 +2650,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             resetJobEntryForm(true);
         }
     });
-    activeTaskSearchInput.addEventListener('input', (e) => handleActiveTaskSearch(e.target.value));
-    jobEntrySearchInput.addEventListener('input', (e) => handleJobEntrySearch(e.target.value));
-    taskHistorySearchInput.addEventListener('input', (e) => handleTaskHistorySearch(e.target.value));
-    reportingSearchInput.addEventListener('input', handleReportingSearch);
+    
+    // +++ OPTIMIZED: Add debouncing to search inputs +++
+    activeTaskSearchInput.addEventListener('input', debounce((e) => handleActiveTaskSearch(e.target.value), 500));
+    jobEntrySearchInput.addEventListener('input', debounce((e) => handleJobEntrySearch(e.target.value), 500));
+    taskHistorySearchInput.addEventListener('input', debounce((e) => handleTaskHistorySearch(e.target.value), 500));
+    reportingSearchInput.addEventListener('input', debounce(handleReportingSearch, 500));
+    
     printReportButton.addEventListener('click', () => window.print());
     downloadWdReportButton.addEventListener('click', handleDownloadWorkdeskCSV);
     reportTabsContainer.addEventListener('click', (e) => {
@@ -2778,7 +2817,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (modalPOInput) modalPOInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); if (modalSearchBtn) modalSearchBtn.click(); } });
     }
 
-    // +++ REFRESH BUTTON LISTENERS +++
+    // +++ OPTIMIZED REFRESH BUTTON LISTENERS +++
     const refreshEntryBtn = document.getElementById('im-refresh-entry-button');
     if (refreshEntryBtn) {
         refreshEntryBtn.addEventListener('click', async () => {
@@ -2823,4 +2862,3 @@ document.addEventListener('DOMContentLoaded', async () => {
     if(summaryNoteUpdateBtn) summaryNoteUpdateBtn.addEventListener('click', handleUpdateSummaryChanges);
     if(summaryNotePrintBtn) summaryNotePrintBtn.addEventListener('click', () => window.print());
 });
-
