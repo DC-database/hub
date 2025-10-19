@@ -321,7 +321,7 @@ function showSearchResults(payments) {
             <td>${formatNumber(payment.certifiedAmount) || ''}</td>
             <td>${formatNumber(payment.retention) || ''}</td>
             <td>${formatNumber(payment.payment) || ''}</td>
-            <td>${formatDateShort(payment.datePaid) || ''}</td>
+            <td>${formatDate(payment.datePaid) || ''}</td>
             <td>
                 <button class="btn btn-sm btn-info me-2" data-action="report" data-id="${payment.id}">Report</button>
                 <button class="btn btn-sm btn-secondary me-2" data-action="edit" data-id="${payment.id}">Edit</button>
@@ -807,7 +807,7 @@ async function generateReport(selectedPayment) {
       const row = document.createElement('tr');
        // Handle potential NaN if paymentNo is missing or malformed
       const pvn = payment.paymentNo ? String(payment.paymentNo).replace('PVN-', '') : '';
-      row.innerHTML = `<td>${pvn}</td><td>${payment.chequeNo || ''}</td><td>${formatNumber(payment.certifiedAmount)}</td><td>${formatNumber(payment.retention)}</td><td>${formatNumber(payment.payment)}</td><td>${payment.datePaid ? formatDateShort(payment.datePaid) : ''}</td>`;
+      row.innerHTML = `<td>${pvn}</td><td>${payment.chequeNo || ''}</td><td>${formatNumber(payment.certifiedAmount)}</td><td>${formatNumber(payment.retention)}</td><td>${formatNumber(payment.payment)}</td><td>${payment.datePaid ? formatDate(payment.datePaid) : ''}</td>`;
       reportTableBody.appendChild(row);
     });
     document.getElementById('reportTotalCertifiedAmount').textContent = formatNumber(totalCertified);
@@ -900,41 +900,36 @@ function formatNumber(value) {
 }
 
 function formatDate(dateStr) {
-  if (!dateStr) return '';
-  const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return dateStr;
-  const day = date.getDate().toString().padStart(2, '0');
-  const month = date.toLocaleString('default', { month: 'short' }).toUpperCase();
-  const year = date.getFullYear().toString().slice(-2);
-  return `${day}-${month}-${year}`;
-}
+  if (!dateStr || String(dateStr).trim() === '') return '';
+  
+  const parts = String(dateStr).split('-');
+  // Expects YYYY-MM-DD
+  if (parts.length !== 3 || dateStr.length !== 10) {
+     return dateStr; // Return as-is if not in expected format
+  }
 
-function formatDateShort(dateStr) {
-  if (!dateStr) return '';
   try {
-    // Handle both YYYY-MM-DD and potential other formats gracefully
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return dateStr;
+    const year = parseInt(parts[0], 10);
+    const monthIndex = parseInt(parts[1], 10) - 1; // Date object month is 0-indexed
+    const day = parseInt(parts[2], 10);
 
-    // GetDate() returns the day of the month from the local timezone.
-    // We need to use UTC methods if the dateStr is just YYYY-MM-DD
-    // to avoid timezone shifts.
-    const parts = dateStr.split('-');
-    if (parts.length === 3 && dateStr.length === 10) {
-         // Assumes YYYY-MM-DD format
-        const year = parts[0];
-        const month = parts[1];
-        const day = parts[2];
-        return `${day}/${month}/${year}`;
+    const date = new Date(year, monthIndex, day);
+
+    // Check for invalid date
+    if (isNaN(date.getTime())) return dateStr;
+    
+    // Re-check if the constructed date matches, to catch invalid inputs like "2025-02-30"
+    if (date.getDate() !== day || date.getMonth() !== monthIndex || date.getFullYear() !== year) {
+        return dateStr;
     }
 
-    // Fallback for other date formats
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}/${month}/${year}`;
+    const dayFormatted = date.getDate().toString().padStart(2, '0');
+    const monthFormatted = date.toLocaleString('default', { month: 'short' }).toUpperCase();
+    const yearFormatted = date.getFullYear();
+    
+    return `${dayFormatted}-${monthFormatted}-${yearFormatted}`;
   } catch (e) {
-    return dateStr; // Return original string if formatting fails
+    return dateStr; // Fallback
   }
 }
 
@@ -951,7 +946,7 @@ function formatDateLong(dateStr) {
 function readFileAsText(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = e => resolve(e.gtarget.result);
+    reader.onload = e => resolve(e.target.result);
     reader.onerror = e => reject(new Error('Failed to read file'));
     reader.readAsText(file);
   });
