@@ -144,6 +144,12 @@ let imStatusBarChart = null;
 let approverListForSelect = []; // For batch entry select elements
 let allUniqueNotes = new Set(); // For summary note suggestions
 
+// +++ NEW: GLOBAL CACHE VARIABLES +++
+let allPOData = null;
+let allInvoiceData = null;
+let allApproverData = null;
+// +++ END NEW CACHE VARIABLES +++
+
 // NEW: Global state variables to manage the new workflow between WorkDesk Active Task and Invoice Entry
 let jobEntryToUpdateAfterInvoice = null; // Stores the key of the job entry to update
 let pendingJobEntryDataForInvoice = null; // Stores the data to pre-fill the invoice form
@@ -424,12 +430,21 @@ function resetJobEntryForm(keepJobType = false) {
     addJobButton.classList.remove('hidden');
     updateJobButton.classList.add('hidden');
 }
-async function populateAttentionDropdown(choicesInstance) {
+async function populateAttentionDropdown(choicesInstance, useCache = false) {
     try {
         if (!choicesInstance) return;
         choicesInstance.setChoices([{ value: '', label: 'Loading...', disabled: true, selected: true }], 'value', 'label', true);
-        const snapshot = await db.ref('approvers').once('value');
-        const approvers = snapshot.val();
+        
+        // +++ MODIFIED: Use cache if available +++
+        let approvers;
+        if (useCache && allApproverData) {
+            approvers = allApproverData;
+        } else {
+            const snapshot = await db.ref('approvers').once('value');
+            approvers = snapshot.val();
+        }
+        // +++ END MODIFICATION +++
+
         if (approvers) {
             const approverOptions = Object.values(approvers).map(approver => approver.Name ? { value: approver.Name, label: approver.Name } : null).filter(Boolean);
             const choiceList = [
@@ -556,7 +571,8 @@ async function handleAddJobEntry(e) {
         await db.ref('job_entries').push(jobData);
         alert('Job Entry Added Successfully!');
         resetJobEntryForm();
-        fetchAndDisplayJobEntries();
+        // Manually update cache instead of full refetch
+        allSystemEntries = []; // Force refetch on next load
     } catch (error) { console.error("Error adding job entry:", error); alert('Failed to add Job Entry. Please try again.'); }
 }
 async function handleUpdateJobEntry(e) {
@@ -573,7 +589,7 @@ async function handleUpdateJobEntry(e) {
         await db.ref(`job_entries/${currentlyEditingKey}`).update(jobData);
         alert('Job Entry Updated Successfully!');
         resetJobEntryForm();
-        fetchAndDisplayJobEntries();
+        allSystemEntries = []; // Force refetch on next load
         populateActiveTasks();
     } catch (error) { console.error("Error updating job entry:", error); alert('Failed to update Job Entry. Please try again.'); }
 }
@@ -767,6 +783,7 @@ async function handleRespondClick(e) {
         try {
             await db.ref(`invoice_entries/${taskData.originalPO}/${taskData.originalKey}`).update(updates);
             alert('Task status updated to "SRV Done".');
+            allSystemEntries = []; // Force refetch
             populateActiveTasks(); // Refresh the active tasks list
         } catch (error) {
             console.error("Error updating invoice status:", error);
@@ -784,6 +801,7 @@ async function handleRespondClick(e) {
         try {
             await db.ref(`job_entries/${key}`).update(updates);
             alert('Task status updated to "SRV Done".');
+            allSystemEntries = []; // Force refetch
             populateActiveTasks();
         } catch (error) {
             console.error("Error updating task status:", error);
@@ -953,6 +971,44 @@ async function handleUpdateSettings(e) {
 
 
 // --- INVOICE MANAGEMENT FUNCTIONS ---
+
+// +++ NEW: CACHING FUNCTION +++
+async function ensureInvoiceDataFetched(forceRefresh = false) {
+    // 1. If data exists AND we are not forcing a refresh, exit.
+    if (allPOData && allInvoiceData && allApproverData && !forceRefresh) {
+        return; // Data is already cached. Do nothing.
+    }
+
+    // 2. If data is missing OR we are forcing a refresh, fetch everything.
+    const loadingMessage = forceRefresh ? "Refreshing data..." : "Loading initial data...";
+    console.log(loadingMessage);
+    // You could show a proper loading modal here
+    
+    try {
+        const [poSnapshot, invoiceSnapshot, approverSnapshot] = await Promise.all([
+            db.ref('purchase_orders').once('value'),
+            db.ref('invoice_entries').once('value'),
+            db.ref('approvers').once('value')
+        ]);
+        
+        allPOData = poSnapshot.val() || {};
+        allInvoiceData = invoiceSnapshot.val() || {};
+        allApproverData = approverSnapshot.val() || {};
+        
+        console.log("Invoice cache refreshed from Firebase.");
+        
+        // After refreshing, also refresh local-use variables
+        approverListForSelect = []; // Clear to force repopulation
+        allUniqueNotes = new Set(); // Clear to force repopulation
+
+    } catch (error) {
+        console.error("Failed to fetch and cache invoice data:", error);
+        alert("Error: Could not load data from database.");
+    }
+    // You could hide the loading modal here
+}
+// +++ END NEW CACHING FUNCTION +++
+
 function updateIMDateTime() {
     const now = new Date();
     const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -995,7 +1051,7 @@ function showIMSection(sectionId) {
     if (sectionId === 'im-invoice-entry') {
         resetInvoiceEntryPage();
         if (imAttentionSelectChoices) {
-            populateAttentionDropdown(imAttentionSelectChoices);
+            populateAttentionDropdown(imAttentionSelectChoices, true); // Use cache
         }
     }
      if (sectionId === 'im-batch-entry') {
@@ -1004,14 +1060,14 @@ function showIMSection(sectionId) {
     }
     if (sectionId === 'im-summary-note') {
         summaryNotePrintArea.classList.add('hidden');
-        initializeNoteSuggestions();
+        initializeNoteSuggestions(); // Uses cache
     }
     if (sectionId === 'im-reporting') {
         imDailyReportDateInput.value = getTodayDateString();
         imReportingContent.innerHTML = '<p>Please enter a search term and click Search.</p>';
         imReportingSearchInput.value = '';
         currentReportData = [];
-        populateSiteFilterDropdown();
+        populateSiteFilterDropdown(); // Uses cache
     }
 }
 function resetInvoiceForm() {
@@ -1048,13 +1104,17 @@ async function handlePOSearch() {
         return;
     }
     try {
-        const poSnapshot = await db.ref(`purchase_orders/${poNumber}`).once('value');
-        const poData = poSnapshot.val();
+        // +++ MODIFIED: Ensure cache is loaded +++
+        await ensureInvoiceDataFetched(); 
+
+        // +++ MODIFIED: Read from cache instead of Firebase +++
+        const poData = allPOData[poNumber]; 
         if (!poData) {
             alert('PO Number not found in the database.');
             resetInvoiceEntryPage();
             return;
         }
+        // +++ END MODIFICATION +++
 
         const isAdmin = currentApprover && currentApprover.Role && currentApprover.Role.toLowerCase() === 'admin';
 
@@ -1064,16 +1124,20 @@ async function handlePOSearch() {
         imPOValue.textContent = !isAdmin ? '---' : (poData.Amount ? `QAR ${formatCurrency(poData.Amount)}` : 'N/A');
         imPOVendor.textContent = poData['Supplier Name'] || 'N/A';
         imPODetailsContainer.classList.remove('hidden');
-        await fetchAndDisplayInvoices(poNumber);
+        
+        // +++ MODIFIED: Pass PO number to function +++
+        // This function will also be modified to use cache
+        fetchAndDisplayInvoices(poNumber); 
     } catch (error) {
         console.error("Error searching for PO:", error);
         alert('An error occurred while searching for the PO.');
     }
 }
-async function fetchAndDisplayInvoices(poNumber) {
-    const invoicesRef = db.ref(`invoice_entries/${poNumber}`);
-    const invoiceSnapshot = await invoicesRef.once('value');
-    const invoicesData = invoiceSnapshot.val();
+function fetchAndDisplayInvoices(poNumber) { // No longer async
+    // +++ MODIFIED: Read from cache +++
+    const invoicesData = allInvoiceData[poNumber];
+    // +++ END MODIFICATION +++
+    
     let invoiceCount = 0;
     imInvoicesTableBody.innerHTML = '';
     currentPOInvoices = invoicesData || {};
@@ -1096,6 +1160,11 @@ async function fetchAndDisplayInvoices(poNumber) {
             const invValueDisplay = !isAdmin ? '---' : formatCurrency(inv.invValue);
             const amountPaidDisplay = !isAdmin ? '---' : formatCurrency(inv.amountPaid);
 
+            // +++ PDF BUTTON LOGIC (from Part 1) +++
+            const invPDF = inv.invName ? `<a href="${PDF_BASE_PATH}${encodeURIComponent(inv.invName)}.pdf" target="_blank" class="action-btn invoice-pdf-btn">Invoice</a>` : '';
+            const srvPDF = inv.srvName ? `<a href="${SRV_BASE_PATH}${encodeURIComponent(inv.srvName)}.pdf" target="_blank" class="action-btn srv-pdf-btn">SRV</a>` : '';
+            // +++ END PDF LOGIC +++
+
             row.innerHTML = `
                 <td>${inv.invEntryID || ''}</td>
                 <td>${inv.invNumber || ''}</td>
@@ -1104,7 +1173,13 @@ async function fetchAndDisplayInvoices(poNumber) {
                 <td>${amountPaidDisplay}</td>
                 <td>${inv.status || ''}</td>
                 <td>${releaseDateDisplay}</td>
-                <td><button class="delete-btn" data-key="${inv.key}">Delete</button></td>
+                <td>
+                    <div class="action-btn-group">
+                        ${invPDF}
+                        ${srvPDF}
+                        <button class="delete-btn" data-key="${inv.key}">Delete</button>
+                    </div>
+                </td>
             `;
             imInvoicesTableBody.appendChild(row);
         });
@@ -1118,11 +1193,10 @@ async function fetchAndDisplayInvoices(poNumber) {
     resetInvoiceForm();
     imNewInvoiceForm.classList.remove('hidden');
 
-    // NEW: Check for pending data from WorkDesk and pre-fill the form
     if (pendingJobEntryDataForInvoice) {
         if (pendingJobEntryDataForInvoice.amount) {
             imInvValueInput.value = pendingJobEntryDataForInvoice.amount;
-            imAmountPaidInput.value = pendingJobEntryDataForInvoice.amount; // Also fill amount paid
+            imAmountPaidInput.value = pendingJobEntryDataForInvoice.amount;
         }
         if (pendingJobEntryDataForInvoice.ref) {
             document.getElementById('im-inv-no').value = pendingJobEntryDataForInvoice.ref;
@@ -1130,7 +1204,6 @@ async function fetchAndDisplayInvoices(poNumber) {
         if (pendingJobEntryDataForInvoice.date) {
             imInvoiceDateInput.value = convertDisplayDateToInput(pendingJobEntryDataForInvoice.date);
         }
-        // Clear the state variable so it's not used again
         pendingJobEntryDataForInvoice = null;
     }
 }
@@ -1192,8 +1265,7 @@ async function handleAddInvoice(e) {
 
     // --- Automatic SRV Name Logic on Create ---
     if (invoiceData.status === 'With Accounts' && !invoiceData.srvName) {
-        const poSnapshot = await db.ref(`purchase_orders/${currentPO}`).once('value');
-        const poDetails = poSnapshot.val();
+        const poDetails = allPOData[currentPO]; // Read from cache
         if(poDetails) {
             const today = new Date();
             const yyyy = today.getFullYear();
@@ -1218,6 +1290,9 @@ async function handleAddInvoice(e) {
         await db.ref(`invoice_entries/${currentPO}`).push(invoiceData);
         alert('Invoice added successfully!');
 
+        // +++ NEW: REFRESH CACHE +++
+        await ensureInvoiceDataFetched(true); 
+
         if (jobEntryToUpdateAfterInvoice) {
             try {
                 const updates = {
@@ -1234,9 +1309,8 @@ async function handleAddInvoice(e) {
             }
         }
 
-        await fetchAndDisplayInvoices(currentPO);
-        // After adding, refresh the pending entries list
-        fetchAndDisplayJobEntries();
+        fetchAndDisplayInvoices(currentPO); // Refresh table from cache
+        allSystemEntries = []; // Force refetch for workdesk
     } catch (error) {
         console.error("Error adding invoice:", error);
         alert('Failed to add invoice. Please try again.');
@@ -1261,8 +1335,7 @@ async function handleUpdateInvoice(e) {
     const originalInvoiceData = currentPOInvoices[currentlyEditingInvoiceKey];
     if (invoiceData.status === 'With Accounts' && (!originalInvoiceData || !originalInvoiceData.srvName)) {
         try {
-            const poSnapshot = await db.ref(`purchase_orders/${currentPO}`).once('value');
-            const poDetails = poSnapshot.val();
+            const poDetails = allPOData[currentPO]; // Read from cache
             if (poDetails) {
                 const today = new Date();
                 const yyyy = today.getFullYear();
@@ -1294,9 +1367,12 @@ async function handleUpdateInvoice(e) {
     try {
         await db.ref(`invoice_entries/${currentPO}/${currentlyEditingInvoiceKey}`).update(invoiceData);
         alert('Invoice updated successfully!');
-        await fetchAndDisplayInvoices(currentPO);
-         // After updating, refresh the pending entries list
-        fetchAndDisplayJobEntries();
+
+        // +++ NEW: REFRESH CACHE +++
+        await ensureInvoiceDataFetched(true); 
+
+        fetchAndDisplayInvoices(currentPO); // Refresh table from cache
+        allSystemEntries = []; // Force refetch for workdesk
     } catch (error) {
         console.error("Error updating invoice:", error);
         alert('Failed to update invoice. Please try again.');
@@ -1312,7 +1388,11 @@ async function handleDeleteInvoice(key) {
         try {
             await db.ref(`invoice_entries/${currentPO}/${key}`).remove();
             alert("Invoice deleted successfully.");
-            await fetchAndDisplayInvoices(currentPO);
+
+            // +++ NEW: REFRESH CACHE +++
+            await ensureInvoiceDataFetched(true); 
+
+            await fetchAndDisplayInvoices(currentPO); // Refresh table from cache
         } catch (error) {
             console.error("Error deleting invoice:", error);
             alert("Failed to delete the invoice. Please try again.");
@@ -1325,8 +1405,10 @@ async function populateSiteFilterDropdown() {
     if (siteFilterSelect.options.length > 1) return;
 
     try {
-        const snapshot = await db.ref('purchase_orders').once('value');
-        const allPOs = snapshot.val() || {};
+        // +++ MODIFIED: Ensure cache is loaded +++
+        await ensureInvoiceDataFetched(); 
+        
+        const allPOs = allPOData; // Read from cache
         const sites = new Set();
         for (const poNumber in allPOs) {
             if (allPOs[poNumber]['Project ID']) {
@@ -1357,13 +1439,13 @@ async function populateInvoiceReporting(searchTerm = '') {
     const monthFilter = document.getElementById('im-reporting-date-filter').value; // e.g., "2025-10"
 
     try {
-        // Fetch only POs and Invoices initially
-        const [poSnapshot, invoiceSnapshot] = await Promise.all([
-            db.ref('purchase_orders').once('value'),
-            db.ref('invoice_entries').once('value')
-        ]);
-        const allPOs = poSnapshot.val() || {};
-        const allInvoicesByPO = invoiceSnapshot.val() || {};
+        // +++ MODIFIED: Ensure cache is loaded +++
+        await ensureInvoiceDataFetched(); 
+        
+        // +++ MODIFIED: Read from cache +++
+        const allPOs = allPOData;
+        const allInvoicesByPO = allInvoiceData;
+        // +++ END MODIFICATION +++
 
         const searchText = searchTerm.toLowerCase();
         const poNumbers = Object.keys(allPOs);
@@ -1670,10 +1752,11 @@ async function handleDownloadDailyReport() {
     }
 
     try {
-        const invoiceSnapshot = await db.ref('invoice_entries').once('value');
-        const allInvoicesByPO = invoiceSnapshot.val() || {};
-        const poSnapshot = await db.ref('purchase_orders').once('value');
-        const allPOs = poSnapshot.val() || {};
+        // +++ MODIFIED: Ensure cache is loaded +++
+        await ensureInvoiceDataFetched();
+        const allInvoicesByPO = allInvoiceData;
+        const allPOs = allPOData;
+        // +++ END MODIFICATION +++
 
         const dailyEntries = [];
 
@@ -1731,10 +1814,11 @@ async function handleDownloadWithAccountsReport() {
     }
 
     try {
-        const invoiceSnapshot = await db.ref('invoice_entries').once('value');
-        const allInvoicesByPO = invoiceSnapshot.val() || {};
-        const poSnapshot = await db.ref('purchase_orders').once('value');
-        const allPOs = poSnapshot.val() || {};
+        // +++ MODIFIED: Ensure cache is loaded +++
+        await ensureInvoiceDataFetched();
+        const allInvoicesByPO = allInvoiceData;
+        const allPOs = allPOData;
+        // +++ END MODIFICATION +++
 
         const dailyEntries = [];
 
@@ -1772,7 +1856,6 @@ async function handleDownloadWithAccountsReport() {
 
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
         link.setAttribute("download", `daily_with_accounts_report_${selectedDate}.csv`);
         document.body.appendChild(link);
         link.click();
@@ -1788,10 +1871,14 @@ async function handleDownloadWithAccountsReport() {
 // --- NEW BATCH INVOICE FUNCTIONS ---
 
 async function populateApproverSelect(selectElement) {
+    // This function now uses the cache-populated 'approverListForSelect'
     if (approverListForSelect.length === 0) {
         try {
-            const snapshot = await db.ref('approvers').once('value');
-            const approvers = snapshot.val();
+            // +++ MODIFIED: Ensure cache is loaded first +++
+            await ensureInvoiceDataFetched();
+            const approvers = allApproverData; // Read from cache
+            // +++ END MODIFICATION +++
+            
             if (approvers) {
                 const approverOptions = Object.values(approvers)
                     .map(approver => approver.Name ? { value: approver.Name, label: approver.Name } : null)
@@ -1842,15 +1929,19 @@ async function handleAddPOToBatch() {
     }
 
     try {
-        const poSnapshot = await db.ref(`purchase_orders/${poNumber}`).once('value');
-        const poData = poSnapshot.val();
+        // +++ MODIFIED: Ensure cache is loaded +++
+        await ensureInvoiceDataFetched();
+        
+        // +++ MODIFIED: Read from cache +++
+        const poData = allPOData[poNumber];
         if (!poData) {
             alert(`PO Number ${poNumber} not found.`);
             return;
         }
+        const invoiceData = allInvoiceData[poNumber];
+        const invoiceCount = invoiceData ? Object.keys(invoiceData).length : 0;
+        // +++ END MODIFICATION +++
 
-        const invoiceSnapshot = await db.ref(`invoice_entries/${poNumber}`).once('value');
-        const invoiceCount = invoiceSnapshot.exists() ? Object.keys(invoiceSnapshot.val()).length : 0;
         const nextInvId = `INV-${String(invoiceCount + 1).padStart(2, '0')}`;
 
         const site = poData['Project ID'] || 'N/A';
@@ -1898,7 +1989,8 @@ async function handleAddPOToBatch() {
                 itemSelectText: '',
                 removeItemButton: true,
             });
-            populateAttentionDropdown(choices);
+            // This function now uses the cache-populated 'approverListForSelect'
+            populateApproverSelect(attentionSelect.choicesInstance);
         }, 0);
 
         batchPOInput.value = '';
@@ -1970,7 +2062,7 @@ async function addInvoiceToBatchTable(invData) {
                     itemSelectText: '',
                     removeItemButton: true,
                 });
-                await populateAttentionDropdown(choices); // This function is async
+                await populateApproverSelect(choices); // This function is async and uses cache
                 if (invData.attention) {
                     choices.setChoiceByValue(invData.attention);
                 }
@@ -1992,22 +2084,22 @@ async function handleBatchGlobalSearch(searchType) { // 'status' or 'note'
         return;
     }
 
-    const batchTableBody = document.getElementById('im-batch-table-body');
-    const confirmed = confirm(`WARNING: This search will scan the *entire* invoice database and may be slow or use a lot of data.\n\nContinue searching for all invoices with ${searchType} "${searchTerm}"?`);
+    // +++ MODIFIED: Confirmation no longer warns about data use +++
+    const confirmed = confirm(`This will scan all locally cached invoices.\n\nContinue searching for all invoices with ${searchType} "${searchTerm}"?`);
     if (!confirmed) return;
 
     batchPOInput.disabled = true;
     const originalPlaceholder = batchPOInput.placeholder;
-    batchPOInput.placeholder = 'Searching all invoices... Please wait...';
+    batchPOInput.placeholder = 'Searching local cache...';
 
     try {
-        // 1. Fetch ALL data (This is the high-download part)
-        const [poSnapshot, invoiceSnapshot] = await Promise.all([
-            db.ref('purchase_orders').once('value'),
-            db.ref('invoice_entries').once('value')
-        ]);
-        const allPOs = poSnapshot.val() || {};
-        const allInvoicesByPO = invoiceSnapshot.val() || {};
+        // +++ MODIFIED: Ensure cache is loaded +++
+        await ensureInvoiceDataFetched(); 
+        
+        // +++ MODIFIED: Read from cache +++
+        const allPOs = allPOData;
+        const allInvoicesByPO = allInvoiceData;
+        // +++ END MODIFICATION +++
 
         let invoicesFound = 0;
         const promises = []; // To manage async row creation
@@ -2144,8 +2236,12 @@ async function handleSaveBatchInvoices() {
     try {
         await Promise.all(savePromises);
         alert(`${newInvoicesCount} new invoice(s) created and ${updatedInvoicesCount} invoice(s) updated successfully!`);
+        
+        // +++ NEW: REFRESH CACHE +++
+        await ensureInvoiceDataFetched(true); 
+
         batchTableBody.innerHTML = '';
-        fetchAndDisplayJobEntries();
+        allSystemEntries = []; // Force refetch for workdesk
     } catch (error) {
         console.error("Error saving batch invoices:", error);
         alert("An error occurred while saving the invoices. Please check the data and try again.");
@@ -2160,13 +2256,13 @@ async function handleBatchModalPOSearch() {
 
     modalResultsContainer.innerHTML = '<p>Searching...</p>';
     try {
-        const [poSnapshot, invoiceSnapshot] = await Promise.all([
-            db.ref(`purchase_orders/${poNumber}`).once('value'),
-            db.ref(`invoice_entries/${poNumber}`).once('value')
-        ]);
+        // +++ MODIFIED: Ensure cache is loaded +++
+        await ensureInvoiceDataFetched(); 
 
-        const poData = poSnapshot.val();
-        const invoicesData = invoiceSnapshot.val();
+        // +++ MODIFIED: Read from cache +++
+        const poData = allPOData[poNumber];
+        const invoicesData = allInvoiceData[poNumber];
+        // +++ END MODIFICATION +++
 
         if (!invoicesData) {
             modalResultsContainer.innerHTML = '<p>No invoices found for this PO.</p>';
@@ -2245,8 +2341,10 @@ async function initializeNoteSuggestions() {
     if (allUniqueNotes.size > 0) return; // Already initialized
 
     try {
-        const snapshot = await db.ref('invoice_entries').once('value');
-        const allInvoices = snapshot.val();
+        // +++ MODIFIED: Ensure cache is loaded +++
+        await ensureInvoiceDataFetched(); 
+
+        const allInvoices = allInvoiceData; // Read from cache
         if (allInvoices) {
             for (const po in allInvoices) {
                 for (const invKey in allInvoices[po]) {
@@ -2283,12 +2381,13 @@ async function handleGenerateSummary() {
     summaryNoteGenerateBtn.disabled = true;
 
     try {
-        const [invoiceSnapshot, poSnapshot] = await Promise.all([
-            db.ref('invoice_entries').once('value'),
-            db.ref('purchase_orders').once('value')
-        ]);
-        const allInvoicesByPO = invoiceSnapshot.val() || {};
-        const allPOs = poSnapshot.val() || {};
+        // +++ MODIFIED: Ensure cache is loaded +++
+        await ensureInvoiceDataFetched(); 
+
+        // +++ MODIFIED: Read from cache +++
+        const allInvoicesByPO = allInvoiceData;
+        const allPOs = allPOData;
+        // +++ END MODIFICATION +++
 
         let previousPaymentTotal = 0;
         let currentPaymentTotal = 0;
@@ -2415,6 +2514,10 @@ async function handleUpdateSummaryChanges() {
         });
 
         await Promise.all(updatePromises);
+        
+        // +++ NEW: REFRESH CACHE +++
+        await ensureInvoiceDataFetched(true); 
+
         alert("Changes saved successfully!");
 
     } catch (error) {
@@ -2480,7 +2583,7 @@ document.addEventListener('DOMContentLoaded', async () => { // Made async
         }
         if (!attentionSelectChoices) {
             attentionSelectChoices = new Choices(document.getElementById('job-attention'), { searchEnabled: true, shouldSort: false, itemSelectText: '', });
-            populateAttentionDropdown(attentionSelectChoices);
+            populateAttentionDropdown(attentionSelectChoices); // Not using cache here
         }
         updateWorkdeskDateTime();
         if (workdeskDateTimeInterval) clearInterval(workdeskDateTimeInterval);
@@ -2551,6 +2654,7 @@ document.addEventListener('DOMContentLoaded', async () => { // Made async
         }
     });
     activeTaskSearchInput.addEventListener('input', (e) => handleActiveTaskSearch(e.target.value));
+    jobEntrySearchInput.addEventListener('input', (e) => handleJobEntrySearch(e.target.value));
     taskHistorySearchInput.addEventListener('input', (e) => handleTaskHistorySearch(e.target.value));
     reportingSearchInput.addEventListener('input', handleReportingSearch);
     printReportButton.addEventListener('click', () => window.print());
@@ -2571,8 +2675,17 @@ document.addEventListener('DOMContentLoaded', async () => { // Made async
     });
 
     // +++ INVOICE MANAGEMENT LISTENERS +++
-    invoiceManagementButton.addEventListener('click', () => {
+    invoiceManagementButton.addEventListener('click', async () => { // Made async
         if (!currentApprover) { handleLogout(); return; } // Add check
+        
+        // +++ NEW: SHOW LOADING ON FIRST LOAD +++
+        // A simple text indicator. You could replace this with a modal.
+        imUsername.textContent = 'Loading data...';
+        imUserIdentifier.textContent = 'Please wait...';
+        
+        // +++ NEW: AWAIT CACHE FUNCTION +++
+        await ensureInvoiceDataFetched(); // Fetches data only if needed
+
         imUsername.textContent = currentApprover.Name || 'User';
         imUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile;
 
@@ -2582,7 +2695,9 @@ document.addEventListener('DOMContentLoaded', async () => { // Made async
         imAttentionSelectChoices = new Choices(imAttentionSelect, {
             searchEnabled: true, shouldSort: false, itemSelectText: '',
         });
-        populateAttentionDropdown(imAttentionSelectChoices); // Populate fresh
+        
+        // +++ MODIFIED: Pass 'true' to use cached data +++
+        populateAttentionDropdown(imAttentionSelectChoices, true); 
 
         const userRole = (currentApprover.Role || '').toLowerCase();
         const userPosition = (currentApprover.Position || '').toLowerCase();
@@ -2673,6 +2788,13 @@ document.addEventListener('DOMContentLoaded', async () => { // Made async
 
         const row = e.target.closest('tr');
         if (!row) return;
+
+        // +++ MODIFIED: Don't trigger edit if a link was clicked +++
+        if (e.target.closest('a')) {
+            return;
+        }
+        // +++ END MODIFICATION +++
+
         const key = row.getAttribute('data-key');
         if (key) {
             populateInvoiceFormForEditing(key);
@@ -2834,6 +2956,56 @@ document.addEventListener('DOMContentLoaded', async () => { // Made async
         // +++ END OF NEW LISTENER +++
     }
     // --- End Batch Modal Listeners ---
+
+
+    // +++ NEW: REFRESH BUTTON LISTENERS +++
+    const refreshEntryBtn = document.getElementById('im-refresh-entry-button');
+    if (refreshEntryBtn) {
+        refreshEntryBtn.addEventListener('click', async () => {
+            alert("Refreshing data from Firebase...");
+            await ensureInvoiceDataFetched(true);
+            alert("Data refreshed.");
+            // If a PO is already loaded, refresh its view
+            if (currentPO) {
+                fetchAndDisplayInvoices(currentPO);
+            }
+        });
+    }
+
+    const refreshBatchBtn = document.getElementById('im-refresh-batch-button');
+    if (refreshBatchBtn) {
+        refreshBatchBtn.addEventListener('click', async () => {
+            alert("Refreshing data from Firebase... Your current batch list will be cleared.");
+            await ensureInvoiceDataFetched(true);
+            document.getElementById('im-batch-table-body').innerHTML = '';
+            alert("Data refreshed. Please add POs again.");
+        });
+    }
+    
+    const refreshSummaryBtn = document.getElementById('im-refresh-summary-button');
+    if (refreshSummaryBtn) {
+        refreshSummaryBtn.addEventListener('click', async () => {
+            alert("Refreshing data from Firebase...");
+            await ensureInvoiceDataFetched(true);
+            initializeNoteSuggestions(); // Re-init suggestions
+            alert("Data refreshed.");
+        });
+    }
+
+    const refreshReportingBtn = document.getElementById('im-refresh-reporting-button');
+    if (refreshReportingBtn) {
+        refreshReportingBtn.addEventListener('click', async () => {
+            alert("Refreshing data from Firebase...");
+            await ensureInvoiceDataFetched(true);
+            alert("Data refreshed. Please run your search again.");
+            // Re-run the current search
+            const searchTerm = imReportingSearchInput.value.trim();
+            if (searchTerm) {
+                populateInvoiceReporting(searchTerm);
+            }
+        });
+    }
+    // +++ END NEW LISTENERS +++
 
 
     // +++ SUMMARY NOTE LISTENERS +++
