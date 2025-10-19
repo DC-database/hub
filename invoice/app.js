@@ -203,7 +203,11 @@ function showWorkdeskSection(sectionId) {
     const targetSection = document.getElementById(sectionId);
     if (targetSection) { targetSection.classList.remove('hidden'); }
     if (sectionId === 'wd-dashboard') { populateWorkdeskDashboard(); }
-    if (sectionId === 'wd-jobentry') { fetchAndDisplayJobEntries(); }
+    if (sectionId === 'wd-jobentry') {
+        // NEW: Do not load data on view. Show message instead.
+        jobEntryTableBody.innerHTML = '<tr><td colspan="8">Use the search bar to find your pending entries.</td></tr>';
+        userJobEntries = []; // Clear any cached data
+    }
     if (sectionId === 'wd-activetask') { populateActiveTasks(); }
     if (sectionId === 'wd-taskhistory') {
         taskHistoryTableBody.innerHTML = '<tr><td colspan="9">Use the search bar to find history.</td></tr>';
@@ -483,11 +487,41 @@ async function fetchAndDisplayJobEntries() {
         renderJobEntryTable(userJobEntries);
     } catch (error) { console.error("Error fetching job entries:", error); jobEntryTableBody.innerHTML = `<tr><td colspan="8">Error loading data.</td></tr>`; }
 }
-function handleJobEntrySearch(searchTerm) {
+async function handleJobEntrySearch(searchTerm) { // Made async
     const searchText = searchTerm.toLowerCase();
-    if (!searchText) { renderJobEntryTable(userJobEntries); return; }
-    const filteredEntries = userJobEntries.filter(entry => { return ((entry.for && entry.for.toLowerCase().includes(searchText)) || (entry.ref && entry.ref.toLowerCase().includes(searchText)) || (entry.site && entry.site.toLowerCase().includes(searchText)) || (entry.group && entry.group.toLowerCase().includes(searchText)) || (entry.attention && entry.attention.toLowerCase().includes(searchText))); });
-    renderJobEntryTable(filteredEntries);
+    if (!searchText) {
+        renderJobEntryTable([]); // Clear table
+        jobEntryTableBody.innerHTML = '<tr><td colspan="8">Use the search bar to find your pending entries.</td></tr>';
+        return;
+    }
+
+    // Show loading message while searching
+    jobEntryTableBody.innerHTML = '<tr><td colspan="8">Searching...</td></tr>';
+
+    try {
+        // Ensure all entries are fetched (uses cache if available)
+        await ensureAllEntriesFetched();
+        
+        // Repopulate userJobEntries (this is the logic from the old fetchAndDisplayJobEntries)
+        userJobEntries = allSystemEntries.filter(entry => entry.enteredBy === currentApprover.Name && !isTaskComplete(entry));
+
+        // Now, filter the populated list
+        const filteredEntries = userJobEntries.filter(entry => {
+            return (
+                (entry.for && entry.for.toLowerCase().includes(searchText)) ||
+                (entry.ref && entry.ref.toLowerCase().includes(searchText)) ||
+                (entry.site && entry.site.toLowerCase().includes(searchText)) ||
+                (entry.group && entry.group.toLowerCase().includes(searchText)) ||
+                (entry.attention && entry.attention.toLowerCase().includes(searchText)) ||
+                (entry.po && entry.po.toLowerCase().includes(searchText)) // Added PO search for consistency
+            );
+        });
+        renderJobEntryTable(filteredEntries);
+
+    } catch (error) {
+        console.error("Error during job entry search:", error);
+        jobEntryTableBody.innerHTML = '<tr><td colspan="8">Error searching entries.</td></tr>';
+    }
 }
 function getJobDataFromForm() {
     const formData = new FormData(jobEntryForm);
