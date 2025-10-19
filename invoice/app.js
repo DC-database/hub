@@ -1571,6 +1571,14 @@ async function populateInvoiceReporting(searchTerm = '') {
                 const detailRowId = `detail-${poData.poNumber}`;
                 let nestedTableRows = '';
 
+                // +++ NEW: Sort invoices by Entry ID numerically +++
+                poData.filteredInvoices.sort((a, b) => {
+                    const numA = parseInt((a.invEntryID || 'INV-0').split('-')[1] || 0);
+                    const numB = parseInt((b.invEntryID || 'INV-0').split('-')[1] || 0);
+                    return numA - numB;
+                });
+                // +++ END NEW SORTING LOGIC +++
+
                 poData.filteredInvoices.forEach(inv => {
                     if (inv.status !== 'With Accounts') {
                         allWithAccounts = false;
@@ -2815,3 +2823,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     if(summaryNoteUpdateBtn) summaryNoteUpdateBtn.addEventListener('click', handleUpdateSummaryChanges);
     if(summaryNotePrintBtn) summaryNotePrintBtn.addEventListener('click', () => window.print());
 });
+
