@@ -190,6 +190,13 @@ function handleSuccessfulLogin() {
     if (dateTimeInterval) clearInterval(dateTimeInterval);
     dateTimeInterval = setInterval(updateDashboardDateTime, 1000);
     showView('dashboard');
+
+    // NEW: Control Finance Report button visibility
+    const financeReportButton = document.querySelector('a[href="https://ibaport.site/Finance/"]');
+    if (financeReportButton) {
+        const isAdmin = currentApprover && currentApprover.Role && currentApprover.Role.toLowerCase() === 'admin';
+        financeReportButton.classList.toggle('hidden', !isAdmin);
+    }
 }
 function showWorkdeskSection(sectionId) {
     workdeskSections.forEach(section => { section.classList.add('hidden'); });
@@ -923,6 +930,9 @@ function updateIMDateTime() {
 function showIMSection(sectionId) {
     const invoiceEntryLink = imNav.querySelector('a[data-section="im-invoice-entry"]');
     const batchEntryLink = imNav.querySelector('a[data-section="im-batch-entry"]');
+    // NEW: Get Summary Note link
+    const summaryNoteLink = imNav.querySelector('a[data-section="im-summary-note"]');
+
     if (sectionId === 'im-invoice-entry' && invoiceEntryLink.classList.contains('disabled')) {
         alert('You do not have permission to access this section.');
         return;
@@ -931,6 +941,12 @@ function showIMSection(sectionId) {
         alert('You do not have permission to access this section.');
         return;
     }
+    // NEW: Add check for Summary Note
+    if (sectionId === 'im-summary-note' && summaryNoteLink && summaryNoteLink.classList.contains('disabled')) {
+        alert('You do not have permission to access this section.');
+        return;
+    }
+
 
     imContentArea.querySelectorAll('.workdesk-section').forEach(section => {
         section.classList.add('hidden');
@@ -1770,7 +1786,11 @@ async function populateApproverSelect(selectElement) {
 async function handleAddPOToBatch() {
     const batchPOInput = document.getElementById('im-batch-po-input');
     const poNumber = batchPOInput.value.trim().toUpperCase();
-    if (!poNumber) return;
+    if (!poNumber) {
+        alert("Please enter a PO Number to add.");
+        return;
+    }
+
 
     const batchTableBody = document.getElementById('im-batch-table-body');
     const existingRows = batchTableBody.querySelectorAll(`tr[data-po="${poNumber}"]`);
@@ -1855,6 +1875,156 @@ async function handleAddPOToBatch() {
         alert('An error occurred while adding the PO.');
     }
 }
+
+// This new helper function creates a row in the batch table
+// It's used by both the "Search by PO" modal and the new global search
+async function addInvoiceToBatchTable(invData) {
+    const batchTableBody = document.getElementById('im-batch-table-body');
+    
+    // Don't add if it's already in the table
+    if (batchTableBody.querySelector(`tr[data-key="${invData.key}"]`)) {
+        return; // Skip
+    }
+
+    const row = document.createElement('tr');
+    row.setAttribute('data-po', invData.po);
+    row.setAttribute('data-key', invData.key);
+    row.setAttribute('data-site', invData.site);
+    row.setAttribute('data-vendor', invData.vendor);
+
+    row.innerHTML = `
+        <td>${invData.po} <span class="existing-indicator">(Existing: ${invData.invEntryID})</span></td>
+        <td>${invData.site}</td>
+        <td>${invData.vendor}</td>
+        <td><input type="text" name="invNumber" class="batch-input" value="${invData.invNumber || ''}"></td>
+        <td><input type="text" name="details" class="batch-input" value="${invData.details || ''}"></td>
+        <td><input type="date" name="invoiceDate" class="batch-input" value="${normalizeDateForInput(invData.invoiceDate) || ''}"></td>
+        <td><input type="number" name="invValue" class="batch-input" step="0.01" value="${invData.invValue || ''}"></td>
+        <td><input type="number" name="amountPaid" class="batch-input" step="0.01" value="${invData.amountPaid || '0'}"></td>
+        <td><select name="attention" class="batch-input"></select></td>
+        <td>
+            <select name="status" class="batch-input">
+                <option value="For SRV">For SRV</option>
+                <option value="Pending">Pending</option>
+                <option value="For IPC">For IPC</option>
+                <option value="Under Review">Under Review</option>
+                <option value="CEO Approval">CEO Approval</option>
+                <option value="Report">Report</option>
+                <option value="With Accounts">With Accounts</option>
+                <option value="On Hold">On Hold</option>
+                <option value="CLOSED">CLOSED</option>
+                <option value="Cancelled">Cancelled</option>
+            </select>
+        </td>
+        <td><input type="text" name="note" class="batch-input" value="${invData.note || ''}"></td>
+        <td><button type="button" class="delete-btn batch-remove-btn">&times;</button></td>
+    `;
+    batchTableBody.prepend(row); // Prepend to show new ones at the top
+
+    const attentionSelect = row.querySelector('select[name="attention"]');
+    const statusSelect = row.querySelector('select[name="status"]');
+    statusSelect.value = invData.status || 'For SRV';
+
+    // Use a promise to handle the async init of Choices.js
+    return new Promise(async (resolve) => {
+        // A small timeout ensures the element is fully rendered before initializing
+        setTimeout(async () => {
+            try {
+                const choices = new Choices(attentionSelect, {
+                    searchEnabled: true,
+                    shouldSort: false,
+                    itemSelectText: '',
+                    removeItemButton: true,
+                });
+                await populateAttentionDropdown(choices); // This function is async
+                if (invData.attention) {
+                    choices.setChoiceByValue(invData.attention);
+                }
+            } catch (e) {
+                console.error("Error init Choices.js in batch table:", e);
+            } finally {
+                resolve(); // Resolve the promise
+            }
+        }, 0);
+    });
+}
+
+async function handleBatchGlobalSearch(searchType) { // 'status' or 'note'
+    const batchPOInput = document.getElementById('im-batch-po-input');
+    const searchTerm = batchPOInput.value.trim();
+    
+    if (!searchTerm) {
+        alert(`Please enter a ${searchType} to search for.`);
+        return;
+    }
+
+    const batchTableBody = document.getElementById('im-batch-table-body');
+    const confirmed = confirm(`WARNING: This search will scan the *entire* invoice database and may be slow or use a lot of data.\n\nContinue searching for all invoices with ${searchType} "${searchTerm}"?`);
+    if (!confirmed) return;
+
+    batchPOInput.disabled = true;
+    const originalPlaceholder = batchPOInput.placeholder;
+    batchPOInput.placeholder = 'Searching all invoices... Please wait...';
+
+    try {
+        // 1. Fetch ALL data (This is the high-download part)
+        const [poSnapshot, invoiceSnapshot] = await Promise.all([
+            db.ref('purchase_orders').once('value'),
+            db.ref('invoice_entries').once('value')
+        ]);
+        const allPOs = poSnapshot.val() || {};
+        const allInvoicesByPO = invoiceSnapshot.val() || {};
+
+        let invoicesFound = 0;
+        const promises = []; // To manage async row creation
+
+        // 2. Loop through all data
+        for (const poNumber in allInvoicesByPO) {
+            const invoices = allInvoicesByPO[poNumber];
+            const poData = allPOs[poNumber] || {};
+            const site = poData['Project ID'] || 'N/A';
+            const vendor = poData['Supplier Name'] || 'N/A';
+
+            for (const key in invoices) {
+                const inv = invoices[key];
+                let isMatch = false;
+
+                // Case-insensitive matching
+                const searchLower = searchTerm.toLowerCase();
+                if (searchType === 'status' && inv.status && inv.status.toLowerCase() === searchLower) {
+                    isMatch = true;
+                } else if (searchType === 'note' && inv.note && inv.note.toLowerCase() === searchLower) {
+                    isMatch = true;
+                }
+
+                if (isMatch) {
+                    // 3. Add to batch table
+                    invoicesFound++;
+                    const invData = { key, po: poNumber, site, vendor, ...inv };
+                    promises.push(addInvoiceToBatchTable(invData)); 
+                }
+            }
+        }
+
+        // Wait for all rows to be created
+        await Promise.all(promises);
+
+        if (invoicesFound === 0) {
+            alert(`No invoices found with the ${searchType} "${searchTerm}".`);
+        } else {
+            alert(`Added ${invoicesFound} invoice(s) to the batch list.`);
+            batchPOInput.value = ''; // Clear input on success
+        }
+
+    } catch (error) {
+        console.error("Error during global batch search:", error);
+        alert(`An error occurred: ${error.message}`);
+    } finally {
+        batchPOInput.disabled = false;
+        batchPOInput.placeholder = originalPlaceholder;
+    }
+}
+
 
 async function handleSaveBatchInvoices() {
     const batchTableBody = document.getElementById('im-batch-table-body');
@@ -2022,71 +2192,15 @@ async function handleAddSelectedToBatch() {
         return;
     }
 
-    const batchTableBody = document.getElementById('im-batch-table-body');
-
+    const promises = [];
     for (const checkbox of selectedCheckboxes) {
         const invData = JSON.parse(decodeURIComponent(checkbox.dataset.invoice));
-
-        if (batchTableBody.querySelector(`tr[data-key="${invData.key}"]`)) {
-            continue; // Skip if already present
-        }
-
-        const row = document.createElement('tr');
-        row.setAttribute('data-po', invData.po);
-        row.setAttribute('data-key', invData.key);
-        row.setAttribute('data-site', invData.site);
-        row.setAttribute('data-vendor', invData.vendor);
-
-        row.innerHTML = `
-            <td>${invData.po} <span class="existing-indicator">(Existing: ${invData.invEntryID})</span></td>
-            <td>${invData.site}</td>
-            <td>${invData.vendor}</td>
-            <td><input type="text" name="invNumber" class="batch-input" value="${invData.invNumber || ''}"></td>
-            <td><input type="text" name="details" class="batch-input" value="${invData.details || ''}"></td>
-            <td><input type="date" name="invoiceDate" class="batch-input" value="${normalizeDateForInput(invData.invoiceDate) || ''}"></td>
-            <td><input type="number" name="invValue" class="batch-input" step="0.01" value="${invData.invValue || ''}"></td>
-            <td><input type="number" name="amountPaid" class="batch-input" step="0.01" value="${invData.amountPaid || '0'}"></td>
-            <td><select name="attention" class="batch-input"></select></td>
-            <td>
-                <select name="status" class="batch-input">
-                    <option value="For SRV">For SRV</option>
-                    <option value="Pending">Pending</option>
-                    <option value="For IPC">For IPC</option>
-                    <option value="Under Review">Under Review</option>
-                    <option value="CEO Approval">CEO Approval</option>
-                    <option value="Report">Report</option>
-                    <option value="With Accounts">With Accounts</option>
-                    <option value="On Hold">On Hold</option>
-                    <option value="CLOSED">CLOSED</option>
-                    <option value="Cancelled">Cancelled</option>
-                </select>
-            </td>
-            <td><input type="text" name="note" class="batch-input" value="${invData.note || ''}"></td>
-            <td><button type="button" class="delete-btn batch-remove-btn">&times;</button></td>
-        `;
-        batchTableBody.prepend(row);
-
-        const attentionSelect = row.querySelector('select[name="attention"]');
-        // A small timeout ensures the element is fully rendered before initializing the rich select component
-        setTimeout(async () => {
-            const choices = new Choices(attentionSelect, {
-                searchEnabled: true,
-                shouldSort: false,
-                itemSelectText: '',
-                removeItemButton: true,
-            });
-            await populateAttentionDropdown(choices); // This function is async
-            if (invData.attention) {
-                choices.setChoiceByValue(invData.attention);
-            }
-        }, 0);
-
-
-        const statusSelect = row.querySelector('select[name="status"]');
-        statusSelect.value = invData.status || 'For SRV';
+        promises.push(addInvoiceToBatchTable(invData)); // Use the new helper function
     }
 
-    // This resets the modal for the next search instead of closing it
+    await Promise.all(promises); // Wait for all rows to be added
+
+    // This resets the modal for the next search
     document.getElementById('im-batch-modal-po-input').value = '';
     modalResultsContainer.innerHTML = `<p>${selectedCheckboxes.length} invoice(s) were added to the batch. You can search for another PO.</p>`;
 }
@@ -2444,6 +2558,12 @@ document.addEventListener('DOMContentLoaded', async () => { // Made async
         imNav.querySelector('a[data-section="im-invoice-entry"]').classList.toggle('disabled', !canAccessEntry);
         document.getElementById('batch-entry-nav-link').classList.toggle('disabled', !canAccessEntry);
 
+        // NEW: Add Summary Note to the same logic
+        const summaryNoteLink = imNav.querySelector('a[data-section="im-summary-note"]');
+        if (summaryNoteLink) {
+            summaryNoteLink.classList.toggle('disabled', !canAccessEntry);
+        }
+
         // Control access to special report buttons
         const canAccessReports = userRole === 'admin' && userPosition === 'accounting';
         document.querySelectorAll('.admin-accounting-only').forEach(btn => {
@@ -2598,12 +2718,25 @@ document.addEventListener('DOMContentLoaded', async () => { // Made async
     const batchSaveBtn = document.getElementById('im-batch-save-button');
     const batchTableBody = document.getElementById('im-batch-table-body');
     const batchPOInput = document.getElementById('im-batch-po-input');
+    
+    // --- ADD THESE TWO NEW LISTENERS ---
+    const batchSearchStatusBtn = document.getElementById('im-batch-search-by-status-button');
+    const batchSearchNoteBtn = document.getElementById('im-batch-search-by-note-button');
+
+    if (batchSearchStatusBtn) batchSearchStatusBtn.addEventListener('click', () => handleBatchGlobalSearch('status'));
+    if (batchSearchNoteBtn) batchSearchNoteBtn.addEventListener('click', () => handleBatchGlobalSearch('note'));
+    // --- END OF NEW LISTENERS ---
+
 
     if (batchAddBtn) batchAddBtn.addEventListener('click', handleAddPOToBatch);
     if (batchSaveBtn) batchSaveBtn.addEventListener('click', handleSaveBatchInvoices);
     // This listener handles the 'Enter' key press for batch PO input
     if (batchPOInput) batchPOInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); handleAddPOToBatch(); }
+        if (e.key === 'Enter') { 
+            e.preventDefault(); 
+            // This now defaults to searching by status, as it's the most likely "generic" search
+            if(batchSearchStatusBtn) batchSearchStatusBtn.click();
+        }
     });
     if (batchTableBody) {
         batchTableBody.addEventListener('click', (e) => {

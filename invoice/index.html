@@ -29,7 +29,7 @@
                     <div class="button-container">
                         <button id="workdesk-button" class="circle-button">WorkDesk</button>
                         <button id="invoice-mgmt-button" class="circle-button">Invoice Management</button>
-                        <a href="https://ibaport.site/Finance/" target="_blank" class="circle-button">Finance Report</a>
+                        <a href="https://ibaport.site/Finance/" target="_blank" class="circle-button hidden" id="finance-report-button">Finance Report</a>
                     </div>
                 </main>
             </div>
@@ -348,7 +348,7 @@
                     <li><a href="#" data-section="im-dashboard" class="active"><i class="fa-solid fa-table-columns"></i> Dashboard</a></li>
                     <li><a href="#" data-section="im-invoice-entry"><i class="fa-solid fa-file-pen"></i> Invoice Entry</a></li>
                     <li><a href="#" id="batch-entry-nav-link" data-section="im-batch-entry"><i class="fa-solid fa-file-excel"></i> Batch Entry</a></li>
-                    <li><a href="#" data-section="im-summary-note"><i class="fa-solid fa-receipt"></i> Summary Note</a></li>
+                    <li><a href="#" id="summary-note-nav-link" data-section="im-summary-note"><i class="fa-solid fa-receipt"></i> Summary Note</a></li>
                     <li><a href="#" data-section="im-reporting"><i class="fa-solid fa-chart-line"></i> Reporting</a></li>
                 </ul>
             </nav>
@@ -486,10 +486,13 @@
                 <section id="im-batch-entry" class="workdesk-section hidden">
                     <h1>Batch Invoice Entry</h1>
                     <p>Add a new PO for a new invoice, or search for a PO to add existing invoices for bulk editing.</p>
+                    
                     <div id="im-batch-po-add-container" class="search-and-filter-group" style="margin-bottom: 20px;">
-                        <input type="text" id="im-batch-po-input" placeholder="Enter PO For NEW Invoice..." style="flex-grow: 1; margin-bottom: 0;">
-                        <button id="im-batch-add-po-button" type="button">Add PO</button>
-                        <button id="im-batch-search-existing-button" type="button" class="secondary-btn">Search & Add Existing</button>
+                        <input type="text" id="im-batch-po-input" placeholder="Enter PO, Status, or Note..." style="flex-grow: 1; margin-bottom: 0;">
+                        <button id="im-batch-add-po-button" type="button">Add New PO</button>
+                        <button id="im-batch-search-existing-button" type="button" class="secondary-btn">Search by PO</button>
+                        <button id="im-batch-search-by-status-button" type="button" class="secondary-btn" style="background-color: #17a2b8;">Search by Status</button>
+                        <button id="im-batch-search-by-note-button" type="button" class="secondary-btn" style="background-color: #ffc107; color: #212529;">Search by Note</button>
                     </div>
 
                     <div class="table-wrapper" style="max-height: 50vh; overflow-y: auto;">
