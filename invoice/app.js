@@ -1,5 +1,14 @@
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
-const firebaseConfig = { apiKey: "AIzaSyBH3MgLP2wEdxaSWaGK0r8MN0f3doR5Z3U", authDomain: "ibainvoice-57cf4.firebaseapp.com", databaseURL: "https://ibainvoice-57cf4-default-rtdb.firebaseio.com", projectId: "ibainvoice-57cf4", storageBucket: "ibainvoice-57cf4.appspot.com", messagingSenderId: "170378572965", appId: "1:170378572965:web:dd29f69279d9ecf858094c", measurementId: "G-LD4B2RBSDV" };
+const firebaseConfig = {
+  apiKey: "AIzaSyBCHiQsjqhEUVZN9KhhckSqkw8vVT9LcXc",
+  authDomain: "ibainvoice-3ea51.firebaseapp.com",
+  databaseURL: "https://ibainvoice-3ea51-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "ibainvoice-3ea51",
+  storageBucket: "ibainvoice-3ea51.firebasestorage.app",
+  messagingSenderId: "152429622957",
+  appId: "1:152429622957:web:f79a80df75ce662e97b824",
+  measurementId: "G-KR3KDQ3NRC"
+};
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
