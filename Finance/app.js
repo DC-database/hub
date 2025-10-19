@@ -87,7 +87,7 @@ const elements = {
 // Form fields
 const fields = [
   'paymentNo', 'chequeNo', 'site', 'vendor', 'vendorId', 'poNo',
-  'poValue', 'certifiedAmount', 'retention', 'payment', 'datePaid'
+  'poValue', 'certifiedAmount', 'retention', 'payment', 'datePaid', 'note'
 ];
 
 // Global variables
@@ -415,7 +415,7 @@ function showAddNewForm() {
   elements.addNewPaymentBtn.style.display = 'none';
 
   // NEW: Also highlight fields for "Add New"
-  const fieldsToHighlight = ['certifiedAmount', 'retention', 'payment', 'datePaid'];
+  const fieldsToHighlight = ['certifiedAmount', 'retention', 'payment', 'datePaid', 'note'];
   fieldsToHighlight.forEach(fieldId => {
       document.getElementById(fieldId).classList.add('highlight-field');
   });
@@ -443,7 +443,7 @@ function editPayment(id, payment) {
   elements.paymentFormCard.style.display = 'block';
 
   // NEW LOGIC: Add highlight class to specific fields
-  const fieldsToHighlight = ['certifiedAmount', 'retention', 'payment', 'datePaid'];
+  const fieldsToHighlight = ['certifiedAmount', 'retention', 'payment', 'datePaid', 'note'];
   fieldsToHighlight.forEach(fieldId => {
       document.getElementById(fieldId).classList.add('highlight-field');
   });
@@ -499,6 +499,7 @@ async function addNewPaymentFromEdit() {
     paymentData.paymentNo = generatePaymentNumber(nextNumber);
     paymentData.chequeNo = '';
     paymentData.datePaid = '';
+    paymentData.note = ''; // Clear note for new payment
     calculatePayment();
     paymentData.payment = document.getElementById('payment').value.replace(/,/g, '');
 
@@ -520,7 +521,7 @@ function resetForm() {
   elements.formTitle.textContent = 'Add Payment';
 
   // NEW LOGIC: Remove highlight class from all fields
-  const fieldsToHighlight = ['certifiedAmount', 'retention', 'payment', 'datePaid'];
+  const fieldsToHighlight = ['certifiedAmount', 'retention', 'payment', 'datePaid', 'note'];
   fieldsToHighlight.forEach(fieldId => {
       document.getElementById(fieldId).classList.remove('highlight-field');
   });
@@ -646,7 +647,7 @@ async function importPaymentCSV() {
     const content = await readFileAsText(file);
     const lines = content.split('\n');
     const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-    const requiredFields = ['Payment No.', 'Cheque No.', 'Site', 'Vendor', 'Vendor ID', 'PO No.', 'PO Value', 'Certified Amount', 'Retention', 'Payment', 'Date Paid'];
+    const requiredFields = ['Payment No.', 'Cheque No.', 'Site', 'Vendor', 'Vendor ID', 'PO No.', 'PO Value', 'Certified Amount', 'Retention', 'Payment', 'Date Paid', 'Note'];
     const missingFields = requiredFields.filter(field => !headers.includes(field));
     if (missingFields.length > 0) {
       alert(`CSV is missing required fields: ${missingFields.join(', ')}`);
@@ -672,7 +673,8 @@ async function importPaymentCSV() {
         certifiedAmount: values[fieldIndices['Certified Amount']],
         retention: values[fieldIndices['Retention']],
         payment: values[fieldIndices['Payment']],
-        datePaid: values[fieldIndices['Date Paid']]
+        datePaid: values[fieldIndices['Date Paid']],
+        note: values[fieldIndices['Note']] || ''
       };
       paymentsToImport.push(paymentData);
     }
@@ -698,7 +700,7 @@ async function importPaymentCSV() {
 }
 
 function downloadCSVTemplate() {
-  const headers = ['Payment No.', 'Cheque No.', 'Site', 'Vendor', 'Vendor ID', 'PO No.', 'PO Value', 'Certified Amount', 'Retention', 'Payment', 'Date Paid'];
+  const headers = ['Payment No.', 'Cheque No.', 'Site', 'Vendor', 'Vendor ID', 'PO No.', 'PO Value', 'Certified Amount', 'Retention', 'Payment', 'Date Paid', 'Note'];
   let csvContent = headers.join(',') + '\n';
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
@@ -766,6 +768,7 @@ async function generateReport(selectedPayment) {
       return (isNaN(aNum) ? 0 : aNum) - (isNaN(bNum) ? 0 : bNum);
     });
     let totalCertified = 0, totalRetention = 0, totalPayment = 0, totalPrevPayment = 0;
+    let allNotes = []; // To store notes
 
     payments.forEach(payment => {
       const certified = parseFloat(payment.certifiedAmount || 0);
@@ -779,6 +782,11 @@ async function generateReport(selectedPayment) {
       // MODIFIED: Changed this logic to check for datePaid
       if (payment.datePaid && String(payment.datePaid).trim() !== '') {
         totalPrevPayment += paymentAmount;
+      }
+
+      // *** CHANGED: Removed the hyphen and PVN prefix ***
+      if (payment.note && String(payment.note).trim() !== '') {
+        allNotes.push(`${String(payment.note).trim()}`);
       }
     });
 
@@ -805,147 +813,32 @@ async function generateReport(selectedPayment) {
     document.getElementById('reportTotalCertifiedAmount').textContent = formatNumber(totalCertified);
     document.getElementById('reportTotalRetentionAmount').textContent = formatNumber(totalRetention);
     document.getElementById('reportTotalPaymentAmount').textContent = formatNumber(totalPayment);
+    
+    // NEW: Show/Hide Notes section
+    const reportNotesSection = document.getElementById('reportNotesSection');
+    const reportNotesContent = document.getElementById('reportNotesContent');
+    
+    if (allNotes.length > 0) {
+        reportNotesContent.textContent = allNotes.join('\n');
+        reportNotesSection.style.display = 'block';
+    } else {
+        reportNotesContent.textContent = '';
+        reportNotesSection.style.display = 'none';
+    }
+
     elements.reportModal.show();
   } catch (error) {
     console.error('Error generating report:', error);
   }
 }
 
+// ======================
+// PRINT FUNCTION - FIXED
+// ======================
 function printReport() {
-  const printContent = document.getElementById('reportModal').cloneNode(true);
-  const modalFooter = printContent.querySelector('.modal-footer');
-  if (modalFooter) modalFooter.remove();
-  const modalHeader = printContent.querySelector('.modal-header');
-  if (modalHeader) modalHeader.remove();
-  const printWindow = window.open('', '_blank');
-  printWindow.document.open();
-  printWindow.document.write(`
-    <html>
-      <head>
-        <title>Payment Certificate</title>
-        <style>
-          * {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background: white;
-            font-size: 14pt;
-          }
-          .report-header {
-            border-bottom: 2px solid #000;
-            padding-bottom: 15px;
-            margin-bottom: 20px;
-            text-align: center;
-          }
-          .report-header h3 {
-            font-size: 24px;
-            margin-bottom: 5px;
-            font-weight: bold;
-          }
-          .report-header h4 {
-            font-size: 18px;
-            margin: 10px 0;
-          }
-          .report-details {
-            margin-bottom: 25px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid #ddd;
-            display: flex;
-            justify-content: space-between;
-          }
-          .report-details-col {
-            width: 48%;
-          }
-          .report-summary {
-            background-color: #f8f9fa;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 25px;
-            border: 1px solid #dee2e6;
-            display: flex;
-            justify-content: space-between;
-          }
-          .report-summary-col {
-            width: 48%;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 30px;
-          }
-          table th, table td {
-            border: 1px solid #000;
-            padding: 8px;
-          }
-          table th {
-            background-color: #343a40;
-            color: white;
-            font-weight: bold;
-            text-align: center;
-          }
-          table tfoot {
-            display: table-footer-group !important;
-          }
-          table tfoot tr {
-            page-break-inside: avoid !important;
-          }
-          table tfoot th {
-            background-color: #e9ecef;
-            color: #000;
-            font-weight: bold;
-            text-align: right;
-            padding-right: 20px;
-          }
-          table tfoot td {
-            font-weight: bold;
-            text-align: right;
-            padding-right: 20px;
-          }
-          #reportTotalCertifiedAmount,
-          #reportTotalRetentionAmount,
-          #reportTotalPaymentAmount {
-            text-align: right;
-            font-family: monospace;
-            font-weight: bold;
-          }
-          .signatures {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 60px;
-          }
-          .signature-box {
-            text-align: center;
-            width: 30%;
-          }
-          .signature-line {
-            border-top: 1px solid #000;
-            margin-top: 40px;
-            padding-top: 10px;
-            display: inline-block;
-            width: 80%;
-          }
-          @page {
-            size: auto;
-            margin: 15mm;
-          }
-        </style>
-      </head>
-      <body>
-        ${printContent.querySelector('.modal-body').innerHTML}
-        <script>
-          setTimeout(function() {
-            window.print();
-            window.close();
-          }, 300);
-        </script>
-      </body>
-    </html>
-  `);
-  printWindow.document.close();
+  // All the styling is already handled by the @media print
+  // rules in styles.css. We just need to trigger the print dialog.
+  window.print();
 }
 
 // ======================
@@ -1058,7 +951,7 @@ function formatDateLong(dateStr) {
 function readFileAsText(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = e => resolve(e.target.result);
+    reader.onload = e => resolve(e.gtarget.result);
     reader.onerror = e => reject(new Error('Failed to read file'));
     reader.readAsText(file);
   });

@@ -233,12 +233,14 @@
   padding-right: 20px !important;
 }
 
-/* Enhanced Print Styles for Report */
+/* =================================== */
+/* Enhanced Print Styles for Report    */
+/* =================================== */
 @media print {
   body {
     visibility: hidden;
     margin: 0;
-    padding: 20px !important;
+    padding: 0 !important; 
     background: white;
     font-size: 14pt !important;
   }
@@ -263,13 +265,24 @@
     display: block !important;
   }
   
+  #reportModal .modal-dialog {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+  }
+  
+  #reportModal .modal-content {
+      border: none !important;
+      box-shadow: none !important;
+  }
+
   .modal-header, 
   .modal-footer {
     display: none !important;
   }
   
   .modal-body {
-    padding: 20px !important;
+    padding: 0 !important;
     margin: 0 !important;
     border: none !important;
     font-size: 14pt !important;
@@ -342,16 +355,17 @@
   }
   
   table tfoot th {
-    background-color: #343a40 !important;
+    background-color: #e9ecef !important; 
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-    color: #000 !important;
+    color: #000 !important; 
     text-align: right !important;
     padding-right: 20px !important;
     font-size: 14pt;
   }
   
   table tfoot td {
+    background-color: #e9ecef !important; 
     font-weight: bold !important;
     text-align: right !important;
     padding-right: 20px !important;
@@ -364,6 +378,7 @@
     justify-content: space-between !important;
     margin-top: 80px !important;
     font-size: 14pt;
+    page-break-inside: avoid;
   }
   
   .signature-box {
@@ -379,6 +394,28 @@
     width: 80% !important;
   }
   
+  #reportNotesSection {
+      margin-top: 40px !important;
+      page-break-inside: avoid !important;
+  }
+  
+  #reportNotesSection h5 {
+      font-size: 14pt !important;
+      font-weight: bold;
+      margin-bottom: 10px !important;
+  }
+  
+  #reportNotesContent {
+      white-space: pre-wrap !important;
+      font-size: 12pt !important;
+      padding: 10px !important;
+      border: 1px solid #ddd !important;
+      background: #f9f9f9 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !Mimportant;
+      min-height: 50px !important;
+  }
+
   /* Numeric columns */
   #reportTableBody td:nth-child(3),
   #reportTableBody td:nth-child(4),
@@ -391,11 +428,23 @@
     padding-right: 15px !important;
   }
   
+  #reportTableBody td:nth-child(1), /* P/N */
+  #reportTableBody td:nth-child(2), /* Cheque No. */
+  #reportTableBody td:nth-child(6) { /* Date Paid */
+      text-align: center !important;
+      vertical-align: middle !important;
+  }
+
+  /* === THIS IS THE CHANGED RULE === */
   @page {
     size: A4;
-    margin: 15mm;
+    margin: 5mm; /* Reduced from 15mm */
   }
 }
+/* =================================== */
+/* END OF PRINT STYLES                 */
+/* =================================== */
+
 
 /* =================================== */
 /* MODIFIED: Login Screen Styles       */

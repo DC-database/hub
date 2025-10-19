@@ -251,7 +251,12 @@
                                 <label for="datePaid" class="form-label">Date Paid</label>
                                 <input type="date" class="form-control" id="datePaid">
                             </div>
-                        </div>
+                            
+                            <div class="col-12">
+                                <label for="note" class="form-label">Note</label>
+                                <textarea class="form-control" id="note" rows="2"></textarea>
+                            </div>
+                            </div>
                         <div class="mt-3">
                             <button type="submit" class="btn btn-primary" id="saveBtn">Save</button>
                             <button type="button" class="btn btn-secondary" id="cancelBtn">Cancel</button>
@@ -298,7 +303,7 @@
                             <label for="paymentCsv" class="form-label">Select CSV File</label>
                             <input class="form-control" type="file" id="paymentCsv" accept=".csv" required>
                             <div class="form-text">
-                                CSV should contain these columns: Payment No., Cheque No., Site, Vendor, Vendor ID, PO No., PO Value, Certified Amount, Retention, Payment, Date Paid
+                                CSV should contain these columns: Payment No., Cheque No., Site, Vendor, Vendor ID, PO No., PO Value, Certified Amount, Retention, Payment, Date Paid, Note
                             </div>
                         </div>
                         <div class="mb-3 form-check">
@@ -427,7 +432,12 @@
                             <div class="signature-line"></div>
                         </div>
                     </div>
-                </div>
+                    
+                    <div id="reportNotesSection" style="display: none; margin-top: 40px;">
+                        <h5>Notes:</h5>
+                        <div id="reportNotesContent" style="white-space: pre-wrap; font-size: 12pt; padding: 10px; border: 1px solid #ddd; background: #f9f9f9; border-radius: 5px; min-height: 50px;"></div>
+                    </div>
+                    </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                     <button type="button" class="btn btn-primary" id="printReportBtn">Print Report</button>
