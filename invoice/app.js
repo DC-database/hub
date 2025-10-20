@@ -121,6 +121,8 @@ const imInvValueInput = document.getElementById('im-inv-value');
 const imAmountPaidInput = document.getElementById('im-amount-paid');
 const imBatchSearchModal = document.getElementById('im-batch-search-modal');
 const imBatchSearchExistingButton = document.getElementById('im-batch-search-existing-button');
+const imWorkdeskButton = document.getElementById('im-workdesk-button');
+const imActiveTaskButton = document.getElementById('im-activetask-button');
 
 // SUMMARY NOTE REFERENCES
 const summaryNotePreviousInput = document.getElementById('summary-note-previous-input');
@@ -786,11 +788,11 @@ function populateFormForEditing(key) {
     window.scrollTo(0, 0);
 }
 
-// --- NEW, EFFICIENT populateActiveTasks ---
+// --- (FIXED) EFFICIENT populateActiveTasks ---
 async function populateActiveTasks() {
-    activeTaskTableBody.innerHTML = '<tr><td colspan="8">Loading tasks...</td></tr>';
+    activeTaskTableBody.innerHTML = `<tr><td colspan="9">Loading tasks...</td></tr>`;
     if (!currentApprover || !currentApprover.Name) { 
-        activeTaskTableBody.innerHTML = '<tr><td colspan="8">Could not identify user.</td></tr>'; 
+        activeTaskTableBody.innerHTML = `<tr><td colspan="9">Could not identify user.</td></tr>`; 
         return; 
     }
     
@@ -802,22 +804,20 @@ async function populateActiveTasks() {
             if (!allPOData) throw new Error("Could not load PO data for WorkDesk");
         }
         
-        // 2. THE FIX: Query *only* for this user's 'job_entries'
+        // 2. Query *only* for this user's 'job_entries'
         const jobSnapshot = await db.ref('job_entries')
                                     .orderByChild('attention')
                                     .equalTo(currentApprover.Name)
                                     .once('value');
         
-        // 3. THE FIX: Query *only* for this user's 'invoice_entries'
-        const invoiceSnapshot = await invoiceDb.ref('invoice_entries')
-                                            .orderByChild('attention')
-                                            .equalTo(currentApprover.Name)
-                                            .once('value');
+        // 3. (FIX) Fetch *ALL* invoice_entries (must be filtered client-side)
+        const invoiceSnapshot = await invoiceDb.ref('invoice_entries').once('value');
 
-        // 4. Process the SMALL results (not the whole database)
+        // 4. Process the results
         const jobEntriesData = jobSnapshot.val() || {};
-        const invoiceEntriesData = invoiceSnapshot.val() || {};
+        const allInvoiceEntries = invoiceSnapshot.val() || {};
         const purchaseOrdersData = allPOData;
+        const currentUserName = currentApprover.Name;
 
         let userTasks = [];
 
@@ -834,19 +834,25 @@ async function populateActiveTasks() {
             }
         }
         
-        // Process invoice entries for this user
-        for (const poNumber in invoiceEntriesData) {
-            const invoices = invoiceEntriesData[poNumber];
+        // (FIX) Process *ALL* invoice entries and filter for this user
+        for (const poNumber in allInvoiceEntries) {
+            const invoices = allInvoiceEntries[poNumber];
             const site = purchaseOrdersData[poNumber]?.['Project ID'] || 'N/A';
             const vendorName = purchaseOrdersData[poNumber]?.['Supplier Name'] || 'N/A';
 
             for (const invoiceKey in invoices) {
                 const invoice = invoices[invoiceKey];
                 
+                // Filter for tasks assigned to the current user
+                if (invoice.attention !== currentUserName) {
+                    continue; 
+                }
+                
                 const isTrackableStatus = invoice.status === 'For SRV' || invoice.status === 'For IPC';
                 if (!isTrackableStatus && (!invoice.attention || invoice.attention.trim() === '')) {
                     continue;
                 }
+
                 const normalizedDate = normalizeDateForInput(invoice.dateAdded || invoice.releaseDate);
                 const transformedInvoice = {
                     key: `${poNumber}_${invoice.invEntryID || invoiceKey}`,
@@ -859,7 +865,7 @@ async function populateActiveTasks() {
                     site: site,
                     group: 'N/A',
                     attention: invoice.attention,
-                    enteredBy: 'Irwin',
+                    enteredBy: 'Irwin', // Assuming all are from Irwin for this logic
                     date: normalizedDate ? formatDate(new Date(normalizedDate + 'T00:00:00')) : 'N/A',
                     dateResponded: 'N/A',
                     remarks: invoice.status || 'Pending',
@@ -884,14 +890,15 @@ async function populateActiveTasks() {
     
     } catch (error) { 
         console.error("Error fetching active tasks:", error); 
-        activeTaskTableBody.innerHTML = '<tr><td colspan="8">Error loading tasks.</td></tr>'; 
+        activeTaskTableBody.innerHTML = `<tr><td colspan="9">Error loading tasks.</td></tr>`; 
     }
 }
+
 
 function renderActiveTaskTable(tasks) {
     activeTaskTableBody.innerHTML = '';
     if (!tasks || tasks.length === 0) {
-        activeTaskTableBody.innerHTML = '<tr><td colspan="8">You have no active tasks.</td></tr>';
+        activeTaskTableBody.innerHTML = `<tr><td colspan="9">You have no active tasks.</td></tr>`;
         return;
     }
     tasks.forEach(task => {
@@ -899,7 +906,14 @@ function renderActiveTaskTable(tasks) {
         row.setAttribute('data-key', task.key);
 
         const isInvoiceFromIrwin = task.source === 'invoice' && task.enteredBy === 'Irwin';
-        if (isInvoiceFromIrwin || (task.source === 'invoice' && task.invName)) {
+        
+        // (FIX) Add check for "Nil" or "nil"
+        const invName = task.invName || '';
+        const isClickable = (isInvoiceFromIrwin || (task.source === 'invoice' && invName)) && 
+                            invName.toLowerCase() !== 'nil' && 
+                            invName.toLowerCase() !== 'nil';
+
+        if (isClickable) {
             row.classList.add('clickable-pdf');
         }
 
@@ -911,7 +925,7 @@ function renderActiveTaskTable(tasks) {
             <td>${task.for || ''}</td>
             <td>${task.ref || ''}</td>
             <td>${task.po || ''}</td>
-            <td>${task.site || ''}</td>
+            <td>${task.vendorName || 'N/A'}</td> <td>${task.site || ''}</td>
             <td>${task.group || ''}</td>
             <td>${task.date || ''}</td>
             <td>${task.remarks || 'Pending'}</td>
@@ -1090,6 +1104,7 @@ function handleActiveTaskSearch(searchTerm) {
             (task.for && task.for.toLowerCase().includes(searchText)) ||
             (task.ref && task.ref.toLowerCase().includes(searchText)) ||
             (task.po && task.po.toLowerCase().includes(searchText)) ||
+            (task.vendorName && task.vendorName.toLowerCase().includes(searchText)) || // ++ ADDED ++
             (task.site && task.site.toLowerCase().includes(searchText)) ||
             (task.group && task.group.toLowerCase().includes(searchText)) ||
             (task.date && task.date.toLowerCase().includes(searchText))
@@ -1343,8 +1358,16 @@ function fetchAndDisplayInvoices(poNumber) {
             const invoiceDateDisplay = inv.invoiceDate ? new Date(normalizeDateForInput(inv.invoiceDate) + 'T00:00:00').toLocaleDateString('en-GB') : 'N/A';
             const invValueDisplay = !isAdmin ? '---' : formatCurrency(inv.invValue);
             const amountPaidDisplay = !isAdmin ? '---' : formatCurrency(inv.amountPaid);
-            const invPDF = inv.invName ? `<a href="${PDF_BASE_PATH}${encodeURIComponent(inv.invName)}.pdf" target="_blank" class="action-btn invoice-pdf-btn">Invoice</a>` : '';
-            const srvPDF = inv.srvName ? `<a href="${SRV_BASE_PATH}${encodeURIComponent(inv.srvName)}.pdf" target="_blank" class="action-btn srv-pdf-btn">SRV</a>` : '';
+            
+            const invPDFName = inv.invName || '';
+            const invPDFLink = (invPDFName.toLowerCase() !== 'nil' && invPDFName.toLowerCase() !== 'nil') 
+                ? `<a href="${PDF_BASE_PATH}${encodeURIComponent(invPDFName)}.pdf" target="_blank" class="action-btn invoice-pdf-btn">Invoice</a>` 
+                : '';
+
+            const srvPDFName = inv.srvName || '';
+            const srvPDFLink = (srvPDFName.toLowerCase() !== 'nil' && srvPDFName.toLowerCase() !== 'nil')
+                ? `<a href="${SRV_BASE_PATH}${encodeURIComponent(srvPDFName)}.pdf" target="_blank" class="action-btn srv-pdf-btn">SRV</a>`
+                : '';
 
             row.innerHTML = `
                 <td>${inv.invEntryID || ''}</td>
@@ -1354,7 +1377,7 @@ function fetchAndDisplayInvoices(poNumber) {
                 <td>${amountPaidDisplay}</td>
                 <td>${inv.status || ''}</td>
                 <td>${releaseDateDisplay}</td>
-                <td><div class="action-btn-group">${invPDF} ${srvPDF} <button class="delete-btn" data-key="${inv.key}">Delete</button></div></td>
+                <td><div class="action-btn-group">${invPDFLink} ${srvPDFLink} <button class="delete-btn" data-key="${inv.key}">Delete</button></div></td>
             `;
             imInvoicesTableBody.appendChild(row);
         });
@@ -1635,9 +1658,17 @@ async function populateInvoiceReporting(searchTerm = '') {
                     const invValueDisplay = !isAdmin ? '---' : formatCurrency(invValue), amountPaidDisplay = !isAdmin ? '---' : formatCurrency(amountPaid);
                     let actionButtonsHTML = '';
                     if (isAdmin) {
-                        const invPDF = inv.invName ? `<a href="${PDF_BASE_PATH}${encodeURIComponent(inv.invName)}.pdf" target="_blank" class="action-btn invoice-pdf-btn">Invoice</a>` : '';
-                        const srvPDF = inv.srvName ? `<a href="${SRV_BASE_PATH}${encodeURIComponent(inv.srvName)}.pdf" target="_blank" class="action-btn srv-pdf-btn">SRV</a>` : '';
-                        if (invPDF || srvPDF) actionButtonsHTML = `<div class="action-btn-group">${invPDF} ${srvPDF}</div>`;
+                        const invPDFName = inv.invName || '';
+                        const invPDFLink = (invPDFName.toLowerCase() !== 'nil' && invPDFName.toLowerCase() !== 'nil') 
+                            ? `<a href="${PDF_BASE_PATH}${encodeURIComponent(invPDFName)}.pdf" target="_blank" class="action-btn invoice-pdf-btn">Invoice</a>` 
+                            : '';
+
+                        const srvPDFName = inv.srvName || '';
+                        const srvPDFLink = (srvPDFName.toLowerCase() !== 'nil' && srvPDFName.toLowerCase() !== 'nil')
+                            ? `<a href="${SRV_BASE_PATH}${encodeURIComponent(srvPDFName)}.pdf" target="_blank" class="action-btn srv-pdf-btn">SRV</a>`
+                            : '';
+
+                        if (invPDFLink || srvPDFLink) actionButtonsHTML = `<div class="action-btn-group">${invPDFLink} ${srvPDFLink}</div>`;
                     }
                     nestedTableRows += `<tr><td>${inv.invEntryID || ''}</td><td>${inv.invNumber || ''}</td><td>${invoiceDateDisplay}</td><td>${invValueDisplay}</td><td>${amountPaidDisplay}</td><td>${releaseDateDisplay}</td><td>${inv.status || ''}</td><td>${inv.note || ''}</td><td>${actionButtonsHTML}</td></tr>`;
                 });
@@ -2040,7 +2071,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateJobButton.addEventListener('click', handleUpdateJobEntry);
     clearJobButton.addEventListener('click', () => resetJobEntryForm(false));
     jobEntryTableBody.addEventListener('click', (e) => { const row = e.target.closest('tr'); if (row) { const key = row.getAttribute('data-key'); const entry = allSystemEntries.find(item => item.key === key); if (key && entry && entry.source !== 'invoice') populateFormForEditing(key); } });
-    activeTaskTableBody.addEventListener('click', (e) => { const row = e.target.closest('tr'); if (!row) return; if (e.target.classList.contains('respond-btn')) { handleRespondClick(e); return; } const key = row.dataset.key; if (!key) return; const task = allSystemEntries.find(entry => entry.key === key); if (task && task.source === 'invoice' && task.invName) window.open(PDF_BASE_PATH + encodeURIComponent(task.invName) + ".pdf", '_blank'); });
+    
+    // ++ MODIFIED CLICK LISTENER FOR PDF ++
+    activeTaskTableBody.addEventListener('click', (e) => { 
+        const row = e.target.closest('tr'); 
+        if (!row) return; 
+        if (e.target.classList.contains('respond-btn')) { 
+            handleRespondClick(e); 
+            return; 
+        } 
+        const key = row.dataset.key; 
+        if (!key) return; 
+        const task = allSystemEntries.find(entry => entry.key === key); 
+        
+        // Check for nil/Nil before opening
+        if (task && task.source === 'invoice' && task.invName && task.invName.toLowerCase() !== 'nil' && task.invName.toLowerCase() !== 'nil') {
+            window.open(PDF_BASE_PATH + encodeURIComponent(task.invName) + ".pdf", '_blank'); 
+        }
+    });
+
     jobForSelect.addEventListener('change', (e) => { const isQS = currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'qs'; if (e.target.value === 'IPC' && isQS) { attentionSelectChoices.clearStore(); attentionSelectChoices.setChoices([{ value: 'All', label: 'All', selected: true }], 'value', 'label', false); attentionSelectChoices.disable(); } else if (attentionSelectChoices.disabled) { attentionSelectChoices.enable(); resetJobEntryForm(true); } });
     activeTaskSearchInput.addEventListener('input', debounce((e) => handleActiveTaskSearch(e.target.value), 500));
     jobEntrySearchInput.addEventListener('input', debounce((e) => handleJobEntrySearch(e.target.value), 500));
@@ -2050,6 +2099,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     downloadWdReportButton.addEventListener('click', handleDownloadWorkdeskCSV);
     reportTabsContainer.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') { reportTabsContainer.querySelector('.active').classList.remove('active'); e.target.classList.add('active'); currentReportFilter = e.target.getAttribute('data-job-type'); handleReportingSearch(); } });
     document.querySelectorAll('.back-to-main-dashboard').forEach(button => button.addEventListener('click', (e) => { e.preventDefault(); showView('dashboard'); }));
+    
     invoiceManagementButton.addEventListener('click', async () => { 
         if (!currentApprover) { handleLogout(); return; } 
         imUsername.textContent = currentApprover.Name || 'User'; 
@@ -2062,15 +2112,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         const userRole = (currentApprover.Role || '').toLowerCase();
         const userPosition = (currentApprover.Position || '').toLowerCase();
         
-        // --- NEW PERMISSION LOGIC ---
         const isAccountingAdmin = userRole === 'admin' && userPosition === 'accounting';
+        const isAccounting = userPosition === 'accounting'; // ++ ADDED ++
 
         imNav.querySelector('a[data-section="im-invoice-entry"]').classList.toggle('disabled', !isAccountingAdmin); 
         document.getElementById('batch-entry-nav-link').classList.toggle('disabled', !isAccountingAdmin); 
         const summaryNoteLink = imNav.querySelector('a[data-section="im-summary-note"]'); 
         if (summaryNoteLink) summaryNoteLink.classList.toggle('disabled', !isAccountingAdmin); 
         
-        // --- NEW SECURITY FOR DOWNLOAD BUTTONS ---
+        // ++ NEW LOGIC FOR SIDEBAR LINKS ++
+        document.getElementById('im-nav-workdesk').classList.toggle('hidden', !isAccounting);
+        document.getElementById('im-nav-activetask').classList.toggle('hidden', !isAccounting);
+        
         imReportingDownloadCSVButton.disabled = !isAccountingAdmin;
         imDownloadDailyReportButton.disabled = !isAccountingAdmin;
         imDownloadWithAccountsReportButton.disabled = !isAccountingAdmin;
@@ -2091,14 +2144,57 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (dashboardLink) dashboardLink.classList.add('active'); 
         } 
     });
-    imNav.addEventListener('click', (e) => { const link = e.target.closest('a'); if (!link || link.classList.contains('disabled')) return; e.preventDefault(); const sectionId = link.getAttribute('data-section'); if (sectionId) { imNav.querySelectorAll('a').forEach(a => a.classList.remove('active')); link.classList.add('active'); showIMSection(sectionId); } });
+
+    // ++ NEW CLICK HANDLERS FOR SIDEBAR LINKS ++
+    if (imWorkdeskButton) {
+        imWorkdeskButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            workdeskButton.click(); // Simulate click on the main WorkDesk button
+        });
+    }
+    if (imActiveTaskButton) {
+        imActiveTaskButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            workdeskButton.click(); // Go to WorkDesk first
+            setTimeout(() => {
+                // Then navigate to the Active Task section
+                workdeskNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
+                const activeTaskLink = workdeskNav.querySelector('a[data-section="wd-activetask"]');
+                if (activeTaskLink) activeTaskLink.classList.add('active');
+                showWorkdeskSection('wd-activetask');
+            }, 100); // Small delay to ensure view is loaded
+        });
+    }
+
+    imNav.addEventListener('click', (e) => { const link = e.target.closest('a'); if (!link || link.classList.contains('disabled') || link.id === 'im-workdesk-button' || link.id === 'im-activetask-button') return; e.preventDefault(); const sectionId = link.getAttribute('data-section'); if (sectionId) { imNav.querySelectorAll('a').forEach(a => a.classList.remove('active')); link.classList.add('active'); showIMSection(sectionId); } });
     imPOSearchButton.addEventListener('click', handlePOSearch);
     imPOSearchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); handlePOSearch(); } });
     imAddInvoiceButton.addEventListener('click', handleAddInvoice);
     imUpdateInvoiceButton.addEventListener('click', handleUpdateInvoice);
     imClearFormButton.addEventListener('click', () => { currentPO ? resetInvoiceForm() : resetInvoiceEntryPage(); });
     imBackToActiveTaskButton.addEventListener('click', () => { showView('workdesk'); workdeskNav.querySelectorAll('a').forEach(a => a.classList.remove('active')); workdeskNav.querySelector('a[data-section="wd-activetask"]').classList.add('active'); showWorkdeskSection('wd-activetask'); });
-    imInvoicesTableBody.addEventListener('click', (e) => { const deleteBtn = e.target.closest('.delete-btn'); if (deleteBtn) { handleDeleteInvoice(deleteBtn.getAttribute('data-key')); return; } const row = e.target.closest('tr'); if (row && !e.target.closest('a')) populateInvoiceFormForEditing(row.getAttribute('data-key')); });
+    
+    // ++ MODIFIED CLICK LISTENER FOR PDF ++
+    imInvoicesTableBody.addEventListener('click', (e) => { 
+        const deleteBtn = e.target.closest('.delete-btn'); 
+        if (deleteBtn) { 
+            handleDeleteInvoice(deleteBtn.getAttribute('data-key')); 
+            return; 
+        } 
+
+        // Check for PDF/SRV links
+        const pdfLink = e.target.closest('a');
+        if (pdfLink) {
+            // This allows the link to function normally
+            return; 
+        }
+
+        const row = e.target.closest('tr'); 
+        if (row) {
+            populateInvoiceFormForEditing(row.getAttribute('data-key')); 
+        }
+    });
+
     imReportingContent.addEventListener('click', (e) => { const expandBtn = e.target.closest('.expand-btn'); if (expandBtn) { const masterRow = expandBtn.closest('.master-row'); const detailRow = document.querySelector(masterRow.dataset.target); if (detailRow) { detailRow.classList.toggle('hidden'); expandBtn.textContent = detailRow.classList.contains('hidden') ? '+' : '−'; } } });
     imReportingForm.addEventListener('submit', (e) => { e.preventDefault(); const searchTerm = imReportingSearchInput.value.trim(); if (!searchTerm && !document.getElementById('im-reporting-site-filter').value && !document.getElementById('im-reporting-date-filter').value && !document.getElementById('im-reporting-status-filter').value) { imReportingContent.innerHTML = '<p style="color: red; font-weight: bold;">Please specify at least one search criteria.</p>'; return; } populateInvoiceReporting(searchTerm); });
     imReportingClearButton.addEventListener('click', () => { imReportingForm.reset(); imReportingContent.innerHTML = '<p>Please enter a search term and click Search.</p>'; currentReportData = []; });
@@ -2149,4 +2245,3 @@ document.addEventListener('DOMContentLoaded', async () => {
     if(summaryNoteUpdateBtn) summaryNoteUpdateBtn.addEventListener('click', handleUpdateSummaryChanges);
     if(summaryNotePrintBtn) summaryNotePrintBtn.addEventListener('click', () => window.print());
 });
-

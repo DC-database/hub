@@ -14,6 +14,7 @@
     <div id="app-container">
         <div id="login-view"><div class="form-container animated-card"><h2>System Login</h2><p>Please enter your email or mobile number to continue.</p><form id="login-form"><input type="text" id="login-identifier" placeholder="Email or Mobile Number" required><button type="submit">Continue</button></form><p id="login-error" class="error-message"></p></div></div>
         <div id="password-view" class="hidden"><div class="form-container animated-card"><h2>Enter Password</h2><p>Welcome back! Please enter your password for <strong id="password-user-identifier"></strong>.</p><form id="password-form"><input type="password" id="login-password" placeholder="Password" required><button type="submit">Login</button></form><p id="password-error" class="error-message"></p></div></div>
+        
         <div id="setup-view" class="hidden"><div class="form-container animated-card"><h2>Complete Your Account Setup</h2><p>This is your first time logging in. Please complete the following steps.</p><form id="setup-form"><div id="setup-email-container" class="hidden"><label for="setup-email">Enter your email address:</label><input type="email" id="setup-email" placeholder="user@example.com" required></div><div id="setup-site-container" class="hidden"><label for="setup-site">Enter your Site:</label><input type="text" id="setup-site" placeholder="Site Name" required><p class="input-note">For multiple sites, separate them with a comma (ex. 175,176)</p></div><div id="setup-position-container" class="hidden"><label for="setup-position">Enter your Position:</label><input type="text" id="setup-position" placeholder="Position" required></div><label for="setup-password">Create Password</label><input type="password" id="setup-password" placeholder="New Password" required><button type="submit">Complete Setup</button></form><p id="setup-error" class="error-message"></p></div></div>
         
         <div id="dashboard-view" class="hidden">
@@ -187,6 +188,7 @@
                                     <th>Job</th>
                                     <th>Ref</th>
                                     <th>PO</th>
+                                    <th>Vendor Name</th> 
                                     <th>Site</th>
                                     <th>Group</th>
                                     <th>Date</th>
@@ -350,6 +352,9 @@
                     <li><a href="#" id="batch-entry-nav-link" data-section="im-batch-entry"><i class="fa-solid fa-file-excel"></i> Batch Entry</a></li>
                     <li><a href="#" id="summary-note-nav-link" data-section="im-summary-note"><i class="fa-solid fa-receipt"></i> Summary Note</a></li>
                     <li><a href="#" data-section="im-reporting"><i class="fa-solid fa-chart-line"></i> Reporting</a></li>
+                    
+                    <li id="im-nav-workdesk" class="hidden"><a href="#" id="im-workdesk-button"><i class="fa-solid fa-briefcase"></i> WorkDesk</a></li>
+                    <li id="im-nav-activetask" class="hidden"><a href="#" id="im-activetask-button"><i class="fa-solid fa-list-check"></i> Active Task</a></li>
                 </ul>
             </nav>
             <div class="workdesk-footer-nav">
