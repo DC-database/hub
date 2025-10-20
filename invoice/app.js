@@ -245,11 +245,25 @@ function showWorkdeskSection(sectionId) {
 }
 function formatDate(date) { const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]; const day = String(date.getDate()).padStart(2, '0'); const month = months[date.getMonth()]; const year = date.getFullYear(); return `${day}-${month}-${year}`; }
 
+// --- UPDATED normalizeDateForInput TO HANDLE MORE FORMATS ---
 function normalizeDateForInput(dateString) {
     if (!dateString || typeof dateString !== 'string') return '';
+    
+    // YYYY-MM-DD (already correct)
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
         return dateString;
     }
+    
+    // DD/MM/YYYY (from CSV)
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateString)) {
+        const parts = dateString.split('/');
+        const day = parts[0].padStart(2, '0');
+        const month = parts[1].padStart(2, '0');
+        const year = parts[2];
+        return `${year}-${month}-${day}`;
+    }
+
+    // DD-MM-YY (old format)
     if (/^\d{2}-\d{2}-\d{2}$/.test(dateString)) {
         const parts = dateString.split('-');
         const day = parts[0];
@@ -257,6 +271,8 @@ function normalizeDateForInput(dateString) {
         const year = `20${parts[2]}`;
         return `${year}-${month}-${day}`;
     }
+    
+    // Try parsing with Date object as a fallback
     const date = new Date(dateString);
     if (!isNaN(date)) {
         const year = date.getFullYear();
@@ -264,6 +280,7 @@ function normalizeDateForInput(dateString) {
         const day = String(date.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
     }
+    
     console.warn("Unrecognized date format:", dateString);
     return '';
 }
@@ -575,13 +592,11 @@ async function populateAttentionDropdown(choicesInstance, useCache = false) {
     try {
         if (!choicesInstance) return;
 
-        // 1. THE FIX: If we have data in the cache, use it and stop.
         if (allApproversCache) {
             choicesInstance.setChoices(allApproversCache, 'value', 'label', true);
             return;
         }
 
-        // 2. If cache is empty, fetch from Firebase ONCE
         choicesInstance.setChoices([{ value: '', label: 'Loading...', disabled: true, selected: true }], 'value', 'label', true);
         
         const snapshot = await db.ref('approvers').once('value');
@@ -595,7 +610,6 @@ async function populateAttentionDropdown(choicesInstance, useCache = false) {
                 ...approverOptions
             ];
             
-            // 3. Save the data to our new cache for next time
             allApproversCache = choiceList; 
             choicesInstance.setChoices(allApproversCache, 'value', 'label', true);
 
@@ -613,13 +627,11 @@ async function populateSiteDropdown() {
     try {
         if (!siteSelectChoices) return;
 
-        // 1. THE FIX: If we have data in the cache, use it and stop.
         if (allSitesCache) {
             siteSelectChoices.setChoices(allSitesCache, 'value', 'label', true);
             return;
         }
 
-        // 2. If cache is empty, fetch from Firebase ONCE
         siteSelectChoices.setChoices([{ value: '', label: 'Loading...', disabled: true, selected: true }]);
         
         const snapshot = await db.ref('project_sites').once('value');
@@ -630,7 +642,6 @@ async function populateSiteDropdown() {
             
             const choiceList = [{ value: '', label: 'Select a Site', disabled: true }].concat(siteOptions);
             
-            // 3. Save the data to our new cache for next time
             allSitesCache = choiceList;
             siteSelectChoices.setChoices(allSitesCache, 'value', 'label', true);
         } else { 
@@ -1522,6 +1533,8 @@ async function populateSiteFilterDropdown() {
         console.error("Error populating site filter:", error);
     }
 }
+
+// --- UPDATED AND FIXED populateInvoiceReporting ---
 async function populateInvoiceReporting(searchTerm = '') {
     const isAdmin = (currentApprover && currentApprover.Role && currentApprover.Role.toLowerCase() === 'admin');
     currentReportData = [];
@@ -1529,33 +1542,43 @@ async function populateInvoiceReporting(searchTerm = '') {
 
     const siteFilter = document.getElementById('im-reporting-site-filter').value;
     const monthFilter = document.getElementById('im-reporting-date-filter').value;
+    const statusFilter = document.getElementById('im-reporting-status-filter').value;
 
     try {
         await ensureInvoiceDataFetched(); 
         
         const allPOs = allPOData;
         const allInvoicesByPO = allInvoiceData;
-
         const searchText = searchTerm.toLowerCase();
-        const poNumbers = Object.keys(allPOs);
-
+        
         let tableHTML = `<table><thead><tr><th></th><th>PO</th><th>Site</th><th>Vendor</th><th>Value</th><th>Total Paid Amount</th><th>Date Paid</th></tr></thead><tbody>`;
         let resultsFound = false;
         const paymentPromises = [];
         const processedPOData = [];
 
-        for (const poNumber of poNumbers) {
+        const filteredPONumbers = Object.keys(allPOs).filter(poNumber => {
             const poDetails = allPOs[poNumber] || {};
             const site = poDetails['Project ID'] || 'N/A';
             const vendor = poDetails['Supplier Name'] || 'N/A';
-
             const searchMatch = !searchText || poNumber.toLowerCase().includes(searchText) || vendor.toLowerCase().includes(searchText);
             const siteMatch = !siteFilter || site === siteFilter;
+            return searchMatch && siteMatch;
+        });
 
-            if(!searchMatch || !siteMatch) continue;
-
+        for (const poNumber of filteredPONumbers) {
+            const poDetails = allPOs[poNumber] || {};
+            const site = poDetails['Project ID'] || 'N/A';
+            const vendor = poDetails['Supplier Name'] || 'N/A';
+            
             let invoices = allInvoicesByPO[poNumber] ? Object.values(allInvoicesByPO[poNumber]) : [];
-            const filteredInvoices = monthFilter ? invoices.filter(inv => inv.releaseDate && inv.releaseDate.startsWith(monthFilter)) : invoices;
+
+            const filteredInvoices = invoices.filter(inv => {
+                const normalizedReleaseDate = normalizeDateForInput(inv.releaseDate);
+                const dateMatch = !monthFilter || (normalizedReleaseDate && normalizedReleaseDate.startsWith(monthFilter));
+                const statusMatch = !statusFilter || inv.status === statusFilter;
+                return dateMatch && statusMatch;
+            });
+
             if (filteredInvoices.length === 0) continue;
             resultsFound = true;
 
@@ -1640,7 +1663,13 @@ async function populateInvoiceReporting(searchTerm = '') {
         imReportingContent.innerHTML = '<p>An error occurred while generating the report. Check console for details.</p>';
     }
 }
+
 async function handleDownloadCSV() {
+    const isAccountingAdmin = (currentApprover.Role || '').toLowerCase() === 'admin' && (currentApprover.Position || '').toLowerCase() === 'accounting';
+    if (!isAccountingAdmin) {
+        alert("You do not have permission to download this report.");
+        return;
+    }
     if (currentReportData.length === 0) { alert("No data to download. Please perform a search first."); return; }
     let csvContent = "data:text/csv;charset=utf-8,";
     const headers = ["PO", "Site", "Vendor", "PO Value", "Total Paid Amount", "Last Paid Date", "invEntryID", "invNumber", "invoiceDate", "invValue", "amountPaid", "invName", "srvName", "attention", "releaseDate", "status", "note"];
@@ -1666,6 +1695,11 @@ async function populateInvoiceDashboard() {
     if(dashboardSection.querySelector('canvas')) dashboardSection.innerHTML = '<h1>Dashboard</h1><p>Dashboard analytics view is currently unavailable.</p>';
 }
 async function handleDownloadDailyReport() {
+    const isAccountingAdmin = (currentApprover.Role || '').toLowerCase() === 'admin' && (currentApprover.Position || '').toLowerCase() === 'accounting';
+    if (!isAccountingAdmin) {
+        alert("You do not have permission to download this report.");
+        return;
+    }
     const selectedDate = imDailyReportDateInput.value;
     if (!selectedDate) { alert("Please select a date."); return; }
     try {
@@ -1695,6 +1729,11 @@ async function handleDownloadDailyReport() {
     } catch (error) { console.error("Error generating daily report:", error); alert("An error occurred while generating the daily report."); }
 }
 async function handleDownloadWithAccountsReport() {
+    const isAccountingAdmin = (currentApprover.Role || '').toLowerCase() === 'admin' && (currentApprover.Position || '').toLowerCase() === 'accounting';
+    if (!isAccountingAdmin) {
+        alert("You do not have permission to download this report.");
+        return;
+    }
     const selectedDate = imDailyReportDateInput.value;
     if (!selectedDate) { alert("Please select a date."); return; }
     try {
@@ -2011,7 +2050,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     downloadWdReportButton.addEventListener('click', handleDownloadWorkdeskCSV);
     reportTabsContainer.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') { reportTabsContainer.querySelector('.active').classList.remove('active'); e.target.classList.add('active'); currentReportFilter = e.target.getAttribute('data-job-type'); handleReportingSearch(); } });
     document.querySelectorAll('.back-to-main-dashboard').forEach(button => button.addEventListener('click', (e) => { e.preventDefault(); showView('dashboard'); }));
-    invoiceManagementButton.addEventListener('click', async () => { if (!currentApprover) { handleLogout(); return; } imUsername.textContent = 'Loading data...'; imUserIdentifier.textContent = 'Please wait...'; imUsername.textContent = currentApprover.Name || 'User'; imUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile; if (imAttentionSelectChoices) imAttentionSelectChoices.destroy(); imAttentionSelectChoices = new Choices(imAttentionSelect, { searchEnabled: true, shouldSort: false, itemSelectText: '' }); populateAttentionDropdown(imAttentionSelectChoices); const userRole = (currentApprover.Role || '').toLowerCase(), userPosition = (currentApprover.Position || '').toLowerCase(); const canAccessEntry = userRole === 'admin' && userPosition === 'accounting'; imNav.querySelector('a[data-section="im-invoice-entry"]').classList.toggle('disabled', !canAccessEntry); document.getElementById('batch-entry-nav-link').classList.toggle('disabled', !canAccessEntry); const summaryNoteLink = imNav.querySelector('a[data-section="im-summary-note"]'); if (summaryNoteLink) summaryNoteLink.classList.toggle('disabled', !canAccessEntry); const canAccessReports = userRole === 'admin' && userPosition === 'accounting'; document.querySelectorAll('.admin-accounting-only').forEach(btn => btn.classList.toggle('hidden', !canAccessReports)); updateIMDateTime(); if (imDateTimeInterval) clearInterval(imDateTimeInterval); imDateTimeInterval = setInterval(updateIMDateTime, 1000); showView('invoice-management'); if (window.innerWidth <= 768) { showIMSection('im-reporting'); imNav.querySelectorAll('a').forEach(a => a.classList.remove('active')); const reportingLink = imNav.querySelector('a[data-section="im-reporting"]'); if (reportingLink) reportingLink.classList.add('active'); } else { showIMSection('im-dashboard'); imNav.querySelectorAll('a').forEach(a => a.classList.remove('active')); const dashboardLink = imNav.querySelector('a[data-section="im-dashboard"]'); if (dashboardLink) dashboardLink.classList.add('active'); } });
+    invoiceManagementButton.addEventListener('click', async () => { 
+        if (!currentApprover) { handleLogout(); return; } 
+        imUsername.textContent = currentApprover.Name || 'User'; 
+        imUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile; 
+        
+        if (imAttentionSelectChoices) imAttentionSelectChoices.destroy(); 
+        imAttentionSelectChoices = new Choices(imAttentionSelect, { searchEnabled: true, shouldSort: false, itemSelectText: '' }); 
+        populateAttentionDropdown(imAttentionSelectChoices); 
+        
+        const userRole = (currentApprover.Role || '').toLowerCase();
+        const userPosition = (currentApprover.Position || '').toLowerCase();
+        
+        // --- NEW PERMISSION LOGIC ---
+        const isAccountingAdmin = userRole === 'admin' && userPosition === 'accounting';
+
+        imNav.querySelector('a[data-section="im-invoice-entry"]').classList.toggle('disabled', !isAccountingAdmin); 
+        document.getElementById('batch-entry-nav-link').classList.toggle('disabled', !isAccountingAdmin); 
+        const summaryNoteLink = imNav.querySelector('a[data-section="im-summary-note"]'); 
+        if (summaryNoteLink) summaryNoteLink.classList.toggle('disabled', !isAccountingAdmin); 
+        
+        // --- NEW SECURITY FOR DOWNLOAD BUTTONS ---
+        imReportingDownloadCSVButton.disabled = !isAccountingAdmin;
+        imDownloadDailyReportButton.disabled = !isAccountingAdmin;
+        imDownloadWithAccountsReportButton.disabled = !isAccountingAdmin;
+        
+        updateIMDateTime(); 
+        if (imDateTimeInterval) clearInterval(imDateTimeInterval); 
+        imDateTimeInterval = setInterval(updateIMDateTime, 1000); 
+        showView('invoice-management'); 
+        if (window.innerWidth <= 768) { 
+            showIMSection('im-reporting'); 
+            imNav.querySelectorAll('a').forEach(a => a.classList.remove('active')); 
+            const reportingLink = imNav.querySelector('a[data-section="im-reporting"]'); 
+            if (reportingLink) reportingLink.classList.add('active'); 
+        } else { 
+            showIMSection('im-dashboard'); 
+            imNav.querySelectorAll('a').forEach(a => a.classList.remove('active')); 
+            const dashboardLink = imNav.querySelector('a[data-section="im-dashboard"]'); 
+            if (dashboardLink) dashboardLink.classList.add('active'); 
+        } 
+    });
     imNav.addEventListener('click', (e) => { const link = e.target.closest('a'); if (!link || link.classList.contains('disabled')) return; e.preventDefault(); const sectionId = link.getAttribute('data-section'); if (sectionId) { imNav.querySelectorAll('a').forEach(a => a.classList.remove('active')); link.classList.add('active'); showIMSection(sectionId); } });
     imPOSearchButton.addEventListener('click', handlePOSearch);
     imPOSearchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); handlePOSearch(); } });
@@ -2021,7 +2100,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     imBackToActiveTaskButton.addEventListener('click', () => { showView('workdesk'); workdeskNav.querySelectorAll('a').forEach(a => a.classList.remove('active')); workdeskNav.querySelector('a[data-section="wd-activetask"]').classList.add('active'); showWorkdeskSection('wd-activetask'); });
     imInvoicesTableBody.addEventListener('click', (e) => { const deleteBtn = e.target.closest('.delete-btn'); if (deleteBtn) { handleDeleteInvoice(deleteBtn.getAttribute('data-key')); return; } const row = e.target.closest('tr'); if (row && !e.target.closest('a')) populateInvoiceFormForEditing(row.getAttribute('data-key')); });
     imReportingContent.addEventListener('click', (e) => { const expandBtn = e.target.closest('.expand-btn'); if (expandBtn) { const masterRow = expandBtn.closest('.master-row'); const detailRow = document.querySelector(masterRow.dataset.target); if (detailRow) { detailRow.classList.toggle('hidden'); expandBtn.textContent = detailRow.classList.contains('hidden') ? '+' : '−'; } } });
-    imReportingForm.addEventListener('submit', (e) => { e.preventDefault(); const searchTerm = imReportingSearchInput.value.trim(); if (!searchTerm && !document.getElementById('im-reporting-site-filter').value && !document.getElementById('im-reporting-date-filter').value) { imReportingContent.innerHTML = '<p style="color: red; font-weight: bold;">Please specify at least one search criteria.</p>'; return; } populateInvoiceReporting(searchTerm); });
+    imReportingForm.addEventListener('submit', (e) => { e.preventDefault(); const searchTerm = imReportingSearchInput.value.trim(); if (!searchTerm && !document.getElementById('im-reporting-site-filter').value && !document.getElementById('im-reporting-date-filter').value && !document.getElementById('im-reporting-status-filter').value) { imReportingContent.innerHTML = '<p style="color: red; font-weight: bold;">Please specify at least one search criteria.</p>'; return; } populateInvoiceReporting(searchTerm); });
     imReportingClearButton.addEventListener('click', () => { imReportingForm.reset(); imReportingContent.innerHTML = '<p>Please enter a search term and click Search.</p>'; currentReportData = []; });
     imReportingDownloadCSVButton.addEventListener('click', handleDownloadCSV);
     imDownloadDailyReportButton.addEventListener('click', handleDownloadDailyReport);
@@ -2070,3 +2149,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     if(summaryNoteUpdateBtn) summaryNoteUpdateBtn.addEventListener('click', handleUpdateSummaryChanges);
     if(summaryNotePrintBtn) summaryNotePrintBtn.addEventListener('click', () => window.print());
 });
+

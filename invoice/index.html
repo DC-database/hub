@@ -603,8 +603,8 @@
                         <h1>Invoice Summary Report</h1>
                         <div class="daily-report-section">
                            <input type="date" id="im-daily-report-date" title="Select a date for the daily report">
-                           <button id="im-download-daily-report-button" class="download-btn admin-accounting-only" type="button"><i class="fa-solid fa-calendar-day"></i> Daily Entry Report</button>
-                           <button id="im-download-with-accounts-report-button" class="download-btn admin-accounting-only" type="button"><i class="fa-solid fa-file-invoice-dollar"></i> With Accounts Report</button>
+                           <button id="im-download-daily-report-button" class="download-btn" type="button"><i class="fa-solid fa-calendar-day"></i> Daily Entry Report</button>
+                           <button id="im-download-with-accounts-report-button" class="download-btn" type="button"><i class="fa-solid fa-file-invoice-dollar"></i> With Accounts Report</button>
                         </div>
                     </div>
                      <div class="reporting-legend">
@@ -619,6 +619,19 @@
                             </div>
                             <select id="im-reporting-site-filter" name="site-filter">
                                 <option value="">All Sites</option>
+                            </select>
+                            <select id="im-reporting-status-filter" name="status-filter">
+                                <option value="">All Statuses</option>
+                                <option value="For SRV">For SRV</option>
+                                <option value="Pending">Pending</option>
+                                <option value="For IPC">For IPC</option>
+                                <option value="Under Review">Under Review</option>
+                                <option value="CEO Approval">CEO Approval</option>
+                                <option value="Report">Report</option>
+                                <option value="With Accounts">With Accounts</option>
+                                <option value="On Hold">On Hold</option>
+                                <option value="CLOSED">CLOSED</option>
+                                <option value="Cancelled">Cancelled</option>
                             </select>
                             <input type="month" id="im-reporting-date-filter" title="Filter by Release Month">
                         </div>
