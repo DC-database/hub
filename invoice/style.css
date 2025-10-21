@@ -102,7 +102,7 @@ button:hover { background-color: #0056b3; }
 .workdesk-navigation a, .workdesk-footer-nav a { display: flex; align-items: center; gap: 15px; padding: 12px 15px; margin-bottom: 8px; text-decoration: none; color: #c0c0c0; border-radius: 6px; transition: background-color 0.3s, color 0.3s; }
 .workdesk-navigation a:hover, .workdesk-footer-nav a:hover { background-color: #003366; color: #fff; }
 .workdesk-navigation a.active { background-color: #007bff; color: #fff; font-weight: 600; }
-.workdesk-navigation a i { width: 20px; text-align: center; }
+.workdesk-navigation a i, .workdesk-footer-nav a i { width: 20px; text-align: center; }
 .workdesk-main { flex-grow: 1; background-color: #f4f7fa; padding: 25px 40px; overflow-y: auto; box-sizing: border-box; }
 #workdesk-datetime, #im-datetime { font-size: 0.9rem; color: #555; font-weight: 500; text-align: right; margin-bottom: 15px; }
 .workdesk-section { background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); }
@@ -122,6 +122,17 @@ input.highlight-field { border-color: #ffc107; box-shadow: 0 0 0 0.2rem rgba(255
 .choices__inner { font-size: 16px; border-radius: 4px; border: 1px solid #ccc; padding: 6px 7.5px; min-height: 45px; }
 .choices.is-focused .choices__inner { border-color: #007bff; }
 .choices__list--dropdown .choices__item--selectable.is-highlighted { background-color: #007bff; }
+
+/* ++ Vacation Style for Choices.js ++ */
+.choices__item[data-label*="(On Vacation)"] {
+    color: #888;
+    font-style: italic;
+}
+.choices__item[data-label*="(On Vacation)"]::after {
+    content: "🏖️";
+    margin-left: 8px;
+}
+
 
 /* Dividers & Search Bars */
 .section-divider { border: none; border-top: 1px solid #e0e0e0; margin: 40px 0; }
@@ -426,20 +437,6 @@ tbody tr:hover { background-color: #f1f1f1; }
     font-weight: normal;
 }
 
-/* ++ NEW: Vacation Details Container Style ++ */
-#settings-vacation-details-container {
-    display: flex;
-    flex-direction: column;
-    gap: 0; /* Use form-group margin for spacing */
-    margin-top: 10px;
-    padding-top: 20px;
-    border-top: 1px solid #e9ecef; /* Subtle separator */
-}
-#settings-vacation-details-container .form-group {
-    margin-bottom: 20px;
-}
-
-
 /* --- INVOICE MANAGEMENT DASHBOARD --- */
 .im-dashboard-full-grid {
     display: grid;
@@ -603,7 +600,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     padding: 25px;
     border-radius: 8px;
     width: 90%;
-    max-width: 800px;
+    max-width: 500px;
     box-shadow: 0 5px 15px rgba(0,0,0,0.3);
     display: flex;
     flex-direction: column;
@@ -627,9 +624,6 @@ tbody tr:hover { background-color: #f1f1f1; }
     cursor: pointer;
     color: #555;
     padding: 0 10px;
-}
-.modal-content {
-    line-height: 1.6;
 }
 .modal-footer {
     border-top: 1px solid #e0e0e0;
@@ -710,7 +704,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     .wd-user-profile { display: flex; align-items: center; gap: 12px; padding-bottom: 0; border-bottom: none; text-align: left; }
     .wd-user-avatar { width: 45px; height: 45px; margin: 0; font-size: 24px; }
     #wd-username, #im-username { font-size: 1rem; margin: 0; }
-    #wd-user-identifier, #im-user-identifier, .workdesk-sidebar .workdesk-navigation, .workdesk-footer-nav li:first-child, .workdesk-footer-nav a span { display: none; }
+    #wd-user-identifier, #im-user-identifier, .workdesk-sidebar .workdesk-navigation, .workdesk-footer-nav .hidden, .workdesk-footer-nav a span { display: none; }
     .workdesk-footer-nav { margin: 0; }
     .workdesk-footer-nav ul { display: flex; }
     .workdesk-footer-nav a { padding: 8px; font-size: 18px; margin-bottom: 0; background-color: #003366; }
@@ -728,17 +722,14 @@ tbody tr:hover { background-color: #f1f1f1; }
     .form-buttons-container { justify-content: center; }
     .im-dashboard-grid { grid-template-columns: 1fr; }
 
-    /* ++ NEW: Hide dashboard buttons except Invoice Management on mobile ++ */
     #dashboard-view .button-container .circle-button:not(#invoice-mgmt-button) {
         display: none;
     }
 
-    /* ++ NEW: Hide all nav links in Invoice Management except Reporting on mobile ++ */
     #invoice-management-view .workdesk-navigation ul li:not(:has(a[data-section="im-reporting"])) {
         display: none;
     }
 }
-/* Add this to your existing style.css file */
 
 /* +++ CACHE STATUS INDICATOR +++ */
 .cache-status {
@@ -759,3 +750,4 @@ tbody tr:hover { background-color: #f1f1f1; }
 .cache-status.refreshing {
     border-left-color: #17a2b8;
 }
+

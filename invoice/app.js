@@ -664,7 +664,7 @@ async function populateAttentionDropdown(choicesInstance) {
             const approverOptions = Object.values(approvers).map(approver => {
                 if (!approver.Name) return null;
 
-                const isOnVacation = approver.Vacation === true;
+                const isOnVacation = approver.Vacation === true || approver.Vacation === "Yes";
                 let isVacationActive = false;
                 if (isOnVacation && approver.DateReturn) {
                     const returnDate = new Date(approver.DateReturn + 'T00:00:00');
@@ -1001,7 +1001,6 @@ function renderActiveTaskTable(tasks) {
             <td>${task.ref || ''}</td>
             <td>${task.po || ''}</td>
             <td>${task.vendorName || 'N/A'}</td>
-            <!-- ++ ADDED: Formatted invoice amount ++ -->
             <td>${formatCurrency(task.amount)}</td>
             <td>${task.site || ''}</td>
             <td>${task.group || ''}</td>
@@ -2184,6 +2183,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // ++ ADDED: Event listener for vacation modal ++
             attentionElement.addEventListener('choice', (event) => {
                 const choice = event.detail.choice;
+                // ++ MODIFIED: Fixed typo from onBacation to onVacation ++
                 if(choice.customProperties && choice.customProperties.onVacation) {
                     vacationingUserName.textContent = choice.value;
                     vacationReturnDate.textContent = choice.customProperties.returnDate || 'N/A';

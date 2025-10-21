@@ -50,12 +50,11 @@
                     <li><a href="#" data-section="wd-activetask"><i class="fa-solid fa-list-check"></i> Active Task</a></li>
                     <li><a href="#" data-section="wd-taskhistory"><i class="fa-solid fa-clock-rotate-left"></i> Task History</a></li>
                     <li><a href="#" data-section="wd-reporting"><i class="fa-solid fa-chart-line"></i> Reporting</a></li>
-                    <!-- ++ ADDED: Link to Invoice Management for specific roles ++ -->
-                    <li id="workdesk-im-link-container" class="hidden"><a href="#" id="workdesk-im-link"><i class="fa-solid fa-file-invoice-dollar"></i> Invoice Management</a></li>
-                </ul>
+                    </ul>
             </nav>
             <div class="workdesk-footer-nav">
                  <ul>
+                    <li id="workdesk-im-link-container" class="hidden" style="margin-top: 20px; border-top: 1px solid #003366; padding-top: 10px;"><a href="#" id="workdesk-im-link"><i class="fa-solid fa-file-invoice-dollar"></i> Invoice Management</a></li>
                     <li><a href="#" data-section="wd-settings"><i class="fa-solid fa-gear"></i> Settings</a></li>
                     <li><a href="#" id="wd-logout-button"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</a></li>
                 </ul>
@@ -191,7 +190,6 @@
                                     <th>Ref</th>
                                     <th>PO</th>
                                     <th>Vendor Name</th>
-                                    <!-- ++ ADDED: Invoice Amount column ++ -->
                                     <th>Invoice Amount</th>
                                     <th>Site</th>
                                     <th>Group</th>
@@ -316,7 +314,6 @@
                                     <label for="settings-password">New Password</label>
                                     <input type="password" id="settings-password" placeholder="Leave blank to keep current password">
                                 </div>
-                                <!-- ++ MODIFIED: Vacation settings structure ++ -->
                                 <div class="form-group">
                                     <div class="checkbox-group">
                                         <input type="checkbox" id="settings-vacation">
@@ -372,12 +369,12 @@
                     <li><a href="#" id="summary-note-nav-link" data-section="im-summary-note"><i class="fa-solid fa-receipt"></i> Summary Note</a></li>
                     <li><a href="#" data-section="im-reporting"><i class="fa-solid fa-chart-line"></i> Reporting</a></li>
                     
-                    <li id="im-nav-workdesk" class="hidden"><a href="#" id="im-workdesk-button"><i class="fa-solid fa-briefcase"></i> WorkDesk</a></li>
-                    <li id="im-nav-activetask" class="hidden"><a href="#" id="im-activetask-button"><i class="fa-solid fa-list-check"></i> Active Task</a></li>
-                </ul>
+                    </ul>
             </nav>
             <div class="workdesk-footer-nav">
                  <ul>
+                    <li id="im-nav-workdesk" class="hidden" style="margin-top: 20px; border-top: 1px solid #003366; padding-top: 10px;"><a href="#" id="im-workdesk-button"><i class="fa-solid fa-briefcase"></i> WorkDesk</a></li>
+                    <li id="im-nav-activetask" class="hidden"><a href="#" id="im-activetask-button"><i class="fa-solid fa-list-check"></i> Active Task</a></li>
                     <li><a href="#" id="im-logout-button"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</a></li>
                 </ul>
             </div>
@@ -419,7 +416,7 @@
                             <div class="form-column">
                                 <div class="form-group">
                                     <label>Invoice Entry ID</label>
-                                    <input type="text" id="im-inv-entry-id" name="invEntryID" readonly>
+                                    <input type="text" id="im-inv-entry-id" name="invEntryID">
                                 </div>
                                 <div class="form-group">
                                     <label for="im-inv-no">Invoice No.</label>
@@ -675,7 +672,6 @@
         </main>
     </div>
 
-    <!-- ++ ADDED: Modal for displaying vacation replacement info ++ -->
     <div id="vacation-replacement-modal" class="modal-overlay hidden">
         <div class="modal-container">
             <div class="modal-header">
@@ -683,13 +679,15 @@
                 <button class="modal-close-btn" data-modal-id="vacation-replacement-modal">&times;</button>
             </div>
             <div class="modal-content">
-                <p><strong id="vacationing-user-name">User</strong> is currently on vacation and will return on <strong id="vacation-return-date">Date</strong>.</p>
-                <p>For urgent matters, please contact their replacement:</p>
-                <ul style="list-style: none; padding-left: 0;">
+                <p>The person you selected, <strong id="vacationing-user-name">User</strong>, is currently on vacation.</p>
+                <p>They are scheduled to return on: <strong id="vacation-return-date">Date</strong>.</p>
+                <p style="font-weight: bold; margin-top: 20px;">Please contact their designated replacement for this task:</p>
+                <ul style="list-style: none; padding-left: 0; background-color: #f4f7fa; padding: 15px; border-radius: 4px;">
                     <li><strong>Name:</strong> <span id="replacement-name-display"></span></li>
                     <li><strong>Contact No:</strong> <span id="replacement-contact-display"></span></li>
                     <li><strong>Email:</strong> <span id="replacement-email-display"></span></li>
                 </ul>
+                <p style="margin-top: 20px;">You can close this window and select a different user, or proceed to contact the replacement.</p>
             </div>
             <div class="modal-footer">
                 <button class="secondary-btn modal-close-btn" data-modal-id="vacation-replacement-modal">Close</button>
