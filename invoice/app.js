@@ -76,9 +76,27 @@ const settingsPositionInput = document.getElementById('settings-position');
 const settingsSiteInput = document.getElementById('settings-site');
 const settingsPasswordInput = document.getElementById('settings-password');
 const settingsVacationCheckbox = document.getElementById('settings-vacation');
-const settingsReturnDateContainer = document.getElementById('settings-return-date-container');
 const settingsReturnDateInput = document.getElementById('settings-return-date');
 const settingsMessage = document.getElementById('settings-message');
+
+// ++ NEW: Settings vacation fields ++
+const settingsVacationDetailsContainer = document.getElementById('settings-vacation-details-container');
+const settingsReplacementNameInput = document.getElementById('settings-replacement-name');
+const settingsReplacementContactInput = document.getElementById('settings-replacement-contact');
+const settingsReplacementEmailInput = document.getElementById('settings-replacement-email');
+
+// ++ NEW: Vacation Modal elements ++
+const vacationModal = document.getElementById('vacation-replacement-modal');
+const vacationModalTitle = document.getElementById('vacation-modal-title');
+const vacationingUserName = document.getElementById('vacationing-user-name');
+const vacationReturnDate = document.getElementById('vacation-return-date');
+const replacementNameDisplay = document.getElementById('replacement-name-display');
+const replacementContactDisplay = document.getElementById('replacement-contact-display');
+const replacementEmailDisplay = document.getElementById('replacement-email-display');
+
+// ++ NEW: Sidebar link to IM ++
+const workdeskIMLinkContainer = document.getElementById('workdesk-im-link-container');
+const workdeskIMLink = document.getElementById('workdesk-im-link');
 
 // INVOICE MANAGEMENT REFERENCES
 const invoiceManagementView = document.getElementById('invoice-management-view');
@@ -230,18 +248,47 @@ function showWorkdeskSection(sectionId) {
     workdeskSections.forEach(section => { section.classList.add('hidden'); });
     const targetSection = document.getElementById(sectionId);
     if (targetSection) { targetSection.classList.remove('hidden'); }
+    
+    // ++ ADDED: Restore search state on navigation ++
     if (sectionId === 'wd-dashboard') { populateWorkdeskDashboard(); }
     if (sectionId === 'wd-jobentry') {
-        jobEntryTableBody.innerHTML = '<tr><td colspan="8">Use the search bar to find your pending entries.</td></tr>';
-        userJobEntries = [];
+        const savedSearch = sessionStorage.getItem('jobEntrySearch');
+        if (savedSearch) {
+            jobEntrySearchInput.value = savedSearch;
+            handleJobEntrySearch(savedSearch);
+        } else {
+             jobEntryTableBody.innerHTML = '<tr><td colspan="8">Use the search bar to find your pending entries.</td></tr>';
+             userJobEntries = [];
+        }
     }
-    if (sectionId === 'wd-activetask') { populateActiveTasks(); }
+    if (sectionId === 'wd-activetask') { 
+        populateActiveTasks(); 
+        const savedSearch = sessionStorage.getItem('activeTaskSearch');
+        if (savedSearch) {
+            activeTaskSearchInput.value = savedSearch;
+            // The populate function will render the table, so we need to filter after it's done.
+            // A better way is to make render function separate and call it. For now, a small timeout works.
+            setTimeout(() => handleActiveTaskSearch(savedSearch), 200);
+        }
+    }
     if (sectionId === 'wd-taskhistory') {
-        taskHistoryTableBody.innerHTML = '<tr><td colspan="9">Use the search bar to find history.</td></tr>';
-        userTaskHistory = [];
+        const savedSearch = sessionStorage.getItem('taskHistorySearch');
+        if (savedSearch) {
+            taskHistorySearchInput.value = savedSearch;
+            handleTaskHistorySearch(savedSearch);
+        } else {
+            taskHistoryTableBody.innerHTML = '<tr><td colspan="9">Use the search bar to find history.</td></tr>';
+            userTaskHistory = [];
+        }
     }
     if (sectionId === 'wd-reporting') {
-        reportingTableBody.innerHTML = '<tr><td colspan="11">Use the search bar and select a filter to see the report.</td></tr>';
+        const savedSearch = sessionStorage.getItem('reportingSearch');
+        if (savedSearch) {
+            reportingSearchInput.value = savedSearch;
+            handleReportingSearch();
+        } else {
+            reportingTableBody.innerHTML = '<tr><td colspan="11">Use the search bar and select a filter to see the report.</td></tr>';
+        }
     }
     if (sectionId === 'wd-settings') { populateSettingsForm(); }
 }
@@ -316,7 +363,7 @@ function getTodayDateString() {
 function formatCurrency(value) {
     const number = parseFloat(value);
     if (isNaN(number)) {
-        return '0.00';
+        return 'N/A';
     }
     return number.toLocaleString('en-US', {
         minimumFractionDigits: 2,
@@ -587,13 +634,18 @@ function resetJobEntryForm(keepJobType = false) {
     jobEntryFormTitle.textContent = 'Add New Job Entry';
     addJobButton.classList.remove('hidden');
     updateJobButton.classList.add('hidden');
+    
+    // ++ ADDED: Clear search on form clear ++
+    jobEntrySearchInput.value = '';
+    sessionStorage.removeItem('jobEntrySearch');
 }
 
-// --- NEW, EFFICIENT populateAttentionDropdown ---
-async function populateAttentionDropdown(choicesInstance, useCache = false) {
+// --- UPDATED, EFFICIENT populateAttentionDropdown with Vacation Logic ---
+async function populateAttentionDropdown(choicesInstance) {
     try {
         if (!choicesInstance) return;
 
+        // Use cached full approver data if available
         if (allApproversCache) {
             choicesInstance.setChoices(allApproversCache, 'value', 'label', true);
             return;
@@ -603,9 +655,40 @@ async function populateAttentionDropdown(choicesInstance, useCache = false) {
         
         const snapshot = await db.ref('approvers').once('value');
         const approvers = snapshot.val();
+        allApproverData = approvers; // Cache the full data object
 
         if (approvers) {
-            const approverOptions = Object.values(approvers).map(approver => approver.Name ? { value: approver.Name, label: approver.Name } : null).filter(Boolean);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Set to start of day for accurate comparison
+
+            const approverOptions = Object.values(approvers).map(approver => {
+                if (!approver.Name) return null;
+
+                const isOnVacation = approver.Vacation === true;
+                let isVacationActive = false;
+                if (isOnVacation && approver.DateReturn) {
+                    const returnDate = new Date(approver.DateReturn + 'T00:00:00');
+                    if (!isNaN(returnDate) && returnDate >= today) {
+                        isVacationActive = true;
+                    }
+                }
+                
+                return {
+                    value: approver.Name,
+                    label: isVacationActive ? `${approver.Name} (On Vacation)` : approver.Name,
+                    disabled: isVacationActive,
+                    customProperties: { // Store full details for modal popup
+                        onVacation: isVacationActive,
+                        returnDate: approver.DateReturn,
+                        replacement: {
+                            name: approver.ReplacementName || 'N/A',
+                            contact: approver.ReplacementContact || 'N/A',
+                            email: approver.ReplacementEmail || 'N/A'
+                        }
+                    }
+                };
+            }).filter(Boolean); // Remove nulls
+
             const choiceList = [
                 { value: '', label: 'Select Attention', disabled: true },
                 { value: 'None', label: 'None (Clear Selection)' },
@@ -682,6 +765,8 @@ function renderJobEntryTable(entries) {
 }
 async function handleJobEntrySearch(searchTerm) {
     const searchText = searchTerm.toLowerCase();
+    sessionStorage.setItem('jobEntrySearch', searchText); // Save search term
+    
     if (!searchText) {
         renderJobEntryTable([]);
         jobEntryTableBody.innerHTML = '<tr><td colspan="8">Use the search bar to find your pending entries.</td></tr>';
@@ -691,8 +776,7 @@ async function handleJobEntrySearch(searchTerm) {
     jobEntryTableBody.innerHTML = '<tr><td colspan="8">Searching...</td></tr>';
 
     try {
-        await ensureAllEntriesFetched(); // This still uses the old method for now, can be optimized later
-        
+        await ensureAllEntriesFetched(); 
         userJobEntries = allSystemEntries.filter(entry => entry.enteredBy === currentApprover.Name && !isTaskComplete(entry));
 
         const filteredEntries = userJobEntries.filter(entry => {
@@ -790,30 +874,26 @@ function populateFormForEditing(key) {
 
 // --- (FIXED) EFFICIENT populateActiveTasks ---
 async function populateActiveTasks() {
-    activeTaskTableBody.innerHTML = `<tr><td colspan="9">Loading tasks...</td></tr>`;
+    activeTaskTableBody.innerHTML = `<tr><td colspan="10">Loading tasks...</td></tr>`;
     if (!currentApprover || !currentApprover.Name) { 
-        activeTaskTableBody.innerHTML = `<tr><td colspan="9">Could not identify user.</td></tr>`; 
+        activeTaskTableBody.innerHTML = `<tr><td colspan="10">Could not identify user.</td></tr>`; 
         return; 
     }
     
     try {
-        // 1. Ensure PO data from GitHub is loaded (for processing invoices)
         if (!allPOData) {
             const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
             allPOData = await fetchAndParseCSV(PO_DATA_URL);
             if (!allPOData) throw new Error("Could not load PO data for WorkDesk");
         }
         
-        // 2. Query *only* for this user's 'job_entries'
         const jobSnapshot = await db.ref('job_entries')
                                     .orderByChild('attention')
                                     .equalTo(currentApprover.Name)
                                     .once('value');
         
-        // 3. (FIX) Fetch *ALL* invoice_entries (must be filtered client-side)
         const invoiceSnapshot = await invoiceDb.ref('invoice_entries').once('value');
 
-        // 4. Process the results
         const jobEntriesData = jobSnapshot.val() || {};
         const allInvoiceEntries = invoiceSnapshot.val() || {};
         const purchaseOrdersData = allPOData;
@@ -821,7 +901,6 @@ async function populateActiveTasks() {
 
         let userTasks = [];
 
-        // Process job entries for this user
         for (const key in jobEntriesData) {
             const task = { 
                 key, 
@@ -834,7 +913,6 @@ async function populateActiveTasks() {
             }
         }
         
-        // (FIX) Process *ALL* invoice entries and filter for this user
         for (const poNumber in allInvoiceEntries) {
             const invoices = allInvoiceEntries[poNumber];
             const site = purchaseOrdersData[poNumber]?.['Project ID'] || 'N/A';
@@ -843,7 +921,6 @@ async function populateActiveTasks() {
             for (const invoiceKey in invoices) {
                 const invoice = invoices[invoiceKey];
                 
-                // Filter for tasks assigned to the current user
                 if (invoice.attention !== currentUserName) {
                     continue; 
                 }
@@ -865,7 +942,7 @@ async function populateActiveTasks() {
                     site: site,
                     group: 'N/A',
                     attention: invoice.attention,
-                    enteredBy: 'Irwin', // Assuming all are from Irwin for this logic
+                    enteredBy: 'Irwin',
                     date: normalizedDate ? formatDate(new Date(normalizedDate + 'T00:00:00')) : 'N/A',
                     dateResponded: 'N/A',
                     remarks: invoice.status || 'Pending',
@@ -881,16 +958,14 @@ async function populateActiveTasks() {
             }
         }
 
-        // 5. Update the global state with *only* this user's tasks
         userActiveTasks = userTasks.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
         allSystemEntries = userActiveTasks; 
 
-        // 6. Render the table
         renderActiveTaskTable(userActiveTasks);
     
     } catch (error) { 
         console.error("Error fetching active tasks:", error); 
-        activeTaskTableBody.innerHTML = `<tr><td colspan="9">Error loading tasks.</td></tr>`; 
+        activeTaskTableBody.innerHTML = `<tr><td colspan="10">Error loading tasks.</td></tr>`; 
     }
 }
 
@@ -898,7 +973,7 @@ async function populateActiveTasks() {
 function renderActiveTaskTable(tasks) {
     activeTaskTableBody.innerHTML = '';
     if (!tasks || tasks.length === 0) {
-        activeTaskTableBody.innerHTML = `<tr><td colspan="9">You have no active tasks.</td></tr>`;
+        activeTaskTableBody.innerHTML = `<tr><td colspan="10">You have no active tasks.</td></tr>`;
         return;
     }
     tasks.forEach(task => {
@@ -907,10 +982,10 @@ function renderActiveTaskTable(tasks) {
 
         const isInvoiceFromIrwin = task.source === 'invoice' && task.enteredBy === 'Irwin';
         
-        // (FIX) Add check for "Nil" or "nil"
+        // ++ MODIFIED: PDF link check for "Nil", "nil", and empty/blank strings ++
         const invName = task.invName || '';
         const isClickable = (isInvoiceFromIrwin || (task.source === 'invoice' && invName)) && 
-                            invName.toLowerCase() !== 'nil' && 
+                            invName.trim() && 
                             invName.toLowerCase() !== 'nil';
 
         if (isClickable) {
@@ -925,7 +1000,10 @@ function renderActiveTaskTable(tasks) {
             <td>${task.for || ''}</td>
             <td>${task.ref || ''}</td>
             <td>${task.po || ''}</td>
-            <td>${task.vendorName || 'N/A'}</td> <td>${task.site || ''}</td>
+            <td>${task.vendorName || 'N/A'}</td>
+            <!-- ++ ADDED: Formatted invoice amount ++ -->
+            <td>${formatCurrency(task.amount)}</td>
+            <td>${task.site || ''}</td>
             <td>${task.group || ''}</td>
             <td>${task.date || ''}</td>
             <td>${task.remarks || 'Pending'}</td>
@@ -946,6 +1024,8 @@ function renderTaskHistoryTable(tasks) {
 }
 async function handleTaskHistorySearch(searchTerm) {
     const searchText = searchTerm.toLowerCase();
+    sessionStorage.setItem('taskHistorySearch', searchText); // Save search term
+
     if (!searchText) {
         renderTaskHistoryTable([]);
         return;
@@ -1001,6 +1081,8 @@ function filterAndRenderReport(baseEntries = []) {
     let filteredEntries = [...baseEntries];
     if (currentReportFilter !== 'All') { filteredEntries = filteredEntries.filter(entry => entry.for === currentReportFilter); }
     const searchText = reportingSearchInput.value.toLowerCase();
+    sessionStorage.setItem('reportingSearch', searchText); // Save search term
+
     if (searchText) {
         filteredEntries = filteredEntries.filter(entry => {
             return ((entry.for && entry.for.toLowerCase().includes(searchText)) || (entry.ref && entry.ref.toLowerCase().includes(searchText)) || (entry.po && entry.po.toLowerCase().includes(searchText)) || (entry.amount && entry.amount.toString().includes(searchText)) || (entry.site && entry.site.toLowerCase().includes(searchText)) || (entry.attention && entry.attention.toLowerCase().includes(searchText)) || (entry.enteredBy && entry.enteredBy.toLowerCase().includes(searchText)) || (entry.date && entry.date.toLowerCase().includes(searchText)));
@@ -1009,13 +1091,8 @@ function filterAndRenderReport(baseEntries = []) {
     renderReportingTable(filteredEntries);
 }
 async function populateWorkdeskDashboard() {
-    // We use the new efficient function which only gets the user's tasks
     await populateActiveTasks(); 
-    
-    // The data is now in userActiveTasks
     dbActiveTasksCount.textContent = userActiveTasks.length;
-
-    // This part still requires fetching all data for now, can be optimized later
     allSystemEntries = [];
     await ensureAllEntriesFetched();
     const myCompletedTasks = allSystemEntries.filter(task => (task.enteredBy === currentApprover.Name || task.attention === currentApprover.Name) && isTaskComplete(task));
@@ -1095,6 +1172,8 @@ async function handleRespondClick(e) {
 
 function handleActiveTaskSearch(searchTerm) {
     const searchText = searchTerm.toLowerCase();
+    sessionStorage.setItem('activeTaskSearch', searchText); // Save search term
+
     if (!searchText) {
         renderActiveTaskTable(userActiveTasks);
         return;
@@ -1104,7 +1183,7 @@ function handleActiveTaskSearch(searchTerm) {
             (task.for && task.for.toLowerCase().includes(searchText)) ||
             (task.ref && task.ref.toLowerCase().includes(searchText)) ||
             (task.po && task.po.toLowerCase().includes(searchText)) ||
-            (task.vendorName && task.vendorName.toLowerCase().includes(searchText)) || // ++ ADDED ++
+            (task.vendorName && task.vendorName.toLowerCase().includes(searchText)) ||
             (task.site && task.site.toLowerCase().includes(searchText)) ||
             (task.group && task.group.toLowerCase().includes(searchText)) ||
             (task.date && task.date.toLowerCase().includes(searchText))
@@ -1115,6 +1194,8 @@ function handleActiveTaskSearch(searchTerm) {
 
 async function handleReportingSearch() {
     const searchText = reportingSearchInput.value.toLowerCase();
+    sessionStorage.setItem('reportingSearch', searchText); // Save search term
+
     if (!searchText) {
         renderReportingTable([]);
         return;
@@ -1182,7 +1263,13 @@ function populateSettingsForm() {
     settingsSiteInput.value = currentApprover.Site || '';
     settingsVacationCheckbox.checked = currentApprover.Vacation || false;
     settingsReturnDateInput.value = currentApprover.DateReturn || '';
-    settingsReturnDateContainer.classList.toggle('hidden', !settingsVacationCheckbox.checked);
+    
+    // ++ ADDED: Populate replacement fields ++
+    settingsReplacementNameInput.value = currentApprover.ReplacementName || '';
+    settingsReplacementContactInput.value = currentApprover.ReplacementContact || '';
+    settingsReplacementEmailInput.value = currentApprover.ReplacementEmail || '';
+    
+    settingsVacationDetailsContainer.classList.toggle('hidden', !settingsVacationCheckbox.checked);
 }
 async function handleUpdateSettings(e) {
     e.preventDefault();
@@ -1192,10 +1279,16 @@ async function handleUpdateSettings(e) {
         return;
     }
 
+    const onVacation = settingsVacationCheckbox.checked;
+
     const updates = {
         Site: settingsSiteInput.value.trim(),
-        Vacation: settingsVacationCheckbox.checked,
-        DateReturn: settingsVacationCheckbox.checked ? settingsReturnDateInput.value : ''
+        Vacation: onVacation,
+        DateReturn: onVacation ? settingsReturnDateInput.value : '',
+        // ++ ADDED: Save replacement fields ++
+        ReplacementName: onVacation ? settingsReplacementNameInput.value.trim() : '',
+        ReplacementContact: onVacation ? settingsReplacementContactInput.value.trim() : '',
+        ReplacementEmail: onVacation ? settingsReplacementEmailInput.value.trim() : ''
     };
     let passwordChanged = false;
     const newPassword = settingsPasswordInput.value;
@@ -1211,7 +1304,8 @@ async function handleUpdateSettings(e) {
 
     try {
         await db.ref(`approvers/${currentApprover.key}`).update(updates);
-        currentApprover = { ...currentApprover, ...updates };
+        currentApprover = { ...currentApprover, ...updates }; // Update local state
+        allApproversCache = null; // Invalidate cache so it's refetched with new vacation info
         settingsMessage.textContent = 'Settings updated successfully!';
         settingsMessage.className = 'success-message';
         settingsPasswordInput.value = '';
@@ -1255,9 +1349,15 @@ function showIMSection(sectionId) {
     if (sectionId === 'im-summary-note') { summaryNotePrintArea.classList.add('hidden'); initializeNoteSuggestions(); }
     if (sectionId === 'im-reporting') {
         imDailyReportDateInput.value = getTodayDateString();
-        imReportingContent.innerHTML = '<p>Please enter a search term and click Search.</p>';
-        imReportingSearchInput.value = '';
-        currentReportData = [];
+        const savedSearch = sessionStorage.getItem('imReportingSearch');
+        if (savedSearch) {
+            imReportingSearchInput.value = savedSearch;
+            populateInvoiceReporting(savedSearch);
+        } else {
+            imReportingContent.innerHTML = '<p>Please enter a search term and click Search.</p>';
+            imReportingSearchInput.value = '';
+            currentReportData = [];
+        }
         populateSiteFilterDropdown();
     }
 }
@@ -1292,7 +1392,6 @@ async function handlePOSearch() {
         return;
     }
     try {
-        // 1. Ensure PO data from GitHub is loaded
         if (!allPOData) {
             console.log("Loading PO data from GitHub for the first time...");
             const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
@@ -1303,7 +1402,6 @@ async function handlePOSearch() {
             }
         }
 
-        // 2. Get the specific PO from the CSV data
         const poData = allPOData[poNumber];
         if (!poData) {
             alert('PO Number not found in the database.');
@@ -1311,15 +1409,12 @@ async function handlePOSearch() {
             return;
         }
 
-        // 3. THIS IS THE FIX: Fetch *ONLY* this PO's invoices
         const invoicesSnapshot = await invoiceDb.ref(`invoice_entries/${poNumber}`).once('value');
         const invoicesData = invoicesSnapshot.val();
 
-        // 4. Save this *specific* PO's data to the global cache
         if (!allInvoiceData) allInvoiceData = {};
         allInvoiceData[poNumber] = invoicesData || {};
 
-        // 5. The rest of your function runs as normal
         currentPO = poNumber;
         imPONo.textContent = poNumber;
         imPOSite.textContent = poData['Project ID'] || 'N/A';
@@ -1360,12 +1455,12 @@ function fetchAndDisplayInvoices(poNumber) {
             const amountPaidDisplay = !isAdmin ? '---' : formatCurrency(inv.amountPaid);
             
             const invPDFName = inv.invName || '';
-            const invPDFLink = (invPDFName.toLowerCase() !== 'nil' && invPDFName.toLowerCase() !== 'nil') 
+            const invPDFLink = (invPDFName.trim() && invPDFName.toLowerCase() !== 'nil') 
                 ? `<a href="${PDF_BASE_PATH}${encodeURIComponent(invPDFName)}.pdf" target="_blank" class="action-btn invoice-pdf-btn">Invoice</a>` 
                 : '';
 
             const srvPDFName = inv.srvName || '';
-            const srvPDFLink = (srvPDFName.toLowerCase() !== 'nil' && srvPDFName.toLowerCase() !== 'nil')
+            const srvPDFLink = (srvPDFName.trim() && srvPDFName.toLowerCase() !== 'nil')
                 ? `<a href="${SRV_BASE_PATH}${encodeURIComponent(srvPDFName)}.pdf" target="_blank" class="action-btn srv-pdf-btn">SRV</a>`
                 : '';
 
@@ -1559,6 +1654,8 @@ async function populateSiteFilterDropdown() {
 
 // --- UPDATED AND FIXED populateInvoiceReporting ---
 async function populateInvoiceReporting(searchTerm = '') {
+    sessionStorage.setItem('imReportingSearch', searchTerm); // Save search term
+
     const isAdmin = (currentApprover && currentApprover.Role && currentApprover.Role.toLowerCase() === 'admin');
     currentReportData = [];
     imReportingContent.innerHTML = '<p>Searching... Please wait.</p>';
@@ -1659,12 +1756,12 @@ async function populateInvoiceReporting(searchTerm = '') {
                     let actionButtonsHTML = '';
                     if (isAdmin) {
                         const invPDFName = inv.invName || '';
-                        const invPDFLink = (invPDFName.toLowerCase() !== 'nil' && invPDFName.toLowerCase() !== 'nil') 
+                        const invPDFLink = (invPDFName.trim() && invPDFName.toLowerCase() !== 'nil') 
                             ? `<a href="${PDF_BASE_PATH}${encodeURIComponent(invPDFName)}.pdf" target="_blank" class="action-btn invoice-pdf-btn">Invoice</a>` 
                             : '';
 
                         const srvPDFName = inv.srvName || '';
-                        const srvPDFLink = (srvPDFName.toLowerCase() !== 'nil' && srvPDFName.toLowerCase() !== 'nil')
+                        const srvPDFLink = (srvPDFName.trim() && srvPDFName.toLowerCase() !== 'nil')
                             ? `<a href="${SRV_BASE_PATH}${encodeURIComponent(srvPDFName)}.pdf" target="_blank" class="action-btn srv-pdf-btn">SRV</a>`
                             : '';
 
@@ -2027,7 +2124,7 @@ async function handleUpdateSummaryChanges() {
 
 // LOGOUT FUNCTION
 function handleLogout() {
-    sessionStorage.removeItem('approverKey');
+    sessionStorage.clear(); // Clear all session data on logout
     if (dateTimeInterval) clearInterval(dateTimeInterval);
     if (workdeskDateTimeInterval) clearInterval(workdeskDateTimeInterval);
     if (imDateTimeInterval) clearInterval(imDateTimeInterval);
@@ -2065,14 +2162,58 @@ document.addEventListener('DOMContentLoaded', async () => {
     logoutButton.addEventListener('click', handleLogout);
     wdLogoutButton.addEventListener('click', handleLogout);
     imLogoutButton.addEventListener('click', handleLogout);
-    workdeskButton.addEventListener('click', () => { if (!currentApprover) { handleLogout(); return; } wdUsername.textContent = currentApprover.Name || 'User'; wdUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile; if (!siteSelectChoices) { siteSelectChoices = new Choices(document.getElementById('job-site'), { searchEnabled: true, shouldSort: false, itemSelectText: '', }); populateSiteDropdown(); } if (!attentionSelectChoices) { attentionSelectChoices = new Choices(document.getElementById('job-attention'), { searchEnabled: true, shouldSort: false, itemSelectText: '', }); populateAttentionDropdown(attentionSelectChoices); } updateWorkdeskDateTime(); if (workdeskDateTimeInterval) clearInterval(workdeskDateTimeInterval); workdeskDateTimeInterval = setInterval(updateWorkdeskDateTime, 1000); showView('workdesk'); showWorkdeskSection('wd-dashboard'); });
-    document.querySelector('#workdesk-view .workdesk-sidebar').addEventListener('click', (e) => { const link = e.target.closest('a'); if (!link || link.classList.contains('back-to-main-dashboard') || link.id === 'wd-logout-button') return; e.preventDefault(); if (link.hasAttribute('data-section')) { document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a').forEach(a => a.classList.remove('active')); link.classList.add('active'); showWorkdeskSection(link.getAttribute('data-section')); } });
+    workdeskButton.addEventListener('click', () => { if (!currentApprover) { handleLogout(); return; } 
+        wdUsername.textContent = currentApprover.Name || 'User'; 
+        wdUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile; 
+        
+        // ++ ADDED: Show IM link in sidebar for Accounting ++
+        if (currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'accounting') {
+            workdeskIMLinkContainer.classList.remove('hidden');
+        } else {
+            workdeskIMLinkContainer.classList.add('hidden');
+        }
+
+        if (!siteSelectChoices) { 
+            siteSelectChoices = new Choices(document.getElementById('job-site'), { searchEnabled: true, shouldSort: false, itemSelectText: '', }); 
+            populateSiteDropdown(); 
+        } 
+        if (!attentionSelectChoices) { 
+            const attentionElement = document.getElementById('job-attention');
+            attentionSelectChoices = new Choices(attentionElement, { searchEnabled: true, shouldSort: false, itemSelectText: '', }); 
+            populateAttentionDropdown(attentionSelectChoices); 
+            // ++ ADDED: Event listener for vacation modal ++
+            attentionElement.addEventListener('choice', (event) => {
+                const choice = event.detail.choice;
+                if(choice.customProperties && choice.customProperties.onVacation) {
+                    vacationingUserName.textContent = choice.value;
+                    vacationReturnDate.textContent = choice.customProperties.returnDate || 'N/A';
+                    replacementNameDisplay.textContent = choice.customProperties.replacement.name;
+                    replacementContactDisplay.textContent = choice.customProperties.replacement.contact;
+                    replacementEmailDisplay.textContent = choice.customProperties.replacement.email;
+                    vacationModal.classList.remove('hidden');
+                }
+            });
+        } 
+        
+        updateWorkdeskDateTime(); 
+        if (workdeskDateTimeInterval) clearInterval(workdeskDateTimeInterval); 
+        workdeskDateTimeInterval = setInterval(updateWorkdeskDateTime, 1000); 
+        showView('workdesk'); 
+        showWorkdeskSection('wd-dashboard'); 
+    });
+    
+    // ++ ADDED: Event listener for new sidebar link ++
+    workdeskIMLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        invoiceManagementButton.click();
+    });
+
+    document.querySelector('#workdesk-view .workdesk-sidebar').addEventListener('click', (e) => { const link = e.target.closest('a'); if (!link || link.classList.contains('back-to-main-dashboard') || link.id === 'wd-logout-button' || link.id === 'workdesk-im-link') return; e.preventDefault(); if (link.hasAttribute('data-section')) { document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a').forEach(a => a.classList.remove('active')); link.classList.add('active'); showWorkdeskSection(link.getAttribute('data-section')); } });
     addJobButton.addEventListener('click', handleAddJobEntry);
     updateJobButton.addEventListener('click', handleUpdateJobEntry);
     clearJobButton.addEventListener('click', () => resetJobEntryForm(false));
     jobEntryTableBody.addEventListener('click', (e) => { const row = e.target.closest('tr'); if (row) { const key = row.getAttribute('data-key'); const entry = allSystemEntries.find(item => item.key === key); if (key && entry && entry.source !== 'invoice') populateFormForEditing(key); } });
     
-    // ++ MODIFIED CLICK LISTENER FOR PDF ++
     activeTaskTableBody.addEventListener('click', (e) => { 
         const row = e.target.closest('tr'); 
         if (!row) return; 
@@ -2084,8 +2225,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!key) return; 
         const task = allSystemEntries.find(entry => entry.key === key); 
         
-        // Check for nil/Nil before opening
-        if (task && task.source === 'invoice' && task.invName && task.invName.toLowerCase() !== 'nil' && task.invName.toLowerCase() !== 'nil') {
+        // ++ MODIFIED: PDF link check for "Nil", "nil", and empty/blank strings ++
+        if (task && task.source === 'invoice' && task.invName && task.invName.trim() && task.invName.toLowerCase() !== 'nil') {
             window.open(PDF_BASE_PATH + encodeURIComponent(task.invName) + ".pdf", '_blank'); 
         }
     });
@@ -2094,10 +2235,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     activeTaskSearchInput.addEventListener('input', debounce((e) => handleActiveTaskSearch(e.target.value), 500));
     jobEntrySearchInput.addEventListener('input', debounce((e) => handleJobEntrySearch(e.target.value), 500));
     taskHistorySearchInput.addEventListener('input', debounce((e) => handleTaskHistorySearch(e.target.value), 500));
-    reportingSearchInput.addEventListener('input', debounce(handleReportingSearch, 500));
+    reportingSearchInput.addEventListener('input', debounce(() => filterAndRenderReport(allSystemEntries), 500));
     printReportButton.addEventListener('click', () => window.print());
     downloadWdReportButton.addEventListener('click', handleDownloadWorkdeskCSV);
-    reportTabsContainer.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') { reportTabsContainer.querySelector('.active').classList.remove('active'); e.target.classList.add('active'); currentReportFilter = e.target.getAttribute('data-job-type'); handleReportingSearch(); } });
+    reportTabsContainer.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') { reportTabsContainer.querySelector('.active').classList.remove('active'); e.target.classList.add('active'); currentReportFilter = e.target.getAttribute('data-job-type'); filterAndRenderReport(allSystemEntries); } });
     document.querySelectorAll('.back-to-main-dashboard').forEach(button => button.addEventListener('click', (e) => { e.preventDefault(); showView('dashboard'); }));
     
     invoiceManagementButton.addEventListener('click', async () => { 
@@ -2113,14 +2254,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         const userPosition = (currentApprover.Position || '').toLowerCase();
         
         const isAccountingAdmin = userRole === 'admin' && userPosition === 'accounting';
-        const isAccounting = userPosition === 'accounting'; // ++ ADDED ++
+        const isAccounting = userPosition === 'accounting';
 
         imNav.querySelector('a[data-section="im-invoice-entry"]').classList.toggle('disabled', !isAccountingAdmin); 
         document.getElementById('batch-entry-nav-link').classList.toggle('disabled', !isAccountingAdmin); 
         const summaryNoteLink = imNav.querySelector('a[data-section="im-summary-note"]'); 
         if (summaryNoteLink) summaryNoteLink.classList.toggle('disabled', !isAccountingAdmin); 
         
-        // ++ NEW LOGIC FOR SIDEBAR LINKS ++
         document.getElementById('im-nav-workdesk').classList.toggle('hidden', !isAccounting);
         document.getElementById('im-nav-activetask').classList.toggle('hidden', !isAccounting);
         
@@ -2145,24 +2285,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         } 
     });
 
-    // ++ NEW CLICK HANDLERS FOR SIDEBAR LINKS ++
     if (imWorkdeskButton) {
         imWorkdeskButton.addEventListener('click', (e) => {
             e.preventDefault();
-            workdeskButton.click(); // Simulate click on the main WorkDesk button
+            workdeskButton.click(); 
         });
     }
     if (imActiveTaskButton) {
         imActiveTaskButton.addEventListener('click', (e) => {
             e.preventDefault();
-            workdeskButton.click(); // Go to WorkDesk first
+            workdeskButton.click(); 
             setTimeout(() => {
-                // Then navigate to the Active Task section
                 workdeskNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
                 const activeTaskLink = workdeskNav.querySelector('a[data-section="wd-activetask"]');
                 if (activeTaskLink) activeTaskLink.classList.add('active');
                 showWorkdeskSection('wd-activetask');
-            }, 100); // Small delay to ensure view is loaded
+            }, 100); 
         });
     }
 
@@ -2174,7 +2312,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     imClearFormButton.addEventListener('click', () => { currentPO ? resetInvoiceForm() : resetInvoiceEntryPage(); });
     imBackToActiveTaskButton.addEventListener('click', () => { showView('workdesk'); workdeskNav.querySelectorAll('a').forEach(a => a.classList.remove('active')); workdeskNav.querySelector('a[data-section="wd-activetask"]').classList.add('active'); showWorkdeskSection('wd-activetask'); });
     
-    // ++ MODIFIED CLICK LISTENER FOR PDF ++
     imInvoicesTableBody.addEventListener('click', (e) => { 
         const deleteBtn = e.target.closest('.delete-btn'); 
         if (deleteBtn) { 
@@ -2182,10 +2319,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             return; 
         } 
 
-        // Check for PDF/SRV links
         const pdfLink = e.target.closest('a');
         if (pdfLink) {
-            // This allows the link to function normally
             return; 
         }
 
@@ -2197,14 +2332,34 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     imReportingContent.addEventListener('click', (e) => { const expandBtn = e.target.closest('.expand-btn'); if (expandBtn) { const masterRow = expandBtn.closest('.master-row'); const detailRow = document.querySelector(masterRow.dataset.target); if (detailRow) { detailRow.classList.toggle('hidden'); expandBtn.textContent = detailRow.classList.contains('hidden') ? '+' : '−'; } } });
     imReportingForm.addEventListener('submit', (e) => { e.preventDefault(); const searchTerm = imReportingSearchInput.value.trim(); if (!searchTerm && !document.getElementById('im-reporting-site-filter').value && !document.getElementById('im-reporting-date-filter').value && !document.getElementById('im-reporting-status-filter').value) { imReportingContent.innerHTML = '<p style="color: red; font-weight: bold;">Please specify at least one search criteria.</p>'; return; } populateInvoiceReporting(searchTerm); });
-    imReportingClearButton.addEventListener('click', () => { imReportingForm.reset(); imReportingContent.innerHTML = '<p>Please enter a search term and click Search.</p>'; currentReportData = []; });
+    imReportingClearButton.addEventListener('click', () => { imReportingForm.reset(); sessionStorage.removeItem('imReportingSearch'); imReportingContent.innerHTML = '<p>Please enter a search term and click Search.</p>'; currentReportData = []; });
     imReportingDownloadCSVButton.addEventListener('click', handleDownloadCSV);
     imDownloadDailyReportButton.addEventListener('click', handleDownloadDailyReport);
     if(imDownloadWithAccountsReportButton) imDownloadWithAccountsReportButton.addEventListener('click', handleDownloadWithAccountsReport);
     imStatusSelect.addEventListener('change', (e) => { if (e.target.value === 'CEO Approval' && imAttentionSelectChoices) imAttentionSelectChoices.setChoiceByValue('Mr. Hamad'); });
     imInvValueInput.addEventListener('input', (e) => { imAmountPaidInput.value = e.target.value; });
     settingsForm.addEventListener('submit', handleUpdateSettings);
-    settingsVacationCheckbox.addEventListener('change', () => { settingsReturnDateContainer.classList.toggle('hidden', !settingsVacationCheckbox.checked); if (!settingsVacationCheckbox.checked) settingsReturnDateInput.value = ''; });
+    settingsVacationCheckbox.addEventListener('change', () => { 
+        const isChecked = settingsVacationCheckbox.checked;
+        settingsVacationDetailsContainer.classList.toggle('hidden', !isChecked); 
+        if (!isChecked) { 
+            settingsReturnDateInput.value = '';
+            settingsReplacementNameInput.value = '';
+            settingsReplacementContactInput.value = '';
+            settingsReplacementEmailInput.value = '';
+        } 
+    });
+
+    // ++ NEW: Universal modal close button listener ++
+    document.body.addEventListener('click', (e) => {
+        if (e.target.matches('.modal-close-btn')) {
+            const modalId = e.target.dataset.modalId || e.target.closest('.modal-overlay').id;
+            if (modalId) {
+                document.getElementById(modalId).classList.add('hidden');
+            }
+        }
+    });
+
     const batchAddBtn = document.getElementById('im-batch-add-po-button'), batchSaveBtn = document.getElementById('im-batch-save-button'), batchTableBody = document.getElementById('im-batch-table-body'), batchPOInput = document.getElementById('im-batch-po-input'), batchSearchStatusBtn = document.getElementById('im-batch-search-by-status-button'), batchSearchNoteBtn = document.getElementById('im-batch-search-by-note-button');
     if (batchSearchStatusBtn) batchSearchStatusBtn.addEventListener('click', () => handleBatchGlobalSearch('status'));
     if (batchSearchNoteBtn) batchSearchNoteBtn.addEventListener('click', () => handleBatchGlobalSearch('note'));
@@ -2217,7 +2372,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     if (imBatchSearchExistingButton) imBatchSearchExistingButton.addEventListener('click', () => { if(imBatchSearchModal) imBatchSearchModal.classList.remove('hidden'); document.getElementById('im-batch-modal-results').innerHTML = '<p>Enter a PO number to see its invoices.</p>'; document.getElementById('im-batch-modal-po-input').value = ''; });
     if (imBatchSearchModal) {
-        imBatchSearchModal.querySelectorAll('.modal-close-btn').forEach(btn => btn.addEventListener('click', () => imBatchSearchModal.classList.add('hidden')));
         const modalSearchBtn = document.getElementById('im-batch-modal-search-btn'), addSelectedBtn = document.getElementById('im-batch-modal-add-selected-btn'), modalPOInput = document.getElementById('im-batch-modal-po-input');
         if(modalSearchBtn) modalSearchBtn.addEventListener('click', handleBatchModalPOSearch);
         if(addSelectedBtn) addSelectedBtn.addEventListener('click', handleAddSelectedToBatch);
