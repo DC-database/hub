@@ -314,8 +314,10 @@ function showSearchResults(payments) {
     `;
 
     // 2. Create the Payment Details Table (Bottom Level)
+    // *** MODIFIED: Moved Date Entered column to the front ***
     const paymentRowsHtml = payments.map(payment => `
         <tr>
+            <td>${formatDate(payment.dateEntered) || ''}</td>
             <td>${payment.paymentNo || ''}</td>
             <td>${payment.chequeNo || ''}</td>
             <td>${formatNumber(payment.certifiedAmount) || ''}</td>
@@ -337,6 +339,7 @@ function showSearchResults(payments) {
                 <table class="table payment-details-table">
                     <thead>
                         <tr>
+                            <th>Date Entered</th>
                             <th>Payment No.</th>
                             <th>Cheque No.</th>
                             <th>Certified Amount</th>
@@ -470,9 +473,18 @@ async function savePayment() {
 
   try {
     if (isEditing) {
+      // On edit, we only update the fields from the form.
+      // 'dateEntered' is NOT in the 'fields' array, so it won't be overwritten.
       await paymentsRef.child(editId).update(paymentData);
       alert('Payment updated successfully!');
     } else {
+      // *** MODIFIED: Add current date for dateEntered on new records ***
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      paymentData.dateEntered = `${year}-${month}-${day}`;
+
       const nextNumber = await getNextAvailablePVNNumber(paymentData);
       paymentData.paymentNo = generatePaymentNumber(nextNumber);
       await paymentsRef.push(paymentData);
@@ -495,6 +507,13 @@ async function addNewPaymentFromEdit() {
   });
 
   try {
+    // *** MODIFIED: Add current date for dateEntered on new records ***
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    paymentData.dateEntered = `${year}-${month}-${day}`;
+      
     const nextNumber = await getNextAvailablePVNNumber(paymentData);
     paymentData.paymentNo = generatePaymentNumber(nextNumber);
     paymentData.chequeNo = '';
@@ -647,6 +666,8 @@ async function importPaymentCSV() {
     const content = await readFileAsText(file);
     const lines = content.split('\n');
     const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    // Note: 'dateEntered' is not added to requiredFields to maintain compatibility with old CSVs.
+    // It will be blank for imported records unless manually added to the CSV.
     const requiredFields = ['Payment No.', 'Cheque No.', 'Site', 'Vendor', 'Vendor ID', 'PO No.', 'PO Value', 'Certified Amount', 'Retention', 'Payment', 'Date Paid', 'Note'];
     const missingFields = requiredFields.filter(field => !headers.includes(field));
     if (missingFields.length > 0) {
@@ -657,6 +678,12 @@ async function importPaymentCSV() {
     requiredFields.forEach(field => {
       fieldIndices[field] = headers.indexOf(field);
     });
+    
+    // Check for optional 'Date Entered' field
+    if (headers.includes('Date Entered')) {
+        fieldIndices['Date Entered'] = headers.indexOf('Date Entered');
+    }
+
     const paymentsToImport = [];
     for (let i = 1; i < lines.length; i++) {
       if (lines[i].trim() === '') continue;
@@ -676,6 +703,12 @@ async function importPaymentCSV() {
         datePaid: values[fieldIndices['Date Paid']],
         note: values[fieldIndices['Note']] || ''
       };
+      
+      // Add 'dateEntered' only if it was in the CSV header
+      if (fieldIndices['Date Entered'] !== undefined) {
+          paymentData.dateEntered = values[fieldIndices['Date Entered']];
+      }
+      
       paymentsToImport.push(paymentData);
     }
     if (paymentsToImport.length === 0) {
