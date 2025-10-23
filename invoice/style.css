@@ -67,23 +67,23 @@ button:hover { background-color: #0056b3; }
 .dashboard-main { padding: 10px 0; }
 .button-container { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; }
 /* --- Original Blue Circle Buttons --- */
-.circle-button { 
-    width: 120px; 
-    height: 120px; 
-    border-radius: 50%; 
-    background: linear-gradient(145deg, #0088d1, #006da8); 
-    color: white; 
-    border: 4px solid white; 
-    box-shadow: 0 5px 15px rgba(0, 119, 194, 0.4); 
-    font-size: 1rem; 
-    font-weight: 600; 
-    cursor: pointer; 
-    transition: all 0.3s ease; 
-    display: flex; 
-    justify-content: center; 
-    align-items: center; 
-    text-align: center; 
-    text-decoration: none; 
+.circle-button {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #0088d1, #006da8);
+    color: white;
+    border: 4px solid white;
+    box-shadow: 0 5px 15px rgba(0, 119, 194, 0.4);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    text-decoration: none;
     box-sizing: border-box; /* To keep buttons in one line */
 }
 .circle-button:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0, 119, 194, 0.5); background: linear-gradient(145deg, #0099e1, #007db8); }
@@ -159,7 +159,7 @@ input.highlight-field { border-color: #ffc107; box-shadow: 0 0 0 0.2rem rgba(255
 /* Table Styles */
 .table-wrapper { width: 100%; overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
-th, td { padding: 12px 15px; border-bottom: 1px solid #e0e0e0; text-align: left; }
+th, td { padding: 12px 15px; border-bottom: 1px solid #e0e0e0; text-align: left; vertical-align: middle;} /* ++ Added vertical-align ++ */
 thead th { background-color: #f8f9fa; font-weight: 600; color: #333; }
 tbody tr:hover { background-color: #f1f1f1; }
 .respond-btn { background-color: #28a745; color: white; padding: 5px 10px; font-size: 13px; font-weight: normal; }
@@ -243,14 +243,14 @@ tbody tr:hover { background-color: #f1f1f1; }
     font-size: 14px;
 }
 
-.report-controls { 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center; 
+.report-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-top: 10px;
     margin-bottom: 20px;
-    flex-wrap: wrap; 
-    gap: 15px; 
+    flex-wrap: wrap;
+    gap: 15px;
 }
 .report-tabs-container { flex-grow: 1; }
 .report-tabs { display: flex; gap: 5px; border-bottom: 2px solid #e0e0e0; overflow-x: auto; }
@@ -634,6 +634,62 @@ tbody tr:hover { background-color: #f1f1f1; }
     gap: 10px;
 }
 
+/* ++ NEW: Batch Global Controls ++ */
+#im-batch-global-controls.search-and-filter-group {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    align-items: flex-end; /* Align items to bottom for label alignment */
+}
+#im-batch-global-controls .form-group {
+    flex: 1;
+    min-width: 200px;
+    margin: 0;
+}
+#im-batch-global-controls .form-group:nth-child(2) { /* Status dropdown */
+    min-width: 150px;
+}
+#im-batch-global-controls .form-group label {
+    font-size: 0.9rem;
+    margin-bottom: 3px;
+}
+/* Override default batch-input and select paddings for this section */
+#im-batch-global-controls .batch-input,
+#im-batch-global-controls select,
+#im-batch-global-controls .choices__inner {
+    padding: 11px;
+    width: 100%;
+    margin-bottom: 0;
+}
+#im-batch-global-controls .choices__inner {
+    min-height: 46px; /* Match padding */
+}
+
+/* ++ NEW: Payment Section Styles ++ */
+#im-payments-table .payment-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px;
+    font-size: 14px;
+    margin-bottom: 0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    min-width: 120px;
+}
+#im-payments-table .payment-remove-btn {
+    padding: 4px 8px;
+    font-size: 1.2rem;
+    line-height: 1;
+}
+#im-add-payment-button i {
+    margin-right: 8px;
+}
+#im-save-payments-button i {
+    margin-right: 8px;
+}
+
+
 /* PRINT STYLES */
 @media print {
     @page {
@@ -643,7 +699,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     body {
         background: white !important;
     }
-    
+
     /* Use visibility to hide everything except the printable area */
     body * {
         visibility: hidden;
@@ -665,7 +721,7 @@ tbody tr:hover { background-color: #f1f1f1; }
         padding: 0;
         border: none;
     }
-    
+
     /* Make inputs look like text and hide calendar icon */
     .sn-table input {
         border: none !important;
@@ -750,4 +806,3 @@ tbody tr:hover { background-color: #f1f1f1; }
 .cache-status.refreshing {
     border-left-color: #17a2b8;
 }
-
