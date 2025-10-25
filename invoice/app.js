@@ -438,7 +438,7 @@ function formatFinanceNumber(value) {
 
 function formatFinanceDate(dateStr) {
   if (!dateStr || String(dateStr).trim() === '') return '';
-  
+
   const parts = String(dateStr).split('-');
   // Expects YYYY-MM-DD
   if (parts.length !== 3 || dateStr.length !== 10) {
@@ -454,7 +454,7 @@ function formatFinanceDate(dateStr) {
 
     // Check for invalid date
     if (isNaN(date.getTime())) return dateStr;
-    
+
     // Re-check if the constructed date matches, to catch invalid inputs like "2025-02-30"
     if (date.getDate() !== day || date.getMonth() !== monthIndex || date.getFullYear() !== year) {
         return dateStr;
@@ -463,7 +463,7 @@ function formatFinanceDate(dateStr) {
     const dayFormatted = date.getDate().toString().padStart(2, '0');
     const monthFormatted = date.toLocaleString('default', { month: 'short' }).toUpperCase();
     const yearFormatted = date.getFullYear();
-    
+
     return `${dayFormatted}-${monthFormatted}-${yearFormatted}`;
   } catch (e) {
     return dateStr; // Fallback
@@ -1222,6 +1222,7 @@ async function populateWorkdeskDashboard() {
     // Restore allSystemEntries to just the user's active tasks if needed elsewhere, or leave as all
      allSystemEntries = userActiveTasks; // Restore back to only active for consistency if needed.
 }
+
 async function handleRespondClick(e) {
     const key = e.target.getAttribute('data-key');
     if (!key) return;
@@ -1466,6 +1467,7 @@ function showIMSection(sectionId) {
     const userRoleLower = (currentApprover?.Role || '').toLowerCase();
     const isAccountingAdmin = userPositionLower === 'accounting' && userRoleLower === 'admin';
     const isAccountsOrAccounting = userPositionLower === 'accounts' || userPositionLower === 'accounting';
+    const isAdmin = userRoleLower === 'admin'; // Use isAdmin for finance report
 
     // ++ MODIFIED: Block access based on role
     if (sectionId === 'im-invoice-entry' && !isAccountingAdmin) { alert('Access Denied: Requires Accounting Admin position.'); return; }
@@ -1473,7 +1475,7 @@ function showIMSection(sectionId) {
     if (sectionId === 'im-summary-note' && !isAccountingAdmin) { alert('Access Denied: Requires Accounting Admin position.'); return; }
     if (sectionId === 'im-payments' && !isAccountsOrAccounting) { alert('Access Denied: Requires Accounts or Accounting position.'); return; }
     // ++ NEW: Block access for Finance Report
-    if (sectionId === 'im-finance-report' && userRoleLower !== 'admin') { alert('Access Denied: Requires Admin role.'); return; }
+    if (sectionId === 'im-finance-report' && !isAdmin) { alert('Access Denied: Requires Admin role.'); return; }
 
 
     imContentArea.querySelectorAll('.workdesk-section').forEach(section => section.classList.add('hidden'));
@@ -2808,7 +2810,7 @@ async function generateFinanceReport(selectedPayment) {
         imReportTotalPrevPayment.textContent = formatFinanceNumber(totalPrevPayment);
         imReportTotalCommitted.textContent = formatFinanceNumber(totalCommitted);
         imReportTotalRetention.textContent = formatFinanceNumber(totalRetention);
-        
+
         imReportTableBody.innerHTML = '';
         payments.forEach(payment => {
             const row = document.createElement('tr');
@@ -2822,11 +2824,11 @@ async function generateFinanceReport(selectedPayment) {
                 <td>${payment.datePaid ? formatFinanceDate(payment.datePaid) : ''}</td>`;
             imReportTableBody.appendChild(row);
         });
-        
+
         imReportTotalCertifiedAmount.textContent = formatFinanceNumber(totalCertified);
         imReportTotalRetentionAmount.textContent = formatFinanceNumber(totalRetention);
         imReportTotalPaymentAmount.textContent = formatFinanceNumber(totalPayment);
-        
+
         if (allNotes.length > 0) {
             imReportNotesContent.textContent = allNotes.join('\n');
             imReportNotesSection.style.display = 'block';
@@ -2990,42 +2992,35 @@ document.addEventListener('DOMContentLoaded', async () => {
         const isAccountsOrAccounting = userPositionLower === 'accounts' || userPositionLower === 'accounting';
         const isAdmin = userRoleLower === 'admin';
 
-        // **** START: ADD THESE LOGS ****
-        console.log("--- Invoice Management Button Clicked ---");
-        console.log("Current Approver Role (raw):", currentApprover.Role);
-        console.log("Current Approver Role (lowercase):", userRoleLower);
-        console.log("isAdmin variable:", isAdmin);
-        // **** END: ADD THESE LOGS ****
-
         // ++ MODIFIED: Set visibility based on new rules (HIDE, not disable)
         const imNavLinks = imNav.querySelectorAll('li');
-        console.log("Found nav links:", imNavLinks.length); // Add this log too
 
         imNavLinks.forEach(li => {
             const link = li.querySelector('a');
-             if (!link) {
-                console.log("Skipping li with no link"); // Add this log
-                return;
-            }
-            
+             if (!link) return;
+
             const section = link.dataset.section;
-            console.log("Processing nav link for section:", section); // Add this log
+
+            // Default to visible unless specifically hidden
+            li.style.display = '';
 
             if (section === 'im-invoice-entry' || section === 'im-batch-entry' || section === 'im-summary-note') {
-                li.style.display = isAccountingAdmin ? '' : 'none';
+                if (!isAccountingAdmin) li.style.display = 'none';
             }
             if (section === 'im-payments') {
-                li.style.display = isAccountsOrAccounting ? '' : 'none';
+                // *** FIX APPLIED HERE: Show the link by removing the 'hidden' class ***
+                if (isAccountsOrAccounting) {
+                    link.classList.remove('hidden'); // Ensure the link itself is not hidden
+                } else {
+                    li.style.display = 'none'; // Hide the list item if not correct role
+                }
             }
             if (section === 'im-finance-report') {
-                console.log("Checking visibility for Finance Report. isAdmin:", isAdmin); // Add this log
-                li.style.display = isAdmin ? '' : 'none';
-                console.log("Finance Report li display set to:", li.style.display); // Add this log
+                if (!isAdmin) li.style.display = 'none';
             }
         });
 
         // ++ MODIFIED: Show WorkDesk/ActiveTask links in IM sidebar for everyone ++
-        console.log("Setting WorkDesk/ActiveTask shortcuts visible"); // Add this log
         document.getElementById('im-nav-workdesk').classList.remove('hidden');
         document.getElementById('im-nav-activetask').classList.remove('hidden');
 
@@ -3106,7 +3101,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    imNav.addEventListener('click', (e) => { const link = e.target.closest('a'); if (!link || link.classList.contains('disabled') || link.classList.contains('hidden') || link.id === 'im-workdesk-button' || link.id === 'im-activetask-button') return; e.preventDefault(); const sectionId = link.getAttribute('data-section'); if (sectionId) { imNav.querySelectorAll('a').forEach(a => a.classList.remove('active')); link.classList.add('active'); showIMSection(sectionId); } });
+    imNav.addEventListener('click', (e) => { const link = e.target.closest('a'); if (!link || link.classList.contains('disabled') || link.parentElement.style.display === 'none' || link.id === 'im-workdesk-button' || link.id === 'im-activetask-button') return; e.preventDefault(); const sectionId = link.getAttribute('data-section'); if (sectionId) { imNav.querySelectorAll('a').forEach(a => a.classList.remove('active')); link.classList.add('active'); showIMSection(sectionId); } });
     imPOSearchButton.addEventListener('click', handlePOSearch);
     imPOSearchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); handlePOSearch(); } });
     imAddInvoiceButton.addEventListener('click', handleAddInvoice);
@@ -3283,7 +3278,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     }
-    
+
     // ++ NEW: Finance Report Listeners ++
     if (imFinanceSearchBtn) imFinanceSearchBtn.addEventListener('click', handleFinanceSearch);
     if (imFinanceClearBtn) imFinanceClearBtn.addEventListener('click', resetFinanceSearch);
