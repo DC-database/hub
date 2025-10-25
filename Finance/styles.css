@@ -201,10 +201,16 @@
   padding-top: 20px;
 }
 
+/* ================== */
+/* UPDATED RULE #1  */
+/* ================== */
 #reportModal .signature-box {
   text-align: center;
-  width: 30%;
+  width: 22%; /* <-- CHANGED FROM 30% */
 }
+/* ================== */
+/* END UPDATED RULE */
+/* ================== */
 
 #reportModal .signature-line {
   border-top: 1px solid #000;
@@ -381,10 +387,16 @@
     page-break-inside: avoid;
   }
   
+  /* ================== */
+  /* UPDATED RULE #2  */
+  /* ================== */
   .signature-box {
     text-align: center !important;
-    width: 30% !important;
+    width: 22% !important; /* <-- CHANGED FROM 30% */
   }
+  /* ================== */
+  /* END UPDATED RULE */
+  /* ================== */
   
   .signature-line {
     border-top: 1px solid #000 !important;
