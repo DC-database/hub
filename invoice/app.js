@@ -1855,7 +1855,6 @@ async function populateInvoiceDashboard() {
     // }
 }
 
-
 // --- UPDATED AND FIXED populateInvoiceReporting ---
 async function populateInvoiceReporting(searchTerm = '') {
     sessionStorage.setItem('imReportingSearch', searchTerm); // Save search term
@@ -2114,9 +2113,8 @@ async function handleDownloadWithAccountsReport() {
     } catch (error) { console.error("Error generating 'With Accounts' report:", error); alert("An error occurred while generating the report."); }
 }
 
-// ... (Batch Entry, Summary Note functions remain the same) ...
 // BATCH INVOICE FUNCTIONS
-async function populateApproverSelect(selectElement) {
+async function populateApproverSelect(selectElement) { // <-- FIX: Changed parameter name
     if (approverListForSelect.length === 0) {
         try {
             await ensureInvoiceDataFetched();
@@ -2199,11 +2197,16 @@ async function handleAddPOToBatch() {
         if (imBatchGlobalAttentionChoices && imBatchGlobalAttentionChoices.getValue(true)) {
             setTimeout(() => {
                 const choices = new Choices(attentionSelect, { searchEnabled: true, shouldSort: false, itemSelectText: '', removeItemButton: true });
-                populateApproverSelect(choices);
+                populateApproverSelect(attentionSelect); // <-- FIX: Pass the raw select element
                 choices.setValue(imBatchGlobalAttentionChoices.getValue(true));
+                row.choicesInstance = choices; // <-- FIX: Store instance
             }, 0);
         } else {
-            setTimeout(() => { const choices = new Choices(attentionSelect, { searchEnabled: true, shouldSort: false, itemSelectText: '', removeItemButton: true }); populateApproverSelect(choices); }, 0);
+            setTimeout(() => {
+                const choices = new Choices(attentionSelect, { searchEnabled: true, shouldSort: false, itemSelectText: '', removeItemButton: true });
+                populateApproverSelect(attentionSelect); // <-- FIX: Pass the raw select element
+                row.choicesInstance = choices; // <-- FIX: Store instance
+            }, 0);
         }
 
         if (imBatchGlobalStatus.value) statusSelect.value = imBatchGlobalStatus.value;
@@ -2257,14 +2260,16 @@ async function addInvoiceToBatchTable(invData) {
     if (globalAttentionVal) {
         setTimeout(async () => {
             const choices = new Choices(attentionSelect, { searchEnabled: true, shouldSort: false, itemSelectText: '', removeItemButton: true });
-            await populateApproverSelect(choices);
+            await populateApproverSelect(attentionSelect); // <-- FIX: Pass the raw select element
             choices.setValue(globalAttentionVal);
+            row.choicesInstance = choices; // <-- FIX: Store instance
         }, 0);
     } else {
         setTimeout(async () => {
             const choices = new Choices(attentionSelect, { searchEnabled: true, shouldSort: false, itemSelectText: '', removeItemButton: true });
-            await populateApproverSelect(choices);
+            await populateApproverSelect(attentionSelect); // <-- FIX: Pass the raw select element
             if (invData.attention) choices.setChoiceByValue(invData.attention);
+            row.choicesInstance = choices; // <-- FIX: Store instance
         }, 0);
     }
 
@@ -2303,7 +2308,10 @@ async function handleSaveBatchInvoices() {
     const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
     if (rows.length === 0) { alert("There are no invoices to save."); return; }
     if (!confirm(`You are about to save/update ${rows.length} invoice(s). Continue?`)) return;
-    const savePromises = []; let newInvoicesCount = 0, updatedInvoicesCount = 0;
+
+    const savePromises = [];
+    const localCacheUpdates = []; // <-- FIX: Store updates here
+    let newInvoicesCount = 0, updatedInvoicesCount = 0;
 
     // ++ NEW: Helper to get srvName
     const getSrvName = (poNumber, site, vendor) => {
@@ -2343,9 +2351,16 @@ async function handleSaveBatchInvoices() {
         let promise;
         if (existingKey) {
             promise = invoiceDb.ref(`invoice_entries/${poNumber}/${existingKey}`).update(invoiceData);
+            // <-- FIX: Add to local cache updates for existing invoices
+            localCacheUpdates.push({
+                type: 'update',
+                po: poNumber,
+                key: existingKey,
+                data: invoiceData
+            });
             updatedInvoicesCount++;
         } else {
-            invoiceData.invEntryID = row.dataset.nextInvid;
+            invoiceData.invEntryID = row.dataset.nextInvid; // Corrected dataset property name
             invoiceData.dateAdded = getTodayDateString();
             invoiceData.createdAt = firebase.database.ServerValue.TIMESTAMP;
 
@@ -2355,14 +2370,53 @@ async function handleSaveBatchInvoices() {
 
             promise = invoiceDb.ref(`invoice_entries/${poNumber}`).push(invoiceData);
             newInvoicesCount++;
+
+            // <-- FIX: For new invoices, we pass the promise to get the key later
+            localCacheUpdates.push({
+                type: 'add',
+                po: poNumber,
+                data: invoiceData,
+                promise: promise // This promise reference contains the new key
+            });
         }
         savePromises.push(promise);
     }
     try {
         await Promise.all(savePromises);
+
+        // --- FIX: NEW CACHE UPDATE LOGIC ---
+        if (allInvoiceData) { // Only update if cache is loaded
+            for (const update of localCacheUpdates) {
+                if (update.type === 'update') {
+                    // This is an update to an existing entry
+                    if (!allInvoiceData[update.po]) allInvoiceData[update.po] = {};
+                    if (!allInvoiceData[update.po][update.key]) allInvoiceData[update.po][update.key] = {};
+                    // Merge the new data into the cached data
+                    allInvoiceData[update.po][update.key] = {
+                        ...allInvoiceData[update.po][update.key],
+                        ...update.data
+                    };
+                } else if (update.type === 'add') {
+                    // This is a new entry. We get the key from the promise.
+                    const newKey = update.promise.key;
+                    if (newKey) {
+                        if (!allInvoiceData[update.po]) allInvoiceData[update.po] = {};
+                        allInvoiceData[update.po][newKey] = update.data;
+                    }
+                }
+            }
+            console.log("Local invoice cache updated surgically.");
+        }
+        // --- END FIX ---
+
         alert(`${newInvoicesCount} new invoice(s) created and ${updatedInvoicesCount} invoice(s) updated successfully!`);
-        document.getElementById('im-batch-table-body').innerHTML = ''; allSystemEntries = [];
-    } catch (error) { console.error("Error saving batch invoices:", error); alert("An error occurred while saving. Please check the data and try again."); }
+        document.getElementById('im-batch-table-body').innerHTML = '';
+        allSystemEntries = [];
+        // allInvoiceData = null; // <-- REMOVED
+    } catch (error) {
+        console.error("Error saving batch invoices:", error);
+        alert("An error occurred while saving. Please check the data and try again.");
+    }
 }
 async function handleBatchModalPOSearch() {
     const modalPOSearchInput = document.getElementById('im-batch-modal-po-input');
@@ -2460,7 +2514,10 @@ async function handleUpdateSummaryChanges() {
     if (!confirm("Are you sure you want to save the changes for all visible entries?")) return;
     summaryNoteUpdateBtn.textContent = "Updating..."; summaryNoteUpdateBtn.disabled = true;
     const newGlobalStatus = document.getElementById('summary-note-status-input').value, newGlobalSRV = document.getElementById('summary-note-srv-input').value.trim(), today = getTodayDateString();
+
     const updatePromises = [];
+    const localCacheUpdates = []; // <-- FIX
+
     try {
         rows.forEach(row => {
             const poNumber = row.dataset.po, invoiceKey = row.dataset.key;
@@ -2470,13 +2527,40 @@ async function handleUpdateSummaryChanges() {
                 if (newGlobalStatus) updates.status = newGlobalStatus;
                 if (newGlobalSRV) updates.srvName = newGlobalSRV;
                 if (newGlobalStatus === 'With Accounts') updates.attention = '';
+
                 updatePromises.push(invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}`).update(updates));
+                localCacheUpdates.push({ po: poNumber, key: invoiceKey, data: updates }); // <-- FIX
             }
         });
         await Promise.all(updatePromises);
+
+        // --- FIX: NEW CACHE UPDATE LOGIC ---
+        if (allInvoiceData) { // Only update if cache is loaded
+            for (const update of localCacheUpdates) {
+                if (allInvoiceData[update.po] && allInvoiceData[update.po][update.key]) {
+                    // Merge the new data into the cached data
+                    allInvoiceData[update.po][update.key] = {
+                        ...allInvoiceData[update.po][update.key],
+                        ...update.data
+                    };
+                }
+            }
+            console.log("Local invoice cache updated surgically.");
+        }
+        // --- END FIX ---
+
         alert("Changes saved successfully!");
-    } catch (error) { console.error("Error updating summary changes:", error); alert("An error occurred while saving the changes."); }
-    finally { summaryNoteUpdateBtn.textContent = "Update Changes"; summaryNoteUpdateBtn.disabled = false; document.getElementById('summary-note-status-input').value = ''; document.getElementById('summary-note-srv-input').value = ''; }
+        // allInvoiceData = null; // <-- REMOVED
+    } catch (error) {
+        console.error("Error updating summary changes:", error);
+        alert("An error occurred while saving the changes.");
+    }
+    finally {
+        summaryNoteUpdateBtn.textContent = "Update Changes";
+        summaryNoteUpdateBtn.disabled = false;
+        document.getElementById('summary-note-status-input').value = '';
+        document.getElementById('summary-note-srv-input').value = '';
+    }
 }
 
 // ++ NEW: Functions for Payments Section ++
@@ -2561,17 +2645,19 @@ function handleAddSelectedToPayments() {
             row.setAttribute('data-key', invData.key);
             row.setAttribute('data-po', invData.po);
 
+            // --- FIX: Make Inv. Value editable, default Amount To Paid to Inv Value ---
             row.innerHTML = `
                 <td>${invData.po}</td>
                 <td>${invData.site}</td>
                 <td>${invData.vendor}</td>
                 <td>${invData.invEntryID}</td>
-                <td>${formatCurrency(invData.invValue)}</td>
+                <td><input type="number" name="invValue" class="payment-input" step="0.01" value="${invData.invValue || '0'}"></td>
                 <td><input type="number" name="amountPaid" class="payment-input" step="0.01" value="${invData.invValue || '0'}"></td>
                 <td><input type="date" name="releaseDate" class="payment-input" value="${getTodayDateString()}"></td>
                 <td>${invData.status}</td>
                 <td><button type="button" class="delete-btn payment-remove-btn">&times;</button></td>
             `;
+            // --- END FIX ---
             imPaymentsTableBody.appendChild(row);
         }
     });
@@ -2586,11 +2672,13 @@ async function handleSavePayments() {
         alert("There are no payments in the list to save.");
         return;
     }
-    if (!confirm(`You are about to mark ${rows.length} invoice(s) as 'Paid'. This will update their status, Amount To Paid, and Release Date. Continue?`)) {
+    // --- FIX: Updated confirm message ---
+    if (!confirm(`You are about to mark ${rows.length} invoice(s) as 'Paid'. This will update their status, Invoice Value, Amount To Paid, and Release Date. Continue?`)) {
         return;
     }
 
     const savePromises = [];
+    const localCacheUpdates = []; // <-- FIX
     let updatesMade = 0;
 
     for (const row of rows) {
@@ -2603,15 +2691,18 @@ async function handleSavePayments() {
             continue;
         }
 
+        const invValueInput = row.querySelector('input[name="invValue"]'); // <-- FIX: Get new input
         const amountPaidInput = row.querySelector('input[name="amountPaid"]');
         const releaseDateInput = row.querySelector('input[name="releaseDate"]');
 
+        const newInvValue = parseFloat(invValueInput.value) || 0; // <-- FIX: Read new value
         const newAmountPaid = parseFloat(amountPaidInput.value) || 0;
         const newReleaseDate = releaseDateInput.value || getTodayDateString();
 
         // Prepare the data to update in Firebase
         const updates = {
             status: 'Paid',
+            invValue: newInvValue, // <-- FIX: Save updated Inv Value
             amountPaid: newAmountPaid, // Update with the value entered in the payments table
             releaseDate: newReleaseDate // Update with the value entered in the payments table
         };
@@ -2620,17 +2711,33 @@ async function handleSavePayments() {
         savePromises.push(
             invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}`).update(updates)
         );
+        localCacheUpdates.push({ po: poNumber, key: invoiceKey, data: updates }); // <-- FIX
         updatesMade++;
     }
 
     try {
         await Promise.all(savePromises);
+
+        // --- FIX: NEW CACHE UPDATE LOGIC ---
+        if (allInvoiceData) { // Only update if cache is loaded
+            for (const update of localCacheUpdates) {
+                if (allInvoiceData[update.po] && allInvoiceData[update.po][update.key]) {
+                    // Merge the new data into the cached data
+                    allInvoiceData[update.po][update.key] = {
+                        ...allInvoiceData[update.po][update.key],
+                        ...update.data
+                    };
+                }
+            }
+            console.log("Local invoice cache updated surgically.");
+        }
+        // --- END FIX ---
+
         alert(`${updatesMade} payment(s) processed successfully! Invoices updated to 'Paid'.`);
         imPaymentsTableBody.innerHTML = ''; // Clear the table
         invoicesToPay = {}; // Reset the state
         allSystemEntries = []; // Clear system cache as statuses changed
-        // Optionally, refresh local cache if needed elsewhere immediately
-        // await ensureInvoiceDataFetched(true);
+        // allInvoiceData = null; // <-- REMOVED
     } catch (error) {
         console.error("Error saving payments:", error);
         alert("An error occurred while saving payments. Some updates may have failed. Please check the data and try again.");
@@ -3134,7 +3241,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     imDownloadDailyReportButton.addEventListener('click', handleDownloadDailyReport);
     if(imDownloadWithAccountsReportButton) imDownloadWithAccountsReportButton.addEventListener('click', handleDownloadWithAccountsReport);
     imStatusSelect.addEventListener('change', (e) => { if (e.target.value === 'CEO Approval' && imAttentionSelectChoices) imAttentionSelectChoices.setChoiceByValue('Mr. Hamad'); });
-    imInvValueInput.addEventListener('input', (e) => { imAmountPaidInput.value = e.target.value; });
+    // --- FIX: REMOVED auto-copy for Invoice Value -> Amount To Paid ---
+    // imInvValueInput.addEventListener('input', (e) => { imAmountPaidInput.value = e.target.value; });
     settingsForm.addEventListener('submit', handleUpdateSettings);
     settingsVacationCheckbox.addEventListener('change', () => {
         const isChecked = settingsVacationCheckbox.checked;
@@ -3166,7 +3274,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (batchSaveBtn) batchSaveBtn.addEventListener('click', handleSaveBatchInvoices);
     if (batchPOInput) batchPOInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); if(batchSearchStatusBtn) batchSearchStatusBtn.click(); } });
     if (batchTableBody) {
-        batchTableBody.addEventListener('click', (e) => { if (e.target.classList.contains('batch-remove-btn')) { const row = e.target.closest('tr'); const choicesEl = row.querySelector('.choices'); if (choicesEl && choicesEl.choices) choicesEl.choices.destroy(); row.remove(); } });
+        // --- FIX: Correctly destroy Choices.js instance on remove ---
+        batchTableBody.addEventListener('click', (e) => {
+            if (e.target.classList.contains('batch-remove-btn')) {
+                const row = e.target.closest('tr');
+                // Correctly find and destroy the Choices.js instance
+                if (row.choicesInstance) {
+                    row.choicesInstance.destroy();
+                }
+                row.remove();
+            }
+        });
         batchTableBody.addEventListener('input', (e) => { if (e.target.getAttribute('name') === 'invValue') { const row = e.target.closest('tr'); if (row) { const amountPaidInput = row.querySelector('[name="amountPaid"]'); if (amountPaidInput) amountPaidInput.value = e.target.value; } } });
     }
     if (imBatchSearchExistingButton) imBatchSearchExistingButton.addEventListener('click', () => { if(imBatchSearchModal) imBatchSearchModal.classList.remove('hidden'); document.getElementById('im-batch-modal-results').innerHTML = '<p>Enter a PO number to see its invoices.</p>'; document.getElementById('im-batch-modal-po-input').value = ''; });
@@ -3179,12 +3297,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Batch Global Field Listeners
     if (imBatchGlobalAttention) {
+        // --- FIX: Correctly find row.choicesInstance ---
         imBatchGlobalAttention.addEventListener('change', (e) => {
             if (!imBatchGlobalAttentionChoices) return; // Add check
             const newValue = imBatchGlobalAttentionChoices.getValue(true);
             const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
             rows.forEach(row => {
-                const choicesInstance = row.querySelector('.choices')?.choices; // Use optional chaining
+                const choicesInstance = row.choicesInstance; // <-- FIX: Use stored instance
                 if (choicesInstance) {
                     choicesInstance.setValue(newValue);
                 }
