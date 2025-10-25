@@ -625,7 +625,8 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
 
         console.log("Invoice cache refreshed for reporting.");
 
-        approverListForSelect = [];
+        approverListForSelect = []; // Clear this here
+        allApproversCache = null; // Clear Choices cache too
         allUniqueNotes = new Set();
 
     } catch (error) {
@@ -643,13 +644,17 @@ function updateLocalInvoiceCache(poNumber, invoiceKey, updatedData) {
         };
     }
 }
-function addToLocalInvoiceCache(poNumber, newInvoiceData) {
+function addToLocalInvoiceCache(poNumber, newInvoiceData, newKey) { // <-- Added newKey parameter
     if (!allInvoiceData) allInvoiceData = {};
     if (!allInvoiceData[poNumber]) {
         allInvoiceData[poNumber] = {};
     }
-    const newKey = `temp_${Date.now()}`;
-    allInvoiceData[poNumber][newKey] = newInvoiceData;
+    // const newKey = `temp_${Date.now()}`; // <-- Removed temp key generation
+    if (newKey) { // Use the actual key if provided
+       allInvoiceData[poNumber][newKey] = newInvoiceData;
+    } else {
+        console.warn("Attempted to add to cache without a valid key:", poNumber, newInvoiceData);
+    }
 }
 function removeFromLocalInvoiceCache(poNumber, invoiceKey) {
     if (allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][invoiceKey]) {
@@ -767,9 +772,13 @@ async function populateAttentionDropdown(choicesInstance) {
 
         choicesInstance.setChoices([{ value: '', label: 'Loading...', disabled: true, selected: true }], 'value', 'label', true);
 
-        const snapshot = await db.ref('approvers').once('value');
-        const approvers = snapshot.val();
-        allApproverData = approvers; // Cache the full data object
+        // Ensure allApproverData is loaded if the cache is empty
+        if (!allApproverData) {
+            const snapshot = await db.ref('approvers').once('value');
+            allApproverData = snapshot.val(); // Cache the full data object
+        }
+        const approvers = allApproverData;
+
 
         if (approvers) {
             const today = new Date();
@@ -815,7 +824,7 @@ async function populateAttentionDropdown(choicesInstance) {
                 ...approverOptions.sort((a,b) => a.label.localeCompare(b.label)) // Sort alphabetically
             ];
 
-            allApproversCache = choiceList;
+            allApproversCache = choiceList; // Cache the processed list for Choices.js
             choicesInstance.setChoices(allApproversCache, 'value', 'label', true);
 
         } else {
@@ -1483,12 +1492,15 @@ function showIMSection(sectionId) {
     if (targetSection) targetSection.classList.remove('hidden');
 
     if (sectionId === 'im-dashboard') { populateInvoiceDashboard(); }
-    if (sectionId === 'im-invoice-entry') { resetInvoiceEntryPage(); if (imAttentionSelectChoices) { populateAttentionDropdown(imAttentionSelectChoices, true); } }
+    if (sectionId === 'im-invoice-entry') { resetInvoiceEntryPage(); if (imAttentionSelectChoices) { populateAttentionDropdown(imAttentionSelectChoices); } } // <-- FIX: Removed second arg
     if (sectionId === 'im-batch-entry') {
         document.getElementById('im-batch-table-body').innerHTML = '';
         document.getElementById('im-batch-po-input').value = '';
         if (!imBatchGlobalAttentionChoices) {
              imBatchGlobalAttentionChoices = new Choices(imBatchGlobalAttention, { searchEnabled: true, shouldSort: false, itemSelectText: '', });
+             populateAttentionDropdown(imBatchGlobalAttentionChoices);
+        } else {
+             // Refresh options in case vacation status changed
              populateAttentionDropdown(imBatchGlobalAttentionChoices);
         }
     }
@@ -1703,6 +1715,11 @@ async function handleAddInvoice(e) {
     const invoiceData = Object.fromEntries(formData.entries());
     let attentionValue = imAttentionSelectChoices.getValue(true);
     invoiceData.attention = (attentionValue === 'None') ? '' : attentionValue;
+    // --- FIX: Clear attention if status is Under Review or With Accounts ---
+    if (invoiceData.status === 'Under Review' || invoiceData.status === 'With Accounts') {
+        invoiceData.attention = '';
+    }
+    // --- END FIX ---
     invoiceData.dateAdded = getTodayDateString();
     invoiceData.createdAt = firebase.database.ServerValue.TIMESTAMP;
 
@@ -1732,9 +1749,17 @@ async function handleAddInvoice(e) {
     Object.keys(invoiceData).forEach(key => { if (invoiceData[key] === null || invoiceData[key] === undefined) delete invoiceData[key]; });
 
     try {
-        await invoiceDb.ref(`invoice_entries/${currentPO}`).push(invoiceData);
+        const newRef = await invoiceDb.ref(`invoice_entries/${currentPO}`).push(invoiceData); // <-- Get ref
+        const newKey = newRef.key; // <-- Get key
+
         alert('Invoice added successfully!');
-        addToLocalInvoiceCache(currentPO, invoiceData);
+        // Update local cache manually since addToLocalInvoiceCache used a temp key
+        if (allInvoiceData && newKey) {
+             if (!allInvoiceData[currentPO]) allInvoiceData[currentPO] = {};
+             allInvoiceData[currentPO][newKey] = invoiceData;
+             console.log("Local invoice cache updated for new entry.");
+        }
+
         if (jobEntryToUpdateAfterInvoice) {
             try {
                 const updates = { remarks: invoiceData.status, dateResponded: formatDate(new Date()) };
@@ -1759,7 +1784,12 @@ async function handleUpdateInvoice(e) {
     const invoiceData = Object.fromEntries(formData.entries());
     let attentionValue = imAttentionSelectChoices.getValue(true);
     invoiceData.attention = (attentionValue === 'None') ? '' : attentionValue;
-    if (invoiceData.status === 'With Accounts') invoiceData.attention = '';
+
+    // --- FIX: Clear attention if status is Under Review or With Accounts ---
+    if (invoiceData.status === 'Under Review' || invoiceData.status === 'With Accounts') {
+        invoiceData.attention = '';
+    }
+    // --- END FIX ---
 
     const originalInvoiceData = currentPOInvoices[currentlyEditingInvoiceKey];
     if (invoiceData.status === 'With Accounts' && (!originalInvoiceData || !originalInvoiceData.srvName)) {
@@ -2114,19 +2144,40 @@ async function handleDownloadWithAccountsReport() {
 }
 
 // BATCH INVOICE FUNCTIONS
-async function populateApproverSelect(selectElement) { // <-- FIX: Changed parameter name
+// --- FIX: Updated populateApproverSelect for Batch ---
+async function populateApproverSelect(selectElement) {
+    // Ensure the global list is populated
     if (approverListForSelect.length === 0) {
         try {
-            await ensureInvoiceDataFetched();
-            const approvers = allApproverData;
+            await ensureInvoiceDataFetched(); // Makes sure allApproverData is potentially loaded
+            const approvers = allApproverData; // Use the cached full data
             if (approvers) {
-                const approverOptions = Object.values(approvers).map(approver => approver.Name ? { value: approver.Name, label: approver.Name } : null).filter(Boolean).sort((a, b) => a.label.localeCompare(b.label));
-                approverListForSelect = [{ value: '', label: 'Select Attention' }, { value: 'None', label: 'None (Clear)' }, ...approverOptions];
+                const approverOptions = Object.values(approvers)
+                    .map(approver => approver.Name ? { value: approver.Name, label: approver.Name } : null)
+                    .filter(Boolean) // Remove nulls
+                    .sort((a, b) => a.label.localeCompare(b.label)); // Sort alphabetically
+                approverListForSelect = [{ value: '', label: 'Select Attention', placeholder: true }, { value: 'None', label: 'None (Clear)' }, ...approverOptions];
+            } else {
+                 approverListForSelect = [{ value: '', label: 'No approvers found', placeholder: true }];
             }
-        } catch (error) { console.error("Error fetching approvers for select:", error); }
+        } catch (error) {
+            console.error("Error fetching approvers for select:", error);
+             approverListForSelect = [{ value: '', label: 'Error loading', placeholder: true }];
+        }
     }
-    selectElement.innerHTML = '';
-    approverListForSelect.forEach(opt => { const option = document.createElement('option'); option.value = opt.value; option.textContent = opt.label; selectElement.appendChild(option); });
+
+    // Populate the specific select element passed in
+    selectElement.innerHTML = ''; // Clear existing options first
+    approverListForSelect.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.value;
+        option.textContent = opt.label;
+        if (opt.placeholder) {
+            option.disabled = true; // Make 'Select Attention' unselectable
+            option.selected = true; // Ensure it's the default visible option
+        }
+        selectElement.appendChild(option);
+    });
 }
 async function handleAddPOToBatch() {
     const batchPOInput = document.getElementById('im-batch-po-input');
@@ -2193,24 +2244,29 @@ async function handleAddPOToBatch() {
         const statusSelect = row.querySelector('select[name="status"]');
         const noteInput = row.querySelector('input[name="note"]');
 
-        // Apply global values if they exist
-        if (imBatchGlobalAttentionChoices && imBatchGlobalAttentionChoices.getValue(true)) {
-            setTimeout(() => {
-                const choices = new Choices(attentionSelect, { searchEnabled: true, shouldSort: false, itemSelectText: '', removeItemButton: true });
-                populateApproverSelect(attentionSelect); // <-- FIX: Pass the raw select element
-                choices.setValue(imBatchGlobalAttentionChoices.getValue(true));
-                row.choicesInstance = choices; // <-- FIX: Store instance
-            }, 0);
-        } else {
-            setTimeout(() => {
-                const choices = new Choices(attentionSelect, { searchEnabled: true, shouldSort: false, itemSelectText: '', removeItemButton: true });
-                populateApproverSelect(attentionSelect); // <-- FIX: Pass the raw select element
-                row.choicesInstance = choices; // <-- FIX: Store instance
-            }, 0);
-        }
+        // --- FIX: Populate select FIRST, then initialize Choices ---
+        await populateApproverSelect(attentionSelect); // Populate the raw select
 
+        // Initialize Choices.js AFTER options are in the HTML
+        const choices = new Choices(attentionSelect, {
+            searchEnabled: true,
+            shouldSort: false, // Keep original sort order
+            itemSelectText: '',
+            removeItemButton: true
+        });
+        row.choicesInstance = choices; // Store instance on the row
+
+        // Now apply global value if it exists
+        const globalAttnValue = imBatchGlobalAttentionChoices ? imBatchGlobalAttentionChoices.getValue(true) : null;
+        if (globalAttnValue) {
+            choices.setValue(globalAttnValue); // Use Choices API
+        }
+        // --- END FIX ---
+
+        // --- FIX: Apply Global Status and Note values ---
         if (imBatchGlobalStatus.value) statusSelect.value = imBatchGlobalStatus.value;
         if (imBatchGlobalNote.value) noteInput.value = imBatchGlobalNote.value;
+        // --- END FIX ---
 
         batchPOInput.value = ''; batchPOInput.focus();
     } catch (error) { console.error("Error adding PO to batch:", error); alert('An error occurred while adding the PO.'); }
@@ -2255,28 +2311,33 @@ async function addInvoiceToBatchTable(invData) {
 
     statusSelect.value = invData.status || 'For SRV';
 
-    // Apply global values if they exist
+    // --- FIX: Populate select FIRST, then initialize Choices ---
+    await populateApproverSelect(attentionSelect); // Populate the raw select
+
+    // Initialize Choices.js AFTER options are in the HTML
+    const choices = new Choices(attentionSelect, {
+        searchEnabled: true,
+        shouldSort: false, // Keep original sort order
+        itemSelectText: '',
+        removeItemButton: true
+    });
+    row.choicesInstance = choices; // Store instance on the row
+
+    // Now apply global or existing value
     const globalAttentionVal = imBatchGlobalAttentionChoices ? imBatchGlobalAttentionChoices.getValue(true) : null;
     if (globalAttentionVal) {
-        setTimeout(async () => {
-            const choices = new Choices(attentionSelect, { searchEnabled: true, shouldSort: false, itemSelectText: '', removeItemButton: true });
-            await populateApproverSelect(attentionSelect); // <-- FIX: Pass the raw select element
-            choices.setValue(globalAttentionVal);
-            row.choicesInstance = choices; // <-- FIX: Store instance
-        }, 0);
-    } else {
-        setTimeout(async () => {
-            const choices = new Choices(attentionSelect, { searchEnabled: true, shouldSort: false, itemSelectText: '', removeItemButton: true });
-            await populateApproverSelect(attentionSelect); // <-- FIX: Pass the raw select element
-            if (invData.attention) choices.setChoiceByValue(invData.attention);
-            row.choicesInstance = choices; // <-- FIX: Store instance
-        }, 0);
+        choices.setValue(globalAttentionVal); // Use Choices API
+    } else if (invData.attention) {
+        choices.setChoiceByValue(invData.attention); // Set specific value if no global override
     }
+    // --- END FIX ---
 
+    // --- FIX: Apply Global Status and Note values ---
     if (imBatchGlobalStatus.value) statusSelect.value = imBatchGlobalStatus.value;
     if (imBatchGlobalNote.value) noteInput.value = imBatchGlobalNote.value;
+    // --- END FIX ---
 
-    return Promise.resolve();
+    // No need for return Promise.resolve(); anymore
 }
 async function handleBatchGlobalSearch(searchType) {
     const batchPOInput = document.getElementById('im-batch-po-input');
@@ -2336,9 +2397,18 @@ async function handleSaveBatchInvoices() {
         };
 
         invoiceData.releaseDate = getTodayDateString();
-        const attentionSelect = row.querySelector('.choices select[name="attention"]');
-        invoiceData.attention = attentionSelect && attentionSelect.choices ? attentionSelect.choices.getValue(true) : row.querySelector('select[name="attention"]').value;
+        // --- FIX: Get value directly from the stored Choices.js instance ---
+        invoiceData.attention = row.choicesInstance ? row.choicesInstance.getValue(true) : row.querySelector('select[name="attention"]').value;
+        // --- END FIX ---
+
         if (invoiceData.attention === 'None') invoiceData.attention = '';
+        
+        // --- FIX: Clear attention if status is Under Review ---
+        if (invoiceData.status === 'Under Review') {
+            invoiceData.attention = '';
+        }
+        // --- END FIX ---
+
         if (invoiceData.status === 'With Accounts') invoiceData.attention = '';
         if (!invoiceData.invValue) { alert(`Invoice Value is required for PO ${poNumber}. Cannot proceed.`); return; }
         if (vendor.length > 21) vendor = vendor.substring(0, 21);
@@ -2812,7 +2882,7 @@ function showFinanceSearchResults(payments) {
             <td>${formatFinanceNumber(payment.payment) || ''}</td>
             <td>${formatFinanceDate(payment.datePaid) || ''}</td>
             <td>
-                <button class="btn btn-sm btn-info me-2" data-action="report" data-id="${payment.id}">Report</button>
+                <button class="btn btn-sm btn-info me-2" data-action="report" data-id="${payment.id}">Print Preview</button>
             </td>
         </tr>
     `).join('');
@@ -3240,7 +3310,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     imReportingDownloadCSVButton.addEventListener('click', handleDownloadCSV);
     imDownloadDailyReportButton.addEventListener('click', handleDownloadDailyReport);
     if(imDownloadWithAccountsReportButton) imDownloadWithAccountsReportButton.addEventListener('click', handleDownloadWithAccountsReport);
-    imStatusSelect.addEventListener('change', (e) => { if (e.target.value === 'CEO Approval' && imAttentionSelectChoices) imAttentionSelectChoices.setChoiceByValue('Mr. Hamad'); });
+    
+    // --- FIX: Clears Attention when setting to 'Under Review' or sets to 'Mr. Hamad' for CEO Approval ---
+    imStatusSelect.addEventListener('change', (e) => {
+        if (imAttentionSelectChoices) {
+            if (e.target.value === 'CEO Approval') {
+                imAttentionSelectChoices.setChoiceByValue('Mr. Hamad');
+            } else if (e.target.value === 'Under Review') {
+                imAttentionSelectChoices.removeActiveItems();
+                // We don't need setChoiceByValue('') here as removeActiveItems clears it effectively
+            }
+        }
+    });
+    // --- END FIX ---
+    
     // --- FIX: REMOVED auto-copy for Invoice Value -> Amount To Paid ---
     // imInvValueInput.addEventListener('input', (e) => { imAmountPaidInput.value = e.target.value; });
     settingsForm.addEventListener('submit', handleUpdateSettings);
@@ -3285,7 +3368,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 row.remove();
             }
         });
-        batchTableBody.addEventListener('input', (e) => { if (e.target.getAttribute('name') === 'invValue') { const row = e.target.closest('tr'); if (row) { const amountPaidInput = row.querySelector('[name="amountPaid"]'); if (amountPaidInput) amountPaidInput.value = e.target.value; } } });
+        // --- FIX: REMOVED auto-copy for Invoice Value -> Amount To Paid in Batch ---
+        // batchTableBody.addEventListener('input', (e) => { if (e.target.getAttribute('name') === 'invValue') { const row = e.target.closest('tr'); if (row) { const amountPaidInput = row.querySelector('[name="amountPaid"]'); if (amountPaidInput) amountPaidInput.value = e.target.value; } } });
     }
     if (imBatchSearchExistingButton) imBatchSearchExistingButton.addEventListener('click', () => { if(imBatchSearchModal) imBatchSearchModal.classList.remove('hidden'); document.getElementById('im-batch-modal-results').innerHTML = '<p>Enter a PO number to see its invoices.</p>'; document.getElementById('im-batch-modal-po-input').value = ''; });
     if (imBatchSearchModal) {
@@ -3297,15 +3381,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Batch Global Field Listeners
     if (imBatchGlobalAttention) {
-        // --- FIX: Correctly find row.choicesInstance ---
-        imBatchGlobalAttention.addEventListener('change', (e) => {
-            if (!imBatchGlobalAttentionChoices) return; // Add check
-            const newValue = imBatchGlobalAttentionChoices.getValue(true);
+        // --- FIX: Corrected Logic ---
+        imBatchGlobalAttention.addEventListener('change', () => { // No need for event 'e'
+            if (!imBatchGlobalAttentionChoices) return;
+            const selectedValue = imBatchGlobalAttentionChoices.getValue(true); 
+            
+            // setValue expects an array of strings. Handle null/empty case too.
+            const valueToSet = selectedValue ? [selectedValue] : []; 
+            
             const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
             rows.forEach(row => {
-                const choicesInstance = row.choicesInstance; // <-- FIX: Use stored instance
-                if (choicesInstance) {
-                    choicesInstance.setValue(newValue);
+                if (row.choicesInstance) {
+                    row.choicesInstance.setValue(valueToSet); // Use Choices API to set value
                 }
             });
         });
@@ -3313,7 +3400,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (imBatchGlobalStatus) {
         imBatchGlobalStatus.addEventListener('change', (e) => {
             const newValue = e.target.value;
-            if (!newValue) return;
+            // No need for 'if (!newValue) return;' - allowing blank selection is valid
             const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
             rows.forEach(row => {
                 row.querySelector('select[name="status"]').value = newValue;
@@ -3321,16 +3408,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
     if (imBatchGlobalNote) {
+         // --- FIX: Update on 'Enter' key press AND on 'blur' (losing focus) ---
+         const updateNotes = (newValue) => {
+             const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
+             rows.forEach(row => {
+                 row.querySelector('input[name="note"]').value = newValue;
+             });
+         };
          imBatchGlobalNote.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                e.preventDefault();
-                const newValue = e.target.value;
-                const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
-                rows.forEach(row => {
-                    row.querySelector('input[name="note"]').value = newValue;
-                });
+                e.preventDefault(); // Prevent form submission if applicable
+                updateNotes(e.target.value); // Get current value on Enter
             }
         });
+         imBatchGlobalNote.addEventListener('blur', (e) => {
+             updateNotes(e.target.value); // Update when focus leaves the input
+         });
     }
 
     // Refresh Button Listeners
@@ -3382,7 +3475,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         imPaymentModalAddSelectedBtn.addEventListener('click', handleAddSelectedToPayments);
     }
     if (imSavePaymentsButton) {
-        imSavePaymentsButton.addEventListener('click', handleSavePayments); // Corrected function name
+        imSavePaymentsButton.addEventListener('click', handleSavePayments);
     }
     // Listener to remove items from the payment table
     if (imPaymentsTableBody) {
