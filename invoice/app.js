@@ -13,7 +13,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// Payments DB
+// Payments DB (For Finance Report)
 const paymentFirebaseConfig = {
   apiKey: "AIzaSyAt0fLWcfgGAWV4yiu4mfhc3xQ5ycolgnU",
   authDomain: "payment-report-23bda.firebaseapp.com",
@@ -159,6 +159,36 @@ const imPaymentModalSearchBtn = document.getElementById('im-payment-modal-search
 const imPaymentModalResults = document.getElementById('im-payment-modal-results');
 const imPaymentModalAddSelectedBtn = document.getElementById('im-payment-modal-add-selected-btn');
 
+// ++ NEW: Finance Report Section References ++
+const imFinanceReportNavLink = document.getElementById('im-finance-report-nav-link');
+const imFinanceReportSection = document.getElementById('im-finance-report');
+const imFinanceSearchPoInput = document.getElementById('im-finance-search-po');
+const imFinanceSearchBtn = document.getElementById('im-finance-search-btn');
+const imFinanceClearBtn = document.getElementById('im-finance-clear-btn');
+const imFinanceResults = document.getElementById('im-finance-results');
+const imFinanceNoResults = document.getElementById('im-finance-no-results');
+const imFinanceResultsBody = document.getElementById('im-finance-results-body');
+const imFinanceReportModal = document.getElementById('im-finance-report-modal');
+const imFinancePrintReportBtn = document.getElementById('im-finance-print-report-btn');
+const imFinanceReportPrintableArea = document.getElementById('im-finance-report-printable-area');
+// Finance Report Modal Content IDs
+const imReportDate = document.getElementById('im-reportDate');
+const imReportPoNo = document.getElementById('im-reportPoNo');
+const imReportProject = document.getElementById('im-reportProject');
+const imReportVendorId = document.getElementById('im-reportVendorId');
+const imReportVendorName = document.getElementById('im-reportVendorName');
+const imReportTotalPoValue = document.getElementById('im-reportTotalPoValue');
+const imReportTotalCertified = document.getElementById('im-reportTotalCertified');
+const imReportTotalPrevPayment = document.getElementById('im-reportTotalPrevPayment');
+const imReportTotalCommitted = document.getElementById('im-reportTotalCommitted');
+const imReportTotalRetention = document.getElementById('im-reportTotalRetention');
+const imReportTableBody = document.getElementById('im-reportTableBody');
+const imReportTotalCertifiedAmount = document.getElementById('im-reportTotalCertifiedAmount');
+const imReportTotalRetentionAmount = document.getElementById('im-reportTotalRetentionAmount');
+const imReportTotalPaymentAmount = document.getElementById('im-reportTotalPaymentAmount');
+const imReportNotesSection = document.getElementById('im-reportNotesSection');
+const imReportNotesContent = document.getElementById('im-reportNotesContent');
+
 
 // SUMMARY NOTE REFERENCES
 const summaryNotePreviousInput = document.getElementById('summary-note-previous-input');
@@ -196,6 +226,9 @@ let imStatusBarChart = null; // Variable for the chart instance
 let approverListForSelect = [];
 let allUniqueNotes = new Set();
 let invoicesToPay = {}; // ++ NEW: To store invoices added to the Payments table
+
+// ++ NEW: Finance Report State ++
+let imFinanceAllPaymentsData = {};
 
 // OPTIMIZED CACHE VARIABLES WITH TIMESTAMPS
 let allPOData = null;
@@ -260,8 +293,10 @@ function handleSuccessfulLogin() {
 
     const financeReportButton = document.querySelector('a[href="https://ibaport.site/Finance/"]');
     if (financeReportButton) {
-        const isAdmin = currentApprover && currentApprover.Role && currentApprover.Role.toLowerCase() === 'admin';
-        financeReportButton.classList.toggle('hidden', !isAdmin);
+        // ++ MODIFIED: Show for "Accounts" or "Accounting"
+        const userPositionLower = (currentApprover?.Position || '').toLowerCase();
+        const isAccountsOrAccounting = userPositionLower === 'accounts' || userPositionLower === 'accounting';
+        financeReportButton.classList.toggle('hidden', !isAccountsOrAccounting);
     }
 }
 function showWorkdeskSection(sectionId) {
@@ -390,6 +425,62 @@ function formatCurrency(value) {
         maximumFractionDigits: 2
     });
 }
+
+// ++ NEW: Helper functions for Finance Report (copied from finance report app.js) ++
+function formatFinanceNumber(value) {
+  if (value === undefined || value === null || value === '') return '';
+  const num = parseFloat(String(value).replace(/,/g, ''));
+  return isNaN(num) ? value : num.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
+function formatFinanceDate(dateStr) {
+  if (!dateStr || String(dateStr).trim() === '') return '';
+  
+  const parts = String(dateStr).split('-');
+  // Expects YYYY-MM-DD
+  if (parts.length !== 3 || dateStr.length !== 10) {
+     return dateStr; // Return as-is if not in expected format
+  }
+
+  try {
+    const year = parseInt(parts[0], 10);
+    const monthIndex = parseInt(parts[1], 10) - 1; // Date object month is 0-indexed
+    const day = parseInt(parts[2], 10);
+
+    const date = new Date(year, monthIndex, day);
+
+    // Check for invalid date
+    if (isNaN(date.getTime())) return dateStr;
+    
+    // Re-check if the constructed date matches, to catch invalid inputs like "2025-02-30"
+    if (date.getDate() !== day || date.getMonth() !== monthIndex || date.getFullYear() !== year) {
+        return dateStr;
+    }
+
+    const dayFormatted = date.getDate().toString().padStart(2, '0');
+    const monthFormatted = date.toLocaleString('default', { month: 'short' }).toUpperCase();
+    const yearFormatted = date.getFullYear();
+    
+    return `${dayFormatted}-${monthFormatted}-${yearFormatted}`;
+  } catch (e) {
+    return dateStr; // Fallback
+  }
+}
+
+function formatFinanceDateLong(dateStr) {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr;
+  const day = date.getDate();
+  const month = date.toLocaleString('default', { month: 'long' });
+  const year = date.getFullYear();
+  return `${day}-${month}-${year}`;
+}
+// ++ END of new helper functions ++
+
 
 function numberToWords(num) {
     const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
@@ -1360,7 +1451,6 @@ async function handleUpdateSettings(e) {
     }
 }
 
-
 // --- INVOICE MANAGEMENT FUNCTIONS ---
 function updateIMDateTime() {
     const now = new Date();
@@ -1373,14 +1463,17 @@ function updateIMDateTime() {
 function showIMSection(sectionId) {
     // ++ Access Control Check ++
     const userPositionLower = (currentApprover?.Position || '').toLowerCase();
-    const isAccountingAdmin = userPositionLower === 'accounting' && (currentApprover?.Role || '').toLowerCase() === 'admin';
+    const userRoleLower = (currentApprover?.Role || '').toLowerCase();
+    const isAccountingAdmin = userPositionLower === 'accounting' && userRoleLower === 'admin';
     const isAccountsOrAccounting = userPositionLower === 'accounts' || userPositionLower === 'accounting';
 
-    // Block access based on role
+    // ++ MODIFIED: Block access based on role
     if (sectionId === 'im-invoice-entry' && !isAccountingAdmin) { alert('Access Denied: Requires Accounting Admin position.'); return; }
     if (sectionId === 'im-batch-entry' && !isAccountingAdmin) { alert('Access Denied: Requires Accounting Admin position.'); return; }
     if (sectionId === 'im-summary-note' && !isAccountingAdmin) { alert('Access Denied: Requires Accounting Admin position.'); return; }
     if (sectionId === 'im-payments' && !isAccountsOrAccounting) { alert('Access Denied: Requires Accounts or Accounting position.'); return; }
+    // ++ NEW: Block access for Finance Report
+    if (sectionId === 'im-finance-report' && userRoleLower !== 'admin') { alert('Access Denied: Requires Admin role.'); return; }
 
 
     imContentArea.querySelectorAll('.workdesk-section').forEach(section => section.classList.add('hidden'));
@@ -1415,6 +1508,13 @@ function showIMSection(sectionId) {
     if (sectionId === 'im-payments') {
         imPaymentsTableBody.innerHTML = ''; // Clear table on view change
         invoicesToPay = {}; // Reset state
+    }
+    // ++ NEW: Initialize Finance Report Section ++
+    if (sectionId === 'im-finance-report') {
+        imFinanceSearchPoInput.value = '';
+        imFinanceResults.style.display = 'none';
+        imFinanceNoResults.style.display = 'none';
+        imFinanceAllPaymentsData = {};
     }
 }
 function resetInvoiceForm() {
@@ -1593,6 +1693,7 @@ function populateInvoiceFormForEditing(invoiceKey) {
     imUpdateInvoiceButton.classList.remove('hidden');
     window.scrollTo(0, imNewInvoiceForm.offsetTop);
 }
+
 async function handleAddInvoice(e) {
     e.preventDefault();
     if (!currentPO) { alert('No PO is loaded. Please search for a PO first.'); return; }
@@ -2535,6 +2636,216 @@ async function handleSavePayments() {
 }
 
 
+// ++ NEW: Functions for read-only Finance Report section ++
+function handleFinanceSearch() {
+    const poNo = imFinanceSearchPoInput.value.trim();
+    if (!poNo) {
+        alert('Please enter a PO No. to search');
+        return;
+    }
+
+    paymentDb.ref('payments').orderByChild('poNo').equalTo(poNo).once('value')
+        .then(snapshot => {
+            imFinanceResults.style.display = 'block';
+            imFinanceResultsBody.innerHTML = '';
+
+            if (!snapshot.exists()) {
+                imFinanceNoResults.style.display = 'block';
+            } else {
+                imFinanceNoResults.style.display = 'none';
+                imFinanceAllPaymentsData = {};
+                snapshot.forEach(childSnapshot => {
+                    imFinanceAllPaymentsData[childSnapshot.key] = { id: childSnapshot.key, ...childSnapshot.val() };
+                });
+                showFinanceSearchResults(Object.values(imFinanceAllPaymentsData));
+            }
+        })
+        .catch(error => console.error('Error searching payments:', error));
+}
+
+function showFinanceSearchResults(payments) {
+    imFinanceResultsBody.innerHTML = '';
+    if (payments.length === 0) return;
+
+    const firstPayment = payments[0];
+    const { site, vendor, vendorId, poNo, poValue } = firstPayment;
+
+    const summaryHtml = `
+        <table class="po-summary-table">
+            <thead>
+                <tr>
+                    <th>Site</th>
+                    <th>Vendor</th>
+                    <th>Vendor ID</th>
+                    <th>PO No.</th>
+                    <th>PO Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>${site || ''}</td>
+                    <td>${vendor || ''}</td>
+                    <td>${vendorId || ''}</td>
+                    <td>${poNo || ''}</td>
+                    <td>${formatFinanceNumber(poValue) || ''}</td>
+                </tr>
+            </tbody>
+        </table>
+    `;
+
+    const paymentRowsHtml = payments.map(payment => `
+        <tr>
+            <td>${formatFinanceDate(payment.dateEntered) || ''}</td>
+            <td>${payment.paymentNo || ''}</td>
+            <td>${payment.chequeNo || ''}</td>
+            <td>${formatFinanceNumber(payment.certifiedAmount) || ''}</td>
+            <td>${formatFinanceNumber(payment.retention) || ''}</td>
+            <td>${formatFinanceNumber(payment.payment) || ''}</td>
+            <td>${formatFinanceDate(payment.datePaid) || ''}</td>
+            <td>
+                <button class="btn btn-sm btn-info me-2" data-action="report" data-id="${payment.id}">Report</button>
+            </td>
+        </tr>
+    `).join('');
+
+    const detailsHtml = `
+        <div class="payment-details-wrapper">
+            <h6 class="payment-details-header">Invoice Entries for PO ${poNo}</h6>
+            <div class="table-responsive">
+                <table class="table payment-details-table">
+                    <thead>
+                        <tr>
+                            <th>Date Entered</th>
+                            <th>Payment No.</th>
+                            <th>Cheque No.</th>
+                            <th>Certified Amount</th>
+                            <th>Retention</th>
+                            <th>Payment</th>
+                            <th>Date Paid</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${paymentRowsHtml}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+
+    imFinanceResultsBody.innerHTML = summaryHtml + detailsHtml;
+}
+
+function handleFinanceActionClick(e) {
+    const target = e.target.closest('button');
+    if (!target) return;
+
+    const action = target.dataset.action;
+    const id = target.dataset.id;
+    const payment = imFinanceAllPaymentsData[id];
+
+    if (!action || !id || !payment) return;
+
+    if (action === 'report') {
+        generateFinanceReport(payment);
+    }
+}
+
+function resetFinanceSearch() {
+    imFinanceSearchPoInput.value = '';
+    imFinanceResults.style.display = 'none';
+    imFinanceNoResults.style.display = 'none';
+    imFinanceResultsBody.innerHTML = '';
+    imFinanceAllPaymentsData = {};
+}
+
+async function generateFinanceReport(selectedPayment) {
+    const poNo = selectedPayment.poNo;
+    if (!poNo) return;
+    try {
+        const snapshot = await paymentDb.ref('payments').orderByChild('poNo').equalTo(poNo).once('value');
+        if (!snapshot.exists()) {
+            alert('No payments found for this PO No.');
+            return;
+        }
+        const payments = [];
+        snapshot.forEach(childSnapshot => {
+            payments.push(childSnapshot.val());
+        });
+        payments.sort((a, b) => {
+            const aNum = parseInt(String(a.paymentNo).replace('PVN-', ''));
+            const bNum = parseInt(String(b.paymentNo).replace('PVN-', ''));
+            return (isNaN(aNum) ? 0 : aNum) - (isNaN(bNum) ? 0 : bNum);
+        });
+        let totalCertified = 0, totalRetention = 0, totalPayment = 0, totalPrevPayment = 0;
+        let allNotes = [];
+
+        payments.forEach(payment => {
+            const certified = parseFloat(payment.certifiedAmount || 0);
+            const retention = parseFloat(payment.retention || 0);
+            const paymentAmount = parseFloat(payment.payment || 0);
+
+            totalCertified += certified;
+            totalRetention += retention;
+            totalPayment += paymentAmount;
+
+            if (payment.datePaid && String(payment.datePaid).trim() !== '') {
+                totalPrevPayment += paymentAmount;
+            }
+            if (payment.note && String(payment.note).trim() !== '') {
+                allNotes.push(`${String(payment.note).trim()}`);
+            }
+        });
+
+        const totalCommitted = parseFloat(selectedPayment.poValue || 0) - totalCertified;
+        imReportDate.textContent = formatFinanceDateLong(new Date().toISOString());
+        imReportPoNo.textContent = poNo;
+        imReportProject.textContent = selectedPayment.site || '';
+        imReportVendorId.textContent = selectedPayment.vendorId || '';
+        imReportVendorName.textContent = selectedPayment.vendor || '';
+        imReportTotalPoValue.textContent = formatFinanceNumber(selectedPayment.poValue);
+        imReportTotalCertified.textContent = formatFinanceNumber(totalCertified);
+        imReportTotalPrevPayment.textContent = formatFinanceNumber(totalPrevPayment);
+        imReportTotalCommitted.textContent = formatFinanceNumber(totalCommitted);
+        imReportTotalRetention.textContent = formatFinanceNumber(totalRetention);
+        
+        imReportTableBody.innerHTML = '';
+        payments.forEach(payment => {
+            const row = document.createElement('tr');
+            const pvn = payment.paymentNo ? String(payment.paymentNo).replace('PVN-', '') : '';
+            row.innerHTML = `
+                <td>${pvn}</td>
+                <td>${payment.chequeNo || ''}</td>
+                <td>${formatFinanceNumber(payment.certifiedAmount)}</td>
+                <td>${formatFinanceNumber(payment.retention)}</td>
+                <td>${formatFinanceNumber(payment.payment)}</td>
+                <td>${payment.datePaid ? formatFinanceDate(payment.datePaid) : ''}</td>`;
+            imReportTableBody.appendChild(row);
+        });
+        
+        imReportTotalCertifiedAmount.textContent = formatFinanceNumber(totalCertified);
+        imReportTotalRetentionAmount.textContent = formatFinanceNumber(totalRetention);
+        imReportTotalPaymentAmount.textContent = formatFinanceNumber(totalPayment);
+        
+        if (allNotes.length > 0) {
+            imReportNotesContent.textContent = allNotes.join('\n');
+            imReportNotesSection.style.display = 'block';
+        } else {
+            imReportNotesContent.textContent = '';
+            imReportNotesSection.style.display = 'none';
+        }
+
+        imFinanceReportModal.classList.remove('hidden');
+    } catch (error) {
+        console.error('Error generating finance report:', error);
+    }
+}
+
+function printFinanceReport() {
+    // Just call the browser's print function. CSS will handle the rest.
+    window.print();
+}
+
 // LOGOUT FUNCTION
 function handleLogout() {
     sessionStorage.clear(); // Clear all session data on logout
@@ -2582,9 +2893,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         wdUsername.textContent = currentApprover.Name || 'User';
         wdUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile;
 
-        // Show IM link only if position is Accounting or Accounts
-        const userPositionLowerWD = (currentApprover.Position || '').toLowerCase();
-        workdeskIMLinkContainer.classList.toggle('hidden', !(userPositionLowerWD === 'accounting' || userPositionLowerWD === 'accounts'));
+        // ++ MODIFIED: Show IM link for everyone ++
+        workdeskIMLinkContainer.classList.remove('hidden');
 
 
         if (!siteSelectChoices) {
@@ -2675,20 +2985,49 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // ++ UPDATED Access Control Logic ++
         const userPositionLower = (currentApprover.Position || '').toLowerCase();
-        const isAdmin = (currentApprover.Role || '').toLowerCase() === 'admin';
-        const isAccountingAdmin = userPositionLower === 'accounting' && isAdmin;
+        const userRoleLower = (currentApprover.Role || '').toLowerCase();
+        const isAccountingAdmin = userPositionLower === 'accounting' && userRoleLower === 'admin';
         const isAccountsOrAccounting = userPositionLower === 'accounts' || userPositionLower === 'accounting';
+        const isAdmin = userRoleLower === 'admin';
 
-        // Set visibility/disabled state based on new rules
-        imNav.querySelector('a[data-section="im-invoice-entry"]').classList.toggle('disabled', !isAccountingAdmin);
-        imNav.querySelector('a[data-section="im-batch-entry"]').classList.toggle('disabled', !isAccountingAdmin);
-        const summaryNoteLink = imNav.querySelector('a[data-section="im-summary-note"]');
-        if (summaryNoteLink) summaryNoteLink.classList.toggle('disabled', !isAccountingAdmin);
-        paymentsNavLink.classList.toggle('hidden', !isAccountsOrAccounting); // Show/Hide Payments link
+        // **** START: ADD THESE LOGS ****
+        console.log("--- Invoice Management Button Clicked ---");
+        console.log("Current Approver Role (raw):", currentApprover.Role);
+        console.log("Current Approver Role (lowercase):", userRoleLower);
+        console.log("isAdmin variable:", isAdmin);
+        // **** END: ADD THESE LOGS ****
 
-        // Show/Hide WorkDesk/ActiveTask links in IM sidebar (only for Accounting/Accounts)
-        document.getElementById('im-nav-workdesk').classList.toggle('hidden', !isAccountsOrAccounting);
-        document.getElementById('im-nav-activetask').classList.toggle('hidden', !isAccountsOrAccounting);
+        // ++ MODIFIED: Set visibility based on new rules (HIDE, not disable)
+        const imNavLinks = imNav.querySelectorAll('li');
+        console.log("Found nav links:", imNavLinks.length); // Add this log too
+
+        imNavLinks.forEach(li => {
+            const link = li.querySelector('a');
+             if (!link) {
+                console.log("Skipping li with no link"); // Add this log
+                return;
+            }
+            
+            const section = link.dataset.section;
+            console.log("Processing nav link for section:", section); // Add this log
+
+            if (section === 'im-invoice-entry' || section === 'im-batch-entry' || section === 'im-summary-note') {
+                li.style.display = isAccountingAdmin ? '' : 'none';
+            }
+            if (section === 'im-payments') {
+                li.style.display = isAccountsOrAccounting ? '' : 'none';
+            }
+            if (section === 'im-finance-report') {
+                console.log("Checking visibility for Finance Report. isAdmin:", isAdmin); // Add this log
+                li.style.display = isAdmin ? '' : 'none';
+                console.log("Finance Report li display set to:", li.style.display); // Add this log
+            }
+        });
+
+        // ++ MODIFIED: Show WorkDesk/ActiveTask links in IM sidebar for everyone ++
+        console.log("Setting WorkDesk/ActiveTask shortcuts visible"); // Add this log
+        document.getElementById('im-nav-workdesk').classList.remove('hidden');
+        document.getElementById('im-nav-activetask').classList.remove('hidden');
 
 
         imReportingDownloadCSVButton.disabled = !isAccountingAdmin;
@@ -2816,10 +3155,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ++ NEW: Universal modal close button listener ++
     document.body.addEventListener('click', (e) => {
         if (e.target.matches('.modal-close-btn')) {
-            const modalId = e.target.dataset.modalId || e.target.closest('.modal-overlay')?.id; // Added optional chaining
-            if (modalId) {
-                 const modalElement = document.getElementById(modalId);
-                 if (modalElement) modalElement.classList.add('hidden');
+            const modal = e.target.closest('.modal-overlay');
+            if (modal) {
+                modal.classList.add('hidden');
             }
         }
     });
@@ -2945,6 +3283,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     }
+    
+    // ++ NEW: Finance Report Listeners ++
+    if (imFinanceSearchBtn) imFinanceSearchBtn.addEventListener('click', handleFinanceSearch);
+    if (imFinanceClearBtn) imFinanceClearBtn.addEventListener('click', resetFinanceSearch);
+    if (imFinanceSearchPoInput) imFinanceSearchPoInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleFinanceSearch(); });
+    if (imFinanceResultsBody) imFinanceResultsBody.addEventListener('click', handleFinanceActionClick);
+    if (imFinancePrintReportBtn) imFinancePrintReportBtn.addEventListener('click', printFinanceReport);
+
 
 }); // End DOMContentLoaded
-

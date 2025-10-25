@@ -369,6 +369,7 @@
                     <li><a href="#" id="summary-note-nav-link" data-section="im-summary-note"><i class="fa-solid fa-receipt"></i> Summary Note</a></li>
                     <li><a href="#" data-section="im-reporting"><i class="fa-solid fa-chart-line"></i> Reporting</a></li>
                     <li><a href="#" id="payments-nav-link" data-section="im-payments" class="hidden"><i class="fa-solid fa-money-check-dollar"></i> Payments</a></li>
+                    <li><a href="#" id="im-finance-report-nav-link" data-section="im-finance-report"><i class="fa-solid fa-building-columns"></i> Finance Report</a></li>
                 </ul>
             </nav>
             <div class="workdesk-footer-nav">
@@ -727,6 +728,29 @@
                     </div>
                 </section>
 
+                <section id="im-finance-report" class="workdesk-section hidden">
+                    <h1>Finance Report (Read-Only)</h1>
+                    <p>Search for payments from the finance database. This is a read-only view.</p>
+                    <div class="search-and-filter-group" style="max-width: 600px; margin-bottom: 20px;">
+                        <div class="search-bar-local" style="margin-bottom: 0;">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="im-finance-search-po" placeholder="Enter PO No. to search...">
+                        </div>
+                        <button class="form-buttons-container" id="im-finance-search-btn" type="button">Search</button>
+                        <button class="form-buttons-container secondary-btn" id="im-finance-clear-btn" type="button">Clear</button>
+                    </div>
+                    
+                    <div id="im-finance-results" style="display: none;">
+                        <div class="form-container" style="padding:0; box-shadow: none; background: none;">
+                            <div id="im-finance-no-results" style="display: none; padding: 15px; background-color: #fff3cd; border-radius: 6px;">
+                                No payments found for this PO No.
+                            </div>
+                            <div id="im-finance-results-body"></div>
+                        </div>
+                    </div>
+                </section>
+
+
             </div>
         </main>
     </div>
@@ -794,6 +818,98 @@
             <div class="modal-footer">
                 <button id="im-payment-modal-add-selected-btn" class="download-btn"><i class="fa-solid fa-plus"></i> Add Selected to Payment List</button>
                 <button class="secondary-btn modal-close-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="im-finance-report-modal" class="modal-overlay hidden">
+        <div class="modal-container" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2>Payment Certificate</h2>
+                <button class="modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-content" style="max-height: 70vh; overflow-y: auto;">
+                <div id="im-finance-report-printable-area">
+                    <div class_ ="report-header">
+                        <h3>IBA</h3>
+                        <h4>شركة/سماعيل بن علي للتجارة والمقاولات</h4>
+                        <h4>ISMAIL BIN ALITRADING & CONT. CO. W.L. L</h4>
+                    </div>
+                    
+                    <div class="report-details">
+                        <div class="report-details-col">
+                            <p><strong>Date:</strong> <span id="im-reportDate"></span></p>
+                            <p><strong>LPO No:</strong> <span id="im-reportPoNo"></span></p>
+                            <p><strong>Project:</strong> <span id="im-reportProject"></span></p>
+                        </div>
+                        <div class="report-details-col">
+                            <p><strong>Vendor No:</strong> <span id="im-reportVendorId"></span></p>
+                            <p><strong>Vendor Name:</strong> <span id="im-reportVendorName"></span></p>
+                            <p><strong>Total PO Value:</strong> <span id="im-reportTotalPoValue"></span></p>
+                        </div>
+                    </div>
+                    
+                    <div class="report-summary">
+                        <div class="report-summary-col">
+                            <p><strong>Total Certificate Cost:</strong> <span id="im-reportTotalCertified"></span></p>
+                            <p><strong>Total Previous Payment:</strong> <span id="im-reportTotalPrevPayment"></span></p>
+                        </div>
+                        <div class="report-summary-col">
+                            <p><strong>Total Commited Cost:</strong> <span id="im-reportTotalCommitted"></span></p>
+                            <p><strong>Total Retention To Date:</strong> <span id="im-reportTotalRetention"></span></p>
+                        </div>
+                    </div>
+                    
+                    <div class="table-wrapper">
+                        <table class="nested-invoice-table" style="border: 1px solid #dee2e6;">
+                            <thead style="background-color: #343a40; color: white;">
+                                <tr>
+                                    <th>P/N</th>
+                                    <th>Cheque No.</th>
+                                    <th>CERTIFIED AMOUNT</th>
+                                    <th>RETENTION</th>
+                                    <th>PAYMENT</th>
+                                    <th>DATE PAID</th>
+                                </tr>
+                            </thead>
+                            <tbody id="im-reportTableBody">
+                                </tbody>
+                            <tfoot>
+                                <tr style="background-color: #e9ecef; font-weight: bold;">
+                                    <td colspan="2" style="text-align: right;">Total Payment:</td>
+                                    <td id="im-reportTotalCertifiedAmount" style="text-align: right; font-family: monospace; padding-right: 15px;"></td>
+                                    <td id="im-reportTotalRetentionAmount" style="text-align: right; font-family: monospace; padding-right: 15px;"></td>
+                                    <td id="im-reportTotalPaymentAmount" style="text-align: right; font-family: monospace; padding-right: 15px;"></td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    
+                    <div class="signatures" style="display: flex; justify-content: space-between; margin-top: 60px; padding-top: 20px;">
+                        <div class="signature-box" style="text-align: center; width: 30%;">
+                            <p>Prepared By</p>
+                            <div class="signature-line" style="border-top: 1px solid #000; margin-top: 40px; padding-top: 10px; display: inline-block; width: 80%;"></div>
+                        </div>
+                        <div class="signature-box" style="text-align: center; width: 30%;">
+                            <p>Finance</p>
+                            <div class="signature-line" style="border-top: 1px solid #000; margin-top: 40px; padding-top: 10px; display: inline-block; width: 80%;"></div>
+                        </div>
+                        <div class="signature-box" style="text-align: center; width: 30%;">
+                            <p>CEO</p>
+                            <div class="signature-line" style="border-top: 1px solid #000; margin-top: 40px; padding-top: 10px; display: inline-block; width: 80%;"></div>
+                        </div>
+                    </div>
+                    
+                    <div id="im-reportNotesSection" style="display: none; margin-top: 40px;">
+                        <h5 style="font-weight: bold;">Notes:</h5>
+                        <div id="im-reportNotesContent" style="white-space: pre-wrap; font-size: 12pt; padding: 10px; border: 1px solid #ddd; background: #f9f9f9; border-radius: 5px; min-height: 50px;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="secondary-btn modal-close-btn">Close</button>
+                <button class="print-btn" id="im-finance-print-report-btn"><i class="fa-solid fa-print"></i> Print Report</button>
             </div>
         </div>
     </div>
