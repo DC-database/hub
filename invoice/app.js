@@ -1555,7 +1555,7 @@ function resetInvoiceEntryPage() {
     resetInvoiceForm();
 }
 
-// --- NEW, EFFICIENT handlePOSearch ---
+// --- MODIFIED handlePOSearch ---
 async function handlePOSearch() {
     const poNumber = imPOSearchInput.value.trim().toUpperCase();
     if (!poNumber) {
@@ -1587,14 +1587,21 @@ async function handlePOSearch() {
         allInvoiceData[poNumber] = invoicesData || {};
 
         currentPO = poNumber;
-        imPONo.textContent = poNumber;
-        imPOSite.textContent = poData['Project ID'] || 'N/A';
-
         const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
         const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
-        imPOValue.textContent = (isAdmin || isAccounting) ? (poData.Amount ? `QAR ${formatCurrency(poData.Amount)}` : 'N/A') : '---'; // Show value for Admin or Accounting
-        imPOVendor.textContent = poData['Supplier Name'] || 'N/A';
-        imPODetailsContainer.classList.remove('hidden');
+        const poValueText = (isAdmin || isAccounting) ? (poData.Amount ? `QAR ${formatCurrency(poData.Amount)}` : 'N/A') : '---'; // Show value for Admin or Accounting
+        const siteText = poData['Project ID'] || 'N/A';
+        const vendorText = poData['Supplier Name'] || 'N/A';
+
+        // --- MODIFICATION: Update ALL matching elements ---
+        // This will now update both the top bar and the one above "Existing Invoices"
+        document.querySelectorAll('.im-po-no').forEach(el => el.textContent = poNumber);
+        document.querySelectorAll('.im-po-site').forEach(el => el.textContent = siteText);
+        document.querySelectorAll('.im-po-value').forEach(el => el.textContent = poValueText);
+        document.querySelectorAll('.im-po-vendor').forEach(el => el.textContent = vendorText);
+        
+        document.querySelectorAll('.im-po-details-container').forEach(el => el.classList.remove('hidden'));
+        // --- END OF MODIFICATION ---
 
         fetchAndDisplayInvoices(poNumber);
 
@@ -3029,7 +3036,7 @@ function printFinanceReport() {
 function handleLogout() {
     sessionStorage.clear(); // Clear all session data on logout
     if (dateTimeInterval) clearInterval(dateTimeInterval);
-    if (workdeskDateTimeInterval) clearInterval(workdeskDateTimeInterval);
+    if (workdeskDateTimeInterval) clearInterval(workBdeskDateTimeInterval);
     if (imDateTimeInterval) clearInterval(imDateTimeInterval);
     location.reload();
 }

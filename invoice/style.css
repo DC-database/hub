@@ -194,14 +194,15 @@ tbody tr:hover { background-color: #f1f1f1; }
 .card-value { font-size: 2rem; font-weight: bold; color: #333; display: block; }
 .card-label { font-size: 0.9rem; color: #555; }
 
-#im-po-details-container {
+/* MODIFIED: Changed ID to Class */
+.im-po-details-container {
     background-color: #ffffe0;
     padding: 15px 20px;
     border: 1px solid #e0e0e0;
     border-radius: 8px;
     margin-bottom: 20px;
 }
-#im-po-details-container h2 { display: none; }
+.im-po-details-container h2 { display: none; }
 .po-details-grid {
     display: flex;
     flex-wrap: wrap;
@@ -907,6 +908,14 @@ tbody tr:hover { background-color: #f1f1f1; }
 
     /* NEW: Ensure Finance Report specific elements stack correctly */
     #im-finance-report .search-and-filter-group { flex-direction: column; align-items: stretch; }
+
+    /* NEW: Adjust 4-column grid for mobile */
+    .form-grid-4col { grid-template-columns: 1fr 1fr; } /* Stack into 2 columns */
+    #im-new-invoice-form .form-group textarea#im-note {
+        width: 100%; /* Take full width */
+        float: none;
+        margin-right: 0;
+    }
 }
 
 /* +++ CACHE STATUS INDICATOR +++ */
@@ -927,4 +936,28 @@ tbody tr:hover { background-color: #f1f1f1; }
 
 .cache-status.refreshing {
     border-left-color: #17a2b8;
+}
+
+/* Style for sidebar navigation separator */
+.workdesk-navigation li.nav-section-divider {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #003366; /* Sidebar separator color */
+}
+
+/* ++ NEW: 4-Column Grid Layout for Invoice Entry Form ++ */
+.form-grid-4col {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr); /* Create 4 equal columns */
+    gap: 15px 25px; /* Row gap and Column gap */
+    align-items: end; /* Align items to the bottom */
+}
+
+.form-grid-4col .form-group {
+    margin-bottom: 0; /* Remove default bottom margin inside grid */
+}
+
+/* Optional: Adjust Note textarea position if needed */
+#im-new-invoice-form .form-group textarea#im-note {
+   /* Adjustments can go here if needed */
 }

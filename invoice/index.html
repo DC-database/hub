@@ -368,7 +368,9 @@
                     <li><a href="#" id="batch-entry-nav-link" data-section="im-batch-entry"><i class="fa-solid fa-file-excel"></i> Batch Entry</a></li>
                     <li><a href="#" id="summary-note-nav-link" data-section="im-summary-note"><i class="fa-solid fa-receipt"></i> Summary Note</a></li>
                     <li><a href="#" data-section="im-reporting"><i class="fa-solid fa-chart-line"></i> Reporting</a></li>
-                    <li><a href="#" id="payments-nav-link" data-section="im-payments" class="hidden"><i class="fa-solid fa-money-check-dollar"></i> Payments</a></li>
+
+                    <li class="nav-section-divider"><a href="#" id="payments-nav-link" data-section="im-payments" class="hidden"><i class="fa-solid fa-money-check-dollar"></i> Payments</a></li>
+
                     <li><a href="#" id="im-finance-report-nav-link" data-section="im-finance-report"><i class="fa-solid fa-building-columns"></i> Finance Report</a></li>
                 </ul>
             </nav>
@@ -401,82 +403,79 @@
                         <button id="im-refresh-entry-button" class="secondary-btn" type="button" title="Refresh data from Firebase"><i class="fa-solid fa-sync"></i></button>
                     </div>
 
-                    <div id="im-po-details-container" class="hidden">
+                     <div id="im-po-details-container" class="im-po-details-container hidden">
                         <div class="po-details-grid">
-                           <p><strong>PO No:</strong> <span id="im-po-no"></span></p>
-                           <p><strong>Site:</strong> <span id="im-po-site"></span></p>
-                           <p><strong>PO Value:</strong> <span id="im-po-value"></span></p>
-                           <p><strong>Vendor:</strong> <span id="im-po-vendor"></span></p>
+                           <p><strong>PO No:</strong> <span id="im-po-no" class="im-po-no"></span></p>
+                           <p><strong>Site:</strong> <span id="im-po-site" class="im-po-site"></span></p>
+                           <p><strong>PO Value:</strong> <span id="im-po-value" class="im-po-value"></span></p>
+                           <p><strong>Vendor:</strong> <span id="im-po-vendor" class="im-po-vendor"></span></p>
                         </div>
                     </div>
 
                     <form id="im-new-invoice-form" class="hidden">
                         <hr class="section-divider">
                         <h2 id="im-form-title">Add New Invoice for this PO</h2>
-                        <div class="jobentry-form-2col">
-                            <div class="form-column">
-                                <div class="form-group">
-                                    <label>Invoice Entry ID</label>
-                                    <input type="text" id="im-inv-entry-id" name="invEntryID">
-                                </div>
-                                <div class="form-group">
-                                    <label for="im-inv-no">Invoice No.</label>
-                                    <input type="text" id="im-inv-no" name="invNumber">
-                                </div>
-                                <div class="form-group">
-                                    <label for="im-details">Details</label>
-                                    <input type="text" id="im-details" name="details">
-                                </div>
-                                <div class="form-group">
-                                    <label for="im-invoice-date">Invoice Date</label>
-                                    <input type="date" id="im-invoice-date" name="invoiceDate">
-                                </div>
-                                <div class="form-group">
-                                    <label for="im-inv-value">Invoice Value</label>
-                                    <input type="number" id="im-inv-value" name="invValue" step="0.01">
-                                </div>
-                                <div class="form-group">
-                                    <label for="im-amount-paid">Amount To Paid</label>
-                                    <input type="number" id="im-amount-paid" name="amountPaid" step="0.01" value="0">
-                                </div>
+
+                        <div class="form-grid-4col">
+                            <div class="form-group">
+                                <label>Invoice Entry ID</label>
+                                <input type="text" id="im-inv-entry-id" name="invEntryID">
                             </div>
-                            <div class="form-column">
-                                <div class="form-group">
-                                    <label for="im-inv-name">Invoice Name</label>
-                                    <input type="text" id="im-inv-name" name="invName">
-                                </div>
-                                <div class="form-group">
-                                    <label for="im-srv-name">SRV Name</label>
-                                    <input type="text" id="im-srv-name" name="srvName">
-                                </div>
-                                <div class="form-group">
-                                   <label for="im-attention">Attention</label>
-                                   <select id="im-attention" name="attention"></select>
-                                </div>
-                                <div class="form-group">
-                                    <label for="im-release-date">Release Date</label>
-                                    <input type="date" id="im-release-date" name="releaseDate">
-                                </div>
-                                <div class="form-group">
-                                    <label for="im-status">Status</label>
-                                    <select id="im-status" name="status">
-                                        <option value="For SRV">For SRV</option>
-                                        <option value="Pending">Pending</option>
-                                        <option value="For IPC">For IPC</option>
-                                        <option value="Under Review">Under Review</option>
-                                        <option value="CEO Approval">CEO Approval</option>
-                                        <option value="Report">Report</option>
-                                        <option value="With Accounts">With Accounts</option>
-                                    </select>
-                                </div>
+                            <div class="form-group">
+                                <label for="im-inv-no">Invoice No.</label>
+                                <input type="text" id="im-inv-no" name="invNumber">
                             </div>
+                            <div class="form-group">
+                                <label for="im-invoice-date">Invoice Date</label>
+                                <input type="date" id="im-invoice-date" name="invoiceDate">
+                            </div>
+                            <div class="form-group">
+                                <label for="im-inv-name">Invoice Name</label>
+                                <input type="text" id="im-inv-name" name="invName">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="im-inv-value">Invoice Value</label>
+                                <input type="number" id="im-inv-value" name="invValue" step="0.01">
+                            </div>
+                             <div class="form-group">
+                               <label for="im-attention">Attention</label>
+                               <select id="im-attention" name="attention"></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="im-details">Details</label>
+                                <input type="text" id="im-details" name="details">
+                            </div>
+                             <div class="form-group">
+                                <label for="im-srv-name">SRV Name</label>
+                                <input type="text" id="im-srv-name" name="srvName">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="im-amount-paid">Amount To Paid</label>
+                                <input type="number" id="im-amount-paid" name="amountPaid" step="0.01" value="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="im-status">Status</label>
+                                <select id="im-status" name="status">
+                                    <option value="For SRV">For SRV</option>
+                                    <option value="Pending">Pending</option>
+                                    <option value="For IPC">For IPC</option>
+                                    <option value="Under Review">Under Review</option>
+                                    <option value="CEO Approval">CEO Approval</option>
+                                    <option value="Report">Report</option>
+                                    <option value="With Accounts">With Accounts</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="im-release-date">Release Date</label>
+                                <input type="date" id="im-release-date" name="releaseDate">
+                            </div>
+                            <div class="form-group"> <label for="im-note">Note</label>
+                                 <textarea id="im-note" name="note" rows="2"></textarea> </div>
+
                         </div>
-                        <div class="form-group" style="margin-top: 20px;">
-                            <label for="im-note">Note</label>
-                            <textarea id="im-note" name="note" rows="3" style="width: 100%; font: inherit; padding: 10px; border: 1px solid #ccc; border-radius: 4px;"></textarea>
-                        </div>
-                        <div class="form-buttons-container">
-                            <button type="button" id="im-add-invoice-button">Add Invoice</button>
+                        <div class="form-buttons-container" style="margin-top: 20px;"> <button type="button" id="im-add-invoice-button">Add Invoice</button>
                             <button type="button" id="im-update-invoice-button" class="hidden">Update Invoice</button>
                             <button type="button" id="im-clear-form-button" class="secondary-btn">Clear</button>
                             <button type="button" id="im-back-to-active-task-button" class="secondary-btn hidden">Back to Active Task</button>
@@ -485,6 +484,16 @@
 
                     <div id="im-existing-invoices-container" class="hidden">
                          <hr class="section-divider">
+
+                         <div id="im-po-details-container-duplicate" class="im-po-details-container hidden">
+                            <div class="po-details-grid">
+                               <p><strong>PO No:</strong> <span class="im-po-no"></span></p>
+                               <p><strong>Site:</strong> <span class="im-po-site"></span></p>
+                               <p><strong>PO Value:</strong> <span class="im-po-value"></span></p>
+                               <p><strong>Vendor:</strong> <span class="im-po-vendor"></span></p>
+                            </div>
+                        </div>
+
                         <h2>Existing Invoices for this PO</h2>
                         <div class="table-wrapper">
                             <table>
@@ -740,7 +749,7 @@
                         <button class="form-buttons-container" id="im-finance-search-btn" type="button">Search</button>
                         <button class="form-buttons-container secondary-btn" id="im-finance-clear-btn" type="button">Clear</button>
                     </div>
-                    
+
                     <div id="im-finance-results" style="display: none;">
                         <div class="form-container" style="padding:0; box-shadow: none; background: none;">
                             <div id="im-finance-no-results" style="display: none; padding: 15px; background-color: #fff3cd; border-radius: 6px;">
@@ -836,7 +845,7 @@
                         <h4>شركة/سماعيل بن علي للتجارة والمقاولات</h4>
                         <h4>ISMAIL BIN ALITRADING & CONT. CO. W.L. L</h4>
                     </div>
-                    
+
                     <div class="report-details">
                         <div class="report-details-col">
                             <p><strong>Date:</strong> <span id="im-reportDate"></span></p>
@@ -849,7 +858,7 @@
                             <p><strong>Total PO Value:</strong> <span id="im-reportTotalPoValue"></span></p>
                         </div>
                     </div>
-                    
+
                     <div class="report-summary">
                         <div class="report-summary-col">
                             <p><strong>Total Certificate Cost:</strong> <span id="im-reportTotalCertified"></span></p>
@@ -860,7 +869,7 @@
                             <p><strong>Total Retention To Date:</strong> <span id="im-reportTotalRetention"></span></p>
                         </div>
                     </div>
-                    
+
                     <div class="table-wrapper">
                         <table class="nested-invoice-table" style="border: 1px solid #dee2e6;">
                             <thead style="background-color: #343a40; color: white;">
@@ -886,7 +895,7 @@
                             </tfoot>
                         </table>
                     </div>
-                    
+
                     <div class="signatures" style="display: flex; justify-content: space-between; margin-top: 60px; padding-top: 20px;">
                         <div class="signature-box" style="text-align: center; width: 30%;">
                             <p>Prepared By</p>
@@ -901,7 +910,7 @@
                             <div class="signature-line" style="border-top: 1px solid #000; margin-top: 40px; padding-top: 10px; display: inline-block; width: 80%;"></div>
                         </div>
                     </div>
-                    
+
                     <div id="im-reportNotesSection" style="display: none; margin-top: 40px;">
                         <h5 style="font-weight: bold;">Notes:</h5>
                         <div id="im-reportNotesContent" style="white-space: pre-wrap; font-size: 12pt; padding: 10px; border: 1px solid #ddd; background: #f9f9f9; border-radius: 5px; min-height: 50px;"></div>
