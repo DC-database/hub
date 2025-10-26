@@ -801,6 +801,53 @@
         </div>
     </div>
 
+<div id="modify-task-modal" class="modal-overlay hidden">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2 id="modify-task-title">Modify Task</h2>
+                <button class="modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-content">
+                <form id="modify-task-form">
+                    <input type="hidden" id="modify-task-key">
+                    <input type="hidden" id="modify-task-source">
+                    <input type="hidden" id="modify-task-originalPO">
+                    <input type="hidden" id="modify-task-originalKey">
+
+                    <div class="form-group">
+                        <label for="modify-task-attention">Attention</label>
+                        <select id="modify-task-attention" name="attention"></select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="modify-task-status">Status</label>
+                        <select id="modify-task-status" name="status">
+                            <option value="For SRV">For SRV</option>
+                            <option value="For IPC">For IPC</option>
+                            <option value="Report">Report</option>
+                            <option value="Other">Other (Specify)</option>
+                        </select>
+                    </div>
+
+                    <div id="modify-task-status-other-container" class="form-group hidden">
+                        <label for="modify-task-status-other">Custom Status</label>
+                        <input type="text" id="modify-task-status-other" placeholder="Enter custom status">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="modify-task-note">Note / Instruction</label>
+                        <textarea id="modify-task-note" name="note" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="secondary-btn modal-close-btn">Cancel</button>
+                <button id="modify-task-save-btn" type="button">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+
     <div id="im-batch-search-modal" class="modal-overlay hidden">
         <div class="modal-container">
             <div class="modal-header">

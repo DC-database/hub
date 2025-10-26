@@ -94,6 +94,20 @@ const replacementNameDisplay = document.getElementById('replacement-name-display
 const replacementContactDisplay = document.getElementById('replacement-contact-display');
 const replacementEmailDisplay = document.getElementById('replacement-email-display');
 
+// ++ NEW: Modify Task Modal elements ++
+const modifyTaskModal = document.getElementById('modify-task-modal');
+const modifyTaskForm = document.getElementById('modify-task-form');
+const modifyTaskAttention = document.getElementById('modify-task-attention');
+const modifyTaskStatus = document.getElementById('modify-task-status');
+const modifyTaskStatusOtherContainer = document.getElementById('modify-task-status-other-container');
+const modifyTaskStatusOther = document.getElementById('modify-task-status-other');
+const modifyTaskNote = document.getElementById('modify-task-note');
+const modifyTaskSaveBtn = document.getElementById('modify-task-save-btn');
+const modifyTaskKey = document.getElementById('modify-task-key');
+const modifyTaskSource = document.getElementById('modify-task-source');
+const modifyTaskOriginalPO = document.getElementById('modify-task-originalPO');
+const modifyTaskOriginalKey = document.getElementById('modify-task-originalKey');
+
 // ++ NEW: Sidebar link to IM ++
 const workdeskIMLinkContainer = document.getElementById('workdesk-im-link-container');
 const workdeskIMLink = document.getElementById('workdesk-im-link');
@@ -219,6 +233,7 @@ let imDateTimeInterval = null;
 let currentPO = null;
 let imAttentionSelectChoices = null;
 let imBatchGlobalAttentionChoices = null; // ++ NEW for batch global field
+let modifyTaskAttentionChoices = null; // ++ NEW for modify task modal
 let currentlyEditingInvoiceKey = null;
 let currentPOInvoices = {};
 let currentReportData = [];
@@ -748,7 +763,8 @@ async function ensureAllEntriesFetched() {
                 timestamp: normalizedDate ? new Date(normalizedDate).getTime() : Date.now(),
                 invName: invoice.invName || '',
                 vendorName: vendorName,
-                source: 'invoice'
+                source: 'invoice',
+                note: invoice.note || '' // ++ ADDED NOTE for modify modal
             };
             processedInvoiceEntries.push(transformedInvoice);
         }
@@ -981,7 +997,6 @@ async function handleAddJobEntry(e) {
         } else {
             if (!jobData.po) { alert('For IPC jobs, a PO number is required.'); return; }
         }
-        // allSystemEntries = []; // <--- FIX 1.3: REMOVED THIS LINE
         await ensureAllEntriesFetched();
         const duplicatePO = allSystemEntries.find(entry => entry.for === 'IPC' && entry.po && entry.po.trim() !== '' && entry.po === jobData.po);
         if (duplicatePO) {
@@ -1121,7 +1136,8 @@ async function populateActiveTasks() {
                     timestamp: normalizedDate ? new Date(normalizedDate).getTime() : Date.now(),
                     invName: invoice.invName || '',
                     vendorName: vendorName,
-                    source: 'invoice'
+                    source: 'invoice',
+                    note: invoice.note || '' // ++ ADDED NOTE for modify modal
                 };
 
                 if (!isTaskComplete(transformedInvoice)) {
@@ -1131,7 +1147,7 @@ async function populateActiveTasks() {
         }
 
         userActiveTasks = userTasks.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-        allSystemEntries = userActiveTasks; // Keep allSystemEntries focused on active tasks *for this user*
+        // allSystemEntries = userActiveTasks; // <-- *** MODIFICATION: This line was removed to fix cache bug ***
 
         renderActiveTaskTable(userActiveTasks);
 
@@ -1142,6 +1158,7 @@ async function populateActiveTasks() {
 }
 
 
+// ++ MODIFIED: renderActiveTaskTable ++
 function renderActiveTaskTable(tasks) {
     activeTaskTableBody.innerHTML = '';
     if (!tasks || tasks.length === 0) {
@@ -1164,9 +1181,16 @@ function renderActiveTaskTable(tasks) {
             row.classList.add('clickable-pdf');
         }
 
-        const actionButton = isInvoiceFromIrwin
-            ? `<button class="respond-btn" data-key="${task.key}">Respond</button>`
-            : `<button class="respond-btn" data-key="${task.key}">Respond</button>`;
+        // Determine if task can be marked "SRV Done"
+        // This is for invoice-based tasks. Job-entry tasks will be handled in the click event.
+        const canSrvDone = task.source === 'invoice';
+        const srvDoneDisabled = !canSrvDone ? 'disabled title="Only invoice tasks can be marked SRV Done"' : '';
+        
+        // Build the action buttons
+        const actionButtons = `
+            <button class="srv-done-btn" data-key="${task.key}" ${srvDoneDisabled}>SRV Done</button>
+            <button class="modify-btn" data-key="${task.key}">Modify</button>
+        `;
 
         row.innerHTML = `
             <td>${task.for || ''}</td>
@@ -1178,7 +1202,7 @@ function renderActiveTaskTable(tasks) {
             <td>${task.group || ''}</td>
             <td>${task.date || ''}</td>
             <td>${task.remarks || 'Pending'}</td>
-            <td>${actionButton}</td>
+            <td>${actionButtons}</td>
         `;
         activeTaskTableBody.appendChild(row);
     });
@@ -1203,7 +1227,6 @@ async function handleTaskHistorySearch(searchTerm) {
     }
     taskHistoryTableBody.innerHTML = '<tr><td colspan="9">Searching history...</td></tr>';
     try {
-        // allSystemEntries = []; // <--- FIX 1.1: REMOVED THIS LINE
         await ensureAllEntriesFetched(); // Refetch ALL entries for history
         const personalHistory = allSystemEntries.filter(task => {
             const isRelatedToMe = (task.enteredBy === currentApprover.Name || task.attention === currentApprover.Name);
@@ -1264,90 +1287,128 @@ function filterAndRenderReport(baseEntries = []) {
 async function populateWorkdeskDashboard() {
     await populateActiveTasks(); // Ensure active tasks are loaded first
     dbActiveTasksCount.textContent = userActiveTasks.length;
-    allSystemEntries = []; // Clear cache before fetching all for completed count
+    // allSystemEntries = []; // <-- *** MODIFICATION: This line was removed to fix cache bug ***
     await ensureAllEntriesFetched();
     const myCompletedTasks = allSystemEntries.filter(task => (task.enteredBy === currentApprover.Name || task.attention === currentApprover.Name) && isTaskComplete(task));
     dbCompletedTasksCount.textContent = myCompletedTasks.length;
     // Restore allSystemEntries to just the user's active tasks if needed elsewhere, or leave as all
-     allSystemEntries = userActiveTasks; // Restore back to only active for consistency if needed.
+    // allSystemEntries = userActiveTasks; // <-- *** MODIFICATION: This line was removed to fix cache bug ***
 }
 
-async function handleRespondClick(e) {
-    const key = e.target.getAttribute('data-key');
-    if (!key) return;
+// ++ NEW: Function to open the Modify Task modal ++
+function openModifyTaskModal(taskData) {
+    if (!taskData) return;
 
-    // Use userActiveTasks which is guaranteed to be populated for the current view
-    const taskData = userActiveTasks.find(entry => entry.key === key);
-    if (!taskData) {
-        console.error("Task data not found in userActiveTasks for key:", key);
-        alert("Could not find task details. Please refresh.");
+    // Store all identifiers in the form's hidden fields
+    modifyTaskKey.value = taskData.key;
+    modifyTaskSource.value = taskData.source;
+    modifyTaskOriginalPO.value = taskData.originalPO || '';
+    modifyTaskOriginalKey.value = taskData.originalKey || '';
+
+    // Set Attention
+    if (modifyTaskAttentionChoices) {
+        modifyTaskAttentionChoices.setChoiceByValue(taskData.attention || '');
+    }
+
+    // Set Status
+    const currentStatus = taskData.remarks || 'Pending';
+    const standardStatuses = ['For SRV', 'For IPC', 'Report'];
+    if (standardStatuses.includes(currentStatus)) {
+        modifyTaskStatus.value = currentStatus;
+        modifyTaskStatusOtherContainer.classList.add('hidden');
+        modifyTaskStatusOther.value = '';
+    } else {
+        // If it's a custom status, select "Other" and fill the text box
+        modifyTaskStatus.value = 'Other';
+        modifyTaskStatusOtherContainer.classList.remove('hidden');
+        modifyTaskStatusOther.value = currentStatus;
+    }
+
+    // Set Note
+    modifyTaskNote.value = taskData.note || ''; // 'note' was added to the task object
+
+    modifyTaskModal.classList.remove('hidden');
+}
+
+// ++ NEW: Function to save changes from the Modify Task modal ++
+async function handleSaveModifiedTask() {
+    const key = modifyTaskKey.value;
+    const source = modifyTaskSource.value;
+    const originalPO = modifyTaskOriginalPO.value;
+    const originalKey = modifyTaskOriginalKey.value;
+
+    if (!key || !source) {
+        alert("Error: Task identifiers are missing.");
         return;
-     }
+    }
 
-    if (taskData.source === 'job_entry' && taskData.for === 'Invoice' && taskData.attention === 'Irwin') {
-        if (!taskData.po) {
-            alert("This job entry is missing a PO number and cannot be processed in Invoice Management.");
+    let selectedStatus = modifyTaskStatus.value;
+    if (selectedStatus === 'Other') {
+        selectedStatus = modifyTaskStatusOther.value.trim();
+        if (!selectedStatus) {
+            alert("Please enter a custom status.");
             return;
         }
-        jobEntryToUpdateAfterInvoice = key;
-        pendingJobEntryDataForInvoice = taskData;
-
-        invoiceManagementButton.click();
-
-        setTimeout(() => {
-            imNav.querySelector('a[data-section="im-invoice-entry"]').click();
-            imPOSearchInput.value = taskData.po;
-            imPOSearchButton.click();
-            imBackToActiveTaskButton.classList.remove('hidden');
-        }, 100);
-
-        return;
     }
 
-    if (taskData.source === 'invoice') {
-        const updates = {
-            releaseDate: getTodayDateString(),
-            status: 'SRV Done'
-        };
-        try {
-            await invoiceDb.ref(`invoice_entries/${taskData.originalPO}/${taskData.originalKey}`).update(updates);
-            alert('Task status updated to "SRV Done".');
-            populateActiveTasks(); // Refresh the active task list
-        } catch (error) {
-            console.error("Error updating invoice status:", error);
-            alert("Failed to update invoice status. Please try again.");
+    const updates = {
+        attention: modifyTaskAttentionChoices.getValue(true) || '',
+        remarks: selectedStatus, // 'remarks' for job_entry
+        status: selectedStatus,  // 'status' for invoice_entry
+        note: modifyTaskNote.value.trim()
+    };
+
+    // Clear attention if status is Under Review or With Accounts (like in invoice entry)
+    if (updates.status === 'Under Review' || updates.status === 'With Accounts') {
+        updates.attention = '';
+    }
+
+    modifyTaskSaveBtn.disabled = true;
+    modifyTaskSaveBtn.textContent = 'Saving...';
+
+    try {
+        if (source === 'job_entry') {
+            // This is a job entry, update the main DB
+            await db.ref(`job_entries/${key}`).update({
+                attention: updates.attention,
+                remarks: updates.remarks,
+                note: updates.note // Job entries didn't originally have 'note', this adds it
+            });
+        } else if (source === 'invoice' && originalPO && originalKey) {
+            // This is an invoice entry, update the invoice DB
+            await invoiceDb.ref(`invoice_entries/${originalPO}/${originalKey}`).update({
+                attention: updates.attention,
+                status: updates.status,
+                note: updates.note
+            });
+            // Also update the local cache
+            updateLocalInvoiceCache(originalPO, originalKey, updates);
+        } else {
+            throw new Error("Invalid task source or missing keys.");
         }
-        return;
-    }
 
-    if (taskData.source === 'job_entry' && taskData.enteredBy === 'Irwin' && taskData.for === 'Invoice') {
-        const updates = {
-            dateResponded: formatDate(new Date()),
-            remarks: 'SRV Done'
-        };
-        try {
-            await db.ref(`job_entries/${key}`).update(updates);
-            alert('Task status updated to "SRV Done".');
-            populateActiveTasks(); // Refresh the active task list
-        } catch (error) {
-            console.error("Error updating task status:", error);
-            alert("Failed to update task status. Please try again.");
-        }
-        return;
-    }
+        alert("Task updated successfully!");
+        modifyTaskModal.classList.add('hidden');
+        allSystemEntries = []; // Clear cache to reflect changes
+        populateActiveTasks(); // Refresh the active task list
 
-    // Default action: Open for editing in Job Entry
-    const isQS = currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'qs';
-    workdeskNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
-    document.querySelector('a[data-section="wd-jobentry"]').classList.add('active');
-    showWorkdeskSection('wd-jobentry');
-    populateFormForEditing(key); // Assumes populateFormForEditing uses the correct data source
-    if (taskData.for === 'IPC' && isQS) {
-        attentionSelectChoices.clearStore();
-        attentionSelectChoices.setChoices([{ value: 'All', label: 'All', selected: true }], 'value', 'label', false);
-        attentionSelectChoices.disable();
+    } catch (error) {
+        console.error("Error updating task:", error);
+        alert("Failed to update task. Please try again.");
+    } finally {
+        modifyTaskSaveBtn.disabled = false;
+        modifyTaskSaveBtn.textContent = 'Save Changes';
     }
 }
+
+// ++ MODIFIED: This function is now split into the new listeners in DOMContentLoaded ++
+// The original handleRespondClick is no longer needed
+/*
+async function handleRespondClick(e) {
+    ... (old code removed) ...
+}
+*/
+
 function handleActiveTaskSearch(searchTerm) {
     const searchText = searchTerm.toLowerCase();
     sessionStorage.setItem('activeTaskSearch', searchText); // Save search term
@@ -1381,7 +1442,6 @@ async function handleReportingSearch() {
 
     reportingTableBody.innerHTML = '<tr><td colspan="11">Searching report data...</td></tr>';
     try {
-        // allSystemEntries = []; // <--- FIX 1.2: REMOVED THIS LINE
         await ensureAllEntriesFetched();
         const userSiteString = currentApprover.Site || '';
         const userSites = userSiteString.toLowerCase() === 'all' ? null : userSiteString.split(',').map(s => s.trim());
@@ -3147,6 +3207,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             });
         }
+        
+        // ++ NEW: Initialize Modify Task Modal Dropdown ++
+        if (!modifyTaskAttentionChoices) {
+            modifyTaskAttentionChoices = new Choices(modifyTaskAttention, {
+                searchEnabled: true,
+                shouldSort: false,
+                itemSelectText: '',
+            });
+            // We populate this dropdown *without* the vacation logic for simplicity,
+            // as the user is actively re-assigning a task.
+            populateAttentionDropdown(modifyTaskAttentionChoices); 
+        }
 
         updateWorkdeskDateTime();
         if (workdeskDateTimeInterval) clearInterval(workdeskDateTimeInterval);
@@ -3167,22 +3239,98 @@ document.addEventListener('DOMContentLoaded', async () => {
     clearJobButton.addEventListener('click', () => resetJobEntryForm(false));
     jobEntryTableBody.addEventListener('click', (e) => { const row = e.target.closest('tr'); if (row) { const key = row.getAttribute('data-key'); const entry = allSystemEntries.find(item => item.key === key); if (key && entry && entry.source !== 'invoice') populateFormForEditing(key); } });
 
-    activeTaskTableBody.addEventListener('click', (e) => {
+    // ++ MODIFIED: activeTaskTableBody click listener ++
+    activeTaskTableBody.addEventListener('click', async (e) => {
         const row = e.target.closest('tr');
         if (!row) return;
-        if (e.target.classList.contains('respond-btn')) {
-            handleRespondClick(e);
-            return;
-        }
+
         const key = row.dataset.key;
         if (!key) return;
-        const task = userActiveTasks.find(entry => entry.key === key); // Use userActiveTasks here
+        
+        const taskData = userActiveTasks.find(entry => entry.key === key);
+        if (!taskData) {
+             console.error("Task data not found for key:", key);
+             alert("Could not find task details. Please refresh.");
+             return;
+        }
 
+        // Handle "SRV Done" button click
+        if (e.target.classList.contains('srv-done-btn')) {
+            e.target.disabled = true; // Prevent double click
+            e.target.textContent = 'Updating...';
+
+            try {
+                if (taskData.source === 'invoice') {
+                    // This is an invoice entry from invoice DB
+                    const updates = {
+                        releaseDate: getTodayDateString(),
+                        status: 'SRV Done'
+                    };
+                    await invoiceDb.ref(`invoice_entries/${taskData.originalPO}/${taskData.originalKey}`).update(updates);
+                } else if (taskData.source === 'job_entry') {
+                    // This is a job entry from main DB
+                    const updates = {
+                        dateResponded: formatDate(new Date()),
+                        remarks: 'SRV Done'
+                    };
+                    await db.ref(`job_entries/${taskData.key}`).update(updates);
+                }
+                
+                alert('Task status updated to "SRV Done".');
+                allSystemEntries = []; // Clear cache
+                populateActiveTasks(); // Refresh the active task list
+
+            } catch (error) {
+                console.error("Error updating task status:", error);
+                alert("Failed to update task status. Please try again.");
+                e.target.disabled = false; // Re-enable button on error
+                e.target.textContent = 'SRV Done';
+            }
+            return;
+        }
+
+        // Handle "Modify" button click
+        if (e.target.classList.contains('modify-btn')) {
+            openModifyTaskModal(taskData);
+            return;
+        }
+        
+        // Handle "Respond" for 'Invoice' job entries (old logic)
+        if (taskData.source === 'job_entry' && taskData.for === 'Invoice' && taskData.attention === 'Irwin') {
+             if (!taskData.po) {
+                alert("This job entry is missing a PO number and cannot be processed in Invoice Management.");
+                return;
+            }
+            jobEntryToUpdateAfterInvoice = key;
+            pendingJobEntryDataForInvoice = taskData;
+            invoiceManagementButton.click();
+            setTimeout(() => {
+                imNav.querySelector('a[data-section="im-invoice-entry"]').click();
+                imPOSearchInput.value = taskData.po;
+                imPOSearchButton.click();
+                imBackToActiveTaskButton.classList.remove('hidden');
+            }, 100);
+            return;
+        }
+
+        // Handle clicking the row to open PDF
         // ++ MODIFIED: PDF link check for "Nil", "nil", and empty/blank strings ++
-        if (task && task.source === 'invoice' && task.invName && task.invName.trim() && task.invName.toLowerCase() !== 'nil') {
-            window.open(PDF_BASE_PATH + encodeURIComponent(task.invName) + ".pdf", '_blank');
+        if (taskData && taskData.source === 'invoice' && taskData.invName && taskData.invName.trim() && taskData.invName.toLowerCase() !== 'nil') {
+            window.open(PDF_BASE_PATH + encodeURIComponent(taskData.invName) + ".pdf", '_blank');
         }
     });
+
+    // ++ NEW: Modify Task Modal Listeners ++
+    if (modifyTaskStatus) {
+        modifyTaskStatus.addEventListener('change', (e) => {
+            // Show/hide the "Other Status" text box
+            modifyTaskStatusOtherContainer.classList.toggle('hidden', e.target.value !== 'Other');
+        });
+    }
+    if (modifyTaskSaveBtn) {
+        modifyTaskSaveBtn.addEventListener('click', handleSaveModifiedTask);
+    }
+
 
     jobForSelect.addEventListener('change', (e) => { const isQS = currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'qs'; if (e.target.value === 'IPC' && isQS) { attentionSelectChoices.clearStore(); attentionSelectChoices.setChoices([{ value: 'All', label: 'All', selected: true }], 'value', 'label', false); attentionSelectChoices.disable(); } else if (attentionSelectChoices.disabled) { attentionSelectChoices.enable(); resetJobEntryForm(true); } });
     activeTaskSearchInput.addEventListener('input', debounce((e) => handleActiveTaskSearch(e.target.value), 500));

@@ -961,3 +961,45 @@ tbody tr:hover { background-color: #f1f1f1; }
 #im-new-invoice-form .form-group textarea#im-note {
    /* Adjustments can go here if needed */
 }
+
+/* ++ NEW: Modify Task Modal Styles ++ */
+#modify-task-modal .choices__inner {
+    /* Ensure modal dropdowns work */
+    min-height: 45px;
+    font-size: 16px;
+    background-color: #fff;
+    margin-bottom: 15px; /* Add margin to match other inputs */
+}
+
+/* ++ UPDATED: Action Button Styles in Tables ++ */
+/* Remove old .respond-btn rule if it exists */
+.table-wrapper .respond-btn {
+    /* This class is no longer used, you can delete its rule */
+}
+
+.srv-done-btn, .modify-btn {
+    padding: 5px 10px;
+    font-size: 13px;
+    font-weight: normal;
+    margin-right: 5px; /* Add some spacing */
+    border: none;
+}
+.srv-done-btn {
+    background-color: #28a745; /* Green */
+    color: white;
+}
+.srv-done-btn:hover {
+    background-color: #218838;
+}
+.srv-done-btn:disabled {
+    background-color: #aaa;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+.modify-btn {
+    background-color: #ffc107; /* Yellow */
+    color: #212529;
+}
+.modify-btn:hover {
+    background-color: #e0a800;
+}
