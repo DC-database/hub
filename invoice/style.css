@@ -945,15 +945,15 @@ tbody tr:hover { background-color: #f1f1f1; }
     border-top: 1px solid #003366; /* Sidebar separator color */
 }
 
-/* ++ NEW: 4-Column Grid Layout for Invoice Entry Form ++ */
-.form-grid-4col {
+/* ++ NEW: 3-Column Grid Layout for Invoice Entry Form ++ */
+.form-grid-3col {
     display: grid;
-    grid-template-columns: repeat(4, 1fr); /* Create 4 equal columns */
+    grid-template-columns: repeat(3, 1fr); /* Create 3 equal columns */
     gap: 15px 25px; /* Row gap and Column gap */
     align-items: end; /* Align items to the bottom */
 }
 
-.form-grid-4col .form-group {
+.form-grid-3col .form-group {
     margin-bottom: 0; /* Remove default bottom margin inside grid */
 }
 

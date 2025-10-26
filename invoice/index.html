@@ -416,46 +416,53 @@
                         <hr class="section-divider">
                         <h2 id="im-form-title">Add New Invoice for this PO</h2>
 
-                        <div class="form-grid-4col">
+                        <div class="form-grid-3col">
                             <div class="form-group">
                                 <label>Invoice Entry ID</label>
                                 <input type="text" id="im-inv-entry-id" name="invEntryID">
                             </div>
+
                             <div class="form-group">
                                 <label for="im-inv-no">Invoice No.</label>
                                 <input type="text" id="im-inv-no" name="invNumber">
                             </div>
+
                             <div class="form-group">
-                                <label for="im-invoice-date">Invoice Date</label>
-                                <input type="date" id="im-invoice-date" name="invoiceDate">
-                            </div>
-                            <div class="form-group">
-                                <label for="im-inv-name">Invoice Name</label>
-                                <input type="text" id="im-inv-name" name="invName">
+                                <label for="im-details">Details</label>
+                                <input type="text" id="im-details" name="details">
                             </div>
 
                             <div class="form-group">
                                 <label for="im-inv-value">Invoice Value</label>
                                 <input type="number" id="im-inv-value" name="invValue" step="0.01">
                             </div>
-                             <div class="form-group">
-                               <label for="im-attention">Attention</label>
-                               <select id="im-attention" name="attention"></select>
-                            </div>
+
                             <div class="form-group">
-                                <label for="im-details">Details</label>
-                                <input type="text" id="im-details" name="details">
+                                <label for="im-invoice-date">Invoice Date</label>
+                                <input type="date" id="im-invoice-date" name="invoiceDate">
                             </div>
-                             <div class="form-group">
-                                <label for="im-srv-name">SRV Name</label>
-                                <input type="text" id="im-srv-name" name="srvName">
+
+                            <div class="form-group">
+                                <label for="im-inv-name">Invoice Name</label>
+                                <input type="text" id="im-inv-name" name="invName">
                             </div>
 
                             <div class="form-group">
                                 <label for="im-amount-paid">Amount To Paid</label>
                                 <input type="number" id="im-amount-paid" name="amountPaid" step="0.01" value="0">
                             </div>
+
                             <div class="form-group">
+                                <label for="im-release-date">Release Date</label>
+                                <input type="date" id="im-release-date" name="releaseDate">
+                            </div>
+
+                             <div class="form-group">
+                                <label for="im-srv-name">SRV Name</label>
+                                <input type="text" id="im-srv-name" name="srvName">
+                            </div>
+
+	                   <div class="form-group">
                                 <label for="im-status">Status</label>
                                 <select id="im-status" name="status">
                                     <option value="For SRV">For SRV</option>
@@ -465,12 +472,15 @@
                                     <option value="CEO Approval">CEO Approval</option>
                                     <option value="Report">Report</option>
                                     <option value="With Accounts">With Accounts</option>
+				    <option value="Original PO">Original PO</option>
                                 </select>
                             </div>
-                            <div class="form-group">
-                                <label for="im-release-date">Release Date</label>
-                                <input type="date" id="im-release-date" name="releaseDate">
+
+                             <div class="form-group">
+                               <label for="im-attention">Attention</label>
+                               <select id="im-attention" name="attention"></select>
                             </div>
+
                             <div class="form-group"> <label for="im-note">Note</label>
                                  <textarea id="im-note" name="note" rows="2"></textarea> </div>
 
@@ -606,6 +616,7 @@
                                 <option value="CEO Approval">CEO Approval</option>
                                 <option value="Report">Report</option>
                                 <option value="With Accounts">With Accounts</option>
+				<option value="Original PO">Original PO</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -692,6 +703,8 @@
                                 <option value="CLOSED">CLOSED</option>
                                 <option value="Cancelled">Cancelled</option>
 				<option value="Paid">Paid</option>
+				<option value="Original PO">Paid</option>
+
                             </select>
                             <input type="month" id="im-reporting-date-filter" title="Filter by Release Month">
                         </div>
