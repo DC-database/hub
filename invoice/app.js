@@ -272,7 +272,42 @@ function showView(viewName) {
     }
 }
 function normalizeMobile(mobile) { const digitsOnly = mobile.replace(/\D/g, ''); if (digitsOnly.length === 8) { return `974${digitsOnly}`; } return digitsOnly; }
-async function findApprover(identifier) { const isEmail = identifier.includes('@'); const searchKey = isEmail ? 'Email' : 'Mobile'; const searchValue = isEmail ? identifier : normalizeMobile(identifier); const snapshot = await db.ref('approvers').once('value'); const approversData = snapshot.val(); if (!approversData) return null; for (const key in approversData) { const record = approversData[key]; const dbValue = record[searchKey]; if (dbValue) { if (isEmail) { if (dbValue.toLowerCase() === searchValue.toLowerCase()) { return { key, ...record }; } } else { const normalizedDbMobile = dbValue.replace(/\D/g, ''); if (normalizedDbMobile === searchValue) { return { key, ...record }; } } } } return null; }
+
+// --- START OF FIX 3 ---
+async function findApprover(identifier) {
+    const isEmail = identifier.includes('@');
+    const searchKey = isEmail ? 'Email' : 'Mobile';
+    const searchValue = isEmail ? identifier : normalizeMobile(identifier);
+    
+    // If the global approver cache isn't filled, fill it once.
+    if (!allApproverData) {
+         console.log("Caching approvers list for the first time...");
+         const snapshot = await db.ref('approvers').once('value');
+         allApproverData = snapshot.val(); // Cache it
+    }
+    const approversData = allApproverData; // Use the cache
+
+    if (!approversData) return null;
+    for (const key in approversData) {
+        const record = approversData[key];
+        const dbValue = record[searchKey];
+        if (dbValue) {
+            if (isEmail) {
+                if (dbValue.toLowerCase() === searchValue.toLowerCase()) {
+                    return { key, ...record };
+                }
+            } else {
+                const normalizedDbMobile = dbValue.replace(/\D/g, '');
+                if (normalizedDbMobile === searchValue) {
+                    return { key, ...record };
+                }
+            }
+        }
+    }
+    return null;
+}
+// --- END OF FIX 3 ---
+
 async function getApproverByKey(key) { try { const snapshot = await db.ref(`approvers/${key}`).once('value'); const approverData = snapshot.val(); if (approverData) { return { key, ...approverData }; } else { return null; } } catch (error) { console.error("Error fetching approver by key:", error); return null; } }
 function updateDashboardDateTime() { const now = new Date(); const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }; datetimeElement.textContent = now.toLocaleDateString('en-GB', options); }
 function updateWorkdeskDateTime() { const now = new Date(); const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }; const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }; const dateString = now.toLocaleDateString('en-GB', dateOptions); const timeString = now.toLocaleTimeString('en-GB', timeOptions); workdeskDatetimeElement.textContent = `${dateString} at ${timeString}`; }
@@ -946,7 +981,7 @@ async function handleAddJobEntry(e) {
         } else {
             if (!jobData.po) { alert('For IPC jobs, a PO number is required.'); return; }
         }
-        allSystemEntries = []; // Clear cache to refetch for duplicate check
+        // allSystemEntries = []; // <--- FIX 1.3: REMOVED THIS LINE
         await ensureAllEntriesFetched();
         const duplicatePO = allSystemEntries.find(entry => entry.for === 'IPC' && entry.po && entry.po.trim() !== '' && entry.po === jobData.po);
         if (duplicatePO) {
@@ -1023,11 +1058,16 @@ async function populateActiveTasks() {
                                     .orderByChild('attention')
                                     .equalTo(currentApprover.Name)
                                     .once('value');
-
-        const invoiceSnapshot = await invoiceDb.ref('invoice_entries').once('value');
+        
+        // --- START OF FIX 2 ---
+        // Ensure the global cache is populated if it's not already (or if it's > 30 mins old)
+        await ensureInvoiceDataFetched();
+        // Use the global cache instead of re-downloading
+        const allInvoiceEntries = allInvoiceData;
+        // --- END OF FIX 2 ---
 
         const jobEntriesData = jobSnapshot.val() || {};
-        const allInvoiceEntries = invoiceSnapshot.val() || {};
+        // const allInvoiceEntries = invoiceSnapshot.val() || {}; // <-- THIS LINE WAS DELETED
         const purchaseOrdersData = allPOData;
         const currentUserName = currentApprover.Name;
 
@@ -1163,7 +1203,7 @@ async function handleTaskHistorySearch(searchTerm) {
     }
     taskHistoryTableBody.innerHTML = '<tr><td colspan="9">Searching history...</td></tr>';
     try {
-        allSystemEntries = []; // Clear cache
+        // allSystemEntries = []; // <--- FIX 1.1: REMOVED THIS LINE
         await ensureAllEntriesFetched(); // Refetch ALL entries for history
         const personalHistory = allSystemEntries.filter(task => {
             const isRelatedToMe = (task.enteredBy === currentApprover.Name || task.attention === currentApprover.Name);
@@ -1341,7 +1381,7 @@ async function handleReportingSearch() {
 
     reportingTableBody.innerHTML = '<tr><td colspan="11">Searching report data...</td></tr>';
     try {
-        allSystemEntries = []; // Clear cache
+        // allSystemEntries = []; // <--- FIX 1.2: REMOVED THIS LINE
         await ensureAllEntriesFetched();
         const userSiteString = currentApprover.Site || '';
         const userSites = userSiteString.toLowerCase() === 'all' ? null : userSiteString.split(',').map(s => s.trim());
@@ -2420,7 +2460,7 @@ async function handleSaveBatchInvoices() {
         if (!invoiceData.invValue) { alert(`Invoice Value is required for PO ${poNumber}. Cannot proceed.`); return; }
         if (vendor.length > 21) vendor = vendor.substring(0, 21);
 
-        // ++ UPDATED: srvName and invName generation logic
+// ++ UPDATED: srvName and invName generation logic
         if (invoiceData.status === 'With Accounts' && !invoiceData.srvName) {
             invoiceData.srvName = getSrvName(poNumber, site, vendor);
         }
@@ -3036,7 +3076,7 @@ function printFinanceReport() {
 function handleLogout() {
     sessionStorage.clear(); // Clear all session data on logout
     if (dateTimeInterval) clearInterval(dateTimeInterval);
-    if (workdeskDateTimeInterval) clearInterval(workBdeskDateTimeInterval);
+    if (workdeskDateTimeInterval) clearInterval(workdeskDateTimeInterval);
     if (imDateTimeInterval) clearInterval(imDateTimeInterval);
     location.reload();
 }
