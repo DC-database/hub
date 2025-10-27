@@ -249,11 +249,13 @@ let imFinanceAllPaymentsData = {};
 let allPOData = null;
 let allInvoiceData = null;
 let allApproverData = null;
+let allEpicoreData = null; // ++ NEW: For epicore.csv data ++
 let cacheTimestamps = {
   poData: 0,
   invoiceData: 0,
   approverData: 0,
-  systemEntries: 0
+  systemEntries: 0,
+  epicoreData: 0 // ++ NEW: Timestamp for epicore.csv ++
 };
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes cache
 
@@ -293,7 +295,7 @@ async function findApprover(identifier) {
     const isEmail = identifier.includes('@');
     const searchKey = isEmail ? 'Email' : 'Mobile';
     const searchValue = isEmail ? identifier : normalizeMobile(identifier);
-    
+
     // If the global approver cache isn't filled, fill it once.
     if (!allApproverData) {
          console.log("Caching approvers list for the first time...");
@@ -569,6 +571,66 @@ function numberToWords(num) {
     return words.charAt(0).toUpperCase() + words.slice(1) + " Qatari Riyals Only";
 }
 
+// ++ NEW: FETCH AND PARSE EPICORE CSV ++
+async function fetchAndParseEpicoreCSV(url) {
+    try {
+        const response = await fetch(url, { cache: 'no-store' });
+        if (!response.ok) {
+            throw new Error(`Failed to fetch CSV: ${response.statusText}`);
+        }
+        const csvText = await response.text();
+
+        // Simple CSV parser that handles quotes
+        const parseCsvRow = (rowStr) => {
+            const values = [];
+            let inQuote = false;
+            let currentVal = '';
+            const cleanRowStr = rowStr.trim();
+
+            for (let i = 0; i < cleanRowStr.length; i++) {
+                const char = cleanRowStr[i];
+                if (char === '"' && (i === 0 || cleanRowStr[i-1] !== '\\')) {
+                    inQuote = !inQuote;
+                } else if (char === ',' && !inQuote) {
+                    values.push(currentVal.trim().replace(/^"|"$/g, ''));
+                    currentVal = '';
+                } else {
+                    currentVal += char;
+                }
+            }
+            values.push(currentVal.trim().replace(/^"|"$/g, ''));
+            return values;
+        };
+
+        const lines = csvText.replace(/^\uFEFF/, '').split('\n').filter(line => line.trim() !== '');
+
+        if (lines.length < 1) { // No header check, just need data
+            throw new Error("Epicore CSV is empty.");
+        }
+
+        const epicoreMap = {};
+        for (let i = 0; i < lines.length; i++) { // Start from 0, could be no header
+            const values = parseCsvRow(lines[i]);
+            if (values.length > 3) { // Need at least C (2) and D (3)
+                const poKey = values[2] ? values[2].toUpperCase().trim() : null; // Column C (index 2)
+                const description = values[3] || ''; // Column D (index 3)
+                if (poKey) {
+                    epicoreMap[poKey] = description;
+                }
+            }
+        }
+
+        console.log(`Successfully fetched and parsed ${Object.keys(epicoreMap).length} entries from Epicore CSV.`);
+        return epicoreMap;
+
+    } catch (error) {
+        console.error("Error fetching or parsing Epicore CSV:", error);
+        alert("CRITICAL ERROR: Could not load Epicore data from GitHub.");
+        return null;
+    }
+}
+
+
 // FETCH AND PARSE CSV FOR PO DATA
 async function fetchAndParseCSV(url) {
     try {
@@ -649,7 +711,9 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
     const shouldUseCache = !forceRefresh &&
                           allPOData &&
                           allInvoiceData &&
-                          (now - cacheTimestamps.poData < CACHE_DURATION);
+                          allEpicoreData && // ++ NEW CHECK ++
+                          (now - cacheTimestamps.poData < CACHE_DURATION) &&
+                          (now - cacheTimestamps.epicoreData < CACHE_DURATION); // ++ NEW CHECK ++
 
     if (shouldUseCache) {
         return;
@@ -657,23 +721,27 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
 
     try {
         const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
+        const EPICORE_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/epicore.csv"; // ++ NEW ++
 
-        const [csvData, invoiceSnapshot] = await Promise.all([
+        const [csvData, epicoreCsvData, invoiceSnapshot] = await Promise.all([ // ++ MODIFIED ++
             fetchAndParseCSV(PO_DATA_URL),
+            fetchAndParseEpicoreCSV(EPICORE_DATA_URL), // ++ NEW ++
             invoiceDb.ref('invoice_entries').once('value'),
         ]);
 
-        if (csvData === null) {
-            throw new Error("Failed to load PO data from CSV.");
+        if (csvData === null || epicoreCsvData === null) { // ++ MODIFIED ++
+            throw new Error("Failed to load PO or Epicore data from CSV.");
         }
 
         allPOData = csvData;
+        allEpicoreData = epicoreCsvData; // ++ NEW ++
         allInvoiceData = invoiceSnapshot.val() || {};
 
         cacheTimestamps.poData = now;
+        cacheTimestamps.epicoreData = now; // ++ NEW ++
         cacheTimestamps.invoiceData = now;
 
-        console.log("Invoice cache refreshed for reporting.");
+        console.log("Invoice and GitHub CSV caches refreshed.");
 
         approverListForSelect = []; // Clear this here
         allApproversCache = null; // Clear Choices cache too
@@ -887,7 +955,7 @@ async function populateAttentionDropdown(choicesInstance) {
     }
 }
 
-// --- NEW, EFFICIENT populateSiteDropdown ---
+// --- NEW, EFFICIENT populateSiteDropdown (CORRECTED) ---
 async function populateSiteDropdown() {
     try {
         if (!siteSelectChoices) return;
@@ -920,6 +988,7 @@ async function populateSiteDropdown() {
         if (siteSelectChoices) siteSelectChoices.setChoices([{ value: '', label: 'Error loading sites', disabled: true }]);
     }
 }
+
 
 function renderJobEntryTable(entries) {
     jobEntryTableBody.innerHTML = '';
@@ -1560,6 +1629,7 @@ async function handleUpdateSettings(e) {
         settingsMessage.className = 'error-message';
     }
 }
+
 
 // --- INVOICE MANAGEMENT FUNCTIONS ---
 function updateIMDateTime() {
@@ -2641,13 +2711,26 @@ async function initializeNoteSuggestions() {
         allUniqueNotes.forEach(note => { const option = document.createElement('option'); option.value = note; noteSuggestionsDatalist.appendChild(option); });
     } catch (error) { console.error("Error initializing note suggestions:", error); }
 }
+
+// +++ MODIFIED: handleGenerateSummary +++
 async function handleGenerateSummary() {
+    // Helper function to get ordinal suffix (st, nd, rd, th)
+    const getOrdinal = (n) => {
+        if (isNaN(n) || n <= 0) return ''; // Handle invalid input
+        const s = ["th", "st", "nd", "rd"];
+        const v = n % 100;
+        return n + (s[(v - 20) % 10] || s[v] || s[0]);
+    };
+
     const prevNote = summaryNotePreviousInput.value.trim(), currentNote = summaryNoteCurrentInput.value.trim();
     if (!currentNote) { alert("Please enter a note for the 'Current Note' search."); return; }
     summaryNoteGenerateBtn.textContent = 'Generating...'; summaryNoteGenerateBtn.disabled = true;
     try {
-        await ensureInvoiceDataFetched();
-        const allInvoicesByPO = allInvoiceData, allPOs = allPOData;
+        await ensureInvoiceDataFetched(); // Ensures allPOData, allInvoiceData, and allEpicoreData are loaded
+        const allInvoicesByPO = allInvoiceData;
+        const allPOs = allPOData;
+        const epicoreData = allEpicoreData; // Get the cached Epicore data
+
         let previousPaymentTotal = 0, currentPaymentTotal = 0, allCurrentInvoices = [];
         for (const poNumber in allInvoicesByPO) {
             const invoices = allInvoicesByPO[poNumber];
@@ -2676,7 +2759,34 @@ async function handleGenerateSummary() {
         for (const inv of allCurrentInvoices) {
             const row = document.createElement('tr');
             row.setAttribute('data-po', inv.po); row.setAttribute('data-key', inv.key);
-            row.innerHTML = `<td>${inv.po}</td><td>${inv.site}</td><td><input type="text" class="summary-edit-input" name="details" value="${inv.details || ''}"></td><td><input type="date" class="summary-edit-input" name="invoiceDate" value="${normalizeDateForInput(inv.invoiceDate) || ''}"></td><td>${formatCurrency(inv.invValue)}</td>`;
+
+            // Get description from epicoreData or fallback to inv.details
+            const poKey = inv.po.toUpperCase();
+            const epicoreDescription = (epicoreData && epicoreData[poKey]) ? epicoreData[poKey] : (inv.details || '');
+
+            // --- MODIFIED: Convert invEntryID to ordinal number ---
+            let invCountDisplay = '';
+            if (inv.invEntryID) {
+                const match = inv.invEntryID.match(/INV-(\d+)/i); // Extract number after "INV-"
+                if (match && match[1]) {
+                    const num = parseInt(match[1], 10);
+                    invCountDisplay = getOrdinal(num); // Convert to "1st", "2nd", etc.
+                } else {
+                    invCountDisplay = inv.invEntryID; // Fallback if format is unexpected
+                }
+            }
+            // --- END MODIFICATION ---
+
+            // --- MODIFIED row.innerHTML to use invCountDisplay ---
+            row.innerHTML = `
+                <td>${invCountDisplay}</td>
+                <td>${inv.po}</td>
+                <td>${inv.site}</td>
+                <td><input type="text" class="summary-edit-input" name="details" value="${epicoreDescription}"></td>
+                <td><input type="date" class="summary-edit-input" name="invoiceDate" value="${normalizeDateForInput(inv.invoiceDate) || ''}"></td>
+                <td>${formatCurrency(inv.invValue)}</td>
+            `;
+            // --- END MODIFICATION ---
             snTableBody.appendChild(row);
         }
         snTotalNumeric.textContent = formatCurrency(currentPaymentTotal);
@@ -2685,6 +2795,7 @@ async function handleGenerateSummary() {
     } catch (error) { console.error("Error generating summary:", error); alert("An error occurred. Please check the notes and try again."); }
     finally { summaryNoteGenerateBtn.textContent = 'Generate Summary'; summaryNoteGenerateBtn.disabled = false; }
 }
+
 async function handleUpdateSummaryChanges() {
     const rows = snTableBody.querySelectorAll('tr');
     if (rows.length === 0) { alert("No data to update."); return; }
