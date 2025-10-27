@@ -509,6 +509,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     margin-bottom: 0;
 }
 
+/* On-screen appearance */
 #summary-note-printable-area {
     border: 1px solid #ccc;
     padding: 20px;
@@ -516,30 +517,31 @@ tbody tr:hover { background-color: #f1f1f1; }
     margin: 20px auto;
     background-color: #fff;
 }
-.sn-header, .sn-payment-details {
+/* Hide print-only header on screen */
+.sn-print-header { display: none; }
+
+.sn-vendor-info p {
+    margin: 0;
+    font-size: 1.1rem; /* Slightly larger vendor name on screen */
+    margin-bottom: 15px;
+    font-weight: bold;
+}
+.sn-payment-details {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     padding: 10px 0;
     font-size: 1rem;
-}
-.sn-header {
-    border-bottom: 2px solid #000;
-}
-.sn-vendor-info p {
-    margin: 0;
-}
-.sn-payment-details {
-    border-bottom: 2px solid #000;
+    border-top: 1px solid #eee;
+    border-bottom: 1px solid #eee;
     font-weight: bold;
+    margin-bottom: 20px;
 }
 .sn-payment-details div {
     flex: 1;
-    border-left: 1px solid #000;
     padding-left: 10px;
 }
 .sn-payment-details div:first-child {
-    border-left: none;
     padding-left: 0;
 }
 .sn-table {
@@ -548,32 +550,39 @@ tbody tr:hover { background-color: #f1f1f1; }
     border-collapse: collapse;
 }
 .sn-table th, .sn-table td {
-    border: 1px solid #000;
-    padding: 8px;
+    border: 1px solid #ddd;
+    padding: 8px 10px;
     text-align: left;
+    font-size: 0.9rem; /* Slightly smaller font on screen table */
 }
 .sn-table th {
     font-weight: bold;
+    background-color: #f8f9fa;
 }
 .sn-table input {
     width: 100%;
-    border: 1px solid #ddd;
+    border: 1px solid #ccc; /* Show border on screen */
     padding: 6px;
     border-radius: 3px;
     font-family: inherit;
     font-size: inherit;
 }
 .sn-footer {
-    border-top: 2px solid #000;
-    padding: 10px 0;
+    border-top: 2px solid #333;
+    padding: 15px 0;
     display: flex;
     justify-content: space-between;
     font-weight: bold;
+    margin-top: 10px;
+}
+/* Hide print-only notes on screen */
+#sn-print-notes {
+    display: none;
 }
 .sn-signatures {
-    margin-top: 60px;
+    margin-top: 40px; /* Less margin on screen */
     display: flex;
-    justify-content: space-between;
+    justify-content: space-around; /* Space around on screen */
 }
 .sn-signatures div {
     flex: 1;
@@ -581,6 +590,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     border-top: 1px solid #000;
     padding-top: 10px;
     margin: 0 20px;
+    max-width: 200px; /* Limit width on screen */
 }
 
 /* ++ NEW: MODAL STYLES ++ */
@@ -757,15 +767,13 @@ tbody tr:hover { background-color: #f1f1f1; }
 #im-finance-report-modal #im-reportNotesSection h5 { font-weight: bold; margin-bottom: 10px !important; }
 #im-finance-report-modal #im-reportNotesContent { white-space: pre-wrap !important; font-size: 12pt !important; padding: 10px !important; border: 1px solid #ddd !important; background: #f9f9f9 !important; min-height: 50px !important; }
 
-
 /* =================================== */
 /* CORRECTED PRINT STYLES - CONDITIONAL */
 /* =================================== */
 @media print {
     @page {
         size: A4;
-        /* Reduced margin slightly */
-        margin: 5mm;
+        margin: 5mm; /* Base margin */
     }
 
     body {
@@ -773,12 +781,10 @@ tbody tr:hover { background-color: #f1f1f1; }
         margin: 0 !important;
         padding: 0 !important;
         background: white !important;
-        /* Default font size set here, can be smaller if needed */
-        font-size: 10pt !important;
+        font-size: 10pt !important; /* Base print font size */
     }
 
     /* --- Rule for Printing Summary Note --- */
-    /* Only apply when summary note area is VISIBLE on screen */
     #summary-note-printable-area:not(.hidden),
     #summary-note-printable-area:not(.hidden) * {
         visibility: visible !important;
@@ -791,94 +797,171 @@ tbody tr:hover { background-color: #f1f1f1; }
         width: 100% !important;
         height: auto !important;
         margin: 0 !important;
-        /* Reduced padding */
-        padding: 5mm !important;
+        padding: 10mm 5mm !important; /* Add top/bottom padding, keep side margin */
         border: none !important;
         box-shadow: none !important;
         background: white !important;
         overflow: visible !important;
         display: block !important;
         z-index: 9999 !important;
-        /* Font size inherited from body or override here if needed */
-        /* font-size: 11pt !important; */
-    }
-    #summary-note-printable-area:not(.hidden) .sn-table {
-        /* Slightly smaller font for the table */
-        font-size: 9pt !important;
-        page-break-inside: auto; /* Allow table rows to break across pages if needed */
-        table-layout: fixed !important; /* Ensure fixed layout */
-        width: 100% !important; /* Ensure table uses full width */
     }
 
-    /* --- Column Width Adjustments (Using Percentages) --- */
-    /* Inv Count (Col 1) */
-    #summary-note-printable-area:not(.hidden) .sn-table th:nth-child(1),
+    /* Show and style the print header */
+    #summary-note-printable-area:not(.hidden) .sn-print-header {
+        display: flex !important;
+        justify-content: space-between;
+        align-items: flex-start;
+        border-bottom: 2px solid #000 !important;
+        padding-bottom: 10px !important;
+        margin-bottom: 15px !important;
+    }
+    #summary-note-printable-area:not(.hidden) .sn-print-company h2 {
+        margin: 0;
+        font-size: 12pt !important;
+        font-weight: bold;
+    }
+     #summary-note-printable-area:not(.hidden) .sn-print-title {
+        text-align: right;
+    }
+    #summary-note-printable-area:not(.hidden) .sn-print-title h1 {
+        margin: 0 0 5px 0;
+        font-size: 16pt !important;
+        font-weight: bold;
+    }
+    #summary-note-printable-area:not(.hidden) .sn-print-title p {
+        margin: 0;
+        font-size: 10pt !important;
+    }
+
+    /* Style Vendor Info */
+    #summary-note-printable-area:not(.hidden) .sn-vendor-info {
+        margin-bottom: 10px !important;
+        padding-bottom: 10px !important;
+        border-bottom: 1px solid #ccc !important;
+    }
+     #summary-note-printable-area:not(.hidden) .sn-vendor-info p {
+         font-size: 11pt !important;
+         margin: 0 !important;
+     }
+
+    /* Style Payment Details */
+    #summary-note-printable-area:not(.hidden) .sn-payment-details {
+        font-size: 10pt !important;
+        padding: 10px 0 !important;
+        border-top: 1px solid #000 !important;
+        border-bottom: 1px solid #000 !important;
+        margin-bottom: 15px !important;
+    }
+     #summary-note-printable-area:not(.hidden) .sn-payment-details div {
+         border-left: none !important; /* Remove internal border */
+         padding-left: 0 !important;
+     }
+
+    /* Style the table for print */
+    #summary-note-printable-area:not(.hidden) .sn-table {
+        font-size: 9pt !important;
+        page-break-inside: auto;
+        table-layout: fixed !important; /* Ensure fixed layout */
+        width: 100% !important; /* Ensure table uses full width */
+        border: 1px solid #333 !important; /* Add outer border */
+    }
+    #summary-note-printable-area:not(.hidden) .sn-table th {
+        background-color: #eee !important; /* Light grey header */
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        font-weight: bold !important;
+        border: 1px solid #333 !important; /* Stronger borders */
+    }
+    #summary-note-printable-area:not(.hidden) .sn-table td {
+        border: 1px solid #333 !important; /* Stronger borders */
+    }
+
+    /* Column Width Adjustments (Using Percentages) */
+    #summary-note-printable-area:not(.hidden) .sn-table th:nth-child(1), /* Inv Count */
     #summary-note-printable-area:not(.hidden) .sn-table td:nth-child(1) {
-        width: 8% !important; /* Base width */
-        text-align: center !important;
-        word-break: break-all;
+        width: 8% !important; text-align: center !important; word-break: break-all;
     }
-    /* P.O.No. (Col 2) */
-    #summary-note-printable-area:not(.hidden) .sn-table th:nth-child(2),
+    #summary-note-printable-area:not(.hidden) .sn-table th:nth-child(2), /* P.O.No. */
     #summary-note-printable-area:not(.hidden) .sn-table td:nth-child(2) {
-        width: 8% !important; /* Same as Inv Count */
-        text-align: center !important;
+        width: 8% !important; text-align: center !important;
     }
-    /* Site (Col 3) */
-    #summary-note-printable-area:not(.hidden) .sn-table th:nth-child(3),
+    #summary-note-printable-area:not(.hidden) .sn-table th:nth-child(3), /* Site */
     #summary-note-printable-area:not(.hidden) .sn-table td:nth-child(3) {
-        width: 8% !important; /* Squeezed */
-        text-align: center !important;
+        width: 8% !important; text-align: center !important;
     }
-    /* Bill Description (Col 4) */
-    #summary-note-printable-area:not(.hidden) .sn-table th:nth-child(4),
+    #summary-note-printable-area:not(.hidden) .sn-table th:nth-child(4), /* Bill Desc */
     #summary-note-printable-area:not(.hidden) .sn-table td:nth-child(4) {
-        width: 44% !important; /* Largest column (adjust as needed) */
-        /* Keep default left align for description */
+        width: 44% !important; /* Largest column */
     }
-    /* Bill Date (Col 5) */
-    #summary-note-printable-area:not(.hidden) .sn-table th:nth-child(5),
+    #summary-note-printable-area:not(.hidden) .sn-table th:nth-child(5), /* Bill Date */
     #summary-note-printable-area:not(.hidden) .sn-table td:nth-child(5) {
-        width: 16% !important; /* Twice Inv Count width (8% * 2) */
-        text-align: center !important;
+        width: 16% !important; text-align: center !important;
     }
-    /* Payment Amount (Col 6) */
-    #summary-note-printable-area:not(.hidden) .sn-table th:nth-child(6),
+    #summary-note-printable-area:not(.hidden) .sn-table th:nth-child(6), /* Payment Amt */
     #summary-note-printable-area:not(.hidden) .sn-table td:nth-child(6) {
-        width: 16% !important; /* Twice Inv Count width (8% * 2) */
-        text-align: right !important; /* Align numbers to the right */
+        width: 16% !important; text-align: right !important; /* Align numbers to the right */
     }
     /* --- End Column Width Adjustments --- */
 
     #summary-note-printable-area:not(.hidden) .sn-table tr {
-        page-break-inside: avoid; /* Try to keep table rows together */
+        page-break-inside: avoid;
         page-break-after: auto;
     }
     #summary-note-printable-area:not(.hidden) .sn-table input {
-        border: none !important; /* Hide input borders for printing */
+        border: none !important;
         background: transparent !important;
-        font-size: inherit !important; /* Ensure input uses table font size */
-        padding: 2px !important; /* Reduce input padding */
+        font-size: inherit !important;
+        padding: 2px !important;
     }
      #summary-note-printable-area:not(.hidden) .sn-table th,
      #summary-note-printable-area:not(.hidden) .sn-table td {
-        padding: 4px 6px !important; /* Reduce cell padding */
+        padding: 4px 6px !important;
     }
      #summary-note-printable-area:not(.hidden) .sn-footer {
-         font-size: 10pt !important; /* Adjust footer font size */
-         padding: 5px 0 !important;
-         page-break-before: auto; /* Allow break before footer if needed, but try to avoid */
-         page-break-inside: avoid; /* Keep footer content together */
-     }
-     #summary-note-printable-area:not(.hidden) .sn-signatures {
-         margin-top: 80px !important; /* Increased space before signatures */
          font-size: 10pt !important;
-         page-break-before: auto; /* Allow break before signatures if needed */
-         page-break-inside: avoid; /* Keep signature block together */
+         padding: 8px 0 !important;
+         border-top: 2px solid #000 !important; /* Make top border solid black */
+         margin-top: 0 !important; /* Remove space before footer */
+         page-break-before: auto;
+         page-break-inside: avoid;
+     }
+      /* --- MODIFIED: Show and style print-only notes --- */
+     #summary-note-printable-area:not(.hidden) .sn-print-notes-section {
+        /* display: block !important; This is handled by JS based on content */
+        visibility: visible !important; /* Make sure it's visible if display is block */
+        margin-top: 20px !important;
+        padding-top: 15px !important;
+        border-top: 1px dashed #ccc !important;
+        font-size: 9pt !important;
+        color: #555 !important;
+        page-break-before: auto;
+        page-break-inside: avoid; /* Try to keep notes together */
+     }
+      #summary-note-printable-area:not(.hidden) .sn-print-notes-section h4 {
+          margin: 0 0 5px 0 !important;
+          font-size: 10pt !important;
+          font-weight: bold !important;
+          color: #333 !important;
+      }
+       #summary-note-printable-area:not(.hidden) #sn-print-notes-content {
+           margin: 0 !important;
+           line-height: 1.4 !important;
+           white-space: pre-wrap !important; /* Respect line breaks */
+       }
+
+     #summary-note-printable-area:not(.hidden) .sn-signatures {
+         margin-top: 60px !important; /* Keep reasonable space */
+         font-size: 10pt !important;
+         page-break-before: auto;
+         page-break-inside: avoid;
+         justify-content: space-between !important; /* Space between for print */
      }
      #summary-note-printable-area:not(.hidden) .sn-signatures div {
-         padding-top: 5px !important;
-         margin: 0 10px !important;
+         padding-top: 40px !important; /* More space for signature line */
+         margin: 0 !important; /* Remove horizontal margin for print */
+         border-top: 1px solid #000 !important; /* Add line */
+         width: 30% !important; /* Define width */
+         text-align: center !important;
      }
 
     /* When printing summary note, HIDE the finance report modal and its overlay */
@@ -961,6 +1044,7 @@ tbody tr:hover { background-color: #f1f1f1; }
 
     /* --- Hide elements that should never print --- */
     #summary-note-controls, /* Hide the controls on the summary page */
+    #im-summary-note .form-group.no-print, /* Hide the custom notes input area */
     #im-finance-report .search-and-filter-group, /* Hide finance search controls */
     .workdesk-sidebar, /* Hide sidebars */
     .workdesk-main > span, /* Hide datetime spans */
@@ -972,6 +1056,15 @@ tbody tr:hover { background-color: #f1f1f1; }
         display: none !important;
         visibility: hidden !important;
     }
+
+     /* --- MODIFIED: Ensure notes section IS visible ONLY if JS sets display: block --- */
+    #summary-note-printable-area:not(.hidden) .sn-print-notes-section {
+        display: none; /* Hide by default in print */
+    }
+    #summary-note-printable-area:not(.hidden) .sn-print-notes-section[style*="display: block"] {
+        display: block !important; /* ONLY show if JS explicitly sets it */
+    }
+
 
 }
 /* =================================== */

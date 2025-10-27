@@ -2916,6 +2916,62 @@ async function handlePaymentModalPOSearch() {
     }
 }
 
+// Function to handle searching for invoices in the Add Payment modal
+async function handlePaymentModalPOSearch() {
+    const poNumber = imPaymentModalPOInput.value.trim().toUpperCase();
+    if (!poNumber) {
+        imPaymentModalResults.innerHTML = '<p>Please enter a PO Number.</p>';
+        return;
+    }
+    imPaymentModalResults.innerHTML = '<p>Searching...</p>';
+
+    try {
+        await ensureInvoiceDataFetched(); // Ensure latest data
+        const poData = allPOData[poNumber];
+        const invoicesData = allInvoiceData[poNumber];
+        // Site and Vendor needed for lookup later, ensure poData exists
+        const site = poData ? poData['Project ID'] || 'N/A' : 'N/A';
+        const vendor = poData ? poData['Supplier Name'] || 'N/A' : 'N/A';
+
+        let resultsFound = false;
+        let tableHTML = `<table><thead><tr><th><input type="checkbox" id="payment-modal-select-all"></th><th>Inv. Entry ID</th><th>Inv. Value</th><th>Status</th></tr></thead><tbody>`;
+
+        if (invoicesData) {
+            const sortedInvoices = Object.entries(invoicesData).sort(([, a], [, b]) => (a.invEntryID || '').localeCompare(b.invEntryID || ''));
+
+            for (const [key, inv] of sortedInvoices) {
+                // Only show "With Accounts" status and not already added to the payment list
+                if (inv.status === 'With Accounts' && !invoicesToPay[key]) {
+                    resultsFound = true;
+
+                    // --- MODIFIED: Store only key and po in data attributes ---
+                    tableHTML += `<tr>
+                        <td><input type="checkbox" class="payment-modal-inv-checkbox" data-key='${key}' data-po='${poNumber}'></td>
+                        <td>${inv.invEntryID || ''}</td>
+                        <td>${formatCurrency(inv.invValue)}</td>
+                        <td>${inv.status || ''}</td>
+                    </tr>`;
+                    // --- END MODIFICATION ---
+                }
+            }
+        }
+
+        if (!resultsFound) {
+            imPaymentModalResults.innerHTML = '<p>No invoices found for this PO with status "With Accounts" that haven\'t already been added.</p>';
+        } else {
+            tableHTML += `</tbody></table>`;
+            imPaymentModalResults.innerHTML = tableHTML;
+            // Add event listener for the select-all checkbox
+            document.getElementById('payment-modal-select-all').addEventListener('change', (e) => {
+                imPaymentModalResults.querySelectorAll('.payment-modal-inv-checkbox').forEach(chk => chk.checked = e.target.checked);
+            });
+        }
+    } catch (error) {
+        console.error("Error searching in payment modal:", error);
+        imPaymentModalResults.innerHTML = '<p>An error occurred while searching.</p>';
+    }
+}
+
 // Function to add selected invoices from the modal to the main Payments table
 function handleAddSelectedToPayments() {
     const selectedCheckboxes = imPaymentModalResults.querySelectorAll('.payment-modal-inv-checkbox:checked');
@@ -2925,34 +2981,57 @@ function handleAddSelectedToPayments() {
     }
 
     selectedCheckboxes.forEach(checkbox => {
-        const invData = JSON.parse(decodeURIComponent(checkbox.dataset.invoice));
-        if (!invoicesToPay[invData.key]) { // Check again to prevent duplicates if modal is opened multiple times
-            invoicesToPay[invData.key] = invData; // Store the full data
+        // --- MODIFIED: Get key and po from attributes, look up data ---
+        const key = checkbox.dataset.key;
+        const poNumber = checkbox.dataset.po;
+
+        // Look up the full data from the cache using key and poNumber
+        const originalInvData = (allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][key])
+            ? allInvoiceData[poNumber][key]
+            : null;
+
+        if (!originalInvData) {
+             console.warn(`Could not find invoice data in cache for key: ${key}, PO: ${poNumber}`);
+             return; // Skip if data not found
+        }
+
+        // Reconstruct necessary structure, getting site/vendor from PO cache
+        const invData = {
+            key: key,
+            po: poNumber,
+            site: allPOData[poNumber]?.['Project ID'] || 'N/A',
+            vendor: allPOData[poNumber]?.['Supplier Name'] || 'N/A',
+            invEntryID: originalInvData.invEntryID || '',
+            invValue: originalInvData.invValue || '0',
+            currentAmountPaid: originalInvData.amountPaid || '0', // Keep track of any previous partial payments
+            status: originalInvData.status
+        };
+        // --- END MODIFICATION ---
+
+        if (!invoicesToPay[invData.key]) { // Check again to prevent duplicates
+            invoicesToPay[invData.key] = invData; // Store the full data object
 
             const row = document.createElement('tr');
             row.setAttribute('data-key', invData.key);
-            row.setAttribute('data-po', invData.po);
+            row.setAttribute('data-po', invData.po); // Store PO on the row too
 
-            // --- FIX: Make Inv. Value editable, default Amount To Paid to Inv Value ---
             row.innerHTML = `
                 <td>${invData.po}</td>
                 <td>${invData.site}</td>
                 <td>${invData.vendor}</td>
                 <td>${invData.invEntryID}</td>
                 <td><input type="number" name="invValue" class="payment-input" step="0.01" value="${invData.invValue || '0'}"></td>
-                <td><input type="number" name="amountPaid" class="payment-input" step="0.01" value="${invData.invValue || '0'}"></td>
+                <td><input type="number" name="amountPaid" class="payment-input" step="0.01" value="${invData.invValue || '0'}"></td> 
                 <td><input type="date" name="releaseDate" class="payment-input" value="${getTodayDateString()}"></td>
                 <td>${invData.status}</td>
                 <td><button type="button" class="delete-btn payment-remove-btn">&times;</button></td>
             `;
-            // --- END FIX ---
             imPaymentsTableBody.appendChild(row);
         }
     });
 
     imAddPaymentModal.classList.add('hidden'); // Close the modal
 }
-
 // Function to save the processed payments
 async function handleSavePayments() {
     const rows = imPaymentsTableBody.querySelectorAll('tr');
@@ -3755,7 +3834,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Summary Note Listeners
     if(summaryNoteGenerateBtn) summaryNoteGenerateBtn.addEventListener('click', handleGenerateSummary);
     if(summaryNoteUpdateBtn) summaryNoteUpdateBtn.addEventListener('click', handleUpdateSummaryChanges);
-    if(summaryNotePrintBtn) summaryNotePrintBtn.addEventListener('click', () => window.print());
+    
+// UPDATED Summary Note Print Button Listener
+    if(summaryNotePrintBtn) {
+        summaryNotePrintBtn.addEventListener('click', () => {
+            const customNotesInput = document.getElementById('summary-note-custom-notes-input');
+            const notesPrintContent = document.getElementById('sn-print-notes-content');
+            const notesPrintContainer = document.getElementById('sn-print-notes');
+
+            if (customNotesInput && notesPrintContent && notesPrintContainer) {
+                const notesText = customNotesInput.value.trim();
+                notesPrintContent.textContent = notesText; // Set the text
+
+                // Show the notes container only if there is text
+                if (notesText) {
+                    notesPrintContainer.style.display = 'block'; // Ensure it's block for print calc
+                } else {
+                    notesPrintContainer.style.display = 'none';  // Ensure it's hidden if empty
+                }
+
+                window.print(); // Trigger print dialog
+
+                // Optional: Hide the container again after printing if needed,
+                // but CSS print rules should handle visibility correctly anyway.
+                // notesPrintContainer.style.display = 'none';
+
+            } else {
+                console.error("Could not find notes elements for printing.");
+                // Fallback to simple print if elements aren't found
+                window.print();
+            }
+        });
+    }
+
 
     // ++ NEW: Payment Section Listeners ++
     if (imAddPaymentButton) {
