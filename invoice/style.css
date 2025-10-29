@@ -6,8 +6,17 @@
     100% { border-color: #03a9f4; box-shadow: 0 0 2px #03a9f4, 0 0 5px #03a9f4, 0 0 10px #03a9f4, inset 0 0 0 2px rgba(0,0,0,0.5); }
 }
 
+/* +++ Custom Variables +++ */
+:root {
+    --invoice-blue: #d1dee8; /* The specific blue from the attached image */
+    --invoice2-blue: #416282; /* The specific blue from the attached image */
+    --text-color-light: #fff;
+    --text-color-dark: #333;
+}
+
+
 /* General Body Styles */
-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; color: #333; background-color: #f4f7fa; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; color: var(--text-color-dark); background-color: #f4f7fa; }
 
 /* +++ Plain Dark Blue Login Background +++ */
 body.login-background {
@@ -33,7 +42,7 @@ body.login-background {
     backdrop-filter: blur(5px);
 }
 .animated-card h2, .animated-card p, .animated-card strong {
-    color: #fff; /* White text for dark background */
+    color: var(--text-color-light); /* White text for dark background */
 }
 
 h2 { margin-top: 0; margin-bottom: 10px; color: #1a1a1a; }
@@ -41,7 +50,7 @@ p { margin-bottom: 20px; color: #555; line-height: 1.5; }
 input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="date"], input[type="month"], input[type="tel"], select, textarea { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; transition: border-color 0.3s; box-sizing: border-box; font-family: inherit; }
 input:focus, select:focus, textarea:focus { outline: none; border-color: #007bff; }
 label { display: block; text-align: left; margin-bottom: 5px; font-weight: 600; color: #444; }
-button { padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 4px; font-size: 15px; font-weight: bold; cursor: pointer; transition: background-color 0.3s; }
+button { padding: 10px 20px; background-color: #007bff; color: var(--text-color-light); border: none; border-radius: 4px; font-size: 15px; font-weight: bold; cursor: pointer; transition: background-color 0.3s; }
 button:hover { background-color: #0056b3; }
 .hidden { display: none !important; }
 .error-message { color: #dc3545; font-weight: 500; margin-top: 15px; min-height: 20px; }
@@ -60,9 +69,9 @@ button:hover { background-color: #0056b3; }
 /* MODIFIED: Changed text color for dark card */
 .dashboard-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #4a5568; padding-bottom: 15px; margin-bottom: 30px; }
 #user-info { display: flex; flex-direction: column; align-items: flex-start; text-align: left; }
-#dashboard-username { font-size: 1.1rem; font-weight: 600; color: #fff; } /* White text */
+#dashboard-username { font-size: 1.1rem; font-weight: 600; color: var(--text-color-light); } /* White text */
 #datetime { font-size: 0.85rem; color: #a0aec0; margin-top: 4px; } /* Lighter text */
-#logout-button { background-color: #dc3545; color: white; width: auto; padding: 8px 16px; font-size: 14px; font-weight: normal; }
+#logout-button { background-color: #dc3545; color: var(--text-color-light); width: auto; padding: 8px 16px; font-size: 14px; font-weight: normal; }
 #logout-button:hover { background-color: #c82333; }
 .dashboard-main { padding: 10px 0; }
 .button-container { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; }
@@ -72,8 +81,8 @@ button:hover { background-color: #0056b3; }
     height: 120px;
     border-radius: 50%;
     background: linear-gradient(145deg, #0088d1, #006da8);
-    color: white;
-    border: 4px solid white;
+    color: var(--text-color-light);
+    border: 4px solid var(--text-color-light);
     box-shadow: 0 5px 15px rgba(0, 119, 194, 0.4);
     font-size: 1rem;
     font-weight: 600;
@@ -90,18 +99,18 @@ button:hover { background-color: #0056b3; }
 
 /* --- WORKDESK STYLES --- */
 #workdesk-view, #invoice-management-view { display: flex; width: 100vw; height: 100vh; overflow: hidden; }
-.workdesk-sidebar { width: 260px; background-color: #001e3c; color: #fff; display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; transition: width 0.3s ease; }
+.workdesk-sidebar { width: 260px; background-color: #001e3c; color: var(--text-color-light); display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; transition: width 0.3s ease; }
 .wd-user-profile { text-align: center; padding-bottom: 20px; }
 .wd-user-avatar { width: 80px; height: 80px; border-radius: 50%; background-color: #003366; display: flex; justify-content: center; align-items: center; margin: 0 auto 15px; font-size: 40px; color: #66b2ff; }
 #wd-username, #im-username { margin: 0 0 5px 0; font-size: 1.1rem; }
 #wd-user-identifier, #im-user-identifier { margin: 0; font-size: 0.8rem; color: #b0b0b0; }
-.wd-back-button { display: flex; align-items: center; gap: 15px; padding: 12px 15px; margin-top: 15px; border-top: 1px solid #003366; text-decoration: none; background-color: #002b4d; color: #fff; border-radius: 6px; font-weight: 600; transition: background-color 0.3s; }
+.wd-back-button { display: flex; align-items: center; gap: 15px; padding: 12px 15px; margin-top: 15px; border-top: 1px solid #003366; text-decoration: none; background-color: #002b4d; color: var(--text-color-light); border-radius: 6px; font-weight: 600; transition: background-color 0.3s; }
 .wd-back-button:hover { background-color: #004488; }
 .workdesk-navigation { flex-grow: 1; margin-top: 20px; }
 .workdesk-navigation ul, .workdesk-footer-nav ul { list-style: none; padding: 0; margin: 0; }
 .workdesk-navigation a, .workdesk-footer-nav a { display: flex; align-items: center; gap: 15px; padding: 12px 15px; margin-bottom: 8px; text-decoration: none; color: #c0c0c0; border-radius: 6px; transition: background-color 0.3s, color 0.3s; }
-.workdesk-navigation a:hover, .workdesk-footer-nav a:hover { background-color: #003366; color: #fff; }
-.workdesk-navigation a.active { background-color: #007bff; color: #fff; font-weight: 600; }
+.workdesk-navigation a:hover, .workdesk-footer-nav a:hover { background-color: #003366; color: var(--text-color-light); }
+.workdesk-navigation a.active { background-color: #007bff; color: var(--text-color-light); font-weight: 600; }
 .workdesk-navigation a i, .workdesk-footer-nav a i { width: 20px; text-align: center; }
 .workdesk-main { flex-grow: 1; background-color: #f4f7fa; padding: 25px 40px; overflow-y: auto; box-sizing: border-box; }
 #workdesk-datetime, #im-datetime { font-size: 0.9rem; color: #555; font-weight: 500; text-align: right; margin-bottom: 15px; }
@@ -156,13 +165,45 @@ input.highlight-field { border-color: #ffc107; box-shadow: 0 0 0 0.2rem rgba(255
     flex-shrink: 0; /* Prevents button from shrinking */
 }
 
+/* ++ NEW (Req 1): Style for Bottom PO Search Container ++ */
+#im-po-search-container-bottom {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 25px; /* Add space above */
+    padding-top: 20px; /* Add padding above */
+    border-top: 1px solid #eee; /* Add separator line */
+    /* max-width: 500px; */ /* REMOVED max-width to allow buttons to spread */
+}
+#im-po-search-container-bottom .search-bar-local {
+    margin-bottom: 0;
+    flex-grow: 1;
+    max-width: 300px; /* Limit input width */
+}
+#im-po-search-container-bottom button {
+    flex-shrink: 0;
+}
+
+/* ++ FIX: Add spacing to buttons within the bottom search container ++ */
+#im-po-search-container-bottom .form-buttons-container {
+    display: flex; /* Ensure buttons align horizontally */
+    gap: 10px;    /* Add the same gap as the parent container */
+    margin-left: 10px; /* Optional: Add space between Search PO btn and Add Invoice btn */
+    /* Remove inherited styles if they cause issues */
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+    justify-content: flex-end; /* Align buttons to the right */
+    flex-grow: 1; /* Allow button container to take remaining space */
+}
+
 /* Table Styles */
 .table-wrapper { width: 100%; overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: 12px 15px; border-bottom: 1px solid #e0e0e0; text-align: left; vertical-align: middle;} /* ++ Added vertical-align ++ */
-thead th { background-color: #f8f9fa; font-weight: 600; color: #333; }
+thead th { background-color: #f8f9fa; font-weight: 600; color: var(--text-color-dark); }
 tbody tr:hover { background-color: #f1f1f1; }
-.respond-btn { background-color: #28a745; color: white; padding: 5px 10px; font-size: 13px; font-weight: normal; }
+.respond-btn { background-color: #28a745; color: var(--text-color-light); padding: 5px 10px; font-size: 13px; font-weight: normal; }
 .respond-btn:hover { background-color: #218838; }
 .delete-btn {
     background-color: #dc3545;
@@ -189,9 +230,9 @@ tbody tr:hover { background-color: #f1f1f1; }
 /* WORKDESK DASHBOARD STYLES */
 .dashboard-summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
 .summary-card { display: flex; align-items: center; background-color: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 5px solid #007bff; }
-.card-icon { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; margin-right: 15px; }
+.card-icon { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-color-light); font-size: 24px; margin-right: 15px; }
 .card-details { text-align: left; }
-.card-value { font-size: 2rem; font-weight: bold; color: #333; display: block; }
+.card-value { font-size: 2rem; font-weight: bold; color: var(--text-color-dark); display: block; }
 .card-label { font-size: 0.9rem; color: #555; }
 
 /* MODIFIED: Changed ID to Class */
@@ -317,7 +358,7 @@ tbody tr:hover { background-color: #f1f1f1; }
 /* --- INVOICE REPORT STYLES --- */
 #im-reporting-content table thead th {
     background-color: #001e3c;
-    color: white;
+    color: var(--text-color-light);
 }
 .master-row {
     cursor: pointer;
@@ -348,7 +389,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     width: 25px;
     height: 25px;
     background-color: #001e3c;
-    color: white;
+    color: var(--text-color-light);
     border: none;
     border-radius: 4px;
     cursor: pointer;
@@ -406,7 +447,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     padding: 4px 8px;
     font-size: 12px;
     text-decoration: none;
-    color: white;
+    color: var(--text-color-light);
     border-radius: 4px;
     display: inline-block;
     text-align: center;
@@ -487,6 +528,23 @@ tbody tr:hover { background-color: #f1f1f1; }
     line-height: 1;
 }
 
+/* ++ NEW (Req 4): Batch Note Search Styles ++ */
+.batch-note-search-wrapper {
+    min-width: 250px; /* Give dropdown some space */
+    flex-grow: 1; /* Allow it to grow */
+}
+#im-batch-note-search-select {
+    width: 100%; /* Make select fill the wrapper */
+}
+#im-batch-note-search-select + .choices { /* Target Choices.js container */
+    margin-bottom: 0;
+}
+#im-batch-note-search-select + .choices .choices__inner {
+    padding: 11px; /* Match other inputs */
+    min-height: 46px; /* Match padding */
+}
+
+
 /* --- SUMMARY NOTE PRINT STYLES --- */
 #summary-note-controls {
     display: flex;
@@ -520,12 +578,33 @@ tbody tr:hover { background-color: #f1f1f1; }
 /* Hide print-only header on screen */
 .sn-print-header { display: none; }
 
-.sn-vendor-info p {
-    margin: 0;
-    font-size: 1.1rem; /* Slightly larger vendor name on screen */
-    margin-bottom: 15px;
+/* MODIFIED: Summary For Vendor Styling (On Screen) */
+#summary-note-printable-area .sn-vendor-summary-title {
+    margin: 0 0 15px 0;
+    padding: 10px;
+    text-align: center;
+    font-size: 1.2rem;
     font-weight: bold;
+    background-color: var(--invoice2-blue); /* Use custom blue variable */
+    color: var(--text-color-light); /* White font */
+    border-radius: 5px; /* Slight rounded corners */
 }
+#summary-note-printable-area .sn-vendor-summary-title p {
+    margin: 0; /* Remove default paragraph margin */
+    color: inherit; /* Inherit white color */
+}
+/* Remove border/margin from parent container */
+#summary-note-printable-area .sn-vendor-info {
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+    border-bottom: none !important;
+}
+ /* CORRECTED: Hide the original paragraph if still present outside the title div (this rule might be redundant now) */
+ /* #summary-note-printable-area .sn-vendor-info > p {
+     display: none;
+ } */
+
+
 .sn-payment-details {
     display: flex;
     justify-content: space-between;
@@ -555,10 +634,14 @@ tbody tr:hover { background-color: #f1f1f1; }
     text-align: left;
     font-size: 0.9rem; /* Slightly smaller font on screen table */
 }
-.sn-table th {
+
+/* MODIFIED: Table Header Styling (On Screen) */
+.sn-table thead th { /* Targeted thead th specifically */
     font-weight: bold;
-    background-color: #f8f9fa;
+    background-color: var(--invoice2-blue); /* Use custom blue variable */
+    color: var(--text-color-light); /* White font */
 }
+
 .sn-table input {
     width: 100%;
     border: 1px solid #ccc; /* Show border on screen */
@@ -576,7 +659,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     margin-top: 10px;
 }
 /* Hide print-only notes on screen */
-#sn-print-notes {
+.sn-print-notes-section { /* Use the class here */
     display: none;
 }
 .sn-signatures {
@@ -708,7 +791,7 @@ tbody tr:hover { background-color: #f1f1f1; }
 /* Styles from finance report styles.css, adapted */
 #im-finance-results .po-summary-table { width: 100%; margin-bottom: 0; border-collapse: collapse; }
 #im-finance-results .po-summary-table th, #im-finance-results .po-summary-table td { padding: 0.9rem 1rem; vertical-align: middle; }
-#im-finance-results .po-summary-table thead th { background-color: #0d2d52; color: #ffffff; font-weight: 600; text-align: left; border: none; font-size: 0.9rem; letter-spacing: 0.5px; }
+#im-finance-results .po-summary-table thead th { background-color: #0d2d52; color: var(--text-color-light); font-weight: 600; text-align: left; border: none; font-size: 0.9rem; letter-spacing: 0.5px; }
 #im-finance-results .po-summary-table tbody td { background-color: #f8f9fa; border: 1px solid #dee2e6; border-top: none; font-size: 1rem; }
 #im-finance-results .payment-details-wrapper { padding: 1rem 1.5rem; border: 1px solid #dee2e6; border-top: none; background-color: #fff; margin-bottom: 1.5rem; }
 #im-finance-results .payment-details-header { font-weight: bold; margin-bottom: 0.75rem; font-size: 1.1rem; color: #343a40; }
@@ -722,10 +805,10 @@ tbody tr:hover { background-color: #f1f1f1; }
     text-align: right; font-family: monospace;
 }
 #im-finance-results .btn-info { /* Report button */
-    background-color: #0dcaf0; border-color: #0dcaf0; color: white;
+    background-color: #0dcaf0; border-color: #0dcaf0; color: var(--text-color-light);
 }
 #im-finance-results .btn-info:hover {
-    background-color: #0b9ed8; border-color: #0a95cf; color: white;
+    background-color: #0b9ed8; border-color: #0a95cf; color: var(--text-color-light);
 }
 
 /* Enhanced Report Modal Styles (copied and prefixed where necessary) */
@@ -747,7 +830,7 @@ tbody tr:hover { background-color: #f1f1f1; }
 #im-finance-report-modal .report-summary p span { font-weight: normal; text-align: right; min-width: 150px; display: inline-block; }
 #im-finance-report-modal table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
 #im-finance-report-modal table th, #im-finance-report-modal table td { padding: 12px 10px; border: 1px solid #dee2e6; }
-#im-finance-report-modal table thead th { background-color: #343a40; color: white; font-weight: bold; font-size: 14px; text-align: center; }
+#im-finance-report-modal table thead th { background-color: #343a40; color: var(--text-color-light); font-weight: bold; font-size: 14px; text-align: center; }
 #im-finance-report-modal table tfoot th { background-color: #e9ecef; color: #000; font-weight: bold; font-size: 15px; text-align: right; padding-right: 20px; }
 #im-finance-report-modal table tfoot td { font-weight: bold; text-align: right; padding-right: 20px; font-size: 15px; }
 #im-finance-report-modal .signatures { display: flex; justify-content: space-between; margin-top: 60px; padding-top: 20px; }
@@ -766,6 +849,7 @@ tbody tr:hover { background-color: #f1f1f1; }
 #im-finance-report-modal #im-reportNotesSection { margin-top: 40px !important; }
 #im-finance-report-modal #im-reportNotesSection h5 { font-weight: bold; margin-bottom: 10px !important; }
 #im-finance-report-modal #im-reportNotesContent { white-space: pre-wrap !important; font-size: 12pt !important; padding: 10px !important; border: 1px solid #ddd !important; background: #f9f9f9 !important; min-height: 50px !important; }
+
 
 /* =================================== */
 /* CORRECTED PRINT STYLES - CONDITIONAL */
@@ -806,12 +890,12 @@ tbody tr:hover { background-color: #f1f1f1; }
         z-index: 9999 !important;
     }
 
-    /* Show and style the print header */
+    /* Show and style the print header - REMOVED BORDER-BOTTOM */
     #summary-note-printable-area:not(.hidden) .sn-print-header {
         display: flex !important;
         justify-content: space-between;
         align-items: flex-start;
-        border-bottom: 2px solid #000 !important;
+        /* border-bottom: 2px solid #000 !important; */ /* Removed */
         padding-bottom: 10px !important;
         margin-bottom: 15px !important;
     }
@@ -833,24 +917,40 @@ tbody tr:hover { background-color: #f1f1f1; }
         font-size: 10pt !important;
     }
 
-    /* Style Vendor Info */
-    #summary-note-printable-area:not(.hidden) .sn-vendor-info {
-        margin-bottom: 10px !important;
-        padding-bottom: 10px !important;
-        border-bottom: 1px solid #ccc !important;
+    /* MODIFIED: Print Summary For Vendor Styling - INCREASED PADDING */
+    #summary-note-printable-area:not(.hidden) .sn-vendor-summary-title {
+        margin: 0 0 10px 0 !important; /* Smaller margin for print */
+        padding: 10px 5px !important; /* Increased top/bottom padding */
+        text-align: center !important;
+        background-color: var(--invoice-blue) !important; /* Use custom blue variable */
+        color: var(--text-color-light) !important; /* White font */
+        border-radius: 0 !important; /* No rounded corners for print */
+        -webkit-print-color-adjust: exact !important; /* Ensure color prints correctly */
+        print-color-adjust: exact !important;
     }
-     #summary-note-printable-area:not(.hidden) .sn-vendor-info p {
-         font-size: 11pt !important;
+     #summary-note-printable-area:not(.hidden) .sn-vendor-summary-title p {
          margin: 0 !important;
+         font-size: 11pt !important;
+         font-weight: bold !important;
+         color: #46474d !important; /* Dark Grey */
      }
 
-    /* Style Payment Details */
+    /* Hide parent border/margin */
+    #summary-note-printable-area:not(.hidden) .sn-vendor-info {
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+        border-bottom: none !important;
+    }
+
+
+    /* Style Payment Details - REMOVED BORDER-TOP */
     #summary-note-printable-area:not(.hidden) .sn-payment-details {
         font-size: 10pt !important;
         padding: 10px 0 !important;
-        border-top: 1px solid #000 !important;
+        /* border-top: 1px solid #000 !important; */ /* Removed */
         border-bottom: 1px solid #000 !important;
         margin-bottom: 15px !important;
+        margin-top: 10px !important; /* Added small top margin */
     }
      #summary-note-printable-area:not(.hidden) .sn-payment-details div {
          border-left: none !important; /* Remove internal border */
@@ -865,9 +965,10 @@ tbody tr:hover { background-color: #f1f1f1; }
         width: 100% !important; /* Ensure table uses full width */
         border: 1px solid #333 !important; /* Add outer border */
     }
-    #summary-note-printable-area:not(.hidden) .sn-table th {
-        background-color: #eee !important; /* Light grey header */
-        -webkit-print-color-adjust: exact !important;
+    #summary-note-printable-area:not(.hidden) .sn-table thead th {
+        background-color: var(--invoice2-blue) !important; /* Use custom blue variable */
+        color: var(--text-color-light) !important; /* White font */
+        -webkit-print-color-adjust: exact !important; /* Ensure color prints correctly */
         print-color-adjust: exact !important;
         font-weight: bold !important;
         border: 1px solid #333 !important; /* Stronger borders */
@@ -911,11 +1012,11 @@ tbody tr:hover { background-color: #f1f1f1; }
         border: none !important;
         background: transparent !important;
         font-size: inherit !important;
-        padding: 2px !important;
+        padding: 1px !important; /* Further reduce input padding */
     }
      #summary-note-printable-area:not(.hidden) .sn-table th,
      #summary-note-printable-area:not(.hidden) .sn-table td {
-        padding: 4px 6px !important;
+        padding: 1px 6px !important; /* Reduce top/bottom padding more */
     }
      #summary-note-printable-area:not(.hidden) .sn-footer {
          font-size: 10pt !important;
@@ -925,7 +1026,7 @@ tbody tr:hover { background-color: #f1f1f1; }
          page-break-before: auto;
          page-break-inside: avoid;
      }
-      /* --- MODIFIED: Show and style print-only notes --- */
+      /* Show and style print-only notes */
      #summary-note-printable-area:not(.hidden) .sn-print-notes-section {
         /* display: block !important; This is handled by JS based on content */
         visibility: visible !important; /* Make sure it's visible if display is block */
@@ -1020,7 +1121,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area .report-summary-col { width: 48% !important; }
     #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area table { width: 100% !important; border-collapse: collapse !important; margin-bottom: 20px !important; font-size: 12pt; }
     #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area table th, #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area table td { border: 1px solid #000 !important; padding: 10px !important; }
-    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area table th { background-color: #343a40 !important; color: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; text-align: center !important; font-size: 13pt; font-weight: bold;}
+    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area table th { background-color: #343a40 !important; color: var(--text-color-light) !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; text-align: center !important; font-size: 13pt; font-weight: bold;}
     #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area table tfoot th, #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area table tfoot td { background-color: #e9ecef !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color: #000 !important; text-align: right !important; padding-right: 20px !important; font-size: 14pt; font-weight: bold; }
     #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area .signatures { display: flex !important; justify-content: space-between !important; margin-top: 80px !important; font-size: 14pt; page-break-inside: avoid; }
     #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area .signature-box { text-align: center !important; width: 30% !important; }
@@ -1118,13 +1219,9 @@ tbody tr:hover { background-color: #f1f1f1; }
     /* NEW: Ensure Finance Report specific elements stack correctly */
     #im-finance-report .search-and-filter-group { flex-direction: column; align-items: stretch; }
 
-    /* NEW: Adjust 4-column grid for mobile */
-    .form-grid-4col { grid-template-columns: 1fr 1fr; } /* Stack into 2 columns */
-    #im-new-invoice-form .form-group textarea#im-note {
-        width: 100%; /* Take full width */
-        float: none;
-        margin-right: 0;
-    }
+    /* NEW: Adjust 3-column grid for mobile */
+    .form-grid-3col { grid-template-columns: 1fr 1fr; } /* Stack into 2 columns */
+
 }
 
 /* +++ CACHE STATUS INDICATOR +++ */
@@ -1195,7 +1292,7 @@ tbody tr:hover { background-color: #f1f1f1; }
 }
 .srv-done-btn {
     background-color: #28a745; /* Green */
-    color: white;
+    color: var(--text-color-light);
 }
 .srv-done-btn:hover {
     background-color: #218838;

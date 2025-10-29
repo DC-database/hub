@@ -485,12 +485,22 @@
                                  <textarea id="im-note" name="note" rows="2"></textarea> </div>
 
                         </div>
-                        <div class="form-buttons-container" style="margin-top: 20px;"> <button type="button" id="im-add-invoice-button">Add Invoice</button>
-                            <button type="button" id="im-update-invoice-button" class="hidden">Update Invoice</button>
-                            <button type="button" id="im-clear-form-button" class="secondary-btn">Clear</button>
-                            <button type="button" id="im-back-to-active-task-button" class="secondary-btn hidden">Back to Active Task</button>
-                        </div>
-                    </form>
+                        
+                        
+                        <div id="im-po-search-container-bottom" class="im-po-search-container-bottom">
+    <div class="search-bar-local">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="im-po-search-input-bottom" placeholder="Enter New PO Number...">
+    </div>
+    <button id="im-po-search-button-bottom" type="button">Search PO</button>
+    <div class="form-buttons-container" style="margin-top: 0; padding-top: 0; border-top: none;">
+        <button type="button" id="im-add-invoice-button">Add Invoice</button>
+        <button type="button" id="im-update-invoice-button" class="hidden">Update Invoice</button>
+        <button type="button" id="im-clear-form-button" class="secondary-btn">Clear</button>
+        <button type="button" id="im-back-to-active-task-button" class="secondary-btn hidden">Back to Active Task</button>
+    </div>
+</div>
+                        </form>
 
                     <div id="im-existing-invoices-container" class="hidden">
                          <hr class="section-divider">
@@ -530,13 +540,15 @@
                     <p>Add a new PO for a new invoice, or search for a PO to add existing invoices for bulk editing.</p>
 
                     <div id="im-batch-po-add-container" class="search-and-filter-group" style="margin-bottom: 20px;">
-                        <input type="text" id="im-batch-po-input" placeholder="Enter PO, Status, or Note..." style="flex-grow: 1; margin-bottom: 0;">
+                        <input type="text" id="im-batch-po-input" placeholder="Enter PO or Status..." style="flex-grow: 1; margin-bottom: 0;">
                         <button id="im-batch-add-po-button" type="button">Add New PO</button>
                         <button id="im-batch-search-existing-button" type="button" class="secondary-btn">Search by PO</button>
                         <button id="im-batch-search-by-status-button" type="button" class="secondary-btn" style="background-color: #17a2b8;">Search by Status</button>
+                        <div class="batch-note-search-wrapper">
+                            <select id="im-batch-note-search-select" placeholder="Search by Note..."></select>
+                        </div>
                         <button id="im-batch-search-by-note-button" type="button" class="secondary-btn" style="background-color: #ffc107; color: #212529;">Search by Note</button>
                     </div>
-
                     <div id="im-batch-global-controls" class="search-and-filter-group" style="margin-bottom: 20px; background-color: #f8f9fa; padding: 15px; border-radius: 6px;">
                         <div class="form-group" style="flex: 1; min-width: 200px; margin: 0;">
                             <label for="im-batch-global-attention">Global Attention</label>
@@ -650,9 +662,11 @@
                             </div>
                         </div>
 
-                        <div class="sn-vendor-info">
+			<div class="sn-vendor-info">
+                        <div class="sn-vendor-summary-title">
                             <p><strong>Summary for :</strong> <span id="sn-vendor-name"></span></p>
                         </div>
+                    </div>
 
                         <div class="sn-payment-details">
                             <div><strong>Previous Payment:</strong> <span id="sn-previous-payment"></span></div>
@@ -729,7 +743,7 @@
                                 <option value="CLOSED">CLOSED</option>
                                 <option value="Cancelled">Cancelled</option>
 				<option value="Paid">Paid</option>
-				<option value="Original PO">Paid</option>
+				<option value="Original PO">Original PO</option>
 
                             </select>
                             <input type="month" id="im-reporting-date-filter" title="Filter by Release Month">
