@@ -1970,7 +1970,7 @@ async function handleAddInvoice(e) {
             let vendor = poDetails['Supplier Name'] || '';
             if (vendor.length > 21) vendor = vendor.substring(0, 21);
             const site = poDetails['Project ID'] || 'N/A';
-            invoiceData.srvName = `${formattedDate}-${currentPO}-${site}-${vendor}`;
+            invoiceData.srvName = `${formattedDate}-${currentPO}-${invoiceData.invEntryID}-${site}-${vendor}`;
         }
     }
     Object.keys(invoiceData).forEach(key => { if (invoiceData[key] === null || invoiceData[key] === undefined) delete invoiceData[key]; });
