@@ -934,36 +934,60 @@ function formatNumber(value) {
 
 function formatDate(dateStr) {
   if (!dateStr || String(dateStr).trim() === '') return '';
-  
-  const parts = String(dateStr).split('-');
-  // Expects YYYY-MM-DD
-  if (parts.length !== 3 || dateStr.length !== 10) {
-     return dateStr; // Return as-is if not in expected format
-  }
 
-  try {
-    const year = parseInt(parts[0], 10);
-    const monthIndex = parseInt(parts[1], 10) - 1; // Date object month is 0-indexed
-    const day = parseInt(parts[2], 10);
+  let date;
+  const parts = String(dateStr).split('-'); // Try YYYY-MM-DD first
 
-    const date = new Date(year, monthIndex, day);
+  // 1. Try parsing as YYYY-MM-DD (from the app's date picker)
+  if (parts.length === 3 && parts[0].length === 4) {
+    try {
+      const year = parseInt(parts[0], 10);
+      const monthIndex = parseInt(parts[1], 10) - 1; // Date object month is 0-indexed
+      const day = parseInt(parts[2], 10);
 
-    // Check for invalid date
-    if (isNaN(date.getTime())) return dateStr;
-    
-    // Re-check if the constructed date matches, to catch invalid inputs like "2025-02-30"
-    if (date.getDate() !== day || date.getMonth() !== monthIndex || date.getFullYear() !== year) {
-        return dateStr;
+      // Use local time, not UTC, for consistency
+      const tempDate = new Date(year, monthIndex, day);
+      
+      // Check for invalid date (e.g., 2025-02-30) and valid parts
+      if (!isNaN(tempDate.getTime()) && 
+          tempDate.getDate() === day && 
+          tempDate.getMonth() === monthIndex && 
+          tempDate.getFullYear() === year) {
+        date = tempDate;
+      }
+    } catch (e) {
+      // Not a YYYY-MM-DD, fall through
     }
-
-    const dayFormatted = date.getDate().toString().padStart(2, '0');
-    const monthFormatted = date.toLocaleString('default', { month: 'short' }).toUpperCase();
-    const yearFormatted = date.getFullYear();
-    
-    return `${dayFormatted}-${monthFormatted}-${yearFormatted}`;
-  } catch (e) {
-    return dateStr; // Fallback
   }
+
+  // 2. If not a valid YYYY-MM-DD, try generic parsing (for "04-Mar-25", etc.)
+  if (!date) {
+    date = new Date(dateStr);
+  }
+
+  // 3. Check for invalid date from either method
+  if (isNaN(date.getTime())) {
+    return dateStr; // Return original string if unparseable
+  }
+  
+  // 4. Handle 2-digit year problem (e.g., "04-Mar-25" -> 1925)
+  let currentYear = date.getFullYear();
+  if (currentYear < 2000 && currentYear > 1900) {
+    // If generic parsing resulted in a 19xx year, assume 2-digit year means 20xx
+    date.setFullYear(currentYear + 100);
+  }
+  
+  // 5. Format to DD-Mmm-YYYY
+  const dayFormatted = date.getDate().toString().padStart(2, '0');
+  
+  // --- THIS IS THE MODIFIED PART ---
+  const monthName = date.toLocaleString('default', { month: 'short' });
+  const monthFormatted = monthName.charAt(0).toUpperCase() + monthName.slice(1).toLowerCase();
+  // --- END OF MODIFICATION ---
+
+  const yearFormatted = date.getFullYear(); // Get the (potentially corrected) year
+  
+  return `${dayFormatted}-${monthFormatted}-${yearFormatted}`;
 }
 
 function formatDateLong(dateStr) {
