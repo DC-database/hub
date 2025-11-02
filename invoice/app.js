@@ -1,3 +1,5 @@
+
+
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
 const firebaseConfig = {
@@ -116,6 +118,7 @@ const workdeskIMLink = document.getElementById('workdesk-im-link');
 const invoiceManagementView = document.getElementById('invoice-management-view');
 const imNav = document.getElementById('im-nav');
 const imContentArea = document.getElementById('im-content-area');
+const imMainElement = document.querySelector('#invoice-management-view .workdesk-main'); // ++ ADDED (Req 2)
 const invoiceManagementButton = document.getElementById('invoice-mgmt-button');
 const imUsername = document.getElementById('im-username');
 const imUserIdentifier = document.getElementById('im-user-identifier');
@@ -158,6 +161,11 @@ const imBatchSearchModal = document.getElementById('im-batch-search-modal');
 const imBatchSearchExistingButton = document.getElementById('im-batch-search-existing-button');
 const imWorkdeskButton = document.getElementById('im-workdesk-button');
 const imActiveTaskButton = document.getElementById('im-activetask-button');
+
+// ++ NEW (Req 1): Active Invoice Jobs Sidebar ++
+const imShowActiveJobsBtn = document.getElementById('im-show-active-jobs-btn');
+const imEntrySidebar = document.getElementById('im-entry-sidebar');
+const imEntrySidebarList = document.getElementById('im-entry-sidebar-list');
 
 // ++ NEW: Batch Note Search Dropdown (Req 4) ++
 const imBatchNoteSearchSelect = document.getElementById('im-batch-note-search-select');
@@ -209,6 +217,16 @@ const imReportTotalPaymentAmount = document.getElementById('im-reportTotalPaymen
 const imReportNotesSection = document.getElementById('im-reportNotesSection');
 const imReportNotesContent = document.getElementById('im-reportNotesContent');
 
+// ++ NEW (Req 2): Professional Report Printout References ++
+const imReportingPrintBtn = document.getElementById('im-reporting-print-btn');
+const imReportingPrintableArea = document.getElementById('im-reporting-printable-area');
+const imPrintReportTitle = document.getElementById('im-print-report-title');
+const imPrintReportDate = document.getElementById('im-print-report-date');
+const imPrintReportSummaryPOs = document.getElementById('im-print-report-summary-pos');
+const imPrintReportSummaryValue = document.getElementById('im-print-report-summary-value');
+const imPrintReportSummaryPaid = document.getElementById('im-print-report-summary-paid');
+const imPrintReportBody = document.getElementById('im-print-report-body');
+
 
 // SUMMARY NOTE REFERENCES
 const summaryNotePreviousInput = document.getElementById('summary-note-previous-input');
@@ -249,6 +267,12 @@ let approverListForSelect = [];
 let allUniqueNotes = new Set();
 let invoicesToPay = {}; // ++ NEW: To store invoices added to the Payments table
 
+// ++ NEW: Dashboard CSV Data State ++
+const ECOST_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/Ecost.csv";
+let allEcostData = null;
+let ecostDataTimestamp = 0;
+let imYearlyChart = null; // To hold the chart instance
+
 // ++ NEW: Finance Report State ++
 let imFinanceAllPaymentsData = {};
 
@@ -257,12 +281,14 @@ let allPOData = null;
 let allInvoiceData = null;
 let allApproverData = null;
 let allEpicoreData = null; // ++ NEW: For epicore.csv data ++
+let allSitesCSVData = null; // ++ NEW: For Site.csv data ++
 let cacheTimestamps = {
   poData: 0,
   invoiceData: 0,
   approverData: 0,
   systemEntries: 0,
-  epicoreData: 0 // ++ NEW: Timestamp for epicore.csv ++
+  epicoreData: 0, // ++ NEW: Timestamp for epicore.csv ++
+  sitesCSV: 0 // ++ NEW: Timestamp for Site.csv ++
 };
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes cache
 
@@ -638,6 +664,75 @@ async function fetchAndParseEpicoreCSV(url) {
 }
 
 
+// --- *** SITE.CSV FIX (START) *** ---
+// ++ NEW: FETCH AND PARSE SITES CSV ++
+async function fetchAndParseSitesCSV(url) {
+    try {
+        const response = await fetch(url, { cache: 'no-store' });
+        if (!response.ok) {
+            throw new Error(`Failed to fetch Sites CSV: ${response.statusText}`);
+        }
+        const csvText = await response.text();
+
+        const lines = csvText.replace(/^\uFEFF/, '').split('\n').filter(line => line.trim() !== '');
+        if (lines.length < 2) { // Expect headers and at least one data row
+            throw new Error("Site.csv is empty or has no data rows.");
+        }
+
+        // Simple parser
+        const parseCsvRow = (rowStr) => {
+            const values = [];
+            let inQuote = false;
+            let currentVal = '';
+            const cleanRowStr = rowStr.trim();
+
+            for (let i = 0; i < cleanRowStr.length; i++) {
+                const char = cleanRowStr[i];
+                if (char === '"' && (i === 0 || cleanRowStr[i-1] !== '\\')) {
+                    inQuote = !inQuote;
+                } else if (char === ',' && !inQuote) {
+                    values.push(currentVal.trim().replace(/^"|"$/g, ''));
+                    currentVal = '';
+                } else {
+                    currentVal += char;
+                }
+            }
+            values.push(currentVal.trim().replace(/^"|"$/g, ''));
+            return values;
+        };
+
+        const headers = parseCsvRow(lines[0]).map(h => h.trim().toLowerCase());
+        // Find the 'site' and 'description' columns, assuming first two if not found
+        let siteIndex = headers.indexOf('site');
+        let descIndex = headers.indexOf('description');
+
+        if (siteIndex === -1) siteIndex = 0;
+        if (descIndex === -1) descIndex = 1;
+
+        const sitesData = [];
+        for (let i = 1; i < lines.length; i++) {
+            const values = parseCsvRow(lines[i]);
+            if (values.length >= Math.max(siteIndex, descIndex)) {
+                const site = values[siteIndex];
+                const description = values[descIndex];
+                if (site && description) {
+                    sitesData.push({ site, description });
+                }
+            }
+        }
+        
+        console.log(`Successfully fetched and parsed ${sitesData.length} sites from Site.csv.`);
+        return sitesData;
+
+    } catch (error) {
+        console.error("Error fetching or parsing Site.csv:", error);
+        alert("CRITICAL ERROR: Could not load Site data from GitHub.");
+        return null;
+    }
+}
+// --- *** SITE.CSV FIX (END) *** ---
+
+
 // FETCH AND PARSE CSV FOR PO DATA
 async function fetchAndParseCSV(url) {
     try {
@@ -712,6 +807,134 @@ async function fetchAndParseCSV(url) {
     }
 }
 
+// ++ NEW: FETCH AND PARSE Ecost.csv FOR DASHBOARD ++
+async function fetchAndParseEcostCSV(url) {
+    try {
+        const response = await fetch(url, { cache: 'no-store' });
+        if (!response.ok) {
+            throw new Error(`Failed to fetch Ecost CSV: ${response.statusText}`);
+        }
+        const csvText = await response.text();
+
+        const lines = csvText.replace(/^\uFEFF/, '').split('\n').filter(line => line.trim() !== '');
+        if (lines.length < 2) {
+            throw new Error("Ecost CSV is empty or has no data rows.");
+        }
+
+        // More robust CSV parser
+        const parseCsvRow = (rowStr) => {
+            const values = [];
+            let inQuote = false;
+            let currentVal = '';
+            const cleanRowStr = rowStr.trim();
+
+            for (let i = 0; i < cleanRowStr.length; i++) {
+                const char = cleanRowStr[i];
+                if (char === '"' && (i === 0 || cleanRowStr[i-1] !== '\\')) {
+                    inQuote = !inQuote;
+                } else if (char === ',' && !inQuote) {
+                    values.push(currentVal.trim().replace(/^"|"$/g, ''));
+                    currentVal = '';
+                } else {
+                    currentVal += char;
+                }
+            }
+            values.push(currentVal.trim().replace(/^"|"$/g, ''));
+            return values;
+        };
+
+        const headers = parseCsvRow(lines[0]).map(h => h.trim());
+        const headerMap = {};
+        headers.forEach((h, i) => {
+            headerMap[h] = i;
+        });
+
+        // Check for required headers
+        const requiredHeaders = ['Order Date', 'Project #', 'Name', 'Line Amount', 'Delivered Amount', 'Outstanding', 'Activity Name'];
+        for (const h of requiredHeaders) {
+            if (typeof headerMap[h] === 'undefined') {
+                console.warn(`Ecost CSV is missing expected header: ${h}`);
+                // throw new Error(`Ecost CSV is missing required header: ${h}`);
+            }
+        }
+        
+        // Use indices
+        const dateIndex = headerMap['Order Date'];
+        const projectIndex = headerMap['Project #'];
+        const vendorIndex = headerMap['Name'];
+        const lineAmountIndex = headerMap['Line Amount'];
+        const deliveredIndex = headerMap['Delivered Amount'];
+        const outstandingIndex = headerMap['Outstanding'];
+        const activityIndex = headerMap['Activity Name'];
+
+
+        const processedData = [];
+        for (let i = 1; i < lines.length; i++) {
+            const values = parseCsvRow(lines[i]);
+            if (values.length < headers.length) continue;
+
+            const orderDateStr = values[dateIndex];
+            let orderDate = null;
+            let year = null;
+            let month = null;
+
+            // Try parsing DD/MM/YYYY
+            if (orderDateStr && orderDateStr.includes('/')) {
+                const parts = orderDateStr.split('/');
+                if (parts.length === 3) {
+                    // Assuming DD/MM/YYYY
+                    orderDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00`);
+                }
+            }
+            
+            // Fallback for other date formats
+            if (!orderDate || isNaN(orderDate)) {
+                orderDate = new Date(orderDateStr);
+            }
+            
+            if (orderDate && !isNaN(orderDate)) {
+                year = orderDate.getFullYear();
+                month = orderDate.getMonth(); // 0-11
+            }
+
+            processedData.push({
+                'Order Date': orderDate,
+                'Year': year,
+                'Month': month,
+                'Project #': values[projectIndex],
+                'Vendor': values[vendorIndex], // Renamed
+                'Total Committed': parseFloat(values[lineAmountIndex].replace(/,/g, '')) || 0, // Renamed and parsed
+                'Delivered Amount': parseFloat(values[deliveredIndex].replace(/,/g, '')) || 0, // Parsed
+                'Outstanding': parseFloat(values[outstandingIndex].replace(/,/g, '')) || 0, // Parsed
+                'Activity Name': values[activityIndex]
+            });
+        }
+        console.log(`Successfully parsed ${processedData.length} rows from Ecost.csv`);
+        return processedData;
+    } catch (error) {
+        console.error("Error fetching or parsing Ecost CSV:", error);
+        alert(`CRITICAL ERROR: Could not load dashboard data. ${error.message}`);
+        return null;
+    }
+}
+
+// ++ NEW: Cache function for Ecost data ++
+async function ensureEcostDataFetched(forceRefresh = false) {
+    const now = Date.now();
+    if (!forceRefresh && allEcostData && (now - ecostDataTimestamp < CACHE_DURATION)) {
+        return allEcostData;
+    }
+    
+    console.log("Fetching Ecost.csv data...");
+    allEcostData = await fetchAndParseEcostCSV(ECOST_DATA_URL);
+    if (allEcostData) {
+        ecostDataTimestamp = now;
+        console.log("Ecost.csv data cached.");
+    }
+    return allEcostData;
+}
+
+
 // This function is still used by reporting, so we keep it, but it's now more efficient.
 async function ensureInvoiceDataFetched(forceRefresh = false) {
     const now = Date.now();
@@ -719,8 +942,11 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
                           allPOData &&
                           allInvoiceData &&
                           allEpicoreData && // ++ NEW CHECK ++
+                          allSitesCSVData && // ++ NEW CHECK FOR SITES ++
                           (now - cacheTimestamps.poData < CACHE_DURATION) &&
-                          (now - cacheTimestamps.epicoreData < CACHE_DURATION); // ++ NEW CHECK ++
+                          (now - cacheTimestamps.epicoreData < CACHE_DURATION) && // ++ NEW CHECK ++
+                          (now - cacheTimestamps.sitesCSV < CACHE_DURATION); // ++ NEW CHECK FOR SITES ++
+
 
     if (shouldUseCache) {
         return;
@@ -729,23 +955,27 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
     try {
         const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
         const EPICORE_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/epicore.csv"; // ++ NEW ++
+        const SITES_CSV_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/Site.csv"; // ++ NEW ++
 
-        const [csvData, epicoreCsvData, invoiceSnapshot] = await Promise.all([ // ++ MODIFIED ++
+        const [csvData, epicoreCsvData, sitesCsvData, invoiceSnapshot] = await Promise.all([ // ++ MODIFIED ++
             fetchAndParseCSV(PO_DATA_URL),
             fetchAndParseEpicoreCSV(EPICORE_DATA_URL), // ++ NEW ++
+            fetchAndParseSitesCSV(SITES_CSV_URL), // ++ NEW ++
             invoiceDb.ref('invoice_entries').once('value'),
         ]);
 
-        if (csvData === null || epicoreCsvData === null) { // ++ MODIFIED ++
-            throw new Error("Failed to load PO or Epicore data from CSV.");
+        if (csvData === null || epicoreCsvData === null || sitesCsvData === null) { // ++ MODIFIED ++
+            throw new Error("Failed to load PO, Epicore, or Site data from CSV.");
         }
 
         allPOData = csvData;
         allEpicoreData = epicoreCsvData; // ++ NEW ++
+        allSitesCSVData = sitesCsvData; // ++ NEW ++
         allInvoiceData = invoiceSnapshot.val() || {};
 
         cacheTimestamps.poData = now;
         cacheTimestamps.epicoreData = now; // ++ NEW ++
+        cacheTimestamps.sitesCSV = now; // ++ NEW ++
         cacheTimestamps.invoiceData = now;
 
         console.log("Invoice and GitHub CSV caches refreshed.");
@@ -774,6 +1004,8 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
         alert("Error: Could not load data from database.");
     }
 }
+
+
 
 // LOCAL CACHE UPDATE FUNCTIONS
 function updateLocalInvoiceCache(poNumber, invoiceKey, updatedData) {
@@ -865,20 +1097,58 @@ async function ensureAllEntriesFetched() {
 
 function isTaskComplete(task) {
     if (!task) return false;
-    // ++ ADDED: Consider "Paid" as complete for invoices
+
+    // --- (Req 1) MODIFIED: Define "completed" statuses for the active task sidebar ---
+    // These are statuses that mean the task is no longer "active" for the user.
+    const completedStatuses = [
+        'CEO Approval', 
+        'With Accounts', 
+        'Under Review', 
+        'SRV Done', 
+        'Paid',
+        'Report' // Added Report as a "complete" status
+    ];
+
     if (task.source === 'invoice') {
-        const completedStatuses = ['CEO Approval', 'With Accounts', 'Under Review', 'SRV Done', 'Paid'];
-        // Special case: If the current user entered it, only consider it 'active' for them if it needs SRV/IPC
-        if (task.enteredBy === currentApprover?.Name) { // Use optional chaining
+        // If the task status is one of the completed ones, it's done.
+        if (completedStatuses.includes(task.remarks)) {
+            return true;
+        }
+        
+        // Special case: If the current user entered it (Irwin), 
+        // it's only "active" if it needs SRV/IPC.
+        if (task.enteredBy === currentApprover?.Name) {
             const trackingStatuses = ['For SRV', 'For IPC'];
             if (trackingStatuses.includes(task.remarks)) {
                 return false; // Still needs action from them
             }
+            // If it's not For SRV/IPC, and not a completed status, 
+            // it's also considered "done" for Irwin (e.g., "Pending")
+            return true; 
         }
-        return completedStatuses.includes(task.remarks);
+        // If it's assigned to someone else (e.g. current user), and not a completed status,
+        // it remains active for them (e.g., 'For SRV', 'For IPC')
+        return false;
     }
-    if (task.for === 'Invoice' && task.source === 'job_entry') { return !!task.dateResponded; }
-    if (task.for === 'IPC' && task.attention === 'All') { return true; }
+    
+    if (task.source === 'job_entry') {
+        // --- (Req 1) MODIFIED: Check job_entry statuses ---
+        if (completedStatuses.includes(task.remarks)) {
+            return true;
+        }
+        
+        // --- *** START OF WORKFLOW FIX *** ---
+        // A job_entry with type 'Invoice' is now considered "complete"
+        // as soon as it has a dateResponded, regardless of the remarks.
+        // This is set when the invoice is created from the task.
+        if (task.for === 'Invoice') { 
+            return !!task.dateResponded; 
+        }
+        // --- *** END OF WORKFLOW FIX *** ---
+
+        if (task.for === 'IPC' && task.attention === 'All') { return true; }
+    }
+
     // Generic completion check (might need refinement based on job type)
     return (task.amount && task.amount.trim() !== '' && task.po && task.po.trim() !== '');
 }
@@ -900,6 +1170,7 @@ function resetJobEntryForm(keepJobType = false) {
     sessionStorage.removeItem('jobEntrySearch');
 }
 
+// --- *** ATTENTION DROPDOWN FIX APPLIED HERE (START) *** ---
 // --- UPDATED, EFFICIENT populateAttentionDropdown with Vacation Logic ---
 async function populateAttentionDropdown(choicesInstance) {
     try {
@@ -942,11 +1213,19 @@ async function populateAttentionDropdown(choicesInstance) {
                     }
                 }
 
+                // +++ START OF FIX: Combine fields for new label +++
+                const name = approver.Name || 'No-Name';
+                const position = approver.Position || 'No-Pos';
+                const site = approver.Site || 'No-Site';
+                const newLabel = `${name} - ${position} - ${site}`;
+
+                // Check for vacation status to append to the new label
+                const displayLabel = isVacationActive ? `${newLabel} (On Vacation)` : newLabel;
+                // +++ END OF FIX +++
 
                 return {
-                    value: approver.Name,
-                    label: isVacationActive ? `${approver.Name} (On Vacation)` : approver.Name,
-                    // disabled: isVacationActive, // <-- *** FIX: REMOVED THIS LINE ***
+                    value: approver.Name, // The value saved to DB is still just the name
+                    label: displayLabel,  // The new combined label for display and search
                     customProperties: { // Store full details for modal popup
                         onVacation: isVacationActive,
                         returnDate: approver.DateReturn,
@@ -976,6 +1255,8 @@ async function populateAttentionDropdown(choicesInstance) {
         if (choicesInstance) choicesInstance.setChoices([{ value: '', label: 'Error loading names', disabled: true }]);
     }
 }
+// --- *** ATTENTION DROPDOWN FIX APPLIED HERE (END) *** ---
+
 
 // --- NEW, EFFICIENT populateSiteDropdown (CORRECTED) ---
 async function populateSiteDropdown() {
@@ -996,7 +1277,18 @@ async function populateSiteDropdown() {
             const siteOptions = Object.values(sites)
                 .map(site => site.Warehouse && site.Description ? { value: site.Warehouse, label: `${site.Warehouse} - ${site.Description}` } : null)
                 .filter(Boolean)
-                .sort((a, b) => a.label.localeCompare(b.label)); // Sort alphabetically
+                //.sort((a, b) => a.label.localeCompare(b.label)); // Sort alphabetically
+                // --- MODIFICATION: Sort numerically by site number (value) ---
+                .sort((a, b) => {
+                    const numA = parseInt(a.value, 10);
+                    const numB = parseInt(b.value, 10);
+                    if (!isNaN(numA) && !isNaN(numB)) {
+                        return numA - numB;
+                    }
+                    // Fallback to string compare if not numbers
+                    return a.label.localeCompare(b.label);
+                });
+
 
             const choiceList = [{ value: '', label: 'Select a Site', disabled: true }].concat(siteOptions);
 
@@ -1123,6 +1415,7 @@ async function handleUpdateJobEntry(e) {
         populateActiveTasks();
     } catch (error) { console.error("Error updating job entry:", error); alert('Failed to update Job Entry. Please try again.'); }
 }
+
 function populateFormForEditing(key) {
     const entryData = allSystemEntries.find(entry => entry.key === key);
     if (!entryData || entryData.source === 'invoice') return;
@@ -1155,7 +1448,12 @@ async function populateActiveTasks() {
     }
 
     try {
+        // --- (Req 1) FIX: We must always refetch all data to get the latest task statuses
+        // This ensures the active task list is accurate.
+        await ensureInvoiceDataFetched(true); // Force refresh of invoice data
+        
         if (!allPOData) {
+            // This should be loaded by ensureInvoiceDataFetched, but as a fallback:
             const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
             allPOData = await fetchAndParseCSV(PO_DATA_URL);
             if (!allPOData) throw new Error("Could not load PO data for WorkDesk");
@@ -1166,20 +1464,14 @@ async function populateActiveTasks() {
                                     .equalTo(currentApprover.Name)
                                     .once('value');
         
-        // --- START OF FIX 2 ---
-        // Ensure the global cache is populated if it's not already (or if it's > 30 mins old)
-        await ensureInvoiceDataFetched();
-        // Use the global cache instead of re-downloading
-        const allInvoiceEntries = allInvoiceData;
-        // --- END OF FIX 2 ---
-
+        const allInvoiceEntries = allInvoiceData; // Use the freshly loaded cache
         const jobEntriesData = jobSnapshot.val() || {};
-        // const allInvoiceEntries = invoiceSnapshot.val() || {}; // <-- THIS LINE WAS DELETED
         const purchaseOrdersData = allPOData;
         const currentUserName = currentApprover.Name;
 
         let userTasks = [];
 
+        // 1. Process tasks from 'job_entries'
         for (const key in jobEntriesData) {
             const task = {
                 key,
@@ -1187,11 +1479,12 @@ async function populateActiveTasks() {
                 vendorName: (jobEntriesData[key].po && purchaseOrdersData[jobEntriesData[key].po]) ? purchaseOrdersData[jobEntriesData[key].po]['Supplier Name'] : 'N/A',
                 source: 'job_entry'
             };
-            if (!isTaskComplete(task)) {
+            if (!isTaskComplete(task)) { // Check completion status
                 userTasks.push(task);
             }
         }
 
+        // 2. Process tasks from 'invoice_entries'
         for (const poNumber in allInvoiceEntries) {
             const invoices = allInvoiceEntries[poNumber];
             const site = purchaseOrdersData[poNumber]?.['Project ID'] || 'N/A';
@@ -1200,12 +1493,8 @@ async function populateActiveTasks() {
             for (const invoiceKey in invoices) {
                 const invoice = invoices[invoiceKey];
 
+                // Check if task is assigned to the current user
                 if (invoice.attention !== currentUserName) {
-                    continue;
-                }
-
-                const isTrackableStatus = invoice.status === 'For SRV' || invoice.status === 'For IPC';
-                if (!isTrackableStatus && (!invoice.attention || invoice.attention.trim() === '')) {
                     continue;
                 }
 
@@ -1221,7 +1510,8 @@ async function populateActiveTasks() {
                     site: site,
                     group: 'N/A',
                     attention: invoice.attention,
-                    enteredBy: 'Irwin', // Assume Irwin enters all invoices initially
+                    // Use a generic "System" or "Irwin" for now
+                    enteredBy: 'Irwin', 
                     date: normalizedDate ? formatDate(new Date(normalizedDate + 'T00:00:00')) : 'N/A',
                     dateResponded: 'N/A',
                     remarks: invoice.status || 'Pending',
@@ -1229,18 +1519,17 @@ async function populateActiveTasks() {
                     invName: invoice.invName || '',
                     vendorName: vendorName,
                     source: 'invoice',
-                    note: invoice.note || '' // ++ ADDED NOTE for modify modal
+                    note: invoice.note || ''
                 };
 
-                if (!isTaskComplete(transformedInvoice)) {
+                if (!isTaskComplete(transformedInvoice)) { // Check completion status
                     userTasks.push(transformedInvoice);
                 }
             }
         }
 
-        // CORRECT line:
-userActiveTasks = userTasks.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-        // allSystemEntries = userActiveTasks; // <-- *** MODIFICATION: This line was removed to fix cache bug ***
+        // Store the filtered, active-only tasks
+        userActiveTasks = userTasks.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
         renderActiveTaskTable(userActiveTasks);
 
@@ -1402,8 +1691,7 @@ function openModifyTaskModal(taskData) {
     if (modifyTaskAttentionChoices) {
         modifyTaskAttentionChoices.setChoiceByValue(taskData.attention || '');
     }
-
-    // Set Status
+// Set Status
     const currentStatus = taskData.remarks || 'Pending';
     const standardStatuses = ['For SRV', 'For IPC', 'Report'];
     if (standardStatuses.includes(currentStatus)) {
@@ -1482,8 +1770,13 @@ async function handleSaveModifiedTask() {
 
         alert("Task updated successfully!");
         modifyTaskModal.classList.add('hidden');
-        allSystemEntries = []; // Clear cache to reflect changes
-        populateActiveTasks(); // Refresh the active task list
+        
+        // --- (Req 1) FIX: Refresh task lists after modification ---
+        // We must refresh the active task list to reflect the change.
+        // We call populateActiveTasks() which forces a full refresh.
+        await populateActiveTasks(); 
+        // --- End FIX ---
+
 
     } catch (error) {
         console.error("Error updating task:", error);
@@ -1654,7 +1947,6 @@ async function handleUpdateSettings(e) {
     }
 }
 
-
 // --- INVOICE MANAGEMENT FUNCTIONS ---
 function updateIMDateTime() {
     const now = new Date();
@@ -1671,8 +1963,31 @@ function showIMSection(sectionId) {
     const isAccountingAdmin = userPositionLower === 'accounting' && userRoleLower === 'admin';
     const isAccountsOrAccounting = userPositionLower === 'accounts' || userPositionLower === 'accounting';
     const isAdmin = userRoleLower === 'admin'; // Use isAdmin for finance report
+    
+    // --- *** BUTTON ACCESS FIX (START) *** ---
+    // --- *** CORRECTED: Check POSITION, not ROLE *** ---
+    const isAccountingPosition = userPositionLower === 'accounting';
+    
+    // Show/hide daily report buttons based on 'accounting' POSITION
+    const dailyReportContainer = document.querySelector('.daily-report-section');
+    if (dailyReportContainer) {
+        dailyReportContainer.style.display = isAccountingPosition ? 'flex' : 'none';
+    }
+    // Also hide the "Download Full Report" button
+    if (imReportingDownloadCSVButton) {
+        imReportingDownloadCSVButton.style.display = isAccountingPosition ? 'inline-block' : 'none';
+    }
+    // --- *** BUTTON ACCESS FIX (END) *** ---
+
 
     // ++ MODIFIED: Block access based on role
+    // ++ NEW: Role check for dashboard
+    if (sectionId === 'im-dashboard' && !isAdmin) {
+        alert('Access Denied: Requires Admin role.');
+        // Don't show the section, but also don't break.
+        // The nav link should have already been hidden, but this is a safeguard.
+        return; 
+    }
     if (sectionId === 'im-invoice-entry' && !isAccountingAdmin) { alert('Access Denied: Requires Accounting Admin position.'); return; }
     if (sectionId === 'im-batch-entry' && !isAccountingAdmin) { alert('Access Denied: Requires Accounting Admin position.'); return; }
     if (sectionId === 'im-summary-note' && !isAccountingAdmin) { alert('Access Denied: Requires Accounting Admin position.'); return; }
@@ -1685,21 +2000,62 @@ function showIMSection(sectionId) {
     const targetSection = document.getElementById(sectionId);
     if (targetSection) targetSection.classList.remove('hidden');
 
+    // ++ NEW (Req 1 & 2): Show/Hide Active Jobs Sidebar AND manage main content class
+    if (sectionId === 'im-invoice-entry') {
+        if(imEntrySidebar) imEntrySidebar.classList.remove('hidden');
+        if(imMainElement) imMainElement.classList.add('with-sidebar'); // Add class to main content
+        populateActiveJobsSidebar(); // Populate the sidebar
+    } else {
+        if(imEntrySidebar) imEntrySidebar.classList.add('hidden'); // Hide on all other sections
+        if(imMainElement) imMainElement.classList.remove('with-sidebar'); // Remove class from main content
+    }
+
+
     if (sectionId === 'im-dashboard') { populateInvoiceDashboard(); }
-    if (sectionId === 'im-invoice-entry') { resetInvoiceEntryPage(); if (imAttentionSelectChoices) { populateAttentionDropdown(imAttentionSelectChoices); } } // <-- FIX: Removed second arg
+    
+    // --- *** START OF FIX (Search Persistence) *** ---
+    if (sectionId === 'im-invoice-entry') { 
+        // resetInvoiceEntryPage(); // <-- REMOVED THIS LINE
+        
+        // Restore search state
+        const savedPOSearch = sessionStorage.getItem('imPOSearch');
+        if (savedPOSearch) {
+            imPOSearchInput.value = savedPOSearch;
+            imPOSearchInputBottom.value = savedPOSearch;
+            handlePOSearch(savedPOSearch); // This will repopulate the form and tables
+        } else {
+            // If no search is saved, THEN we reset the page
+            resetInvoiceEntryPage();
+        }
+        
+        if (imAttentionSelectChoices) { 
+            populateAttentionDropdown(imAttentionSelectChoices); 
+        } 
+    }
+    // --- *** END OF FIX *** ---
+    
+    // --- *** START OF FIX (Batch Note Persistence) *** ---
     if (sectionId === 'im-batch-entry') {
-        document.getElementById('im-batch-table-body').innerHTML = '';
-        document.getElementById('im-batch-po-input').value = '';
+        const savedBatchSearch = sessionStorage.getItem('imBatchSearch');
+        const savedBatchNoteSearch = sessionStorage.getItem('imBatchNoteSearch'); // <-- NEW
+        const batchTableBody = document.getElementById('im-batch-table-body');
+        
+        if (savedBatchSearch) {
+            document.getElementById('im-batch-po-input').value = savedBatchSearch;
+        } else {
+             document.getElementById('im-batch-po-input').value = '';
+        }
+        
+        // Always clear the table when navigating to the section
+        batchTableBody.innerHTML = '';
+
         if (!imBatchGlobalAttentionChoices) {
              imBatchGlobalAttentionChoices = new Choices(imBatchGlobalAttention, { searchEnabled: true, shouldSort: false, itemSelectText: '', });
              populateAttentionDropdown(imBatchGlobalAttentionChoices);
         } else {
-             // Refresh options in case vacation status changed
              populateAttentionDropdown(imBatchGlobalAttentionChoices);
         }
         
-        // --- MODIFICATION (Req 4) ---
-        // Initialize or refresh the note search dropdown
         if (!imBatchNoteSearchChoices) {
             imBatchNoteSearchChoices = new Choices(imBatchNoteSearchSelect, {
                 searchEnabled: true,
@@ -1710,11 +2066,36 @@ function showIMSection(sectionId) {
                 placeholderValue: 'Search by Note...'
             });
         }
-        // Populate it with all notes from the cache
-        populateNoteDropdown(imBatchNoteSearchChoices);
-        // --- END MODIFICATION ---
+        
+        // Populate and then set the saved value
+        populateNoteDropdown(imBatchNoteSearchChoices).then(() => {
+            if (savedBatchNoteSearch) {
+                imBatchNoteSearchChoices.setChoiceByValue(savedBatchNoteSearch);
+            }
+        });
     }
-    if (sectionId === 'im-summary-note') { summaryNotePrintArea.classList.add('hidden'); initializeNoteSuggestions(); }
+    // --- *** END OF FIX *** ---
+
+    // --- MODIFICATION: Restore saved Summary Note search ---
+    if (sectionId === 'im-summary-note') { 
+        // summaryNotePrintArea.classList.add('hidden'); // Don't hide yet
+        initializeNoteSuggestions(); 
+        
+        const savedPrevNote = sessionStorage.getItem('imSummaryPrevNote');
+        const savedCurrNote = sessionStorage.getItem('imSummaryCurrNote');
+        
+        if (savedPrevNote) summaryNotePreviousInput.value = savedPrevNote;
+        if (savedCurrNote) summaryNoteCurrentInput.value = savedCurrNote;
+
+        // If a current note was saved, auto-generate the summary
+        if (savedCurrNote) {
+            handleGenerateSummary();
+        } else {
+            summaryNotePrintArea.classList.add('hidden');
+        }
+    }
+    // --- END MODIFICATION ---
+
     if (sectionId === 'im-reporting') {
         imDailyReportDateInput.value = getTodayDateString();
         const savedSearch = sessionStorage.getItem('imReportingSearch');
@@ -1753,6 +2134,8 @@ function resetInvoiceForm() {
     imAddInvoiceButton.classList.remove('hidden');
     imUpdateInvoiceButton.classList.add('hidden');
 }
+
+// --- *** START OF FIX (Search Persistence) *** ---
 function resetInvoiceEntryPage() {
     currentPO = null;
     currentPOInvoices = {};
@@ -1763,8 +2146,13 @@ function resetInvoiceEntryPage() {
     imExistingInvoicesContainer.classList.add('hidden');
     imInvoicesTableBody.innerHTML = '';
     imBackToActiveTaskButton.classList.add('hidden');
+    
+    // Clear the session storage for the PO search
+    sessionStorage.removeItem('imPOSearch');
+    
     resetInvoiceForm();
 }
+// --- *** END OF FIX *** ---
 
 // --- MODIFIED handlePOSearch (Req 1) ---
 async function handlePOSearch(poNumberFromInput) {
@@ -1775,6 +2163,11 @@ async function handlePOSearch(poNumberFromInput) {
         alert('Please enter a PO Number.');
         return;
     }
+
+    // --- *** START OF FIX (Search Persistence) *** ---
+    // Save the successful search term to session storage
+    sessionStorage.setItem('imPOSearch', poNumber);
+    // --- *** END OF FIX *** ---
 
     // Sync both search boxes
     imPOSearchInput.value = poNumber;
@@ -1794,7 +2187,10 @@ async function handlePOSearch(poNumberFromInput) {
         const poData = allPOData[poNumber];
         if (!poData) {
             alert('PO Number not found in the database.');
+            // --- *** START OF FIX (Search Persistence) *** ---
+            // We call reset, which also clears the session storage
             resetInvoiceEntryPage();
+            // --- *** END OF FIX *** ---
             return;
         }
 
@@ -1909,6 +2305,102 @@ function fetchAndDisplayInvoices(poNumber) {
     }
 }
 
+// ++ NEW (Req 1): Populate the Active Jobs Sidebar ++
+async function populateActiveJobsSidebar() {
+    if (!imEntrySidebarList) return;
+
+    // --- (Req 1) FIX: We must re-run populateActiveTasks to get the latest list ---
+    // This function will now use the latest data and filter out completed tasks.
+    await populateActiveTasks();
+    const tasksToDisplay = userActiveTasks; // userActiveTasks is now fresh
+    // --- End FIX ---
+
+    // Filter for "Invoice" tasks assigned to the current user
+    const invoiceJobs = tasksToDisplay.filter(task => 
+        (task.for === 'Invoice' || task.source === 'invoice') && // Check both types
+        task.attention === currentApprover.Name
+    );
+
+    imEntrySidebarList.innerHTML = ''; // Clear previous list
+
+    if (invoiceJobs.length === 0) {
+        imEntrySidebarList.innerHTML = '<li class="im-sidebar-no-jobs">No active invoice jobs found.</li>';
+        return;
+    }
+
+    invoiceJobs.forEach(job => {
+        const li = document.createElement('li');
+        li.className = 'im-sidebar-item';
+        // Store all necessary data on the element
+        li.dataset.key = job.key;
+        li.dataset.po = job.po || '';
+        li.dataset.ref = job.ref || '';
+        li.dataset.amount = job.amount || '';
+        li.dataset.date = job.date || '';
+        li.dataset.source = job.source || ''; // 'job_entry' or 'invoice'
+        li.dataset.originalKey = job.originalKey || ''; // For invoice source
+        li.dataset.originalPO = job.originalPO || ''; // For invoice source
+        
+        li.innerHTML = `
+            <span class="im-sidebar-po">PO: ${job.po || 'N/A'}</span>
+            <span class="im-sidebar-vendor">${job.vendorName || 'No Vendor'}</span>
+            <span class="im-sidebar-amount">QAR ${formatCurrency(job.amount)}</span>
+        `;
+        imEntrySidebarList.appendChild(li);
+    });
+}
+
+// ++ NEW (Req 1): Handle clicking a job in the sidebar ++
+async function handleActiveJobClick(e) {
+    const item = e.target.closest('.im-sidebar-item');
+    if (!item) return;
+
+    const { po, ref, amount, date, source, key, originalKey, originalPO } = item.dataset;
+
+    if (!po) {
+        alert("This job entry is missing a PO number and cannot be processed.");
+        return;
+    }
+
+    // This logic is triggered for BOTH job_entry and invoice sources
+    // We store the key to update the task later
+    jobEntryToUpdateAfterInvoice = source === 'job_entry' ? key : null; // Only store for job_entry
+    // We store the data to pre-populate the form
+    pendingJobEntryDataForInvoice = { po, ref, amount, date };
+
+    // This block handles tasks that are ALREADY in the invoice_entries DB
+    if (source === 'invoice' && originalPO && originalKey) {
+        // If the task is already an invoice, we just load it for editing
+        jobEntryToUpdateAfterInvoice = null; // No separate task to update
+        pendingJobEntryDataForInvoice = null; // Don't pre-fill, just load
+        
+        try {
+            await handlePOSearch(originalPO); // Load the PO
+            // Wait a moment for search to complete, then populate
+            setTimeout(() => {
+                populateInvoiceFormForEditing(originalKey); // Populate form with existing data
+                imBackToActiveTaskButton.classList.remove('hidden');
+            }, 200);
+        } catch (error) {
+            console.error("Error loading existing invoice task:", error);
+            alert("Error loading this task. Please try searching for the PO manually.");
+        }
+        return;
+    }
+    
+    // This block handles tasks from the original job_entries DB
+    try {
+        // Load the PO. The 'fetchAndDisplayInvoices' function will
+        // see 'pendingJobEntryDataForInvoice' and pre-populate the *new* invoice form
+        await handlePOSearch(po); 
+        imBackToActiveTaskButton.classList.remove('hidden');
+    } catch (error) {
+        console.error("Error searching for PO from active job:", error);
+        alert("Error searching for PO. Please try again manually.");
+    }
+}
+
+
 function populateInvoiceFormForEditing(invoiceKey) {
     const invData = currentPOInvoices[invoiceKey];
     if (!invData) return;
@@ -1959,6 +2451,7 @@ async function handleAddInvoice(e) {
         invoiceData.invName = `${site}-${po}-${invId}-${vendor}`;
     }
 
+    // --- (Req 3) MODIFIED: Add invEntryID to srvName ---
     if (invoiceData.status === 'With Accounts' && !invoiceData.srvName) {
         const poDetails = allPOData[currentPO];
         if(poDetails) {
@@ -1970,9 +2463,13 @@ async function handleAddInvoice(e) {
             let vendor = poDetails['Supplier Name'] || '';
             if (vendor.length > 21) vendor = vendor.substring(0, 21);
             const site = poDetails['Project ID'] || 'N/A';
-            invoiceData.srvName = `${formattedDate}-${currentPO}-${invoiceData.invEntryID}-${site}-${vendor}`;
+            // Add the invEntryID
+            const invEntryID = invoiceData.invEntryID || 'INV-XX';
+            invoiceData.srvName = `${formattedDate}-${currentPO}-${invEntryID}-${site}-${vendor}`;
         }
     }
+    // --- End (Req 3) MODIFICATION ---
+
     Object.keys(invoiceData).forEach(key => { if (invoiceData[key] === null || invoiceData[key] === undefined) delete invoiceData[key]; });
 
     try {
@@ -1997,9 +2494,25 @@ async function handleAddInvoice(e) {
 
         if (jobEntryToUpdateAfterInvoice) {
             try {
-                const updates = { remarks: invoiceData.status, dateResponded: formatDate(new Date()) };
+                // --- *** START OF WORKFLOW FIX *** ---
+                // This task is now considered "complete" because it has been
+                // processed into an invoice entry. We update its `dateResponded`
+                // and set its `remarks` to the new invoice status.
+                // The `isTaskComplete` function will see the `dateResponded`
+                // and correctly filter it out of the active task list.
+                const updates = { 
+                    remarks: invoiceData.status, 
+                    dateResponded: formatDate(new Date()) 
+                };
+                
                 await db.ref(`job_entries/${jobEntryToUpdateAfterInvoice}`).update(updates);
+                console.log(`Original job entry ${jobEntryToUpdateAfterInvoice} marked as complete.`);
+                // --- *** END OF WORKFLOW FIX *** ---
+                
                 jobEntryToUpdateAfterInvoice = null;
+                // --- (Req 1) FIX: Refresh the sidebar list ---
+                await populateActiveJobsSidebar();
+
             } catch (updateError) {
                 console.error("Error updating the original job entry:", updateError);
                 alert("Invoice was added, but failed to update the original active task.");
@@ -2027,6 +2540,8 @@ async function handleUpdateInvoice(e) {
     // --- END FIX ---
 
     const originalInvoiceData = currentPOInvoices[currentlyEditingInvoiceKey];
+    
+    // --- (Req 3) MODIFIED: Add invEntryID to srvName on update ---
     if (invoiceData.status === 'With Accounts' && (!originalInvoiceData || !originalInvoiceData.srvName)) {
         try {
             const poDetails = allPOData[currentPO];
@@ -2039,11 +2554,15 @@ async function handleUpdateInvoice(e) {
                 let vendor = poDetails['Supplier Name'] || '';
                 if (vendor.length > 21) vendor = vendor.substring(0, 21);
                 const site = poDetails['Project ID'] || 'N/A';
-                invoiceData.srvName = `${formattedDate}-${currentPO}-${site}-${vendor}`;
+                // Use the invEntryID from the form data
+                const invEntryID = invoiceData.invEntryID || 'INV-XX';
+                invoiceData.srvName = `${formattedDate}-${currentPO}-${invEntryID}-${site}-${vendor}`;
                 document.getElementById('im-srv-name').value = invoiceData.srvName;
             }
         } catch (error) { console.error("Could not generate SRV Name:", error); alert("Warning: Could not automatically generate the SRV Name."); }
     }
+    // --- End (Req 3) MODIFICATION ---
+
     Object.keys(invoiceData).forEach(key => { if (invoiceData[key] === null || invoiceData[key] === undefined) delete invoiceData[key]; });
 
     try {
@@ -2057,6 +2576,13 @@ async function handleUpdateInvoice(e) {
             allUniqueNotes.add(invoiceData.note.trim());
         }
         // --- END MODIFICATION ---
+
+        // --- (Req 1) FIX: Refresh sidebar in case status changed ---
+        // We need to refresh the main active task list first
+        await populateActiveTasks(); 
+        // Then repopulate the sidebar based on the new list
+        populateActiveJobsSidebar();
+        // --- End FIX ---
 
         fetchAndDisplayInvoices(currentPO);
         allSystemEntries = []; // Clear system cache
@@ -2079,23 +2605,39 @@ async function handleDeleteInvoice(key) {
         }
     }
 }
+
+// --- *** SITE.CSV FIX (START) *** ---
+// ++ MODIFIED: populateSiteFilterDropdown to use Site.csv ++
 async function populateSiteFilterDropdown() {
     const siteFilterSelect = document.getElementById('im-reporting-site-filter');
     if (siteFilterSelect.options.length > 1) return; // Already populated
     try {
-        await ensureInvoiceDataFetched();
-        const allPOs = allPOData;
-        if (!allPOs) {
-             console.warn("PO Data not available for site filter.");
+        // Ensure Site.csv data is fetched (ensureInvoiceDataFetched handles caching)
+        await ensureInvoiceDataFetched(); 
+        
+        const allSites = allSitesCSVData; // Use the cached Site.csv data
+        if (!allSites) {
+             console.warn("Site.csv data not available for site filter.");
              return;
         }
+        
         const sites = new Set();
-        for (const poNumber in allPOs) {
-            if (allPOs[poNumber] && allPOs[poNumber]['Project ID']) {
-                 sites.add(allPOs[poNumber]['Project ID']);
+        allSites.forEach(item => {
+            if (item.site) {
+                sites.add(item.site);
             }
-        }
-        const sortedSites = Array.from(sites).sort();
+        });
+
+        // --- MODIFICATION: Sort numerically by site number ---
+        const sortedSites = Array.from(sites).sort((a, b) => {
+            const numA = parseInt(a, 10);
+            const numB = parseInt(b, 10);
+            if (!isNaN(numA) && !isNaN(numB)) {
+                return numA - numB;
+            }
+            return a.localeCompare(b); // Fallback for non-numeric
+        });
+
         // Clear existing options except the first one ("All Sites")
         while (siteFilterSelect.options.length > 1) {
             siteFilterSelect.remove(1);
@@ -2110,23 +2652,255 @@ async function populateSiteFilterDropdown() {
         console.error("Error populating site filter:", error);
     }
 }
+// --- *** SITE.CSV FIX (END) *** ---
 
-// ++ FIX: Restore definition for populateInvoiceDashboard ++
+// ++ NEW: populateInvoiceDashboard with Ecost.csv data ++
 async function populateInvoiceDashboard() {
     const dashboardSection = document.getElementById('im-dashboard');
-    // Basic placeholder - replace with actual chart logic if needed later
-    dashboardSection.innerHTML = '<h1>Dashboard</h1><p>Dashboard analytics view is currently unavailable.</p>';
-    // If you add charts back, initialize them here
-    // Example:
-    // try {
-    //     await ensureInvoiceDataFetched();
-    //     // ... process data ...
-    //     // ... create chart ...
-    // } catch (error) {
-    //     console.error("Error populating invoice dashboard:", error);
-    //     dashboardSection.innerHTML = '<h1>Dashboard</h1><p>Error loading dashboard data.</p>';
-    // }
+    dashboardSection.innerHTML = `
+        <h1>Dashboard</h1>
+        <div class="im-dashboard-grid">
+            <div class="im-chart-card">
+                <h2>Top 5 Vendors</h2>
+                <ul id="top-vendors-list" class="dashboard-top5-list"></ul>
+            </div>
+            <div class="im-chart-card">
+                <h2>Top 5 Project Sites</h2>
+                <ul id="top-projects-list" class="dashboard-top5-list"></ul>
+            </div>
+            <div class="im-chart-card">
+                <h2>Top 5 Activities</h2>
+                <ul id="top-activities-list" class="dashboard-top5-list"></ul>
+            </div>
+            <div class="im-chart-card full-width-card">
+                <div class="dashboard-chart-header">
+                    <h2>Yearly Overview</h2>
+                    <select id="im-yearly-chart-year-select"></select>
+                </div>
+                <div class="im-chart-container-full">
+                    <canvas id="imYearlyChartCanvas"></canvas>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const topVendorsList = document.getElementById('top-vendors-list');
+    const topProjectsList = document.getElementById('top-projects-list');
+    const topActivitiesList = document.getElementById('top-activities-list');
+    const yearSelect = document.getElementById('im-yearly-chart-year-select');
+
+    // Helper function to show loading
+    const showLoading = (list) => {
+        if (list) list.innerHTML = '<li>Loading...</li>';
+    };
+    showLoading(topVendorsList);
+    showLoading(topProjectsList);
+    showLoading(topActivitiesList);
+
+    try {
+        const data = await ensureEcostDataFetched();
+        if (!data) {
+            dashboardSection.innerHTML = '<h1>Dashboard</h1><p>Error loading dashboard data. Please try again later.</p>';
+            return;
+        }
+
+        // --- 1. Process Data & Get Available Years ---
+        const yearlyData = {};
+        const availableYears = new Set();
+        
+        data.forEach(row => {
+            const year = row['Year'];
+            if (year) {
+                availableYears.add(year);
+                if (!yearlyData[year]) {
+                    yearlyData[year] = {
+                        'Total Committed': Array(12).fill(0),
+                        'Delivered Amount': Array(12).fill(0),
+                        'Outstanding': Array(12).fill(0),
+                    };
+                }
+                const month = row['Month']; // 0-11
+                if (month !== null) {
+                    yearlyData[year]['Total Committed'][month] += row['Total Committed'];
+                    yearlyData[year]['Delivered Amount'][month] += row['Delivered Amount'];
+                    yearlyData[year]['Outstanding'][month] += row['Outstanding'];
+                }
+            }
+        });
+        
+        const sortedYears = Array.from(availableYears).sort((a, b) => b - a);
+
+        // --- 2. Populate Year Selector ---
+        yearSelect.innerHTML = '';
+        if (sortedYears.length === 0) {
+            document.getElementById('imYearlyChartCanvas').style.display = 'none';
+            yearSelect.innerHTML = '<option>No data</option>';
+            showLoading(topVendorsList); // Show no data
+            showLoading(topProjectsList);
+            showLoading(topActivitiesList);
+            return;
+        }
+
+        sortedYears.forEach(year => {
+            const option = document.createElement('option');
+            option.value = year;
+            option.textContent = year;
+            yearSelect.appendChild(option);
+        });
+
+        // --- 3. Helper to update Top 5s ---
+        const updateTop5Lists = (selectedYear) => {
+            const yearData = data.filter(row => row['Year'] === selectedYear);
+
+            const getTop5 = (data, keyField, valueField) => {
+                const aggregated = data.reduce((acc, row) => {
+                    const key = row[keyField];
+                    if (key) {
+                        acc[key] = (acc[key] || 0) + row[valueField];
+                    }
+                    return acc;
+                }, {});
+
+                return Object.entries(aggregated)
+                    .sort(([, a], [, b]) => b - a)
+                    .slice(0, 5);
+            };
+
+            const renderTop5List = (listElement, data) => {
+                if (!listElement) return;
+                listElement.innerHTML = '';
+                if (data.length === 0) {
+                    listElement.innerHTML = '<li>No data found.</li>';
+                    return;
+                }
+                data.forEach(([name, value]) => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span class="top5-name">${name || 'N/A'}</span>
+                        <span class="top5-value">QAR ${formatCurrency(value)}</span>
+                    `;
+                    listElement.appendChild(li);
+                });
+            };
+            
+            renderTop5List(topVendorsList, getTop5(yearData, 'Vendor', 'Total Committed'));
+            renderTop5List(topProjectsList, getTop5(yearData, 'Project #', 'Total Committed'));
+            renderTop5List(topActivitiesList, getTop5(yearData, 'Activity Name', 'Total Committed'));
+        };
+
+        // --- 4. Render Chart Function (as Bar Chart) ---
+        const renderYearlyChart = (selectedYear) => {
+            const ctx = document.getElementById('imYearlyChartCanvas').getContext('2d');
+            const dataForYear = yearlyData[selectedYear];
+
+            if (imYearlyChart) {
+                imYearlyChart.destroy();
+            }
+            
+            // Define bar colors
+            const colors = {
+                'Total Committed': 'rgba(54, 162, 235, 0.7)', // Blue
+                'Delivered Amount': 'rgba(75, 192, 192, 0.7)', // Green/Teal
+                'Outstanding': 'rgba(255, 206, 86, 0.7)' // Yellow
+            };
+
+            imYearlyChart = new Chart(ctx, {
+                type: 'bar', // Changed to bar chart
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                    datasets: [
+                        {
+                            label: 'Total Committed',
+                            data: dataForYear['Total Committed'],
+                            backgroundColor: colors['Total Committed'],
+                            borderColor: colors['Total Committed'],
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Delivered Amount',
+                            data: dataForYear['Delivered Amount'],
+                            backgroundColor: colors['Delivered Amount'],
+                            borderColor: colors['Delivered Amount'],
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Outstanding',
+                            data: dataForYear['Outstanding'],
+                            backgroundColor: colors['Outstanding'],
+                            borderColor: colors['Outstanding'],
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                             labels: {
+                                color: 'rgba(230, 241, 255, 0.9)' // Light text for legend
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += `QAR ${formatCurrency(context.parsed.y)}`;
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { // Added x-axis styling
+                            ticks: {
+                                color: 'rgba(168, 178, 209, 0.7)' // Light text for x-axis labels
+                            },
+                            grid: {
+                                color: 'rgba(48, 63, 96, 0.5)' // Dim grid lines
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                callback: function(value) {
+                                    if (value >= 1000000) return `QAR ${value / 1000000}M`;
+                                    if (value >= 1000) return `QAR ${value / 1000}K`;
+                                    return `QAR ${value}`;
+                                },
+                                color: 'rgba(168, 178, 209, 0.7)' // Light text for y-axis labels
+                            },
+                             grid: {
+                                color: 'rgba(48, 63, 96, 0.5)' // Dim grid lines
+                            }
+                        }
+                    }
+                }
+            });
+        };
+
+        // --- 5. Initial Render and Event Listener ---
+        const initialYear = parseInt(sortedYears[0]);
+        renderYearlyChart(initialYear);
+        updateTop5Lists(initialYear);
+        
+        yearSelect.addEventListener('change', (e) => {
+            const selectedYear = parseInt(e.target.value);
+            renderYearlyChart(selectedYear);
+            updateTop5Lists(selectedYear);
+        });
+
+    } catch (error) {
+        console.error("Error populating invoice dashboard:", error);
+        dashboardSection.innerHTML = '<h1>Dashboard</h1><p>Error loading dashboard data. Please check console for details.</p>';
+    }
 }
+
 
 // --- *** MODIFIED populateInvoiceReporting *** ---
 async function populateInvoiceReporting(searchTerm = '') {
@@ -2327,10 +3101,152 @@ async function populateInvoiceReporting(searchTerm = '') {
 }
 // --- *** END OF MODIFIED FUNCTION *** ---
 
+// ++ NEW (Req 2): Generate data for professional print report ++
+// --- *** START OF PRINT FIX *** ---
+function handleGeneratePrintReport() {
+    if (currentReportData.length === 0) {
+        alert("No data to print. Please run a search first.");
+        return;
+    }
+
+    const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
+    const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
+
+    if (!isAdmin && !isAccounting) {
+        alert("You do not have permission to print this report.");
+        return;
+    }
+
+    // --- 1. Set Report Headers ---
+    const siteFilter = document.getElementById('im-reporting-site-filter').value;
+    const statusFilter = document.getElementById('im-reporting-status-filter').value;
+    let title = "Invoice Summary Report";
+    if (siteFilter && !statusFilter) title = `Invoice Report for Site: ${siteFilter}`;
+    if (statusFilter && !siteFilter) title = `Invoice Report - Status: ${statusFilter}`;
+    if (siteFilter && statusFilter) title = `Invoice Report for Site: ${siteFilter} (Status: ${statusFilter})`;
+    
+    imPrintReportTitle.textContent = title;
+    imPrintReportDate.textContent = `Generated on: ${new Date().toLocaleString('en-GB')}`;
+
+    // --- 2. Calculate Summaries ---
+    let totalPOs = currentReportData.length;
+    let totalReportValue = 0;
+    let totalReportPaid = 0;
+
+    currentReportData.forEach(po => {
+        // Add PO Value
+        totalReportValue += parseFloat(po.poDetails.Amount) || 0;
+        // Add Total Paid Amount from our calculation
+        if (po.paymentData.totalPaidAmount !== 'N/A') {
+            totalReportPaid += parseFloat(po.paymentData.totalPaidAmount) || 0;
+        }
+    });
+
+    imPrintReportSummaryPOs.textContent = totalPOs;
+    imPrintReportSummaryValue.textContent = `QAR ${formatCurrency(totalReportValue)}`;
+    imPrintReportSummaryPaid.textContent = `QAR ${formatCurrency(totalReportPaid)}`;
+
+    // --- 3. Build Report Body ---
+    imPrintReportBody.innerHTML = ''; // Clear previous report
+    
+    currentReportData.forEach(po => {
+        const poContainer = document.createElement('div');
+        poContainer.className = 'print-po-container';
+
+        // PO Header
+        const poHeader = document.createElement('div');
+        poHeader.className = 'print-po-header';
+        poHeader.innerHTML = `
+            <div><strong>PO:</strong> ${po.poNumber}</div>
+            <div><strong>Site:</strong> ${po.site}</div>
+            <div><strong>Vendor:</strong> ${po.vendor}</div>
+            <div><strong>PO Value:</strong> QAR ${formatCurrency(po.poDetails.Amount)}</div>
+            <div><strong>Total Paid:</strong> QAR ${formatCurrency(po.paymentData.totalPaidAmount)}</div>
+        `;
+        poContainer.appendChild(poHeader);
+
+        // Invoices Table
+        let invoicesTableHTML = `
+            <table class="print-invoice-table">
+                <thead>
+                    <tr>
+                        <th>Inv. Entry</th>
+                        <th>Inv. No.</th>
+                        <th>Inv. Date</th>
+                        <th>Inv. Value</th>
+                        <th>Amt. Paid</th>
+                        <th>Release Date</th>
+                        <th>Status</th>
+                        <th>Note</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        let totalInvValue = 0;
+        let totalAmountPaid = 0;
+
+        po.filteredInvoices.forEach(inv => {
+            const invValue = parseFloat(inv.invValue) || 0;
+            const amountPaid = parseFloat(inv.amountPaid) || 0;
+            totalInvValue += invValue;
+            totalAmountPaid += amountPaid;
+
+            const releaseDateDisplay = inv.releaseDate ? new Date(normalizeDateForInput(inv.releaseDate) + 'T00:00:00').toLocaleDateString('en-GB') : '';
+            const invoiceDateDisplay = inv.invoiceDate ? new Date(normalizeDateForInput(inv.invoiceDate) + 'T00:00:00').toLocaleDateString('en-GB') : '';
+
+            invoicesTableHTML += `
+                <tr>
+                    <td>${inv.invEntryID || ''}</td>
+                    <td>${inv.invNumber || ''}</td>
+                    <td>${invoiceDateDisplay}</td>
+                    <td class="print-number">${formatCurrency(invValue)}</td>
+                    <td class="print-number">${formatCurrency(amountPaid)}</td>
+                    <td>${releaseDateDisplay}</td>
+                    <td>${inv.status || ''}</td>
+                    <td>${inv.note || ''}</td>
+                </tr>
+            `;
+        });
+
+        // Add Footer Row for totals
+        invoicesTableHTML += `
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3" class="print-footer-label">PO Invoice Totals:</td>
+                        <td class="print-number print-footer">${formatCurrency(totalInvValue)}</td>
+                        <td class="print-number print-footer">${formatCurrency(totalAmountPaid)}</td>
+                        <td colspan="3"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        `;
+        
+        poContainer.innerHTML += invoicesTableHTML;
+        imPrintReportBody.appendChild(poContainer);
+    });
+
+    // --- 4. Trigger Print ---
+    // Hide all other printable areas
+    if (summaryNotePrintArea) summaryNotePrintArea.classList.add('hidden');
+    
+    // Show *this* printable area
+    if (imReportingPrintableArea) imReportingPrintableArea.classList.remove('hidden');
+
+    window.print();
+    
+    // Hide this printable area again after printing
+    if (imReportingPrintableArea) imReportingPrintableArea.classList.add('hidden');
+}
+// --- *** END OF PRINT FIX *** ---
 
 async function handleDownloadCSV() {
-    const isAccountingAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin' && (currentApprover?.Position || '').toLowerCase() === 'accounting';
-    if (!isAccountingAdmin) {
+    // --- *** BUTTON ACCESS FIX (START) *** ---
+    // --- *** CORRECTED: Check POSITION, not ROLE *** ---
+    const isAccountingPosition = (currentApprover?.Position || '').toLowerCase() === 'accounting';
+    if (!isAccountingPosition) {
+    // --- *** BUTTON ACCESS FIX (END) *** ---
         alert("You do not have permission to download this report.");
         return;
     }
@@ -2358,8 +3274,11 @@ async function handleDownloadCSV() {
 // --- MODIFICATION (Req 2) ---
 // Added 'invValue' to daily report
 async function handleDownloadDailyReport() {
-    const isAccountingAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin' && (currentApprover?.Position || '').toLowerCase() === 'accounting';
-    if (!isAccountingAdmin) {
+    // --- *** BUTTON ACCESS FIX (START) *** ---
+    // --- *** CORRECTED: Check POSITION, not ROLE *** ---
+    const isAccountingPosition = (currentApprover?.Position || '').toLowerCase() === 'accounting';
+    if (!isAccountingPosition) {
+    // --- *** BUTTON ACCESS FIX (END) *** ---
         alert("You do not have permission to download this report.");
         return;
     }
@@ -2401,8 +3320,11 @@ async function handleDownloadDailyReport() {
 // --- MODIFICATION (Req 2) ---
 // Added 'invValue' to 'With Accounts' report
 async function handleDownloadWithAccountsReport() {
-    const isAccountingAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin' && (currentApprover?.Position || '').toLowerCase() === 'accounting';
-    if (!isAccountingAdmin) {
+    // --- *** BUTTON ACCESS FIX (START) *** ---
+    // --- *** CORRECTED: Check POSITION, not ROLE *** ---
+    const isAccountingPosition = (currentApprover?.Position || '').toLowerCase() === 'accounting';
+    if (!isAccountingPosition) {
+    // --- *** BUTTON ACCESS FIX (END) *** ---
         alert("You do not have permission to download this report.");
         return;
     }
@@ -2453,7 +3375,16 @@ async function populateApproverSelect(selectElement) {
             const approvers = allApproverData; // Use the cached full data
             if (approvers) {
                 const approverOptions = Object.values(approvers)
-                    .map(approver => approver.Name ? { value: approver.Name, label: approver.Name } : null)
+                    .map(approver => {
+                        // +++ START OF FIX: Combine fields for new label +++
+                        if (!approver.Name) return null;
+                        const name = approver.Name;
+                        const position = approver.Position || 'No-Pos';
+                        const site = approver.Site || 'No-Site';
+                        const newLabel = `${name} - ${position} - ${site}`;
+                        // +++ END OF FIX +++
+                        return { value: name, label: newLabel }; // Value is still just the name
+                    })
                     .filter(Boolean) // Remove nulls
                     .sort((a, b) => a.label.localeCompare(b.label)); // Sort alphabetically
                 approverListForSelect = [{ value: '', label: 'Select Attention', placeholder: true }, { value: 'None', label: 'None (Clear)' }, ...approverOptions];
@@ -2483,6 +3414,12 @@ async function handleAddPOToBatch() {
     const batchPOInput = document.getElementById('im-batch-po-input');
     const poNumber = batchPOInput.value.trim().toUpperCase();
     if (!poNumber) { alert("Please enter a PO Number."); return; }
+
+    // --- MODIFICATION: Save search term ---
+    sessionStorage.setItem('imBatchSearch', poNumber);
+    sessionStorage.removeItem('imBatchNoteSearch'); // Clear note search
+    // --- END MODIFICATION ---
+
     const batchTableBody = document.getElementById('im-batch-table-body');
     const existingRows = batchTableBody.querySelectorAll(`tr[data-po="${poNumber}"]`);
     let isExistingInvoice = false;
@@ -2639,16 +3576,15 @@ async function addInvoiceToBatchTable(invData) {
 
     // No need for return Promise.resolve(); anymore
 }
+
+// --- *** START OF FIX (Batch Note Persistence) *** ---
 async function handleBatchGlobalSearch(searchType) {
-    // --- MODIFICATION (Req 4) ---
-    // This function is now only for 'status'. 'note' search is handled by the new dropdown.
     const batchPOInput = document.getElementById('im-batch-po-input');
     const searchTerm = batchPOInput.value.trim();
     if (searchType === 'status' && !searchTerm) {
         alert(`Please enter a ${searchType} to search for.`); return; 
     }
     
-    // For 'note', the search term comes from the dropdown
     let noteSearchTerm = '';
     if (searchType === 'note') {
         if (!imBatchNoteSearchChoices) { alert("Note search is not ready."); return; }
@@ -2657,6 +3593,16 @@ async function handleBatchGlobalSearch(searchType) {
     }
     
     const finalSearchTerm = (searchType === 'note') ? noteSearchTerm : searchTerm;
+
+    // Save the search term that was used
+    if (searchType === 'status') {
+        sessionStorage.setItem('imBatchSearch', searchTerm);
+        sessionStorage.removeItem('imBatchNoteSearch'); // Clear the other search
+    } else if (searchType === 'note') {
+        sessionStorage.setItem('imBatchNoteSearch', noteSearchTerm);
+        sessionStorage.removeItem('imBatchSearch'); // Clear the other search
+    }
+    // --- *** END OF FIX *** ---
     
     if (!confirm(`This will scan all locally cached invoices.\n\nContinue searching for all invoices with ${searchType} "${finalSearchTerm}"?`)) return;
     
@@ -2682,15 +3628,15 @@ async function handleBatchGlobalSearch(searchType) {
         if (invoicesFound === 0) alert(`No invoices found with the ${searchType} "${finalSearchTerm}".`);
         else { 
             alert(`Added ${invoicesFound} invoice(s) to the batch list.`); 
-            if (searchType === 'status') batchPOInput.value = ''; 
-            if (searchType === 'note' && imBatchNoteSearchChoices) imBatchNoteSearchChoices.clearInput();
+            // Don't clear the inputs, as the user might want to re-run the search
+            // if (searchType === 'status') batchPOInput.value = ''; 
+            // if (searchType === 'note' && imBatchNoteSearchChoices) imBatchNoteSearchChoices.clearInput();
         }
     } catch (error) { console.error("Error during global batch search:", error); alert(`An error occurred: ${error.message}`); }
     finally { 
         batchPOInput.disabled = false; batchPOInput.placeholder = originalPlaceholder; 
         if (imBatchNoteSearchChoices) imBatchNoteSearchChoices.enable();
     }
-    // --- END MODIFICATION (Req 4) ---
 }
 async function handleSaveBatchInvoices() {
     const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
@@ -2702,14 +3648,28 @@ async function handleSaveBatchInvoices() {
     let newInvoicesCount = 0, updatedInvoicesCount = 0;
 
     // ++ NEW: Helper to get srvName
-    const getSrvName = (poNumber, site, vendor) => {
+    // --- (Req 3) MODIFIED: Add invEntryID to srvName helper ---
+    const getSrvName = (poNumber, site, vendor, invEntryID) => {
         const today = new Date(), yyyy = today.getFullYear(), mm = String(today.getMonth() + 1).padStart(2, '0'), dd = String(today.getDate()).padStart(2, '0');
         if (vendor.length > 21) vendor = vendor.substring(0, 21);
-        return `${yyyy}${mm}${dd}-${poNumber}-${site}-${vendor}`;
+        const invID = invEntryID || 'INV-XX'; // Fallback
+        return `${yyyy}${mm}${dd}-${poNumber}-${invID}-${site}-${vendor}`;
     };
+    // --- End (Req 3) MODIFICATION ---
 
     for (const row of rows) {
         const poNumber = row.dataset.po, site = row.dataset.site, existingKey = row.dataset.key; let vendor = row.dataset.vendor;
+        let invEntryID = row.dataset.nextInvid; // For new invoices
+        
+        if (existingKey) {
+            // For existing invoices, get ID from the text span
+            const existingIDSpan = row.querySelector('span.existing-indicator');
+            if (existingIDSpan) {
+                 const match = existingIDSpan.textContent.match(/\(Existing: (.*)\)/);
+                 if (match && match[1]) invEntryID = match[1];
+            }
+        }
+
 
         // ++ UPDATED: Columns changed
         const invoiceData = {
@@ -2740,10 +3700,11 @@ async function handleSaveBatchInvoices() {
         if (!invoiceData.invValue) { alert(`Invoice Value is required for PO ${poNumber}. Cannot proceed.`); return; }
         if (vendor.length > 21) vendor = vendor.substring(0, 21);
 
-// ++ UPDATED: srvName and invName generation logic
+        // --- (Req 3) MODIFIED: Use new getSrvName helper ---
         if (invoiceData.status === 'With Accounts' && !invoiceData.srvName) {
-            invoiceData.srvName = getSrvName(poNumber, site, vendor);
+            invoiceData.srvName = getSrvName(poNumber, site, vendor, invEntryID);
         }
+        // --- End (Req 3) MODIFICATION ---
 
         let promise;
         if (existingKey) {
@@ -2757,7 +3718,7 @@ async function handleSaveBatchInvoices() {
             });
             updatedInvoicesCount++;
         } else {
-            invoiceData.invEntryID = row.dataset.nextInvid; // Corrected dataset property name
+            invoiceData.invEntryID = invEntryID; // Use the pre-calculated nextInvId
             invoiceData.dateAdded = getTodayDateString();
             invoiceData.createdAt = firebase.database.ServerValue.TIMESTAMP;
 
@@ -2941,7 +3902,6 @@ async function populateNoteDropdown(choicesInstance) {
 }
 // --- END MODIFICATION ---
 
-
 // +++ MODIFIED: handleGenerateSummary +++
 async function handleGenerateSummary() {
     // Helper function to get ordinal suffix (st, nd, rd, th)
@@ -2953,6 +3913,12 @@ async function handleGenerateSummary() {
     };
 
     const prevNote = summaryNotePreviousInput.value.trim(), currentNote = summaryNoteCurrentInput.value.trim();
+    
+    // --- MODIFICATION: Save search terms ---
+    sessionStorage.setItem('imSummaryPrevNote', prevNote);
+    sessionStorage.setItem('imSummaryCurrNote', currentNote);
+    // --- END MODIFICATION ---
+
     if (!currentNote) { alert("Please enter a note for the 'Current Note' search."); return; }
     summaryNoteGenerateBtn.textContent = 'Generating...'; summaryNoteGenerateBtn.disabled = true;
     try {
@@ -3604,12 +4570,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         const key = row.dataset.key;
         if (!key) return;
         
+        // --- (Req 1) FIX: Find task in the fresh userActiveTasks list ---
         const taskData = userActiveTasks.find(entry => entry.key === key);
         if (!taskData) {
              console.error("Task data not found for key:", key);
-             alert("Could not find task details. Please refresh.");
+             // Try to refresh and find it again as a fallback
+             await populateActiveTasks();
+             const refreshedTaskData = userActiveTasks.find(entry => entry.key === key);
+             if(!refreshedTaskData) {
+                 alert("Could not find task details. The list may be out of date. Please refresh.");
+                 return;
+             }
+             // If found after refresh, use this data (but this shouldn't happen often)
+             openModifyTaskModal(refreshedTaskData);
              return;
         }
+        // --- End FIX ---
+
 
         // Handle "SRV Done" button click
         if (e.target.classList.contains('srv-done-btn')) {
@@ -3634,8 +4611,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
                 
                 alert('Task status updated to "SRV Done".');
-                allSystemEntries = []; // Clear cache
-                populateActiveTasks(); // Refresh the active task list
+                
+                // --- (Req 1) FIX: Refresh task lists after action ---
+                await populateActiveTasks(); 
+                // --- End FIX ---
+
 
             } catch (error) {
                 console.error("Error updating task status:", error);
@@ -3652,8 +4632,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
         
-        // Handle "Respond" for 'Invoice' job entries (old logic)
-        if (taskData.source === 'job_entry' && taskData.for === 'Invoice' && taskData.attention === 'Irwin') {
+        // --- *** START OF WORKFLOW FIX *** ---
+        // Handle "Respond" for 'Invoice' job entries
+        // Check if user is Accounting Admin, not just named 'Irwin'
+        const userPositionLower = (currentApprover?.Position || '').toLowerCase();
+        const userRoleLower = (currentApprover?.Role || '').toLowerCase();
+        const isAccountingAdmin = userPositionLower === 'accounting' && userRoleLower === 'admin';
+
+        if (taskData.source === 'job_entry' && taskData.for === 'Invoice' && isAccountingAdmin) {
+        // --- *** END OF WORKFLOW FIX *** ---
              if (!taskData.po) {
                 alert("This job entry is missing a PO number and cannot be processed in Invoice Management.");
                 return;
@@ -3694,7 +4681,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     jobEntrySearchInput.addEventListener('input', debounce((e) => handleJobEntrySearch(e.target.value), 500));
     taskHistorySearchInput.addEventListener('input', debounce((e) => handleTaskHistorySearch(e.target.value), 500));
     reportingSearchInput.addEventListener('input', debounce(() => filterAndRenderReport(allSystemEntries), 500));
-    printReportButton.addEventListener('click', () => window.print());
+    
+    // --- *** WORKDESK PRINT BUTTON FIX (START) *** ---
+    printReportButton.addEventListener('click', () => {
+        // Hide other potential print areas
+        if (summaryNotePrintArea) summaryNotePrintArea.classList.add('hidden');
+        if (imReportingPrintableArea) imReportingPrintableArea.classList.add('hidden');
+        if (imFinanceReportModal) imFinanceReportModal.classList.add('hidden');
+        
+        // Find the correct printable area for WorkDesk
+        const wdPrintArea = document.getElementById('reporting-printable-area');
+        if(wdPrintArea) {
+            // We add a temporary class 'printing' for the new CSS rules to target
+            wdPrintArea.classList.add('printing');
+            document.body.classList.add('workdesk-print-active'); // Helper class for body
+        }
+
+        window.print(); // Trigger print
+
+        // Clean up classes after printing
+        // We use a small timeout to allow the print dialog to close
+        setTimeout(() => {
+            if(wdPrintArea) {
+                wdPrintArea.classList.remove('printing');
+                document.body.classList.remove('workdesk-print-active');
+            }
+        }, 1000);
+    });
+    // --- *** WORKDESK PRINT BUTTON FIX (END) *** ---
+    
     downloadWdReportButton.addEventListener('click', handleDownloadWorkdeskCSV);
     reportTabsContainer.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') { reportTabsContainer.querySelector('.active').classList.remove('active'); e.target.classList.add('active'); currentReportFilter = e.target.getAttribute('data-job-type'); filterAndRenderReport(allSystemEntries); } });
     document.querySelectorAll('.back-to-main-dashboard').forEach(button => button.addEventListener('click', (e) => { e.preventDefault(); showView('dashboard'); }));
@@ -3720,6 +4735,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const isAccountingAdmin = userPositionLower === 'accounting' && userRoleLower === 'admin';
         const isAccountsOrAccounting = userPositionLower === 'accounts' || userPositionLower === 'accounting';
         const isAdmin = userRoleLower === 'admin';
+        
+        // --- *** BUTTON ACCESS FIX (START) *** ---
+        // --- *** CORRECTED: Check POSITION, not ROLE *** ---
+        const isAccountingPosition = userPositionLower === 'accounting';
+        // --- *** BUTTON ACCESS FIX (END) *** ---
+
 
         // ++ MODIFIED: Set visibility based on new rules (HIDE, not disable)
         const imNavLinks = imNav.querySelectorAll('li');
@@ -3733,6 +4754,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Default to visible unless specifically hidden
             li.style.display = '';
 
+            // ++ NEW: Hide Dashboard if not Admin
+            if (section === 'im-dashboard') {
+                if (!isAdmin) li.style.display = 'none';
+            }
             if (section === 'im-invoice-entry' || section === 'im-batch-entry' || section === 'im-summary-note') {
                 if (!isAccountingAdmin) li.style.display = 'none';
             }
@@ -3753,26 +4778,52 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('im-nav-workdesk').classList.remove('hidden');
         document.getElementById('im-nav-activetask').classList.remove('hidden');
 
+        
+        // --- *** BUTTON ACCESS FIX (START) *** ---
+        // --- *** CORRECTED: Check POSITION, not ROLE *** ---
+        // Hide/show based on 'accounting' POSITION
+        imReportingDownloadCSVButton.style.display = isAccountingPosition ? 'inline-block' : 'none';
+        imDownloadDailyReportButton.style.display = isAccountingPosition ? 'inline-block' : 'none';
+        imDownloadWithAccountsReportButton.style.display = isAccountingPosition ? 'inline-block' : 'none';
+        imDailyReportDateInput.style.display = isAccountingPosition ? 'inline-block' : 'none';
+        // --- *** BUTTON ACCESS FIX (END) *** ---
 
-        imReportingDownloadCSVButton.disabled = !isAccountingAdmin;
-        imDownloadDailyReportButton.disabled = !isAccountingAdmin;
-        imDownloadWithAccountsReportButton.disabled = !isAccountingAdmin;
+        // ++ NEW (Req 2): Disable/enable print button
+        imReportingPrintBtn.disabled = !isAccountingAdmin;
+
 
         updateIMDateTime();
         if (imDateTimeInterval) clearInterval(imDateTimeInterval);
         imDateTimeInterval = setInterval(updateIMDateTime, 1000);
         showView('invoice-management');
-        if (window.innerWidth <= 768) {
-            showIMSection('im-reporting'); // Default mobile view
-            imNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
-            const reportingLink = imNav.querySelector('a[data-section="im-reporting"]');
-            if (reportingLink) reportingLink.classList.add('active');
-        } else {
-            showIMSection('im-dashboard'); // Default desktop view
-            imNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
-            const dashboardLink = imNav.querySelector('a[data-section="im-dashboard"]');
-            if (dashboardLink) dashboardLink.classList.add('active');
+        
+        // ++ NEW: Logic to select default IM section
+        let defaultSection = 'im-reporting'; // Default for non-admins
+        let defaultLink = imNav.querySelector('a[data-section="im-reporting"]');
+
+        if (isAdmin) {
+            defaultSection = 'im-dashboard'; // Default for Admins
+            defaultLink = imNav.querySelector('a[data-section="im-dashboard"]');
         }
+
+        if (window.innerWidth <= 768) {
+             // On mobile, default to reporting (if admin, they can switch)
+            defaultSection = 'im-reporting';
+            defaultLink = imNav.querySelector('a[data-section="im-reporting"]');
+        }
+        
+        imNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
+        if (defaultLink) {
+            defaultLink.classList.add('active');
+        } else {
+             // Fallback if default link is hidden (e.g. admin on mobile)
+             const firstVisibleLink = imNav.querySelector('li:not([style*="display: none"]) a');
+             if(firstVisibleLink) {
+                 firstVisibleLink.classList.add('active');
+                 defaultSection = firstVisibleLink.dataset.section || 'im-reporting';
+             }
+        }
+        showIMSection(defaultSection);
     });
 
     // ++ UPDATED: Named function for IM Attention choice event with direct lookup using _store ++
@@ -3841,10 +4892,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     imPOSearchInputBottom.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); handlePOSearch(imPOSearchInputBottom.value); } });
     // --- END MODIFICATION ---
 
+    // ++ NEW (Req 1): Listeners for Active Jobs Sidebar ++
+    if (imShowActiveJobsBtn) {
+        imShowActiveJobsBtn.addEventListener('click', () => {
+            imEntrySidebar.classList.toggle('visible');
+        });
+    }
+    if (imEntrySidebarList) {
+        imEntrySidebarList.addEventListener('click', handleActiveJobClick);
+    }
+
+
     imAddInvoiceButton.addEventListener('click', handleAddInvoice);
     imUpdateInvoiceButton.addEventListener('click', handleUpdateInvoice);
     imClearFormButton.addEventListener('click', () => { currentPO ? resetInvoiceForm() : resetInvoiceEntryPage(); });
-    imBackToActiveTaskButton.addEventListener('click', () => { showView('workdesk'); workdeskNav.querySelectorAll('a').forEach(a => a.classList.remove('active')); workdeskNav.querySelector('a[data-section="wd-activetask"]').classList.add('active'); showWorkdeskSection('wd-activetask'); });
+    imBackToActiveTaskButton.addEventListener('click', () => { 
+        // Go back to active task list
+        workdeskButton.click();
+        setTimeout(() => {
+            workdeskNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
+            workdeskNav.querySelector('a[data-section="wd-activetask"]').classList.add('active'); 
+            showWorkdeskSection('wd-activetask');
+        }, 100);
+    });
 
     imInvoicesTableBody.addEventListener('click', (e) => {
         const deleteBtn = e.target.closest('.delete-btn');
@@ -3889,7 +4959,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
 
-            if (confirm(`Do you want to edit this invoice?\n\nPO: ${poNumber}\nInvoice Key: ${invoiceKey}`)) {
+            if (confirm(`Do you want to edit this invoice?\n\PO: ${poNumber}\nInvoice Key: ${invoiceKey}`)) {
                 // Navigate to the Invoice Entry section
                 imNav.querySelector('a[data-section="im-invoice-entry"]').click();
                 
@@ -3911,6 +4981,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     imReportingDownloadCSVButton.addEventListener('click', handleDownloadCSV);
     imDownloadDailyReportButton.addEventListener('click', handleDownloadDailyReport);
     if(imDownloadWithAccountsReportButton) imDownloadWithAccountsReportButton.addEventListener('click', handleDownloadWithAccountsReport);
+    
+    // ++ NEW (Req 2): Listener for professional print button
+    if(imReportingPrintBtn) imReportingPrintBtn.addEventListener('click', handleGeneratePrintReport);
+
     
     // --- FIX: Clears Attention when setting to 'Under Review' or sets to 'Mr. Hamad' for CEO Approval ---
     imStatusSelect.addEventListener('change', (e) => {
@@ -3952,6 +5026,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Batch Entry Listeners
     const batchAddBtn = document.getElementById('im-batch-add-po-button'), batchSaveBtn = document.getElementById('im-batch-save-button'), batchTableBody = document.getElementById('im-batch-table-body'), batchPOInput = document.getElementById('im-batch-po-input'), batchSearchStatusBtn = document.getElementById('im-batch-search-by-status-button'), batchSearchNoteBtn = document.getElementById('im-batch-search-by-note-button');
+    
+    // --- MODIFICATION: Add new Clear button listener ---
+    const batchClearBtn = document.getElementById('im-batch-clear-button');
+    if(batchClearBtn) batchClearBtn.addEventListener('click', () => {
+        batchTableBody.innerHTML = '';
+        batchPOInput.value = '';
+        sessionStorage.removeItem('imBatchSearch');
+        sessionStorage.removeItem('imBatchNoteSearch'); // <-- NEW
+        if (imBatchNoteSearchChoices) imBatchNoteSearchChoices.clearInput();
+        if (imBatchGlobalAttentionChoices) imBatchGlobalAttentionChoices.clearInput();
+        imBatchGlobalStatus.value = '';
+        imBatchGlobalNote.value = '';
+    });
+    // --- END MODIFICATION ---
+
     if (batchSearchStatusBtn) batchSearchStatusBtn.addEventListener('click', () => handleBatchGlobalSearch('status'));
     
     // --- MODIFICATION (Req 4) ---
@@ -3961,7 +5050,39 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (batchAddBtn) batchAddBtn.addEventListener('click', handleAddPOToBatch);
     if (batchSaveBtn) batchSaveBtn.addEventListener('click', handleSaveBatchInvoices);
-    if (batchPOInput) batchPOInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); if(batchSearchStatusBtn) batchSearchStatusBtn.click(); } });
+    
+    // --- MODIFICATION: Save search term on input ---
+    if (batchPOInput) {
+        batchPOInput.addEventListener('keypress', (e) => { 
+            if (e.key === 'Enter') { 
+                e.preventDefault(); 
+                if(batchSearchStatusBtn) batchSearchStatusBtn.click(); 
+            }
+        });
+        // Save on input change as well
+        batchPOInput.addEventListener('input', debounce((e) => {
+            sessionStorage.setItem('imBatchSearch', e.target.value);
+            sessionStorage.removeItem('imBatchNoteSearch'); // Clear note search
+        }, 500));
+    }
+    // --- END MODIFICATION ---
+
+    // --- *** START OF FIX (Batch Note Persistence) *** ---
+    if (imBatchNoteSearchSelect) {
+        imBatchNoteSearchSelect.addEventListener('change', () => {
+            if (imBatchNoteSearchChoices) {
+                const noteValue = imBatchNoteSearchChoices.getValue(true);
+                if (noteValue) {
+                    sessionStorage.setItem('imBatchNoteSearch', noteValue);
+                    sessionStorage.removeItem('imBatchSearch'); // Clear text search
+                } else {
+                    sessionStorage.removeItem('imBatchNoteSearch');
+                }
+            }
+        });
+    }
+    // --- *** END OF FIX *** ---
+
     if (batchTableBody) {
         // --- FIX: Correctly destroy Choices.js instance on remove ---
         batchTableBody.addEventListener('click', (e) => {
@@ -4056,6 +5177,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     if(summaryNoteGenerateBtn) summaryNoteGenerateBtn.addEventListener('click', handleGenerateSummary);
     if(summaryNoteUpdateBtn) summaryNoteUpdateBtn.addEventListener('click', handleUpdateSummaryChanges);
     
+    // --- MODIFICATION: Add new Clear button listener ---
+    const summaryClearBtn = document.getElementById('summary-note-clear-btn');
+    if (summaryClearBtn) {
+        summaryClearBtn.addEventListener('click', () => {
+            summaryNotePreviousInput.value = '';
+            summaryNoteCurrentInput.value = '';
+            document.getElementById('summary-note-status-input').value = '';
+            document.getElementById('summary-note-srv-input').value = '';
+            document.getElementById('summary-note-custom-notes-input').value = '';
+            snTableBody.innerHTML = '';
+            summaryNotePrintArea.classList.add('hidden');
+            sessionStorage.removeItem('imSummaryPrevNote');
+            sessionStorage.removeItem('imSummaryCurrNote');
+        });
+    }
+    // --- END MODIFICATION ---
+
+    // --- MODIFICATION: Save search terms on input ---
+    if (summaryNotePreviousInput) {
+        summaryNotePreviousInput.addEventListener('input', debounce((e) => {
+            sessionStorage.setItem('imSummaryPrevNote', e.target.value);
+        }, 500));
+    }
+    if (summaryNoteCurrentInput) {
+        summaryNoteCurrentInput.addEventListener('input', debounce((e) => {
+            sessionStorage.setItem('imSummaryCurrNote', e.target.value);
+        }, 500));
+    }
+    // --- END MODIFICATION ---
+
+    
+// --- *** START OF PRINT FIX *** ---
 // UPDATED Summary Note Print Button Listener
     if(summaryNotePrintBtn) {
         summaryNotePrintBtn.addEventListener('click', () => {
@@ -4073,12 +5226,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } else {
                     notesPrintContainer.style.display = 'none';  // Ensure it's hidden if empty
                 }
+                
+                // Hide all other printable areas
+                if (imReportingPrintableArea) imReportingPrintableArea.classList.add('hidden');
+
+                // Show *this* printable area (it's already visible, but good practice)
+                if (summaryNotePrintArea) summaryNotePrintArea.classList.remove('hidden');
 
                 window.print(); // Trigger print dialog
-
-                // Optional: Hide the container again after printing if needed,
-                // but CSS print rules should handle visibility correctly anyway.
-                // notesPrintContainer.style.display = 'none';
 
             } else {
                 console.error("Could not find notes elements for printing.");
@@ -4087,6 +5242,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     }
+// --- *** END OF PRINT FIX ---
 
 
     // ++ NEW: Payment Section Listeners ++

@@ -12,6 +12,17 @@
     --invoice2-blue: #416282; /* The specific blue from the attached image */
     --text-color-light: #fff;
     --text-color-dark: #333;
+    /* ++ NEW (Req 1): Sidebar width variable ++ */
+    --sidebar-width: 300px;
+    
+    /* ++ NEW: Dashboard Theme Colors ++ */
+    --db-bg: #0a192f; /* Dark blue background */
+    --db-card-bg: #1e2a47; /* Slightly lighter card background */
+    --db-border: #303f60; /* Border color for cards */
+    --db-text-primary: #e6f1ff; /* Light primary text */
+    --db-text-secondary: #a8b2d1; /* Lighter secondary text */
+    --db-accent-blue: #64ffda; /* Accent color (teal/mint) */
+    --db-accent-purple: #8892ff; /* Accent color (purple) */
 }
 
 
@@ -24,7 +35,7 @@ body.login-background {
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    background-color: #0a192f;
+    background-color: var(--db-bg); /* Use dashboard bg for login */
 }
 
 /* App Container for centered content */
@@ -99,7 +110,7 @@ button:hover { background-color: #0056b3; }
 
 /* --- WORKDESK STYLES --- */
 #workdesk-view, #invoice-management-view { display: flex; width: 100vw; height: 100vh; overflow: hidden; }
-.workdesk-sidebar { width: 260px; background-color: #001e3c; color: var(--text-color-light); display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; transition: width 0.3s ease; }
+.workdesk-sidebar { width: 260px; background-color: #001e3c; color: var(--text-color-light); display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; transition: width 0.3s ease; z-index: 10; }
 .wd-user-profile { text-align: center; padding-bottom: 20px; }
 .wd-user-avatar { width: 80px; height: 80px; border-radius: 50%; background-color: #003366; display: flex; justify-content: center; align-items: center; margin: 0 auto 15px; font-size: 40px; color: #66b2ff; }
 #wd-username, #im-username { margin: 0 0 5px 0; font-size: 1.1rem; }
@@ -113,6 +124,14 @@ button:hover { background-color: #0056b3; }
 .workdesk-navigation a.active { background-color: #007bff; color: var(--text-color-light); font-weight: 600; }
 .workdesk-navigation a i, .workdesk-footer-nav a i { width: 20px; text-align: center; }
 .workdesk-main { flex-grow: 1; background-color: #f4f7fa; padding: 25px 40px; overflow-y: auto; box-sizing: border-box; }
+
+/* ++ MODIFIED (Req 1): Adjust main content when sidebar is present ++ */
+.workdesk-main.with-sidebar {
+    /* Make room for the sidebar */
+    margin-right: var(--sidebar-width);
+    transition: margin-right 0.3s ease;
+}
+
 #workdesk-datetime, #im-datetime { font-size: 0.9rem; color: #555; font-weight: 500; text-align: right; margin-bottom: 15px; }
 .workdesk-section { background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); }
 .workdesk-section h1 { margin-top: 0; margin-bottom: 25px; }
@@ -438,6 +457,16 @@ tbody tr:hover { background-color: #f1f1f1; }
 .nested-invoice-table td:last-child, .nested-invoice-table th:last-child {
     border-right: 0;
 }
+
+/* ++ NEW (Req 1): Nested invoice row click style ++ */
+.nested-invoice-row {
+    cursor: pointer;
+}
+.nested-invoice-row:hover {
+    background-color: #f0f8ff !important;
+}
+
+
 /* New Action Button Styles */
 .action-btn-group {
     display: flex;
@@ -480,25 +509,35 @@ tbody tr:hover { background-color: #f1f1f1; }
 }
 
 /* --- INVOICE MANAGEMENT DASHBOARD --- */
-.im-dashboard-full-grid {
+/* ++ NEW: Dark theme for IM Dashboard ++ */
+#im-dashboard {
+    background-color: var(--db-bg);
+}
+#im-dashboard h1 {
+    color: var(--db-text-primary);
+    border-bottom: 1px solid var(--db-border);
+}
+.im-dashboard-grid { /* Changed from .im-dashboard-full-grid */
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr); /* 3 columns */
     gap: 20px;
 }
 .im-chart-card {
-    background-color: #fff;
+    background-color: var(--db-card-bg);
     padding: 20px;
     border-radius: 8px;
-    border: 1px solid #e0e0e0;
+    border: 1px solid var(--db-border);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
 .im-chart-card.full-width-card {
-    grid-column: 1 / -1;
+    grid-column: 1 / -1; /* Span all 3 columns */
 }
 .im-chart-card h2 {
     margin-top: 0;
     margin-bottom: 20px;
     font-size: 1.1rem;
     border-bottom: none;
+    color: var(--db-text-primary);
 }
 .im-chart-container-half {
     height: 300px;
@@ -506,6 +545,57 @@ tbody tr:hover { background-color: #f1f1f1; }
 .im-chart-container-full {
     height: 350px;
 }
+
+/* ++ NEW: Top 5 List Styles ++ */
+.dashboard-top5-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 0.9rem;
+}
+.dashboard-top5-list li {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--db-border);
+    color: var(--db-text-secondary);
+}
+.dashboard-top5-list li:last-child {
+    border-bottom: none;
+}
+.dashboard-top5-list .top5-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 15px;
+}
+.dashboard-top5-list .top5-value {
+    color: var(--db-accent-blue);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* ++ NEW: Chart Header Styles ++ */
+.dashboard-chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+.dashboard-chart-header h2 {
+    margin-bottom: 0;
+}
+.dashboard-chart-header select {
+    background-color: var(--db-card-bg);
+    color: var(--db-text-primary);
+    border: 1px solid var(--db-border);
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    width: auto;
+    margin-bottom: 0;
+}
+/* -- End IM Dashboard Styles -- */
 
 
 /* --- BATCH INVOICE ENTRY TABLE STYLES --- */
@@ -850,14 +940,92 @@ tbody tr:hover { background-color: #f1f1f1; }
 #im-finance-report-modal #im-reportNotesSection h5 { font-weight: bold; margin-bottom: 10px !important; }
 #im-finance-report-modal #im-reportNotesContent { white-space: pre-wrap !important; font-size: 12pt !important; padding: 10px !important; border: 1px solid #ddd !important; background: #f9f9f9 !important; min-height: 50px !important; }
 
+/* ++ NEW (Req 1): Active Jobs Sidebar ++ */
+#im-show-active-jobs-btn {
+    display: none; /* Hidden on desktop */
+    float: right;
+    padding: 6px 12px;
+    font-size: 14px;
+    margin-left: 10px;
+}
+.im-entry-sidebar {
+    width: var(--sidebar-width);
+    position: fixed;
+    top: 0;
+    right: 0;
+    height: 100vh;
+    background-color: #001e3c;
+    color: var(--text-color-light);
+    border-left: 1px solid #003366;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    box-sizing: border-box;
+    transition: transform 0.3s ease;
+}
+.im-sidebar-title {
+    margin: 0 0 15px 0;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #003366;
+    font-size: 1.2rem;
+    text-align: center;
+}
+.im-sidebar-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    overflow-y: auto;
+    flex-grow: 1;
+}
+.im-sidebar-item {
+    background-color: #002b4d;
+    padding: 12px 15px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+.im-sidebar-item:hover {
+    background-color: #004488;
+}
+.im-sidebar-item span {
+    display: block;
+    line-height: 1.4;
+}
+.im-sidebar-po {
+    font-weight: 600;
+    font-size: 1rem;
+    color: #fff;
+}
+.im-sidebar-vendor {
+    font-size: 0.85rem;
+    color: #c0c0c0;
+    margin: 2px 0;
+}
+.im-sidebar-amount {
+    font-size: 0.9rem;
+    color: #ffc107;
+    font-weight: 500;
+}
+.im-sidebar-no-jobs {
+    color: #888;
+    text-align: center;
+    padding-top: 20px;
+}
 
 /* =================================== */
 /* CORRECTED PRINT STYLES - CONDITIONAL */
 /* =================================== */
 @media print {
-    @page {
-        size: A4;
-        margin: 5mm; /* Base margin */
+    /* ++ MODIFIED: Replaced single @page rule with named rules ++ */
+    @page portrait {
+        size: A4 portrait;
+        margin: 5mm;
+    }
+    @page landscape {
+        size: A4 landscape;
+        margin: 5mm;
     }
 
     body {
@@ -875,6 +1043,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     }
 
     #summary-note-printable-area:not(.hidden) {
+        page: portrait; /* ++ MODIFIED: Use portrait page ++ */
         position: absolute !important;
         left: 0 !important;
         top: 0 !important;
@@ -1071,7 +1240,7 @@ tbody tr:hover { background-color: #f1f1f1; }
          visibility: hidden !important;
     }
      /* Also hide other potential print areas if summary is active */
-     #summary-note-printable-area:not(.hidden) ~ #reporting-printable-area {
+     #summary-note-printable-area:not(.hidden) ~ #im-reporting-printable-area {
          display: none !important;
          visibility: hidden !important;
      }
@@ -1085,6 +1254,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     }
 
     #im-finance-report-modal:not(.hidden) {
+        page: portrait; /* ++ MODIFIED: Use portrait page ++ */
         position: absolute !important;
         left: 0 !important;
         top: 0 !important;
@@ -1138,21 +1308,87 @@ tbody tr:hover { background-color: #f1f1f1; }
         visibility: hidden !important;
     }
      /* Also hide other potential print areas if finance modal is active */
-     #im-finance-report-modal:not(.hidden) ~ #reporting-printable-area {
+     #im-finance-report-modal:not(.hidden) ~ #im-reporting-printable-area {
          display: none !important;
          visibility: hidden !important;
      }
+
+    /* ++ NEW (Req 2): Rules for printing Invoice Summary Report ++ */
+    #im-reporting-printable-area:not(.hidden),
+    #im-reporting-printable-area:not(.hidden) * {
+        visibility: visible !important;
+    }
+    #im-reporting-printable-area:not(.hidden) {
+        page: landscape; /* ++ MODIFIED: Use landscape page ++ */
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        margin: 0 !important;
+        padding: 10mm 5mm !important;
+        border: none !important;
+        box-shadow: none !important;
+        background: white !important;
+        overflow: visible !important;
+        display: block !important;
+        z-index: 9999 !important;
+        font-size: 9pt !important;
+    }
+    .print-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #000; padding-bottom: 10px; }
+    .print-logo h1 { font-size: 14pt; margin: 0; }
+    .print-title-section { text-align: right; }
+    .print-title-section h2 { font-size: 16pt; margin: 0 0 5px 0; }
+    .print-title-section p { font-size: 10pt; margin: 0; }
+    .print-summary { margin-top: 20px; background: #f4f7fa; padding: 15px; border: 1px solid #e0e0e0; border-radius: 5px; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    .print-summary h3 { margin: 0 0 15px 0; text-align: center; font-size: 12pt; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
+    .print-summary-grid { display: flex; justify-content: space-around; align-items: center; }
+    .print-summary-grid div { text-align: center; }
+    .print-summary-grid span { font-size: 10pt; color: #333; display: block; }
+    .print-summary-grid strong { font-size: 14pt; color: #000; display: block; }
+    #im-print-report-body { margin-top: 25px; }
+    
+    /* --- *** PRINT PAGING FIX (START) *** --- */
+    .print-po-container { 
+        border: 1px solid #aaa; 
+        border-radius: 5px; 
+        margin-bottom: 15px; 
+        /* REMOVED: page-break-inside: avoid; */
+        /* This will now allow containers to flow naturally */
+    }
+    /* --- *** PRINT PAGING FIX (END) *** --- */
+    
+    .print-po-header { background: #001e3c; color: white; padding: 10px 15px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px 20px; border-radius: 5px 5px 0 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    .print-po-header div { font-size: 10pt; }
+    .print-invoice-table { width: 100%; border-collapse: collapse; }
+    .print-invoice-table th, .print-invoice-table td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
+    .print-invoice-table thead th { background: #e9ecef; font-size: 9pt; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    .print-invoice-table tbody tr:nth-child(even) { background: #f9f9f9; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    .print-invoice-table tfoot td { border-top: 2px solid #000; }
+    .print-number { text-align: right !important; font-family: monospace; }
+    .print-footer-label { text-align: right !important; font-weight: bold; }
+    .print-footer { font-weight: bold; font-size: 10pt; }
+    
+    /* --- *** PRINT SIGNATURE FIX (START) *** --- */
+    .print-footer-signatures { 
+        display: none !important; 
+    }
+    /* --- *** PRINT SIGNATURE FIX (END) *** --- */
 
     /* --- Hide elements that should never print --- */
     #summary-note-controls, /* Hide the controls on the summary page */
     #im-summary-note .form-group.no-print, /* Hide the custom notes input area */
     #im-finance-report .search-and-filter-group, /* Hide finance search controls */
     .workdesk-sidebar, /* Hide sidebars */
+    /* ++ MODIFIED (Req 1): Also hide new IM sidebar ++ */
+    .im-entry-sidebar,
     .workdesk-main > span, /* Hide datetime spans */
-    .workdesk-section:not(#im-summary-note):not(#im-finance-report), /* Hide non-active sections */
+    .workdesk-section:not(#im-summary-note):not(#im-finance-report):not(#im-reporting), /* Hide non-active sections */
     .modal-overlay:not(#im-finance-report-modal), /* Hide other modals */
     button, /* Hide all buttons generally */
-    .no-print /* Add class="no-print" to any other element you want hidden */
+    .no-print, /* Add class="no-print" to any other element you want hidden */
+    /* ++ NEW (Req 2): Hide on-screen report content when printing ++ */
+    #im-reporting-form, #im-reporting-content, .report-header, .reporting-legend
     {
         display: none !important;
         visibility: hidden !important;
@@ -1164,6 +1400,71 @@ tbody tr:hover { background-color: #f1f1f1; }
     }
     #summary-note-printable-area:not(.hidden) .sn-print-notes-section[style*="display: block"] {
         display: block !important; /* ONLY show if JS explicitly sets it */
+    }
+    
+    /* =================================== */
+    /* ++ NEW: Rules for printing WorkDesk Report ++ */
+    /* =================================== */
+    
+    /* When body has the helper class, hide everything */
+    body.workdesk-print-active * {
+        visibility: hidden;
+    }
+
+    /* Then, show ONLY the WorkDesk report section that has the 'printing' class */
+    body.workdesk-print-active #reporting-printable-area.printing,
+    body.workdesk-print-active #reporting-printable-area.printing * {
+        visibility: visible !important;
+    }
+
+    /* Style the WorkDesk report section for printing */
+    body.workdesk-print-active #reporting-printable-area.printing {
+        page: landscape; /* Use landscape page */
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        margin: 0 !important;
+        padding: 10mm 5mm !important;
+        border: none !important;
+        box-shadow: none !important;
+        background: white !important;
+        font-size: 9pt !important;
+    }
+    
+    /* Hide elements inside the WorkDesk section that we don't want */
+    body.workdesk-print-active #reporting-printable-area.printing .search-bar-local,
+    body.workdesk-print-active #reporting-printable-area.printing .report-controls,
+    body.workdesk-print-active #reporting-printable-area.printing .report-header,
+    body.workdesk-print-active #reporting-printable-area.printing .report-tabs-container,
+    body.workdesk-print-active #reporting-printable-area.printing .report-buttons-group {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    
+    /* Style the WorkDesk report table */
+    body.workdesk-print-active #reporting-printable-area.printing table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        font-size: 8pt !important; /* Smaller font for more data */
+    }
+    body.workdesk-print-active #reporting-printable-area.printing table th,
+    body.workdesk-print-active #reporting-printable-area.printing table td {
+        border: 1px solid #333 !important;
+        padding: 4px 6px !important;
+        text-align: left !important;
+    }
+    body.workdesk-print-active #reporting-printable-area.printing table thead th {
+        background-color: #f0f0f0 !important;
+        font-weight: bold !important;
+        color: #000 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    body.workdesk-print-active #reporting-printable-area.printing table tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
     }
 
 
@@ -1204,7 +1505,11 @@ tbody tr:hover { background-color: #f1f1f1; }
     .workdesk-navigation a i { font-size: 1.2rem; margin-bottom: 2px; }
     .jobentry-form-2col { grid-template-columns: 1fr; }
     .form-buttons-container { justify-content: center; }
-    .im-dashboard-grid { grid-template-columns: 1fr; }
+    
+    /* ++ NEW: Dashboard mobile layout ++ */
+    .im-dashboard-grid { 
+        grid-template-columns: 1fr; /* Stack all cards */
+    }
 
     #dashboard-view .button-container .circle-button:not(#invoice-mgmt-button) {
         display: none;
@@ -1221,6 +1526,22 @@ tbody tr:hover { background-color: #f1f1f1; }
 
     /* NEW: Adjust 3-column grid for mobile */
     .form-grid-3col { grid-template-columns: 1fr 1fr; } /* Stack into 2 columns */
+
+    /* ++ NEW (Req 1): Mobile styles for IM sidebar ++ */
+    .workdesk-main.with-sidebar {
+        margin-right: 0; /* No margin on mobile */
+    }
+    #im-show-active-jobs-btn {
+        display: inline-block; /* Show the button */
+    }
+    .im-entry-sidebar {
+        transform: translateX(100%); /* Hide sidebar off-screen */
+        z-index: 1500; /* Ensure it's above content */
+        box-shadow: -5px 0 15px rgba(0,0,0,0.2);
+    }
+    .im-entry-sidebar.visible {
+        transform: translateX(0); /* Slide in */
+    }
 
 }
 
