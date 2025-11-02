@@ -1,5 +1,3 @@
-
-
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
 const firebaseConfig = {
@@ -266,12 +264,6 @@ let imStatusBarChart = null; // Variable for the chart instance
 let approverListForSelect = [];
 let allUniqueNotes = new Set();
 let invoicesToPay = {}; // ++ NEW: To store invoices added to the Payments table
-
-// ++ NEW: Dashboard CSV Data State ++
-const ECOST_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/Ecost.csv";
-let allEcostData = null;
-let ecostDataTimestamp = 0;
-let imYearlyChart = null; // To hold the chart instance
 
 // ++ NEW: Finance Report State ++
 let imFinanceAllPaymentsData = {};
@@ -807,134 +799,6 @@ async function fetchAndParseCSV(url) {
     }
 }
 
-// ++ NEW: FETCH AND PARSE Ecost.csv FOR DASHBOARD ++
-async function fetchAndParseEcostCSV(url) {
-    try {
-        const response = await fetch(url, { cache: 'no-store' });
-        if (!response.ok) {
-            throw new Error(`Failed to fetch Ecost CSV: ${response.statusText}`);
-        }
-        const csvText = await response.text();
-
-        const lines = csvText.replace(/^\uFEFF/, '').split('\n').filter(line => line.trim() !== '');
-        if (lines.length < 2) {
-            throw new Error("Ecost CSV is empty or has no data rows.");
-        }
-
-        // More robust CSV parser
-        const parseCsvRow = (rowStr) => {
-            const values = [];
-            let inQuote = false;
-            let currentVal = '';
-            const cleanRowStr = rowStr.trim();
-
-            for (let i = 0; i < cleanRowStr.length; i++) {
-                const char = cleanRowStr[i];
-                if (char === '"' && (i === 0 || cleanRowStr[i-1] !== '\\')) {
-                    inQuote = !inQuote;
-                } else if (char === ',' && !inQuote) {
-                    values.push(currentVal.trim().replace(/^"|"$/g, ''));
-                    currentVal = '';
-                } else {
-                    currentVal += char;
-                }
-            }
-            values.push(currentVal.trim().replace(/^"|"$/g, ''));
-            return values;
-        };
-
-        const headers = parseCsvRow(lines[0]).map(h => h.trim());
-        const headerMap = {};
-        headers.forEach((h, i) => {
-            headerMap[h] = i;
-        });
-
-        // Check for required headers
-        const requiredHeaders = ['Order Date', 'Project #', 'Name', 'Line Amount', 'Delivered Amount', 'Outstanding', 'Activity Name'];
-        for (const h of requiredHeaders) {
-            if (typeof headerMap[h] === 'undefined') {
-                console.warn(`Ecost CSV is missing expected header: ${h}`);
-                // throw new Error(`Ecost CSV is missing required header: ${h}`);
-            }
-        }
-        
-        // Use indices
-        const dateIndex = headerMap['Order Date'];
-        const projectIndex = headerMap['Project #'];
-        const vendorIndex = headerMap['Name'];
-        const lineAmountIndex = headerMap['Line Amount'];
-        const deliveredIndex = headerMap['Delivered Amount'];
-        const outstandingIndex = headerMap['Outstanding'];
-        const activityIndex = headerMap['Activity Name'];
-
-
-        const processedData = [];
-        for (let i = 1; i < lines.length; i++) {
-            const values = parseCsvRow(lines[i]);
-            if (values.length < headers.length) continue;
-
-            const orderDateStr = values[dateIndex];
-            let orderDate = null;
-            let year = null;
-            let month = null;
-
-            // Try parsing DD/MM/YYYY
-            if (orderDateStr && orderDateStr.includes('/')) {
-                const parts = orderDateStr.split('/');
-                if (parts.length === 3) {
-                    // Assuming DD/MM/YYYY
-                    orderDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00`);
-                }
-            }
-            
-            // Fallback for other date formats
-            if (!orderDate || isNaN(orderDate)) {
-                orderDate = new Date(orderDateStr);
-            }
-            
-            if (orderDate && !isNaN(orderDate)) {
-                year = orderDate.getFullYear();
-                month = orderDate.getMonth(); // 0-11
-            }
-
-            processedData.push({
-                'Order Date': orderDate,
-                'Year': year,
-                'Month': month,
-                'Project #': values[projectIndex],
-                'Vendor': values[vendorIndex], // Renamed
-                'Total Committed': parseFloat(values[lineAmountIndex].replace(/,/g, '')) || 0, // Renamed and parsed
-                'Delivered Amount': parseFloat(values[deliveredIndex].replace(/,/g, '')) || 0, // Parsed
-                'Outstanding': parseFloat(values[outstandingIndex].replace(/,/g, '')) || 0, // Parsed
-                'Activity Name': values[activityIndex]
-            });
-        }
-        console.log(`Successfully parsed ${processedData.length} rows from Ecost.csv`);
-        return processedData;
-    } catch (error) {
-        console.error("Error fetching or parsing Ecost CSV:", error);
-        alert(`CRITICAL ERROR: Could not load dashboard data. ${error.message}`);
-        return null;
-    }
-}
-
-// ++ NEW: Cache function for Ecost data ++
-async function ensureEcostDataFetched(forceRefresh = false) {
-    const now = Date.now();
-    if (!forceRefresh && allEcostData && (now - ecostDataTimestamp < CACHE_DURATION)) {
-        return allEcostData;
-    }
-    
-    console.log("Fetching Ecost.csv data...");
-    allEcostData = await fetchAndParseEcostCSV(ECOST_DATA_URL);
-    if (allEcostData) {
-        ecostDataTimestamp = now;
-        console.log("Ecost.csv data cached.");
-    }
-    return allEcostData;
-}
-
-
 // This function is still used by reporting, so we keep it, but it's now more efficient.
 async function ensureInvoiceDataFetched(forceRefresh = false) {
     const now = Date.now();
@@ -1415,7 +1279,6 @@ async function handleUpdateJobEntry(e) {
         populateActiveTasks();
     } catch (error) { console.error("Error updating job entry:", error); alert('Failed to update Job Entry. Please try again.'); }
 }
-
 function populateFormForEditing(key) {
     const entryData = allSystemEntries.find(entry => entry.key === key);
     if (!entryData || entryData.source === 'invoice') return;
@@ -1981,13 +1844,6 @@ function showIMSection(sectionId) {
 
 
     // ++ MODIFIED: Block access based on role
-    // ++ NEW: Role check for dashboard
-    if (sectionId === 'im-dashboard' && !isAdmin) {
-        alert('Access Denied: Requires Admin role.');
-        // Don't show the section, but also don't break.
-        // The nav link should have already been hidden, but this is a safeguard.
-        return; 
-    }
     if (sectionId === 'im-invoice-entry' && !isAccountingAdmin) { alert('Access Denied: Requires Accounting Admin position.'); return; }
     if (sectionId === 'im-batch-entry' && !isAccountingAdmin) { alert('Access Denied: Requires Accounting Admin position.'); return; }
     if (sectionId === 'im-summary-note' && !isAccountingAdmin) { alert('Access Denied: Requires Accounting Admin position.'); return; }
@@ -2654,253 +2510,22 @@ async function populateSiteFilterDropdown() {
 }
 // --- *** SITE.CSV FIX (END) *** ---
 
-// ++ NEW: populateInvoiceDashboard with Ecost.csv data ++
+// ++ FIX: Restore definition for populateInvoiceDashboard ++
 async function populateInvoiceDashboard() {
     const dashboardSection = document.getElementById('im-dashboard');
-    dashboardSection.innerHTML = `
-        <h1>Dashboard</h1>
-        <div class="im-dashboard-grid">
-            <div class="im-chart-card">
-                <h2>Top 5 Vendors</h2>
-                <ul id="top-vendors-list" class="dashboard-top5-list"></ul>
-            </div>
-            <div class="im-chart-card">
-                <h2>Top 5 Project Sites</h2>
-                <ul id="top-projects-list" class="dashboard-top5-list"></ul>
-            </div>
-            <div class="im-chart-card">
-                <h2>Top 5 Activities</h2>
-                <ul id="top-activities-list" class="dashboard-top5-list"></ul>
-            </div>
-            <div class="im-chart-card full-width-card">
-                <div class="dashboard-chart-header">
-                    <h2>Yearly Overview</h2>
-                    <select id="im-yearly-chart-year-select"></select>
-                </div>
-                <div class="im-chart-container-full">
-                    <canvas id="imYearlyChartCanvas"></canvas>
-                </div>
-            </div>
-        </div>
-    `;
-
-    const topVendorsList = document.getElementById('top-vendors-list');
-    const topProjectsList = document.getElementById('top-projects-list');
-    const topActivitiesList = document.getElementById('top-activities-list');
-    const yearSelect = document.getElementById('im-yearly-chart-year-select');
-
-    // Helper function to show loading
-    const showLoading = (list) => {
-        if (list) list.innerHTML = '<li>Loading...</li>';
-    };
-    showLoading(topVendorsList);
-    showLoading(topProjectsList);
-    showLoading(topActivitiesList);
-
-    try {
-        const data = await ensureEcostDataFetched();
-        if (!data) {
-            dashboardSection.innerHTML = '<h1>Dashboard</h1><p>Error loading dashboard data. Please try again later.</p>';
-            return;
-        }
-
-        // --- 1. Process Data & Get Available Years ---
-        const yearlyData = {};
-        const availableYears = new Set();
-        
-        data.forEach(row => {
-            const year = row['Year'];
-            if (year) {
-                availableYears.add(year);
-                if (!yearlyData[year]) {
-                    yearlyData[year] = {
-                        'Total Committed': Array(12).fill(0),
-                        'Delivered Amount': Array(12).fill(0),
-                        'Outstanding': Array(12).fill(0),
-                    };
-                }
-                const month = row['Month']; // 0-11
-                if (month !== null) {
-                    yearlyData[year]['Total Committed'][month] += row['Total Committed'];
-                    yearlyData[year]['Delivered Amount'][month] += row['Delivered Amount'];
-                    yearlyData[year]['Outstanding'][month] += row['Outstanding'];
-                }
-            }
-        });
-        
-        const sortedYears = Array.from(availableYears).sort((a, b) => b - a);
-
-        // --- 2. Populate Year Selector ---
-        yearSelect.innerHTML = '';
-        if (sortedYears.length === 0) {
-            document.getElementById('imYearlyChartCanvas').style.display = 'none';
-            yearSelect.innerHTML = '<option>No data</option>';
-            showLoading(topVendorsList); // Show no data
-            showLoading(topProjectsList);
-            showLoading(topActivitiesList);
-            return;
-        }
-
-        sortedYears.forEach(year => {
-            const option = document.createElement('option');
-            option.value = year;
-            option.textContent = year;
-            yearSelect.appendChild(option);
-        });
-
-        // --- 3. Helper to update Top 5s ---
-        const updateTop5Lists = (selectedYear) => {
-            const yearData = data.filter(row => row['Year'] === selectedYear);
-
-            const getTop5 = (data, keyField, valueField) => {
-                const aggregated = data.reduce((acc, row) => {
-                    const key = row[keyField];
-                    if (key) {
-                        acc[key] = (acc[key] || 0) + row[valueField];
-                    }
-                    return acc;
-                }, {});
-
-                return Object.entries(aggregated)
-                    .sort(([, a], [, b]) => b - a)
-                    .slice(0, 5);
-            };
-
-            const renderTop5List = (listElement, data) => {
-                if (!listElement) return;
-                listElement.innerHTML = '';
-                if (data.length === 0) {
-                    listElement.innerHTML = '<li>No data found.</li>';
-                    return;
-                }
-                data.forEach(([name, value]) => {
-                    const li = document.createElement('li');
-                    li.innerHTML = `
-                        <span class="top5-name">${name || 'N/A'}</span>
-                        <span class="top5-value">QAR ${formatCurrency(value)}</span>
-                    `;
-                    listElement.appendChild(li);
-                });
-            };
-            
-            renderTop5List(topVendorsList, getTop5(yearData, 'Vendor', 'Total Committed'));
-            renderTop5List(topProjectsList, getTop5(yearData, 'Project #', 'Total Committed'));
-            renderTop5List(topActivitiesList, getTop5(yearData, 'Activity Name', 'Total Committed'));
-        };
-
-        // --- 4. Render Chart Function (as Bar Chart) ---
-        const renderYearlyChart = (selectedYear) => {
-            const ctx = document.getElementById('imYearlyChartCanvas').getContext('2d');
-            const dataForYear = yearlyData[selectedYear];
-
-            if (imYearlyChart) {
-                imYearlyChart.destroy();
-            }
-            
-            // Define bar colors
-            const colors = {
-                'Total Committed': 'rgba(54, 162, 235, 0.7)', // Blue
-                'Delivered Amount': 'rgba(75, 192, 192, 0.7)', // Green/Teal
-                'Outstanding': 'rgba(255, 206, 86, 0.7)' // Yellow
-            };
-
-            imYearlyChart = new Chart(ctx, {
-                type: 'bar', // Changed to bar chart
-                data: {
-                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-                    datasets: [
-                        {
-                            label: 'Total Committed',
-                            data: dataForYear['Total Committed'],
-                            backgroundColor: colors['Total Committed'],
-                            borderColor: colors['Total Committed'],
-                            borderWidth: 1
-                        },
-                        {
-                            label: 'Delivered Amount',
-                            data: dataForYear['Delivered Amount'],
-                            backgroundColor: colors['Delivered Amount'],
-                            borderColor: colors['Delivered Amount'],
-                            borderWidth: 1
-                        },
-                        {
-                            label: 'Outstanding',
-                            data: dataForYear['Outstanding'],
-                            backgroundColor: colors['Outstanding'],
-                            borderColor: colors['Outstanding'],
-                            borderWidth: 1
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                             labels: {
-                                color: 'rgba(230, 241, 255, 0.9)' // Light text for legend
-                            }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) {
-                                        label += ': ';
-                                    }
-                                    if (context.parsed.y !== null) {
-                                        label += `QAR ${formatCurrency(context.parsed.y)}`;
-                                    }
-                                    return label;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: { // Added x-axis styling
-                            ticks: {
-                                color: 'rgba(168, 178, 209, 0.7)' // Light text for x-axis labels
-                            },
-                            grid: {
-                                color: 'rgba(48, 63, 96, 0.5)' // Dim grid lines
-                            }
-                        },
-                        y: {
-                            ticks: {
-                                callback: function(value) {
-                                    if (value >= 1000000) return `QAR ${value / 1000000}M`;
-                                    if (value >= 1000) return `QAR ${value / 1000}K`;
-                                    return `QAR ${value}`;
-                                },
-                                color: 'rgba(168, 178, 209, 0.7)' // Light text for y-axis labels
-                            },
-                             grid: {
-                                color: 'rgba(48, 63, 96, 0.5)' // Dim grid lines
-                            }
-                        }
-                    }
-                }
-            });
-        };
-
-        // --- 5. Initial Render and Event Listener ---
-        const initialYear = parseInt(sortedYears[0]);
-        renderYearlyChart(initialYear);
-        updateTop5Lists(initialYear);
-        
-        yearSelect.addEventListener('change', (e) => {
-            const selectedYear = parseInt(e.target.value);
-            renderYearlyChart(selectedYear);
-            updateTop5Lists(selectedYear);
-        });
-
-    } catch (error) {
-        console.error("Error populating invoice dashboard:", error);
-        dashboardSection.innerHTML = '<h1>Dashboard</h1><p>Error loading dashboard data. Please check console for details.</p>';
-    }
+    // Basic placeholder - replace with actual chart logic if needed later
+    dashboardSection.innerHTML = '<h1>Dashboard</h1><p>Dashboard analytics view is currently unavailable.</p>';
+    // If you add charts back, initialize them here
+    // Example:
+    // try {
+    //     await ensureInvoiceDataFetched();
+    //     // ... process data ...
+    //     // ... create chart ...
+    // } catch (error) {
+    //     console.error("Error populating invoice dashboard:", error);
+    //     dashboardSection.innerHTML = '<h1>Dashboard</h1><p>Error loading dashboard data.</p>';
+    // }
 }
-
 
 // --- *** MODIFIED populateInvoiceReporting *** ---
 async function populateInvoiceReporting(searchTerm = '') {
@@ -3240,6 +2865,7 @@ function handleGeneratePrintReport() {
     if (imReportingPrintableArea) imReportingPrintableArea.classList.add('hidden');
 }
 // --- *** END OF PRINT FIX *** ---
+
 
 async function handleDownloadCSV() {
     // --- *** BUTTON ACCESS FIX (START) *** ---
@@ -4754,10 +4380,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Default to visible unless specifically hidden
             li.style.display = '';
 
-            // ++ NEW: Hide Dashboard if not Admin
-            if (section === 'im-dashboard') {
-                if (!isAdmin) li.style.display = 'none';
-            }
             if (section === 'im-invoice-entry' || section === 'im-batch-entry' || section === 'im-summary-note') {
                 if (!isAccountingAdmin) li.style.display = 'none';
             }
@@ -4796,34 +4418,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (imDateTimeInterval) clearInterval(imDateTimeInterval);
         imDateTimeInterval = setInterval(updateIMDateTime, 1000);
         showView('invoice-management');
-        
-        // ++ NEW: Logic to select default IM section
-        let defaultSection = 'im-reporting'; // Default for non-admins
-        let defaultLink = imNav.querySelector('a[data-section="im-reporting"]');
-
-        if (isAdmin) {
-            defaultSection = 'im-dashboard'; // Default for Admins
-            defaultLink = imNav.querySelector('a[data-section="im-dashboard"]');
-        }
-
         if (window.innerWidth <= 768) {
-             // On mobile, default to reporting (if admin, they can switch)
-            defaultSection = 'im-reporting';
-            defaultLink = imNav.querySelector('a[data-section="im-reporting"]');
-        }
-        
-        imNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
-        if (defaultLink) {
-            defaultLink.classList.add('active');
+            showIMSection('im-reporting'); // Default mobile view
+            imNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
+            const reportingLink = imNav.querySelector('a[data-section="im-reporting"]');
+            if (reportingLink) reportingLink.classList.add('active');
         } else {
-             // Fallback if default link is hidden (e.g. admin on mobile)
-             const firstVisibleLink = imNav.querySelector('li:not([style*="display: none"]) a');
-             if(firstVisibleLink) {
-                 firstVisibleLink.classList.add('active');
-                 defaultSection = firstVisibleLink.dataset.section || 'im-reporting';
-             }
+            showIMSection('im-dashboard'); // Default desktop view
+            imNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
+            const dashboardLink = imNav.querySelector('a[data-section="im-dashboard"]');
+            if (dashboardLink) dashboardLink.classList.add('active');
         }
-        showIMSection(defaultSection);
     });
 
     // ++ UPDATED: Named function for IM Attention choice event with direct lookup using _store ++
