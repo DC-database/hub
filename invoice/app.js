@@ -597,18 +597,33 @@ function numberToWords(num) {
 }
 
 
+// --- (NEW) HELPER FUNCTION TO FIX THE ERROR ---
+// This function removes illegal characters from Firebase keys
+function sanitizeFirebaseKey(text) {
+    if (!text) return null;
+    // Replaces all illegal characters (., #, $, [, ], /) with an underscore
+    return text.replace(/\.|\#|\$|\[|\]|\//g, '_');
+}
+// --- END OF NEW HELPER ---
+
+
 // --- START OF NEW HELPER FUNCTIONS (THE FIX) ---
 // These are the "mail sorters" that will create your fast "inbox" lookup tables.
 // This is the code that fixes your high download rates.
 
 /**
- * (SMART HELPER 1)
+ * (SMART HELPER 1 - UPDATED)
  * Keeps the 'invoice_tasks_by_user' (the "inbox") in sync.
  * This is the fix for INVOICE_ENTRIES.
  */
 async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAttention) {
     const newAttention = invoiceData.attention;
     const newStatus = invoiceData.status;
+
+    // --- (FIX) Sanitize names for use in paths ---
+    const sanitizedNewAttention = sanitizeFirebaseKey(newAttention);
+    const sanitizedOldAttention = sanitizeFirebaseKey(oldAttention);
+    // --- END OF FIX ---
 
     // Define which statuses are "active" (i.e., require user attention)
     // "With Accounts", "Paid", "CEO Approval" etc. are considered "complete" for this list.
@@ -619,8 +634,8 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
 
     // 1. Clean up the old task assignment
     // If the task was assigned to someone else before, remove it from their "inbox".
-    if (oldAttention && oldAttention !== newAttention) {
-        await invoiceDb.ref(`invoice_tasks_by_user/${oldAttention}/${invoiceKey}`).remove();
+    if (sanitizedOldAttention && sanitizedOldAttention !== sanitizedNewAttention) {
+        await invoiceDb.ref(`invoice_tasks_by_user/${sanitizedOldAttention}/${invoiceKey}`).remove();
     }
 
     if (isTaskActive) {
@@ -645,12 +660,12 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
         };
 
         // Write the task to the new user's "inbox"
-        await invoiceDb.ref(`invoice_tasks_by_user/${newAttention}/${invoiceKey}`).set(taskData);
+        await invoiceDb.ref(`invoice_tasks_by_user/${sanitizedNewAttention}/${invoiceKey}`).set(taskData);
 
     } else {
         // 3. Task is NOT active (e.g., "Paid" or attention is blank).
         // We must remove it from the user's "inbox".
-        const userToRemove = newAttention || oldAttention;
+        const userToRemove = sanitizedNewAttention || sanitizedOldAttention;
         if (userToRemove) {
              await invoiceDb.ref(`invoice_tasks_by_user/${userToRemove}/${invoiceKey}`).remove();
         }
@@ -658,28 +673,37 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
 }
 
 /**
- * (SMART HELPER 2)
+ * (SMART HELPER 2 - UPDATED)
  * Helper to remove a deleted invoice task from the user's "inbox".
  */
 async function removeInvoiceTaskFromUser(invoiceKey, oldData) {
     if (!oldData || !oldData.attention) return; // No user to remove it from
-    await invoiceDb.ref(`invoice_tasks_by_user/${oldData.attention}/${invoiceKey}`).remove();
+    // --- (FIX) Sanitize name for use in path ---
+    const sanitizedAttention = sanitizeFirebaseKey(oldData.attention);
+    if (!sanitizedAttention) return;
+    // --- END OF FIX ---
+    await invoiceDb.ref(`invoice_tasks_by_user/${sanitizedAttention}/${invoiceKey}`).remove();
 }
 
 /**
- * (SMART HELPER 3)
+ * (SMART HELPER 3 - UPDATED)
  * Keeps the 'job_tasks_by_user' (the "inbox") in sync.
  * This is the fix for JOB_ENTRIES.
  */
 async function updateJobTaskLookup(jobKey, jobData, oldAttention) {
     const newAttention = jobData.attention;
 
+    // --- (FIX) Sanitize names for use in paths ---
+    const sanitizedNewAttention = sanitizeFirebaseKey(newAttention);
+    const sanitizedOldAttention = sanitizeFirebaseKey(oldAttention);
+    // --- END OF FIX ---
+
     // A task is active if it's NOT complete AND assigned to someone.
     const isTaskActive = !isTaskComplete(jobData) && newAttention;
 
     // 1. Clean up the old task assignment
-    if (oldAttention && oldAttention !== newAttention) {
-        await db.ref(`job_tasks_by_user/${oldAttention}/${jobKey}`).remove();
+    if (sanitizedOldAttention && sanitizedOldAttention !== sanitizedNewAttention) {
+        await db.ref(`job_tasks_by_user/${sanitizedOldAttention}/${jobKey}`).remove();
     }
 
     // 2. Add/update the new task assignment
@@ -703,11 +727,11 @@ async function updateJobTaskLookup(jobKey, jobData, oldAttention) {
             site: jobData.site,
             note: jobData.note || ''
         };
-        await db.ref(`job_tasks_by_user/${newAttention}/${jobKey}`).set(taskData);
+        await db.ref(`job_tasks_by_user/${sanitizedNewAttention}/${jobKey}`).set(taskData);
 
     } else {
         // 3. Task is complete or unassigned, remove it from the user's "inbox".
-        const userToRemove = newAttention || oldAttention;
+        const userToRemove = sanitizedNewAttention || sanitizedOldAttention;
         if (userToRemove) {
             await db.ref(`job_tasks_by_user/${userToRemove}/${jobKey}`).remove();
         }
@@ -715,12 +739,16 @@ async function updateJobTaskLookup(jobKey, jobData, oldAttention) {
 }
 
 /**
- * (SMART HELPER 4)
+ * (SMART HELPER 4 - UPDATED)
  * Helper to remove a deleted job task from the user's "inbox".
  */
 async function removeJobTaskFromUser(jobKey, oldData) {
     if (!oldData || !oldData.attention) return;
-    await db.ref(`job_tasks_by_user/${oldData.attention}/${jobKey}`).remove();
+    // --- (FIX) Sanitize name for use in path ---
+    const sanitizedAttention = sanitizeFirebaseKey(oldData.attention);
+    if (!sanitizedAttention) return;
+    // --- END OF FIX ---
+    await db.ref(`job_tasks_by_user/${sanitizedAttention}/${jobKey}`).remove();
 }
 // --- END OF NEW HELPER FUNCTIONS ---
 
@@ -928,7 +956,7 @@ async function fetchAndParseCSV(url) {
     }
 }
 
-// This function is still used by reporting, so we keep it, but it's now more efficient.
+// This function is still used by reporting, so we keep it.
 async function ensureInvoiceDataFetched(forceRefresh = false) {
     const now = Date.now();
     const shouldUseCache = !forceRefresh &&
@@ -950,6 +978,10 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
         const EPICORE_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/epicore.csv"; // ++ NEW ++
         const SITES_CSV_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/Site.csv"; // ++ NEW ++
 
+        // --- (FIX) We only fetch invoice_entries if the cache is expired ---
+        // Active Tasks no longer depends on this, but Reporting still does.
+        console.log("Refreshing all caches (PO, Epicore, Sites, and Invoices)...");
+        
         const [csvData, epicoreCsvData, sitesCsvData, invoiceSnapshot] = await Promise.all([ // ++ MODIFIED ++
             fetchAndParseCSV(PO_DATA_URL),
             fetchAndParseEpicoreCSV(EPICORE_DATA_URL), // ++ NEW ++
@@ -1014,7 +1046,6 @@ function addToLocalInvoiceCache(poNumber, newInvoiceData, newKey) { // <-- Added
     if (!allInvoiceData[poNumber]) {
         allInvoiceData[poNumber] = {};
     }
-    // const newKey = `temp_${Date.now()}`; // <-- Removed temp key generation
     if (newKey) { // Use the actual key if provided
        allInvoiceData[poNumber][newKey] = newInvoiceData;
     } else {
@@ -1026,8 +1057,6 @@ function removeFromLocalInvoiceCache(poNumber, invoiceKey) {
         delete allInvoiceData[poNumber][invoiceKey];
     }
 }
-
-// --- WORKDESK LOGIC ---
 
 // --- (FIXED) ensureAllEntriesFetched ---
 // This function is now ONLY used for Workdesk Reporting and History.
@@ -1450,11 +1479,21 @@ async function populateActiveTasks() {
 
     try {
         const currentUserName = currentApprover.Name;
+        
+        // --- (FIX) Sanitize the current user's name to read from the correct path ---
+        const sanitizedUserName = sanitizeFirebaseKey(currentUserName);
+        if (!sanitizedUserName) {
+             console.log("User name is invalid for a path, no tasks can be loaded.");
+             activeTaskTableBody.innerHTML = `<tr><td colspan="10">You have no active tasks.</td></tr>`;
+             return;
+        }
+        // --- END OF FIX ---
+
         let userTasks = [];
 
         // --- PART 1: FETCH JOB_ENTRY TASKS (The New, FAST way) ---
         // This is a fast, targeted query to the job_tasks_by_user "inbox"
-        const jobTaskSnapshot = await db.ref(`job_tasks_by_user/${currentUserName}`).once('value');
+        const jobTaskSnapshot = await db.ref(`job_tasks_by_user/${sanitizedUserName}`).once('value');
 
         if (jobTaskSnapshot.exists()) {
             const tasksData = jobTaskSnapshot.val();
@@ -1483,7 +1522,7 @@ async function populateActiveTasks() {
 
         // --- PART 2: FETCH INVOICE_ENTRY TASKS (The New, FAST way) ---
         // This is the second fast, targeted query to the invoice_tasks_by_user "inbox"
-        const invoiceTaskSnapshot = await invoiceDb.ref(`invoice_tasks_by_user/${currentUserName}`).once('value');
+        const invoiceTaskSnapshot = await invoiceDb.ref(`invoice_tasks_by_user/${sanitizedUserName}`).once('value');
         
         if (invoiceTaskSnapshot.exists()) {
             const tasksData = invoiceTaskSnapshot.val();
@@ -1757,6 +1796,7 @@ async function handleSaveModifiedTask() {
             
             // --- ADD THIS LINE (THE FIX) ---
             // Get original data from the local cache
+            if (!allInvoiceData) await ensureInvoiceDataFetched(); // Ensure cache is warm
             const originalInvoice = (allInvoiceData && allInvoiceData[originalPO]) ? allInvoiceData[originalPO][originalKey] : {};
             const updatedInvoiceData = {...originalInvoice, ...updates}; // Merge
             await updateInvoiceTaskLookup(originalPO, originalKey, updatedInvoiceData, originalInvoice.attention);
@@ -1782,13 +1822,6 @@ async function handleSaveModifiedTask() {
     }
 }
 
-// ++ MODIFIED: This function is now split into the new listeners in DOMContentLoaded ++
-// The original handleRespondClick is no longer needed
-/*
-async function handleRespondClick(e) {
-    ... (old code removed) ...
-}
-*/
 
 function handleActiveTaskSearch(searchTerm) {
     const searchText = searchTerm.toLowerCase();
@@ -2417,7 +2450,6 @@ function populateInvoiceFormForEditing(invoiceKey) {
     imFormTitle.textContent = `Editing Invoice: ${invData.invEntryID}`;
     imAddInvoiceButton.classList.add('hidden');
     imUpdateInvoiceButton.classList.remove('hidden');
-    // window.scrollTo(0, imNewInvoiceForm.offsetTop); // This causes a jump
     imNewInvoiceForm.scrollIntoView({ behavior: 'smooth', block: 'start' }); // Use scrollIntoView
 }
 
@@ -3148,7 +3180,7 @@ async function populateApproverSelect(selectElement) {
     // Ensure the global list is populated
     if (approverListForSelect.length === 0) {
         try {
-            await ensureInvoiceDataFetched(); // Makes sure allApproverData is potentially loaded
+            // await ensureInvoiceDataFetched(); // This is too slow here
             if (!allApproverData) { // If ensureInvoiceDataFetched didn't load it, load it now
                  const snapshot = await db.ref('approvers').once('value');
                  allApproverData = snapshot.val();
@@ -3425,7 +3457,6 @@ async function handleSaveBatchInvoices() {
     const localCacheUpdates = []; 
     let newInvoicesCount = 0, updatedInvoicesCount = 0;
 
-    // ++ NEW: Helper to get srvName
     // --- (Req 3) MODIFIED: Add invEntryID to srvName helper ---
     const getSrvName = (poNumber, site, vendor, invEntryID) => {
         const today = new Date(), yyyy = today.getFullYear(), mm = String(today.getMonth() + 1).padStart(2, '0'), dd = String(today.getDate()).padStart(2, '0');
@@ -3763,6 +3794,7 @@ async function handleGenerateSummary() {
     finally { summaryNoteGenerateBtn.textContent = 'Generate Summary'; summaryNoteGenerateBtn.disabled = false; }
 }
 
+// --- (MODIFIED) handleUpdateSummaryChanges ---
 async function handleUpdateSummaryChanges() {
     const rows = snTableBody.querySelectorAll('tr');
     if (rows.length === 0) { alert("No data to update."); return; }
@@ -3826,8 +3858,6 @@ async function handleUpdateSummaryChanges() {
 }
 
 // ++ NEW: Functions for Payments Section ++
-
-// Function to handle searching for invoices in the Add Payment modal
 async function handlePaymentModalPOSearch() {
     const poNumber = imPaymentModalPOInput.value.trim().toUpperCase();
     if (!poNumber) {
@@ -3876,8 +3906,6 @@ async function handlePaymentModalPOSearch() {
         imPaymentModalResults.innerHTML = '<p>An error occurred while searching.</p>';
     }
 }
-
-// Function to add selected invoices from the modal to the main Payments table
 function handleAddSelectedToPayments() {
     const selectedCheckboxes = imPaymentModalResults.querySelectorAll('.payment-modal-inv-checkbox:checked');
     if (selectedCheckboxes.length === 0) {
@@ -3934,6 +3962,7 @@ function handleAddSelectedToPayments() {
 
     imAddPaymentModal.classList.add('hidden'); // Close the modal
 }
+
 // --- (MODIFIED) handleSavePayments ---
 async function handleSavePayments() {
     const rows = imPaymentsTableBody.querySelectorAll('tr');
@@ -3980,6 +4009,7 @@ async function handleSavePayments() {
         
         // --- ADD THIS (THE FIX) ---
         // Pass the full updated data and the oldAttention to the helper
+        // This will remove it from the user's inbox
         const updatedFullData = {...originalInvoiceData, ...updates};
         savePromises.push(
             updateInvoiceTaskLookup(poNumber, invoiceKey, updatedFullData, originalInvoiceData.attention)
@@ -4372,7 +4402,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     
                     // --- ADD THIS LINE (THE FIX) ---
                     // Find the original invoice data to pass to the helper
-                    // We must load the cache if it's not there
                     if (!allInvoiceData) await ensureInvoiceDataFetched(); 
                     const originalInvoice = (allInvoiceData && allInvoiceData[taskData.originalPO]) ? allInvoiceData[taskData.originalPO][taskData.originalKey] : {};
                     const updatedInvoiceData = {...originalInvoice, ...updates};
@@ -4444,7 +4473,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ++ NEW: Modify Task Modal Listeners ++
     if (modifyTaskStatus) {
         modifyTaskStatus.addEventListener('change', (e) => {
-            // Show/hide the "Other Status" text box
             modifyTaskStatusOtherContainer.classList.toggle('hidden', e.target.value !== 'Other');
         });
     }
@@ -4967,3 +4995,80 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
 }); // End DOMContentLoaded
+
+
+// --- ONE-TIME MIGRATION FUNCTION ---
+// This function will read all your old data and sort it into the new
+// fast "inbox" tables (job_tasks_by_user and invoice_tasks_by_user).
+// Run this function ONCE from the browser console after logging in.
+
+async function runOneTimeMigration() {
+    if (!confirm("WARNING:\nYou are about to run the one-time data migration script.\n\nThis will scan ALL jobs and invoices and build the new Active Task 'inbox' tables. This may take a few minutes and will perform a large number of database reads and writes.\n\nDo NOT close this window. Do NOT run this more than once.\n\nClick OK to proceed.")) {
+        console.log("Migration cancelled by user.");
+        return;
+    }
+
+    console.log("--- STARTING ONE-TIME MIGRATION ---");
+
+    try {
+        // --- Step 1: Fetch all required data one last time ---
+        console.log("Fetching all PO Data from CSV...");
+        const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
+        allPOData = await fetchAndParseCSV(PO_DATA_URL);
+        console.log("PO Data fetched.");
+
+        console.log("Fetching all job_entries...");
+        const jobSnapshot = await db.ref('job_entries').once('value');
+        const allJobs = jobSnapshot.val() || {};
+        console.log(`Found ${Object.keys(allJobs).length} total job entries.`);
+        
+        console.log("Fetching all invoice_entries...");
+        const invoiceSnapshot = await invoiceDb.ref('invoice_entries').once('value');
+        const allInvoices = invoiceSnapshot.val() || {};
+        console.log(`Found ${Object.keys(allInvoices).length} POs with invoices.`);
+
+        let jobCount = 0;
+        let invoiceCount = 0;
+
+        // --- Step 2: Process all job_entries ---
+        console.log("--- Processing job_entries... ---");
+        for (const jobKey in allJobs) {
+            const jobData = allJobs[jobKey];
+            // We call your new helper. It will automatically check if the job is
+            // "active" and sort it into the correct user's inbox.
+            await updateJobTaskLookup(jobKey, jobData, null); // (jobKey, newData, oldAttention)
+            jobCount++;
+            if (jobCount % 100 === 0) {
+                console.log(`...processed ${jobCount} jobs...`);
+            }
+        }
+        console.log(`--- Finished processing ${jobCount} job_entries. ---`);
+
+        // --- Step 3: Process all invoice_entries ---
+        console.log("--- Processing invoice_entries... ---");
+        for (const poNumber in allInvoices) {
+            const invoicesForPO = allInvoices[poNumber];
+            for (const invoiceKey in invoicesForPO) {
+                const invoiceData = invoicesForPO[invoiceKey];
+                // We call your new helper. It will automatically check if the invoice
+                // is "active" and sort it into the correct user's inbox.
+                await updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, null); // (po, key, newData, oldAttention)
+                invoiceCount++;
+                if (invoiceCount % 100 === 0) {
+                    console.log(`...processed ${invoiceCount} invoices...`);
+                }
+            }
+        }
+        console.log(`--- Finished processing ${invoiceCount} invoice_entries. ---`);
+
+        console.log("--- MIGRATION COMPLETE! ---");
+        alert("MIGRATION COMPLETE!\n\nAll active tasks from your old system are now in the new 'inboxes'.\n\nPlease refresh the app (Ctrl+R or Cmd+R) to see your Active Task list.");
+
+    } catch (error) {
+        console.error("--- MIGRATION FAILED ---", error);
+        alert("MIGRATION FAILED. Check the console for the error message.");
+    }
+}
+
+
+
