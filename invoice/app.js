@@ -596,6 +596,135 @@ function numberToWords(num) {
     return words.charAt(0).toUpperCase() + words.slice(1) + " Qatari Riyals Only";
 }
 
+
+// --- START OF NEW HELPER FUNCTIONS (THE FIX) ---
+// These are the "mail sorters" that will create your fast "inbox" lookup tables.
+// This is the code that fixes your high download rates.
+
+/**
+ * (SMART HELPER 1)
+ * Keeps the 'invoice_tasks_by_user' (the "inbox") in sync.
+ * This is the fix for INVOICE_ENTRIES.
+ */
+async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAttention) {
+    const newAttention = invoiceData.attention;
+    const newStatus = invoiceData.status;
+
+    // Define which statuses are "active" (i.e., require user attention)
+    // "With Accounts", "Paid", "CEO Approval" etc. are considered "complete" for this list.
+    const activeStatuses = ['For SRV', 'For IPC', 'Report', 'Pending', 'Under Review']; 
+    
+    // A task is active if it has an active status AND is assigned to someone
+    const isTaskActive = activeStatuses.includes(newStatus) && newAttention;
+
+    // 1. Clean up the old task assignment
+    // If the task was assigned to someone else before, remove it from their "inbox".
+    if (oldAttention && oldAttention !== newAttention) {
+        await invoiceDb.ref(`invoice_tasks_by_user/${oldAttention}/${invoiceKey}`).remove();
+    }
+
+    if (isTaskActive) {
+        // 2. Task is active. Create/update the small lookup object.
+        if (!allPOData) { // Ensure PO data is loaded for vendor/site
+            console.log("Loading PO Data cache to build task lookup...");
+            const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
+            allPOData = await fetchAndParseCSV(PO_DATA_URL);
+        }
+        const poDetails = allPOData[poNumber] || {};
+
+        const taskData = {
+            po: poNumber,
+            ref: invoiceData.invNumber || '',
+            amount: invoiceData.invValue || '0',
+            date: invoiceData.invoiceDate || invoiceData.dateAdded || getTodayDateString(),
+            status: newStatus,
+            vendorName: poDetails['Supplier Name'] || 'N/A',
+            site: poDetails['Project ID'] || 'N/A',
+            invName: invoiceData.invName || '',
+            note: invoiceData.note || ''
+        };
+
+        // Write the task to the new user's "inbox"
+        await invoiceDb.ref(`invoice_tasks_by_user/${newAttention}/${invoiceKey}`).set(taskData);
+
+    } else {
+        // 3. Task is NOT active (e.g., "Paid" or attention is blank).
+        // We must remove it from the user's "inbox".
+        const userToRemove = newAttention || oldAttention;
+        if (userToRemove) {
+             await invoiceDb.ref(`invoice_tasks_by_user/${userToRemove}/${invoiceKey}`).remove();
+        }
+    }
+}
+
+/**
+ * (SMART HELPER 2)
+ * Helper to remove a deleted invoice task from the user's "inbox".
+ */
+async function removeInvoiceTaskFromUser(invoiceKey, oldData) {
+    if (!oldData || !oldData.attention) return; // No user to remove it from
+    await invoiceDb.ref(`invoice_tasks_by_user/${oldData.attention}/${invoiceKey}`).remove();
+}
+
+/**
+ * (SMART HELPER 3)
+ * Keeps the 'job_tasks_by_user' (the "inbox") in sync.
+ * This is the fix for JOB_ENTRIES.
+ */
+async function updateJobTaskLookup(jobKey, jobData, oldAttention) {
+    const newAttention = jobData.attention;
+
+    // A task is active if it's NOT complete AND assigned to someone.
+    const isTaskActive = !isTaskComplete(jobData) && newAttention;
+
+    // 1. Clean up the old task assignment
+    if (oldAttention && oldAttention !== newAttention) {
+        await db.ref(`job_tasks_by_user/${oldAttention}/${jobKey}`).remove();
+    }
+
+    // 2. Add/update the new task assignment
+    if (isTaskActive) {
+        // We need PO data for vendorName, ensure cache is warm
+        if (!allPOData && jobData.po) {
+             console.log("Loading PO Data cache to build task lookup...");
+             const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
+             allPOData = await fetchAndParseCSV(PO_DATA_URL);
+        }
+        const poDetails = (jobData.po && allPOData) ? allPOData[jobData.po] : {};
+        
+        const taskData = {
+            for: jobData.for,
+            ref: jobData.ref || '',
+            po: jobData.po || '',
+            amount: jobData.amount || '',
+            date: jobData.date || getTodayDateString(),
+            status: jobData.remarks || 'Pending',
+            vendorName: poDetails['Supplier Name'] || 'N/A',
+            site: jobData.site,
+            note: jobData.note || ''
+        };
+        await db.ref(`job_tasks_by_user/${newAttention}/${jobKey}`).set(taskData);
+
+    } else {
+        // 3. Task is complete or unassigned, remove it from the user's "inbox".
+        const userToRemove = newAttention || oldAttention;
+        if (userToRemove) {
+            await db.ref(`job_tasks_by_user/${userToRemove}/${jobKey}`).remove();
+        }
+    }
+}
+
+/**
+ * (SMART HELPER 4)
+ * Helper to remove a deleted job task from the user's "inbox".
+ */
+async function removeJobTaskFromUser(jobKey, oldData) {
+    if (!oldData || !oldData.attention) return;
+    await db.ref(`job_tasks_by_user/${oldData.attention}/${jobKey}`).remove();
+}
+// --- END OF NEW HELPER FUNCTIONS ---
+
+
 // ++ NEW: FETCH AND PARSE EPICORE CSV ++
 async function fetchAndParseEpicoreCSV(url) {
     try {
@@ -899,65 +1028,46 @@ function removeFromLocalInvoiceCache(poNumber, invoiceKey) {
 }
 
 // --- WORKDESK LOGIC ---
-// This function remains for reporting but is no longer used by high-traffic pages.
+
+// --- (FIXED) ensureAllEntriesFetched ---
+// This function is now ONLY used for Workdesk Reporting and History.
+// It will ONLY fetch job_entries, as requested.
+// NOTE: This still downloads all job_entries and is inefficient,
+// but it is separate from your Active Task fix.
 async function ensureAllEntriesFetched() {
-    if (allSystemEntries.length > 0) {
-        return;
+    const now = Date.now();
+    // Check if we have a cache and it's less than 30 mins old
+    if (allSystemEntries.length > 0 && (now - cacheTimestamps.systemEntries < CACHE_DURATION)) {
+        return; // Use the cache
     }
-    await ensureInvoiceDataFetched();
-    const [jobEntriesSnapshot] = await Promise.all([
-        db.ref('job_entries').orderByChild('timestamp').once('value'),
-    ]);
+    
+    // We must fetch PO data for vendor names
+    if (!allPOData) {
+         console.log("Loading PO Data cache for Workdesk Reporting...");
+         const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
+         allPOData = await fetchAndParseCSV(PO_DATA_URL);
+    }
+    
+    console.log("Fetching all job_entries for Workdesk Reporting...");
+    // Fetch ONLY job_entries
+    const jobEntriesSnapshot = await db.ref('job_entries').orderByChild('timestamp').once('value');
 
     const jobEntriesData = jobEntriesSnapshot.val() || {};
     const purchaseOrdersData = allPOData || {};
-    const invoiceEntriesData = allInvoiceData || {};
-
+    
     const processedJobEntries = Object.entries(jobEntriesData).map(([key, value]) => ({
         key,
         ...value,
         vendorName: (value.po && purchaseOrdersData[value.po]) ? purchaseOrdersData[value.po]['Supplier Name'] : 'N/A',
         source: 'job_entry'
     }));
-    const processedInvoiceEntries = [];
-    for (const poNumber in invoiceEntriesData) {
-        const invoices = invoiceEntriesData[poNumber];
-        const site = purchaseOrdersData[poNumber]?.['Project ID'] || 'N/A';
-        const vendorName = purchaseOrdersData[poNumber]?.['Supplier Name'] || 'N/A';
-        for (const invoiceKey in invoices) {
-            const invoice = invoices[invoiceKey];
-            const isTrackableStatus = invoice.status === 'For SRV' || invoice.status === 'For IPC';
-            if (!isTrackableStatus && (!invoice.attention || invoice.attention.trim() === '')) {
-                continue;
-            }
-            const normalizedDate = normalizeDateForInput(invoice.dateAdded || invoice.releaseDate);
-            const transformedInvoice = {
-                key: `${poNumber}_${invoice.invEntryID || invoiceKey}`,
-                originalKey: invoiceKey,
-                originalPO: poNumber,
-                for: 'Invoice',
-                ref: invoice.invNumber || '',
-                po: poNumber,
-                amount: invoice.invValue || '',
-                site: site,
-                group: 'N/A',
-                attention: invoice.attention,
-                enteredBy: 'Irwin', // Assuming Irwin enters all invoices initially
-                date: normalizedDate ? formatDate(new Date(normalizedDate + 'T00:00:00')) : 'N/A',
-                dateResponded: 'N/A',
-                remarks: invoice.status || 'Pending',
-                timestamp: normalizedDate ? new Date(normalizedDate).getTime() : Date.now(),
-                invName: invoice.invName || '',
-                vendorName: vendorName,
-                source: 'invoice',
-                note: invoice.note || '' // ++ ADDED NOTE for modify modal
-            };
-            processedInvoiceEntries.push(transformedInvoice);
-        }
-    }
-    allSystemEntries = [...processedJobEntries, ...processedInvoiceEntries];
+
+    allSystemEntries = processedJobEntries; // Set the global cache
     allSystemEntries.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    cacheTimestamps.systemEntries = now; // Update timestamp
+    console.log(`Workdesk Reporting cache updated with ${allSystemEntries.length} job entries.`);
 }
+
 
 function isTaskComplete(task) {
     if (!task) return false;
@@ -1206,7 +1316,10 @@ async function handleJobEntrySearch(searchTerm) {
     jobEntryTableBody.innerHTML = '<tr><td colspan="8">Searching...</td></tr>';
 
     try {
+        // --- MODIFICATION: This now only fetches job_entries, which is correct for this section ---
         await ensureAllEntriesFetched();
+        // ---
+        
         userJobEntries = allSystemEntries.filter(entry => entry.enteredBy === currentApprover.Name && !isTaskComplete(entry));
 
         const filteredEntries = userJobEntries.filter(entry => {
@@ -1231,6 +1344,8 @@ function getJobDataFromForm() {
     const data = { for: formData.get('for'), ref: formData.get('ref') || '', amount: formData.get('amount') || '', po: formData.get('po') || '', site: formData.get('site'), group: formData.get('group'), attention: attentionSelectChoices.getValue(true), date: formatDate(new Date()) };
     return data;
 }
+
+// --- (MODIFIED) handleAddJobEntry ---
 async function handleAddJobEntry(e) {
     e.preventDefault();
     const jobData = getJobDataFromForm();
@@ -1244,7 +1359,7 @@ async function handleAddJobEntry(e) {
         } else {
             if (!jobData.po) { alert('For IPC jobs, a PO number is required.'); return; }
         }
-        await ensureAllEntriesFetched();
+        await ensureAllEntriesFetched(); // This is still needed for the duplicate check
         const duplicatePO = allSystemEntries.find(entry => entry.for === 'IPC' && entry.po && entry.po.trim() !== '' && entry.po === jobData.po);
         if (duplicatePO) {
             const message = `WARNING: An IPC for PO Number "${jobData.po}" already exists.\n\nPress OK if this is a new IPC for this PO.\nPress Cancel to check the Reporting section first.`;
@@ -1255,31 +1370,54 @@ async function handleAddJobEntry(e) {
     jobData.timestamp = Date.now();
     jobData.enteredBy = currentApprover.Name;
     try {
-        await db.ref('job_entries').push(jobData);
+        // --- THIS LINE IS MODIFIED ---
+        const newRef = await db.ref('job_entries').push(jobData);
+        // --- ADD THIS LINE (THE FIX) ---
+        await updateJobTaskLookup(newRef.key, jobData, null); // (jobKey, newData, oldAttention)
+        // --- END OF ADDITION ---
+
         alert('Job Entry Added Successfully!');
         resetJobEntryForm();
         allSystemEntries = [];
     } catch (error) { console.error("Error adding job entry:", error); alert('Failed to add Job Entry. Please try again.'); }
 }
+
+// --- (MODIFIED) handleUpdateJobEntry ---
 async function handleUpdateJobEntry(e) {
     e.preventDefault();
     if (!currentlyEditingKey) { alert("No entry selected for update."); return; }
     const formData = new FormData(jobEntryForm);
     const jobData = { for: formData.get('for'), ref: formData.get('ref') || '', amount: formData.get('amount') || '', po: formData.get('po') || '', site: formData.get('site'), group: formData.get('group'), attention: attentionSelectChoices.getValue(true) };
     if (!jobData.for || !jobData.site || !jobData.group || !jobData.attention) { alert('Please fill in all required fields (Job, Site, Group, Attention).'); return; }
+    
     try {
+        await ensureAllEntriesFetched(); // We need this to get the original entry
         const originalEntry = allSystemEntries.find(entry => entry.key === currentlyEditingKey);
+        
+        // --- ADD THIS LINE (THE FIX) ---
+        const oldAttention = originalEntry ? originalEntry.attention : null;
+        // --- END OF ADDITION ---
+        
         if (originalEntry) { jobData.enteredBy = originalEntry.enteredBy; jobData.timestamp = originalEntry.timestamp; jobData.date = originalEntry.date; }
         if (originalEntry.for === 'IPC' && jobData.attention === 'All') { jobData.remarks = 'Ready'; }
         if (originalEntry && currentApprover.Name === originalEntry.attention && !originalEntry.dateResponded) { jobData.dateResponded = formatDate(new Date()); }
+        
         await db.ref(`job_entries/${currentlyEditingKey}`).update(jobData);
+
+        // --- ADD THIS LINE (THE FIX) ---
+        // Merge original data with new data to pass to the helper
+        const updatedFullJobData = {...originalEntry, ...jobData}; 
+        await updateJobTaskLookup(currentlyEditingKey, updatedFullJobData, oldAttention);
+        // --- END OF ADDITION ---
+
         alert('Job Entry Updated Successfully!');
         resetJobEntryForm();
         allSystemEntries = [];
-        populateActiveTasks();
+        populateActiveTasks(); // This is now fast!
     } catch (error) { console.error("Error updating job entry:", error); alert('Failed to update Job Entry. Please try again.'); }
 }
 function populateFormForEditing(key) {
+    // This needs to fetch from allSystemEntries, which is correct
     const entryData = allSystemEntries.find(entry => entry.key === key);
     if (!entryData || entryData.source === 'invoice') return;
 
@@ -1302,7 +1440,7 @@ function populateFormForEditing(key) {
 }
 
 
-// --- (FIXED) EFFICIENT populateActiveTasks ---
+// --- (REPLACED) EFFICIENT populateActiveTasks (Fixes BOTH invoice_entries and job_entries) ---
 async function populateActiveTasks() {
     activeTaskTableBody.innerHTML = `<tr><td colspan="10">Loading tasks...</td></tr>`;
     if (!currentApprover || !currentApprover.Name) {
@@ -1311,90 +1449,75 @@ async function populateActiveTasks() {
     }
 
     try {
-        // --- (Req 1) FIX: We must always refetch all data to get the latest task statuses
-        // This ensures the active task list is accurate.
-        await ensureInvoiceDataFetched(true); // Force refresh of invoice data
-        
-        if (!allPOData) {
-            // This should be loaded by ensureInvoiceDataFetched, but as a fallback:
-            const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
-            allPOData = await fetchAndParseCSV(PO_DATA_URL);
-            if (!allPOData) throw new Error("Could not load PO data for WorkDesk");
-        }
-
-        const jobSnapshot = await db.ref('job_entries')
-                                    .orderByChild('attention')
-                                    .equalTo(currentApprover.Name)
-                                    .once('value');
-        
-        const allInvoiceEntries = allInvoiceData; // Use the freshly loaded cache
-        const jobEntriesData = jobSnapshot.val() || {};
-        const purchaseOrdersData = allPOData;
         const currentUserName = currentApprover.Name;
-
         let userTasks = [];
 
-        // 1. Process tasks from 'job_entries'
-        for (const key in jobEntriesData) {
-            const task = {
-                key,
-                ...jobEntriesData[key],
-                vendorName: (jobEntriesData[key].po && purchaseOrdersData[jobEntriesData[key].po]) ? purchaseOrdersData[jobEntriesData[key].po]['Supplier Name'] : 'N/A',
-                source: 'job_entry'
-            };
-            if (!isTaskComplete(task)) { // Check completion status
-                userTasks.push(task);
+        // --- PART 1: FETCH JOB_ENTRY TASKS (The New, FAST way) ---
+        // This is a fast, targeted query to the job_tasks_by_user "inbox"
+        const jobTaskSnapshot = await db.ref(`job_tasks_by_user/${currentUserName}`).once('value');
+
+        if (jobTaskSnapshot.exists()) {
+            const tasksData = jobTaskSnapshot.val();
+            for (const jobKey in tasksData) {
+                const task = tasksData[jobKey];
+                userTasks.push({
+                    key: jobKey,
+                    source: 'job_entry',
+                    for: task.for,
+                    ref: task.ref,
+                    po: task.po,
+                    amount: task.amount,
+                    site: task.site,
+                    group: 'N/A', // group isn't in lookup, add if needed
+                    attention: currentUserName,
+                    date: task.date,
+                    remarks: task.status,
+                    vendorName: task.vendorName,
+                    note: task.note,
+                    timestamp: task.date ? new Date(task.date).getTime() : Date.now()
+                });
             }
         }
+        // --- END OF PART 1 ---
 
-        // 2. Process tasks from 'invoice_entries'
-        for (const poNumber in allInvoiceEntries) {
-            const invoices = allInvoiceEntries[poNumber];
-            const site = purchaseOrdersData[poNumber]?.['Project ID'] || 'N/A';
-            const vendorName = purchaseOrdersData[poNumber]?.['Supplier Name'] || 'N/A';
 
-            for (const invoiceKey in invoices) {
-                const invoice = invoices[invoiceKey];
+        // --- PART 2: FETCH INVOICE_ENTRY TASKS (The New, FAST way) ---
+        // This is the second fast, targeted query to the invoice_tasks_by_user "inbox"
+        const invoiceTaskSnapshot = await invoiceDb.ref(`invoice_tasks_by_user/${currentUserName}`).once('value');
+        
+        if (invoiceTaskSnapshot.exists()) {
+            const tasksData = invoiceTaskSnapshot.val();
+            for (const invoiceKey in tasksData) {
+                const task = tasksData[invoiceKey];
 
-                // Check if task is assigned to the current user
-                if (invoice.attention !== currentUserName) {
-                    continue;
-                }
-
-                const normalizedDate = normalizeDateForInput(invoice.dateAdded || invoice.releaseDate);
                 const transformedInvoice = {
-                    key: `${poNumber}_${invoice.invEntryID || invoiceKey}`,
+                    key: `${task.po}_${invoiceKey}`, // Create the composite key for the table
                     originalKey: invoiceKey,
-                    originalPO: poNumber,
-                    for: 'Invoice',
-                    ref: invoice.invNumber || '',
-                    po: poNumber,
-                    amount: invoice.invValue || '',
-                    site: site,
-                    group: 'N/A',
-                    attention: invoice.attention,
-                    // Use a generic "System" or "Irwin" for now
-                    enteredBy: 'Irwin', 
-                    date: normalizedDate ? formatDate(new Date(normalizedDate + 'T00:00:00')) : 'N/A',
-                    dateResponded: 'N/A',
-                    remarks: invoice.status || 'Pending',
-                    timestamp: normalizedDate ? new Date(normalizedDate).getTime() : Date.now(),
-                    invName: invoice.invName || '',
-                    vendorName: vendorName,
+                    originalPO: task.po,
                     source: 'invoice',
-                    note: invoice.note || ''
+                    for: 'Invoice',
+                    ref: task.ref,
+                    po: task.po,
+                    amount: task.amount,
+                    site: task.site,
+                    group: 'N/A',
+                    attention: currentUserName,
+                    enteredBy: 'Irwin', // This is assumed, as in your original code
+                    date: task.date ? formatDate(new Date(task.date + 'T00:00:00')) : 'N/A',
+                    remarks: task.status,
+                    timestamp: task.date ? new Date(task.date).getTime() : Date.now(),
+                    invName: task.invName,
+                    vendorName: task.vendorName,
+                    note: task.note
                 };
-
-                if (!isTaskComplete(transformedInvoice)) { // Check completion status
-                    userTasks.push(transformedInvoice);
-                }
+                userTasks.push(transformedInvoice);
             }
         }
+        // --- END OF PART 2 ---
 
-        // Store the filtered, active-only tasks
+        // Store and render the combined list of tasks
         userActiveTasks = userTasks.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-
-        renderActiveTaskTable(userActiveTasks);
+        renderActiveTaskTable(userTasks); 
 
     } catch (error) {
         console.error("Error fetching active tasks:", error);
@@ -1472,7 +1595,7 @@ async function handleTaskHistorySearch(searchTerm) {
     }
     taskHistoryTableBody.innerHTML = '<tr><td colspan="9">Searching history...</td></tr>';
     try {
-        await ensureAllEntriesFetched(); // Refetch ALL entries for history
+        await ensureAllEntriesFetched(); // This now correctly fetches ONLY job_entries
         const personalHistory = allSystemEntries.filter(task => {
             const isRelatedToMe = (task.enteredBy === currentApprover.Name || task.attention === currentApprover.Name);
             return isTaskComplete(task) && isRelatedToMe;
@@ -1530,14 +1653,12 @@ function filterAndRenderReport(baseEntries = []) {
     renderReportingTable(filteredEntries);
 }
 async function populateWorkdeskDashboard() {
-    await populateActiveTasks(); // Ensure active tasks are loaded first
+    await populateActiveTasks(); // This is now fast!
     dbActiveTasksCount.textContent = userActiveTasks.length;
-    // allSystemEntries = []; // <-- *** MODIFICATION: This line was removed to fix cache bug ***
-    await ensureAllEntriesFetched();
+    
+    await ensureAllEntriesFetched(); // This is now just job_entries
     const myCompletedTasks = allSystemEntries.filter(task => (task.enteredBy === currentApprover.Name || task.attention === currentApprover.Name) && isTaskComplete(task));
     dbCompletedTasksCount.textContent = myCompletedTasks.length;
-    // Restore allSystemEntries to just the user's active tasks if needed elsewhere, or leave as all
-    // allSystemEntries = userActiveTasks; // <-- *** MODIFICATION: This line was removed to fix cache bug ***
 }
 
 // ++ NEW: Function to open the Modify Task modal ++
@@ -1574,7 +1695,7 @@ function openModifyTaskModal(taskData) {
     modifyTaskModal.classList.remove('hidden');
 }
 
-// ++ NEW: Function to save changes from the Modify Task modal ++
+// --- (MODIFIED) handleSaveModifiedTask ---
 async function handleSaveModifiedTask() {
     const key = modifyTaskKey.value;
     const source = modifyTaskSource.value;
@@ -1618,6 +1739,14 @@ async function handleSaveModifiedTask() {
                 remarks: updates.remarks,
                 note: updates.note // Job entries didn't originally have 'note', this adds it
             });
+            
+            // --- ADD THIS LINE (THE FIX) ---
+            // We need the full original task data to check for completion status
+            const originalTaskData = userActiveTasks.find(t => t.key === key);
+            const updatedJobData = {...originalTaskData, ...updates};
+            await updateJobTaskLookup(key, updatedJobData, originalTaskData.attention);
+            // --- END OF ADDITION ---
+
         } else if (source === 'invoice' && originalPO && originalKey) {
             // This is an invoice entry, update the invoice DB
             await invoiceDb.ref(`invoice_entries/${originalPO}/${originalKey}`).update({
@@ -1625,6 +1754,14 @@ async function handleSaveModifiedTask() {
                 status: updates.status,
                 note: updates.note
             });
+            
+            // --- ADD THIS LINE (THE FIX) ---
+            // Get original data from the local cache
+            const originalInvoice = (allInvoiceData && allInvoiceData[originalPO]) ? allInvoiceData[originalPO][originalKey] : {};
+            const updatedInvoiceData = {...originalInvoice, ...updates}; // Merge
+            await updateInvoiceTaskLookup(originalPO, originalKey, updatedInvoiceData, originalInvoice.attention);
+            // --- END OF ADDITION ---
+
             // Also update the local cache
             updateLocalInvoiceCache(originalPO, originalKey, updates);
         } else {
@@ -1634,12 +1771,7 @@ async function handleSaveModifiedTask() {
         alert("Task updated successfully!");
         modifyTaskModal.classList.add('hidden');
         
-        // --- (Req 1) FIX: Refresh task lists after modification ---
-        // We must refresh the active task list to reflect the change.
-        // We call populateActiveTasks() which forces a full refresh.
-        await populateActiveTasks(); 
-        // --- End FIX ---
-
+        await populateActiveTasks(); // This is now fast!
 
     } catch (error) {
         console.error("Error updating task:", error);
@@ -1691,7 +1823,9 @@ async function handleReportingSearch() {
 
     reportingTableBody.innerHTML = '<tr><td colspan="11">Searching report data...</td></tr>';
     try {
-        await ensureAllEntriesFetched();
+        await ensureAllEntriesFetched(); // This now correctly fetches ONLY job_entries
+        
+        // This admin-site logic is specific to your reporting needs
         const userSiteString = currentApprover.Site || '';
         const userSites = userSiteString.toLowerCase() === 'all' ? null : userSiteString.split(',').map(s => s.trim());
         const relevantEntries = allSystemEntries.filter(entry => {
@@ -2050,11 +2184,15 @@ async function handlePOSearch(poNumberFromInput) {
             return;
         }
 
+        // --- THIS IS THE FIX ---
+        // Instead of downloading ALL invoices, we ONLY download invoices for THIS PO.
+        // This is fast and cheap.
         const invoicesSnapshot = await invoiceDb.ref(`invoice_entries/${poNumber}`).once('value');
         const invoicesData = invoicesSnapshot.val();
 
         if (!allInvoiceData) allInvoiceData = {};
-        allInvoiceData[poNumber] = invoicesData || {};
+        allInvoiceData[poNumber] = invoicesData || {}; // Add/update THIS PO in the cache
+        // --- END OF FIX ---
 
         currentPO = poNumber;
         const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
@@ -2166,9 +2304,9 @@ async function populateActiveJobsSidebar() {
     if (!imEntrySidebarList) return;
 
     // --- (Req 1) FIX: We must re-run populateActiveTasks to get the latest list ---
-    // This function will now use the latest data and filter out completed tasks.
+    // This function will now use the new, FAST query.
     await populateActiveTasks();
-    const tasksToDisplay = userActiveTasks; // userActiveTasks is now fresh
+    const tasksToDisplay = userActiveTasks; // userActiveTasks is now fresh and fast
     // --- End FIX ---
 
     // Filter for "Invoice" tasks assigned to the current user
@@ -2283,6 +2421,7 @@ function populateInvoiceFormForEditing(invoiceKey) {
     imNewInvoiceForm.scrollIntoView({ behavior: 'smooth', block: 'start' }); // Use scrollIntoView
 }
 
+// --- (MODIFIED) handleAddInvoice ---
 async function handleAddInvoice(e) {
     e.preventDefault();
     if (!currentPO) { alert('No PO is loaded. Please search for a PO first.'); return; }
@@ -2332,8 +2471,12 @@ async function handleAddInvoice(e) {
         const newRef = await invoiceDb.ref(`invoice_entries/${currentPO}`).push(invoiceData); // <-- Get ref
         const newKey = newRef.key; // <-- Get key
 
+        // --- ADD THIS LINE (THE FIX) ---
+        await updateInvoiceTaskLookup(currentPO, newKey, invoiceData, null); // (po, key, newData, oldAttention)
+        // --- END OF ADDITION ---
+
         alert('Invoice added successfully!');
-        // Update local cache manually since addToLocalInvoiceCache used a temp key
+        // Update local cache manually
         if (allInvoiceData && newKey) {
              if (!allInvoiceData[currentPO]) allInvoiceData[currentPO] = {};
              allInvoiceData[currentPO][newKey] = invoiceData;
@@ -2341,33 +2484,31 @@ async function handleAddInvoice(e) {
         }
         
         // --- MODIFICATION (Req 3 & 4) ---
-        // Add new note to the global set if it exists
         if (invoiceData.note && invoiceData.note.trim() !== '') {
             allUniqueNotes.add(invoiceData.note.trim());
-            // No need to update datalist/choices here, it happens on view change or refresh
         }
         // --- END MODIFICATION ---
 
         if (jobEntryToUpdateAfterInvoice) {
             try {
-                // --- *** START OF WORKFLOW FIX *** ---
-                // This task is now considered "complete" because it has been
-                // processed into an invoice entry. We update its `dateResponded`
-                // and set its `remarks` to the new invoice status.
-                // The `isTaskComplete` function will see the `dateResponded`
-                // and correctly filter it out of the active task list.
                 const updates = { 
                     remarks: invoiceData.status, 
                     dateResponded: formatDate(new Date()) 
                 };
                 
                 await db.ref(`job_entries/${jobEntryToUpdateAfterInvoice}`).update(updates);
-                console.log(`Original job entry ${jobEntryToUpdateAfterInvoice} marked as complete.`);
-                // --- *** END OF WORKFLOW FIX *** ---
+                
+                // --- ADD THIS LINE (THE FIX) ---
+                // We must also update the job_entry's lookup table
+                const originalJobEntry = userActiveTasks.find(t => t.key === jobEntryToUpdateAfterInvoice);
+                if (originalJobEntry) {
+                    const updatedJobData = {...originalJobEntry, ...updates};
+                    await updateJobTaskLookup(jobEntryToUpdateAfterInvoice, updatedJobData, originalJobEntry.attention);
+                }
+                // --- END OF ADDITION ---
                 
                 jobEntryToUpdateAfterInvoice = null;
-                // --- (Req 1) FIX: Refresh the sidebar list ---
-                await populateActiveJobsSidebar();
+                await populateActiveJobsSidebar(); // This is now fast!
 
             } catch (updateError) {
                 console.error("Error updating the original job entry:", updateError);
@@ -2381,6 +2522,8 @@ async function handleAddInvoice(e) {
         alert('Failed to add invoice. Please try again.');
     }
 }
+
+// --- (MODIFIED) handleUpdateInvoice ---
 async function handleUpdateInvoice(e) {
     e.preventDefault();
     if (!currentPO || !currentlyEditingInvoiceKey) { alert('No invoice selected for update.'); return; }
@@ -2423,20 +2566,23 @@ async function handleUpdateInvoice(e) {
 
     try {
         await invoiceDb.ref(`invoice_entries/${currentPO}/${currentlyEditingInvoiceKey}`).update(invoiceData);
+
+        // --- ADD THIS LINE (THE FIX) ---
+        const oldAttn = originalInvoiceData ? originalInvoiceData.attention : null;
+        await updateInvoiceTaskLookup(currentPO, currentlyEditingInvoiceKey, invoiceData, oldAttn);
+        // --- END OF ADDITION ---
+
         alert('Invoice updated successfully!');
         updateLocalInvoiceCache(currentPO, currentlyEditingInvoiceKey, invoiceData);
         
         // --- MODIFICATION (Req 3 & 4) ---
-        // Add new/updated note to the global set
         if (invoiceData.note && invoiceData.note.trim() !== '') {
             allUniqueNotes.add(invoiceData.note.trim());
         }
         // --- END MODIFICATION ---
 
         // --- (Req 1) FIX: Refresh sidebar in case status changed ---
-        // We need to refresh the main active task list first
-        await populateActiveTasks(); 
-        // Then repopulate the sidebar based on the new list
+        await populateActiveTasks(); // This is now fast!
         populateActiveJobsSidebar();
         // --- End FIX ---
 
@@ -2447,14 +2593,31 @@ async function handleUpdateInvoice(e) {
         alert('Failed to update invoice. Please try again.');
     }
 }
+
+// --- (REPLACED) handleDeleteInvoice ---
 async function handleDeleteInvoice(key) {
     if (!currentPO || !key) { alert("Could not identify the invoice to delete."); return; }
+    
+    // --- Get the old data BEFORE deleting ---
+    const invoiceToDelete = currentPOInvoices[key];
+    if (!invoiceToDelete) {
+        alert("Error: Cannot find invoice data to delete. Please refresh.");
+        return;
+    }
+
     if (confirm("Are you sure you want to delete this invoice entry? This action cannot be undone.")) {
         try {
+            // 1. Delete the main invoice
             await invoiceDb.ref(`invoice_entries/${currentPO}/${key}`).remove();
+            
+            // 2. --- CALL THE DELETE HELPER (THE FIX) ---
+            await removeInvoiceTaskFromUser(key, invoiceToDelete);
+            // --- END OF ADDITION ---
+            
             alert("Invoice deleted successfully.");
             removeFromLocalInvoiceCache(currentPO, key);
             fetchAndDisplayInvoices(currentPO);
+            
         } catch (error) {
             console.error("Error deleting invoice:", error);
             alert("Failed to delete the invoice. Please try again.");
@@ -2515,16 +2678,6 @@ async function populateInvoiceDashboard() {
     const dashboardSection = document.getElementById('im-dashboard');
     // Basic placeholder - replace with actual chart logic if needed later
     dashboardSection.innerHTML = '<h1>Dashboard</h1><p>Dashboard analytics view is currently unavailable.</p>';
-    // If you add charts back, initialize them here
-    // Example:
-    // try {
-    //     await ensureInvoiceDataFetched();
-    //     // ... process data ...
-    //     // ... create chart ...
-    // } catch (error) {
-    //     console.error("Error populating invoice dashboard:", error);
-    //     dashboardSection.innerHTML = '<h1>Dashboard</h1><p>Error loading dashboard data.</p>';
-    // }
 }
 
 // --- *** MODIFIED populateInvoiceReporting *** ---
@@ -2542,6 +2695,9 @@ async function populateInvoiceReporting(searchTerm = '') {
     const statusFilter = document.getElementById('im-reporting-status-filter').value;
 
     try {
+        // --- THIS IS THE KEY ---
+        // This function no longer downloads all invoices by default.
+        // We only call it *if* the cache is empty.
         await ensureInvoiceDataFetched();
 
         const allPOs = allPOData;
@@ -2553,7 +2709,6 @@ async function populateInvoiceReporting(searchTerm = '') {
 
         let tableHTML = `<table><thead><tr><th></th><th>PO</th><th>Site</th><th>Vendor</th><th>Value</th><th>Total Paid Amount</th><th>Last Paid Date</th></tr></thead><tbody>`;
         let resultsFound = false;
-        // const paymentPromises = []; // <-- REMOVED Payment DB logic
         const processedPOData = [];
 
         const filteredPONumbers = Object.keys(allPOs).filter(poNumber => {
@@ -2629,12 +2784,8 @@ async function populateInvoiceReporting(searchTerm = '') {
                 // --- ** END MODIFICATION ** ---
             };
             processedPOData.push(poReportData);
-
-            // Fetch payment data only if user is Admin or Accounting
-            // <-- This section was removed as per the new logic
         }
 
-        // await Promise.all(paymentPromises); // <-- This line was removed
         currentReportData = processedPOData;
 
         if (!resultsFound) { imReportingContent.innerHTML = '<p>No results found for your search criteria.</p>'; }
@@ -2998,6 +3149,10 @@ async function populateApproverSelect(selectElement) {
     if (approverListForSelect.length === 0) {
         try {
             await ensureInvoiceDataFetched(); // Makes sure allApproverData is potentially loaded
+            if (!allApproverData) { // If ensureInvoiceDataFetched didn't load it, load it now
+                 const snapshot = await db.ref('approvers').once('value');
+                 allApproverData = snapshot.val();
+            }
             const approvers = allApproverData; // Use the cached full data
             if (approvers) {
                 const approverOptions = Object.values(approvers)
@@ -3199,8 +3354,6 @@ async function addInvoiceToBatchTable(invData) {
     if (imBatchGlobalStatus.value) statusSelect.value = imBatchGlobalStatus.value;
     if (imBatchGlobalNote.value) noteInput.value = imBatchGlobalNote.value;
     // --- END FIX ---
-
-    // No need for return Promise.resolve(); anymore
 }
 
 // --- *** START OF FIX (Batch Note Persistence) *** ---
@@ -3254,9 +3407,6 @@ async function handleBatchGlobalSearch(searchType) {
         if (invoicesFound === 0) alert(`No invoices found with the ${searchType} "${finalSearchTerm}".`);
         else { 
             alert(`Added ${invoicesFound} invoice(s) to the batch list.`); 
-            // Don't clear the inputs, as the user might want to re-run the search
-            // if (searchType === 'status') batchPOInput.value = ''; 
-            // if (searchType === 'note' && imBatchNoteSearchChoices) imBatchNoteSearchChoices.clearInput();
         }
     } catch (error) { console.error("Error during global batch search:", error); alert(`An error occurred: ${error.message}`); }
     finally { 
@@ -3264,13 +3414,15 @@ async function handleBatchGlobalSearch(searchType) {
         if (imBatchNoteSearchChoices) imBatchNoteSearchChoices.enable();
     }
 }
+
+// --- (MODIFIED) handleSaveBatchInvoices ---
 async function handleSaveBatchInvoices() {
     const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
     if (rows.length === 0) { alert("There are no invoices to save."); return; }
     if (!confirm(`You are about to save/update ${rows.length} invoice(s). Continue?`)) return;
 
     const savePromises = [];
-    const localCacheUpdates = []; // <-- FIX: Store updates here
+    const localCacheUpdates = []; 
     let newInvoicesCount = 0, updatedInvoicesCount = 0;
 
     // ++ NEW: Helper to get srvName
@@ -3283,12 +3435,13 @@ async function handleSaveBatchInvoices() {
     };
     // --- End (Req 3) MODIFICATION ---
 
+    await ensureInvoiceDataFetched(); // Ensure allInvoiceData is present for lookup
+
     for (const row of rows) {
         const poNumber = row.dataset.po, site = row.dataset.site, existingKey = row.dataset.key; let vendor = row.dataset.vendor;
         let invEntryID = row.dataset.nextInvid; // For new invoices
         
         if (existingKey) {
-            // For existing invoices, get ID from the text span
             const existingIDSpan = row.querySelector('span.existing-indicator');
             if (existingIDSpan) {
                  const match = existingIDSpan.textContent.match(/\(Existing: (.*)\)/);
@@ -3296,8 +3449,6 @@ async function handleSaveBatchInvoices() {
             }
         }
 
-
-        // ++ UPDATED: Columns changed
         const invoiceData = {
             invNumber: row.querySelector('[name="invNumber"]').value,
             invName: row.querySelector('[name="invName"]').value,
@@ -3310,44 +3461,41 @@ async function handleSaveBatchInvoices() {
         };
 
         invoiceData.releaseDate = getTodayDateString();
-        // --- FIX: Get value directly from the stored Choices.js instance ---
         invoiceData.attention = row.choicesInstance ? row.choicesInstance.getValue(true) : row.querySelector('select[name="attention"]').value;
-        // --- END FIX ---
-
         if (invoiceData.attention === 'None') invoiceData.attention = '';
-        
-        // --- FIX: Clear attention if status is Under Review ---
-        if (invoiceData.status === 'Under Review') {
-            invoiceData.attention = '';
-        }
-        // --- END FIX ---
-
+        if (invoiceData.status === 'Under Review') invoiceData.attention = '';
         if (invoiceData.status === 'With Accounts') invoiceData.attention = '';
         if (!invoiceData.invValue) { alert(`Invoice Value is required for PO ${poNumber}. Cannot proceed.`); return; }
         if (vendor.length > 21) vendor = vendor.substring(0, 21);
 
-        // --- (Req 3) MODIFIED: Use new getSrvName helper ---
         if (invoiceData.status === 'With Accounts' && !invoiceData.srvName) {
             invoiceData.srvName = getSrvName(poNumber, site, vendor, invEntryID);
         }
-        // --- End (Req 3) MODIFICATION ---
 
         let promise;
+        let oldAttention = null;
+
         if (existingKey) {
+            // --- ADD THIS (THE FIX) ---
+            // Get the old attention before updating
+            if (allInvoiceData[poNumber] && allInvoiceData[poNumber][existingKey]) {
+                oldAttention = allInvoiceData[poNumber][existingKey].attention;
+            }
+            // --- END OF ADDITION ---
+
             promise = invoiceDb.ref(`invoice_entries/${poNumber}/${existingKey}`).update(invoiceData);
-            // <-- FIX: Add to local cache updates for existing invoices
-            localCacheUpdates.push({
-                type: 'update',
-                po: poNumber,
-                key: existingKey,
-                data: invoiceData
-            });
+            
+            // --- ADD THIS (THE FIX) ---
+            // Add the task sync call to the promise list
+            savePromises.push(updateInvoiceTaskLookup(poNumber, existingKey, invoiceData, oldAttention));
+            // --- END OF ADDITION ---
+            
+            localCacheUpdates.push({ type: 'update', po: poNumber, key: existingKey, data: invoiceData });
             updatedInvoicesCount++;
         } else {
             invoiceData.invEntryID = invEntryID; // Use the pre-calculated nextInvId
             invoiceData.dateAdded = getTodayDateString();
             invoiceData.createdAt = firebase.database.ServerValue.TIMESTAMP;
-
             if (!invoiceData.invName) {
                  invoiceData.invName = `${site}-${poNumber}-${invoiceData.invEntryID}-${vendor}`;
             }
@@ -3355,33 +3503,34 @@ async function handleSaveBatchInvoices() {
             promise = invoiceDb.ref(`invoice_entries/${poNumber}`).push(invoiceData);
             newInvoicesCount++;
 
-            // <-- FIX: For new invoices, we pass the promise to get the key later
-            localCacheUpdates.push({
-                type: 'add',
-                po: poNumber,
-                data: invoiceData,
-                promise: promise // This promise reference contains the new key
-            });
+            // --- ADD THIS (THE FIX) ---
+            // Add the task sync call, wrapped in a .then() to get the new key
+            savePromises.push(
+                promise.then(newRef => {
+                    return updateInvoiceTaskLookup(poNumber, newRef.key, invoiceData, null); // oldAttention is null
+                })
+            );
+            // --- END OF ADDITION ---
+
+            localCacheUpdates.push({ type: 'add', po: poNumber, data: invoiceData, promise: promise });
         }
+        // This promise is for the *write* operation, not the task sync
         savePromises.push(promise);
     }
     try {
         await Promise.all(savePromises);
 
-        // --- FIX: NEW CACHE UPDATE LOGIC ---
-        if (allInvoiceData) { // Only update if cache is loaded
+        // --- NEW CACHE UPDATE LOGIC ---
+        if (allInvoiceData) { 
             for (const update of localCacheUpdates) {
                 if (update.type === 'update') {
-                    // This is an update to an existing entry
                     if (!allInvoiceData[update.po]) allInvoiceData[update.po] = {};
                     if (!allInvoiceData[update.po][update.key]) allInvoiceData[update.po][update.key] = {};
-                    // Merge the new data into the cached data
                     allInvoiceData[update.po][update.key] = {
                         ...allInvoiceData[update.po][update.key],
                         ...update.data
                     };
                 } else if (update.type === 'add') {
-                    // This is a new entry. We get the key from the promise.
                     const newKey = update.promise.key;
                     if (newKey) {
                         if (!allInvoiceData[update.po]) allInvoiceData[update.po] = {};
@@ -3389,12 +3538,9 @@ async function handleSaveBatchInvoices() {
                     }
                 }
                 
-                // --- MODIFICATION (Req 3 & 4) ---
-                // Add new note to the global set during save
                 if (update.data.note && update.data.note.trim() !== '') {
                     allUniqueNotes.add(update.data.note.trim());
                 }
-                // --- END MODIFICATION ---
             }
             console.log("Local invoice cache updated surgically.");
         }
@@ -3403,7 +3549,6 @@ async function handleSaveBatchInvoices() {
         alert(`${newInvoicesCount} new invoice(s) created and ${updatedInvoicesCount} invoice(s) updated successfully!`);
         document.getElementById('im-batch-table-body').innerHTML = '';
         allSystemEntries = [];
-        // allInvoiceData = null; // <-- REMOVED
     } catch (error) {
         console.error("Error saving batch invoices:", error);
         alert("An error occurred while saving. Please check the data and try again.");
@@ -3626,10 +3771,12 @@ async function handleUpdateSummaryChanges() {
     const newGlobalStatus = document.getElementById('summary-note-status-input').value, newGlobalSRV = document.getElementById('summary-note-srv-input').value.trim(), today = getTodayDateString();
 
     const updatePromises = [];
-    const localCacheUpdates = []; // <-- FIX
+    const localCacheUpdates = []; 
 
     try {
-        rows.forEach(row => {
+        await ensureInvoiceDataFetched(); // Ensure allInvoiceData is loaded for lookup
+
+        for (const row of rows) {
             const poNumber = row.dataset.po, invoiceKey = row.dataset.key;
             const newDetails = row.querySelector('input[name="details"]').value, newInvoiceDate = row.querySelector('input[name="invoiceDate"]').value;
             if (poNumber && invoiceKey) {
@@ -3639,16 +3786,22 @@ async function handleUpdateSummaryChanges() {
                 if (newGlobalStatus === 'With Accounts') updates.attention = '';
 
                 updatePromises.push(invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}`).update(updates));
-                localCacheUpdates.push({ po: poNumber, key: invoiceKey, data: updates }); // <-- FIX
+                localCacheUpdates.push({ po: poNumber, key: invoiceKey, data: updates }); 
+                
+                // --- ADD THIS (THE FIX) ---
+                // We must also update the lookup table
+                const originalInvoice = (allInvoiceData && allInvoiceData[poNumber]) ? allInvoiceData[poNumber][invoiceKey] : {};
+                const updatedInvoiceData = {...originalInvoice, ...updates};
+                updatePromises.push(updateInvoiceTaskLookup(poNumber, invoiceKey, updatedInvoiceData, originalInvoice.attention));
+                // --- END OF ADDITION ---
             }
-        });
+        }
         await Promise.all(updatePromises);
 
-        // --- FIX: NEW CACHE UPDATE LOGIC ---
-        if (allInvoiceData) { // Only update if cache is loaded
+        // --- NEW CACHE UPDATE LOGIC ---
+        if (allInvoiceData) { 
             for (const update of localCacheUpdates) {
                 if (allInvoiceData[update.po] && allInvoiceData[update.po][update.key]) {
-                    // Merge the new data into the cached data
                     allInvoiceData[update.po][update.key] = {
                         ...allInvoiceData[update.po][update.key],
                         ...update.data
@@ -3660,7 +3813,6 @@ async function handleUpdateSummaryChanges() {
         // --- END FIX ---
 
         alert("Changes saved successfully!");
-        // allInvoiceData = null; // <-- REMOVED
     } catch (error) {
         console.error("Error updating summary changes:", error);
         alert("An error occurred while saving the changes.");
@@ -3688,7 +3840,6 @@ async function handlePaymentModalPOSearch() {
         await ensureInvoiceDataFetched(); // Ensure latest data
         const poData = allPOData[poNumber];
         const invoicesData = allInvoiceData[poNumber];
-        // Site and Vendor needed for lookup later, ensure poData exists
         const site = poData ? poData['Project ID'] || 'N/A' : 'N/A';
         const vendor = poData ? poData['Supplier Name'] || 'N/A' : 'N/A';
 
@@ -3699,18 +3850,14 @@ async function handlePaymentModalPOSearch() {
             const sortedInvoices = Object.entries(invoicesData).sort(([, a], [, b]) => (a.invEntryID || '').localeCompare(b.invEntryID || ''));
 
             for (const [key, inv] of sortedInvoices) {
-                // Only show "With Accounts" status and not already added to the payment list
                 if (inv.status === 'With Accounts' && !invoicesToPay[key]) {
                     resultsFound = true;
-
-                    // --- MODIFIED: Store only key and po in data attributes ---
                     tableHTML += `<tr>
                         <td><input type="checkbox" class="payment-modal-inv-checkbox" data-key='${key}' data-po='${poNumber}'></td>
                         <td>${inv.invEntryID || ''}</td>
                         <td>${formatCurrency(inv.invValue)}</td>
                         <td>${inv.status || ''}</td>
                     </tr>`;
-                    // --- END MODIFICATION ---
                 }
             }
         }
@@ -3720,7 +3867,6 @@ async function handlePaymentModalPOSearch() {
         } else {
             tableHTML += `</tbody></table>`;
             imPaymentModalResults.innerHTML = tableHTML;
-            // Add event listener for the select-all checkbox
             document.getElementById('payment-modal-select-all').addEventListener('change', (e) => {
                 imPaymentModalResults.querySelectorAll('.payment-modal-inv-checkbox').forEach(chk => chk.checked = e.target.checked);
             });
@@ -3740,21 +3886,18 @@ function handleAddSelectedToPayments() {
     }
 
     selectedCheckboxes.forEach(checkbox => {
-        // --- MODIFIED: Get key and po from attributes, look up data ---
         const key = checkbox.dataset.key;
         const poNumber = checkbox.dataset.po;
 
-        // Look up the full data from the cache using key and poNumber
         const originalInvData = (allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][key])
             ? allInvoiceData[poNumber][key]
             : null;
 
         if (!originalInvData) {
              console.warn(`Could not find invoice data in cache for key: ${key}, PO: ${poNumber}`);
-             return; // Skip if data not found
+             return; 
         }
 
-        // Reconstruct necessary structure, getting site/vendor from PO cache
         const invData = {
             key: key,
             po: poNumber,
@@ -3762,17 +3905,17 @@ function handleAddSelectedToPayments() {
             vendor: allPOData[poNumber]?.['Supplier Name'] || 'N/A',
             invEntryID: originalInvData.invEntryID || '',
             invValue: originalInvData.invValue || '0',
-            currentAmountPaid: originalInvData.amountPaid || '0', // Keep track of any previous partial payments
-            status: originalInvData.status
+            currentAmountPaid: originalInvData.amountPaid || '0',
+            status: originalInvData.status,
+            attention: originalInvData.attention // --- ADD THIS to get oldAttention
         };
-        // --- END MODIFICATION ---
 
-        if (!invoicesToPay[invData.key]) { // Check again to prevent duplicates
-            invoicesToPay[invData.key] = invData; // Store the full data object
+        if (!invoicesToPay[invData.key]) { 
+            invoicesToPay[invData.key] = invData; 
 
             const row = document.createElement('tr');
             row.setAttribute('data-key', invData.key);
-            row.setAttribute('data-po', invData.po); // Store PO on the row too
+            row.setAttribute('data-po', invData.po); 
 
             row.innerHTML = `
                 <td>${invData.po}</td>
@@ -3791,64 +3934,69 @@ function handleAddSelectedToPayments() {
 
     imAddPaymentModal.classList.add('hidden'); // Close the modal
 }
-// Function to save the processed payments
+// --- (MODIFIED) handleSavePayments ---
 async function handleSavePayments() {
     const rows = imPaymentsTableBody.querySelectorAll('tr');
     if (rows.length === 0) {
         alert("There are no payments in the list to save.");
         return;
     }
-    // --- FIX: Updated confirm message ---
     if (!confirm(`You are about to mark ${rows.length} invoice(s) as 'Paid'. This will update their status, Invoice Value, Amount To Paid, and Release Date. Continue?`)) {
         return;
     }
 
     const savePromises = [];
-    const localCacheUpdates = []; // <-- FIX
+    const localCacheUpdates = [];
     let updatesMade = 0;
 
     for (const row of rows) {
         const invoiceKey = row.dataset.key;
         const poNumber = row.dataset.po;
-        const invoiceData = invoicesToPay[invoiceKey]; // Get the original data stored
+        const originalInvoiceData = invoicesToPay[invoiceKey]; // Get the original data
 
-        if (!invoiceKey || !poNumber || !invoiceData) {
+        if (!invoiceKey || !poNumber || !originalInvoiceData) {
             console.warn("Skipping row with missing data:", row);
             continue;
         }
 
-        const invValueInput = row.querySelector('input[name="invValue"]'); // <-- FIX: Get new input
+        const invValueInput = row.querySelector('input[name="invValue"]'); 
         const amountPaidInput = row.querySelector('input[name="amountPaid"]');
         const releaseDateInput = row.querySelector('input[name="releaseDate"]');
 
-        const newInvValue = parseFloat(invValueInput.value) || 0; // <-- FIX: Read new value
+        const newInvValue = parseFloat(invValueInput.value) || 0; 
         const newAmountPaid = parseFloat(amountPaidInput.value) || 0;
         const newReleaseDate = releaseDateInput.value || getTodayDateString();
 
-        // Prepare the data to update in Firebase
         const updates = {
             status: 'Paid',
-            invValue: newInvValue, // <-- FIX: Save updated Inv Value
-            amountPaid: newAmountPaid, // Update with the value entered in the payments table
-            releaseDate: newReleaseDate // Update with the value entered in the payments table
+            invValue: newInvValue, 
+            amountPaid: newAmountPaid, 
+            releaseDate: newReleaseDate 
         };
 
-        // Add the update operation to the list of promises
         savePromises.push(
             invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}`).update(updates)
         );
-        localCacheUpdates.push({ po: poNumber, key: invoiceKey, data: updates }); // <-- FIX
+        
+        // --- ADD THIS (THE FIX) ---
+        // Pass the full updated data and the oldAttention to the helper
+        const updatedFullData = {...originalInvoiceData, ...updates};
+        savePromises.push(
+            updateInvoiceTaskLookup(poNumber, invoiceKey, updatedFullData, originalInvoiceData.attention)
+        );
+        // --- END OF ADDITION ---
+
+        localCacheUpdates.push({ po: poNumber, key: invoiceKey, data: updates }); 
         updatesMade++;
     }
 
     try {
         await Promise.all(savePromises);
 
-        // --- FIX: NEW CACHE UPDATE LOGIC ---
-        if (allInvoiceData) { // Only update if cache is loaded
+        // --- NEW CACHE UPDATE LOGIC ---
+        if (allInvoiceData) { 
             for (const update of localCacheUpdates) {
                 if (allInvoiceData[update.po] && allInvoiceData[update.po][update.key]) {
-                    // Merge the new data into the cached data
                     allInvoiceData[update.po][update.key] = {
                         ...allInvoiceData[update.po][update.key],
                         ...update.data
@@ -3863,7 +4011,6 @@ async function handleSavePayments() {
         imPaymentsTableBody.innerHTML = ''; // Clear the table
         invoicesToPay = {}; // Reset the state
         allSystemEntries = []; // Clear system cache as statuses changed
-        // allInvoiceData = null; // <-- REMOVED
     } catch (error) {
         console.error("Error saving payments:", error);
         alert("An error occurred while saving payments. Some updates may have failed. Please check the data and try again.");
@@ -4115,8 +4262,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         showView('login');
     }
 
-    // ... (Login, Setup, Password form listeners remain the same) ...
-     loginForm.addEventListener('submit', async (e) => { e.preventDefault(); loginError.textContent = ''; const identifier = loginIdentifierInput.value.trim(); try { const approver = await findApprover(identifier); if (!approver) { loginError.textContent = 'Access denied. Your email or mobile is not registered as an approver.'; return; } currentApprover = approver; if (!currentApprover.Password || currentApprover.Password === '') { const isEmailMissing = !currentApprover.Email, isSiteMissing = !currentApprover.Site, isPositionMissing = !currentApprover.Position; setupEmailContainer.classList.toggle('hidden', !isEmailMissing); setupSiteContainer.classList.toggle('hidden', !isSiteMissing); setupPositionContainer.classList.toggle('hidden', !isPositionMissing); setupEmailInput.required = isEmailMissing; setupSiteInput.required = isSiteMissing; setupPositionInput.required = isPositionMissing; showView('setup'); setupPasswordInput.focus(); } else { passwordUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile; showView('password'); passwordInput.focus(); } } catch (error) { console.error("Error checking approver:", error); loginError.textContent = 'An error occurred. Please try again.'; } });
+    loginForm.addEventListener('submit', async (e) => { e.preventDefault(); loginError.textContent = ''; const identifier = loginIdentifierInput.value.trim(); try { const approver = await findApprover(identifier); if (!approver) { loginError.textContent = 'Access denied. Your email or mobile is not registered as an approver.'; return; } currentApprover = approver; if (!currentApprover.Password || currentApprover.Password === '') { const isEmailMissing = !currentApprover.Email, isSiteMissing = !currentApprover.Site, isPositionMissing = !currentApprover.Position; setupEmailContainer.classList.toggle('hidden', !isEmailMissing); setupSiteContainer.classList.toggle('hidden', !isSiteMissing); setupPositionContainer.classList.toggle('hidden', !isPositionMissing); setupEmailInput.required = isEmailMissing; setupSiteInput.required = isSiteMissing; setupPositionInput.required = isPositionMissing; showView('setup'); setupPasswordInput.focus(); } else { passwordUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile; showView('password'); passwordInput.focus(); } } catch (error) { console.error("Error checking approver:", error); loginError.textContent = 'An error occurred. Please try again.'; } });
     setupForm.addEventListener('submit', async (e) => { e.preventDefault(); setupError.textContent = ''; const newPassword = setupPasswordInput.value, finalEmail = currentApprover.Email || setupEmailInput.value.trim(), finalSite = currentApprover.Site || setupSiteInput.value.trim(), finalPosition = currentApprover.Position || setupPositionInput.value.trim(); if (!finalEmail.toLowerCase().endsWith('@iba.com.qa')) { setupError.textContent = 'Invalid email. Only @iba.com.qa addresses are allowed.'; return; } if (newPassword.length < 6) { setupError.textContent = 'Password must be at least 6 characters long.'; return; } try { const updates = { Password: newPassword, Email: finalEmail, Site: finalSite, Position: finalPosition }; await db.ref(`approvers/${currentApprover.key}`).update(updates); currentApprover = { ...currentApprover, ...updates }; handleSuccessfulLogin(); } catch (error) { console.error("Error during setup:", error); setupError.textContent = 'An error occurred while saving. Please try again.'; } });
     passwordForm.addEventListener('submit', (e) => { e.preventDefault(); passwordError.textContent = ''; const enteredPassword = passwordInput.value; if (enteredPassword === currentApprover.Password) { handleSuccessfulLogin(); } else { passwordError.textContent = 'Incorrect password. Please try again.'; passwordInput.value = ''; } });
 
@@ -4164,8 +4310,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 shouldSort: false,
                 itemSelectText: '',
             });
-            // We populate this dropdown *without* the vacation logic for simplicity,
-            // as the user is actively re-assigning a task.
             populateAttentionDropdown(modifyTaskAttentionChoices); 
         }
 
@@ -4186,9 +4330,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     addJobButton.addEventListener('click', handleAddJobEntry);
     updateJobButton.addEventListener('click', handleUpdateJobEntry);
     clearJobButton.addEventListener('click', () => resetJobEntryForm(false));
-    jobEntryTableBody.addEventListener('click', (e) => { const row = e.target.closest('tr'); if (row) { const key = row.getAttribute('data-key'); const entry = allSystemEntries.find(item => item.key === key); if (key && entry && entry.source !== 'invoice') populateFormForEditing(key); } });
+    jobEntryTableBody.addEventListener('click', (e) => { const row = e.target.closest('tr'); if (row) { const key = row.getAttribute('data-key'); 
+    // --- MODIFICATION ---
+    // We must call ensureAllEntriesFetched to make sure allSystemEntries is populated for editing
+    ensureAllEntriesFetched().then(() => {
+        const entry = allSystemEntries.find(item => item.key === key); 
+        if (key && entry && entry.source !== 'invoice') populateFormForEditing(key); 
+    });
+    // --- END MODIFICATION ---
+    } });
 
-    // ++ MODIFIED: activeTaskTableBody click listener ++
+    // --- (MODIFIED) activeTaskTableBody click listener (THE FIX) ---
     activeTaskTableBody.addEventListener('click', async (e) => {
         const row = e.target.closest('tr');
         if (!row) return;
@@ -4196,22 +4348,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const key = row.dataset.key;
         if (!key) return;
         
-        // --- (Req 1) FIX: Find task in the fresh userActiveTasks list ---
+        // Find task in the fresh userActiveTasks list
         const taskData = userActiveTasks.find(entry => entry.key === key);
         if (!taskData) {
-             console.error("Task data not found for key:", key);
-             // Try to refresh and find it again as a fallback
-             await populateActiveTasks();
-             const refreshedTaskData = userActiveTasks.find(entry => entry.key === key);
-             if(!refreshedTaskData) {
-                 alert("Could not find task details. The list may be out of date. Please refresh.");
-                 return;
-             }
-             // If found after refresh, use this data (but this shouldn't happen often)
-             openModifyTaskModal(refreshedTaskData);
+             alert("Could not find task details. The list may be out of date. Please refresh.");
              return;
         }
-        // --- End FIX ---
 
 
         // Handle "SRV Done" button click
@@ -4227,6 +4369,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                         status: 'SRV Done'
                     };
                     await invoiceDb.ref(`invoice_entries/${taskData.originalPO}/${taskData.originalKey}`).update(updates);
+                    
+                    // --- ADD THIS LINE (THE FIX) ---
+                    // Find the original invoice data to pass to the helper
+                    // We must load the cache if it's not there
+                    if (!allInvoiceData) await ensureInvoiceDataFetched(); 
+                    const originalInvoice = (allInvoiceData && allInvoiceData[taskData.originalPO]) ? allInvoiceData[taskData.originalPO][taskData.originalKey] : {};
+                    const updatedInvoiceData = {...originalInvoice, ...updates};
+                    await updateInvoiceTaskLookup(taskData.originalPO, taskData.originalKey, updatedInvoiceData, taskData.attention);
+                    // --- END OF ADDITION ---
+
                 } else if (taskData.source === 'job_entry') {
                     // This is a job entry from main DB
                     const updates = {
@@ -4234,14 +4386,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                         remarks: 'SRV Done'
                     };
                     await db.ref(`job_entries/${taskData.key}`).update(updates);
+                    
+                    // --- ADD THIS LINE (THE FIX) ---
+                    const updatedJobData = {...taskData, ...updates}; // Merge original task data with updates
+                    await updateJobTaskLookup(taskData.key, updatedJobData, taskData.attention);
+                    // --- END OF ADDITION ---
                 }
                 
                 alert('Task status updated to "SRV Done".');
                 
-                // --- (Req 1) FIX: Refresh task lists after action ---
-                await populateActiveTasks(); 
-                // --- End FIX ---
-
+                await populateActiveTasks(); // This is now fast!
 
             } catch (error) {
                 console.error("Error updating task status:", error);
@@ -4259,8 +4413,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         
         // --- *** START OF WORKFLOW FIX *** ---
-        // Handle "Respond" for 'Invoice' job entries
-        // Check if user is Accounting Admin, not just named 'Irwin'
         const userPositionLower = (currentApprover?.Position || '').toLowerCase();
         const userRoleLower = (currentApprover?.Role || '').toLowerCase();
         const isAccountingAdmin = userPositionLower === 'accounting' && userRoleLower === 'admin';
@@ -4284,7 +4436,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // Handle clicking the row to open PDF
-        // ++ MODIFIED: PDF link check for "Nil", "nil", and empty/blank strings ++
         if (taskData && taskData.source === 'invoice' && taskData.invName && taskData.invName.trim() && taskData.invName.toLowerCase() !== 'nil') {
             window.open(PDF_BASE_PATH + encodeURIComponent(taskData.invName) + ".pdf", '_blank');
         }
@@ -4306,27 +4457,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     activeTaskSearchInput.addEventListener('input', debounce((e) => handleActiveTaskSearch(e.target.value), 500));
     jobEntrySearchInput.addEventListener('input', debounce((e) => handleJobEntrySearch(e.target.value), 500));
     taskHistorySearchInput.addEventListener('input', debounce((e) => handleTaskHistorySearch(e.target.value), 500));
-    reportingSearchInput.addEventListener('input', debounce(() => filterAndRenderReport(allSystemEntries), 500));
+    reportingSearchInput.addEventListener('input', debounce(() => {
+        ensureAllEntriesFetched().then(() => { // ensure job_entries are loaded
+             filterAndRenderReport(allSystemEntries);
+        });
+    }, 500));
     
     // --- *** WORKDESK PRINT BUTTON FIX (START) *** ---
     printReportButton.addEventListener('click', () => {
-        // Hide other potential print areas
         if (summaryNotePrintArea) summaryNotePrintArea.classList.add('hidden');
         if (imReportingPrintableArea) imReportingPrintableArea.classList.add('hidden');
         if (imFinanceReportModal) imFinanceReportModal.classList.add('hidden');
         
-        // Find the correct printable area for WorkDesk
         const wdPrintArea = document.getElementById('reporting-printable-area');
         if(wdPrintArea) {
-            // We add a temporary class 'printing' for the new CSS rules to target
             wdPrintArea.classList.add('printing');
-            document.body.classList.add('workdesk-print-active'); // Helper class for body
+            document.body.classList.add('workdesk-print-active'); 
         }
 
-        window.print(); // Trigger print
+        window.print(); 
 
-        // Clean up classes after printing
-        // We use a small timeout to allow the print dialog to close
         setTimeout(() => {
             if(wdPrintArea) {
                 wdPrintArea.classList.remove('printing');
@@ -4337,7 +4487,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- *** WORKDESK PRINT BUTTON FIX (END) *** ---
     
     downloadWdReportButton.addEventListener('click', handleDownloadWorkdeskCSV);
-    reportTabsContainer.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') { reportTabsContainer.querySelector('.active').classList.remove('active'); e.target.classList.add('active'); currentReportFilter = e.target.getAttribute('data-job-type'); filterAndRenderReport(allSystemEntries); } });
+    reportTabsContainer.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') { reportTabsContainer.querySelector('.active').classList.remove('active'); e.target.classList.add('active'); currentReportFilter = e.target.getAttribute('data-job-type'); 
+    ensureAllEntriesFetched().then(() => { // ensure job_entries are loaded
+        filterAndRenderReport(allSystemEntries); 
+    });
+    } });
     document.querySelectorAll('.back-to-main-dashboard').forEach(button => button.addEventListener('click', (e) => { e.preventDefault(); showView('dashboard'); }));
 
     invoiceManagementButton.addEventListener('click', async () => {
@@ -4346,49 +4500,37 @@ document.addEventListener('DOMContentLoaded', async () => {
         imUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile;
 
         if (imAttentionSelectChoices) {
-            imAttentionSelect.removeEventListener('choice', handleIMAttentionChoice); // Remove old listener if exists
+            imAttentionSelect.removeEventListener('choice', handleIMAttentionChoice); 
             imAttentionSelectChoices.destroy();
         }
         imAttentionSelectChoices = new Choices(imAttentionSelect, { searchEnabled: true, shouldSort: false, itemSelectText: '' });
-        await populateAttentionDropdown(imAttentionSelectChoices); // Ensure dropdown is populated before adding listener
+        await populateAttentionDropdown(imAttentionSelectChoices); 
 
-        // Add vacation modal listener for IM attention field
-        imAttentionSelect.addEventListener('choice', handleIMAttentionChoice); // Add the listener using a named function
+        imAttentionSelect.addEventListener('choice', handleIMAttentionChoice); 
 
-        // ++ UPDATED Access Control Logic ++
         const userPositionLower = (currentApprover.Position || '').toLowerCase();
         const userRoleLower = (currentApprover.Role || '').toLowerCase();
         const isAccountingAdmin = userPositionLower === 'accounting' && userRoleLower === 'admin';
         const isAccountsOrAccounting = userPositionLower === 'accounts' || userPositionLower === 'accounting';
         const isAdmin = userRoleLower === 'admin';
-        
-        // --- *** BUTTON ACCESS FIX (START) *** ---
-        // --- *** CORRECTED: Check POSITION, not ROLE *** ---
         const isAccountingPosition = userPositionLower === 'accounting';
-        // --- *** BUTTON ACCESS FIX (END) *** ---
 
-
-        // ++ MODIFIED: Set visibility based on new rules (HIDE, not disable)
         const imNavLinks = imNav.querySelectorAll('li');
 
         imNavLinks.forEach(li => {
             const link = li.querySelector('a');
              if (!link) return;
-
             const section = link.dataset.section;
-
-            // Default to visible unless specifically hidden
             li.style.display = '';
 
             if (section === 'im-invoice-entry' || section === 'im-batch-entry' || section === 'im-summary-note') {
                 if (!isAccountingAdmin) li.style.display = 'none';
             }
             if (section === 'im-payments') {
-                // *** FIX APPLIED HERE: Show the link by removing the 'hidden' class ***
                 if (isAccountsOrAccounting) {
-                    link.classList.remove('hidden'); // Ensure the link itself is not hidden
+                    link.classList.remove('hidden'); 
                 } else {
-                    li.style.display = 'none'; // Hide the list item if not correct role
+                    li.style.display = 'none'; 
                 }
             }
             if (section === 'im-finance-report') {
@@ -4396,21 +4538,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
-        // ++ MODIFIED: Show WorkDesk/ActiveTask links in IM sidebar for everyone ++
         document.getElementById('im-nav-workdesk').classList.remove('hidden');
         document.getElementById('im-nav-activetask').classList.remove('hidden');
 
-        
-        // --- *** BUTTON ACCESS FIX (START) *** ---
-        // --- *** CORRECTED: Check POSITION, not ROLE *** ---
-        // Hide/show based on 'accounting' POSITION
         imReportingDownloadCSVButton.style.display = isAccountingPosition ? 'inline-block' : 'none';
         imDownloadDailyReportButton.style.display = isAccountingPosition ? 'inline-block' : 'none';
         imDownloadWithAccountsReportButton.style.display = isAccountingPosition ? 'inline-block' : 'none';
         imDailyReportDateInput.style.display = isAccountingPosition ? 'inline-block' : 'none';
-        // --- *** BUTTON ACCESS FIX (END) *** ---
 
-        // ++ NEW (Req 2): Disable/enable print button
         imReportingPrintBtn.disabled = !isAccountingAdmin;
 
 
@@ -4431,23 +4566,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // ++ UPDATED: Named function for IM Attention choice event with direct lookup using _store ++
     function handleIMAttentionChoice(event) {
-        console.log("IM Attention 'choice' event fired:", event); // Log the raw event
+        console.log("IM Attention 'choice' event fired:", event); 
         if (event.detail && event.detail.value && imAttentionSelectChoices) {
             const selectedValue = event.detail.value;
             console.log("Selected Value:", selectedValue);
-
-            // *** FIX: Use _store.choices instead of config.choices ***
             console.log("Choices instance available:", !!imAttentionSelectChoices);
             console.log("_store.choices available:", !!(imAttentionSelectChoices && imAttentionSelectChoices._store && imAttentionSelectChoices._store.choices));
 
-            const selectedChoice = imAttentionSelectChoices._store.choices.find(c => c.value === selectedValue); // <-- Changed line
-            console.log("Found Choice Object from _store:", selectedChoice); // Log the found object (or undefined)
+            const selectedChoice = imAttentionSelectChoices._store.choices.find(c => c.value === selectedValue); 
+            console.log("Found Choice Object from _store:", selectedChoice); 
 
             if (selectedChoice) {
-                 console.log("Choice Custom Properties:", selectedChoice.customProperties); // Log the properties
-                 if (selectedChoice.customProperties && selectedChoice.customProperties.onVacation === true) { // Explicit boolean check
+                 console.log("Choice Custom Properties:", selectedChoice.customProperties); 
+                 if (selectedChoice.customProperties && selectedChoice.customProperties.onVacation === true) { 
                     console.log("User is on vacation, showing modal.");
                     vacationingUserName.textContent = selectedChoice.value;
                     vacationReturnDate.textContent = selectedChoice.customProperties.returnDate || 'N/A';
@@ -4488,16 +4620,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     imNav.addEventListener('click', (e) => { const link = e.target.closest('a'); if (!link || link.classList.contains('disabled') || link.parentElement.style.display === 'none' || link.id === 'im-workdesk-button' || link.id === 'im-activetask-button') return; e.preventDefault(); const sectionId = link.getAttribute('data-section'); if (sectionId) { imNav.querySelectorAll('a').forEach(a => a.classList.remove('active')); link.classList.add('active'); showIMSection(sectionId); } });
     
-    // --- MODIFICATION (Req 1) ---
-    // Add listeners for BOTH top and bottom search bars
     imPOSearchButton.addEventListener('click', () => handlePOSearch(imPOSearchInput.value));
     imPOSearchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); handlePOSearch(imPOSearchInput.value); } });
-    
     imPOSearchButtonBottom.addEventListener('click', () => handlePOSearch(imPOSearchInputBottom.value));
     imPOSearchInputBottom.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); handlePOSearch(imPOSearchInputBottom.value); } });
-    // --- END MODIFICATION ---
 
-    // ++ NEW (Req 1): Listeners for Active Jobs Sidebar ++
     if (imShowActiveJobsBtn) {
         imShowActiveJobsBtn.addEventListener('click', () => {
             imEntrySidebar.classList.toggle('visible');
@@ -4512,7 +4639,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     imUpdateInvoiceButton.addEventListener('click', handleUpdateInvoice);
     imClearFormButton.addEventListener('click', () => { currentPO ? resetInvoiceForm() : resetInvoiceEntryPage(); });
     imBackToActiveTaskButton.addEventListener('click', () => { 
-        // Go back to active task list
         workdeskButton.click();
         setTimeout(() => {
             workdeskNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
@@ -4527,21 +4653,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             handleDeleteInvoice(deleteBtn.getAttribute('data-key'));
             return;
         }
-
         const pdfLink = e.target.closest('a');
         if (pdfLink) {
             return;
         }
-
         const row = e.target.closest('tr');
         if (row) {
             populateInvoiceFormForEditing(row.getAttribute('data-key'));
         }
     });
 
-    // --- ** NEW: Click-to-edit listener for reporting table ** ---
     imReportingContent.addEventListener('click', (e) => { 
-        // Handle expand button
         const expandBtn = e.target.closest('.expand-btn'); 
         if (expandBtn) { 
             const masterRow = expandBtn.closest('.master-row'); 
@@ -4550,10 +4672,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 detailRow.classList.toggle('hidden'); 
                 expandBtn.textContent = detailRow.classList.contains('hidden') ? '+' : '−'; 
             } 
-            return; // Stop further execution
+            return; 
         }
 
-        // Handle click on a nested invoice row
         const invoiceRow = e.target.closest('.nested-invoice-row');
         if (invoiceRow) {
             const poNumber = invoiceRow.dataset.poNumber;
@@ -4565,47 +4686,34 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             if (confirm(`Do you want to edit this invoice?\n\PO: ${poNumber}\nInvoice Key: ${invoiceKey}`)) {
-                // Navigate to the Invoice Entry section
                 imNav.querySelector('a[data-section="im-invoice-entry"]').click();
-                
-                // Wait for section to load, then search and populate
                 setTimeout(() => {
                     handlePOSearch(poNumber).then(() => {
-                        // After handlePOSearch is complete, populate the form
                         populateInvoiceFormForEditing(invoiceKey);
                     });
-                }, 100); // Small delay to allow section to switch
+                }, 100); 
             }
-            return; // Stop further execution
+            return; 
         }
     });
-    // --- ** END OF NEW LISTENER ** ---
 
     imReportingForm.addEventListener('submit', (e) => { e.preventDefault(); const searchTerm = imReportingSearchInput.value.trim(); if (!searchTerm && !document.getElementById('im-reporting-site-filter').value && !document.getElementById('im-reporting-date-filter').value && !document.getElementById('im-reporting-status-filter').value) { imReportingContent.innerHTML = '<p style="color: red; font-weight: bold;">Please specify at least one search criteria.</p>'; return; } populateInvoiceReporting(searchTerm); });
     imReportingClearButton.addEventListener('click', () => { imReportingForm.reset(); sessionStorage.removeItem('imReportingSearch'); imReportingContent.innerHTML = '<p>Please enter a search term and click Search.</p>'; currentReportData = []; });
     imReportingDownloadCSVButton.addEventListener('click', handleDownloadCSV);
     imDownloadDailyReportButton.addEventListener('click', handleDownloadDailyReport);
     if(imDownloadWithAccountsReportButton) imDownloadWithAccountsReportButton.addEventListener('click', handleDownloadWithAccountsReport);
-    
-    // ++ NEW (Req 2): Listener for professional print button
     if(imReportingPrintBtn) imReportingPrintBtn.addEventListener('click', handleGeneratePrintReport);
 
     
-    // --- FIX: Clears Attention when setting to 'Under Review' or sets to 'Mr. Hamad' for CEO Approval ---
     imStatusSelect.addEventListener('change', (e) => {
         if (imAttentionSelectChoices) {
             if (e.target.value === 'CEO Approval') {
                 imAttentionSelectChoices.setChoiceByValue('Mr. Hamad');
             } else if (e.target.value === 'Under Review') {
                 imAttentionSelectChoices.removeActiveItems();
-                // We don't need setChoiceByValue('') here as removeActiveItems clears it effectively
             }
         }
     });
-    // --- END FIX ---
-    
-    // --- FIX: REMOVED auto-copy for Invoice Value -> Amount To Paid ---
-    // imInvValueInput.addEventListener('input', (e) => { imAmountPaidInput.value = e.target.value; });
     settingsForm.addEventListener('submit', handleUpdateSettings);
     settingsVacationCheckbox.addEventListener('change', () => {
         const isChecked = settingsVacationCheckbox.checked;
@@ -4618,7 +4726,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // ++ NEW: Universal modal close button listener ++
     document.body.addEventListener('click', (e) => {
         if (e.target.matches('.modal-close-btn')) {
             const modal = e.target.closest('.modal-overlay');
@@ -4631,32 +4738,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Batch Entry Listeners
     const batchAddBtn = document.getElementById('im-batch-add-po-button'), batchSaveBtn = document.getElementById('im-batch-save-button'), batchTableBody = document.getElementById('im-batch-table-body'), batchPOInput = document.getElementById('im-batch-po-input'), batchSearchStatusBtn = document.getElementById('im-batch-search-by-status-button'), batchSearchNoteBtn = document.getElementById('im-batch-search-by-note-button');
-    
-    // --- MODIFICATION: Add new Clear button listener ---
     const batchClearBtn = document.getElementById('im-batch-clear-button');
+    
     if(batchClearBtn) batchClearBtn.addEventListener('click', () => {
         batchTableBody.innerHTML = '';
         batchPOInput.value = '';
         sessionStorage.removeItem('imBatchSearch');
-        sessionStorage.removeItem('imBatchNoteSearch'); // <-- NEW
+        sessionStorage.removeItem('imBatchNoteSearch'); 
         if (imBatchNoteSearchChoices) imBatchNoteSearchChoices.clearInput();
         if (imBatchGlobalAttentionChoices) imBatchGlobalAttentionChoices.clearInput();
         imBatchGlobalStatus.value = '';
         imBatchGlobalNote.value = '';
     });
-    // --- END MODIFICATION ---
 
     if (batchSearchStatusBtn) batchSearchStatusBtn.addEventListener('click', () => handleBatchGlobalSearch('status'));
-    
-    // --- MODIFICATION (Req 4) ---
-    // Changed batchSearchNoteBtn to trigger 'note' search
     if (batchSearchNoteBtn) batchSearchNoteBtn.addEventListener('click', () => handleBatchGlobalSearch('note'));
-    // --- END MODIFICATION ---
-
     if (batchAddBtn) batchAddBtn.addEventListener('click', handleAddPOToBatch);
     if (batchSaveBtn) batchSaveBtn.addEventListener('click', handleSaveBatchInvoices);
     
-    // --- MODIFICATION: Save search term on input ---
     if (batchPOInput) {
         batchPOInput.addEventListener('keypress', (e) => { 
             if (e.key === 'Enter') { 
@@ -4664,44 +4763,35 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if(batchSearchStatusBtn) batchSearchStatusBtn.click(); 
             }
         });
-        // Save on input change as well
         batchPOInput.addEventListener('input', debounce((e) => {
             sessionStorage.setItem('imBatchSearch', e.target.value);
-            sessionStorage.removeItem('imBatchNoteSearch'); // Clear note search
+            sessionStorage.removeItem('imBatchNoteSearch'); 
         }, 500));
     }
-    // --- END MODIFICATION ---
-
-    // --- *** START OF FIX (Batch Note Persistence) *** ---
     if (imBatchNoteSearchSelect) {
         imBatchNoteSearchSelect.addEventListener('change', () => {
             if (imBatchNoteSearchChoices) {
                 const noteValue = imBatchNoteSearchChoices.getValue(true);
                 if (noteValue) {
                     sessionStorage.setItem('imBatchNoteSearch', noteValue);
-                    sessionStorage.removeItem('imBatchSearch'); // Clear text search
+                    sessionStorage.removeItem('imBatchSearch'); 
                 } else {
                     sessionStorage.removeItem('imBatchNoteSearch');
                 }
             }
         });
     }
-    // --- *** END OF FIX *** ---
 
     if (batchTableBody) {
-        // --- FIX: Correctly destroy Choices.js instance on remove ---
         batchTableBody.addEventListener('click', (e) => {
             if (e.target.classList.contains('batch-remove-btn')) {
                 const row = e.target.closest('tr');
-                // Correctly find and destroy the Choices.js instance
                 if (row.choicesInstance) {
                     row.choicesInstance.destroy();
                 }
                 row.remove();
             }
         });
-        // --- FIX: REMOVED auto-copy for Invoice Value -> Amount To Paid in Batch ---
-        // batchTableBody.addEventListener('input', (e) => { if (e.target.getAttribute('name') === 'invValue') { const row = e.target.closest('tr'); if (row) { const amountPaidInput = row.querySelector('[name="amountPaid"]'); if (amountPaidInput) amountPaidInput.value = e.target.value; } } });
     }
     if (imBatchSearchExistingButton) imBatchSearchExistingButton.addEventListener('click', () => { if(imBatchSearchModal) imBatchSearchModal.classList.remove('hidden'); document.getElementById('im-batch-modal-results').innerHTML = '<p>Enter a PO number to see its invoices.</p>'; document.getElementById('im-batch-modal-po-input').value = ''; });
     if (imBatchSearchModal) {
@@ -4713,18 +4803,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Batch Global Field Listeners
     if (imBatchGlobalAttention) {
-        // --- FIX: Corrected Logic ---
-        imBatchGlobalAttention.addEventListener('change', () => { // No need for event 'e'
+        imBatchGlobalAttention.addEventListener('change', () => { 
             if (!imBatchGlobalAttentionChoices) return;
             const selectedValue = imBatchGlobalAttentionChoices.getValue(true); 
-            
-            // setValue expects an array of strings. Handle null/empty case too.
             const valueToSet = selectedValue ? [selectedValue] : []; 
-            
             const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
             rows.forEach(row => {
                 if (row.choicesInstance) {
-                    row.choicesInstance.setValue(valueToSet); // Use Choices API to set value
+                    row.choicesInstance.setValue(valueToSet); 
                 }
             });
         });
@@ -4732,7 +4818,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (imBatchGlobalStatus) {
         imBatchGlobalStatus.addEventListener('change', (e) => {
             const newValue = e.target.value;
-            // No need for 'if (!newValue) return;' - allowing blank selection is valid
             const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
             rows.forEach(row => {
                 row.querySelector('select[name="status"]').value = newValue;
@@ -4740,7 +4825,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
     if (imBatchGlobalNote) {
-         // --- FIX: Update on 'Enter' key press AND on 'blur' (losing focus) ---
          const updateNotes = (newValue) => {
              const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
              rows.forEach(row => {
@@ -4749,12 +4833,12 @@ document.addEventListener('DOMContentLoaded', async () => {
          };
          imBatchGlobalNote.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                e.preventDefault(); // Prevent form submission if applicable
-                updateNotes(e.target.value); // Get current value on Enter
+                e.preventDefault(); 
+                updateNotes(e.target.value); 
             }
         });
          imBatchGlobalNote.addEventListener('blur', (e) => {
-             updateNotes(e.target.value); // Update when focus leaves the input
+             updateNotes(e.target.value); 
          });
     }
 
@@ -4782,7 +4866,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if(summaryNoteGenerateBtn) summaryNoteGenerateBtn.addEventListener('click', handleGenerateSummary);
     if(summaryNoteUpdateBtn) summaryNoteUpdateBtn.addEventListener('click', handleUpdateSummaryChanges);
     
-    // --- MODIFICATION: Add new Clear button listener ---
     const summaryClearBtn = document.getElementById('summary-note-clear-btn');
     if (summaryClearBtn) {
         summaryClearBtn.addEventListener('click', () => {
@@ -4797,9 +4880,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             sessionStorage.removeItem('imSummaryCurrNote');
         });
     }
-    // --- END MODIFICATION ---
-
-    // --- MODIFICATION: Save search terms on input ---
     if (summaryNotePreviousInput) {
         summaryNotePreviousInput.addEventListener('input', debounce((e) => {
             sessionStorage.setItem('imSummaryPrevNote', e.target.value);
@@ -4810,11 +4890,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             sessionStorage.setItem('imSummaryCurrNote', e.target.value);
         }, 500));
     }
-    // --- END MODIFICATION ---
 
-    
-// --- *** START OF PRINT FIX *** ---
-// UPDATED Summary Note Print Button Listener
     if(summaryNotePrintBtn) {
         summaryNotePrintBtn.addEventListener('click', () => {
             const customNotesInput = document.getElementById('summary-note-custom-notes-input');
@@ -4823,37 +4899,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (customNotesInput && notesPrintContent && notesPrintContainer) {
                 const notesText = customNotesInput.value.trim();
-                notesPrintContent.textContent = notesText; // Set the text
+                notesPrintContent.textContent = notesText; 
 
-                // Show the notes container only if there is text
                 if (notesText) {
-                    notesPrintContainer.style.display = 'block'; // Ensure it's block for print calc
+                    notesPrintContainer.style.display = 'block'; 
                 } else {
-                    notesPrintContainer.style.display = 'none';  // Ensure it's hidden if empty
+                    notesPrintContainer.style.display = 'none';  
                 }
                 
-                // Hide all other printable areas
                 if (imReportingPrintableArea) imReportingPrintableArea.classList.add('hidden');
-
-                // Show *this* printable area (it's already visible, but good practice)
                 if (summaryNotePrintArea) summaryNotePrintArea.classList.remove('hidden');
 
-                window.print(); // Trigger print dialog
+                window.print(); 
 
             } else {
                 console.error("Could not find notes elements for printing.");
-                // Fallback to simple print if elements aren't found
                 window.print();
             }
         });
     }
-// --- *** END OF PRINT FIX ---
 
 
     // ++ NEW: Payment Section Listeners ++
     if (imAddPaymentButton) {
         imAddPaymentButton.addEventListener('click', () => {
-            // Reset modal state
             imPaymentModalPOInput.value = '';
             imPaymentModalResults.innerHTML = '<p>Enter a PO number to see invoices ready for payment.</p>';
             imAddPaymentModal.classList.remove('hidden');
@@ -4876,16 +4945,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (imSavePaymentsButton) {
         imSavePaymentsButton.addEventListener('click', handleSavePayments);
     }
-    // Listener to remove items from the payment table
     if (imPaymentsTableBody) {
         imPaymentsTableBody.addEventListener('click', (e) => {
             if (e.target.classList.contains('payment-remove-btn')) {
                 const row = e.target.closest('tr');
                 const key = row.dataset.key;
                 if (key && invoicesToPay[key]) {
-                    delete invoicesToPay[key]; // Remove from state object
+                    delete invoicesToPay[key]; 
                 }
-                row.remove(); // Remove from table
+                row.remove(); 
             }
         });
     }
