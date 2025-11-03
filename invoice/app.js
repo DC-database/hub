@@ -55,11 +55,13 @@ const jobEntryForm = document.getElementById('jobentry-form'); const jobForSelec
 const jobEntryFormTitle = document.getElementById('jobentry-form-title');
 const addJobButton = document.getElementById('add-job-button'); const updateJobButton = document.getElementById('update-job-button'); const clearJobButton = document.getElementById('clear-job-button');
 const activeTaskTableBody = document.getElementById('active-task-table-body');
-const taskHistoryTableBody = document.getElementById('task-history-table-body');
+// --- (REMOVED) Task History DOM References ---
+// const taskHistoryTableBody = document.getElementById('task-history-table-body'); 
+// const taskHistorySearchInput = document.getElementById('task-history-search');
+// --- (END REMOVAL) ---
 const reportingTableBody = document.getElementById('reporting-table-body');
 const workdeskDatetimeElement = document.getElementById('workdesk-datetime');
 const activeTaskSearchInput = document.getElementById('active-task-search');
-const taskHistorySearchInput = document.getElementById('task-history-search');
 const reportingSearchInput = document.getElementById('reporting-search');
 const reportTabsContainer = document.getElementById('report-tabs');
 const printReportButton = document.getElementById('print-report-button');
@@ -113,10 +115,11 @@ const workdeskIMLinkContainer = document.getElementById('workdesk-im-link-contai
 const workdeskIMLink = document.getElementById('workdesk-im-link');
 
 // INVOICE MANAGEMENT REFERENCES
+// ... (All your IM references remain the same, no changes needed here) ...
 const invoiceManagementView = document.getElementById('invoice-management-view');
 const imNav = document.getElementById('im-nav');
 const imContentArea = document.getElementById('im-content-area');
-const imMainElement = document.querySelector('#invoice-management-view .workdesk-main'); // ++ ADDED (Req 2)
+const imMainElement = document.querySelector('#invoice-management-view .workdesk-main'); 
 const invoiceManagementButton = document.getElementById('invoice-mgmt-button');
 const imUsername = document.getElementById('im-username');
 const imUserIdentifier = document.getElementById('im-user-identifier');
@@ -124,7 +127,6 @@ const imLogoutButton = document.getElementById('im-logout-button');
 const imDatetimeElement = document.getElementById('im-datetime');
 const imPOSearchInput = document.getElementById('im-po-search-input');
 const imPOSearchButton = document.getElementById('im-po-search-button');
-// ++ NEW: Bottom Search Bar References (Req 1) ++
 const imPOSearchInputBottom = document.getElementById('im-po-search-input-bottom');
 const imPOSearchButtonBottom = document.getElementById('im-po-search-button-bottom');
 const imPODetailsContainer = document.getElementById('im-po-details-container');
@@ -159,21 +161,13 @@ const imBatchSearchModal = document.getElementById('im-batch-search-modal');
 const imBatchSearchExistingButton = document.getElementById('im-batch-search-existing-button');
 const imWorkdeskButton = document.getElementById('im-workdesk-button');
 const imActiveTaskButton = document.getElementById('im-activetask-button');
-
-// ++ NEW (Req 1): Active Invoice Jobs Sidebar ++
 const imShowActiveJobsBtn = document.getElementById('im-show-active-jobs-btn');
 const imEntrySidebar = document.getElementById('im-entry-sidebar');
 const imEntrySidebarList = document.getElementById('im-entry-sidebar-list');
-
-// ++ NEW: Batch Note Search Dropdown (Req 4) ++
 const imBatchNoteSearchSelect = document.getElementById('im-batch-note-search-select');
-
-// ++ NEW: Batch Global Fields ++
 const imBatchGlobalAttention = document.getElementById('im-batch-global-attention');
 const imBatchGlobalStatus = document.getElementById('im-batch-global-status');
 const imBatchGlobalNote = document.getElementById('im-batch-global-note');
-
-// ++ NEW: Payments Section References ++
 const paymentsNavLink = document.getElementById('payments-nav-link');
 const imPaymentsSection = document.getElementById('im-payments');
 const imAddPaymentButton = document.getElementById('im-add-payment-button');
@@ -184,8 +178,6 @@ const imPaymentModalPOInput = document.getElementById('im-payment-modal-po-input
 const imPaymentModalSearchBtn = document.getElementById('im-payment-modal-search-btn');
 const imPaymentModalResults = document.getElementById('im-payment-modal-results');
 const imPaymentModalAddSelectedBtn = document.getElementById('im-payment-modal-add-selected-btn');
-
-// ++ NEW: Finance Report Section References ++
 const imFinanceReportNavLink = document.getElementById('im-finance-report-nav-link');
 const imFinanceReportSection = document.getElementById('im-finance-report');
 const imFinanceSearchPoInput = document.getElementById('im-finance-search-po');
@@ -197,7 +189,6 @@ const imFinanceResultsBody = document.getElementById('im-finance-results-body');
 const imFinanceReportModal = document.getElementById('im-finance-report-modal');
 const imFinancePrintReportBtn = document.getElementById('im-finance-print-report-btn');
 const imFinanceReportPrintableArea = document.getElementById('im-finance-report-printable-area');
-// Finance Report Modal Content IDs
 const imReportDate = document.getElementById('im-reportDate');
 const imReportPoNo = document.getElementById('im-reportPoNo');
 const imReportProject = document.getElementById('im-reportProject');
@@ -214,8 +205,6 @@ const imReportTotalRetentionAmount = document.getElementById('im-reportTotalRete
 const imReportTotalPaymentAmount = document.getElementById('im-reportTotalPaymentAmount');
 const imReportNotesSection = document.getElementById('im-reportNotesSection');
 const imReportNotesContent = document.getElementById('im-reportNotesContent');
-
-// ++ NEW (Req 2): Professional Report Printout References ++
 const imReportingPrintBtn = document.getElementById('im-reporting-print-btn');
 const imReportingPrintableArea = document.getElementById('im-reporting-printable-area');
 const imPrintReportTitle = document.getElementById('im-print-report-title');
@@ -224,9 +213,6 @@ const imPrintReportSummaryPOs = document.getElementById('im-print-report-summary
 const imPrintReportSummaryValue = document.getElementById('im-print-report-summary-value');
 const imPrintReportSummaryPaid = document.getElementById('im-print-report-summary-paid');
 const imPrintReportBody = document.getElementById('im-print-report-body');
-
-
-// SUMMARY NOTE REFERENCES
 const summaryNotePreviousInput = document.getElementById('summary-note-previous-input');
 const summaryNoteCurrentInput = document.getElementById('summary-note-current-input');
 const summaryNoteGenerateBtn = document.getElementById('summary-note-generate-btn');
@@ -246,7 +232,7 @@ let currentApprover = null; let dateTimeInterval = null; let workdeskDateTimeInt
 let siteSelectChoices = null; let attentionSelectChoices = null;
 let currentlyEditingKey = null; let allJobEntries = []; let userJobEntries = [];
 let userActiveTasks = [];
-let userTaskHistory = [];
+// let userTaskHistory = []; // --- (REMOVED) ---
 let allSystemEntries = [];
 let currentReportFilter = 'All';
 
@@ -254,16 +240,16 @@ let currentReportFilter = 'All';
 let imDateTimeInterval = null;
 let currentPO = null;
 let imAttentionSelectChoices = null;
-let imBatchGlobalAttentionChoices = null; // ++ NEW for batch global field
-let imBatchNoteSearchChoices = null; // ++ NEW for batch note search (Req 4) ++
-let modifyTaskAttentionChoices = null; // ++ NEW for modify task modal
+let imBatchGlobalAttentionChoices = null; 
+let imBatchNoteSearchChoices = null; 
+let modifyTaskAttentionChoices = null; 
 let currentlyEditingInvoiceKey = null;
 let currentPOInvoices = {};
 let currentReportData = [];
-let imStatusBarChart = null; // Variable for the chart instance
+let imStatusBarChart = null; 
 let approverListForSelect = [];
 let allUniqueNotes = new Set();
-let invoicesToPay = {}; // ++ NEW: To store invoices added to the Payments table
+let invoicesToPay = {}; 
 
 // ++ NEW: Finance Report State ++
 let imFinanceAllPaymentsData = {};
@@ -272,21 +258,22 @@ let imFinanceAllPaymentsData = {};
 let allPOData = null;
 let allInvoiceData = null;
 let allApproverData = null;
-let allEpicoreData = null; // ++ NEW: For epicore.csv data ++
-let allSitesCSVData = null; // ++ NEW: For Site.csv data ++
+let allEpicoreData = null; 
+let allSitesCSVData = null; 
 let cacheTimestamps = {
   poData: 0,
   invoiceData: 0,
   approverData: 0,
   systemEntries: 0,
-  epicoreData: 0, // ++ NEW: Timestamp for epicore.csv ++
-  sitesCSV: 0 // ++ NEW: Timestamp for Site.csv ++
+  epicoreData: 0, 
+  sitesCSV: 0 
 };
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes cache
 
 // ++ NEW EFFICIENT CACHES FOR DROPDOWNS ++
 let allApproversCache = null;
 let allSitesCache = null;
+let allApproverDataCache = null; // --- (NEW) Cache for user positions ---
 
 // Global state variables to manage workflow between WorkDesk and Invoice Entry
 let jobEntryToUpdateAfterInvoice = null;
@@ -398,21 +385,11 @@ function showWorkdeskSection(sectionId) {
         const savedSearch = sessionStorage.getItem('activeTaskSearch');
         if (savedSearch) {
             activeTaskSearchInput.value = savedSearch;
-            // The populate function will render the table, so we need to filter after it's done.
-            // A better way is to make render function separate and call it. For now, a small timeout works.
             setTimeout(() => handleActiveTaskSearch(savedSearch), 200);
         }
     }
-    if (sectionId === 'wd-taskhistory') {
-        const savedSearch = sessionStorage.getItem('taskHistorySearch');
-        if (savedSearch) {
-            taskHistorySearchInput.value = savedSearch;
-            handleTaskHistorySearch(savedSearch);
-        } else {
-            taskHistoryTableBody.innerHTML = '<tr><td colspan="9">Use the search bar to find history.</td></tr>';
-            userTaskHistory = [];
-        }
-    }
+    // --- (REMOVED) Task History section logic ---
+    // --- (END REMOVAL) ---
     if (sectionId === 'wd-reporting') {
         const savedSearch = sessionStorage.getItem('reportingSearch');
         if (savedSearch) {
@@ -429,39 +406,11 @@ function formatDate(date) { const months = ["Jan", "Feb", "Mar", "Apr", "May", "
 // --- UPDATED normalizeDateForInput TO HANDLE MORE FORMATS ---
 function normalizeDateForInput(dateString) {
     if (!dateString || typeof dateString !== 'string') return '';
-
-    // YYYY-MM-DD (already correct)
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-        return dateString;
-    }
-
-    // DD/MM/YYYY (from CSV)
-    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateString)) {
-        const parts = dateString.split('/');
-        const day = parts[0].padStart(2, '0');
-        const month = parts[1].padStart(2, '0');
-        const year = parts[2];
-        return `${year}-${month}-${day}`;
-    }
-
-    // DD-MM-YY (old format)
-    if (/^\d{2}-\d{2}-\d{2}$/.test(dateString)) {
-        const parts = dateString.split('-');
-        const day = parts[0];
-        const month = parts[1];
-        const year = `20${parts[2]}`;
-        return `${year}-${month}-${day}`;
-    }
-
-    // Try parsing with Date object as a fallback
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) { return dateString; }
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateString)) { const parts = dateString.split('/'); const day = parts[0].padStart(2, '0'); const month = parts[1].padStart(2, '0'); const year = parts[2]; return `${year}-${month}-${day}`; }
+    if (/^\d{2}-\d{2}-\d{2}$/.test(dateString)) { const parts = dateString.split('-'); const day = parts[0]; const month = parts[1]; const year = `20${parts[2]}`; return `${year}-${month}-${day}`; }
     const date = new Date(dateString);
-    if (!isNaN(date)) {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    }
-
+    if (!isNaN(date)) { const year = date.getFullYear(); const month = String(date.getMonth() + 1).padStart(2, '0'); const day = String(date.getDate()).padStart(2, '0'); return `${year}-${month}-${day}`; }
     console.warn("Unrecognized date format:", dateString);
     return '';
 }
@@ -470,17 +419,10 @@ function convertDisplayDateToInput(displayDate) {
     if (!displayDate || typeof displayDate !== 'string') return '';
     const parts = displayDate.split('-');
     if (parts.length !== 3) return '';
-
-    const day = parts[0];
-    const year = parts[2];
-    const monthMap = {
-        "Jan": "01", "Feb": "02", "Mar": "03", "Apr": "04", "May": "05", "Jun": "06",
-        "Jul": "07", "Aug": "08", "Sep": "09", "Oct": "10", "Nov": "11", "Dec": "12"
-    };
+    const day = parts[0]; const year = parts[2];
+    const monthMap = { "Jan": "01", "Feb": "02", "Mar": "03", "Apr": "04", "May": "05", "Jun": "06", "Jul": "07", "Aug": "08", "Sep": "09", "Oct": "10", "Nov": "11", "Dec": "12" };
     const month = monthMap[parts[1]];
-
     if (!month) return '';
-
     return `${year}-${month}-${day}`;
 }
 
@@ -512,41 +454,23 @@ function formatFinanceNumber(value) {
     maximumFractionDigits: 2
   });
 }
-
 function formatFinanceDate(dateStr) {
   if (!dateStr || String(dateStr).trim() === '') return '';
-
   const parts = String(dateStr).split('-');
-  // Expects YYYY-MM-DD
-  if (parts.length !== 3 || dateStr.length !== 10) {
-     return dateStr; // Return as-is if not in expected format
-  }
-
+  if (parts.length !== 3 || dateStr.length !== 10) { return dateStr; }
   try {
     const year = parseInt(parts[0], 10);
-    const monthIndex = parseInt(parts[1], 10) - 1; // Date object month is 0-indexed
+    const monthIndex = parseInt(parts[1], 10) - 1; 
     const day = parseInt(parts[2], 10);
-
     const date = new Date(year, monthIndex, day);
-
-    // Check for invalid date
     if (isNaN(date.getTime())) return dateStr;
-
-    // Re-check if the constructed date matches, to catch invalid inputs like "2025-02-30"
-    if (date.getDate() !== day || date.getMonth() !== monthIndex || date.getFullYear() !== year) {
-        return dateStr;
-    }
-
+    if (date.getDate() !== day || date.getMonth() !== monthIndex || date.getFullYear() !== year) { return dateStr; }
     const dayFormatted = date.getDate().toString().padStart(2, '0');
     const monthFormatted = date.toLocaleString('default', { month: 'short' }).toUpperCase();
     const yearFormatted = date.getFullYear();
-
     return `${dayFormatted}-${monthFormatted}-${yearFormatted}`;
-  } catch (e) {
-    return dateStr; // Fallback
-  }
+  } catch (e) { return dateStr; }
 }
-
 function formatFinanceDateLong(dateStr) {
   if (!dateStr) return '';
   const date = new Date(dateStr);
@@ -563,53 +487,37 @@ function numberToWords(num) {
     const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
     const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
     const s = ['', 'Thousand', 'Million', 'Billion'];
-
     const number = parseFloat(num).toFixed(2);
     const [integerPart, fractionalPart] = number.split('.');
-
-    function toWords(n) {
-        if (n < 20) return a[n];
-        let digit = n % 10;
-        return b[Math.floor(n / 10)] + (digit ? ' ' + a[digit] : '');
-    }
-
+    function toWords(n) { if (n < 20) return a[n]; let digit = n % 10; return b[Math.floor(n / 10)] + (digit ? ' ' + a[digit] : ''); }
     function convert(nStr) {
         if (nStr === '0') return 'Zero';
-        let words = '';
-        let i = nStr.length;
+        let words = ''; let i = nStr.length;
         while (i > 0) {
             let chunk = nStr.substring(Math.max(0, i - 3), i);
-            if (chunk !== '000') {
-                let num = parseInt(chunk);
-                words = (chunk.length === 3 && num < 100 ? 'and ' : '') + toWords(num % 100) + (num > 99 ? ' Hundred' + (num % 100 ? ' and ' : '') : '') + ' ' + s[(nStr.length - i) / 3] + ' ' + words;
-            }
+            if (chunk !== '000') { let num = parseInt(chunk); words = (chunk.length === 3 && num < 100 ? 'and ' : '') + toWords(num % 100) + (num > 99 ? ' Hundred' + (num % 100 ? ' and ' : '') : '') + ' ' + s[(nStr.length - i) / 3] + ' ' + words; }
             i -= 3;
         }
         return words.trim().replace(/\s+/g, ' ');
     }
-
     let words = convert(integerPart);
-    if (fractionalPart && parseInt(fractionalPart) > 0) {
-        words += ' and ' + parseInt(fractionalPart) + '/100';
-    }
-
+    if (fractionalPart && parseInt(fractionalPart) > 0) { words += ' and ' + parseInt(fractionalPart) + '/100'; }
     return words.charAt(0).toUpperCase() + words.slice(1) + " Qatari Riyals Only";
 }
 
 
-// --- (NEW) HELPER FUNCTION TO FIX THE ERROR ---
-// This function removes illegal characters from Firebase keys
-function sanitizeFirebaseKey(text) {
-    if (!text) return null;
-    // Replaces all illegal characters (., #, $, [, ], /) with an underscore
-    return text.replace(/\.|\#|\$|\[|\]|\//g, '_');
+// --- (NEW) Cache for user positions ---
+async function ensureApproverDataCached() {
+    if (allApproverDataCache) return; // Already cached
+    const snapshot = await db.ref('approvers').once('value');
+    allApproverDataCache = snapshot.val() || {};
+    console.log("Approver data cached for position-matching.");
 }
-// --- END OF NEW HELPER ---
+// --- (END NEW) ---
 
 
 // --- START OF NEW HELPER FUNCTIONS (THE FIX) ---
 // These are the "mail sorters" that will create your fast "inbox" lookup tables.
-// This is the code that fixes your high download rates.
 
 /**
  * (SMART HELPER 1 - UPDATED)
@@ -620,32 +528,22 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
     const newAttention = invoiceData.attention;
     const newStatus = invoiceData.status;
 
-    // --- (FIX) Sanitize names for use in paths ---
-    const sanitizedNewAttention = sanitizeFirebaseKey(newAttention);
-    const sanitizedOldAttention = sanitizeFirebaseKey(oldAttention);
-    // --- END OF FIX ---
-
-    // Define which statuses are "active" (i.e., require user attention)
-    // "With Accounts", "Paid", "CEO Approval" etc. are considered "complete" for this list.
     const activeStatuses = ['For SRV', 'For IPC', 'Report', 'Pending', 'Under Review']; 
-    
-    // A task is active if it has an active status AND is assigned to someone
     const isTaskActive = activeStatuses.includes(newStatus) && newAttention;
 
     // 1. Clean up the old task assignment
-    // If the task was assigned to someone else before, remove it from their "inbox".
-    if (sanitizedOldAttention && sanitizedOldAttention !== sanitizedNewAttention) {
-        await invoiceDb.ref(`invoice_tasks_by_user/${sanitizedOldAttention}/${invoiceKey}`).remove();
+    if (oldAttention && oldAttention !== newAttention) {
+        await invoiceDb.ref(`invoice_tasks_by_user/${oldAttention}/${invoiceKey}`).remove();
     }
 
     if (isTaskActive) {
         // 2. Task is active. Create/update the small lookup object.
-        if (!allPOData) { // Ensure PO data is loaded for vendor/site
+        if (!allPOData) { 
             console.log("Loading PO Data cache to build task lookup...");
             const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
             allPOData = await fetchAndParseCSV(PO_DATA_URL);
         }
-        const poDetails = allPOData[poNumber] || {};
+        const poDetails = (allPOData && allPOData[poNumber]) ? allPOData[poNumber] : {};
 
         const taskData = {
             po: poNumber,
@@ -660,12 +558,11 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
         };
 
         // Write the task to the new user's "inbox"
-        await invoiceDb.ref(`invoice_tasks_by_user/${sanitizedNewAttention}/${invoiceKey}`).set(taskData);
+        await invoiceDb.ref(`invoice_tasks_by_user/${newAttention}/${invoiceKey}`).set(taskData);
 
     } else {
-        // 3. Task is NOT active (e.g., "Paid" or attention is blank).
-        // We must remove it from the user's "inbox".
-        const userToRemove = sanitizedNewAttention || sanitizedOldAttention;
+        // 3. Task is NOT active. We must remove it from the user's "inbox".
+        const userToRemove = newAttention || oldAttention;
         if (userToRemove) {
              await invoiceDb.ref(`invoice_tasks_by_user/${userToRemove}/${invoiceKey}`).remove();
         }
@@ -678,77 +575,124 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
  */
 async function removeInvoiceTaskFromUser(invoiceKey, oldData) {
     if (!oldData || !oldData.attention) return; // No user to remove it from
-    // --- (FIX) Sanitize name for use in path ---
-    const sanitizedAttention = sanitizeFirebaseKey(oldData.attention);
-    if (!sanitizedAttention) return;
-    // --- END OF FIX ---
-    await invoiceDb.ref(`invoice_tasks_by_user/${sanitizedAttention}/${invoiceKey}`).remove();
+    await invoiceDb.ref(`invoice_tasks_by_user/${oldData.attention}/${invoiceKey}`).remove();
 }
 
 /**
- * (SMART HELPER 3 - UPDATED)
+ * (SMART HELPER 3 - UPDATED with "Invoice" logic)
  * Keeps the 'job_tasks_by_user' (the "inbox") in sync.
  * This is the fix for JOB_ENTRIES.
  */
 async function updateJobTaskLookup(jobKey, jobData, oldAttention) {
+    await ensureApproverDataCached(); // Makes sure allApproverDataCache is loaded
+
     const newAttention = jobData.attention;
+    
+    // Build the task object
+    const poDetails = (jobData.po && allPOData && allPOData[jobData.po]) ? allPOData[jobData.po] : {};
+    const taskData = {
+        for: jobData.for,
+        ref: jobData.ref || '',
+        po: jobData.po || '',
+        amount: jobData.amount || '',
+        date: jobData.date || getTodayDateString(),
+        status: jobData.remarks || 'Pending',
+        vendorName: poDetails['Supplier Name'] || 'N/A',
+        site: jobData.site,
+        note: jobData.note || ''
+    };
 
-    // --- (FIX) Sanitize names for use in paths ---
-    const sanitizedNewAttention = sanitizeFirebaseKey(newAttention);
-    const sanitizedOldAttention = sanitizeFirebaseKey(oldAttention);
-    // --- END OF FIX ---
+    // --- (YOUR NEW LOGIC) ---
+    // A set to store the names of all users who should have this task
+    let usersWhoNeedTask = new Set();
+    
+    if (jobData.for === "Invoice") {
+        // --- RULE 1: Job is "Invoice" ---
+        // Disregard attention, find all "Accounting" positions
+        if (!isTaskComplete(jobData)) { // Only if the task is active
+            for (const key in allApproverDataCache) {
+                const user = allApproverDataCache[key];
+                
+                // --- THIS IS THE FIX ---
+                if (user.Position === "Accounting" && user.Name) {
+                // --- END OF FIX ---
+                    usersWhoNeedTask.add(user.Name);
+                }
+            }
+        }
+    } else {
+        // --- RULE 2: Job is NOT "Invoice" ---
+        // Use the original attention-based logic
+        const isManuallyActive = !isTaskComplete(jobData) && newAttention;
+        if (isManuallyActive) {
+            usersWhoNeedTask.add(newAttention);
+        }
+    }
+    // --- (END OF NEW LOGIC) ---
 
-    // A task is active if it's NOT complete AND assigned to someone.
-    const isTaskActive = !isTaskComplete(jobData) && newAttention;
-
-    // 1. Clean up the old task assignment
-    if (sanitizedOldAttention && sanitizedOldAttention !== sanitizedNewAttention) {
-        await db.ref(`job_tasks_by_user/${sanitizedOldAttention}/${jobKey}`).remove();
+    // Now, determine who *used* to have this task so we can clean up
+    let usersWhoHadTask = new Set();
+    // 1. Add the original manual user
+    if (oldAttention) {
+        usersWhoHadTask.add(oldAttention);
+    }
+    // 2. Also add all Accounting users, in case the job *was* "Invoice"
+    for (const key in allApproverDataCache) {
+        const user = allApproverDataCache[key];
+        // --- THIS IS THE FIX ---
+        if (user.Position === "Accounting" && user.Name) {
+        // --- END OF FIX ---
+            usersWhoHadTask.add(user.Name);
+        }
     }
 
-    // 2. Add/update the new task assignment
-    if (isTaskActive) {
-        // We need PO data for vendorName, ensure cache is warm
-        if (!allPOData && jobData.po) {
-             console.log("Loading PO Data cache to build task lookup...");
-             const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
-             allPOData = await fetchAndParseCSV(PO_DATA_URL);
+    // --- Sync Logic ---
+    // 1. Remove from everyone who *used* to have it but doesn't need it now
+    for (const userName of usersWhoHadTask) {
+        if (!usersWhoNeedTask.has(userName)) {
+            await db.ref(`job_tasks_by_user/${userName}/${jobKey}`).remove();
         }
-        const poDetails = (jobData.po && allPOData) ? allPOData[jobData.po] : {};
-        
-        const taskData = {
-            for: jobData.for,
-            ref: jobData.ref || '',
-            po: jobData.po || '',
-            amount: jobData.amount || '',
-            date: jobData.date || getTodayDateString(),
-            status: jobData.remarks || 'Pending',
-            vendorName: poDetails['Supplier Name'] || 'N/A',
-            site: jobData.site,
-            note: jobData.note || ''
-        };
-        await db.ref(`job_tasks_by_user/${sanitizedNewAttention}/${jobKey}`).set(taskData);
-
-    } else {
-        // 3. Task is complete or unassigned, remove it from the user's "inbox".
-        const userToRemove = sanitizedNewAttention || sanitizedOldAttention;
-        if (userToRemove) {
-            await db.ref(`job_tasks_by_user/${userToRemove}/${jobKey}`).remove();
-        }
+    }
+    
+    // 2. Add to everyone who *needs* it
+    for (const userName of usersWhoNeedTask) {
+        await db.ref(`job_tasks_by_user/${userName}/${jobKey}`).set(taskData);
     }
 }
 
+
 /**
- * (SMART HELPER 4 - UPDATED)
- * Helper to remove a deleted job task from the user's "inbox".
+ * (SMART HELPER 4 - UPDATED with "Invoice" logic)
+ * Helper to remove a deleted job task from all inboxes.
  */
 async function removeJobTaskFromUser(jobKey, oldData) {
-    if (!oldData || !oldData.attention) return;
-    // --- (FIX) Sanitize name for use in path ---
-    const sanitizedAttention = sanitizeFirebaseKey(oldData.attention);
-    if (!sanitizedAttention) return;
-    // --- END OF FIX ---
-    await db.ref(`job_tasks_by_user/${sanitizedAttention}/${jobKey}`).remove();
+    if (!oldData) return;
+    
+    await ensureApproverDataCached();
+    
+    let usersWhoHadTask = new Set();
+    
+    // 1. Get the manual user
+    if (oldData.attention) {
+        usersWhoHadTask.add(oldData.attention);
+    }
+    
+    // 2. Get all Accounting users, in case it was an "Invoice" job
+    if (oldData.for === "Invoice") {
+         for (const key in allApproverDataCache) {
+            const user = allApproverDataCache[key];
+            // --- THIS IS THE FIX ---
+            if (user.Position === "Accounting" && user.Name) {
+            // --- END OF FIX ---
+                usersWhoHadTask.add(user.Name);
+            }
+        }
+    }
+    
+    // 3. Remove from all potential inboxes
+    for (const userName of usersWhoHadTask) {
+         await db.ref(`job_tasks_by_user/${userName}/${jobKey}`).remove();
+    }
 }
 // --- END OF NEW HELPER FUNCTIONS ---
 
@@ -757,59 +701,31 @@ async function removeJobTaskFromUser(jobKey, oldData) {
 async function fetchAndParseEpicoreCSV(url) {
     try {
         const response = await fetch(url, { cache: 'no-store' });
-        if (!response.ok) {
-            throw new Error(`Failed to fetch CSV: ${response.statusText}`);
-        }
+        if (!response.ok) { throw new Error(`Failed to fetch CSV: ${response.statusText}`); }
         const csvText = await response.text();
-
-        // Simple CSV parser that handles quotes
         const parseCsvRow = (rowStr) => {
-            const values = [];
-            let inQuote = false;
-            let currentVal = '';
-            const cleanRowStr = rowStr.trim();
-
+            const values = []; let inQuote = false; let currentVal = ''; const cleanRowStr = rowStr.trim();
             for (let i = 0; i < cleanRowStr.length; i++) {
                 const char = cleanRowStr[i];
-                if (char === '"' && (i === 0 || cleanRowStr[i-1] !== '\\')) {
-                    inQuote = !inQuote;
-                } else if (char === ',' && !inQuote) {
-                    values.push(currentVal.trim().replace(/^"|"$/g, ''));
-                    currentVal = '';
-                } else {
-                    currentVal += char;
-                }
+                if (char === '"' && (i === 0 || cleanRowStr[i-1] !== '\\')) { inQuote = !inQuote; } else if (char === ',' && !inQuote) { values.push(currentVal.trim().replace(/^"|"$/g, '')); currentVal = ''; } else { currentVal += char; }
             }
             values.push(currentVal.trim().replace(/^"|"$/g, ''));
             return values;
         };
-
         const lines = csvText.replace(/^\uFEFF/, '').split('\n').filter(line => line.trim() !== '');
-
-        if (lines.length < 1) { // No header check, just need data
-            throw new Error("Epicore CSV is empty.");
-        }
-
+        if (lines.length < 1) { throw new Error("Epicore CSV is empty."); }
         const epicoreMap = {};
-        for (let i = 0; i < lines.length; i++) { // Start from 0, could be no header
+        for (let i = 0; i < lines.length; i++) { 
             const values = parseCsvRow(lines[i]);
-            if (values.length > 3) { // Need at least C (2) and D (3)
-                const poKey = values[2] ? values[2].toUpperCase().trim() : null; // Column C (index 2)
-                const description = values[3] || ''; // Column D (index 3)
-                if (poKey) {
-                    epicoreMap[poKey] = description;
-                }
+            if (values.length > 3) { 
+                const poKey = values[2] ? values[2].toUpperCase().trim() : null; 
+                const description = values[3] || ''; 
+                if (poKey) { epicoreMap[poKey] = description; }
             }
         }
-
         console.log(`Successfully fetched and parsed ${Object.keys(epicoreMap).length} entries from Epicore CSV.`);
         return epicoreMap;
-
-    } catch (error) {
-        console.error("Error fetching or parsing Epicore CSV:", error);
-        alert("CRITICAL ERROR: Could not load Epicore data from GitHub.");
-        return null;
-    }
+    } catch (error) { console.error("Error fetching or parsing Epicore CSV:", error); alert("CRITICAL ERROR: Could not load Epicore data from GitHub."); return null; }
 }
 
 
@@ -818,66 +734,36 @@ async function fetchAndParseEpicoreCSV(url) {
 async function fetchAndParseSitesCSV(url) {
     try {
         const response = await fetch(url, { cache: 'no-store' });
-        if (!response.ok) {
-            throw new Error(`Failed to fetch Sites CSV: ${response.statusText}`);
-        }
+        if (!response.ok) { throw new Error(`Failed to fetch Sites CSV: ${response.statusText}`); }
         const csvText = await response.text();
-
         const lines = csvText.replace(/^\uFEFF/, '').split('\n').filter(line => line.trim() !== '');
-        if (lines.length < 2) { // Expect headers and at least one data row
-            throw new Error("Site.csv is empty or has no data rows.");
-        }
-
-        // Simple parser
+        if (lines.length < 2) { throw new Error("Site.csv is empty or has no data rows."); }
         const parseCsvRow = (rowStr) => {
-            const values = [];
-            let inQuote = false;
-            let currentVal = '';
-            const cleanRowStr = rowStr.trim();
-
+            const values = []; let inQuote = false; let currentVal = ''; const cleanRowStr = rowStr.trim();
             for (let i = 0; i < cleanRowStr.length; i++) {
                 const char = cleanRowStr[i];
-                if (char === '"' && (i === 0 || cleanRowStr[i-1] !== '\\')) {
-                    inQuote = !inQuote;
-                } else if (char === ',' && !inQuote) {
-                    values.push(currentVal.trim().replace(/^"|"$/g, ''));
-                    currentVal = '';
-                } else {
-                    currentVal += char;
-                }
+                if (char === '"' && (i === 0 || cleanRowStr[i-1] !== '\\')) { inQuote = !inQuote; } else if (char === ',' && !inQuote) { values.push(currentVal.trim().replace(/^"|"$/g, '')); currentVal = ''; } else { currentVal += char; }
             }
             values.push(currentVal.trim().replace(/^"|"$/g, ''));
             return values;
         };
-
         const headers = parseCsvRow(lines[0]).map(h => h.trim().toLowerCase());
-        // Find the 'site' and 'description' columns, assuming first two if not found
         let siteIndex = headers.indexOf('site');
         let descIndex = headers.indexOf('description');
-
         if (siteIndex === -1) siteIndex = 0;
         if (descIndex === -1) descIndex = 1;
-
         const sitesData = [];
         for (let i = 1; i < lines.length; i++) {
             const values = parseCsvRow(lines[i]);
             if (values.length >= Math.max(siteIndex, descIndex)) {
                 const site = values[siteIndex];
                 const description = values[descIndex];
-                if (site && description) {
-                    sitesData.push({ site, description });
-                }
+                if (site && description) { sitesData.push({ site, description }); }
             }
         }
-        
         console.log(`Successfully fetched and parsed ${sitesData.length} sites from Site.csv.`);
         return sitesData;
-
-    } catch (error) {
-        console.error("Error fetching or parsing Site.csv:", error);
-        alert("CRITICAL ERROR: Could not load Site data from GitHub.");
-        return null;
-    }
+    } catch (error) { console.error("Error fetching or parsing Site.csv:", error); alert("CRITICAL ERROR: Could not load Site data from GitHub."); return null; }
 }
 // --- *** SITE.CSV FIX (END) *** ---
 
@@ -886,74 +772,37 @@ async function fetchAndParseSitesCSV(url) {
 async function fetchAndParseCSV(url) {
     try {
         const response = await fetch(url, { cache: 'no-store' });
-        if (!response.ok) {
-            throw new Error(`Failed to fetch CSV: ${response.statusText}`);
-        }
+        if (!response.ok) { throw new Error(`Failed to fetch CSV: ${response.statusText}`); }
         const csvText = await response.text();
-
         const lines = csvText.replace(/^\uFEFF/, '').split('\n').filter(line => line.trim() !== '');
-
-        if (lines.length < 2) {
-            throw new Error("CSV is empty or has no data rows.");
-        }
-
+        if (lines.length < 2) { throw new Error("CSV is empty or has no data rows."); }
         const parseCsvRow = (rowStr) => {
-            const values = [];
-            let inQuote = false;
-            let currentVal = '';
-            const cleanRowStr = rowStr.trim();
-
+            const values = []; let inQuote = false; let currentVal = ''; const cleanRowStr = rowStr.trim();
             for (let i = 0; i < cleanRowStr.length; i++) {
                 const char = cleanRowStr[i];
-                if (char === '"' && (i === 0 || cleanRowStr[i-1] !== '\\')) {
-                    inQuote = !inQuote;
-                } else if (char === ',' && !inQuote) {
-                    values.push(currentVal.trim());
-                    currentVal = '';
-                } else {
-                    currentVal += char;
-                }
+                if (char === '"' && (i === 0 || cleanRowStr[i-1] !== '\\')) { inQuote = !inQuote; } else if (char === ',' && !inQuote) { values.push(currentVal.trim()); currentVal = ''; } else { currentVal += char; }
             }
             values.push(currentVal.trim());
             return values.map(v => v.replace(/^"|"$/g, ''));
         };
-
         const headers = parseCsvRow(lines[0]).map(h => h.trim());
         let poHeaderIndex = headers.findIndex(h => h.toLowerCase() === 'po number' || h.toLowerCase() === 'po' || h.toLowerCase() === 'po_number');
-        if (poHeaderIndex === -1) {
-            console.warn("Could not find 'PO Number' header. Assuming first column is the PO number.");
-            poHeaderIndex = 0;
-        }
-
+        if (poHeaderIndex === -1) { console.warn("Could not find 'PO Number' header. Assuming first column is the PO number."); poHeaderIndex = 0; }
         const poData = {};
         for (let i = 1; i < lines.length; i++) {
             const values = parseCsvRow(lines[i]);
-            if (values.length !== headers.length) {
-                console.warn(`Skipping malformed CSV row: ${lines[i]}`);
-                continue;
-            }
+            if (values.length !== headers.length) { console.warn(`Skipping malformed CSV row: ${lines[i]}`); continue; }
             const poKey = values[poHeaderIndex].toUpperCase();
             if (!poKey) continue;
-
             const poEntry = {};
             headers.forEach((header, index) => {
-                if (header.toLowerCase() === 'amount') {
-                     poEntry[header] = values[index].replace(/,/g, '') || '0';
-                } else {
-                     poEntry[header] = values[index];
-                }
+                if (header.toLowerCase() === 'amount') { poEntry[header] = values[index].replace(/,/g, '') || '0'; } else { poEntry[header] = values[index]; }
             });
             poData[poKey] = poEntry;
         }
-
         console.log(`Successfully fetched and parsed ${Object.keys(poData).length} POs from GitHub.`);
         return poData;
-
-    } catch (error) {
-        console.error("Error fetching or parsing PO CSV:", error);
-        alert("CRITICAL ERROR: Could not load Purchase Order data from GitHub.");
-        return null;
-    }
+    } catch (error) { console.error("Error fetching or parsing PO CSV:", error); alert("CRITICAL ERROR: Could not load Purchase Order data from GitHub."); return null; }
 }
 
 // This function is still used by reporting, so we keep it.
@@ -1058,11 +907,11 @@ function removeFromLocalInvoiceCache(poNumber, invoiceKey) {
     }
 }
 
+// --- WORKDESK LOGIC ---
+
 // --- (FIXED) ensureAllEntriesFetched ---
-// This function is now ONLY used for Workdesk Reporting and History.
+// This function is now ONLY used for Workdesk "Job Records" (formerly Reporting)
 // It will ONLY fetch job_entries, as requested.
-// NOTE: This still downloads all job_entries and is inefficient,
-// but it is separate from your Active Task fix.
 async function ensureAllEntriesFetched() {
     const now = Date.now();
     // Check if we have a cache and it's less than 30 mins old
@@ -1072,12 +921,12 @@ async function ensureAllEntriesFetched() {
     
     // We must fetch PO data for vendor names
     if (!allPOData) {
-         console.log("Loading PO Data cache for Workdesk Reporting...");
+         console.log("Loading PO Data cache for Workdesk Job Records...");
          const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
          allPOData = await fetchAndParseCSV(PO_DATA_URL);
     }
     
-    console.log("Fetching all job_entries for Workdesk Reporting...");
+    console.log("Fetching all job_entries for Workdesk Job Records...");
     // Fetch ONLY job_entries
     const jobEntriesSnapshot = await db.ref('job_entries').orderByChild('timestamp').once('value');
 
@@ -1094,7 +943,7 @@ async function ensureAllEntriesFetched() {
     allSystemEntries = processedJobEntries; // Set the global cache
     allSystemEntries.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     cacheTimestamps.systemEntries = now; // Update timestamp
-    console.log(`Workdesk Reporting cache updated with ${allSystemEntries.length} job entries.`);
+    console.log(`Workdesk Job Records cache updated with ${allSystemEntries.length} job entries.`);
 }
 
 
@@ -1378,7 +1227,22 @@ function getJobDataFromForm() {
 async function handleAddJobEntry(e) {
     e.preventDefault();
     const jobData = getJobDataFromForm();
-    if (!jobData.for || !jobData.site || !jobData.group || !jobData.attention) { alert('Please fill in all required fields (Job, Site, Group, Attention).'); return; }
+    
+    // --- (MODIFICATION) Check for "Invoice" job type ---
+    const isInvoiceJob = jobData.for === 'Invoice';
+    if (!jobData.for || !jobData.site || !jobData.group) {
+        alert('Please fill in Job, Site, and Group.');
+        return;
+    }
+    // --- THIS IS THE FIX ---
+    // If it's an invoice job, attention is blank. If not, it's required.
+    if (isInvoiceJob) {
+        jobData.attention = ""; // Force attention to be blank for Invoice jobs
+    } else if (!isInvoiceJob && !jobData.attention) { 
+         alert('Please select an Attention user.'); 
+         return; 
+    }
+    // --- END OF FIX ---
 
     if (jobData.for === 'IPC') {
         const isQS = currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'qs';
@@ -1391,7 +1255,7 @@ async function handleAddJobEntry(e) {
         await ensureAllEntriesFetched(); // This is still needed for the duplicate check
         const duplicatePO = allSystemEntries.find(entry => entry.for === 'IPC' && entry.po && entry.po.trim() !== '' && entry.po === jobData.po);
         if (duplicatePO) {
-            const message = `WARNING: An IPC for PO Number "${jobData.po}" already exists.\n\nPress OK if this is a new IPC for this PO.\nPress Cancel to check the Reporting section first.`;
+            const message = `WARNING: An IPC for PO Number "${jobData.po}" already exists.\n\nPress OK if this is a new IPC for this PO.\nPress Cancel to check the "Job Records" section first.`;
             if (!confirm(message)) { return; }
         }
     }
@@ -1399,15 +1263,15 @@ async function handleAddJobEntry(e) {
     jobData.timestamp = Date.now();
     jobData.enteredBy = currentApprover.Name;
     try {
-        // --- THIS LINE IS MODIFIED ---
         const newRef = await db.ref('job_entries').push(jobData);
         // --- ADD THIS LINE (THE FIX) ---
+        // This will now handle the new "Invoice" logic automatically
         await updateJobTaskLookup(newRef.key, jobData, null); // (jobKey, newData, oldAttention)
         // --- END OF ADDITION ---
 
         alert('Job Entry Added Successfully!');
         resetJobEntryForm();
-        allSystemEntries = [];
+        allSystemEntries = []; // Clear job_entries cache
     } catch (error) { console.error("Error adding job entry:", error); alert('Failed to add Job Entry. Please try again.'); }
 }
 
@@ -1417,7 +1281,21 @@ async function handleUpdateJobEntry(e) {
     if (!currentlyEditingKey) { alert("No entry selected for update."); return; }
     const formData = new FormData(jobEntryForm);
     const jobData = { for: formData.get('for'), ref: formData.get('ref') || '', amount: formData.get('amount') || '', po: formData.get('po') || '', site: formData.get('site'), group: formData.get('group'), attention: attentionSelectChoices.getValue(true) };
-    if (!jobData.for || !jobData.site || !jobData.group || !jobData.attention) { alert('Please fill in all required fields (Job, Site, Group, Attention).'); return; }
+    
+    // --- (MODIFICATION) Check for "Invoice" job type ---
+    const isInvoiceJob = jobData.for === 'Invoice';
+    if (!jobData.for || !jobData.site || !jobData.group) {
+        alert('Please fill in Job, Site, and Group.');
+        return;
+    }
+    // --- THIS IS THE FIX ---
+    if (isInvoiceJob) {
+        jobData.attention = ""; // Force attention to be blank for Invoice jobs
+    } else if (!isInvoiceJob && !jobData.attention) { 
+         alert('Please select an Attention user.'); 
+         return; 
+    }
+    // --- END OF FIX ---
     
     try {
         await ensureAllEntriesFetched(); // We need this to get the original entry
@@ -1441,7 +1319,7 @@ async function handleUpdateJobEntry(e) {
 
         alert('Job Entry Updated Successfully!');
         resetJobEntryForm();
-        allSystemEntries = [];
+        allSystemEntries = []; // Clear job_entries cache
         populateActiveTasks(); // This is now fast!
     } catch (error) { console.error("Error updating job entry:", error); alert('Failed to update Job Entry. Please try again.'); }
 }
@@ -1459,7 +1337,20 @@ function populateFormForEditing(key) {
     poInput.value = entryData.po || '';
     document.getElementById('job-group').value = entryData.group || '';
     siteSelectChoices.setChoiceByValue(entryData.site || '');
-    attentionSelectChoices.setChoiceByValue(entryData.attention || '');
+    
+    // --- (FIX) Logic to handle "Invoice" job editing ---
+    if (entryData.for === 'Invoice') {
+        attentionSelectChoices.clearStore(); 
+        attentionSelectChoices.setChoices([{ value: '', label: 'Auto-assigned to Accounting', disabled: true, selected: true }], 'value', 'label', false); 
+        attentionSelectChoices.disable(); 
+    } else {
+        attentionSelectChoices.enable();
+        populateAttentionDropdown(attentionSelectChoices).then(() => {
+             attentionSelectChoices.setChoiceByValue(entryData.attention || '');
+        });
+    }
+    // --- END OF FIX ---
+
     jobEntryFormTitle.textContent = 'Editing Job Entry';
     addJobButton.classList.add('hidden');
     updateJobButton.classList.remove('hidden');
@@ -1479,53 +1370,43 @@ async function populateActiveTasks() {
 
     try {
         const currentUserName = currentApprover.Name;
-        
-        // --- (FIX) Sanitize the current user's name to read from the correct path ---
-        const sanitizedUserName = sanitizeFirebaseKey(currentUserName);
-        if (!sanitizedUserName) {
-             console.log("User name is invalid for a path, no tasks can be loaded.");
-             activeTaskTableBody.innerHTML = `<tr><td colspan="10">You have no active tasks.</td></tr>`;
-             return;
-        }
-        // --- END OF FIX ---
-
+        const currentUserPosition = currentApprover.Position || ""; // Get user's position
         let userTasks = [];
 
         // --- PART 1: FETCH JOB_ENTRY TASKS (The New, FAST way) ---
-        // This is a fast, targeted query to the job_tasks_by_user "inbox"
-        const jobTaskSnapshot = await db.ref(`job_tasks_by_user/${sanitizedUserName}`).once('value');
-
-        if (jobTaskSnapshot.exists()) {
-            const tasksData = jobTaskSnapshot.val();
-            for (const jobKey in tasksData) {
-                const task = tasksData[jobKey];
-                userTasks.push({
-                    key: jobKey,
-                    source: 'job_entry',
-                    for: task.for,
-                    ref: task.ref,
-                    po: task.po,
-                    amount: task.amount,
-                    site: task.site,
-                    group: 'N/A', // group isn't in lookup, add if needed
-                    attention: currentUserName,
-                    date: task.date,
-                    remarks: task.status,
-                    vendorName: task.vendorName,
-                    note: task.note,
-                    timestamp: task.date ? new Date(task.date).getTime() : Date.now()
-                });
+        // This is fast because job_entries is small
+        await ensureAllEntriesFetched(); // This downloads all job_entries
+        
+        // Now filter job_entries based on your new logic
+        const activeJobEntries = allSystemEntries.filter(task => {
+            if (isTaskComplete(task)) {
+                return false; // Skip completed tasks
             }
-        }
+            
+            if (task.for === "Invoice") {
+                // RULE 1: Job is "Invoice", check user position
+                return currentUserPosition === "Accounting";
+            } else {
+                // RULE 2: Not "Invoice", check attention field
+                return task.attention === currentUserName;
+            }
+        });
+        userTasks.push(...activeJobEntries); // Add all matching job entries
         // --- END OF PART 1 ---
 
 
         // --- PART 2: FETCH INVOICE_ENTRY TASKS (The New, FAST way) ---
         // This is the second fast, targeted query to the invoice_tasks_by_user "inbox"
-        const invoiceTaskSnapshot = await invoiceDb.ref(`invoice_tasks_by_user/${sanitizedUserName}`).once('value');
+        const invoiceTaskSnapshot = await invoiceDb.ref(`invoice_tasks_by_user/${currentUserName}`).once('value');
         
         if (invoiceTaskSnapshot.exists()) {
             const tasksData = invoiceTaskSnapshot.val();
+            // We need PO data for this part
+            if (!allPOData) {
+                 const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
+                 allPOData = await fetchAndParseCSV(PO_DATA_URL);
+            }
+            
             for (const invoiceKey in tasksData) {
                 const task = tasksData[invoiceKey];
 
@@ -1540,7 +1421,7 @@ async function populateActiveTasks() {
                     amount: task.amount,
                     site: task.site,
                     group: 'N/A',
-                    attention: currentUserName,
+                    attention: currentUserName, // The task is here, so it's for this user
                     enteredBy: 'Irwin', // This is assumed, as in your original code
                     date: task.date ? formatDate(new Date(task.date + 'T00:00:00')) : 'N/A',
                     remarks: task.status,
@@ -1588,10 +1469,11 @@ function renderActiveTaskTable(tasks) {
             row.classList.add('clickable-pdf');
         }
 
-        // Determine if task can be marked "SRV Done"
-        // This is for invoice-based tasks. Job-entry tasks will be handled in the click event.
-        const canSrvDone = task.source === 'invoice';
-        const srvDoneDisabled = !canSrvDone ? 'disabled title="Only invoice tasks can be marked SRV Done"' : '';
+        // --- (FIX) "SRV Done" button logic ---
+        // Allow for 'job_entry' OR 'invoice'
+        const canSrvDone = task.source === 'invoice' || task.source === 'job_entry';
+        const srvDoneDisabled = !canSrvDone ? 'disabled' : '';
+        // --- END OF FIX ---
         
         // Build the action buttons
         const actionButtons = `
@@ -1614,48 +1496,18 @@ function renderActiveTaskTable(tasks) {
         activeTaskTableBody.appendChild(row);
     });
 }
+
+// --- (REMOVED) Task History Functions ---
+/*
 function renderTaskHistoryTable(tasks) {
-    taskHistoryTableBody.innerHTML = '';
-    if (!tasks || tasks.length === 0) { taskHistoryTableBody.innerHTML = '<tr><td colspan="9">No completed tasks found for your search.</td></tr>'; return; }
-    tasks.forEach(task => {
-        const row = document.createElement('tr');
-        const remarks = task.remarks || 'Completed';
-        row.innerHTML = `<td>${task.for || ''}</td><td>${task.ref || ''}</td><td>${task.amount || ''}</td><td>${task.po || ''}</td><td>${task.site || ''}</td><td>${task.group || ''}</td><td>${task.date || ''}</td><td>${task.dateResponded || 'N/A'}</td><td>${remarks}</td>`;
-        taskHistoryTableBody.appendChild(row);
-    });
+    // This function is no longer needed
 }
 async function handleTaskHistorySearch(searchTerm) {
-    const searchText = searchTerm.toLowerCase();
-    sessionStorage.setItem('taskHistorySearch', searchText); // Save search term
-
-    if (!searchText) {
-        renderTaskHistoryTable([]);
-        return;
-    }
-    taskHistoryTableBody.innerHTML = '<tr><td colspan="9">Searching history...</td></tr>';
-    try {
-        await ensureAllEntriesFetched(); // This now correctly fetches ONLY job_entries
-        const personalHistory = allSystemEntries.filter(task => {
-            const isRelatedToMe = (task.enteredBy === currentApprover.Name || task.attention === currentApprover.Name);
-            return isTaskComplete(task) && isRelatedToMe;
-        });
-        const filteredHistory = personalHistory.filter(task => {
-            return (
-                (task.for && task.for.toLowerCase().includes(searchText)) ||
-                (task.ref && task.ref.toLowerCase().includes(searchText)) ||
-                (task.amount && task.amount.toString().includes(searchText)) ||
-                (task.po && task.po.toLowerCase().includes(searchText)) ||
-                (task.site && task.site.toLowerCase().includes(searchText)) ||
-                (task.group && task.group.toLowerCase().includes(searchText)) ||
-                (task.date && task.date.toLowerCase().includes(searchText))
-            );
-        });
-        renderTaskHistoryTable(filteredHistory);
-    } catch (error) {
-        console.error("Error fetching task history:", error);
-        taskHistoryTableBody.innerHTML = '<tr><td colspan="9">Error loading task history.</td></tr>';
-    }
+    // This function is no longer needed
 }
+*/
+// --- (END REMOVAL) ---
+
 function renderReportingTable(entries) {
     reportingTableBody.innerHTML = '';
     if (!entries || entries.length === 0) { reportingTableBody.innerHTML = '<tr><td colspan="11">No entries found for the selected criteria.</td></tr>'; return; }
@@ -1712,7 +1564,18 @@ function openModifyTaskModal(taskData) {
 
     // Set Attention
     if (modifyTaskAttentionChoices) {
-        modifyTaskAttentionChoices.setChoiceByValue(taskData.attention || '');
+        // --- (FIX) Logic to handle "Invoice" job editing ---
+        if (taskData.source === 'job_entry' && taskData.for === 'Invoice') {
+            modifyTaskAttentionChoices.clearStore(); 
+            modifyTaskAttentionChoices.setChoices([{ value: '', label: 'Auto-assigned to Accounting', disabled: true, selected: true }], 'value', 'label', false); 
+            modifyTaskAttentionChoices.disable(); 
+        } else {
+            modifyTaskAttentionChoices.enable();
+            populateAttentionDropdown(modifyTaskAttentionChoices).then(() => {
+                modifyTaskAttentionChoices.setChoiceByValue(taskData.attention || '');
+            });
+        }
+        // --- END OF FIX ---
     }
 // Set Status
     const currentStatus = taskData.remarks || 'Pending';
@@ -1762,6 +1625,14 @@ async function handleSaveModifiedTask() {
         note: modifyTaskNote.value.trim()
     };
 
+    // --- (FIX) Logic for "Invoice" jobs ---
+    const originalTaskData = userActiveTasks.find(t => (t.key === key) || (t.originalKey === originalKey));
+    if (originalTaskData && originalTaskData.source === 'job_entry' && originalTaskData.for === 'Invoice') {
+        updates.attention = ""; // Force blank attention for Invoice jobs
+    }
+    // --- END OF FIX ---
+
+
     // Clear attention if status is Under Review or With Accounts (like in invoice entry)
     if (updates.status === 'Under Review' || updates.status === 'With Accounts') {
         updates.attention = '';
@@ -1780,8 +1651,6 @@ async function handleSaveModifiedTask() {
             });
             
             // --- ADD THIS LINE (THE FIX) ---
-            // We need the full original task data to check for completion status
-            const originalTaskData = userActiveTasks.find(t => t.key === key);
             const updatedJobData = {...originalTaskData, ...updates};
             await updateJobTaskLookup(key, updatedJobData, originalTaskData.attention);
             // --- END OF ADDITION ---
@@ -1898,7 +1767,7 @@ function handleDownloadWorkdeskCSV() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "workdesk_report.csv");
+    link.setAttribute("download", "workdesk_job_records.csv"); // Renamed file
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1961,6 +1830,7 @@ async function handleUpdateSettings(e) {
         // Update local state, converting Vacation back to boolean if needed for checks
         currentApprover = { ...currentApprover, ...updates, Vacation: updates.Vacation === "Yes" };
         allApproversCache = null; // Invalidate cache so it's refetched with new vacation info
+        allApproverDataCache = null; // Invalidate position cache
         settingsMessage.textContent = 'Settings updated successfully!';
         settingsMessage.className = 'success-message';
         settingsPasswordInput.value = '';
@@ -2656,7 +2526,6 @@ async function handleDeleteInvoice(key) {
         }
     }
 }
-
 // --- *** SITE.CSV FIX (START) *** ---
 // ++ MODIFIED: populateSiteFilterDropdown to use Site.csv ++
 async function populateSiteFilterDropdown() {
@@ -4262,7 +4131,7 @@ function printFinanceReport() {
 function handleLogout() {
     sessionStorage.clear(); // Clear all session data on logout
     if (dateTimeInterval) clearInterval(dateTimeInterval);
-    if (workdeskDateTimeInterval) clearInterval(workdeskDateTimeInterval);
+    if (workdeskDateTimeInterval) clearInterval(workGdeskDateTimeInterval);
     if (imDateTimeInterval) clearInterval(imDateTimeInterval);
     location.reload();
 }
@@ -4333,6 +4202,28 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
         
+        // --- (NEW) "Invoice" Job Logic for Attention field ---
+        jobForSelect.addEventListener('change', (e) => { 
+            const isQS = currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'qs'; 
+            const isInvoice = e.target.value === 'Invoice';
+            
+            if (isInvoice) {
+                // --- (NEW) Logic for "Invoice" ---
+                attentionSelectChoices.clearStore(); 
+                attentionSelectChoices.setChoices([{ value: '', label: 'Auto-assigned to Accounting', disabled: true, selected: true }], 'value', 'label', false); 
+                attentionSelectChoices.disable(); 
+                // --- (END NEW) ---
+            } else if (e.target.value === 'IPC' && isQS) { 
+                attentionSelectChoices.clearStore(); 
+                attentionSelectChoices.setChoices([{ value: 'All', label: 'All', selected: true }], 'value', 'label', false); 
+                attentionSelectChoices.disable(); 
+            } else if (attentionSelectChoices.disabled) { 
+                attentionSelectChoices.enable(); 
+                populateAttentionDropdown(attentionSelectChoices); // Repopulate
+            } 
+        });
+        // --- (END NEW) ---
+
         // ++ NEW: Initialize Modify Task Modal Dropdown ++
         if (!modifyTaskAttentionChoices) {
             modifyTaskAttentionChoices = new Choices(modifyTaskAttention, {
@@ -4443,11 +4334,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // --- *** START OF WORKFLOW FIX *** ---
         const userPositionLower = (currentApprover?.Position || '').toLowerCase();
-        const userRoleLower = (currentApprover?.Role || '').toLowerCase();
-        const isAccountingAdmin = userPositionLower === 'accounting' && userRoleLower === 'admin';
+        // --- (MODIFIED) Check for "Accounting" position ---
+        const isAccountingPosition = userPositionLower === 'accounting';
 
-        if (taskData.source === 'job_entry' && taskData.for === 'Invoice' && isAccountingAdmin) {
-        // --- *** END OF WORKFLOW FIX *** ---
+        if (taskData.source === 'job_entry' && taskData.for === 'Invoice' && isAccountingPosition) {
+        // --- *** END OF WORKFLOW/MODIFICATION *** ---
              if (!taskData.po) {
                 alert("This job entry is missing a PO number and cannot be processed in Invoice Management.");
                 return;
@@ -4480,11 +4371,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         modifyTaskSaveBtn.addEventListener('click', handleSaveModifiedTask);
     }
 
-
-    jobForSelect.addEventListener('change', (e) => { const isQS = currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'qs'; if (e.target.value === 'IPC' && isQS) { attentionSelectChoices.clearStore(); attentionSelectChoices.setChoices([{ value: 'All', label: 'All', selected: true }], 'value', 'label', false); attentionSelectChoices.disable(); } else if (attentionSelectChoices.disabled) { attentionSelectChoices.enable(); resetJobEntryForm(true); } });
     activeTaskSearchInput.addEventListener('input', debounce((e) => handleActiveTaskSearch(e.target.value), 500));
     jobEntrySearchInput.addEventListener('input', debounce((e) => handleJobEntrySearch(e.target.value), 500));
-    taskHistorySearchInput.addEventListener('input', debounce((e) => handleTaskHistorySearch(e.target.value), 500));
+    // --- (REMOVED) Task History listener ---
+    // --- (END REMOVAL) ---
     reportingSearchInput.addEventListener('input', debounce(() => {
         ensureAllEntriesFetched().then(() => { // ensure job_entries are loaded
              filterAndRenderReport(allSystemEntries);
@@ -4595,34 +4485,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     function handleIMAttentionChoice(event) {
-        console.log("IM Attention 'choice' event fired:", event); 
         if (event.detail && event.detail.value && imAttentionSelectChoices) {
             const selectedValue = event.detail.value;
-            console.log("Selected Value:", selectedValue);
-            console.log("Choices instance available:", !!imAttentionSelectChoices);
-            console.log("_store.choices available:", !!(imAttentionSelectChoices && imAttentionSelectChoices._store && imAttentionSelectChoices._store.choices));
-
             const selectedChoice = imAttentionSelectChoices._store.choices.find(c => c.value === selectedValue); 
-            console.log("Found Choice Object from _store:", selectedChoice); 
 
             if (selectedChoice) {
-                 console.log("Choice Custom Properties:", selectedChoice.customProperties); 
                  if (selectedChoice.customProperties && selectedChoice.customProperties.onVacation === true) { 
-                    console.log("User is on vacation, showing modal.");
                     vacationingUserName.textContent = selectedChoice.value;
                     vacationReturnDate.textContent = selectedChoice.customProperties.returnDate || 'N/A';
                     replacementNameDisplay.textContent = selectedChoice.customProperties.replacement.name;
                     replacementContactDisplay.textContent = selectedChoice.customProperties.replacement.contact;
                     replacementEmailDisplay.textContent = selectedChoice.customProperties.replacement.email;
                     vacationModal.classList.remove('hidden');
-                } else {
-                     console.log("User is NOT marked as on vacation in customProperties or properties are missing.");
                 }
-            } else {
-                console.warn("Could not find the full choice object for the selected value in _store.choices.");
             }
-        } else {
-             console.warn("IM Attention 'choice' event fired without event.detail.value or instance not ready:", event);
         }
     }
 
@@ -4882,9 +4758,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         refreshReportingBtn.addEventListener('click', async () => {
             alert("Refreshing all data...");
             await ensureInvoiceDataFetched(true);
+            await ensureAllEntriesFetched(true); // --- (NEW) Also refresh job_entries cache ---
             alert("Data refreshed. Please run your search again.");
             const searchTerm = imReportingSearchInput.value.trim();
             if (searchTerm || document.getElementById('im-reporting-site-filter').value || document.getElementById('im-reporting-date-filter').value) {
+                // This is for IM reporting, so we call populateInvoiceReporting
                 populateInvoiceReporting(searchTerm);
             }
         });
@@ -5017,6 +4895,10 @@ async function runOneTimeMigration() {
         allPOData = await fetchAndParseCSV(PO_DATA_URL);
         console.log("PO Data fetched.");
 
+        console.log("Fetching all Approver Data...");
+        await ensureApproverDataCached(); // This is now required for the job logic
+        console.log("Approver Data fetched.");
+
         console.log("Fetching all job_entries...");
         const jobSnapshot = await db.ref('job_entries').once('value');
         const allJobs = jobSnapshot.val() || {};
@@ -5069,6 +4951,3 @@ async function runOneTimeMigration() {
         alert("MIGRATION FAILED. Check the console for the error message.");
     }
 }
-
-
-
