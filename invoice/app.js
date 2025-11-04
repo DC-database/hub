@@ -341,7 +341,6 @@ async function getApproverByKey(key) { try { const snapshot = await db.ref(`appr
 function updateDashboardDateTime() { const now = new Date(); const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }; datetimeElement.textContent = now.toLocaleDateString('en-GB', options); }
 function updateWorkdeskDateTime() { const now = new Date(); const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }; const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }; const dateString = now.toLocaleDateString('en-GB', dateOptions); const timeString = now.toLocaleTimeString('en-GB', timeOptions); workdeskDatetimeElement.textContent = `${dateString} at ${timeString}`; }
 
-
 function handleSuccessfulLogin() {
     if (currentApprover && currentApprover.key) {
         sessionStorage.setItem('approverKey', currentApprover.key);
@@ -556,6 +555,12 @@ function isInvoiceTaskActive(invoiceData) {
  * Keeps the 'invoice_tasks_by_user' (the "inbox") in sync.
  */
 async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAttention) {
+    
+    // --- *** START OF FIREBASE PATH FIX *** ---
+    // Replaces invalid characters (like ".") with an underscore for the DB path
+    const sanitizeFirebaseKey = (key) => key.replace(/[.#$[\]]/g, '_');
+    // --- *** END OF FIREBASE PATH FIX *** ---
+
     const newAttention = invoiceData.attention;
 
     // 1. Determine if the new task is "active"
@@ -578,13 +583,19 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
             note: invoiceData.note || ''
         };
         
-        await invoiceDb.ref(`invoice_tasks_by_user/${newAttention}/${invoiceKey}`).set(taskData);
+        // --- *** APPLY FIX HERE *** ---
+        const safeNewAttentionKey = sanitizeFirebaseKey(newAttention);
+        await invoiceDb.ref(`invoice_tasks_by_user/${safeNewAttentionKey}/${invoiceKey}`).set(taskData);
+        // --- *** END OF FIX *** ---
     }
 
     // 3. Clean up the old user's inbox
     // If the attention changed, OR if the task is no longer active, remove from old user
     if (oldAttention && (oldAttention !== newAttention || !isTaskNowActive)) {
-        await invoiceDb.ref(`invoice_tasks_by_user/${oldAttention}/${invoiceKey}`).remove();
+        // --- *** APPLY FIX HERE *** ---
+        const safeOldAttentionKey = sanitizeFirebaseKey(oldAttention);
+        await invoiceDb.ref(`invoice_tasks_by_user/${safeOldAttentionKey}/${invoiceKey}`).remove();
+        // --- *** END OF FIX *** ---
     }
 }
 
@@ -596,13 +607,15 @@ async function removeInvoiceTaskFromUser(invoiceKey, oldData) {
     if (!oldData || !oldData.attention) {
         return; // No one to remove it from
     }
-    await invoiceDb.ref(`invoice_tasks_by_user/${oldData.attention}/${invoiceKey}`).remove();
+    
+    // --- *** START OF FIREBASE PATH FIX *** ---
+    const sanitizeFirebaseKey = (key) => key.replace(/[.#$[\]]/g, '_');
+    const safeOldAttentionKey = sanitizeFirebaseKey(oldData.attention);
+    // --- *** END OF FIREBASE PATH FIX *** ---
+
+    await invoiceDb.ref(`invoice_tasks_by_user/${safeOldAttentionKey}/${invoiceKey}`).remove();
 }
 // --- (FIX) END OF RE-ADDED FUNCTIONS ---
-
-
-
-// --- (REMOVED) HELPER FUNCTIONS `updateJobTaskLookup` and `removeJobTaskFromUser` ---
 
 
 // ++ NEW: FETCH AND PARSE EPICORE CSV ++
@@ -635,7 +648,6 @@ async function fetchAndParseEpicoreCSV(url) {
         return epicoreMap;
     } catch (error) { console.error("Error fetching or parsing Epicore CSV:", error); alert("CRITICAL ERROR: Could not load Epicore data from GitHub."); return null; }
 }
-
 
 // --- *** SITE.CSV FIX (START) *** ---
 // ++ NEW: FETCH AND PARSE SITES CSV ++
@@ -1214,6 +1226,7 @@ async function handleUpdateJobEntry(e) {
         populateActiveTasks(); // Re-fetch all tasks
     } catch (error) { console.error("Error updating job entry:", error); alert('Failed to update Job Entry. Please try again.'); }
 }
+
 function populateFormForEditing(key) {
     // This needs to fetch from allSystemEntries, which is correct
     const entryData = allSystemEntries.find(entry => entry.key === key);
@@ -1276,7 +1289,11 @@ async function populateActiveTasks() {
 
         // --- PART 2: FETCH INVOICE_ENTRY TASKS (The New, FAST way) ---
         // This is the fast, targeted query to the invoice_tasks_by_user "inbox"
-        const invoiceTaskSnapshot = await invoiceDb.ref(`invoice_tasks_by_user/${currentUserName}`).once('value');
+        // --- *** START OF FIREBASE PATH FIX *** ---
+        const sanitizeFirebaseKey = (key) => key.replace(/[.#$[\]]/g, '_');
+        const safeCurrentUserName = sanitizeFirebaseKey(currentUserName);
+        const invoiceTaskSnapshot = await invoiceDb.ref(`invoice_tasks_by_user/${safeCurrentUserName}`).once('value');
+        // --- *** END OF FIREBASE PATH FIX *** ---
         
         if (invoiceTaskSnapshot.exists()) {
             const tasksData = invoiceTaskSnapshot.val();
@@ -1971,8 +1988,6 @@ async function handlePOSearch(poNumberFromInput) {
         alert('An error occurred while searching for the PO.');
     }
 }
-
-
 
 function fetchAndDisplayInvoices(poNumber) {
     const invoicesData = allInvoiceData[poNumber];
@@ -2958,6 +2973,8 @@ async function populateApproverSelect(selectElement) {
         selectElement.appendChild(option);
     });
 }
+
+
 async function handleAddPOToBatch() {
     const batchPOInput = document.getElementById('im-batch-po-input');
     const poNumber = batchPOInput.value.trim().toUpperCase();
@@ -3182,7 +3199,7 @@ async function handleBatchGlobalSearch(searchType) {
     }
 }
 
-// --- (CORRECTED) handleSaveBatchInvoices ---
+// --- (MODIFIED) handleSaveBatchInvoices ---
 async function handleSaveBatchInvoices() {
     const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
     if (rows.length === 0) { alert("There are no invoices to save."); return; }
@@ -3334,7 +3351,6 @@ async function handleSaveBatchInvoices() {
         alert("An error occurred while saving. Please check the data and try again.");
     }
 }
-
 async function handleBatchModalPOSearch() {
     const modalPOSearchInput = document.getElementById('im-batch-modal-po-input');
     const modalResultsContainer = document.getElementById('im-batch-modal-results');
@@ -4814,5 +4830,3 @@ async function runOneTimeMigration() {
         alert("MIGRATION FAILED. Check the console for the error message.");
     }
 }
-
-
