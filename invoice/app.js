@@ -340,6 +340,8 @@ async function findApprover(identifier) {
 async function getApproverByKey(key) { try { const snapshot = await db.ref(`approvers/${key}`).once('value'); const approverData = snapshot.val(); if (approverData) { return { key, ...approverData }; } else { return null; } } catch (error) { console.error("Error fetching approver by key:", error); return null; } }
 function updateDashboardDateTime() { const now = new Date(); const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }; datetimeElement.textContent = now.toLocaleDateString('en-GB', options); }
 function updateWorkdeskDateTime() { const now = new Date(); const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }; const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }; const dateString = now.toLocaleDateString('en-GB', dateOptions); const timeString = now.toLocaleTimeString('en-GB', timeOptions); workdeskDatetimeElement.textContent = `${dateString} at ${timeString}`; }
+
+
 function handleSuccessfulLogin() {
     if (currentApprover && currentApprover.key) {
         sessionStorage.setItem('approverKey', currentApprover.key);
@@ -515,186 +517,92 @@ async function ensureApproverDataCached() {
 }
 // --- (END NEW) ---
 
-
-// --- START OF NEW HELPER FUNCTIONS (THE FIX) ---
-// These are the "mail sorters" that will create your fast "inbox" lookup tables.
+// --- (FIX) RE-ADDING INVOICE HELPER FUNCTIONS ---
+// These functions are required for the invoice "inbox" system to work.
 
 /**
- * (SMART HELPER 1 - UPDATED)
+ * (SMART HELPER 1 - FOR INVOICES)
+ * Checks if an invoice task is "active" (i.e., needs to be in someone's inbox).
+ */
+function isInvoiceTaskActive(invoiceData) {
+    if (!invoiceData) return false;
+
+    // Statuses that are "completed" or "pending admin" and thus NOT active for a user
+    const inactiveStatuses = [
+        'CEO Approval', 
+        'With Accounts', 
+        'Under Review', 
+        'SRV Done', 
+        'Paid',
+        'Report',
+        'On Hold',
+        'CLOSED',
+        'Cancelled',
+        'Original PO' // Added Original PO
+    ];
+
+    // If the status is in the inactive list, it's not an active task.
+    if (inactiveStatuses.includes(invoiceData.status)) {
+        return false;
+    }
+
+    // If the status is "Pending", "For SRV", "For IPC", etc., 
+    // it's only active if it's assigned to a specific person.
+    return !!invoiceData.attention; 
+}
+
+/**
+ * (SMART HELPER 2 - FOR INVOICES)
  * Keeps the 'invoice_tasks_by_user' (the "inbox") in sync.
- * This is the fix for INVOICE_ENTRIES.
  */
 async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAttention) {
     const newAttention = invoiceData.attention;
-    const newStatus = invoiceData.status;
 
-    const activeStatuses = ['For SRV', 'For IPC', 'Report', 'Pending', 'Under Review']; 
-    const isTaskActive = activeStatuses.includes(newStatus) && newAttention;
+    // 1. Determine if the new task is "active"
+    const isTaskNowActive = isInvoiceTaskActive(invoiceData);
 
-    // 1. Clean up the old task assignment
-    if (oldAttention && oldAttention !== newAttention) {
-        await invoiceDb.ref(`invoice_tasks_by_user/${oldAttention}/${invoiceKey}`).remove();
-    }
-
-    if (isTaskActive) {
-        // 2. Task is active. Create/update the small lookup object.
-        if (!allPOData) { 
-            console.log("Loading PO Data cache to build task lookup...");
-            const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
-            allPOData = await fetchAndParseCSV(PO_DATA_URL);
-        }
-        const poDetails = (allPOData && allPOData[poNumber]) ? allPOData[poNumber] : {};
-
+    // 2. If the task is active, add it to the new user's inbox
+    if (isTaskNowActive && newAttention) {
+        // Get PO details for the inbox
+        const poDetails = (poNumber && allPOData && allPOData[poNumber]) ? allPOData[poNumber] : {};
+        
         const taskData = {
-            po: poNumber,
             ref: invoiceData.invNumber || '',
-            amount: invoiceData.invValue || '0',
-            date: invoiceData.invoiceDate || invoiceData.dateAdded || getTodayDateString(),
-            status: newStatus,
+            po: poNumber,
+            amount: invoiceData.invValue || '',
+            date: invoiceData.invoiceDate || getTodayDateString(),
+            status: invoiceData.status || 'Pending',
             vendorName: poDetails['Supplier Name'] || 'N/A',
             site: poDetails['Project ID'] || 'N/A',
             invName: invoiceData.invName || '',
             note: invoiceData.note || ''
         };
-
-        // Write the task to the new user's "inbox"
+        
         await invoiceDb.ref(`invoice_tasks_by_user/${newAttention}/${invoiceKey}`).set(taskData);
+    }
 
-    } else {
-        // 3. Task is NOT active. We must remove it from the user's "inbox".
-        const userToRemove = newAttention || oldAttention;
-        if (userToRemove) {
-             await invoiceDb.ref(`invoice_tasks_by_user/${userToRemove}/${invoiceKey}`).remove();
-        }
+    // 3. Clean up the old user's inbox
+    // If the attention changed, OR if the task is no longer active, remove from old user
+    if (oldAttention && (oldAttention !== newAttention || !isTaskNowActive)) {
+        await invoiceDb.ref(`invoice_tasks_by_user/${oldAttention}/${invoiceKey}`).remove();
     }
 }
 
 /**
- * (SMART HELPER 2 - UPDATED)
- * Helper to remove a deleted invoice task from the user's "inbox".
+ * (SMART HELPER 3 - FOR INVOICES)
+ * Helper to remove a deleted invoice task from all inboxes.
  */
 async function removeInvoiceTaskFromUser(invoiceKey, oldData) {
-    if (!oldData || !oldData.attention) return; // No user to remove it from
+    if (!oldData || !oldData.attention) {
+        return; // No one to remove it from
+    }
     await invoiceDb.ref(`invoice_tasks_by_user/${oldData.attention}/${invoiceKey}`).remove();
 }
-
-/**
- * (SMART HELPER 3 - UPDATED with "Invoice" logic)
- * Keeps the 'job_tasks_by_user' (the "inbox") in sync.
- * This is the fix for JOB_ENTRIES.
- */
-async function updateJobTaskLookup(jobKey, jobData, oldAttention) {
-    await ensureApproverDataCached(); // Makes sure allApproverDataCache is loaded
-
-    const newAttention = jobData.attention;
-    
-    // Build the task object
-    const poDetails = (jobData.po && allPOData && allPOData[jobData.po]) ? allPOData[jobData.po] : {};
-    const taskData = {
-        for: jobData.for,
-        ref: jobData.ref || '',
-        po: jobData.po || '',
-        amount: jobData.amount || '',
-        date: jobData.date || getTodayDateString(),
-        status: jobData.remarks || 'Pending',
-        vendorName: poDetails['Supplier Name'] || 'N/A',
-        site: jobData.site,
-        note: jobData.note || ''
-    };
-
-    // --- (YOUR NEW LOGIC) ---
-    // A set to store the names of all users who should have this task
-    let usersWhoNeedTask = new Set();
-    
-    if (jobData.for === "Invoice") {
-        // --- RULE 1: Job is "Invoice" ---
-        // Disregard attention, find all "Accounting" positions
-        if (!isTaskComplete(jobData)) { // Only if the task is active
-            for (const key in allApproverDataCache) {
-                const user = allApproverDataCache[key];
-                
-                // --- THIS IS THE FIX ---
-                if (user.Position === "Accounting" && user.Name) {
-                // --- END OF FIX ---
-                    usersWhoNeedTask.add(user.Name);
-                }
-            }
-        }
-    } else {
-        // --- RULE 2: Job is NOT "Invoice" ---
-        // Use the original attention-based logic
-        const isManuallyActive = !isTaskComplete(jobData) && newAttention;
-        if (isManuallyActive) {
-            usersWhoNeedTask.add(newAttention);
-        }
-    }
-    // --- (END OF NEW LOGIC) ---
-
-    // Now, determine who *used* to have this task so we can clean up
-    let usersWhoHadTask = new Set();
-    // 1. Add the original manual user
-    if (oldAttention) {
-        usersWhoHadTask.add(oldAttention);
-    }
-    // 2. Also add all Accounting users, in case the job *was* "Invoice"
-    for (const key in allApproverDataCache) {
-        const user = allApproverDataCache[key];
-        // --- THIS IS THE FIX ---
-        if (user.Position === "Accounting" && user.Name) {
-        // --- END OF FIX ---
-            usersWhoHadTask.add(user.Name);
-        }
-    }
-
-    // --- Sync Logic ---
-    // 1. Remove from everyone who *used* to have it but doesn't need it now
-    for (const userName of usersWhoHadTask) {
-        if (!usersWhoNeedTask.has(userName)) {
-            await db.ref(`job_tasks_by_user/${userName}/${jobKey}`).remove();
-        }
-    }
-    
-    // 2. Add to everyone who *needs* it
-    for (const userName of usersWhoNeedTask) {
-        await db.ref(`job_tasks_by_user/${userName}/${jobKey}`).set(taskData);
-    }
-}
+// --- (FIX) END OF RE-ADDED FUNCTIONS ---
 
 
-/**
- * (SMART HELPER 4 - UPDATED with "Invoice" logic)
- * Helper to remove a deleted job task from all inboxes.
- */
-async function removeJobTaskFromUser(jobKey, oldData) {
-    if (!oldData) return;
-    
-    await ensureApproverDataCached();
-    
-    let usersWhoHadTask = new Set();
-    
-    // 1. Get the manual user
-    if (oldData.attention) {
-        usersWhoHadTask.add(oldData.attention);
-    }
-    
-    // 2. Get all Accounting users, in case it was an "Invoice" job
-    if (oldData.for === "Invoice") {
-         for (const key in allApproverDataCache) {
-            const user = allApproverDataCache[key];
-            // --- THIS IS THE FIX ---
-            if (user.Position === "Accounting" && user.Name) {
-            // --- END OF FIX ---
-                usersWhoHadTask.add(user.Name);
-            }
-        }
-    }
-    
-    // 3. Remove from all potential inboxes
-    for (const userName of usersWhoHadTask) {
-         await db.ref(`job_tasks_by_user/${userName}/${jobKey}`).remove();
-    }
-}
-// --- END OF NEW HELPER FUNCTIONS ---
+
+// --- (REMOVED) HELPER FUNCTIONS `updateJobTaskLookup` and `removeJobTaskFromUser` ---
 
 
 // ++ NEW: FETCH AND PARSE EPICORE CSV ++
@@ -909,24 +817,23 @@ function removeFromLocalInvoiceCache(poNumber, invoiceKey) {
 
 // --- WORKDESK LOGIC ---
 
-// --- (FIXED) ensureAllEntriesFetched ---
-// This function is now ONLY used for Workdesk "Job Records" (formerly Reporting)
-// It will ONLY fetch job_entries, as requested.
-async function ensureAllEntriesFetched() {
+// --- (MODIFIED) ensureAllEntriesFetched ---
+// This function will now fetch job_entries AND PO data if the cache is old.
+async function ensureAllEntriesFetched(forceRefresh = false) {
     const now = Date.now();
     // Check if we have a cache and it's less than 30 mins old
-    if (allSystemEntries.length > 0 && (now - cacheTimestamps.systemEntries < CACHE_DURATION)) {
+    if (!forceRefresh && allSystemEntries.length > 0 && (now - cacheTimestamps.systemEntries < CACHE_DURATION)) {
         return; // Use the cache
     }
     
     // We must fetch PO data for vendor names
-    if (!allPOData) {
-         console.log("Loading PO Data cache for Workdesk Job Records...");
+    if (!allPOData || forceRefresh) {
+         console.log("Loading PO Data cache for Workdesk...");
          const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
          allPOData = await fetchAndParseCSV(PO_DATA_URL);
     }
     
-    console.log("Fetching all job_entries for Workdesk Job Records...");
+    console.log("Fetching all job_entries for Workdesk...");
     // Fetch ONLY job_entries
     const jobEntriesSnapshot = await db.ref('job_entries').orderByChild('timestamp').once('value');
 
@@ -1194,7 +1101,7 @@ async function handleJobEntrySearch(searchTerm) {
     jobEntryTableBody.innerHTML = '<tr><td colspan="8">Searching...</td></tr>';
 
     try {
-        // --- MODIFICATION: This now only fetches job_entries, which is correct for this section ---
+        // --- MODIFICATION: This now fetches job_entries directly ---
         await ensureAllEntriesFetched();
         // ---
         
@@ -1234,15 +1141,11 @@ async function handleAddJobEntry(e) {
         alert('Please fill in Job, Site, and Group.');
         return;
     }
-    // --- THIS IS THE FIX ---
-    // If it's an invoice job, attention is blank. If not, it's required.
-    if (isInvoiceJob) {
-        jobData.attention = ""; // Force attention to be blank for Invoice jobs
-    } else if (!isInvoiceJob && !jobData.attention) { 
+    if (!isInvoiceJob && !jobData.attention) { // Attention is only required if NOT an "Invoice" job
          alert('Please select an Attention user.'); 
          return; 
     }
-    // --- END OF FIX ---
+    // --- (END MODIFICATION) ---
 
     if (jobData.for === 'IPC') {
         const isQS = currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'qs';
@@ -1264,14 +1167,11 @@ async function handleAddJobEntry(e) {
     jobData.enteredBy = currentApprover.Name;
     try {
         const newRef = await db.ref('job_entries').push(jobData);
-        // --- ADD THIS LINE (THE FIX) ---
-        // This will now handle the new "Invoice" logic automatically
-        await updateJobTaskLookup(newRef.key, jobData, null); // (jobKey, newData, oldAttention)
-        // --- END OF ADDITION ---
+        // --- (REMOVED) `updateJobTaskLookup` call ---
 
         alert('Job Entry Added Successfully!');
         resetJobEntryForm();
-        allSystemEntries = []; // Clear job_entries cache
+        allSystemEntries = [];
     } catch (error) { console.error("Error adding job entry:", error); alert('Failed to add Job Entry. Please try again.'); }
 }
 
@@ -1288,22 +1188,17 @@ async function handleUpdateJobEntry(e) {
         alert('Please fill in Job, Site, and Group.');
         return;
     }
-    // --- THIS IS THE FIX ---
-    if (isInvoiceJob) {
-        jobData.attention = ""; // Force attention to be blank for Invoice jobs
-    } else if (!isInvoiceJob && !jobData.attention) { 
+    if (!isInvoiceJob && !jobData.attention) { // Attention is only required if NOT an "Invoice" job
          alert('Please select an Attention user.'); 
          return; 
     }
-    // --- END OF FIX ---
+    // --- (END MODIFICATION) ---
     
     try {
         await ensureAllEntriesFetched(); // We need this to get the original entry
         const originalEntry = allSystemEntries.find(entry => entry.key === currentlyEditingKey);
         
-        // --- ADD THIS LINE (THE FIX) ---
-        const oldAttention = originalEntry ? originalEntry.attention : null;
-        // --- END OF ADDITION ---
+        // --- (REMOVED) `oldAttention` variable ---
         
         if (originalEntry) { jobData.enteredBy = originalEntry.enteredBy; jobData.timestamp = originalEntry.timestamp; jobData.date = originalEntry.date; }
         if (originalEntry.for === 'IPC' && jobData.attention === 'All') { jobData.remarks = 'Ready'; }
@@ -1311,16 +1206,12 @@ async function handleUpdateJobEntry(e) {
         
         await db.ref(`job_entries/${currentlyEditingKey}`).update(jobData);
 
-        // --- ADD THIS LINE (THE FIX) ---
-        // Merge original data with new data to pass to the helper
-        const updatedFullJobData = {...originalEntry, ...jobData}; 
-        await updateJobTaskLookup(currentlyEditingKey, updatedFullJobData, oldAttention);
-        // --- END OF ADDITION ---
+        // --- (REMOVED) `updateJobTaskLookup` call ---
 
         alert('Job Entry Updated Successfully!');
         resetJobEntryForm();
-        allSystemEntries = []; // Clear job_entries cache
-        populateActiveTasks(); // This is now fast!
+        allSystemEntries = [];
+        populateActiveTasks(); // Re-fetch all tasks
     } catch (error) { console.error("Error updating job entry:", error); alert('Failed to update Job Entry. Please try again.'); }
 }
 function populateFormForEditing(key) {
@@ -1337,20 +1228,7 @@ function populateFormForEditing(key) {
     poInput.value = entryData.po || '';
     document.getElementById('job-group').value = entryData.group || '';
     siteSelectChoices.setChoiceByValue(entryData.site || '');
-    
-    // --- (FIX) Logic to handle "Invoice" job editing ---
-    if (entryData.for === 'Invoice') {
-        attentionSelectChoices.clearStore(); 
-        attentionSelectChoices.setChoices([{ value: '', label: 'Auto-assigned to Accounting', disabled: true, selected: true }], 'value', 'label', false); 
-        attentionSelectChoices.disable(); 
-    } else {
-        attentionSelectChoices.enable();
-        populateAttentionDropdown(attentionSelectChoices).then(() => {
-             attentionSelectChoices.setChoiceByValue(entryData.attention || '');
-        });
-    }
-    // --- END OF FIX ---
-
+    attentionSelectChoices.setChoiceByValue(entryData.attention || '');
     jobEntryFormTitle.textContent = 'Editing Job Entry';
     addJobButton.classList.add('hidden');
     updateJobButton.classList.remove('hidden');
@@ -1360,7 +1238,8 @@ function populateFormForEditing(key) {
 }
 
 
-// --- (REPLACED) EFFICIENT populateActiveTasks (Fixes BOTH invoice_entries and job_entries) ---
+// --- (REVERTED) populateActiveTasks ---
+// Fetches job_entries directly (slower) and invoice_entries from the inbox (fast).
 async function populateActiveTasks() {
     activeTaskTableBody.innerHTML = `<tr><td colspan="10">Loading tasks...</td></tr>`;
     if (!currentApprover || !currentApprover.Name) {
@@ -1370,43 +1249,37 @@ async function populateActiveTasks() {
 
     try {
         const currentUserName = currentApprover.Name;
-        const currentUserPosition = currentApprover.Position || ""; // Get user's position
         let userTasks = [];
 
-        // --- PART 1: FETCH JOB_ENTRY TASKS (The New, FAST way) ---
-        // This is fast because job_entries is small
-        await ensureAllEntriesFetched(); // This downloads all job_entries
+        // --- PART 1: FETCH JOB_ENTRY TASKS (The old way, direct from Firebase) ---
+        await ensureAllEntriesFetched(); // This loads all job_entries into `allSystemEntries`
         
-        // Now filter job_entries based on your new logic
-        const activeJobEntries = allSystemEntries.filter(task => {
-            if (isTaskComplete(task)) {
-                return false; // Skip completed tasks
+        const jobTasks = allSystemEntries.filter(entry => {
+            if (isTaskComplete(entry)) return false; // Skip completed
+
+            // Logic for "Invoice" jobs
+            if (entry.for === 'Invoice') {
+                // --- THIS IS THE FIX ---
+                // It's an active task for ANY user with Position "Accounting"
+                return (currentApprover?.Position || '').toLowerCase() === 'accounting';
+                // --- END OF FIX ---
             }
             
-            if (task.for === "Invoice") {
-                // RULE 1: Job is "Invoice", check user position
-                return currentUserPosition === "Accounting";
-            } else {
-                // RULE 2: Not "Invoice", check attention field
-                return task.attention === currentUserName;
-            }
+            // Logic for all other job types
+            return entry.attention === currentUserName;
         });
-        userTasks.push(...activeJobEntries); // Add all matching job entries
+
+        // Add vendorName to job_entries tasks (it's already there from ensureAllEntriesFetched)
+        userTasks = jobTasks.map(task => ({ ...task, source: 'job_entry' }));
         // --- END OF PART 1 ---
 
 
         // --- PART 2: FETCH INVOICE_ENTRY TASKS (The New, FAST way) ---
-        // This is the second fast, targeted query to the invoice_tasks_by_user "inbox"
+        // This is the fast, targeted query to the invoice_tasks_by_user "inbox"
         const invoiceTaskSnapshot = await invoiceDb.ref(`invoice_tasks_by_user/${currentUserName}`).once('value');
         
         if (invoiceTaskSnapshot.exists()) {
             const tasksData = invoiceTaskSnapshot.val();
-            // We need PO data for this part
-            if (!allPOData) {
-                 const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
-                 allPOData = await fetchAndParseCSV(PO_DATA_URL);
-            }
-            
             for (const invoiceKey in tasksData) {
                 const task = tasksData[invoiceKey];
 
@@ -1469,11 +1342,10 @@ function renderActiveTaskTable(tasks) {
             row.classList.add('clickable-pdf');
         }
 
-        // --- (FIX) "SRV Done" button logic ---
-        // Allow for 'job_entry' OR 'invoice'
-        const canSrvDone = task.source === 'invoice' || task.source === 'job_entry';
-        const srvDoneDisabled = !canSrvDone ? 'disabled' : '';
-        // --- END OF FIX ---
+        // Determine if task can be marked "SRV Done"
+        // This is for invoice-based tasks. Job-entry tasks will be handled in the click event.
+        const canSrvDone = task.source === 'invoice';
+        const srvDoneDisabled = !canSrvDone ? 'disabled title="Only invoice tasks can be marked SRV Done"' : '';
         
         // Build the action buttons
         const actionButtons = `
@@ -1544,7 +1416,7 @@ function filterAndRenderReport(baseEntries = []) {
     renderReportingTable(filteredEntries);
 }
 async function populateWorkdeskDashboard() {
-    await populateActiveTasks(); // This is now fast!
+    await populateActiveTasks(); // This will now re-fetch all job_entries
     dbActiveTasksCount.textContent = userActiveTasks.length;
     
     await ensureAllEntriesFetched(); // This is now just job_entries
@@ -1564,18 +1436,7 @@ function openModifyTaskModal(taskData) {
 
     // Set Attention
     if (modifyTaskAttentionChoices) {
-        // --- (FIX) Logic to handle "Invoice" job editing ---
-        if (taskData.source === 'job_entry' && taskData.for === 'Invoice') {
-            modifyTaskAttentionChoices.clearStore(); 
-            modifyTaskAttentionChoices.setChoices([{ value: '', label: 'Auto-assigned to Accounting', disabled: true, selected: true }], 'value', 'label', false); 
-            modifyTaskAttentionChoices.disable(); 
-        } else {
-            modifyTaskAttentionChoices.enable();
-            populateAttentionDropdown(modifyTaskAttentionChoices).then(() => {
-                modifyTaskAttentionChoices.setChoiceByValue(taskData.attention || '');
-            });
-        }
-        // --- END OF FIX ---
+        modifyTaskAttentionChoices.setChoiceByValue(taskData.attention || '');
     }
 // Set Status
     const currentStatus = taskData.remarks || 'Pending';
@@ -1625,14 +1486,6 @@ async function handleSaveModifiedTask() {
         note: modifyTaskNote.value.trim()
     };
 
-    // --- (FIX) Logic for "Invoice" jobs ---
-    const originalTaskData = userActiveTasks.find(t => (t.key === key) || (t.originalKey === originalKey));
-    if (originalTaskData && originalTaskData.source === 'job_entry' && originalTaskData.for === 'Invoice') {
-        updates.attention = ""; // Force blank attention for Invoice jobs
-    }
-    // --- END OF FIX ---
-
-
     // Clear attention if status is Under Review or With Accounts (like in invoice entry)
     if (updates.status === 'Under Review' || updates.status === 'With Accounts') {
         updates.attention = '';
@@ -1650,10 +1503,7 @@ async function handleSaveModifiedTask() {
                 note: updates.note // Job entries didn't originally have 'note', this adds it
             });
             
-            // --- ADD THIS LINE (THE FIX) ---
-            const updatedJobData = {...originalTaskData, ...updates};
-            await updateJobTaskLookup(key, updatedJobData, originalTaskData.attention);
-            // --- END OF ADDITION ---
+            // --- (REMOVED) `updateJobTaskLookup` call ---
 
         } else if (source === 'invoice' && originalPO && originalKey) {
             // This is an invoice entry, update the invoice DB
@@ -1680,7 +1530,7 @@ async function handleSaveModifiedTask() {
         alert("Task updated successfully!");
         modifyTaskModal.classList.add('hidden');
         
-        await populateActiveTasks(); // This is now fast!
+        await populateActiveTasks(); // Re-fetch all tasks
 
     } catch (error) {
         console.error("Error updating task:", error);
@@ -2122,6 +1972,8 @@ async function handlePOSearch(poNumberFromInput) {
     }
 }
 
+
+
 function fetchAndDisplayInvoices(poNumber) {
     const invoicesData = allInvoiceData[poNumber];
 
@@ -2207,16 +2059,26 @@ async function populateActiveJobsSidebar() {
     if (!imEntrySidebarList) return;
 
     // --- (Req 1) FIX: We must re-run populateActiveTasks to get the latest list ---
-    // This function will now use the new, FAST query.
+    // This function will now fetch job_entries directly (slower)
     await populateActiveTasks();
-    const tasksToDisplay = userActiveTasks; // userActiveTasks is now fresh and fast
+    const tasksToDisplay = userActiveTasks; // userActiveTasks is now fresh
     // --- End FIX ---
 
     // Filter for "Invoice" tasks assigned to the current user
-    const invoiceJobs = tasksToDisplay.filter(task => 
-        (task.for === 'Invoice' || task.source === 'invoice') && // Check both types
-        task.attention === currentApprover.Name
-    );
+    const invoiceJobs = tasksToDisplay.filter(task => {
+        // --- MODIFIED LOGIC ---
+        // A task is an "invoice job" if:
+        // 1. It's from `invoice_entries` (source === 'invoice') AND assigned to the current user
+        // 2. It's from `job_entries` (source === 'job_entry'), its type is 'Invoice', AND the current user's position is 'Accounting'
+        if (task.source === 'invoice' && task.attention === currentApprover.Name) {
+            return true;
+        }
+        if (task.source === 'job_entry' && task.for === 'Invoice' && (currentApprover?.Position || '').toLowerCase() === 'accounting') {
+            return true;
+        }
+        return false;
+    });
+
 
     imEntrySidebarList.innerHTML = ''; // Clear previous list
 
@@ -2349,7 +2211,10 @@ async function handleAddInvoice(e) {
     }
 
     // --- (Req 3) MODIFIED: Add invEntryID to srvName ---
-    if (invoiceData.status === 'With Accounts' && !invoiceData.srvName) {
+    // --- *** START OF SRV "NIL" FIX *** ---
+    const srvNameLower = (invoiceData.srvName || '').toLowerCase();
+    if (invoiceData.status === 'With Accounts' && srvNameLower !== 'nil' && srvNameLower.trim() === '') {
+    // --- *** END OF SRV "NIL" FIX *** ---
         const poDetails = allPOData[currentPO];
         if(poDetails) {
             const today = new Date();
@@ -2400,17 +2265,10 @@ async function handleAddInvoice(e) {
                 
                 await db.ref(`job_entries/${jobEntryToUpdateAfterInvoice}`).update(updates);
                 
-                // --- ADD THIS LINE (THE FIX) ---
-                // We must also update the job_entry's lookup table
-                const originalJobEntry = userActiveTasks.find(t => t.key === jobEntryToUpdateAfterInvoice);
-                if (originalJobEntry) {
-                    const updatedJobData = {...originalJobEntry, ...updates};
-                    await updateJobTaskLookup(jobEntryToUpdateAfterInvoice, updatedJobData, originalJobEntry.attention);
-                }
-                // --- END OF ADDITION ---
+                // --- (REMOVED) `updateJobTaskLookup` call ---
                 
                 jobEntryToUpdateAfterInvoice = null;
-                await populateActiveJobsSidebar(); // This is now fast!
+                await populateActiveJobsSidebar(); // Re-fetch all tasks
 
             } catch (updateError) {
                 console.error("Error updating the original job entry:", updateError);
@@ -2443,7 +2301,14 @@ async function handleUpdateInvoice(e) {
     const originalInvoiceData = currentPOInvoices[currentlyEditingInvoiceKey];
     
     // --- (Req 3) MODIFIED: Add invEntryID to srvName on update ---
-    if (invoiceData.status === 'With Accounts' && (!originalInvoiceData || !originalInvoiceData.srvName)) {
+    // --- *** START OF SRV "NIL" FIX *** ---
+    // Only run auto-generation if:
+    // 1. Status is "With Accounts"
+    // 2. srvName is NOT "nil" (case-insensitive)
+    // 3. srvName is empty (it was not "nil" and not filled with something else)
+    const srvNameLower = (invoiceData.srvName || '').toLowerCase();
+    if (invoiceData.status === 'With Accounts' && srvNameLower !== 'nil' && srvNameLower.trim() === '') {
+    // --- *** END OF SRV "NIL" FIX *** ---
         try {
             const poDetails = allPOData[currentPO];
             if (poDetails) {
@@ -2484,7 +2349,7 @@ async function handleUpdateInvoice(e) {
         // --- END MODIFICATION ---
 
         // --- (Req 1) FIX: Refresh sidebar in case status changed ---
-        await populateActiveTasks(); // This is now fast!
+        await populateActiveTasks(); // Re-fetch all tasks
         populateActiveJobsSidebar();
         // --- End FIX ---
 
@@ -2526,6 +2391,7 @@ async function handleDeleteInvoice(key) {
         }
     }
 }
+
 // --- *** SITE.CSV FIX (START) *** ---
 // ++ MODIFIED: populateSiteFilterDropdown to use Site.csv ++
 async function populateSiteFilterDropdown() {
@@ -3316,7 +3182,7 @@ async function handleBatchGlobalSearch(searchType) {
     }
 }
 
-// --- (MODIFIED) handleSaveBatchInvoices ---
+// --- (CORRECTED) handleSaveBatchInvoices ---
 async function handleSaveBatchInvoices() {
     const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
     if (rows.length === 0) { alert("There are no invoices to save."); return; }
@@ -3368,7 +3234,10 @@ async function handleSaveBatchInvoices() {
         if (!invoiceData.invValue) { alert(`Invoice Value is required for PO ${poNumber}. Cannot proceed.`); return; }
         if (vendor.length > 21) vendor = vendor.substring(0, 21);
 
-        if (invoiceData.status === 'With Accounts' && !invoiceData.srvName) {
+        // --- *** START OF SRV "NIL" FIX *** ---
+        const srvNameLower = (invoiceData.srvName || '').toLowerCase();
+        if (invoiceData.status === 'With Accounts' && srvNameLower !== 'nil' && srvNameLower.trim() === '') {
+        // --- *** END OF SRV "NIL" FIX *** ---
             invoiceData.srvName = getSrvName(poNumber, site, vendor, invEntryID);
         }
 
@@ -3407,7 +3276,12 @@ async function handleSaveBatchInvoices() {
             // Add the task sync call, wrapped in a .then() to get the new key
             savePromises.push(
                 promise.then(newRef => {
-                    return updateInvoiceTaskLookup(poNumber, newRef.key, invoiceData, null); // oldAttention is null
+                    // Store the key in the local cache update object for later
+                    const newKey = newRef.key;
+                    const cacheUpdate = localCacheUpdates.find(upd => upd.promise === promise);
+                    if (cacheUpdate) cacheUpdate.newKey = newKey; 
+                    
+                    return updateInvoiceTaskLookup(poNumber, newKey, invoiceData, null); // oldAttention is null
                 })
             );
             // --- END OF ADDITION ---
@@ -3431,7 +3305,8 @@ async function handleSaveBatchInvoices() {
                         ...update.data
                     };
                 } else if (update.type === 'add') {
-                    const newKey = update.promise.key;
+                    // Use the newKey stored from the promise's .then() block
+                    const newKey = update.newKey;
                     if (newKey) {
                         if (!allInvoiceData[update.po]) allInvoiceData[update.po] = {};
                         allInvoiceData[update.po][newKey] = update.data;
@@ -3447,13 +3322,19 @@ async function handleSaveBatchInvoices() {
         // --- END FIX ---
 
         alert(`${newInvoicesCount} new invoice(s) created and ${updatedInvoicesCount} invoice(s) updated successfully!`);
-        document.getElementById('im-batch-table-body').innerHTML = '';
-        allSystemEntries = [];
+        
+        // --- THIS IS THE FIX ---
+        // This line clears the table after the success alert.
+        document.getElementById('im-batch-table-body').innerHTML = ''; 
+        // -----------------------
+        
+        allSystemEntries = []; // This clears the *other* cache
     } catch (error) {
         console.error("Error saving batch invoices:", error);
         alert("An error occurred while saving. Please check the data and try again.");
     }
 }
+
 async function handleBatchModalPOSearch() {
     const modalPOSearchInput = document.getElementById('im-batch-modal-po-input');
     const modalResultsContainer = document.getElementById('im-batch-modal-results');
@@ -3683,7 +3564,15 @@ async function handleUpdateSummaryChanges() {
             if (poNumber && invoiceKey) {
                 const updates = { details: newDetails, invoiceDate: newInvoiceDate, releaseDate: today };
                 if (newGlobalStatus) updates.status = newGlobalStatus;
-                if (newGlobalSRV) updates.srvName = newGlobalSRV;
+                
+                // --- *** START OF SRV "NIL" FIX *** ---
+                // Only update srvName if newGlobalSRV is not empty.
+                // This will respect "nil" or any other value if the input is blank.
+                if (newGlobalSRV) {
+                    updates.srvName = newGlobalSRV;
+                }
+                // --- *** END OF SRV "NIL" FIX *** ---
+                
                 if (newGlobalStatus === 'With Accounts') updates.attention = '';
 
                 updatePromises.push(invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}`).update(updates));
@@ -4131,7 +4020,7 @@ function printFinanceReport() {
 function handleLogout() {
     sessionStorage.clear(); // Clear all session data on logout
     if (dateTimeInterval) clearInterval(dateTimeInterval);
-    if (workdeskDateTimeInterval) clearInterval(workGdeskDateTimeInterval);
+    if (workdeskDateTimeInterval) clearInterval(workdeskDateTimeInterval);
     if (imDateTimeInterval) clearInterval(imDateTimeInterval);
     location.reload();
 }
@@ -4202,28 +4091,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
         
-        // --- (NEW) "Invoice" Job Logic for Attention field ---
-        jobForSelect.addEventListener('change', (e) => { 
-            const isQS = currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'qs'; 
-            const isInvoice = e.target.value === 'Invoice';
-            
-            if (isInvoice) {
-                // --- (NEW) Logic for "Invoice" ---
-                attentionSelectChoices.clearStore(); 
-                attentionSelectChoices.setChoices([{ value: '', label: 'Auto-assigned to Accounting', disabled: true, selected: true }], 'value', 'label', false); 
-                attentionSelectChoices.disable(); 
-                // --- (END NEW) ---
-            } else if (e.target.value === 'IPC' && isQS) { 
-                attentionSelectChoices.clearStore(); 
-                attentionSelectChoices.setChoices([{ value: 'All', label: 'All', selected: true }], 'value', 'label', false); 
-                attentionSelectChoices.disable(); 
-            } else if (attentionSelectChoices.disabled) { 
-                attentionSelectChoices.enable(); 
-                populateAttentionDropdown(attentionSelectChoices); // Repopulate
-            } 
-        });
-        // --- (END NEW) ---
-
         // ++ NEW: Initialize Modify Task Modal Dropdown ++
         if (!modifyTaskAttentionChoices) {
             modifyTaskAttentionChoices = new Choices(modifyTaskAttention, {
@@ -4307,15 +4174,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     };
                     await db.ref(`job_entries/${taskData.key}`).update(updates);
                     
-                    // --- ADD THIS LINE (THE FIX) ---
-                    const updatedJobData = {...taskData, ...updates}; // Merge original task data with updates
-                    await updateJobTaskLookup(taskData.key, updatedJobData, taskData.attention);
-                    // --- END OF ADDITION ---
+                    // --- (REMOVED) `updateJobTaskLookup` call ---
                 }
                 
                 alert('Task status updated to "SRV Done".');
                 
-                await populateActiveTasks(); // This is now fast!
+                await populateActiveTasks(); // Re-fetch all tasks
 
             } catch (error) {
                 console.error("Error updating task status:", error);
@@ -4371,6 +4235,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         modifyTaskSaveBtn.addEventListener('click', handleSaveModifiedTask);
     }
 
+
+    jobForSelect.addEventListener('change', (e) => { 
+        const isQS = currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'qs'; 
+        const isInvoice = e.target.value === 'Invoice';
+        
+        if (isInvoice) {
+            // --- (NEW) Logic for "Invoice" ---
+            attentionSelectChoices.clearStore(); 
+            attentionSelectChoices.setChoices([{ value: '', label: 'Auto-assigned to Accounting', disabled: true, selected: true }], 'value', 'label', false); 
+            attentionSelectChoices.disable(); 
+            // --- (END NEW) ---
+        } else if (e.target.value === 'IPC' && isQS) { 
+            attentionSelectChoices.clearStore(); 
+            attentionSelectChoices.setChoices([{ value: 'All', label: 'All', selected: true }], 'value', 'label', false); 
+            attentionSelectChoices.disable(); 
+        } else if (attentionSelectChoices.disabled) { 
+            attentionSelectChoices.enable(); 
+            populateAttentionDropdown(attentionSelectChoices); // Repopulate
+        } 
+    });
     activeTaskSearchInput.addEventListener('input', debounce((e) => handleActiveTaskSearch(e.target.value), 500));
     jobEntrySearchInput.addEventListener('input', debounce((e) => handleJobEntrySearch(e.target.value), 500));
     // --- (REMOVED) Task History listener ---
@@ -4758,11 +4642,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         refreshReportingBtn.addEventListener('click', async () => {
             alert("Refreshing all data...");
             await ensureInvoiceDataFetched(true);
-            await ensureAllEntriesFetched(true); // --- (NEW) Also refresh job_entries cache ---
             alert("Data refreshed. Please run your search again.");
             const searchTerm = imReportingSearchInput.value.trim();
             if (searchTerm || document.getElementById('im-reporting-site-filter').value || document.getElementById('im-reporting-date-filter').value) {
-                // This is for IM reporting, so we call populateInvoiceReporting
                 populateInvoiceReporting(searchTerm);
             }
         });
@@ -4875,18 +4757,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 }); // End DOMContentLoaded
 
 
-// --- ONE-TIME MIGRATION FUNCTION ---
-// This function will read all your old data and sort it into the new
-// fast "inbox" tables (job_tasks_by_user and invoice_tasks_by_user).
+// --- (UPDATED) ONE-TIME MIGRATION FUNCTION ---
+// This function will read all your old INVOICE data and sort it into the new
+// fast "inbox" table (invoice_tasks_by_user).
+// It NO LONGER processes job_entries.
 // Run this function ONCE from the browser console after logging in.
 
 async function runOneTimeMigration() {
-    if (!confirm("WARNING:\nYou are about to run the one-time data migration script.\n\nThis will scan ALL jobs and invoices and build the new Active Task 'inbox' tables. This may take a few minutes and will perform a large number of database reads and writes.\n\nDo NOT close this window. Do NOT run this more than once.\n\nClick OK to proceed.")) {
+    if (!confirm("WARNING:\nYou are about to run the one-time data migration script.\n\nThis will scan ALL INVOICES and build the new Active Task 'inbox' for the invoice system. This may take a few minutes.\n\nDo NOT close this window. Do NOT run this more than once.\n\nClick OK to proceed.")) {
         console.log("Migration cancelled by user.");
         return;
     }
 
-    console.log("--- STARTING ONE-TIME MIGRATION ---");
+    console.log("--- STARTING ONE-TIME MIGRATION (INVOICES ONLY) ---");
 
     try {
         // --- Step 1: Fetch all required data one last time ---
@@ -4896,37 +4779,17 @@ async function runOneTimeMigration() {
         console.log("PO Data fetched.");
 
         console.log("Fetching all Approver Data...");
-        await ensureApproverDataCached(); // This is now required for the job logic
+        await ensureApproverDataCached(); // This is now required for the invoice logic
         console.log("Approver Data fetched.");
-
-        console.log("Fetching all job_entries...");
-        const jobSnapshot = await db.ref('job_entries').once('value');
-        const allJobs = jobSnapshot.val() || {};
-        console.log(`Found ${Object.keys(allJobs).length} total job entries.`);
         
         console.log("Fetching all invoice_entries...");
         const invoiceSnapshot = await invoiceDb.ref('invoice_entries').once('value');
         const allInvoices = invoiceSnapshot.val() || {};
         console.log(`Found ${Object.keys(allInvoices).length} POs with invoices.`);
 
-        let jobCount = 0;
         let invoiceCount = 0;
 
-        // --- Step 2: Process all job_entries ---
-        console.log("--- Processing job_entries... ---");
-        for (const jobKey in allJobs) {
-            const jobData = allJobs[jobKey];
-            // We call your new helper. It will automatically check if the job is
-            // "active" and sort it into the correct user's inbox.
-            await updateJobTaskLookup(jobKey, jobData, null); // (jobKey, newData, oldAttention)
-            jobCount++;
-            if (jobCount % 100 === 0) {
-                console.log(`...processed ${jobCount} jobs...`);
-            }
-        }
-        console.log(`--- Finished processing ${jobCount} job_entries. ---`);
-
-        // --- Step 3: Process all invoice_entries ---
+        // --- Step 2: Process all invoice_entries ---
         console.log("--- Processing invoice_entries... ---");
         for (const poNumber in allInvoices) {
             const invoicesForPO = allInvoices[poNumber];
@@ -4944,10 +4807,12 @@ async function runOneTimeMigration() {
         console.log(`--- Finished processing ${invoiceCount} invoice_entries. ---`);
 
         console.log("--- MIGRATION COMPLETE! ---");
-        alert("MIGRATION COMPLETE!\n\nAll active tasks from your old system are now in the new 'inboxes'.\n\nPlease refresh the app (Ctrl+R or Cmd+R) to see your Active Task list.");
+        alert("MIGRATION COMPLETE!\n\nAll active INVOICE tasks are now in the new 'inbox'.\nYour 'job_entry' tasks will continue to load normally.\n\nPlease refresh the app (Ctrl+R or Cmd+R) to see your Active Task list.");
 
     } catch (error) {
         console.error("--- MIGRATION FAILED ---", error);
         alert("MIGRATION FAILED. Check the console for the error message.");
     }
 }
+
+
