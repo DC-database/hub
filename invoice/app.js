@@ -59,6 +59,8 @@ const navNextJobButton = document.getElementById('nav-next-job'); // <-- ADD THI
 const navJobCounter = document.getElementById('nav-job-counter'); // <-- ADD THIS
 const addJobButton = document.getElementById('add-job-button'); const updateJobButton = document.getElementById('update-job-button'); const clearJobButton = document.getElementById('clear-job-button');
 const activeTaskTableBody = document.getElementById('active-task-table-body');
+const activeTaskFilters = document.getElementById('active-task-filters');
+
 // --- (REMOVED) Task History DOM References ---
 // const taskHistoryTableBody = document.getElementById('task-history-table-body'); 
 // const taskHistorySearchInput = document.getElementById('task-history-search');
@@ -260,6 +262,8 @@ let allSystemEntries = [];
 let navigationContextList = []; // <-- ADD THIS LINE
 let navigationContextIndex = -1; // <-- ADD THIS LINE
 let currentReportFilter = 'All';
+let currentActiveTaskFilter = 'All'; //
+
 
 // INVOICE MANAGEMENT STATE
 let imDateTimeInterval = null;
@@ -1633,19 +1637,44 @@ async function populateActiveTasks() {
 
 // --- *** MOBILE VIEW FIX (START) *** ---
 // ++ MODIFIED: renderActiveTaskTable ++
+// [Replace this entire function around line 1638]
+
 function renderActiveTaskTable(tasks) {
     activeTaskTableBody.innerHTML = '';
-    if (!tasks || tasks.length === 0) {
-        activeTaskTableBody.innerHTML = `<tr><td colspan="10">You have no active tasks.</td></tr>`;
+    
+    // --- THIS IS THE NEW FILTER LOGIC ---
+    let filteredTasks = tasks;
+    if (currentActiveTaskFilter !== 'All') {
+        if (currentActiveTaskFilter === 'Other') {
+            // "Other" includes everything NOT "For SRV" or "Pending Signature"
+            filteredTasks = tasks.filter(task => 
+                task.remarks !== 'For SRV' && 
+                task.remarks !== 'Pending Signature'
+            );
+        } else {
+            // This filters for "For SRV" or "Pending Signature"
+            filteredTasks = tasks.filter(task => task.remarks === currentActiveTaskFilter);
+        }
+    }
+    // --- END OF NEW FILTER LOGIC ---
+
+    if (!filteredTasks || filteredTasks.length === 0) {
+        if (tasks.length === 0) {
+            // The main list is empty
+            activeTaskTableBody.innerHTML = `<tr><td colspan="10">You have no active tasks.</td></tr>`;
+        } else {
+            // The main list has items, but the filter has no matches
+            activeTaskTableBody.innerHTML = `<tr><td colspan="10">No tasks found for the filter "${currentActiveTaskFilter}".</td></tr>`;
+        }
         return;
     }
-    tasks.forEach(task => {
+
+    filteredTasks.forEach(task => {
         const row = document.createElement('tr');
         row.setAttribute('data-key', task.key);
 
         const isInvoiceFromIrwin = task.source === 'invoice' && task.enteredBy === 'Irwin';
 
-        // ++ MODIFIED: PDF link check for "Nil", "nil", and empty/blank strings ++
         const invName = task.invName || '';
         const isClickable = (isInvoiceFromIrwin || (task.source === 'invoice' && invName)) &&
                             invName.trim() &&
@@ -1655,19 +1684,14 @@ function renderActiveTaskTable(tasks) {
             row.classList.add('clickable-pdf');
         }
 
-        // Determine if task can be marked "SRV Done"
-        // This is for invoice-based tasks. Job-entry tasks will be handled in the click event.
         const canSrvDone = task.source === 'invoice';
         const srvDoneDisabled = !canSrvDone ? 'disabled title="Only invoice tasks can be marked SRV Done"' : '';
         
-        // Build the action buttons
         const actionButtons = `
             <button class="srv-done-btn" data-key="${task.key}" ${srvDoneDisabled}>SRV Done</button>
             <button class="modify-btn" data-key="${task.key}">Modify</button>
         `;
 
-        // --- (NEW) Mobile-Optimized Columns ---
-        // These will be rendered as table cells but styled as blocks by the CSS
         const poMobile = `<td class="mobile-only" data-label="PO">${task.po || ''}</td>`;
         const vendorMobile = `<td class="mobile-only" data-label="Vendor Name">${task.vendorName || 'N/A'}</td>`;
         const amountMobile = `<td class="mobile-only" data-label="Invoice Amount">${formatCurrency(task.amount)}</td>`;
@@ -1686,15 +1710,11 @@ function renderActiveTaskTable(tasks) {
             <td class="desktop-only">${actionButtons}</td>
         `;
 
-        // Combine mobile and desktop columns. CSS will hide/show them.
         row.innerHTML = poMobile + vendorMobile + amountMobile + siteMobile + desktopColumns;
-        // --- *** MOBILE VIEW FIX (END) *** ---
 
-        // --- (NEW) Add combined click listener for mobile ---
         row.querySelectorAll('.mobile-only').forEach(cell => {
              cell.addEventListener('click', () => {
-                // Find task in the fresh userActiveTasks list
-                const taskData = userActiveTasks.find(entry => entry.key === task.key); // Use task.key from forEach scope
+                const taskData = userActiveTasks.find(entry => entry.key === task.key);
                 if (!taskData) {
                      alert("Could not find task details. The list may be out of date. Please refresh.");
                      return;
@@ -1702,11 +1722,11 @@ function renderActiveTaskTable(tasks) {
                 openModifyTaskModal(taskData);
             });
         });
-        // --- (END NEW) ---
 
         activeTaskTableBody.appendChild(row);
     });
 }
+
 // --- *** MOBILE VIEW FIX (END) *** ---
 
 
@@ -1900,26 +1920,30 @@ async function handleSaveModifiedTask() {
 }
 
 
+// [Replace this entire function around line 1876]
+
 function handleActiveTaskSearch(searchTerm) {
     const searchText = searchTerm.toLowerCase();
     sessionStorage.setItem('activeTaskSearch', searchText); // Save search term
 
-    if (!searchText) {
-        renderActiveTaskTable(userActiveTasks);
-        return;
+    // 1. Apply text search first
+    let searchedTasks = userActiveTasks;
+    if (searchText) {
+        searchedTasks = userActiveTasks.filter(task => {
+            return (
+                (task.for && task.for.toLowerCase().includes(searchText)) ||
+                (task.ref && task.ref.toLowerCase().includes(searchText)) ||
+                (task.po && task.po.toLowerCase().includes(searchText)) ||
+                (task.vendorName && task.vendorName.toLowerCase().includes(searchText)) ||
+                (task.site && task.site.toLowerCase().includes(searchText)) ||
+                (task.group && task.group.toLowerCase().includes(searchText)) ||
+                (task.date && task.date.toLowerCase().includes(searchText))
+            );
+        });
     }
-    const filteredTasks = userActiveTasks.filter(task => {
-        return (
-            (task.for && task.for.toLowerCase().includes(searchText)) ||
-            (task.ref && task.ref.toLowerCase().includes(searchText)) ||
-            (task.po && task.po.toLowerCase().includes(searchText)) ||
-            (task.vendorName && task.vendorName.toLowerCase().includes(searchText)) ||
-            (task.site && task.site.toLowerCase().includes(searchText)) ||
-            (task.group && task.group.toLowerCase().includes(searchText)) ||
-            (task.date && task.date.toLowerCase().includes(searchText))
-        );
-    });
-    renderActiveTaskTable(filteredTasks);
+    
+    // 2. Pass the SEARCHED list to render, which will then apply the STATUS filter
+    renderActiveTaskTable(searchedTasks);
 }
 
 // --- *** WORKDESK REPORTING FIX (START) *** ---
@@ -2685,6 +2709,7 @@ async function handleAddInvoice(e) {
                 alert("Invoice was added, but failed to update the original active task.");
             }
         }
+allSystemEntries = [];
         fetchAndDisplayInvoices(currentPO);
         
     } catch (error) {
@@ -5039,6 +5064,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         } 
     });
     activeTaskSearchInput.addEventListener('input', debounce((e) => handleActiveTaskSearch(e.target.value), 500));
+// === ADD THIS NEW LISTENER START ===
+if (activeTaskFilters) {
+    activeTaskFilters.addEventListener('click', (e) => {
+        if (e.target.tagName === 'BUTTON') {
+            // Update the active button style
+            activeTaskFilters.querySelector('.active').classList.remove('active');
+            e.target.classList.add('active');
+            
+            // Set the global filter
+            currentActiveTaskFilter = e.target.dataset.statusFilter;
+            
+            // Re-run the search/filter logic
+            handleActiveTaskSearch(activeTaskSearchInput.value);
+        }
+    });
+}
+
     jobEntrySearchInput.addEventListener('input', debounce((e) => handleJobEntrySearch(e.target.value), 500));
     // --- (REMOVED) Task History listener ---
     // --- (END REMOVAL) ---

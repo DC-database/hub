@@ -202,7 +202,14 @@
                         <i class="fa-solid fa-magnifying-glass"></i>
                         <input type="text" id="active-task-search" placeholder="Type to search your active tasks...">
                     </div>
-                     <div class="table-wrapper">
+                    
+                    <div id="active-task-filters" class="report-tabs" style="margin-bottom: 20px;">
+                        <button class="active" data-status-filter="All">All Tasks</button>
+                        <button data-status-filter="For SRV">For SRV</button>
+                        <button data-status-filter="Pending Signature">Pending Signature</button>
+                        <button data-status-filter="Other">Other</button>
+                    </div>
+                    <div class="table-wrapper">
                         <table class="mobile-optimized-table">
                             <thead>
                                 <tr>
@@ -394,20 +401,19 @@
                     <li class="im-nav-summary-note"><a href="#" id="summary-note-nav-link" data-section="im-summary-note"><i class="fa-solid fa-receipt"></i> Summary Note</a></li>
                     <li class="im-nav-reporting"><a href="#" data-section="im-reporting"><i class="fa-solid fa-chart-line"></i> Reporting</a></li>
                     <li class="wd-nav-im-reporting-mobile"><a href="#" data-section="im-reporting"><i class="fa-solid fa-chart-line"></i> Reporting</a></li>
+
                     <li class="nav-section-divider im-nav-payments"><a href="#" id="payments-nav-link" data-section="im-payments" class="hidden"><i class="fa-solid fa-money-check-dollar"></i> Payments</a></li>
 
                     <li class="im-nav-finance-report"><a href="#" id="im-finance-report-nav-link" data-section="im-finance-report"><i class="fa-solid fa-building-columns"></i> Finance Report</a></li>
                 </ul>
             </nav>
             <div class="workdesk-footer-nav">
-     <ul>
-        <li id="im-nav-workdesk" class="hidden" style="margin-top: 20px; border-top: 1px solid #003366; padding-top: 10px;"><a href="#" id="im-workdesk-button"><i class="fa-solid fa-briefcase"></i> WorkDesk</a></li>
-
-        <li class="im-nav-activetask-link"><a href="#" id="im-activetask-button"><i class="fa-solid fa-list-check"></i> Active Task <span id="im-active-task-badge" class="notification-badge" style="display: none;">0</span></a></li>
-
-        <li><a href="#" id="im-logout-button"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</a></li>
-    </ul>
-</div>
+                 <ul>
+                    <li id="im-nav-workdesk" class="hidden" style="margin-top: 20px; border-top: 1px solid #003366; padding-top: 10px;"><a href="#" id="im-workdesk-button"><i class="fa-solid fa-briefcase"></i> WorkDesk</a></li>
+                    <li class="im-nav-activetask-link"><a href="#" id="im-activetask-button"><i class="fa-solid fa-list-check"></i> Active Task <span id="im-active-task-badge" class="notification-badge" style="display: none;">0</span></a></li>
+                    <li><a href="#" id="im-logout-button"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</a></li>
+                </ul>
+            </div>
         </aside>
 
         <aside id="im-entry-sidebar" class="im-entry-sidebar hidden">
@@ -422,7 +428,32 @@
 
                 <section id="im-dashboard" class="workdesk-section">
                     <h1>Dashboard</h1>
-                    <p>Dashboard analytics view is currently unavailable.</p>
+                    <div class="im-dashboard-grid">
+                        <div class="im-chart-card">
+                            <h2>Top 5 Vendors</h2>
+                            <ul id="top-vendors-list" class="dashboard-top5-list"></ul>
+                        </div>
+                        <div class="im-chart-card">
+                            <h2>Top 5 Project Sites</h2>
+                            <ul id="top-projects-list" class="dashboard-top5-list"></ul>
+                        </div>
+                        <div class="im-chart-card">
+                            <h2>Top 5 Activities</h2>
+                            <ul id="top-activities-list" class="dashboard-top5-list"></ul>
+                        </div>
+                        <div class="im-chart-card full-width-card">
+                            <div class="dashboard-chart-header">
+                                <h2>Yearly Overview</h2>
+                                <div class="dashboard-chart-controls">
+                                    <select id="im-yearly-chart-year-select"></select>
+                                    <button id="im-dashboard-refresh-btn" class="secondary-btn" title="Force refresh data"><i class="fa-solid fa-sync"></i></button>
+                                </div>
+                            </div>
+                            <div class="im-chart-container-full">
+                                <canvas id="imYearlyChartCanvas"></canvas>
+                            </div>
+                        </div>
+                    </div>
                 </section>
 
                 <section id="im-invoice-entry" class="workdesk-section hidden">
@@ -912,6 +943,7 @@
                         <label for="modify-task-status">Status</label>
                         <select id="modify-task-status" name="status">
                             <option value="For SRV">For SRV</option>
+                            <option value="Pending Signature">Pending Signature</option>
                             <option value="For IPC">For IPC</option>
                             <option value="Report">Report</option>
                             <option value="Other">Other (Specify)</option>

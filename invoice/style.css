@@ -1555,6 +1555,12 @@ tbody tr:hover { background-color: #f1f1f1; }
     white-space: nowrap;
 }
 
+/* === THIS IS THE NEW STYLE === */
+#active-task-filters {
+    margin-bottom: 20px;
+}
+/* === END OF NEW STYLE === */
+
 /* MOBILE RESPONSIVE STYLES */
 @media (max-width: 768px) {
     #workdesk-datetime, #im-datetime { text-align: center; margin-top: 15px; margin-bottom: 0; order: -1; }
