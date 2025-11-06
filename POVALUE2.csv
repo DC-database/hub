@@ -9885,7 +9885,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,35072,10142,Smeet Ready Mix,161,309,01-01-22
 ,35073,11237,Aslak Trading & General Contracting,159,2771,01-01-22
 ,35074,11481,Seas & Deserts,M1,4100,01-01-22
-,35075,10186,Ultimate TradingBuilding Materials & Supplies Co,159,6160,01-01-22
+,35075,10186,Ultimate Trading Building Materials & Supplies Co,159,6160,01-01-22
 ,35076,11251,E-Government,100,4588,02-01-22
 ,35077,10169,IBA Real Estate,100,366800,02-01-22
 4365,35078,11320,Fahad Bin Abdulla Block & Interlock Factory,159,5628,02-01-22
@@ -11882,7 +11882,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 5466,37083,19999,Cash,159,3125,17-05-22
 5467,37084,19999,Cash,159,2700,17-05-22
 ,37085,30171,IBA Aluminium,161,25000,17-05-22
-,37086,11505,Simsima TilesBlocks & Interlock Factory,159,21865,17-05-22
+,37086,11505,Simsima Tiles Blocks & Interlock Factory,159,21865,17-05-22
 ,37087,11454,Uniplast Co. W.L.L.,162,1800,17-05-22
 ,37088,30215,Abdul Hamid Abdul Rahim Al Emadi Trading Company,M21,3800,17-05-22
 ,37089,19999,Cash,100,180,17-05-22
@@ -16035,7 +16035,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 7963,41259,19999,Cash,163,1129,10-01-23
 7962,41260,19999,Cash,167,72,10-01-23
 ,41261,19999,Cash,100,30,11-01-23
-7946,41262,11505,Simsima TilesBlocks & Interlock Factory,168,22698,11-01-23
+7946,41262,11505,Simsima Tiles Blocks & Interlock Factory,168,22698,11-01-23
 7912,41263,19999,Cash,164,134,11-01-23
 7911,41264,19999,Cash,165,432,11-01-23
 ,41265,10140,Qatar National Cement Co,167,2752.64,11-01-23
@@ -16079,7 +16079,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,41303,11251,E-Government,M4,1730,14-01-23
 7998,41304,19999,Cash,168,152,14-01-23
 ,41305,19999,Cash,100,196,14-01-23
-7980,41306,11505,Simsima TilesBlocks & Interlock Factory,163,13280,14-01-23
+7980,41306,11505,Simsima Tiles Blocks & Interlock Factory,163,13280,14-01-23
 7957,41307,19999,Cash,163,142,14-01-23
 7953,41308,10134,Nabina Building Materials,165,11600,14-01-23
 ,41309,19999,Cash,100,873.25,14-01-23
@@ -16191,7 +16191,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 8059,41415,19999,Cash,166,315,17-01-23
 ,41416,30171,IBA Aluminium,164,2000,17-01-23
 ,41417,30396,Unvani Trading & Contracting W.L.L.,166,310996,17-01-23
-8063,41418,11505,Simsima TilesBlocks & Interlock Factory,163,4500,21-01-23
+8063,41418,11505,Simsima Tiles Blocks & Interlock Factory,163,4500,21-01-23
 8057,41419,10245,Don Construction Products - Qatar W.L.L,163,714,18-01-23
 8056,41420,10151,Hilti Qatar W.L.L,163,342.75,17-01-23
 8055,41421,11254,New Tools and Bolts Trading,163,495,17-01-23
@@ -16415,7 +16415,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 8225,41639,19999,Cash,163,60,28-01-23
 ,41640,11452,Nemer Metal Industries Factory,163,1350,28-01-23
 8226,41641,10245,Don Construction Products - Qatar W.L.L,163,1774,28-01-23
-8230,41642,11505,Simsima TilesBlocks & Interlock Factory,163,22250,28-01-23
+8230,41642,11505,Simsima Tiles Blocks & Interlock Factory,163,22250,28-01-23
 8217,41643,10151,Hilti Qatar W.L.L,167,10576.83,29-01-23
 8223,41644,11254,New Tools and Bolts Trading,163,2583,28-01-23
 8220,41645,10159,KG Plastic,168,1380,28-01-23
@@ -16538,7 +16538,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 8111,41767,19999,Cash,168,1000,01-02-23
 ,41768,11349,Canon Office Imaging Solutions L.L.C,100,27201.63,01-02-23
 8337,41769,19999,Cash,168,45,02-02-23
-8321,41770,11505,Simsima TilesBlocks & Interlock Factory,163,28297,02-02-23
+8321,41770,11505,Simsima Tiles Blocks & Interlock Factory,163,28297,02-02-23
 8291,41771,11254,New Tools and Bolts Trading,163,90,02-02-23
 8285,41772,19999,Cash,163,37.5,02-02-23
 ,41773,11524,Metallic Equipment Co. L.L.C.,161,640000,08-03-23
@@ -16563,7 +16563,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,41792,11298,Ooredoo Q.S.C,166,1150.8,04-02-23
 ,41793,11298,Ooredoo Q.S.C,167,1074.8,04-02-23
 ,41794,11298,Ooredoo Q.S.C,168,1040.5,04-02-23
-8358,41795,11505,Simsima TilesBlocks & Interlock Factory,168,9500,04-02-23
+8358,41795,11505,Simsima Tiles Blocks & Interlock Factory,168,9500,04-02-23
 8253,41796,19999,Cash,163,2615,04-02-23
 8261,41797,19999,Cash,163,3000,04-02-23
 8254,41798,19999,Cash,167,442,04-02-23
@@ -16869,7 +16869,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,42098,19999,Cash,166,445,18-02-23
 8553,42099,10142,Smeet Ready Mix,167,12040,18-02-23
 8555,42100,10140,Qatar National Cement Co,167,1669.36,18-02-23
-8571,42101,11505,Simsima TilesBlocks & Interlock Factory,168,48913.6,18-02-23
+8571,42101,11505,Simsima Tiles Blocks & Interlock Factory,168,48913.6,18-02-23
 8566,42102,11254,New Tools and Bolts Trading,168,1560,18-02-23
 8577,42103,30367,2M Trading & Contracting Co.,168,2750,18-02-23
 ,42104,30171,IBA Aluminium,161,105000,18-02-23
@@ -16987,7 +16987,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,42216,11251,E-Government,167,400,21-02-23
 ,42217,11251,E-Government,165,17700,21-02-23
 8651,42218,10239,Abdel Latif,167,1300,21-02-23
-8634,42219,11505,Simsima TilesBlocks & Interlock Factory,163,29902,21-02-23
+8634,42219,11505,Simsima Tiles Blocks & Interlock Factory,163,29902,21-02-23
 8641,42220,11254,New Tools and Bolts Trading,161,18,21-02-23
 8643,42221,10142,Smeet Ready Mix,161,3390,21-02-23
 8642,42222,19999,Cash,161,690,21-02-23
@@ -17219,7 +17219,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 8794,42451,19999,Cash,163,475,08-03-23
 8816,42452,19999,Cash,164,1281.9,04-03-23
 ,42453,19999,Cash,100,880,04-03-23
-8817,42454,11505,Simsima TilesBlocks & Interlock Factory,163,42675,04-03-23
+8817,42454,11505,Simsima Tiles Blocks & Interlock Factory,163,42675,04-03-23
 8802,42455,10239,Abdel Latif,163,500,04-03-23
 8812,42456,11237,Aslak Trading & General Contracting,166,4584,04-03-23
 8821,42457,10245,Don Construction Products - Qatar W.L.L,165,7100,04-03-23
@@ -17470,7 +17470,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 8968,42703,19999,Cash,163,10400,12-03-23
 8966,42704,10239,Abdel Latif,168,1000,12-03-23
 8956,42705,10239,Abdel Latif,163,600,12-03-23
-8965,42706,11505,Simsima TilesBlocks & Interlock Factory,163,2430,12-03-23
+8965,42706,11505,Simsima Tiles Blocks & Interlock Factory,163,2430,12-03-23
 8969,42707,10239,Abdel Latif,165,7800,13-03-23
 ,42708,30180,VISIOQ For Security Solutions,144,14000,12-03-23
 8901,42709,19999,Cash,167,1900,12-03-23
@@ -17918,7 +17918,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,43153,19999,Cash,166,981.67,01-04-23
 ,43154,19999,Cash,167,1105,01-04-23
 ,43155,19999,Cash,m7,1100,01-04-23
-9283,43156,11505,Simsima TilesBlocks & Interlock Factory,163,22800,01-04-23
+9283,43156,11505,Simsima Tiles Blocks & Interlock Factory,163,22800,01-04-23
 ,43157,19999,Cash,168,1040,01-04-23
 9282,43158,10130,Khalifa Steel Industries Co,163,56663.85,01-04-23
 ,43159,39107,Shubhkaran Barhman & Ram Abatar Saday,168,9806.2,01-04-23
@@ -17961,7 +17961,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 9298,43197,10201,Al Asas Factories,167,760,03-04-23
 9299,43198,19999,Cash,167,45,03-04-23
 ,43199,19999,Cash,161,950,03-04-23
-9128,43200,11505,Simsima TilesBlocks & Interlock Factory,163,91410,05-04-23
+9128,43200,11505,Simsima Tiles Blocks & Interlock Factory,163,91410,05-04-23
 ,43201,19999,Cash,100,717.75,03-04-23
 ,43202,11472,Computer Plus,100,580,03-04-23
 ,43203,10139,Qatar Islamic Insurance,M1,60000,03-04-23
@@ -18143,7 +18143,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 9380,43379,10151,Hilti Qatar W.L.L,166,5250.06,12-04-23
 ,43380,19999,Cash,100,65,12-04-23
 9394,43381,10245,Don Construction Products - Qatar W.L.L,167,1155,12-04-23
-9401,43382,11505,Simsima TilesBlocks & Interlock Factory,163,8000,12-04-23
+9401,43382,11505,Simsima Tiles Blocks & Interlock Factory,163,8000,12-04-23
 ,43383,19999,Cash,130,2882,12-04-23
 9357,43384,10239,Abdel Latif,166,1950,12-04-23
 9398,43385,11254,New Tools and Bolts Trading,163,712,12-04-23
@@ -18224,7 +18224,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 9441,43460,11237,Aslak Trading & General Contracting,167,1390,15-04-23
 9442,43461,10159,KG Plastic,167,810,15-04-23
 9393,43462,19999,Cash,168,322.75,15-04-23
-9431,43463,11505,Simsima TilesBlocks & Interlock Factory,168,2200,15-04-23
+9431,43463,11505,Simsima Tiles Blocks & Interlock Factory,168,2200,15-04-23
 9433,43464,19999,Cash,168,1805,15-04-23
 ,43465,10139,Qatar Islamic Insurance,M17,750,15-04-23
 ,43466,10139,Qatar Islamic Insurance,100,900,15-04-23
@@ -18373,7 +18373,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,43611,30370,Advanced Materials Company - Qatar L.L.C.,167,20600.3,26-04-23
 9426,43612,11559,UAQ Safety Training Centre,166,1190,26-04-23
 9513,43613,19999,Cash,168,831.75,26-04-23
-9541,43614,11505,Simsima TilesBlocks & Interlock Factory,168,8800,26-04-23
+9541,43614,11505,Simsima Tiles Blocks & Interlock Factory,168,8800,26-04-23
 9542,43615,10245,Don Construction Products - Qatar W.L.L,167,765,01-05-23
 9497,43616,11582,Safety & Tools Trading & Building Materials,163,4141,26-04-23
 9495,43617,30318,Aqua Proof Trading & Cotracting Co.,167,20250,29-04-23
@@ -18672,7 +18672,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 9682,43913,19999,Cash,167,1009,07-05-23
 9683,43914,19999,Cash,163,1971,07-05-23
 9689,43915,10239,Abdel Latif,167,1625,07-05-23
-9691,43916,11505,Simsima TilesBlocks & Interlock Factory,163,61514,07-05-23
+9691,43916,11505,Simsima Tiles Blocks & Interlock Factory,163,61514,07-05-23
 9709,43917,10140,Qatar National Cement Co,166,7007.76,07-05-23
 9688,43918,19999,Cash,161,163,07-05-23
 9712,43919,10201,Al Asas Factories,167,6080,07-05-23
@@ -18751,7 +18751,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,43992,10118,Doha Takaful,M17,8625,09-05-23
 ,43993,10118,Doha Takaful,M11,41121,09-05-23
 ,43994,19999,Cash,100,2000,09-05-23
-9751,43995,11505,Simsima TilesBlocks & Interlock Factory,168,26940,09-05-23
+9751,43995,11505,Simsima Tiles Blocks & Interlock Factory,168,26940,09-05-23
 9758,43996,10239,Abdel Latif,168,4250,09-05-23
 9757,43997,10140,Qatar National Cement Co,167,550,09-05-23
 9761,43998,19999,Cash,167,148.5,09-05-23
@@ -18893,7 +18893,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 9858,44134,19999,Cash,167,134,17-05-23
 9800,44135,10196,Capital Trading Est.,161,926.2,17-05-23
 9863,44136,11254,New Tools and Bolts Trading,168,203,17-05-23
-9864,44137,11505,Simsima TilesBlocks & Interlock Factory,168,9528,17-05-23
+9864,44137,11505,Simsima Tiles Blocks & Interlock Factory,168,9528,17-05-23
 9885,44138,19999,Cash,163,120,17-05-23
 9857,44139,10159,KG Plastic,161,1844.5,17-05-23
 9879,44140,19999,Cash,163,664,17-05-23
@@ -19106,7 +19106,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 10025,44351,19999,Cash,167,180,25-05-23
 10030,44352,10130,Khalifa Steel Industries Co,163,48124.08,25-05-23
 ,44353,30118,Hatif Qatar,164,0,25-05-23
-10029,44354,11505,Simsima TilesBlocks & Interlock Factory,163,836,25-05-23
+10029,44354,11505,Simsima Tiles Blocks & Interlock Factory,163,836,25-05-23
 10020,44355,10239,Abdel Latif,161,1800,25-05-23
 9991,44357,19999,Cash,167,0,27-05-23
 9991,44358,11449,Qatar Pipeline & Fittings Co. W.L.L,167,967,27-05-23
@@ -19141,7 +19141,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,44387,19999,Cash,123,205,28-05-23
 ,44388,30361,Grace Qatar Trading & Contracting W.L.L.,165,25920,28-05-23
 10045,44389,19999,Cash,163,560,28-05-23
-10046,44390,11505,Simsima TilesBlocks & Interlock Factory,163,5904,28-05-23
+10046,44390,11505,Simsima Tiles Blocks & Interlock Factory,163,5904,28-05-23
 10044,44391,11254,New Tools and Bolts Trading,161,45,28-05-23
 10041,44392,11613,Tool World Trading W.L.L.,161,4510,06-06-23
 10047,44393,11254,New Tools and Bolts Trading,167,630,28-05-23
@@ -19222,7 +19222,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 10095,44473,10239,Abdel Latif,167,1300,30-05-23
 10097,44474,10151,Hilti Qatar W.L.L,167,279.92,30-05-23
 10099,44475,19999,Cash,163,840,30-05-23
-10107,44476,11505,Simsima TilesBlocks & Interlock Factory,168,19456,30-05-23
+10107,44476,11505,Simsima Tiles Blocks & Interlock Factory,168,19456,30-05-23
 10108,44478,19999,Cash,168,2110,30-05-23
 10109,44479,11472,Computer Plus,167,129,30-05-23
 ,44480,39111,Tofiq & Group,163,29883.68,30-05-23
@@ -19572,7 +19572,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 10334,44843,19999,Cash,161,1495,17-06-23
 10345,44844,10239,Abdel Latif,166,850,17-06-23
 10343,44845,19999,Cash,166,1427,17-06-23
-10352,44846,11505,Simsima TilesBlocks & Interlock Factory,163,5650,17-06-23
+10352,44846,11505,Simsima Tiles Blocks & Interlock Factory,163,5650,17-06-23
 10249,44847,10239,Abdel Latif,166,1625,17-06-23
 10358,44848,19999,Cash,167,200,17-06-23
 10339,44849,19999,Cash,167,2000,17-06-23
@@ -20130,7 +20130,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 10787,45416,19999,Cash,166,115,24-07-23
 ,45417,19999,Cash,129,1111,24-07-23
 10786,45418,11361,Liya Electricals W.L.L,167,260,24-07-23
-10784,45419,11505,Simsima TilesBlocks & Interlock Factory,166,35315.5,24-07-23
+10784,45419,11505,Simsima Tiles Blocks & Interlock Factory,166,35315.5,24-07-23
 10804,45420,11541,Al Kuwaiti Stores W.L.L.,167,225,24-07-23
 10788,45421,10239,Abdel Latif,166,3250,24-07-23
 10799,45422,11254,New Tools and Bolts Trading,167,0,24-07-23
@@ -20176,7 +20176,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 10829,45462,30374,Phoenix Contracting & Trading Co.,166,3480,26-07-23
 10806,45464,30444,Alhdaf Alfdy for Trading,167,55195,26-07-23
 10821,45465,11475,Doha Petroleum Construction Co. LTD.,167,11660,26-07-23
-10827,45466,11505,Simsima TilesBlocks & Interlock Factory,163,3446,26-07-23
+10827,45466,11505,Simsima Tiles Blocks & Interlock Factory,163,3446,26-07-23
 ,45467,10245,Don Construction Products - Qatar W.L.L,129,1330,26-07-23
 ,45468,19999,Cash,123,330,26-07-23
 10835,45469,10209,Madar Building Materials,161,2750,26-07-23
@@ -20369,7 +20369,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,45659,19999,Cash,123,192,05-08-23
 10888,45660,19999,Cash,168,100,05-08-23
 10915,45661,19999,Cash,168,73,05-08-23
-10912,45662,11505,Simsima TilesBlocks & Interlock Factory,163,7980,05-08-23
+10912,45662,11505,Simsima Tiles Blocks & Interlock Factory,163,7980,05-08-23
 10917,45663,10243,Al Obaidly Trading & Services W.L.L.,166,95.5,06-08-23
 10925,45664,10239,Abdel Latif,166,2800,06-08-23
 10939,45665,19999,Cash,167,300,06-08-23
@@ -20499,7 +20499,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,45792,11621,Alsarf Trading & Contracting Co. W.L.L.,M163,11189064.21,30-07-23
 ,45793,11240,Qatar General Electricity & Water Corporation,M161,23853,14-08-23
 ,45794,19999,Cash,123,20,14-08-23
-11055,45795,11505,Simsima TilesBlocks & Interlock Factory,167,270,14-08-23
+11055,45795,11505,Simsima Tiles Blocks & Interlock Factory,167,270,14-08-23
 11058,45796,11254,New Tools and Bolts Trading,161,50,14-08-23
 11057,45797,11582,Safety & Tools Trading & Building Materials,161,30,14-08-23
 ,45798,19999,Cash,130,1655,14-08-23
@@ -20600,7 +20600,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 11118,45894,19999,Cash,166,498,19-08-23
 11110,45895,11254,New Tools and Bolts Trading,167,420,19-08-23
 11111,45896,19999,Cash,167,20,19-08-23
-11119,45897,11505,Simsima TilesBlocks & Interlock Factory,166,1900,19-08-23
+11119,45897,11505,Simsima Tiles Blocks & Interlock Factory,166,1900,19-08-23
 ,45898,19999,Cash,100,285,19-08-23
 11089,45899,19999,Cash,161,498,19-08-23
 11107,45900,19999,Cash,161,611.02,19-08-23
@@ -20910,7 +20910,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 11333,46212,19999,Cash,161,1165,07-09-23
 11343,46213,19999,Cash,168,195,07-09-23
 11348,46214,11237,Aslak Trading & General Contracting,159,2211,07-09-23
-11342,46215,11505,Simsima TilesBlocks & Interlock Factory,166,1900,07-09-23
+11342,46215,11505,Simsima Tiles Blocks & Interlock Factory,166,1900,07-09-23
 11300,46216,19999,Cash,166,2010,07-09-23
 11352,46217,30374,Phoenix Contracting & Trading Co.,166,1500,07-09-23
 11332,46218,10239,Abdel Latif,161,3000,07-09-23
@@ -21238,7 +21238,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 11604,46554,11600,Lamha Trading Co.,161,35,28-09-23
 11598,46555,10140,Qatar National Cement Co,166,7079.92,28-09-23
 11597,46556,10239,Abdel Latif,166,1950,28-09-23
-11601,46557,11505,Simsima TilesBlocks & Interlock Factory,166,12410,28-09-23
+11601,46557,11505,Simsima Tiles Blocks & Interlock Factory,166,12410,28-09-23
 11609,46558,19999,Cash,167,1080,28-09-23
 11608,46559,11351,Jotun Paints Qatar,159,3650,28-09-23
 11605,46562,19999,Cash,166,80,28-09-23
@@ -21690,7 +21690,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,47017,19999,Cash,M21,600,24-10-23
 11934,47018,19999,Cash,161,860,24-10-23
 11937,47019,19999,Cash,161,623,24-10-23
-11941,47020,11505,Simsima TilesBlocks & Interlock Factory,166,12750,24-10-23
+11941,47020,11505,Simsima Tiles Blocks & Interlock Factory,166,12750,24-10-23
 ,47021,30387,Al Anis Trading Co. W.L.L.,M7,18600,24-10-23
 11933,47022,19999,Cash,161,94.5,25-10-23
 11939,47023,19999,Cash,161,250,25-10-23
@@ -21704,12 +21704,12 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,47031,39068,Praeshwar & Group,161,2173.05,25-10-23
 ,47032,39011,Abdul Kadir & Group,161,14416.82,25-10-23
 11945,47033,19999,Cash,161,460,25-10-23
-11944,47034,11505,Simsima TilesBlocks & Interlock Factory,166,1600,25-10-23
+11944,47034,11505,Simsima Tiles Blocks & Interlock Factory,166,1600,25-10-23
 11946,47035,19999,Cash,161,5400,25-10-23
 11943,47036,11582,Safety & Tools Trading & Building Materials,161,197.4,25-10-23
 11942,47037,10239,Abdel Latif,166,909.72,25-10-23
 ,47038,10201,Al Asas Factories,137.19,1045,25-10-23
-,47039,11505,Simsima TilesBlocks & Interlock Factory,M7,3900,26-10-23
+,47039,11505,Simsima Tiles Blocks & Interlock Factory,M7,3900,26-10-23
 11960,47040,19999,Cash,166,498,26-10-23
 11790,47041,11619,Diamond Professional Trading & Contracting,166,985,26-10-23
 11924,47042,11237,Aslak Trading & General Contracting,161,221,26-10-23
@@ -21955,7 +21955,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 12122,47289,19999,Cash,161,1330,08-11-23
 12123,47290,19999,Cash,168,1330,08-11-23
 12099,47291,19999,Cash,168,140,08-11-23
-12132,47292,11505,Simsima TilesBlocks & Interlock Factory,166,9600,09-11-23
+12132,47292,11505,Simsima Tiles Blocks & Interlock Factory,166,9600,09-11-23
 12136,47293,19999,Cash,168,1500,09-11-23
 12137,47294,11552,National Paints Factories Co. W.L.L.,168,224,09-11-23
 12127,47295,11229,Texon Trading and Contracting,161,2260,09-11-23
@@ -21969,7 +21969,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 12144,47306,19999,Cash,166,1038,09-11-23
 11996,47307,19999,Cash,166,543.33,09-11-23
 11998,47308,19999,Cash,168,543.33,09-11-23
-12148,47309,11505,Simsima TilesBlocks & Interlock Factory,166,1875,09-11-23
+12148,47309,11505,Simsima Tiles Blocks & Interlock Factory,166,1875,09-11-23
 12125,47310,11582,Safety & Tools Trading & Building Materials,166,1155,09-11-23
 12135,47311,19999,Cash,166,2240,09-11-23
 12154,47312,19999,Cash,161,80,09-11-23
@@ -22090,7 +22090,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 12156,47429,11582,Safety & Tools Trading & Building Materials,168,60,15-11-23
 12210,47430,10140,Qatar National Cement Co,168,4745,15-11-23
 12228,47431,11237,Aslak Trading & General Contracting,161,900,15-11-23
-12202,47432,11505,Simsima TilesBlocks & Interlock Factory,166,4096,15-11-23
+12202,47432,11505,Simsima Tiles Blocks & Interlock Factory,166,4096,15-11-23
 12200,47433,10201,Al Asas Factories,166,12600,15-11-23
 12215,47434,10239,Abdel Latif,166,1950,15-11-23
 12195,47435,11582,Safety & Tools Trading & Building Materials,168,35,15-11-23
@@ -22401,7 +22401,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,47758,11554,Alrayyan Juniors Trading Steel,161,8000,03-12-23
 ,47759,30477,LB Trading & Automatic Doors,161,11000,03-12-23
 ,47762,11317,Abdulla Al Emadi Trading Group,1003,4840,04-12-23
-,47763,11505,Simsima TilesBlocks & Interlock Factory,M6,4000,04-12-23
+,47763,11505,Simsima Tiles Blocks & Interlock Factory,M6,4000,04-12-23
 12461,47764,19999,Cash,168,900,04-12-23
 12459,47765,10245,Don Construction Products - Qatar W.L.L,166,2800,04-12-23
 12454,47766,10239,Abdel Latif,166,1700,04-12-23
@@ -22947,7 +22947,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 12803,48329,11231,Printer Garage,166,2200,02-01-24
 12807,48330,11317,Abdulla Al Emadi Trading Group,161,8000,02-01-24
 12804,48331,11541,Al Kuwaiti Stores W.L.L.,161,630,02-01-24
-12810,48332,11505,Simsima TilesBlocks & Interlock Factory,168,4080,02-01-24
+12810,48332,11505,Simsima Tiles Blocks & Interlock Factory,168,4080,02-01-24
 ,48333,11681,MAG General Trading LLC,161,370,02-01-24
 12811,48334,19999,Cash,161,1350,02-01-24
 ,48335,11257,Mannai Trading Co. W.L.L,137.19,2300,02-01-24
@@ -23096,7 +23096,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 12891,48485,19999,Cash,166,408.67,11-01-24
 12895,48486,19999,Cash,168,408.67,11-01-24
 12878,48487,19999,Cash,161,875.5,11-01-24
-,48488,30489,TELEBOOTH (JINAN) INTELLIGENT TECHNOLOGY CO.LTD,166,63656,11-01-24
+,48488,30489,TELEBOOTH (JINAN) INTELLIGENT TECHNOLOGY CO. LTD,166,63656,11-01-24
 ,48489,30458,Kamal Trading & Contracting Co.,M161,113000,11-01-24
 12871,48490,30490,Younes Bros,166,141873.3,13-01-24
 ,48491,11508,Oriental Trading Company,137.17,1200,11-01-24
@@ -23266,7 +23266,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,48661,19999,Cash,162,22,21-01-24
 ,48662,19999,Cash,100,11,21-01-24
 13016,48663,11581,Newtech Eng. & Trd. W.L.L.,166,800,21-01-24
-13003,48664,11505,Simsima TilesBlocks & Interlock Factory,166,12750,21-01-24
+13003,48664,11505,Simsima Tiles Blocks & Interlock Factory,166,12750,21-01-24
 13000,48665,10245,Don Construction Products - Qatar W.L.L,166,9500,21-01-24
 13009,48666,11582,Safety & Tools Trading & Building Materials,166,770,21-01-24
 ,48667,11237,Aslak Trading & General Contracting,161,6660,22-02-24
@@ -23408,7 +23408,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 13118,48811,19999,Cash,161,483.34,28-01-24
 13120,48812,19999,Cash,166,483.34,28-01-24
 13121,48813,19999,Cash,168,483.34,28-01-24
-13123,48814,11505,Simsima TilesBlocks & Interlock Factory,168,2560,28-01-24
+13123,48814,11505,Simsima Tiles Blocks & Interlock Factory,168,2560,28-01-24
 13126,48815,19999,Cash,M18,100,28-01-24
 ,48816,11677,Modern Home,M161,85000,28-01-24
 ,48817,19999,Cash,140,1848,29-01-24
@@ -23596,7 +23596,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 13252,49003,19999,Cash,161,50,11-02-24
 13247,49004,19999,Cash,161,1358.01,11-02-24
 13256,49005,11619,Diamond Professional Trading & Contracting,166,345,11-02-24
-13254,49006,11505,Simsima TilesBlocks & Interlock Factory,166,12240,11-02-24
+13254,49006,11505,Simsima Tiles Blocks & Interlock Factory,166,12240,11-02-24
 13239,49007,10239,Abdel Latif,166,2600,11-02-24
 13238,49008,10245,Don Construction Products - Qatar W.L.L,166,9500,11-02-24
 13263,49009,10140,Qatar National Cement Co,168,586.96,11-02-24
@@ -24076,7 +24076,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,49512,19999,Cash,100,730.75,07-03-24
 ,49513,30500,Novatec Trading & Contracting,166,169924.45,07-03-24
 13553,49514,10140,Qatar National Cement Co,166,8197.52,07-03-24
-13554,49515,11505,Simsima TilesBlocks & Interlock Factory,166,5080,07-03-24
+13554,49515,11505,Simsima Tiles Blocks & Interlock Factory,166,5080,07-03-24
 13559,49516,10239,Abdel Latif,166,3250,07-03-24
 ,49517,11237,Aslak Trading & General Contracting,1004,10700,07-03-24
 13558,49518,19999,Cash,161,1275,09-03-24
@@ -24758,7 +24758,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 14042,50227,19999,Cash,168,77,28-04-24
 14043,50228,11304,SunTech Trading Co. W.L.L,168,877,28-04-24
 14058,50229,11528,Aamal Readymix W.L.L.,166,77664,28-04-24
-14022,50230,11505,Simsima TilesBlocks & Interlock Factory,166,3072,28-04-24
+14022,50230,11505,Simsima Tiles Blocks & Interlock Factory,166,3072,28-04-24
 14041,50231,10245,Don Construction Products - Qatar W.L.L,166,10400,28-04-24
 14046,50234,11304,SunTech Trading Co. W.L.L,166,1503,28-04-24
 14045,50235,11619,Diamond Professional Trading & Contracting,166,2180,28-04-24
@@ -24791,7 +24791,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,50263,39055,Lokbahadur & Group,161,2496.38,30-04-24
 14069,50264,19999,Cash,161,2900,30-04-24
 14075,50265,11541,Al Kuwaiti Stores W.L.L.,161,410,30-04-24
-14071,50266,11505,Simsima TilesBlocks & Interlock Factory,166,900,30-04-24
+14071,50266,11505,Simsima Tiles Blocks & Interlock Factory,166,900,30-04-24
 14076,50267,11541,Al Kuwaiti Stores W.L.L.,166,3800,30-04-24
 14065,50268,10239,Abdel Latif,168,2300,30-04-24
 14067,50269,30396,Unvani Trading & Contracting W.L.L.,166,341502,30-04-24
@@ -24843,7 +24843,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,50318,19999,Cash,100,5,04-05-24
 14112,50319,19999,Cash,166,430,04-05-24
 14105,50320,10239,Abdel Latif,166,2450,04-05-24
-14095,50321,11505,Simsima TilesBlocks & Interlock Factory,166,925,04-05-24
+14095,50321,11505,Simsima Tiles Blocks & Interlock Factory,166,925,04-05-24
 ,50322,30421,Doha Pools & Landscape W.L.L.,161,23000,04-05-24
 ,50323,30515,Yellowline Trading & Services L.L.C.,161,235905.5,04-05-24
 14092,50325,11254,New Tools and Bolts Trading,166,5900,04-05-24
@@ -25062,7 +25062,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 14249,50545,19999,Cash,161,1024,12-05-24
 14225,50546,19999,Cash,161,256,12-05-24
 ,50547,19999,Cash,M1,1540,12-05-24
-14263,50548,11505,Simsima TilesBlocks & Interlock Factory,166,2000,12-05-24
+14263,50548,11505,Simsima Tiles Blocks & Interlock Factory,166,2000,12-05-24
 ,50549,19999,Cash,M18,100,12-05-24
 ,50550,19999,Cash,1004,502,12-05-24
 14251,50551,11472,Computer Plus,168,1690,12-05-24
@@ -25777,7 +25777,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 14816,51297,19999,Cash,174,104,26-06-24
 14803,51298,30361,Grace Qatar Trading & Contracting W.L.L.,166,960,26-06-24
 14817,51299,30291,Safeguard Trading & Contracting Co.,161,2250,26-06-24
-14812,51300,11505,Simsima TilesBlocks & Interlock Factory,166,2040,26-06-24
+14812,51300,11505,Simsima Tiles Blocks & Interlock Factory,166,2040,26-06-24
 14802,51301,10245,Don Construction Products - Qatar W.L.L,166,10800,26-06-24
 ,51302,19999,Cash,100,625.25,26-06-24
 ,51303,19999,Cash,M1,1640,26-06-24
@@ -26798,8 +26798,8 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,52343,30291,Safeguard Trading & Contracting Co.,161,150,28-08-24
 ,52344,30120,Kone Elevators LLC,169,96750,28-08-24
 15457,52345,19999,Cash,166,1050,28-08-24
-,52346,39122,Vision TradingContracting & Services W.L.L,M4,5400,28-08-24
-,52347,39122,Vision TradingContracting & Services W.L.L,M4,6750,28-08-24
+,52346,39122,Vision Trading Contracting & Services W.L.L,M4,5400,28-08-24
+,52347,39122,Vision Trading Contracting & Services W.L.L,M4,6750,28-08-24
 15458,52348,11304,SunTech Trading Co. W.L.L,169,558.5,28-08-24
 15454,52349,19999,Cash,161,137,28-08-24
 15456,52350,30449,Evergreen Signage and Contracting W.L.L.,166,2800,28-08-24
@@ -27193,7 +27193,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,52744,11240,Qatar General Electricity & Water Corporation,M166,178700,21-09-24
 15695,52745,19999,Cash,166,12,21-09-24
 ,52746,30467,New Project Kitchen Equipment L.L.C.,M161,6525,21-09-24
-,52747,11505,Simsima TilesBlocks & Interlock Factory,169,181525,21-09-24
+,52747,11505,Simsima Tiles Blocks & Interlock Factory,169,181525,21-09-24
 15677,52748,11766,Pledge const & trading agencies,175,51803,22-09-24
 ,52749,10239,Abdel Latif,174,600,21-09-24
 ,52750,10239,Abdel Latif,169,600,21-09-24
@@ -27290,7 +27290,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 15758,52843,19999,Cash,166,31,25-09-24
 15759,52844,19999,Cash,1111,121,25-09-24
 ,52845,30123,Mechatronics,166,8340,25-09-24
-15755,52846,30991,AL BEHERY TRADINGCONTRACTING & SERVICES CO.,176,67370.19,25-09-24
+15755,52846,30991,AL BEHERY TRADING CONTRACTING & SERVICES CO.,176,67370.19,25-09-24
 ,52847,19999,Cash,166,75,25-09-24
 ,52848,19999,Cash,100,389.5,25-09-24
 15752,52849,11318,Aamal Cement Industries W.L.L,176,5175,25-09-24
@@ -27709,7 +27709,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,53279,11251,E-Government,166,15900,16-10-24
 ,53280,30195,Britannic Water Treatment Co.,M161,1080,16-10-24
 ,53281,19999,Cash,M17,195,16-10-24
-,53282,17771,Yiwu Xunhao Trading Co.Ltd,M27,38675.4,17-10-24
+,53282,17771,Yiwu Xunhao Trading Co. Ltd,M27,38675.4,17-10-24
 15923,53283,11472,Computer Plus,175,50162,30-10-24
 16074,53284,19999,Cash,166,973,17-10-24
 16086,53285,11237,Aslak Trading & General Contracting,173,1750,17-10-24
@@ -28431,7 +28431,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,54027,19999,Cash,100,2895,18-11-24
 16669,54028,11590,Oryx Marble & Granite,166,41700,18-11-24
 ,54029,19999,Cash,M161,3110,18-11-24
-,54030,30991,AL BEHERY TRADINGCONTRACTING & SERVICES CO.,1061,52445.68,18-11-24
+,54030,30991,AL BEHERY TRADING CONTRACTING & SERVICES CO.,1061,52445.68,18-11-24
 ,54031,30999,Mona Engineering & Trading Company,166,27000,19-11-24
 ,54032,10245,Don Construction Products - Qatar W.L.L,100,838,19-11-24
 16736,54033,11732,Nay Trading Co. W.L.L.,176,450,19-11-24
@@ -28482,7 +28482,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 16684,54080,19999,Cash,169,650,20-11-24
 16685,54081,19999,Cash,175,250,20-11-24
 16631,54082,19999,Cash,173,310,20-11-24
-,54083,39122,Vision TradingContracting & Services W.L.L,100,9900,21-11-24
+,54083,39122,Vision Trading Contracting & Services W.L.L,100,9900,21-11-24
 ,54084,10245,Don Construction Products - Qatar W.L.L,100,475,20-11-24
 16674,54085,19999,Cash,166,1480.06,20-11-24
 ,54086,39123,United Cooperation General Trading WLL,169,560,20-11-24
@@ -28666,7 +28666,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,54270,39123,United Cooperation General Trading WLL,176,770,26-11-24
 ,54271,19999,Cash,169,2400,26-11-24
 16922,54272,19999,Cash,166,160,26-11-24
-,54273,17773,Belarte ContractingManagement and Design Develop,166,62392.65,26-11-24
+,54273,17773,Belarte Contracting Management and Design Develop,166,62392.65,26-11-24
 16929,54274,19999,Cash,173,150,26-11-24
 16883,54275,19999,Cash,175,200,26-11-24
 16906,54276,19999,Cash,175,105,26-11-24
@@ -28931,7 +28931,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 17142,54549,19999,Cash,174,180,05-12-24
 17128,54550,11637,Sika Qatar LLC,173,22500,05-12-24
 17084,54551,11304,SunTech Trading Co. W.L.L,176,656.5,05-12-24
-17130,54552,11505,Simsima TilesBlocks & Interlock Factory,169,8300,05-12-24
+17130,54552,11505,Simsima Tiles Blocks & Interlock Factory,169,8300,05-12-24
 ,54553,19999,Cash,173,731,05-12-24
 17124,54554,19999,Cash,169,2700,05-12-24
 ,54555,19999,Cash,1061,298,07-12-24
@@ -29171,7 +29171,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 17269,54797,11353,Castle for Building Material Co. W.L.L,176,1850,15-12-24
 17315,54798,10245,Don Construction Products - Qatar W.L.L,173,2775,15-12-24
 17289,54799,10245,Don Construction Products - Qatar W.L.L,176,75,15-12-24
-17325,54800,11505,Simsima TilesBlocks & Interlock Factory,176,1310,15-12-24
+17325,54800,11505,Simsima Tiles Blocks & Interlock Factory,176,1310,15-12-24
 17327,54801,11732,Nay Trading Co. W.L.L.,176,354,15-12-24
 17326,54802,10239,Abdel Latif,176,850,15-12-24
 17334,54803,19999,Cash,175,331,15-12-24
@@ -29389,7 +29389,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 17435,55016,11552,National Paints Factories Co. W.L.L.,169,3820,24-12-24
 17278,55017,10130,Khalifa Steel Industries Co,176,24000,24-12-24
 ,55018,11304,SunTech Trading Co. W.L.L,176,2100,24-12-24
-17511,55019,11505,Simsima TilesBlocks & Interlock Factory,169,3500,24-12-24
+17511,55019,11505,Simsima Tiles Blocks & Interlock Factory,169,3500,24-12-24
 17458,55020,30310,Signmax Trading W.L.L,176,1780,24-12-24
 ,55021,10245,Don Construction Products - Qatar W.L.L,1065,555,24-12-24
 ,55022,19999,Cash,173,2975,24-12-24
@@ -30052,7 +30052,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,55693,11325,Doha Modern Printing Press LTD.,M17,1500,20-01-25
 17918,55694,11471,Grand Store Trading and Contracting,173,90000,20-01-25
 ,55695,11777,Computer Mart Trading,100,2200,20-01-25
-17964,55696,11505,Simsima TilesBlocks & Interlock Factory,169,1750,20-01-25
+17964,55696,11505,Simsima Tiles Blocks & Interlock Factory,169,1750,20-01-25
 ,55697,10236,Al Hamad Automobiles Co. W.L.L,100,195000,20-01-25
 ,55698,11688,Al-Kashaf International,176,5000,20-01-25
 17960,55699,10130,Khalifa Steel Industries Co,169,7054,20-01-25
@@ -30138,7 +30138,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 18033,55780,10239,Abdel Latif,169,550,25-01-25
 18030,55781,19999,Cash,169,1000,25-01-25
 18035,55782,11637,Sika Qatar LLC,169,450,25-01-25
-18024,55783,11505,Simsima TilesBlocks & Interlock Factory,169,1750,25-01-25
+18024,55783,11505,Simsima Tiles Blocks & Interlock Factory,169,1750,25-01-25
 18019,55784,11581,Newtech Eng. & Trd. W.L.L.,173,1860,26-01-25
 18037,55785,19999,Cash,169,390,25-01-25
 18042,55786,11600,Lamha Trading Co.,169,588,25-01-25
@@ -30367,7 +30367,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 18165,56014,10240,ALNAHA FOR TRADING & CONTRACTING,176,2000,03-02-25
 ,56015,19999,Cash,169,3400,04-02-25
 18169,56016,11552,National Paints Factories Co. W.L.L.,169,2780,04-02-25
-18184,56017,11505,Simsima TilesBlocks & Interlock Factory,169,1750,04-02-25
+18184,56017,11505,Simsima Tiles Blocks & Interlock Factory,169,1750,04-02-25
 18182,56018,10245,Don Construction Products - Qatar W.L.L,169,1480,04-02-25
 18181,56019,11541,Al Kuwaiti Stores W.L.L.,169,2460,04-02-25
 18179,56020,11237,Aslak Trading & General Contracting,176,220,04-02-25
@@ -30589,7 +30589,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 18300,56242,19999,Cash,173,820,15-02-25
 18301,56243,19999,Cash,173,175,15-02-25
 ,56244,19999,Cash,M9,394,15-02-25
-,56247,11240,Qatar General Electricity & Water Corporation,100,32154,15-02-25
+,56247,11240,Qatar General Electricity & Water Corporation,100,36501,15-02-25
 ,56248,11584,Sanipex Qatar,M28,13000,15-02-25
 18280,56249,19999,Cash,169,219,15-02-25
 ,56250,19999,Cash,173,525,15-02-25
@@ -30864,10 +30864,10 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,56526,11317,Abdulla Al Emadi Trading Group,100,5174,25-02-25
 18476,56527,11541,Al Kuwaiti Stores W.L.L.,180,115.5,25-02-25
 ,56528,11472,Computer Plus,100,770,25-02-25
-18487,56529,11505,Simsima TilesBlocks & Interlock Factory,169,2025,27-02-25
+18487,56529,11505,Simsima Tiles Blocks & Interlock Factory,169,2025,27-02-25
 18510,56530,11732,Nay Trading Co. W.L.L.,173,415,25-02-25
 ,56531,19999,Cash,173,0,25-02-25
-,56532,17773,Belarte ContractingManagement and Design Develop,166,17600,25-02-25
+,56532,17773,Belarte Contracting Management and Design Develop,166,17600,25-02-25
 ,56533,30460,Sama Steel,176,195967,25-02-25
 18361,56534,11798,AL-AWALIA,176,33000,25-02-25
 ,56535,30141,Qatar Gas Group,1061,2500,25-02-25
@@ -30930,7 +30930,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,56593,19999,Cash,176,415.65,01-03-25
 18520,56594,11237,Aslak Trading & General Contracting,175,2701,01-03-25
 18397,56595,10137,Qatar Building Co,176,954766.25,01-03-25
-18452,56596,11505,Simsima TilesBlocks & Interlock Factory,175,86940,01-03-25
+18452,56596,11505,Simsima Tiles Blocks & Interlock Factory,175,86940,01-03-25
 18518,56597,11777,Computer Mart Trading,176,905,01-03-25
 ,56598,19999,Cash,173,2000,01-03-25
 18537,56599,11600,Lamha Trading Co.,175,190.5,01-03-25
@@ -30948,7 +30948,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 18450,56612,11707,Lulu Rayyan,175,14535,02-03-25
 18450,56613,11732,Nay Trading Co. W.L.L.,175,40,02-03-25
 18535,56614,11614,One Touch Trading & Services W.L.L.,169,1576,02-03-25
-18534,56615,10186,Ultimate TradingBuilding Materials & Supplies Co,1001,8646.29,03-03-25
+18534,56615,10186,Ultimate Trading Building Materials & Supplies Co,1001,8646.29,03-03-25
 ,56616,19999,Cash,176,140,02-03-25
 ,56617,19999,Cash,173,450,02-03-25
 ,56618,19999,Cash,173,410,03-03-25
@@ -31067,8 +31067,8 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 18580,56735,11732,Nay Trading Co. W.L.L.,173,4137.5,08-03-25
 18596,56736,10240,ALNAHA FOR TRADING & CONTRACTING,176,1500,08-03-25
 18579,56737,11600,Lamha Trading Co.,169,4900,08-03-25
-,56738,10186,Ultimate TradingBuilding Materials & Supplies Co,137.17,6676.86,08-03-25
-,56739,10186,Ultimate TradingBuilding Materials & Supplies Co,137.19,6676.86,08-03-25
+,56738,10186,Ultimate Trading Building Materials & Supplies Co,137.17,6676.86,08-03-25
+,56739,10186,Ultimate Trading Building Materials & Supplies Co,137.19,6676.86,08-03-25
 18597,56740,10240,ALNAHA FOR TRADING & CONTRACTING,166,9500,08-03-25
 18554,56741,10239,Abdel Latif,169,1200,08-03-25
 18593,56742,30539,Vibrant Consultancy W.L.L,176,1500,08-03-25
@@ -31270,7 +31270,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,56940,19999,Cash,166,300,18-03-25
 ,56941,19999,Cash,1061,148,18-03-25
 ,56942,19999,Cash,180,65,18-03-25
-18733,56943,11505,Simsima TilesBlocks & Interlock Factory,169,4320,18-03-25
+18733,56943,11505,Simsima Tiles Blocks & Interlock Factory,169,4320,18-03-25
 18734,56944,10245,Don Construction Products - Qatar W.L.L,169,840,18-03-25
 18732,56945,11471,Grand Store Trading and Contracting,175,9500,18-03-25
 ,56946,19999,Cash,M17,179,18-03-25
@@ -31595,7 +31595,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 18918,57278,19999,Cash,173,539,12-04-25
 18963,57279,19999,Cash,176,618.25,12-04-25
 ,57280,10240,ALNAHA FOR TRADING & CONTRACTING,169,9400,13-04-25
-,57281,10240,ALNAHA FOR TRADING & CONTRACTING,173,82500,13-04-25
+,57281,10240,ALNAHA FOR TRADING & CONTRACTING,173,85500,13-04-25
 ,57282,10240,ALNAHA FOR TRADING & CONTRACTING,176,7750,13-04-25
 ,57283,10240,ALNAHA FOR TRADING & CONTRACTING,166,15500,13-04-25
 ,57284,19999,Cash,19,98,13-04-25
@@ -31702,7 +31702,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,57387,30190,Al - Rafidain Co.,176,666.67,17-04-25
 19013,57388,11581,Newtech Eng. & Trd. W.L.L.,173,4200,19-04-25
 ,57389,19999,Cash,169,430,19-04-25
-19018,57390,31022,United for TestingAdjusting and BalancingTrdng,166,3000,19-04-25
+19018,57390,31022,United for Testing Adjusting and Balancing Trdng,166,3000,19-04-25
 ,57391,19999,Cash,100,415,19-04-25
 18994,57392,11541,Al Kuwaiti Stores W.L.L.,173,9342.5,19-04-25
 19021,57393,11304,SunTech Trading Co. W.L.L,169,740.4,19-04-25
@@ -32106,7 +32106,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,57811,30437,Callisto Trading & Decorating W.L.L.,M163,50400,10-05-25
 19231,57812,11552,National Paints Factories Co. W.L.L.,169,1930,08-05-25
 19254,57813,11304,SunTech Trading Co. W.L.L,169,220,08-05-25
-19258,57814,11505,Simsima TilesBlocks & Interlock Factory,175,2100,08-05-25
+19258,57814,11505,Simsima Tiles Blocks & Interlock Factory,175,2100,08-05-25
 19253,57815,11237,Aslak Trading & General Contracting,169,731,08-05-25
 ,57816,19999,Cash,100,659.5,08-05-25
 ,57817,19999,Cash,169,655,08-05-25
@@ -32234,8 +32234,8 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 19052,57952,10239,Abdel Latif,173,1200,13-05-25
 19302,57953,11254,New Tools and Bolts Trading,173,2600,13-05-25
 19283,57954,11410,Unipro Qatar,175,2190,13-05-25
-,57955,10186,Ultimate TradingBuilding Materials & Supplies Co,140,4323.14,13-05-25
-,57956,10186,Ultimate TradingBuilding Materials & Supplies Co,142,4323.14,13-05-25
+,57955,10186,Ultimate Trading Building Materials & Supplies Co,140,4323.14,13-05-25
+,57956,10186,Ultimate Trading Building Materials & Supplies Co,142,4323.14,13-05-25
 19309,57957,10239,Abdel Latif,173,1800,13-05-25
 19271,57958,11732,Nay Trading Co. W.L.L.,176,4279.5,13-05-25
 19271,57959,19999,Cash,176,329,13-05-25
@@ -32251,7 +32251,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,57970,11283,Wiltz Trading and Contracting W.L.L,1111,1855,13-05-25
 19214,57971,11681,MAG General Trading LLC,174,7985,13-05-25
 ,57972,10239,Abdel Latif,176,1600,13-05-25
-19300,57973,10186,Ultimate TradingBuilding Materials & Supplies Co,142,1920,13-05-25
+19300,57973,10186,Ultimate Trading Building Materials & Supplies Co,142,1920,13-05-25
 19299,57974,11822,SKETCH ADVSERTISING WLL,137.17,2520,13-05-25
 19262,57976,11789,AL-SHARK SANITARY WARE CO. BUILD. MAT. & ELEC.,173,2770,13-05-25
 19335,57977,11619,Diamond Professional Trading & Contracting,169,1040,13-05-25
@@ -32352,7 +32352,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,58078,19999,Cash,175,800,19-05-25
 ,58079,19999,Cash,175,70,19-05-25
 ,58080,11349,Canon Office Imaging Solutions L.L.C,100,1740,19-05-25
-19111,58081,30513,Mostafa Khalil,175,64570,19-05-25
+19111,58081,30513,Mostafa Khalil,175,70565.41,19-05-25
 ,58082,19999,Cash,176,20,19-05-25
 19147,58083,31011,Granite & Marble Source Trading,175,4392,19-05-25
 ,58085,19999,Cash,176,707,19-05-25
@@ -32464,7 +32464,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 19348,58193,19999,Cash,176,1540,24-05-25
 ,58194,17765,Al Attiya Motors and Trading Co.,173,0,24-05-25
 19455,58195,11410,Unipro Qatar,175,780,24-05-25
-19458,58196,11505,Simsima TilesBlocks & Interlock Factory,175,4200,24-05-25
+19458,58196,11505,Simsima Tiles Blocks & Interlock Factory,175,4200,24-05-25
 ,58197,30171,IBA Aluminium,166,140995,24-05-25
 ,58198,10239,Abdel Latif,166,3250,24-05-25
 ,58199,10239,Abdel Latif,175,550,24-05-25
@@ -32509,7 +32509,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 19475,58241,11619,Diamond Professional Trading & Contracting,169,520,26-05-25
 ,58242,19999,Cash,169,300,26-05-25
 19468,58243,10209,Madar Building Materials,175,235,26-05-25
-19474,58244,11505,Simsima TilesBlocks & Interlock Factory,169,1944,26-05-25
+19474,58244,11505,Simsima Tiles Blocks & Interlock Factory,169,1944,26-05-25
 19479,58245,30393,Dream Glass Trading & Contracting W.L.L,169,6432.16,26-05-25
 19465,58246,11552,National Paints Factories Co. W.L.L.,169,4410,26-05-25
 19481,58247,10204,Lulu Paints Center,169,6450,26-05-25
@@ -33015,7 +33015,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 19709,58767,10239,Abdel Latif,175,550,21-06-25
 19605,58768,10239,Abdel Latif,173,1625,21-06-25
 ,58769,10239,Abdel Latif,176,325,21-06-25
-,58771,11832,Casting TradingContracting & Services,169,3450,21-06-25
+,58771,11832,Casting Trading Contracting & Services,169,3450,21-06-25
 ,58772,31031,Abuhail Trading & Contracting Co. W.L.L,169,8200,22-06-25
 19727,58773,19999,Cash,166,90,22-06-25
 19723,58774,30233,Total Flooring Solutions W.L.L,169,31975,22-06-25
@@ -33046,9 +33046,9 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,58802,19999,Cash,173,4036.9,23-06-25
 ,58803,30323,Diamond Builders Trading & Contracting W.L.L,175,135456,24-06-25
 19758,58804,11237,Aslak Trading & General Contracting,176,1480,23-06-25
-,58805,11832,Casting TradingContracting & Services,176,2000,23-06-25
+,58805,11832,Casting Trading Contracting & Services,176,2000,23-06-25
 19770,58807,11455,Laffan Trading and Contracting,169,124,23-06-25
-19733,58808,11832,Casting TradingContracting & Services,169,4000,23-06-25
+19733,58808,11832,Casting Trading Contracting & Services,169,4000,23-06-25
 ,58809,19999,Cash,175,24503.37,23-06-25
 ,58810,11835,Skyline Automotive,100,285000,23-06-25
 ,58811,31011,Granite & Marble Source Trading,169,50698.04,23-06-25
@@ -33292,7 +33292,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 19894,59055,19999,Cash,176,491,07-07-25
 19904,59056,19999,Cash,169,206,07-07-25
 19903,59057,19999,Cash,175,902,07-07-25
-,59058,11832,Casting TradingContracting & Services,176,5659.2,07-07-25
+,59058,11832,Casting Trading Contracting & Services,176,5659.2,07-07-25
 ,59059,19999,Cash,M9,80,07-07-25
 ,59060,19999,Cash,176,170,07-07-25
 ,59061,11251,E-Government,173,2600,07-07-25
@@ -33460,7 +33460,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 20008,59229,11541,Al Kuwaiti Stores W.L.L.,166,513.1,13-07-25
 19984,59230,11600,Lamha Trading Co.,129,1294.5,14-07-25
 19984,59231,10196,Capital Trading Est.,129,455,14-07-25
-19995,59232,11832,Casting TradingContracting & Services,176,1200,13-07-25
+19995,59232,11832,Casting Trading Contracting & Services,176,1200,13-07-25
 ,59233,10202,Maysaloon Engineering Co.,150,1360,14-07-25
 ,59234,19999,Cash,173,8055,14-07-25
 19987,59235,11783,Trade House Qatar Co. WLL,175,332.4,14-07-25
@@ -33496,7 +33496,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,59267,11732,Nay Trading Co. W.L.L.,176,700,15-07-25
 ,59268,31018,Top Makers Joinery Trading & Decoration,129,48000,15-07-25
 ,59271,19999,Cash,175,100,15-07-25
-,59272,11832,Casting TradingContracting & Services,175,700,15-07-25
+,59272,11832,Casting Trading Contracting & Services,175,700,15-07-25
 20035,59273,19999,Cash,175,700,15-07-25
 20013,59274,10112,Nehmeh Corporation LLC,173,3810,15-07-25
 19841,59275,31040,Ankara Decorative Insulation,175,12100,15-07-25
@@ -33507,7 +33507,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,59281,31029,Mohammed Hussain Saleh Al Abdulghani Trading Co.,100,2240,16-07-25
 ,59282,19999,Cash,100,186.5,16-07-25
 ,59283,19999,Cash,166,778,16-07-25
-20027,59284,11505,Simsima TilesBlocks & Interlock Factory,169,1850,16-07-25
+20027,59284,11505,Simsima Tiles Blocks & Interlock Factory,169,1850,16-07-25
 ,59285,11325,Doha Modern Printing Press LTD.,M17,1500,08-10-25
 ,59286,11325,Doha Modern Printing Press LTD.,100,1500,16-07-25
 20029,59287,11351,Jotun Paints Qatar,175,1495,16-07-25
@@ -33627,9 +33627,9 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,59410,30540,Drillone Trading and Contracting WLL,173,6130,22-07-25
 20098,59411,11843,ASTRON Certification WLL,173,2300,22-07-25
 20130,59412,11539,Almoayyed Air Conditioning,122,6000,22-07-25
-,59413,11832,Casting TradingContracting & Services,176,13500,22-07-25
+,59413,11832,Casting Trading Contracting & Services,176,13500,22-07-25
 ,59414,11251,E-Government,100,200,22-07-25
-,59415,39122,Vision TradingContracting & Services W.L.L,100,600,22-07-25
+,59415,39122,Vision Trading Contracting & Services W.L.L,100,600,22-07-25
 20002,59416,11313,Al Andalus International for Building Materials,173,17500,23-07-25
 ,59417,11297,Almana and Partners W.L.L,M163,169650,22-07-25
 ,59418,19999,Cash,176,30,22-07-25
@@ -33687,7 +33687,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,59472,11570,Dorman Smith Switchgear W.L.L.,166,390,24-07-25
 ,59473,11466,Cozmo Travel,173,2150,24-07-25
 ,59474,11466,Cozmo Travel,100,8270,24-07-25
-20135,59475,11832,Casting TradingContracting & Services,176,38974.8,28-08-25
+20135,59475,11832,Casting Trading Contracting & Services,176,38974.8,28-08-25
 20166,59476,31033,AL-MIRQUAT TRADING & CONTRACTING,166,3000,26-07-25
 20156,59477,17777,Qatar Aerated Concrete Industries Co. W.L.L.,173,201088.75,28-07-25
 20164,59478,30291,Safeguard Trading & Contracting Co.,169,225,26-07-25
@@ -33722,7 +33722,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,59508,11700,White Magic,150,10000,27-07-25
 ,59509,19999,Cash,173,830.28,27-07-25
 ,59510,19999,Cash,175,900,27-07-25
-20163,59511,17773,Belarte ContractingManagement and Design Develop,169,1750,27-07-25
+20163,59511,17773,Belarte Contracting Management and Design Develop,169,1750,27-07-25
 ,59513,19999,Cash,176,11,27-07-25
 ,59514,19999,Cash,175,380,27-07-25
 ,59515,11828,Leminar Air Conditioning Industries Co. Qatar WLL,150,10180,27-07-25
@@ -33899,7 +33899,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 20251,59714,11304,SunTech Trading Co. W.L.L,123,1406.5,04-08-25
 ,59715,19999,Cash,M30,750,04-08-25
 20262,59716,11681,MAG General Trading LLC,174,3500,04-08-25
-,59717,17781,"Wenzhou Look Furniture CO.,LTD.",173,419625.77,04-08-25
+,59717,17781,Wenzhou Look Furniture CO.LTD.,173,419625.77,04-08-25
 ,59718,11240,Qatar General Electricity & Water Corporation,M169,199350,04-08-25
 20286,59719,19999,Cash,175,315.5,04-08-25
 ,59720,19999,Cash,173,2400,04-08-25
@@ -34074,7 +34074,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 20375,59899,19999,Cash,175,110,12-08-25
 ,59900,19999,Cash,M30,160.13,12-08-25
 20372,59901,19999,Cash,173,977.63,12-08-25
-,59902,11848,Al Jazira For SafetySecurity & Cont. LLC,M30,7952.35,12-08-25
+,59902,11848,Al Jazira For Safety Security & Cont. LLC,M30,7952.35,12-08-25
 ,59903,10258,True Link Trading and Contracting WLL,100,572.5,12-08-25
 ,59904,19999,Cash,169,100,12-08-25
 ,59905,19999,Cash,175,300,12-08-25
@@ -34301,7 +34301,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,60134,11732,Nay Trading Co. W.L.L.,M30,2200,24-08-25
 ,60135,31029,Mohammed Hussain Saleh Al Abdulghani Trading Co.,173,880,24-08-25
 ,60136,11707,Lulu Rayyan,1111,10500,25-08-25
-20487,60137,11832,Casting TradingContracting & Services,176,1700,24-08-25
+20487,60137,11832,Casting Trading Contracting & Services,176,1700,24-08-25
 20510,60138,11789,AL-SHARK SANITARY WARE CO. BUILD. MAT. & ELEC.,181,1400,25-08-25
 ,60139,19999,Cash,100,110,25-08-25
 ,60140,19999,Cash,123,30,25-08-25
@@ -34424,7 +34424,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,60262,19999,Cash,175,2600,02-09-25
 20593,60263,39125,Equipment Trading & Contracting Co. WLL,175,120,02-09-25
 ,60264,30361,Grace Qatar Trading & Contracting W.L.L.,175,1450,02-09-25
-20585,60265,19999,Cash,173,2625,02-09-25
+20585,60265,19999,Cash,173,4500,04-11-25
 20594,60266,11237,Aslak Trading & General Contracting,175,462,02-09-25
 ,60267,17765,Al Attiya Motors and Trading Co.,173,3300,02-09-25
 20595,60268,11351,Jotun Paints Qatar,173,16800,02-09-25
@@ -34497,7 +34497,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,60335,19999,Cash,166,642,07-09-25
 ,60336,11325,Doha Modern Printing Press LTD.,100,1200,07-09-25
 ,60337,19999,Cash,1061,190,07-09-25
-20630,60338,10196,Capital Trading Est.,166,0,08-09-25
+20630,60338,11536,Nabina Ceramic,166,1990.5,06-11-25
 20630,60339,11254,New Tools and Bolts Trading,166,105,08-09-25
 20627,60340,19999,Cash,169,645,08-09-25
 20631,60341,19999,Cash,175,740,08-09-25
@@ -34729,7 +34729,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 20713,60581,19999,Cash,181,995,23-09-25
 20712,60582,19999,Cash,175,180,23-09-25
 ,60583,19999,Cash,166,1700,23-09-25
-,60584,17773,Belarte ContractingManagement and Design Develop,169,4500,23-09-25
+,60584,17773,Belarte Contracting Management and Design Develop,169,4500,23-09-25
 ,60585,31019,Pledge Decoration W.L.L,122,6250,23-09-25
 ,60586,39123,United Cooperation General Trading WLL,176,1560,23-09-25
 ,60587,19999,Cash,100,732.25,23-09-25
@@ -34789,7 +34789,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 20775,60644,11732,Nay Trading Co. W.L.L.,175,95,27-09-25
 ,60645,19999,Cash,173,880,27-09-25
 ,60646,19999,Cash,169,322.15,27-09-25
-,60647,39122,Vision TradingContracting & Services W.L.L,M4,900,27-09-25
+,60647,39122,Vision Trading Contracting & Services W.L.L,M4,900,27-09-25
 ,60648,30997,Tawarat Contracting,176,13200,27-09-25
 ,60649,19999,Cash,173,1015,27-09-25
 ,60650,19999,Cash,M30,175,28-09-25
@@ -34865,7 +34865,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 20768,60723,19999,Cash,173,884,01-10-25
 20798,60724,19999,Cash,173,1276,01-10-25
 ,60726,31053,Nano Plus Qatar,173,1592650,02-10-25
-20806,60727,11505,Simsima TilesBlocks & Interlock Factory,181,7835,02-10-25
+20806,60727,11505,Simsima Tiles Blocks & Interlock Factory,181,7835,02-10-25
 20803,60728,10245,Don Construction Products - Qatar W.L.L,181,1100,02-10-25
 ,60729,11693,Alaska Cleaning Centre,1061,8528,02-10-25
 ,60730,19999,Cash,100,5000,02-10-25
@@ -35109,7 +35109,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,60984,11792,Sharq Law Firm,100,15000,18-10-25
 ,60985,31011,Granite & Marble Source Trading,169,18107.6,21-10-25
 20849,60987,30387,Al Anis Trading Co. W.L.L.,176,1800,18-10-25
-20977,60988,11832,Casting TradingContracting & Services,176,2000,18-10-25
+20977,60988,11832,Casting Trading Contracting & Services,176,2000,18-10-25
 ,60989,19999,Cash,M4,2670,18-10-25
 ,60990,11297,Almana and Partners W.L.L,m30,58000,18-10-25
 20957,60991,11284,Almoayyed Commercial Services,175,660,19-10-25
@@ -35196,7 +35196,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,61078,39123,United Cooperation General Trading WLL,173,780,22-10-25
 21033,61079,11637,Sika Qatar LLC,169,995,22-10-25
 ,61080,19999,Cash,173,1276,22-10-25
-,61081,11278,Concord Surveying Works Co.,M177,1000,22-10-25
+,61081,19999,Cash,M177,1000,22-10-25
 ,61082,31003,Teyseer Motors W.L.L,176,4900,22-10-25
 ,61084,19999,Cash,173,2000,22-10-25
 ,61085,11794,Grace Engineering & Technical Services W.L.L.,166,4100,23-10-25
@@ -35248,7 +35248,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 21057,61132,30383,ABCO AM Equipment Trading W.L.L.,173,650,45956
 21061,61133,31048,PREMIER CONTRACTING WLL,122,550,45956
 ,61134,19999,Cash,M18,321,45956
-20905,61135,11832,Casting TradingContracting & Services,176,1335.02,45956
+20905,61135,11832,Casting Trading Contracting & Services,176,1335.02,45956
 ,61136,11278,Concord Surveying Works Co.,176,7000,45956
 ,61137,19999,Cash,181,248,45956
 ,61138,19999,Cash,169,51,45956
@@ -35291,7 +35291,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,61175,39127,Jitendra Chaudhary,181,5339.52,45957
 ,61176,39136,Arif Mohammad Ullah,181,3749.8,45957
 ,61177,19999,Cash,173,1848,45957
-21000,61178,11241,Al-Ta'adhod Group Trading & Contracting,M30,189999.99,45959
+21000,61178,11241,Al-Ta'adhod Group Trading & Contracting,M30,190000,45959
 ,61179,19999,Cash,173,1765,45957
 21067,61180,11237,Aslak Trading & General Contracting,M7,763,45957
 ,61181,11858,SEASHORE HYDRAULIC CENTER,181,1000,45957
@@ -35373,7 +35373,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,61260,19999,Cash,123,92,45960
 21078,61261,11600,Lamha Trading Co.,181,206,45960
 ,61262,19999,Cash,176,40,45960
-,61263,19999,Cash,173,3840,45960
+,61263,19999,Cash,173,4120,45960
 20961,61264,11449,Qatar Pipeline & Fittings Co. W.L.L,M30,0,45960
 21079,61265,11600,Lamha Trading Co.,122,265,45960
 21075,61266,11600,Lamha Trading Co.,175,3953,45960
@@ -35397,7 +35397,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,61287,19999,Cash,M39,140,45962
 ,61288,19999,Cash,173,30,45962
 21082,61289,19999,Cash,M163,328,45962
-21084,61290,19999,Cash,176,1965.52,45962
+21084,61290,19999,Cash,176,1946.75,45962
 21099,61291,10151,Hilti Qatar W.L.L,181,814,45962
 21087,61292,10245,Don Construction Products - Qatar W.L.L,176,960,45962
 21086,61293,11608,Apollo Enterprises,176,5200,45962
@@ -35422,13 +35422,13 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,61312,19999,Cash,100,65,45963
 ,61313,19999,Cash,129,184,45963
 21097,61314,11732,Nay Trading Co. W.L.L.,176,1972.3,45963
-21098,61315,19999,Cash,176,48,45963
+21098,61315,19999,Cash,176,44,45963
 ,61316,19999,Cash,100,1927,45963
 21092,61317,11304,SunTech Trading Co. W.L.L,173,375,45963
 21091,61318,11263,Expanded Metal Manufacturing Co. Ltd.,173,1110,45963
 21101,61319,30122,Masa Access & Services WLL,173,35000,45963
 21102,61320,11541,Al Kuwaiti Stores W.L.L.,166,780,45963
-21104,61321,19999,Cash,166,222,45963
+21104,61321,19999,Cash,166,220,45963
 21093,61322,11732,Nay Trading Co. W.L.L.,173,717,45963
 21074,61323,19999,Cash,1111,200,45963
 ,61325,19999,Cash,173,960,45964
@@ -35438,8 +35438,77 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date
 ,61329,19999,Cash,100,6525,45964
 ,61330,10112,Nehmeh Corporation LLC,173,18100,45964
 ,61331,19999,Cash,1061,1450,45964
-21114,61332,11254,New Tools and Bolts Trading,173,2300,45964
+21114,61332,11254,New Tools and Bolts Trading,173,1665,45964
 21095,61333,30540,Drillone Trading and Contracting WLL,173,5000,45964
 21116,61334,30383,ABCO AM Equipment Trading W.L.L.,173,3250,45964
 ,61335,31019,Pledge Decoration W.L.L,129,45000,45964
 ,61336,11777,Computer Mart Trading,100,225,45964
+,61337,19999,Cash,176,100,45965
+,61338,19999,Cash,100,70,45965
+,61339,19999,Cash,173,40,45965
+21071,61340,19999,Cash,176,1260,45965
+,61341,19999,Cash,181,35,45965
+,61342,19999,Cash,1061,24,45965
+,61343,19999,Cash,173,75,45965
+,61344,19999,Cash,169,100,45965
+,61345,19999,Cash,100,191.5,45965
+21122,61346,10245,Don Construction Products - Qatar W.L.L,181,1005,45965
+,61347,19999,Cash,176,250,45965
+21123,61348,30195,Britannic Water Treatment Co.,M163,4800,45965
+,61349,10239,Abdel Latif,147,3900,45965
+,61350,19999,Cash,147,600,45965
+,61351,30318,Aqua Proof Trading & Cotracting Co.,168,5000,45965
+,61352,10126,Hempel Paints,137.19,1210.5,45966
+,61353,10126,Hempel Paints,144,1711,45966
+21077,61354,30370,Advanced Materials Company - Qatar L.L.C.,176,22785,45967
+,61355,11240,Qatar General Electricity & Water Corporation,M163,8421,45965
+,61356,19999,Cash,100,85.54,45965
+,61357,11318,Aamal Cement Industries W.L.L,173,67550,45966
+,61358,19999,Cash,176,1575,45966
+21088,61359,19999,Cash,176,840.3,45966
+21111,61360,19999,Cash,176,401.5,45966
+21117,61361,11777,Computer Mart Trading,176,575,45966
+,61362,19999,Cash,181,380,45966
+,61363,19999,Cash,M17,168,45966
+,61364,19999,Cash,173,65,45966
+,61365,19999,Cash,176,23,45966
+21109,61366,11732,Nay Trading Co. W.L.L.,176,323,45966
+,61367,11859,Guangdong Topfan International Logistics Co.,173,16355,45966
+,61368,11777,Computer Mart Trading,176,425,45966
+,61369,10243,Al Obaidly Trading & Services W.L.L.,100,469,45966
+,61370,30379,Granity Marble & Granite W.L.L.,176,21780,45966
+,61371,11251,E-Government,100,2480,45967
+,61372,11251,E-Government,137.19,1220,45967
+,61373,11251,E-Government,144,3760,45967
+,61374,11251,E-Government,173,18350,45967
+,61375,11251,E-Government,176,14960,45967
+,61376,11251,E-Government,181,1220,45967
+,61377,11251,E-Government,M18,560,45967
+,61378,11251,E-Government,M22,2200,45967
+,61379,11251,E-Government,M26,2200,45967
+,61380,11251,E-Government,M38,400,45967
+,61381,11251,E-Government,M35,9140,45967
+,61382,11251,E-Government,M4,100,45967
+,61383,19999,Cash,M4,85.53,45967
+,61384,11251,E-Government,100,500,45967
+,61385,11251,E-Government,123,300,45967
+,61386,11251,E-Government,1111,200,45967
+,61387,11251,E-Government,173,1100,45967
+,61390,17786,Dynamic Design Engineering Consulting,M39,2500,45967
+,61391,11251,E-Government,175,100,45967
+,61392,11251,E-Government,176,200,45967
+,61393,11251,E-Government,181,100,45967
+,61394,11251,E-Government,M1,520,45967
+,61395,11251,E-Government,M4,1750,45967
+21130,61396,11237,Aslak Trading & General Contracting,1061,1413,45967
+21130,61397,19999,Cash,1061,280,45967
+,61398,11251,E-Government,M18,100,45967
+,61399,11251,E-Government,M22,600,45967
+,61400,11251,E-Government,M26,875,45967
+,61401,11251,E-Government,M35,400,45967
+21131,61402,30393,Dream Glass Trading & Contracting W.L.L,166,1600,45967
+21132,61403,11440,Arabi Company - Qatar W.L.L,M163,475,45967
+,61404,30367,2M Trading & Contracting Co.,100,3900,45967
+21120,61405,19999,Cash,173,750,45967
+21139,61406,10245,Don Construction Products - Qatar W.L.L,181,435,45967
+,61407,11528,Aamal Readymix W.L.L.,147,4035,45967
