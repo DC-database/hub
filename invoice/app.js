@@ -53,6 +53,10 @@ const dashboardUsername = document.getElementById('dashboard-username'); const d
 const workdeskButton = document.getElementById('workdesk-button'); const wdUsername = document.getElementById('wd-username'); const wdUserIdentifier = document.getElementById('wd-user-identifier'); const workdeskNav = document.getElementById('workdesk-nav'); const workdeskSections = document.querySelectorAll('.workdesk-section'); const wdLogoutButton = document.getElementById('wd-logout-button');
 const jobEntryForm = document.getElementById('jobentry-form'); const jobForSelect = document.getElementById('job-for'); const jobDateInput = document.getElementById('job-date'); const jobEntrySearchInput = document.getElementById('job-entry-search'); const jobEntryTableWrapper = document.getElementById('job-entry-table-wrapper'); const jobEntryTableBody = document.getElementById('job-entry-table-body');
 const jobEntryFormTitle = document.getElementById('jobentry-form-title');
+const jobEntryNavControls = document.getElementById('jobentry-nav-controls'); // <-- ADD THIS
+const navPrevJobButton = document.getElementById('nav-prev-job'); // <-- ADD THIS
+const navNextJobButton = document.getElementById('nav-next-job'); // <-- ADD THIS
+const navJobCounter = document.getElementById('nav-job-counter'); // <-- ADD THIS
 const addJobButton = document.getElementById('add-job-button'); const updateJobButton = document.getElementById('update-job-button'); const clearJobButton = document.getElementById('clear-job-button');
 const activeTaskTableBody = document.getElementById('active-task-table-body');
 // --- (REMOVED) Task History DOM References ---
@@ -115,7 +119,6 @@ const workdeskIMLinkContainer = document.getElementById('workdesk-im-link-contai
 const workdeskIMLink = document.getElementById('workdesk-im-link');
 
 // INVOICE MANAGEMENT REFERENCES
-// ... (All your IM references remain the same, no changes needed here) ...
 const invoiceManagementView = document.getElementById('invoice-management-view');
 const imNav = document.getElementById('im-nav');
 const imContentArea = document.getElementById('im-content-area');
@@ -144,6 +147,8 @@ const imClearFormButton = document.getElementById('im-clear-form-button');
 const imBackToActiveTaskButton = document.getElementById('im-back-to-active-task-button');
 const imExistingInvoicesContainer = document.getElementById('im-existing-invoices-container');
 const imInvoicesTableBody = document.getElementById('im-invoices-table-body');
+const batchTableBody = document.getElementById('im-batch-table-body'); // <-- ADD THIS LINE
+const batchClearBtn = document.getElementById('im-batch-clear-button'); // <-- ADD THIS LINE
 const imReportingForm = document.getElementById('im-reporting-form');
 const imReportingContent = document.getElementById('im-reporting-content');
 const imReportingSearchInput = document.getElementById('im-reporting-search');
@@ -189,6 +194,7 @@ const imFinanceResultsBody = document.getElementById('im-finance-results-body');
 const imFinanceReportModal = document.getElementById('im-finance-report-modal');
 const imFinancePrintReportBtn = document.getElementById('im-finance-print-report-btn');
 const imFinanceReportPrintableArea = document.getElementById('im-finance-report-printable-area');
+// Finance Report Modal Content IDs
 const imReportDate = document.getElementById('im-reportDate');
 const imReportPoNo = document.getElementById('im-reportPoNo');
 const imReportProject = document.getElementById('im-reportProject');
@@ -213,6 +219,8 @@ const imPrintReportSummaryPOs = document.getElementById('im-print-report-summary
 const imPrintReportSummaryValue = document.getElementById('im-print-report-summary-value');
 const imPrintReportSummaryPaid = document.getElementById('im-print-report-summary-paid');
 const imPrintReportBody = document.getElementById('im-print-report-body');
+
+// SUMMARY NOTE REFERENCES
 const summaryNotePreviousInput = document.getElementById('summary-note-previous-input');
 const summaryNoteCurrentInput = document.getElementById('summary-note-current-input');
 const summaryNoteGenerateBtn = document.getElementById('summary-note-generate-btn');
@@ -228,12 +236,29 @@ const snTotalInWords = document.getElementById('sn-total-in-words');
 const snTotalNumeric = document.getElementById('sn-total-numeric');
 const noteSuggestionsDatalist = document.getElementById('note-suggestions');
 
+// --- (NEW) DOM Refs for Item Counts & Badges ---
+const activeTaskCountDisplay = document.getElementById('active-task-count-display');
+const jobRecordsCountDisplay = document.getElementById('job-records-count-display');
+const existingInvoicesCountDisplay = document.getElementById('existing-invoices-count-display');
+const activeJobsSidebarCountDisplay = document.getElementById('active-jobs-sidebar-count-display');
+const batchCountDisplay = document.getElementById('batch-count-display');
+const summaryNoteCountDisplay = document.getElementById('summary-note-count-display');
+const reportingCountDisplay = document.getElementById('reporting-count-display');
+const paymentsCountDisplay = document.getElementById('payments-count-display');
+const financeReportCountDisplay = document.getElementById('finance-report-count-display');
+const wdActiveTaskBadge = document.getElementById('wd-active-task-badge');
+const imActiveTaskBadge = document.getElementById('im-active-task-badge');
+const activeTaskCardLink = document.getElementById('db-active-tasks-card-link');
+// --- (END NEW) ---
+
 let currentApprover = null; let dateTimeInterval = null; let workdeskDateTimeInterval = null;
 let siteSelectChoices = null; let attentionSelectChoices = null;
 let currentlyEditingKey = null; let allJobEntries = []; let userJobEntries = [];
 let userActiveTasks = [];
 // let userTaskHistory = []; // --- (REMOVED) ---
 let allSystemEntries = [];
+let navigationContextList = []; // <-- ADD THIS LINE
+let navigationContextIndex = -1; // <-- ADD THIS LINE
 let currentReportFilter = 'All';
 
 // INVOICE MANAGEMENT STATE
@@ -250,6 +275,12 @@ let imStatusBarChart = null;
 let approverListForSelect = [];
 let allUniqueNotes = new Set();
 let invoicesToPay = {}; 
+
+// ++ NEW: Dashboard CSV Data State ++
+const ECOST_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/Ecost.csv";
+let allEcostData = null;
+let ecostDataTimestamp = 0;
+let imYearlyChart = null; // To hold the chart instance
 
 // ++ NEW: Finance Report State ++
 let imFinanceAllPaymentsData = {};
@@ -268,7 +299,7 @@ let cacheTimestamps = {
   epicoreData: 0, 
   sitesCSV: 0 
 };
-const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes cache
+const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours cache
 
 // ++ NEW EFFICIENT CACHES FOR DROPDOWNS ++
 let allApproversCache = null;
@@ -341,6 +372,22 @@ async function getApproverByKey(key) { try { const snapshot = await db.ref(`appr
 function updateDashboardDateTime() { const now = new Date(); const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }; datetimeElement.textContent = now.toLocaleDateString('en-GB', options); }
 function updateWorkdeskDateTime() { const now = new Date(); const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }; const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }; const dateString = now.toLocaleDateString('en-GB', dateOptions); const timeString = now.toLocaleTimeString('en-GB', timeOptions); workdeskDatetimeElement.textContent = `${dateString} at ${timeString}`; }
 
+
+// --- (NEW) Helper Functions for Counts ---
+function updateBatchCount() {
+    if (batchCountDisplay) {
+        const rows = batchTableBody.querySelectorAll('tr');
+        batchCountDisplay.textContent = `Total in Batch: ${rows.length}`;
+    }
+}
+function updatePaymentsCount() {
+    if (paymentsCountDisplay) {
+        const rows = imPaymentsTableBody.querySelectorAll('tr');
+        paymentsCountDisplay.textContent = `(Total to Pay: ${rows.length})`;
+    }
+}
+// --- (END NEW) ---
+
 function handleSuccessfulLogin() {
     if (currentApprover && currentApprover.key) {
         sessionStorage.setItem('approverKey', currentApprover.key);
@@ -371,16 +418,18 @@ function showWorkdeskSection(sectionId) {
 
     // ++ ADDED: Restore search state on navigation ++
     if (sectionId === 'wd-dashboard') { populateWorkdeskDashboard(); }
+    
+    // --- *** JOB ENTRY FETCH FIX (START) *** ---
     if (sectionId === 'wd-jobentry') {
         const savedSearch = sessionStorage.getItem('jobEntrySearch');
         if (savedSearch) {
             jobEntrySearchInput.value = savedSearch;
-            handleJobEntrySearch(savedSearch);
-        } else {
-             jobEntryTableBody.innerHTML = '<tr><td colspan="8">Use the search bar to find your pending entries.</td></tr>';
-             userJobEntries = [];
         }
+        // Always fetch entries when visiting the section
+        handleJobEntrySearch(jobEntrySearchInput.value); 
     }
+    // --- *** JOB ENTRY FETCH FIX (END) *** ---
+    
     if (sectionId === 'wd-activetask') {
         populateActiveTasks();
         const savedSearch = sessionStorage.getItem('activeTaskSearch');
@@ -391,15 +440,18 @@ function showWorkdeskSection(sectionId) {
     }
     // --- (REMOVED) Task History section logic ---
     // --- (END REMOVAL) ---
+    
+    // --- *** WORKDESK REPORTING FIX (START) *** ---
     if (sectionId === 'wd-reporting') {
         const savedSearch = sessionStorage.getItem('reportingSearch');
         if (savedSearch) {
             reportingSearchInput.value = savedSearch;
-            handleReportingSearch();
-        } else {
-            reportingTableBody.innerHTML = '<tr><td colspan="11">Use the search bar and select a filter to see the report.</td></tr>';
         }
+         // Always fetch entries when visiting the section
+        handleReportingSearch();
     }
+    // --- *** WORKDESK REPORTING FIX (END) --- ---
+
     if (sectionId === 'wd-settings') { populateSettingsForm(); }
 }
 function formatDate(date) { const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]; const day = String(date.getDate()).padStart(2, '0'); const month = months[date.getMonth()]; const year = date.getFullYear(); return `${day}-${month}-${year}`; }
@@ -436,7 +488,14 @@ function getTodayDateString() {
 }
 
 function formatCurrency(value) {
-    const number = parseFloat(value);
+    if (typeof value === 'number') {
+         return value.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+    // This line removes commas (e.g., "6,000.00") before parsing
+    const number = parseFloat(String(value).replace(/,/g, ''));
     if (isNaN(number)) {
         return 'N/A';
     }
@@ -688,6 +747,7 @@ async function fetchAndParseSitesCSV(url) {
 // --- *** SITE.CSV FIX (END) *** ---
 
 
+
 // FETCH AND PARSE CSV FOR PO DATA
 async function fetchAndParseCSV(url) {
     try {
@@ -723,6 +783,152 @@ async function fetchAndParseCSV(url) {
         console.log(`Successfully fetched and parsed ${Object.keys(poData).length} POs from GitHub.`);
         return poData;
     } catch (error) { console.error("Error fetching or parsing PO CSV:", error); alert("CRITICAL ERROR: Could not load Purchase Order data from GitHub."); return null; }
+}
+
+
+// ++ NEW: FETCH AND PARSE Ecost.csv FOR DASHBOARD ++
+async function fetchAndParseEcostCSV(url) {
+    try {
+        const response = await fetch(url, { cache: 'no-store' });
+        if (!response.ok) {
+            throw new Error(`Failed to fetch Ecost CSV: ${response.statusText}`);
+        }
+        const csvText = await response.text();
+
+        const lines = csvText.replace(/^\uFEFF/, '').split('\n').filter(line => line.trim() !== '');
+        if (lines.length < 2) {
+            throw new Error("Ecost CSV is empty or has no data rows.");
+        }
+
+        // More robust CSV parser
+        const parseCsvRow = (rowStr) => {
+            const values = [];
+            let inQuote = false;
+            let currentVal = '';
+            const cleanRowStr = rowStr.trim();
+
+            for (let i = 0; i < cleanRowStr.length; i++) {
+                const char = cleanRowStr[i];
+                if (char === '"' && (i === 0 || cleanRowStr[i-1] !== '\\')) {
+                    inQuote = !inQuote;
+                } else if (char === ',' && !inQuote) {
+                    values.push(currentVal.trim().replace(/^"|"$/g, ''));
+                    currentVal = '';
+                } else {
+                    currentVal += char;
+                }
+            }
+            values.push(currentVal.trim().replace(/^"|"$/g, ''));
+            return values;
+        };
+
+        const headers = parseCsvRow(lines[0]).map(h => h.trim());
+        const headerMap = {};
+        headers.forEach((h, i) => {
+            headerMap[h] = i;
+        });
+
+        // Check for required headers
+        const requiredHeaders = ['Order Date', 'Project #', 'Name', 'Line Amount', 'Delivered Amount', 'Outstanding', 'Activity Name'];
+        for (const h of requiredHeaders) {
+            if (typeof headerMap[h] === 'undefined') {
+                console.warn(`Ecost CSV is missing expected header: ${h}`);
+            }
+        }
+        
+        // Use indices
+        const dateIndex = headerMap['Order Date'];
+        const projectIndex = headerMap['Project #'];
+        const vendorIndex = headerMap['Name'];
+        const lineAmountIndex = headerMap['Line Amount'];
+        const deliveredIndex = headerMap['Delivered Amount'];
+        const outstandingIndex = headerMap['Outstanding'];
+        const activityIndex = headerMap['Activity Name'];
+
+
+        const processedData = [];
+        for (let i = 1; i < lines.length; i++) {
+            const values = parseCsvRow(lines[i]);
+            if (values.length < headers.length) continue;
+
+            // --- *** THIS IS THE NEW FIX for DD-MM-YY *** ---
+            const orderDateStr = values[dateIndex];
+            let orderDate = null;
+            let year = null;
+            let month = null;
+
+            if (orderDateStr && orderDateStr.includes('-')) {
+                const parts = orderDateStr.split('-'); // e.g., ["21", "10", "23"]
+                if (parts.length === 3) {
+                    const day = parseInt(parts[0], 10);
+                    const monthIndex = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+                    let fullYear = parseInt(parts[2], 10);
+                    
+                    if (fullYear < 100) {
+                        fullYear += 2000; // Convert "23" to "2023"
+                    }
+                    
+                    orderDate = new Date(Date.UTC(fullYear, monthIndex, day)); // Use UTC to avoid timezone issues
+                }
+            }
+            
+            // Fallback for other date formats (e.g., ISO or mm/dd/yyyy)
+            if (!orderDate || isNaN(orderDate)) {
+                orderDate = new Date(orderDateStr);
+            }
+            // --- *** END OF FIX *** ---
+            
+            // Final check if date is valid
+            if (orderDate && !isNaN(orderDate)) {
+                 // Check if the date is in the future relative to the *client's* clock
+                const now = new Date();
+                if (orderDate > now) {
+                    // This data point is in the future, skip it for calculations
+                    continue; 
+                }
+                year = orderDate.getFullYear();
+                month = orderDate.getMonth(); // 0-11
+            } else {
+                 // If date is invalid, skip this row
+                 continue;
+            }
+
+            processedData.push({
+                'Order Date': orderDate,
+                'Year': year,
+                'Month': month,
+                'Project #': values[projectIndex],
+                'Vendor': values[vendorIndex], // Renamed
+                'Total Committed': parseFloat(values[lineAmountIndex].replace(/,/g, '')) || 0, // Renamed and parsed
+                'Delivered Amount': parseFloat(values[deliveredIndex].replace(/,/g, '')) || 0, // Parsed
+                'Outstanding': parseFloat(values[outstandingIndex].replace(/,/g, '')) || 0, // Parsed
+                'Activity Name': values[activityIndex]
+            });
+        }
+        console.log(`Successfully parsed ${processedData.length} rows from Ecost.csv`);
+        return processedData;
+    } catch (error) {
+        console.error("Error fetching or parsing Ecost CSV:", error);
+        alert(`CRITICAL ERROR: Could not load dashboard data. ${error.message}`);
+        return null;
+    }
+}
+
+
+// ++ NEW: Cache function for Ecost data ++
+async function ensureEcostDataFetched(forceRefresh = false) {
+    const now = Date.now();
+    if (!forceRefresh && allEcostData && (now - ecostDataTimestamp < CACHE_DURATION)) {
+        return allEcostData;
+    }
+    
+    console.log("Fetching Ecost.csv data...");
+    allEcostData = await fetchAndParseEcostCSV(ECOST_DATA_URL);
+    if (allEcostData) {
+        ecostDataTimestamp = now;
+        console.log("Ecost.csv data cached.");
+    }
+    return allEcostData;
 }
 
 // This function is still used by reporting, so we keep it.
@@ -827,6 +1033,7 @@ function removeFromLocalInvoiceCache(poNumber, invoiceKey) {
     }
 }
 
+
 // --- WORKDESK LOGIC ---
 
 // --- (MODIFIED) ensureAllEntriesFetched ---
@@ -865,7 +1072,6 @@ async function ensureAllEntriesFetched(forceRefresh = false) {
     console.log(`Workdesk Job Records cache updated with ${allSystemEntries.length} job entries.`);
 }
 
-
 function isTaskComplete(task) {
     if (!task) return false;
 
@@ -877,7 +1083,10 @@ function isTaskComplete(task) {
         'Under Review', 
         'SRV Done', 
         'Paid',
-        'Report' // Added Report as a "complete" status
+        'Report', // Added Report as a "complete" status
+        'CLOSED',
+        'Cancelled',
+        'Original PO'
     ];
 
     if (task.source === 'invoice') {
@@ -903,26 +1112,32 @@ function isTaskComplete(task) {
     }
     
     if (task.source === 'job_entry') {
+	if (task.attention === 'All') return true; // <-- ADD THIS LINE
         // --- (Req 1) MODIFIED: Check job_entry statuses ---
         if (completedStatuses.includes(task.remarks)) {
             return true;
         }
         
-        // --- *** START OF WORKFLOW FIX *** ---
+        // --- *** THIS IS THE FIX YOU REQUESTED *** ---
+        // If a non-invoice job has been replied to (dateResponded is set), it's complete.
+        if (task.for !== 'Invoice' && task.dateResponded) {
+            return true;
+        }
+        // --- *** END OF NEW RULE *** ---
+
         // A job_entry with type 'Invoice' is now considered "complete"
-        // as soon as it has a dateResponded, regardless of the remarks.
-        // This is set when the invoice is created from the task.
+        // as soon as it has a dateResponded.
         if (task.for === 'Invoice') { 
             return !!task.dateResponded; 
         }
-        // --- *** END OF WORKFLOW FIX *** ---
 
         if (task.for === 'IPC' && task.attention === 'All') { return true; }
     }
-
-    // Generic completion check (might need refinement based on job type)
-    return (task.amount && task.amount.trim() !== '' && task.po && task.po.trim() !== '');
+    
+    return false; // If no other rule matches, it's not complete
 }
+
+
 
 function resetJobEntryForm(keepJobType = false) {
     const jobType = jobForSelect.value;
@@ -935,6 +1150,12 @@ function resetJobEntryForm(keepJobType = false) {
     jobEntryFormTitle.textContent = 'Add New Job Entry';
     addJobButton.classList.remove('hidden');
     updateJobButton.classList.add('hidden');
+
+// --- ADD THIS BLOCK ---
+    if (jobEntryNavControls) jobEntryNavControls.classList.add('hidden');
+    navigationContextList = [];
+    navigationContextIndex = -1;
+    // --- END OF ADD BLOCK ---
 
     // ++ ADDED: Clear search on form clear ++
     jobEntrySearchInput.value = '';
@@ -1012,6 +1233,7 @@ async function populateAttentionDropdown(choicesInstance) {
             const choiceList = [
                 { value: '', label: 'Select Attention', disabled: true },
                 { value: 'None', label: 'None (Clear Selection)' },
+                { value: 'All', label: 'All (Send to Records)' }, // <-- ADD THIS LINE
                 ...approverOptions.sort((a,b) => a.label.localeCompare(b.label)) // Sort alphabetically
             ];
 
@@ -1027,7 +1249,6 @@ async function populateAttentionDropdown(choicesInstance) {
     }
 }
 // --- *** ATTENTION DROPDOWN FIX APPLIED HERE (END) *** ---
-
 
 // --- NEW, EFFICIENT populateSiteDropdown (CORRECTED) ---
 async function populateSiteDropdown() {
@@ -1048,7 +1269,6 @@ async function populateSiteDropdown() {
             const siteOptions = Object.values(sites)
                 .map(site => site.Warehouse && site.Description ? { value: site.Warehouse, label: `${site.Warehouse} - ${site.Description}` } : null)
                 .filter(Boolean)
-                //.sort((a, b) => a.label.localeCompare(b.label)); // Sort alphabetically
                 // --- MODIFICATION: Sort numerically by site number (value) ---
                 .sort((a, b) => {
                     const numA = parseInt(a.value, 10);
@@ -1100,35 +1320,38 @@ function renderJobEntryTable(entries) {
         jobEntryTableBody.appendChild(row);
     });
 }
+// --- *** JOB ENTRY FETCH FIX (START) *** ---
 async function handleJobEntrySearch(searchTerm) {
-    const searchText = searchTerm.toLowerCase();
+    const searchText = (searchTerm || '').toLowerCase();
     sessionStorage.setItem('jobEntrySearch', searchText); // Save search term
-
-    if (!searchText) {
-        renderJobEntryTable([]);
-        jobEntryTableBody.innerHTML = '<tr><td colspan="8">Use the search bar to find your pending entries.</td></tr>';
-        return;
-    }
 
     jobEntryTableBody.innerHTML = '<tr><td colspan="8">Searching...</td></tr>';
 
     try {
-        // --- MODIFICATION: This now fetches job_entries directly ---
+        // Fetch all job_entries
         await ensureAllEntriesFetched();
-        // ---
         
-        userJobEntries = allSystemEntries.filter(entry => entry.enteredBy === currentApprover.Name && !isTaskComplete(entry));
+        // Filter for entries entered by the current user that are NOT complete
+        userJobEntries = allSystemEntries.filter(entry => 
+            entry.enteredBy === currentApprover.Name && !isTaskComplete(entry)
+        );
 
-        const filteredEntries = userJobEntries.filter(entry => {
-            return (
-                (entry.for && entry.for.toLowerCase().includes(searchText)) ||
-                (entry.ref && entry.ref.toLowerCase().includes(searchText)) ||
-                (entry.site && entry.site.toLowerCase().includes(searchText)) ||
-                (entry.group && entry.group.toLowerCase().includes(searchText)) ||
-                (entry.attention && entry.attention.toLowerCase().includes(searchText)) ||
-                (entry.po && entry.po.toLowerCase().includes(searchText))
-            );
-        });
+        let filteredEntries = userJobEntries;
+        
+        // Apply search filter if one is provided
+        if (searchText) {
+            filteredEntries = userJobEntries.filter(entry => {
+                return (
+                    (entry.for && entry.for.toLowerCase().includes(searchText)) ||
+                    (entry.ref && entry.ref.toLowerCase().includes(searchText)) ||
+                    (entry.site && entry.site.toLowerCase().includes(searchText)) ||
+                    (entry.group && entry.group.toLowerCase().includes(searchText)) ||
+                    (entry.attention && entry.attention.toLowerCase().includes(searchText)) ||
+                    (entry.po && entry.po.toLowerCase().includes(searchText))
+                );
+            });
+        }
+        
         renderJobEntryTable(filteredEntries);
 
     } catch (error) {
@@ -1136,9 +1359,12 @@ async function handleJobEntrySearch(searchTerm) {
         jobEntryTableBody.innerHTML = '<tr><td colspan="8">Error searching entries.</td></tr>';
     }
 }
+// --- *** JOB ENTRY FETCH FIX (END) *** ---
+
+// *** MODIFICATION: Added 'remarks' to data object ***
 function getJobDataFromForm() {
     const formData = new FormData(jobEntryForm);
-    const data = { for: formData.get('for'), ref: formData.get('ref') || '', amount: formData.get('amount') || '', po: formData.get('po') || '', site: formData.get('site'), group: formData.get('group'), attention: attentionSelectChoices.getValue(true), date: formatDate(new Date()) };
+    const data = { for: formData.get('for'), ref: formData.get('ref') || '', amount: formData.get('amount') || '', po: formData.get('po') || '', site: formData.get('site'), group: formData.get('group'), attention: attentionSelectChoices.getValue(true), date: formatDate(new Date()), remarks: formData.get('status') || 'Pending' };
     return data;
 }
 
@@ -1182,17 +1408,23 @@ async function handleAddJobEntry(e) {
         // --- (REMOVED) `updateJobTaskLookup` call ---
 
         alert('Job Entry Added Successfully!');
+        
+        // --- *** JOB ENTRY FETCH FIX (START) *** ---
+        await ensureAllEntriesFetched(true); // Force refresh cache
+        handleJobEntrySearch(jobEntrySearchInput.value); // Re-run search
         resetJobEntryForm();
-        allSystemEntries = [];
+        // --- *** JOB ENTRY FETCH FIX (END) *** ---
+        
     } catch (error) { console.error("Error adding job entry:", error); alert('Failed to add Job Entry. Please try again.'); }
 }
 
 // --- (MODIFIED) handleUpdateJobEntry ---
+// *** MODIFICATION: Added 'remarks' to jobData object ***
 async function handleUpdateJobEntry(e) {
     e.preventDefault();
     if (!currentlyEditingKey) { alert("No entry selected for update."); return; }
     const formData = new FormData(jobEntryForm);
-    const jobData = { for: formData.get('for'), ref: formData.get('ref') || '', amount: formData.get('amount') || '', po: formData.get('po') || '', site: formData.get('site'), group: formData.get('group'), attention: attentionSelectChoices.getValue(true) };
+    const jobData = { for: formData.get('for'), ref: formData.get('ref') || '', amount: formData.get('amount') || '', po: formData.get('po') || '', site: formData.get('site'), group: formData.get('group'), attention: attentionSelectChoices.getValue(true), remarks: formData.get('status') || 'Pending' };
     
     // --- (MODIFICATION) Check for "Invoice" job type ---
     const isInvoiceJob = jobData.for === 'Invoice';
@@ -1209,24 +1441,51 @@ async function handleUpdateJobEntry(e) {
     try {
         await ensureAllEntriesFetched(); // We need this to get the original entry
         const originalEntry = allSystemEntries.find(entry => entry.key === currentlyEditingKey);
+                
+        if (originalEntry) { 
+            jobData.enteredBy = originalEntry.enteredBy; 
+            jobData.timestamp = originalEntry.timestamp; 
+            jobData.date = originalEntry.date; 
+        }
+
+        // --- *** THIS IS THE FIX YOU REQUESTED *** ---
+        // If the current user is the "attention" person and the task is NOT an invoice,
+        // set dateResponded to mark it as complete.
+        if (originalEntry && 
+            currentApprover.Name === originalEntry.attention && 
+            !originalEntry.dateResponded &&
+            jobData.for !== 'Invoice' // Make sure it's not an Invoice job
+        ) { 
+            jobData.dateResponded = formatDate(new Date()); 
+        }
+        // --- *** END OF NEW RULE *** ---
         
-        // --- (REMOVED) `oldAttention` variable ---
-        
-        if (originalEntry) { jobData.enteredBy = originalEntry.enteredBy; jobData.timestamp = originalEntry.timestamp; jobData.date = originalEntry.date; }
-        if (originalEntry.for === 'IPC' && jobData.attention === 'All') { jobData.remarks = 'Ready'; }
-        if (originalEntry && currentApprover.Name === originalEntry.attention && !originalEntry.dateResponded) { jobData.dateResponded = formatDate(new Date()); }
+        // Check if the current user is a QS
+const isQS = currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'qs';
+
+// Only set status to 'Ready' if it's an IPC job, Attention is 'All', AND the user is a QS
+if (originalEntry.for === 'IPC' && jobData.attention === 'All' && isQS) {
+    jobData.remarks = 'Ready';
+}
         
         await db.ref(`job_entries/${currentlyEditingKey}`).update(jobData);
 
-        // --- (REMOVED) `updateJobTaskLookup` call ---
-
         alert('Job Entry Updated Successfully!');
+        
+        // --- *** JOB ENTRY FETCH FIX (START) *** ---
+        await ensureAllEntriesFetched(true); // Force refresh cache
+        handleJobEntrySearch(jobEntrySearchInput.value); // Re-run search
         resetJobEntryForm();
-        allSystemEntries = [];
+        // --- *** JOB ENTRY FETCH FIX (END) *** ---
+        
         populateActiveTasks(); // Re-fetch all tasks
-    } catch (error) { console.error("Error updating job entry:", error); alert('Failed to update Job Entry. Please try again.'); }
+    } catch (error) { 
+        console.error("Error updating job entry:", error); 
+        alert('Failed to update Job Entry. Please try again.'); 
+    }
 }
 
+// *** MODIFICATION: Added logic to populate new 'job-status' field ***
 function populateFormForEditing(key) {
     // This needs to fetch from allSystemEntries, which is correct
     const entryData = allSystemEntries.find(entry => entry.key === key);
@@ -1242,6 +1501,7 @@ function populateFormForEditing(key) {
     document.getElementById('job-group').value = entryData.group || '';
     siteSelectChoices.setChoiceByValue(entryData.site || '');
     attentionSelectChoices.setChoiceByValue(entryData.attention || '');
+    document.getElementById('job-status').value = (entryData.remarks === 'Pending') ? '' : entryData.remarks || '';
     jobEntryFormTitle.textContent = 'Editing Job Entry';
     addJobButton.classList.add('hidden');
     updateJobButton.classList.remove('hidden');
@@ -1250,9 +1510,30 @@ function populateFormForEditing(key) {
     window.scrollTo(0, 0);
 }
 
+// [Find and replace this entire function, around line 1511]
 
-// --- (REVERTED) populateActiveTasks ---
-// Fetches job_entries directly (slower) and invoice_entries from the inbox (fast).
+function updateJobEntryNavControls() {
+    if (navigationContextList.length > 0 && navigationContextIndex > -1) {
+        // Show controls
+        jobEntryNavControls.classList.remove('hidden');
+        
+        // --- THIS IS THE FIX ---
+        // We are using simple quotes (+) instead of backticks (`)
+        // This avoids any regex confusion.
+        navJobCounter.textContent = (navigationContextIndex + 1) + ' / ' + navigationContextList.length;
+        // --- END OF FIX ---
+
+        // Enable/disable buttons at the start or end of the list
+        navPrevJobButton.disabled = (navigationContextIndex === 0);
+        navNextJobButton.disabled = (navigationContextIndex === navigationContextList.length - 1);
+    } else {
+        // Hide controls
+        jobEntryNavControls.classList.add('hidden');
+    }
+}
+
+// --- (MODIFIED) populateActiveTasks ---
+// Fetches job_entries directly and invoice_entries from the inbox.
 async function populateActiveTasks() {
     activeTaskTableBody.innerHTML = `<tr><td colspan="10">Loading tasks...</td></tr>`;
     if (!currentApprover || !currentApprover.Name) {
@@ -1266,6 +1547,7 @@ async function populateActiveTasks() {
 
         // --- PART 1: FETCH JOB_ENTRY TASKS (The old way, direct from Firebase) ---
         await ensureAllEntriesFetched(); // This loads all job_entries into `allSystemEntries`
+        await ensureApproverDataCached(); // --- (NEW) Load approver positions ---
         
         const jobTasks = allSystemEntries.filter(entry => {
             if (isTaskComplete(entry)) return false; // Skip completed
@@ -1329,6 +1611,19 @@ async function populateActiveTasks() {
         userActiveTasks = userTasks.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
         renderActiveTaskTable(userTasks); 
 
+        // --- (NEW) Update task count and badge ---
+        const taskCount = userActiveTasks.length;
+        if (activeTaskCountDisplay) {
+            activeTaskCountDisplay.textContent = `(Total Tasks: ${taskCount})`;
+        }
+        [wdActiveTaskBadge, imActiveTaskBadge].forEach(badge => {
+            if (badge) {
+                badge.textContent = taskCount;
+                badge.style.display = taskCount > 0 ? 'inline-block' : 'none';
+            }
+        });
+        // --- (END NEW) ---
+
     } catch (error) {
         console.error("Error fetching active tasks:", error);
         activeTaskTableBody.innerHTML = `<tr><td colspan="10">Error loading tasks.</td></tr>`;
@@ -1336,6 +1631,7 @@ async function populateActiveTasks() {
 }
 
 
+// --- *** MOBILE VIEW FIX (START) *** ---
 // ++ MODIFIED: renderActiveTaskTable ++
 function renderActiveTaskTable(tasks) {
     activeTaskTableBody.innerHTML = '';
@@ -1370,21 +1666,49 @@ function renderActiveTaskTable(tasks) {
             <button class="modify-btn" data-key="${task.key}">Modify</button>
         `;
 
-        row.innerHTML = `
-            <td>${task.for || ''}</td>
-            <td>${task.ref || ''}</td>
-            <td>${task.po || ''}</td>
-            <td>${task.vendorName || 'N/A'}</td>
-            <td>${formatCurrency(task.amount)}</td>
-            <td>${task.site || ''}</td>
-            <td>${task.group || ''}</td>
-            <td>${task.date || ''}</td>
-            <td>${task.remarks || 'Pending'}</td>
-            <td>${actionButtons}</td>
+        // --- (NEW) Mobile-Optimized Columns ---
+        // These will be rendered as table cells but styled as blocks by the CSS
+        const poMobile = `<td class="mobile-only" data-label="PO">${task.po || ''}</td>`;
+        const vendorMobile = `<td class="mobile-only" data-label="Vendor Name">${task.vendorName || 'N/A'}</td>`;
+        const amountMobile = `<td class="mobile-only" data-label="Invoice Amount">${formatCurrency(task.amount)}</td>`;
+        const siteMobile = `<td class="mobile-only" data-label="Site">${task.site || 'N/A'}</td>`;
+        
+        const desktopColumns = `
+            <td class="desktop-only">${task.for || ''}</td>
+            <td class="desktop-only">${task.ref || ''}</td>
+            <td class="desktop-only">${task.po || ''}</td>
+            <td class="desktop-only">${task.vendorName || 'N/A'}</td>
+            <td class="desktop-only">${formatCurrency(task.amount)}</td>
+            <td class="desktop-only">${task.site || ''}</td>
+            <td class="desktop-only">${task.group || ''}</td>
+            <td class="desktop-only">${task.date || ''}</td>
+            <td class="desktop-only">${task.remarks || 'Pending'}</td>
+            <td class="desktop-only">${actionButtons}</td>
         `;
+
+        // Combine mobile and desktop columns. CSS will hide/show them.
+        row.innerHTML = poMobile + vendorMobile + amountMobile + siteMobile + desktopColumns;
+        // --- *** MOBILE VIEW FIX (END) *** ---
+
+        // --- (NEW) Add combined click listener for mobile ---
+        row.querySelectorAll('.mobile-only').forEach(cell => {
+             cell.addEventListener('click', () => {
+                // Find task in the fresh userActiveTasks list
+                const taskData = userActiveTasks.find(entry => entry.key === task.key); // Use task.key from forEach scope
+                if (!taskData) {
+                     alert("Could not find task details. The list may be out of date. Please refresh.");
+                     return;
+                }
+                openModifyTaskModal(taskData);
+            });
+        });
+        // --- (END NEW) ---
+
         activeTaskTableBody.appendChild(row);
     });
 }
+// --- *** MOBILE VIEW FIX (END) *** ---
+
 
 // --- (REMOVED) Task History Functions ---
 /*
@@ -1399,10 +1723,27 @@ async function handleTaskHistorySearch(searchTerm) {
 
 function renderReportingTable(entries) {
     reportingTableBody.innerHTML = '';
-    if (!entries || entries.length === 0) { reportingTableBody.innerHTML = '<tr><td colspan="11">No entries found for the selected criteria.</td></tr>'; return; }
+    
+    // --- (NEW) Update Count ---
+    const count = entries.length;
+    if (jobRecordsCountDisplay) {
+        jobRecordsCountDisplay.textContent = `(Total Records: ${count})`;
+    }
+    // --- (END NEW) ---
+    
+    if (!entries || count === 0) { 
+        reportingTableBody.innerHTML = '<tr><td colspan="11">No entries found for the selected criteria.</td></tr>'; 
+        return; 
+    }
+    
     entries.forEach(entry => {
         const status = isTaskComplete(entry) ? (entry.remarks || 'Completed') : (entry.remarks || 'Pending');
         const row = document.createElement('tr');
+	
+	row.setAttribute('data-key', entry.key); // <-- ADD THIS LINE
+        const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin'; // <-- ADD THIS LINE
+        if (isAdmin) row.classList.add('admin-clickable-row'); // <-- ADD THIS LINE
+
         row.innerHTML = `
             <td>${entry.for || ''}</td>
             <td>${entry.ref || ''}</td>
@@ -1581,14 +1922,10 @@ function handleActiveTaskSearch(searchTerm) {
     renderActiveTaskTable(filteredTasks);
 }
 
+// --- *** WORKDESK REPORTING FIX (START) *** ---
 async function handleReportingSearch() {
     const searchText = reportingSearchInput.value.toLowerCase();
     sessionStorage.setItem('reportingSearch', searchText); // Save search term
-
-    if (!searchText) {
-        renderReportingTable([]);
-        return;
-    }
 
     reportingTableBody.innerHTML = '<tr><td colspan="11">Searching report data...</td></tr>';
     try {
@@ -1608,6 +1945,8 @@ async function handleReportingSearch() {
         reportingTableBody.innerHTML = '<tr><td colspan="11">Error loading reporting data.</td></tr>';
     }
 }
+// --- *** WORKDESK REPORTING FIX (END) *** ---
+
 function handleDownloadWorkdeskCSV() {
     const table = document.querySelector("#reporting-printable-area table");
     if (!table) {
@@ -1738,7 +2077,11 @@ function showIMSection(sectionId) {
     // Show/hide daily report buttons based on 'accounting' POSITION
     const dailyReportContainer = document.querySelector('.daily-report-section');
     if (dailyReportContainer) {
-        dailyReportContainer.style.display = isAccountingPosition ? 'flex' : 'none';
+        // --- *** MOBILE VIEW FIX (START) *** ---
+        // Also check window width
+        const isMobile = window.innerWidth <= 768;
+        dailyReportContainer.style.display = (isAccountingPosition && !isMobile) ? 'flex' : 'none';
+        // --- *** MOBILE VIEW FIX (END) *** ---
     }
     // Also hide the "Download Full Report" button
     if (imReportingDownloadCSVButton) {
@@ -1771,7 +2114,7 @@ function showIMSection(sectionId) {
     }
 
 
-    if (sectionId === 'im-dashboard') { populateInvoiceDashboard(); }
+    if (sectionId === 'im-dashboard') { populateInvoiceDashboard(false); }
     
     // --- *** START OF FIX (Search Persistence) *** ---
     if (sectionId === 'im-invoice-entry') { 
@@ -1792,7 +2135,7 @@ function showIMSection(sectionId) {
             populateAttentionDropdown(imAttentionSelectChoices); 
         } 
     }
-    // --- *** END OF FIX *** ---
+    // --- *** END OF FIX ---
     
     // --- *** START OF FIX (Batch Note Persistence) *** ---
     if (sectionId === 'im-batch-entry') {
@@ -1808,6 +2151,7 @@ function showIMSection(sectionId) {
         
         // Always clear the table when navigating to the section
         batchTableBody.innerHTML = '';
+        updateBatchCount(); // (NEW) Update Count
 
         if (!imBatchGlobalAttentionChoices) {
              imBatchGlobalAttentionChoices = new Choices(imBatchGlobalAttention, { searchEnabled: true, shouldSort: false, itemSelectText: '', });
@@ -1852,6 +2196,7 @@ function showIMSection(sectionId) {
             handleGenerateSummary();
         } else {
             summaryNotePrintArea.classList.add('hidden');
+            if (summaryNoteCountDisplay) summaryNoteCountDisplay.textContent = ''; // Clear count
         }
     }
     // --- END MODIFICATION ---
@@ -1864,6 +2209,7 @@ function showIMSection(sectionId) {
             populateInvoiceReporting(savedSearch);
         } else {
             imReportingContent.innerHTML = '<p>Please enter a search term and click Search.</p>';
+            if (reportingCountDisplay) reportingCountDisplay.textContent = ''; // Clear count
             imReportingSearchInput.value = '';
             currentReportData = [];
         }
@@ -1873,6 +2219,7 @@ function showIMSection(sectionId) {
     if (sectionId === 'im-payments') {
         imPaymentsTableBody.innerHTML = ''; // Clear table on view change
         invoicesToPay = {}; // Reset state
+        updatePaymentsCount(); // (NEW) Update Count
     }
     // ++ NEW: Initialize Finance Report Section ++
     if (sectionId === 'im-finance-report') {
@@ -1880,6 +2227,7 @@ function showIMSection(sectionId) {
         imFinanceResults.style.display = 'none';
         imFinanceNoResults.style.display = 'none';
         imFinanceAllPaymentsData = {};
+        if (financeReportCountDisplay) financeReportCountDisplay.textContent = ''; // Clear count
     }
 }
 function resetInvoiceForm() {
@@ -1910,9 +2258,15 @@ function resetInvoiceEntryPage() {
     // Clear the session storage for the PO search
     sessionStorage.removeItem('imPOSearch');
     
+    // --- (NEW) Clear Count ---
+    if (existingInvoicesCountDisplay) {
+        existingInvoicesCountDisplay.textContent = 'Existing Invoices (0)';
+    }
+    // --- (END NEW) ---
+    
     resetInvoiceForm();
 }
-// --- *** END OF FIX *** ---
+// --- *** END OF FIX ---
 
 // --- MODIFIED handlePOSearch (Req 1) ---
 async function handlePOSearch(poNumberFromInput) {
@@ -1927,7 +2281,7 @@ async function handlePOSearch(poNumberFromInput) {
     // --- *** START OF FIX (Search Persistence) *** ---
     // Save the successful search term to session storage
     sessionStorage.setItem('imPOSearch', poNumber);
-    // --- *** END OF FIX *** ---
+    // --- *** END OF FIX ---
 
     // Sync both search boxes
     imPOSearchInput.value = poNumber;
@@ -1989,6 +2343,7 @@ async function handlePOSearch(poNumberFromInput) {
     }
 }
 
+
 function fetchAndDisplayInvoices(poNumber) {
     const invoicesData = allInvoiceData[poNumber];
 
@@ -1999,9 +2354,16 @@ function fetchAndDisplayInvoices(poNumber) {
     const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
     const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
 
+    let invoiceCount = 0; // --- (NEW) Count ---
+    
+    // *** MODIFICATION: ADDED THESE TWO LINES ***
+    let totalInvValueSum = 0;
+    let totalAmountPaidSum = 0;
+    // *** END OF MODIFICATION ***
 
     if (invoicesData) {
         const invoices = Object.entries(invoicesData).map(([key, value]) => ({ key, ...value }));
+        invoiceCount = invoices.length; // --- (NEW) Count ---
 
         invoices.forEach(inv => {
             // ++ NEW: Logic to find highest existing ID
@@ -2015,6 +2377,12 @@ function fetchAndDisplayInvoices(poNumber) {
 
         invoices.sort((a, b) => (a.invEntryID || '').localeCompare(b.invEntryID || ''));
         invoices.forEach(inv => {
+            
+            // *** MODIFICATION: ADDED THESE TWO LINES ***
+            totalInvValueSum += parseFloat(inv.invValue) || 0;
+            totalAmountPaidSum += parseFloat(inv.amountPaid) || 0;
+            // *** END OF MODIFICATION ***
+
             const row = document.createElement('tr');
             row.style.cursor = 'pointer';
             row.setAttribute('data-key', inv.key);
@@ -2052,11 +2420,32 @@ function fetchAndDisplayInvoices(poNumber) {
         imInvoicesTableBody.innerHTML = '<tr><td colspan="8">No invoices have been entered for this PO yet.</td></tr>';
         imExistingInvoicesContainer.classList.remove('hidden');
     }
+    
+    // --- (NEW) Update Count ---
+    if (existingInvoicesCountDisplay) {
+        existingInvoicesCountDisplay.textContent = `Existing Invoices (${invoiceCount})`;
+    }
+    // --- (END NEW) ---
+    
     // ++ UPDATED: Use smart ID generation
     const nextInvId = `INV-${String(maxInvIdNum + 1).padStart(2, '0')}`;
     imInvEntryIdInput.value = nextInvId;
     resetInvoiceForm();
     imNewInvoiceForm.classList.remove('hidden');
+
+    // *** MODIFICATION: ADDED THIS BLOCK TO UPDATE FOOTER ***
+    const footer = document.getElementById('im-invoices-table-footer');
+    if (footer) {
+        // *** ADDED ADMIN/ACCOUNTING CHECK ***
+        const isAdminOrAccounting = isAdmin || isAccounting;
+        document.getElementById('im-invoices-total-value').textContent = isAdminOrAccounting ? formatCurrency(totalInvValueSum) : '---';
+        document.getElementById('im-invoices-total-paid').textContent = isAdminOrAccounting ? formatCurrency(totalAmountPaidSum) : '---';
+        // *** END ADMIN/ACCOUNTING CHECK ***
+
+        // Show footer only if there are invoices
+        footer.style.display = invoiceCount > 0 ? '' : 'none';
+    }
+    // *** END OF MODIFICATION ***
 
     if (pendingJobEntryDataForInvoice) {
         if (pendingJobEntryDataForInvoice.amount) {
@@ -2094,6 +2483,12 @@ async function populateActiveJobsSidebar() {
         return false;
     });
 
+    // --- (NEW) Update Count ---
+    const count = invoiceJobs.length;
+    if (activeJobsSidebarCountDisplay) {
+        activeJobsSidebarCountDisplay.textContent = `Your Active Invoice Jobs (${count})`;
+    }
+    // --- (END NEW) ---
 
     imEntrySidebarList.innerHTML = ''; // Clear previous list
 
@@ -2291,7 +2686,7 @@ async function handleAddInvoice(e) {
             }
         }
         fetchAndDisplayInvoices(currentPO);
-        allSystemEntries = []; // Clear system cache
+        
     } catch (error) {
         console.error("Error adding invoice:", error);
         alert('Failed to add invoice. Please try again.');
@@ -2363,10 +2758,13 @@ async function handleUpdateInvoice(e) {
         }
         // --- END MODIFICATION ---
 
-        // --- (Req 1) FIX: Refresh sidebar in case status changed ---
-        await populateActiveTasks(); // Re-fetch all tasks
+	allSystemEntries = []; // Clear system cache
+
+        // --- *** START OF SIDEBAR FIX *** ---
+        // This line is now UNCOMMENTED. This is the fix.
+        await populateActiveTasks(); 
         populateActiveJobsSidebar();
-        // --- End FIX ---
+        // --- *** END OF SIDEBAR FIX *** ---
 
         fetchAndDisplayInvoices(currentPO);
         allSystemEntries = []; // Clear system cache
@@ -2455,11 +2853,270 @@ async function populateSiteFilterDropdown() {
 }
 // --- *** SITE.CSV FIX (END) *** ---
 
-// ++ FIX: Restore definition for populateInvoiceDashboard ++
-async function populateInvoiceDashboard() {
+// [Replace the entire function around line 2244]
+
+// ++ MODIFIED: To accept forceRefresh and add a refresh button ++
+async function populateInvoiceDashboard(forceRefresh = false) {
     const dashboardSection = document.getElementById('im-dashboard');
-    // Basic placeholder - replace with actual chart logic if needed later
-    dashboardSection.innerHTML = '<h1>Dashboard</h1><p>Dashboard analytics view is currently unavailable.</p>';
+    // Clear previous content and add the new structure from chart.zip's index.html
+    dashboardSection.innerHTML = `
+        <h1>Dashboard</h1>
+        <div class="im-dashboard-grid">
+            <div class="im-chart-card">
+                <h2>Top 5 Vendors</h2>
+                <ul id="top-vendors-list" class="dashboard-top5-list"></ul>
+            </div>
+            <div class="im-chart-card">
+                <h2>Top 5 Project Sites</h2>
+                <ul id="top-projects-list" class="dashboard-top5-list"></ul>
+            </div>
+            <div class="im-chart-card">
+                <h2>Top 5 Activities</h2>
+                <ul id="top-activities-list" class="dashboard-top5-list"></ul>
+            </div>
+            <div class="im-chart-card full-width-card">
+                <div class="dashboard-chart-header">
+                    <h2>Yearly Overview</h2>
+                    <div class="dashboard-chart-controls">
+                        <select id="im-yearly-chart-year-select"></select>
+                        <button id="im-dashboard-refresh-btn" class="secondary-btn" title="Force refresh data"><i class="fa-solid fa-sync"></i></button>
+                    </div>
+                </div>
+                <div class="im-chart-container-full">
+                    <canvas id="imYearlyChartCanvas"></canvas>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const topVendorsList = document.getElementById('top-vendors-list');
+    const topProjectsList = document.getElementById('top-projects-list');
+    const topActivitiesList = document.getElementById('top-activities-list');
+    const yearSelect = document.getElementById('im-yearly-chart-year-select');
+
+    // Helper function to show loading
+    const showLoading = (list) => {
+        if (list) list.innerHTML = '<li>Loading...</li>';
+    };
+    showLoading(topVendorsList);
+    showLoading(topProjectsList);
+    showLoading(topActivitiesList);
+
+    try {
+        // --- *** THIS IS THE FIX *** ---
+        // It now uses forceRefresh (which is 'false' by default)
+        const data = await ensureEcostDataFetched(forceRefresh); 
+        // --- *** END OF FIX *** ---
+
+        if (!data) {
+            dashboardSection.innerHTML = '<h1>Dashboard</h1><p>Error loading dashboard data. Please try again later.</p>';
+            return;
+        }
+
+        // --- 1. Process Data & Get Available Years ---
+        const yearlyData = {};
+        const availableYears = new Set();
+
+        data.forEach(row => {
+            const year = row['Year'];
+            if (year) {
+                availableYears.add(year);
+                if (!yearlyData[year]) {
+                    yearlyData[year] = {
+                        'Total Committed': Array(12).fill(0),
+                        'Delivered Amount': Array(12).fill(0),
+                        'Outstanding': Array(12).fill(0),
+                    };
+                }
+                const month = row['Month']; // 0-11
+                if (month !== null) {
+                    yearlyData[year]['Total Committed'][month] += row['Total Committed'];
+                    yearlyData[year]['Delivered Amount'][month] += row['Delivered Amount'];
+                    yearlyData[year]['Outstanding'][month] += row['Outstanding'];
+                }
+            }
+        });
+
+        const sortedYears = Array.from(availableYears).sort((a, b) => b - a);
+
+        // --- 2. Populate Year Selector ---
+        yearSelect.innerHTML = '';
+        if (sortedYears.length === 0) {
+            document.getElementById('imYearlyChartCanvas').style.display = 'none';
+            yearSelect.innerHTML = '<option>No data</option>';
+            topVendorsList.innerHTML = '<li>No data found.</li>';
+            topProjectsList.innerHTML = '<li>No data found.</li>';
+            topActivitiesList.innerHTML = '<li>No data found.</li>';
+            return;
+        }
+
+        sortedYears.forEach(year => {
+            const option = document.createElement('option');
+            option.value = year;
+            option.textContent = year;
+            yearSelect.appendChild(option);
+        });
+
+        // --- 3. Helper to update Top 5s ---
+        const updateTop5Lists = (selectedYear) => {
+            const yearData = allEcostData.filter(row => row['Year'] === selectedYear);
+
+            const getTop5 = (data, keyField, valueField) => {
+                const aggregated = data.reduce((acc, row) => {
+                    const key = row[keyField];
+                    if (key) {
+                        acc[key] = (acc[key] || 0) + row[valueField];
+                    }
+                    return acc;
+                }, {});
+
+                return Object.entries(aggregated)
+                    .sort(([, a], [, b]) => b - a)
+                    .slice(0, 5);
+            };
+
+            const renderTop5List = (listElement, data) => {
+                if (!listElement) return;
+                listElement.innerHTML = '';
+                if (data.length === 0) {
+                    listElement.innerHTML = '<li>No data found.</li>';
+                    return;
+                }
+                data.forEach(([name, value]) => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span class="top5-name">${name || 'N/A'}</span>
+                        <span class="top5-value">QAR ${formatCurrency(value)}</span>
+                    `;
+                    listElement.appendChild(li);
+                });
+            };
+
+            renderTop5List(topVendorsList, getTop5(yearData, 'Vendor', 'Total Committed'));
+            renderTop5List(topProjectsList, getTop5(yearData, 'Project #', 'Total Committed'));
+            renderTop5List(topActivitiesList, getTop5(yearData, 'Activity Name', 'Total Committed'));
+        };
+
+        // --- 4. Render Chart Function (as Bar Chart) ---
+        const renderYearlyChart = (selectedYear) => {
+            const ctx = document.getElementById('imYearlyChartCanvas').getContext('2d');
+            const dataForYear = yearlyData[selectedYear];
+
+            if (imYearlyChart) {
+                imYearlyChart.destroy();
+            }
+
+            const colors = {
+                'Total Committed': 'rgba(54, 162, 235, 0.7)', // Blue
+                'Delivered Amount': 'rgba(75, 192, 192, 0.7)', // Green/Teal
+                'Outstanding': 'rgba(255, 206, 86, 0.7)' // Yellow
+            };
+
+            imYearlyChart = new Chart(ctx, {
+                type: 'bar', // Changed to bar chart
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                    datasets: [
+                        {
+                            label: 'Total Committed',
+                            data: dataForYear['Total Committed'],
+                            backgroundColor: colors['Total Committed'],
+                            borderColor: colors['Total Committed'],
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Delivered Amount',
+                            data: dataForYear['Delivered Amount'],
+                            backgroundColor: colors['Delivered Amount'],
+                            borderColor: colors['Delivered Amount'],
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Outstanding',
+                            data: dataForYear['Outstanding'],
+                            backgroundColor: colors['Outstanding'],
+                            borderColor: colors['Outstanding'],
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                             labels: {
+                                color: 'rgba(230, 241, 255, 0.9)' // Light text for legend
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += `QAR ${formatCurrency(context.parsed.y)}`;
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { 
+                            ticks: {
+                                color: 'rgba(168, 178, 209, 0.7)' // Light text for x-axis labels
+                            },
+                            grid: {
+                                color: 'rgba(48, 63, 96, 0.5)' // Dim grid lines
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                callback: function(value) {
+                                    if (value >= 1000000) return `QAR ${value / 1000000}M`;
+                                    if (value >= 1000) return `QAR ${value / 1000}K`;
+                                    return `QAR ${value}`;
+                                },
+                                color: 'rgba(168, 178, 209, 0.7)' // Light text for y-axis labels
+                            },
+                             grid: {
+                                color: 'rgba(48, 63, 96, 0.5)' // Dim grid lines
+                            }
+                        }
+                    }
+                }
+            });
+        };
+
+        // --- 5. Initial Render and Event Listener ---
+        const initialYear = parseInt(sortedYears[0]);
+        renderYearlyChart(initialYear);
+        updateTop5Lists(initialYear);
+
+        yearSelect.addEventListener('change', (e) => {
+            const selectedYear = parseInt(e.target.value);
+            renderYearlyChart(selectedYear);
+            updateTop5Lists(selectedYear);
+        });
+
+        // --- ADDED EVENT LISTENER FOR REFRESH BUTTON ---
+        const refreshBtn = document.getElementById('im-dashboard-refresh-btn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => {
+                alert('Forcing dashboard refresh... This may take a moment.');
+                populateInvoiceDashboard(true); // Pass 'true' to force refresh
+            });
+        }
+        // --- END OF ADDED LISTENER ---
+
+    } catch (error) {
+        console.error("Error populating invoice dashboard:", error);
+        dashboardSection.innerHTML = '<h1>Dashboard</h1><p>Error loading dashboard data. Please check console for details.</p>';
+    }
 }
 
 // --- *** MODIFIED populateInvoiceReporting *** ---
@@ -2569,6 +3226,13 @@ async function populateInvoiceReporting(searchTerm = '') {
         }
 
         currentReportData = processedPOData;
+        
+        // --- (NEW) Update Count ---
+        const count = currentReportData.length;
+        if (reportingCountDisplay) {
+            reportingCountDisplay.textContent = `(Total POs Found: ${count})`;
+        }
+        // --- (END NEW) ---
 
         if (!resultsFound) { imReportingContent.innerHTML = '<p>No results found for your search criteria.</p>'; }
         else {
@@ -3069,6 +3733,8 @@ async function handleAddPOToBatch() {
         if (imBatchGlobalStatus.value) statusSelect.value = imBatchGlobalStatus.value;
         if (imBatchGlobalNote.value) noteInput.value = imBatchGlobalNote.value;
         // --- END FIX ---
+        
+        updateBatchCount(); // (NEW) Update Count
 
         batchPOInput.value = ''; batchPOInput.focus();
     } catch (error) { console.error("Error adding PO to batch:", error); alert('An error occurred while adding the PO.'); }
@@ -3138,6 +3804,8 @@ async function addInvoiceToBatchTable(invData) {
     if (imBatchGlobalStatus.value) statusSelect.value = imBatchGlobalStatus.value;
     if (imBatchGlobalNote.value) noteInput.value = imBatchGlobalNote.value;
     // --- END FIX ---
+    
+    updateBatchCount(); // (NEW) Update Count
 }
 
 // --- *** START OF FIX (Batch Note Persistence) *** ---
@@ -3343,6 +4011,7 @@ async function handleSaveBatchInvoices() {
         // --- THIS IS THE FIX ---
         // This line clears the table after the success alert.
         document.getElementById('im-batch-table-body').innerHTML = ''; 
+        updateBatchCount(); // (NEW) Update Count
         // -----------------------
         
         allSystemEntries = []; // This clears the *other* cache
@@ -3436,7 +4105,8 @@ async function populateNoteDropdown(choicesInstance) {
         // Add a placeholder at the beginning
         choicesInstance.setChoices(
             [
-                { value: '', label: 'Select a note to search...', placeholder: true },
+                // --- THIS IS THE FIX (LOCATION 1) ---
+                { value: '', label: 'Select a note to search...', disabled: true },
                 ...noteOptions
             ],
             'value',
@@ -3456,7 +4126,8 @@ async function populateNoteDropdown(choicesInstance) {
 
         choicesInstance.setChoices(
             [
-                { value: '', label: 'Select a note to search...', placeholder: true },
+                // --- THIS IS THE FIX (LOCATION 2) ---
+                { value: '', label: 'Select a note to search...', disabled: true },
                 ...noteOptions
             ],
             'value',
@@ -3511,6 +4182,14 @@ async function handleGenerateSummary() {
                 }
             }
         }
+        
+        // --- (NEW) Update Count ---
+        const count = allCurrentInvoices.length;
+        if (summaryNoteCountDisplay) {
+            summaryNoteCountDisplay.textContent = `(Total Items: ${count})`;
+        }
+        // --- (END NEW) ---
+        
         if (allCurrentInvoices.length === 0) { alert(`No invoices found with the note: "${currentNote}"`); summaryNotePrintArea.classList.add('hidden'); return; }
         allCurrentInvoices.sort((a, b) => (a.site || '').localeCompare(b.site || ''));
         const vendorData = allPOs[allCurrentInvoices[0].po];
@@ -3733,7 +4412,8 @@ function handleAddSelectedToPayments() {
             imPaymentsTableBody.appendChild(row);
         }
     });
-
+    
+    updatePaymentsCount(); // (NEW) Update Count
     imAddPaymentModal.classList.add('hidden'); // Close the modal
 }
 
@@ -3814,6 +4494,7 @@ async function handleSavePayments() {
         alert(`${updatesMade} payment(s) processed successfully! Invoices updated to 'Paid'.`);
         imPaymentsTableBody.innerHTML = ''; // Clear the table
         invoicesToPay = {}; // Reset the state
+        updatePaymentsCount(); // (NEW) Update Count
         allSystemEntries = []; // Clear system cache as statuses changed
     } catch (error) {
         console.error("Error saving payments:", error);
@@ -3837,13 +4518,20 @@ function handleFinanceSearch() {
 
             if (!snapshot.exists()) {
                 imFinanceNoResults.style.display = 'block';
+                if (financeReportCountDisplay) financeReportCountDisplay.textContent = ''; // (NEW) Clear Count
             } else {
                 imFinanceNoResults.style.display = 'none';
                 imFinanceAllPaymentsData = {};
                 snapshot.forEach(childSnapshot => {
                     imFinanceAllPaymentsData[childSnapshot.key] = { id: childSnapshot.key, ...childSnapshot.val() };
                 });
-                showFinanceSearchResults(Object.values(imFinanceAllPaymentsData));
+                const payments = Object.values(imFinanceAllPaymentsData);
+                // --- (NEW) Update Count ---
+                if (financeReportCountDisplay) {
+                    financeReportCountDisplay.textContent = `(Total Payments Found: ${payments.length})`;
+                }
+                // --- (END NEW) ---
+                showFinanceSearchResults(payments);
             }
         })
         .catch(error => console.error('Error searching payments:', error));
@@ -3943,6 +4631,7 @@ function resetFinanceSearch() {
     imFinanceNoResults.style.display = 'none';
     imFinanceResultsBody.innerHTML = '';
     imFinanceAllPaymentsData = {};
+    if (financeReportCountDisplay) financeReportCountDisplay.textContent = ''; // (NEW) Clear Count
 }
 
 async function generateFinanceReport(selectedPayment) {
@@ -4036,7 +4725,12 @@ function printFinanceReport() {
 function handleLogout() {
     sessionStorage.clear(); // Clear all session data on logout
     if (dateTimeInterval) clearInterval(dateTimeInterval);
+    
+    // --- THIS IS THE FIX ---
+    // The variable was misspelled as "workGdeskDateTimeInterval"
     if (workdeskDateTimeInterval) clearInterval(workdeskDateTimeInterval);
+    // --- END OF FIX ---
+
     if (imDateTimeInterval) clearInterval(imDateTimeInterval);
     location.reload();
 }
@@ -4130,11 +4824,39 @@ document.addEventListener('DOMContentLoaded', async () => {
         invoiceManagementButton.click();
     });
 
-    document.querySelector('#workdesk-view .workdesk-sidebar').addEventListener('click', (e) => { const link = e.target.closest('a'); if (!link || link.classList.contains('back-to-main-dashboard') || link.id === 'wd-logout-button' || link.id === 'workdesk-im-link') return; e.preventDefault(); if (link.hasAttribute('data-section')) { document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a').forEach(a => a.classList.remove('active')); link.classList.add('active'); showWorkdeskSection(link.getAttribute('data-section')); } });
+    // --- *** WORKDESK NAV FIX (START) *** ---
+    document.querySelector('#workdesk-view .workdesk-sidebar').addEventListener('click', (e) => { 
+        const link = e.target.closest('a'); 
+        if (!link || link.classList.contains('back-to-main-dashboard') || link.id === 'wd-logout-button' || link.id === 'workdesk-im-link') return; 
+        e.preventDefault(); 
+        if (link.hasAttribute('data-section')) { 
+            // Hide the 'Reporting' link (wd-nav-reporting) in the main desktop sidebar
+            const reportingLink = document.querySelector('.wd-nav-reporting');
+            if (reportingLink) {
+                // *** This was part of the problem, removing this hide logic ***
+                // reportingLink.classList.add('hidden');
+            }
+        
+            document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a').forEach(a => a.classList.remove('active')); 
+            link.classList.add('active'); 
+            showWorkdeskSection(link.getAttribute('data-section')); 
+        } 
+    });
+    // --- *** WORKDESK NAV FIX (END) *** ---
+    
     addJobButton.addEventListener('click', handleAddJobEntry);
     updateJobButton.addEventListener('click', handleUpdateJobEntry);
     clearJobButton.addEventListener('click', () => resetJobEntryForm(false));
     jobEntryTableBody.addEventListener('click', (e) => { const row = e.target.closest('tr'); if (row) { const key = row.getAttribute('data-key'); 
+
+// --- ADD THIS BLOCK ---
+        // This is a click from the local pending table, not the records table.
+        // We must clear the navigation context.
+        if (jobEntryNavControls) jobEntryNavControls.classList.add('hidden');
+        navigationContextList = [];
+        navigationContextIndex = -1;
+        // --- END OF ADD BLOCK ---
+
     // --- MODIFICATION ---
     // We must call ensureAllEntriesFetched to make sure allSystemEntries is populated for editing
     ensureAllEntriesFetched().then(() => {
@@ -4144,8 +4866,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- END MODIFICATION ---
     } });
 
-    // --- (MODIFIED) activeTaskTableBody click listener (THE FIX) ---
+    
+
+// --- (MODIFIED) activeTaskTableBody click listener (THE FIX) ---
     activeTaskTableBody.addEventListener('click', async (e) => {
+        // --- (NEW) Prevent clicks if it's on the mobile row ---
+        if (e.target.closest('.mobile-only')) {
+            return;
+        }
+        // --- (END NEW) ---
+        
         const row = e.target.closest('tr');
         if (!row) return;
 
@@ -4235,11 +4965,48 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        // Handle clicking the row to open PDF
+        // --- *** NEW FIX: Handle clicking "PR", "IPC", etc. to edit them *** ---
+        if (taskData.source === 'job_entry' && taskData.for !== 'Invoice') {
+            // Find the "Job Entry" link in the sidebar and click it
+            const jobEntryLink = workdeskNav.querySelector('a[data-section="wd-jobentry"]');
+            if (jobEntryLink) {
+                jobEntryLink.click(); // This will switch the view
+            }
+            
+            // We must call ensureAllEntriesFetched to make sure allSystemEntries is populated for editing
+            await ensureAllEntriesFetched();
+            
+            // Populate the form in the (now visible) Job Entry section
+            populateFormForEditing(taskData.key);
+            return;
+        }
+        // --- *** END OF NEW FIX *** ---
+
+        // Handle clicking the row to open PDF (for invoice source only)
         if (taskData && taskData.source === 'invoice' && taskData.invName && taskData.invName.trim() && taskData.invName.toLowerCase() !== 'nil') {
             window.open(PDF_BASE_PATH + encodeURIComponent(taskData.invName) + ".pdf", '_blank');
         }
     });
+
+
+
+
+
+
+
+    
+    // --- (NEW) Click listener for WorkDesk Dashboard Card ---
+    if (activeTaskCardLink) {
+        activeTaskCardLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            // Find the 'Active Task' link in the nav and click it
+            const activeTaskLink = workdeskNav.querySelector('a[data-section="wd-activetask"]');
+            if (activeTaskLink) {
+                activeTaskLink.click();
+            }
+        });
+    }
+    // --- (END NEW) ---
 
     // ++ NEW: Modify Task Modal Listeners ++
     if (modifyTaskStatus) {
@@ -4281,6 +5048,62 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }, 500));
     
+// --- ADD THIS NEW BLOCK START ---
+    reportingTableBody.addEventListener('click', async (e) => {
+        const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
+        // Only admins can use this feature
+        if (!isAdmin) return;
+
+        const row = e.target.closest('tr');
+        if (!row) return;
+
+        const key = row.dataset.key;
+        if (!key) return;
+
+        // Find the task from the cache
+        await ensureAllEntriesFetched();
+        const entryData = allSystemEntries.find(entry => entry.key === key);
+        
+        // We can only edit job_entry tasks, not invoice tasks
+        if (!entryData || entryData.source === 'invoice') {
+            alert("This task cannot be edited from here. (It may be an invoice task).");
+            return;
+        }
+
+        if (confirm("Do you want to move this job back to the Job Entry form for editing?")) {
+            
+// --- ADD THIS NEW BLOCK START ---
+            // 1. Get all visible row keys from the CURRENT table
+            navigationContextList = [];
+            const allVisibleRows = reportingTableBody.querySelectorAll('tr');
+            allVisibleRows.forEach(visibleRow => {
+                const rowKey = visibleRow.dataset.key;
+                if (rowKey) {
+                    navigationContextList.push(rowKey);
+                }
+            });
+
+            // 2. Find the index of the clicked row
+            navigationContextIndex = navigationContextList.indexOf(key);
+            // --- ADD THIS NEW BLOCK END ---
+
+// 1. Switch to the Job Entry tab
+            const jobEntryLink = workdeskNav.querySelector('a[data-section="wd-jobentry"]');
+            if (jobEntryLink) {
+                // This will switch the view and update the active tab
+                jobEntryLink.click();
+            }
+            
+            // 2. Populate the form
+            // We wait a moment for the section to become visible
+            setTimeout(() => {
+                populateFormForEditing(key);
+            }, 100);
+        }
+    });
+    // --- ADD THIS NEW BLOCK END ---
+
+
     // --- *** WORKDESK PRINT BUTTON FIX (START) *** ---
     printReportButton.addEventListener('click', () => {
         if (summaryNotePrintArea) summaryNotePrintArea.classList.add('hidden');
@@ -4312,77 +5135,106 @@ document.addEventListener('DOMContentLoaded', async () => {
     } });
     document.querySelectorAll('.back-to-main-dashboard').forEach(button => button.addEventListener('click', (e) => { e.preventDefault(); showView('dashboard'); }));
 
-    invoiceManagementButton.addEventListener('click', async () => {
-        if (!currentApprover) { handleLogout(); return; }
-        imUsername.textContent = currentApprover.Name || 'User';
-        imUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile;
+invoiceManagementButton.addEventListener('click', async () => {
+    if (!currentApprover) { handleLogout(); return; }
+    imUsername.textContent = currentApprover.Name || 'User';
+    imUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile;
 
-        if (imAttentionSelectChoices) {
-            imAttentionSelect.removeEventListener('choice', handleIMAttentionChoice); 
-            imAttentionSelectChoices.destroy();
+    if (imAttentionSelectChoices) {
+        imAttentionSelect.removeEventListener('choice', handleIMAttentionChoice); 
+        imAttentionSelectChoices.destroy();
+    }
+    imAttentionSelectChoices = new Choices(imAttentionSelect, { searchEnabled: true, shouldSort: false, itemSelectText: '' });
+    await populateAttentionDropdown(imAttentionSelectChoices); 
+
+    imAttentionSelect.addEventListener('choice', handleIMAttentionChoice); 
+
+    const userPositionLower = (currentApprover.Position || '').toLowerCase();
+    const userRoleLower = (currentApprover.Role || '').toLowerCase();
+    const isAccountingAdmin = userPositionLower === 'accounting' && userRoleLower === 'admin';
+    const isAccountsOrAccounting = userPositionLower === 'accounts' || userPositionLower === 'accounting';
+    const isAdmin = userRoleLower === 'admin';
+    const isAccountingPosition = userPositionLower === 'accounting';
+
+    const imNavLinks = imNav.querySelectorAll('li');
+
+    imNavLinks.forEach(li => {
+        const link = li.querySelector('a');
+         if (!link) return;
+        const section = link.dataset.section;
+        li.style.display = '';
+
+        // ++ NEW: Hide Dashboard if not Admin
+        if (section === 'im-dashboard') {
+            if (!isAdmin) li.style.display = 'none';
         }
-        imAttentionSelectChoices = new Choices(imAttentionSelect, { searchEnabled: true, shouldSort: false, itemSelectText: '' });
-        await populateAttentionDropdown(imAttentionSelectChoices); 
-
-        imAttentionSelect.addEventListener('choice', handleIMAttentionChoice); 
-
-        const userPositionLower = (currentApprover.Position || '').toLowerCase();
-        const userRoleLower = (currentApprover.Role || '').toLowerCase();
-        const isAccountingAdmin = userPositionLower === 'accounting' && userRoleLower === 'admin';
-        const isAccountsOrAccounting = userPositionLower === 'accounts' || userPositionLower === 'accounting';
-        const isAdmin = userRoleLower === 'admin';
-        const isAccountingPosition = userPositionLower === 'accounting';
-
-        const imNavLinks = imNav.querySelectorAll('li');
-
-        imNavLinks.forEach(li => {
-            const link = li.querySelector('a');
-             if (!link) return;
-            const section = link.dataset.section;
-            li.style.display = '';
-
-            if (section === 'im-invoice-entry' || section === 'im-batch-entry' || section === 'im-summary-note') {
-                if (!isAccountingAdmin) li.style.display = 'none';
+        if (section === 'im-invoice-entry' || section === 'im-batch-entry' || section === 'im-summary-note') {
+            if (!isAccountingAdmin) li.style.display = 'none';
+        }
+        if (section === 'im-payments') {
+            if (isAccountsOrAccounting) {
+                link.classList.remove('hidden'); 
+            } else {
+                li.style.display = 'none'; 
             }
-            if (section === 'im-payments') {
-                if (isAccountsOrAccounting) {
-                    link.classList.remove('hidden'); 
-                } else {
-                    li.style.display = 'none'; 
-                }
-            }
-            if (section === 'im-finance-report') {
-                if (!isAdmin) li.style.display = 'none';
-            }
-        });
-
-        document.getElementById('im-nav-workdesk').classList.remove('hidden');
-        document.getElementById('im-nav-activetask').classList.remove('hidden');
-
-        imReportingDownloadCSVButton.style.display = isAccountingPosition ? 'inline-block' : 'none';
-        imDownloadDailyReportButton.style.display = isAccountingPosition ? 'inline-block' : 'none';
-        imDownloadWithAccountsReportButton.style.display = isAccountingPosition ? 'inline-block' : 'none';
-        imDailyReportDateInput.style.display = isAccountingPosition ? 'inline-block' : 'none';
-
-        imReportingPrintBtn.disabled = !isAccountingAdmin;
-
-
-        updateIMDateTime();
-        if (imDateTimeInterval) clearInterval(imDateTimeInterval);
-        imDateTimeInterval = setInterval(updateIMDateTime, 1000);
-        showView('invoice-management');
-        if (window.innerWidth <= 768) {
-            showIMSection('im-reporting'); // Default mobile view
-            imNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
-            const reportingLink = imNav.querySelector('a[data-section="im-reporting"]');
-            if (reportingLink) reportingLink.classList.add('active');
-        } else {
-            showIMSection('im-dashboard'); // Default desktop view
-            imNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
-            const dashboardLink = imNav.querySelector('a[data-section="im-dashboard"]');
-            if (dashboardLink) dashboardLink.classList.add('active');
+        }
+        if (section === 'im-finance-report') {
+            if (!isAdmin) li.style.display = 'none';
         }
     });
+
+    document.getElementById('im-nav-workdesk').classList.remove('hidden');
+    // *** The faulty line that tried to find 'im-nav-activetask' has been removed from here ***
+
+    // --- *** MOBILE VIEW FIX (START) *** ---
+    // Hide/Show IM reporting buttons based on role AND screen size
+    const isMobile = window.innerWidth <= 768;
+    const showReportBtns = isAccountingPosition && !isMobile;
+    
+    imReportingDownloadCSVButton.style.display = showReportBtns ? 'inline-block' : 'none';
+    imDownloadDailyReportButton.style.display = showReportBtns ? 'inline-block' : 'none';
+    imDownloadWithAccountsReportButton.style.display = showReportBtns ? 'inline-block' : 'none';
+    imDailyReportDateInput.style.display = showReportBtns ? 'inline-block' : 'none';
+    // --- *** MOBILE VIEW FIX (END) *** ---
+
+    imReportingPrintBtn.disabled = !isAccountingAdmin;
+
+
+    updateIMDateTime();
+    if (imDateTimeInterval) clearInterval(imDateTimeInterval);
+    imDateTimeInterval = setInterval(updateIMDateTime, 1000);
+    showView('invoice-management');
+    
+    // ++ NEW: Logic to select default IM section
+    let defaultSection = 'im-reporting'; // Default for non-admins
+    let defaultLink = imNav.querySelector('a[data-section="im-reporting"]');
+
+    if (isAdmin) {
+        defaultSection = 'im-dashboard'; // Default for Admins
+        defaultLink = imNav.querySelector('a[data-section="im-dashboard"]');
+    }
+    
+    // --- *** MOBILE VIEW FIX (START) *** ---
+    // On mobile, always default to reporting
+    if (isMobile) {
+    // --- *** MOBILE VIEW FIX (END) *** ---
+        defaultSection = 'im-reporting';
+        defaultLink = imNav.querySelector('a[data-section="im-reporting"]');
+    }
+    
+    imNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
+    if (defaultLink) {
+        defaultLink.classList.add('active');
+    } else {
+         // Fallback if default link is hidden (e.g. admin on mobile)
+         const firstVisibleLink = imNav.querySelector('li:not([style*="display: none"]) a');
+         if(firstVisibleLink) {
+             firstVisibleLink.classList.add('active');
+             defaultSection = firstVisibleLink.dataset.section || 'im-reporting';
+         }
+    }
+    showIMSection(defaultSection);
+});    
 
     function handleIMAttentionChoice(event) {
         if (event.detail && event.detail.value && imAttentionSelectChoices) {
@@ -4421,6 +5273,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             }, 100);
         });
     }
+
+// --- (NEW) Listener for WorkDesk mobile "Reporting" link ---
+    const wdImReportingLinkMobile = document.getElementById('wd-im-reporting-link-mobile');
+    if (wdImReportingLinkMobile) {
+        wdImReportingLinkMobile.addEventListener('click', (e) => {
+            e.preventDefault();
+            // Programmatically click the main IM button
+            invoiceManagementButton.click();
+            // Wait for IM view to load, then click its reporting tab
+            setTimeout(() => {
+                const imReportingLink = imNav.querySelector('a[data-section="im-reporting"]');
+                if (imReportingLink) {
+                    imReportingLink.click();
+                }
+            }, 100);
+        });
+    }
+    // --- (END NEW) ---
+
 
     imNav.addEventListener('click', (e) => { const link = e.target.closest('a'); if (!link || link.classList.contains('disabled') || link.parentElement.style.display === 'none' || link.id === 'im-workdesk-button' || link.id === 'im-activetask-button') return; e.preventDefault(); const sectionId = link.getAttribute('data-section'); if (sectionId) { imNav.querySelectorAll('a').forEach(a => a.classList.remove('active')); link.classList.add('active'); showIMSection(sectionId); } });
     
@@ -4502,7 +5373,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     imReportingForm.addEventListener('submit', (e) => { e.preventDefault(); const searchTerm = imReportingSearchInput.value.trim(); if (!searchTerm && !document.getElementById('im-reporting-site-filter').value && !document.getElementById('im-reporting-date-filter').value && !document.getElementById('im-reporting-status-filter').value) { imReportingContent.innerHTML = '<p style="color: red; font-weight: bold;">Please specify at least one search criteria.</p>'; return; } populateInvoiceReporting(searchTerm); });
-    imReportingClearButton.addEventListener('click', () => { imReportingForm.reset(); sessionStorage.removeItem('imReportingSearch'); imReportingContent.innerHTML = '<p>Please enter a search term and click Search.</p>'; currentReportData = []; });
+    imReportingClearButton.addEventListener('click', () => { imReportingForm.reset(); sessionStorage.removeItem('imReportingSearch'); imReportingContent.innerHTML = '<p>Please enter a search term and click Search.</p>'; currentReportData = []; if (reportingCountDisplay) reportingCountDisplay.textContent = ''; });
     imReportingDownloadCSVButton.addEventListener('click', handleDownloadCSV);
     imDownloadDailyReportButton.addEventListener('click', handleDownloadDailyReport);
     if(imDownloadWithAccountsReportButton) imDownloadWithAccountsReportButton.addEventListener('click', handleDownloadWithAccountsReport);
@@ -4541,8 +5412,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
     // Batch Entry Listeners
-    const batchAddBtn = document.getElementById('im-batch-add-po-button'), batchSaveBtn = document.getElementById('im-batch-save-button'), batchTableBody = document.getElementById('im-batch-table-body'), batchPOInput = document.getElementById('im-batch-po-input'), batchSearchStatusBtn = document.getElementById('im-batch-search-by-status-button'), batchSearchNoteBtn = document.getElementById('im-batch-search-by-note-button');
-    const batchClearBtn = document.getElementById('im-batch-clear-button');
+const batchAddBtn = document.getElementById('im-batch-add-po-button'), batchSaveBtn = document.getElementById('im-batch-save-button'), batchPOInput = document.getElementById('im-batch-po-input'), batchSearchStatusBtn = document.getElementById('im-batch-search-by-status-button'), batchSearchNoteBtn = document.getElementById('im-batch-search-by-note-button');
     
     if(batchClearBtn) batchClearBtn.addEventListener('click', () => {
         batchTableBody.innerHTML = '';
@@ -4553,6 +5423,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (imBatchGlobalAttentionChoices) imBatchGlobalAttentionChoices.clearInput();
         imBatchGlobalStatus.value = '';
         imBatchGlobalNote.value = '';
+        updateBatchCount(); // (NEW) Update Count
     });
 
     if (batchSearchStatusBtn) batchSearchStatusBtn.addEventListener('click', () => handleBatchGlobalSearch('status'));
@@ -4594,6 +5465,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     row.choicesInstance.destroy();
                 }
                 row.remove();
+                updateBatchCount(); // (NEW) Update Count
             }
         });
     }
@@ -4648,9 +5520,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Refresh Button Listeners
     const refreshEntryBtn = document.getElementById('im-refresh-entry-button');
-    if (refreshEntryBtn) refreshEntryBtn.addEventListener('click', async () => { alert("Refreshing all data from sources..."); await ensureInvoiceDataFetched(true); alert("Data refreshed."); if (currentPO) handlePOSearch(currentPO); }); // Pass currentPO
+    if (refreshEntryBtn) refreshEntryBtn.addEventListener('click', async () => { alert("Refreshing all data from sources..."); await ensureInvoiceDataFetched(true); await populateActiveTasks(); alert("Data refreshed."); if (currentPO) handlePOSearch(currentPO); }); // Pass currentPO
     const refreshBatchBtn = document.getElementById('im-refresh-batch-button');
-    if (refreshBatchBtn) refreshBatchBtn.addEventListener('click', async () => { alert("Refreshing all data... Your current batch list will be cleared."); await ensureInvoiceDataFetched(true); document.getElementById('im-batch-table-body').innerHTML = ''; alert("Data refreshed. Please add POs again."); });
+    if (refreshBatchBtn) refreshBatchBtn.addEventListener('click', async () => { alert("Refreshing all data... Your current batch list will be cleared."); await ensureInvoiceDataFetched(true); document.getElementById('im-batch-table-body').innerHTML = ''; updateBatchCount(); alert("Data refreshed. Please add POs again."); });
     const refreshSummaryBtn = document.getElementById('im-refresh-summary-button');
     if (refreshSummaryBtn) refreshSummaryBtn.addEventListener('click', async () => { alert("Refreshing all data..."); await ensureInvoiceDataFetched(true); initializeNoteSuggestions(); alert("Data refreshed."); });
     const refreshReportingBtn = document.getElementById('im-refresh-reporting-button');
@@ -4680,16 +5552,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('summary-note-custom-notes-input').value = '';
             snTableBody.innerHTML = '';
             summaryNotePrintArea.classList.add('hidden');
+            if (summaryNoteCountDisplay) summaryNoteCountDisplay.textContent = ''; // (NEW) Clear Count
             sessionStorage.removeItem('imSummaryPrevNote');
             sessionStorage.removeItem('imSummaryCurrNote');
         });
     }
-    if (summaryNotePreviousInput) {
-        summaryNotePreviousInput.addEventListener('input', debounce((e) => {
-            sessionStorage.setItem('imSummaryPrevNote', e.target.value);
-        }, 500));
-    }
-    if (summaryNoteCurrentInput) {
+    
+if (summaryNoteCurrentInput) {
         summaryNoteCurrentInput.addEventListener('input', debounce((e) => {
             sessionStorage.setItem('imSummaryCurrNote', e.target.value);
         }, 500));
@@ -4729,22 +5598,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         imAddPaymentButton.addEventListener('click', () => {
             imPaymentModalPOInput.value = '';
             imPaymentModalResults.innerHTML = '<p>Enter a PO number to see invoices ready for payment.</p>';
-            imAddPaymentModal.classList.remove('hidden');
+imAddPaymentModal.classList.remove('hidden');
         });
-    }
-    if (imPaymentModalSearchBtn) {
-        imPaymentModalSearchBtn.addEventListener('click', handlePaymentModalPOSearch);
-    }
-    if (imPaymentModalPOInput) {
-        imPaymentModalPOInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                handlePaymentModalPOSearch();
-            }
-        });
-    }
-    if (imPaymentModalAddSelectedBtn) {
-        imPaymentModalAddSelectedBtn.addEventListener('click', handleAddSelectedToPayments);
     }
     if (imSavePaymentsButton) {
         imSavePaymentsButton.addEventListener('click', handleSavePayments);
@@ -4755,78 +5610,66 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const row = e.target.closest('tr');
                 const key = row.dataset.key;
                 if (key && invoicesToPay[key]) {
-                    delete invoicesToPay[key]; 
+                    delete invoicesToPay[key]; // Remove from state
                 }
-                row.remove(); 
+                row.remove(); // Remove from DOM
+                updatePaymentsCount(); // (NEW) Update Count
             }
         });
+    }
+    if (imPaymentModalSearchBtn) {
+        imPaymentModalSearchBtn.addEventListener('click', handlePaymentModalPOSearch);
+    }
+    if (imPaymentModalPOInput) {
+        imPaymentModalPOInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); handlePaymentModalPOSearch(); }
+        });
+    }
+    if (imPaymentModalAddSelectedBtn) {
+        imPaymentModalAddSelectedBtn.addEventListener('click', handleAddSelectedToPayments);
     }
 
     // ++ NEW: Finance Report Listeners ++
     if (imFinanceSearchBtn) imFinanceSearchBtn.addEventListener('click', handleFinanceSearch);
     if (imFinanceClearBtn) imFinanceClearBtn.addEventListener('click', resetFinanceSearch);
-    if (imFinanceSearchPoInput) imFinanceSearchPoInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleFinanceSearch(); });
-    if (imFinanceResultsBody) imFinanceResultsBody.addEventListener('click', handleFinanceActionClick);
-    if (imFinancePrintReportBtn) imFinancePrintReportBtn.addEventListener('click', printFinanceReport);
-
-
-}); // End DOMContentLoaded
-
-
-// --- (UPDATED) ONE-TIME MIGRATION FUNCTION ---
-// This function will read all your old INVOICE data and sort it into the new
-// fast "inbox" table (invoice_tasks_by_user).
-// It NO LONGER processes job_entries.
-// Run this function ONCE from the browser console after logging in.
-
-async function runOneTimeMigration() {
-    if (!confirm("WARNING:\nYou are about to run the one-time data migration script.\n\nThis will scan ALL INVOICES and build the new Active Task 'inbox' for the invoice system. This may take a few minutes.\n\nDo NOT close this window. Do NOT run this more than once.\n\nClick OK to proceed.")) {
-        console.log("Migration cancelled by user.");
-        return;
+    if (imFinanceSearchPoInput) {
+        imFinanceSearchPoInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); handleFinanceSearch(); }
+        });
+    }
+    if (imFinanceResults) {
+        imFinanceResults.addEventListener('click', handleFinanceActionClick);
+    }
+    if (imFinancePrintReportBtn) {
+        imFinancePrintReportBtn.addEventListener('click', printFinanceReport);
     }
 
-    console.log("--- STARTING ONE-TIME MIGRATION (INVOICES ONLY) ---");
-
-    try {
-        // --- Step 1: Fetch all required data one last time ---
-        console.log("Fetching all PO Data from CSV...");
-        const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
-        allPOData = await fetchAndParseCSV(PO_DATA_URL);
-        console.log("PO Data fetched.");
-
-        console.log("Fetching all Approver Data...");
-        await ensureApproverDataCached(); // This is now required for the invoice logic
-        console.log("Approver Data fetched.");
-        
-        console.log("Fetching all invoice_entries...");
-        const invoiceSnapshot = await invoiceDb.ref('invoice_entries').once('value');
-        const allInvoices = invoiceSnapshot.val() || {};
-        console.log(`Found ${Object.keys(allInvoices).length} POs with invoices.`);
-
-        let invoiceCount = 0;
-
-        // --- Step 2: Process all invoice_entries ---
-        console.log("--- Processing invoice_entries... ---");
-        for (const poNumber in allInvoices) {
-            const invoicesForPO = allInvoices[poNumber];
-            for (const invoiceKey in invoicesForPO) {
-                const invoiceData = invoicesForPO[invoiceKey];
-                // We call your new helper. It will automatically check if the invoice
-                // is "active" and sort it into the correct user's inbox.
-                await updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, null); // (po, key, newData, oldAttention)
-                invoiceCount++;
-                if (invoiceCount % 100 === 0) {
-                    console.log(`...processed ${invoiceCount} invoices...`);
-                }
+// --- ADD THIS NEW BLOCK START ---
+    if (navPrevJobButton) {
+        navPrevJobButton.addEventListener('click', async (e) => {
+            e.preventDefault();
+            if (navigationContextIndex > 0) {
+                navigationContextIndex--; // Move to previous index
+                const prevKey = navigationContextList[navigationContextIndex];
+                await ensureAllEntriesFetched(); // Make sure data is cached
+                populateFormForEditing(prevKey);
+                updateJobEntryNavControls();
             }
-        }
-        console.log(`--- Finished processing ${invoiceCount} invoice_entries. ---`);
-
-        console.log("--- MIGRATION COMPLETE! ---");
-        alert("MIGRATION COMPLETE!\n\nAll active INVOICE tasks are now in the new 'inbox'.\nYour 'job_entry' tasks will continue to load normally.\n\nPlease refresh the app (Ctrl+R or Cmd+R) to see your Active Task list.");
-
-    } catch (error) {
-        console.error("--- MIGRATION FAILED ---", error);
-        alert("MIGRATION FAILED. Check the console for the error message.");
+        });
     }
-}
+
+    if (navNextJobButton) {
+        navNextJobButton.addEventListener('click', async (e) => {
+            e.preventDefault();
+            if (navigationContextIndex < navigationContextList.length - 1) {
+                navigationContextIndex++; // Move to next index
+                const nextKey = navigationContextList[navigationContextIndex];
+                await ensureAllEntriesFetched(); // Make sure data is cached
+                populateFormForEditing(nextKey);
+                updateJobEntryNavControls();
+            }
+        });
+    }
+    // --- ADD THIS NEW BLOCK END ---
+
+}); // END OF DOMCONTENTLOADED

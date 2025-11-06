@@ -1,19 +1,45 @@
 /* --- Keyframe animation for the background --- */
 @keyframes glowing-border {
-    /* MODIFIED: Reduced shadow spread for a thinner glow */
-    0% { border-color: #03a9f4; box-shadow: 0 0 2px #03a9f4, 0 0 5px #03a9f4, 0 0 10px #03a9f4, inset 0 0 0 2px rgba(0,0,0,0.5); }
-    50% { border-color: #ffeb3b; box-shadow: 0 0 2px #ffeb3b, 0 0 5px #ffeb3b, 0 0 10px #ffeb3b, inset 0 0 0 2px rgba(0,0,0,0.5); }
-    100% { border-color: #03a9f4; box-shadow: 0 0 2px #03a9f4, 0 0 5px #03a9f4, 0 0 10px #03a9f4, inset 0 0 0 2px rgba(0,0,0,0.5); }
+    /* MODIFIED: Use new brand colors */
+    0% { border-color: var(--iba-secondary-teal); box-shadow: 0 0 2px var(--iba-secondary-teal), 0 0 5px var(--iba-secondary-teal), 0 0 10px var(--iba-secondary-teal), inset 0 0 0 2px rgba(0,0,0,0.5); }
+    50% { border-color: var(--iba-secondary-gold); box-shadow: 0 0 2px var(--iba-secondary-gold), 0 0 5px var(--iba-secondary-gold), 0 0 10px var(--iba-secondary-gold), inset 0 0 0 2px rgba(0,0,0,0.5); }
+    100% { border-color: var(--iba-secondary-teal); box-shadow: 0 0 2px var(--iba-secondary-teal), 0 0 5px var(--iba-secondary-teal), 0 0 10px var(--iba-secondary-teal), inset 0 0 0 2px rgba(0,0,0,0.5); }
 }
 
 /* +++ Custom Variables +++ */
 :root {
-    --invoice-blue: #d1dee8; /* The specific blue from the attached image */
-    --invoice2-blue: #416282; /* The specific blue from the attached image */
-    --text-color-light: #fff;
-    --text-color-dark: #333;
-    /* ++ NEW (Req 1): Sidebar width variable ++ */
+    /* IBA Brand Palette */
+    --iba-base-blue: #003A5C;      /* Pantone 301C */
+    --iba-secondary-teal: #00748C; /* Pantone 3145C */
+    --iba-secondary-periwinkle: #5A87D9; /* Pantone 2718C (from RGB) */
+    --iba-secondary-terracotta: #C3502F; /* Pantone 7580C */
+    --iba-secondary-gold: #B59A00;      /* Pantone 613C (from RGB) */
+
+    /* IBA Tints (for backgrounds/hovers) */
+    --iba-base-blue-dark: #002a48;  /* Darker shade for backgrounds */
+    --iba-base-blue-light: #004b75; /* Lighter shade for hovers */
+    --iba-base-tint-light: #d9e2e8; /* Very light blue for rows */
+    --iba-base-tint-hover: #c4d4df; /* Hover for light rows */
+
+    /* Text Colors */
+    --text-on-base: #FFFFFF;
+    --text-on-light: #333333;
+
+    /* --- Old Variable Mapping --- */
+    --invoice-blue: var(--iba-base-tint-light);
+    --invoice2-blue: var(--iba-base-blue);
+    --text-color-light: var(--text-on-base);
+    --text-color-dark: var(--text-on-light);
     --sidebar-width: 300px;
+    
+    /* Dashboard Theme Colors */
+    --db-bg: var(--iba-base-blue-dark);
+    --db-card-bg: var(--iba-base-blue);
+    --db-border: var(--iba-secondary-teal);
+    --db-text-primary: var(--text-on-base);
+    --db-text-secondary: #a8c5d9; /* Lightened tint of base */
+    --db-accent-blue: var(--iba-secondary-periwinkle);
+    --db-accent-purple: var(--iba-secondary-gold);
 }
 
 
@@ -26,7 +52,7 @@ body.login-background {
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    background-color: #0a192f;
+    background-color: var(--db-bg); /* Use dashboard bg for login */
 }
 
 /* App Container for centered content */
@@ -37,7 +63,7 @@ body.login-background {
 
 /* ++ REVERTED: Animated Card Style for Login/Welcome ++ */
 .animated-card {
-    background-color: rgba(10, 25, 47, 0.85); /* Dark background with transparency */
+    background-color: rgba(0, 58, 92, 0.85); /* MODIFIED: Use IBA Base Blue */
     border: 2px solid;
     border-radius: 10px;
     animation: glowing-border 6s linear infinite;
@@ -50,12 +76,12 @@ body.login-background {
 h2 { margin-top: 0; margin-bottom: 10px; color: #1a1a1a; }
 p { margin-bottom: 20px; color: #555; line-height: 1.5; }
 input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="date"], input[type="month"], input[type="tel"], select, textarea { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; transition: border-color 0.3s; box-sizing: border-box; font-family: inherit; }
-input:focus, select:focus, textarea:focus { outline: none; border-color: #007bff; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--iba-secondary-teal); } /* MODIFIED: Highlight color */
 label { display: block; text-align: left; margin-bottom: 5px; font-weight: 600; color: #444; }
-button { padding: 10px 20px; background-color: #007bff; color: var(--text-color-light); border: none; border-radius: 4px; font-size: 15px; font-weight: bold; cursor: pointer; transition: background-color 0.3s; }
-button:hover { background-color: #0056b3; }
+button { padding: 10px 20px; background-color: var(--iba-secondary-teal); color: var(--text-color-light); border: none; border-radius: 4px; font-size: 15px; font-weight: bold; cursor: pointer; transition: background-color 0.3s; } /* MODIFIED: Button color */
+button:hover { background-color: #005a6e; } /* MODIFIED: Darker teal */
 .hidden { display: none !important; }
-.error-message { color: #dc3545; font-weight: 500; margin-top: 15px; min-height: 20px; }
+.error-message { color: var(--iba-secondary-terracotta); font-weight: 500; margin-top: 15px; min-height: 20px; } /* MODIFIED: Error color */
 .success-message { color: #28a745; font-weight: 500; margin-top: 15px; min-height: 20px; }
 
 /* ++ NEW: Style for input hint text ++ */
@@ -73,19 +99,19 @@ button:hover { background-color: #0056b3; }
 #user-info { display: flex; flex-direction: column; align-items: flex-start; text-align: left; }
 #dashboard-username { font-size: 1.1rem; font-weight: 600; color: var(--text-color-light); } /* White text */
 #datetime { font-size: 0.85rem; color: #a0aec0; margin-top: 4px; } /* Lighter text */
-#logout-button { background-color: #dc3545; color: var(--text-color-light); width: auto; padding: 8px 16px; font-size: 14px; font-weight: normal; }
-#logout-button:hover { background-color: #c82333; }
+#logout-button { background-color: var(--iba-secondary-terracotta); color: var(--text-color-light); width: auto; padding: 8px 16px; font-size: 14px; font-weight: normal; } /* MODIFIED: Logout color */
+#logout-button:hover { background-color: #a24227; } /* MODIFIED: Darker terracotta */
 .dashboard-main { padding: 10px 0; }
 .button-container { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; }
-/* --- Original Blue Circle Buttons --- */
+/* --- MODIFIED: Themed Circle Buttons --- */
 .circle-button {
     width: 120px;
     height: 120px;
     border-radius: 50%;
-    background: linear-gradient(145deg, #0088d1, #006da8);
+    background: linear-gradient(145deg, var(--iba-secondary-teal), var(--iba-base-blue)); /* MODIFIED: Gradient */
     color: var(--text-color-light);
     border: 4px solid var(--text-color-light);
-    box-shadow: 0 5px 15px rgba(0, 119, 194, 0.4);
+    box-shadow: 0 5px 15px rgba(0, 116, 140, 0.4); /* MODIFIED: Teal shadow */
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
@@ -97,22 +123,22 @@ button:hover { background-color: #0056b3; }
     text-decoration: none;
     box-sizing: border-box; /* To keep buttons in one line */
 }
-.circle-button:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0, 119, 194, 0.5); background: linear-gradient(145deg, #0099e1, #007db8); }
+.circle-button:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0, 116, 140, 0.5); background: linear-gradient(145deg, #008a9f, var(--iba-base-blue-light)); } /* MODIFIED: Hover gradient */
 
 /* --- WORKDESK STYLES --- */
 #workdesk-view, #invoice-management-view { display: flex; width: 100vw; height: 100vh; overflow: hidden; }
-.workdesk-sidebar { width: 260px; background-color: #001e3c; color: var(--text-color-light); display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; transition: width 0.3s ease; z-index: 10; }
+.workdesk-sidebar { width: 260px; background-color: var(--iba-base-blue); color: var(--text-color-light); display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; transition: width 0.3s ease; z-index: 10; } /* MODIFIED: Sidebar color */
 .wd-user-profile { text-align: center; padding-bottom: 20px; }
-.wd-user-avatar { width: 80px; height: 80px; border-radius: 50%; background-color: #003366; display: flex; justify-content: center; align-items: center; margin: 0 auto 15px; font-size: 40px; color: #66b2ff; }
+.wd-user-avatar { width: 80px; height: 80px; border-radius: 50%; background-color: var(--iba-base-blue-light); display: flex; justify-content: center; align-items: center; margin: 0 auto 15px; font-size: 40px; color: var(--iba-secondary-periwinkle); } /* MODIFIED: Avatar colors */
 #wd-username, #im-username { margin: 0 0 5px 0; font-size: 1.1rem; }
 #wd-user-identifier, #im-user-identifier { margin: 0; font-size: 0.8rem; color: #b0b0b0; }
-.wd-back-button { display: flex; align-items: center; gap: 15px; padding: 12px 15px; margin-top: 15px; border-top: 1px solid #003366; text-decoration: none; background-color: #002b4d; color: var(--text-color-light); border-radius: 6px; font-weight: 600; transition: background-color 0.3s; }
-.wd-back-button:hover { background-color: #004488; }
+.wd-back-button { display: flex; align-items: center; gap: 15px; padding: 12px 15px; margin-top: 15px; border-top: 1px solid var(--iba-base-blue-light); text-decoration: none; background-color: var(--iba-base-blue-dark); color: var(--text-color-light); border-radius: 6px; font-weight: 600; transition: background-color 0.3s; } /* MODIFIED: Back button colors */
+.wd-back-button:hover { background-color: var(--iba-base-blue-light); } /* MODIFIED: Hover color */
 .workdesk-navigation { flex-grow: 1; margin-top: 20px; }
 .workdesk-navigation ul, .workdesk-footer-nav ul { list-style: none; padding: 0; margin: 0; }
 .workdesk-navigation a, .workdesk-footer-nav a { display: flex; align-items: center; gap: 15px; padding: 12px 15px; margin-bottom: 8px; text-decoration: none; color: #c0c0c0; border-radius: 6px; transition: background-color 0.3s, color 0.3s; }
-.workdesk-navigation a:hover, .workdesk-footer-nav a:hover { background-color: #003366; color: var(--text-color-light); }
-.workdesk-navigation a.active { background-color: #007bff; color: var(--text-color-light); font-weight: 600; }
+.workdesk-navigation a:hover, .workdesk-footer-nav a:hover { background-color: var(--iba-base-blue-light); color: var(--text-color-light); } /* MODIFIED: Hover color */
+.workdesk-navigation a.active { background-color: var(--iba-secondary-teal); color: var(--text-color-light); font-weight: 600; } /* MODIFIED: Active link color */
 .workdesk-navigation a i, .workdesk-footer-nav a i { width: 20px; text-align: center; }
 .workdesk-main { flex-grow: 1; background-color: #f4f7fa; padding: 25px 40px; overflow-y: auto; box-sizing: border-box; }
 
@@ -128,6 +154,20 @@ button:hover { background-color: #0056b3; }
 .workdesk-section h1 { margin-top: 0; margin-bottom: 25px; }
 .workdesk-section h2 { border-bottom: 1px solid #eee; padding-bottom: 10px; margin-top: 0; }
 
+/* ++ NEW: Table Count Display ++ */
+.table-count-display {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #555;
+    margin-left: 10px;
+}
+h2 .table-count-display { /* For Invoice Entry */
+    font-size: 0.9em;
+    font-weight: 500;
+    color: #555;
+    margin-left: 8px;
+}
+
 /* ** UPDATED Form & Input Styles ** */
 .jobentry-form-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 0 30px; }
 .form-column { display: flex; flex-direction: column; }
@@ -136,11 +176,11 @@ button:hover { background-color: #0056b3; }
 .form-buttons-container button, .form-buttons-container a { width: auto; min-width: 100px; padding: 10px 15px; }
 .secondary-btn { background-color: #6c757d; }
 .secondary-btn:hover { background-color: #5a6268; }
-input.highlight-field { border-color: #ffc107; box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25); }
+input.highlight-field { border-color: var(--iba-secondary-gold); box-shadow: 0 0 0 0.2rem rgba(181, 154, 0, 0.25); } /* MODIFIED: Highlight color */
 .choices { margin-bottom: 0; }
 .choices__inner { font-size: 16px; border-radius: 4px; border: 1px solid #ccc; padding: 6px 7.5px; min-height: 45px; }
-.choices.is-focused .choices__inner { border-color: #007bff; }
-.choices__list--dropdown .choices__item--selectable.is-highlighted { background-color: #007bff; }
+.choices.is-focused .choices__inner { border-color: var(--iba-secondary-teal); } /* MODIFIED: Highlight color */
+.choices__list--dropdown .choices__item--selectable.is-highlighted { background-color: var(--iba-secondary-teal); } /* MODIFIED: Highlight color */
 
 /* ++ Vacation Style for Choices.js ++ */
 .choices__item[data-label*="(On Vacation)"] {
@@ -216,12 +256,12 @@ tbody tr:hover { background-color: #f1f1f1; }
 .respond-btn { background-color: #28a745; color: var(--text-color-light); padding: 5px 10px; font-size: 13px; font-weight: normal; }
 .respond-btn:hover { background-color: #218838; }
 .delete-btn {
-    background-color: #dc3545;
+    background-color: var(--iba-secondary-terracotta); /* MODIFIED: Delete color */
     padding: 5px 10px;
     font-size: 13px;
 }
 .delete-btn:hover {
-    background-color: #c82333;
+    background-color: #a24227; /* MODIFIED: Darker terracotta */
 }
 .download-btn {
     background-color: #1e7e34;
@@ -239,7 +279,18 @@ tbody tr:hover { background-color: #f1f1f1; }
 
 /* WORKDESK DASHBOARD STYLES */
 .dashboard-summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
-.summary-card { display: flex; align-items: center; background-color: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 5px solid #007bff; }
+/* ++ NEW: Clickable Card Link ++ */
+.summary-card-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.summary-card-link:hover .summary-card {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(0,0,0,0.07);
+}
+.summary-card { display: flex; align-items: center; background-color: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 5px solid var(--iba-secondary-teal); } /* MODIFIED: Border color */
 .card-icon { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-color-light); font-size: 24px; margin-right: 15px; }
 .card-details { text-align: left; }
 .card-value { font-size: 2rem; font-weight: bold; color: var(--text-color-dark); display: block; }
@@ -307,7 +358,7 @@ tbody tr:hover { background-color: #f1f1f1; }
 .report-tabs-container { flex-grow: 1; }
 .report-tabs { display: flex; gap: 5px; border-bottom: 2px solid #e0e0e0; overflow-x: auto; }
 .report-tabs button { background-color: transparent; border: none; border-bottom: 3px solid transparent; padding: 10px 15px; font-size: 15px; font-weight: 600; color: #555; cursor: pointer; border-radius: 0; margin-bottom: -2px; white-space: nowrap; }
-.report-tabs button.active { color: #007bff; border-bottom-color: #007bff; }
+.report-tabs button.active { color: var(--iba-secondary-teal); border-bottom-color: var(--iba-secondary-teal); } /* MODIFIED: Active tab color */
 .print-btn { background-color: #17a2b8; padding: 8px 15px; }
 .print-btn:hover { background-color: #138496; }
 .print-btn i { margin-right: 8px; }
@@ -367,7 +418,7 @@ tbody tr:hover { background-color: #f1f1f1; }
 
 /* --- INVOICE REPORT STYLES --- */
 #im-reporting-content table thead th {
-    background-color: #001e3c;
+    background-color: var(--iba-base-blue); /* MODIFIED: Header color */
     color: var(--text-color-light);
 }
 .master-row {
@@ -383,22 +434,22 @@ tbody tr:hover { background-color: #f1f1f1; }
 
 /* New Highlighting Rules */
 .master-row.highlight-partial {
-    background-color: #e0f7fa !important; /* Light Blue */
+    background-color: #d9eef2 !important; /* MODIFIED: Light Teal */
 }
 .master-row.highlight-partial:hover {
-    background-color: #b2ebf2 !important;
+    background-color: #bfe5eb !important;
 }
 .master-row.highlight-fully-paid {
-    background-color: #fff3e0 !important; /* Light Orange */
+    background-color: #f7f3d9 !important; /* MODIFIED: Light Gold */
 }
 .master-row.highlight-fully-paid:hover {
-    background-color: #ffe0b2 !important;
+    background-color: #f2ecc2 !important;
 }
 
 .expand-btn {
     width: 25px;
     height: 25px;
-    background-color: #001e3c;
+    background-color: var(--iba-base-blue); /* MODIFIED: Button color */
     color: var(--text-color-light);
     border: none;
     border-radius: 4px;
@@ -410,7 +461,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     transition: background-color 0.2s;
 }
 .expand-btn:hover {
-    background-color: #003366;
+    background-color: var(--iba-base-blue-light); /* MODIFIED: Hover color */
 }
 .detail-row td {
     padding: 0;
@@ -424,7 +475,7 @@ tbody tr:hover { background-color: #f1f1f1; }
 .detail-content h4 {
     margin-top: 0;
     margin-bottom: 15px;
-    color: #001e3c;
+    color: var(--iba-base-blue); /* MODIFIED: Title color */
 }
 .nested-invoice-table {
     width: 100%;
@@ -454,7 +505,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     cursor: pointer;
 }
 .nested-invoice-row:hover {
-    background-color: #f0f8ff !important;
+    background-color: var(--iba-base-tint-light) !important; /* MODIFIED: Hover color */
 }
 
 
@@ -472,10 +523,10 @@ tbody tr:hover { background-color: #f1f1f1; }
     display: inline-block;
     text-align: center;
 }
-.invoice-pdf-btn { background-color: #ffc107; color: #212529; }
-.srv-pdf-btn { background-color: #17a2b8; }
-.invoice-pdf-btn:hover { background-color: #e0a800; }
-.srv-pdf-btn:hover { background-color: #138496; }
+.invoice-pdf-btn { background-color: var(--iba-secondary-gold); color: #212529; } /* MODIFIED: Button color */
+.srv-pdf-btn { background-color: var(--iba-secondary-teal); } /* MODIFIED: Button color */
+.invoice-pdf-btn:hover { background-color: #9a8100; } /* MODIFIED: Hover color */
+.srv-pdf-btn:hover { background-color: #005a6e; } /* MODIFIED: Hover color */
 
 /* ++ Settings Page Styles ++ */
 #settings-form input[readonly] {
@@ -500,25 +551,35 @@ tbody tr:hover { background-color: #f1f1f1; }
 }
 
 /* --- INVOICE MANAGEMENT DASHBOARD --- */
-.im-dashboard-full-grid {
+/* ++ NEW: Dark theme for IM Dashboard ++ */
+#im-dashboard {
+    background-color: var(--db-bg);
+}
+#im-dashboard h1 {
+    color: var(--db-text-primary);
+    border-bottom: 1px solid var(--db-border);
+}
+.im-dashboard-grid { /* Changed from .im-dashboard-full-grid */
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr); /* 3 columns */
     gap: 20px;
 }
 .im-chart-card {
-    background-color: #fff;
+    background-color: var(--db-card-bg);
     padding: 20px;
     border-radius: 8px;
-    border: 1px solid #e0e0e0;
+    border: 1px solid var(--db-border);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
 .im-chart-card.full-width-card {
-    grid-column: 1 / -1;
+    grid-column: 1 / -1; /* Span all 3 columns */
 }
 .im-chart-card h2 {
     margin-top: 0;
     margin-bottom: 20px;
     font-size: 1.1rem;
     border-bottom: none;
+    color: var(--db-text-primary);
 }
 .im-chart-container-half {
     height: 300px;
@@ -526,6 +587,57 @@ tbody tr:hover { background-color: #f1f1f1; }
 .im-chart-container-full {
     height: 350px;
 }
+
+/* ++ NEW: Top 5 List Styles ++ */
+.dashboard-top5-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 0.9rem;
+}
+.dashboard-top5-list li {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--db-border);
+    color: var(--db-text-secondary);
+}
+.dashboard-top5-list li:last-child {
+    border-bottom: none;
+}
+.dashboard-top5-list .top5-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 15px;
+}
+.dashboard-top5-list .top5-value {
+    color: #ffc107;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* ++ NEW: Chart Header Styles ++ */
+.dashboard-chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+.dashboard-chart-header h2 {
+    margin-bottom: 0;
+}
+.dashboard-chart-header select {
+    background-color: var(--db-card-bg);
+    color: var(--db-text-primary);
+    border: 1px solid var(--db-border);
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    width: auto;
+    margin-bottom: 0;
+}
+/* -- End IM Dashboard Styles -- */
 
 
 /* --- BATCH INVOICE ENTRY TABLE STYLES --- */
@@ -605,7 +717,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     text-align: center;
     font-size: 1.2rem;
     font-weight: bold;
-    background-color: var(--invoice2-blue); /* Use custom blue variable */
+    background-color: var(--iba-base-blue); /* MODIFIED: Use new var */
     color: var(--text-color-light); /* White font */
     border-radius: 5px; /* Slight rounded corners */
 }
@@ -619,10 +731,6 @@ tbody tr:hover { background-color: #f1f1f1; }
     padding-bottom: 0 !important;
     border-bottom: none !important;
 }
- /* CORRECTED: Hide the original paragraph if still present outside the title div (this rule might be redundant now) */
- /* #summary-note-printable-area .sn-vendor-info > p {
-     display: none;
- } */
 
 
 .sn-payment-details {
@@ -658,7 +766,7 @@ tbody tr:hover { background-color: #f1f1f1; }
 /* MODIFIED: Table Header Styling (On Screen) */
 .sn-table thead th { /* Targeted thead th specifically */
     font-weight: bold;
-    background-color: var(--invoice2-blue); /* Use custom blue variable */
+    background-color: var(--iba-base-blue); /* MODIFIED: Use new var */
     color: var(--text-color-light); /* White font */
 }
 
@@ -811,7 +919,7 @@ tbody tr:hover { background-color: #f1f1f1; }
 /* Styles from finance report styles.css, adapted */
 #im-finance-results .po-summary-table { width: 100%; margin-bottom: 0; border-collapse: collapse; }
 #im-finance-results .po-summary-table th, #im-finance-results .po-summary-table td { padding: 0.9rem 1rem; vertical-align: middle; }
-#im-finance-results .po-summary-table thead th { background-color: #0d2d52; color: var(--text-color-light); font-weight: 600; text-align: left; border: none; font-size: 0.9rem; letter-spacing: 0.5px; }
+#im-finance-results .po-summary-table thead th { background-color: var(--iba-base-blue); color: var(--text-color-light); font-weight: 600; text-align: left; border: none; font-size: 0.9rem; letter-spacing: 0.5px; } /* MODIFIED: Header color */
 #im-finance-results .po-summary-table tbody td { background-color: #f8f9fa; border: 1px solid #dee2e6; border-top: none; font-size: 1rem; }
 #im-finance-results .payment-details-wrapper { padding: 1rem 1.5rem; border: 1px solid #dee2e6; border-top: none; background-color: #fff; margin-bottom: 1.5rem; }
 #im-finance-results .payment-details-header { font-weight: bold; margin-bottom: 0.75rem; font-size: 1.1rem; color: #343a40; }
@@ -825,10 +933,10 @@ tbody tr:hover { background-color: #f1f1f1; }
     text-align: right; font-family: monospace;
 }
 #im-finance-results .btn-info { /* Report button */
-    background-color: #0dcaf0; border-color: #0dcaf0; color: var(--text-color-light);
+    background-color: var(--iba-secondary-teal); border-color: var(--iba-secondary-teal); color: var(--text-color-light); /* MODIFIED: Button color */
 }
 #im-finance-results .btn-info:hover {
-    background-color: #0b9ed8; border-color: #0a95cf; color: var(--text-color-light);
+    background-color: #005a6e; border-color: #005a6e; color: var(--text-color-light); /* MODIFIED: Hover color */
 }
 
 /* Enhanced Report Modal Styles (copied and prefixed where necessary) */
@@ -850,7 +958,7 @@ tbody tr:hover { background-color: #f1f1f1; }
 #im-finance-report-modal .report-summary p span { font-weight: normal; text-align: right; min-width: 150px; display: inline-block; }
 #im-finance-report-modal table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
 #im-finance-report-modal table th, #im-finance-report-modal table td { padding: 12px 10px; border: 1px solid #dee2e6; }
-#im-finance-report-modal table thead th { background-color: #343a40; color: var(--text-color-light); font-weight: bold; font-size: 14px; text-align: center; }
+#im-finance-report-modal table thead th { background-color: var(--iba-base-blue-dark); color: var(--text-color-light); font-weight: bold; font-size: 14px; text-align: center; } /* MODIFIED: Header color */
 #im-finance-report-modal table tfoot th { background-color: #e9ecef; color: #000; font-weight: bold; font-size: 15px; text-align: right; padding-right: 20px; }
 #im-finance-report-modal table tfoot td { font-weight: bold; text-align: right; padding-right: 20px; font-size: 15px; }
 #im-finance-report-modal .signatures { display: flex; justify-content: space-between; margin-top: 60px; padding-top: 20px; }
@@ -884,9 +992,9 @@ tbody tr:hover { background-color: #f1f1f1; }
     top: 0;
     right: 0;
     height: 100vh;
-    background-color: #001e3c;
+    background-color: var(--iba-base-blue); /* MODIFIED: Sidebar color */
     color: var(--text-color-light);
-    border-left: 1px solid #003366;
+    border-left: 1px solid var(--iba-base-blue-light);
     z-index: 5;
     display: flex;
     flex-direction: column;
@@ -897,7 +1005,7 @@ tbody tr:hover { background-color: #f1f1f1; }
 .im-sidebar-title {
     margin: 0 0 15px 0;
     padding-bottom: 15px;
-    border-bottom: 1px solid #003366;
+    border-bottom: 1px solid var(--iba-base-blue-light);
     font-size: 1.2rem;
     text-align: center;
 }
@@ -909,7 +1017,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     flex-grow: 1;
 }
 .im-sidebar-item {
-    background-color: #002b4d;
+    background-color: var(--iba-base-blue-dark); /* MODIFIED: Item color */
     padding: 12px 15px;
     border-radius: 6px;
     margin-bottom: 10px;
@@ -917,7 +1025,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     transition: background-color 0.2s ease;
 }
 .im-sidebar-item:hover {
-    background-color: #004488;
+    background-color: var(--iba-base-blue-light); /* MODIFIED: Hover color */
 }
 .im-sidebar-item span {
     display: block;
@@ -935,7 +1043,7 @@ tbody tr:hover { background-color: #f1f1f1; }
 }
 .im-sidebar-amount {
     font-size: 0.9rem;
-    color: #ffc107;
+    color: var(--iba-secondary-gold); /* MODIFIED: Amount color */
     font-weight: 500;
 }
 .im-sidebar-no-jobs {
@@ -1021,7 +1129,7 @@ tbody tr:hover { background-color: #f1f1f1; }
         margin: 0 0 10px 0 !important; /* Smaller margin for print */
         padding: 10px 5px !important; /* Increased top/bottom padding */
         text-align: center !important;
-        background-color: var(--invoice-blue) !important; /* Use custom blue variable */
+        background-color: var(--iba-base-tint-light) !important; /* MODIFIED: Use new var */
         color: var(--text-color-light) !important; /* White font */
         border-radius: 0 !important; /* No rounded corners for print */
         -webkit-print-color-adjust: exact !important; /* Ensure color prints correctly */
@@ -1065,7 +1173,7 @@ tbody tr:hover { background-color: #f1f1f1; }
         border: 1px solid #333 !important; /* Add outer border */
     }
     #summary-note-printable-area:not(.hidden) .sn-table thead th {
-        background-color: var(--invoice2-blue) !important; /* Use custom blue variable */
+        background-color: var(--iba-base-blue) !important; /* MODIFIED: Use new var */
         color: var(--text-color-light) !important; /* White font */
         -webkit-print-color-adjust: exact !important; /* Ensure color prints correctly */
         print-color-adjust: exact !important;
@@ -1221,7 +1329,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area .report-summary-col { width: 48% !important; }
     #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area table { width: 100% !important; border-collapse: collapse !important; margin-bottom: 20px !important; font-size: 12pt; }
     #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area table th, #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area table td { border: 1px solid #000 !important; padding: 10px !important; }
-    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area table th { background-color: #343a40 !important; color: var(--text-color-light) !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; text-align: center !important; font-size: 13pt; font-weight: bold;}
+    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area table th { background-color: var(--iba-base-blue-dark) !important; color: var(--text-color-light) !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; text-align: center !important; font-size: 13pt; font-weight: bold;} /* MODIFIED: Header color */
     #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area table tfoot th, #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area table tfoot td { background-color: #e9ecef !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color: #000 !important; text-align: right !important; padding-right: 20px !important; font-size: 14pt; font-weight: bold; }
     #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area .signatures { display: flex !important; justify-content: space-between !important; margin-top: 80px !important; font-size: 14pt; page-break-inside: avoid; }
     #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area .signature-box { text-align: center !important; width: 30% !important; }
@@ -1288,7 +1396,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     }
     /* --- *** PRINT PAGING FIX (END) *** --- */
     
-    .print-po-header { background: #001e3c; color: white; padding: 10px 15px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px 20px; border-radius: 5px 5px 0 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    .print-po-header { background: var(--iba-base-blue); color: white; padding: 10px 15px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px 20px; border-radius: 5px 5px 0 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } /* MODIFIED: Header color */
     .print-po-header div { font-size: 10pt; }
     .print-invoice-table { width: 100%; border-collapse: collapse; }
     .print-invoice-table th, .print-invoice-table td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
@@ -1404,11 +1512,65 @@ tbody tr:hover { background-color: #f1f1f1; }
 /* =================================== */
 
 
+/* --- (FIX) Desktop/Mobile Table Column Visibility --- */
+.mobile-optimized-table .mobile-only {
+    display: none; /* Hide mobile-only th and td on desktop */
+}
+.mobile-optimized-table .desktop-only {
+    display: table-cell; /* Show desktop-only th and td on desktop */
+}
+
+/* ++ NEW: Style for admin-clickable rows in Job Records ++ */
+#reporting-table-body tr.admin-clickable-row {
+    cursor: pointer;
+}
+#reporting-table-body tr.admin-clickable-row:hover {
+    background-color: #f0f8ff; /* A light blue hover */
+}
+
+
+/* ++ NEW: Job Entry Navigation ++ */
+.jobentry-header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px; /* Replaces the h1's margin-bottom */
+}
+.jobentry-header-container h1 {
+    margin: 0; /* Remove margin from h1 */
+}
+#jobentry-nav-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+#jobentry-nav-controls button {
+    padding: 8px 12px;
+    font-size: 14px;
+}
+#nav-job-counter {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #555;
+    white-space: nowrap;
+}
+
 /* MOBILE RESPONSIVE STYLES */
 @media (max-width: 768px) {
     #workdesk-datetime, #im-datetime { text-align: center; margin-top: 15px; margin-bottom: 0; order: -1; }
     .workdesk-main { padding: 15px; padding-bottom: 80px; display: flex; flex-direction: column; }
     .report-header { flex-direction: column; align-items: flex-start; }
+    
+    /* --- (NEW) Mobile Reporting Cleanup --- */
+    #im-reporting .report-header .daily-report-section,
+    #im-reporting .reporting-legend,
+    #im-reporting .report-buttons-group #im-refresh-reporting-button,
+    #im-reporting .report-buttons-group #im-reporting-print-btn,
+    #im-reporting .report-buttons-group #im-reporting-download-csv-button {
+        display: none !important;
+    }
+    /* --- (END NEW) --- */
+
     .report-controls { flex-direction: column; align-items: stretch; }
     .report-tabs { overflow-x: auto; white-space: nowrap; }
     #app-container, .form-container, .workdesk-section { padding: 15px; }
@@ -1420,22 +1582,63 @@ tbody tr:hover { background-color: #f1f1f1; }
     .wd-user-avatar { width: 45px; height: 45px; margin: 0; font-size: 24px; }
     #wd-username, #im-username { font-size: 1rem; margin: 0; }
     #wd-user-identifier, #im-user-identifier, .workdesk-sidebar .workdesk-navigation, .workdesk-footer-nav .hidden, .workdesk-footer-nav a span { display: none; }
+    
+    /* --- (NEW) Hide elements in IM sidebar on mobile --- */
+    #invoice-management-view .workdesk-sidebar .mobile-hide {
+        display: none !important;
+    }
+    /* --- (END NEW) --- */
+
     .workdesk-footer-nav { margin: 0; }
     .workdesk-footer-nav ul { display: flex; }
-    .workdesk-footer-nav a { padding: 8px; font-size: 18px; margin-bottom: 0; background-color: #003366; }
-    .workdesk-footer-nav a:hover { background-color: #004488; }
+    .workdesk-footer-nav a { padding: 8px; font-size: 18px; margin-bottom: 0; background-color: var(--iba-base-blue-light); } /* MODIFIED: Button color */
+    .workdesk-footer-nav a:hover { background-color: var(--iba-base-blue-light); } /* MODIFIED: Hover color */
     .workdesk-section h1 { font-size: 1.5rem; }
+    
+    /* --- (MODIFIED) Mobile WorkDesk Nav --- */
     .workdesk-navigation { display: block !important; position: fixed; bottom: 0; left: 0; width: 100%; height: 65px; background-color: #ffffff; box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1); z-index: 1000; margin-top: 0; flex-grow: 0; }
     .workdesk-navigation ul { display: flex; justify-content: space-around; align-items: center; height: 100%; }
     .workdesk-navigation li { flex-grow: 1; }
+    /* Hide all links by default on mobile */
+    #workdesk-view .workdesk-navigation li {
+        display: none;
+    }
+    /* Show only Active Task and the new IM Reporting link */
+    #workdesk-view .workdesk-navigation li.wd-nav-activetask,
+    #workdesk-view .workdesk-navigation li.wd-nav-im-reporting-mobile {
+        display: list-item;
+    }
+    /* Hide the mobile-only reporting link when in IM view */
+    #invoice-management-view .workdesk-navigation li.wd-nav-im-reporting-mobile {
+        display: none;
+    }
+    
+    /* --- *** START OF MOBILE NAV FIX *** --- */
+    /* Hide all links by default */
+    #invoice-management-view .workdesk-navigation li {
+        display: none;
+    }
+    /* Show only Reporting and Active Task */
+    #invoice-management-view .workdesk-navigation li.im-nav-reporting,
+    #invoice-management-view .workdesk-navigation li.im-nav-activetask-link {
+        display: list-item;
+    }
+    /* --- *** END OF MOBILE NAV FIX *** --- */
+    
     .workdesk-navigation a { flex-direction: column; justify-content: center; gap: 4px; height: 100%; font-size: 0.7rem; color: #555; margin-bottom: 0; padding: 5px 0; border-radius: 0; }
-    .workdesk-navigation a:hover { background-color: #f4f7fa; color: #007bff; }
-    .workdesk-navigation a.active { color: #007bff; background-color: transparent; font-weight: bold; border-top: 3px solid #007bff; border-radius: 0; padding-top: 2px; }
+    .workdesk-navigation a:hover { background-color: #f4f7fa; color: var(--iba-secondary-teal); } /* MODIFIED: Hover color */
+    .workdesk-navigation a.active { color: var(--iba-secondary-teal); background-color: transparent; font-weight: bold; border-top: 3px solid var(--iba-secondary-teal); border-radius: 0; padding-top: 2px; } /* MODIFIED: Active color */
     .workdesk-navigation a.active i { transform: scale(1.1); }
     .workdesk-navigation a i { font-size: 1.2rem; margin-bottom: 2px; }
+    /* --- (END MODIFIED) Mobile WorkDesk Nav --- */
+
     .jobentry-form-2col { grid-template-columns: 1fr; }
     .form-buttons-container { justify-content: center; }
-    .im-dashboard-grid { grid-template-columns: 1fr; }
+    
+    /* ++ NEW: Dashboard mobile layout ++ */
+    .im-dashboard-grid { 
+        grid-template-columns: 1fr; /* Stack all cards */
+    }
 
     #dashboard-view .button-container .circle-button:not(#invoice-mgmt-button) {
         display: none;
@@ -1446,6 +1649,18 @@ tbody tr:hover { background-color: #f1f1f1; }
         display: none;
     } */
     /* === END OF CHANGE === */
+
+    /* --- *** START OF MOBILE NAV FIX *** --- */
+    /* Hide mobile top bars per user request */
+    #workdesk-view .workdesk-sidebar .wd-user-profile,
+    #workdesk-view .workdesk-sidebar .wd-back-button,
+    #workdesk-view .workdesk-sidebar .workdesk-footer-nav,
+    #invoice-management-view .workdesk-sidebar .wd-user-profile,
+    #invoice-management-view .workdesk-sidebar .wd-back-button,
+    #invoice-management-view .workdesk-sidebar .workdesk-footer-nav {
+        display: none;
+    }
+    /* --- *** END OF MOBILE NAV FIX *** --- */
 
     /* NEW: Ensure Finance Report specific elements stack correctly */
     #im-finance-report .search-and-filter-group { flex-direction: column; align-items: stretch; }
@@ -1468,6 +1683,77 @@ tbody tr:hover { background-color: #f1f1f1; }
     .im-entry-sidebar.visible {
         transform: translateX(0); /* Slide in */
     }
+
+    /* --- (MODIFIED) Mobile Optimized Table --- */
+    .mobile-optimized-table thead {
+        display: none; /* Hide desktop header */
+    }
+    .mobile-optimized-table .desktop-only {
+        display: none !important; /* Hide ALL desktop elements (th and td) */
+    }
+    .mobile-optimized-table .mobile-only {
+        display: block; /* Show mobile td (as blocks) */
+    }
+
+    .mobile-optimized-table tbody, .mobile-optimized-table tr, .mobile-optimized-table td {
+        display: block;
+        width: 100%;
+    }
+    .mobile-optimized-table tr {
+        margin-bottom: 15px;
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+        overflow: hidden;
+        background: #fff;
+    }
+    .mobile-optimized-table td {
+        padding-left: 50%; /* Make space for the label */
+        position: relative;
+        text-align: right;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    .mobile-optimized-table tr:hover {
+        background-color: transparent;
+    }
+    .mobile-optimized-table td:last-child {
+        border-bottom: none;
+    }
+    /* This rule is now redundant but we leave it for clarity */
+    .mobile-optimized-table td.desktop-only {
+        display: none !important; /* Hide all desktop columns */
+    }
+    .mobile-optimized-table td.mobile-only {
+        display: block; /* Show mobile-specific columns */
+        font-size: 0.95rem;
+        padding-top: 10px;
+        padding-bottom: 10px;
+        cursor: pointer;
+    }
+    .mobile-optimized-table td.mobile-only:hover {
+        background-color: #f0f8ff;
+    }
+    .mobile-optimized-table td.mobile-only::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 15px;
+        width: 45%;
+        padding-right: 10px;
+        text-align: left;
+        font-weight: bold;
+        color: #555;
+    }
+    /* Style the content inside mobile cells */
+    .mobile-main-info {
+        display: block;
+        font-weight: 600;
+        color: #333;
+    }
+    .mobile-sub-info {
+        display: block;
+        font-size: 0.9em;
+        color: #666;
+    }
+    /* --- (END MODIFIED) Mobile Optimized Table --- */
 
 }
 
@@ -1492,10 +1778,16 @@ tbody tr:hover { background-color: #f1f1f1; }
 }
 
 /* Style for sidebar navigation separator */
+/* --- *** START OF 2-REPORTING-LINKS FIX *** --- */
+/* Hide mobile-only report link on desktop */
+.wd-nav-im-reporting-mobile {
+    display: none;
+}
+/* --- *** END OF 2-REPORTING-LINKS FIX *** --- */
 .workdesk-navigation li.nav-section-divider {
     margin-top: 15px;
     padding-top: 15px;
-    border-top: 1px solid #003366; /* Sidebar separator color */
+    border-top: 1px solid var(--iba-base-blue-light); /* MODIFIED: Separator color */
 }
 
 /* ++ NEW: 3-Column Grid Layout for Invoice Entry Form ++ */
@@ -1550,9 +1842,41 @@ tbody tr:hover { background-color: #f1f1f1; }
     opacity: 0.7;
 }
 .modify-btn {
-    background-color: #ffc107; /* Yellow */
+    background-color: var(--iba-secondary-gold); /* MODIFIED: Button color */
     color: #212529;
 }
 .modify-btn:hover {
-    background-color: #e0a800;
+    background-color: #9a8100; /* MODIFIED: Hover color */
+}
+
+/* ++ NEW: Notification Badge for Sidebar ++ */
+.notification-badge {
+    background-color: var(--iba-secondary-terracotta); /* MODIFIED: Badge color */
+    color: white;
+    border-radius: 10px;
+    padding: 2px 6px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    position: relative;
+    top: -2px;
+    margin-left: 6px;
+    display: inline-block;
+}
+
+/* ++ NEW: IM Dashboard Refresh Button ++ */
+.dashboard-chart-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+#im-dashboard-refresh-btn {
+    padding: 6px 10px;
+    font-size: 14px;
+    line-height: 1;
+    /* Make it blend in with the dark theme */
+    background-color: var(--iba-base-blue-light);
+    border: 1px solid var(--db-border);
+}
+#im-dashboard-refresh-btn:hover {
+    background-color: var(--iba-secondary-teal);
 }

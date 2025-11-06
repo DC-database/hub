@@ -43,13 +43,14 @@
 
             <a href="#" id="back-to-dashboard-button" class="wd-back-button back-to-main-dashboard"><i class="fa-solid fa-arrow-left"></i> Welcome Screen</a>
 
-<nav id="workdesk-nav" class="workdesk-navigation">
+            <nav id="workdesk-nav" class="workdesk-navigation">
                 <ul>
-                    <li><a href="#" data-section="wd-dashboard" class="active"><i class="fa-solid fa-table-columns"></i> Dashboard</a></li>
-                    <li><a href="#" data-section="wd-jobentry"><i class="fa-solid fa-file-pen"></i> Job Entry</a></li>
-                    <li><a href="#" data-section="wd-activetask"><i class="fa-solid fa-list-check"></i> Active Task</a></li>
-                    <li class="hidden"><a href="#" data-section="wd-taskhistory"><i class="fa-solid fa-clock-rotate-left"></i> Task History</a></li>
-                    <li><a href="#" data-section="wd-reporting"><i class="fa-solid fa-chart-line"></i> Job Records</a></li>
+                    <li class="wd-nav-dashboard"><a href="#" data-section="wd-dashboard" class="active"><i class="fa-solid fa-table-columns"></i> Dashboard</a></li>
+                    <li class="wd-nav-jobentry"><a href="#" data-section="wd-jobentry"><i class="fa-solid fa-file-pen"></i> Job Entry</a></li>
+                    <li class="wd-nav-activetask"><a href="#" data-section="wd-activetask"><i class="fa-solid fa-list-check"></i> Active Task <span id="wd-active-task-badge" class="notification-badge" style="display: none;">0</span></a></li>
+                    <li class="wd-nav-taskhistory hidden"><a href="#" data-section="wd-taskhistory"><i class="fa-solid fa-clock-rotate-left"></i> Task History</a></li>
+                    <li class="wd-nav-reporting"><a href="#" data-section="wd-reporting"><i class="fa-solid fa-chart-line"></i> Job Records</a></li>
+<li class="wd-nav-im-reporting-mobile"><a href="#" id="wd-im-reporting-link-mobile"><i class="fa-solid fa-chart-line"></i> Reporting</a></li>
                     </ul>
             </nav>
             <div class="workdesk-footer-nav">
@@ -69,13 +70,15 @@
                     <h1>Dashboard</h1>
 
                     <div class="dashboard-summary-cards">
-                        <div class="summary-card">
-                            <div class="card-icon" style="background-color: #ffc107;"><i class="fa-solid fa-list-check"></i></div>
-                            <div class="card-details">
-                                <span id="db-active-tasks-count" class="card-value">0</span>
-                                <span class="card-label">Total Active Tasks</span>
+                        <a href="#" id="db-active-tasks-card-link" class="summary-card-link">
+                            <div class="summary-card">
+                                <div class="card-icon" style="background-color: #ffc107;"><i class="fa-solid fa-list-check"></i></div>
+                                <div class="card-details">
+                                    <span id="db-active-tasks-count" class="card-value">0</span>
+                                    <span class="card-label">Total Active Tasks</span>
+                                </div>
                             </div>
-                        </div>
+                        </a>
                         <div class="summary-card">
                             <div class="card-icon" style="background-color: #28a745;"><i class="fa-solid fa-check-double"></i></div>
                             <div class="card-details">
@@ -87,7 +90,15 @@
                 </section>
 
                 <section id="wd-jobentry" class="workdesk-section hidden">
-                    <h1 id="jobentry-form-title">Add New Job Entry</h1>
+                    <div class="jobentry-header-container">
+                        <h1 id="jobentry-form-title">Add New Job Entry</h1>
+                        
+                        <div id="jobentry-nav-controls" class="hidden">
+                            <button type="button" id="nav-prev-job" class="secondary-btn" title="Previous job in list">&larr; Previous</button>
+                            <span id="nav-job-counter"></span>
+                            <button type="button" id="nav-next-job" class="secondary-btn" title="Next job in list">Next &rarr;</button>
+                        </div>
+                    </div>
                     <form id="jobentry-form" class="jobentry-form-2col">
                         <div class="form-column">
                             <div class="form-group">
@@ -136,6 +147,15 @@
                                <label for="job-attention">Attention</label>
                                <select id="job-attention" name="attention" required></select>
                             </div>
+                            <div class="form-group">
+                                <label for="job-status">Status</label>
+                                <input type="text" id="job-status" name="status" list="job-status-options" placeholder="e.g., Waiting For Approval">
+                                <datalist id="job-status-options">
+                                    <option value="Waiting For Approval"></option>
+                                    <option value="Under Review"></option>
+                                    <option value="On Hold"></option>
+                                </datalist>
+                            </div>
                              <div class="form-buttons-container">
                                 <button type="button" id="add-job-button">Add</button>
                                 <button type="button" id="update-job-button" class="hidden">Update</button>
@@ -177,25 +197,30 @@
                 </section>
 
                 <section id="wd-activetask" class="workdesk-section hidden">
-                    <h1>Your Active Tasks</h1>
+                    <h1>Your Active Tasks <span id="active-task-count-display" class="table-count-display"></span></h1>
                     <div class="search-bar-local">
                         <i class="fa-solid fa-magnifying-glass"></i>
                         <input type="text" id="active-task-search" placeholder="Type to search your active tasks...">
                     </div>
                      <div class="table-wrapper">
-                        <table>
+                        <table class="mobile-optimized-table">
                             <thead>
                                 <tr>
-                                    <th>Job</th>
-                                    <th>Ref</th>
-                                    <th>PO</th>
-                                    <th>Vendor Name</th>
-                                    <th>Invoice Amount</th>
-                                    <th>Site</th>
-                                    <th>Group</th>
-                                    <th>Date</th>
-                                    <th>Status</th>
-                                    <th>Action</th>
+                                    <th class="mobile-only">PO</th>
+                                    <th class="mobile-only">Vendor Name</th>
+                                    <th class="mobile-only">Invoice Amount</th>
+                                    <th class="mobile-only">Site</th>
+                                    
+                                    <th class="desktop-only">Job</th>
+                                    <th class="desktop-only">Ref</th>
+                                    <th class="desktop-only">PO</th>
+                                    <th class="desktop-only">Vendor Name</th>
+                                    <th class="desktop-only">Invoice Amount</th>
+                                    <th class="desktop-only">Site</th>
+                                    <th class="desktop-only">Group</th>
+                                    <th class="desktop-only">Date</th>
+                                    <th class="desktop-only">Status</th>
+                                    <th class="desktop-only">Action</th>
                                 </tr>
                             </thead>
                             <tbody id="active-task-table-body"></tbody>
@@ -229,8 +254,8 @@
                     </div>
                 </section>
 
-<section id="wd-reporting" class="workdesk-section hidden">
-                    <h1>Job Records - All Entries</h1>
+                <section id="wd-reporting" class="workdesk-section hidden">
+                    <h1>Job Records - All Entries <span id="job-records-count-display" class="table-count-display"></span></h1>
 
                     <div class="report-controls">
                         <div class="report-tabs-container">
@@ -363,28 +388,30 @@
 
             <nav id="im-nav" class="workdesk-navigation">
                 <ul>
-                    <li><a href="#" data-section="im-dashboard" class="active"><i class="fa-solid fa-table-columns"></i> Dashboard</a></li>
-                    <li><a href="#" data-section="im-invoice-entry"><i class="fa-solid fa-file-pen"></i> Invoice Entry</a></li>
-                    <li><a href="#" id="batch-entry-nav-link" data-section="im-batch-entry"><i class="fa-solid fa-file-excel"></i> Batch Entry</a></li>
-                    <li><a href="#" id="summary-note-nav-link" data-section="im-summary-note"><i class="fa-solid fa-receipt"></i> Summary Note</a></li>
-                    <li><a href="#" data-section="im-reporting"><i class="fa-solid fa-chart-line"></i> Reporting</a></li>
+                    <li class="im-nav-dashboard"><a href="#" data-section="im-dashboard" class="active"><i class="fa-solid fa-table-columns"></i> Dashboard</a></li>
+                    <li class="im-nav-invoice-entry"><a href="#" data-section="im-invoice-entry"><i class="fa-solid fa-file-pen"></i> Invoice Entry</a></li>
+                    <li class="im-nav-batch-entry"><a href="#" id="batch-entry-nav-link" data-section="im-batch-entry"><i class="fa-solid fa-file-excel"></i> Batch Entry</a></li>
+                    <li class="im-nav-summary-note"><a href="#" id="summary-note-nav-link" data-section="im-summary-note"><i class="fa-solid fa-receipt"></i> Summary Note</a></li>
+                    <li class="im-nav-reporting"><a href="#" data-section="im-reporting"><i class="fa-solid fa-chart-line"></i> Reporting</a></li>
+                    <li class="wd-nav-im-reporting-mobile"><a href="#" data-section="im-reporting"><i class="fa-solid fa-chart-line"></i> Reporting</a></li>
+                    <li class="nav-section-divider im-nav-payments"><a href="#" id="payments-nav-link" data-section="im-payments" class="hidden"><i class="fa-solid fa-money-check-dollar"></i> Payments</a></li>
 
-                    <li class="nav-section-divider"><a href="#" id="payments-nav-link" data-section="im-payments" class="hidden"><i class="fa-solid fa-money-check-dollar"></i> Payments</a></li>
-
-                    <li><a href="#" id="im-finance-report-nav-link" data-section="im-finance-report"><i class="fa-solid fa-building-columns"></i> Finance Report</a></li>
+                    <li class="im-nav-finance-report"><a href="#" id="im-finance-report-nav-link" data-section="im-finance-report"><i class="fa-solid fa-building-columns"></i> Finance Report</a></li>
                 </ul>
             </nav>
             <div class="workdesk-footer-nav">
-                 <ul>
-                    <li id="im-nav-workdesk" class="hidden" style="margin-top: 20px; border-top: 1px solid #003366; padding-top: 10px;"><a href="#" id="im-workdesk-button"><i class="fa-solid fa-briefcase"></i> WorkDesk</a></li>
-                    <li id="im-nav-activetask" class="hidden"><a href="#" id="im-activetask-button"><i class="fa-solid fa-list-check"></i> Active Task</a></li>
-                    <li><a href="#" id="im-logout-button"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</a></li>
-                </ul>
-            </div>
+     <ul>
+        <li id="im-nav-workdesk" class="hidden" style="margin-top: 20px; border-top: 1px solid #003366; padding-top: 10px;"><a href="#" id="im-workdesk-button"><i class="fa-solid fa-briefcase"></i> WorkDesk</a></li>
+
+        <li class="im-nav-activetask-link"><a href="#" id="im-activetask-button"><i class="fa-solid fa-list-check"></i> Active Task <span id="im-active-task-badge" class="notification-badge" style="display: none;">0</span></a></li>
+
+        <li><a href="#" id="im-logout-button"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</a></li>
+    </ul>
+</div>
         </aside>
 
         <aside id="im-entry-sidebar" class="im-entry-sidebar hidden">
-            <h3 class="im-sidebar-title">Your Active Invoice Jobs</h3>
+            <h3 id="active-jobs-sidebar-count-display" class="im-sidebar-title">Your Active Invoice Jobs (0)</h3>
             <ul id="im-entry-sidebar-list" class="im-sidebar-list">
                 </ul>
         </aside>
@@ -524,7 +551,7 @@
                             </div>
                         </div>
 
-                        <h2>Existing Invoices for this PO</h2>
+                        <h2 id="existing-invoices-count-display">Existing Invoices (0)</h2>
                         <div class="table-wrapper">
                             <table>
                                 <thead>
@@ -540,13 +567,22 @@
                                     </tr>
                                 </thead>
                                 <tbody id="im-invoices-table-body"></tbody>
-                            </table>
+                                <tfoot id="im-invoices-table-footer" style="background-color: #f8f9fa; font-weight: bold;">
+                                    <tr>
+                                        <td colspan="3" style="text-align: right;">Total:</td>
+                                        <td id="im-invoices-total-value" style="text-align: left;">0.00</td>
+                                        <td id="im-invoices-total-paid" style="text-align: left;">0.00</td>
+                                        <td colspan="3"></td>
+                                    </tr>
+                                </tfoot>
+                                </table>
                         </div>
                     </div>
                 </section>
+                       
 
                 <section id="im-batch-entry" class="workdesk-section hidden">
-                    <h1>Batch Invoice Entry</h1>
+                    <h1>Batch Invoice Entry <span id="batch-count-display" class="table-count-display">(Total in Batch: 0)</span></h1>
                     <p>Add a new PO for a new invoice, or search for a PO to add existing invoices for bulk editing.</p>
 
                     <div id="im-batch-po-add-container" class="search-and-filter-group" style="margin-bottom: 20px;">
@@ -617,7 +653,7 @@
                 </section>
 
                 <section id="im-summary-note" class="workdesk-section hidden">
-                    <h1>Summary Note Print</h1>
+                    <h1>Summary Note Print <span id="summary-note-count-display" class="table-count-display"></span></h1>
                     <div id="summary-note-controls">
                         <div class="form-group">
                             <label for="summary-note-previous-input">Previous Note</label>
@@ -722,7 +758,7 @@
 
                 <section id="im-reporting" class="workdesk-section hidden">
                     <div class="report-header">
-                        <h1>Invoice Summary Report</h1>
+                        <h1>Invoice Summary Report <span id="reporting-count-display" class="table-count-display"></span></h1>
                         <div class="daily-report-section">
                            <input type="date" id="im-daily-report-date" title="Select a date for the daily report">
                            <button id="im-download-daily-report-button" class="download-btn" type="button"><i class="fa-solid fa-calendar-day"></i> Daily Entry Report</button>
@@ -774,7 +810,7 @@
                 </section>
 
                 <section id="im-payments" class="workdesk-section hidden">
-                    <h1>Process Payments</h1>
+                    <h1>Process Payments <span id="payments-count-display" class="table-count-display"></span></h1>
                     <p>Add invoices with status "With Accounts" to process payments.</p>
                      <div class="form-buttons-container" style="justify-content: flex-start; margin-bottom: 20px;">
                         <button type="button" id="im-add-payment-button"><i class="fa-solid fa-plus"></i> Add Invoice for Payment</button>
@@ -805,7 +841,7 @@
                 </section>
 
                 <section id="im-finance-report" class="workdesk-section hidden">
-                    <h1>Finance Report (Read-Only)</h1>
+                    <h1>Finance Report (Read-Only) <span id="finance-report-count-display" class="table-count-display"></span></h1>
                     <p>Search for payments from the finance database. This is a read-only view.</p>
                     <div class="search-and-filter-group" style="max-width: 600px; margin-bottom: 20px;">
                         <div class="search-bar-local" style="margin-bottom: 0;">
