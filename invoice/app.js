@@ -53,6 +53,7 @@ const dashboardUsername = document.getElementById('dashboard-username'); const d
 const workdeskButton = document.getElementById('workdesk-button'); const wdUsername = document.getElementById('wd-username'); const wdUserIdentifier = document.getElementById('wd-user-identifier'); const workdeskNav = document.getElementById('workdesk-nav'); const workdeskSections = document.querySelectorAll('.workdesk-section'); const wdLogoutButton = document.getElementById('wd-logout-button');
 const jobEntryForm = document.getElementById('jobentry-form'); const jobForSelect = document.getElementById('job-for'); const jobDateInput = document.getElementById('job-date'); const jobEntrySearchInput = document.getElementById('job-entry-search'); const jobEntryTableWrapper = document.getElementById('job-entry-table-wrapper'); const jobEntryTableBody = document.getElementById('job-entry-table-body');
 const jobEntryFormTitle = document.getElementById('jobentry-form-title');
+const deleteJobButton = document.getElementById('delete-job-button'); // <-- CHANGE 2.1
 const jobEntryNavControls = document.getElementById('jobentry-nav-controls'); // <-- ADD THIS
 const navPrevJobButton = document.getElementById('nav-prev-job'); // <-- ADD THIS
 const navNextJobButton = document.getElementById('nav-next-job'); // <-- ADD THIS
@@ -74,6 +75,16 @@ const printReportButton = document.getElementById('print-report-button');
 const downloadWdReportButton = document.getElementById('download-wd-report-csv-button');
 const dbActiveTasksCount = document.getElementById('db-active-tasks-count');
 const dbCompletedTasksCount = document.getElementById('db-completed-tasks-count');
+
+// ++ NEW: Calendar DOM References ++ (CHANGE 1.1)
+const wdCalendarGrid = document.getElementById('wd-calendar-grid');
+const wdCalendarMonthYear = document.getElementById('wd-calendar-month-year');
+const wdCalendarPrevBtn = document.getElementById('wd-calendar-prev');
+const wdCalendarNextBtn = document.getElementById('wd-calendar-next');
+const wdCalendarTaskListTitle = document.getElementById('wd-calendar-task-list-title');
+const wdCalendarTaskListUl = document.getElementById('wd-calendar-task-list-ul');
+// -- End Calendar DOM References --
+
 const dbSiteStatsContainer = document.getElementById('dashboard-site-stats');
 const dbRecentTasksBody = document.getElementById('db-recent-tasks-body');
 const settingsForm = document.getElementById('settings-form');
@@ -208,9 +219,9 @@ const imReportTotalPrevPayment = document.getElementById('im-reportTotalPrevPaym
 const imReportTotalCommitted = document.getElementById('im-reportTotalCommitted');
 const imReportTotalRetention = document.getElementById('im-reportTotalRetention');
 const imReportTableBody = document.getElementById('im-reportTableBody');
-const imReportTotalCertifiedAmount = document.getElementById('im-reportTotalCertifiedAmount');
-const imReportTotalRetentionAmount = document.getElementById('im-reportTotalRetentionAmount');
-const imReportTotalPaymentAmount = document.getElementById('im-reportTotalPaymentAmount');
+const imReportTotalCertifiedAmount = document.getElementById('im-reportTotalCertifiedAmount'); // <-- CHANGE 3.1
+const imReportTotalRetentionAmount = document.getElementById('im-reportTotalRetentionAmount'); // <-- CHANGE 3.2
+const imReportTotalPaymentAmount = document.getElementById('im-reportTotalPaymentAmount'); // <-- CHANGE 3.3
 const imReportNotesSection = document.getElementById('im-reportNotesSection');
 const imReportNotesContent = document.getElementById('im-reportNotesContent');
 const imReportingPrintBtn = document.getElementById('im-reporting-print-btn');
@@ -263,6 +274,7 @@ let navigationContextList = []; // <-- ADD THIS LINE
 let navigationContextIndex = -1; // <-- ADD THIS LINE
 let currentReportFilter = 'All';
 let currentActiveTaskFilter = 'All'; //
+let wdCurrentCalendarDate = new Date(); // <-- CHANGE 1.2
 
 
 // INVOICE MANAGEMENT STATE
@@ -415,50 +427,91 @@ function handleSuccessfulLogin() {
         financeReportButton.classList.toggle('hidden', !isAccountsOrAccounting);
     }
 }
-function showWorkdeskSection(sectionId) {
+
+// NEW SIGNATURE: Added 'async' and 'newSearchTerm' parameter
+async function showWorkdeskSection(sectionId, newSearchTerm = null) {
     workdeskSections.forEach(section => { section.classList.add('hidden'); });
     const targetSection = document.getElementById(sectionId);
     if (targetSection) { targetSection.classList.remove('hidden'); }
 
     // ++ ADDED: Restore search state on navigation ++
-    if (sectionId === 'wd-dashboard') { populateWorkdeskDashboard(); }
+    if (sectionId === 'wd-dashboard') { 
+        await populateWorkdeskDashboard(); // Added await
+        renderWorkdeskCalendar(); 
+        await populateCalendarTasks(); // Added await
+        
+        // --- CALENDAR LIST FIX: Always show *today's* tasks on load ---
+        const today = new Date(); 
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        const todayStr = `${year}-${month}-${day}`; 
+        
+        displayCalendarTasksForDay(todayStr);
+    }
     
-    // --- *** JOB ENTRY FETCH FIX (START) *** ---
     if (sectionId === 'wd-jobentry') {
         const savedSearch = sessionStorage.getItem('jobEntrySearch');
         if (savedSearch) {
             jobEntrySearchInput.value = savedSearch;
         }
-        // Always fetch entries when visiting the section
-        handleJobEntrySearch(jobEntrySearchInput.value); 
+        await handleJobEntrySearch(jobEntrySearchInput.value); // Added await
     }
-    // --- *** JOB ENTRY FETCH FIX (END) *** ---
     
     if (sectionId === 'wd-activetask') {
-        populateActiveTasks();
-        const savedSearch = sessionStorage.getItem('activeTaskSearch');
-        if (savedSearch) {
-            activeTaskSearchInput.value = savedSearch;
-            setTimeout(() => handleActiveTaskSearch(savedSearch), 200);
+        // *** THIS IS THE KEY FIX ***
+        // 1. Await the population. This fills userActiveTasks and sets filter to "All".
+        await populateActiveTasks(); 
+
+        // 2. Decide what to search for.
+        let searchTerm = '';
+        if (newSearchTerm !== null) {
+            // A new search is being forced (from the calendar).
+            searchTerm = newSearchTerm;
+        } else {
+            // No new search, fall back to session storage.
+            searchTerm = sessionStorage.getItem('activeTaskSearch') || '';
+        }
+
+        // 3. Apply the search.
+        if (searchTerm) {
+            activeTaskSearchInput.value = searchTerm;
+            // No timeout needed, data is already loaded.
+            handleActiveTaskSearch(searchTerm); 
         }
     }
-    // --- (REMOVED) Task History section logic ---
-    // --- (END REMOVAL) ---
     
-    // --- *** WORKDESK REPORTING FIX (START) *** ---
     if (sectionId === 'wd-reporting') {
         const savedSearch = sessionStorage.getItem('reportingSearch');
         if (savedSearch) {
             reportingSearchInput.value = savedSearch;
         }
-         // Always fetch entries when visiting the section
-        handleReportingSearch();
+         await handleReportingSearch(); // Added await
     }
-    // --- *** WORKDESK REPORTING FIX (END) --- ---
 
     if (sectionId === 'wd-settings') { populateSettingsForm(); }
 }
+
+
 function formatDate(date) { const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]; const day = String(date.getDate()).padStart(2, '0'); const month = months[date.getMonth()]; const year = date.getFullYear(); return `${day}-${month}-${year}`; }
+
+// --- THIS IS THE NEW TIMEZONE-SAFE FUNCTION ---
+function formatYYYYMMDD(dateString) { // dateString is "YYYY-MM-DD"
+    if (!dateString) return 'N/A';
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const parts = dateString.split('-'); // ["YYYY", "MM", "DD"]
+    if (parts.length !== 3) return dateString; // fallback
+    
+    const year = parts[0];
+    const monthIndex = parseInt(parts[1], 10) - 1; // "MM" is 1-indexed
+    const day = parts[2];
+    
+    const month = months[monthIndex];
+    if (!month) return dateString; // fallback
+    
+    return `${day}-${month}-${year}`; // "DD-Mmm-YYYY"
+}
+// --- END OF NEW FUNCTION ---
 
 // --- UPDATED normalizeDateForInput TO HANDLE MORE FORMATS ---
 function normalizeDateForInput(dateString) {
@@ -518,23 +571,43 @@ function formatFinanceNumber(value) {
     maximumFractionDigits: 2
   });
 }
+
+// --- CHANGE 4.1: Updated Date Formatting Function ---
 function formatFinanceDate(dateStr) {
   if (!dateStr || String(dateStr).trim() === '') return '';
-  const parts = String(dateStr).split('-');
-  if (parts.length !== 3 || dateStr.length !== 10) { return dateStr; }
-  try {
-    const year = parseInt(parts[0], 10);
-    const monthIndex = parseInt(parts[1], 10) - 1; 
-    const day = parseInt(parts[2], 10);
-    const date = new Date(year, monthIndex, day);
-    if (isNaN(date.getTime())) return dateStr;
-    if (date.getDate() !== day || date.getMonth() !== monthIndex || date.getFullYear() !== year) { return dateStr; }
-    const dayFormatted = date.getDate().toString().padStart(2, '0');
-    const monthFormatted = date.toLocaleString('default', { month: 'short' }).toUpperCase();
-    const yearFormatted = date.getFullYear();
-    return `${dayFormatted}-${monthFormatted}-${yearFormatted}`;
-  } catch (e) { return dateStr; }
+  
+  // Try parsing the date string
+  const date = new Date(dateStr);
+  
+  // Check for invalid date
+  if (isNaN(date.getTime())) {
+    return dateStr; // Return original string if invalid
+  }
+
+  // Check if the input string might have been a timezone-local time
+  // and correct for it if it looks like a YYYY-MM-DD string
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const parts = dateStr.split('-');
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1; // JS months are 0-indexed
+      const day = parseInt(parts[2], 10);
+      const utcDate = new Date(Date.UTC(year, month, day));
+      
+      const dayFormatted = utcDate.getUTCDate().toString().padStart(2, '0');
+      const monthFormatted = utcDate.toLocaleString('default', { month: 'short', timeZone: 'UTC' }).toUpperCase();
+      const yearFormatted = utcDate.getUTCFullYear();
+      return `${dayFormatted}-${monthFormatted}-${yearFormatted}`;
+  }
+
+  // Fallback for other valid date formats
+  const dayFormatted = date.getUTCDate().toString().padStart(2, '0');
+  const monthFormatted = date.toLocaleString('default', { month: 'short', timeZone: 'UTC' }).toUpperCase();
+  const yearFormatted = date.getUTCFullYear();
+  
+  return `${dayFormatted}-${monthFormatted}-${yearFormatted}`;
 }
+// --- END CHANGE 4.1 ---
+
 function formatFinanceDateLong(dateStr) {
   if (!dateStr) return '';
   const date = new Date(dateStr);
@@ -596,11 +669,11 @@ function isInvoiceTaskActive(invoiceData) {
         'Under Review', 
         'SRV Done', 
         'Paid',
-        'Report',
+        // 'Report', // <-- REMOVED
         'On Hold',
         'CLOSED',
         'Cancelled',
-        'Original PO' // Added Original PO
+        // 'Original PO' // <-- REMOVED
     ];
 
     // If the status is in the inactive list, it's not an active task.
@@ -748,7 +821,7 @@ async function fetchAndParseSitesCSV(url) {
         return sitesData;
     } catch (error) { console.error("Error fetching or parsing Site.csv:", error); alert("CRITICAL ERROR: Could not load Site data from GitHub."); return null; }
 }
-// --- *** SITE.CSV FIX (END) *** ---
+// --- *** SITE.CSV FIX (END) ---
 
 
 
@@ -1040,6 +1113,177 @@ function removeFromLocalInvoiceCache(poNumber, invoiceKey) {
 
 // --- WORKDESK LOGIC ---
 
+// --- *** NEW CALENDAR FUNCTIONS (CHANGE 1.5) *** ---
+function renderWorkdeskCalendar() {
+    if (!wdCalendarGrid || !wdCalendarMonthYear) return;
+
+    wdCalendarGrid.innerHTML = `
+        <div class="wd-calendar-day-name">Sun</div>
+        <div class="wd-calendar-day-name">Mon</div>
+        <div class="wd-calendar-day-name">Tue</div>
+        <div class="wd-calendar-day-name">Wed</div>
+        <div class="wd-calendar-day-name">Thu</div>
+        <div class="wd-calendar-day-name">Fri</div>
+        <div class="wd-calendar-day-name">Sat</div>
+    `; // Clear previous days and add headers
+
+    wdCalendarMonthYear.textContent = wdCurrentCalendarDate.toLocaleDateString('en-US', {
+        month: 'long',
+        year: 'numeric'
+    });
+
+    const year = wdCurrentCalendarDate.getFullYear();
+    const month = wdCurrentCalendarDate.getMonth();
+    const firstDay = new Date(year, month, 1).getDay(); // 0 = Sunday, 1 = Monday...
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    // 1. Add blank days for the start of the month
+    for (let i = 0; i < firstDay; i++) {
+        const blankDay = document.createElement('div');
+        blankDay.className = 'wd-calendar-day other-month';
+        wdCalendarGrid.appendChild(blankDay);
+    }
+
+    // 2. Add all days for the current month
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalize today
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dayCell = document.createElement('div');
+        dayCell.className = 'wd-calendar-day';
+        dayCell.textContent = day;
+
+        const thisDate = new Date(year, month, day);
+        thisDate.setHours(0, 0, 0, 0); // Normalize thisDate
+
+        // dayCell.dataset.date = thisDate.toISOString().split('T')[0]; // Store YYYY-MM-DD <-- OLD BUGGY LINE
+
+        // --- CALENDAR TIMEZONE FIX ---
+        // Manually construct YYYY-MM-DD from the local date components
+        // to avoid the toISOString() timezone shift.
+        const dateYear = thisDate.getFullYear();
+        const dateMonth = String(thisDate.getMonth() + 1).padStart(2, '0');
+        const dateDay = String(thisDate.getDate()).padStart(2, '0');
+        dayCell.dataset.date = `${dateYear}-${dateMonth}-${dateDay}`;
+        // --- END OF FIX ---
+
+        if (thisDate.getTime() === today.getTime()) {
+            dayCell.classList.add('today');
+        }
+        wdCalendarGrid.appendChild(dayCell);
+    }
+}
+
+async function populateCalendarTasks() {
+    if (!currentApprover) return;
+
+    // 1. Ensure tasks are fetched
+    await populateActiveTasks(); // This gets all active tasks into userActiveTasks
+    const tasks = userActiveTasks;
+
+    // 2. Create a map of tasks by date
+    const tasksByDate = new Map();
+    tasks.forEach(task => {
+        let taskDateStr = task.date; // e.g., "08-Nov-2025"
+        
+        // Convert "DD-Mmm-YYYY" to "YYYY-MM-DD"
+        if (taskDateStr) {
+            const inputDate = convertDisplayDateToInput(taskDateStr); // e.g., "2025-11-08"
+            if (inputDate) {
+                if (!tasksByDate.has(inputDate)) {
+                    tasksByDate.set(inputDate, []);
+                }
+                tasksByDate.get(inputDate).push(task);
+            }
+        }
+    });
+
+    // 3. Add COUNT BADGES to the calendar
+    document.querySelectorAll('.wd-calendar-day[data-date]').forEach(dayCell => {
+        const date = dayCell.dataset.date;
+        
+        // Clear old badges
+        const oldBadge = dayCell.querySelector('.task-count-badge');
+        if (oldBadge) oldBadge.remove();
+
+        // Add new badge if tasks exist
+        if (tasksByDate.has(date)) {
+            const tasksForDay = tasksByDate.get(date);
+            const count = tasksForDay.length;
+
+            if (count > 0) {
+                const badge = document.createElement('span');
+                badge.className = 'task-count-badge';
+                badge.textContent = count;
+                dayCell.appendChild(badge);
+            }
+        }
+    });
+}
+
+function displayCalendarTasksForDay(date) { // date is "2025-11-09"
+    // 1. Highlight selected day
+    document.querySelectorAll('.wd-calendar-day.selected').forEach(cell => {
+        cell.classList.remove('selected');
+    });
+    const selectedCell = document.querySelector(`.wd-calendar-day[data-date="${date}"]`);
+    if (selectedCell) {
+        selectedCell.classList.add('selected');
+    }
+
+    // 2. Find tasks for this day
+    const tasks = userActiveTasks.filter(task => {
+        const taskDate = convertDisplayDateToInput(task.date);
+        return taskDate === date;
+    });
+
+    // 3. Display tasks in the list
+    
+    // --- THIS IS THE FIX ---
+    // Use the new, timezone-safe function. No more new Date()!
+    const friendlyDate = formatYYYYMMDD(date);
+    // --- END OF FIX ---
+    
+    if (tasks.length > 0) {
+        wdCalendarTaskListTitle.textContent = `Task Summary for ${friendlyDate}`;
+        wdCalendarTaskListUl.innerHTML = '';
+        
+        // Group tasks by status
+        const tasksByStatus = tasks.reduce((acc, task) => {
+            const status = task.remarks || 'Pending';
+            if (!acc[status]) {
+                acc[status] = 0;
+            }
+            acc[status]++;
+            return acc;
+        }, {});
+
+        // Display the grouped summary
+        for (const status in tasksByStatus) {
+            const count = tasksByStatus[status];
+            const li = document.createElement('li');
+            
+            // Add status class
+            let statusClass = '';
+            if (status === 'Pending Signature') statusClass = 'status-pending-signature';
+            if (status === 'For SRV') statusClass = 'status-for-srv';
+            li.className = statusClass;
+
+            li.innerHTML = `
+                <strong>${count}</strong> active task(s) for <strong>${status}</strong>
+            `;
+            wdCalendarTaskListUl.appendChild(li);
+        }
+
+    } else {
+        wdCalendarTaskListTitle.textContent = `No active tasks for ${friendlyDate}`;
+        wdCalendarTaskListUl.innerHTML = '';
+    }
+}
+
+
+// --- *** END OF CALENDAR FUNCTIONS (CHANGE 1.5) *** ---
+
 // --- (MODIFIED) ensureAllEntriesFetched ---
 // This function will now fetch job_entries AND PO data if the cache is old.
 async function ensureAllEntriesFetched(forceRefresh = false) {
@@ -1087,10 +1331,10 @@ function isTaskComplete(task) {
         'Under Review', 
         'SRV Done', 
         'Paid',
-        'Report', // Added Report as a "complete" status
+        // 'Report', // <-- REMOVED
         'CLOSED',
         'Cancelled',
-        'Original PO'
+        // 'Original PO' // <-- REMOVED
     ];
 
     if (task.source === 'invoice') {
@@ -1143,19 +1387,27 @@ function isTaskComplete(task) {
 
 
 
+// [Inside resetJobEntryForm function, around line 1354]
 function resetJobEntryForm(keepJobType = false) {
     const jobType = jobForSelect.value;
     jobEntryForm.reset();
     if (keepJobType) jobForSelect.value = jobType;
     currentlyEditingKey = null;
     ['job-amount', 'job-po'].forEach(id => document.getElementById(id).classList.remove('highlight-field'));
-    if (siteSelectChoices) { siteSelectChoices.clearInput(); siteSelectChoices.removeActiveItems(); }
-    if (attentionSelectChoices) { attentionSelectChoices.clearInput(); attentionSelectChoices.removeActiveItems(); attentionSelectChoices.enable(); }
+    
+    // ... (lines for siteSelectChoices and attentionSelectChoices) ...
+    
     jobEntryFormTitle.textContent = 'Add New Job Entry';
     addJobButton.classList.remove('hidden');
     updateJobButton.classList.add('hidden');
+    deleteJobButton.classList.add('hidden'); // <-- CHANGE 2.2
+    
+    // === ADD THESE TWO LINES ===
+    addJobButton.disabled = false;
+    addJobButton.textContent = 'Add';
+    // === END OF ADDITION ===
 
-// --- ADD THIS BLOCK ---
+ // --- ADD THIS BLOCK ---
     if (jobEntryNavControls) jobEntryNavControls.classList.add('hidden');
     navigationContextList = [];
     navigationContextIndex = -1;
@@ -1264,7 +1516,7 @@ async function populateSiteDropdown() {
             return;
         }
 
-        siteSelectChoices.setChoices([{ value: '', label: 'Loading...', disabled: true, selected: true }]);
+        siteSelectChoices.setChoices([{ value: '', label: 'Loading...', disabled: true, selected: true }], 'value', 'label', true);
 
         const snapshot = await db.ref('project_sites').once('value');
         const sites = snapshot.val();
@@ -1375,6 +1627,8 @@ function getJobDataFromForm() {
 // --- (MODIFIED) handleAddJobEntry ---
 async function handleAddJobEntry(e) {
     e.preventDefault();
+addJobButton.disabled = true;
+    addJobButton.textContent = 'Adding...';
     const jobData = getJobDataFromForm();
     
     // --- (MODIFICATION) Check for "Invoice" job type ---
@@ -1419,7 +1673,15 @@ async function handleAddJobEntry(e) {
         resetJobEntryForm();
         // --- *** JOB ENTRY FETCH FIX (END) *** ---
         
-    } catch (error) { console.error("Error adding job entry:", error); alert('Failed to add Job Entry. Please try again.'); }
+    } catch (error) { 
+        console.error("Error adding job entry:", error); 
+        alert('Failed to add Job Entry. Please try again.'); 
+        
+        // === ADD THESE TWO LINES ===
+        addJobButton.disabled = false; // Re-enable on error
+        addJobButton.textContent = 'Add';
+        // === END OF ADDITION ===
+    }
 }
 
 // --- (MODIFIED) handleUpdateJobEntry ---
@@ -1489,6 +1751,50 @@ if (originalEntry.for === 'IPC' && jobData.attention === 'All' && isQS) {
     }
 }
 
+// --- *** NEW DELETE FUNCTION (CHANGE 2.3) *** ---
+async function handleDeleteJobEntry(e) {
+    e.preventDefault();
+    if (!currentlyEditingKey) {
+        alert("No entry selected for deletion.");
+        return;
+    }
+
+    // Double-check user permission (although button is hidden, this is safer)
+    const userPositionLower = (currentApprover?.Position || '').toLowerCase();
+    if (userPositionLower !== 'accounting') {
+        alert("You do not have permission to delete entries.");
+        return;
+    }
+
+    if (!confirm("Are you sure you want to permanently delete this job entry? This action cannot be undone.")) {
+        return;
+    }
+
+    try {
+        // Delete from Firebase
+        await db.ref(`job_entries/${currentlyEditingKey}`).remove();
+
+        alert('Job Entry Deleted Successfully!');
+        
+        // Force refresh all caches
+        await ensureAllEntriesFetched(true); 
+        
+        // Re-run the search for the pending entries table
+        handleJobEntrySearch(jobEntrySearchInput.value); 
+        
+        // Reset the form
+        resetJobEntryForm();
+        
+        // Refresh the active tasks list as well
+        populateActiveTasks(); 
+
+    } catch (error) {
+        console.error("Error deleting job entry:", error);
+        alert('Failed to delete Job Entry. Please try again.');
+    }
+}
+// --- *** END CHANGE 2.3 *** ---
+
 // *** MODIFICATION: Added logic to populate new 'job-status' field ***
 function populateFormForEditing(key) {
     // This needs to fetch from allSystemEntries, which is correct
@@ -1509,6 +1815,16 @@ function populateFormForEditing(key) {
     jobEntryFormTitle.textContent = 'Editing Job Entry';
     addJobButton.classList.add('hidden');
     updateJobButton.classList.remove('hidden');
+
+    // --- *** NEW DELETE BUTTON LOGIC (CHANGE 2.4) *** ---
+    const userPositionLower = (currentApprover?.Position || '').toLowerCase();
+    if (userPositionLower === 'accounting') {
+        deleteJobButton.classList.remove('hidden');
+    } else {
+        deleteJobButton.classList.add('hidden');
+    }
+    // --- *** END CHANGE 2.4 *** ---
+
     amountInput.classList.remove('highlight-field');
     poInput.classList.remove('highlight-field');
     window.scrollTo(0, 0);
@@ -1547,7 +1863,9 @@ async function populateActiveTasks() {
 
     try {
         const currentUserName = currentApprover.Name;
+        const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
         let userTasks = [];
+        let pulledInvoiceKeys = new Set(); // To prevent duplicates
 
         // --- PART 1: FETCH JOB_ENTRY TASKS (The old way, direct from Firebase) ---
         await ensureAllEntriesFetched(); // This loads all job_entries into `allSystemEntries`
@@ -1558,10 +1876,8 @@ async function populateActiveTasks() {
 
             // Logic for "Invoice" jobs
             if (entry.for === 'Invoice') {
-                // --- THIS IS THE FIX ---
                 // It's an active task for ANY user with Position "Accounting"
-                return (currentApprover?.Position || '').toLowerCase() === 'accounting';
-                // --- END OF FIX ---
+                return isAccounting;
             }
             
             // Logic for all other job types
@@ -1573,18 +1889,17 @@ async function populateActiveTasks() {
         // --- END OF PART 1 ---
 
 
-        // --- PART 2: FETCH INVOICE_ENTRY TASKS (The New, FAST way) ---
+        // --- PART 2: FETCH INVOICE_ENTRY TASKS (The New, FAST way from User's Inbox) ---
         // This is the fast, targeted query to the invoice_tasks_by_user "inbox"
-        // --- *** START OF FIREBASE PATH FIX *** ---
         const sanitizeFirebaseKey = (key) => key.replace(/[.#$[\]]/g, '_');
         const safeCurrentUserName = sanitizeFirebaseKey(currentUserName);
         const invoiceTaskSnapshot = await invoiceDb.ref(`invoice_tasks_by_user/${safeCurrentUserName}`).once('value');
-        // --- *** END OF FIREBASE PATH FIX *** ---
         
         if (invoiceTaskSnapshot.exists()) {
             const tasksData = invoiceTaskSnapshot.val();
             for (const invoiceKey in tasksData) {
                 const task = tasksData[invoiceKey];
+                pulledInvoiceKeys.add(invoiceKey); // Add key to prevent duplicates in Part 3
 
                 const transformedInvoice = {
                     key: `${task.po}_${invoiceKey}`, // Create the composite key for the table
@@ -1598,7 +1913,7 @@ async function populateActiveTasks() {
                     site: task.site,
                     group: 'N/A',
                     attention: currentUserName, // The task is here, so it's for this user
-                    enteredBy: 'Irwin', // This is assumed, as in your original code
+                    enteredBy: 'Irwin', 
                     date: task.date ? formatDate(new Date(task.date + 'T00:00:00')) : 'N/A',
                     remarks: task.status,
                     timestamp: task.date ? new Date(task.date).getTime() : Date.now(),
@@ -1611,9 +1926,61 @@ async function populateActiveTasks() {
         }
         // --- END OF PART 2 ---
 
+        // --- *** NEW PART 3: Scan ALL invoices for Accounting *** ---
+        // If the user is 'Accounting', scan the main cache for statuses that
+        // might not have an "Attention" assigned.
+        if (isAccounting) {
+            await ensureInvoiceDataFetched(); // Make sure allInvoiceData is loaded
+            const statusesToPull = ['Pending', 'Report', 'Original PO'];
+
+            if (allInvoiceData && allPOData) {
+                for (const poNumber in allInvoiceData) {
+                    const poInvoices = allInvoiceData[poNumber];
+                    for (const invoiceKey in poInvoices) {
+                        // Skip if we already added this from the user's personal inbox
+                        if (pulledInvoiceKeys.has(invoiceKey)) continue;
+
+                        const inv = poInvoices[invoiceKey];
+
+                        // --- *** THIS IS THE FIX *** ---
+                        // Only pull if the status matches AND attention is EMPTY.
+                        if (inv && statusesToPull.includes(inv.status) && (!inv.attention || inv.attention === '')) {
+                        // --- *** END OF FIX *** ---
+
+                            // Found one. Add it to the task list.
+                            const poDetails = allPOData[poNumber] || {};
+                            const transformedInvoice = {
+                                key: `${poNumber}_${invoiceKey}`,
+                                originalKey: invoiceKey,
+                                originalPO: poNumber,
+                                source: 'invoice',
+                                for: 'Invoice',
+                                ref: inv.invNumber || '',
+                                po: poNumber,
+                                amount: inv.invValue || '',
+                                site: poDetails['Project ID'] || 'N/A',
+                                group: 'N/A',
+                                attention: inv.attention || '', // Show who it's assigned to (if anyone)
+                                enteredBy: 'Irwin', 
+                                date: inv.invoiceDate ? formatDate(new Date(inv.invoiceDate + 'T00:00:00')) : 'N/A',
+                                remarks: inv.status,
+                                timestamp: inv.invoiceDate ? new Date(inv.invoiceDate).getTime() : Date.now(),
+                                invName: inv.invName || '',
+                                vendorName: poDetails['Supplier Name'] || 'N/A',
+                                note: inv.note || ''
+                            };
+                            userTasks.push(transformedInvoice);
+                        }
+                    }
+                }
+            }
+        }
+        // --- *** END OF PART 3 *** ---
+
+
         // Store and render the combined list of tasks
         userActiveTasks = userTasks.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-        renderActiveTaskTable(userTasks); 
+        
 
         // --- (NEW) Update task count and badge ---
         const taskCount = userActiveTasks.length;
@@ -1628,13 +1995,26 @@ async function populateActiveTasks() {
         });
         // --- (END NEW) ---
 
+        // --- *** NEW DYNAMIC TAB GENERATION *** ---
+        const uniqueStatuses = [...new Set(userActiveTasks.map(task => task.remarks || 'Pending'))];
+        uniqueStatuses.sort(); 
+
+        let tabsHTML = '<button class="active" data-status-filter="All">All Tasks</button>';
+        uniqueStatuses.forEach(status => {
+            tabsHTML += `<button data-status-filter="${status}">${status}</button>`;
+        });
+
+        activeTaskFilters.innerHTML = tabsHTML;
+        currentActiveTaskFilter = 'All';
+        // --- *** END OF DYNAMIC TAB GENERATION *** ---
+        
+        renderActiveTaskTable(userTasks); 
+
     } catch (error) {
         console.error("Error fetching active tasks:", error);
         activeTaskTableBody.innerHTML = `<tr><td colspan="10">Error loading tasks.</td></tr>`;
     }
 }
-
-
 // --- *** MOBILE VIEW FIX (START) *** ---
 // ++ MODIFIED: renderActiveTaskTable ++
 // [Replace this entire function around line 1638]
@@ -1857,6 +2237,14 @@ async function handleSaveModifiedTask() {
         }
     }
 
+    // *** START OF FIX ***
+    // Check if the user selected an empty status
+    if (!selectedStatus) {
+        alert("Please select a new status.");
+        return;
+    }
+    // *** END OF FIX ***
+
     const updates = {
         attention: modifyTaskAttentionChoices.getValue(true) || '',
         remarks: selectedStatus, // 'remarks' for job_entry
@@ -1875,13 +2263,24 @@ async function handleSaveModifiedTask() {
     try {
         if (source === 'job_entry') {
             // This is a job entry, update the main DB
+            
+            // --- *** NEW LOGIC TO AUTO-COMPLETE TASK *** ---
+            // Find the original task to check attention
+            await ensureAllEntriesFetched(); 
+            const originalEntry = allSystemEntries.find(entry => entry.key === key);
+
+            // If the current user is the "attention" person, add dateResponded to complete it
+            if (originalEntry && currentApprover.Name === originalEntry.attention) {
+                updates.dateResponded = formatDate(new Date()); 
+            }
+            // --- *** END OF NEW LOGIC *** ---
+
             await db.ref(`job_entries/${key}`).update({
                 attention: updates.attention,
                 remarks: updates.remarks,
-                note: updates.note // Job entries didn't originally have 'note', this adds it
+                note: updates.note, // Job entries didn't originally have 'note', this adds it
+                dateResponded: updates.dateResponded || null // Save the new date
             });
-            
-            // --- (REMOVED) `updateJobTaskLookup` call ---
 
         } else if (source === 'invoice' && originalPO && originalKey) {
             // This is an invoice entry, update the invoice DB
@@ -1891,13 +2290,11 @@ async function handleSaveModifiedTask() {
                 note: updates.note
             });
             
-            // --- ADD THIS LINE (THE FIX) ---
             // Get original data from the local cache
             if (!allInvoiceData) await ensureInvoiceDataFetched(); // Ensure cache is warm
             const originalInvoice = (allInvoiceData && allInvoiceData[originalPO]) ? allInvoiceData[originalPO][originalKey] : {};
             const updatedInvoiceData = {...originalInvoice, ...updates}; // Merge
             await updateInvoiceTaskLookup(originalPO, originalKey, updatedInvoiceData, originalInvoice.attention);
-            // --- END OF ADDITION ---
 
             // Also update the local cache
             updateLocalInvoiceCache(originalPO, originalKey, updates);
@@ -1918,6 +2315,9 @@ async function handleSaveModifiedTask() {
         modifyTaskSaveBtn.textContent = 'Save Changes';
     }
 }
+
+
+
 
 
 // [Replace this entire function around line 1876]
@@ -3703,7 +4103,8 @@ async function handleAddPOToBatch() {
         const site = poData['Project ID'] || 'N/A';
         const vendor = poData['Supplier Name'] || 'N/A';
         const row = document.createElement('tr');
-        row.setAttribute('data-po', poNumber); row.setAttribute('data-site', site); row.setAttribute('data-vendor', vendor); row.setAttribute('data-next-invid', nextInvId);
+        row.setAttribute('data-po', poNumber); row.setAttribute('data-site', site); row.setAttribute
+('data-vendor', vendor); row.setAttribute('data-next-invid', nextInvId);
 
         // ++ UPDATED: Columns changed (Details removed, Inv. Name/SRV Name added) and default date
         row.innerHTML = `
@@ -3793,6 +4194,7 @@ async function addInvoiceToBatchTable(invData) {
             <option value="On Hold">On Hold</option>
             <option value="CLOSED">CLOSED</option>
             <option value="Cancelled">Cancelled</option>
+	    <option value="Original PO">Original PO</option>
         </select></td>
         <td><input type="text" name="note" class="batch-input" value="${invData.note || ''}"></td>
         <td><button type="button" class="delete-btn batch-remove-btn">&times;</button></td>
@@ -4592,6 +4994,12 @@ function showFinanceSearchResults(payments) {
         </table>
     `;
 
+    // --- *** START CHANGE 3.4 (Finance Report Totals) *** ---
+    let totalCertified = 0;
+    let totalRetention = 0;
+    let totalPayment = 0;
+    // --- *** END CHANGE 3.4 *** ---
+
     const paymentRowsHtml = payments.map(payment => `
         <tr>
             <td>${formatFinanceDate(payment.dateEntered) || ''}</td>
@@ -4606,6 +5014,27 @@ function showFinanceSearchResults(payments) {
             </td>
         </tr>
     `).join('');
+
+    // --- *** START CHANGE 3.4 (Finance Report Totals) *** ---
+    // Calculate totals from the 'payments' array
+    payments.forEach(payment => {
+        totalCertified += parseFloat(payment.certifiedAmount) || 0;
+        totalRetention += parseFloat(payment.retention) || 0;
+        totalPayment += parseFloat(payment.payment) || 0;
+    });
+
+    const footerHtml = `
+        <tfoot style="background-color: #e9ecef; font-weight: bold;">
+            <tr>
+                <td colspan="3" style="text-align: right;">Total:</td>
+                <td>${formatFinanceNumber(totalCertified)}</td>
+                <td>${formatFinanceNumber(totalRetention)}</td>
+                <td>${formatFinanceNumber(totalPayment)}</td>
+                <td colspan="2"></td>
+            </tr>
+        </tfoot>
+    `;
+    // --- *** END CHANGE 3.4 *** ---
 
     const detailsHtml = `
         <div class="payment-details-wrapper">
@@ -4627,7 +5056,7 @@ function showFinanceSearchResults(payments) {
                     <tbody>
                         ${paymentRowsHtml}
                     </tbody>
-                </table>
+                    ${footerHtml} </table>
             </div>
         </div>
     `;
@@ -4793,13 +5222,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     logoutButton.addEventListener('click', handleLogout);
     wdLogoutButton.addEventListener('click', handleLogout);
     imLogoutButton.addEventListener('click', handleLogout);
-    workdeskButton.addEventListener('click', () => { if (!currentApprover) { handleLogout(); return; }
+    // (Original was not async)
+    workdeskButton.addEventListener('click', async () => { // ADD async
+        if (!currentApprover) { handleLogout(); return; }
         wdUsername.textContent = currentApprover.Name || 'User';
         wdUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile;
 
         // ++ MODIFIED: Show IM link for everyone ++
         workdeskIMLinkContainer.classList.remove('hidden');
-
+        wdCurrentCalendarDate = new Date();
 
         if (!siteSelectChoices) {
             siteSelectChoices = new Choices(document.getElementById('job-site'), { searchEnabled: true, shouldSort: false, itemSelectText: '', });
@@ -4840,38 +5271,36 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (workdeskDateTimeInterval) clearInterval(workdeskDateTimeInterval);
         workdeskDateTimeInterval = setInterval(updateWorkdeskDateTime, 1000);
         showView('workdesk');
-        showWorkdeskSection('wd-dashboard');
+        await showWorkdeskSection('wd-dashboard'); // ADD await
     });
-
     // ++ ADDED: Event listener for new sidebar link ++
     workdeskIMLink.addEventListener('click', (e) => {
         e.preventDefault();
         invoiceManagementButton.click();
     });
 
-    // --- *** WORKDESK NAV FIX (START) *** ---
-    document.querySelector('#workdesk-view .workdesk-sidebar').addEventListener('click', (e) => { 
+  // --- *** WORKDESK NAV FIX (START) *** ---
+    document.querySelector('#workdesk-view .workdesk-sidebar').addEventListener('click', async (e) => { // ADD async
         const link = e.target.closest('a'); 
         if (!link || link.classList.contains('back-to-main-dashboard') || link.id === 'wd-logout-button' || link.id === 'workdesk-im-link') return; 
         e.preventDefault(); 
         if (link.hasAttribute('data-section')) { 
-            // Hide the 'Reporting' link (wd-nav-reporting) in the main desktop sidebar
-            const reportingLink = document.querySelector('.wd-nav-reporting');
-            if (reportingLink) {
-                // *** This was part of the problem, removing this hide logic ***
-                // reportingLink.classList.add('hidden');
-            }
+            // ... (reportingLink logic removed for clarity) ...
         
             document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a').forEach(a => a.classList.remove('active')); 
             link.classList.add('active'); 
-            showWorkdeskSection(link.getAttribute('data-section')); 
+            
+            // MODIFIED: ADD await and pass null for the search term
+            await showWorkdeskSection(link.getAttribute('data-section'), null); 
         } 
     });
-    // --- *** WORKDESK NAV FIX (END) *** ---
+    // --- *** WORKDESK NAV FIX (END) ---
     
     addJobButton.addEventListener('click', handleAddJobEntry);
     updateJobButton.addEventListener('click', handleUpdateJobEntry);
     clearJobButton.addEventListener('click', () => resetJobEntryForm(false));
+    deleteJobButton.addEventListener('click', handleDeleteJobEntry); // <-- CHANGE 2.5
+    
     jobEntryTableBody.addEventListener('click', (e) => { const row = e.target.closest('tr'); if (row) { const key = row.getAttribute('data-key'); 
 
 // --- ADD THIS BLOCK ---
@@ -5013,13 +5442,69 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-
-
-
-
-
-
+    // --- *** NEW CALENDAR LISTENERS (CHANGE 1.6) *** ---
+    if (wdCalendarPrevBtn) {
+        wdCalendarPrevBtn.addEventListener('click', () => {
+            wdCurrentCalendarDate.setMonth(wdCurrentCalendarDate.getMonth() - 1);
+            renderWorkdeskCalendar();
+            populateCalendarTasks();
+            wdCalendarTaskListTitle.textContent = 'Select a day to see tasks';
+            wdCalendarTaskListUl.innerHTML = '';
+        });
+    }
+    if (wdCalendarNextBtn) {
+        wdCalendarNextBtn.addEventListener('click', () => {
+            wdCurrentCalendarDate.setMonth(wdCurrentCalendarDate.getMonth() + 1);
+            renderWorkdeskCalendar();
+            populateCalendarTasks();
+            wdCalendarTaskListTitle.textContent = 'Select a day to see tasks';
+            wdCalendarTaskListUl.innerHTML = '';
+        });
+    }
     
+    // --- *** NEW CALENDAR CLICK/DBLCLICK LOGIC *** ---
+    if (wdCalendarGrid) {
+        // SINGLE-CLICK: Just show tasks in the list below
+        wdCalendarGrid.addEventListener('click', (e) => {
+            const dayCell = e.target.closest('.wd-calendar-day');
+            if (dayCell && !dayCell.classList.contains('other-month')) {
+                const date = dayCell.dataset.date;
+                if (!date) return;
+                
+                // 1. Always display tasks for the clicked day in the list
+                displayCalendarTasksForDay(date);
+            }
+        });
+
+        // DOUBLE-CLICK: Navigate to Active Tasks tab
+        wdCalendarGrid.addEventListener('dblclick', (e) => {
+            const dayCell = e.target.closest('.wd-calendar-day');
+            if (dayCell && !dayCell.classList.contains('other-month')) {
+                const date = dayCell.dataset.date;
+                if (!date) return;
+
+                // Check if this day has tasks
+                const taskBadge = dayCell.querySelector('.task-count-badge');
+                if (taskBadge) {
+                    const friendlyDate = formatYYYYMMDD(date);
+
+                    // 1. Find the "Active Task" link
+                    const activeTaskLink = workdeskNav.querySelector('a[data-section="wd-activetask"]');
+                    if (activeTaskLink) {
+                        
+                        // 2. Manually update the nav UI
+                        document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a').forEach(a => a.classList.remove('active')); 
+                        activeTaskLink.classList.add('active'); 
+                        
+                        // 3. Call showWorkdeskSection to navigate and filter
+                        showWorkdeskSection('wd-activetask', friendlyDate); 
+                    }
+                }
+            }
+        });
+    }
+    // --- *** END OF NEW CALENDAR LOGIC *** ---
+
     // --- (NEW) Click listener for WorkDesk Dashboard Card ---
     if (activeTaskCardLink) {
         activeTaskCardLink.addEventListener('click', (e) => {
@@ -5443,6 +5928,31 @@ invoiceManagementButton.addEventListener('click', async () => {
         }
     });
 
+    // --- *** MODAL NOTIFICATION FIX (Button Listener) *** ---
+    const calendarModalViewTasksBtn = document.getElementById('calendar-modal-view-tasks-btn');
+    if (calendarModalViewTasksBtn) {
+        calendarModalViewTasksBtn.addEventListener('click', () => { // No async needed here
+            const friendlyDate = calendarModalViewTasksBtn.dataset.friendlyDate;
+            
+            // 1. Find the "Active Task" link
+            const activeTaskLink = workdeskNav.querySelector('a[data-section="wd-activetask"]');
+            if (activeTaskLink) {
+                
+                // 2. Manually update the nav UI
+                document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a').forEach(a => a.classList.remove('active')); 
+                activeTaskLink.classList.add('active'); 
+                
+                // 3. Call showWorkdeskSection directly with the new search term
+                // This will await the data load AND THEN apply the filter.
+                showWorkdeskSection('wd-activetask', friendlyDate); 
+            }
+            
+            // 4. Hide the modal
+            document.getElementById('calendar-task-modal').classList.add('hidden');
+        });
+    }
+    // --- *** END OF FIX *** ---
+
     document.body.addEventListener('click', (e) => {
         if (e.target.matches('.modal-close-btn')) {
             const modal = e.target.closest('.modal-overlay');
@@ -5712,6 +6222,20 @@ imAddPaymentModal.classList.remove('hidden');
             }
         });
     }
-    // --- ADD THIS NEW BLOCK END ---
+// ... (right before the final closing '});')
+
+    // --- *** NEW: Active Task Clear Button *** ---
+    const activeTaskClearButton = document.getElementById('active-task-clear-button');
+    if (activeTaskClearButton) {
+        activeTaskClearButton.addEventListener('click', () => {
+            activeTaskSearchInput.value = '';
+            sessionStorage.removeItem('activeTaskSearch');
+            // Re-run the search with an empty term.
+            // This will use the full userActiveTasks list and apply the 'currentActiveTaskFilter'.
+            handleActiveTaskSearch(''); 
+        });
+    }
+    // --- *** END OF NEW LISTENER *** ---
+
 
 }); // END OF DOMCONTENTLOADED
