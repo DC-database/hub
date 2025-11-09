@@ -1332,11 +1332,19 @@ function displayCalendarTasksForDay(date) { // date is "2025-11-09"
             }
             // --- *** END OF NEW BLOCK *** ---
 
+            // --- *** MODIFICATION: Add Note if available *** ---
+            const noteHTML = task.note 
+                ? `<span style="color: var(--iba-secondary-terracotta); font-style: italic; margin-top: 4px;">Note: ${task.note}</span>` 
+                : '';
+
             li.innerHTML = `
                 <strong>${mainInfo}${amountDisplay}</strong>
                 <span>${subInfo}</span>
                 <span style="font-weight: 600;">Status: ${status}</span>
+                ${noteHTML}
             `;
+            // --- *** END OF MODIFICATION *** ---
+            
             wdCalendarTaskListUl.appendChild(li);
         });
 
