@@ -2069,7 +2069,7 @@ function renderActiveTaskTable(tasks) {
         
         const actionButtons = `
             <button class="srv-done-btn" data-key="${task.key}" ${srvDoneDisabled}>SRV Done</button>
-            <button class="modify-btn" data-key="${task.key}">Modify</button>
+            <button class="modify-btn" data-key="${task.key}">Edit Action</button>
         `;
 
         const poMobile = `<td class="mobile-only" data-label="PO">${task.po || ''}</td>`;
@@ -6236,6 +6236,7 @@ imAddPaymentModal.classList.remove('hidden');
         });
     }
     // --- *** END OF NEW LISTENER *** ---
+
 
 
 }); // END OF DOMCONTENTLOADED
