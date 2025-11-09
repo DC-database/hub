@@ -5811,6 +5811,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // DOUBLE-CLICK: Navigate to Active Tasks tab
         wdCalendarGrid.addEventListener('dblclick', (e) => {
+            // --- *** NEW: Disable on mobile *** ---
+            const isMobile = window.innerWidth <= 768;
+            if (isMobile) return; // Do nothing on mobile
+            // --- *** END OF NEW CODE *** ---
+
             const dayCell = e.target.closest('.wd-calendar-day');
             if (dayCell && !dayCell.classList.contains('other-month')) {
                 const date = dayCell.dataset.date;

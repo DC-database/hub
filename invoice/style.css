@@ -1740,24 +1740,26 @@ body.is-admin .legend-admin-only {
     color: var(--iba-secondary-gold);
 }
 
-/* === ADD THIS NEW RULE FOR THE TOOLTIP === */
-.wd-calendar-day:hover .task-count-badge::after {
-    content: 'Double-click to view tasks';
-    position: absolute;
-    top: 100%;
-    right: 0;
-    margin-top: 5px; /* Space from the badge */
-    background-color: #333;
-    color: white;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: normal;
-    white-space: nowrap;
-    z-index: 10;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    /* Prevents the tooltip from triggering hover on the day cell itself */
-    pointer-events: none; 
+/* === NEW RULE FOR DESKTOP-ONLY TOOLTIP === */
+@media (min-width: 769px) {
+    .wd-calendar-day:hover .task-count-badge::after {
+        content: 'Double-click to view tasks';
+        position: absolute;
+        top: 100%;
+        right: 0;
+        margin-top: 5px; /* Space from the badge */
+        background-color: #333;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: normal;
+        white-space: nowrap;
+        z-index: 10;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        /* Prevents the tooltip from triggering hover on the day cell itself */
+        pointer-events: none; 
+    }
 }
 /* === END OF NEW RULE === */
 
