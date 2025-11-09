@@ -3289,7 +3289,7 @@ function populateInvoiceFormForEditing(invoiceKey) {
     document.getElementById('im-inv-name').value = invData.invName || '';
     document.getElementById('im-srv-name').value = invData.srvName || '';
     document.getElementById('im-details').value = invData.details || '';
-    imReleaseDateInput.value = (invData.status === 'With Accounts' || invData.status === 'Paid') ? normalizeDateForInput(invData.releaseDate) : getTodayDateString(); // Keep date if With Accounts or Paid
+    imReleaseDateInput.value = normalizeDateForInput(invData.releaseDate);
     imStatusSelect.value = invData.status || 'For SRV';
     document.getElementById('im-note').value = invData.note || '';
     if (imAttentionSelectChoices && invData.attention) {
@@ -3416,6 +3416,15 @@ async function handleUpdateInvoice(e) {
     // --- END FIX ---
 
     const originalInvoiceData = currentPOInvoices[currentlyEditingInvoiceKey];
+// --- *** NEW AUTOMATION LOGIC *** ---
+    const newStatus = invoiceData.status;
+    const oldStatus = originalInvoiceData ? originalInvoiceData.status : '';
+
+    // If the status was just changed TO "With Accounts", set releaseDate to today
+    if (newStatus === 'With Accounts' && oldStatus !== 'With Accounts') {
+        invoiceData.releaseDate = getTodayDateString();
+    }
+    // --- *** END OF NEW LOGIC *** ---
     
     // --- (Req 3) MODIFIED: Add invEntryID to srvName on update ---
     // --- *** START OF SRV "NIL" FIX *** ---
