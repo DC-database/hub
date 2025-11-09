@@ -1668,7 +1668,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     right: 4px;
     background-color: var(--iba-secondary-terracotta);
     color: white;
-    font-size: 2.8rem;  /* <-- Increased font size */
+    font-size: 1.8rem;  /* <-- Increased font size */
     font-weight: bold;
     border-radius: 50%;
     width: 30px;        /* <-- Increased width */
