@@ -424,6 +424,12 @@ function handleSuccessfulLogin() {
     dateTimeInterval = setInterval(updateDashboardDateTime, 1000);
     showView('dashboard');
 
+// --- === ADD THIS BLOCK === ---
+    // Toggle admin-specific UI elements
+    const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
+    document.body.classList.toggle('is-admin', isAdmin);
+    // --- === END OF ADDITION === ---
+
     const financeReportButton = document.querySelector('a[href="https://ibaport.site/Finance/"]');
     if (financeReportButton) {
         // ++ MODIFIED: Show for "Accounts" or "Accounting"
@@ -720,6 +726,7 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
             po: poNumber,
             amount: invoiceData.invValue || '',
             date: invoiceData.invoiceDate || getTodayDateString(),
+            releaseDate: invoiceData.releaseDate || '', // <-- ADD THIS LINE
             status: invoiceData.status || 'Pending',
             vendorName: poDetails['Supplier Name'] || 'N/A',
             site: poDetails['Project ID'] || 'N/A',
@@ -1206,7 +1213,9 @@ async function populateCalendarTasks() {
     // 2. Create a map of tasks by date
     const tasksByDate = new Map();
     tasks.forEach(task => {
-        let taskDateStr = task.date; // e.g., "08-Nov-2025"
+        // --- MODIFICATION: Use 'calendarDate', fallback to 'date' ---
+        let taskDateStr = task.calendarDate || task.date; // e.g., "08-Nov-2025"
+        // --- END MODIFICATION ---
         
         // Convert "DD-Mmm-YYYY" to "YYYY-MM-DD"
         if (taskDateStr) {
@@ -1238,18 +1247,29 @@ async function populateCalendarTasks() {
                 badge.className = 'task-count-badge';
                 badge.textContent = count;
 
-                // --- *** NEW COLOR-CODING LOGIC *** ---
+                // --- *** MODIFIED COLOR-CODING LOGIC *** ---
+                let badgeColorSet = false;
+                
+                // 1. Check for Admin "View Only" (Green)
                 if (isAdmin) {
-                    // Check if ANY task for this day is also in the admin's personal list
                     const hasMyTask = tasksForDay.some(task => myTaskKeys.has(task.key));
-                    
                     if (!hasMyTask) {
-                        // If none of these tasks are the admin's, make the badge green
-                        badge.classList.add('admin-view-only');
+                        badge.classList.add('admin-view-only'); // Green
+                        badgeColorSet = true;
                     }
-                    // Otherwise, it stays the default red (terracotta)
                 }
-                // --- *** END OF NEW COLOR-CODING LOGIC *** ---
+
+                // 2. If not Green, check for "Pending Signature" (Yellow)
+                if (!badgeColorSet) {
+                    const allPendingSignature = tasksForDay.every(task => task.remarks === 'Pending Signature');
+                    if (allPendingSignature) {
+                        badge.classList.add('status-pending-signature'); // Yellow
+                        badgeColorSet = true;
+                    }
+                }
+                
+                // 3. If no other color set, it remains default red (terracotta)
+                // --- *** END OF MODIFICATION *** ---
 
                 dayCell.appendChild(badge);
             }
@@ -1271,11 +1291,12 @@ function displayCalendarTasksForDay(date) { // date is "2025-11-09"
     const isAdmin = (currentApprover.Role || '').toLowerCase() === 'admin';
     const taskSource = isAdmin ? allAdminCalendarTasks : userActiveTasks;
 
-    // 2. Find tasks for this day from the correct source
-    const tasks = taskSource.filter(task => {
-        const taskDate = convertDisplayDateToInput(task.date);
-        return taskDate === date;
-    });
+// 2. Find tasks for this day from the correct source
+            const tasks = taskSource.filter(task => {
+                // --- THIS IS THE FIX: Filter by 'calendarDate' or fallback to 'date' ---
+                const taskDate = convertDisplayDateToInput(task.calendarDate || task.date); 
+                return taskDate === date;
+            });
     // --- *** END OF NEW LOGIC *** ---
 
     // 3. Display tasks in the list
@@ -1389,9 +1410,17 @@ async function populateAdminCalendarTasks() {
                         group: 'N/A',
                         attention: inv.attention || '',
                         enteredBy: 'Irwin', // Assumed
-                        date: inv.invoiceDate ? formatDate(new Date(inv.invoiceDate + 'T00:00:00')) : 'N/A',
+
+                        // --- THIS IS THE FIX ---
+                        // 'date' (for the table) ALWAYS uses invoiceDate
+                        date: formatYYYYMMDD(inv.invoiceDate), 
+                        // 'calendarDate' (for the calendar) uses releaseDate, OR falls back to invoiceDate
+                        calendarDate: formatYYYYMMDD(inv.releaseDate) !== 'N/A' ? formatYYYYMMDD(inv.releaseDate) : formatYYYYMMDD(inv.invoiceDate),
                         remarks: inv.status,
-                        timestamp: inv.invoiceDate ? new Date(inv.invoiceDate).getTime() : Date.now(),
+                        // 'timestamp' (for sorting) MUST also use the releaseDate
+                        timestamp: (inv.releaseDate || inv.invoiceDate) ? new Date(inv.releaseDate || inv.invoiceDate).getTime() : Date.now(), 
+                        // --- END OF FIX ---
+
                         invName: inv.invName || '',
                         vendorName: poDetails['Supplier Name'] || 'N/A',
                         note: inv.note || ''
@@ -1426,7 +1455,10 @@ function renderYearView() {
     }
 
     taskSource.forEach(task => {
-        const taskDateStr = task.date;
+        // --- MODIFICATION: Use 'calendarDate', fallback to 'date' ---
+        const taskDateStr = task.calendarDate || task.date;
+        // --- END MODIFICATION ---
+
         if (!taskDateStr) return;
         
         const taskDate = new Date(convertDisplayDateToInput(taskDateStr) + 'T00:00:00');
@@ -1457,18 +1489,31 @@ function renderYearView() {
             badge.className = 'month-task-count';
             badge.textContent = taskCount;
 
-            // --- *** NEW COLOR-CODING LOGIC (for Year View) *** ---
+            // --- *** MODIFIED COLOR-CODING LOGIC (for Year View) *** ---
+            let badgeColorSet = false;
+            
+            // 1. Check for Admin "View Only" (Green)
             if (isAdmin) {
-                // Check if ANY task for this month is in the admin's personal list
                 const hasMyTask = tasksForThisMonth.some(task => myTaskKeys.has(task.key));
                 
                 if (!hasMyTask) {
-                    // If none of these tasks are the admin's, make it green
-                    monthCell.classList.add('admin-view-only'); // This makes the cell yellow/green
-                    badge.classList.add('admin-view-only'); // This makes the badge red/green
+                    monthCell.classList.add('admin-view-only'); // Light green cell
+                    badge.classList.add('admin-view-only'); // Solid green badge
+                    badgeColorSet = true;
                 }
             }
-            // --- *** END OF NEW COLOR-CODING LOGIC *** ---
+
+            // 2. If not Green, check for "Pending Signature" (Yellow)
+            if (!badgeColorSet) {
+                const allPendingSignature = tasksForThisMonth.every(task => task.remarks === 'Pending Signature');
+                if (allPendingSignature) {
+                    monthCell.classList.add('status-pending-signature'); // New class for yellow cell
+                    badge.classList.add('status-pending-signature'); // New class for yellow badge
+                    badgeColorSet = true;
+                }
+            }
+            // 3. If no other color set, it remains default red
+            // --- *** END OF MODIFICATION *** ---
 
             monthCell.appendChild(badge);
         }
@@ -2130,9 +2175,17 @@ async function populateActiveTasks() {
                     group: 'N/A',
                     attention: currentUserName, // The task is here, so it's for this user
                     enteredBy: 'Irwin', 
-                    date: task.date ? formatDate(new Date(task.date + 'T00:00:00')) : 'N/A',
+                    
+                    // --- THIS IS THE FIX ---
+                    // 'date' (for the table) ALWAYS uses invoiceDate (from task.date)
+                    date: formatYYYYMMDD(task.date),
+                    // 'calendarDate' (for the calendar) uses releaseDate, OR falls back to invoiceDate
+                    calendarDate: formatYYYYMMDD(task.releaseDate) !== 'N/A' ? formatYYYYMMDD(task.releaseDate) : formatYYYYMMDD(task.date),
                     remarks: task.status,
-                    timestamp: task.date ? new Date(task.date).getTime() : Date.now(),
+                    // 'timestamp' (for sorting) MUST also use the releaseDate
+                    timestamp: (task.releaseDate || task.date) ? new Date(task.releaseDate || task.date).getTime() : Date.now(), 
+                    // --- END OF FIX ---
+                    
                     invName: task.invName,
                     vendorName: task.vendorName,
                     note: task.note
@@ -2178,9 +2231,17 @@ async function populateActiveTasks() {
                                 group: 'N/A',
                                 attention: inv.attention || '', // Show who it's assigned to (if anyone)
                                 enteredBy: 'Irwin', 
-                                date: inv.invoiceDate ? formatDate(new Date(inv.invoiceDate + 'T00:00:00')) : 'N/A',
+                                
+                                // --- THIS IS THE FIX ---
+                                // 'date' (for the table) ALWAYS uses invoiceDate
+                                date: formatYYYYMMDD(inv.invoiceDate),
+                                // 'calendarDate' (for the calendar) uses releaseDate, OR falls back to invoiceDate
+                                calendarDate: formatYYYYMMDD(inv.releaseDate) !== 'N/A' ? formatYYYYMMDD(inv.releaseDate) : formatYYYYMMDD(inv.invoiceDate),
                                 remarks: inv.status,
-                                timestamp: inv.invoiceDate ? new Date(inv.invoiceDate).getTime() : Date.now(),
+                                // 'timestamp' (for sorting) MUST also use the releaseDate
+                                timestamp: (inv.releaseDate || inv.invoiceDate) ? new Date(inv.releaseDate || inv.invoiceDate).getTime() : Date.now(),
+                                // --- END OF FIX ---
+
                                 invName: inv.invName || '',
                                 vendorName: poDetails['Supplier Name'] || 'N/A',
                                 note: inv.note || ''
@@ -5404,9 +5465,7 @@ function handleLogout() {
     // --- THIS IS THE FIX ---
     // The variable was misspelled as "workGdeskDateTimeInterval"
     if (workdeskDateTimeInterval) clearInterval(workdeskDateTimeInterval);
-    // --- END OF FIX ---
-
-    if (imDateTimeInterval) clearInterval(imDateTimeInterval);
+    if (imDateTimeInterval) clearInterval(imDateTimeInterval); // <-- This one
     location.reload();
 }
 function debounce(func, wait) {
@@ -5448,7 +5507,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!currentApprover) { handleLogout(); return; }
         wdUsername.textContent = currentApprover.Name || 'User';
         wdUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile;
-
+// --- === ADD THIS LINE === ---
+        document.body.classList.toggle('is-admin', (currentApprover?.Role || '').toLowerCase() === 'admin');
+        // --- === END OF ADDITION === ---
         // ++ MODIFIED: Show IM link for everyone ++
         workdeskIMLinkContainer.classList.remove('hidden');
         wdCurrentCalendarDate = new Date();
@@ -5973,7 +6034,7 @@ invoiceManagementButton.addEventListener('click', async () => {
 
 
     updateIMDateTime();
-    if (imDateTimeInterval) clearInterval(imDateTimeInterval);
+    if (imDateTimeInterval) clearInterval(imDateTimeInterval); // <-- This one
     imDateTimeInterval = setInterval(updateIMDateTime, 1000);
     showView('invoice-management');
     
