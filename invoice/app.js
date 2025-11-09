@@ -3489,12 +3489,12 @@ async function handleUpdateInvoice(e) {
 
 	allSystemEntries = []; // Clear system cache
 
-        // --- *** START OF SIDEBAR FIX *** ---
-        // This line is now UNCOMMENTED. This is the fix.
-        await populateActiveTasks(); 
-        populateActiveJobsSidebar();
-        // --- *** END OF SIDEBAR FIX *** ---
-
+        // --- *** NEW FIX: Refresh the entire section *** ---
+        // This will reload the sidebar and the current PO search
+        showIMSection('im-invoice-entry');
+        // --- *** END OF NEW FIX *** ---
+        
+        // We still call this to ensure the table updates in the background
         fetchAndDisplayInvoices(currentPO);
         allSystemEntries = []; // Clear system cache
     } catch (error) {
@@ -6167,7 +6167,13 @@ invoiceManagementButton.addEventListener('click', async () => {
 
     imAddInvoiceButton.addEventListener('click', handleAddInvoice);
     imUpdateInvoiceButton.addEventListener('click', handleUpdateInvoice);
-    imClearFormButton.addEventListener('click', () => { currentPO ? resetInvoiceForm() : resetInvoiceEntryPage(); });
+    imClearFormButton.addEventListener('click', () => { 
+        currentPO ? resetInvoiceForm() : resetInvoiceEntryPage(); 
+        
+        // --- *** NEW FIX: Refresh the entire section *** ---
+        showIMSection('im-invoice-entry');
+        // --- *** END OF NEW FIX *** ---
+    });
     imBackToActiveTaskButton.addEventListener('click', () => { 
         workdeskButton.click();
         setTimeout(() => {

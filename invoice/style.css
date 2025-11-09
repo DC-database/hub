@@ -1376,7 +1376,7 @@ tbody tr:hover { background-color: #f1f1f1; }
         width: 100% !important;
         height: auto !important;
         margin: 0 !important;
-        padding: 10mm 5mm !important;
+        padding: 10mm 0mm !important; /* <-- SET SIDE PADDING TO 0 */
         border: none !important;
         box-shadow: none !important;
         background: white !important;
@@ -1390,7 +1390,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     .print-title-section { text-align: right; }
     .print-title-section h2 { font-size: 16pt; margin: 0 0 5px 0; }
     .print-title-section p { font-size: 10pt; margin: 0; }
-    .print-summary { margin-top: 20px; background: #f4f7fa; padding: 15px; border: 1px solid #e0e0e0; border-radius: 5px; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    .print-summary { margin-top: 20px; background: #f4f7fa; padding: 15px 5px; border: 1px solid #e0e0e0; border-radius: 5px; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
     .print-summary h3 { margin: 0 0 15px 0; text-align: center; font-size: 12pt; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
     .print-summary-grid { display: flex; justify-content: space-around; align-items: center; }
     .print-summary-grid div { text-align: center; }
@@ -1403,11 +1403,14 @@ tbody tr:hover { background-color: #f1f1f1; }
         border: 1px solid #aaa; 
         border-radius: 5px; 
         margin-bottom: 15px; 
-        page-break-inside: avoid; /* <-- MODIFIED: Added this rule */
+        page-break-inside: auto; /* <-- Set to auto to allow splitting */
+    }
+    .print-po-header {
+        page-break-after: avoid; /* Try to keep header with the table */
     }
     /* --- *** PRINT PAGING FIX (END) *** --- */
     
-    .print-po-header { background: var(--iba-base-blue); color: white; padding: 10px 15px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px 20px; border-radius: 5px 5px 0 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } /* MODIFIED: Header color */
+    .print-po-header { background: var(--iba-base-blue); color: white; padding: 10px 5px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px 20px; border-radius: 5px 5px 0 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } /* MODIFIED: Header color */
     .print-po-header div { font-size: 10pt; }
     .print-invoice-table { 
         width: 100%; 
@@ -1418,10 +1421,10 @@ tbody tr:hover { background-color: #f1f1f1; }
         page-break-inside: avoid; /* Do NOT break inside a single row */
     }
     .print-invoice-table tfoot {
-        page-break-inside: avoid; /* Keep the entire totals/footer block together */
+        page-break-inside: auto; /* <-- ALLOW tfoot to break if needed */
         display: table-footer-group; /* Reinforce that this is a footer */
     }
-    .print-invoice-table th, .print-invoice-table td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
+    .print-invoice-table th, .print-invoice-table td { border: 1px solid #ccc; padding: 6px 4px; text-align: left; }
     .print-invoice-table thead th { background: #e9ecef; font-size: 9pt; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
     .print-invoice-table tbody tr:nth-child(even) { background: #f9f9f9; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
     .print-invoice-table tfoot td { border-top: 2px solid #000; }
