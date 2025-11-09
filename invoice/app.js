@@ -1401,47 +1401,76 @@ async function populateAdminCalendarTasks() {
     allAdminCalendarTasks = allTasks; // Set the global admin list
     console.log(`Admin calendar populated with ${allAdminCalendarTasks.length} total active tasks.`);
 }
-// --- *** NEW FUNCTION: RENDER YEAR VIEW *** ---
+// --- *** NEW FUNCTION: RENDER YEAR VIEW (with Admin Color Logic) *** ---
 function renderYearView() {
     if (!wdCalendarYearGrid) return;
 
-    // 1. Get task counts for the entire year
+    // --- *** START OF NEW LOGIC *** ---
+    const isAdmin = (currentApprover.Role || '').toLowerCase() === 'admin';
     const year = wdCurrentCalendarDate.getFullYear();
-    const tasksByMonth = new Array(12).fill(0); // 12 slots, 0-11
+    
+    // 1. Get the correct list of tasks to display
+    const taskSource = isAdmin ? allAdminCalendarTasks : userActiveTasks;
+    
+    // 2. Get the user's personal task keys
+    const myTaskKeys = new Set(userActiveTasks.map(task => task.key));
 
-    userActiveTasks.forEach(task => {
-        const taskDateStr = task.date; // e.g., "08-Nov-2025"
+    // 3. Create a map of tasks grouped by month (0-11)
+    const tasksByMonth = new Map();
+    for (let i = 0; i < 12; i++) {
+        tasksByMonth.set(i, []); // Initialize empty arrays for all 12 months
+    }
+
+    taskSource.forEach(task => {
+        const taskDateStr = task.date;
         if (!taskDateStr) return;
         
         const taskDate = new Date(convertDisplayDateToInput(taskDateStr) + 'T00:00:00');
         if (taskDate.getFullYear() === year) {
-            const monthIndex = taskDate.getMonth(); // 0 = Jan, 1 = Feb
-            tasksByMonth[monthIndex]++;
+            const monthIndex = taskDate.getMonth();
+            tasksByMonth.get(monthIndex).push(task);
         }
     });
+    // --- *** END OF NEW LOGIC *** ---
 
-    // 2. Render the 12 month cells
+
+    // 4. Render the 12 month cells
     wdCalendarYearGrid.innerHTML = '';
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 12; i++) { // i = 0 (Jan), 1 (Feb), etc.
         const monthCell = document.createElement('div');
         monthCell.className = 'wd-calendar-month-cell';
         monthCell.textContent = monthNames[i];
-        monthCell.dataset.month = i; // Store 0-11
+        monthCell.dataset.month = i; 
 
-        const taskCount = tasksByMonth[i];
+        const tasksForThisMonth = tasksByMonth.get(i);
+        const taskCount = tasksForThisMonth.length;
+
         if (taskCount > 0) {
             monthCell.classList.add('has-tasks');
             const badge = document.createElement('span');
             badge.className = 'month-task-count';
             badge.textContent = taskCount;
+
+            // --- *** NEW COLOR-CODING LOGIC (for Year View) *** ---
+            if (isAdmin) {
+                // Check if ANY task for this month is in the admin's personal list
+                const hasMyTask = tasksForThisMonth.some(task => myTaskKeys.has(task.key));
+                
+                if (!hasMyTask) {
+                    // If none of these tasks are the admin's, make it green
+                    monthCell.classList.add('admin-view-only'); // This makes the cell yellow/green
+                    badge.classList.add('admin-view-only'); // This makes the badge red/green
+                }
+            }
+            // --- *** END OF NEW COLOR-CODING LOGIC *** ---
+
             monthCell.appendChild(badge);
         }
         wdCalendarYearGrid.appendChild(monthCell);
     }
 }
-
 // --- *** NEW FUNCTION: TOGGLE CALENDAR VIEW *** ---
 function toggleCalendarView() {
     isYearView = !isYearView; // Flip the state
