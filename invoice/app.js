@@ -418,11 +418,16 @@ function handleSuccessfulLogin() {
         return;
     }
 
-    dashboardUsername.textContent = `Welcome ${currentApprover.Name || currentApprover.Email}`;
-    updateDashboardDateTime();
-    if (dateTimeInterval) clearInterval(dateTimeInterval);
-    dateTimeInterval = setInterval(updateDashboardDateTime, 1000);
-    showView('dashboard');
+    // --- *** NEW MOBILE REDIRECT *** ---
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile) {
+        // On mobile, skip the Welcome Screen and go directly to WorkDesk
+        workdeskButton.click(); 
+    } else {
+        // On desktop, show the Welcome Screen
+        showView('dashboard');
+    }
+    // --- *** END OF MOBILE REDIRECT *** ---
 
 // --- === ADD THIS BLOCK === ---
     // Toggle admin-specific UI elements
@@ -6147,6 +6152,23 @@ invoiceManagementButton.addEventListener('click', async () => {
     }
     // --- (END NEW) ---
 
+// --- *** NEW: Listener for IM mobile "Dashboard" link *** ---
+    const imBackToWDDashboardLink = document.getElementById('im-back-to-wd-dashboard-link');
+    if (imBackToWDDashboardLink) {
+        imBackToWDDashboardLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            // Programmatically click the main WorkDesk button
+            workdeskButton.click();
+            // Wait for WorkDesk view to load, then click its dashboard tab
+            setTimeout(() => {
+                const wdDashboardLink = workdeskNav.querySelector('a[data-section="wd-dashboard"]');
+                if (wdDashboardLink) {
+                    wdDashboardLink.click();
+                }
+            }, 100);
+        });
+    }
+    // --- *** END OF NEW LISTENER *** ---
 
     imNav.addEventListener('click', (e) => { const link = e.target.closest('a'); if (!link || link.classList.contains('disabled') || link.parentElement.style.display === 'none' || link.id === 'im-workdesk-button' || link.id === 'im-activetask-button') return; e.preventDefault(); const sectionId = link.getAttribute('data-section'); if (sectionId) { imNav.querySelectorAll('a').forEach(a => a.classList.remove('active')); link.classList.add('active'); showIMSection(sectionId); } });
     

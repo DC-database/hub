@@ -1965,24 +1965,25 @@ body.is-admin .legend-admin-only {
     #workdesk-view .workdesk-navigation li {
         display: none;
     }
-    /* Show only Active Task and the new IM Reporting link */
-    #workdesk-view .workdesk-navigation li.wd-nav-activetask,
+    /* --- *** MODIFICATION: Show Dashboard and Reporting on mobile *** --- */
+    #workdesk-view .workdesk-navigation li.wd-nav-dashboard,
     #workdesk-view .workdesk-navigation li.wd-nav-im-reporting-mobile {
         display: list-item;
     }
+    /* --- *** END OF MODIFICATION *** --- */
     /* Hide the mobile-only reporting link when in IM view */
     #invoice-management-view .workdesk-navigation li.wd-nav-im-reporting-mobile {
         display: none;
     }
     
-    /* --- *** START OF MOBILE NAV FIX *** --- */
+   /* --- *** START OF MOBILE NAV FIX *** --- */
     /* Hide all links by default */
     #invoice-management-view .workdesk-navigation li {
         display: none;
     }
-    /* Show only Reporting and Active Task */
-    #invoice-management-view .workdesk-navigation li.im-nav-reporting,
-    #invoice-management-view .workdesk-navigation li.im-nav-activetask-link {
+    /* Show only the new Dashboard link and the Reporting link */
+    #invoice-management-view .workdesk-navigation li.wd-nav-dashboard-mobile,
+    #invoice-management-view .workdesk-navigation li.im-nav-reporting {
         display: list-item;
     }
     /* --- *** END OF MOBILE NAV FIX *** --- */
