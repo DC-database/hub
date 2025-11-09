@@ -1750,6 +1750,23 @@ tbody tr:hover { background-color: #f1f1f1; }
 }
 /* === END OF CALENDAR WIDGET === */
 
+/* ... (this rule should already be there) ... */
+#wd-calendar-task-list-ul li span {
+    font-size: 0.9rem;
+    color: #555;
+    display: block; /* Make each span its own line */
+    margin-top: 2px;
+}
+
+/* === ADD THIS NEW RULE === */
+#wd-calendar-task-list-ul li.clickable-task {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+#wd-calendar-task-list-ul li.clickable-task:hover {
+    background-color: #e6f7ff; /* Light blue hover */
+}
+/* === END OF NEW RULE === */
 
 /* === NEW: YEAR VIEW CALENDAR STYLES === */
 #wd-calendar-toggle-view {
