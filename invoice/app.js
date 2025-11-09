@@ -1295,18 +1295,22 @@ function displayCalendarTasksForDay(date) { // date is "2025-11-09"
             if (status === 'For SRV') statusClass = 'status-for-srv';
             li.className = statusClass;
 
-            // --- *** THIS IS THE NEW PART *** ---
-            // Create the brief info
             const mainInfo = task.po ? `PO: ${task.po}` : (task.ref || 'General Task');
             const subInfo = task.vendorName ? task.vendorName : `(Ref: ${task.ref || 'N/A'})`;
             
-            // Add amount to the main info line if it exists
             const amountDisplay = (task.amount && parseFloat(task.amount) > 0) 
                 ? ` - QAR ${formatCurrency(task.amount)}` 
                 : ``;
-            // --- *** END OF NEW PART *** ---
 
-            // This HTML creates the brief info with the amount
+            // --- *** ADD THIS NEW BLOCK *** ---
+            // If the task has a PO number, make it clickable
+            if (task.po) {
+                li.dataset.po = task.po; // Store the PO number
+                li.classList.add('clickable-task');
+                li.title = `PO: ${task.po}\nDouble-click to search in IM Reporting`;
+            }
+            // --- *** END OF NEW BLOCK *** ---
+
             li.innerHTML = `
                 <strong>${mainInfo}${amountDisplay}</strong>
                 <span>${subInfo}</span>
@@ -6508,7 +6512,41 @@ imAddPaymentModal.classList.remove('hidden');
             displayCalendarTasksForDay(firstDayStr);
         });
     }
-    // --- *** END OF NEW LISTENERS *** ---
 
+// --- *** NEW: Double-click listener for calendar task list *** ---
+    if (wdCalendarTaskListUl) {
+        wdCalendarTaskListUl.addEventListener('dblclick', (e) => {
+            const taskItem = e.target.closest('li.clickable-task');
+            
+            // Check if the item is clickable and has a PO number
+            if (!taskItem || !taskItem.dataset.po) {
+                return;
+            }
+
+            const poNumber = taskItem.dataset.po;
+            
+            // 1. Click the main Invoice Management button
+            invoiceManagementButton.click();
+
+            // 2. Wait for the IM view to load, then switch to reporting
+            setTimeout(() => {
+                // 3. Set the search input's value
+                imReportingSearchInput.value = poNumber;
+                
+                // 4. Save the search term to session storage
+                sessionStorage.setItem('imReportingSearch', poNumber);
+                
+                // 5. Click the "Reporting" tab
+                const imReportingLink = imNav.querySelector('a[data-section="im-reporting"]');
+                if (imReportingLink) {
+                    imReportingLink.click();
+                    // The showIMSection function will automatically use the saved
+                    // search term to run the report.
+                }
+            }, 150); // 150ms delay to ensure view is loaded
+        });
+    }
+    // --- *** END OF NEW LISTENER *** ---
 
 }); // END OF DOMCONTENTLOADED
+
