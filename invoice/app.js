@@ -6110,7 +6110,7 @@ invoiceManagementButton.addEventListener('click', async () => {
         }
     });
 
-    imReportingContent.addEventListener('click', (e) => { 
+imReportingContent.addEventListener('click', (e) => { 
         const expandBtn = e.target.closest('.expand-btn'); 
         if (expandBtn) { 
             const masterRow = expandBtn.closest('.master-row'); 
@@ -6124,6 +6124,18 @@ invoiceManagementButton.addEventListener('click', async () => {
 
         const invoiceRow = e.target.closest('.nested-invoice-row');
         if (invoiceRow) {
+            
+            // --- *** THIS IS THE FIX *** ---
+            // 1. Get the user's position
+            const userPositionLower = (currentApprover?.Position || '').toLowerCase();
+            
+            // 2. Check if they are 'accounting'
+            if (userPositionLower !== 'accounting') {
+                // If not accounting, do nothing. The row is not clickable for them.
+                return; 
+            }
+            // --- *** END OF FIX *** ---
+
             const poNumber = invoiceRow.dataset.poNumber;
             const invoiceKey = invoiceRow.dataset.invoiceKey;
             
@@ -6132,6 +6144,7 @@ invoiceManagementButton.addEventListener('click', async () => {
                 return;
             }
 
+            // 3. If they are Accounting, proceed with the edit prompt
             if (confirm(`Do you want to edit this invoice?\n\PO: ${poNumber}\nInvoice Key: ${invoiceKey}`)) {
                 imNav.querySelector('a[data-section="im-invoice-entry"]').click();
                 setTimeout(() => {
@@ -6142,7 +6155,8 @@ invoiceManagementButton.addEventListener('click', async () => {
             }
             return; 
         }
-    });
+    });    
+
 
     imReportingForm.addEventListener('submit', (e) => { e.preventDefault(); const searchTerm = imReportingSearchInput.value.trim(); if (!searchTerm && !document.getElementById('im-reporting-site-filter').value && !document.getElementById('im-reporting-date-filter').value && !document.getElementById('im-reporting-status-filter').value) { imReportingContent.innerHTML = '<p style="color: red; font-weight: bold;">Please specify at least one search criteria.</p>'; return; } populateInvoiceReporting(searchTerm); });
     imReportingClearButton.addEventListener('click', () => { imReportingForm.reset(); sessionStorage.removeItem('imReportingSearch'); imReportingContent.innerHTML = '<p>Please enter a search term and click Search.</p>'; currentReportData = []; if (reportingCountDisplay) reportingCountDisplay.textContent = ''; });
