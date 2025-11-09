@@ -1332,15 +1332,20 @@ function displayCalendarTasksForDay(date) { // date is "2025-11-09"
             }
             // --- *** END OF NEW BLOCK *** ---
 
-            // --- *** MODIFICATION: Add Note if available *** ---
+            // --- *** MODIFICATION: Add Job Type and Note *** ---
             const noteHTML = task.note 
                 ? `<span style="color: var(--iba-secondary-terracotta); font-style: italic; margin-top: 4px;">Note: ${task.note}</span>` 
+                : '';
+
+            const jobTypeHTML = task.for
+                ? `<span style="font-weight: 600; margin-top: 4px;">Job: ${task.for}</span>`
                 : '';
 
             li.innerHTML = `
                 <strong>${mainInfo}${amountDisplay}</strong>
                 <span>${subInfo}</span>
-                <span style="font-weight: 600;">Status: ${status}</span>
+                ${jobTypeHTML}
+                <span style="font-weight: 600; margin-top: 4px;">Status: ${status}</span>
                 ${noteHTML}
             `;
             // --- *** END OF MODIFICATION *** ---
