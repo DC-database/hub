@@ -83,6 +83,8 @@ const wdCalendarPrevBtn = document.getElementById('wd-calendar-prev');
 const wdCalendarNextBtn = document.getElementById('wd-calendar-next');
 const wdCalendarTaskListTitle = document.getElementById('wd-calendar-task-list-title');
 const wdCalendarTaskListUl = document.getElementById('wd-calendar-task-list-ul');
+const wdCalendarToggleBtn = document.getElementById('wd-calendar-toggle-view');
+const wdCalendarYearGrid = document.getElementById('wd-calendar-year-grid');
 // -- End Calendar DOM References --
 
 const dbSiteStatsContainer = document.getElementById('dashboard-site-stats');
@@ -268,6 +270,9 @@ let currentApprover = null; let dateTimeInterval = null; let workdeskDateTimeInt
 let siteSelectChoices = null; let attentionSelectChoices = null;
 let currentlyEditingKey = null; let allJobEntries = []; let userJobEntries = [];
 let userActiveTasks = [];
+let allAdminCalendarTasks = [];
+
+
 // let userTaskHistory = []; // --- (REMOVED) ---
 let allSystemEntries = [];
 let navigationContextList = []; // <-- ADD THIS LINE
@@ -275,7 +280,7 @@ let navigationContextIndex = -1; // <-- ADD THIS LINE
 let currentReportFilter = 'All';
 let currentActiveTaskFilter = 'All'; //
 let wdCurrentCalendarDate = new Date(); // <-- CHANGE 1.2
-
+let isYearView = false;
 
 // INVOICE MANAGEMENT STATE
 let imDateTimeInterval = null;
@@ -437,9 +442,13 @@ async function showWorkdeskSection(sectionId, newSearchTerm = null) {
     // ++ ADDED: Restore search state on navigation ++
     if (sectionId === 'wd-dashboard') { 
         await populateWorkdeskDashboard(); // Added await
-        renderWorkdeskCalendar(); 
-        await populateCalendarTasks(); // Added await
         
+        // --- *** MODIFIED: Render BOTH views *** ---
+        renderWorkdeskCalendar(); 
+        renderYearView(); // Also render the year view data
+        await populateCalendarTasks(); // Added await
+        // --- *** END MODIFICATION *** ---
+
         // --- CALENDAR LIST FIX: Always show *today's* tasks on load ---
         const today = new Date(); 
         const year = today.getFullYear();
@@ -491,7 +500,6 @@ async function showWorkdeskSection(sectionId, newSearchTerm = null) {
 
     if (sectionId === 'wd-settings') { populateSettingsForm(); }
 }
-
 
 function formatDate(date) { const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]; const day = String(date.getDate()).padStart(2, '0'); const month = months[date.getMonth()]; const year = date.getFullYear(); return `${day}-${month}-${year}`; }
 
@@ -1177,9 +1185,23 @@ function renderWorkdeskCalendar() {
 async function populateCalendarTasks() {
     if (!currentApprover) return;
 
-    // 1. Ensure tasks are fetched
-    await populateActiveTasks(); // This gets all active tasks into userActiveTasks
-    const tasks = userActiveTasks;
+    // --- *** THIS IS THE NEW LOGIC *** ---
+    const isAdmin = (currentApprover.Role || '').toLowerCase() === 'admin';
+    let tasks = [];
+    
+    // Create a Set of the current user's personal task keys for quick lookup
+    // userActiveTasks is already populated by populateWorkdeskDashboard
+    const myTaskKeys = new Set(userActiveTasks.map(task => task.key)); 
+
+    if (isAdmin) {
+        // Admins see ALL active tasks on their calendar
+        // allAdminCalendarTasks is also populated by populateWorkdeskDashboard
+        tasks = allAdminCalendarTasks;
+    } else {
+        // Regular users see ONLY their tasks
+        tasks = userActiveTasks;
+    }
+    // --- *** END OF NEW LOGIC *** ---
 
     // 2. Create a map of tasks by date
     const tasksByDate = new Map();
@@ -1215,6 +1237,20 @@ async function populateCalendarTasks() {
                 const badge = document.createElement('span');
                 badge.className = 'task-count-badge';
                 badge.textContent = count;
+
+                // --- *** NEW COLOR-CODING LOGIC *** ---
+                if (isAdmin) {
+                    // Check if ANY task for this day is also in the admin's personal list
+                    const hasMyTask = tasksForDay.some(task => myTaskKeys.has(task.key));
+                    
+                    if (!hasMyTask) {
+                        // If none of these tasks are the admin's, make the badge green
+                        badge.classList.add('admin-view-only');
+                    }
+                    // Otherwise, it stays the default red (terracotta)
+                }
+                // --- *** END OF NEW COLOR-CODING LOGIC *** ---
+
                 dayCell.appendChild(badge);
             }
         }
@@ -1231,49 +1267,53 @@ function displayCalendarTasksForDay(date) { // date is "2025-11-09"
         selectedCell.classList.add('selected');
     }
 
-    // 2. Find tasks for this day
-    const tasks = userActiveTasks.filter(task => {
+    // --- *** THIS IS THE NEW LOGIC *** ---
+    const isAdmin = (currentApprover.Role || '').toLowerCase() === 'admin';
+    const taskSource = isAdmin ? allAdminCalendarTasks : userActiveTasks;
+
+    // 2. Find tasks for this day from the correct source
+    const tasks = taskSource.filter(task => {
         const taskDate = convertDisplayDateToInput(task.date);
         return taskDate === date;
     });
+    // --- *** END OF NEW LOGIC *** ---
 
     // 3. Display tasks in the list
-    
-    // --- THIS IS THE FIX ---
-    // Use the new, timezone-safe function. No more new Date()!
     const friendlyDate = formatYYYYMMDD(date);
-    // --- END OF FIX ---
     
     if (tasks.length > 0) {
-        wdCalendarTaskListTitle.textContent = `Task Summary for ${friendlyDate}`;
+        wdCalendarTaskListTitle.textContent = `Task Details for ${friendlyDate}`;
         wdCalendarTaskListUl.innerHTML = '';
         
-        // Group tasks by status
-        const tasksByStatus = tasks.reduce((acc, task) => {
-            const status = task.remarks || 'Pending';
-            if (!acc[status]) {
-                acc[status] = 0;
-            }
-            acc[status]++;
-            return acc;
-        }, {});
-
-        // Display the grouped summary
-        for (const status in tasksByStatus) {
-            const count = tasksByStatus[status];
+        tasks.forEach(task => {
             const li = document.createElement('li');
             
-            // Add status class
+            // Add status class based on remarks
             let statusClass = '';
+            const status = task.remarks || 'Pending';
             if (status === 'Pending Signature') statusClass = 'status-pending-signature';
             if (status === 'For SRV') statusClass = 'status-for-srv';
             li.className = statusClass;
 
+            // --- *** THIS IS THE NEW PART *** ---
+            // Create the brief info
+            const mainInfo = task.po ? `PO: ${task.po}` : (task.ref || 'General Task');
+            const subInfo = task.vendorName ? task.vendorName : `(Ref: ${task.ref || 'N/A'})`;
+            
+            // Add amount to the main info line if it exists
+            const amountDisplay = (task.amount && parseFloat(task.amount) > 0) 
+                ? ` - QAR ${formatCurrency(task.amount)}` 
+                : ``;
+            // --- *** END OF NEW PART *** ---
+
+            // This HTML creates the brief info with the amount
             li.innerHTML = `
-                <strong>${count}</strong> active task(s) for <strong>${status}</strong>
+                <strong>${mainInfo}${amountDisplay}</strong>
+                <span>${subInfo}</span>
+                <span style="font-weight: 600;">Status: ${status}</span>
             `;
             wdCalendarTaskListUl.appendChild(li);
-        }
+        });
 
     } else {
         wdCalendarTaskListTitle.textContent = `No active tasks for ${friendlyDate}`;
@@ -1281,8 +1321,151 @@ function displayCalendarTasksForDay(date) { // date is "2025-11-09"
     }
 }
 
-
 // --- *** END OF CALENDAR FUNCTIONS (CHANGE 1.5) *** ---
+
+
+
+
+// --- END OF displayCalendarTasksForDay ---
+
+
+// --- *** NEW FUNCTION: Populate Admin-View Calendar *** ---
+async function populateAdminCalendarTasks() {
+    if (!currentApprover || (currentApprover.Role || '').toLowerCase() !== 'admin') {
+        allAdminCalendarTasks = []; // Not an admin, keep it empty
+        return;
+    }
+
+    console.log("Admin user detected, populating full calendar...");
+    let allTasks = [];
+    let processedInvoiceKeys = new Set(); // Prevent duplicates
+
+    // 1. Get all active JOB_ENTRIES
+    await ensureAllEntriesFetched(); // Gets all job_entries into allSystemEntries
+    const activeJobTasks = allSystemEntries.filter(entry => !isTaskComplete(entry));
+    allTasks = allTasks.concat(activeJobTasks);
+
+    // 2. Get all active INVOICE_ENTRIES
+    await ensureInvoiceDataFetched(); // Gets all invoices into allInvoiceData
+    
+    // --- *** THIS IS THE FIX (Part A) *** ---
+    // These are the statuses that are active even if unassigned
+    const unassignedStatuses = ['Pending', 'Report', 'Original PO'];
+    // --- *** END OF FIX (Part A) *** ---
+
+    if (allInvoiceData && allPOData) {
+        for (const poNumber in allInvoiceData) {
+            const poInvoices = allInvoiceData[poNumber];
+            for (const invoiceKey in poInvoices) {
+                const inv = poInvoices[invoiceKey];
+                
+                // --- *** THIS IS THE FIX (Part B) *** ---
+                // An invoice is "active" for the admin calendar if it's:
+                // 1. Active AND assigned to someone (isInvoiceTaskActive = true)
+                // OR
+                // 2. Has one of the special statuses AND is unassigned
+                const isAssignedActive = isInvoiceTaskActive(inv);
+                const isUnassignedActive = unassignedStatuses.includes(inv.status) && (!inv.attention || inv.attention === '');
+
+                if (isAssignedActive || isUnassignedActive) {
+                // --- *** END OF FIX (Part B) *** ---
+                
+                    // It's an active invoice task. Transform it.
+                    const poDetails = allPOData[poNumber] || {};
+                    const transformedInvoice = {
+                        key: `${poNumber}_${invoiceKey}`,
+                        originalKey: invoiceKey,
+                        originalPO: poNumber,
+                        source: 'invoice',
+                        for: 'Invoice',
+                        ref: inv.invNumber || '',
+                        po: poNumber,
+                        amount: inv.invValue || '',
+                        site: poDetails['Project ID'] || 'N/A',
+                        group: 'N/A',
+                        attention: inv.attention || '',
+                        enteredBy: 'Irwin', // Assumed
+                        date: inv.invoiceDate ? formatDate(new Date(inv.invoiceDate + 'T00:00:00')) : 'N/A',
+                        remarks: inv.status,
+                        timestamp: inv.invoiceDate ? new Date(inv.invoiceDate).getTime() : Date.now(),
+                        invName: inv.invName || '',
+                        vendorName: poDetails['Supplier Name'] || 'N/A',
+                        note: inv.note || ''
+                    };
+                    allTasks.push(transformedInvoice);
+                }
+            }
+        }
+    }
+    
+    allAdminCalendarTasks = allTasks; // Set the global admin list
+    console.log(`Admin calendar populated with ${allAdminCalendarTasks.length} total active tasks.`);
+}
+// --- *** NEW FUNCTION: RENDER YEAR VIEW *** ---
+function renderYearView() {
+    if (!wdCalendarYearGrid) return;
+
+    // 1. Get task counts for the entire year
+    const year = wdCurrentCalendarDate.getFullYear();
+    const tasksByMonth = new Array(12).fill(0); // 12 slots, 0-11
+
+    userActiveTasks.forEach(task => {
+        const taskDateStr = task.date; // e.g., "08-Nov-2025"
+        if (!taskDateStr) return;
+        
+        const taskDate = new Date(convertDisplayDateToInput(taskDateStr) + 'T00:00:00');
+        if (taskDate.getFullYear() === year) {
+            const monthIndex = taskDate.getMonth(); // 0 = Jan, 1 = Feb
+            tasksByMonth[monthIndex]++;
+        }
+    });
+
+    // 2. Render the 12 month cells
+    wdCalendarYearGrid.innerHTML = '';
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    
+    for (let i = 0; i < 12; i++) {
+        const monthCell = document.createElement('div');
+        monthCell.className = 'wd-calendar-month-cell';
+        monthCell.textContent = monthNames[i];
+        monthCell.dataset.month = i; // Store 0-11
+
+        const taskCount = tasksByMonth[i];
+        if (taskCount > 0) {
+            monthCell.classList.add('has-tasks');
+            const badge = document.createElement('span');
+            badge.className = 'month-task-count';
+            badge.textContent = taskCount;
+            monthCell.appendChild(badge);
+        }
+        wdCalendarYearGrid.appendChild(monthCell);
+    }
+}
+
+// --- *** NEW FUNCTION: TOGGLE CALENDAR VIEW *** ---
+function toggleCalendarView() {
+    isYearView = !isYearView; // Flip the state
+    
+    wdCalendarGrid.classList.toggle('hidden', isYearView);
+    wdCalendarYearGrid.classList.toggle('hidden', !isYearView);
+    
+    if (isYearView) {
+        // Switched TO Year View
+        wdCalendarMonthYear.textContent = wdCurrentCalendarDate.getFullYear();
+        wdCalendarToggleBtn.textContent = 'Month View';
+        renderYearView(); // Re-render year view with fresh data
+    } else {
+        // Switched TO Month View
+        wdCalendarMonthYear.textContent = wdCurrentCalendarDate.toLocaleDateString('en-US', {
+            month: 'long',
+            year: 'numeric'
+        });
+        wdCalendarToggleBtn.textContent = 'Year View';
+        renderWorkdeskCalendar(); // Re-render month view
+        populateCalendarTasks(); // Re-add badges to month view
+    }
+}
+
 
 // --- (MODIFIED) ensureAllEntriesFetched ---
 // This function will now fetch job_entries AND PO data if the cache is old.
@@ -2174,10 +2357,15 @@ function filterAndRenderReport(baseEntries = []) {
     renderReportingTable(filteredEntries);
 }
 async function populateWorkdeskDashboard() {
-    await populateActiveTasks(); // This will now re-fetch all job_entries
+    // 1. Populate the user's personal task list (for the card)
+    await populateActiveTasks(); 
     dbActiveTasksCount.textContent = userActiveTasks.length;
-    
-    await ensureAllEntriesFetched(); // This is now just job_entries
+
+    // 2. Populate the admin's "all tasks" list (for the calendar)
+    await populateAdminCalendarTasks(); // <-- NEW LINE
+
+    // 3. Populate completed tasks count
+    await ensureAllEntriesFetched(); 
     const myCompletedTasks = allSystemEntries.filter(task => (task.enteredBy === currentApprover.Name || task.attention === currentApprover.Name) && isTaskComplete(task));
     dbCompletedTasksCount.textContent = myCompletedTasks.length;
 }
@@ -5442,26 +5630,50 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // --- *** NEW CALENDAR LISTENERS (CHANGE 1.6) *** ---
+   // --- *** MODIFIED CALENDAR LISTENERS *** ---
     if (wdCalendarPrevBtn) {
         wdCalendarPrevBtn.addEventListener('click', () => {
-            wdCurrentCalendarDate.setMonth(wdCurrentCalendarDate.getMonth() - 1);
-            renderWorkdeskCalendar();
-            populateCalendarTasks();
+            if (isYearView) {
+                // In Year View, move by one year
+                wdCurrentCalendarDate.setFullYear(wdCurrentCalendarDate.getFullYear() - 1);
+                wdCalendarMonthYear.textContent = wdCurrentCalendarDate.getFullYear();
+                renderYearView(); // Re-render year view
+            } else {
+                // In Month View, move by one month
+                wdCurrentCalendarDate.setMonth(wdCurrentCalendarDate.getMonth() - 1);
+                wdCalendarMonthYear.textContent = wdCurrentCalendarDate.toLocaleDateString('en-US', {
+                    month: 'long',
+                    year: 'numeric'
+                });
+                renderWorkdeskCalendar();
+                populateCalendarTasks();
+            }
             wdCalendarTaskListTitle.textContent = 'Select a day to see tasks';
             wdCalendarTaskListUl.innerHTML = '';
         });
     }
     if (wdCalendarNextBtn) {
         wdCalendarNextBtn.addEventListener('click', () => {
-            wdCurrentCalendarDate.setMonth(wdCurrentCalendarDate.getMonth() + 1);
-            renderWorkdeskCalendar();
-            populateCalendarTasks();
+            if (isYearView) {
+                // In Year View, move by one year
+                wdCurrentCalendarDate.setFullYear(wdCurrentCalendarDate.getFullYear() + 1);
+                wdCalendarMonthYear.textContent = wdCurrentCalendarDate.getFullYear();
+                renderYearView(); // Re-render year view
+            } else {
+                // In Month View, move by one month
+                wdCurrentCalendarDate.setMonth(wdCurrentCalendarDate.getMonth() + 1);
+                wdCalendarMonthYear.textContent = wdCurrentCalendarDate.toLocaleDateString('en-US', {
+                    month: 'long',
+                    year: 'numeric'
+                });
+                renderWorkdeskCalendar();
+                populateCalendarTasks();
+            }
             wdCalendarTaskListTitle.textContent = 'Select a day to see tasks';
             wdCalendarTaskListUl.innerHTML = '';
         });
     }
-    
+
     // --- *** NEW CALENDAR CLICK/DBLCLICK LOGIC *** ---
     if (wdCalendarGrid) {
         // SINGLE-CLICK: Just show tasks in the list below
@@ -6237,6 +6449,37 @@ imAddPaymentModal.classList.remove('hidden');
     }
     // --- *** END OF NEW LISTENER *** ---
 
+// --- *** ADDED LISTENERS FOR YEAR VIEW *** ---
+    if (wdCalendarToggleBtn) {
+        wdCalendarToggleBtn.addEventListener('click', toggleCalendarView);
+    }
+
+    if (wdCalendarYearGrid) {
+        wdCalendarYearGrid.addEventListener('dblclick', (e) => {
+            const monthCell = e.target.closest('.wd-calendar-month-cell');
+            if (!monthCell) return;
+
+            const monthIndex = parseInt(monthCell.dataset.month, 10);
+            if (isNaN(monthIndex)) return;
+
+            // Set the global date to this month
+            wdCurrentCalendarDate.setMonth(monthIndex);
+            
+            // Toggle back to the month view
+            toggleCalendarView();
+
+            // Display tasks for the first day of that month
+            const firstDay = new Date(wdCurrentCalendarDate.getFullYear(), monthIndex, 1);
+            // --- CALENDAR TIMEZONE FIX ---
+            const dateYear = firstDay.getFullYear();
+            const dateMonth = String(firstDay.getMonth() + 1).padStart(2, '0');
+            const dateDay = String(firstDay.getDate()).padStart(2, '0');
+            const firstDayStr = `${dateYear}-${dateMonth}-${dateDay}`;
+            // --- END OF FIX ---
+            displayCalendarTasksForDay(firstDayStr);
+        });
+    }
+    // --- *** END OF NEW LISTENERS *** ---
 
 
 }); // END OF DOMCONTENTLOADED

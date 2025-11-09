@@ -91,12 +91,13 @@
     <hr class="section-divider">
 
     <div id="wd-calendar-widget">
-        <h2>Monthly Task Calendar</h2>
+        <h2>Task Calendar</h2>
         <div id="wd-calendar-container">
             <div id="wd-calendar-header">
-                <button id="wd-calendar-prev" title="Previous month">&larr;</button>
+                <button id="wd-calendar-toggle-view" title="Toggle Year/Month View">Year View</button>
+                <button id="wd-calendar-prev" title="Previous month/year">&larr;</button>
                 <h3 id="wd-calendar-month-year">Month Year</h3>
-                <button id="wd-calendar-next" title="Next month">&rarr;</button>
+                <button id="wd-calendar-next" title="Next month/year">&rarr;</button>
             </div>
             <div id="wd-calendar-grid">
                 <div class="wd-calendar-day-name">Sun</div>
@@ -106,6 +107,8 @@
                 <div class="wd-calendar-day-name">Thu</div>
                 <div class="wd-calendar-day-name">Fri</div>
                 <div class="wd-calendar-day-name">Sat</div>
+            </div>
+            <div id="wd-calendar-year-grid" class="hidden">
                 </div>
         </div>
         <div id="wd-calendar-task-list">

@@ -1664,20 +1664,23 @@ tbody tr:hover { background-color: #f1f1f1; }
 /* MODIFIED: Replaced .task-dot with .task-count-badge */
 .wd-calendar-day .task-count-badge {
     position: absolute;
-    top: 5px;
-    right: 5px;
+    top: 4px;
+    right: 4px;
     background-color: var(--iba-secondary-terracotta);
     color: white;
-    font-size: 0.7rem;
+    font-size: 2.8rem;  /* <-- Increased font size */
     font-weight: bold;
     border-radius: 50%;
-    width: 18px;
-    height: 18px;
+    width: 30px;        /* <-- Increased width */
+    height: 30px;       /* <-- Increased height */
     display: flex;
     align-items: center;
     justify-content: center;
     line-height: 1;
     box-shadow: 0 0 3px rgba(0,0,0,0.3);
+}
+.wd-calendar-day .task-count-badge.admin-view-only {
+    background-color: #28a745; /* Green for "view-only" tasks */
 }
 .wd-calendar-day.selected .task-count-badge {
     background-color: white;
@@ -1732,18 +1735,100 @@ tbody tr:hover { background-color: #f1f1f1; }
     border-left-color: var(--iba-secondary-terracotta);
 }
 #wd-calendar-task-list-ul li strong {
-    display: block;
+    /* This is now the main line, e.g., "PO: 12345 - QAR 1,000.00" */
     font-size: 1rem;
     color: #333;
     margin-bottom: 3px;
+    display: block; /* Ensure it's on its own line */
 }
 #wd-calendar-task-list-ul li span {
+    /* This is for sub-info like vendor name or status */
     font-size: 0.9rem;
     color: #555;
+    display: block; /* Make each span its own line */
+    margin-top: 2px;
 }
 /* === END OF CALENDAR WIDGET === */
 
+/* === NEW: YEAR VIEW CALENDAR STYLES === */
+#wd-calendar-toggle-view {
+    background: var(--iba-secondary-gold);
+    color: #212529;
+    border: none;
+    font-size: 0.8rem; /* Make it small */
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 10px; /* Add spacing */
+}
+#wd-calendar-toggle-view:hover {
+    background: #9a8100;
+}
 
+#wd-calendar-year-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr); /* 4 months per row */
+    gap: 1px;
+    background-color: #eee; /* Grid lines */
+    border: 1px solid #eee;
+}
+.wd-calendar-month-cell {
+    background-color: #fff;
+    padding: 20px 10px;
+    text-align: center;
+    font-weight: 600;
+    color: #777;
+    position: relative;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.wd-calendar-month-cell:hover {
+    background-color: #f0f8ff;
+}
+.wd-calendar-month-cell.has-tasks {
+    background-color: #fffde7; /* Light yellow for pending */
+    color: #333;
+    font-weight: bold;
+}
+/* ... (this rule should already be there) ... */
+.wd-calendar-month-cell.has-tasks .month-task-count {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background-color: var(--iba-secondary-terracotta);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: bold;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* === ADD THIS NEW RULE FOR THE YEAR VIEW TOOLTIP === */
+.wd-calendar-month-cell.has-tasks:hover::after {
+    content: 'Double-click to view month';
+    position: absolute;
+    bottom: 5px; /* Position at the bottom of the cell */
+    left: 50%;
+    transform: translateX(-50%); /* Center it */
+    background-color: #333;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: normal;
+    white-space: nowrap;
+    z-index: 10;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    pointer-events: none; /* Prevents tooltip from blocking clicks */
+}
+/* === END OF NEW RULE === */
+
+
+/* === END OF YEAR VIEW STYLES === */
 /* MOBILE RESPONSIVE STYLES */
 @media (max-width: 768px) {
     #workdesk-datetime, #im-datetime { text-align: center; margin-top: 15px; margin-bottom: 0; order: -1; }
@@ -1945,6 +2030,36 @@ tbody tr:hover { background-color: #f1f1f1; }
     /* --- (END MODIFIED) Mobile Optimized Table --- */
 
 }
+
+// --- *** ADDED LISTENERS FOR YEAR VIEW *** ---
+    if (wdCalendarToggleBtn) {
+        wdCalendarToggleBtn.addEventListener('click', toggleCalendarView);
+    }
+
+    if (wdCalendarYearGrid) {
+        wdCalendarYearGrid.addEventListener('click', (e) => {
+            const monthCell = e.target.closest('.wd-calendar-month-cell');
+            if (!monthCell) return;
+
+            const monthIndex = parseInt(monthCell.dataset.month, 10);
+            if (isNaN(monthIndex)) return;
+
+            // Set the global date to this month
+            wdCurrentCalendarDate.setMonth(monthIndex);
+            
+            // Toggle back to the month view
+            toggleCalendarView();
+
+            // Display tasks for the first day of that month
+            const firstDay = new Date(wdCurrentCalendarDate.getFullYear(), monthIndex, 1);
+            const firstDayStr = firstDay.toISOString().split('T')[0];
+            displayCalendarTasksForDay(firstDayStr);
+        });
+    }
+    // --- *** END OF NEW LISTENERS *** ---
+
+
+}); // END OF DOMCONTENTLOADED
 
 /* +++ CACHE STATUS INDICATOR +++ */
 .cache-status {
