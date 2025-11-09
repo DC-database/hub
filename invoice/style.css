@@ -1750,6 +1750,7 @@ tbody tr:hover { background-color: #f1f1f1; }
 }
 /* === END OF CALENDAR WIDGET === */
 
+
 /* === NEW: YEAR VIEW CALENDAR STYLES === */
 #wd-calendar-toggle-view {
     background: var(--iba-secondary-gold);
@@ -1786,16 +1787,15 @@ tbody tr:hover { background-color: #f1f1f1; }
     background-color: #f0f8ff;
 }
 .wd-calendar-month-cell.has-tasks {
-    background-color: #fffde7; /* Light yellow for pending */
+    background-color: #fef5f3; /* <-- NEW LIGHTER RED */
     color: #333;
     font-weight: bold;
 }
-/* ... (this rule should already be there) ... */
 .wd-calendar-month-cell.has-tasks .month-task-count {
     position: absolute;
     top: 5px;
     right: 5px;
-    background-color: var(--iba-secondary-terracotta);
+    background-color: var(--iba-secondary-terracotta); /* Default: Red */
     color: white;
     font-size: 0.7rem;
     font-weight: bold;
@@ -1807,7 +1807,17 @@ tbody tr:hover { background-color: #f1f1f1; }
     justify-content: center;
 }
 
-/* === ADD THIS NEW RULE FOR THE YEAR VIEW TOOLTIP === */
+/* 1. Makes the month cell background light green */
+.wd-calendar-month-cell.has-tasks.admin-view-only {
+    background-color: #f6fcf9; /* <-- NEW LIGHTER GREEN */
+}
+
+/* 2. Makes the count badge solid green */
+.wd-calendar-month-cell .month-task-count.admin-view-only {
+    background-color: #28a745; /* Solid Green */
+}
+
+/* 3. This is the tooltip rule */
 .wd-calendar-month-cell.has-tasks:hover::after {
     content: 'Double-click to view month';
     position: absolute;
@@ -1825,10 +1835,8 @@ tbody tr:hover { background-color: #f1f1f1; }
     box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     pointer-events: none; /* Prevents tooltip from blocking clicks */
 }
-/* === END OF NEW RULE === */
-
-
 /* === END OF YEAR VIEW STYLES === */
+
 /* MOBILE RESPONSIVE STYLES */
 @media (max-width: 768px) {
     #workdesk-datetime, #im-datetime { text-align: center; margin-top: 15px; margin-bottom: 0; order: -1; }
