@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "2.3.0"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "2.4.0"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -4238,24 +4238,232 @@ async function populateInvoiceDashboard(forceRefresh = false) {
     }
 }
 
-// --- *** MODIFIED populateInvoiceReporting *** ---
-async function populateInvoiceReporting(searchTerm = '') {
-    sessionStorage.setItem('imReportingSearch', searchTerm); // Save search term
+
+// === REPLACE buildMobileReportView WITH THIS CORRECTED VERSION ===
+
+// NEW HELPER 1: Builds the new mobile card UI, supporting multiple POs
+function buildMobileReportView(reportData) {
+    const container = document.getElementById('im-reporting-mobile-view');
+    if (!container) return;
+
+    if (reportData.length === 0) {
+        container.innerHTML = '<p>No results found for your search criteria.</p>';
+        return;
+    }
+    
+    const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
+    const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
+    const canViewAmounts = isAdmin || isAccounting;
+
+    let mobileHTML = '';
+    
+    reportData.forEach((poData, poIndex) => {
+        const { poNumber, site, vendor, poDetails, filteredInvoices } = poData;
+        const toggleId = `mobile-invoice-list-${poIndex}`;
+        
+        // --- START: NEW COLOR LOGIC ---
+        let statusClass = 'status-pending'; // Default color
+        
+        if (filteredInvoices.length > 0 && canViewAmounts) {
+            const poValueNum = parseFloat(poDetails.Amount) || 0;
+            const totalInvValue = filteredInvoices.reduce((sum, inv) => sum + (parseFloat(inv.invValue) || 0), 0);
+            
+            const epsilon = 0.01;
+            const isFullyMatched = poValueNum > 0 && (Math.abs(totalInvValue - poValueNum) < epsilon);
+            
+            // Check for any Paid invoices to determine if we use 'Complete' or 'Progress'
+            const hasPaidInvoices = filteredInvoices.some(inv => inv.status === 'Paid');
+
+            if (isFullyMatched) {
+                // If total invoice value matches PO value, assume completed/fully paid logic
+                statusClass = 'status-complete'; 
+            } else if (hasPaidInvoices || filteredInvoices.some(inv => inv.status !== 'Paid' && inv.status !== 'Pending')) {
+                // If it's partially paid OR has any status that shows action (e.g., For SRV, With Accounts)
+                statusClass = 'status-progress';
+            }
+        }
+        // --- END: NEW COLOR LOGIC ---
+
+
+        const poValueDisplay = canViewAmounts ? `QAR ${formatCurrency(poDetails.Amount)}` : '---';
+        
+        mobileHTML += `
+            <div class="im-mobile-report-container">
+                <div class="im-po-balance-card ${statusClass}" 
+                     data-toggle-target="#${toggleId}" 
+                     style="cursor: pointer;">
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h3>PO: ${poNumber}</h3>
+                            <p class="po-vendor">${vendor}</p>
+                        </div>
+                        <i class="fa-solid fa-chevron-down" style="font-size: 1.2rem; transition: transform 0.3s;"></i>
+                    </div>
+
+                    <div class="po-value">${poValueDisplay}</div>
+                    <div class="po-site">Site: ${site}</div>
+                </div>
+
+                <div id="${toggleId}" class="hidden-invoice-list"> 
+                    <div class="im-invoice-list-header">
+                        <h2>Invoice Entries (${poNumber})</h2>
+                    </div>
+                    <ul class="im-invoice-list">
+        `;
+
+        if (filteredInvoices.length === 0) {
+            mobileHTML += '<p style="padding-left: 15px;">No invoices found matching all criteria for this PO.</p>';
+        } else {
+            let counter = 1;
+            filteredInvoices.forEach(inv => {
+                const releaseDateDisplay = inv.releaseDate ? new Date(normalizeDateForInput(inv.releaseDate) + 'T00:00:00').toLocaleDateString('en-GB') : 'N/A';
+                
+                const invValueDisplay = canViewAmounts ? `QAR ${formatCurrency(inv.invValue)}` : '---';
+                const amountPaidDisplay = canViewAmounts ? `Paid: QAR ${formatCurrency(inv.amountPaid)}` : 'Status: Paid';
+
+                mobileHTML += `
+                    <li class="im-invoice-item">
+                        <div class="invoice-count">${counter}</div>
+                        <div class="invoice-details">
+                            <div class="invoice-main-info">
+                                ${inv.invNumber || 'No Inv. #'}
+                                <span>(Rel: ${releaseDateDisplay})</span>
+                            </div>
+                            <div class="invoice-amounts">
+                                <span class="amount-value">${invValueDisplay}</span>
+                                <span class="amount-paid">${amountPaidDisplay}</span>
+                            </div>
+                            <div class="invoice-status">
+                                Status: ${inv.status || 'N/A'}
+                            </div>
+                        </div>
+                    </li>
+                `;
+                counter++;
+            });
+        }
+
+        mobileHTML += `</ul></div></div>`;
+    });
+    
+    container.innerHTML = mobileHTML;
+}
+// NEW HELPER 2: This is your *existing* logic, moved into its own function
+function buildDesktopReportView(reportData) {
+    const container = document.getElementById('im-reporting-content');
+    if (!container) return;
 
     const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
     const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
 
-    currentReportData = [];
-    imReportingContent.innerHTML = '<p>Searching... Please wait.</p>';
+    if (reportData.length === 0) {
+        container.innerHTML = '<p>No results found for your search criteria.</p>';
+        return;
+    }
+
+    let tableHTML = `<table><thead><tr><th></th><th>PO</th><th>Site</th><th>Vendor</th><th>Value</th><th>Total Paid Amount</th><th>Last Paid Date</th></tr></thead><tbody>`;
+
+    reportData.sort((a, b) => a.poNumber.localeCompare(b.poNumber));
+    reportData.forEach(poData => {
+        let totalInvValue = 0, totalAmountPaid = 0, allWithAccounts = poData.filteredInvoices.length > 0;
+        const detailRowId = `detail-${poData.poNumber}`;
+        let nestedTableRows = '';
+        poData.filteredInvoices.sort((a, b) => {
+            const numA = parseInt((a.invEntryID || 'INV-0').split('-')[1] || 0);
+            const numB = parseInt((b.invEntryID || 'INV-0').split('-')[1] || 0);
+            return numA - numB;
+        });
+        poData.filteredInvoices.forEach(inv => {
+            if (inv.status !== 'With Accounts') allWithAccounts = false;
+            const invValue = parseFloat(inv.invValue) || 0, amountPaid = parseFloat(inv.amountPaid) || 0;
+            totalInvValue += invValue; totalAmountPaid += amountPaid;
+            const releaseDateDisplay = inv.releaseDate ? new Date(normalizeDateForInput(inv.releaseDate) + 'T00:00:00').toLocaleDateString('en-GB') : '';
+            const invoiceDateDisplay = inv.invoiceDate ? new Date(normalizeDateForInput(inv.invoiceDate) + 'T00:00:00').toLocaleDateString('en-GB') : '';
+
+            const invValueDisplay = (isAdmin || isAccounting) ? formatCurrency(invValue) : '---';
+            const amountPaidDisplay = (isAdmin || isAccounting) ? formatCurrency(amountPaid) : '---';
+
+            let actionButtonsHTML = '';
+            if (isAdmin || isAccounting) {
+                const invPDFName = inv.invName || '';
+                const invPDFLink = (invPDFName.trim() && invPDFName.toLowerCase() !== 'nil')
+                    ? `<a href="${PDF_BASE_PATH}${encodeURIComponent(invPDFName)}.pdf" target="_blank" class="action-btn invoice-pdf-btn">Invoice</a>`
+                    : '';
+                const srvPDFName = inv.srvName || '';
+                const srvPDFLink = (srvPDFName.trim() && srvPDFName.toLowerCase() !== 'nil')
+                    ? `<a href="${SRV_BASE_PATH}${encodeURIComponent(srvPDFName)}.pdf" target="_blank" class="action-btn srv-pdf-btn">SRV</a>`
+                    : '';
+                if (invPDFLink || srvPDFLink) actionButtonsHTML = `<div class="action-btn-group">${invPDFLink} ${srvPDFLink}</div>`;
+            }
+            
+            nestedTableRows += `<tr class="nested-invoice-row" 
+                                    data-po-number="${poData.poNumber}" 
+                                    data-invoice-key="${inv.key}" 
+                                    title="Click to edit this invoice">
+                <td>${inv.invEntryID || ''}</td>
+                <td>${inv.invNumber || ''}</td>
+                <td>${invoiceDateDisplay}</td>
+                <td>${invValueDisplay}</td>
+                <td>${amountPaidDisplay}</td>
+                <td>${releaseDateDisplay}</td>
+                <td>${inv.status || ''}</td>
+                <td>${inv.note || ''}</td>
+                <td>${actionButtonsHTML}</td>
+            </tr>`;
+        });
+
+        const totalInvValueDisplay = (isAdmin || isAccounting) ? `<strong>QAR ${formatCurrency(totalInvValue)}</strong>` : '---';
+        const totalAmountPaidDisplay = (isAdmin || isAccounting) ? `<strong>QAR ${formatCurrency(totalAmountPaid)}</strong>` : '---';
+        const poValueDisplay = (isAdmin || isAccounting) ? (poData.poDetails.Amount ? `QAR ${formatCurrency(poData.poDetails.Amount)}` : 'N/A') : '---';
+        
+        const totalPaidDisplay = (isAdmin || isAccounting) ? (poData.paymentData.totalPaidAmount !== 'N/A' ? `QAR ${formatCurrency(poData.paymentData.totalPaidAmount)}` : 'N/A') : '---';
+        const datePaidDisplay = (isAdmin || isAccounting) ? poData.paymentData.datePaid : '---';
+
+        let highlightClass = '';
+         if (isAdmin || isAccounting) {
+            const poValueNum = parseFloat(poData.poDetails.Amount) || 0, epsilon = 0.01;
+            if (allWithAccounts && poValueNum > 0) {
+                const isInvValueMatch = Math.abs(totalInvValue - poValueNum) < epsilon;
+                const isAmountPaidMatch = Math.abs(totalAmountPaid - poValueNum) < epsilon;
+                if (isInvValueMatch) highlightClass = isAmountPaidMatch ? 'highlight-fully-paid' : 'highlight-partial';
+            }
+        }
+        tableHTML += `<tr class="master-row ${highlightClass}" data-target="#${detailRowId}"><td><button class="expand-btn">+</button></td><td>${poData.poNumber}</td><td>${poData.site}</td><td>${poData.vendor}</td><td>${poValueDisplay}</td><td>${totalPaidDisplay}</td><td>${datePaidDisplay}</td></tr>`;
+        tableHTML += `<tr id="${detailRowId}" class="detail-row hidden"><td colspan="7"><div class="detail-content"><h4>Invoice Entries for PO ${poData.poNumber}</h4><table class="nested-invoice-table"><thead><tr><th>Inv. Entry</th><th>Inv. No.</th><th>Inv. Date</th><th>Inv. Value</th><th>Amount To Paid</th><th>Release Date</th><th>Status</th><th>Note</th><th>Action</th></tr></thead><tbody>${nestedTableRows}</tbody><tfoot><tr><td colspan="3" style="text-align: right;"><strong>TOTAL</strong></td><td>${totalInvValueDisplay}</td><td>${totalAmountPaidDisplay}</td><td colspan="4"></td></tr></tfoot></table></div></td></tr>`;
+    });
+    tableHTML += `</tbody></table>`;
+    container.innerHTML = tableHTML;
+}
+
+// THIS IS THE MODIFIED MAIN FUNCTION
+async function populateInvoiceReporting(searchTerm = '') {
+    sessionStorage.setItem('imReportingSearch', searchTerm);
+
+    const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
+    const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
+
+    currentReportData = []; // Clear previous report data
+    
+    // --- (NEW) Mobile/Desktop View Check ---
+    const isMobile = window.innerWidth <= 768;
+    const desktopContainer = document.getElementById('im-reporting-content');
+    const mobileContainer = document.getElementById('im-reporting-mobile-view');
+    
+    if (isMobile) {
+        if (mobileContainer) mobileContainer.innerHTML = '<p>Searching... Please wait.</p>';
+        if (desktopContainer) desktopContainer.innerHTML = ''; // Clear desktop view
+    } else {
+        if (desktopContainer) desktopContainer.innerHTML = '<p>Searching... Please wait.</p>';
+        if (mobileContainer) mobileContainer.innerHTML = ''; // Clear mobile view
+    }
+    // --- (END NEW) ---
 
     const siteFilter = document.getElementById('im-reporting-site-filter').value;
     const monthFilter = document.getElementById('im-reporting-date-filter').value;
     const statusFilter = document.getElementById('im-reporting-status-filter').value;
 
     try {
-        // --- THIS IS THE KEY ---
-        // This function no longer downloads all invoices by default.
-        // We only call it *if* the cache is empty.
         await ensureInvoiceDataFetched();
 
         const allPOs = allPOData;
@@ -4265,7 +4473,6 @@ async function populateInvoiceReporting(searchTerm = '') {
         }
         const searchText = searchTerm.toLowerCase();
 
-        let tableHTML = `<table><thead><tr><th></th><th>PO</th><th>Site</th><th>Vendor</th><th>Value</th><th>Total Paid Amount</th><th>Last Paid Date</th></tr></thead><tbody>`;
         let resultsFound = false;
         const processedPOData = [];
 
@@ -4283,9 +4490,8 @@ async function populateInvoiceReporting(searchTerm = '') {
             const site = poDetails['Project ID'] || 'N/A';
             const vendor = poDetails['Supplier Name'] || 'N/A';
 
-            let invoices = allInvoicesByPO[poNumber] ? Object.entries(allInvoicesByPO[poNumber]).map(([key, value]) => ({ key, ...value })) : []; // Map key into object
+            let invoices = allInvoicesByPO[poNumber] ? Object.entries(allInvoicesByPO[poNumber]).map(([key, value]) => ({ key, ...value })) : [];
 
-            // --- ** NEW PAID LOGIC ** ---
             let calculatedTotalPaid = 0;
             let latestPaidDate = null;
             let latestPaidDateObj = null;
@@ -4296,13 +4502,11 @@ async function populateInvoiceReporting(searchTerm = '') {
                     if (!isNaN(payment)) {
                         calculatedTotalPaid += payment;
                     }
-
                     const dateStr = inv.releaseDate;
                     if (dateStr) {
                          try {
                             const normalizedDate = normalizeDateForInput(dateStr) + 'T00:00:00';
                             const currentDate = new Date(normalizedDate);
-                            
                             if (!isNaN(currentDate)) {
                                 if (!latestPaidDateObj || currentDate.getTime() > latestPaidDateObj.getTime()) {
                                     latestPaidDateObj = currentDate;
@@ -4315,8 +4519,6 @@ async function populateInvoiceReporting(searchTerm = '') {
             if(latestPaidDateObj) {
                 latestPaidDate = formatDate(latestPaidDateObj);
             }
-            // --- ** END NEW PAID LOGIC ** ---
-
 
             const filteredInvoices = invoices.filter(inv => {
                 const normalizedReleaseDate = normalizeDateForInput(inv.releaseDate);
@@ -4334,113 +4536,37 @@ async function populateInvoiceReporting(searchTerm = '') {
                 site, 
                 vendor, 
                 filteredInvoices, 
-                // --- ** MODIFIED: Use new calculated values ** ---
                 paymentData: { 
                     totalPaidAmount: (calculatedTotalPaid > 0) ? calculatedTotalPaid : 'N/A', 
                     datePaid: latestPaidDate || 'N/A'
                 } 
-                // --- ** END MODIFICATION ** ---
             };
             processedPOData.push(poReportData);
         }
 
         currentReportData = processedPOData;
         
-        // --- (NEW) Update Count ---
         const count = currentReportData.length;
         if (reportingCountDisplay) {
             reportingCountDisplay.textContent = `(Total POs Found: ${count})`;
         }
+
+        // --- (NEW) Call the correct render function ---
+        if (isMobile) {
+            buildMobileReportView(currentReportData);
+        } else {
+            buildDesktopReportView(currentReportData);
+        }
         // --- (END NEW) ---
 
-        if (!resultsFound) { imReportingContent.innerHTML = '<p>No results found for your search criteria.</p>'; }
-        else {
-            processedPOData.sort((a, b) => a.poNumber.localeCompare(b.poNumber));
-            processedPOData.forEach(poData => {
-                let totalInvValue = 0, totalAmountPaid = 0, allWithAccounts = poData.filteredInvoices.length > 0;
-                const detailRowId = `detail-${poData.poNumber}`;
-                let nestedTableRows = '';
-                poData.filteredInvoices.sort((a, b) => {
-                    const numA = parseInt((a.invEntryID || 'INV-0').split('-')[1] || 0);
-                    const numB = parseInt((b.invEntryID || 'INV-0').split('-')[1] || 0);
-                    return numA - numB;
-                });
-                poData.filteredInvoices.forEach(inv => {
-                    if (inv.status !== 'With Accounts') allWithAccounts = false;
-                    const invValue = parseFloat(inv.invValue) || 0, amountPaid = parseFloat(inv.amountPaid) || 0;
-                    totalInvValue += invValue; totalAmountPaid += amountPaid;
-                    const releaseDateDisplay = inv.releaseDate ? new Date(normalizeDateForInput(inv.releaseDate) + 'T00:00:00').toLocaleDateString('en-GB') : '';
-                    const invoiceDateDisplay = inv.invoiceDate ? new Date(normalizeDateForInput(inv.invoiceDate) + 'T00:00:00').toLocaleDateString('en-GB') : '';
-
-                    // Show values only for Admin or Accounting
-                    const invValueDisplay = (isAdmin || isAccounting) ? formatCurrency(invValue) : '---';
-                    const amountPaidDisplay = (isAdmin || isAccounting) ? formatCurrency(amountPaid) : '---';
-
-                    let actionButtonsHTML = '';
-                    // Show PDF links only for Admin or Accounting
-                    if (isAdmin || isAccounting) {
-                        const invPDFName = inv.invName || '';
-                        const invPDFLink = (invPDFName.trim() && invPDFName.toLowerCase() !== 'nil')
-                            ? `<a href="${PDF_BASE_PATH}${encodeURIComponent(invPDFName)}.pdf" target="_blank" class="action-btn invoice-pdf-btn">Invoice</a>`
-                            : '';
-
-                        const srvPDFName = inv.srvName || '';
-                        const srvPDFLink = (srvPDFName.trim() && srvPDFName.toLowerCase() !== 'nil')
-                            ? `<a href="${SRV_BASE_PATH}${encodeURIComponent(srvPDFName)}.pdf" target="_blank" class="action-btn srv-pdf-btn">SRV</a>`
-                            : '';
-
-                        if (invPDFLink || srvPDFLink) actionButtonsHTML = `<div class="action-btn-group">${invPDFLink} ${srvPDFLink}</div>`;
-                    }
-                    
-                    // --- ** MODIFIED: Add data-attributes to row for click-to-edit ** ---
-                    nestedTableRows += `<tr class="nested-invoice-row" 
-                                            data-po-number="${poData.poNumber}" 
-                                            data-invoice-key="${inv.key}" 
-                                            title="Click to edit this invoice">
-                        <td>${inv.invEntryID || ''}</td>
-                        <td>${inv.invNumber || ''}</td>
-                        <td>${invoiceDateDisplay}</td>
-                        <td>${invValueDisplay}</td>
-                        <td>${amountPaidDisplay}</td>
-                        <td>${releaseDateDisplay}</td>
-                        <td>${inv.status || ''}</td>
-                        <td>${inv.note || ''}</td>
-                        <td>${actionButtonsHTML}</td>
-                    </tr>`;
-                    // --- ** END MODIFICATION ** ---
-                });
-
-                 // Show totals only for Admin or Accounting
-                const totalInvValueDisplay = (isAdmin || isAccounting) ? `<strong>QAR ${formatCurrency(totalInvValue)}</strong>` : '---';
-                const totalAmountPaidDisplay = (isAdmin || isAccounting) ? `<strong>QAR ${formatCurrency(totalAmountPaid)}</strong>` : '---';
-                const poValueDisplay = (isAdmin || isAccounting) ? (poData.poDetails.Amount ? `QAR ${formatCurrency(poData.poDetails.Amount)}` : 'N/A') : '---';
-                
-                // --- ** MODIFIED: Use new payment data ** ---
-                const totalPaidDisplay = (isAdmin || isAccounting) ? (poData.paymentData.totalPaidAmount !== 'N/A' ? `QAR ${formatCurrency(poData.paymentData.totalPaidAmount)}` : 'N/A') : '---';
-                const datePaidDisplay = (isAdmin || isAccounting) ? poData.paymentData.datePaid : '---';
-                // --- ** END MODIFICATION ** ---
-
-                let highlightClass = '';
-                 if (isAdmin || isAccounting) { // Only highlight for authorized users
-                    const poValueNum = parseFloat(poData.poDetails.Amount) || 0, epsilon = 0.01;
-                    if (allWithAccounts && poValueNum > 0) {
-                        const isInvValueMatch = Math.abs(totalInvValue - poValueNum) < epsilon;
-                        const isAmountPaidMatch = Math.abs(totalAmountPaid - poValueNum) < epsilon;
-                        if (isInvValueMatch) highlightClass = isAmountPaidMatch ? 'highlight-fully-paid' : 'highlight-partial';
-                    }
-                }
-                tableHTML += `<tr class="master-row ${highlightClass}" data-target="#${detailRowId}"><td><button class="expand-btn">+</button></td><td>${poData.poNumber}</td><td>${poData.site}</td><td>${poData.vendor}</td><td>${poValueDisplay}</td><td>${totalPaidDisplay}</td><td>${datePaidDisplay}</td></tr>`;
-                tableHTML += `<tr id="${detailRowId}" class="detail-row hidden"><td colspan="7"><div class="detail-content"><h4>Invoice Entries for PO ${poData.poNumber}</h4><table class="nested-invoice-table"><thead><tr><th>Inv. Entry</th><th>Inv. No.</th><th>Inv. Date</th><th>Inv. Value</th><th>Amount To Paid</th><th>Release Date</th><th>Status</th><th>Note</th><th>Action</th></tr></thead><tbody>${nestedTableRows}</tbody><tfoot><tr><td colspan="3" style="text-align: right;"><strong>TOTAL</strong></td><td>${totalInvValueDisplay}</td><td>${totalAmountPaidDisplay}</td><td colspan="4"></td></tr></tfoot></table></div></td></tr>`;
-            });
-            tableHTML += `</tbody></table>`;
-            imReportingContent.innerHTML = tableHTML;
-        }
     } catch (error) {
         console.error("Error generating invoice report:", error);
-        imReportingContent.innerHTML = '<p>An error occurred while generating the report. Check console for details.</p>';
+        if (desktopContainer) desktopContainer.innerHTML = '<p>An error occurred while generating the report. Check console for details.</p>';
+        if (mobileContainer) mobileContainer.innerHTML = '<p>An error occurred while generating the report. Check console for details.</p>';
     }
 }
-// --- *** END OF MODIFIED FUNCTION *** ---
+
+
 
 // ++ NEW (Req 2): Generate data for professional print report ++
 // --- *** START OF PRINT FIX *** ---
@@ -7155,5 +7281,25 @@ imAddPaymentModal.classList.remove('hidden');
     }
     // --- *** END OF NEW LISTENER *** ---
 
-}); // END OF DOMCONTENTLOADED
+// NEW LISTENER FOR MOBILE REPORT TOGGLE
+document.addEventListener('click', (e) => {
+    const card = e.target.closest('.im-po-balance-card');
+    if (card && card.dataset.toggleTarget) {
+        const targetId = card.dataset.toggleTarget;
+        const targetElement = document.querySelector(targetId);
+        const icon = card.querySelector('.fa-chevron-down');
+        
+        if (targetElement) {
+            // Toggle the visibility
+            targetElement.classList.toggle('hidden-invoice-list');
+            
+            // Toggle the icon rotation
+            if (icon) {
+                // If it contains 'hidden-invoice-list', rotate 0 (down), otherwise rotate 180 (up)
+                icon.style.transform = targetElement.classList.contains('hidden-invoice-list') ? 'rotate(0deg)' : 'rotate(180deg)';
+            }
+        }
+    }
+}); 
 
+}); // END OF DOMCONTENTLOADED
