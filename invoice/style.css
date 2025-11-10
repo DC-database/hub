@@ -84,6 +84,16 @@ button:hover { background-color: #005a6e; } /* MODIFIED: Darker teal */
 .error-message { color: var(--iba-secondary-terracotta); font-weight: 500; margin-top: 15px; min-height: 20px; } /* MODIFIED: Error color */
 .success-message { color: #28a745; font-weight: 500; margin-top: 15px; min-height: 20px; }
 
+/* --- ADD THIS NEW RULE --- */
+.version-display {
+    font-size: 0.8rem;
+    color: #a0aec0; /* Lighter text */
+    margin-top: 15px;
+    margin-bottom: -10px; /* Pulls content below it up slightly */
+    text-align: center;
+}
+/* --- END OF ADDITION --- */
+
 /* ++ NEW: Style for input hint text ++ */
 .input-note {
     font-size: 0.8rem;

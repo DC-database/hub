@@ -1,3 +1,6 @@
+// --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
+const APP_VERSION = "1.1.0"; // You can change "1.1.0" to any version you want
+
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
 const firebaseConfig = {
@@ -5646,6 +5649,11 @@ function debounce(func, wait) {
 
 // --- EVENT LISTENERS ---
 document.addEventListener('DOMContentLoaded', async () => {
+// --- ADD THIS LINE ---
+    if(document.getElementById('app-version-display')) {
+        document.getElementById('app-version-display').textContent = `Version ${APP_VERSION}`;
+    }
+    // --- END OF ADDITION ---
     const savedApproverKey = sessionStorage.getItem('approverKey');
     if (savedApproverKey) {
         currentApprover = await getApproverByKey(savedApproverKey);
