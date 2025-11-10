@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "2.1.0"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "2.2.0"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -849,6 +849,8 @@ async function fetchAndParseSitesCSV(url) {
 
 
 
+// [Replace this entire function]
+
 // FETCH AND PARSE CSV FOR PO DATA
 async function fetchAndParseCSV(url) {
     try {
@@ -857,6 +859,7 @@ async function fetchAndParseCSV(url) {
         const csvText = await response.text();
         const lines = csvText.replace(/^\uFEFF/, '').split('\n').filter(line => line.trim() !== '');
         if (lines.length < 2) { throw new Error("CSV is empty or has no data rows."); }
+        
         const parseCsvRow = (rowStr) => {
             const values = []; let inQuote = false; let currentVal = ''; const cleanRowStr = rowStr.trim();
             for (let i = 0; i < cleanRowStr.length; i++) {
@@ -866,26 +869,49 @@ async function fetchAndParseCSV(url) {
             values.push(currentVal.trim());
             return values.map(v => v.replace(/^"|"$/g, ''));
         };
+
         const headers = parseCsvRow(lines[0]).map(h => h.trim());
+        
+        // Find PO Number header (for invoices)
         let poHeaderIndex = headers.findIndex(h => h.toLowerCase() === 'po number' || h.toLowerCase() === 'po' || h.toLowerCase() === 'po_number');
-        if (poHeaderIndex === -1) { console.warn("Could not find 'PO Number' header. Assuming first column is the PO number."); poHeaderIndex = 0; }
-        const poData = {};
+        if (poHeaderIndex === -1) { poHeaderIndex = 1; } // Assume Col B if not found
+
+        // --- *** THIS IS THE FIX *** ---
+        // Find ReqNum header (for PRs)
+        let refHeaderIndex = headers.findIndex(h => h.toLowerCase() === 'reqnum'); // Look for "ReqNum"
+        if (refHeaderIndex === -1) { refHeaderIndex = 0; } // Assume Col A if not found
+        // --- *** END OF FIX *** ---
+
+        const poDataByPO = {}; // Original map, keyed by PO Number
+        const poDataByRef = {}; // New map, keyed by Ref (which is ReqNum)
+
         for (let i = 1; i < lines.length; i++) {
             const values = parseCsvRow(lines[i]);
             if (values.length !== headers.length) { console.warn(`Skipping malformed CSV row: ${lines[i]}`); continue; }
+
             const poKey = values[poHeaderIndex].toUpperCase();
-            if (!poKey) continue;
+            const refKey = values[refHeaderIndex]; // Get the Ref key (from Col A, "ReqNum")
+
             const poEntry = {};
             headers.forEach((header, index) => {
                 if (header.toLowerCase() === 'amount') { poEntry[header] = values[index].replace(/,/g, '') || '0'; } else { poEntry[header] = values[index]; }
             });
-            poData[poKey] = poEntry;
+
+            if (poKey) {
+                poDataByPO[poKey] = poEntry;
+            }
+            if (refKey) {
+                // This now correctly saves the row data using the ReqNum as the key
+                poDataByRef[refKey] = poEntry;
+            }
         }
-        console.log(`Successfully fetched and parsed ${Object.keys(poData).length} POs from GitHub.`);
-        return poData;
+        
+        console.log(`Successfully parsed ${Object.keys(poDataByPO).length} POs and ${Object.keys(poDataByRef).length} Refs from GitHub.`);
+        // Return both maps
+        return { poDataByPO, poDataByRef };
+
     } catch (error) { console.error("Error fetching or parsing PO CSV:", error); alert("CRITICAL ERROR: Could not load Purchase Order data from GitHub."); return null; }
 }
-
 
 // ++ NEW: FETCH AND PARSE Ecost.csv FOR DASHBOARD ++
 async function fetchAndParseEcostCSV(url) {
@@ -1693,36 +1719,103 @@ function toggleCalendarView() {
     }
 }
 
+// [Replace this entire function]
 
 // --- (MODIFIED) ensureAllEntriesFetched ---
 // This function will now fetch job_entries AND PO data if the cache is old.
 async function ensureAllEntriesFetched(forceRefresh = false) {
     const now = Date.now();
-    // Check if we have a cache and it's less than 30 mins old
+    // Check if we have a cache and it's less than 24 hours old
     if (!forceRefresh && allSystemEntries.length > 0 && (now - cacheTimestamps.systemEntries < CACHE_DURATION)) {
         return; // Use the cache
     }
     
-    // We must fetch PO data for vendor names
-    if (!allPOData || forceRefresh) {
-         console.log("Loading PO Data cache for Workdesk...");
-         const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
-         allPOData = await fetchAndParseCSV(PO_DATA_URL);
-    }
+    console.log("Loading PO Data cache for Workdesk...");
+    const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
+    
+    // Fetch both PO and Ref maps from the CSV
+    const { poDataByPO, poDataByRef } = await fetchAndParseCSV(PO_DATA_URL) || {};
+    allPOData = poDataByPO; // This is the original map, keyed by PO
+    const purchaseOrdersDataByRef = poDataByRef || {}; // This is the new map, keyed by Ref
+    const purchaseOrdersDataByPO = allPOData || {};
+    
     
     console.log("Fetching all job_entries for Workdesk...");
     // Fetch ONLY job_entries
     const jobEntriesSnapshot = await db.ref('job_entries').orderByChild('timestamp').once('value');
 
     const jobEntriesData = jobEntriesSnapshot.val() || {};
-    const purchaseOrdersData = allPOData || {};
     
-    const processedJobEntries = Object.entries(jobEntriesData).map(([key, value]) => ({
-        key,
-        ...value,
-        vendorName: (value.po && purchaseOrdersData[value.po]) ? purchaseOrdersData[value.po]['Supplier Name'] : 'N/A',
-        source: 'job_entry'
-    }));
+    const processedJobEntries = [];
+    const updatesToFirebase = {}; // To store the PRs we need to update
+
+    Object.entries(jobEntriesData).forEach(([key, value]) => {
+        let entry = { key, ...value, source: 'job_entry' };
+
+        // --- *** NEW PR AUTO-UPDATE LOGIC *** ---
+        // If it's a "PR", has a "Ref", and is "Pending"...
+        if (entry.for === 'PR' && entry.ref && entry.remarks === 'Pending') {
+            
+            // We trim any hidden spaces from the 'Ref' number
+            const trimmedRef = entry.ref.trim();
+
+            // Look for a match in the CSV using the trimmed "Ref" key (which is ReqNum)
+            const csvMatch = purchaseOrdersDataByRef[trimmedRef];
+
+            if (csvMatch) {
+                // We found a match! Get the data based on your rules.
+
+                // --- *** THIS IS THE FIX (Using your headers) *** ---
+                const newPO = csvMatch['PO'] || '';                // Col B, Header "PO"
+                const newVendor = csvMatch['Supplier Name'] || 'N/A'; // Col D, Header "Supplier Name"
+                const newAmount = csvMatch['Amount'] || '';           // Col F, Header "Amount"
+                const newAttention = csvMatch['Buyer Name'] || '';  // Col H, Header "Buyer Name"
+                const newDate = csvMatch['Order Date'] || '';       // Col G, Header "Order Date"
+                // --- *** END OF FIX *** ---
+
+                // Update the local entry object
+                if (newPO) entry.po = newPO;
+                if (newVendor) entry.vendorName = newVendor; // Helper field
+                if (newAmount) entry.amount = newAmount;
+                if (newAttention) entry.attention = newAttention;
+                if (newDate) entry.dateResponded = newDate;
+
+                // NEW STATUS RULE: If PO was found, update status
+                if (newPO) {
+                    entry.remarks = 'PO Ready';
+                }
+
+                // Prepare an object to update Firebase
+                updatesToFirebase[key] = {
+                    po: entry.po,
+                    amount: entry.amount,
+                    attention: entry.attention,
+                    dateResponded: entry.dateResponded,
+                    remarks: entry.remarks // Save the new status
+                };
+            }
+        }
+        // --- *** END OF NEW PR LOGIC *** ---
+
+        // This adds the vendor name to all other tasks for the reporting table
+        if (!entry.vendorName && entry.po && purchaseOrdersDataByPO[entry.po]) {
+            entry.vendorName = purchaseOrdersDataByPO[entry.po]['Supplier Name'] || 'N/A';
+        }
+
+        processedJobEntries.push(entry);
+    });
+
+    // --- NEW: Push all updates to Firebase in one go ---
+    if (Object.keys(updatesToFirebase).length > 0) {
+        console.log(`Auto-updating ${Object.keys(updatesToFirebase).length} PRs from CSV...`);
+        try {
+            await db.ref('job_entries').update(updatesToFirebase);
+            console.log("Firebase auto-update successful!");
+        } catch (error) {
+            console.error("Failed to auto-update PRs in Firebase:", error);
+        }
+    }
+    // --- END NEW ---
 
     allSystemEntries = processedJobEntries; // Set the global cache
     allSystemEntries.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
@@ -2025,12 +2118,21 @@ async function handleJobEntrySearch(searchTerm) {
         jobEntryTableBody.innerHTML = '<tr><td colspan="8">Error searching entries.</td></tr>';
     }
 }
-// --- *** JOB ENTRY FETCH FIX (END) *** ---
+// [Replace this entire function]
 
-// *** MODIFICATION: Added 'remarks' to data object ***
 function getJobDataFromForm() {
     const formData = new FormData(jobEntryForm);
-    const data = { for: formData.get('for'), ref: formData.get('ref') || '', amount: formData.get('amount') || '', po: formData.get('po') || '', site: formData.get('site'), group: formData.get('group'), attention: attentionSelectChoices.getValue(true), date: formatDate(new Date()), remarks: formData.get('status') || 'Pending' };
+    const data = {
+        for: formData.get('for'),
+        ref: (formData.get('ref') || '').trim(), // <-- ADDED .trim()
+        amount: formData.get('amount') || '',
+        po: (formData.get('po') || '').trim(), // <-- ADDED .trim()
+        site: formData.get('site'),
+        group: formData.get('group'),
+        attention: attentionSelectChoices.getValue(true),
+        date: formatDate(new Date()),
+        remarks: (formData.get('status') || 'Pending').trim() // <-- ADDED .trim()
+    };
     return data;
 }
 
@@ -2871,7 +2973,9 @@ function handleActiveTaskSearch(searchTerm) {
     renderActiveTaskTable(searchedTasks);
 }
 
-// --- *** WORKDESK REPORTING FIX (START) *** ---
+// [Replace this entire function]
+
+// --- *** WORKDESK REPORTING FIX (MODIFIED) *** ---
 async function handleReportingSearch() {
     const searchText = reportingSearchInput.value.toLowerCase();
     sessionStorage.setItem('reportingSearch', searchText); // Save search term
@@ -2883,18 +2987,64 @@ async function handleReportingSearch() {
         // This admin-site logic is specific to your reporting needs
         const userSiteString = currentApprover.Site || '';
         const userSites = userSiteString.toLowerCase() === 'all' ? null : userSiteString.split(',').map(s => s.trim());
+        
+        // 1. Get all entries relevant to this user
         const relevantEntries = allSystemEntries.filter(entry => {
             const isMySite = userSites === null || (entry.site && userSites.includes(entry.site));
             const isRelatedToMe = (entry.enteredBy === currentApprover.Name || entry.attention === currentApprover.Name);
             return isMySite || isRelatedToMe;
         });
+
+        // --- *** NEW DYNAMIC TAB LOGIC *** ---
+        const reportTabs = document.getElementById('report-tabs');
+        if (reportTabs) {
+            // 2. Get all unique job types from the user's relevant entries
+            const uniqueJobTypes = [...new Set(relevantEntries.map(entry => entry.for || 'Other'))];
+            uniqueJobTypes.sort(); // Sort them alphabetically
+
+            // 3. Build the new tab HTML
+            let tabsHTML = '<button class="active" data-job-type="All">All Jobs</button>';
+            uniqueJobTypes.forEach(jobType => {
+                // We use the 'jobType' for both the data-attribute and the button text
+                tabsHTML += `<button data-job-type="${jobType}">${jobType}</button>`;
+            });
+
+            // 4. Update the DOM
+            reportTabs.innerHTML = tabsHTML;
+
+            // 5. Ensure the global filter state is valid
+            // If the old filter (e.g., "Trip") doesn't exist in the new tabs, reset to "All"
+            if (!uniqueJobTypes.includes(currentReportFilter) && currentReportFilter !== 'All') {
+                currentReportFilter = 'All';
+            }
+            
+            // 6. Set the active class on the correct tab
+            reportTabs.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+            
+            const activeTabButton = reportTabs.querySelector(`button[data-job-type="${currentReportFilter}"]`);
+            if (activeTabButton) {
+                activeTabButton.classList.add('active');
+            } else {
+                // Fallback just in case
+                const allJobsButton = reportTabs.querySelector('button[data-job-type="All"]');
+                if (allJobsButton) {
+                    allJobsButton.classList.add('active');
+                }
+                currentReportFilter = 'All'; // Reset the filter
+            }
+        }
+        // --- *** END OF NEW LOGIC *** ---
+
+        // 7. Render the table with the (now relevant) entries
         filterAndRenderReport(relevantEntries);
+
     } catch (error) {
         console.error("Error fetching all entries for reporting:", error);
         reportingTableBody.innerHTML = '<tr><td colspan="11">Error loading reporting data.</td></tr>';
     }
 }
 // --- *** WORKDESK REPORTING FIX (END) *** ---
+
 
 function handleDownloadWorkdeskCSV() {
     const table = document.querySelector("#reporting-printable-area table");
@@ -6996,5 +7146,4 @@ imAddPaymentModal.classList.remove('hidden');
     // --- *** END OF NEW LISTENER *** ---
 
 }); // END OF DOMCONTENTLOADED
-
 
