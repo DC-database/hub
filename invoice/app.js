@@ -2440,7 +2440,7 @@ async function populateActiveTasks() {
 }
 // --- *** MOBILE VIEW FIX (START) *** ---
 // ++ MODIFIED: renderActiveTaskTable ++
-// [Replace this entire function around line 1638]
+// [Replace this entire function around line 1668]
 
 function renderActiveTaskTable(tasks) {
     activeTaskTableBody.innerHTML = '';
@@ -2487,8 +2487,16 @@ function renderActiveTaskTable(tasks) {
             row.classList.add('clickable-pdf');
         }
 
-        const canSrvDone = task.source === 'invoice';
-        const srvDoneDisabled = !canSrvDone ? 'disabled title="Only invoice tasks can be marked SRV Done"' : '';
+        // --- *** THIS IS THE FIX *** ---
+        let srvDoneDisabled = '';
+        if (task.source !== 'invoice') {
+            srvDoneDisabled = 'disabled title="Only invoice tasks can be marked SRV Done"';
+        } else if (task.remarks === 'Report') {
+            srvDoneDisabled = 'disabled title="Cannot mark \'Report\' status as SRV Done"';
+        } else if (task.remarks === 'Original PO') {
+            srvDoneDisabled = 'disabled title="Cannot mark \'Original PO\' status as SRV Done"';
+        }
+        // --- *** END OF FIX *** ---
         
         const actionButtons = `
             <button class="srv-done-btn" data-key="${task.key}" ${srvDoneDisabled}>SRV Done</button>
@@ -2765,7 +2773,11 @@ function handleActiveTaskSearch(searchTerm) {
                 (task.vendorName && task.vendorName.toLowerCase().includes(searchText)) ||
                 (task.site && task.site.toLowerCase().includes(searchText)) ||
                 (task.group && task.group.toLowerCase().includes(searchText)) ||
-                (task.date && task.date.toLowerCase().includes(searchText))
+                (task.date && task.date.toLowerCase().includes(searchText)) ||
+                // --- THIS IS THE FIX ---
+                // It now also searches the hidden calendarDate (which uses releaseDate)
+                (task.calendarDate && task.calendarDate.toLowerCase().includes(searchText))
+                // --- END OF FIX ---
             );
         });
     }
@@ -5878,7 +5890,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-   // --- *** MODIFIED CALENDAR LISTENERS *** ---
+   
+// --- *** MODIFIED CALENDAR LISTENERS *** ---
     if (wdCalendarPrevBtn) {
         wdCalendarPrevBtn.addEventListener('click', () => {
             if (isYearView) {
@@ -5922,6 +5935,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // --- *** THIS IS THE FIX: ADD THIS NEW 'CLICK' LISTENER *** ---
+    if (wdCalendarGrid) {
+        wdCalendarGrid.addEventListener('click', (e) => {
+            const dayCell = e.target.closest('.wd-calendar-day');
+            // Check if it's a valid day cell
+            if (dayCell && !dayCell.classList.contains('other-month')) {
+                const date = dayCell.dataset.date;
+                if (date) {
+                    // This is the function that highlights the day and updates the list
+                    displayCalendarTasksForDay(date);
+                }
+            }
+        });
+    }
+    // --- *** END OF NEW BLOCK *** ---
+
     // --- *** NEW: 'Double-click' listener for Day View *** ---
     if (wdCalendarGrid) {
         wdCalendarGrid.addEventListener('dblclick', (e) => {
@@ -5958,6 +5987,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     // --- *** END OF NEW LISTENER *** ---
 
+
 // --- *** NEW: Day View Prev/Next Buttons *** ---
     const dayViewPrevBtn = document.getElementById('wd-dayview-prev-btn');
     const dayViewNextBtn = document.getElementById('wd-dayview-next-btn');
@@ -5986,7 +6016,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     // --- *** END OF NEW LISTENERS *** ---
 
-
 // --- *** NEW: 'Enter' key listener for Active Task (Conditional) *** ---
     document.addEventListener('keydown', (e) => {
         // 1. Check if it was the 'Enter' key
@@ -6012,20 +6041,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             return; // No tasks on this day, do nothing
         }
 
-        // --- *** THIS IS YOUR NEW RULE *** ---
+        // --- *** THIS IS THE FIX *** ---
         // 6. Check if the badge is 'admin-view-only' (green)
         if (taskBadge.classList.contains('admin-view-only')) {
             return; // It's a green badge, so Enter does nothing
         }
-        // --- *** END OF NEW RULE *** ---
+        // --- *** END OF FIX *** ---
 
         // --- All conditions passed, now we navigate ---
         e.preventDefault(); // Stop 'Enter' from doing anything else
 
-        const date = selectedDay.dataset.date;
+        const date = selectedDay.dataset.date; // "YYYY-MM-DD"
         if (!date) return;
         
-        const friendlyDate = formatYYYYMMDD(date);
+        const friendlyDate = formatYYYYMMDD(date); // "DD-Mmm-YYYY"
         const activeTaskLink = workdeskNav.querySelector('a[data-section="wd-activetask"]');
         
         if (activeTaskLink) {
@@ -6034,11 +6063,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             // Force the section to filter by our friendly date
             setTimeout(() => {
+                // This will redirect, paste the date, and run the search.
                 showWorkdeskSection('wd-activetask', friendlyDate);
             }, 50);
         }
     });
-    // --- *** END OF NEW LISTENER *** ---
+    // --- *** END OF NEW LISTENER ---
 
     // --- (NEW) Click listener for WorkDesk Dashboard Card ---
     if (activeTaskCardLink) {

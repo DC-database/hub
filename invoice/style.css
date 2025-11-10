@@ -1677,11 +1677,12 @@ body.is-admin .legend-admin-only {
     min-height: 80px;
     border-bottom: 1px solid #eee;
     border-right: 1px solid #eee;
-    padding: 8px;
+    padding: 8px; /* Original padding */
     font-size: 0.9rem;
     position: relative;
     cursor: pointer;
     transition: background-color 0.2s;
+    border: none; /* Make sure there is no border */
 }
 .wd-calendar-day:nth-child(7n) {
     border-right: none;
@@ -1729,6 +1730,8 @@ body.is-admin .legend-admin-only {
 .wd-calendar-day.selected .task-count-badge {
     background-color: white;
     color: var(--iba-secondary-terracotta);
+    border: 3px solid var(--iba-secondary-terracotta); /* Thick red line */
+    box-sizing: border-box; /* Ensures border is inside the 30px circle */
 }
 
 .wd-calendar-day .task-count-badge.status-pending-signature {
@@ -1738,12 +1741,15 @@ body.is-admin .legend-admin-only {
 .wd-calendar-day.selected .task-count-badge.status-pending-signature {
     background-color: white;
     color: var(--iba-secondary-gold);
+    border: 3px solid var(--iba-secondary-gold); /* Thick yellow line */
+    box-sizing: border-box;
 }
 .wd-calendar-day.selected .task-count-badge.admin-view-only {
     background-color: white;
     color: #28a745; /* Green text */
+    border: 3px solid #28a745; /* Thick green line */
+    box-sizing: border-box;
 }
-
 /* === NEW RULE FOR DESKTOP-ONLY 'ENTER/DOUBLE-CLICK' TOOLTIP === */
 @media (min-width: 769px) {
     .wd-calendar-day:hover .task-count-badge::after {
