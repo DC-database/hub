@@ -2687,6 +2687,8 @@ async function populateWorkdeskDashboard() {
     // --- END OF FIX ---
 }
 
+// [Replace this entire function]
+
 // ++ NEW: Function to open the Modify Task modal ++
 function openModifyTaskModal(taskData) {
     if (!taskData) return;
@@ -2697,7 +2699,12 @@ function openModifyTaskModal(taskData) {
     modifyTaskOriginalPO.value = taskData.originalPO || '';
     modifyTaskOriginalKey.value = taskData.originalKey || '';
 
-    // Set Attention
+    // --- *** THIS IS THE FIX (Part 1) *** ---
+    // We store the *original* attention value before the user changes it.
+    document.getElementById('modify-task-originalAttention').value = taskData.attention || '';
+    // --- *** END OF FIX *** ---
+
+    // Set Attention dropdown to the current value
     if (modifyTaskAttentionChoices) {
         modifyTaskAttentionChoices.setChoiceByValue(taskData.attention || '');
     }
@@ -2721,12 +2728,19 @@ function openModifyTaskModal(taskData) {
     modifyTaskModal.classList.remove('hidden');
 }
 
+// [Replace this entire function]
+
 // --- (MODIFIED) handleSaveModifiedTask ---
 async function handleSaveModifiedTask() {
     const key = modifyTaskKey.value;
     const source = modifyTaskSource.value;
     const originalPO = modifyTaskOriginalPO.value;
     const originalKey = modifyTaskOriginalKey.value;
+
+    // --- *** THIS IS THE FIX (Part 2) *** ---
+    // Read the original attention value that we saved in the hidden field.
+    const originalAttention = document.getElementById('modify-task-originalAttention').value;
+    // --- *** END OF FIX *** ---
 
     if (!key || !source) {
         alert("Error: Task identifiers are missing.");
@@ -2742,13 +2756,10 @@ async function handleSaveModifiedTask() {
         }
     }
 
-    // *** START OF FIX ***
-    // Check if the user selected an empty status
     if (!selectedStatus) {
         alert("Please select a new status.");
         return;
     }
-    // *** END OF FIX ***
 
     const updates = {
         attention: modifyTaskAttentionChoices.getValue(true) || '',
@@ -2757,7 +2768,6 @@ async function handleSaveModifiedTask() {
         note: modifyTaskNote.value.trim()
     };
 
-    // Clear attention if status is Under Review or With Accounts (like in invoice entry)
     if (updates.status === 'Under Review' || updates.status === 'With Accounts') {
         updates.attention = '';
     }
@@ -2768,24 +2778,29 @@ async function handleSaveModifiedTask() {
     try {
         if (source === 'job_entry') {
             // This is a job entry, update the main DB
-            
-            // --- *** NEW LOGIC TO AUTO-COMPLETE TASK *** ---
-            // Find the original task to check attention
             await ensureAllEntriesFetched(); 
             const originalEntry = allSystemEntries.find(entry => entry.key === key);
 
-            // If the current user is the "attention" person, add dateResponded to complete it
-            if (originalEntry && currentApprover.Name === originalEntry.attention) {
-                updates.dateResponded = formatDate(new Date()); 
+            const newAttention = updates.attention;
+            const oldAttention = originalEntry ? originalEntry.attention : '';
+
+            if (originalEntry && currentApprover.Name === oldAttention && newAttention === oldAttention) {
+                updates.dateResponded = formatDate(new Date());
+            } else if (newAttention !== oldAttention) {
+                updates.dateResponded = null; 
+            } else {
+                updates.dateResponded = originalEntry ? originalEntry.dateResponded : null;
             }
-            // --- *** END OF NEW LOGIC *** ---
 
             await db.ref(`job_entries/${key}`).update({
                 attention: updates.attention,
                 remarks: updates.remarks,
-                note: updates.note, // Job entries didn't originally have 'note', this adds it
-                dateResponded: updates.dateResponded || null // Save the new date
+                note: updates.note,
+                dateResponded: updates.dateResponded 
             });
+            
+            // Invalidate the cache so it's forced to refetch
+            allSystemEntries = []; 
 
         } else if (source === 'invoice' && originalPO && originalKey) {
             // This is an invoice entry, update the invoice DB
@@ -2795,11 +2810,15 @@ async function handleSaveModifiedTask() {
                 note: updates.note
             });
             
-            // Get original data from the local cache
-            if (!allInvoiceData) await ensureInvoiceDataFetched(); // Ensure cache is warm
+            // Get original data from the local cache (this is just for merging)
+            if (!allInvoiceData) await ensureInvoiceDataFetched(); 
             const originalInvoice = (allInvoiceData && allInvoiceData[originalPO]) ? allInvoiceData[originalPO][originalKey] : {};
-            const updatedInvoiceData = {...originalInvoice, ...updates}; // Merge
-            await updateInvoiceTaskLookup(originalPO, originalKey, updatedInvoiceData, originalInvoice.attention);
+            const updatedInvoiceData = {...originalInvoice, ...updates}; 
+            
+            // --- *** THIS IS THE FIX (Part 3) *** ---
+            // We pass the *correct* originalAttention, not the stale one from the cache.
+            await updateInvoiceTaskLookup(originalPO, originalKey, updatedInvoiceData, originalAttention);
+            // --- *** END OF FIX *** ---
 
             // Also update the local cache
             updateLocalInvoiceCache(originalPO, originalKey, updates);
@@ -2820,9 +2839,6 @@ async function handleSaveModifiedTask() {
         modifyTaskSaveBtn.textContent = 'Save Changes';
     }
 }
-
-
-
 
 
 // [Replace this entire function around line 1876]
