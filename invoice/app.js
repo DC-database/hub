@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "1.1.0"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "1.1.1"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -5962,9 +5962,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- *** NEW: 'Double-click' listener for Day View *** ---
     if (wdCalendarGrid) {
         wdCalendarGrid.addEventListener('dblclick', (e) => {
-            // 1. Disable on mobile
-            const isMobile = window.innerWidth <= 768;
-            if (isMobile) return; 
+            // 1. Disable on mobile - --- *** THIS CHECK IS NOW REMOVED *** ---
+            // const isMobile = window.innerWidth <= 768;
+            // if (isMobile) return; 
 
             const dayCell = e.target.closest('.wd-calendar-day');
             if (dayCell && !dayCell.classList.contains('other-month')) {
