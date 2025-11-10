@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "2.2.0"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "2.3.0"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -1099,8 +1099,11 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
 
         // --- *** THIS IS THE FIX *** ---
         // The fetchAndParseCSV function now returns an object { poDataByPO, poDataByRef }.
-        // We must correctly assign the poDataByPO map to allPOData.
+        // We must correctly assign BOTH maps to the global scope.
         allPOData = csvData.poDataByPO;
+        // This function was missing the line below, which broke the Job Records page.
+        // We don't use poDataByRef here, but we must set it for the *other* function.
+        const purchaseOrdersDataByRef = csvData.poDataByRef || {};
         // --- *** END OF FIX *** ---
 
         allEpicoreData = epicoreCsvData; // ++ NEW ++
@@ -1138,7 +1141,6 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
         alert("Error: Could not load data from database.");
     }
 }
-
 
 // LOCAL CACHE UPDATE FUNCTIONS
 function updateLocalInvoiceCache(poNumber, invoiceKey, updatedData) {
@@ -1725,6 +1727,7 @@ function toggleCalendarView() {
     }
 }
 
+
 // [Replace this entire function]
 
 // --- (MODIFIED) ensureAllEntriesFetched ---
@@ -1771,7 +1774,7 @@ async function ensureAllEntriesFetched(forceRefresh = false) {
             if (csvMatch) {
                 // We found a match! Get the data based on your rules.
 
-                // --- *** THIS IS THE FIX (Using your headers) *** ---
+                // --- *** THIS IS THE FIX (Using all your headers) *** ---
                 const newPO = csvMatch['PO'] || '';                // Col B, Header "PO"
                 const newVendor = csvMatch['Supplier Name'] || 'N/A'; // Col D, Header "Supplier Name"
                 const newAmount = csvMatch['Amount'] || '';           // Col F, Header "Amount"
@@ -1828,6 +1831,7 @@ async function ensureAllEntriesFetched(forceRefresh = false) {
     cacheTimestamps.systemEntries = now; // Update timestamp
     console.log(`Workdesk Job Records cache updated with ${allSystemEntries.length} job entries.`);
 }
+
 
 function isTaskComplete(task) {
     if (!task) return false;
