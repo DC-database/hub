@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "1.1.1"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "2.0.0"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -2607,18 +2607,84 @@ function filterAndRenderReport(baseEntries = []) {
     }
     renderReportingTable(filteredEntries);
 }
+
+// [Replace this entire function]
+
 async function populateWorkdeskDashboard() {
     // 1. Populate the user's personal task list (for the card)
     await populateActiveTasks(); 
     dbActiveTasksCount.textContent = userActiveTasks.length;
 
     // 2. Populate the admin's "all tasks" list (for the calendar)
-    await populateAdminCalendarTasks(); // <-- NEW LINE
+    await populateAdminCalendarTasks();
 
     // 3. Populate completed tasks count
-    await ensureAllEntriesFetched(); 
-    const myCompletedTasks = allSystemEntries.filter(task => (task.enteredBy === currentApprover.Name || task.attention === currentApprover.Name) && isTaskComplete(task));
-    dbCompletedTasksCount.textContent = myCompletedTasks.length;
+    await ensureAllEntriesFetched(); // This gets all job_entries
+    
+    // --- THIS IS THE FIX ---
+
+    // Count completed job_entries (this is the original logic, it works for all users)
+    let completedJobTasks = allSystemEntries.filter(task => 
+        (task.enteredBy === currentApprover.Name || task.attention === currentApprover.Name) && isTaskComplete(task)
+    );
+
+    let completedInvoiceTasks = [];
+    const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
+
+    // We must check for completed invoices for ALL users.
+    await ensureInvoiceDataFetched(); // This gets all invoice_entries
+
+    if (allInvoiceData) {
+        if (isAccounting) {
+            // --- Logic for "Accounting" ---
+            // Count all invoices they "own" (as the "Irwin" user)
+            for (const poNumber in allInvoiceData) {
+                const poInvoices = allInvoiceData[poNumber];
+                for (const invoiceKey in poInvoices) {
+                    const inv = poInvoices[invoiceKey];
+                    const invoiceTask = {
+                        key: `${poNumber}_${invoiceKey}`,
+                        source: 'invoice',
+                        remarks: inv.status,
+                        enteredBy: currentApprover.Name // Assume they are the owner
+                    };
+                    if (isTaskComplete(invoiceTask)) {
+                        completedInvoiceTasks.push(invoiceTask);
+                    }
+                }
+            }
+        } else {
+            // --- Logic for "User" (non-Accounting) ---
+            // Count all invoices that were ASSIGNED to them and are now complete.
+            for (const poNumber in allInvoiceData) {
+                const poInvoices = allInvoiceData[poNumber];
+                for (const invoiceKey in poInvoices) {
+                    const inv = poInvoices[invoiceKey];
+                    
+                    // Check if the task was assigned to this user
+                    if (inv.attention === currentApprover.Name) {
+                        const invoiceTask = {
+                            key: `${poNumber}_${invoiceKey}`,
+                            source: 'invoice',
+                            remarks: inv.status,
+                            // This task is assigned to them, not entered by them
+                            enteredBy: 'Irwin' // (or whoever enters invoices)
+                        };
+                        
+                        // isTaskComplete() will return true if the status is "SRV Done", "Paid", etc.
+                        if (isTaskComplete(invoiceTask)) {
+                            completedInvoiceTasks.push(invoiceTask);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // The total is the sum of both lists
+    const totalCompleted = completedJobTasks.length + completedInvoiceTasks.length;
+    dbCompletedTasksCount.textContent = totalCompleted;
+    // --- END OF FIX ---
 }
 
 // ++ NEW: Function to open the Modify Task modal ++

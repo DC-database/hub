@@ -1683,16 +1683,16 @@ body.is-admin .legend-admin-only {
     background-color: #f8f9fa;
     border-bottom: 1px solid #e0e0e0;
 }
+/* This is the CORRECT code */
 .wd-calendar-day {
     min-height: 80px;
     border-bottom: 1px solid #eee;
     border-right: 1px solid #eee;
-    padding: 8px; /* Original padding */
+    padding: 8px;
     font-size: 0.9rem;
     position: relative;
     cursor: pointer;
     transition: background-color 0.2s;
-    border: none; /* Make sure there is no border */
 }
 .wd-calendar-day:nth-child(7n) {
     border-right: none;
