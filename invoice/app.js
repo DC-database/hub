@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "2.0.0"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "2.1.0"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -6996,4 +6996,5 @@ imAddPaymentModal.classList.remove('hidden');
     // --- *** END OF NEW LISTENER *** ---
 
 }); // END OF DOMCONTENTLOADED
+
 
