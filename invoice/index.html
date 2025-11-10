@@ -124,10 +124,24 @@
         <div id="wd-calendar-task-list">
             <h3 id="wd-calendar-task-list-title">Select a day to see tasks</h3>
             <ul id="wd-calendar-task-list-ul">
-                </ul>
+               </ul>
         </div>
     </div>
-    </section>
+</section>
+
+<section id="wd-dayview" class="workdesk-section hidden">
+    <div class="dayview-header">
+        <button id="wd-dayview-back-btn" class="secondary-btn" type="button"><i class="fa-solid fa-arrow-left"></i> Back to Calendar</button>
+        
+        <div class="dayview-date-nav">
+            <button id="wd-dayview-prev-btn" class="secondary-btn" title="Previous day">&larr;</button>
+            <h1 id="wd-dayview-title">Tasks for...</h1>
+            <button id="wd-dayview-next-btn" class="secondary-btn" title="Next day">&rarr;</button>
+        </div>
+        </div>
+    <div id="wd-dayview-task-list">        </div>
+</section>
+
 
                 <section id="wd-jobentry" class="workdesk-section hidden">
                     <div class="jobentry-header-container">
@@ -439,17 +453,17 @@
 
             <nav id="im-nav" class="workdesk-navigation">
                 <ul>
-		    <li class="wd-nav-dashboard-mobile"><a href="#" id="im-back-to-wd-dashboard-link"><i class="fa-solid fa-table-columns"></i> Dashboard</a></li>
-                    <li class="im-nav-dashboard"><a href="#" data-section="im-dashboard" class="active"><i class="fa-solid fa-table-columns"></i> Dashboard</a></li>
-                    <li class="im-nav-invoice-entry"><a href="#" data-section="im-invoice-entry"><i class="fa-solid fa-file-pen"></i> Invoice Entry</a></li>
-                    <li class="im-nav-batch-entry"><a href="#" id="batch-entry-nav-link" data-section="im-batch-entry"><i class="fa-solid fa-file-excel"></i> Batch Entry</a></li>
-                    <li class="im-nav-summary-note"><a href="#" id="summary-note-nav-link" data-section="im-summary-note"><i class="fa-solid fa-receipt"></i> Summary Note</a></li>
+                    <li class="wd-nav-dashboard-mobile"><a href="#" id="im-back-to-wd-dashboard-link"><i class="fa-solid fa-calendar-days"></i> Task Calendar</a></li>
+                    <li class="im-nav-dashboard desktop-only-li"><a href="#" data-section="im-dashboard" class="active"><i class="fa-solid fa-table-columns"></i> Dashboard</a></li>
+                    <li class="im-nav-invoice-entry desktop-only-li"><a href="#" data-section="im-invoice-entry"><i class="fa-solid fa-file-pen"></i> Invoice Entry</a></li>
+                    <li class="im-nav-batch-entry desktop-only-li"><a href="#" id="batch-entry-nav-link" data-section="im-batch-entry"><i class="fa-solid fa-file-excel"></i> Batch Entry</a></li>
+                    <li class="im-nav-summary-note desktop-only-li"><a href="#" id="summary-note-nav-link" data-section="im-summary-note"><i class="fa-solid fa-receipt"></i> Summary Note</a></li>
+                    
                     <li class="im-nav-reporting"><a href="#" data-section="im-reporting"><i class="fa-solid fa-chart-line"></i> Reporting</a></li>
                     <li class="wd-nav-im-reporting-mobile"><a href="#" data-section="im-reporting"><i class="fa-solid fa-chart-line"></i> Reporting</a></li>
+                    <li class="nav-section-divider im-nav-payments desktop-only-li"><a href="#" id="payments-nav-link" data-section="im-payments" class="hidden"><i class="fa-solid fa-money-check-dollar"></i> Payments</a></li>
 
-                    <li class="nav-section-divider im-nav-payments"><a href="#" id="payments-nav-link" data-section="im-payments" class="hidden"><i class="fa-solid fa-money-check-dollar"></i> Payments</a></li>
-
-                    <li class="im-nav-finance-report"><a href="#" id="im-finance-report-nav-link" data-section="im-finance-report"><i class="fa-solid fa-building-columns"></i> Finance Report</a></li>
+                    <li class="im-nav-finance-report desktop-only-li"><a href="#" id="im-finance-report-nav-link" data-section="im-finance-report"><i class="fa-solid fa-building-columns"></i> Finance Report</a></li>
                 </ul>
             </nav>
             <div class="workdesk-footer-nav">

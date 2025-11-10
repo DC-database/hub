@@ -279,8 +279,9 @@ let navigationContextList = []; // <-- ADD THIS LINE
 let navigationContextIndex = -1; // <-- ADD THIS LINE
 let currentReportFilter = 'All';
 let currentActiveTaskFilter = 'All'; //
-let wdCurrentCalendarDate = new Date(); // <-- CHANGE 1.2
+let wdCurrentCalendarDate = new Date();
 let isYearView = false;
+let wdCurrentDayViewDate = null; // <-- ADD THIS LINE
 
 // INVOICE MANAGEMENT STATE
 let imDateTimeInterval = null;
@@ -1366,8 +1367,135 @@ function displayCalendarTasksForDay(date) { // date is "2025-11-09"
 
 // --- *** END OF CALENDAR FUNCTIONS (CHANGE 1.5) *** ---
 
+// --- *** NEW: 'Double-click' listener for Day View TASK CARDS *** ---
+    const dayViewTaskList = document.getElementById('wd-dayview-task-list');
+    if (dayViewTaskList) {
+        dayViewTaskList.addEventListener('dblclick', (e) => {
+            // 1. Only work for Admins
+            if ((currentApprover?.Role || '').toLowerCase() !== 'admin') return;
+
+            // 2. Find the card that was clicked
+            const taskCard = e.target.closest('.admin-clickable-task');
+            if (!taskCard) return; // Didn't click a clickable card
+
+            // 3. Get the PO number from the card's data
+            const poNumber = taskCard.dataset.po;
+            if (!poNumber) return; // No PO number on this task
+
+            // 4. All checks passed, redirect to IM Reporting
+            if (confirm(`Redirect to Invoice Management and search Reporting for PO "${poNumber}"?`)) {
+                // Click the main Invoice Management button
+                invoiceManagementButton.click();
+
+                // Wait for IM view to load, then switch to reporting
+                setTimeout(() => {
+                    // Set the search input's value to the PO
+                    imReportingSearchInput.value = poNumber;
+                    
+                    // Save the search term to session storage
+                    sessionStorage.setItem('imReportingSearch', poNumber);
+                    
+                    // Click the "Reporting" tab
+                    const imReportingLink = imNav.querySelector('a[data-section="im-reporting"]');
+                    if (imReportingLink) {
+                        imReportingLink.click();
+                        // The showIMSection function will automatically use the saved
+                        // search term to run the report.
+                    }
+                }, 150); // 150ms delay to ensure view is loaded
+            }
+        });
+    }
+    // --- *** END OF NEW LISTENER *** ---
 
 
+// --- *** NEW: FUNCTION TO SHOW DAY VIEW *** ---
+function showDayView(date) { // date is "2025-11-09"
+    // --- *** NEW: Store the current date *** ---
+    // We use UTC to avoid timezone-off-by-one errors when adding days
+    try {
+        const parts = date.split('-').map(Number);
+        wdCurrentDayViewDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+    } catch (e) {
+        console.error("Invalid date passed to showDayView:", date, e);
+        return; // Stop if the date is bad
+    }
+    // --- *** END NEW *** ---
+
+    // 1. Hide all main sections
+    workdeskSections.forEach(section => {
+        section.classList.add('hidden');
+    });
+
+    // 2. Show the Day View section
+    const dayViewSection = document.getElementById('wd-dayview');
+    dayViewSection.classList.remove('hidden');
+
+    // 3. Set the title
+    const friendlyDate = formatYYYYMMDD(date);
+    document.getElementById('wd-dayview-title').textContent = `Tasks for ${friendlyDate}`;
+
+    // 4. Get the correct tasks
+    const isAdmin = (currentApprover.Role || '').toLowerCase() === 'admin';
+    const taskSource = isAdmin ? allAdminCalendarTasks : userActiveTasks;
+
+    const tasks = taskSource.filter(task => {
+        const taskDate = convertDisplayDateToInput(task.calendarDate || task.date); 
+        return taskDate === date;
+    });
+
+    // 5. Populate the task list
+    const taskListDiv = document.getElementById('wd-dayview-task-list');
+    taskListDiv.innerHTML = ''; // Clear old tasks
+
+    if (tasks.length === 0) {
+        taskListDiv.innerHTML = '<p>No tasks found for this day.</p>';
+        return;
+    }
+
+    tasks.forEach(task => {
+        const card = document.createElement('div');
+        card.className = 'dayview-task-card';
+
+        // --- *** NEW: Add data for click listener *** ---
+        if (isAdmin && task.po) {
+            card.classList.add('admin-clickable-task'); // Make it look clickable
+            card.dataset.po = task.po; // Store the PO
+            card.title = `Admin: Double-click to search for PO ${task.po} in IM Reporting`;
+        }
+        // --- *** END OF NEW DATA *** ---
+
+        const mainInfo = task.po ? `PO: ${task.po}` : (task.ref || 'General Task');
+        const amountDisplay = (task.amount && parseFloat(task.amount) > 0) 
+            ? ` - QAR ${formatCurrency(task.amount)}` 
+            : ``;
+        
+        const noteHTML = task.note 
+            ? `<div class="task-detail-item note"><span class="label">Note:</span> ${task.note}</div>` 
+            : '';
+
+        card.innerHTML = `
+            <strong>${mainInfo}${amountDisplay}</strong>
+            <div class="task-details-grid">
+                <div class="task-detail-item">
+                    <span class="label">Vendor:</span> ${task.vendorName || 'N/A'}
+                </div>
+                <div class="task-detail-item">
+                    <span class="label">Site:</span> ${task.site || 'N/A'}
+                </div>
+                <div class="task-detail-item">
+                    <span class="label">Job:</span> ${task.for || 'N/A'}
+                </div>
+                <div class="task-detail-item status">
+                    <span class="label">Status:</span> ${task.remarks || 'Pending'}
+                </div>
+                ${noteHTML}
+            </div>
+        `;
+        taskListDiv.appendChild(card);
+    });
+}
+// --- *** END OF NEW FUNCTION *** ---
 
 // --- END OF displayCalendarTasksForDay ---
 
@@ -5594,12 +5722,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!link || link.classList.contains('back-to-main-dashboard') || link.id === 'wd-logout-button' || link.id === 'workdesk-im-link') return; 
         e.preventDefault(); 
         if (link.hasAttribute('data-section')) { 
-            // ... (reportingLink logic removed for clarity) ...
-        
+            
             document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a').forEach(a => a.classList.remove('active')); 
             link.classList.add('active'); 
             
-            // MODIFIED: ADD await and pass null for the search term
+            // --- *** TYPO FIX: Changed showWorkdEskSection to showWorkdeskSection *** ---
             await showWorkdeskSection(link.getAttribute('data-section'), null); 
         } 
     });
@@ -5795,53 +5922,123 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // --- *** NEW CALENDAR CLICK/DBLCLICK LOGIC *** ---
+    // --- *** NEW: 'Double-click' listener for Day View *** ---
     if (wdCalendarGrid) {
-        // SINGLE-CLICK: Just show tasks in the list below
-        wdCalendarGrid.addEventListener('click', (e) => {
-            const dayCell = e.target.closest('.wd-calendar-day');
-            if (dayCell && !dayCell.classList.contains('other-month')) {
-                const date = dayCell.dataset.date;
-                if (!date) return;
-                
-                // 1. Always display tasks for the clicked day in the list
-                displayCalendarTasksForDay(date);
-            }
-        });
-
-        // DOUBLE-CLICK: Navigate to Active Tasks tab
         wdCalendarGrid.addEventListener('dblclick', (e) => {
-            // --- *** NEW: Disable on mobile *** ---
+            // 1. Disable on mobile
             const isMobile = window.innerWidth <= 768;
-            if (isMobile) return; // Do nothing on mobile
-            // --- *** END OF NEW CODE *** ---
+            if (isMobile) return; 
 
             const dayCell = e.target.closest('.wd-calendar-day');
             if (dayCell && !dayCell.classList.contains('other-month')) {
-                const date = dayCell.dataset.date;
-                if (!date) return;
-
-                // Check if this day has tasks
+                
+                // 2. Check if the day has tasks
                 const taskBadge = dayCell.querySelector('.task-count-badge');
                 if (taskBadge) {
-                    const friendlyDate = formatYYYYMMDD(date);
-
-                    // 1. Find the "Active Task" link
-                    const activeTaskLink = workdeskNav.querySelector('a[data-section="wd-activetask"]');
-                    if (activeTaskLink) {
-                        
-                        // 2. Manually update the nav UI
-                        document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a').forEach(a => a.classList.remove('active')); 
-                        activeTaskLink.classList.add('active'); 
-                        
-                        // 3. Call showWorkdeskSection to navigate and filter
-                        showWorkdeskSection('wd-activetask', friendlyDate); 
+                    const date = dayCell.dataset.date;
+                    if (date) {
+                        // 3. Call the new Day View function
+                        showDayView(date);
                     }
                 }
             }
         });
     }
-    // --- *** END OF NEW CALENDAR LOGIC *** ---
+    // --- *** END OF NEW LISTENER *** ---
+// --- *** NEW: 'Back' button for Day View *** ---
+    const dayViewBackBtn = document.getElementById('wd-dayview-back-btn');
+    if (dayViewBackBtn) {
+        dayViewBackBtn.addEventListener('click', () => {
+            // This just clicks the "Dashboard" link in the sidebar
+            const dashboardLink = workdeskNav.querySelector('a[data-section="wd-dashboard"]');
+            if (dashboardLink) {
+                dashboardLink.click();
+            }
+        });
+    }
+    // --- *** END OF NEW LISTENER *** ---
+
+// --- *** NEW: Day View Prev/Next Buttons *** ---
+    const dayViewPrevBtn = document.getElementById('wd-dayview-prev-btn');
+    const dayViewNextBtn = document.getElementById('wd-dayview-next-btn');
+
+    const navigateDayView = (direction) => {
+        if (!wdCurrentDayViewDate) return;
+
+        // Add/subtract one day (in UTC)
+        wdCurrentDayViewDate.setUTCDate(wdCurrentDayViewDate.getUTCDate() + direction);
+
+        // Format back to "YYYY-MM-DD"
+        const year = wdCurrentDayViewDate.getUTCFullYear();
+        const month = String(wdCurrentDayViewDate.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(wdCurrentDayViewDate.getUTCDate()).padStart(2, '0');
+        const newDateString = `${year}-${month}-${day}`;
+
+        // Refresh the view
+        showDayView(newDateString);
+    };
+
+    if (dayViewPrevBtn) {
+        dayViewPrevBtn.addEventListener('click', () => navigateDayView(-1));
+    }
+    if (dayViewNextBtn) {
+        dayViewNextBtn.addEventListener('click', () => navigateDayView(1));
+    }
+    // --- *** END OF NEW LISTENERS *** ---
+
+
+// --- *** NEW: 'Enter' key listener for Active Task (Conditional) *** ---
+    document.addEventListener('keydown', (e) => {
+        // 1. Check if it was the 'Enter' key
+        if (e.key !== 'Enter') return;
+
+        // 2. Check that we are on the WorkDesk Dashboard
+        const dashboardSection = document.getElementById('wd-dashboard');
+        if (!dashboardSection || dashboardSection.classList.contains('hidden')) {
+            return; // Not on the dashboard, do nothing
+        }
+        
+        // 3. Check that we are on desktop
+        const isMobile = window.innerWidth <= 768;
+        if (isMobile) return;
+
+        // 4. Find the currently selected day
+        const selectedDay = document.querySelector('.wd-calendar-day.selected');
+        if (!selectedDay) return; // No day is selected
+
+        // 5. Check if the selected day has a task badge
+        const taskBadge = selectedDay.querySelector('.task-count-badge');
+        if (!taskBadge) {
+            return; // No tasks on this day, do nothing
+        }
+
+        // --- *** THIS IS YOUR NEW RULE *** ---
+        // 6. Check if the badge is 'admin-view-only' (green)
+        if (taskBadge.classList.contains('admin-view-only')) {
+            return; // It's a green badge, so Enter does nothing
+        }
+        // --- *** END OF NEW RULE *** ---
+
+        // --- All conditions passed, now we navigate ---
+        e.preventDefault(); // Stop 'Enter' from doing anything else
+
+        const date = selectedDay.dataset.date;
+        if (!date) return;
+        
+        const friendlyDate = formatYYYYMMDD(date);
+        const activeTaskLink = workdeskNav.querySelector('a[data-section="wd-activetask"]');
+        
+        if (activeTaskLink) {
+            // Click the "Active Task" nav link
+            activeTaskLink.click();
+            
+            // Force the section to filter by our friendly date
+            setTimeout(() => {
+                showWorkdeskSection('wd-activetask', friendlyDate);
+            }, 50);
+        }
+    });
+    // --- *** END OF NEW LISTENER *** ---
 
     // --- (NEW) Click listener for WorkDesk Dashboard Card ---
     if (activeTaskCardLink) {
