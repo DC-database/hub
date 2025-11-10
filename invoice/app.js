@@ -1058,6 +1058,8 @@ async function ensureEcostDataFetched(forceRefresh = false) {
     return allEcostData;
 }
 
+// [Replace this entire function]
+
 // This function is still used by reporting, so we keep it.
 async function ensureInvoiceDataFetched(forceRefresh = false) {
     const now = Date.now();
@@ -1095,7 +1097,12 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
             throw new Error("Failed to load PO, Epicore, or Site data from CSV.");
         }
 
-        allPOData = csvData;
+        // --- *** THIS IS THE FIX *** ---
+        // The fetchAndParseCSV function now returns an object { poDataByPO, poDataByRef }.
+        // We must correctly assign the poDataByPO map to allPOData.
+        allPOData = csvData.poDataByPO;
+        // --- *** END OF FIX *** ---
+
         allEpicoreData = epicoreCsvData; // ++ NEW ++
         allSitesCSVData = sitesCsvData; // ++ NEW ++
         allInvoiceData = invoiceSnapshot.val() || {};
@@ -1131,7 +1138,6 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
         alert("Error: Could not load data from database.");
     }
 }
-
 
 
 // LOCAL CACHE UPDATE FUNCTIONS
