@@ -39,7 +39,11 @@
 
     <div id="workdesk-view" class="hidden">
         <aside class="workdesk-sidebar">
-            <div class="wd-user-profile"><div class="wd-user-avatar"><i class="fa-solid fa-user"></i></div><h3 id="wd-username">User Name</h3><p id="wd-user-identifier">user@iba.com.qa</p></div>
+            <div class="wd-user-profile">
+                <div class="wd-user-avatar"><i class="fa-solid fa-user"></i></div>
+                <h3 id="wd-username">User Name</h3>
+                <p id="wd-user-identifier">user@iba.com.qa</p>
+            </div>
 
             <a href="#" id="back-to-dashboard-button" class="wd-back-button back-to-main-dashboard"><i class="fa-solid fa-arrow-left"></i> Welcome Screen</a>
 
@@ -50,8 +54,8 @@
                     <li class="wd-nav-activetask"><a href="#" data-section="wd-activetask"><i class="fa-solid fa-list-check"></i> Active Task <span id="wd-active-task-badge" class="notification-badge" style="display: none;">0</span></a></li>
                     <li class="wd-nav-taskhistory hidden"><a href="#" data-section="wd-taskhistory"><i class="fa-solid fa-clock-rotate-left"></i> Task History</a></li>
                     <li class="wd-nav-reporting"><a href="#" data-section="wd-reporting"><i class="fa-solid fa-chart-line"></i> Job Records</a></li>
-<li class="wd-nav-im-reporting-mobile"><a href="#" id="wd-im-reporting-link-mobile"><i class="fa-solid fa-chart-line"></i> Reporting</a></li>
-                    </ul>
+                    <li class="wd-nav-im-reporting-mobile"><a href="#" id="wd-im-reporting-link-mobile"><i class="fa-solid fa-chart-line"></i> Reporting</a></li>
+                </ul>
             </nav>
             <div class="workdesk-footer-nav">
                  <ul>
@@ -60,88 +64,112 @@
                     <li><a href="#" id="wd-logout-button"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</a></li>
                 </ul>
             </div>
+
+            <p class="version-display sidebar-version-display"></p>
+
         </aside>
 
         <main class="workdesk-main">
             <span id="workdesk-datetime"></span>
             <div id="workdesk-content-area">
 
-<section id="wd-dashboard" class="workdesk-section">
-    <h1>Dashboard</h1>
+                <section id="wd-dashboard" class="workdesk-section">
+                    <h1>Dashboard</h1>
 
-    <div class="dashboard-summary-cards">
-        <div class="summary-card">
-        <div class="card-icon" style="background-color: #ffc107;"><i class="fa-solid fa-list-check"></i></div>
-        <div class="card-details">
-            <span id="db-active-tasks-count" class="card-value">0</span>
-            <span class="card-label">Total Active Tasks</span>
-        </div>
-    </div>
-        <div class="summary-card">
-            <div class="card-icon" style="background-color: #28a745;"><i class="fa-solid fa-check-double"></i></div>
-            <div class="card-details">
-                <span id="db-completed-tasks-count" class="card-value">0</span>
-                <span class="card-label">Total Tasks Completed</span>
-            </div>
-        </div>
-    </div>
-    
-    <hr class="section-divider">
+                    <div class="dashboard-summary-cards">
+                        <a href="#" id="db-active-tasks-card-link" class="summary-card-link">
+                            <div class="summary-card">
+                                <div class="card-icon" style="background-color: #ffc107;"><i class="fa-solid fa-list-check"></i></div>
+                                <div class="card-details">
+                                    <span id="db-active-tasks-count" class="card-value">0</span>
+                                    <span class="card-label">Total Active Tasks</span>
+                                </div>
+                            </div>
+                        </a>
+                        <div class="summary-card">
+                            <div class="card-icon" style="background-color: #28a745;"><i class="fa-solid fa-check-double"></i></div>
+                            <div class="card-details">
+                                <span id="db-completed-tasks-count" class="card-value">0</span>
+                                <span class="card-label">Total Tasks Completed</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr class="section-divider">
 
-    <div id="wd-calendar-widget">
-        <h2>Task Calendar</h2>
-<div class="wd-calendar-legend">
-            <div class="legend-item">
-                <span class="legend-color-dot status-red"></span> Active Task
-            </div>
-            <div class="legend-item">
-                <span class="legend-color-dot status-yellow"></span> Pending Signature
-            </div>
-            <div class="legend-item legend-admin-only">
-                <span class="legend-color-dot status-green"></span> View-Only (Admin)
-            </div>
-        </div>
-        
-        <div id="wd-calendar-container">
-            <div id="wd-calendar-header">
-                <button id="wd-calendar-toggle-view" title="Toggle Year/Month View">Year View</button>
-                <button id="wd-calendar-prev" title="Previous month/year">&larr;</button>
-                <h3 id="wd-calendar-month-year">Month Year</h3>
-                <button id="wd-calendar-next" title="Next month/year">&rarr;</button>
-            </div>
-            <div id="wd-calendar-grid">
-                <div class="wd-calendar-day-name">Sun</div>
-                <div class="wd-calendar-day-name">Mon</div>
-                <div class="wd-calendar-day-name">Tue</div>
-                <div class="wd-calendar-day-name">Wed</div>
-                <div class="wd-calendar-day-name">Thu</div>
-                <div class="wd-calendar-day-name">Fri</div>
-                <div class="wd-calendar-day-name">Sat</div>
-            </div>
-            <div id="wd-calendar-year-grid" class="hidden">
-                </div>
-        </div>
-        <div id="wd-calendar-task-list">
-            <h3 id="wd-calendar-task-list-title">Select a day to see tasks</h3>
-            <ul id="wd-calendar-task-list-ul">
-               </ul>
-        </div>
-    </div>
-</section>
+                    <div id="wd-calendar-widget">
+                        <h2>Task Calendar</h2>
+                        <div class="wd-calendar-legend">
+                            <div class="legend-item">
+                                <span class="legend-color-dot status-red"></span> Active Task
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color-dot status-yellow"></span> Pending Signature
+                            </div>
+                            <div class="legend-item legend-admin-only">
+                                <span class="legend-color-dot status-green"></span> View-Only (Admin)
+                            </div>
+                        </div>
+                        
+                        <div id="wd-calendar-container">
+                            <div id="wd-calendar-header">
+                                <button id="wd-calendar-toggle-view" title="Toggle Year/Month View">Year View</button>
+                                <button id="wd-calendar-prev" title="Previous month/year">&larr;</button>
+                                <h3 id="wd-calendar-month-year">Month Year</h3>
+                                <button id="wd-calendar-next" title="Next month/year">&rarr;</button>
+                            </div>
+                            <div id="wd-calendar-grid">
+                                <div class="wd-calendar-day-name">Sun</div>
+                                <div class="wd-calendar-day-name">Mon</div>
+                                <div class="wd-calendar-day-name">Tue</div>
+                                <div class="wd-calendar-day-name">Wed</div>
+                                <div class="wd-calendar-day-name">Thu</div>
+                                <div class="wd-calendar-day-name">Fri</div>
+                                <div class="wd-calendar-day-name">Sat</div>
+                            </div>
+                            <div id="wd-calendar-year-grid" class="hidden">
+                                </div>
+                        </div>
+                        <div id="wd-calendar-task-list">
+                            <h3 id="wd-calendar-task-list-title">Select a day to see tasks</h3>
+                            <ul id="wd-calendar-task-list-ul">
+                               </ul>
+                        </div>
+                    </div>
+                </section>
 
-<section id="wd-dayview" class="workdesk-section hidden">
-    <div class="dayview-header">
-        <button id="wd-dayview-back-btn" class="secondary-btn" type="button"><i class="fa-solid fa-arrow-left"></i> Back to Calendar</button>
-        
-        <div class="dayview-date-nav">
-            <button id="wd-dayview-prev-btn" class="secondary-btn" title="Previous day">&larr;</button>
-            <h1 id="wd-dayview-title">Tasks for...</h1>
-            <button id="wd-dayview-next-btn" class="secondary-btn" title="Next day">&rarr;</button>
-        </div>
-        </div>
-    <div id="wd-dayview-task-list">        </div>
-</section>
+                <section id="wd-dayview" class="workdesk-section hidden">
 
+                    <div class="dayview-mobile-header-new">
+                        <button id="wd-dayview-mobile-menu-btn" class="dayview-mobile-icon-btn" type="button" title="Back to Calendar"><i class="fa-solid fa-bars"></i></button>
+                        <button id="wd-dayview-mobile-notify-btn" class="dayview-mobile-icon-btn" type="button" title="Notifications"><i class="fa-solid fa-bell"></i></button>
+                        <button id="wd-dayview-mobile-logout-btn-new" class="dayview-mobile-icon-btn dayview-mobile-logout" type="button" title="Logout"><i class="fa-solid fa-power-off"></i></button>
+                    </div>
+
+                    <div class="dayview-mobile-titles">
+                        <h1>My Task</h1>
+                        <p id="wd-dayview-mobile-date-subtitle">Today</p>
+                    </div>
+                    
+                    <div class="dayview-date-scroller">
+                        <div id="wd-dayview-date-scroller-inner">
+                            </div>
+                    </div>
+
+                    <div class="dayview-header">
+                        <button id="wd-dayview-back-btn" class="secondary-btn" type="button"><i class="fa-solid fa-arrow-left"></i> Back to Calendar</button>
+                        <div class="dayview-date-nav">
+                            <button id="wd-dayview-prev-btn" class="secondary-btn" title="Previous day">&larr;</button>
+                            <h1 id="wd-dayview-title">Tasks for...</h1>
+                            <button id="wd-dayview-next-btn" class="secondary-btn" title="Next day">&rarr;</button>
+                        </div>
+                    </div>
+                    
+                    <div class="dayview-task-container-blue">
+                        <div id="wd-dayview-task-list">
+                            </div>
+                    </div>
+                </section>
 
                 <section id="wd-jobentry" class="workdesk-section hidden">
                     <div class="jobentry-header-container">
@@ -166,7 +194,8 @@
                                     <option value="Transfer">Transfer</option>
                                     <option value="Trip">Trip</option>
                                     <option value="Report">Report</option>
-                                    <option value="Other">Other</option> </select>
+                                    <option value="Other">Other</option>
+                                </select>
                             </div>
                             <div class="form-group">
                                 <label for="job-ref">Reference</label>
@@ -215,7 +244,7 @@
                                 <button type="button" id="update-job-button" class="hidden">Update</button>
                                 <button type="button" id="clear-job-button" class="secondary-btn">Clear</button>
                                 <button type="button" id="delete-job-button" class="delete-btn hidden">Delete</button>
-                                </div>
+                            </div>
                         </div>
                          <div class="form-group hidden">
                             <label for="job-date">Date</label>
@@ -262,11 +291,7 @@
                     </div>
                     
                     <div id="active-task-filters" class="report-tabs" style="margin-bottom: 20px;">
-                        <button class="active" data-status-filter="All">All Tasks</button>
-                        <button data-status-filter="For SRV">For SRV</button>
-                        <button data-status-filter="Pending Signature">Pending Signature</button>
-                        <button data-status-filter="Other">Other</button>
-                    </div>
+                        </div>
                     <div class="table-wrapper">
                         <table class="mobile-optimized-table">
                             <thead>
@@ -465,6 +490,9 @@
                     <li><a href="#" id="im-logout-button"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</a></li>
                 </ul>
             </div>
+
+            <p class="version-display sidebar-version-display"></p>
+
         </aside>
 
         <aside id="im-entry-sidebar" class="im-entry-sidebar hidden">
@@ -479,32 +507,6 @@
 
                 <section id="im-dashboard" class="workdesk-section">
                     <h1>Dashboard</h1>
-                    <div class="im-dashboard-grid">
-                        <div class="im-chart-card">
-                            <h2>Top 5 Vendors</h2>
-                            <ul id="top-vendors-list" class="dashboard-top5-list"></ul>
-                        </div>
-                        <div class="im-chart-card">
-                            <h2>Top 5 Project Sites</h2>
-                            <ul id="top-projects-list" class="dashboard-top5-list"></ul>
-                        </div>
-                        <div class="im-chart-card">
-                            <h2>Top 5 Activities</h2>
-                            <ul id="top-activities-list" class="dashboard-top5-list"></ul>
-                        </div>
-                        <div class="im-chart-card full-width-card">
-                            <div class="dashboard-chart-header">
-                                <h2>Yearly Overview</h2>
-                                <div class="dashboard-chart-controls">
-                                    <select id="im-yearly-chart-year-select"></select>
-                                    <button id="im-dashboard-refresh-btn" class="secondary-btn" title="Force refresh data"><i class="fa-solid fa-sync"></i></button>
-                                </div>
-                            </div>
-                            <div class="im-chart-container-full">
-                                <canvas id="imYearlyChartCanvas"></canvas>
-                            </div>
-                        </div>
-                    </div>
                 </section>
 
                 <section id="im-invoice-entry" class="workdesk-section hidden">
@@ -581,7 +583,7 @@
                                 <input type="text" id="im-srv-name" name="srvName">
                             </div>
 
-	                   <div class="form-group">
+                           <div class="form-group">
                                 <label for="im-status">Status</label>
                                 <select id="im-status" name="status">
                                     <option value="For SRV">For SRV</option>
@@ -591,7 +593,7 @@
                                     <option value="CEO Approval">CEO Approval</option>
                                     <option value="Report">Report</option>
                                     <option value="With Accounts">With Accounts</option>
-				    <option value="Original PO">Original PO</option>
+                                    <option value="Original PO">Original PO</option>
                                 </select>
                             </div>
 
@@ -607,19 +609,19 @@
                         
                         
                         <div id="im-po-search-container-bottom" class="im-po-search-container-bottom">
-    <div class="search-bar-local">
-        <i class="fa-solid fa-magnifying-glass"></i>
-        <input type="text" id="im-po-search-input-bottom" placeholder="Enter New PO Number...">
-    </div>
-    <button id="im-po-search-button-bottom" type="button">Search PO</button>
-    <div class="form-buttons-container" style="margin-top: 0; padding-top: 0; border-top: none;">
-        <button type="button" id="im-add-invoice-button">Add Invoice</button>
-        <button type="button" id="im-update-invoice-button" class="hidden">Update Invoice</button>
-        <button type="button" id="im-clear-form-button" class="secondary-btn">Clear</button>
-        <button type="button" id="im-back-to-active-task-button" class="secondary-btn hidden">Back to Active Task</button>
-    </div>
-</div>
-                        </form>
+                            <div class="search-bar-local">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                                <input type="text" id="im-po-search-input-bottom" placeholder="Enter New PO Number...">
+                            </div>
+                            <button id="im-po-search-button-bottom" type="button">Search PO</button>
+                            <div class="form-buttons-container" style="margin-top: 0; padding-top: 0; border-top: none;">
+                                <button type="button" id="im-add-invoice-button">Add Invoice</button>
+                                <button type="button" id="im-update-invoice-button" class="hidden">Update Invoice</button>
+                                <button type="button" id="im-clear-form-button" class="secondary-btn">Clear</button>
+                                <button type="button" id="im-back-to-active-task-button" class="secondary-btn hidden">Back to Active Task</button>
+                            </div>
+                        </div>
+                    </form>
 
                     <div id="im-existing-invoices-container" class="hidden">
                          <hr class="section-divider">
@@ -657,7 +659,7 @@
                                         <td colspan="3"></td>
                                     </tr>
                                 </tfoot>
-                                </table>
+                            </table>
                         </div>
                     </div>
                 </section>
@@ -676,7 +678,7 @@
                             <select id="im-batch-note-search-select" placeholder="Search by Note..."></select>
                         </div>
                         <button id="im-batch-search-by-note-button" type="button" class="secondary-btn" style="background-color: #ffc107; color: #212529;">Search by Note</button>
-			<button id="im-batch-clear-button" type="button" class="secondary-btn" style="background-color: #dc3545;">Clear Batch</button>
+                        <button id="im-batch-clear-button" type="button" class="secondary-btn" style="background-color: #dc3545;">Clear Batch</button>
                     </div>
                     <div id="im-batch-global-controls" class="search-and-filter-group" style="margin-bottom: 20px; background-color: #f8f9fa; padding: 15px; border-radius: 6px;">
                         <div class="form-group" style="flex: 1; min-width: 200px; margin: 0;">
@@ -770,7 +772,7 @@
                             <button type="button" id="summary-note-generate-btn">Generate Summary</button>
                             <button type="button" id="summary-note-update-btn" class="secondary-btn">Update Changes</button>
                             <button type="button" id="summary-note-print-btn" class="print-btn"><i class="fa-solid fa-print"></i> Print</button>
-			<button type="button" id="summary-note-clear-btn" class="secondary-btn" style="background-color: #dc3545;">Clear</button>
+                            <button type="button" id="summary-note-clear-btn" class="secondary-btn" style="background-color: #dc3545;">Clear</button>
                         </div>
                     </div>
 
@@ -785,18 +787,18 @@
                         <div class="sn-print-header">
                             <div class="sn-print-company">
                                 <h2>ISMAIL BIN ALI TRADING & CONT. CO. W.L.L</h2>
-                                </div>
+                            </div>
                             <div class="sn-print-title">
                                 <h1>PAYMENT SUMMARY</h1>
                                 <p id="sn-date">Date: 14-October-2025</p>
                             </div>
                         </div>
 
-			<div class="sn-vendor-info">
-                        <div class="sn-vendor-summary-title">
-                            <p><strong>Summary for :</strong> <span id="sn-vendor-name"></span></p>
+                        <div class="sn-vendor-info">
+                            <div class="sn-vendor-summary-title">
+                                <p><strong>Summary for :</strong> <span id="sn-vendor-name"></span></p>
+                            </div>
                         </div>
-                    </div>
 
                         <div class="sn-payment-details">
                             <div><strong>Previous Payment:</strong> <span id="sn-previous-payment"></span></div>
@@ -835,21 +837,76 @@
                             <div>CEO</div>
                         </div>
                     </div>
-                    </section>
+                </section>
 
 
                 <section id="im-reporting" class="workdesk-section hidden">
                     <div class="report-header">
                         <h1>Invoice Summary Report <span id="reporting-count-display" class="table-count-display"></span></h1>
+                        
+                        <button id="im-mobile-search-btn" class="im-mobile-search-btn" type="button">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                        </button>
+                        
                         <div class="daily-report-section">
                            <input type="date" id="im-daily-report-date" title="Select a date for the daily report">
                            <button id="im-download-daily-report-button" class="download-btn" type="button"><i class="fa-solid fa-calendar-day"></i> Daily Entry Report</button>
                            <button id="im-download-with-accounts-report-button" class="download-btn" type="button"><i class="fa-solid fa-file-invoice-dollar"></i> With Accounts Report</button>
                         </div>
                     </div>
-                     <div class="reporting-legend">
-                        <div class="legend-item"><span class="legend-color" style="background-color: #e0f7fa;"></span> Partially Paid</div>
-                        <div class="legend-item"><span class="legend-color" style="background-color: #fff3e0;"></span> Fully Paid</div>
+                                     
+                    <div id="im-mobile-search-modal" class="modal-overlay hidden">
+                        <div class="modal-container im-search-modal-container">
+                            <div class="modal-header">
+                                <h2>Search Report</h2>
+                                <button class="modal-close-btn" data-modal-id="im-mobile-search-modal">&times;</button>
+                            </div>
+                            <div class="modal-content">
+                                <form id="im-mobile-search-form">
+                                    <div class="form-group">
+                                        <label for="im-mobile-search-term">PO or Vendor</label>
+                                        <input type="text" id="im-mobile-search-term" placeholder="Enter PO or Vendor...">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="im-mobile-site-filter">Site</label>
+                                        <select id="im-mobile-site-filter" name="site-filter">
+                                            <option value="">All Sites</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="im-mobile-status-filter">Status</label>
+                                        <select id="im-mobile-status-filter" name="status-filter">
+                                            <option value="">All Statuses</option>
+                                            <option value="For SRV">For SRV</option>
+                                            <option value="Pending">Pending</option>
+                                            <option value="For IPC">For IPC</option>
+                                            <option value="Under Review">Under Review</option>
+                                            <option value="CEO Approval">CEO Approval</option>
+                                            <option value="Report">Report</option>
+                                            <option value="With Accounts">With Accounts</option>
+                                            <option value="On Hold">On Hold</option>
+                                            <option value="CLOSED">CLOSED</option>
+                                            <option value="Cancelled">Cancelled</option>
+                                            <option value="Paid">Paid</option>
+                                            <option value="Original PO">Original PO</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="im-mobile-date-filter">Release Month</label>
+                                        <input type="month" id="im-mobile-date-filter" title="Filter by Release Month">
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="modal-footer" style="justify-content: space-between;">
+                                <button id="im-mobile-search-clear-btn" type="button" class="secondary-btn">Clear</button>
+                                <button id="im-mobile-search-run-btn" type="button">Search</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="reporting-legend">
+                        <div class="legend-item"><span class="legend-color" style="background-color: #d9eef2;"></span> Partially Paid</div>
+                        <div class="legend-item"><span class="legend-color" style="background-color: #f7f3d9;"></span> Fully Paid</div>
                     </div>
                     <form id="im-reporting-form" class="report-controls">
                         <div class="search-and-filter-group">
@@ -872,8 +929,8 @@
                                 <option value="On Hold">On Hold</option>
                                 <option value="CLOSED">CLOSED</option>
                                 <option value="Cancelled">Cancelled</option>
-				<option value="Paid">Paid</option>
-				<option value="Original PO">Original PO</option>
+                                <option value="Paid">Paid</option>
+                                <option value="Original PO">Original PO</option>
 
                             </select>
                             <input type="month" id="im-reporting-date-filter" title="Filter by Release Month">
@@ -887,12 +944,12 @@
                         </div>
                     </form>
                     <div id="im-reporting-content" class="table-wrapper">
-    <p>Enter a search term and click Search to load data.</p>
-</div>
-
-<div id="im-reporting-mobile-view">
-    </div>
-</section>
+                        <p>Enter a search term and click Search to load data.</p>
+                    </div>
+                    
+                    <div id="im-reporting-mobile-view">
+                        </div>
+                </section>
 
                 <section id="im-payments" class="workdesk-section hidden">
                     <h1>Process Payments <span id="payments-count-display" class="table-count-display"></span></h1>
@@ -913,7 +970,8 @@
                                     <th>Amount To Paid</th>
                                     <th>Release Date</th>
                                     <th>Status</th>
-                                    <th></th> </tr>
+                                    <th></th> 
+                                </tr>
                             </thead>
                             <tbody id="im-payments-table-body">
                                 </tbody>
@@ -942,7 +1000,8 @@
                             <div id="im-finance-no-results" style="display: none; padding: 15px; background-color: #fff3cd; border-radius: 6px;">
                                 No payments found for this PO No.
                             </div>
-                            <div id="im-finance-results-body"></div>
+                            <div id="im-finance-results-body">
+                                </div>
                         </div>
                     </div>
                 </section>
@@ -951,7 +1010,6 @@
             </div>
         </main>
     </div>
-
     <div id="vacation-replacement-modal" class="modal-overlay hidden">
         <div class="modal-container">
             <div class="modal-header">
@@ -991,6 +1049,7 @@
             </div>
         </div>
     </div>
+    
     <div id="modify-task-modal" class="modal-overlay hidden">
         <div class="modal-container">
             <div class="modal-header">
@@ -1082,7 +1141,7 @@
                 </div>
                 <div id="im-payment-modal-results" class="table-wrapper" style="max-height: 40vh; overflow-y: auto;">
                     <p>Enter a PO number to see invoices ready for payment.</p>
-                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button id="im-payment-modal-add-selected-btn" class="download-btn"><i class="fa-solid fa-plus"></i> Add Selected to Payment List</button>

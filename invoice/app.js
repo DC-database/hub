@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "2.4.0"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "2.7.0"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -641,6 +641,54 @@ function formatFinanceDateLong(dateStr) {
   return `${day}-${month}-${year}`;
 }
 // ++ END of new helper functions ++
+
+// [ADD THIS ENTIRE NEW FUNCTION]
+
+// ++ NEW: Generates the 7-day mobile scroller ++
+function generateDateScroller(selectedDate) { // selectedDate is "YYYY-MM-DD"
+    const scrollerInner = document.getElementById('wd-dayview-date-scroller-inner');
+    if (!scrollerInner) return;
+
+    const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+    let html = '';
+
+    // Create date object from string, ensuring it's treated as local/UTC
+    const parts = selectedDate.split('-').map(Number);
+    const centerDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+
+    for (let i = -3; i <= 3; i++) {
+        const currentDate = new Date(centerDate);
+        currentDate.setUTCDate(centerDate.getUTCDate() + i);
+
+        const dayNum = String(currentDate.getUTCDate()).padStart(2, '0');
+        const dayInitial = days[currentDate.getUTCDay()];
+        
+        // Format this date back to YYYY-MM-DD
+        const year = currentDate.getUTCFullYear();
+        const month = String(currentDate.getUTCMonth() + 1).padStart(2, '0');
+        const dateStr = `${year}-${month}-${dayNum}`;
+
+        const isActive = (dateStr === selectedDate) ? 'active' : '';
+
+        html += `
+            <div class="day-scroller-item ${isActive}" data-date="${dateStr}">
+                <span class="day-scroller-num">${dayNum}</span>
+                <span class="day-scroller-char">${dayInitial}</span>
+            </div>
+        `;
+    }
+
+    scrollerInner.innerHTML = html;
+
+    // Scroll the active item into view
+    setTimeout(() => {
+        const activeItem = scrollerInner.querySelector('.day-scroller-item.active');
+        if (activeItem) {
+            activeItem.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        }
+    }, 100);
+}
+
 
 
 function numberToWords(num) {
@@ -1446,10 +1494,10 @@ function displayCalendarTasksForDay(date) { // date is "2025-11-09"
     // --- *** END OF NEW LISTENER *** ---
 
 
-// --- *** NEW: FUNCTION TO SHOW DAY VIEW *** ---
+// [REPLACE the old showDayView function with this one]
+
+// --- *** NEW: FUNCTION TO SHOW DAY VIEW (with Mobile UI) *** ---
 function showDayView(date) { // date is "2025-11-09"
-    // --- *** NEW: Store the current date *** ---
-    // We use UTC to avoid timezone-off-by-one errors when adding days
     try {
         const parts = date.split('-').map(Number);
         wdCurrentDayViewDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
@@ -1457,7 +1505,6 @@ function showDayView(date) { // date is "2025-11-09"
         console.error("Invalid date passed to showDayView:", date, e);
         return; // Stop if the date is bad
     }
-    // --- *** END NEW *** ---
 
     // 1. Hide all main sections
     workdeskSections.forEach(section => {
@@ -1468,9 +1515,32 @@ function showDayView(date) { // date is "2025-11-09"
     const dayViewSection = document.getElementById('wd-dayview');
     dayViewSection.classList.remove('hidden');
 
-    // 3. Set the title
+    // 3. Set the title (for desktop)
     const friendlyDate = formatYYYYMMDD(date);
     document.getElementById('wd-dayview-title').textContent = `Tasks for ${friendlyDate}`;
+
+    // --- *** NEW MOBILE UI POPULATION *** ---
+    // a. Set the mobile subtitle
+    const mobileSubtitle = document.getElementById('wd-dayview-mobile-date-subtitle');
+    if (mobileSubtitle) {
+        const todayStr = getTodayDateString(); // "YYYY-MM-DD"
+        if (date === todayStr) {
+            mobileSubtitle.textContent = 'Today';
+        } else {
+            // Format as "Monday, 10 November"
+            const subtitleDate = new Date(date + 'T00:00:00'); // Treat as local
+            mobileSubtitle.textContent = subtitleDate.toLocaleDateString('en-GB', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long'
+            });
+        }
+    }
+
+    // b. Generate the 7-day scroller
+    generateDateScroller(date);
+    // --- *** END OF NEW MOBILE UI *** ---
+
 
     // 4. Get the correct tasks
     const isAdmin = (currentApprover.Role || '').toLowerCase() === 'admin';
@@ -1486,7 +1556,7 @@ function showDayView(date) { // date is "2025-11-09"
     taskListDiv.innerHTML = ''; // Clear old tasks
 
     if (tasks.length === 0) {
-        taskListDiv.innerHTML = '<p>No tasks found for this day.</p>';
+        taskListDiv.innerHTML = '<p style="padding: 20px; text-align: center; color: #555;">No tasks found for this day.</p>';
         return;
     }
 
@@ -1494,13 +1564,11 @@ function showDayView(date) { // date is "2025-11-09"
         const card = document.createElement('div');
         card.className = 'dayview-task-card';
 
-        // --- *** NEW: Add data for click listener *** ---
         if (isAdmin && task.po) {
-            card.classList.add('admin-clickable-task'); // Make it look clickable
-            card.dataset.po = task.po; // Store the PO
+            card.classList.add('admin-clickable-task'); 
+            card.dataset.po = task.po; 
             card.title = `Admin: Double-click to search for PO ${task.po} in IM Reporting`;
         }
-        // --- *** END OF NEW DATA *** ---
 
         const mainInfo = task.po ? `PO: ${task.po}` : (task.ref || 'General Task');
         const amountDisplay = (task.amount && parseFloat(task.amount) > 0) 
@@ -1511,6 +1579,8 @@ function showDayView(date) { // date is "2025-11-09"
             ? `<div class="task-detail-item note"><span class="label">Note:</span> ${task.note}</div>` 
             : '';
 
+        // --- *** MODIFICATION TO MATCH MOCKUP *** ---
+        // The mockup shows "Job:", "Vendor:", "Site:", "Status:"
         card.innerHTML = `
             <strong>${mainInfo}${amountDisplay}</strong>
             <div class="task-details-grid">
@@ -1529,11 +1599,11 @@ function showDayView(date) { // date is "2025-11-09"
                 ${noteHTML}
             </div>
         `;
+        // --- *** END OF MODIFICATION *** ---
+        
         taskListDiv.appendChild(card);
     });
 }
-// --- *** END OF NEW FUNCTION *** ---
-
 // --- END OF displayCalendarTasksForDay ---
 
 
@@ -4239,108 +4309,127 @@ async function populateInvoiceDashboard(forceRefresh = false) {
 }
 
 
-// === REPLACE buildMobileReportView WITH THIS CORRECTED VERSION ===
+// [REPLACE this entire function in app.js]
 
 // NEW HELPER 1: Builds the new mobile card UI, supporting multiple POs
 function buildMobileReportView(reportData) {
     const container = document.getElementById('im-reporting-mobile-view');
     if (!container) return;
 
-    if (reportData.length === 0) {
-        container.innerHTML = '<p>No results found for your search criteria.</p>';
-        return;
-    }
-    
+    // Get permissions
     const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
     const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
     const canViewAmounts = isAdmin || isAccounting;
 
+    if (reportData.length === 0) {
+        container.innerHTML = `
+            <div class="im-mobile-empty-state">
+                <i class="fa-solid fa-file-circle-question"></i>
+                <h3>No Results Found</h3>
+                <p>No POs matched your search criteria. Try a different search.</p>
+            </div>
+        `;
+        return;
+    }
+
     let mobileHTML = '';
     
+    // --- THIS IS THE "OPTION A" (Vertical List) LAYOUT ---
     reportData.forEach((poData, poIndex) => {
         const { poNumber, site, vendor, poDetails, filteredInvoices } = poData;
         const toggleId = `mobile-invoice-list-${poIndex}`;
         
-        // --- START: NEW COLOR LOGIC ---
         let statusClass = 'status-pending'; // Default color
-        
+        let totalInvValue = 0; // For card logic
+
         if (filteredInvoices.length > 0 && canViewAmounts) {
             const poValueNum = parseFloat(poDetails.Amount) || 0;
-            const totalInvValue = filteredInvoices.reduce((sum, inv) => sum + (parseFloat(inv.invValue) || 0), 0);
+            totalInvValue = filteredInvoices.reduce((sum, inv) => sum + (parseFloat(inv.invValue) || 0), 0);
             
             const epsilon = 0.01;
             const isFullyMatched = poValueNum > 0 && (Math.abs(totalInvValue - poValueNum) < epsilon);
-            
-            // Check for any Paid invoices to determine if we use 'Complete' or 'Progress'
             const hasPaidInvoices = filteredInvoices.some(inv => inv.status === 'Paid');
 
             if (isFullyMatched) {
-                // If total invoice value matches PO value, assume completed/fully paid logic
-                statusClass = 'status-complete'; 
-            } else if (hasPaidInvoices || filteredInvoices.some(inv => inv.status !== 'Paid' && inv.status !== 'Pending')) {
-                // If it's partially paid OR has any status that shows action (e.g., For SRV, With Accounts)
-                statusClass = 'status-progress';
+                statusClass = 'status-complete'; // Yellow-ish
+            } else if (hasPaidInvoices || totalInvValue > 0) {
+                statusClass = 'status-progress'; // Blue-ish
             }
+            // If totalInvValue is 0 and no paid invoices, it stays 'status-pending'
         }
-        // --- END: NEW COLOR LOGIC ---
-
-
+        
         const poValueDisplay = canViewAmounts ? `QAR ${formatCurrency(poDetails.Amount)}` : '---';
         
+        // This is the main "PO Card"
         mobileHTML += `
             <div class="im-mobile-report-container">
                 <div class="im-po-balance-card ${statusClass}" 
                      data-toggle-target="#${toggleId}" 
                      style="cursor: pointer;">
                     
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div class="po-card-header">
                         <div>
-                            <h3>PO: ${poNumber}</h3>
-                            <p class="po-vendor">${vendor}</p>
+                            <span class="po-card-vendor">${vendor}</span>
+                            <h3 class="po-card-ponum">PO: ${poNumber}</h3>
                         </div>
-                        <i class="fa-solid fa-chevron-down" style="font-size: 1.2rem; transition: transform 0.3s;"></i>
+                        <i class="fa-solid fa-chevron-down po-card-chevron"></i>
                     </div>
 
-                    <div class="po-value">${poValueDisplay}</div>
-                    <div class="po-site">Site: ${site}</div>
+                    <div class="po-card-body">
+                        <span class="po-card-label">Total PO Value</span>
+                        <span class="po-card-value">${poValueDisplay}</span>
+                        <span class="po-card-site">Site: ${site}</span>
+                    </div>
                 </div>
 
                 <div id="${toggleId}" class="hidden-invoice-list"> 
                     <div class="im-invoice-list-header">
-                        <h2>Invoice Entries (${poNumber})</h2>
+                        <h2>Transactions (${filteredInvoices.length})</h2>
                     </div>
                     <ul class="im-invoice-list">
         `;
 
         if (filteredInvoices.length === 0) {
-            mobileHTML += '<p style="padding-left: 15px;">No invoices found matching all criteria for this PO.</p>';
+            mobileHTML += '<li class="im-invoice-item-empty">No invoices found for this PO.</li>';
         } else {
-            let counter = 1;
+            // Sort invoices by Entry ID
+            filteredInvoices.sort((a, b) => (a.invEntryID || '').localeCompare(b.invEntryID || ''));
+            
             filteredInvoices.forEach(inv => {
-                const releaseDateDisplay = inv.releaseDate ? new Date(normalizeDateForInput(inv.releaseDate) + 'T00:00:00').toLocaleDateString('en-GB') : 'N/A';
-                
                 const invValueDisplay = canViewAmounts ? `QAR ${formatCurrency(inv.invValue)}` : '---';
-                const amountPaidDisplay = canViewAmounts ? `Paid: QAR ${formatCurrency(inv.amountPaid)}` : 'Status: Paid';
+                
+                // --- *** THIS IS THE NEW LINE *** ---
+                const releaseDateDisplay = inv.releaseDate ? formatYYYYMMDD(inv.releaseDate) : '';
+                // --- *** END OF NEW LINE *** ---
+
+                // Determine transaction icon and color
+                let iconClass, amountClass;
+                if ((inv.status || '').toLowerCase() === 'paid') {
+                    iconClass = 'fa-solid fa-check';
+                    amountClass = 'paid'; // Green
+                } else if ((inv.status || '').toLowerCase() === 'with accounts') {
+                    iconClass = 'fa-solid fa-file-invoice-dollar';
+                    amountClass = 'pending'; // Red
+                } else {
+                    iconClass = 'fa-solid fa-hourglass-half';
+                    amountClass = 'pending'; // Red
+                }
 
                 mobileHTML += `
                     <li class="im-invoice-item">
-                        <div class="invoice-count">${counter}</div>
-                        <div class="invoice-details">
-                            <div class="invoice-main-info">
-                                ${inv.invNumber || 'No Inv. #'}
-                                <span>(Rel: ${releaseDateDisplay})</span>
+                        <div class="im-tx-icon ${amountClass}">
+                            <i class="${iconClass}"></i>
+                        </div>
+                        <div class="im-tx-details">
+                            <span class="im-tx-title">${inv.invEntryID || 'Invoice'}</span>
+                            <span class="im-tx-subtitle">${inv.status || 'N/A'}</span>
+                            <span class="im-tx-date">${releaseDateDisplay}</span>
                             </div>
-                            <div class="invoice-amounts">
-                                <span class="amount-value">${invValueDisplay}</span>
-                                <span class="amount-paid">${amountPaidDisplay}</span>
-                            </div>
-                            <div class="invoice-status">
-                                Status: ${inv.status || 'N/A'}
-                            </div>
+                        <div class="im-tx-amount">
+                            <span class="im-tx-value ${amountClass}">${invValueDisplay}</span>
                         </div>
                     </li>
                 `;
-                counter++;
             });
         }
 
@@ -4349,6 +4438,9 @@ function buildMobileReportView(reportData) {
     
     container.innerHTML = mobileHTML;
 }
+
+// [REPLACE this entire function]
+
 // NEW HELPER 2: This is your *existing* logic, moved into its own function
 function buildDesktopReportView(reportData) {
     const container = document.getElementById('im-reporting-content');
@@ -4436,6 +4528,9 @@ function buildDesktopReportView(reportData) {
     container.innerHTML = tableHTML;
 }
 
+
+// [REPLACE this entire function]
+
 // THIS IS THE MODIFIED MAIN FUNCTION
 async function populateInvoiceReporting(searchTerm = '') {
     sessionStorage.setItem('imReportingSearch', searchTerm);
@@ -4451,7 +4546,13 @@ async function populateInvoiceReporting(searchTerm = '') {
     const mobileContainer = document.getElementById('im-reporting-mobile-view');
     
     if (isMobile) {
-        if (mobileContainer) mobileContainer.innerHTML = '<p>Searching... Please wait.</p>';
+        if (mobileContainer) mobileContainer.innerHTML = `
+            <div class="im-mobile-empty-state">
+                <i class="fa-solid fa-spinner fa-spin"></i>
+                <h3>Searching...</h3>
+                <p>Please wait a moment.</p>
+            </div>
+        `;
         if (desktopContainer) desktopContainer.innerHTML = ''; // Clear desktop view
     } else {
         if (desktopContainer) desktopContainer.innerHTML = '<p>Searching... Please wait.</p>';
@@ -4459,9 +4560,13 @@ async function populateInvoiceReporting(searchTerm = '') {
     }
     // --- (END NEW) ---
 
+    // --- THIS IS THE FIX ---
+    // Read values from the *desktop* form, which is now synced by the modal
     const siteFilter = document.getElementById('im-reporting-site-filter').value;
     const monthFilter = document.getElementById('im-reporting-date-filter').value;
     const statusFilter = document.getElementById('im-reporting-status-filter').value;
+    // --- END OF FIX ---
+
 
     try {
         await ensureInvoiceDataFetched();
@@ -6015,13 +6120,22 @@ function debounce(func, wait) {
     };
 }
 
+
 // --- EVENT LISTENERS ---
 document.addEventListener('DOMContentLoaded', async () => {
-// --- ADD THIS LINE ---
+    // --- ADD THIS LINE ---
     if(document.getElementById('app-version-display')) {
         document.getElementById('app-version-display').textContent = `Version ${APP_VERSION}`;
     }
     // --- END OF ADDITION ---
+
+    // --- *** ADD THIS NEW BLOCK *** ---
+    const sidebarVersionDisplays = document.querySelectorAll('.sidebar-version-display');
+    sidebarVersionDisplays.forEach(el => {
+        el.textContent = `Version ${APP_VERSION}`;
+    });
+    // --- *** END OF NEW BLOCK *** ---
+
     const savedApproverKey = sessionStorage.getItem('approverKey');
     if (savedApproverKey) {
         currentApprover = await getApproverByKey(savedApproverKey);
@@ -6051,6 +6165,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         wdUsername.textContent = currentApprover.Name || 'User';
         wdUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile;
 // --- === ADD THIS LINE === ---
+
         document.body.classList.toggle('is-admin', (currentApprover?.Role || '').toLowerCase() === 'admin');
         // --- === END OF ADDITION === ---
         // ++ MODIFIED: Show IM link for everyone ++
@@ -6391,6 +6506,53 @@ document.addEventListener('DOMContentLoaded', async () => {
         dayViewNextBtn.addEventListener('click', () => navigateDayView(1));
     }
     // --- *** END OF NEW LISTENERS *** ---
+
+
+// [ADD THIS NEW BLOCK inside the DOMContentLoaded listener]
+
+    // --- *** NEW: Mobile Day View Listeners *** ---
+    const mobileMenuBtn = document.getElementById('wd-dayview-mobile-menu-btn');
+    const mobileNotifyBtn = document.getElementById('wd-dayview-mobile-notify-btn');
+    const mobileLogoutBtn = document.getElementById('wd-dayview-mobile-logout-btn-new');
+    const dateScroller = document.getElementById('wd-dayview-date-scroller-inner');
+
+    if (mobileMenuBtn) {
+        mobileMenuBtn.addEventListener('click', () => {
+            // This just clicks the original "Back to Calendar" button
+            const backBtn = document.getElementById('wd-dayview-back-btn');
+            if (backBtn) backBtn.click();
+        });
+    }
+
+    if (mobileNotifyBtn) {
+        mobileNotifyBtn.addEventListener('click', () => {
+            alert('Notifications not yet implemented.');
+        });
+    }
+
+    if (mobileLogoutBtn) {
+        mobileLogoutBtn.addEventListener('click', () => {
+            handleLogout();
+        });
+    }
+
+    if (dateScroller) {
+        dateScroller.addEventListener('click', (e) => {
+            const dayItem = e.target.closest('.day-scroller-item');
+            if (dayItem && dayItem.dataset.date) {
+                // Remove 'active' from old item
+                const oldActive = dateScroller.querySelector('.day-scroller-item.active');
+                if (oldActive) oldActive.classList.remove('active');
+                
+                // Add 'active' to new item
+                dayItem.classList.add('active');
+                
+                // Load the new day's tasks
+                showDayView(dayItem.dataset.date);
+            }
+        });
+    }
+    // --- *** END OF NEW MOBILE LISTENERS *** ---
 
 // --- *** NEW: 'Enter' key listener for Active Task (Conditional) *** ---
     document.addEventListener('keydown', (e) => {
@@ -7301,5 +7463,103 @@ document.addEventListener('click', (e) => {
         }
     }
 }); 
+
+// [ADD THIS NEW BLOCK AT THE END OF YOUR DOMContentLoaded LISTENER]
+
+// --- *** NEW: IM MOBILE REPORTING MODAL LISTENERS *** ---
+const imMobileSearchBtn = document.getElementById('im-mobile-search-btn');
+const imMobileSearchModal = document.getElementById('im-mobile-search-modal');
+const imMobileSearchRunBtn = document.getElementById('im-mobile-search-run-btn');
+const imMobileSearchClearBtn = document.getElementById('im-mobile-search-clear-btn');
+const imMobileSearchCloseBtn = document.querySelector('[data-modal-id="im-mobile-search-modal"]');
+
+// Search Form Inputs (Desktop)
+const desktopSearchInput = document.getElementById('im-reporting-search');
+const desktopSiteFilter = document.getElementById('im-reporting-site-filter');
+const desktopStatusFilter = document.getElementById('im-reporting-status-filter');
+const desktopDateFilter = document.getElementById('im-reporting-date-filter');
+
+// Search Form Inputs (Mobile Modal)
+const mobileSearchInput = document.getElementById('im-mobile-search-term');
+const mobileSiteFilter = document.getElementById('im-mobile-site-filter');
+const mobileStatusFilter = document.getElementById('im-mobile-status-filter');
+const mobileDateFilter = document.getElementById('im-mobile-date-filter');
+
+// 1. Open the search modal
+if (imMobileSearchBtn) {
+    imMobileSearchBtn.addEventListener('click', () => {
+        // Sync mobile form WITH desktop form
+        mobileSearchInput.value = desktopSearchInput.value;
+        mobileSiteFilter.value = desktopSiteFilter.value;
+        mobileStatusFilter.value = desktopStatusFilter.value;
+        mobileDateFilter.value = desktopDateFilter.value;
+        
+        // --- THIS IS THE FIX ---
+        // Copy the site options from desktop to mobile
+        if (desktopSiteFilter.options.length > 1 && mobileSiteFilter.options.length <= 1) {
+            mobileSiteFilter.innerHTML = desktopSiteFilter.innerHTML;
+        }
+        // --- END OF FIX ---
+
+        if (imMobileSearchModal) {
+            imMobileSearchModal.classList.remove('hidden');
+        }
+    });
+}
+
+// 2. Close the search modal
+if (imMobileSearchCloseBtn) {
+    imMobileSearchCloseBtn.addEventListener('click', () => {
+        if (imMobileSearchModal) {
+            imMobileSearchModal.classList.add('hidden');
+        }
+    });
+}
+
+// 3. Clear the search modal form
+if (imMobileSearchClearBtn) {
+    imMobileSearchClearBtn.addEventListener('click', () => {
+        // Clear mobile form
+        mobileSearchInput.value = '';
+        mobileSiteFilter.value = '';
+        mobileStatusFilter.value = '';
+        mobileDateFilter.value = '';
+        
+        // ALSO clear desktop form
+        desktopSearchInput.value = '';
+        desktopSiteFilter.value = '';
+        desktopStatusFilter.value = '';
+        desktopDateFilter.value = '';
+        
+        // Clear session storage
+        sessionStorage.removeItem('imReportingSearch');
+        
+        // Clear the results
+        populateInvoiceReporting('');
+    });
+}
+
+// 4. Run the search from the modal
+if (imMobileSearchRunBtn) {
+    imMobileSearchRunBtn.addEventListener('click', () => {
+        // Sync desktop form FROM mobile form
+        desktopSearchInput.value = mobileSearchInput.value;
+        desktopSiteFilter.value = mobileSiteFilter.value;
+        desktopStatusFilter.value = mobileStatusFilter.value;
+        desktopDateFilter.value = mobileDateFilter.value;
+        
+        // Save to session storage
+        sessionStorage.setItem('imReportingSearch', desktopSearchInput.value);
+        
+        // Run the search
+        populateInvoiceReporting(desktopSearchInput.value);
+        
+        // Hide the modal
+        if (imMobileSearchModal) {
+            imMobileSearchModal.classList.add('hidden');
+        }
+    });
+}
+// --- *** END OF NEW MOBILE LISTENERS *** ---
 
 }); // END OF DOMCONTENTLOADED

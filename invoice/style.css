@@ -559,7 +559,6 @@ tbody tr:hover { background-color: #f1f1f1; }
     margin-bottom: 0;
     font-weight: normal;
 }
-
 /* --- INVOICE MANAGEMENT DASHBOARD --- */
 /* ++ NEW: Dark theme for IM Dashboard ++ */
 #im-dashboard {
@@ -1518,7 +1517,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     body.workdesk-print-active #reporting-printable-area.printing .report-controls,
     body.workdesk-print-active #reporting-printable-area.printing .report-header,
     body.workdesk-print-active #reporting-printable-area.printing .report-tabs-container,
-    body.workdesk-print-active #reporting-printable-area.printing .report-buttons-group {
+    body.workd-e-s-k-print-active #reporting-printable-area.printing .report-buttons-group {
         display: none !important;
         visibility: hidden !important;
     }
@@ -1788,6 +1787,20 @@ body.is-admin .legend-admin-only {
     }
 }
 /* === END OF NEW RULE === */
+
+/* --- FIX FOR DESKTOP VIEW (Hides Mobile Elements) --- */
+@media (min-width: 769px) {
+  .dayview-mobile-header-new,
+  .dayview-mobile-titles,
+  .dayview-date-scroller {
+    display: none !important;
+  }
+
+  /* This rule ensures the DESKTOP header is visible on desktop */
+  #wd-dayview .dayview-header {
+    display: flex !important;
+  }
+}
 
 #wd-calendar-task-list {
     margin-top: 20px;
@@ -2110,6 +2123,15 @@ body.is-admin .legend-admin-only {
     }
     /* === END OF ADDITION === */
 
+/* --- FIX FOR MOBILE DATE SCROLLER --- */
+@media (max-width: 768px) {
+  #wd-dayview-date-scroller-inner {
+    display: flex !important; /* This forces it to be horizontal */
+    gap: 15px;
+    padding: 0 5px;
+  }
+}
+
 /* MOBILE RESPONSIVE STYLES */
 @media (max-width: 768px) {
     #workdesk-datetime, #im-datetime { text-align: center; margin-top: 15px; margin-bottom: 0; order: -1; }
@@ -2210,7 +2232,7 @@ body.is-admin .legend-admin-only {
         display: none;
     }
 
-    /* === THIS RULE WAS COMMENTED OUT / REMOVED === */
+    /* === THIS RULE WAS COMMENTLED OUT / REMOVED === */
     /* #invoice-management-view .workdesk-navigation ul li:not(:has(a[data-section="im-reporting"])) {
         display: none;
     } */
@@ -2323,35 +2345,7 @@ body.is-admin .legend-admin-only {
 
 }
 
-// --- *** ADDED LISTENERS FOR YEAR VIEW *** ---
-    if (wdCalendarToggleBtn) {
-        wdCalendarToggleBtn.addEventListener('click', toggleCalendarView);
-    }
-
-    if (wdCalendarYearGrid) {
-        wdCalendarYearGrid.addEventListener('click', (e) => {
-            const monthCell = e.target.closest('.wd-calendar-month-cell');
-            if (!monthCell) return;
-
-            const monthIndex = parseInt(monthCell.dataset.month, 10);
-            if (isNaN(monthIndex)) return;
-
-            // Set the global date to this month
-            wdCurrentCalendarDate.setMonth(monthIndex);
-            
-            // Toggle back to the month view
-            toggleCalendarView();
-
-            // Display tasks for the first day of that month
-            const firstDay = new Date(wdCurrentCalendarDate.getFullYear(), monthIndex, 1);
-            const firstDayStr = firstDay.toISOString().split('T')[0];
-            displayCalendarTasksForDay(firstDayStr);
-        });
-    }
-    // --- *** END OF NEW LISTENERS *** ---
-
-
-}); // END OF DOMCONTENTLOADED
+}
 
 /* +++ CACHE STATUS INDICATOR +++ */
 .cache-status {
@@ -2597,3 +2591,484 @@ body.is-admin .legend-admin-only {
 .im-po-balance-card.status-pending:hover { background-color: #e8ecf4; }
 .im-po-balance-card.status-progress:hover { background-color: #d8edf7; }
 .im-po-balance-card.status-complete:hover { background-color: #f7f4d3; }
+
+}
+
+/* === NEW: MOBILE DAY VIEW STYLES (Header, Title, Scroller) === */
+
+/* --- FIX: Hide new mobile elements on desktop by default --- */
+.dayview-mobile-header-new,
+.dayview-mobile-titles,
+.dayview-date-scroller {
+    display: none;
+}
+
+/* --- FIX: Hide desktop DayView header on mobile --- */
+@media (max-width: 768px) {
+    #wd-dayview .dayview-header {
+        display: none !important; /* <<< --- ADDED !important TO ENSURE IT HIDES */
+    }
+
+    /* Show new mobile elements on mobile */
+    .dayview-mobile-header-new,
+    .dayview-mobile-titles,
+    .dayview-date-scroller {
+        display: block; /* or flex */
+    }
+
+    /* 1. Mobile Top Bar */
+    .dayview-mobile-header-new {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0; /* Padding only top/bottom */
+        margin-bottom: 15px;
+    }
+    .dayview-mobile-icon-btn {
+        background: none;
+        border: none;
+        font-size: 1.5rem; /* Larger icons */
+        color: #888;
+        cursor: pointer;
+        padding: 5px;
+    }
+    .dayview-mobile-icon-btn.dayview-mobile-logout {
+        color: var(--iba-secondary-terracotta); /* Red for logout */
+    }
+
+    /* 2. Mobile Title */
+    .dayview-mobile-titles {
+        margin-bottom: 20px;
+    }
+    .dayview-mobile-titles h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #333;
+        margin: 0 0 5px 0;
+    }
+    .dayview-mobile-titles p {
+        font-size: 1rem;
+        color: #777;
+        margin: 0;
+    }
+
+    /* 3. Date Scroller */
+    .dayview-date-scroller {
+        margin-bottom: 25px;
+        overflow-x: auto;
+        /* Hide scrollbar for a cleaner look */
+        -ms-overflow-style: none;  /* IE and Edge */
+        scrollbar-width: none;  /* Firefox */
+    }
+    .dayview-date-scroller::-webkit-scrollbar {
+        display: none; /* Chrome, Safari, Opera */
+    }
+    
+    /* --- THIS IS THE FIX --- */
+    /* The selector was `.dayview-date-scroller-inner` and should be `#dayview-date-scroller-inner` */
+    #dayview-date-scroller-inner {
+        display: flex;
+        gap: 15px;
+        padding: 0 5px; /* Small padding so ends don't touch edge */
+    }
+    /* --- END OF FIX --- */
+
+    .day-scroller-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 50px;
+        height: 65px;
+        flex-shrink: 0;
+        border-radius: 12px;
+        background-color: #f0f4f8;
+        color: #888;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    .day-scroller-item .day-scroller-num {
+        font-size: 1.2rem;
+        color: #555;
+    }
+    .day-scroller-item .day-scroller-char {
+        font-size: 0.9rem;
+    }
+    
+    .day-scroller-item.active {
+        background-color: var(--iba-base-blue); /* Use brand blue */
+        color: white;
+        transform: translateY(-5px);
+        box-shadow: 0 4px 10px rgba(0, 58, 92, 0.3);
+    }
+    .day-scroller-item.active .day-scroller-num {
+        color: white;
+    }
+}
+/* === NEW: MOBILE DAY VIEW TASK CONTAINER === */
+
+/* --- THIS IS THE FIX --- */
+/* The blue container should be visible on desktop, but just be a normal container */
+.dayview-task-container-blue {
+    display: block;
+}
+/* --- END OF FIX --- */
+
+@media (max-width: 768px) {
+    /* Show the blue container on mobile */
+    .dayview-task-container-blue {
+        display: block;
+        background-color: var(--iba-secondary-periwinkle); /* Blue from screenshot */
+        border-radius: 25px 25px 0 0; /* Rounded top corners */
+        padding: 25px 15px;
+        flex-grow: 1; /* Make it fill the remaining height */
+        
+        /* This is needed to contain the task cards */
+        margin: 0 -15px; /* Extend to screen edges, counteracting main padding */
+        padding-bottom: 80px; /* Space for the bottom nav bar */
+    }
+
+    /* Style for the task list inside the blue container */
+    #wd-dayview-task-list {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    /* Override existing dayview-task-card for the new look */
+    .dayview-task-container-blue .dayview-task-card {
+        background: #ffffff; /* White card */
+        border: none;
+        border-left: none; /* Remove old border */
+        border-radius: 12px; /* Rounded corners */
+        padding: 15px;
+        margin-bottom: 0; /* Remove old margin */
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+    }
+    
+    .dayview-task-container-blue .dayview-task-card strong {
+        font-size: 1.1rem;
+        color: #333;
+        margin-bottom: 10px;
+    }
+    
+    .dayview-task-container-blue .dayview-task-card .task-details-grid {
+        grid-template-columns: 1fr; /* Stack details on mobile */
+        gap: 5px;
+        font-size: 0.95rem;
+    }
+
+    .dayview-task-container-blue .dayview-task-card .task-detail-item .label {
+        font-weight: 600;
+        color: #555; /* Darken label slightly */
+        margin-right: 5px;
+    }
+    
+    .dayview-task-container-blue .dayview-task-card .task-detail-item.status .label {
+        color: #333;
+    }
+    
+    .dayview-task-container-blue .dayview-task-card .task-detail-item.note {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px dashed #eee;
+    }
+    
+    /* Make the <p> tag for "No tasks" white */
+    .dayview-task-container-blue #wd-dayview-task-list p {
+        color: white;
+        text-align: center;
+        padding-top: 20px;
+    }
+}
+/* === NEW: IM REPORTING MOBILE SEARCH UI === */
+
+/* 1. Search Button */
+.im-mobile-search-btn {
+  display: none; /* Hide on desktop */
+  background-color: var(--iba-base-blue);
+  color: white;
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  padding: 0;
+  margin-left: auto; /* Push to the right */
+}
+.im-mobile-search-btn:hover {
+  background-color: var(--iba-base-blue-light);
+}
+
+/* 2. Search Modal */
+.im-search-modal-container {
+  max-width: 450px;
+  width: 95%;
+  margin: auto;
+  /* Position at the top for an app-like feel */
+  position: fixed;
+  top: 15px;
+  left: 0;
+  right: 0;
+}
+.im-search-modal-container .modal-content {
+  padding-top: 5px;
+}
+.im-search-modal-container .form-group {
+  margin-bottom: 15px;
+}
+.im-search-modal-container .form-group label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 5px;
+  color: #444;
+}
+/* Ensure inputs inside modal are correct */
+.im-search-modal-container input[type="text"],
+.im-search-modal-container input[type="month"],
+.im-search-modal-container select {
+  margin-bottom: 0;
+  font-size: 1rem;
+  padding: 10px;
+  background-color: #f4f7fa;
+  border: 1px solid #ddd;
+}
+.im-search-modal-container .modal-footer button {
+  width: auto;
+  padding: 10px 20px;
+  font-size: 1rem;
+}
+
+
+/* 3. Mobile-specific Overrides */
+@media (max-width: 768px) {
+  /* Show the new search button on mobile */
+  #im-reporting .im-mobile-search-btn {
+    display: block;
+  }
+
+  /* Hide the old desktop search form on mobile */
+  #im-reporting #im-reporting-form {
+    display: none !important;
+  }
+}
+/* === NEW: IM REPORTING MOBILE CARD VIEW (LAYOUT) === */
+
+/* 1. Empty State (when no results are found) */
+.im-mobile-empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #777;
+}
+.im-mobile-empty-state i {
+  font-size: 3rem;
+  color: #ccc;
+  margin-bottom: 15px;
+}
+.im-mobile-empty-state h3 {
+  font-size: 1.3rem;
+  color: #333;
+  margin: 0 0 5px 0;
+}
+
+/* 2. PO Card (The "Credit Card" style) */
+.im-po-balance-card {
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 10px; /* Reduced margin */
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+  border: none;
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+/* --- PO Card Color Themes --- */
+.im-po-balance-card.status-pending {
+  /* This is the default blue from your first mobile screenshot */
+  background: linear-gradient(135deg, var(--iba-secondary-periwinkle), #3b71c4);
+}
+.im-po-balance-card.status-progress {
+  /* A blue/teal gradient */
+  background: linear-gradient(135deg, var(--iba-secondary-teal), var(--iba-base-blue));
+}
+.im-po-balance-card.status-complete {
+  /* A gold/brown gradient */
+  background: linear-gradient(135deg, var(--iba-secondary-gold), #8a7300);
+}
+
+.im-po-balance-card .po-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 25px;
+}
+.im-po-balance-card .po-card-vendor {
+  font-size: 0.9rem;
+  font-weight: 300;
+  opacity: 0.8;
+  display: block;
+}
+.im-po-balance-card .po-card-ponum {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 2px 0 0 0;
+  letter-spacing: 0.5px;
+}
+.im-po-balance-card .po-card-chevron {
+  font-size: 1.2rem;
+  opacity: 0.9;
+  transition: transform 0.3s ease;
+  flex-shrink: 0;
+  padding: 5px;
+}
+
+.im-po-balance-card .po-card-body {
+  position: relative;
+}
+.im-po-balance-card .po-card-label {
+  font-size: 0.85rem;
+  font-weight: 300;
+  opacity: 0.8;
+  display: block;
+  margin-bottom: 2px;
+}
+.im-po-balance-card .po-card-value {
+  font-size: 1.9rem;
+  font-weight: 700;
+  display: block;
+  margin: 0;
+}
+.im-po-balance-card .po-card-site {
+  font-size: 0.9rem;
+  font-weight: 500;
+  display: block;
+  margin-top: 10px;
+  opacity: 0.9;
+}
+
+/* 3. Transaction List (The white cards) */
+.hidden-invoice-list {
+  display: none !important;
+}
+.im-invoice-list-header {
+  margin-bottom: 10px;
+  padding: 0 5px;
+}
+.im-invoice-list-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #333;
+  font-weight: 700;
+}
+
+.im-invoice-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 25px; /* Space before the next PO card */
+}
+
+.im-invoice-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background-color: #ffffff;
+  padding: 15px;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  border: 1px solid #f0f0f0;
+}
+
+.im-tx-icon {
+  width: 45px;
+  height: 45px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+.im-tx-icon.pending {
+  background-color: #fdeeee;
+  color: var(--iba-secondary-terracotta);
+}
+.im-tx-icon.paid {
+  background-color: #eaf7f0;
+  color: #28a745;
+}
+
+.im-tx-details {
+  flex-grow: 1;
+}
+.im-tx-details .im-tx-title {
+  display: block;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #222;
+}
+.im-tx-details .im-tx-subtitle {
+  display: block;
+  font-size: 0.85rem;
+  color: #777;
+}
+
+.im-tx-amount {
+  flex-shrink: 0;
+  text-align: right;
+}
+.im-tx-amount .im-tx-value {
+  font-size: 1rem;
+  font-weight: 700;
+}
+.im-tx-amount .im-tx-value.pending {
+  color: var(--iba-secondary-terracotta);
+}
+.im-tx-amount .im-tx-value.paid {
+  color: #28a745;
+}
+
+.im-invoice-item-empty {
+  font-size: 0.9rem;
+  color: #777;
+  padding: 10px 15px;
+}
+
+/* 4. OLD Mobile Report Styles (to be removed/hidden) */
+@media (max-width: 768px) {
+  /* These are the old styles, hide them */
+  #im-reporting-mobile-view .im-po-balance-card.status-pending,
+  #im-reporting-mobile-view .im-po-balance-card.status-progress,
+  #im-reporting-mobile-view .im-po-balance-card.status-complete {
+    border-left: none;
+  }
+  
+  #im-reporting-mobile-view .im-invoice-item .invoice-count,
+  #im-reporting-mobile-view .im-invoice-item .invoice-details {
+    display: none;
+  }
+}
+/* --- FIX: Make Mobile Report PO Number Visible --- */
+.im-po-balance-card .po-card-ponum {
+  color: #FFFFFF; /* Makes the text white */
+  opacity: 0.9;    /* Makes it fully visible */
+}
+
+/* This makes the vendor name white too, just in case */
+.im-po-balance-card .po-card-vendor {
+  color: #FFFFFF;
+  opacity: 0.8;
+}
+
+/* --- FIX: Add Release Date to Mobile Transaction Card --- */
+.im-tx-details .im-tx-date {
+  display: block;
+  font-size: 0.8rem; /* Smaller font */
+  color: #888; /* Lighter color */
+  margin-top: 3px;
+}
