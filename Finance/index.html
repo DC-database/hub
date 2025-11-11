@@ -101,9 +101,13 @@
                     </div>
                 </form>
                 <div id="loginError" class="alert alert-danger mt-3" style="display: none;"></div>
+
+            <div class="text-center text-muted mt-3">
+                <small id="loginVersionDisplay"></small>
             </div>
         </div>
     </div>
+</div>
     
     <div id="mainApp" style="display: none;">
 
@@ -135,7 +139,7 @@
                                 </li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
-                                    <a class="dropdown-item" href="https://ibaport.site/Invoice/" target="_blank">
+                                    <a class="dropdown-item" href="https://ibaport.site/invoice/" target="_blank">
                                         <i class="bi bi-house"></i> Welcome Screen
                                     </a>
                                 </li>
@@ -144,10 +148,13 @@
                     </ul>
                     
                     <ul class="navbar-nav">
-                        <li class="nav-item">
-                            <span class="navbar-text me-3" id="userEmailDisplay">
-                                </span>
-                        </li>
+    <li class="nav-item">
+        <span class="navbar-text me-3" id="versionDisplay"></span>
+    </li>
+    <li class="nav-item">
+        <span class="navbar-text me-3" id="userEmailDisplay">
+            </span>
+    </li>
                         <li class="nav-item">
                             <a class="nav-link" href="#" id="logoutLink"><i class="bi bi-box-arrow-right"></i> Logout</a>
                         </li>
@@ -200,7 +207,7 @@
                         <div class="row g-3">
                             <div class="col-md-3">
                                 <label for="paymentNo" class="form-label">Payment No.</label>
-                                <input type="text" class="form-control" id="paymentNo" required readonly>
+                                <input type="text" class="form-control" id="paymentNo" required>
                             </div>
                             <div class="col-md-3">
                                 <label for="chequeNo" class="form-label">Cheque No.</label>

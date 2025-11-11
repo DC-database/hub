@@ -1,4 +1,9 @@
 // ======================
+// Application Version
+// ======================
+const APP_VERSION = "v3.0"; // You can change this in the future
+
+// ======================
 // Firebase Configuration
 // ======================
 const firebaseConfig = {
@@ -31,7 +36,9 @@ const elements = {
   loginError: document.getElementById('loginError'),
   mainApp: document.getElementById('mainApp'),
   logoutLink: document.getElementById('logoutLink'),
-  userEmailDisplay: document.getElementById('userEmailDisplay'), // Added this
+  userEmailDisplay: document.getElementById('userEmailDisplay'),
+  loginVersionDisplay: document.getElementById('loginVersionDisplay'), // <-- NEW
+  versionDisplay: document.getElementById('versionDisplay'), // <-- NEW
 
   // Form elements
   paymentForm: document.getElementById('paymentForm'),
@@ -107,12 +114,16 @@ document.addEventListener('DOMContentLoaded', function() {
 // Auth Functions
 // ======================
 function setupAuthListeners() {
+  // === NEW: Set version on login screen ===
+  elements.loginVersionDisplay.textContent = APP_VERSION;
+
   auth.onAuthStateChanged(user => {
     if (user) {
       // User is logged in
       elements.mainApp.style.display = 'block';
       elements.loginScreen.style.display = 'none';
       elements.userEmailDisplay.textContent = user.email; // Display email
+      elements.versionDisplay.textContent = APP_VERSION; // <-- NEW: Set navbar version
       initializeApplication();
     } else {
       // User is logged out
@@ -485,8 +496,17 @@ async function savePayment() {
       const day = String(now.getDate()).padStart(2, '0');
       paymentData.dateEntered = `${year}-${month}-${day}`;
 
-      const nextNumber = await getNextAvailablePVNNumber(paymentData);
-      paymentData.paymentNo = generatePaymentNumber(nextNumber);
+      // === MODIFIED LOGIC START ===
+      // Check if paymentNo was manually entered.
+      // paymentData.paymentNo was already populated from the 'fields' loop.
+      if (!paymentData.paymentNo) {
+        // If it's empty, generate a new one.
+        const nextNumber = await getNextAvailablePVNNumber(paymentData);
+        paymentData.paymentNo = generatePaymentNumber(nextNumber);
+      }
+      // If it's NOT empty, the code will just use the manual value from the form.
+      // === MODIFIED LOGIC END ===
+
       await paymentsRef.push(paymentData);
       alert('Payment added successfully!');
     }
@@ -514,10 +534,32 @@ async function addNewPaymentFromEdit() {
     const day = String(now.getDate()).padStart(2, '0');
     paymentData.dateEntered = `${year}-${month}-${day}`;
       
-    const nextNumber = await getNextAvailablePVNNumber(paymentData);
-    paymentData.paymentNo = generatePaymentNumber(nextNumber);
+    // === MODIFIED LOGIC START ===
+    // Check if paymentNo was manually entered/kept in the form.
+    // paymentData.paymentNo was already populated from the 'fields' loop.
+    if (!paymentData.paymentNo) {
+        // If it's empty, generate a new one.
+        const nextNumber = await getNextAvailablePVNNumber(paymentData);
+        paymentData.paymentNo = generatePaymentNumber(nextNumber);
+    }
+    // If it's NOT empty, the code will just use the manual value from the form.
+    // === MODIFIED LOGIC END ===
+      
     paymentData.chequeNo = '';
-    paymentData.datePaid = '';
+    
+    // === MODIFIED LOGIC START: Set default datePaid to today ===
+    // Re-use the 'now' constants from above.
+    // This now correctly reads the value from the form, which resetForm should have set.
+    // If the user changed it, it uses their change.
+    // If the form was just reset, it uses the default.
+    // We only need to ensure datePaid is in paymentData
+    // The 'fields.forEach' loop already handled this.
+    // This block ensures it gets a value *if* it was missing from the form.
+    if (!paymentData.datePaid) {
+        paymentData.datePaid = `${year}-${month}-${day}`;
+    }
+    // === MODIFIED LOGIC END ===
+    
     paymentData.note = ''; // Clear note for new payment
     calculatePayment();
     paymentData.payment = document.getElementById('payment').value.replace(/,/g, '');
@@ -531,6 +573,11 @@ async function addNewPaymentFromEdit() {
 
 function resetForm() {
   document.getElementById('paymentForm').reset();
+  
+  // === THIS IS THE FIX ===
+  document.getElementById('note').value = ''; 
+  // =======================
+
   editId = null;
   isEditing = false;
   // MODIFIED: Changed button text
@@ -538,6 +585,14 @@ function resetForm() {
   elements.cancelBtn.style.display = 'inline-block';
   elements.addNewPaymentBtn.style.display = 'none';
   elements.formTitle.textContent = 'Add Payment';
+
+  // === NEW LOGIC START: Set default datePaid to today ===
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  document.getElementById('datePaid').value = `${year}-${month}-${day}`;
+  // === NEW LOGIC END ===
 
   // NEW LOGIC: Remove highlight class from all fields
   const fieldsToHighlight = ['certifiedAmount', 'retention', 'payment', 'datePaid', 'note'];
