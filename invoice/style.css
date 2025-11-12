@@ -2925,19 +2925,34 @@ body.is-admin .legend-admin-only {
   overflow: hidden;
 }
 
-/* --- PO Card Color Themes --- */
-.im-po-balance-card.status-pending {
-  /* This is the default blue from your first mobile screenshot */
-  background: linear-gradient(135deg, var(--iba-secondary-periwinkle), #3b71c4);
-}
-.im-po-balance-card.status-progress {
-  /* A blue/teal gradient */
-  background: linear-gradient(135deg, var(--iba-secondary-teal), var(--iba-base-blue));
-}
-.im-po-balance-card.status-complete {
-  /* A gold/brown gradient */
-  background: linear-gradient(135deg, var(--iba-secondary-gold), #8a7300);
-}
+/* [REPLACE this entire block around line 2250] */
+
+    /* --- PO Card Color Themes (NEW LOGIC) --- */
+
+    /* 1. Green (Complete): "With Accounts" or "Paid" */
+    .im-po-balance-card.status-complete {
+      background: linear-gradient(135deg, #28a745, #1e7e34); /* Green */
+    }
+
+    /* 2. Yellow (Open): "Under Review" */
+    .im-po-balance-card.status-open {
+      background: linear-gradient(135deg, var(--iba-secondary-gold), #8a7300); /* Yellow/Gold */
+    }
+    
+    /* 3. Blue (In Progress): "For IPC" or "For SRV" */
+    .im-po-balance-card.status-progress {
+      background: linear-gradient(135deg, var(--iba-secondary-teal), var(--iba-base-blue)); /* Blue/Teal */
+    }
+    
+    /* 4. Light Red (On Hold): "Pending" */
+    .im-po-balance-card.status-on-hold {
+      background: linear-gradient(135deg, var(--iba-secondary-terracotta), #a24227); /* Light Red/Terracotta */
+    }
+
+    /* 5. Default: (e.g., 'CEO Approval', 'Report') */
+    .im-po-balance-card.status-pending {
+      background: linear-gradient(135deg, var(--iba-secondary-periwinkle), #3b71c4); /* Default Blue */
+    }
 
 .im-po-balance-card .po-card-header {
   display: flex;

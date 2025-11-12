@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.1.3"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "3.1.4"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -4396,7 +4396,7 @@ async function populateInvoiceDashboard(forceRefresh = false) {
 }
 
 
-// [REPLACE this entire function in app.js]
+// [REPLACE this entire function around line 2384]
 
 // NEW HELPER 1: Builds the new mobile card UI, supporting multiple POs
 function buildMobileReportView(reportData) {
@@ -4421,29 +4421,47 @@ function buildMobileReportView(reportData) {
 
     let mobileHTML = '';
     
-    // --- THIS IS THE "OPTION A" (Vertical List) LAYOUT ---
     reportData.forEach((poData, poIndex) => {
         const { poNumber, site, vendor, poDetails, filteredInvoices } = poData;
         const toggleId = `mobile-invoice-list-${poIndex}`;
         
-        let statusClass = 'status-pending'; // Default color
-        let totalInvValue = 0; // For card logic
+        // --- *** NEW STATUS COLOR LOGIC (Per User Request) *** ---
+        let statusClass = 'status-pending'; // Default: Blue
+        let hasComplete = false;
+        let hasOpen = false;
+        let hasInProgress = false;
+        let hasOnHold = false;
 
-        if (filteredInvoices.length > 0 && canViewAmounts) {
-            const poValueNum = parseFloat(poDetails.Amount) || 0;
-            totalInvValue = filteredInvoices.reduce((sum, inv) => sum + (parseFloat(inv.invValue) || 0), 0);
-            
-            const epsilon = 0.01;
-            const isFullyMatched = poValueNum > 0 && (Math.abs(totalInvValue - poValueNum) < epsilon);
-            const hasPaidInvoices = filteredInvoices.some(inv => inv.status === 'Paid');
+        for (const inv of filteredInvoices) {
+            const status = inv.status || 'Pending';
 
-            if (isFullyMatched) {
-                statusClass = 'status-complete'; // Yellow-ish
-            } else if (hasPaidInvoices || totalInvValue > 0) {
-                statusClass = 'status-progress'; // Blue-ish
+            if (status === 'With Accounts' || status === 'Paid') {
+                hasComplete = true;
+                break; // 1. Highest priority (Green)
             }
-            // If totalInvValue is 0 and no paid invoices, it stays 'status-pending'
+            if (status === 'Under Review') {
+                hasOpen = true; // 2. Second priority (Yellow)
+            }
+            if (status === 'For IPC' || status === 'For SRV') {
+                hasInProgress = true; // 3. Third priority (Blue)
+            }
+            if (status === 'Pending') {
+                hasOnHold = true; // 4. Lowest priority (Light Red)
+            }
         }
+
+        // Apply the hierarchy
+        if (hasComplete) {
+            statusClass = 'status-complete'; // This will be Green
+        } else if (hasOpen) {
+            statusClass = 'status-open'; // This will be Yellow
+        } else if (hasInProgress) {
+            statusClass = 'status-progress'; // This will be Blue
+        } else if (hasOnHold) {
+            statusClass = 'status-on-hold'; // This will be Light Red
+        }
+        // If none match (e.g., 'CEO Approval', 'Report'), it stays 'status-pending' (Default Blue)
+        // --- *** END OF NEW LOGIC *** ---
         
         const poValueDisplay = canViewAmounts ? `QAR ${formatCurrency(poDetails.Amount)}` : '---';
         
@@ -4510,7 +4528,7 @@ function buildMobileReportView(reportData) {
                     amountClass = 'paid'; // Green
                 } else if ((inv.status || '').toLowerCase() === 'with accounts') {
                     iconClass = 'fa-solid fa-file-invoice-dollar';
-                    amountClass = 'pending'; // Red
+                    amountClass = 'paid'; // Green (as it's a "complete" status)
                 } else {
                     iconClass = 'fa-solid fa-hourglass-half';
                     amountClass = 'pending'; // Red
