@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.1.5"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "3.1.6"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -1510,7 +1510,7 @@ function displayCalendarTasksForDay(date) { // date is "2025-11-09"
     // --- *** END OF NEW LISTENER *** ---
 
 
-// [REPLACE the old showDayView function with this one]
+// [REPLACE this entire function around line 2011]
 
 // --- *** NEW: FUNCTION TO SHOW DAY VIEW (with Mobile UI) *** ---
 function showDayView(date) { // date is "2025-11-09"
@@ -1575,21 +1575,27 @@ function showDayView(date) { // date is "2025-11-09"
         taskListDiv.innerHTML = '<p style="padding: 20px; text-align: center; color: #555;">No tasks found for this day.</p>';
         return;
     }
+    
+    // --- *** THIS IS THE FIX (START) *** ---
+    // We must get the list of "my" task keys to compare against
+    const myTaskKeys = new Set(userActiveTasks.map(t => t.key));
+    // --- *** THIS IS THE FIX (END) *** ---
 
     tasks.forEach(task => {
         const card = document.createElement('div');
         card.className = 'dayview-task-card';
 
-        // --- NEW: Color-code border for "My Task" vs "Other Task" ---
-        const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
+        // --- *** THIS IS THE FIX (START) *** ---
+        // Color-code border for "My Task" vs "Other Task"
         let borderColor = 'var(--iba-secondary-terracotta)'; // Default to Red ("mine")
         
-        if (isAdmin && task.attention !== currentApprover.Name) {
+        // If user is an Admin AND this task's key is NOT in their personal task list
+        if (isAdmin && !myTaskKeys.has(task.key)) {
             borderColor = '#28a745'; // Green ("not mine")
         }
         
         card.style.borderLeft = `5px solid ${borderColor}`;
-        // --- END OF NEW BLOCK ---
+        // --- *** THIS IS THE FIX (END) *** ---
 
         // *** THIS IS THE CORRECTED BLOCK ***
         if (isAdmin && task.po) {
@@ -7729,4 +7735,5 @@ if (imMobileSearchRunBtn) {
 }
 // --- *** END OF NEW MOBILE LISTENERS *** ---
 }); // END OF DOMCONTENTLOADED
+
 
