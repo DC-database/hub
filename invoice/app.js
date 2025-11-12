@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.2.0"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "3.2.1"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -4814,8 +4814,8 @@ async function populateInvoiceReporting(searchTerm = '') {
     }
 }
 
-// ++ NEW (Req 2): Generate data for professional print report ++
-// --- *** START OF PRINT FIX *** ---
+// [REPLACE this entire function around line 2636]
+
 function handleGeneratePrintReport() {
     if (currentReportData.length === 0) {
         alert("No data to print. Please run a search first.");
@@ -4844,41 +4844,61 @@ function handleGeneratePrintReport() {
     // --- 2. Calculate Summaries ---
     let totalPOs = currentReportData.length;
     let totalReportValue = 0;
-    let totalReportPaid = 0;
 
     currentReportData.forEach(po => {
-        // Add PO Value
         totalReportValue += parseFloat(po.poDetails.Amount) || 0;
-        // Add Total Paid Amount from our calculation
-        if (po.paymentData.totalPaidAmount !== 'N/A') {
-            totalReportPaid += parseFloat(po.paymentData.totalPaidAmount) || 0;
-        }
     });
 
     imPrintReportSummaryPOs.textContent = totalPOs;
     imPrintReportSummaryValue.textContent = `QAR ${formatCurrency(totalReportValue)}`;
-    imPrintReportSummaryPaid.textContent = `QAR ${formatCurrency(totalReportPaid)}`;
+    
+    // --- *** FIX: Remove TotalReportPaid from summary *** ---
+    if (imPrintReportSummaryPaid) {
+        imPrintReportSummaryPaid.textContent = ''; 
+        if (imPrintReportSummaryPaid.parentElement) {
+            imPrintReportSummaryPaid.parentElement.style.display = 'none';
+        }
+    }
+    // --- *** END OF FIX *** ---
+
 
     // --- 3. Build Report Body ---
-    imPrintReportBody.innerHTML = ''; // Clear previous report
+    imPrintReportBody.innerHTML = '';
     
     currentReportData.forEach(po => {
         const poContainer = document.createElement('div');
         poContainer.className = 'print-po-container';
 
-        // PO Header
+        // --- FIX: Calculate totals BEFORE building header ---
+        let totalInvValue = 0;
+        let totalAmountPaid = 0; 
+        
+        po.filteredInvoices.forEach(inv => {
+            totalInvValue += parseFloat(inv.invValue) || 0;
+            totalAmountPaid += parseFloat(inv.amountPaid) || 0; // CALCULATED FOR FOOTER
+        });
+
+        // Calculate Balance
+        const poValueNum = parseFloat(po.poDetails.Amount) || 0;
+        const balanceNum = poValueNum - totalInvValue;
+        // --- END OF FIX ---
+
+
+        // PO Header (MODIFIED - Now contains Balance)
         const poHeader = document.createElement('div');
         poHeader.className = 'print-po-header';
+        
         poHeader.innerHTML = `
             <div><strong>PO:</strong> ${po.poNumber}</div>
             <div><strong>Site:</strong> ${po.site}</div>
             <div><strong>Vendor:</strong> ${po.vendor}</div>
-            <div><strong>PO Value:</strong> QAR ${formatCurrency(po.poDetails.Amount)}</div>
-            <div><strong>Total Paid:</strong> QAR ${formatCurrency(po.paymentData.totalPaidAmount)}</div>
+            <div><strong>PO Value:</strong> QAR ${formatCurrency(poValueNum)}</div>
+            <div><strong>Balance:</strong> QAR ${formatCurrency(balanceNum)}</div>
         `;
+        
         poContainer.appendChild(poHeader);
 
-        // Invoices Table
+        // Invoices Table (MODIFIED - RE-ADDED AMT. PAID COLUMN)
         let invoicesTableHTML = `
             <table class="print-invoice-table">
                 <thead>
@@ -4887,8 +4907,7 @@ function handleGeneratePrintReport() {
                         <th>Inv. No.</th>
                         <th>Inv. Date</th>
                         <th>Inv. Value</th>
-                        <th>Amt. Paid</th>
-                        <th>Release Date</th>
+                        <th>Amt. Paid</th> <th>Release Date</th>
                         <th>Status</th>
                         <th>Note</th>
                     </tr>
@@ -4896,14 +4915,9 @@ function handleGeneratePrintReport() {
                 <tbody>
         `;
         
-        let totalInvValue = 0;
-        let totalAmountPaid = 0;
-
         po.filteredInvoices.forEach(inv => {
             const invValue = parseFloat(inv.invValue) || 0;
-            const amountPaid = parseFloat(inv.amountPaid) || 0;
-            totalInvValue += invValue;
-            totalAmountPaid += amountPaid;
+            const status = inv.status || '';
 
             const releaseDateDisplay = inv.releaseDate ? new Date(normalizeDateForInput(inv.releaseDate) + 'T00:00:00').toLocaleDateString('en-GB') : '';
             const invoiceDateDisplay = inv.invoiceDate ? new Date(normalizeDateForInput(inv.invoiceDate) + 'T00:00:00').toLocaleDateString('en-GB') : '';
@@ -4914,27 +4928,26 @@ function handleGeneratePrintReport() {
                     <td>${inv.invNumber || ''}</td>
                     <td>${invoiceDateDisplay}</td>
                     <td class="print-number">${formatCurrency(invValue)}</td>
-                    <td class="print-number">${formatCurrency(amountPaid)}</td>
-                    <td>${releaseDateDisplay}</td>
-                    <td>${inv.status || ''}</td>
+                    <td class="print-number">${formatCurrency(inv.amountPaid)}</td> <td>${releaseDateDisplay}</td>
+                    <td>${status || ''}</td>
                     <td>${inv.note || ''}</td>
                 </tr>
             `;
         });
 
         // Add Footer Row for totals
+        // --- *** FIX: Re-added totalAmountPaid and adjusted colspan *** ---
         invoicesTableHTML += `
                 </tbody>
                 <tfoot>
                     <tr>
                         <td colspan="3" class="print-footer-label">PO Invoice Totals:</td>
                         <td class="print-number print-footer">${formatCurrency(totalInvValue)}</td>
-                        <td class="print-number print-footer">${formatCurrency(totalAmountPaid)}</td>
-                        <td colspan="3"></td>
-                    </tr>
+                        <td class="print-number print-footer">${formatCurrency(totalAmountPaid)}</td> <td colspan="3"></td> </tr>
                 </tfoot>
             </table>
         `;
+        // --- *** END OF FIX *** ---
         
         poContainer.innerHTML += invoicesTableHTML;
         imPrintReportBody.appendChild(poContainer);
@@ -4949,6 +4962,12 @@ function handleGeneratePrintReport() {
 
     window.print();
     
+    // --- *** FIX: Restore the Total Amount Paid div after printing *** ---
+    if (imPrintReportSummaryPaid && imPrintReportSummaryPaid.parentElement) {
+        imPrintReportSummaryPaid.parentElement.style.display = ''; 
+    }
+    // --- *** END OF FIX *** ---
+
     // Hide this printable area again after printing
     if (imReportingPrintableArea) imReportingPrintableArea.classList.add('hidden');
 }
