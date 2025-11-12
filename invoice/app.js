@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.1.8"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "3.2.0"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -4400,8 +4400,6 @@ async function populateInvoiceDashboard(forceRefresh = false) {
         dashboardSection.innerHTML = '<h1>Dashboard</h1><p>Error loading dashboard data. Please check console for details.</p>';
     }
 }
-
-
 // [REPLACE this entire function around line 2384]
 
 // NEW HELPER 1: Builds the new mobile card UI, supporting multiple POs
@@ -4468,10 +4466,20 @@ function buildMobileReportView(reportData) {
         } else if (hasPending) {
             statusClass = 'status-pending'; // 4. Light Red ("Pending")
         }
-        // 5. If none of the above, it remains 'status-progress' (Default Blue for 'Report', 'CEO Approval', etc.)
         // --- *** END OF NEW LOGIC *** ---
         
-        const poValueDisplay = canViewAmounts ? `QAR ${formatCurrency(poDetails.Amount)}` : '---';
+        // --- *** NEW: Calculate Balance *** ---
+        let totalInvValue = 0;
+        if (filteredInvoices.length > 0 && canViewAmounts) {
+            totalInvValue = filteredInvoices.reduce((sum, inv) => sum + (parseFloat(inv.invValue) || 0), 0);
+        }
+        const poValueNum = parseFloat(poDetails.Amount) || 0;
+        const balanceNum = poValueNum - totalInvValue;
+        
+        const poValueDisplay = canViewAmounts ? `QAR ${formatCurrency(poValueNum)}` : '---';
+        const balanceDisplay = canViewAmounts ? `QAR ${formatCurrency(balanceNum)}` : '---';
+        // --- *** END NEW *** ---
+
         
         // This is the main "PO Card"
         mobileHTML += `
@@ -4489,11 +4497,19 @@ function buildMobileReportView(reportData) {
                     </div>
 
                     <div class="po-card-body">
-                        <span class="po-card-label">Total PO Value</span>
-                        <span class="po-card-value">${poValueDisplay}</span>
+                        <div class="po-card-grid">
+                            <div>
+                                <span class="po-card-label">Total PO Value</span>
+                                <span class="po-card-value">${poValueDisplay}</span>
+                            </div>
+                            <div>
+                                <span class="po-card-label">Balance</span>
+                                <span class="po-card-value po-card-balance">${balanceDisplay}</span>
+                            </div>
+                        </div>
                         <span class="po-card-site">Site: ${site}</span>
                     </div>
-                </div>
+                    </div>
 
                 <div id="${toggleId}" class="hidden-invoice-list"> 
                     <div class="im-invoice-list-header">
@@ -4560,8 +4576,7 @@ function buildMobileReportView(reportData) {
     
     container.innerHTML = mobileHTML;
 }
-
-// [REPLACE this entire function]
+// [REPLACE this entire function around line 2465]
 
 // NEW HELPER 2: This is your *existing* logic, moved into its own function
 function buildDesktopReportView(reportData) {
@@ -4576,7 +4591,8 @@ function buildDesktopReportView(reportData) {
         return;
     }
 
-    let tableHTML = `<table><thead><tr><th></th><th>PO</th><th>Site</th><th>Vendor</th><th>Value</th><th>Total Paid Amount</th><th>Last Paid Date</th></tr></thead><tbody>`;
+    // --- *** FIX: Removed "Total Paid Amount" and "Last Paid Date" columns *** ---
+    let tableHTML = `<table><thead><tr><th></th><th>PO</th><th>Site</th><th>Vendor</th><th>Value</th></tr></thead><tbody>`;
 
     reportData.sort((a, b) => a.poNumber.localeCompare(b.poNumber));
     reportData.forEach(poData => {
@@ -4631,6 +4647,7 @@ function buildDesktopReportView(reportData) {
         const totalAmountPaidDisplay = (isAdmin || isAccounting) ? `<strong>QAR ${formatCurrency(totalAmountPaid)}</strong>` : '---';
         const poValueDisplay = (isAdmin || isAccounting) ? (poData.poDetails.Amount ? `QAR ${formatCurrency(poData.poDetails.Amount)}` : 'N/A') : '---';
         
+        // This data is no longer displayed, but we keep the logic in case it's needed elsewhere
         const totalPaidDisplay = (isAdmin || isAccounting) ? (poData.paymentData.totalPaidAmount !== 'N/A' ? `QAR ${formatCurrency(poData.paymentData.totalPaidAmount)}` : 'N/A') : '---';
         const datePaidDisplay = (isAdmin || isAccounting) ? poData.paymentData.datePaid : '---';
 
@@ -4643,8 +4660,12 @@ function buildDesktopReportView(reportData) {
                 if (isInvValueMatch) highlightClass = isAmountPaidMatch ? 'highlight-fully-paid' : 'highlight-partial';
             }
         }
-        tableHTML += `<tr class="master-row ${highlightClass}" data-target="#${detailRowId}"><td><button class="expand-btn">+</button></td><td>${poData.poNumber}</td><td>${poData.site}</td><td>${poData.vendor}</td><td>${poValueDisplay}</td><td>${totalPaidDisplay}</td><td>${datePaidDisplay}</td></tr>`;
-        tableHTML += `<tr id="${detailRowId}" class="detail-row hidden"><td colspan="7"><div class="detail-content"><h4>Invoice Entries for PO ${poData.poNumber}</h4><table class="nested-invoice-table"><thead><tr><th>Inv. Entry</th><th>Inv. No.</th><th>Inv. Date</th><th>Inv. Value</th><th>Amount To Paid</th><th>Release Date</th><th>Status</th><th>Note</th><th>Action</th></tr></thead><tbody>${nestedTableRows}</tbody><tfoot><tr><td colspan="3" style="text-align: right;"><strong>TOTAL</strong></td><td>${totalInvValueDisplay}</td><td>${totalAmountPaidDisplay}</td><td colspan="4"></td></tr></tfoot></table></div></td></tr>`;
+        
+        // --- *** FIX: Removed cells for totalPaidDisplay and datePaidDisplay *** ---
+        tableHTML += `<tr class="master-row ${highlightClass}" data-target="#${detailRowId}"><td><button class="expand-btn">+</button></td><td>${poData.poNumber}</td><td>${poData.site}</td><td>${poData.vendor}</td><td>${poValueDisplay}</td></tr>`;
+        
+        // --- *** FIX: Changed colspan from 7 to 5 *** ---
+        tableHTML += `<tr id="${detailRowId}" class="detail-row hidden"><td colspan="5"><div class="detail-content"><h4>Invoice Entries for PO ${poData.poNumber}</h4><table class="nested-invoice-table"><thead><tr><th>Inv. Entry</th><th>Inv. No.</th><th>Inv. Date</th><th>Inv. Value</th><th>Amount To Paid</th><th>Release Date</th><th>Status</th><th>Note</th><th>Action</th></tr></thead><tbody>${nestedTableRows}</tbody><tfoot><tr><td colspan="3" style="text-align: right;"><strong>TOTAL</strong></td><td>${totalInvValueDisplay}</td><td>${totalAmountPaidDisplay}</td><td colspan="4"></td></tr></tfoot></table></div></td></tr>`;
     });
     tableHTML += `</tbody></table>`;
     container.innerHTML = tableHTML;
@@ -7735,7 +7756,6 @@ if (imMobileSearchRunBtn) {
 }
 // --- *** END OF NEW MOBILE LISTENERS *** ---
 }); // END OF DOMCONTENTLOADED
-
 
 
 

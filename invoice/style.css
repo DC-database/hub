@@ -2983,6 +2983,25 @@ body.is-admin .legend-admin-only {
 .im-po-balance-card .po-card-body {
   position: relative;
 }
+/* [ADD this new block to style.css around line 2280] */
+
+.im-po-balance-card .po-card-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* Two equal columns */
+  gap: 10px;
+  margin-bottom: 10px; /* Space before the site */
+}
+.im-po-balance-card .po-card-grid .po-card-value {
+  font-size: 1.2rem; /* Make font slightly smaller to fit */
+}
+/* [ADD this new block to style.css] */
+
+.im-po-balance-card .po-card-balance {
+    color: #f7cbf7 !important; /* <-- PASTE YOUR HEX CODE HERE (e.g., #FF0000 for bright red) */
+    font-style: italic;
+    font-size: 0.9rem !important; /* <-- ADD !important HERE TO FIX IT */
+}
+
 .im-po-balance-card .po-card-label {
   font-size: 0.85rem;
   font-weight: 300;
