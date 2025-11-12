@@ -959,7 +959,6 @@ tbody tr:hover { background-color: #f1f1f1; }
 #im-finance-results .btn-info:hover {
     background-color: #005a6e; border-color: #005a6e; color: var(--text-color-light); /* MODIFIED: Hover color */
 }
-
 /* Enhanced Report Modal Styles (copied and prefixed where necessary) */
 /* Keep the non-print styles for the modal as they were */
 #im-finance-report-modal .report-header {
@@ -2123,6 +2122,23 @@ body.is-admin .legend-admin-only {
     }
     /* === END OF ADDITION === */
 
+/* --- NEW: Datetime and Version on Mobile --- */
+#workdesk-view .workdesk-sidebar .sidebar-footer-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end; /* Align text to the right */
+}
+#workdesk-view .workdesk-sidebar #workdesk-datetime {
+    font-size: 0.8rem;
+    color: #a0aec0; /* Match version text color */
+    font-weight: 500;
+}
+#workdesk-view .workdesk-sidebar .sidebar-version-display {
+    margin-top: 2px; /* Small space between */
+    margin-bottom: 0;
+    text-align: right;
+}
+
 /* --- FIX FOR MOBILE DATE SCROLLER --- */
 @media (max-width: 768px) {
   #wd-dayview-date-scroller-inner {
@@ -2134,9 +2150,30 @@ body.is-admin .legend-admin-only {
 
 /* MOBILE RESPONSIVE STYLES */
 @media (max-width: 768px) {
-    #workdesk-datetime, #im-datetime { text-align: center; margin-top: 15px; margin-bottom: 0; order: -1; }
+    
+    
+    /* *** MODIFICATION: Move IM datetime to sidebar *** */
+    #im-datetime { 
+        text-align: center; 
+        font-size: 0.8rem;
+        color: #a0aec0; /* Match version text color */
+        margin: 10px 0 -5px 0; /* Adjust spacing */
+        order: 10; /* Move it after footer */
+        display: block; /* Ensure it's visible */
+    }
+    
     .workdesk-main { padding: 15px; padding-bottom: 80px; display: flex; flex-direction: column; }
-    .report-header { flex-direction: column; align-items: flex-start; }
+    .report-header { 
+        flex-direction: column; 
+        /* *** MODIFICATION: Align mobile report header left *** */
+        align-items: flex-start; 
+        gap: 5px; /* Reduce gap */
+    }
+    /* *** MODIFICATION: Align mobile report header left *** */
+    .report-header h1 {
+        font-size: 1.5rem;
+        margin: 0;
+    }
     
     /* --- (NEW) Mobile Reporting Cleanup --- */
     #im-reporting .report-header .daily-report-section,
@@ -2625,13 +2662,23 @@ body.is-admin .legend-admin-only {
         margin-bottom: 15px;
     }
     .dayview-mobile-icon-btn {
-        background: none;
-        border: none;
-        font-size: 1.5rem; /* Larger icons */
-        color: #888;
-        cursor: pointer;
-        padding: 5px;
-    }
+    background: none;
+    border: none;
+    font-size: 1.5rem; /* Larger icons */
+    color: #888;
+    cursor: pointer;
+    padding: 5px;
+    position: relative; /* <-- ADD THIS LINE */
+}
+/* --- NEW: Mobile Notification Badge Positioning --- */
+#wd-mobile-notify-badge {
+    position: absolute; /* Position the badge relative to the button */
+    top: 2px;
+    right: 2px;
+    padding: 1px 5px; /* Make it a bit smaller */
+    font-size: 0.65rem;
+    line-height: 1.2;
+}
     .dayview-mobile-icon-btn.dayview-mobile-logout {
         color: var(--iba-secondary-terracotta); /* Red for logout */
     }
@@ -2719,13 +2766,9 @@ body.is-admin .legend-admin-only {
     /* Show the blue container on mobile */
     .dayview-task-container-blue {
         display: block;
-        background-color: var(--iba-secondary-periwinkle); /* Blue from screenshot */
-        border-radius: 25px 25px 0 0; /* Rounded top corners */
-        padding: 25px 15px;
         flex-grow: 1; /* Make it fill the remaining height */
         
         /* This is needed to contain the task cards */
-        margin: 0 -15px; /* Extend to screen edges, counteracting main padding */
         padding-bottom: 80px; /* Space for the bottom nav bar */
     }
 
@@ -2736,17 +2779,7 @@ body.is-admin .legend-admin-only {
         gap: 15px;
     }
     
-    /* Override existing dayview-task-card for the new look */
-    .dayview-task-container-blue .dayview-task-card {
-        background: #ffffff; /* White card */
-        border: none;
-        border-left: none; /* Remove old border */
-        border-radius: 12px; /* Rounded corners */
-        padding: 15px;
-        margin-bottom: 0; /* Remove old margin */
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
-    }
-    
+      
     .dayview-task-container-blue .dayview-task-card strong {
         font-size: 1.1rem;
         color: #333;
@@ -2777,7 +2810,6 @@ body.is-admin .legend-admin-only {
     
     /* Make the <p> tag for "No tasks" white */
     .dayview-task-container-blue #wd-dayview-task-list p {
-        color: white;
         text-align: center;
         padding-top: 20px;
     }
@@ -2802,6 +2834,7 @@ body.is-admin .legend-admin-only {
 }
 
 /* 2. Search Modal */
+/* *** MODIFICATION: Make modal smaller on mobile *** */
 .im-search-modal-container {
   max-width: 450px;
   width: 95%;
@@ -2812,6 +2845,25 @@ body.is-admin .legend-admin-only {
   left: 0;
   right: 0;
 }
+@media (max-width: 768px) {
+    .im-search-modal-container {
+        width: 90%; /* Make it 90% of screen width */
+        max-width: 400px; /* Set a smaller max-width */
+        top: 10px; /* Move closer to the top */
+    }
+    .im-search-modal-container .modal-content {
+        padding-top: 0;
+    }
+    .im-search-modal-container .form-group {
+        margin-bottom: 12px;
+    }
+    .im-search-modal-container .modal-footer button {
+        padding: 8px 16px;
+        font-size: 0.95rem;
+    }
+}
+/* *** END OF MODIFICATION *** */
+
 .im-search-modal-container .modal-content {
   padding-top: 5px;
 }
@@ -3071,4 +3123,66 @@ body.is-admin .legend-admin-only {
   font-size: 0.8rem; /* Smaller font */
   color: #888; /* Lighter color */
   margin-top: 3px;
+}
+/* --- NEW: Mobile Report Legend --- */
+.im-mobile-legend {
+  display: none; /* Hidden on desktop */
+  gap: 15px;
+  margin-bottom: 20px;
+  padding: 0 5px;
+  flex-wrap: wrap;
+}
+.im-mobile-legend .legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #555;
+  font-weight: 500;
+}
+.im-mobile-legend .legend-color-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+}
+
+@media (max-width: 768px) {
+  .im-mobile-legend {
+    display: flex; /* Visible on mobile */
+  }
+  
+  /* Hide the old desktop legend on mobile */
+  #im-reporting .reporting-legend {
+    display: none !important;
+  }
+}
+
+/* --- NEW: Mobile PDF Action Buttons --- */
+.im-tx-amount {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end; /* Align to the right */
+  gap: 5px;
+}
+.im-tx-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+.im-tx-action-btn {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  text-decoration: none;
+  color: white;
+}
+.im-tx-action-btn.invoice-pdf-btn {
+  background-color: var(--iba-secondary-gold);
+  color: #212529;
+}
+.im-tx-action-btn.srv-pdf-btn {
+  background-color: var(--iba-secondary-teal);
+  color: white;
+}
 }

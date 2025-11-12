@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "2.7.0"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "3.0.1"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -266,6 +266,7 @@ const paymentsCountDisplay = document.getElementById('payments-count-display');
 const financeReportCountDisplay = document.getElementById('finance-report-count-display');
 const wdActiveTaskBadge = document.getElementById('wd-active-task-badge');
 const imActiveTaskBadge = document.getElementById('im-active-task-badge');
+const wdMobileNotifyBadge = document.getElementById('wd-mobile-notify-badge'); // <-- ADD THIS LINE
 const activeTaskCardLink = document.getElementById('db-active-tasks-card-link');
 // --- (END NEW) ---
 
@@ -394,8 +395,12 @@ async function findApprover(identifier) {
 // --- END OF FIX 3 ---
 
 async function getApproverByKey(key) { try { const snapshot = await db.ref(`approvers/${key}`).once('value'); const approverData = snapshot.val(); if (approverData) { return { key, ...approverData }; } else { return null; } } catch (error) { console.error("Error fetching approver by key:", error); return null; } }
-function updateDashboardDateTime() { const now = new Date(); const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }; datetimeElement.textContent = now.toLocaleDateString('en-GB', options); }
-function updateWorkdeskDateTime() { const now = new Date(); const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }; const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }; const dateString = now.toLocaleDateString('en-GB', dateOptions); const timeString = now.toLocaleTimeString('en-GB', timeOptions); workdeskDatetimeElement.textContent = `${dateString} at ${timeString}`; }
+function updateDashboardDateTime() { 
+    // Content removed
+}
+function updateWorkdeskDateTime() { 
+    // Content removed
+}
 
 
 // --- (NEW) Helper Functions for Counts ---
@@ -1564,11 +1569,24 @@ function showDayView(date) { // date is "2025-11-09"
         const card = document.createElement('div');
         card.className = 'dayview-task-card';
 
+        // --- NEW: Color-code border for "My Task" vs "Other Task" ---
+        const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
+        let borderColor = 'var(--iba-secondary-terracotta)'; // Default to Red ("mine")
+        
+        if (isAdmin && task.attention !== currentApprover.Name) {
+            borderColor = '#28a745'; // Green ("not mine")
+        }
+        
+        card.style.borderLeft = `5px solid ${borderColor}`;
+        // --- END OF NEW BLOCK ---
+
+        // *** THIS IS THE CORRECTED BLOCK ***
         if (isAdmin && task.po) {
             card.classList.add('admin-clickable-task'); 
-            card.dataset.po = task.po; 
-            card.title = `Admin: Double-click to search for PO ${task.po} in IM Reporting`;
+            card.dataset.po = task.po; // <-- This line was missing
+            card.title = `Admin: Double-click to search for PO ${task.po} in IM Reporting`; // <-- This line was missing
         }
+        // *** END OF CORRECTION ***
 
         const mainInfo = task.po ? `PO: ${task.po}` : (task.ref || 'General Task');
         const amountDisplay = (task.amount && parseFloat(task.amount) > 0) 
@@ -1605,7 +1623,6 @@ function showDayView(date) { // date is "2025-11-09"
     });
 }
 // --- END OF displayCalendarTasksForDay ---
-
 
 // --- *** NEW FUNCTION: Populate Admin-View Calendar *** ---
 async function populateAdminCalendarTasks() {
@@ -2595,12 +2612,12 @@ async function populateActiveTasks() {
         if (activeTaskCountDisplay) {
             activeTaskCountDisplay.textContent = `(Total Tasks: ${taskCount})`;
         }
-        [wdActiveTaskBadge, imActiveTaskBadge].forEach(badge => {
-            if (badge) {
-                badge.textContent = taskCount;
-                badge.style.display = taskCount > 0 ? 'inline-block' : 'none';
-            }
-        });
+        [wdActiveTaskBadge, imActiveTaskBadge, wdMobileNotifyBadge].forEach(badge => { // <-- ADDED IT HERE
+    if (badge) {
+        badge.textContent = taskCount;
+        badge.style.display = taskCount > 0 ? 'inline-block' : 'none';
+    }
+});
         // --- (END NEW) ---
 
         // --- *** NEW DYNAMIC TAB GENERATION *** ---
@@ -3234,12 +3251,7 @@ async function handleUpdateSettings(e) {
 
 // --- INVOICE MANAGEMENT FUNCTIONS ---
 function updateIMDateTime() {
-    const now = new Date();
-    const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
-    const dateString = now.toLocaleDateString('en-GB', dateOptions);
-    const timeString = now.toLocaleTimeString('en-GB', timeOptions);
-    if (imDatetimeElement) imDatetimeElement.textContent = `${dateString} at ${timeString}`;
+    // Content removed
 }
 function showIMSection(sectionId) {
     // ++ Access Control Check ++
@@ -4397,10 +4409,24 @@ function buildMobileReportView(reportData) {
             
             filteredInvoices.forEach(inv => {
                 const invValueDisplay = canViewAmounts ? `QAR ${formatCurrency(inv.invValue)}` : '---';
-                
-                // --- *** THIS IS THE NEW LINE *** ---
                 const releaseDateDisplay = inv.releaseDate ? formatYYYYMMDD(inv.releaseDate) : '';
-                // --- *** END OF NEW LINE *** ---
+
+                // --- *** PDF LINKS ADDED HERE *** ---
+                let actionsHTML = '';
+                if (isAdmin || isAccounting) {
+                    const invPDFName = inv.invName || '';
+                    const invPDFLink = (invPDFName.trim() && invPDFName.toLowerCase() !== 'nil')
+                        ? `<a href="${PDF_BASE_PATH}${encodeURIComponent(invPDFName)}.pdf" target="_blank" class="im-tx-action-btn invoice-pdf-btn">Invoice</a>`
+                        : '';
+                    const srvPDFName = inv.srvName || '';
+                    const srvPDFLink = (srvPDFName.trim() && srvPDFName.toLowerCase() !== 'nil')
+                        ? `<a href="${SRV_BASE_PATH}${encodeURIComponent(srvPDFName)}.pdf" target="_blank" class="im-tx-action-btn srv-pdf-btn">SRV</a>`
+                        : '';
+                    if (invPDFLink || srvPDFLink) {
+                        actionsHTML = `<div class="im-tx-actions">${invPDFLink} ${srvPDFLink}</div>`;
+                    }
+                }
+                // --- *** END OF PDF LINKS *** ---
 
                 // Determine transaction icon and color
                 let iconClass, amountClass;
@@ -4424,10 +4450,11 @@ function buildMobileReportView(reportData) {
                             <span class="im-tx-title">${inv.invEntryID || 'Invoice'}</span>
                             <span class="im-tx-subtitle">${inv.status || 'N/A'}</span>
                             <span class="im-tx-date">${releaseDateDisplay}</span>
-                            </div>
+                        </div>
                         <div class="im-tx-amount">
                             <span class="im-tx-value ${amountClass}">${invValueDisplay}</span>
-                        </div>
+                            ${actionsHTML}
+                            </div>
                     </li>
                 `;
             });
@@ -4527,7 +4554,6 @@ function buildDesktopReportView(reportData) {
     tableHTML += `</tbody></table>`;
     container.innerHTML = tableHTML;
 }
-
 
 // [REPLACE this entire function]
 
@@ -4653,7 +4679,8 @@ async function populateInvoiceReporting(searchTerm = '') {
         
         const count = currentReportData.length;
         if (reportingCountDisplay) {
-            reportingCountDisplay.textContent = `(Total POs Found: ${count})`;
+            // *** THIS IS THE MODIFICATION ***
+            reportingCountDisplay.textContent = `(Found: ${count})`;
         }
 
         // --- (NEW) Call the correct render function ---
@@ -4670,8 +4697,6 @@ async function populateInvoiceReporting(searchTerm = '') {
         if (mobileContainer) mobileContainer.innerHTML = '<p>An error occurred while generating the report. Check console for details.</p>';
     }
 }
-
-
 
 // ++ NEW (Req 2): Generate data for professional print report ++
 // --- *** START OF PRINT FIX *** ---
@@ -6525,10 +6550,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (mobileNotifyBtn) {
-        mobileNotifyBtn.addEventListener('click', () => {
-            alert('Notifications not yet implemented.');
-        });
-    }
+    mobileNotifyBtn.addEventListener('click', () => {
+        // --- THIS IS THE CHANGE ---
+        const taskCount = userActiveTasks.length;
+        if (taskCount > 0) {
+            alert(`Reminder: You still have ${taskCount} active task(s).`);
+        } else {
+            alert("You have no active tasks.");
+        }
+        // --- END OF CHANGE ---
+    });
+}
 
     if (mobileLogoutBtn) {
         mobileLogoutBtn.addEventListener('click', () => {
@@ -7443,30 +7475,58 @@ imAddPaymentModal.classList.remove('hidden');
     }
     // --- *** END OF NEW LISTENER *** ---
 
-// NEW LISTENER FOR MOBILE REPORT TOGGLE
+/// [REPLACE the old click listener for .im-po-balance-card]
+
+// NEW LISTENER FOR MOBILE REPORT TOGGLE (with Accordion Logic)
 document.addEventListener('click', (e) => {
     const card = e.target.closest('.im-po-balance-card');
     if (card && card.dataset.toggleTarget) {
-        const targetId = card.dataset.toggleTarget;
-        const targetElement = document.querySelector(targetId);
-        const icon = card.querySelector('.fa-chevron-down');
+        const targetId = card.dataset.toggleTarget; // e.g., "#mobile-invoice-list-1"
+        const targetElement = document.querySelector(targetId); // The div to toggle
+        const icon = card.querySelector('.po-card-chevron');
         
         if (targetElement) {
-            // Toggle the visibility
+            // --- NEW ACCORDION LOGIC ---
+            // Check if we are about to open this card
+            const isOpening = targetElement.classList.contains('hidden-invoice-list');
+            
+            // 1. If we are opening this card, close all others first.
+            if (isOpening) {
+                // *** THIS IS THE FIX ***
+                // Select all DIVs that are open (don't have the hidden class)
+                const allOpenLists = document.querySelectorAll('[id^="mobile-invoice-list-"]:not(.hidden-invoice-list)');
+                
+                allOpenLists.forEach(listDiv => {
+                    // We don't need to check for equality, as this list (targetElement)
+                    // is NOT in allOpenLists (it has the hidden class).
+                    // So we can just close all of them.
+                    
+                    listDiv.classList.add('hidden-invoice-list');
+                    
+                    // Also reset its corresponding icon
+                    const otherCard = document.querySelector(`[data-toggle-target="#${listDiv.id}"]`);
+                    const otherIcon = otherCard ? otherCard.querySelector('.po-card-chevron') : null;
+                    if (otherIcon) {
+                        otherIcon.style.transform = 'rotate(0deg)';
+                    }
+                });
+                // *** END OF FIX ***
+            }
+
+            // 2. Toggle the clicked card
             targetElement.classList.toggle('hidden-invoice-list');
             
-            // Toggle the icon rotation
+            // 3. Toggle the icon
             if (icon) {
-                // If it contains 'hidden-invoice-list', rotate 0 (down), otherwise rotate 180 (up)
                 icon.style.transform = targetElement.classList.contains('hidden-invoice-list') ? 'rotate(0deg)' : 'rotate(180deg)';
             }
         }
     }
-}); 
+});
 
-// [ADD THIS NEW BLOCK AT THE END OF YOUR DOMContentLoaded LISTENER]
+// [REPLACE this entire block at the end of your DOMContentLoaded listener]
 
-// --- *** NEW: IM MOBILE REPORTING MODAL LISTENERS *** ---
+// --- *** NEW: IM MOBILE REPORTING MODAL LISTENERS (with Logout Fix) *** ---
 const imMobileSearchBtn = document.getElementById('im-mobile-search-btn');
 const imMobileSearchModal = document.getElementById('im-mobile-search-modal');
 const imMobileSearchRunBtn = document.getElementById('im-mobile-search-run-btn');
@@ -7488,6 +7548,14 @@ const mobileDateFilter = document.getElementById('im-mobile-date-filter');
 // 1. Open the search modal
 if (imMobileSearchBtn) {
     imMobileSearchBtn.addEventListener('click', () => {
+        // *** LOGOUT FIX: Check for user state ***
+        if (!currentApprover) {
+            alert("Session expired. Please log in again.");
+            handleLogout();
+            return;
+        }
+        // *** END OF FIX ***
+
         // Sync mobile form WITH desktop form
         mobileSearchInput.value = desktopSearchInput.value;
         mobileSiteFilter.value = desktopSiteFilter.value;
@@ -7534,14 +7602,37 @@ if (imMobileSearchClearBtn) {
         // Clear session storage
         sessionStorage.removeItem('imReportingSearch');
         
-        // Clear the results
-        populateInvoiceReporting('');
+        // --- THIS IS THE FIX ---
+        // Manually clear the report data and UI
+        currentReportData = [];
+        const desktopContainer = document.getElementById('im-reporting-content');
+        const mobileContainer = document.getElementById('im-reporting-mobile-view');
+        const emptyStateHTML = `
+            <div class="im-mobile-empty-state">
+                <i class="fa-solid fa-file-circle-question"></i>
+                <h3>No Results Found</h3>
+                <p>Use the search button to find a PO or Vendor.</p>
+            </div>
+        `;
+        
+        if (desktopContainer) desktopContainer.innerHTML = '<p>Please enter a search term and click Search.</p>';
+        if (mobileContainer) mobileContainer.innerHTML = emptyStateHTML;
+        if (reportingCountDisplay) reportingCountDisplay.textContent = '(Found: 0)'; // Modified text
+        // --- END OF FIX ---
     });
 }
 
 // 4. Run the search from the modal
 if (imMobileSearchRunBtn) {
     imMobileSearchRunBtn.addEventListener('click', () => {
+        // *** LOGOUT FIX: Check for user state ***
+        if (!currentApprover) {
+            alert("Session expired. Please log in again.");
+            handleLogout();
+            return;
+        }
+        // *** END OF FIX ***
+
         // Sync desktop form FROM mobile form
         desktopSearchInput.value = mobileSearchInput.value;
         desktopSiteFilter.value = mobileSiteFilter.value;
