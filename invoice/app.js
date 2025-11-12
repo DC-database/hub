@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.0.8"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "3.1.1"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -453,6 +453,8 @@ function handleSuccessfulLogin() {
     }
 }
 
+// [REPLACE this entire function around line 1032]
+
 // NEW SIGNATURE: Added 'async' and 'newSearchTerm' parameter
 async function showWorkdeskSection(sectionId, newSearchTerm = null) {
     workdeskSections.forEach(section => { section.classList.add('hidden'); });
@@ -480,6 +482,15 @@ async function showWorkdeskSection(sectionId, newSearchTerm = null) {
     }
     
     if (sectionId === 'wd-jobentry') {
+        
+        // --- *** THIS IS THE FIX *** ---
+        // If we are NOT in the middle of editing a job,
+        // reset the form to the default "Add New Job" state.
+        if (!currentlyEditingKey) {
+            resetJobEntryForm(false);
+        }
+        // --- *** END OF FIX *** ---
+
         const savedSearch = sessionStorage.getItem('jobEntrySearch');
         if (savedSearch) {
             jobEntrySearchInput.value = savedSearch;
@@ -1918,105 +1929,116 @@ async function ensureAllEntriesFetched(forceRefresh = false) {
 }
 
 
+// [REPLACE this entire function around line 1307]
+
 function isTaskComplete(task) {
     if (!task) return false;
 
-    // --- (Req 1) MODIFIED: Define "completed" statuses for the active task sidebar ---
-    // These are statuses that mean the task is no longer "active" for the user.
+    // --- *** THIS IS THE NEW LOGIC (THE FIX) *** ---
+    // A job_entry of type "Invoice" is a special case.
+    // It is ONLY complete if it has a dateResponded.
+    // This check must come BEFORE the "attention === 'All'" check.
+    if (task.source === 'job_entry' && task.for === 'Invoice') {
+        // It's an invoice job. It is only "complete" if it has a response date.
+        // Since we cleared the date on update, this will be false (active).
+        return !!task.dateResponded; 
+    }
+    // --- *** END OF NEW LOGIC *** ---
+
+
+    // Define "completed" statuses
     const completedStatuses = [
         'CEO Approval', 
         'With Accounts', 
         'Under Review', 
         'SRV Done', 
         'Paid',
-        // 'Report', // <-- REMOVED
         'CLOSED',
         'Cancelled',
-        // 'Original PO' // <-- REMOVED
     ];
 
+    // Check for invoice_entry source (from IM module)
     if (task.source === 'invoice') {
-        // If the task status is one of the completed ones, it's done.
         if (completedStatuses.includes(task.remarks)) {
             return true;
         }
-        
-        // Special case: If the current user entered it (Irwin), 
-        // it's only "active" if it needs SRV/IPC.
         if (task.enteredBy === currentApprover?.Name) {
             const trackingStatuses = ['For SRV', 'For IPC'];
             if (trackingStatuses.includes(task.remarks)) {
                 return false; // Still needs action from them
             }
-            // If it's not For SRV/IPC, and not a completed status, 
-            // it's also considered "done" for Irwin (e.g., "Pending")
             return true; 
         }
-        // If it's assigned to someone else (e.g. current user), and not a completed status,
-        // it remains active for them (e.g., 'For SRV', 'For IPC')
         return false;
     }
     
+    // Check for job_entry source
     if (task.source === 'job_entry') {
-	if (task.attention === 'All') return true; // <-- ADD THIS LINE
-        // --- (Req 1) MODIFIED: Check job_entry statuses ---
+        // Now that the "Invoice" check is done, this line is safe.
+        // This makes "IPC" jobs with "All" (that aren't Invoices) be marked as complete.
+        if (task.attention === 'All') return true;
+
         if (completedStatuses.includes(task.remarks)) {
             return true;
         }
-
-        // --- *** ADD THIS NEW BLOCK *** ---
-        // If a PR is marked "PO Ready", it is complete for the active task list
         if (task.for === 'PR' && task.remarks === 'PO Ready') {
             return true;
         }
-        // --- *** END OF NEW BLOCK *** ---
         
-        // --- *** THIS IS THE FIX YOU REQUESTED *** ---
-        // If a non-invoice job has been replied to (dateResponded is set), it's complete.
-        if (task.for !== 'Invoice' && task.for !== 'PR' && task.dateResponded) { 
+        // We already handled "Invoice", so we just check other types
+        if (task.for !== 'PR' && task.dateResponded) { 
             return true;
         }
-        // --- *** END OF NEW RULE *** ---
-
-        // A job_entry with type 'Invoice' is now considered "complete"
-        // as soon as it has a dateResponded.
-        if (task.for === 'Invoice') { 
-            return !!task.dateResponded; 
-        }
-
-        if (task.for === 'IPC' && task.attention === 'All') { return true; }
     }
     
     return false; // If no other rule matches, it's not complete
 }
 
-// [Inside resetJobEntryForm function, around line 1354]
+// [REPLACE this entire function around line 1354]
+
 function resetJobEntryForm(keepJobType = false) {
     const jobType = jobForSelect.value;
-    jobEntryForm.reset();
-    if (keepJobType) jobForSelect.value = jobType;
+    jobEntryForm.reset(); // This resets <select id="job-for"> to ""
+    
+    if (keepJobType) {
+         jobForSelect.value = jobType;
+    }
+
     currentlyEditingKey = null;
     ['job-amount', 'job-po'].forEach(id => document.getElementById(id).classList.remove('highlight-field'));
     
-    // ... (lines for siteSelectChoices and attentionSelectChoices) ...
+    // --- *** THIS IS THE FIX *** ---
+    // 1. Re-enable the "Attention" dropdown if it was disabled
+    if (attentionSelectChoices.disabled) {
+        attentionSelectChoices.enable();
+    }
     
+    // 2. Clear any lingering selections (like "Auto-assigned")
+    attentionSelectChoices.clearInput();
+    attentionSelectChoices.removeActiveItems();
+    
+    // 3. Repopulate it with the full list of approvers
+    populateAttentionDropdown(attentionSelectChoices);
+    
+    // 4. Reset the Site dropdown
+    if (siteSelectChoices) {
+        siteSelectChoices.clearInput();
+        siteSelectChoices.removeActiveItems();
+    }
+    // --- *** END OF FIX *** ---
+
     jobEntryFormTitle.textContent = 'Add New Job Entry';
     addJobButton.classList.remove('hidden');
     updateJobButton.classList.add('hidden');
-    deleteJobButton.classList.add('hidden'); // <-- CHANGE 2.2
+    deleteJobButton.classList.add('hidden'); 
     
-    // === ADD THESE TWO LINES ===
     addJobButton.disabled = false;
     addJobButton.textContent = 'Add';
-    // === END OF ADDITION ===
 
- // --- ADD THIS BLOCK ---
     if (jobEntryNavControls) jobEntryNavControls.classList.add('hidden');
     navigationContextList = [];
     navigationContextIndex = -1;
-    // --- END OF ADD BLOCK ---
 
-    // ++ ADDED: Clear search on form clear ++
     jobEntrySearchInput.value = '';
     sessionStorage.removeItem('jobEntrySearch');
 }
@@ -2296,72 +2318,7 @@ addJobButton.disabled = true;
     }
 }
 
-// --- (MODIFIED) handleUpdateJobEntry ---
-// *** MODIFICATION: Added 'remarks' to jobData object ***
-async function handleUpdateJobEntry(e) {
-    e.preventDefault();
-    if (!currentlyEditingKey) { alert("No entry selected for update."); return; }
-    const formData = new FormData(jobEntryForm);
-    const jobData = { for: formData.get('for'), ref: formData.get('ref') || '', amount: formData.get('amount') || '', po: formData.get('po') || '', site: formData.get('site'), group: formData.get('group'), attention: attentionSelectChoices.getValue(true), remarks: formData.get('status') || 'Pending' };
-    
-    // --- (MODIFICATION) Check for "Invoice" job type ---
-    const isInvoiceJob = jobData.for === 'Invoice';
-    if (!jobData.for || !jobData.site || !jobData.group) {
-        alert('Please fill in Job, Site, and Group.');
-        return;
-    }
-    if (!isInvoiceJob && !jobData.attention) { // Attention is only required if NOT an "Invoice" job
-         alert('Please select an Attention user.'); 
-         return; 
-    }
-    // --- (END MODIFICATION) ---
-    
-    try {
-        await ensureAllEntriesFetched(); // We need this to get the original entry
-        const originalEntry = allSystemEntries.find(entry => entry.key === currentlyEditingKey);
-                
-        if (originalEntry) { 
-            jobData.enteredBy = originalEntry.enteredBy; 
-            jobData.timestamp = originalEntry.timestamp; 
-            jobData.date = originalEntry.date; 
-        }
-
-        // --- *** THIS IS THE FIX YOU REQUESTED *** ---
-        // If the current user is the "attention" person and the task is NOT an invoice,
-        // set dateResponded to mark it as complete.
-        if (originalEntry && 
-            currentApprover.Name === originalEntry.attention && 
-            !originalEntry.dateResponded &&
-            jobData.for !== 'Invoice' // Make sure it's not an Invoice job
-        ) { 
-            jobData.dateResponded = formatDate(new Date()); 
-        }
-        // --- *** END OF NEW RULE *** ---
-        
-        // Check if the current user is a QS
-const isQS = currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'qs';
-
-// Only set status to 'Ready' if it's an IPC job, Attention is 'All', AND the user is a QS
-if (originalEntry.for === 'IPC' && jobData.attention === 'All' && isQS) {
-    jobData.remarks = 'Ready';
-}
-        
-        await db.ref(`job_entries/${currentlyEditingKey}`).update(jobData);
-
-        alert('Job Entry Updated Successfully!');
-        
-        // --- *** JOB ENTRY FETCH FIX (START) *** ---
-        await ensureAllEntriesFetched(true); // Force refresh cache
-        handleJobEntrySearch(jobEntrySearchInput.value); // Re-run search
-        resetJobEntryForm();
-        // --- *** JOB ENTRY FETCH FIX (END) *** ---
-        
-        populateActiveTasks(); // Re-fetch all tasks
-    } catch (error) { 
-        console.error("Error updating job entry:", error); 
-        alert('Failed to update Job Entry. Please try again.'); 
-    }
-}
+// [ADD this entire function back into app.js, around line 1493]
 
 // --- *** NEW DELETE FUNCTION (CHANGE 2.3) *** ---
 async function handleDeleteJobEntry(e) {
@@ -2407,14 +2364,134 @@ async function handleDeleteJobEntry(e) {
 }
 // --- *** END CHANGE 2.3 *** ---
 
-// *** MODIFICATION: Added logic to populate new 'job-status' field ***
+// [REPLACE this entire function around line 1445]
+
+async function handleUpdateJobEntry(e) {
+    e.preventDefault();
+    if (!currentlyEditingKey) { alert("No entry selected for update."); return; }
+    const formData = new FormData(jobEntryForm);
+    
+    // 1. Get data from form
+    const jobData = { 
+        for: formData.get('for'), 
+        ref: (formData.get('ref') || '').trim(), 
+        amount: formData.get('amount') || '', 
+        po: (formData.get('po') || '').trim(), 
+        site: formData.get('site'), 
+        group: formData.get('group'), 
+        attention: attentionSelectChoices.getValue(true) || '', // Add fallback
+        remarks: (formData.get('status') || 'Pending').trim() 
+    };
+    
+    // If the job type is "Invoice", forcefully clear the attention
+    if (jobData.for === 'Invoice') {
+        jobData.attention = '';
+    }
+
+    const isInvoiceJob = jobData.for === 'Invoice';
+    if (!jobData.for || !jobData.site || !jobData.group) {
+        alert('Please fill in Job, Site, and Group.');
+        return;
+    }
+    if (!isInvoiceJob && !jobData.attention) { // Attention is only required if NOT an "Invoice" job
+         alert('Please select an Attention user.'); 
+         return; 
+    }
+    
+    try {
+        await ensureAllEntriesFetched(); // Get the original entry
+        const originalEntry = allSystemEntries.find(entry => entry.key === currentlyEditingKey);
+                
+        if (originalEntry) { 
+            // 2. Copy over non-form data
+            jobData.enteredBy = originalEntry.enteredBy; 
+            jobData.timestamp = originalEntry.timestamp; 
+            jobData.date = originalEntry.date; 
+
+            // --- *** NEW, SIMPLIFIED LOGIC AS YOU REQUESTED *** ---
+            let newDateResponded = originalEntry.dateResponded || null; // Start with the old value
+
+            // CASE 1: Is this the "attention" person completing their own task?
+            if (currentApprover.Name === (originalEntry.attention || '') && 
+                !originalEntry.dateResponded && // and it's not already completed
+                jobData.for !== 'Invoice' && // and it's not an invoice
+                jobData.attention === (originalEntry.attention || '')) // and they didn't change the attention
+            {
+                // This is the *only* case where we ADD a completion date
+                newDateResponded = formatDate(new Date());
+            } 
+            // CASE 2: Is this any other update? (Changing job type, changing attention, etc.)
+            else {
+                // We must check if the form data is different from the original data.
+                const hasChanged = (
+                    jobData.for !== originalEntry.for ||
+                    jobData.ref !== (originalEntry.ref || '') ||
+                    jobData.amount !== (originalEntry.amount || '') ||
+                    jobData.po !== (originalEntry.po || '') ||
+                    jobData.site !== originalEntry.site ||
+                    jobData.group !== originalEntry.group ||
+                    jobData.attention !== (originalEntry.attention || '') ||
+                    jobData.remarks !== originalEntry.remarks
+                );
+                
+                if (hasChanged) {
+                    // An edit was made. This task must be reactivated.
+                    newDateResponded = null; // This will delete the date from Firebase
+                }
+                // If nothing changed, newDateResponded just keeps its original value
+            }
+            
+            jobData.dateResponded = newDateResponded;
+            // --- *** END OF NEW LOGIC *** ---
+            
+        } else {
+            jobData.dateResponded = null;
+        }
+
+        const isQS = currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'qs';
+        if (jobData.for === 'IPC' && jobData.attention === 'All' && isQS) {
+            jobData.remarks = 'Ready';
+        }
+        
+        // This update saves jobData, including jobData.dateResponded = null
+        await db.ref(`job_entries/${currentlyEditingKey}`).update(jobData); 
+
+        alert('Job Entry Updated Successfully!');
+        
+        await ensureAllEntriesFetched(true); // Force refresh cache
+        handleJobEntrySearch(jobEntrySearchInput.value); // Re-run search
+        resetJobEntryForm(); // This will now correctly unlock the form
+        
+        populateActiveTasks(); // Re-fetch all tasks
+    } catch (error) { 
+        console.error("Error updating job entry:", error); 
+        alert('Failed to update Job Entry. Please try again.'); 
+    }
+}
+// --- *** END CHANGE 2.3 *** ---
+
+// [REPLACE this entire function around line 1515]
+
+// [REPLACE this entire function around line 1515]
+
 function populateFormForEditing(key) {
     // This needs to fetch from allSystemEntries, which is correct
     const entryData = allSystemEntries.find(entry => entry.key === key);
     if (!entryData || entryData.source === 'invoice') return;
 
     currentlyEditingKey = key;
-    document.getElementById('job-for').value = entryData.for || '';
+    
+    // --- *** THIS IS THE FIX (START) *** ---
+    // 1. We set the job value first
+    const jobForInput = document.getElementById('job-for');
+    jobForInput.value = entryData.for || '';
+    
+    // 2. We manually trigger the 'change' event
+    //    This will force the "Attention" dropdown to unlock itself
+    //    based on the *correct* job type ("IPC" in your example).
+    jobForInput.dispatchEvent(new Event('change'));
+    // --- *** THIS IS THE FIX (END) *** ---
+
     document.getElementById('job-ref').value = entryData.ref || '';
     const amountInput = document.getElementById('job-amount');
     const poInput = document.getElementById('job-po');
@@ -2422,20 +2499,21 @@ function populateFormForEditing(key) {
     poInput.value = entryData.po || '';
     document.getElementById('job-group').value = entryData.group || '';
     siteSelectChoices.setChoiceByValue(entryData.site || '');
+    
+    // 3. We set the "Attention" value *after* the dropdown has been unlocked
     attentionSelectChoices.setChoiceByValue(entryData.attention || '');
+
     document.getElementById('job-status').value = (entryData.remarks === 'Pending') ? '' : entryData.remarks || '';
     jobEntryFormTitle.textContent = 'Editing Job Entry';
     addJobButton.classList.add('hidden');
     updateJobButton.classList.remove('hidden');
 
-    // --- *** NEW DELETE BUTTON LOGIC (CHANGE 2.4) *** ---
     const userPositionLower = (currentApprover?.Position || '').toLowerCase();
     if (userPositionLower === 'accounting') {
         deleteJobButton.classList.remove('hidden');
     } else {
         deleteJobButton.classList.add('hidden');
     }
-    // --- *** END CHANGE 2.4 *** ---
 
     amountInput.classList.remove('highlight-field');
     poInput.classList.remove('highlight-field');
@@ -2464,6 +2542,8 @@ function updateJobEntryNavControls() {
     }
 }
 
+// [REPLACE this entire function around line 1555]
+
 // --- (MODIFIED) populateActiveTasks ---
 // Fetches job_entries directly and invoice_entries from the inbox.
 async function populateActiveTasks() {
@@ -2475,50 +2555,57 @@ async function populateActiveTasks() {
 
     try {
         const currentUserName = currentApprover.Name;
-        const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
-        const isProcurement = (currentApprover?.Position || '').toLowerCase() === 'procurement'; // <-- THIS IS THE NEW LINE
+        const userPositionLower = (currentApprover?.Position || '').toLowerCase();
+
+        // --- *** LOGIC AS PER YOUR REQUEST *** ---
+        const isAccounting = userPositionLower === 'accounting'; // Strict check
+        const isQS = userPositionLower === 'qs'; // Check for QS
+        const isProcurement = userPositionLower === 'procurement';
+        // --- *** END OF LOGIC *** ---
+
         let userTasks = [];
-        let pulledInvoiceKeys = new Set(); // To prevent duplicates
+        let pulledInvoiceKeys = new Set(); 
 
-        // --- PART 1: FETCH JOB_ENTRY TASKS (The old way, direct from Firebase) ---
-        await ensureAllEntriesFetched(); // This loads all job_entries into `allSystemEntries`
-        await ensureApproverDataCached(); // --- (NEW) Load approver positions ---
+        // --- PART 1: FETCH JOB_ENTRY TASKS ---
+        await ensureAllEntriesFetched(); 
+        await ensureApproverDataCached();
         
-        // --- THIS IS THE MODIFIED BLOCK ---
         const jobTasks = allSystemEntries.filter(entry => {
-            if (isTaskComplete(entry)) return false; // 1. Skip completed
+            // 1. Check if the task is complete.
+            //    Our new isTaskComplete() will correctly see the
+            //    updated "Invoice" task as ACTIVE (it returns false).
+            if (isTaskComplete(entry)) return false; 
 
-            // 2. Logic for "Invoice" jobs (Stays the same)
+            // 2. Logic for "Invoice" jobs
             if (entry.for === 'Invoice') {
-                return isAccounting;
+                return isAccounting; // Only shows for "Accounting"
             }
 
-            // 3. --- NEW LOGIC FOR "PR" JOBS ---
+            // 3. Logic for "PR" jobs
             if (entry.for === 'PR') {
-                // Show if user is in "Procurement"
-                if (isProcurement) {
-                    return true; 
-                }
-                // OR if user is in "Attention"
-                if (entry.attention === currentUserName) {
-                    return true;
-                }
-                // Otherwise, don't show it as an active task
+                if (isProcurement) return true; // Show to Procurement
+                if (entry.attention === currentUserName) return true; // Show to Attention
                 return false;
             }
+
+            // --- *** THIS IS YOUR NEW "IPC" to "QS" RULE *** ---
+            // 4. Logic for "IPC" jobs
+            if (entry.for === 'IPC') {
+                // Only show if the user is a QS AND the task is for them
+                return isQS && entry.attention === currentUserName;
+            }
+            // --- *** END OF NEW RULE *** ---
             
-            // 4. Logic for all *other* job types (e.g., "IPC", "Report")
+            // 5. Logic for all *other* job types
             return entry.attention === currentUserName;
         });
-        // --- END OF MODIFIED BLOCK ---
 
         // Add vendorName to job_entries tasks (it's already there from ensureAllEntriesFetched)
         userTasks = jobTasks.map(task => ({ ...task, source: 'job_entry' }));
         // --- END OF PART 1 ---
 
 
-        // --- PART 2: FETCH INVOICE_ENTRY TASKS (The New, FAST way from User's Inbox) ---
-        // This is the fast, targeted query to the invoice_tasks_by_user "inbox"
+        // --- PART 2: FETCH INVOICE_ENTRY TASKS (From IM Module) ---
         const sanitizeFirebaseKey = (key) => key.replace(/[.#$[\]]/g, '_');
         const safeCurrentUserName = sanitizeFirebaseKey(currentUserName);
         const invoiceTaskSnapshot = await invoiceDb.ref(`invoice_tasks_by_user/${safeCurrentUserName}`).once('value');
@@ -2527,10 +2614,10 @@ async function populateActiveTasks() {
             const tasksData = invoiceTaskSnapshot.val();
             for (const invoiceKey in tasksData) {
                 const task = tasksData[invoiceKey];
-                pulledInvoiceKeys.add(invoiceKey); // Add key to prevent duplicates in Part 3
+                pulledInvoiceKeys.add(invoiceKey); 
 
                 const transformedInvoice = {
-                    key: `${task.po}_${invoiceKey}`, // Create the composite key for the table
+                    key: `${task.po}_${invoiceKey}`,
                     originalKey: invoiceKey,
                     originalPO: task.po,
                     source: 'invoice',
@@ -2540,24 +2627,14 @@ async function populateActiveTasks() {
                     amount: task.amount,
                     site: task.site,
                     group: 'N/A',
-                    attention: currentUserName, // The task is here, so it's for this user
+                    attention: currentUserName,
                     enteredBy: 'Irwin', 
-                    
-                    // --- THIS IS THE FIX ---
-                    // 'date' (for the table) ALWAYS uses invoiceDate (from task.date)
                     date: formatYYYYMMDD(task.date),
-                    // 'calendarDate' (for the calendar) uses releaseDate, OR falls back to invoiceDate
                     calendarDate: formatYYYYMMDD(task.releaseDate) !== 'N/A' ? formatYYYYMMDD(task.releaseDate) : formatYYYYMMDD(task.date),
                     remarks: task.status,
-                    // 'timestamp' (for sorting) MUST also use the releaseDate
                     timestamp: (task.releaseDate || task.date) ? new Date(task.releaseDate || task.date).getTime() : Date.now(), 
-                    // --- END OF FIX ---
-                    
                     invName: task.invName,
-                    // --- FIX: Live lookup for Vendor Name ---
-                    // allPOData was populated by ensureAllEntriesFetched() at the start of this function
                     vendorName: (task.po && allPOData && allPOData[task.po]) ? (allPOData[task.po]['Supplier Name'] || 'N/A') : 'N/A',
-                    // --- END FIX ---
                     note: task.note
                 };
                 userTasks.push(transformedInvoice);
@@ -2565,28 +2642,19 @@ async function populateActiveTasks() {
         }
         // --- END OF PART 2 ---
 
-        // --- *** NEW PART 3: Scan ALL invoices for Accounting *** ---
-        // If the user is 'Accounting', scan the main cache for statuses that
-        // might not have an "Attention" assigned.
+        // --- PART 3: Scan ALL invoices for "Accounting" (for unassigned) ---
         if (isAccounting) {
-            await ensureInvoiceDataFetched(); // Make sure allInvoiceData is loaded
+            await ensureInvoiceDataFetched(); 
             const statusesToPull = ['Pending', 'Report', 'Original PO'];
 
             if (allInvoiceData && allPOData) {
                 for (const poNumber in allInvoiceData) {
                     const poInvoices = allInvoiceData[poNumber];
                     for (const invoiceKey in poInvoices) {
-                        // Skip if we already added this from the user's personal inbox
                         if (pulledInvoiceKeys.has(invoiceKey)) continue;
-
                         const inv = poInvoices[invoiceKey];
 
-                        // --- *** THIS IS THE FIX *** ---
-                        // Only pull if the status matches AND attention is EMPTY.
                         if (inv && statusesToPull.includes(inv.status) && (!inv.attention || inv.attention === '')) {
-                        // --- *** END OF FIX *** ---
-
-                            // Found one. Add it to the task list.
                             const poDetails = allPOData[poNumber] || {};
                             const transformedInvoice = {
                                 key: `${poNumber}_${invoiceKey}`,
@@ -2599,19 +2667,12 @@ async function populateActiveTasks() {
                                 amount: inv.invValue || '',
                                 site: poDetails['Project ID'] || 'N/A',
                                 group: 'N/A',
-                                attention: inv.attention || '', // Show who it's assigned to (if anyone)
+                                attention: inv.attention || '',
                                 enteredBy: 'Irwin', 
-                                
-                                // --- THIS IS THE FIX ---
-                                // 'date' (for the table) ALWAYS uses invoiceDate
                                 date: formatYYYYMMDD(inv.invoiceDate),
-                                // 'calendarDate' (for the calendar) uses releaseDate, OR falls back to invoiceDate
                                 calendarDate: formatYYYYMMDD(inv.releaseDate) !== 'N/A' ? formatYYYYMMDD(inv.releaseDate) : formatYYYYMMDD(inv.invoiceDate),
                                 remarks: inv.status,
-                                // 'timestamp' (for sorting) MUST also use the releaseDate
                                 timestamp: (inv.releaseDate || inv.invoiceDate) ? new Date(inv.releaseDate || inv.invoiceDate).getTime() : Date.now(),
-                                // --- END OF FIX ---
-
                                 invName: inv.invName || '',
                                 vendorName: poDetails['Supplier Name'] || 'N/A',
                                 note: inv.note || ''
@@ -2622,38 +2683,32 @@ async function populateActiveTasks() {
                 }
             }
         }
-        // --- *** END OF PART 3 *** ---
-
+        // --- END OF PART 3 ---
 
         // Store and render the combined list of tasks
         userActiveTasks = userTasks.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
         
-
-        // --- (NEW) Update task count and badge ---
+        // Update task count and badge
         const taskCount = userActiveTasks.length;
         if (activeTaskCountDisplay) {
             activeTaskCountDisplay.textContent = `(Total Tasks: ${taskCount})`;
         }
-        [wdActiveTaskBadge, imActiveTaskBadge, wdMobileNotifyBadge].forEach(badge => { // <-- Badge was added here
+        [wdActiveTaskBadge, imActiveTaskBadge, wdMobileNotifyBadge].forEach(badge => {
             if (badge) {
                 badge.textContent = taskCount;
                 badge.style.display = taskCount > 0 ? 'inline-block' : 'none';
             }
         });
-        // --- (END NEW) ---
 
-        // --- *** NEW DYNAMIC TAB GENERATION *** ---
+        // Generate dynamic tabs
         const uniqueStatuses = [...new Set(userActiveTasks.map(task => task.remarks || 'Pending'))];
         uniqueStatuses.sort(); 
-
         let tabsHTML = '<button class="active" data-status-filter="All">All Tasks</button>';
         uniqueStatuses.forEach(status => {
             tabsHTML += `<button data-status-filter="${status}">${status}</button>`;
         });
-
         activeTaskFilters.innerHTML = tabsHTML;
         currentActiveTaskFilter = 'All';
-        // --- *** END OF DYNAMIC TAB GENERATION *** ---
         
         renderActiveTaskTable(userTasks); 
 
@@ -6686,25 +6741,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
 
+  // [REPLACE this entire block around line 3574]
+
     jobForSelect.addEventListener('change', (e) => { 
         const isQS = currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'qs'; 
-        const isInvoice = e.target.value === 'Invoice';
-        
+        const jobType = e.target.value;
+        const isInvoice = (jobType === 'Invoice');
+        const isIPCforQS = (jobType === 'IPC' && isQS);
+
         if (isInvoice) {
-            // --- (NEW) Logic for "Invoice" ---
+            // Logic for "Invoice" - disable dropdown
             attentionSelectChoices.clearStore(); 
             attentionSelectChoices.setChoices([{ value: '', label: 'Auto-assigned to Accounting', disabled: true, selected: true }], 'value', 'label', false); 
             attentionSelectChoices.disable(); 
-            // --- (END NEW) ---
-        } else if (e.target.value === 'IPC' && isQS) { 
+
+        } else if (isIPCforQS) { 
+            // Logic for "IPC" for a QS user - disable dropdown
             attentionSelectChoices.clearStore(); 
             attentionSelectChoices.setChoices([{ value: 'All', label: 'All', selected: true }], 'value', 'label', false); 
             attentionSelectChoices.disable(); 
-        } else if (attentionSelectChoices.disabled) { 
+
+        } else {
+            // --- *** THIS IS THE NEW FIX *** ---
+            // This is for ALL OTHER job types (PR, Trip, Other, IPC for non-QS, or "")
+            // We must *always* re-enable and repopulate the list,
+            // in case it was previously locked by the "Invoice" selection.
             attentionSelectChoices.enable(); 
-            populateAttentionDropdown(attentionSelectChoices); // Repopulate
+            populateAttentionDropdown(attentionSelectChoices);
+            // --- *** END OF FIX *** ---
         } 
     });
+
+
     activeTaskSearchInput.addEventListener('input', debounce((e) => handleActiveTaskSearch(e.target.value), 500));
 // === ADD THIS NEW LISTENER START ===
 if (activeTaskFilters) {
@@ -7545,8 +7613,7 @@ document.addEventListener('click', (e) => {
         }
     }
 });
-
-// [REPLACE this entire block at the end of your DOMContentLoaded listener]
+// [REPLACE this entire block, from line 4284 to 4340]
 
 // --- *** NEW: IM MOBILE REPORTING MODAL LISTENERS (with Logout Fix) *** ---
 const imMobileSearchBtn = document.getElementById('im-mobile-search-btn');
@@ -7570,13 +7637,7 @@ const mobileDateFilter = document.getElementById('im-mobile-date-filter');
 // 1. Open the search modal
 if (imMobileSearchBtn) {
     imMobileSearchBtn.addEventListener('click', () => {
-        // *** LOGOUT FIX: Check for user state ***
-        if (!currentApprover) {
-            alert("Session expired. Please log in again.");
-            handleLogout();
-            return;
-        }
-        // *** END OF FIX ***
+        // *** FAULTY LOGOUT FIX REMOVED ***
 
         // Sync mobile form WITH desktop form
         mobileSearchInput.value = desktopSearchInput.value;
@@ -7647,13 +7708,7 @@ if (imMobileSearchClearBtn) {
 // 4. Run the search from the modal
 if (imMobileSearchRunBtn) {
     imMobileSearchRunBtn.addEventListener('click', () => {
-        // *** LOGOUT FIX: Check for user state ***
-        if (!currentApprover) {
-            alert("Session expired. Please log in again.");
-            handleLogout();
-            return;
-        }
-        // *** END OF FIX ***
+        // *** FAULTY LOGOUT FIX REMOVED ***
 
         // Sync desktop form FROM mobile form
         desktopSearchInput.value = mobileSearchInput.value;
@@ -7674,5 +7729,4 @@ if (imMobileSearchRunBtn) {
     });
 }
 // --- *** END OF NEW MOBILE LISTENERS *** ---
-
 }); // END OF DOMCONTENTLOADED
