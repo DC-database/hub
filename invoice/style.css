@@ -289,17 +289,6 @@ tbody tr:hover { background-color: #f1f1f1; }
 
 /* WORKDESK DASHBOARD STYLES */
 .dashboard-summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
-/* ++ NEW: Clickable Card Link ++ */
-.summary-card-link {
-    text-decoration: none;
-    color: inherit;
-    display: block;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-.summary-card-link:hover .summary-card {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 15px rgba(0,0,0,0.07);
-}
 .summary-card { display: flex; align-items: center; background-color: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 5px solid var(--iba-secondary-teal); } /* MODIFIED: Border color */
 .card-icon { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-color-light); font-size: 24px; margin-right: 15px; }
 .card-details { text-align: left; }

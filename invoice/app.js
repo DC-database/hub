@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.1.1"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "3.1.2"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -2469,8 +2469,6 @@ async function handleUpdateJobEntry(e) {
     }
 }
 // --- *** END CHANGE 2.3 *** ---
-
-// [REPLACE this entire function around line 1515]
 
 // [REPLACE this entire function around line 1515]
 
@@ -6717,20 +6715,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     // --- *** END OF NEW LISTENER ---
 
-    // --- (NEW) Click listener for WorkDesk Dashboard Card ---
-    if (activeTaskCardLink) {
-        activeTaskCardLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            // Find the 'Active Task' link in the nav and click it
-            const activeTaskLink = workdeskNav.querySelector('a[data-section="wd-activetask"]');
-            if (activeTaskLink) {
-                activeTaskLink.click();
-            }
-        });
-    }
-    // --- (END NEW) ---
-
-    // ++ NEW: Modify Task Modal Listeners ++
+        // ++ NEW: Modify Task Modal Listeners ++
     if (modifyTaskStatus) {
         modifyTaskStatus.addEventListener('change', (e) => {
             modifyTaskStatusOtherContainer.classList.toggle('hidden', e.target.value !== 'Other');
