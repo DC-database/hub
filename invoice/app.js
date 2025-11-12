@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.0.1"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "3.0.8"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -1848,50 +1848,48 @@ async function ensureAllEntriesFetched(forceRefresh = false) {
     Object.entries(jobEntriesData).forEach(([key, value]) => {
         let entry = { key, ...value, source: 'job_entry' };
 
-        // --- *** NEW PR AUTO-UPDATE LOGIC *** ---
-        // If it's a "PR", has a "Ref", and is "Pending"...
-        if (entry.for === 'PR' && entry.ref && entry.remarks === 'Pending') {
-            
-            // We trim any hidden spaces from the 'Ref' number
+        // --- *** PR ENRICHMENT LOGIC (THE FIX) *** ---
+        // Always try to find a match for any PR that has a Ref number.
+        if (entry.for === 'PR' && entry.ref) {
             const trimmedRef = entry.ref.trim();
-
-            // Look for a match in the CSV using the trimmed "Ref" key (which is ReqNum)
             const csvMatch = purchaseOrdersDataByRef[trimmedRef];
 
             if (csvMatch) {
-                // We found a match! Get the data based on your rules.
+                // We found a match in the CSV.
+                const newPO = csvMatch['PO'] || '';
+                const newVendor = csvMatch['Supplier Name'] || 'N/A';
+                
+                // --- THIS IS THE DATE FORMATTING FIX ---
+                const rawDate = csvMatch['Order Date'] || '';
+                const normalizedDate = normalizeDateForInput(rawDate); // Convert "19-10-25" to "2025-10-19"
+                const newDate = formatYYYYMMDD(normalizedDate);     // Convert "2025-10-19" to "19-Oct-2025"
+                // --- END OF FIX ---
 
-                // --- *** THIS IS THE FIX (Using all your headers) *** ---
-                const newPO = csvMatch['PO'] || '';                // Col B, Header "PO"
-                const newVendor = csvMatch['Supplier Name'] || 'N/A'; // Col D, Header "Supplier Name"
-                const newAmount = csvMatch['Amount'] || '';           // Col F, Header "Amount"
-                const newAttention = csvMatch['Buyer Name'] || '';  // Col H, Header "Buyer Name"
-                const newDate = csvMatch['Order Date'] || '';       // Col G, Header "Order Date"
-                // --- *** END OF FIX *** ---
+                // 1. Always update the local 'entry' object for the current view.
+                entry.po = newPO;
+                entry.vendorName = newVendor;
+                entry.dateResponded = (newDate === 'N/A' ? '' : newDate); // Use the formatted date
+                entry.remarks = 'PO Ready'; // <-- ALWAYS set status to "PO Ready" for display
 
-                // Update the local entry object
-                if (newPO) entry.po = newPO;
-                if (newVendor) entry.vendorName = newVendor; // Helper field
-                if (newAmount) entry.amount = newAmount;
-                if (newAttention) entry.attention = newAttention;
-                if (newDate) entry.dateResponded = newDate;
+                // 2. Check if this is a "Pending" PR that needs to be auto-updated in Firebase.
+                // We check the original value (value.remarks) not the one we just changed (entry.remarks)
+                if (value.remarks === 'Pending') {
+                    const newAmount = csvMatch['Amount'] || '';
+                    const newAttention = csvMatch['Buyer Name'] || '';
 
-                // NEW STATUS RULE: If PO was found, update status
-                if (newPO) {
-                    entry.remarks = 'PO Ready';
+                    // Prepare an object to update Firebase
+                    updatesToFirebase[key] = {
+                        po: newPO,
+                        vendorName: newVendor, // Also save vendorName to DB
+                        amount: newAmount,
+                        attention: newAttention,
+                        dateResponded: (newDate === 'N/A' ? '' : newDate), // Save formatted date
+                        remarks: 'PO Ready' // Save the new status
+                    };
                 }
-
-                // Prepare an object to update Firebase
-                updatesToFirebase[key] = {
-                    po: entry.po,
-                    amount: entry.amount,
-                    attention: entry.attention,
-                    dateResponded: entry.dateResponded,
-                    remarks: entry.remarks // Save the new status
-                };
             }
         }
-        // --- *** END OF NEW PR LOGIC *** ---
+        // --- *** END OF PR FIX *** ---
 
         // This adds the vendor name to all other tasks for the reporting table
         if (!entry.vendorName && entry.po && purchaseOrdersDataByPO[entry.po]) {
@@ -1965,10 +1963,17 @@ function isTaskComplete(task) {
         if (completedStatuses.includes(task.remarks)) {
             return true;
         }
+
+        // --- *** ADD THIS NEW BLOCK *** ---
+        // If a PR is marked "PO Ready", it is complete for the active task list
+        if (task.for === 'PR' && task.remarks === 'PO Ready') {
+            return true;
+        }
+        // --- *** END OF NEW BLOCK *** ---
         
         // --- *** THIS IS THE FIX YOU REQUESTED *** ---
         // If a non-invoice job has been replied to (dateResponded is set), it's complete.
-        if (task.for !== 'Invoice' && task.dateResponded) {
+        if (task.for !== 'Invoice' && task.for !== 'PR' && task.dateResponded) { 
             return true;
         }
         // --- *** END OF NEW RULE *** ---
@@ -1984,8 +1989,6 @@ function isTaskComplete(task) {
     
     return false; // If no other rule matches, it's not complete
 }
-
-
 
 // [Inside resetJobEntryForm function, around line 1354]
 function resetJobEntryForm(keepJobType = false) {
@@ -2473,6 +2476,7 @@ async function populateActiveTasks() {
     try {
         const currentUserName = currentApprover.Name;
         const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
+        const isProcurement = (currentApprover?.Position || '').toLowerCase() === 'procurement'; // <-- THIS IS THE NEW LINE
         let userTasks = [];
         let pulledInvoiceKeys = new Set(); // To prevent duplicates
 
@@ -2480,18 +2484,33 @@ async function populateActiveTasks() {
         await ensureAllEntriesFetched(); // This loads all job_entries into `allSystemEntries`
         await ensureApproverDataCached(); // --- (NEW) Load approver positions ---
         
+        // --- THIS IS THE MODIFIED BLOCK ---
         const jobTasks = allSystemEntries.filter(entry => {
-            if (isTaskComplete(entry)) return false; // Skip completed
+            if (isTaskComplete(entry)) return false; // 1. Skip completed
 
-            // Logic for "Invoice" jobs
+            // 2. Logic for "Invoice" jobs (Stays the same)
             if (entry.for === 'Invoice') {
-                // It's an active task for ANY user with Position "Accounting"
                 return isAccounting;
             }
+
+            // 3. --- NEW LOGIC FOR "PR" JOBS ---
+            if (entry.for === 'PR') {
+                // Show if user is in "Procurement"
+                if (isProcurement) {
+                    return true; 
+                }
+                // OR if user is in "Attention"
+                if (entry.attention === currentUserName) {
+                    return true;
+                }
+                // Otherwise, don't show it as an active task
+                return false;
+            }
             
-            // Logic for all other job types
+            // 4. Logic for all *other* job types (e.g., "IPC", "Report")
             return entry.attention === currentUserName;
         });
+        // --- END OF MODIFIED BLOCK ---
 
         // Add vendorName to job_entries tasks (it's already there from ensureAllEntriesFetched)
         userTasks = jobTasks.map(task => ({ ...task, source: 'job_entry' }));
@@ -2535,7 +2554,10 @@ async function populateActiveTasks() {
                     // --- END OF FIX ---
                     
                     invName: task.invName,
-                    vendorName: task.vendorName,
+                    // --- FIX: Live lookup for Vendor Name ---
+                    // allPOData was populated by ensureAllEntriesFetched() at the start of this function
+                    vendorName: (task.po && allPOData && allPOData[task.po]) ? (allPOData[task.po]['Supplier Name'] || 'N/A') : 'N/A',
+                    // --- END FIX ---
                     note: task.note
                 };
                 userTasks.push(transformedInvoice);
@@ -2612,12 +2634,12 @@ async function populateActiveTasks() {
         if (activeTaskCountDisplay) {
             activeTaskCountDisplay.textContent = `(Total Tasks: ${taskCount})`;
         }
-        [wdActiveTaskBadge, imActiveTaskBadge, wdMobileNotifyBadge].forEach(badge => { // <-- ADDED IT HERE
-    if (badge) {
-        badge.textContent = taskCount;
-        badge.style.display = taskCount > 0 ? 'inline-block' : 'none';
-    }
-});
+        [wdActiveTaskBadge, imActiveTaskBadge, wdMobileNotifyBadge].forEach(badge => { // <-- Badge was added here
+            if (badge) {
+                badge.textContent = taskCount;
+                badge.style.display = taskCount > 0 ? 'inline-block' : 'none';
+            }
+        });
         // --- (END NEW) ---
 
         // --- *** NEW DYNAMIC TAB GENERATION *** ---
