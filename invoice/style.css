@@ -3241,4 +3241,61 @@ body.is-admin .legend-admin-only {
         font-size: 0.9rem;
     }
 }
+/* --- NEW: Flip Phone Cover Screen Height Adjustments --- */
+@media (max-height: 450px) {
+    
+    /* Make the modal container take up the full height */
+    #im-mobile-search-modal .modal-container {
+        top: 0;
+        bottom: 0;
+        height: 100vh;
+        max-height: 100vh;
+        width: 100vw;
+        max-width: 100vw;
+        border-radius: 0;
+        padding: 10px;
+        box-sizing: border-box; /* Include padding in height */
+    }
+
+    /* Make the modal content scrollable */
+    #im-mobile-search-modal .modal-content {
+        overflow-y: auto; /* This is the key fix */
+        flex-grow: 1; /* Allow content to fill space */
+        padding-top: 0;
+    }
+
+    /* Shrink header and footer to save space */
+    #im-mobile-search-modal .modal-header {
+        padding-bottom: 8px;
+        margin-bottom: 8px;
+    }
+    #im-mobile-search-modal .modal-header h2 {
+        font-size: 1.1rem;
+    }
+    #im-mobile-search-modal .modal-footer {
+        padding-top: 8px;
+        margin-top: 8px;
+        flex-shrink: 0; /* Prevent footer from shrinking */
+    }
+
+    /* Make form elements even smaller */
+    #im-mobile-search-modal .form-group {
+        margin-bottom: 5px; 
+    }
+    #im-mobile-search-modal .form-group label {
+        font-size: 0.8rem;
+        margin-bottom: 2px;
+    }
+    #im-mobile-search-modal input[type="text"],
+    #im-mobile-search-modal input[type="month"],
+    #im-mobile-search-modal select {
+        font-size: 0.9rem;
+        padding: 6px; /* Even smaller padding */
+    }
+    #im-mobile-search-modal .modal-footer button {
+        padding: 6px 10px;
+        font-size: 0.9rem;
+    }
+}
+/* --- END OF Flip Phone Cover Screen Height Adjustments --- */
 /* --- END OF Flip Phone Cover Screen Adjustments --- */
