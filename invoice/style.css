@@ -2929,29 +2929,29 @@ body.is-admin .legend-admin-only {
 
     /* --- PO Card Color Themes (NEW LOGIC) --- */
 
-    /* 1. Green (Complete): "With Accounts" or "Paid" */
-    .im-po-balance-card.status-complete {
+    /* 1. Green ("Close"): All invoices are "With Accounts" or "Paid" */
+    .im-po-balance-card.status-close {
       background: linear-gradient(135deg, #28a745, #1e7e34); /* Green */
     }
 
-    /* 2. Yellow (Open): "Under Review" */
+    /* 2. Light Blue ("Open"): Any invoice is "Under Review" */
     .im-po-balance-card.status-open {
+      background: linear-gradient(135deg, var(--iba-secondary-periwinkle), #3b71c4); /* Light Blue */
+    }
+    
+    /* 3. Yellow ("New"): Any invoice is "For IPC" or "For SRV" */
+    .im-po-balance-card.status-new {
       background: linear-gradient(135deg, var(--iba-secondary-gold), #8a7300); /* Yellow/Gold */
     }
     
-    /* 3. Blue (In Progress): "For IPC" or "For SRV" */
-    .im-po-balance-card.status-progress {
-      background: linear-gradient(135deg, var(--iba-secondary-teal), var(--iba-base-blue)); /* Blue/Teal */
-    }
-    
-    /* 4. Light Red (On Hold): "Pending" */
-    .im-po-balance-card.status-on-hold {
+    /* 4. Light Red ("Pending"): Any invoice is "Pending" */
+    .im-po-balance-card.status-pending {
       background: linear-gradient(135deg, var(--iba-secondary-terracotta), #a24227); /* Light Red/Terracotta */
     }
 
-    /* 5. Default: (e.g., 'CEO Approval', 'Report') */
-    .im-po-balance-card.status-pending {
-      background: linear-gradient(135deg, var(--iba-secondary-periwinkle), #3b71c4); /* Default Blue */
+    /* 5. Default Blue (Other): (e.g., 'CEO Approval', 'Report') */
+    .im-po-balance-card.status-progress {
+      background: linear-gradient(135deg, var(--iba-secondary-teal), var(--iba-base-blue)); /* Default Blue/Teal */
     }
 
 .im-po-balance-card .po-card-header {
