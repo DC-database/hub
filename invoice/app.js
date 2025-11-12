@@ -1950,7 +1950,7 @@ function isTaskComplete(task) {
     const completedStatuses = [
         'CEO Approval', 
         'With Accounts', 
-        'Under Review', 
+        // 'Under Review', // <-- *** THIS IS THE FIX (REMOVED) ***
         'SRV Done', 
         'Paid',
         'CLOSED',
