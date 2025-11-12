@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.1.4"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "3.1.5"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -4426,41 +4426,43 @@ function buildMobileReportView(reportData) {
         const toggleId = `mobile-invoice-list-${poIndex}`;
         
         // --- *** NEW STATUS COLOR LOGIC (Per User Request) *** ---
-        let statusClass = 'status-pending'; // Default: Blue
-        let hasComplete = false;
-        let hasOpen = false;
-        let hasInProgress = false;
-        let hasOnHold = false;
+        let statusClass = 'status-progress'; // Default: Blue
+        let hasOpen = false;         // Light Blue ("Under Review")
+        let hasNew = false;          // Yellow ("For SRV", "For IPC")
+        let hasPending = false;      // Light Red ("Pending")
+        
+        // Assume all are "Close" unless proven otherwise
+        let allClose = filteredInvoices.length > 0; 
 
         for (const inv of filteredInvoices) {
             const status = inv.status || 'Pending';
 
-            if (status === 'With Accounts' || status === 'Paid') {
-                hasComplete = true;
-                break; // 1. Highest priority (Green)
+            // Check for non-Close statuses
+            if (status !== 'With Accounts' && status !== 'Paid') {
+                allClose = false;
             }
+
+            // Check for other priority statuses
             if (status === 'Under Review') {
-                hasOpen = true; // 2. Second priority (Yellow)
-            }
-            if (status === 'For IPC' || status === 'For SRV') {
-                hasInProgress = true; // 3. Third priority (Blue)
-            }
-            if (status === 'Pending') {
-                hasOnHold = true; // 4. Lowest priority (Light Red)
+                hasOpen = true;
+            } else if (status === 'For SRV' || status === 'For IPC') {
+                hasNew = true;
+            } else if (status === 'Pending') {
+                hasPending = true;
             }
         }
 
         // Apply the hierarchy
-        if (hasComplete) {
-            statusClass = 'status-complete'; // This will be Green
+        if (allClose) {
+            statusClass = 'status-close'; // 1. Green ("Close")
         } else if (hasOpen) {
-            statusClass = 'status-open'; // This will be Yellow
-        } else if (hasInProgress) {
-            statusClass = 'status-progress'; // This will be Blue
-        } else if (hasOnHold) {
-            statusClass = 'status-on-hold'; // This will be Light Red
+            statusClass = 'status-open'; // 2. Light Blue ("Open")
+        } else if (hasNew) {
+            statusClass = 'status-new'; // 3. Yellow ("New")
+        } else if (hasPending) {
+            statusClass = 'status-pending'; // 4. Light Red ("Pending")
         }
-        // If none match (e.g., 'CEO Approval', 'Report'), it stays 'status-pending' (Default Blue)
+        // 5. If none of the above, it remains 'status-progress' (Default Blue for 'Report', 'CEO Approval', etc.)
         // --- *** END OF NEW LOGIC *** ---
         
         const poValueDisplay = canViewAmounts ? `QAR ${formatCurrency(poDetails.Amount)}` : '---';
@@ -4504,7 +4506,6 @@ function buildMobileReportView(reportData) {
                 const invValueDisplay = canViewAmounts ? `QAR ${formatCurrency(inv.invValue)}` : '---';
                 const releaseDateDisplay = inv.releaseDate ? formatYYYYMMDD(inv.releaseDate) : '';
 
-                // --- *** PDF LINKS ADDED HERE *** ---
                 let actionsHTML = '';
                 if (isAdmin || isAccounting) {
                     const invPDFName = inv.invName || '';
@@ -4519,16 +4520,11 @@ function buildMobileReportView(reportData) {
                         actionsHTML = `<div class="im-tx-actions">${invPDFLink} ${srvPDFLink}</div>`;
                     }
                 }
-                // --- *** END OF PDF LINKS *** ---
 
-                // Determine transaction icon and color
                 let iconClass, amountClass;
-                if ((inv.status || '').toLowerCase() === 'paid') {
+                if ((inv.status || '').toLowerCase() === 'paid' || (inv.status || '').toLowerCase() === 'with accounts') {
                     iconClass = 'fa-solid fa-check';
                     amountClass = 'paid'; // Green
-                } else if ((inv.status || '').toLowerCase() === 'with accounts') {
-                    iconClass = 'fa-solid fa-file-invoice-dollar';
-                    amountClass = 'paid'; // Green (as it's a "complete" status)
                 } else {
                     iconClass = 'fa-solid fa-hourglass-half';
                     amountClass = 'pending'; // Red
@@ -7733,3 +7729,4 @@ if (imMobileSearchRunBtn) {
 }
 // --- *** END OF NEW MOBILE LISTENERS *** ---
 }); // END OF DOMCONTENTLOADED
+
