@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.2.1"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "3.2.3"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -842,6 +842,96 @@ async function removeInvoiceTaskFromUser(invoiceKey, oldData) {
 // --- (FIX) END OF RE-ADDED FUNCTIONS ---
 
 
+// [REPLACE this entire function around line 950]
+
+// ++ NEW: FETCH AND PARSE ECOMMIT CSV (for historical data) ++
+async function fetchAndParseEcommitCSV(url) {
+    try {
+        const response = await fetch(url, { cache: 'no-store' });
+        if (!response.ok) { throw new Error(`Failed to fetch CSV: ${response.statusText}`); }
+        const csvText = await response.text();
+        const lines = csvText.replace(/^\uFEFF/, '').split('\n').filter(line => line.trim() !== '');
+        if (lines.length < 2) { throw new Error("Ecommit CSV is empty or has no data rows."); }
+        
+        const parseCsvRow = (rowStr) => {
+            const values = []; let inQuote = false; let currentVal = ''; const cleanRowStr = rowStr.trim();
+            for (let i = 0; i < cleanRowStr.length; i++) {
+                const char = cleanRowStr[i];
+                if (char === '"' && (i === 0 || cleanRowStr[i-1] !== '\\')) { inQuote = !inQuote; } else if (char === ',' && !inQuote) { values.push(currentVal.trim().replace(/^"|"$/g, '')); currentVal = ''; } else { currentVal += char; }
+            }
+            values.push(currentVal.trim().replace(/^"|"$/g, ''));
+            return values.map(v => v.replace(/^"|"$/g, ''));
+        };
+
+        const headers = parseCsvRow(lines[0]).map(h => h.trim());
+        const headerMap = {};
+        headers.forEach((h, i) => { headerMap[h] = i; });
+
+        const requiredHeaders = ['PO', 'Whse', 'Date', 'Name', 'Packing Slip', 'Extended Cost'];
+        if (!requiredHeaders.every(h => headerMap.hasOwnProperty(h))) {
+            throw new Error("Ecommit CSV is missing required headers.");
+        }
+
+        const poMap = {}; // Will hold all Ecommit data grouped by PO
+        for (let i = 1; i < lines.length; i++) {
+            const values = parseCsvRow(lines[i]);
+            if (values.length < headers.length) continue;
+
+            const po = values[headerMap['PO']]?.toUpperCase().trim();
+            if (!po) continue;
+
+            const extendedCost = parseFloat(values[headerMap['Extended Cost']]?.replace(/,/g, '') || 0);
+
+            const record = {
+                po: po,
+                site: values[headerMap['Whse']] || '',
+                date: values[headerMap['Date']] || '',
+                supplierName: values[headerMap['Name']] || '',
+                packingSlip: values[headerMap['Packing Slip']] || '',
+                invValue: extendedCost.toFixed(2), // Store as fixed string
+                rawDate: values[headerMap['Date']] // Keep raw date for sorting
+            };
+            
+            if (!poMap[po]) poMap[po] = [];
+            poMap[po].push(record);
+        }
+        
+        // --- CHRONOLOGICAL SORTING AND ID ASSIGNMENT ---
+        const finalEcommitData = {};
+        Object.keys(poMap).forEach(po => {
+            // Sort by rawDate, then Packing Slip for consistent chronological order
+            poMap[po].sort((a, b) => {
+                const dateA = new Date(a.rawDate);
+                const dateB = new Date(b.rawDate);
+                if (dateA - dateB !== 0) return dateA - dateB;
+                return a.packingSlip.localeCompare(b.packingSlip);
+            });
+
+            // Assign Inv. Entry ID chronologically
+            poMap[po].forEach((record, index) => {
+                const invEntryID = `INV-${String(index + 1).padStart(2, '0')}`;
+                // Transform the record into a format ready for merging with Firebase data
+                finalEcommitData[po] = finalEcommitData[po] || {};
+                finalEcommitData[po][invEntryID] = {
+                    invEntryID: invEntryID,
+                    invNumber: record.packingSlip,
+                    invoiceDate: normalizeDateForInput(record.date), // Normalize date format
+                    invValue: record.invValue,
+                    status: 'Epicore Value', // *** FIXED STATUS HERE ***
+                    source: 'ecommit' // *** ADDED SOURCE TAG ***
+                };
+            });
+        });
+
+        console.log(`Successfully processed ${Object.keys(finalEcommitData).length} POs from Ecommit.csv.`);
+        return finalEcommitData;
+    } catch (error) { 
+        console.error("Error fetching or parsing Ecommit CSV:", error); 
+        alert("CRITICAL ERROR: Could not load Ecommit data from GitHub."); 
+        return null; 
+    }
+}
+
 // ++ NEW: FETCH AND PARSE EPICORE CSV ++
 async function fetchAndParseEpicoreCSV(url) {
     try {
@@ -1130,11 +1220,13 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
     const shouldUseCache = !forceRefresh &&
                           allPOData &&
                           allInvoiceData &&
-                          allEpicoreData && // ++ NEW CHECK ++
-                          allSitesCSVData && // ++ NEW CHECK FOR SITES ++
+                          allEpicoreData &&
+                          allSitesCSVData && 
+                          allEcommitDataProcessed && // *** NEW CHECK ***
                           (now - cacheTimestamps.poData < CACHE_DURATION) &&
-                          (now - cacheTimestamps.epicoreData < CACHE_DURATION) && // ++ NEW CHECK ++
-                          (now - cacheTimestamps.sitesCSV < CACHE_DURATION); // ++ NEW CHECK FOR SITES ++
+                          (now - cacheTimestamps.epicoreData < CACHE_DURATION) &&
+                          (now - cacheTimestamps.sitesCSV < CACHE_DURATION) &&
+                          (now - cacheTimestamps.ecommitData < CACHE_DURATION); // *** NEW CHECK ***
 
 
     if (shouldUseCache) {
@@ -1143,41 +1235,38 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
 
     try {
         const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
-        const EPICORE_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/epicore.csv"; // ++ NEW ++
-        const SITES_CSV_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/Site.csv"; // ++ NEW ++
+        const EPICORE_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/Ecost.csv"; // Using Ecost for comprehensive financial data
+        const SITES_CSV_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/Site.csv";
+        // *** NEW URL ***
+        const ECOMMIT_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/ECommit.csv";
+        // *** END NEW URL ***
 
-        // --- (FIX) We only fetch invoice_entries if the cache is expired ---
-        // Active Tasks no longer depends on this, but Reporting still does.
-        console.log("Refreshing all caches (PO, Epicore, Sites, and Invoices)...");
+        console.log("Refreshing all caches (PO, Epicore, Sites, Ecommit, and Invoices)...");
         
-        const [csvData, epicoreCsvData, sitesCsvData, invoiceSnapshot] = await Promise.all([ // ++ MODIFIED ++
+        // *** MODIFIED Promise.all: Added Ecommit fetch ***
+        const [csvData, epicoreCsvData, sitesCsvData, ecommitProcessedData, invoiceSnapshot] = await Promise.all([ 
             fetchAndParseCSV(PO_DATA_URL),
-            fetchAndParseEpicoreCSV(EPICORE_DATA_URL), // ++ NEW ++
-            fetchAndParseSitesCSV(SITES_CSV_URL), // ++ NEW ++
+            fetchAndParseEpicoreCSV(EPICORE_DATA_URL),
+            fetchAndParseSitesCSV(SITES_CSV_URL),
+            fetchAndParseEcommitCSV(ECOMMIT_DATA_URL), // *** NEW CALL ***
             invoiceDb.ref('invoice_entries').once('value'),
         ]);
 
-        if (csvData === null || epicoreCsvData === null || sitesCsvData === null) { // ++ MODIFIED ++
-            throw new Error("Failed to load PO, Epicore, or Site data from CSV.");
+        if (csvData === null || epicoreCsvData === null || sitesCsvData === null || ecommitProcessedData === null) {
+            throw new Error("Failed to load PO, Epicore, Site, or Ecommit data from CSV.");
         }
-
-        // --- *** THIS IS THE FIX *** ---
-        // The fetchAndParseCSV function now returns an object { poDataByPO, poDataByRef }.
-        // We must correctly assign BOTH maps to the global scope.
+        
         allPOData = csvData.poDataByPO;
-        // This function was missing the line below, which broke the Job Records page.
-        // We don't use poDataByRef here, but we must set it for the *other* function.
-        const purchaseOrdersDataByRef = csvData.poDataByRef || {};
-        // --- *** END OF FIX *** ---
-
-        allEpicoreData = epicoreCsvData; // ++ NEW ++
-        allSitesCSVData = sitesCsvData; // ++ NEW ++
+        allEpicoreData = epicoreCsvData;
+        allSitesCSVData = sitesCsvData;
         allInvoiceData = invoiceSnapshot.val() || {};
+        allEcommitDataProcessed = ecommitProcessedData; // *** NEW STATE VARIABLE ***
 
         cacheTimestamps.poData = now;
-        cacheTimestamps.epicoreData = now; // ++ NEW ++
-        cacheTimestamps.sitesCSV = now; // ++ NEW ++
+        cacheTimestamps.epicoreData = now;
+        cacheTimestamps.sitesCSV = now;
         cacheTimestamps.invoiceData = now;
+        cacheTimestamps.ecommitData = now; // *** NEW TIMESTAMP ***
 
         console.log("Invoice and GitHub CSV caches refreshed.");
 
@@ -1205,6 +1294,7 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
         alert("Error: Could not load data from database.");
     }
 }
+
 
 // LOCAL CACHE UPDATE FUNCTIONS
 function updateLocalInvoiceCache(poNumber, invoiceKey, updatedData) {
@@ -4529,7 +4619,8 @@ function buildMobileReportView(reportData) {
                 const releaseDateDisplay = inv.releaseDate ? formatYYYYMMDD(inv.releaseDate) : '';
 
                 let actionsHTML = '';
-                if (isAdmin || isAccounting) {
+                // --- *** FIX: Check if source is NOT ECOMMIT before rendering links *** ---
+                if (inv.source !== 'ecommit' && (isAdmin || isAccounting)) {
                     const invPDFName = inv.invName || '';
                     const invPDFLink = (invPDFName.trim() && invPDFName.toLowerCase() !== 'nil')
                         ? `<a href="${PDF_BASE_PATH}${encodeURIComponent(invPDFName)}.pdf" target="_blank" class="im-tx-action-btn invoice-pdf-btn">Invoice</a>`
@@ -4542,6 +4633,7 @@ function buildMobileReportView(reportData) {
                         actionsHTML = `<div class="im-tx-actions">${invPDFLink} ${srvPDFLink}</div>`;
                     }
                 }
+                // --- *** END OF FIX *** ---
 
                 let iconClass, amountClass;
                 if ((inv.status || '').toLowerCase() === 'paid' || (inv.status || '').toLowerCase() === 'with accounts') {
@@ -4576,6 +4668,7 @@ function buildMobileReportView(reportData) {
     
     container.innerHTML = mobileHTML;
 }
+
 // [REPLACE this entire function around line 2465]
 
 // NEW HELPER 2: This is your *existing* logic, moved into its own function
@@ -4615,7 +4708,8 @@ function buildDesktopReportView(reportData) {
             const amountPaidDisplay = (isAdmin || isAccounting) ? formatCurrency(amountPaid) : '---';
 
             let actionButtonsHTML = '';
-            if (isAdmin || isAccounting) {
+            // --- *** FIX: Check if source is NOT ECOMMIT before rendering links *** ---
+            if (inv.source !== 'ecommit' && (isAdmin || isAccounting)) {
                 const invPDFName = inv.invName || '';
                 const invPDFLink = (invPDFName.trim() && invPDFName.toLowerCase() !== 'nil')
                     ? `<a href="${PDF_BASE_PATH}${encodeURIComponent(invPDFName)}.pdf" target="_blank" class="action-btn invoice-pdf-btn">Invoice</a>`
@@ -4626,11 +4720,13 @@ function buildDesktopReportView(reportData) {
                     : '';
                 if (invPDFLink || srvPDFLink) actionButtonsHTML = `<div class="action-btn-group">${invPDFLink} ${srvPDFLink}</div>`;
             }
+            // --- *** END OF FIX *** ---
             
             nestedTableRows += `<tr class="nested-invoice-row" 
                                     data-po-number="${poData.poNumber}" 
                                     data-invoice-key="${inv.key}" 
-                                    title="Click to edit this invoice">
+                                    data-source="${inv.source}"
+                                    title="${inv.source === 'ecommit' ? 'Historical Record - Read Only' : 'Click to edit this invoice'}">
                 <td>${inv.invEntryID || ''}</td>
                 <td>${inv.invNumber || ''}</td>
                 <td>${invoiceDateDisplay}</td>
@@ -4661,17 +4757,15 @@ function buildDesktopReportView(reportData) {
             }
         }
         
-        // --- *** FIX: Removed cells for totalPaidDisplay and datePaidDisplay *** ---
         tableHTML += `<tr class="master-row ${highlightClass}" data-target="#${detailRowId}"><td><button class="expand-btn">+</button></td><td>${poData.poNumber}</td><td>${poData.site}</td><td>${poData.vendor}</td><td>${poValueDisplay}</td></tr>`;
         
-        // --- *** FIX: Changed colspan from 7 to 5 *** ---
-        tableHTML += `<tr id="${detailRowId}" class="detail-row hidden"><td colspan="5"><div class="detail-content"><h4>Invoice Entries for PO ${poData.poNumber}</h4><table class="nested-invoice-table"><thead><tr><th>Inv. Entry</th><th>Inv. No.</th><th>Inv. Date</th><th>Inv. Value</th><th>Amount To Paid</th><th>Release Date</th><th>Status</th><th>Note</th><th>Action</th></tr></thead><tbody>${nestedTableRows}</tbody><tfoot><tr><td colspan="3" style="text-align: right;"><strong>TOTAL</strong></td><td>${totalInvValueDisplay}</td><td>${totalAmountPaidDisplay}</td><td colspan="4"></td></tr></tfoot></table></div></td></tr>`;
+        tableHTML += `<tr id="${detailRowId}" class="detail-row hidden"><td colspan="5"><div class="detail-content"><h4>Invoice Entries for PO ${poData.poNumber}</h4><table class="nested-invoice-table"><thead><tr><th>Inv. Entry</th><th>Inv. No.</th><th>Inv. Date</th><th>Inv. Value</th><th>Amt. Paid</th><th>Release Date</th><th>Status</th><th>Note</th><th>Action</th></tr></thead><tbody>${nestedTableRows}</tbody><tfoot><tr><td colspan="3" class="print-footer-label">PO Invoice Totals:</td><td>${totalInvValueDisplay}</td><td>${totalAmountPaidDisplay}</td><td colspan="4"></td></tr></tfoot></table></div></td></tr>`;
     });
     tableHTML += `</tbody></table>`;
     container.innerHTML = tableHTML;
 }
 
-// [REPLACE this entire function]
+// [REPLACE this entire function around line 2496]
 
 // THIS IS THE MODIFIED MAIN FUNCTION
 async function populateInvoiceReporting(searchTerm = '') {
@@ -4711,22 +4805,33 @@ async function populateInvoiceReporting(searchTerm = '') {
 
 
     try {
-        await ensureInvoiceDataFetched();
+        await ensureInvoiceDataFetched(); // Fetches all data including Ecommit
 
         const allPOs = allPOData;
         const allInvoicesByPO = allInvoiceData;
-        if (!allPOs || !allInvoicesByPO) {
-             throw new Error("Required data (PO or Invoices) not loaded.");
+        const allEcommit = allEcommitDataProcessed; // *** NEW: Get Ecommit Data ***
+
+        if (!allPOs || !allInvoicesByPO || !allEcommit) {
+             throw new Error("Required data not loaded.");
         }
         const searchText = searchTerm.toLowerCase();
 
         let resultsFound = false;
         const processedPOData = [];
+        
+        // --- *** START OF MERGE LOGIC *** ---
+        // 1. Create a master list of POs from both Firebase and Ecommit
+        const allUniquePOs = new Set([
+            ...Object.keys(allPOs), 
+            ...Object.keys(allInvoicesByPO), 
+            ...Object.keys(allEcommit)
+        ]);
 
-        const filteredPONumbers = Object.keys(allPOs).filter(poNumber => {
+        const filteredPONumbers = Array.from(allUniquePOs).filter(poNumber => {
             const poDetails = allPOs[poNumber] || {};
             const site = poDetails['Project ID'] || 'N/A';
             const vendor = poDetails['Supplier Name'] || 'N/A';
+            
             const searchMatch = !searchText || poNumber.toLowerCase().includes(searchText) || vendor.toLowerCase().includes(searchText);
             const siteMatch = !siteFilter || site === siteFilter;
             return searchMatch && siteMatch;
@@ -4737,7 +4842,24 @@ async function populateInvoiceReporting(searchTerm = '') {
             const site = poDetails['Project ID'] || 'N/A';
             const vendor = poDetails['Supplier Name'] || 'N/A';
 
-            let invoices = allInvoicesByPO[poNumber] ? Object.entries(allInvoicesByPO[poNumber]).map(([key, value]) => ({ key, ...value })) : [];
+            // 2. Merge Invoices: Firebase (priority) over Ecommit
+            // Start with all Ecommit records for this PO
+            let mergedInvoices = allEcommit[poNumber] ? Object.entries(allEcommit[poNumber]).map(([key, value]) => ({ key, ...value, source: 'ecommit' })) : [];
+
+            // Overwrite Ecommit data with Firebase data where keys match (using PO + InvEntryID for lookup)
+            const firebaseInvoices = allInvoicesByPO[poNumber] ? Object.entries(allInvoicesByPO[poNumber]).map(([key, value]) => ({ key, ...value, source: 'firebase' })) : [];
+            
+            // Temporary map keyed by invEntryID for merging
+            const finalInvoiceMap = new Map();
+            
+            // Add Ecommit first (low priority)
+            mergedInvoices.forEach(inv => finalInvoiceMap.set(inv.invEntryID, inv));
+
+            // Overwrite/Add Firebase invoices (high priority)
+            firebaseInvoices.forEach(inv => finalInvoiceMap.set(inv.invEntryID, inv));
+
+            let invoices = Array.from(finalInvoiceMap.values());
+            // 3. --- END OF MERGE LOGIC ---
 
             let calculatedTotalPaid = 0;
             let latestPaidDate = null;
