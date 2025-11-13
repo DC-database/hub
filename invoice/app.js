@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.2.3"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "3.2.7"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -840,8 +840,6 @@ async function removeInvoiceTaskFromUser(invoiceKey, oldData) {
     await invoiceDb.ref(`invoice_tasks_by_user/${safeOldAttentionKey}/${invoiceKey}`).remove();
 }
 // --- (FIX) END OF RE-ADDED FUNCTIONS ---
-
-
 // [REPLACE this entire function around line 950]
 
 // ++ NEW: FETCH AND PARSE ECOMMIT CSV (for historical data) ++
@@ -867,9 +865,10 @@ async function fetchAndParseEcommitCSV(url) {
         const headerMap = {};
         headers.forEach((h, i) => { headerMap[h] = i; });
 
-        const requiredHeaders = ['PO', 'Whse', 'Date', 'Name', 'Packing Slip', 'Extended Cost'];
+        // --- *** THIS IS THE FIX (1/4): Added 'Sys Date' to required list *** ---
+        const requiredHeaders = ['PO', 'Whse', 'Date', 'Sys Date', 'Name', 'Packing Slip', 'Extended Cost'];
         if (!requiredHeaders.every(h => headerMap.hasOwnProperty(h))) {
-            throw new Error("Ecommit CSV is missing required headers.");
+            throw new Error("Ecommit CSV is missing required headers (PO, Whse, Date, Sys Date, Name, Packing Slip, Extended Cost).");
         }
 
         const poMap = {}; // Will hold all Ecommit data grouped by PO
@@ -886,9 +885,10 @@ async function fetchAndParseEcommitCSV(url) {
                 po: po,
                 site: values[headerMap['Whse']] || '',
                 date: values[headerMap['Date']] || '',
+                sysDate: values[headerMap['Sys Date']] || '', // --- *** THIS IS THE FIX (2/4): Get 'Sys Date' *** ---
                 supplierName: values[headerMap['Name']] || '',
                 packingSlip: values[headerMap['Packing Slip']] || '',
-                invValue: extendedCost.toFixed(2), // Store as fixed string
+                invValue: extendedCost, // Store as number for summing
                 rawDate: values[headerMap['Date']] // Keep raw date for sorting
             };
             
@@ -896,31 +896,64 @@ async function fetchAndParseEcommitCSV(url) {
             poMap[po].push(record);
         }
         
-        // --- CHRONOLOGICAL SORTING AND ID ASSIGNMENT ---
+        // --- *** NEW SUMMING LOGIC (PER USER REQUEST) *** ---
         const finalEcommitData = {};
         Object.keys(poMap).forEach(po => {
-            // Sort by rawDate, then Packing Slip for consistent chronological order
-            poMap[po].sort((a, b) => {
+            const recordsForPO = poMap[po];
+            const summedRecords = new Map();
+
+            // 1. Group by Packing Slip and SUM the values
+            recordsForPO.forEach(record => {
+                const key = record.packingSlip;
+                if (!key) return; // Skip records without a packing slip
+
+                if (summedRecords.has(key)) {
+                    // It exists, add the value
+                    const existing = summedRecords.get(key);
+                    existing.invValue = existing.invValue + record.invValue;
+                    
+                    // Keep the *earliest* date
+                    const existingDate = new Date(existing.rawDate);
+                    const newDate = new Date(record.rawDate);
+                    if (newDate < existingDate) {
+                        existing.rawDate = record.rawDate;
+                        existing.date = record.date;
+                        existing.sysDate = record.sysDate; // --- *** THIS IS THE FIX (3/4): Keep earliest sysDate too *** ---
+                    }
+                } else {
+                    // It's new, add a clone of it to the map
+                    summedRecords.set(key, { ...record }); 
+                }
+            });
+
+            // 2. Convert the Map back to an array
+            const poRecords = Array.from(summedRecords.values());
+
+            // 3. Sort the summed records by date
+            poRecords.sort((a, b) => {
                 const dateA = new Date(a.rawDate);
                 const dateB = new Date(b.rawDate);
                 if (dateA - dateB !== 0) return dateA - dateB;
                 return a.packingSlip.localeCompare(b.packingSlip);
             });
 
-            // Assign Inv. Entry ID chronologically
-            poMap[po].forEach((record, index) => {
-                const invEntryID = `INV-${String(index + 1).padStart(2, '0')}`;
-                // Transform the record into a format ready for merging with Firebase data
-                finalEcommitData[po] = finalEcommitData[po] || {};
-                finalEcommitData[po][invEntryID] = {
-                    invEntryID: invEntryID,
-                    invNumber: record.packingSlip,
-                    invoiceDate: normalizeDateForInput(record.date), // Normalize date format
-                    invValue: record.invValue,
-                    status: 'Epicore Value', // *** FIXED STATUS HERE ***
-                    source: 'ecommit' // *** ADDED SOURCE TAG ***
-                };
+            // 4. Format for merging
+            const formattedRecords = [];
+            poRecords.forEach((record, index) => {
+                formattedRecords.push({
+                    invNumber: record.packingSlip, // This is the merge key
+                    invoiceDate: normalizeDateForInput(record.date),
+                    releaseDate: normalizeDateForInput(record.sysDate), // --- *** THIS IS THE FIX (4/4): Map sysDate *** ---
+                    invValue: record.invValue.toFixed(2), // Convert back to string
+                    amountPaid: record.invValue.toFixed(2), // Copy invValue to amountPaid
+                    status: 'Epicore Value',
+                    source: 'ecommit',
+                    key: `ecommit_${record.packingSlip}` // A temporary unique key
+                });
             });
+            
+            finalEcommitData[po] = formattedRecords; // Assign the array of formatted records
+            // --- *** END OF NEW SUMMING LOGIC *** ---
         });
 
         console.log(`Successfully processed ${Object.keys(finalEcommitData).length} POs from Ecommit.csv.`);
@@ -931,7 +964,6 @@ async function fetchAndParseEcommitCSV(url) {
         return null; 
     }
 }
-
 // ++ NEW: FETCH AND PARSE EPICORE CSV ++
 async function fetchAndParseEpicoreCSV(url) {
     try {
@@ -4764,7 +4796,6 @@ function buildDesktopReportView(reportData) {
     tableHTML += `</tbody></table>`;
     container.innerHTML = tableHTML;
 }
-
 // [REPLACE this entire function around line 2496]
 
 // THIS IS THE MODIFIED MAIN FUNCTION
@@ -4796,12 +4827,10 @@ async function populateInvoiceReporting(searchTerm = '') {
     }
     // --- (END NEW) ---
 
-    // --- THIS IS THE FIX ---
-    // Read values from the *desktop* form, which is now synced by the modal
+    // Read values from the *desktop* form
     const siteFilter = document.getElementById('im-reporting-site-filter').value;
     const monthFilter = document.getElementById('im-reporting-date-filter').value;
     const statusFilter = document.getElementById('im-reporting-status-filter').value;
-    // --- END OF FIX ---
 
 
     try {
@@ -4842,24 +4871,40 @@ async function populateInvoiceReporting(searchTerm = '') {
             const site = poDetails['Project ID'] || 'N/A';
             const vendor = poDetails['Supplier Name'] || 'N/A';
 
-            // 2. Merge Invoices: Firebase (priority) over Ecommit
-            // Start with all Ecommit records for this PO
-            let mergedInvoices = allEcommit[poNumber] ? Object.entries(allEcommit[poNumber]).map(([key, value]) => ({ key, ...value, source: 'ecommit' })) : [];
-
-            // Overwrite Ecommit data with Firebase data where keys match (using PO + InvEntryID for lookup)
+            // --- *** THIS IS THE NEW MERGE LOGIC *** ---
+            // 2. Get Firebase data (HIGH Priority)
             const firebaseInvoices = allInvoicesByPO[poNumber] ? Object.entries(allInvoicesByPO[poNumber]).map(([key, value]) => ({ key, ...value, source: 'firebase' })) : [];
-            
-            // Temporary map keyed by invEntryID for merging
-            const finalInvoiceMap = new Map();
-            
-            // Add Ecommit first (low priority)
-            mergedInvoices.forEach(inv => finalInvoiceMap.set(inv.invEntryID, inv));
 
-            // Overwrite/Add Firebase invoices (high priority)
-            firebaseInvoices.forEach(inv => finalInvoiceMap.set(inv.invEntryID, inv));
+            // 3. Create a lookup Set of Packing Slips that are already in Firebase
+            const firebasePackingSlips = new Set(
+                firebaseInvoices.map(inv => inv.invNumber).filter(Boolean) // Get all non-empty invNumber
+            );
 
-            let invoices = Array.from(finalInvoiceMap.values());
-            // 3. --- END OF MERGE LOGIC ---
+            // 4. Get Ecommit data (LOW Priority)
+            const ecommitInvoices = allEcommit[poNumber] || []; // This is an array
+            
+            // 5. Filter Ecommit data: Keep only records whose invNumber is NOT in the Firebase lookup
+            const filteredEcommitInvoices = ecommitInvoices.filter(inv => 
+                !inv.invNumber || !firebasePackingSlips.has(inv.invNumber)
+            );
+
+            // 6. Combine the lists (Firebase records + non-duplicate Ecommit records)
+            let invoices = [...firebaseInvoices, ...filteredEcommitInvoices];
+
+            // 7. Sort by Date (as requested: "old date will be our inv 1")
+            invoices.sort((a, b) => {
+                const dateA = new Date(a.invoiceDate || '2099-01-01');
+                const dateB = new Date(b.invoiceDate || '2099-01-01');
+                if (dateA - dateB !== 0) return dateA - dateB;
+                // As a tie-breaker, use the invNumber (packing slip)
+                return (a.invNumber || '').localeCompare(b.invNumber || '');
+            });
+
+            // 8. Re-assign invEntryID based on the new chronological order
+            invoices.forEach((inv, index) => {
+                inv.invEntryID = `INV-${String(index + 1).padStart(2, '0')}`;
+            });
+            // --- *** END OF NEW MERGE LOGIC *** ---
 
             let calculatedTotalPaid = 0;
             let latestPaidDate = null;
@@ -4917,7 +4962,6 @@ async function populateInvoiceReporting(searchTerm = '') {
         
         const count = currentReportData.length;
         if (reportingCountDisplay) {
-            // *** THIS IS THE MODIFICATION ***
             reportingCountDisplay.textContent = `(Found: ${count})`;
         }
 
@@ -4935,7 +4979,6 @@ async function populateInvoiceReporting(searchTerm = '') {
         if (mobileContainer) mobileContainer.innerHTML = '<p>An error occurred while generating the report. Check console for details.</p>';
     }
 }
-
 // [REPLACE this entire function around line 2636]
 
 function handleGeneratePrintReport() {
