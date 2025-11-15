@@ -1412,10 +1412,31 @@ tbody tr:hover { background-color: #f1f1f1; }
     .print-po-header {
         page-break-after: avoid; /* Try to keep header with the table */
     }
+/* [ADD this new block inside @media print in style.css] */
+
+    .print-po-header { 
+        background: var(--iba-base-blue); 
+        color: white; 
+        padding: 10px 5px; 
+        /* --- NEW GRID LAYOUT --- */
+        display: grid;
+        grid-template-columns: 1fr 1fr 1.5fr; /* 3 columns */
+        grid-template-rows: auto auto; /* 2 rows */
+        gap: 5px 20px; /* row-gap, column-gap */
+        /* --- END NEW --- */
+        border-radius: 5px 5px 0 0; 
+        -webkit-print-color-adjust: exact !important; 
+        print-color-adjust: exact !important; 
+    }
+    .po-header-item {
+        font-size: 10pt;
+    }
+    .po-header-vendor {
+        grid-column: 1 / span 2; /* Make Vendor span 2 columns */
+    }
     /* --- *** PRINT PAGING FIX (END) *** --- */
     
-    .print-po-header { background: var(--iba-base-blue); color: white; padding: 10px 5px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px 20px; border-radius: 5px 5px 0 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } /* MODIFIED: Header color */
-    .print-po-header div { font-size: 10pt; }
+        .print-po-header div { font-size: 10pt; }
     .print-invoice-table { 
         width: 100%; 
         border-collapse: collapse; 

@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.2.7"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "3.2.8"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -4559,14 +4559,21 @@ function buildMobileReportView(reportData) {
         
         // Assume all are "Close" unless proven otherwise
         let allClose = filteredInvoices.length > 0; 
+        
+        // --- *** THIS IS THE FIX (START) *** ---
+        // Define all "Close" statuses
+        const closeStatuses = ['With Accounts', 'Paid', 'Epicore Value'];
+        // --- *** THIS IS THE FIX (END) *** ---
 
         for (const inv of filteredInvoices) {
             const status = inv.status || 'Pending';
 
             // Check for non-Close statuses
-            if (status !== 'With Accounts' && status !== 'Paid') {
+            // --- *** THIS IS THE FIX (START) *** ---
+            if (!closeStatuses.includes(status)) {
                 allClose = false;
             }
+            // --- *** THIS IS THE FIX (END) *** ---
 
             // Check for other priority statuses
             if (status === 'Under Review') {
@@ -4588,6 +4595,7 @@ function buildMobileReportView(reportData) {
         } else if (hasPending) {
             statusClass = 'status-pending'; // 4. Light Red ("Pending")
         }
+        // 5. If none of the above, it remains 'status-progress' (Default Blue for 'Report', 'CEO Approval', etc.)
         // --- *** END OF NEW LOGIC *** ---
         
         // --- *** NEW: Calculate Balance *** ---
@@ -4668,7 +4676,10 @@ function buildMobileReportView(reportData) {
                 // --- *** END OF FIX *** ---
 
                 let iconClass, amountClass;
-                if ((inv.status || '').toLowerCase() === 'paid' || (inv.status || '').toLowerCase() === 'with accounts') {
+                // --- *** THIS IS THE FIX (START) *** ---
+                const statusLower = (inv.status || '').toLowerCase();
+                if (statusLower === 'paid' || statusLower === 'with accounts' || statusLower === 'epicore value') {
+                // --- *** THIS IS THE FIX (END) *** ---
                     iconClass = 'fa-solid fa-check';
                     amountClass = 'paid'; // Green
                 } else {
@@ -4700,7 +4711,6 @@ function buildMobileReportView(reportData) {
     
     container.innerHTML = mobileHTML;
 }
-
 // [REPLACE this entire function around line 2465]
 
 // NEW HELPER 2: This is your *existing* logic, moved into its own function
@@ -4716,8 +4726,8 @@ function buildDesktopReportView(reportData) {
         return;
     }
 
-    // --- *** FIX: Removed "Total Paid Amount" and "Last Paid Date" columns *** ---
-    let tableHTML = `<table><thead><tr><th></th><th>PO</th><th>Site</th><th>Vendor</th><th>Value</th></tr></thead><tbody>`;
+    // --- *** FIX: Added "Balance" column to header *** ---
+    let tableHTML = `<table><thead><tr><th></th><th>PO</th><th>Site</th><th>Vendor</th><th>Value</th><th>Balance</th></tr></thead><tbody>`;
 
     reportData.sort((a, b) => a.poNumber.localeCompare(b.poNumber));
     reportData.forEach(poData => {
@@ -4775,9 +4785,11 @@ function buildDesktopReportView(reportData) {
         const totalAmountPaidDisplay = (isAdmin || isAccounting) ? `<strong>QAR ${formatCurrency(totalAmountPaid)}</strong>` : '---';
         const poValueDisplay = (isAdmin || isAccounting) ? (poData.poDetails.Amount ? `QAR ${formatCurrency(poData.poDetails.Amount)}` : 'N/A') : '---';
         
-        // This data is no longer displayed, but we keep the logic in case it's needed elsewhere
-        const totalPaidDisplay = (isAdmin || isAccounting) ? (poData.paymentData.totalPaidAmount !== 'N/A' ? `QAR ${formatCurrency(poData.paymentData.totalPaidAmount)}` : 'N/A') : '---';
-        const datePaidDisplay = (isAdmin || isAccounting) ? poData.paymentData.datePaid : '---';
+        // --- *** FIX: Calculate Balance *** ---
+        const poValueNum = parseFloat(poData.poDetails.Amount) || 0;
+        const balanceNum = poValueNum - totalInvValue; // totalInvValue was calculated in the loop above
+        const balanceDisplay = (isAdmin || isAccounting) ? `QAR ${formatCurrency(balanceNum)}` : '---';
+        // --- *** END OF FIX *** ---
 
         let highlightClass = '';
          if (isAdmin || isAccounting) {
@@ -4789,9 +4801,11 @@ function buildDesktopReportView(reportData) {
             }
         }
         
-        tableHTML += `<tr class="master-row ${highlightClass}" data-target="#${detailRowId}"><td><button class="expand-btn">+</button></td><td>${poData.poNumber}</td><td>${poData.site}</td><td>${poData.vendor}</td><td>${poValueDisplay}</td></tr>`;
+        // --- *** FIX: Added Balance cell to master row *** ---
+        tableHTML += `<tr class="master-row ${highlightClass}" data-target="#${detailRowId}"><td><button class="expand-btn">+</button></td><td>${poData.poNumber}</td><td>${poData.site}</td><td>${poData.vendor}</td><td>${poValueDisplay}</td><td>${balanceDisplay}</td></tr>`;
         
-        tableHTML += `<tr id="${detailRowId}" class="detail-row hidden"><td colspan="5"><div class="detail-content"><h4>Invoice Entries for PO ${poData.poNumber}</h4><table class="nested-invoice-table"><thead><tr><th>Inv. Entry</th><th>Inv. No.</th><th>Inv. Date</th><th>Inv. Value</th><th>Amt. Paid</th><th>Release Date</th><th>Status</th><th>Note</th><th>Action</th></tr></thead><tbody>${nestedTableRows}</tbody><tfoot><tr><td colspan="3" class="print-footer-label">PO Invoice Totals:</td><td>${totalInvValueDisplay}</td><td>${totalAmountPaidDisplay}</td><td colspan="4"></td></tr></tfoot></table></div></td></tr>`;
+        // --- *** FIX: Changed colspan from 5 to 6 *** ---
+        tableHTML += `<tr id="${detailRowId}" class="detail-row hidden"><td colspan="6"><div class="detail-content"><h4>Invoice Entries for PO ${poData.poNumber}</h4><table class="nested-invoice-table"><thead><tr><th>Inv. Entry</th><th>Inv. No.</th><th>Inv. Date</th><th>Inv. Value</th><th>Amt. Paid</th><th>Release Date</th><th>Status</th><th>Note</th><th>Action</th></tr></thead><tbody>${nestedTableRows}</tbody><tfoot><tr><td colspan="3" style="text-align: right;"><strong>TOTAL</strong></td><td>${totalInvValueDisplay}</td><td>${totalAmountPaidDisplay}</td><td colspan="4"></td></tr></tfoot></table></div></td></tr>`;
     });
     tableHTML += `</tbody></table>`;
     container.innerHTML = tableHTML;
@@ -5009,20 +5023,31 @@ function handleGeneratePrintReport() {
     // --- 2. Calculate Summaries ---
     let totalPOs = currentReportData.length;
     let totalReportValue = 0;
+    let totalReportInvValue = 0; 
 
     currentReportData.forEach(po => {
         totalReportValue += parseFloat(po.poDetails.Amount) || 0;
+        po.filteredInvoices.forEach(inv => {
+            totalReportInvValue += parseFloat(inv.invValue) || 0;
+        });
     });
+    
+    const totalBalance = totalReportValue - totalReportInvValue; 
 
     imPrintReportSummaryPOs.textContent = totalPOs;
     imPrintReportSummaryValue.textContent = `QAR ${formatCurrency(totalReportValue)}`;
     
-    // --- *** FIX: Remove TotalReportPaid from summary *** ---
+    // --- *** FIX: Repurpose the "Total Amount Paid" block for "Total Balance" *** ---
     if (imPrintReportSummaryPaid) {
-        imPrintReportSummaryPaid.textContent = ''; 
-        if (imPrintReportSummaryPaid.parentElement) {
-            imPrintReportSummaryPaid.parentElement.style.display = 'none';
+        const parentDiv = imPrintReportSummaryPaid.parentElement;
+        if (parentDiv) {
+            const labelSpan = parentDiv.querySelector('span');
+            if (labelSpan) {
+                labelSpan.textContent = 'Total Balance'; // Change the label
+            }
+            parentDiv.style.display = ''; // Make sure it's visible
         }
+        imPrintReportSummaryPaid.textContent = `QAR ${formatCurrency(totalBalance)}`; // Set the value
     }
     // --- *** END OF FIX *** ---
 
@@ -5040,7 +5065,7 @@ function handleGeneratePrintReport() {
         
         po.filteredInvoices.forEach(inv => {
             totalInvValue += parseFloat(inv.invValue) || 0;
-            totalAmountPaid += parseFloat(inv.amountPaid) || 0; // CALCULATED FOR FOOTER
+            totalAmountPaid += parseFloat(inv.amountPaid) || 0; 
         });
 
         // Calculate Balance
@@ -5049,21 +5074,24 @@ function handleGeneratePrintReport() {
         // --- END OF FIX ---
 
 
-        // PO Header (MODIFIED - Now contains Balance)
+        // PO Header (MODIFIED - New 2-row layout)
         const poHeader = document.createElement('div');
-        poHeader.className = 'print-po-header';
+        poHeader.className = 'print-po-header'; // We will style this class
         
+        // --- *** FIX: New 2-row layout as requested *** ---
+        // This HTML is designed to be styled by the new CSS in Step 3
         poHeader.innerHTML = `
-            <div><strong>PO:</strong> ${po.poNumber}</div>
-            <div><strong>Site:</strong> ${po.site}</div>
-            <div><strong>Vendor:</strong> ${po.vendor}</div>
-            <div><strong>PO Value:</strong> QAR ${formatCurrency(poValueNum)}</div>
-            <div><strong>Balance:</strong> QAR ${formatCurrency(balanceNum)}</div>
+            <div class="po-header-item"><strong>PO:</strong> ${po.poNumber}</div>
+            <div class="po-header-item"><strong>Site:</strong> ${po.site}</div>
+            <div class="po-header-item"><strong>PO Value:</strong> QAR ${formatCurrency(poValueNum)}</div>
+            <div class="po-header-item po-header-vendor"><strong>Vendor:</strong> ${po.vendor}</div>
+            <div class="po-header-item"><strong>Balance:</strong> QAR ${formatCurrency(balanceNum)}</div>
         `;
+        // --- *** END OF FIX *** ---
         
         poContainer.appendChild(poHeader);
 
-        // Invoices Table (MODIFIED - RE-ADDED AMT. PAID COLUMN)
+        // Invoices Table (RE-ADDED AMT. PAID COLUMN)
         let invoicesTableHTML = `
             <table class="print-invoice-table">
                 <thead>
@@ -5072,7 +5100,8 @@ function handleGeneratePrintReport() {
                         <th>Inv. No.</th>
                         <th>Inv. Date</th>
                         <th>Inv. Value</th>
-                        <th>Amt. Paid</th> <th>Release Date</th>
+                        <th>Amt. Paid</th>
+                        <th>Release Date</th>
                         <th>Status</th>
                         <th>Note</th>
                     </tr>
@@ -5093,7 +5122,8 @@ function handleGeneratePrintReport() {
                     <td>${inv.invNumber || ''}</td>
                     <td>${invoiceDateDisplay}</td>
                     <td class="print-number">${formatCurrency(invValue)}</td>
-                    <td class="print-number">${formatCurrency(inv.amountPaid)}</td> <td>${releaseDateDisplay}</td>
+                    <td class="print-number">${formatCurrency(inv.amountPaid)}</td>
+                    <td>${releaseDateDisplay}</td>
                     <td>${status || ''}</td>
                     <td>${inv.note || ''}</td>
                 </tr>
@@ -5101,39 +5131,41 @@ function handleGeneratePrintReport() {
         });
 
         // Add Footer Row for totals
-        // --- *** FIX: Re-added totalAmountPaid and adjusted colspan *** ---
         invoicesTableHTML += `
                 </tbody>
                 <tfoot>
                     <tr>
                         <td colspan="3" class="print-footer-label">PO Invoice Totals:</td>
                         <td class="print-number print-footer">${formatCurrency(totalInvValue)}</td>
-                        <td class="print-number print-footer">${formatCurrency(totalAmountPaid)}</td> <td colspan="3"></td> </tr>
+                        <td class="print-number print-footer">${formatCurrency(totalAmountPaid)}</td>
+                        <td colspan="3"></td>
+                    </tr>
                 </tfoot>
             </table>
         `;
-        // --- *** END OF FIX *** ---
         
         poContainer.innerHTML += invoicesTableHTML;
         imPrintReportBody.appendChild(poContainer);
     });
 
     // --- 4. Trigger Print ---
-    // Hide all other printable areas
     if (summaryNotePrintArea) summaryNotePrintArea.classList.add('hidden');
-    
-    // Show *this* printable area
     if (imReportingPrintableArea) imReportingPrintableArea.classList.remove('hidden');
 
     window.print();
     
-    // --- *** FIX: Restore the Total Amount Paid div after printing *** ---
+    // --- *** FIX: Restore the "Total Amount Paid" div after printing *** ---
     if (imPrintReportSummaryPaid && imPrintReportSummaryPaid.parentElement) {
-        imPrintReportSummaryPaid.parentElement.style.display = ''; 
+        const parentDiv = imPrintReportSummaryPaid.parentElement;
+        const labelSpan = parentDiv.querySelector('span');
+        if (labelSpan) {
+            labelSpan.textContent = 'Total Amount Paid'; // Change it back
+        }
+        parentDiv.style.display = ''; // Show it
+        imPrintReportSummaryPaid.textContent = 'QAR 0.00'; // Reset value
     }
     // --- *** END OF FIX *** ---
 
-    // Hide this printable area again after printing
     if (imReportingPrintableArea) imReportingPrintableArea.classList.add('hidden');
 }
 // --- *** END OF PRINT FIX *** ---
