@@ -3337,5 +3337,13 @@ body.is-admin .legend-admin-only {
         font-size: 0.9rem;
     }
 }
+/* --- ADD THIS NEW RULE --- */
+        .master-row.highlight-open-balance {
+            background-color: #f7f9ff !important; /* Very light blue/periwinkle tint */
+        }
+        .master-row.highlight-open-balance:hover {
+            background-color: #e8ecf4 !important; /* Darker tint for hover */
+        }
+        /* --- END OF ADDITION --- */
 /* --- END OF Flip Phone Cover Screen Height Adjustments --- */
 /* --- END OF Flip Phone Cover Screen Adjustments --- */

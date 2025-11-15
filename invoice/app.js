@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.2.8"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "3.2.9"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -4522,8 +4522,6 @@ async function populateInvoiceDashboard(forceRefresh = false) {
         dashboardSection.innerHTML = '<h1>Dashboard</h1><p>Error loading dashboard data. Please check console for details.</p>';
     }
 }
-// [REPLACE this entire function around line 2384]
-
 // NEW HELPER 1: Builds the new mobile card UI, supporting multiple POs
 function buildMobileReportView(reportData) {
     const container = document.getElementById('im-reporting-mobile-view');
@@ -4551,64 +4549,56 @@ function buildMobileReportView(reportData) {
         const { poNumber, site, vendor, poDetails, filteredInvoices } = poData;
         const toggleId = `mobile-invoice-list-${poIndex}`;
         
-        // --- *** NEW STATUS COLOR LOGIC (Per User Request) *** ---
-        let statusClass = 'status-progress'; // Default: Blue
-        let hasOpen = false;         // Light Blue ("Under Review")
-        let hasNew = false;          // Yellow ("For SRV", "For IPC")
-        let hasPending = false;      // Light Red ("Pending")
-        
-        // Assume all are "Close" unless proven otherwise
-        let allClose = filteredInvoices.length > 0; 
-        
-        // --- *** THIS IS THE FIX (START) *** ---
-        // Define all "Close" statuses
-        const closeStatuses = ['With Accounts', 'Paid', 'Epicore Value'];
-        // --- *** THIS IS THE FIX (END) *** ---
+        // --- *** MODIFICATION START: New Highlight Logic *** ---
 
-        for (const inv of filteredInvoices) {
-            const status = inv.status || 'Pending';
-
-            // Check for non-Close statuses
-            // --- *** THIS IS THE FIX (START) *** ---
-            if (!closeStatuses.includes(status)) {
-                allClose = false;
-            }
-            // --- *** THIS IS THE FIX (END) *** ---
-
-            // Check for other priority statuses
-            if (status === 'Under Review') {
-                hasOpen = true;
-            } else if (status === 'For SRV' || status === 'For IPC') {
-                hasNew = true;
-            } else if (status === 'Pending') {
-                hasPending = true;
-            }
-        }
-
-        // Apply the hierarchy
-        if (allClose) {
-            statusClass = 'status-close'; // 1. Green ("Close")
-        } else if (hasOpen) {
-            statusClass = 'status-open'; // 2. Light Blue ("Open")
-        } else if (hasNew) {
-            statusClass = 'status-new'; // 3. Yellow ("New")
-        } else if (hasPending) {
-            statusClass = 'status-pending'; // 4. Light Red ("Pending")
-        }
-        // 5. If none of the above, it remains 'status-progress' (Default Blue for 'Report', 'CEO Approval', etc.)
-        // --- *** END OF NEW LOGIC *** ---
-        
-        // --- *** NEW: Calculate Balance *** ---
+        // 1. Calculate Balance FIRST
         let totalInvValue = 0;
         if (filteredInvoices.length > 0 && canViewAmounts) {
             totalInvValue = filteredInvoices.reduce((sum, inv) => sum + (parseFloat(inv.invValue) || 0), 0);
         }
         const poValueNum = parseFloat(poDetails.Amount) || 0;
         const balanceNum = poValueNum - totalInvValue;
+        const epsilon = 0.01; // Tolerance for float comparison
+        const hasBalance = balanceNum > epsilon; // True if balance > 0.01
+
+        let statusClass = 'status-progress'; // Default: Blue
+
+        // 2. Check for balance FIRST.
+        if (hasBalance) {
+            // If there is a balance, it's ALWAYS "Open" (Blue).
+            statusClass = 'status-open';
+        } else {
+            // 3. No balance. Now check the invoice statuses for other colors.
+            let hasOpen = false;         // Light Blue ("Under Review")
+            let hasNew = false;          // Yellow ("For SRV", "For IPC")
+            let hasPending = false;      // Light Red ("Pending")
+            let allClose = filteredInvoices.length > 0;
+            const closeStatuses = ['With Accounts', 'Paid', 'Epicore Value'];
+
+            for (const inv of filteredInvoices) {
+                const status = inv.status || 'Pending';
+                if (!closeStatuses.includes(status)) { allClose = false; }
+                if (status === 'Under Review') { hasOpen = true; }
+                else if (status === 'For SRV' || status === 'For IPC') { hasNew = true; }
+                else if (status === 'Pending') { hasPending = true; }
+            }
+
+            // Apply the hierarchy
+            if (allClose) {
+                statusClass = 'status-close'; // 1. Green ("Close")
+            } else if (hasOpen) {
+                statusClass = 'status-open'; // 2. Light Blue ("Open")
+            } else if (hasNew) {
+                statusClass = 'status-new'; // 3. Yellow ("New")
+            } else if (hasPending) {
+                statusClass = 'status-pending'; // 4. Light Red ("Pending")
+            }
+            // 5. If none of the above, it remains 'status-progress' (Default Blue)
+        }
+        // --- *** MODIFICATION END *** ---
         
         const poValueDisplay = canViewAmounts ? `QAR ${formatCurrency(poValueNum)}` : '---';
         const balanceDisplay = canViewAmounts ? `QAR ${formatCurrency(balanceNum)}` : '---';
-        // --- *** END NEW *** ---
 
         
         // This is the main "PO Card"
@@ -4711,8 +4701,6 @@ function buildMobileReportView(reportData) {
     
     container.innerHTML = mobileHTML;
 }
-// [REPLACE this entire function around line 2465]
-
 // NEW HELPER 2: This is your *existing* logic, moved into its own function
 function buildDesktopReportView(reportData) {
     const container = document.getElementById('im-reporting-content');
@@ -4785,31 +4773,41 @@ function buildDesktopReportView(reportData) {
         const totalAmountPaidDisplay = (isAdmin || isAccounting) ? `<strong>QAR ${formatCurrency(totalAmountPaid)}</strong>` : '---';
         const poValueDisplay = (isAdmin || isAccounting) ? (poData.poDetails.Amount ? `QAR ${formatCurrency(poData.poDetails.Amount)}` : 'N/A') : '---';
         
-        // --- *** FIX: Calculate Balance *** ---
+        // --- *** MODIFICATION START: New Highlight Logic *** ---
         const poValueNum = parseFloat(poData.poDetails.Amount) || 0;
-        const balanceNum = poValueNum - totalInvValue; // totalInvValue was calculated in the loop above
+        const balanceNum = poValueNum - totalInvValue;
         const balanceDisplay = (isAdmin || isAccounting) ? `QAR ${formatCurrency(balanceNum)}` : '---';
-        // --- *** END OF FIX *** ---
 
         let highlightClass = '';
-         if (isAdmin || isAccounting) {
-            const poValueNum = parseFloat(poData.poDetails.Amount) || 0, epsilon = 0.01;
-            if (allWithAccounts && poValueNum > 0) {
-                const isInvValueMatch = Math.abs(totalInvValue - poValueNum) < epsilon;
-                const isAmountPaidMatch = Math.abs(totalAmountPaid - poValueNum) < epsilon;
-                if (isInvValueMatch) highlightClass = isAmountPaidMatch ? 'highlight-fully-paid' : 'highlight-partial';
+        if (isAdmin || isAccounting) {
+            const epsilon = 0.01;
+            
+            // Check if PO is fully invoiced (balance is ~0)
+            const isInvValueMatch = Math.abs(balanceNum) < epsilon;
+            // Check if PO has a remaining balance (balance is > 0)
+            const hasBalance = balanceNum > epsilon;
+
+            if (isInvValueMatch) {
+                // Balance is ~0. Now check payment status, but only if all invoices are 'With Accounts'.
+                if (allWithAccounts) {
+                    const isAmountPaidMatch = Math.abs(totalAmountPaid - poValueNum) < epsilon;
+                    highlightClass = isAmountPaidMatch ? 'highlight-fully-paid' : 'highlight-partial';
+                }
+            } else if (hasBalance) {
+                // There is still a balance. Apply "Open" status color.
+                highlightClass = 'highlight-open-balance';
             }
         }
-        
-        // --- *** FIX: Added Balance cell to master row *** ---
+        // --- *** MODIFICATION END *** ---
+
         tableHTML += `<tr class="master-row ${highlightClass}" data-target="#${detailRowId}"><td><button class="expand-btn">+</button></td><td>${poData.poNumber}</td><td>${poData.site}</td><td>${poData.vendor}</td><td>${poValueDisplay}</td><td>${balanceDisplay}</td></tr>`;
         
-        // --- *** FIX: Changed colspan from 5 to 6 *** ---
         tableHTML += `<tr id="${detailRowId}" class="detail-row hidden"><td colspan="6"><div class="detail-content"><h4>Invoice Entries for PO ${poData.poNumber}</h4><table class="nested-invoice-table"><thead><tr><th>Inv. Entry</th><th>Inv. No.</th><th>Inv. Date</th><th>Inv. Value</th><th>Amt. Paid</th><th>Release Date</th><th>Status</th><th>Note</th><th>Action</th></tr></thead><tbody>${nestedTableRows}</tbody><tfoot><tr><td colspan="3" style="text-align: right;"><strong>TOTAL</strong></td><td>${totalInvValueDisplay}</td><td>${totalAmountPaidDisplay}</td><td colspan="4"></td></tr></tfoot></table></div></td></tr>`;
     });
     tableHTML += `</tbody></table>`;
     container.innerHTML = tableHTML;
 }
+
 // [REPLACE this entire function around line 2496]
 
 // THIS IS THE MODIFIED MAIN FUNCTION
