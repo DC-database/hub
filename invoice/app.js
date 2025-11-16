@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.3.3"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "3.3.4"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -6536,7 +6536,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     imLogoutButton.addEventListener('click', handleLogout);
     
     // --- THIS IS THE FIX (Mobile Startup) ---
-    // This block replaces the old 'workdeskButton' listener
+    // PASTE THIS ENTIRE BLOCK (replaces the old listener from line 4920)
     workdeskButton.addEventListener('click', async () => { // ADD async
         if (!currentApprover) { handleLogout(); return; }
         wdUsername.textContent = currentApprover.Name || 'User';
@@ -6585,22 +6585,45 @@ document.addEventListener('DOMContentLoaded', async () => {
         workdeskDateTimeInterval = setInterval(updateWorkdeskDateTime, 1000);
         showView('workdesk');
 
-        // --- *** MOBILE DEFAULT VIEW FIX *** ---
+        // --- *** THIS IS THE NEW FIX (Default to Day View on Mobile) *** ---
         const isMobile = window.innerWidth <= 768;
+        
+        // Clear all active tabs first
+        document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a').forEach(a => a.classList.remove('active')); 
+
         if (isMobile) {
-            // On mobile, default to "Active Task"
-            console.log("Mobile device detected, defaulting to Active Task view.");
-            const activeTaskLink = workdeskNav.querySelector('a[data-section="wd-activetask"]');
-            if (activeTaskLink) {
-                // Manually set active class on the correct tab
-                document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a').forEach(a => a.classList.remove('active')); 
-                activeTaskLink.classList.add('active'); 
+            // On mobile, default to "Day View" for today
+            console.log("Mobile device detected, defaulting to Day View for today.");
+            
+            // 1. Set the "Dashboard" tab as active (since Day View is part of it)
+            const dashboardLink = workdeskNav.querySelector('a[data-section="wd-dashboard"]');
+            if (dashboardLink) {
+                dashboardLink.classList.add('active'); 
             }
-            await showWorkdeskSection('wd-activetask', null); // Show active tasks
+            
+            // 2. Load the necessary task data (this is fast)
+            await populateActiveTasks(); // Loads user's tasks
+            await populateAdminCalendarTasks(); // Loads all tasks if admin
+
+            // 3. Get today's date
+            const todayStr = getTodayDateString();
+            
+            // 4. Show the Day View for today
+            // This function automatically shows the 'wd-dayview' section
+            showDayView(todayStr);
+
         } else {
             // On desktop, default to "Dashboard" (Calendar)
             console.log("Desktop device detected, defaulting to Dashboard view.");
-            await showWorkdeskSection('wd-dashboard'); // Show dashboard
+            
+            // 1. Set the "Dashboard" tab as active
+            const dashboardLink = workdeskNav.querySelector('a[data-section="wd-dashboard"]');
+            if (dashboardLink) {
+                dashboardLink.classList.add('active'); 
+            }
+            
+            // 2. Show the full dashboard (which loads data AND renders the calendar)
+            await showWorkdeskSection('wd-dashboard'); 
         }
         // --- *** END OF FIX *** ---
     });
