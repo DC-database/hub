@@ -317,6 +317,7 @@ let allInvoiceData = null;
 let allApproverData = null;
 let allEpicoreData = null; 
 let allSitesCSVData = null; 
+let allEcommitDataProcessed = null; // <-- ADD THIS LINE
 let cacheTimestamps = {
   poData: 0,
   invoiceData: 0,
@@ -1254,11 +1255,12 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
                           allInvoiceData &&
                           allEpicoreData &&
                           allSitesCSVData && 
-                          allEcommitDataProcessed && // *** NEW CHECK ***
+                          allEcommitDataProcessed && // This now works because of Step A
                           (now - cacheTimestamps.poData < CACHE_DURATION) &&
                           (now - cacheTimestamps.epicoreData < CACHE_DURATION) &&
                           (now - cacheTimestamps.sitesCSV < CACHE_DURATION) &&
-                          (now - cacheTimestamps.ecommitData < CACHE_DURATION); // *** NEW CHECK ***
+                          (now - cacheTimestamps.ecommitData < CACHE_DURATION) &&
+                          (now - cacheTimestamps.invoiceData < CACHE_DURATION); // <-- THIS IS THE MISSING LINE
 
 
     if (shouldUseCache) {
