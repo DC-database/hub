@@ -2259,50 +2259,63 @@ async function populateAttentionDropdown(choicesInstance) {
 }
 // --- *** ATTENTION DROPDOWN FIX APPLIED HERE (END) *** ---
 
-// --- NEW, EFFICIENT populateSiteDropdown (CORRECTED) ---
+// REPLACE the old populateSiteDropdown function (around line 1761) with this new one
+
 async function populateSiteDropdown() {
     try {
         if (!siteSelectChoices) return;
 
+        // Use cached CSV data if available
         if (allSitesCache) {
             siteSelectChoices.setChoices(allSitesCache, 'value', 'label', true);
             return;
         }
-
+        
         siteSelectChoices.setChoices([{ value: '', label: 'Loading...', disabled: true, selected: true }], 'value', 'label', true);
 
-        const snapshot = await db.ref('project_sites').once('value');
-        const sites = snapshot.val();
+        // Check if the data was already fetched by another part of the app
+        if (!allSitesCSVData) { 
+            console.log("Fetching Site.csv for WorkDesk dropdown...");
+            // We need to define the URL here, as this function is outside the scope 
+            // of ensureInvoiceDataFetched where it's normally defined.
+            const SITES_CSV_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/Site.csv";
+            
+            // Use the existing function to fetch and parse the CSV
+            allSitesCSVData = await fetchAndParseSitesCSV(SITES_CSV_URL); //
+            
+            if (allSitesCSVData) {
+                 cacheTimestamps.sitesCSV = Date.now();
+            }
+        }
+        
+        const sites = allSitesCSVData;
 
-        if (sites) {
-            const siteOptions = Object.values(sites)
-                .map(site => site.Warehouse && site.Description ? { value: site.Warehouse, label: `${site.Warehouse} - ${site.Description}` } : null)
+        if (sites && sites.length > 0) {
+            const siteOptions = sites
+                // Use the 'site' and 'description' columns from your Site.csv
+                .map(site => (site.site && site.description) ? { value: site.site, label: `${site.site} - ${site.description}` } : null)
                 .filter(Boolean)
-                // --- MODIFICATION: Sort numerically by site number (value) ---
-                .sort((a, b) => {
+                .sort((a, b) => { // Sort numerically by site number
                     const numA = parseInt(a.value, 10);
                     const numB = parseInt(b.value, 10);
                     if (!isNaN(numA) && !isNaN(numB)) {
                         return numA - numB;
                     }
-                    // Fallback to string compare if not numbers
                     return a.label.localeCompare(b.label);
                 });
 
-
             const choiceList = [{ value: '', label: 'Select a Site', disabled: true }].concat(siteOptions);
 
-            allSitesCache = choiceList;
+            allSitesCache = choiceList; // Save to the same cache as the other dropdown
             siteSelectChoices.setChoices(allSitesCache, 'value', 'label', true);
         } else {
             siteSelectChoices.setChoices([{ value: '', label: 'No sites found', disabled: true }]);
         }
     } catch (error) {
-        console.error("Error populating site dropdown:", error);
+        console.error("Error populating site dropdown from CSV:", error);
         if (siteSelectChoices) siteSelectChoices.setChoices([{ value: '', label: 'Error loading sites', disabled: true }]);
     }
 }
-
 
 function renderJobEntryTable(entries) {
     jobEntryTableBody.innerHTML = '';
