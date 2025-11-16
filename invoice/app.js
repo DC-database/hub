@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.3.1"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "3.3.3"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -421,7 +421,10 @@ function updatePaymentsCount() {
 
 function handleSuccessfulLogin() {
     if (currentApprover && currentApprover.key) {
-        sessionStorage.setItem('approverKey', currentApprover.key);
+        // --- THIS IS THE FIX ---
+        // Switched from sessionStorage to localStorage
+        localStorage.setItem('approverKey', currentApprover.key);
+        // --- END OF FIX ---
     } else {
         console.error("Attempted to save login state but currentApprover or key is missing.");
         handleLogout();
@@ -439,21 +442,17 @@ function handleSuccessfulLogin() {
     }
     // --- *** END OF MOBILE REDIRECT *** ---
 
-// --- === ADD THIS BLOCK === ---
     // Toggle admin-specific UI elements
     const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
     document.body.classList.toggle('is-admin', isAdmin);
-    // --- === END OF ADDITION === ---
 
     const financeReportButton = document.querySelector('a[href="https://ibaport.site/Finance/"]');
     if (financeReportButton) {
-        // ++ MODIFIED: Show for "Accounts" or "Accounting"
         const userPositionLower = (currentApprover?.Position || '').toLowerCase();
         const isAccountsOrAccounting = userPositionLower === 'accounts' || userPositionLower === 'accounting';
         financeReportButton.classList.toggle('hidden', !isAccountsOrAccounting);
     }
 }
-
 // [REPLACE this entire function around line 1032]
 
 // NEW SIGNATURE: Added 'async' and 'newSearchTerm' parameter
@@ -6470,15 +6469,16 @@ function printFinanceReport() {
     window.print();
 }
 
-// LOGOUT FUNCTION
+// PASTE THIS ENTIRE BLOCK (replaces the old function)
 function handleLogout() {
-    sessionStorage.clear(); // Clear all session data on logout
-    if (dateTimeInterval) clearInterval(dateTimeInterval);
-    
     // --- THIS IS THE FIX ---
-    // The variable was misspelled as "workGdeskDateTimeInterval"
+    // Switched from sessionStorage.clear() to removing the specific key
+    localStorage.removeItem('approverKey');
+    // --- END OF FIX ---
+    
+    if (dateTimeInterval) clearInterval(dateTimeInterval);
     if (workdeskDateTimeInterval) clearInterval(workdeskDateTimeInterval);
-    if (imDateTimeInterval) clearInterval(imDateTimeInterval); // <-- This one
+    if (imDateTimeInterval) clearInterval(imDateTimeInterval);
     location.reload();
 }
 function debounce(func, wait) {
@@ -6490,8 +6490,7 @@ function debounce(func, wait) {
     };
 }
 
-
-// --- EVENT LISTENERS ---
+// PASTE THIS ENTIRE BLOCK (replaces the old listener from line 4872 to the end)
 document.addEventListener('DOMContentLoaded', async () => {
     // --- ADD THIS LINE ---
     if(document.getElementById('app-version-display')) {
@@ -6506,7 +6505,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     // --- *** END OF NEW BLOCK *** ---
 
-    const savedApproverKey = sessionStorage.getItem('approverKey');
+    // --- THIS IS THE FIX (Login) ---
+    // Switched from sessionStorage to localStorage
+    const savedApproverKey = localStorage.getItem('approverKey');
+    // --- END OF FIX ---
+    
     if (savedApproverKey) {
         currentApprover = await getApproverByKey(savedApproverKey);
         if (currentApprover) {
@@ -6514,7 +6517,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             handleSuccessfulLogin();
         } else {
             console.log("Saved key found but no user data fetched, clearing session.");
-            sessionStorage.removeItem('approverKey');
+            // --- THIS IS THE FIX (Login) ---
+            localStorage.removeItem('approverKey');
+            // --- END OF FIX ---
             showView('login');
         }
     } else {
@@ -6529,16 +6534,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     logoutButton.addEventListener('click', handleLogout);
     wdLogoutButton.addEventListener('click', handleLogout);
     imLogoutButton.addEventListener('click', handleLogout);
-    // (Original was not async)
+    
+    // --- THIS IS THE FIX (Mobile Startup) ---
+    // This block replaces the old 'workdeskButton' listener
     workdeskButton.addEventListener('click', async () => { // ADD async
         if (!currentApprover) { handleLogout(); return; }
         wdUsername.textContent = currentApprover.Name || 'User';
         wdUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile;
-// --- === ADD THIS LINE === ---
 
         document.body.classList.toggle('is-admin', (currentApprover?.Role || '').toLowerCase() === 'admin');
-        // --- === END OF ADDITION === ---
-        // ++ MODIFIED: Show IM link for everyone ++
+        
         workdeskIMLinkContainer.classList.remove('hidden');
         wdCurrentCalendarDate = new Date();
 
@@ -6550,7 +6555,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const attentionElement = document.getElementById('job-attention');
             attentionSelectChoices = new Choices(attentionElement, { searchEnabled: true, shouldSort: false, itemSelectText: '', });
             populateAttentionDropdown(attentionSelectChoices);
-            // ++ UPDATED: Event listener for vacation modal with direct store lookup ++
             attentionElement.addEventListener('choice', (event) => {
                  if (event.detail && event.detail.value && attentionSelectChoices) {
                     const selectedValue = event.detail.value;
@@ -6567,7 +6571,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
         
-        // ++ NEW: Initialize Modify Task Modal Dropdown ++
         if (!modifyTaskAttentionChoices) {
             modifyTaskAttentionChoices = new Choices(modifyTaskAttention, {
                 searchEnabled: true,
@@ -6581,8 +6584,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (workdeskDateTimeInterval) clearInterval(workdeskDateTimeInterval);
         workdeskDateTimeInterval = setInterval(updateWorkdeskDateTime, 1000);
         showView('workdesk');
-        await showWorkdeskSection('wd-dashboard'); // ADD await
+
+        // --- *** MOBILE DEFAULT VIEW FIX *** ---
+        const isMobile = window.innerWidth <= 768;
+        if (isMobile) {
+            // On mobile, default to "Active Task"
+            console.log("Mobile device detected, defaulting to Active Task view.");
+            const activeTaskLink = workdeskNav.querySelector('a[data-section="wd-activetask"]');
+            if (activeTaskLink) {
+                // Manually set active class on the correct tab
+                document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a').forEach(a => a.classList.remove('active')); 
+                activeTaskLink.classList.add('active'); 
+            }
+            await showWorkdeskSection('wd-activetask', null); // Show active tasks
+        } else {
+            // On desktop, default to "Dashboard" (Calendar)
+            console.log("Desktop device detected, defaulting to Dashboard view.");
+            await showWorkdeskSection('wd-dashboard'); // Show dashboard
+        }
+        // --- *** END OF FIX *** ---
     });
+    // --- END OF 'workdeskButton' LISTENER FIX ---
+
     // ++ ADDED: Event listener for new sidebar link ++
     workdeskIMLink.addEventListener('click', (e) => {
         e.preventDefault();
@@ -7385,7 +7408,7 @@ imReportingContent.addEventListener('click', (e) => {
             const detailRow = document.querySelector(masterRow.dataset.target); 
             if (detailRow) { 
                 detailRow.classList.toggle('hidden'); 
-                expandBtn.textContent = detailRow.classList.contains('hidden') ? '+' : '−'; 
+                expandBtn.textContent = detailRow.classList.contains('hidden') ? '+' : 'âˆ’'; 
             } 
             return; 
         }
@@ -7995,6 +8018,4 @@ if (imMobileSearchRunBtn) {
 }
 // --- *** END OF NEW MOBILE LISTENERS *** ---
 }); // END OF DOMCONTENTLOADED
-
-
 
