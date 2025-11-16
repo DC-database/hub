@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.2.9"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "3.3.1"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -7127,6 +7127,9 @@ if (activeTaskFilters) {
     } });
     document.querySelectorAll('.back-to-main-dashboard').forEach(button => button.addEventListener('click', (e) => { e.preventDefault(); showView('dashboard'); }));
 
+
+// REPLACE the entire function starting around line 3901 in app.js
+
 invoiceManagementButton.addEventListener('click', async () => {
     if (!currentApprover) { handleLogout(); return; }
     imUsername.textContent = currentApprover.Name || 'User';
@@ -7180,7 +7183,13 @@ invoiceManagementButton.addEventListener('click', async () => {
 
     // --- *** MOBILE VIEW FIX (START) *** ---
     // Hide/Show IM reporting buttons based on role AND screen size
-    const isMobile = window.innerWidth <= 768;
+    
+    // -------------------------------------------------------------------
+    // --- THIS IS THE FIX: Add the line below ---
+    // -------------------------------------------------------------------
+    const isMobile = window.innerWidth <= 768; 
+    // -------------------------------------------------------------------
+    
     const showReportBtns = isAccountingPosition && !isMobile;
     
     imReportingDownloadCSVButton.style.display = showReportBtns ? 'inline-block' : 'none';
@@ -7226,7 +7235,8 @@ invoiceManagementButton.addEventListener('click', async () => {
          }
     }
     showIMSection(defaultSection);
-});    
+});
+
 
     function handleIMAttentionChoice(event) {
         if (event.detail && event.detail.value && imAttentionSelectChoices) {
