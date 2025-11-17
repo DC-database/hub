@@ -31131,7 +31131,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 18645,56800,10239,Abdel Latif,175,4250,11-03-25,Eng. Seif Awwad,H.Abbas
 ,56801,19999,Cash,100,799,11-03-25,IBA Head Office,H.Abbas
 ,56802,31018,Top Makers Joinery Trading & Decoration,169,22000,11-03-25,Eng. Seif Awwad,Awais
-,56803,31014,NMPM Trading & Contracting W.L.L,173,665348.85,11-03-25,Eng. Khamis Farhan,Awais
+,56803,31014,NMPM Trading & Contracting W.L.L,173,699482.55,11-03-25,Eng. Khamis Farhan,Awais
 18634,56804,11600,Lamha Trading Co.,175,449,11-03-25,Eng. Seif Awwad,Cyril
 18622,56805,11732,Nay Trading Co. W.L.L.,173,550,11-03-25,Eng. Saravanan Palani,Cyril
 ,56806,11443,Cruise Marine for Ships W.L.L,M4,6400,11-03-25,IBA Head Office,Irwin
@@ -33473,7 +33473,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 20010,59243,11732,Nay Trading Co. W.L.L.,181,165,14-07-25,Eng. Seif Awwad,Cyril
 ,59244,10209,Madar Building Materials,173,9040,14-07-25,Eng. Khamis Farhan,Cyril
 ,59245,19999,Cash,173,280,14-07-25,IBA Head Office,mohsin
-,59246,31038,Happy Life Trad. & Cont. & Cleaning W.L.L,173,60925.72,14-07-25,Eng. Khamis Farhan,Awais
+,59246,31038,Happy Life Trad. & Cont. & Cleaning W.L.L,173,110133.15,14-07-25,Eng. Khamis Farhan,Awais
 ,59247,10239,Abdel Latif,181,64271.95,14-07-25,Eng. Ali Al Mughrabi,Awais
 ,59248,19999,Cash,169,2226,14-07-25,IBA Head Office,mohsin
 ,59249,10133,Mohd. Yousuf Kafood & Sons. Trad. & Cont. Co.,129,565,22-07-25,Muhammed Siddique,Cyril
@@ -33605,13 +33605,13 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 20116,59384,10239,Abdel Latif,173,550,21-07-25,Eng. Mohamed Abdelhamid,H.Abbas
 20120,59385,11541,Al Kuwaiti Stores W.L.L.,169,570,22-07-25,Eng. Seif Awwad,H.Abbas
 20117,59386,11581,Newtech Eng. & Trd. W.L.L.,173,2500,22-07-25,Eng. Khamis Farhan,Cyril
-20089,59387,30361,Grace Qatar Trading & Contracting W.L.L.,175,610,23-07-25,Eng. Seif Awwad,Cyril
+20089,59387,30361,Grace Qatar Trading & Contracting W.L.L.,175,11567.5,23-07-25,Eng. Seif Awwad,Cyril
 20112,59388,11600,Lamha Trading Co.,175,533,22-07-25,Muhammed Siddique,Cyril
 20122,59389,11254,New Tools and Bolts Trading,169,232,22-07-25,Eng. Seif Awwad,Cyril
 ,59390,19999,Cash,175,820,21-07-25,IBA Head Office,mohsin
 ,59393,30171,IBA Aluminium,129,5700,22-07-25,Eng. Ali Al Mughrabi,H.Abbas
 ,59394,30172,Ismail Bin Ali Furniture Industry WLL,175,30700,22-07-25,Eng. Seif Awwad,Awais
-,59395,30310,Signmax Trading W.L.L,176,5774.92,11-08-25,Eng. Mohammed Gomaa,Cyril
+,59395,30310,Signmax Trading W.L.L,176,28274.92,11-08-25,Eng. Mohammed Gomaa,Cyril
 ,59396,30264,Galaxy Stainless Steel Works Co. W.L.L,176,1860,22-07-25,Eng. Mohammed Gomaa,Awais
 ,59397,19999,Cash,169,1312,22-07-25,IBA Head Office,mohsin
 20115,59398,11237,Aslak Trading & General Contracting,175,845.7,22-07-25,Eng. Sahaya Edwin,Cyril
@@ -34288,7 +34288,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 20494,60118,11804,Beverly Hills Plastic Factory WLL,166,370,24-08-25,Eng. Mohamed Abulez,Cyril
 ,60119,19999,Cash,175,492,24-08-25,IBA Head Office,mohsin
 20500,60120,11285,Olive Office Trading,100,1560,24-08-25,Muhammed Siddique,Cyril
-20501,60121,30318,Aqua Proof Trading & Cotracting Co.,175,43012,26-08-25,Eng. Seif Awwad,Cyril
+20501,60121,30318,Aqua Proof Trading & Cotracting Co.,175,50668.99,26-08-25,Eng. Seif Awwad,Cyril
 20492,60122,19999,Cash,175,1230.4,24-08-25,Eng. Sahaya Edwin,Cyril
 ,60123,19999,Cash,169,169,24-08-25,IBA Head Office,mohsin
 ,60125,19999,Cash,169,328,24-08-25,IBA Head Office,mohsin
@@ -35574,7 +35574,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 21168,61470,11541,Al Kuwaiti Stores W.L.L.,166,1890.6,45971,Eng. Mohamed Abulez,Cyril
 21170,61471,30122,Masa Access & Services WLL,173,1600,45971,Eng. Khamis Farhan,Cyril
 21149,61472,11637,Sika Qatar LLC,166,3645,45970,Eng. Mohamed Abulez,Cyril
-21149,61473,19999,Cash,166,90,45970,Eng. Mohamed Abulez,Cyril
+21149,61473,19999,Cash,166,70,45977,Eng. Mohamed Abulez,Cyril
 ,61474,19999,Cash,100,1890.8,45971,IBA Head Office,sayed
 21119,61475,19999,Cash,1111,100,45971,Muhammed Siddique,H.Abbas
 21110,61476,19999,Cash,181,89.03,45971,Muhammed Siddique,H.Abbas
@@ -35589,7 +35589,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 ,61485,19999,Cash,173,400,45971,IBA Head Office,sayed
 ,61486,19999,Cash,122,51,45971,IBA Head Office,sayed
 19498,61487,11584,Sanipex Qatar,173,150000,45971,Eng. Khamis Farhan,Cyril
-21171,61488,11777,Computer Mart Trading,176,875,45971,Eng. Mohammed Gomaa,H.Abbas
+21171,61488,11284,Almoayyed Commercial Services,176,875,45971,Eng. Mohammed Gomaa,H.Abbas
 ,61489,11862,ALTAYEB ENTERPRISES,100,10250,45971,IBA Head Office,sayed
 ,61490,31039,Firestop Insulation Technologies W.L.L,176,72388,45883,Eng. Mohammed Gomaa,Awais
 21174,61491,11732,Nay Trading Co. W.L.L.,181,801.6,45971,Eng. Seif Awwad,Cyril
@@ -35690,4 +35690,43 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 ,61595,19999,Cash,100,681,45976,IBA Head Office,sayed
 ,61596,30173,Al Hazem Stainless Steel,1061,8000,45976,Eng. Al Bara Gharaibeh,H.Abbas
 ,61597,11278,Concord Surveying Works Co.,M40,3000,45976,IBA Head Office,Irwin
-21220,61598,19999,Cash,174,657,45976,IBA Head Office,mohsin
+21220,61598,19999,Cash,176,657,45976,IBA Head Office,mohsin
+,61599,19999,Cash,173,975,45977,IBA Head Office,sayed
+,61600,19999,Cash,169,350,45977,IBA Head Office,sayed
+,61601,19999,Cash,169,115,45977,IBA Head Office,sayed
+,61602,19999,Cash,181,18,45977,IBA Head Office,sayed
+,61603,19999,Cash,100,32,45977,IBA Head Office,H.Abbas
+21201,61604,19999,Cash,176,750,45977,Eng. Mohammed Gomaa,H.Abbas
+21218,61605,11237,Aslak Trading & General Contracting,173,3300,45977,Eng. Ahmed Aboushanab,Cyril
+21212,61606,11732,Nay Trading Co. W.L.L.,173,7442.6,45977,Eng. Khamis Farhan,Cyril
+21193,61607,11777,Computer Mart Trading,173,1475,45977,Eng. Khamis Farhan,H.Abbas
+21195,61608,11777,Computer Mart Trading,173,155,45977,Eng. Khamis Farhan,H.Abbas
+21231,61609,10126,Hempel Paints,176,2400,45977,Eng. Mohammed Gomaa,Cyril
+21229,61610,10245,Don Construction Products - Qatar W.L.L,166,945,45977,Eng. Mohamed Abulez,Cyril
+21232,61611,30383,ABCO AM Equipment Trading W.L.L.,173,13000,45977,Eng. Khamis Farhan,Cyril
+,61612,17784,Centre Testing International Corporation,173,2190,45977,Eng. Khamis Farhan,Awais
+,61613,19999,Cash,100,300,45977,IBA Head Office,H.Abbas
+21239,61614,10243,Al Obaidly Trading & Services W.L.L.,176,550,45978,Eng. Mohammed Gomaa,H.Abbas
+21240,61615,19999,Cash,176,1524,45978,Eng. Mohammed Gomaa,H.Abbas
+,61616,19999,Cash,147,1073.5,45978,IBA Head Office,H.Abbas
+,61617,19999,Cash,176,830,45978,IBA Head Office,sayed
+,61618,19999,Cash,173,152,45978,IBA Head Office,sayed
+21213,61619,19999,Cash,1061,140,45978,Eng. Ahmed Aboushanab,H.Abbas
+,61620,11777,Computer Mart Trading,176,130,45978,Eng. Khamis Farhan,H.Abbas
+,61621,19999,Cash,100,570,45978,IBA Head Office,sayed
+,61622,19999,Cash,173,190,45978,IBA Head Office,sayed
+,61623,19999,Cash,176,440,45978,IBA Head Office,sayed
+,61625,19999,Cash,100,385,45978,IBA Head Office,sayed
+21234,61626,11732,Nay Trading Co. W.L.L.,173,500,45978,Eng. Khamis Farhan,Cyril
+21242,61627,30573,Petroleum Technology Co. (Petrotec) WLL,175,1632,45978,Eng. Sahaya Edwin,Cyril
+,61628,19999,Cash,M17,93,45978,IBA Head Office,sayed
+,61629,19999,Cash,173,1312,45978,IBA Head Office,sayed
+,61630,19999,Cash,176,820,45978,IBA Head Office,sayed
+21228,61631,11541,Al Kuwaiti Stores W.L.L.,166,603,45978,Eng. Mohamed Abulez,Cyril
+,61632,19999,Cash,181,164,45978,IBA Head Office,sayed
+21217,61633,11541,Al Kuwaiti Stores W.L.L.,176,3265,45978,Eng. Mohammed Gomaa,Cyril
+21230,61634,11732,Nay Trading Co. W.L.L.,176,1907,45979,Eng. Mohammed Gomaa,Cyril
+,61635,19999,Cash,100,290,45978,IBA Head Office,sayed
+,61636,11707,Lulu Rayyan,176,2136,45979,Eng. Mohammed Gomaa,Cyril
+21173,61637,11283,Wiltz Trading and Contracting W.L.L,1111,950,45978,IBA Head Office,mohsin
+21221,61638,19999,Cash,176,996.8,45978,Eng. Mohammed Gomaa,H.Abbas
