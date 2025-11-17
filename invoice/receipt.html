@@ -12,9 +12,9 @@
     <style>
         body { font-family: Arial, sans-serif; margin: 0; background-color: #f4f4f4; display: flex; flex-direction: column; align-items: center; padding: 20px; }
         
-        /* --- *** 2. USE ID OF TEMPLATE *** --- */
+        /* --- 1. RECEIPT CONTAINER (FIXED WIDTH) --- */
         #ceo-receipt-template { 
-            width: 320px;
+            width: 300px; /* FIXED WIDTH */
             padding: 10px;
             border: 1px solid #ccc;
             background-color: #fff;
@@ -26,17 +26,45 @@
         }
         #receipt-title { text-align: center; margin-top: 0; margin-bottom: 10px; font-size: 1.2rem; }
         #ceo-receipt-template hr { border: none; border-top: 1px dashed #999; margin: 10px 0; }
-        #approved-section h3 { margin: 10px 0 5px 0; font-size: 1rem; border-bottom: 1px solid #999; }
+        
+        /* --- 2. ITEM STYLES --- */
+        #approved-section h3, #rejected-section h3 { margin: 10px 0 5px 0; font-size: 1rem; border-bottom: 1px solid #999; }
         #rejected-section { margin-top: 15px; }
-        #rejected-section h3 { margin: 10px 0 5px 0; font-size: 1rem; border-bottom: 1px solid #999; color: #D32F2F; }
+        #rejected-section h3 { color: #D32F2F; }
         #rejected-section .item-details { color: #555; }
+        
+        /* --- ITEM ROW CONTAINER --- */
         .item { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 5px; }
-        .item-details { flex-basis: 70%; word-break: break-word; }
-        .item-status { flex-basis: 30%; text-align: right; font-weight: bold; }
+        
+        /* --- LEFT COLUMN: Item Name (GIVEN MORE SPACE) --- */
+        .item-details { 
+            flex-basis: 75%; /* CHANGED FROM 60% */
+            word-break: break-word; 
+        }
+        
+        /* --- RIGHT COLUMN: Price and Status (GIVEN LESS SPACE) --- */
+        .item-status { 
+            flex-basis: 25%; /* CHANGED FROM 40% */
+            text-align: right; 
+            font-weight: bold; 
+            line-height: 1.1; 
+        }
+        
         .status-approved { color: #28a745; }
         .status-rejected { color: #D32F2F; }
-        .total { font-weight: bold; border-top: 1px dashed #999; margin-top: 5px; padding-top: 5px; display: flex; justify-content: space-between; }
+        
+        /* --- 3. TOTALS STYLES --- */
+        .total { 
+            font-weight: bold; 
+            border-top: 1px dashed #999; 
+            margin-top: 5px; 
+            padding-top: 5px; 
+            display: flex; 
+            justify-content: space-between; 
+        }
         .total-rejected { color: #D32F2F; }
+
+        /* --- 4. GENERAL STYLES --- */
         .hidden { display: none; }
         #button-container { text-align: center; margin-top: 25px; }
         #send-whatsapp-btn {
@@ -54,7 +82,7 @@
         #send-whatsapp-btn:disabled { background-color: #aaa; cursor: not-allowed; }
         #status-text { margin-top: 10px; color: #555; font-style: italic; }
 
-        /* --- *** 3. ADD THIS NEW STYLE BLOCK *** --- */
+        /* --- 5. FOOTER STYLES --- */
         #receipt-footer {
             text-align: center;
             margin-top: 15px;
@@ -69,14 +97,13 @@
             font-size: 0.9rem;
         }
         #barcode {
-            width: 80%; /* Make barcode resize */
+            width: 80%;
             height: 40px;
             margin: 5px 0;
         }
         #footer-date {
             font-size: 0.8rem;
         }
-        /* --- *** END OF NEW STYLE BLOCK *** --- */
     </style>
 </head>
 <body>
@@ -84,13 +111,13 @@
     <div id="ceo-receipt-template">
         <h2 id="receipt-title">Authorize Approval</h2>
         
-               
+        <hr>
+        
         <div id="approved-section">
             <h3>APPROVED</h3>
             <div id="receipt-approved-list"></div>
             <div class="total">
-                <span>APPROVED TOTAL:</span>
-                <span id="receipt-approved-total">QR 0.00</span>
+                <span>APPROVED TOTAL:</span> <span id="receipt-approved-total">QR 0.00</span>
             </div>
         </div>
 
@@ -98,8 +125,7 @@
             <h3>REJECTED</h3>
             <div id="receipt-rejected-list"></div>
             <div class="total total-rejected">
-                <span>REJECTED TOTAL:</span>
-                <span id="receipt-rejected-total">QR 0.00</span>
+                <span>TOTAL REJECTED:</span> <span id="receipt-rejected-total">QR 0.00</span>
             </div>
         </div>
 
@@ -108,7 +134,7 @@
             <svg id="barcode"></svg>
             <p id="footer-date"></p>
         </div>
-        </div>
+    </div>
 
     <div id="button-container">
         <button id="send-whatsapp-btn">Send to WhatsApp</button>
