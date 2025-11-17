@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.3.4"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "3.3.5"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -326,7 +326,119 @@ let cacheTimestamps = {
   epicoreData: 0, 
   sitesCSV: 0 
 };
+// PASTE THIS ENTIRE NEW BLOCK (around line 348)
+
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours cache
+
+// --- *** NEW CACHE HELPER FUNCTIONS (START) *** ---
+/**
+ * Saves data to localStorage with a timestamp.
+ */
+// PASTE THIS ENTIRE BLOCK (replaces the old function around line 339)
+function setCache(key, data) {
+    try {
+        const item = {
+            data: data,
+            timestamp: Date.now()
+        };
+        localStorage.setItem(key, JSON.stringify(item));
+        console.log(`Saved data to localStorage cache: ${key}`);
+    } catch (error) {
+        console.error(`Error saving to localStorage ${key}:`, error);
+        // Do not clear storage, as the file might be too big
+        // We will just log the error and not cache this item.
+        console.warn(`Could not cache ${key}. File may be too large for localStorage.`);
+    }
+}
+/**
+ * Gets data from localStorage and checks if it's stale.
+ * @returns {object | null} An object { data, isStale } or null if not found.
+ */
+function getCache(key) {
+    const itemStr = localStorage.getItem(key);
+    if (!itemStr) {
+        return null;
+    }
+    try {
+        const item = JSON.parse(itemStr);
+        const isStale = (Date.now() - item.timestamp) > CACHE_DURATION;
+        return { data: item.data, isStale: isStale };
+    } catch (error) {
+        console.error(`Error parsing cache ${key}:`, error);
+        localStorage.removeItem(key); // Remove corrupted data
+        return null;
+    }
+}
+
+/**
+ * Tries to load all CSV data from localStorage into the in-memory variables.
+ * @returns {boolean} True if all data was successfully loaded from cache, false otherwise.
+ */
+// PASTE THIS ENTIRE BLOCK (replaces the old function around line 363)
+function loadDataFromLocalStorage() {
+    // --- *** FIX: REMOVED POVALUE2 and ECOMMIT from this function *** ---
+    const epicoreCache = getCache('cached_EPICORE');
+    const sitesCache = getCache('cached_SITES');
+
+    // Load what we can. POData and Ecommit will be fetched from network.
+    if (epicoreCache) {
+        allEpicoreData = epicoreCache.data;
+        cacheTimestamps.epicoreData = epicoreCache.isStale ? 0 : Date.now();
+    }
+    if (sitesCache) {
+        allSitesCSVData = sitesCache.data;
+        cacheTimestamps.sitesCSV = sitesCache.isStale ? 0 : Date.now();
+    }
+    
+    // Return true if the critical caches (non-PO, non-Ecommit) were loaded.
+    if (allEpicoreData && allSitesCSVData) {
+        return true;
+    }
+    return false;
+}
+/**
+ * Silently refreshes all stale CSV caches in the background.
+ * This function does not block the UI and does not show errors.
+ */
+// PASTE THIS ENTIRE BLOCK (replaces the old function around line 392)
+async function silentlyRefreshStaleCaches() {
+    console.log("Checking for stale background caches...");
+    const now = Date.now();
+    
+    // --- *** FIX: REMOVED POVALUE2 and ECOMMIT from this function *** ---
+    const EPICORE_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/Ecost.csv";
+    const SITES_CSV_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/Site.csv";
+
+    try {
+        // Check Epicore Data
+        if (cacheTimestamps.epicoreData === 0) {
+            console.log("Silently refreshing Ecost.csv...");
+            const epicoreCsvData = await fetchAndParseEpicoreCSV(EPICORE_DATA_URL);
+            if (epicoreCsvData) {
+                allEpicoreData = epicoreCsvData;
+                setCache('cached_EPICORE', allEpicoreData);
+                cacheTimestamps.epicoreData = now;
+            }
+        }
+        
+        // Check Sites Data
+        if (cacheTimestamps.sitesCSV === 0) {
+            console.log("Silently refreshing Site.csv...");
+            const sitesCsvData = await fetchAndParseSitesCSV(SITES_CSV_URL);
+            if (sitesCsvData) {
+                allSitesCSVData = sitesCsvData;
+                setCache('cached_SITES', allSitesCSVData);
+                cacheTimestamps.sitesCSV = now;
+            }
+        }
+        
+        console.log("Background cache check complete.");
+    } catch (error) {
+        // This is a silent failure. The user won't know.
+        console.warn("Silent background cache refresh failed:", error.message);
+    }
+}
+// --- *** NEW CACHE HELPER FUNCTIONS (END) *** ---
 
 // ++ NEW EFFICIENT CACHES FOR DROPDOWNS ++
 let allApproversCache = null;
@@ -746,12 +858,13 @@ async function ensureApproverDataCached() {
  * (SMART HELPER 1 - FOR INVOICES)
  * Checks if an invoice task is "active" (i.e., needs to be in someone's inbox).
  */
+// PASTE THIS ENTIRE BLOCK (replaces the old function)
 function isInvoiceTaskActive(invoiceData) {
     if (!invoiceData) return false;
 
     // Statuses that are "completed" or "pending admin" and thus NOT active for a user
     const inactiveStatuses = [
-        'CEO Approval', 
+        // 'CEO Approval', // <-- THIS IS THE FIX (REMOVED)
         'With Accounts', 
         'Under Review', 
         'SRV Done', 
@@ -772,7 +885,6 @@ function isInvoiceTaskActive(invoiceData) {
     // it's only active if it's assigned to a specific person.
     return !!invoiceData.attention; 
 }
-
 /**
  * (SMART HELPER 2 - FOR INVOICES)
  * Keeps the 'invoice_tasks_by_user' (the "inbox") in sync.
@@ -1243,73 +1355,98 @@ async function ensureEcostDataFetched(forceRefresh = false) {
     }
     return allEcostData;
 }
-
-// [Replace this entire function]
-
-// This function is still used by reporting, so we keep it.
+// PASTE THIS ENTIRE BLOCK (replaces the old function around line 1056)
 async function ensureInvoiceDataFetched(forceRefresh = false) {
     const now = Date.now();
-    const shouldUseCache = !forceRefresh &&
-                          allPOData &&
-                          allInvoiceData &&
-                          allEpicoreData &&
-                          allSitesCSVData && 
-                          allEcommitDataProcessed && // This now works because of Step A
-                          (now - cacheTimestamps.poData < CACHE_DURATION) &&
-                          (now - cacheTimestamps.epicoreData < CACHE_DURATION) &&
-                          (now - cacheTimestamps.sitesCSV < CACHE_DURATION) &&
-                          (now - cacheTimestamps.ecommitData < CACHE_DURATION) &&
-                          (now - cacheTimestamps.invoiceData < CACHE_DURATION); // <-- THIS IS THE MISSING LINE
+    const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
+    const EPICORE_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/Ecost.csv";
+    const SITES_CSV_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/Site.csv";
+    const ECOMMIT_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/ECommit.csv";
 
-
-    if (shouldUseCache) {
-        return;
+    // 1. Check in-memory cache (fastest)
+    if (!forceRefresh && allPOData && allInvoiceData && allEpicoreData && allSitesCSVData && allEcommitDataProcessed) {
+        return; // Everything is already in memory
     }
 
+    // 2. Try loading CACHEABLE data from localStorage (Offline-First)
+    if (!forceRefresh) {
+        loadDataFromLocalStorage(); // This loads Epicore and Sites
+    }
+
+    // 3. Always fetch non-cacheable (PO, Ecommit) and Firebase (Invoice) data
+    // Or fetch everything if cache was empty/stale/forced
     try {
-        const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
-        const EPICORE_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/Ecost.csv"; // Using Ecost for comprehensive financial data
-        const SITES_CSV_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/Site.csv";
-        // *** NEW URL ***
-        const ECOMMIT_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/ECommit.csv";
-        // *** END NEW URL ***
+        const promisesToRun = [];
 
-        console.log("Refreshing all caches (PO, Epicore, Sites, Ecommit, and Invoices)...");
-        
-        // *** MODIFIED Promise.all: Added Ecommit fetch ***
-        const [csvData, epicoreCsvData, sitesCsvData, ecommitProcessedData, invoiceSnapshot] = await Promise.all([ 
-            fetchAndParseCSV(PO_DATA_URL),
-            fetchAndParseEpicoreCSV(EPICORE_DATA_URL),
-            fetchAndParseSitesCSV(SITES_CSV_URL),
-            fetchAndParseEcommitCSV(ECOMMIT_DATA_URL), // *** NEW CALL ***
-            invoiceDb.ref('invoice_entries').once('value'),
-        ]);
+        // --- *** FIX: ALWAYS fetch POData, do NOT cache it *** ---
+        if (!allPOData || forceRefresh) {
+            console.log("Fetching POVALUE2.csv from network...");
+            promisesToRun.push(fetchAndParseCSV(PO_DATA_URL));
+        }
 
-        if (csvData === null || epicoreCsvData === null || sitesCsvData === null || ecommitProcessedData === null) {
-            throw new Error("Failed to load PO, Epicore, Site, or Ecommit data from CSV.");
+        // Fetch other CSVs only if they weren't loaded from cache
+        if (!allEpicoreData || forceRefresh) {
+            console.log("Fetching Ecost.csv from network...");
+            promisesToRun.push(fetchAndParseEpicoreCSV(EPICORE_DATA_URL));
+        }
+        if (!allSitesCSVData || forceRefresh) {
+            console.log("Fetching Site.csv from network...");
+            promisesToRun.push(fetchAndParseSitesCSV(SITES_CSV_URL));
         }
         
-        allPOData = csvData.poDataByPO;
-        allEpicoreData = epicoreCsvData;
-        allSitesCSVData = sitesCsvData;
-        allInvoiceData = invoiceSnapshot.val() || {};
-        allEcommitDataProcessed = ecommitProcessedData; // *** NEW STATE VARIABLE ***
+        // --- *** FIX: ALWAYS fetch Ecommit, do NOT cache it *** ---
+        if (!allEcommitDataProcessed || forceRefresh) {
+            console.log("Fetching ECommit.csv from network...");
+            promisesToRun.push(fetchAndParseEcommitCSV(ECOMMIT_DATA_URL));
+        }
 
-        cacheTimestamps.poData = now;
-        cacheTimestamps.epicoreData = now;
-        cacheTimestamps.sitesCSV = now;
-        cacheTimestamps.invoiceData = now;
-        cacheTimestamps.ecommitData = now; // *** NEW TIMESTAMP ***
+        // Always fetch Firebase data if it's not in memory
+        if (!allInvoiceData || forceRefresh) {
+            console.log("Fetching Firebase invoice data...");
+            promisesToRun.push(invoiceDb.ref('invoice_entries').once('value'));
+        }
 
-        console.log("Invoice and GitHub CSV caches refreshed.");
-
-        approverListForSelect = []; // Clear this here
-        allApproversCache = null; // Clear Choices cache too
+        const results = await Promise.all(promisesToRun);
         
-        // --- MODIFICATION (Req 3 & 4) ---
-        // Repopulate allUniqueNotes from the fresh invoice data
-        allUniqueNotes = new Set();
-        if (allInvoiceData) {
+        // Re-assign data based on what was fetched
+        let resultIndex = 0;
+
+        if (!allPOData || forceRefresh) {
+            const csvData = results[resultIndex++];
+            if (csvData === null) throw new Error("Failed to load POVALUE2.csv");
+            allPOData = csvData.poDataByPO;
+            // --- DO NOT CACHE IT ---
+            cacheTimestamps.poData = now;
+        }
+
+        if (!allEpicoreData || forceRefresh) {
+            allEpicoreData = results[resultIndex++];
+            if (allEpicoreData === null) throw new Error("Failed to load Ecost.csv");
+            setCache('cached_EPICORE', allEpicoreData); // Cache this one
+            cacheTimestamps.epicoreData = now;
+        }
+
+        if (!allSitesCSVData || forceRefresh) {
+            allSitesCSVData = results[resultIndex++];
+            if (allSitesCSVData === null) throw new Error("Failed to load Site.csv");
+            setCache('cached_SITES', allSitesCSVData); // Cache this one
+            cacheTimestamps.sitesCSV = now;
+        }
+
+        if (!allEcommitDataProcessed || forceRefresh) {
+            allEcommitDataProcessed = results[resultIndex++];
+            if (allEcommitDataProcessed === null) throw new Error("Failed to load ECommit.csv");
+            // --- DO NOT CACHE IT ---
+            cacheTimestamps.ecommitData = now;
+        }
+
+        if (!allInvoiceData || forceRefresh) {
+            const invoiceSnapshot = results[resultIndex++];
+            allInvoiceData = invoiceSnapshot.val() || {};
+            cacheTimestamps.invoiceData = now;
+            
+            // Repopulate allUniqueNotes from the fresh invoice data
+            allUniqueNotes = new Set();
             for (const po in allInvoiceData) {
                 for (const invKey in allInvoiceData[po]) {
                     const invoice = allInvoiceData[po][invKey];
@@ -1319,16 +1456,12 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
                 }
             }
         }
-        // --- END MODIFICATION ---
-
-
     } catch (error) {
-        console.error("Failed to fetch and cache invoice data:", error);
-        alert("Error: Could not load data from database.");
+        console.error("CRITICAL: Failed to fetch required data:", error);
+        alert("CRITICAL ERROR: Failed to download required data files. Please check your internet connection and try again.");
+        throw error;
     }
 }
-
-
 // LOCAL CACHE UPDATE FUNCTIONS
 function updateLocalInvoiceCache(poNumber, invoiceKey, updatedData) {
     if (allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][invoiceKey]) {
@@ -1954,84 +2087,100 @@ function toggleCalendarView() {
     }
 }
 
-
-// [Replace this entire function]
-
-// --- (MODIFIED) ensureAllEntriesFetched ---
-// This function will now fetch job_entries AND PO data if the cache is old.
+// PASTE THIS ENTIRE BLOCK (replaces the old function around line 1876)
 async function ensureAllEntriesFetched(forceRefresh = false) {
     const now = Date.now();
-    // Check if we have a cache and it's less than 24 hours old
+    
+    // --- *** NEW CACHE LOGIC (START) *** ---
+    
+    // 1. Check in-memory cache for job_entries (Firebase data)
     if (!forceRefresh && allSystemEntries.length > 0 && (now - cacheTimestamps.systemEntries < CACHE_DURATION)) {
-        return; // Use the cache
+        // We still need to ensure POData is loaded
+        if (allPOData) return; // Both are in memory, we are good.
+    }
+
+    // 2. Try loading PO data from localStorage
+    if (!forceRefresh && !allPOData) { // If PO data isn't in memory
+        // --- *** FIX: REMOVED getCache for POVALUE2 *** ---
+        // We will fetch it from network instead
+    }
+
+    // 3. Always fetch non-cacheable (PO) and Firebase (job_entries) data
+    if (!allPOData || forceRefresh) {
+        console.log("Fetching POVALUE2.csv for Workdesk from network...");
+        try {
+            const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
+            const { poDataByPO } = await fetchAndParseCSV(PO_DATA_URL) || {};
+            if (poDataByPO) {
+                allPOData = poDataByPO;
+                // --- DO NOT CACHE IT ---
+                cacheTimestamps.poData = now;
+            } else {
+                throw new Error("Failed to parse POVALUE2.csv");
+            }
+        } catch (error) {
+            console.error("CRITICAL: Failed to fetch initial POVALUE2.csv for Workdesk:", error);
+            alert("CRITICAL ERROR: Failed to download required PO data. Please check your connection and try again.");
+            throw error;
+        }
     }
     
-    console.log("Loading PO Data cache for Workdesk...");
-    const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
+    // --- *** NEW CACHE LOGIC (END) *** ---
     
-    // Fetch both PO and Ref maps from the CSV
-    const { poDataByPO, poDataByRef } = await fetchAndParseCSV(PO_DATA_URL) || {};
-    allPOData = poDataByPO; // This is the original map, keyed by PO
-    const purchaseOrdersDataByRef = poDataByRef || {}; // This is the new map, keyed by Ref
-    const purchaseOrdersDataByPO = allPOData || {};
-    
-    
+    // 4. Always fetch (fast) Firebase job_entries
     console.log("Fetching all job_entries for Workdesk...");
-    // Fetch ONLY job_entries
     const jobEntriesSnapshot = await db.ref('job_entries').orderByChild('timestamp').once('value');
-
     const jobEntriesData = jobEntriesSnapshot.val() || {};
     
+    const purchaseOrdersDataByRef = {}; // We need to rebuild this from allPOData
+    const purchaseOrdersDataByPO = allPOData || {};
+    
+    // Rebuild the 'ByRef' map from the (now cached) PO data
+    for (const poKey in purchaseOrdersDataByPO) {
+        const poEntry = purchaseOrdersDataByPO[poKey];
+        const refKey = poEntry['ReqNum']; // "ReqNum" is the Ref key
+        if (refKey) {
+            purchaseOrdersDataByRef[refKey] = poEntry;
+        }
+    }
+    
     const processedJobEntries = [];
-    const updatesToFirebase = {}; // To store the PRs we need to update
+    const updatesToFirebase = {}; 
 
     Object.entries(jobEntriesData).forEach(([key, value]) => {
         let entry = { key, ...value, source: 'job_entry' };
 
-        // --- *** PR ENRICHMENT LOGIC (THE FIX) *** ---
-        // Always try to find a match for any PR that has a Ref number.
         if (entry.for === 'PR' && entry.ref) {
             const trimmedRef = entry.ref.trim();
             const csvMatch = purchaseOrdersDataByRef[trimmedRef];
 
             if (csvMatch) {
-                // We found a match in the CSV.
                 const newPO = csvMatch['PO'] || '';
                 const newVendor = csvMatch['Supplier Name'] || 'N/A';
-                
-                // --- THIS IS THE DATE FORMATTING FIX ---
                 const rawDate = csvMatch['Order Date'] || '';
-                const normalizedDate = normalizeDateForInput(rawDate); // Convert "19-10-25" to "2025-10-19"
-                const newDate = formatYYYYMMDD(normalizedDate);     // Convert "2025-10-19" to "19-Oct-2025"
-                // --- END OF FIX ---
+                const normalizedDate = normalizeDateForInput(rawDate);
+                const newDate = formatYYYYMMDD(normalizedDate);
 
-                // 1. Always update the local 'entry' object for the current view.
                 entry.po = newPO;
                 entry.vendorName = newVendor;
-                entry.dateResponded = (newDate === 'N/A' ? '' : newDate); // Use the formatted date
-                entry.remarks = 'PO Ready'; // <-- ALWAYS set status to "PO Ready" for display
+                entry.dateResponded = (newDate === 'N/A' ? '' : newDate);
+                entry.remarks = 'PO Ready'; 
 
-                // 2. Check if this is a "Pending" PR that needs to be auto-updated in Firebase.
-                // We check the original value (value.remarks) not the one we just changed (entry.remarks)
                 if (value.remarks === 'Pending') {
                     const newAmount = csvMatch['Amount'] || '';
                     const newAttention = csvMatch['Buyer Name'] || '';
-
-                    // Prepare an object to update Firebase
                     updatesToFirebase[key] = {
                         po: newPO,
-                        vendorName: newVendor, // Also save vendorName to DB
+                        vendorName: newVendor,
                         amount: newAmount,
                         attention: newAttention,
-                        dateResponded: (newDate === 'N/A' ? '' : newDate), // Save formatted date
-                        remarks: 'PO Ready' // Save the new status
+                        dateResponded: (newDate === 'N/A' ? '' : newDate),
+                        remarks: 'PO Ready'
                     };
                 }
             }
         }
-        // --- *** END OF PR FIX *** ---
 
-        // This adds the vendor name to all other tasks for the reporting table
         if (!entry.vendorName && entry.po && purchaseOrdersDataByPO[entry.po]) {
             entry.vendorName = purchaseOrdersDataByPO[entry.po]['Supplier Name'] || 'N/A';
         }
@@ -2039,7 +2188,6 @@ async function ensureAllEntriesFetched(forceRefresh = false) {
         processedJobEntries.push(entry);
     });
 
-    // --- NEW: Push all updates to Firebase in one go ---
     if (Object.keys(updatesToFirebase).length > 0) {
         console.log(`Auto-updating ${Object.keys(updatesToFirebase).length} PRs from CSV...`);
         try {
@@ -2049,17 +2197,13 @@ async function ensureAllEntriesFetched(forceRefresh = false) {
             console.error("Failed to auto-update PRs in Firebase:", error);
         }
     }
-    // --- END NEW ---
 
-    allSystemEntries = processedJobEntries; // Set the global cache
+    allSystemEntries = processedJobEntries; 
     allSystemEntries.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     cacheTimestamps.systemEntries = now; // Update timestamp
     console.log(`Workdesk Job Records cache updated with ${allSystemEntries.length} job entries.`);
 }
-
-
-// [REPLACE this entire function around line 1307]
-
+// PASTE THIS ENTIRE BLOCK (replaces the old function)
 function isTaskComplete(task) {
     if (!task) return false;
 
@@ -2077,7 +2221,7 @@ function isTaskComplete(task) {
 
     // Define "completed" statuses
     const completedStatuses = [
-        'CEO Approval', 
+        // 'CEO Approval', // <-- THIS IS THE FIX (REMOVED)
         'With Accounts', 
         // 'Under Review', // <-- *** THIS IS THE FIX (REMOVED) ***
         'SRV Done', 
@@ -2122,7 +2266,6 @@ function isTaskComplete(task) {
     
     return false; // If no other rule matches, it's not complete
 }
-
 // [REPLACE this entire function around line 1354]
 
 function resetJobEntryForm(keepJobType = false) {
@@ -7424,6 +7567,7 @@ invoiceManagementButton.addEventListener('click', async () => {
         }
     });
 
+// PASTE THIS ENTIRE BLOCK (replaces the old listener around line 5202)
 imReportingContent.addEventListener('click', (e) => { 
         const expandBtn = e.target.closest('.expand-btn'); 
         if (expandBtn) { 
@@ -7431,7 +7575,10 @@ imReportingContent.addEventListener('click', (e) => {
             const detailRow = document.querySelector(masterRow.dataset.target); 
             if (detailRow) { 
                 detailRow.classList.toggle('hidden'); 
-                expandBtn.textContent = detailRow.classList.contains('hidden') ? '+' : 'âˆ’'; 
+                // --- THIS IS THE FIX ---
+                // Replaced the broken 'âˆ’' character with a simple '-'
+                expandBtn.textContent = detailRow.classList.contains('hidden') ? '+' : '-'; 
+                // --- END OF FIX ---
             } 
             return; 
         }
@@ -7469,8 +7616,7 @@ imReportingContent.addEventListener('click', (e) => {
             }
             return; 
         }
-    });    
-
+    });
 
     imReportingForm.addEventListener('submit', (e) => { e.preventDefault(); const searchTerm = imReportingSearchInput.value.trim(); if (!searchTerm && !document.getElementById('im-reporting-site-filter').value && !document.getElementById('im-reporting-date-filter').value && !document.getElementById('im-reporting-status-filter').value) { imReportingContent.innerHTML = '<p style="color: red; font-weight: bold;">Please specify at least one search criteria.</p>'; return; } populateInvoiceReporting(searchTerm); });
     imReportingClearButton.addEventListener('click', () => { imReportingForm.reset(); sessionStorage.removeItem('imReportingSearch'); imReportingContent.innerHTML = '<p>Please enter a search term and click Search.</p>'; currentReportData = []; if (reportingCountDisplay) reportingCountDisplay.textContent = ''; });
@@ -7480,13 +7626,22 @@ imReportingContent.addEventListener('click', (e) => {
     if(imReportingPrintBtn) imReportingPrintBtn.addEventListener('click', handleGeneratePrintReport);
 
     
+    // PASTE THIS ENTIRE BLOCK (replaces the old listener around line 6239)
     imStatusSelect.addEventListener('change', (e) => {
         if (imAttentionSelectChoices) {
-            if (e.target.value === 'CEO Approval') {
-                imAttentionSelectChoices.setChoiceByValue('Mr. Hamad');
-            } else if (e.target.value === 'Under Review') {
+            
+            // --- THIS IS THE LINE THAT IS NOW DISABLED ---
+            // if (e.target.value === 'CEO Approval') {
+            //     imAttentionSelectChoices.setChoiceByValue('Mr. Hamad');
+            // } 
+            // --- END OF THE DISABLED LINE ---
+    
+            // --- THIS IS THE FIX ---
+            // I have changed "else if" to just "if" to fix the error.
+            if (e.target.value === 'Under Review') {
                 imAttentionSelectChoices.removeActiveItems();
             }
+            // --- END OF FIX ---
         }
     });
     settingsForm.addEventListener('submit', handleUpdateSettings);
