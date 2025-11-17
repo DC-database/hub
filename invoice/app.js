@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.3.5"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "3.3.6"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -43,7 +43,8 @@ const invoiceFirebaseConfig = {
 };
 const invoiceApp = firebase.initializeApp(invoiceFirebaseConfig, 'invoiceEntry');
 const invoiceDb = invoiceApp.database();
-
+// ADD THIS LINE
+const storage = firebase.storage(invoiceApp); // Initialize storage with the invoice app config
 
 // --- 3. DOM ELEMENT REFERENCES & 4. GLOBAL STATE ---
 const PDF_BASE_PATH = "https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/DC%20Files/INVOICE/";
@@ -254,6 +255,15 @@ const snTotalInWords = document.getElementById('sn-total-in-words');
 const snTotalNumeric = document.getElementById('sn-total-numeric');
 const noteSuggestionsDatalist = document.getElementById('note-suggestions');
 
+// ADD THESE LINES to the DOM ELEMENT REFERENCES section
+const ceoApprovalModal = document.getElementById('ceo-approval-modal');
+const ceoModalDetails = document.getElementById('ceo-modal-details');
+const ceoModalAmount = document.getElementById('ceo-modal-amount');
+const ceoModalNote = document.getElementById('ceo-modal-note');
+const ceoModalApproveBtn = document.getElementById('ceo-modal-approve-btn');
+const ceoModalRejectBtn = document.getElementById('ceo-modal-reject-btn');
+const sendCeoApprovalReceiptBtn = document.getElementById('send-ceo-approval-receipt-btn');
+
 // --- (NEW) DOM Refs for Item Counts & Badges ---
 const activeTaskCountDisplay = document.getElementById('active-task-count-display');
 const jobRecordsCountDisplay = document.getElementById('job-records-count-display');
@@ -275,7 +285,7 @@ let siteSelectChoices = null; let attentionSelectChoices = null;
 let currentlyEditingKey = null; let allJobEntries = []; let userJobEntries = [];
 let userActiveTasks = [];
 let allAdminCalendarTasks = [];
-
+let ceoProcessedTasks = []; // Stores tasks processed by CEO in this session
 
 // let userTaskHistory = []; // --- (REMOVED) ---
 let allSystemEntries = [];
@@ -531,30 +541,30 @@ function updatePaymentsCount() {
 }
 // --- (END NEW) ---
 
+// REPLACE the old handleSuccessfulLogin function
 function handleSuccessfulLogin() {
     if (currentApprover && currentApprover.key) {
-        // --- THIS IS THE FIX ---
-        // Switched from sessionStorage to localStorage
         localStorage.setItem('approverKey', currentApprover.key);
-        // --- END OF FIX ---
     } else {
         console.error("Attempted to save login state but currentApprover or key is missing.");
         handleLogout();
         return;
     }
 
-    // --- *** NEW MOBILE REDIRECT *** ---
+    // --- *** THIS IS THE NEW LOGIC *** ---
+    // Check for CEO Admin role
+    const isCEO = (currentApprover?.Role || '').toLowerCase() === 'admin' && 
+                  (currentApprover?.Position || '').toLowerCase() === 'ceo';
+    document.body.classList.toggle('is-ceo', isCEO); // Add .is-ceo class to body
+    // --- *** END OF NEW LOGIC *** ---
+
     const isMobile = window.innerWidth <= 768;
     if (isMobile) {
-        // On mobile, skip the Welcome Screen and go directly to WorkDesk
         workdeskButton.click(); 
     } else {
-        // On desktop, show the Welcome Screen
         showView('dashboard');
     }
-    // --- *** END OF MOBILE REDIRECT *** ---
 
-    // Toggle admin-specific UI elements
     const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
     document.body.classList.toggle('is-admin', isAdmin);
 
@@ -565,6 +575,7 @@ function handleSuccessfulLogin() {
         financeReportButton.classList.toggle('hidden', !isAccountsOrAccounting);
     }
 }
+
 // [REPLACE this entire function around line 1032]
 
 // NEW SIGNATURE: Added 'async' and 'newSearchTerm' parameter
@@ -864,16 +875,16 @@ function isInvoiceTaskActive(invoiceData) {
 
     // Statuses that are "completed" or "pending admin" and thus NOT active for a user
     const inactiveStatuses = [
-        // 'CEO Approval', // <-- THIS IS THE FIX (REMOVED)
+        // 'CEO Approval', // (This was removed before)
         'With Accounts', 
         'Under Review', 
         'SRV Done', 
         'Paid',
-        // 'Report', // <-- REMOVED
         'On Hold',
         'CLOSED',
         'Cancelled',
-        // 'Original PO' // <-- REMOVED
+        'Approved', // --- ADD THIS LINE ---
+        'Rejected'  // --- ADD THIS LINE ---
     ];
 
     // If the status is in the inactive list, it's not an active task.
@@ -1763,12 +1774,40 @@ function displayCalendarTasksForDay(date) { // date is "2025-11-09"
             }
         });
     }
+// ADD THIS ENTIRE BLOCK at the end of the DOMContentLoaded listener
+
+    // --- *** NEW: CEO Day View Click Listener *** ---
+    const wdDayViewTaskList = document.getElementById('wd-dayview-task-list');
+    if (wdDayViewTaskList) {
+        wdDayViewTaskList.addEventListener('click', (e) => {
+            // 1. Only run for CEO
+            if (!document.body.classList.contains('is-ceo')) {
+                return;
+            }
+            
+            // 2. Find the card that was clicked
+            const card = e.target.closest('.ceo-clickable-day-card');
+            if (!card) return;
+
+            // 3. Get the key
+            const key = card.dataset.key;
+            if (!key) return;
+
+            // 4. Find the task data
+            const taskData = userActiveTasks.find(t => t.key === key);
+            if (!taskData) {
+                alert("Error: Could not find task data.");
+                return;
+            }
+
+            // 5. Open the modal
+            openCEOApprovalModal(taskData);
+        });
+    }
     // --- *** END OF NEW LISTENER *** ---
 
 
-// [REPLACE this entire function around line 2011]
-
-// --- *** NEW: FUNCTION TO SHOW DAY VIEW (with Mobile UI) *** ---
+// REPLACE the old showDayView function
 function showDayView(date) { // date is "2025-11-09"
     try {
         const parts = date.split('-').map(Number);
@@ -1778,28 +1817,20 @@ function showDayView(date) { // date is "2025-11-09"
         return; // Stop if the date is bad
     }
 
-    // 1. Hide all main sections
     workdeskSections.forEach(section => {
         section.classList.add('hidden');
     });
-
-    // 2. Show the Day View section
     const dayViewSection = document.getElementById('wd-dayview');
     dayViewSection.classList.remove('hidden');
 
-    // 3. Set the title (for desktop)
     const friendlyDate = formatYYYYMMDD(date);
     document.getElementById('wd-dayview-title').textContent = `Tasks for ${friendlyDate}`;
-
-    // --- *** NEW MOBILE UI POPULATION *** ---
-    // a. Set the mobile subtitle
     const mobileSubtitle = document.getElementById('wd-dayview-mobile-date-subtitle');
     if (mobileSubtitle) {
         const todayStr = getTodayDateString(); // "YYYY-MM-DD"
         if (date === todayStr) {
             mobileSubtitle.textContent = 'Today';
         } else {
-            // Format as "Monday, 10 November"
             const subtitleDate = new Date(date + 'T00:00:00'); // Treat as local
             mobileSubtitle.textContent = subtitleDate.toLocaleDateString('en-GB', {
                 weekday: 'long',
@@ -1808,14 +1839,12 @@ function showDayView(date) { // date is "2025-11-09"
             });
         }
     }
-
-    // b. Generate the 7-day scroller
     generateDateScroller(date);
-    // --- *** END OF NEW MOBILE UI *** ---
 
-
-    // 4. Get the correct tasks
     const isAdmin = (currentApprover.Role || '').toLowerCase() === 'admin';
+    // --- *** THIS IS THE FIX (Part 1) *** ---
+    const isCEO = document.body.classList.contains('is-ceo');
+    // --- *** END OF FIX *** ---
     const taskSource = isAdmin ? allAdminCalendarTasks : userActiveTasks;
 
     const tasks = taskSource.filter(task => {
@@ -1823,43 +1852,39 @@ function showDayView(date) { // date is "2025-11-09"
         return taskDate === date;
     });
 
-    // 5. Populate the task list
     const taskListDiv = document.getElementById('wd-dayview-task-list');
-    taskListDiv.innerHTML = ''; // Clear old tasks
+    taskListDiv.innerHTML = ''; 
 
     if (tasks.length === 0) {
         taskListDiv.innerHTML = '<p style="padding: 20px; text-align: center; color: #555;">No tasks found for this day.</p>';
         return;
     }
     
-    // --- *** THIS IS THE FIX (START) *** ---
-    // We must get the list of "my" task keys to compare against
     const myTaskKeys = new Set(userActiveTasks.map(t => t.key));
-    // --- *** THIS IS THE FIX (END) *** ---
 
     tasks.forEach(task => {
         const card = document.createElement('div');
         card.className = 'dayview-task-card';
 
-        // --- *** THIS IS THE FIX (START) *** ---
-        // Color-code border for "My Task" vs "Other Task"
-        let borderColor = 'var(--iba-secondary-terracotta)'; // Default to Red ("mine")
-        
-        // If user is an Admin AND this task's key is NOT in their personal task list
-        if (isAdmin && !myTaskKeys.has(task.key)) {
-            borderColor = '#28a745'; // Green ("not mine")
+        // --- *** THIS IS THE FIX (Part 2) *** ---
+        // Add the key and class for the click listener
+        card.dataset.key = task.key; 
+        if (isCEO) {
+            card.classList.add('ceo-clickable-day-card');
         }
-        
-        card.style.borderLeft = `5px solid ${borderColor}`;
-        // --- *** THIS IS THE FIX (END) *** ---
+        // --- *** END OF FIX *** ---
 
-        // *** THIS IS THE CORRECTED BLOCK ***
+        let borderColor = 'var(--iba-secondary-terracotta)';
+        if (isAdmin && !myTaskKeys.has(task.key)) {
+            borderColor = '#28a745';
+        }
+        card.style.borderLeft = `5px solid ${borderColor}`;
+
         if (isAdmin && task.po) {
             card.classList.add('admin-clickable-task'); 
-            card.dataset.po = task.po; // <-- This line was missing
-            card.title = `Admin: Double-click to search for PO ${task.po} in IM Reporting`; // <-- This line was missing
+            card.dataset.po = task.po;
+            card.title = `Admin: Double-click to search for PO ${task.po} in IM Reporting`;
         }
-        // *** END OF CORRECTION ***
 
         const mainInfo = task.po ? `PO: ${task.po}` : (task.ref || 'General Task');
         const amountDisplay = (task.amount && parseFloat(task.amount) > 0) 
@@ -1870,8 +1895,6 @@ function showDayView(date) { // date is "2025-11-09"
             ? `<div class="task-detail-item note"><span class="label">Note:</span> ${task.note}</div>` 
             : '';
 
-        // --- *** MODIFICATION TO MATCH MOCKUP *** ---
-        // The mockup shows "Job:", "Vendor:", "Site:", "Status:"
         card.innerHTML = `
             <strong>${mainInfo}${amountDisplay}</strong>
             <div class="task-details-grid">
@@ -1890,7 +1913,6 @@ function showDayView(date) { // date is "2025-11-09"
                 ${noteHTML}
             </div>
         `;
-        // --- *** END OF MODIFICATION *** ---
         
         taskListDiv.appendChild(card);
     });
@@ -2207,30 +2229,23 @@ async function ensureAllEntriesFetched(forceRefresh = false) {
 function isTaskComplete(task) {
     if (!task) return false;
 
-    // --- *** THIS IS THE NEW LOGIC (THE FIX) *** ---
-    // A job_entry of type "Invoice" is a special case.
-    // It is ONLY complete if it has a dateResponded.
-    // This check must come BEFORE the "attention === 'All'" check.
     if (task.source === 'job_entry' && task.for === 'Invoice') {
-        // It's an invoice job. It is only "complete" if it has a response date.
-        // Since we cleared the date on update, this will be false (active).
         return !!task.dateResponded; 
     }
-    // --- *** END OF NEW LOGIC *** ---
 
-
-    // Define "completed" statuses
+    // --- *** THIS IS THE FIX: Added "Approved" and "Rejected" *** ---
     const completedStatuses = [
-        // 'CEO Approval', // <-- THIS IS THE FIX (REMOVED)
+        // 'CEO Approval', // This was already removed
         'With Accounts', 
-        // 'Under Review', // <-- *** THIS IS THE FIX (REMOVED) ***
         'SRV Done', 
         'Paid',
         'CLOSED',
         'Cancelled',
+        'Approved', // ADDED
+        'Rejected'  // ADDED
     ];
+    // --- *** END OF FIX *** ---
 
-    // Check for invoice_entry source (from IM module)
     if (task.source === 'invoice') {
         if (completedStatuses.includes(task.remarks)) {
             return true;
@@ -2238,13 +2253,13 @@ function isTaskComplete(task) {
         if (task.enteredBy === currentApprover?.Name) {
             const trackingStatuses = ['For SRV', 'For IPC'];
             if (trackingStatuses.includes(task.remarks)) {
-                return false; // Still needs action from them
+                return false; 
             }
             return true; 
         }
         return false;
     }
-    
+           
     // Check for job_entry source
     if (task.source === 'job_entry') {
         // Now that the "Invoice" check is done, this line is safe.
@@ -3002,44 +3017,38 @@ async function populateActiveTasks() {
 }
 // --- *** MOBILE VIEW FIX (START) *** ---
 // ++ MODIFIED: renderActiveTaskTable ++
-// [Replace this entire function around line 1668]
-
+// REPLACE the old renderActiveTaskTable function
 function renderActiveTaskTable(tasks) {
     activeTaskTableBody.innerHTML = '';
     
-    // --- THIS IS THE NEW FILTER LOGIC ---
     let filteredTasks = tasks;
     if (currentActiveTaskFilter !== 'All') {
         if (currentActiveTaskFilter === 'Other') {
-            // "Other" includes everything NOT "For SRV" or "Pending Signature"
             filteredTasks = tasks.filter(task => 
                 task.remarks !== 'For SRV' && 
                 task.remarks !== 'Pending Signature'
             );
         } else {
-            // This filters for "For SRV" or "Pending Signature"
             filteredTasks = tasks.filter(task => task.remarks === currentActiveTaskFilter);
         }
     }
-    // --- END OF NEW FILTER LOGIC ---
 
     if (!filteredTasks || filteredTasks.length === 0) {
         if (tasks.length === 0) {
-            // The main list is empty
             activeTaskTableBody.innerHTML = `<tr><td colspan="10">You have no active tasks.</td></tr>`;
         } else {
-            // The main list has items, but the filter has no matches
             activeTaskTableBody.innerHTML = `<tr><td colspan="10">No tasks found for the filter "${currentActiveTaskFilter}".</td></tr>`;
         }
         return;
     }
+
+    const isCEO = document.body.classList.contains('is-ceo');
 
     filteredTasks.forEach(task => {
         const row = document.createElement('tr');
         row.setAttribute('data-key', task.key);
 
         const isInvoiceFromIrwin = task.source === 'invoice' && task.enteredBy === 'Irwin';
-
         const invName = task.invName || '';
         const isClickable = (isInvoiceFromIrwin || (task.source === 'invoice' && invName)) &&
                             invName.trim() &&
@@ -3049,22 +3058,34 @@ function renderActiveTaskTable(tasks) {
             row.classList.add('clickable-pdf');
         }
 
-        // --- *** THIS IS THE FIX *** ---
-        let srvDoneDisabled = '';
-        if (task.source !== 'invoice') {
-            srvDoneDisabled = 'disabled title="Only invoice tasks can be marked SRV Done"';
-        } else if (task.remarks === 'Report') {
-            srvDoneDisabled = 'disabled title="Cannot mark \'Report\' status as SRV Done"';
-        } else if (task.remarks === 'Original PO') {
-            srvDoneDisabled = 'disabled title="Cannot mark \'Original PO\' status as SRV Done"';
+        // --- *** THIS IS THE FIX (Hover Tooltip) *** ---
+        if (isCEO) {
+            row.title = "Click to open approval modal";
+        } else if (isClickable) {
+            row.title = "Click to open PDF";
         }
         // --- *** END OF FIX *** ---
-        
-        const actionButtons = `
-            <button class="srv-done-btn" data-key="${task.key}" ${srvDoneDisabled}>SRV Done</button>
-            <button class="modify-btn" data-key="${task.key}">Edit Action</button>
-        `;
 
+        let actionButtons = '';
+        if (isCEO) {
+            actionButtons = `<button class="ceo-approve-btn" data-key="${task.key}">Make Approval</button>`;
+        } else {
+            // ... (rest of action button logic)
+            let srvDoneDisabled = '';
+            if (task.source !== 'invoice') {
+                srvDoneDisabled = 'disabled title="Only invoice tasks can be marked SRV Done"';
+            } else if (task.remarks === 'Report') {
+                srvDoneDisabled = 'disabled title="Cannot mark \'Report\' status as SRV Done"';
+            } else if (task.remarks === 'Original PO') {
+                srvDoneDisabled = 'disabled title="Cannot mark \'Original PO\' status as SRV Done"';
+            }
+            
+            actionButtons = `
+                <button class="srv-done-btn" data-key="${task.key}" ${srvDoneDisabled}>SRV Done</button>
+                <button class="modify-btn" data-key="${task.key}">Edit Action</button>
+            `;
+        }
+        
         const poMobile = `<td class="mobile-only" data-label="PO">${task.po || ''}</td>`;
         const vendorMobile = `<td class="mobile-only" data-label="Vendor Name">${task.vendorName || 'N/A'}</td>`;
         const amountMobile = `<td class="mobile-only" data-label="Invoice Amount">${formatCurrency(task.amount)}</td>`;
@@ -3077,7 +3098,7 @@ function renderActiveTaskTable(tasks) {
             <td class="desktop-only">${task.vendorName || 'N/A'}</td>
             <td class="desktop-only">${formatCurrency(task.amount)}</td>
             <td class="desktop-only">${task.site || ''}</td>
-            <td class="desktop-only">${task.group || ''}</td>
+            <td class="desktop-only col-group">${task.group || ''}</td>
             <td class="desktop-only">${task.date || ''}</td>
             <td class="desktop-only">${task.remarks || 'Pending'}</td>
             <td class="desktop-only">${actionButtons}</td>
@@ -3092,14 +3113,16 @@ function renderActiveTaskTable(tasks) {
                      alert("Could not find task details. The list may be out of date. Please refresh.");
                      return;
                 }
-                openModifyTaskModal(taskData);
+                if (isCEO) {
+                    openCEOApprovalModal(taskData);
+                } else {
+                    openModifyTaskModal(taskData);
+                }
             });
         });
-
         activeTaskTableBody.appendChild(row);
     });
 }
-
 // --- *** MOBILE VIEW FIX (END) *** ---
 
 
@@ -6819,14 +6842,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     } });
 
     
-
-// --- (MODIFIED) activeTaskTableBody click listener (THE FIX) ---
+// REPLACE the old activeTaskTableBody click listener
     activeTaskTableBody.addEventListener('click', async (e) => {
-        // --- (NEW) Prevent clicks if it's on the mobile row ---
         if (e.target.closest('.mobile-only')) {
             return;
         }
-        // --- (END NEW) ---
         
         const row = e.target.closest('tr');
         if (!row) return;
@@ -6834,73 +6854,56 @@ document.addEventListener('DOMContentLoaded', async () => {
         const key = row.dataset.key;
         if (!key) return;
         
-        // Find task in the fresh userActiveTasks list
         const taskData = userActiveTasks.find(entry => entry.key === key);
         if (!taskData) {
              alert("Could not find task details. The list may be out of date. Please refresh.");
              return;
         }
 
+        // --- *** NEW CEO BUTTON LOGIC *** ---
+        if (e.target.classList.contains('ceo-approve-btn')) {
+            openCEOApprovalModal(taskData);
+            return;
+        }
+        // --- *** END OF NEW LOGIC *** ---
 
-        // Handle "SRV Done" button click
         if (e.target.classList.contains('srv-done-btn')) {
-            e.target.disabled = true; // Prevent double click
+            // ... (rest of the srv-done-btn logic remains unchanged) ...
+            e.target.disabled = true;
             e.target.textContent = 'Updating...';
-
             try {
                 if (taskData.source === 'invoice') {
-                    // This is an invoice entry from invoice DB
-                    const updates = {
-                        releaseDate: getTodayDateString(),
-                        status: 'SRV Done'
-                    };
+                    const updates = { releaseDate: getTodayDateString(), status: 'SRV Done' };
                     await invoiceDb.ref(`invoice_entries/${taskData.originalPO}/${taskData.originalKey}`).update(updates);
-                    
-                    // --- ADD THIS LINE (THE FIX) ---
-                    // Find the original invoice data to pass to the helper
                     if (!allInvoiceData) await ensureInvoiceDataFetched(); 
                     const originalInvoice = (allInvoiceData && allInvoiceData[taskData.originalPO]) ? allInvoiceData[taskData.originalPO][taskData.originalKey] : {};
                     const updatedInvoiceData = {...originalInvoice, ...updates};
                     await updateInvoiceTaskLookup(taskData.originalPO, taskData.originalKey, updatedInvoiceData, taskData.attention);
-                    // --- END OF ADDITION ---
-
                 } else if (taskData.source === 'job_entry') {
-                    // This is a job entry from main DB
-                    const updates = {
-                        dateResponded: formatDate(new Date()),
-                        remarks: 'SRV Done'
-                    };
+                    const updates = { dateResponded: formatDate(new Date()), remarks: 'SRV Done' };
                     await db.ref(`job_entries/${taskData.key}`).update(updates);
-                    
-                    // --- (REMOVED) `updateJobTaskLookup` call ---
                 }
-                
                 alert('Task status updated to "SRV Done".');
-                
-                await populateActiveTasks(); // Re-fetch all tasks
-
+                await populateActiveTasks();
             } catch (error) {
                 console.error("Error updating task status:", error);
                 alert("Failed to update task status. Please try again.");
-                e.target.disabled = false; // Re-enable button on error
+                e.target.disabled = false;
                 e.target.textContent = 'SRV Done';
             }
             return;
         }
 
-        // Handle "Modify" button click
         if (e.target.classList.contains('modify-btn')) {
             openModifyTaskModal(taskData);
             return;
         }
         
-        // --- *** START OF WORKFLOW FIX *** ---
         const userPositionLower = (currentApprover?.Position || '').toLowerCase();
-        // --- (MODIFIED) Check for "Accounting" position ---
         const isAccountingPosition = userPositionLower === 'accounting';
 
         if (taskData.source === 'job_entry' && taskData.for === 'Invoice' && isAccountingPosition) {
-        // --- *** END OF WORKFLOW/MODIFICATION *** ---
+            // ... (rest of this logic remains unchanged) ...
              if (!taskData.po) {
                 alert("This job entry is missing a PO number and cannot be processed in Invoice Management.");
                 return;
@@ -6917,29 +6920,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        // --- *** NEW FIX: Handle clicking "PR", "IPC", etc. to edit them *** ---
         if (taskData.source === 'job_entry' && taskData.for !== 'Invoice') {
-            // Find the "Job Entry" link in the sidebar and click it
+            // ... (rest of this logic remains unchanged) ...
             const jobEntryLink = workdeskNav.querySelector('a[data-section="wd-jobentry"]');
             if (jobEntryLink) {
-                jobEntryLink.click(); // This will switch the view
+                jobEntryLink.click();
             }
-            
-            // We must call ensureAllEntriesFetched to make sure allSystemEntries is populated for editing
             await ensureAllEntriesFetched();
-            
-            // Populate the form in the (now visible) Job Entry section
             populateFormForEditing(taskData.key);
             return;
         }
-        // --- *** END OF NEW FIX *** ---
 
-        // Handle clicking the row to open PDF (for invoice source only)
         if (taskData && taskData.source === 'invoice' && taskData.invName && taskData.invName.trim() && taskData.invName.toLowerCase() !== 'nil') {
             window.open(PDF_BASE_PATH + encodeURIComponent(taskData.invName) + ".pdf", '_blank');
         }
     });
-
    
 // --- *** MODIFIED CALENDAR LISTENERS *** ---
     if (wdCalendarPrevBtn) {
@@ -8195,5 +8190,236 @@ if (imMobileSearchRunBtn) {
     });
 }
 // --- *** END OF NEW MOBILE LISTENERS *** ---
+// REPLACE the old openCEOApprovalModal function
+    function openCEOApprovalModal(taskData) {
+        if (!taskData) return;
+
+        // 1. Store all identifiers
+        document.getElementById('ceo-modal-key').value = taskData.key;
+        document.getElementById('ceo-modal-source').value = taskData.source;
+        document.getElementById('ceo-modal-originalPO').value = taskData.originalPO || '';
+        document.getElementById('ceo-modal-originalKey').value = taskData.originalKey || '';
+
+        // --- *** THIS IS THE FIX (PDF Link) *** ---
+        // 2. Check for a valid PDF link
+        const invName = taskData.invName || '';
+        let pdfLinkHTML = '';
+        if (taskData.source === 'invoice' && invName.trim() && invName.toLowerCase() !== 'nil') {
+            const pdfUrl = `${PDF_BASE_PATH}${encodeURIComponent(invName)}.pdf`;
+            pdfLinkHTML = `<a href="${pdfUrl}" target="_blank" class="action-btn invoice-pdf-btn" style="display: inline-block; margin-top: 10px; text-decoration: none;">View Invoice PDF</a>`;
+        }
+        // --- *** END OF FIX *** ---
+
+        // 3. Populate details
+        ceoModalDetails.innerHTML = `
+            <strong>PO:</strong> ${taskData.po || 'N/A'}<br>
+            <strong>Vendor:</strong> ${taskData.vendorName || 'N/A'}<br>
+            <strong>Site:</strong> ${taskData.site || 'N/A'}
+            ${pdfLinkHTML}
+        `;
+
+        // 4. Populate form fields
+        ceoModalAmount.value = taskData.amount || '';
+        ceoModalNote.value = taskData.note || '';
+
+        // 5. Show modal
+        ceoApprovalModal.classList.remove('hidden');
+    }
+
+    // PASTE THIS ENTIRE BLOCK (replaces the old function)
+    async function handleCEOAction(status) {
+        const key = document.getElementById('ceo-modal-key').value;
+        const source = document.getElementById('ceo-modal-source').value;
+        const originalPO = document.getElementById('ceo-modal-originalPO').value;
+        const originalKey = document.getElementById('ceo-modal-originalKey').value;
+
+        if (!key || !source) {
+            alert("Error: Task identifiers are missing.");
+            return;
+        }
+
+        const newAmountPaid = ceoModalAmount.value;
+        const newNote = ceoModalNote.value.trim();
+
+        if (newAmountPaid === '' || newAmountPaid < 0) {
+            alert("Please enter a valid Amount to be Paid (0 or more).");
+            return;
+        }
+
+        const updates = {
+            status: status, // For invoice_entries
+            remarks: status, // For job_entries
+            amountPaid: newAmountPaid, // For invoice_entries
+            amount: newAmountPaid, // For job_entries (maps 'amount' field)
+            note: newNote,
+            dateResponded: formatDate(new Date()) // For job_entries
+        };
+
+        const btn = (status === 'Approved') ? ceoModalApproveBtn : ceoModalRejectBtn;
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        try {
+            // Find the task in the UI list *before* doing any network calls
+            const processedTask = userActiveTasks.find(t => t.key === key);
+            if (!processedTask) {
+                // This shouldn't happen, but as a fallback, force a full reload.
+                throw new Error("Task not found in local list. Forcing full refresh.");
+            }
+            
+            // Get the original attention (needed for invoice tasks)
+            const originalAttention = processedTask.attention || '';
+
+            // --- Database Updates (These are fast) ---
+            if (source === 'job_entry') {
+                await db.ref(`job_entries/${key}`).update({
+                    remarks: updates.remarks,
+                    amount: updates.amount,
+                    note: updates.note,
+                    dateResponded: updates.dateResponded 
+                });
+                
+            } else if (source === 'invoice' && originalPO && originalKey) {
+                await invoiceDb.ref(`invoice_entries/${originalPO}/${originalKey}`).update({
+                    status: updates.status,
+                    amountPaid: updates.amountPaid,
+                    note: updates.note
+                });
+                
+                // We still need to tell the server to remove this from the inbox.
+                // We create the updated data object for the helper function.
+                const updatedInvoiceData = {...processedTask, ...updates};
+                await updateInvoiceTaskLookup(originalPO, originalKey, updatedInvoiceData, originalAttention);
+                
+                // Update local 'allInvoiceData' cache
+                updateLocalInvoiceCache(originalPO, originalKey, updates);
+            } else {
+                throw new Error("Invalid task source or missing keys.");
+            }
+
+            // --- *** THIS IS THE NEW OPTIMIZED LOGIC *** ---
+
+            // 1. Add the updated task to the receipt list
+            processedTask.status = status;
+            processedTask.amountPaid = newAmountPaid;
+            ceoProcessedTasks.push(processedTask);
+
+            // 2. Find the task's index in the main list
+            const taskIndex = userActiveTasks.findIndex(t => t.key === key);
+            if (taskIndex > -1) {
+                // 3. Remove it from the list
+                userActiveTasks.splice(taskIndex, 1);
+            }
+
+            // 4. Manually re-render the table with the modified (shorter) list
+            renderActiveTaskTable(userActiveTasks);
+
+            // 5. Manually update the count badges
+            const taskCount = userActiveTasks.length;
+            if (activeTaskCountDisplay) {
+                activeTaskCountDisplay.textContent = `(Total Tasks: ${taskCount})`;
+            }
+            [wdActiveTaskBadge, imActiveTaskBadge, wdMobileNotifyBadge].forEach(badge => {
+                if (badge) {
+                    badge.textContent = taskCount;
+                    badge.style.display = taskCount > 0 ? 'inline-block' : 'none';
+                }
+            });
+            // --- *** END OF OPTIMIZED LOGIC *** ---
+
+
+            // Show the "Send Receipt" button
+            sendCeoApprovalReceiptBtn.classList.remove('hidden');
+
+            alert(`Task has been ${status}.`);
+            ceoApprovalModal.classList.add('hidden');
+            
+            // We NO LONGER call await populateActiveTasks();
+
+        } catch (error) {
+            console.error("Error updating task:", error);
+            alert("Failed to update task. Please try again.");
+            // If something went wrong, force a full refresh just in case
+            await populateActiveTasks();
+        } finally {
+            btn.disabled = false;
+            btn.textContent = status;
+        }
+    }
+
+
+    // PASTE THIS ENTIRE BLOCK (replaces the old getNextSeriesNumber function)
+    async function getNextSeriesNumber() {
+        // This function no longer needs to access Firebase.
+        // It generates a random 6-character alphanumeric string.
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let result = '';
+        for (let i = 0; i < 6; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        // We wrap it in Promise.resolve to keep the async structure.
+        return Promise.resolve(result);
+    }
+
+   // PASTE THIS ENTIRE BLOCK (replaces the old generateAndSendReceipt function)
+    async function previewAndSendReceipt() {
+        if (ceoProcessedTasks.length === 0) {
+            alert("No processed tasks to send. Please approve or reject tasks first.");
+            return;
+        }
+
+        sendCeoApprovalReceiptBtn.disabled = true;
+        sendCeoApprovalReceiptBtn.textContent = 'Preparing...';
+
+        try {
+            // 1. Get Series Number
+            const seriesNo = await getNextSeriesNumber();
+            if (seriesNo === 'IBA_ERR') {
+                alert("Error: Could not get a new series number. Check Firebase rules for 'counters'.");
+                return;
+            }
+            
+            // 2. Separate tasks
+            const approvedTasks = ceoProcessedTasks.filter(t => t.status === 'Approved');
+            const rejectedTasks = ceoProcessedTasks.filter(t => t.status === 'Rejected');
+
+            // 3. Create the data object to pass
+            const receiptData = {
+                approvedTasks: approvedTasks,
+                rejectedTasks: rejectedTasks,
+                seriesNo: seriesNo
+            };
+
+            // 4. Save data to localStorage
+            localStorage.setItem('pendingReceiptData', JSON.stringify(receiptData));
+
+            // 5. Open the new receipt.html tab
+            window.open('receipt.html', '_blank');
+
+            // 6. Clean up
+            ceoProcessedTasks = []; // Clear the list for the next batch
+            sendCeoApprovalReceiptBtn.classList.add('hidden');
+
+        } catch (error) {
+            console.error("Error preparing receipt preview:", error);
+            alert("Error preparing receipt. Please check the console.");
+        } finally {
+            sendCeoApprovalReceiptBtn.disabled = false;
+            sendCeoApprovalReceiptBtn.textContent = 'Send Approval Receipt';
+        }
+    }
+
+    // --- *** ADD LISTENERS FOR NEW BUTTONS *** ---
+    if (ceoModalApproveBtn) {
+        ceoModalApproveBtn.addEventListener('click', () => handleCEOAction('Approved'));
+    }
+    if (ceoModalRejectBtn) {
+        ceoModalRejectBtn.addEventListener('click', () => handleCEOAction('Rejected'));
+    }
+    if (sendCeoApprovalReceiptBtn) {
+        // --- THIS IS THE FIX ---
+        sendCeoApprovalReceiptBtn.addEventListener('click', previewAndSendReceipt);
+        // --- END OF FIX ---
+    }
 }); // END OF DOMCONTENTLOADED
 

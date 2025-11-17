@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Approval Receipt Preview</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; background-color: #f4f4f4; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        
+        /* --- *** 2. USE ID OF TEMPLATE *** --- */
+        #ceo-receipt-template { 
+            width: 320px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            box-sizing: border-box;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        #receipt-title { text-align: center; margin-top: 0; margin-bottom: 10px; font-size: 1.2rem; }
+        #ceo-receipt-template hr { border: none; border-top: 1px dashed #999; margin: 10px 0; }
+        #approved-section h3 { margin: 10px 0 5px 0; font-size: 1rem; border-bottom: 1px solid #999; }
+        #rejected-section { margin-top: 15px; }
+        #rejected-section h3 { margin: 10px 0 5px 0; font-size: 1rem; border-bottom: 1px solid #999; color: #D32F2F; }
+        #rejected-section .item-details { color: #555; }
+        .item { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 5px; }
+        .item-details { flex-basis: 70%; word-break: break-word; }
+        .item-status { flex-basis: 30%; text-align: right; font-weight: bold; }
+        .status-approved { color: #28a745; }
+        .status-rejected { color: #D32F2F; }
+        .total { font-weight: bold; border-top: 1px dashed #999; margin-top: 5px; padding-top: 5px; display: flex; justify-content: space-between; }
+        .total-rejected { color: #D32F2F; }
+        .hidden { display: none; }
+        #button-container { text-align: center; margin-top: 25px; }
+        #send-whatsapp-btn {
+            padding: 12px 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            background-color: #25D366; /* WhatsApp Green */
+            color: white;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        #send-whatsapp-btn:hover { background-color: #1DA851; }
+        #send-whatsapp-btn:disabled { background-color: #aaa; cursor: not-allowed; }
+        #status-text { margin-top: 10px; color: #555; font-style: italic; }
+
+        /* --- *** 3. ADD THIS NEW STYLE BLOCK *** --- */
+        #receipt-footer {
+            text-align: center;
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px dashed #999;
+        }
+        #receipt-footer p {
+            margin: 5px 0;
+        }
+        #footer-esn {
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        #barcode {
+            width: 80%; /* Make barcode resize */
+            height: 40px;
+            margin: 5px 0;
+        }
+        #footer-date {
+            font-size: 0.8rem;
+        }
+        /* --- *** END OF NEW STYLE BLOCK *** --- */
+    </style>
+</head>
+<body>
+
+    <div id="ceo-receipt-template">
+        <h2 id="receipt-title">Authorize Approval</h2>
+        
+               
+        <div id="approved-section">
+            <h3>APPROVED</h3>
+            <div id="receipt-approved-list"></div>
+            <div class="total">
+                <span>APPROVED TOTAL:</span>
+                <span id="receipt-approved-total">QR 0.00</span>
+            </div>
+        </div>
+
+        <div id="rejected-section" class="hidden">
+            <h3>REJECTED</h3>
+            <div id="receipt-rejected-list"></div>
+            <div class="total total-rejected">
+                <span>REJECTED TOTAL:</span>
+                <span id="receipt-rejected-total">QR 0.00</span>
+            </div>
+        </div>
+
+        <div id="receipt-footer">
+            <p id="footer-esn">ESN #: <span></span></p>
+            <svg id="barcode"></svg>
+            <p id="footer-date"></p>
+        </div>
+        </div>
+
+    <div id="button-container">
+        <button id="send-whatsapp-btn">Send to WhatsApp</button>
+        <p id="status-text">Ready to send.</p>
+    </div>
+
+    <script src="receipt.js"></script>
+
+</body>
+</html>

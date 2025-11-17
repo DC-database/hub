@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
@@ -295,7 +296,14 @@
                     
                     <div id="active-task-filters" class="report-tabs" style="margin-bottom: 20px;">
                         </div>
-                    <div class="table-wrapper">
+                    
+                    <div class="form-buttons-container" style="justify-content: flex-end; margin-bottom: 15px;">
+                        <button id="send-ceo-approval-receipt-btn" class="download-btn hidden" type="button">
+                            <i class="fa-brands fa-whatsapp"></i> Send Approval Receipt
+                        </button>
+                    </div>
+
+                    <div class="table-wrapper hidden-mobile">
                         <table class="mobile-optimized-table">
                             <thead>
                                 <tr>
@@ -310,7 +318,7 @@
                                     <th class="desktop-only">Vendor Name</th>
                                     <th class="desktop-only">Invoice Amount</th>
                                     <th class="desktop-only">Site</th>
-                                    <th class="desktop-only">Group</th>
+                                    <th class="desktop-only col-group">Group</th>
                                     <th class="desktop-only">Date</th>
                                     <th class="desktop-only">Status</th>
                                     <th class="desktop-only">Action</th>
@@ -319,6 +327,7 @@
                             <tbody id="active-task-table-body"></tbody>
                         </table>
                     </div>
+<div id="active-task-mobile-view" class="hidden-desktop"></div>
                 </section>
 
                  <section id="wd-taskhistory" class="workdesk-section hidden">
@@ -1304,7 +1313,69 @@
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+    
+    <div id="ceo-approval-modal" class="modal-overlay hidden">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2>Make Approval</h2>
+                <button class="modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-content">
+                <form id="ceo-approval-form">
+                    <input type="hidden" id="ceo-modal-key">
+                    <input type="hidden" id="ceo-modal-source">
+                    <input type="hidden" id="ceo-modal-originalPO">
+                    <input type="hidden" id="ceo-modal-originalKey">
+                    
+                    <div id="ceo-modal-details" style="background: #f4f7fa; padding: 15px; border-radius: 4px; margin-bottom: 20px; line-height: 1.6;">
+                        </div>
+                    
+                    <div class="form-group">
+                        <label for="ceo-modal-amount">Amount to be Paid</label>
+                        <input type="number" id="ceo-modal-amount" step="0.01" placeholder="0.00" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="ceo-modal-note">Note / Remark</label>
+                        <textarea id="ceo-modal-note" name="note" rows="3" placeholder="Add an optional note..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer" style="justify-content: space-between;">
+                <button id="ceo-modal-reject-btn" type="button" class="delete-btn">Reject</button>
+                <button id="ceo-modal-approve-btn" type="button" class="download-btn" style="background-color: #28a745;">Approve</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="ceo-receipt-template" style="position: absolute; left: -9999px; width: 320px; padding: 10px; border: 1px solid #ccc; background-color: #fff; font-family: 'Courier New', Courier, monospace; font-size: 14px; line-height: 1.5; box-sizing: border-box;">
+        <h2 id="receipt-title" style="text-align: center; margin-top: 0; margin-bottom: 10px; font-size: 1.2rem;">Authorize Approval</h2>
+        <p style="margin: 0;"><strong>Series #:</strong> <span id="receipt-series-no">IBA000</span></p>
+        <p style="margin: 0;"><strong>Date:</strong> <span id="receipt-date">17/11/2025</span></p>
+        <hr style="border: none; border-top: 1px dashed #999; margin: 10px 0;">
+        
+        <div id="approved-section">
+            <h3 style="margin: 10px 0 5px 0; font-size: 1rem; border-bottom: 1px solid #999;">APPROVED</h3>
+            <div id="receipt-approved-list" style="margin-bottom: 10px;">
+                </div>
+            <div class="total" style="font-weight: bold; border-top: 1px dashed #999; margin-top: 5px; padding-top: 5px; display: flex; justify-content: space-between;">
+                <span>APPROVED TOTAL:</span>
+                <span id="receipt-approved-total">QR 0.00</span>
+            </div>
+        </div>
+
+        <div id="rejected-section" class="hidden">
+            <h3 style="margin: 15px 0 5px 0; font-size: 1rem; border-bottom: 1px solid #999; color: #D32F2F;">REJECTED</h3>
+            <div id="receipt-rejected-list" style="margin-bottom: 10px; color: #555;">
+                </div>
+            <div class="total" style="font-weight: bold; border-top: 1px dashed #999; margin-top: 5px; padding-top: 5px; display: flex; justify-content: space-between; color: #D32F2F;">
+                <span>REJECTED TOTAL:</span>
+                <span id="receipt-rejected-total">QR 0.00</span>
+            </div>
+        </div>
+    </div>
     <script src="app.js"></script>
+
 </body>
 </html>

@@ -3346,4 +3346,119 @@ body.is-admin .legend-admin-only {
         }
         /* --- END OF ADDITION --- */
 /* --- END OF Flip Phone Cover Screen Height Adjustments --- */
+/* ADD THIS ENTIRE BLOCK TO THE END OF style.css */
+
+/* 1. Hide Group column for CEO */
+body.is-ceo .desktop-only.col-group {
+    display: none;
+}
+
+/* 2. Style new WhatsApp button */
+#send-ceo-approval-receipt-btn i {
+    margin-right: 8px;
+}
+
+/* 3. Style CEO Approval Modal */
+#ceo-modal-details {
+    font-size: 0.95rem;
+    color: #333;
+}
+#ceo-modal-details strong {
+    color: #000;
+}
+
+/* 4. Style Receipt Template (when visible for PDF generation) */
+#ceo-receipt-template .item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    margin-bottom: 5px;
+}
+#ceo-receipt-template .item-details {
+    flex-basis: 70%;
+    word-break: break-word;
+}
+#ceo-receipt-template .item-status {
+    flex-basis: 30%;
+    text-align: right;
+    font-weight: bold;
+}
+#ceo-receipt-template .status-approved {
+    color: #28a745;
+}
+#ceo-receipt-template .status-rejected {
+    color: #D32F2F;
+}
+/* ADD THIS BLOCK TO THE END OF style.css */
+
+/* 4. Style Receipt Template (when visible for PDF generation) */
+#ceo-receipt-template .item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    margin-bottom: 5px;
+}
+#ceo-receipt-template .item-details {
+    flex-basis: 70%;
+    word-break: break-word;
+}
+#ceo-receipt-template .item-status {
+    flex-basis: 30%;
+    text-align: right;
+    font-weight: bold;
+}
+#ceo-receipt-template .status-approved {
+    color: #28a745;
+}
+#ceo-receipt-template .status-rejected {
+    color: #D32F2F;
+}
+
+/* --- THIS IS THE FIX --- */
+/* Add this to prevent the element from visibly "sliding" */
+#ceo-receipt-template {
+    transition: none !important;
+}
 /* --- END OF Flip Phone Cover Screen Adjustments --- */
+/* ADD THIS ENTIRE BLOCK TO THE END OF style.css */
+
+/* --- CEO Mobile UI Simplification --- */
+@media (max-width: 768px) {
+    /* 1. Hide the sidebar and bottom nav for CEO */
+    body.is-ceo #workdesk-view .workdesk-sidebar,
+    body.is-ceo #workdesk-view .workdesk-navigation {
+        display: none !important;
+    }
+
+    /* 2. Remove padding from main content */
+    body.is-ceo .workdesk-main {
+        padding: 0 !important;
+        height: 100vh; /* Fill the whole screen */
+    }
+
+    /* 3. Hide the "Back to Calendar" button in Day View */
+    body.is-ceo #wd-dayview-mobile-menu-btn {
+        display: none !important;
+    }
+
+    /* 4. Center the remaining Day View header items */
+    body.is-ceo .dayview-mobile-header-new {
+        justify-content: flex-end; /* Push items to the right */
+        padding: 10px 15px;
+    }
+    
+    /* 5. Center the title */
+    body.is-ceo .dayview-mobile-titles {
+        text-align: center;
+        padding: 0 15px;
+    }
+}
+
+/* 6. Style for clickable Day View cards for CEO */
+.dayview-task-card.ceo-clickable-day-card {
+    cursor: pointer;
+}
+.dayview-task-card.ceo-clickable-day-card:hover {
+    background-color: #e6f7ff; /* Light blue hover */
+    border-color: #b3e0ff;
+}
