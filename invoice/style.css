@@ -3800,3 +3800,16 @@ body.is-ceo .desktop-only.col-group {
         font-size: 1.1rem;
     }
 }
+/* --- FIX: Prevent Receipt Button from blocking Card Buttons --- */
+
+/* 1. Add extra scroll space to the bottom of the list */
+#active-task-mobile-view {
+    /* This ensures the last card can be scrolled up past the button */
+    padding-bottom: 160px !important; 
+}
+
+/* 2. Move the button up so it sits ABOVE the bottom navigation bar */
+#mobile-receipt-action-container {
+    bottom: 70px !important; /* 65px nav bar + 5px spacing */
+    box-shadow: 0 -4px 15px rgba(0,0,0,0.15); /* Enhanced shadow for visibility */
+}

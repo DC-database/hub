@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.3.9"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "3.4.0"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -3039,7 +3039,17 @@ function renderMobileActiveTasks(tasks) {
 
     if (!filteredTasks || filteredTasks.length === 0) {
         container.innerHTML = '<div class="im-mobile-empty-state"><p>No active tasks found.</p></div>';
-        if (receiptContainer) receiptContainer.classList.add('hidden');
+        
+        // --- FIX: Don't hide the receipt button if tasks were processed! ---
+        if (receiptContainer) {
+            if (isCEO && ceoProcessedTasks.length > 0) {
+                receiptContainer.classList.remove('hidden'); // KEEP IT VISIBLE
+            } else {
+                receiptContainer.classList.add('hidden'); // Only hide if nothing was done
+            }
+        }
+        // --- END OF FIX ---
+        
         return;
     }
 
