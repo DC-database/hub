@@ -3462,3 +3462,342 @@ body.is-ceo .desktop-only.col-group {
     background-color: #e6f7ff; /* Light blue hover */
     border-color: #b3e0ff;
 }
+/* ========================================= */
+/* MOBILE LOGIN STYLES */
+/* ========================================= */
+.mobile-login-container {
+    display: none; /* Hidden on desktop */
+}
+
+@media (max-width: 768px) {
+    /* Hide desktop login card */
+    .desktop-only-login {
+        display: none !important;
+    }
+
+    /* Show mobile login container */
+    .mobile-login-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        width: 100vw;
+        background: linear-gradient(135deg, #003A5C 0%, #00748C 100%);
+        padding: 30px;
+        box-sizing: border-box;
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 2000;
+    }
+
+    /* Mobile Login Logo */
+.iba-logo-anim {
+    font-family: "Bookman Old Style", serif; /* CHANGED */
+    font-size: 4rem;
+    font-weight: 900;
+    color: white;
+    margin-bottom: 50px;
+    letter-spacing: 5px;
+    display: flex;
+    gap: 10px;
+}
+    
+    .iba-logo-anim span {
+        opacity: 0;
+        animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+    .iba-logo-anim span:nth-child(1) { animation-delay: 0.2s; }
+    .iba-logo-anim span:nth-child(2) { animation-delay: 0.4s; }
+    .iba-logo-anim span:nth-child(3) { animation-delay: 0.6s; }
+
+    @keyframes popIn {
+        0% { opacity: 0; transform: scale(0.5); }
+        100% { opacity: 1; transform: scale(1); }
+    }
+
+    .mobile-login-form-wrapper {
+        width: 100%;
+        text-align: center;
+    }
+
+    .input-icon-wrap {
+        position: relative;
+        margin-bottom: 20px;
+    }
+    
+    .input-icon-wrap i {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #003A5C;
+    }
+
+    .mobile-login-form-wrapper input {
+        width: 100%;
+        padding: 15px 15px 15px 45px; /* Space for icon */
+        border-radius: 30px;
+        border: none;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        font-size: 1.1rem;
+    }
+
+    .mobile-login-btn {
+        width: 100%;
+        padding: 15px;
+        border-radius: 30px;
+        background: #C3502F; /* Terracotta */
+        color: white;
+        font-size: 1.2rem;
+        font-weight: bold;
+        border: none;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        margin-top: 10px;
+    }
+
+    .iba-web-link {
+        display: block;
+        margin-top: 40px;
+        color: rgba(255,255,255,0.7);
+        text-decoration: none;
+        font-size: 0.9rem;
+    }
+}
+
+/* ========================================= */
+/* MOBILE ACTIVE TASK CARD STYLES */
+/* ========================================= */
+@media (max-width: 768px) {
+    /* Hide the table structure on mobile */
+    .hidden-mobile { display: none !important; }
+    .hidden-desktop { display: block !important; } /* This brings it back on mobile */
+}
+
+    /* Task Card Container */
+    .mobile-task-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        margin-bottom: 15px;
+        overflow: hidden;
+        border: 1px solid #eee;
+        transition: all 0.3s ease;
+    }
+
+/* Add this global rule to hide mobile elements by default on desktop */
+.hidden-desktop {
+    display: none !important;
+}
+
+    .mobile-card-header {
+        padding: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #fff;
+        cursor: pointer;
+    }
+
+    .mobile-card-header.active {
+        background: #f9f9f9;
+        border-bottom: 1px solid #eee;
+    }
+
+    .m-card-main h3 {
+        margin: 0;
+        font-size: 1.1rem;
+        color: #333;
+    }
+    
+    .m-card-sub {
+        font-size: 0.85rem;
+        color: #777;
+        margin-top: 4px;
+    }
+
+    .m-card-amount {
+        text-align: right;
+    }
+    
+    .m-card-val {
+        display: block;
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: #003A5C;
+    }
+    
+    .m-card-ref {
+        display: block;
+        font-size: 0.8rem;
+        color: #999;
+    }
+
+    /* Expanded Content */
+    .mobile-card-body {
+        padding: 0 20px;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease-out, padding 0.3s ease;
+        background-color: #fcfcfc;
+    }
+
+    .mobile-card-body.open {
+        padding: 20px;
+        max-height: 500px; /* Arbitrary large number for expansion */
+    }
+
+    .m-action-group {
+        margin-bottom: 15px;
+    }
+    
+    .m-action-group label {
+        font-size: 0.85rem;
+        color: #555;
+        margin-bottom: 5px;
+        display: block;
+    }
+    
+    .m-action-group input, .m-action-group textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 1rem;
+        margin-bottom: 0;
+    }
+
+    .m-btn-row {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+    .m-btn-approve, .m-btn-reject {
+        flex: 1;
+        padding: 12px;
+        border: none;
+        border-radius: 8px;
+        font-weight: bold;
+        font-size: 1rem;
+        cursor: pointer;
+        color: white;
+    }
+    
+    .m-btn-approve { background-color: #28a745; }
+    .m-btn-reject { background-color: #D32F2F; }
+
+    .m-pdf-btn {
+        display: block;
+        text-align: center;
+        background-color: #f0f0f0;
+        color: #333;
+        padding: 10px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        margin-bottom: 15px;
+    }
+
+    /* Floating WhatsApp Button */
+    #mobile-receipt-action-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        padding: 15px;
+        background: white;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        z-index: 100;
+        box-sizing: border-box;
+    }
+    
+    .whatsapp-float-btn {
+        width: 100%;
+        background-color: #25D366;
+        color: white;
+        border: none;
+        padding: 15px;
+        border-radius: 30px;
+        font-size: 1.1rem;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
+}
+/* --- CRITICAL FIX: Hide Mobile Active Task View on Desktop --- */
+@media (min-width: 769px) {
+    #active-task-mobile-view, 
+    #mobile-receipt-action-container,
+    .mobile-task-card {
+        display: none !important;
+    }
+}
+/* --- FIX: Reveal Navigation on Mobile --- */
+@media (max-width: 768px) {
+    /* 1. Show the Active Task link in the bottom navigation */
+    #workdesk-view .workdesk-navigation li.wd-nav-activetask {
+        display: list-item !important;
+    }
+
+    /* 2. Ensure the header sits correctly at the top */
+    #active-task-mobile-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px 0;
+        margin-bottom: 10px;
+        background-color: #f4f7fa; /* Match background */
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+
+    #active-task-mobile-header h1 {
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: #003A5C;
+        margin: 0;
+    }
+
+    .mobile-header-icon {
+        font-size: 1.4rem;
+        color: #555;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 5px;
+    }
+    
+    .mobile-header-icon.logout-icon {
+        color: #C3502F; /* Terracotta for logout */
+    }
+}
+/* Hide the new mobile link on desktop */
+.wd-nav-activetask-mobile {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    /* Show the new link on mobile within Invoice Management */
+    #invoice-management-view .workdesk-navigation li.wd-nav-activetask-mobile {
+        display: list-item !important;
+    }
+    
+    /* Ensure the 3 icons fit nicely */
+    .workdesk-navigation ul {
+        justify-content: space-between;
+        padding: 0 10px; /* Add small padding to sides */
+    }
+    
+    /* Optional: Make icons slightly smaller if 3 items feel crowded */
+    .workdesk-navigation a {
+        font-size: 0.65rem;
+    }
+    .workdesk-navigation a i {
+        font-size: 1.1rem;
+    }
+}

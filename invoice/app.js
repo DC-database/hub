@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.3.6"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "3.3.8"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -1807,39 +1807,28 @@ function displayCalendarTasksForDay(date) { // date is "2025-11-09"
     // --- *** END OF NEW LISTENER *** ---
 
 
-// REPLACE the old showDayView function
-function showDayView(date) { // date is "2025-11-09"
+// --- FIND showDayView FUNCTION AND UPDATE THIS SECTION ---
+
+function showDayView(date) { 
+    // ... (Date parsing logic remains the same) ...
     try {
         const parts = date.split('-').map(Number);
         wdCurrentDayViewDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
-    } catch (e) {
-        console.error("Invalid date passed to showDayView:", date, e);
-        return; // Stop if the date is bad
-    }
+    } catch (e) { return; }
 
+    // 1. HIDE OTHER SECTIONS FIRST
     workdeskSections.forEach(section => {
         section.classList.add('hidden');
     });
+
+    // 2. SHOW THE TARGET SECTION *BEFORE* DOING UI CALCULATIONS
     const dayViewSection = document.getElementById('wd-dayview');
     dayViewSection.classList.remove('hidden');
 
-    const friendlyDate = formatYYYYMMDD(date);
-    document.getElementById('wd-dayview-title').textContent = `Tasks for ${friendlyDate}`;
-    const mobileSubtitle = document.getElementById('wd-dayview-mobile-date-subtitle');
-    if (mobileSubtitle) {
-        const todayStr = getTodayDateString(); // "YYYY-MM-DD"
-        if (date === todayStr) {
-            mobileSubtitle.textContent = 'Today';
-        } else {
-            const subtitleDate = new Date(date + 'T00:00:00'); // Treat as local
-            mobileSubtitle.textContent = subtitleDate.toLocaleDateString('en-GB', {
-                weekday: 'long',
-                day: 'numeric',
-                month: 'long'
-            });
-        }
-    }
-    generateDateScroller(date);
+    // 3. NOW GENERATE SCROLLER (It needs the element to be visible to scroll correctly)
+    generateDateScroller(date); 
+
+    // ... (Rest of the function: populate text, titles, and task list) ...
 
     const isAdmin = (currentApprover.Role || '').toLowerCase() === 'admin';
     // --- *** THIS IS THE FIX (Part 1) *** ---
@@ -3015,10 +3004,223 @@ async function populateActiveTasks() {
         activeTaskTableBody.innerHTML = `<tr><td colspan="10">Error loading tasks.</td></tr>`;
     }
 }
-// --- *** MOBILE VIEW FIX (START) *** ---
+function renderMobileActiveTasks(tasks) {
+    const container = document.getElementById('active-task-mobile-view');
+    const receiptContainer = document.getElementById('mobile-receipt-action-container');
+    
+    // Clear previous content
+    if (container) container.innerHTML = '';
+
+    // --- 1. CEO PERMISSION CHECK ---
+    // strictly check for Role 'admin' and Position 'ceo' (case-insensitive)
+    const isCEO = (currentApprover?.Role || '').toLowerCase() === 'admin' && 
+                  (currentApprover?.Position || '').toLowerCase() === 'ceo';
+
+    // Filter Logic (Same as before)
+    let filteredTasks = tasks;
+    if (currentActiveTaskFilter !== 'All') {
+        if (currentActiveTaskFilter === 'Other') {
+            filteredTasks = tasks.filter(task => task.remarks !== 'For SRV' && task.remarks !== 'Pending Signature');
+        } else {
+            filteredTasks = tasks.filter(task => task.remarks === currentActiveTaskFilter);
+        }
+    }
+
+    if (!filteredTasks || filteredTasks.length === 0) {
+        container.innerHTML = '<div class="im-mobile-empty-state"><p>No active tasks found.</p></div>';
+        if (receiptContainer) receiptContainer.classList.add('hidden');
+        return;
+    }
+
+    // Show Receipt Button ONLY if CEO and tasks have been processed
+    if (receiptContainer) {
+        if (isCEO && ceoProcessedTasks.length > 0) {
+            receiptContainer.classList.remove('hidden');
+        } else {
+            receiptContainer.classList.add('hidden');
+        }
+    }
+
+    filteredTasks.forEach(task => {
+        // PDF Link Logic
+        const invName = task.invName || '';
+        const pdfLink = (task.source === 'invoice' && invName.trim() && invName.toLowerCase() !== 'nil') 
+            ? `${PDF_BASE_PATH}${encodeURIComponent(invName)}.pdf` 
+            : null;
+
+        const card = document.createElement('div');
+        card.className = 'mobile-task-card';
+        
+        // --- CARD HEADER ---
+        let html = `
+            <div class="mobile-card-header">
+                <div class="m-card-main">
+                    <h3>${task.vendorName || 'Unknown Vendor'}</h3>
+                    <div class="m-card-sub">${task.po || task.ref} - ${task.site}</div>
+                    <div class="m-card-sub" style="color: #C3502F;">${task.remarks}</div>
+                </div>
+                <div class="m-card-amount">
+                    <span class="m-card-val">${formatCurrency(task.amount)}</span>
+                    <span class="m-card-ref">${task.invEntryID || ''}</span>
+                </div>
+            </div>
+            <div class="mobile-card-body">
+        `;
+
+        // --- CARD BODY ---
+        if (pdfLink) {
+            html += `<a href="${pdfLink}" target="_blank" class="m-pdf-btn"><i class="fa-regular fa-file-pdf"></i> View Invoice PDF</a>`;
+        }
+
+        // Inputs (Always visible for context, but maybe read-only for non-CEO?)
+        // For now, we leave them editable but hide the save buttons if not CEO
+        html += `
+                <div class="m-action-group">
+                    <label>Amount to Paid</label>
+                    <input type="number" class="m-input-amount" value="${task.amount || ''}" step="0.01" ${!isCEO ? 'readonly' : ''}>
+                </div>
+                <div class="m-action-group">
+                    <label>Note / Remark</label>
+                    <textarea class="m-input-note" rows="2" ${!isCEO ? 'readonly' : ''}>${task.note || ''}</textarea>
+                </div>
+        `;
+
+        // --- 2. BUTTON LOGIC (STRICT) ---
+        if (isCEO) {
+            html += `
+                <div class="m-btn-row">
+                    <button class="m-btn-approve" data-key="${task.key}">Approve</button>
+                    <button class="m-btn-reject" data-key="${task.key}">Reject</button>
+                </div>
+            `;
+        } else {
+             // If not CEO, show status message instead of buttons
+             html += `<div style="text-align:center; padding:10px; color:#777; background:#f0f0f0; border-radius:8px; margin-top:10px;">
+                        <i class="fa-solid fa-lock"></i> View Only (CEO Permission Required)
+                      </div>`;
+        }
+
+        html += `</div>`; // Close body
+        card.innerHTML = html;
+
+        // --- 3. EVENT LISTENERS ---
+        
+        // Toggle Accordion
+        const header = card.querySelector('.mobile-card-header');
+        const body = card.querySelector('.mobile-card-body');
+        header.addEventListener('click', () => {
+            document.querySelectorAll('.mobile-card-body.open').forEach(el => {
+                if (el !== body) el.classList.remove('open');
+            });
+            body.classList.toggle('open');
+            if (body.classList.contains('open')) {
+                setTimeout(() => { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300);
+            }
+        });
+
+        // Action Buttons (Only attach if CEO)
+        if (isCEO) {
+            const btnApprove = card.querySelector('.m-btn-approve');
+            const btnReject = card.querySelector('.m-btn-reject');
+            const inputAmt = card.querySelector('.m-input-amount');
+            const inputNote = card.querySelector('.m-input-note');
+
+            const handleAction = (status) => {
+                processMobileCEOAction(task, status, inputAmt.value, inputNote.value, card);
+            };
+
+            if(btnApprove) btnApprove.addEventListener('click', () => handleAction('Approved'));
+            if(btnReject) btnReject.addEventListener('click', () => handleAction('Rejected'));
+        }
+
+        container.appendChild(card);
+    });
+}
+async function processMobileCEOAction(taskData, status, amount, note, cardElement) {
+    if (!amount || amount < 0) {
+        alert("Please enter a valid Amount.");
+        return;
+    }
+
+    // Visual Feedback
+    cardElement.style.opacity = '0.5';
+    cardElement.style.pointerEvents = 'none';
+
+    const updates = {
+        status: status, 
+        remarks: status,
+        amountPaid: amount,
+        amount: amount, 
+        note: note ? note.trim() : '',
+        dateResponded: formatDate(new Date())
+    };
+
+    try {
+        // 1. Update DB
+        if (taskData.source === 'job_entry') {
+            await db.ref(`job_entries/${taskData.key}`).update({
+                remarks: updates.remarks,
+                amount: updates.amount,
+                note: updates.note,
+                dateResponded: updates.dateResponded 
+            });
+        } else if (taskData.source === 'invoice') {
+            await invoiceDb.ref(`invoice_entries/${taskData.originalPO}/${taskData.originalKey}`).update({
+                status: updates.status,
+                amountPaid: updates.amountPaid,
+                note: updates.note
+            });
+             // Update Inbox
+            if (!allInvoiceData) await ensureInvoiceDataFetched();
+            const originalInvoice = (allInvoiceData && allInvoiceData[taskData.originalPO]) ? allInvoiceData[taskData.originalPO][taskData.originalKey] : {};
+            const updatedInvoiceData = {...originalInvoice, ...updates};
+            await updateInvoiceTaskLookup(taskData.originalPO, taskData.originalKey, updatedInvoiceData, taskData.attention);
+            updateLocalInvoiceCache(taskData.originalPO, taskData.originalKey, updates);
+        }
+
+        // 2. Add to Receipt Queue
+        taskData.status = status;
+        taskData.amountPaid = amount;
+        ceoProcessedTasks.push(taskData);
+
+        // 3. Remove from Global List
+        const taskIndex = userActiveTasks.findIndex(t => t.key === taskData.key);
+        if (taskIndex > -1) {
+            userActiveTasks.splice(taskIndex, 1);
+        }
+
+        // 4. Remove Card from DOM visually with animation
+        cardElement.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            cardElement.remove();
+            
+            // Update counts
+            const count = userActiveTasks.length;
+            if(activeTaskCountDisplay) activeTaskCountDisplay.textContent = `(Total Tasks: ${count})`;
+            
+            // Check if we need to show the "Send Receipt" button or "No Tasks" message
+            renderMobileActiveTasks(userActiveTasks); // Re-rendering handles the empty state and button visibility logic
+        }, 300);
+
+    } catch (error) {
+        console.error("Mobile Action Error:", error);
+        alert("Failed to process task. Check connection.");
+        cardElement.style.opacity = '1';
+        cardElement.style.pointerEvents = 'auto';
+    }
+}
+
 // ++ MODIFIED: renderActiveTaskTable ++
-// REPLACE the old renderActiveTaskTable function
 function renderActiveTaskTable(tasks) {
+    // 1. Check for Mobile View (NEW ADDITION)
+    // If on mobile, hand off to the new card renderer and stop here.
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile) {
+        renderMobileActiveTasks(tasks);
+        return; 
+    }
+
+    // 2. Desktop Table Logic (EXISTING LOGIC PRESERVED)
     activeTaskTableBody.innerHTML = '';
     
     let filteredTasks = tasks;
@@ -3058,19 +3260,16 @@ function renderActiveTaskTable(tasks) {
             row.classList.add('clickable-pdf');
         }
 
-        // --- *** THIS IS THE FIX (Hover Tooltip) *** ---
         if (isCEO) {
             row.title = "Click to open approval modal";
         } else if (isClickable) {
             row.title = "Click to open PDF";
         }
-        // --- *** END OF FIX *** ---
 
         let actionButtons = '';
         if (isCEO) {
             actionButtons = `<button class="ceo-approve-btn" data-key="${task.key}">Make Approval</button>`;
         } else {
-            // ... (rest of action button logic)
             let srvDoneDisabled = '';
             if (task.source !== 'invoice') {
                 srvDoneDisabled = 'disabled title="Only invoice tasks can be marked SRV Done"';
@@ -3086,6 +3285,7 @@ function renderActiveTaskTable(tasks) {
             `;
         }
         
+        // Note: We keep these hidden mobile columns for tablet/resize compatibility
         const poMobile = `<td class="mobile-only" data-label="PO">${task.po || ''}</td>`;
         const vendorMobile = `<td class="mobile-only" data-label="Vendor Name">${task.vendorName || 'N/A'}</td>`;
         const amountMobile = `<td class="mobile-only" data-label="Invoice Amount">${formatCurrency(task.amount)}</td>`;
@@ -3106,6 +3306,7 @@ function renderActiveTaskTable(tasks) {
 
         row.innerHTML = poMobile + vendorMobile + amountMobile + siteMobile + desktopColumns;
 
+        // Legacy mobile table click listener (Just in case)
         row.querySelectorAll('.mobile-only').forEach(cell => {
              cell.addEventListener('click', () => {
                 const taskData = userActiveTasks.find(entry => entry.key === task.key);
@@ -3123,6 +3324,7 @@ function renderActiveTaskTable(tasks) {
         activeTaskTableBody.appendChild(row);
     });
 }
+
 // --- *** MOBILE VIEW FIX (END) *** ---
 
 
@@ -3842,25 +4044,32 @@ function resetInvoiceEntryPage() {
 }
 // --- *** END OF FIX ---
 
-// --- MODIFIED handlePOSearch (Req 1) ---
+// --- REPLACE THE handlePOSearch FUNCTION IN app.js ---
+
 async function handlePOSearch(poNumberFromInput) {
-    // Determine the PO number to use (from top, bottom, or parameter)
-    const poNumber = (poNumberFromInput || imPOSearchInput.value || imPOSearchInputBottom.value).trim().toUpperCase();
+    // 1. Strict Priority: If an argument is passed (from button click), use it.
+    // Otherwise, check Top input, then Bottom input.
+    let poNumber = '';
+    
+    if (typeof poNumberFromInput === 'string') {
+        poNumber = poNumberFromInput.trim().toUpperCase();
+    } else {
+        // Fallback if called without args (e.g. from some other trigger)
+        poNumber = (imPOSearchInput.value || imPOSearchInputBottom.value).trim().toUpperCase();
+    }
     
     if (!poNumber) {
         alert('Please enter a PO Number.');
         return;
     }
 
-    // --- *** START OF FIX (Search Persistence) *** ---
-    // Save the successful search term to session storage
-    sessionStorage.setItem('imPOSearch', poNumber);
-    // --- *** END OF FIX ---
-
-    // Sync both search boxes
+    // 2. Sync both UI inputs to match what we are searching
     imPOSearchInput.value = poNumber;
     imPOSearchInputBottom.value = poNumber;
     
+    // Save to session
+    sessionStorage.setItem('imPOSearch', poNumber);
+
     try {
         if (!allPOData) {
             console.log("Loading PO data from GitHub for the first time...");
@@ -3875,39 +4084,29 @@ async function handlePOSearch(poNumberFromInput) {
         const poData = allPOData[poNumber];
         if (!poData) {
             alert('PO Number not found in the database.');
-            // --- *** START OF FIX (Search Persistence) *** ---
-            // We call reset, which also clears the session storage
             resetInvoiceEntryPage();
-            // --- *** END OF FIX *** ---
             return;
         }
 
-        // --- THIS IS THE FIX ---
-        // Instead of downloading ALL invoices, we ONLY download invoices for THIS PO.
-        // This is fast and cheap.
         const invoicesSnapshot = await invoiceDb.ref(`invoice_entries/${poNumber}`).once('value');
         const invoicesData = invoicesSnapshot.val();
 
         if (!allInvoiceData) allInvoiceData = {};
-        allInvoiceData[poNumber] = invoicesData || {}; // Add/update THIS PO in the cache
-        // --- END OF FIX ---
+        allInvoiceData[poNumber] = invoicesData || {}; 
 
         currentPO = poNumber;
         const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
         const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
-        const poValueText = (isAdmin || isAccounting) ? (poData.Amount ? `QAR ${formatCurrency(poData.Amount)}` : 'N/A') : '---'; // Show value for Admin or Accounting
+        const poValueText = (isAdmin || isAccounting) ? (poData.Amount ? `QAR ${formatCurrency(poData.Amount)}` : 'N/A') : '---'; 
         const siteText = poData['Project ID'] || 'N/A';
         const vendorText = poData['Supplier Name'] || 'N/A';
 
-        // --- MODIFICATION: Update ALL matching elements ---
-        // This will now update both the top bar and the one above "Existing Invoices"
         document.querySelectorAll('.im-po-no').forEach(el => el.textContent = poNumber);
         document.querySelectorAll('.im-po-site').forEach(el => el.textContent = siteText);
         document.querySelectorAll('.im-po-value').forEach(el => el.textContent = poValueText);
         document.querySelectorAll('.im-po-vendor').forEach(el => el.textContent = vendorText);
         
         document.querySelectorAll('.im-po-details-container').forEach(el => el.classList.remove('hidden'));
-        // --- END OF MODIFICATION ---
 
         fetchAndDisplayInvoices(poNumber);
 
@@ -3916,7 +4115,6 @@ async function handlePOSearch(poNumberFromInput) {
         alert('An error occurred while searching for the PO.');
     }
 }
-
 
 function fetchAndDisplayInvoices(poNumber) {
     const invoicesData = allInvoiceData[poNumber];
@@ -5754,30 +5952,29 @@ async function handleBatchGlobalSearch(searchType) {
     }
 }
 
-// --- (MODIFIED) handleSaveBatchInvoices ---
+// --- REPLACE THE handleSaveBatchInvoices FUNCTION IN app.js ---
+
 async function handleSaveBatchInvoices() {
     const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
     if (rows.length === 0) { alert("There are no invoices to save."); return; }
     if (!confirm(`You are about to save/update ${rows.length} invoice(s). Continue?`)) return;
 
     const savePromises = [];
-    const localCacheUpdates = []; 
     let newInvoicesCount = 0, updatedInvoicesCount = 0;
 
-    // --- (Req 3) MODIFIED: Add invEntryID to srvName helper ---
     const getSrvName = (poNumber, site, vendor, invEntryID) => {
         const today = new Date(), yyyy = today.getFullYear(), mm = String(today.getMonth() + 1).padStart(2, '0'), dd = String(today.getDate()).padStart(2, '0');
         if (vendor.length > 21) vendor = vendor.substring(0, 21);
-        const invID = invEntryID || 'INV-XX'; // Fallback
+        const invID = invEntryID || 'INV-XX'; 
         return `${yyyy}${mm}${dd}-${poNumber}-${invID}-${site}-${vendor}`;
     };
-    // --- End (Req 3) MODIFICATION ---
 
-    await ensureInvoiceDataFetched(); // Ensure allInvoiceData is present for lookup
+    await ensureInvoiceDataFetched(); 
 
+    // 1. Build the Promise Array
     for (const row of rows) {
         const poNumber = row.dataset.po, site = row.dataset.site, existingKey = row.dataset.key; let vendor = row.dataset.vendor;
-        let invEntryID = row.dataset.nextInvid; // For new invoices
+        let invEntryID = row.dataset.nextInvid; 
         
         if (existingKey) {
             const existingIDSpan = row.querySelector('span.existing-indicator');
@@ -5800,111 +5997,82 @@ async function handleSaveBatchInvoices() {
 
         invoiceData.releaseDate = getTodayDateString();
         invoiceData.attention = row.choicesInstance ? row.choicesInstance.getValue(true) : row.querySelector('select[name="attention"]').value;
+        
+        // Logic adjustments
         if (invoiceData.attention === 'None') invoiceData.attention = '';
-        if (invoiceData.status === 'Under Review') invoiceData.attention = '';
-        if (invoiceData.status === 'With Accounts') invoiceData.attention = '';
+        if (invoiceData.status === 'Under Review' || invoiceData.status === 'With Accounts') invoiceData.attention = '';
         if (!invoiceData.invValue) { alert(`Invoice Value is required for PO ${poNumber}. Cannot proceed.`); return; }
         if (vendor.length > 21) vendor = vendor.substring(0, 21);
 
-        // --- *** START OF SRV "NIL" FIX *** ---
         const srvNameLower = (invoiceData.srvName || '').toLowerCase();
         if (invoiceData.status === 'With Accounts' && srvNameLower !== 'nil' && srvNameLower.trim() === '') {
-        // --- *** END OF SRV "NIL" FIX *** ---
             invoiceData.srvName = getSrvName(poNumber, site, vendor, invEntryID);
         }
 
-        let promise;
-        let oldAttention = null;
-
+        // --- PREPARE THE UPDATE PROMISE ---
+        let updatePromise;
+        
         if (existingKey) {
-            // --- ADD THIS (THE FIX) ---
-            // Get the old attention before updating
+            // EXISTING INVOICE
+            let oldAttention = null;
             if (allInvoiceData[poNumber] && allInvoiceData[poNumber][existingKey]) {
                 oldAttention = allInvoiceData[poNumber][existingKey].attention;
             }
-            // --- END OF ADDITION ---
 
-            promise = invoiceDb.ref(`invoice_entries/${poNumber}/${existingKey}`).update(invoiceData);
-            
-            // --- ADD THIS (THE FIX) ---
-            // Add the task sync call to the promise list
-            savePromises.push(updateInvoiceTaskLookup(poNumber, existingKey, invoiceData, oldAttention));
-            // --- END OF ADDITION ---
-            
-            localCacheUpdates.push({ type: 'update', po: poNumber, key: existingKey, data: invoiceData });
+            // Chain the DB update -> Inbox Sync -> Local Cache Update
+            updatePromise = invoiceDb.ref(`invoice_entries/${poNumber}/${existingKey}`).update(invoiceData)
+                .then(() => {
+                    // 1. Sync Inbox
+                    return updateInvoiceTaskLookup(poNumber, existingKey, invoiceData, oldAttention);
+                })
+                .then(() => {
+                    // 2. Update Local Cache (Only on success)
+                    updateLocalInvoiceCache(poNumber, existingKey, invoiceData);
+                    if (invoiceData.note) allUniqueNotes.add(invoiceData.note.trim());
+                });
+
             updatedInvoicesCount++;
         } else {
-            invoiceData.invEntryID = invEntryID; // Use the pre-calculated nextInvId
+            // NEW INVOICE
+            invoiceData.invEntryID = invEntryID;
             invoiceData.dateAdded = getTodayDateString();
             invoiceData.createdAt = firebase.database.ServerValue.TIMESTAMP;
-            if (!invoiceData.invName) {
-                 invoiceData.invName = `${site}-${poNumber}-${invoiceData.invEntryID}-${vendor}`;
-            }
+            if (!invoiceData.invName) invoiceData.invName = `${site}-${poNumber}-${invoiceData.invEntryID}-${vendor}`;
 
-            promise = invoiceDb.ref(`invoice_entries/${poNumber}`).push(invoiceData);
-            newInvoicesCount++;
-
-            // --- ADD THIS (THE FIX) ---
-            // Add the task sync call, wrapped in a .then() to get the new key
-            savePromises.push(
-                promise.then(newRef => {
-                    // Store the key in the local cache update object for later
+            // Chain Push -> Get Key -> Inbox Sync -> Local Cache Update
+            updatePromise = invoiceDb.ref(`invoice_entries/${poNumber}`).push(invoiceData)
+                .then((newRef) => {
                     const newKey = newRef.key;
-                    const cacheUpdate = localCacheUpdates.find(upd => upd.promise === promise);
-                    if (cacheUpdate) cacheUpdate.newKey = newKey; 
-                    
-                    return updateInvoiceTaskLookup(poNumber, newKey, invoiceData, null); // oldAttention is null
+                    // 1. Sync Inbox
+                    return updateInvoiceTaskLookup(poNumber, newKey, invoiceData, null)
+                        .then(() => newKey); // Pass key down
                 })
-            );
-            // --- END OF ADDITION ---
+                .then((newKey) => {
+                    // 2. Update Local Cache (Only on success)
+                    addToLocalInvoiceCache(poNumber, invoiceData, newKey);
+                    if (invoiceData.note) allUniqueNotes.add(invoiceData.note.trim());
+                });
 
-            localCacheUpdates.push({ type: 'add', po: poNumber, data: invoiceData, promise: promise });
+            newInvoicesCount++;
         }
-        // This promise is for the *write* operation, not the task sync
-        savePromises.push(promise);
+        savePromises.push(updatePromise);
     }
+
+    // 2. Execute All
     try {
         await Promise.all(savePromises);
 
-        // --- NEW CACHE UPDATE LOGIC ---
-        if (allInvoiceData) { 
-            for (const update of localCacheUpdates) {
-                if (update.type === 'update') {
-                    if (!allInvoiceData[update.po]) allInvoiceData[update.po] = {};
-                    if (!allInvoiceData[update.po][update.key]) allInvoiceData[update.po][update.key] = {};
-                    allInvoiceData[update.po][update.key] = {
-                        ...allInvoiceData[update.po][update.key],
-                        ...update.data
-                    };
-                } else if (update.type === 'add') {
-                    // Use the newKey stored from the promise's .then() block
-                    const newKey = update.newKey;
-                    if (newKey) {
-                        if (!allInvoiceData[update.po]) allInvoiceData[update.po] = {};
-                        allInvoiceData[update.po][newKey] = update.data;
-                    }
-                }
-                
-                if (update.data.note && update.data.note.trim() !== '') {
-                    allUniqueNotes.add(update.data.note.trim());
-                }
-            }
-            console.log("Local invoice cache updated surgically.");
-        }
-        // --- END FIX ---
-
+        console.log("Batch save complete and cache updated.");
         alert(`${newInvoicesCount} new invoice(s) created and ${updatedInvoicesCount} invoice(s) updated successfully!`);
         
-        // --- THIS IS THE FIX ---
-        // This line clears the table after the success alert.
-        document.getElementById('im-batch-table-body').innerHTML = ''; 
-        updateBatchCount(); // (NEW) Update Count
-        // -----------------------
+        // Clean up UI
+        cleanupBatchTable(); // Helper function defined below
+        updateBatchCount();
+        allSystemEntries = []; // Clear other cache
         
-        allSystemEntries = []; // This clears the *other* cache
     } catch (error) {
         console.error("Error saving batch invoices:", error);
-        alert("An error occurred while saving. Please check the data and try again.");
+        alert("An error occurred while saving. Some items may not have been updated. Please refresh the page.");
     }
 }
 async function handleBatchModalPOSearch() {
@@ -6664,6 +6832,58 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     // --- END OF ADDITION ---
 
+// --- FIX: Activate Mobile Active Task Logout Button ---
+    const mobileActiveTaskLogoutBtn = document.getElementById('mobile-activetask-logout-btn');
+    if (mobileActiveTaskLogoutBtn) {
+        mobileActiveTaskLogoutBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (confirm("Are you sure you want to logout?")) {
+                handleLogout();
+            }
+        });
+    }
+
+// --- NEW: Mobile "Active Task" Bottom Nav Listener ---
+    const imMobileActiveTaskLink = document.getElementById('im-mobile-activetask-link');
+    
+    if (imMobileActiveTaskLink) {
+        imMobileActiveTaskLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            
+            // 1. Switch to WorkDesk View
+            workdeskButton.click();
+            
+            // 2. Wait for view to load, then switch section
+            setTimeout(() => {
+                // Update active classes on bottom nav
+                document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a').forEach(a => a.classList.remove('active'));
+                
+                const activeTaskLink = workdeskNav.querySelector('a[data-section="wd-activetask"]');
+                if (activeTaskLink) activeTaskLink.classList.add('active');
+                
+                // Show the section
+                showWorkdeskSection('wd-activetask');
+            }, 100);
+        });
+    }
+
+    // --- UPDATE: Sync Badge Count ---
+    // Find the existing badge update logic (around line 1555 in populateActiveTasks)
+    // Add "im-mobile-nav-badge" to the list of badges to update:
+    
+    /* // LOOK FOR THIS EXISTING BLOCK IN YOUR CODE:
+    [wdActiveTaskBadge, imActiveTaskBadge, wdMobileNotifyBadge].forEach(badge => { ... });
+    
+    // CHANGE IT TO THIS:
+    const imMobileNavBadge = document.getElementById('im-mobile-nav-badge'); // Get reference
+    [wdActiveTaskBadge, imActiveTaskBadge, wdMobileNotifyBadge, imMobileNavBadge].forEach(badge => {
+        if (badge) {
+            badge.textContent = taskCount;
+            badge.style.display = taskCount > 0 ? 'inline-block' : 'none';
+        }
+    });
+    */
+
     // --- *** ADD THIS NEW BLOCK *** ---
     const sidebarVersionDisplays = document.querySelectorAll('.sidebar-version-display');
     sidebarVersionDisplays.forEach(el => {
@@ -6703,7 +6923,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // --- THIS IS THE FIX (Mobile Startup) ---
     // PASTE THIS ENTIRE BLOCK (replaces the old listener from line 4920)
-    workdeskButton.addEventListener('click', async () => { // ADD async
+    workdeskButton.addEventListener('click', async () => {
         if (!currentApprover) { handleLogout(); return; }
         wdUsername.textContent = currentApprover.Name || 'User';
         wdUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile;
@@ -6758,40 +6978,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a').forEach(a => a.classList.remove('active')); 
 
         if (isMobile) {
-            // On mobile, default to "Day View" for today
-            console.log("Mobile device detected, defaulting to Day View for today.");
+            console.log("Mobile device detected: Defaulting to Active Task List.");
             
-            // 1. Set the "Dashboard" tab as active (since Day View is part of it)
-            const dashboardLink = workdeskNav.querySelector('a[data-section="wd-dashboard"]');
-            if (dashboardLink) {
-                dashboardLink.classList.add('active'); 
+            // 1. Set the "Active Task" tab as active
+            const activeTaskLink = workdeskNav.querySelector('a[data-section="wd-activetask"]');
+            if (activeTaskLink) {
+                activeTaskLink.classList.add('active'); 
             }
             
-            // 2. Load the necessary task data (this is fast)
-            await populateActiveTasks(); // Loads user's tasks
-            await populateAdminCalendarTasks(); // Loads all tasks if admin
-
-            // 3. Get today's date
-            const todayStr = getTodayDateString();
-            
-            // 4. Show the Day View for today
-            // This function automatically shows the 'wd-dayview' section
-            showDayView(todayStr);
+            // 2. Show the Active Task Section immediately
+            // (We do NOT show wd-dayview or wd-dashboard anymore)
+            await showWorkdeskSection('wd-activetask');
 
         } else {
-            // On desktop, default to "Dashboard" (Calendar)
-            console.log("Desktop device detected, defaulting to Dashboard view.");
-            
-            // 1. Set the "Dashboard" tab as active
+            // Desktop Logic (Unchanged)
+            console.log("Desktop device detected: Defaulting to Dashboard.");
             const dashboardLink = workdeskNav.querySelector('a[data-section="wd-dashboard"]');
-            if (dashboardLink) {
-                dashboardLink.classList.add('active'); 
-            }
-            
-            // 2. Show the full dashboard (which loads data AND renders the calendar)
+            if (dashboardLink) dashboardLink.classList.add('active'); 
             await showWorkdeskSection('wd-dashboard'); 
         }
-        // --- *** END OF FIX *** ---
     });
     // --- END OF 'workdeskButton' LISTENER FIX ---
 
@@ -6816,7 +7021,61 @@ document.addEventListener('DOMContentLoaded', async () => {
         } 
     });
     // --- *** WORKDESK NAV FIX (END) ---
-    
+
+// --- FIX: Mobile Login Listener (Single Step Login) ---
+    const mobileLoginForm = document.getElementById('mobile-login-form');
+    if (mobileLoginForm) {
+        mobileLoginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const mobileIdentifier = document.getElementById('mobile-login-identifier').value.trim();
+            const passwordInput = document.getElementById('mobile-login-password').value; // Get the password
+            const errorMsg = document.getElementById('mobile-login-error');
+            
+            // Play sound on attempt
+            const sound = document.getElementById('login-sound');
+            if(sound) sound.play().catch(e => console.log("Audio play failed", e));
+
+            try {
+                // 1. Find the user
+                const approver = await findApprover(mobileIdentifier);
+                if (!approver) {
+                    errorMsg.textContent = 'Access denied. Number not found.';
+                    return;
+                }
+                currentApprover = approver;
+                
+                // 2. Check if it's a first-time setup (No password yet)
+                if (!currentApprover.Password) {
+                    document.querySelector('.mobile-login-container').style.display = 'none';
+                    
+                    // Setup flow
+                    const isEmailMissing = !currentApprover.Email; 
+                    setupEmailContainer.classList.toggle('hidden', !isEmailMissing);
+                    setupSiteContainer.classList.toggle('hidden', !currentApprover.Site);
+                    setupPositionContainer.classList.toggle('hidden', !currentApprover.Position);
+                    
+                    if(isEmailMissing) setupEmailInput.required = true;
+                    showView('setup');
+                    return;
+                } 
+                
+                // 3. Verify Password (DIRECT LOGIN)
+                if (passwordInput === currentApprover.Password) {
+                    // Success! Hide mobile login and enter system
+                    document.querySelector('.mobile-login-container').style.display = 'none';
+                    handleSuccessfulLogin();
+                } else {
+                    // Failed
+                    errorMsg.textContent = 'Incorrect password.';
+                    document.getElementById('mobile-login-password').value = ''; // Clear password field
+                }
+
+            } catch (error) {
+                console.error(error);
+                errorMsg.textContent = 'Error. Try again.';
+            }
+        });
+    }
     addJobButton.addEventListener('click', handleAddJobEntry);
     updateJobButton.addEventListener('click', handleUpdateJobEntry);
     clearJobButton.addEventListener('click', () => resetJobEntryForm(false));
@@ -7685,346 +7944,400 @@ imReportingContent.addEventListener('click', (e) => {
         }
     });
 
+// Batch Entry Listeners
+const batchAddBtn = document.getElementById('im-batch-add-po-button'),
+      batchSaveBtn = document.getElementById('im-batch-save-button'),
+      batchPOInput = document.getElementById('im-batch-po-input'),
+      batchSearchStatusBtn = document.getElementById('im-batch-search-by-status-button'),
+      batchSearchNoteBtn = document.getElementById('im-batch-search-by-note-button');
 
-    // Batch Entry Listeners
-const batchAddBtn = document.getElementById('im-batch-add-po-button'), batchSaveBtn = document.getElementById('im-batch-save-button'), batchPOInput = document.getElementById('im-batch-po-input'), batchSearchStatusBtn = document.getElementById('im-batch-search-by-status-button'), batchSearchNoteBtn = document.getElementById('im-batch-search-by-note-button');
-    
-    if(batchClearBtn) batchClearBtn.addEventListener('click', () => {
-        batchTableBody.innerHTML = '';
-        batchPOInput.value = '';
-        sessionStorage.removeItem('imBatchSearch');
-        sessionStorage.removeItem('imBatchNoteSearch'); 
-        if (imBatchNoteSearchChoices) imBatchNoteSearchChoices.clearInput();
-        if (imBatchGlobalAttentionChoices) imBatchGlobalAttentionChoices.clearInput();
-        imBatchGlobalStatus.value = '';
-        imBatchGlobalNote.value = '';
-        updateBatchCount(); // (NEW) Update Count
+// --- FIX: Helper function to clean up Choices.js instances to prevent memory leaks ---
+function cleanupBatchTable() {
+    const batchTableBody = document.getElementById('im-batch-table-body');
+    if (!batchTableBody) return;
+    const rows = batchTableBody.querySelectorAll('tr');
+    rows.forEach(row => {
+        if (row.choicesInstance) {
+            row.choicesInstance.destroy(); // Clean up memory
+            row.choicesInstance = null;
+        }
     });
+    batchTableBody.innerHTML = ''; // Now safe to clear
+}
+// -----------------------------------------------------------------------------------
 
-    if (batchSearchStatusBtn) batchSearchStatusBtn.addEventListener('click', () => handleBatchGlobalSearch('status'));
-    if (batchSearchNoteBtn) batchSearchNoteBtn.addEventListener('click', () => handleBatchGlobalSearch('note'));
-    if (batchAddBtn) batchAddBtn.addEventListener('click', handleAddPOToBatch);
-    if (batchSaveBtn) batchSaveBtn.addEventListener('click', handleSaveBatchInvoices);
-    
-    if (batchPOInput) {
-        batchPOInput.addEventListener('keypress', (e) => { 
-            if (e.key === 'Enter') { 
-                e.preventDefault(); 
-                if(batchSearchStatusBtn) batchSearchStatusBtn.click(); 
-            }
-        });
-        batchPOInput.addEventListener('input', debounce((e) => {
-            sessionStorage.setItem('imBatchSearch', e.target.value);
-            sessionStorage.removeItem('imBatchNoteSearch'); 
-        }, 500));
-    }
-    if (imBatchNoteSearchSelect) {
-        imBatchNoteSearchSelect.addEventListener('change', () => {
-            if (imBatchNoteSearchChoices) {
-                const noteValue = imBatchNoteSearchChoices.getValue(true);
-                if (noteValue) {
-                    sessionStorage.setItem('imBatchNoteSearch', noteValue);
-                    sessionStorage.removeItem('imBatchSearch'); 
-                } else {
-                    sessionStorage.removeItem('imBatchNoteSearch');
-                }
-            }
-        });
-    }
+if (batchClearBtn) batchClearBtn.addEventListener('click', () => {
+    cleanupBatchTable(); // <--- UPDATED: Use helper function
+    batchPOInput.value = '';
+    sessionStorage.removeItem('imBatchSearch');
+    sessionStorage.removeItem('imBatchNoteSearch');
+    if (imBatchNoteSearchChoices) imBatchNoteSearchChoices.clearInput();
+    if (imBatchGlobalAttentionChoices) imBatchGlobalAttentionChoices.clearInput();
+    imBatchGlobalStatus.value = '';
+    imBatchGlobalNote.value = '';
+    updateBatchCount(); // (NEW) Update Count
+});
 
-    if (batchTableBody) {
-        batchTableBody.addEventListener('click', (e) => {
-            if (e.target.classList.contains('batch-remove-btn')) {
-                const row = e.target.closest('tr');
-                if (row.choicesInstance) {
-                    row.choicesInstance.destroy();
-                }
-                row.remove();
-                updateBatchCount(); // (NEW) Update Count
-            }
-        });
-    }
-    if (imBatchSearchExistingButton) imBatchSearchExistingButton.addEventListener('click', () => { if(imBatchSearchModal) imBatchSearchModal.classList.remove('hidden'); document.getElementById('im-batch-modal-results').innerHTML = '<p>Enter a PO number to see its invoices.</p>'; document.getElementById('im-batch-modal-po-input').value = ''; });
-    if (imBatchSearchModal) {
-        const modalSearchBtn = document.getElementById('im-batch-modal-search-btn'), addSelectedBtn = document.getElementById('im-batch-modal-add-selected-btn'), modalPOInput = document.getElementById('im-batch-modal-po-input');
-        if(modalSearchBtn) modalSearchBtn.addEventListener('click', handleBatchModalPOSearch);
-        if(addSelectedBtn) addSelectedBtn.addEventListener('click', handleAddSelectedToBatch);
-        if (modalPOInput) modalPOInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); if (modalSearchBtn) modalSearchBtn.click(); } });
-    }
+if (batchSearchStatusBtn) batchSearchStatusBtn.addEventListener('click', () => handleBatchGlobalSearch('status'));
+if (batchSearchNoteBtn) batchSearchNoteBtn.addEventListener('click', () => handleBatchGlobalSearch('note'));
+if (batchAddBtn) batchAddBtn.addEventListener('click', handleAddPOToBatch);
+if (batchSaveBtn) batchSaveBtn.addEventListener('click', handleSaveBatchInvoices);
 
-    // Batch Global Field Listeners
-    if (imBatchGlobalAttention) {
-        imBatchGlobalAttention.addEventListener('change', () => { 
-            if (!imBatchGlobalAttentionChoices) return;
-            const selectedValue = imBatchGlobalAttentionChoices.getValue(true); 
-            const valueToSet = selectedValue ? [selectedValue] : []; 
-            const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
-            rows.forEach(row => {
-                if (row.choicesInstance) {
-                    row.choicesInstance.setValue(valueToSet); 
-                }
-            });
-        });
-    }
-    if (imBatchGlobalStatus) {
-        imBatchGlobalStatus.addEventListener('change', (e) => {
-            const newValue = e.target.value;
-            const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
-            rows.forEach(row => {
-                row.querySelector('select[name="status"]').value = newValue;
-            });
-        });
-    }
-    if (imBatchGlobalNote) {
-         const updateNotes = (newValue) => {
-             const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
-             rows.forEach(row => {
-                 row.querySelector('input[name="note"]').value = newValue;
-             });
-         };
-         imBatchGlobalNote.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault(); 
-                updateNotes(e.target.value); 
-            }
-        });
-         imBatchGlobalNote.addEventListener('blur', (e) => {
-             updateNotes(e.target.value); 
-         });
-    }
-
-    // Refresh Button Listeners
-    const refreshEntryBtn = document.getElementById('im-refresh-entry-button');
-    if (refreshEntryBtn) refreshEntryBtn.addEventListener('click', async () => { alert("Refreshing all data from sources..."); await ensureInvoiceDataFetched(true); await populateActiveTasks(); alert("Data refreshed."); if (currentPO) handlePOSearch(currentPO); }); // Pass currentPO
-    const refreshBatchBtn = document.getElementById('im-refresh-batch-button');
-    if (refreshBatchBtn) refreshBatchBtn.addEventListener('click', async () => { alert("Refreshing all data... Your current batch list will be cleared."); await ensureInvoiceDataFetched(true); document.getElementById('im-batch-table-body').innerHTML = ''; updateBatchCount(); alert("Data refreshed. Please add POs again."); });
-    const refreshSummaryBtn = document.getElementById('im-refresh-summary-button');
-    if (refreshSummaryBtn) refreshSummaryBtn.addEventListener('click', async () => { alert("Refreshing all data..."); await ensureInvoiceDataFetched(true); initializeNoteSuggestions(); alert("Data refreshed."); });
-    const refreshReportingBtn = document.getElementById('im-refresh-reporting-button');
-    if (refreshReportingBtn) {
-        refreshReportingBtn.addEventListener('click', async () => {
-            alert("Refreshing all data...");
-            await ensureInvoiceDataFetched(true);
-            alert("Data refreshed. Please run your search again.");
-            const searchTerm = imReportingSearchInput.value.trim();
-            if (searchTerm || document.getElementById('im-reporting-site-filter').value || document.getElementById('im-reporting-date-filter').value) {
-                populateInvoiceReporting(searchTerm);
-            }
-        });
-    }
-
-    // Summary Note Listeners
-    if(summaryNoteGenerateBtn) summaryNoteGenerateBtn.addEventListener('click', handleGenerateSummary);
-    if(summaryNoteUpdateBtn) summaryNoteUpdateBtn.addEventListener('click', handleUpdateSummaryChanges);
-    
-    const summaryClearBtn = document.getElementById('summary-note-clear-btn');
-    if (summaryClearBtn) {
-        summaryClearBtn.addEventListener('click', () => {
-            summaryNotePreviousInput.value = '';
-            summaryNoteCurrentInput.value = '';
-            document.getElementById('summary-note-status-input').value = '';
-            document.getElementById('summary-note-srv-input').value = '';
-            document.getElementById('summary-note-custom-notes-input').value = '';
-            snTableBody.innerHTML = '';
-            summaryNotePrintArea.classList.add('hidden');
-            if (summaryNoteCountDisplay) summaryNoteCountDisplay.textContent = ''; // (NEW) Clear Count
-            sessionStorage.removeItem('imSummaryPrevNote');
-            sessionStorage.removeItem('imSummaryCurrNote');
-        });
-    }
-    
-if (summaryNoteCurrentInput) {
-        summaryNoteCurrentInput.addEventListener('input', debounce((e) => {
-            sessionStorage.setItem('imSummaryCurrNote', e.target.value);
-        }, 500));
-    }
-
-    if(summaryNotePrintBtn) {
-        summaryNotePrintBtn.addEventListener('click', () => {
-            const customNotesInput = document.getElementById('summary-note-custom-notes-input');
-            const notesPrintContent = document.getElementById('sn-print-notes-content');
-            const notesPrintContainer = document.getElementById('sn-print-notes');
-
-            if (customNotesInput && notesPrintContent && notesPrintContainer) {
-                const notesText = customNotesInput.value.trim();
-                notesPrintContent.textContent = notesText; 
-
-                if (notesText) {
-                    notesPrintContainer.style.display = 'block'; 
-                } else {
-                    notesPrintContainer.style.display = 'none';  
-                }
-                
-                if (imReportingPrintableArea) imReportingPrintableArea.classList.add('hidden');
-                if (summaryNotePrintArea) summaryNotePrintArea.classList.remove('hidden');
-
-                window.print(); 
-
+if (batchPOInput) {
+    batchPOInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (batchSearchStatusBtn) batchSearchStatusBtn.click();
+        }
+    });
+    batchPOInput.addEventListener('input', debounce((e) => {
+        sessionStorage.setItem('imBatchSearch', e.target.value);
+        sessionStorage.removeItem('imBatchNoteSearch');
+    }, 500));
+}
+if (imBatchNoteSearchSelect) {
+    imBatchNoteSearchSelect.addEventListener('change', () => {
+        if (imBatchNoteSearchChoices) {
+            const noteValue = imBatchNoteSearchChoices.getValue(true);
+            if (noteValue) {
+                sessionStorage.setItem('imBatchNoteSearch', noteValue);
+                sessionStorage.removeItem('imBatchSearch');
             } else {
-                console.error("Could not find notes elements for printing.");
-                window.print();
+                sessionStorage.removeItem('imBatchNoteSearch');
+            }
+        }
+    });
+}
+
+if (batchTableBody) {
+    batchTableBody.addEventListener('click', (e) => {
+        if (e.target.classList.contains('batch-remove-btn')) {
+            const row = e.target.closest('tr');
+            if (row.choicesInstance) {
+                row.choicesInstance.destroy();
+            }
+            row.remove();
+            updateBatchCount(); // (NEW) Update Count
+        }
+    });
+}
+if (imBatchSearchExistingButton) imBatchSearchExistingButton.addEventListener('click', () => {
+    if (imBatchSearchModal) imBatchSearchModal.classList.remove('hidden');
+    document.getElementById('im-batch-modal-results').innerHTML = '<p>Enter a PO number to see its invoices.</p>';
+    document.getElementById('im-batch-modal-po-input').value = '';
+});
+if (imBatchSearchModal) {
+    const modalSearchBtn = document.getElementById('im-batch-modal-search-btn'),
+          addSelectedBtn = document.getElementById('im-batch-modal-add-selected-btn'),
+          modalPOInput = document.getElementById('im-batch-modal-po-input');
+    if (modalSearchBtn) modalSearchBtn.addEventListener('click', handleBatchModalPOSearch);
+    if (addSelectedBtn) addSelectedBtn.addEventListener('click', handleAddSelectedToBatch);
+    if (modalPOInput) modalPOInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (modalSearchBtn) modalSearchBtn.click();
+        }
+    });
+}
+
+// Batch Global Field Listeners
+if (imBatchGlobalAttention) {
+    imBatchGlobalAttention.addEventListener('change', () => {
+        if (!imBatchGlobalAttentionChoices) return;
+        const selectedValue = imBatchGlobalAttentionChoices.getValue(true);
+        const valueToSet = selectedValue ? [selectedValue] : [];
+        const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
+        rows.forEach(row => {
+            if (row.choicesInstance) {
+                row.choicesInstance.setValue(valueToSet);
             }
         });
-    }
-
-
-    // ++ NEW: Payment Section Listeners ++
-    if (imAddPaymentButton) {
-        imAddPaymentButton.addEventListener('click', () => {
-            imPaymentModalPOInput.value = '';
-            imPaymentModalResults.innerHTML = '<p>Enter a PO number to see invoices ready for payment.</p>';
-imAddPaymentModal.classList.remove('hidden');
+    });
+}
+if (imBatchGlobalStatus) {
+    imBatchGlobalStatus.addEventListener('change', (e) => {
+        const newValue = e.target.value;
+        const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
+        rows.forEach(row => {
+            row.querySelector('select[name="status"]').value = newValue;
         });
-    }
-    if (imSavePaymentsButton) {
-        imSavePaymentsButton.addEventListener('click', handleSavePayments);
-    }
-    if (imPaymentsTableBody) {
-        imPaymentsTableBody.addEventListener('click', (e) => {
-            if (e.target.classList.contains('payment-remove-btn')) {
-                const row = e.target.closest('tr');
-                const key = row.dataset.key;
-                if (key && invoicesToPay[key]) {
-                    delete invoicesToPay[key]; // Remove from state
-                }
-                row.remove(); // Remove from DOM
-                updatePaymentsCount(); // (NEW) Update Count
+    });
+}
+if (imBatchGlobalNote) {
+    const updateNotes = (newValue) => {
+        const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
+        rows.forEach(row => {
+            row.querySelector('input[name="note"]').value = newValue;
+        });
+    };
+    imBatchGlobalNote.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            updateNotes(e.target.value);
+        }
+    });
+    imBatchGlobalNote.addEventListener('blur', (e) => {
+        updateNotes(e.target.value);
+    });
+}
+
+// Refresh Button Listeners
+const refreshEntryBtn = document.getElementById('im-refresh-entry-button');
+if (refreshEntryBtn) refreshEntryBtn.addEventListener('click', async () => {
+    alert("Refreshing all data from sources...");
+    await ensureInvoiceDataFetched(true);
+    await populateActiveTasks();
+    alert("Data refreshed.");
+    if (currentPO) handlePOSearch(currentPO);
+}); // Pass currentPO
+
+const refreshBatchBtn = document.getElementById('im-refresh-batch-button');
+if (refreshBatchBtn) refreshBatchBtn.addEventListener('click', async () => {
+    alert("Refreshing all data... Your current batch list will be cleared.");
+    await ensureInvoiceDataFetched(true);
+    cleanupBatchTable(); // <--- UPDATED: Use helper function here too
+    updateBatchCount();
+    alert("Data refreshed. Please add POs again.");
+});
+
+const refreshSummaryBtn = document.getElementById('im-refresh-summary-button');
+if (refreshSummaryBtn) refreshSummaryBtn.addEventListener('click', async () => {
+    alert("Refreshing all data...");
+    await ensureInvoiceDataFetched(true);
+    initializeNoteSuggestions();
+    alert("Data refreshed.");
+});
+const refreshReportingBtn = document.getElementById('im-refresh-reporting-button');
+if (refreshReportingBtn) {
+    refreshReportingBtn.addEventListener('click', async () => {
+        alert("Refreshing all data...");
+        await ensureInvoiceDataFetched(true);
+        alert("Data refreshed. Please run your search again.");
+        const searchTerm = imReportingSearchInput.value.trim();
+        if (searchTerm || document.getElementById('im-reporting-site-filter').value || document.getElementById('im-reporting-date-filter').value) {
+            populateInvoiceReporting(searchTerm);
+        }
+    });
+}
+
+// Summary Note Listeners
+if (summaryNoteGenerateBtn) summaryNoteGenerateBtn.addEventListener('click', handleGenerateSummary);
+if (summaryNoteUpdateBtn) summaryNoteUpdateBtn.addEventListener('click', handleUpdateSummaryChanges);
+
+const summaryClearBtn = document.getElementById('summary-note-clear-btn');
+if (summaryClearBtn) {
+    summaryClearBtn.addEventListener('click', () => {
+        summaryNotePreviousInput.value = '';
+        summaryNoteCurrentInput.value = '';
+        document.getElementById('summary-note-status-input').value = '';
+        document.getElementById('summary-note-srv-input').value = '';
+        document.getElementById('summary-note-custom-notes-input').value = '';
+        snTableBody.innerHTML = '';
+        summaryNotePrintArea.classList.add('hidden');
+        if (summaryNoteCountDisplay) summaryNoteCountDisplay.textContent = ''; // (NEW) Clear Count
+        sessionStorage.removeItem('imSummaryPrevNote');
+        sessionStorage.removeItem('imSummaryCurrNote');
+    });
+}
+
+if (summaryNoteCurrentInput) {
+    summaryNoteCurrentInput.addEventListener('input', debounce((e) => {
+        sessionStorage.setItem('imSummaryCurrNote', e.target.value);
+    }, 500));
+}
+
+if (summaryNotePrintBtn) {
+    summaryNotePrintBtn.addEventListener('click', () => {
+        const customNotesInput = document.getElementById('summary-note-custom-notes-input');
+        const notesPrintContent = document.getElementById('sn-print-notes-content');
+        const notesPrintContainer = document.getElementById('sn-print-notes');
+
+        if (customNotesInput && notesPrintContent && notesPrintContainer) {
+            const notesText = customNotesInput.value.trim();
+            notesPrintContent.textContent = notesText;
+
+            if (notesText) {
+                notesPrintContainer.style.display = 'block';
+            } else {
+                notesPrintContainer.style.display = 'none';
             }
-        });
-    }
-    if (imPaymentModalSearchBtn) {
-        imPaymentModalSearchBtn.addEventListener('click', handlePaymentModalPOSearch);
-    }
-    if (imPaymentModalPOInput) {
-        imPaymentModalPOInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') { e.preventDefault(); handlePaymentModalPOSearch(); }
-        });
-    }
-    if (imPaymentModalAddSelectedBtn) {
-        imPaymentModalAddSelectedBtn.addEventListener('click', handleAddSelectedToPayments);
-    }
 
-    // ++ NEW: Finance Report Listeners ++
-    if (imFinanceSearchBtn) imFinanceSearchBtn.addEventListener('click', handleFinanceSearch);
-    if (imFinanceClearBtn) imFinanceClearBtn.addEventListener('click', resetFinanceSearch);
-    if (imFinanceSearchPoInput) {
-        imFinanceSearchPoInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') { e.preventDefault(); handleFinanceSearch(); }
-        });
-    }
-    if (imFinanceResults) {
-        imFinanceResults.addEventListener('click', handleFinanceActionClick);
-    }
-    if (imFinancePrintReportBtn) {
-        imFinancePrintReportBtn.addEventListener('click', printFinanceReport);
-    }
+            if (imReportingPrintableArea) imReportingPrintableArea.classList.add('hidden');
+            if (summaryNotePrintArea) summaryNotePrintArea.classList.remove('hidden');
+
+            window.print();
+
+        } else {
+            console.error("Could not find notes elements for printing.");
+            window.print();
+        }
+    });
+}
+
+
+// ++ NEW: Payment Section Listeners ++
+if (imAddPaymentButton) {
+    imAddPaymentButton.addEventListener('click', () => {
+        imPaymentModalPOInput.value = '';
+        imPaymentModalResults.innerHTML = '<p>Enter a PO number to see invoices ready for payment.</p>';
+        imAddPaymentModal.classList.remove('hidden');
+    });
+}
+if (imSavePaymentsButton) {
+    imSavePaymentsButton.addEventListener('click', handleSavePayments);
+}
+if (imPaymentsTableBody) {
+    imPaymentsTableBody.addEventListener('click', (e) => {
+        if (e.target.classList.contains('payment-remove-btn')) {
+            const row = e.target.closest('tr');
+            const key = row.dataset.key;
+            if (key && invoicesToPay[key]) {
+                delete invoicesToPay[key]; // Remove from state
+            }
+            row.remove(); // Remove from DOM
+            updatePaymentsCount(); // (NEW) Update Count
+        }
+    });
+}
+if (imPaymentModalSearchBtn) {
+    imPaymentModalSearchBtn.addEventListener('click', handlePaymentModalPOSearch);
+}
+if (imPaymentModalPOInput) {
+    imPaymentModalPOInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handlePaymentModalPOSearch();
+        }
+    });
+}
+if (imPaymentModalAddSelectedBtn) {
+    imPaymentModalAddSelectedBtn.addEventListener('click', handleAddSelectedToPayments);
+}
+
+// ++ NEW: Finance Report Listeners ++
+if (imFinanceSearchBtn) imFinanceSearchBtn.addEventListener('click', handleFinanceSearch);
+if (imFinanceClearBtn) imFinanceClearBtn.addEventListener('click', resetFinanceSearch);
+if (imFinanceSearchPoInput) {
+    imFinanceSearchPoInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleFinanceSearch();
+        }
+    });
+}
+if (imFinanceResults) {
+    imFinanceResults.addEventListener('click', handleFinanceActionClick);
+}
+if (imFinancePrintReportBtn) {
+    imFinancePrintReportBtn.addEventListener('click', printFinanceReport);
+}
 
 // --- ADD THIS NEW BLOCK START ---
-    if (navPrevJobButton) {
-        navPrevJobButton.addEventListener('click', async (e) => {
-            e.preventDefault();
-            if (navigationContextIndex > 0) {
-                navigationContextIndex--; // Move to previous index
-                const prevKey = navigationContextList[navigationContextIndex];
-                await ensureAllEntriesFetched(); // Make sure data is cached
-                populateFormForEditing(prevKey);
-                updateJobEntryNavControls();
-            }
-        });
-    }
+if (navPrevJobButton) {
+    navPrevJobButton.addEventListener('click', async (e) => {
+        e.preventDefault();
+        if (navigationContextIndex > 0) {
+            navigationContextIndex--; // Move to previous index
+            const prevKey = navigationContextList[navigationContextIndex];
+            await ensureAllEntriesFetched(); // Make sure data is cached
+            populateFormForEditing(prevKey);
+            updateJobEntryNavControls();
+        }
+    });
+}
 
-    if (navNextJobButton) {
-        navNextJobButton.addEventListener('click', async (e) => {
-            e.preventDefault();
-            if (navigationContextIndex < navigationContextList.length - 1) {
-                navigationContextIndex++; // Move to next index
-                const nextKey = navigationContextList[navigationContextIndex];
-                await ensureAllEntriesFetched(); // Make sure data is cached
-                populateFormForEditing(nextKey);
-                updateJobEntryNavControls();
-            }
-        });
-    }
+if (navNextJobButton) {
+    navNextJobButton.addEventListener('click', async (e) => {
+        e.preventDefault();
+        if (navigationContextIndex < navigationContextList.length - 1) {
+            navigationContextIndex++; // Move to next index
+            const nextKey = navigationContextList[navigationContextIndex];
+            await ensureAllEntriesFetched(); // Make sure data is cached
+            populateFormForEditing(nextKey);
+            updateJobEntryNavControls();
+        }
+    });
+}
 // ... (right before the final closing '});')
 
-    // --- *** NEW: Active Task Clear Button *** ---
-    const activeTaskClearButton = document.getElementById('active-task-clear-button');
-    if (activeTaskClearButton) {
-        activeTaskClearButton.addEventListener('click', () => {
-            activeTaskSearchInput.value = '';
-            sessionStorage.removeItem('activeTaskSearch');
-            // Re-run the search with an empty term.
-            // This will use the full userActiveTasks list and apply the 'currentActiveTaskFilter'.
-            handleActiveTaskSearch(''); 
-        });
-    }
-    // --- *** END OF NEW LISTENER *** ---
+// --- *** NEW: Active Task Clear Button *** ---
+const activeTaskClearButton = document.getElementById('active-task-clear-button');
+if (activeTaskClearButton) {
+    activeTaskClearButton.addEventListener('click', () => {
+        activeTaskSearchInput.value = '';
+        sessionStorage.removeItem('activeTaskSearch');
+        // Re-run the search with an empty term.
+        // This will use the full userActiveTasks list and apply the 'currentActiveTaskFilter'.
+        handleActiveTaskSearch('');
+    });
+}
+// --- *** END OF NEW LISTENER *** ---
 
 // --- *** ADDED LISTENERS FOR YEAR VIEW *** ---
-    if (wdCalendarToggleBtn) {
-        wdCalendarToggleBtn.addEventListener('click', toggleCalendarView);
-    }
+if (wdCalendarToggleBtn) {
+    wdCalendarToggleBtn.addEventListener('click', toggleCalendarView);
+}
 
-    if (wdCalendarYearGrid) {
-        wdCalendarYearGrid.addEventListener('dblclick', (e) => {
-            const monthCell = e.target.closest('.wd-calendar-month-cell');
-            if (!monthCell) return;
+if (wdCalendarYearGrid) {
+    wdCalendarYearGrid.addEventListener('dblclick', (e) => {
+        const monthCell = e.target.closest('.wd-calendar-month-cell');
+        if (!monthCell) return;
 
-            const monthIndex = parseInt(monthCell.dataset.month, 10);
-            if (isNaN(monthIndex)) return;
+        const monthIndex = parseInt(monthCell.dataset.month, 10);
+        if (isNaN(monthIndex)) return;
 
-            // Set the global date to this month
-            wdCurrentCalendarDate.setMonth(monthIndex);
-            
-            // Toggle back to the month view
-            toggleCalendarView();
+        // Set the global date to this month
+        wdCurrentCalendarDate.setMonth(monthIndex);
 
-            // Display tasks for the first day of that month
-            const firstDay = new Date(wdCurrentCalendarDate.getFullYear(), monthIndex, 1);
-            // --- CALENDAR TIMEZONE FIX ---
-            const dateYear = firstDay.getFullYear();
-            const dateMonth = String(firstDay.getMonth() + 1).padStart(2, '0');
-            const dateDay = String(firstDay.getDate()).padStart(2, '0');
-            const firstDayStr = `${dateYear}-${dateMonth}-${dateDay}`;
-            // --- END OF FIX ---
-            displayCalendarTasksForDay(firstDayStr);
-        });
-    }
+        // Toggle back to the month view
+        toggleCalendarView();
+
+        // Display tasks for the first day of that month
+        const firstDay = new Date(wdCurrentCalendarDate.getFullYear(), monthIndex, 1);
+        // --- CALENDAR TIMEZONE FIX ---
+        const dateYear = firstDay.getFullYear();
+        const dateMonth = String(firstDay.getMonth() + 1).padStart(2, '0');
+        const dateDay = String(firstDay.getDate()).padStart(2, '0');
+        const firstDayStr = `${dateYear}-${dateMonth}-${dateDay}`;
+        // --- END OF FIX ---
+        displayCalendarTasksForDay(firstDayStr);
+    });
+}
 
 // --- *** NEW: Double-click listener for calendar task list *** ---
-    if (wdCalendarTaskListUl) {
-        wdCalendarTaskListUl.addEventListener('dblclick', (e) => {
-            const taskItem = e.target.closest('li.clickable-task');
-            
-            // Check if the item is clickable and has a PO number
-            if (!taskItem || !taskItem.dataset.po) {
-                return;
+if (wdCalendarTaskListUl) {
+    wdCalendarTaskListUl.addEventListener('dblclick', (e) => {
+        const taskItem = e.target.closest('li.clickable-task');
+
+        // Check if the item is clickable and has a PO number
+        if (!taskItem || !taskItem.dataset.po) {
+            return;
+        }
+
+        const poNumber = taskItem.dataset.po;
+
+        // 1. Click the main Invoice Management button
+        invoiceManagementButton.click();
+
+        // 2. Wait for the IM view to load, then switch to reporting
+        setTimeout(() => {
+            // 3. Set the search input's value
+            imReportingSearchInput.value = poNumber;
+
+            // 4. Save the search term to session storage
+            sessionStorage.setItem('imReportingSearch', poNumber);
+
+            // 5. Click the "Reporting" tab
+            const imReportingLink = imNav.querySelector('a[data-section="im-reporting"]');
+            if (imReportingLink) {
+                imReportingLink.click();
+                // The showIMSection function will automatically use the saved
+                // search term to run the report.
             }
-
-            const poNumber = taskItem.dataset.po;
-            
-            // 1. Click the main Invoice Management button
-            invoiceManagementButton.click();
-
-            // 2. Wait for the IM view to load, then switch to reporting
-            setTimeout(() => {
-                // 3. Set the search input's value
-                imReportingSearchInput.value = poNumber;
-                
-                // 4. Save the search term to session storage
-                sessionStorage.setItem('imReportingSearch', poNumber);
-                
-                // 5. Click the "Reporting" tab
-                const imReportingLink = imNav.querySelector('a[data-section="im-reporting"]');
-                if (imReportingLink) {
-                    imReportingLink.click();
-                    // The showIMSection function will automatically use the saved
-                    // search term to run the report.
-                }
-            }, 150); // 150ms delay to ensure view is loaded
-        });
-    }
-    // --- *** END OF NEW LISTENER *** ---
+        }, 150); // 150ms delay to ensure view is loaded
+    });
+}
+// --- *** END OF NEW LISTENER *** ---
 
 /// [REPLACE the old click listener for .im-po-balance-card]
 
@@ -8035,25 +8348,25 @@ document.addEventListener('click', (e) => {
         const targetId = card.dataset.toggleTarget; // e.g., "#mobile-invoice-list-1"
         const targetElement = document.querySelector(targetId); // The div to toggle
         const icon = card.querySelector('.po-card-chevron');
-        
+
         if (targetElement) {
             // --- NEW ACCORDION LOGIC ---
             // Check if we are about to open this card
             const isOpening = targetElement.classList.contains('hidden-invoice-list');
-            
+
             // 1. If we are opening this card, close all others first.
             if (isOpening) {
                 // *** THIS IS THE FIX ***
                 // Select all DIVs that are open (don't have the hidden class)
                 const allOpenLists = document.querySelectorAll('[id^="mobile-invoice-list-"]:not(.hidden-invoice-list)');
-                
+
                 allOpenLists.forEach(listDiv => {
                     // We don't need to check for equality, as this list (targetElement)
                     // is NOT in allOpenLists (it has the hidden class).
                     // So we can just close all of them.
-                    
+
                     listDiv.classList.add('hidden-invoice-list');
-                    
+
                     // Also reset its corresponding icon
                     const otherCard = document.querySelector(`[data-toggle-target="#${listDiv.id}"]`);
                     const otherIcon = otherCard ? otherCard.querySelector('.po-card-chevron') : null;
@@ -8066,7 +8379,7 @@ document.addEventListener('click', (e) => {
 
             // 2. Toggle the clicked card
             targetElement.classList.toggle('hidden-invoice-list');
-            
+
             // 3. Toggle the icon
             if (icon) {
                 icon.style.transform = targetElement.classList.contains('hidden-invoice-list') ? 'rotate(0deg)' : 'rotate(180deg)';
@@ -8105,7 +8418,7 @@ if (imMobileSearchBtn) {
         mobileSiteFilter.value = desktopSiteFilter.value;
         mobileStatusFilter.value = desktopStatusFilter.value;
         mobileDateFilter.value = desktopDateFilter.value;
-        
+
         // --- THIS IS THE FIX ---
         // Copy the site options from desktop to mobile
         if (desktopSiteFilter.options.length > 1 && mobileSiteFilter.options.length <= 1) {
@@ -8136,16 +8449,16 @@ if (imMobileSearchClearBtn) {
         mobileSiteFilter.value = '';
         mobileStatusFilter.value = '';
         mobileDateFilter.value = '';
-        
+
         // ALSO clear desktop form
         desktopSearchInput.value = '';
         desktopSiteFilter.value = '';
         desktopStatusFilter.value = '';
         desktopDateFilter.value = '';
-        
+
         // Clear session storage
         sessionStorage.removeItem('imReportingSearch');
-        
+
         // --- THIS IS THE FIX ---
         // Manually clear the report data and UI
         currentReportData = [];
@@ -8158,7 +8471,7 @@ if (imMobileSearchClearBtn) {
                 <p>Use the search button to find a PO or Vendor.</p>
             </div>
         `;
-        
+
         if (desktopContainer) desktopContainer.innerHTML = '<p>Please enter a search term and click Search.</p>';
         if (mobileContainer) mobileContainer.innerHTML = emptyStateHTML;
         if (reportingCountDisplay) reportingCountDisplay.textContent = '(Found: 0)'; // Modified text
@@ -8176,13 +8489,13 @@ if (imMobileSearchRunBtn) {
         desktopSiteFilter.value = mobileSiteFilter.value;
         desktopStatusFilter.value = mobileStatusFilter.value;
         desktopDateFilter.value = mobileDateFilter.value;
-        
+
         // Save to session storage
         sessionStorage.setItem('imReportingSearch', desktopSearchInput.value);
-        
+
         // Run the search
         populateInvoiceReporting(desktopSearchInput.value);
-        
+
         // Hide the modal
         if (imMobileSearchModal) {
             imMobileSearchModal.classList.add('hidden');
@@ -8191,235 +8504,243 @@ if (imMobileSearchRunBtn) {
 }
 // --- *** END OF NEW MOBILE LISTENERS *** ---
 // REPLACE the old openCEOApprovalModal function
-    function openCEOApprovalModal(taskData) {
-        if (!taskData) return;
+function openCEOApprovalModal(taskData) {
+    if (!taskData) return;
 
-        // 1. Store all identifiers
-        document.getElementById('ceo-modal-key').value = taskData.key;
-        document.getElementById('ceo-modal-source').value = taskData.source;
-        document.getElementById('ceo-modal-originalPO').value = taskData.originalPO || '';
-        document.getElementById('ceo-modal-originalKey').value = taskData.originalKey || '';
+    // 1. Store all identifiers
+    document.getElementById('ceo-modal-key').value = taskData.key;
+    document.getElementById('ceo-modal-source').value = taskData.source;
+    document.getElementById('ceo-modal-originalPO').value = taskData.originalPO || '';
+    document.getElementById('ceo-modal-originalKey').value = taskData.originalKey || '';
 
-        // --- *** THIS IS THE FIX (PDF Link) *** ---
-        // 2. Check for a valid PDF link
-        const invName = taskData.invName || '';
-        let pdfLinkHTML = '';
-        if (taskData.source === 'invoice' && invName.trim() && invName.toLowerCase() !== 'nil') {
-            const pdfUrl = `${PDF_BASE_PATH}${encodeURIComponent(invName)}.pdf`;
-            pdfLinkHTML = `<a href="${pdfUrl}" target="_blank" class="action-btn invoice-pdf-btn" style="display: inline-block; margin-top: 10px; text-decoration: none;">View Invoice PDF</a>`;
-        }
-        // --- *** END OF FIX *** ---
+    // --- *** THIS IS THE FIX (PDF Link) *** ---
+    // 2. Check for a valid PDF link
+    const invName = taskData.invName || '';
+    let pdfLinkHTML = '';
+    if (taskData.source === 'invoice' && invName.trim() && invName.toLowerCase() !== 'nil') {
+        const pdfUrl = `${PDF_BASE_PATH}${encodeURIComponent(invName)}.pdf`;
+        pdfLinkHTML = `<a href="${pdfUrl}" target="_blank" class="action-btn invoice-pdf-btn" style="display: inline-block; margin-top: 10px; text-decoration: none;">View Invoice PDF</a>`;
+    }
+    // --- *** END OF FIX *** ---
 
-        // 3. Populate details
-        ceoModalDetails.innerHTML = `
+    // 3. Populate details
+    ceoModalDetails.innerHTML = `
             <strong>PO:</strong> ${taskData.po || 'N/A'}<br>
             <strong>Vendor:</strong> ${taskData.vendorName || 'N/A'}<br>
             <strong>Site:</strong> ${taskData.site || 'N/A'}
             ${pdfLinkHTML}
         `;
 
-        // 4. Populate form fields
-        ceoModalAmount.value = taskData.amount || '';
-        ceoModalNote.value = taskData.note || '';
+    // 4. Populate form fields
+    ceoModalAmount.value = taskData.amount || '';
+    ceoModalNote.value = taskData.note || '';
 
-        // 5. Show modal
-        ceoApprovalModal.classList.remove('hidden');
+    // 5. Show modal
+    ceoApprovalModal.classList.remove('hidden');
+}
+
+// PASTE THIS ENTIRE BLOCK (replaces the old function)
+async function handleCEOAction(status) {
+    const key = document.getElementById('ceo-modal-key').value;
+    const source = document.getElementById('ceo-modal-source').value;
+    const originalPO = document.getElementById('ceo-modal-originalPO').value;
+    const originalKey = document.getElementById('ceo-modal-originalKey').value;
+
+    if (!key || !source) {
+        alert("Error: Task identifiers are missing.");
+        return;
     }
 
-    // PASTE THIS ENTIRE BLOCK (replaces the old function)
-    async function handleCEOAction(status) {
-        const key = document.getElementById('ceo-modal-key').value;
-        const source = document.getElementById('ceo-modal-source').value;
-        const originalPO = document.getElementById('ceo-modal-originalPO').value;
-        const originalKey = document.getElementById('ceo-modal-originalKey').value;
+    const newAmountPaid = ceoModalAmount.value;
+    const newNote = ceoModalNote.value.trim();
 
-        if (!key || !source) {
-            alert("Error: Task identifiers are missing.");
+    if (newAmountPaid === '' || newAmountPaid < 0) {
+        alert("Please enter a valid Amount to be Paid (0 or more).");
+        return;
+    }
+
+    const updates = {
+        status: status, // For invoice_entries
+        remarks: status, // For job_entries
+        amountPaid: newAmountPaid, // For invoice_entries
+        amount: newAmountPaid, // For job_entries (maps 'amount' field)
+        note: newNote,
+        dateResponded: formatDate(new Date()) // For job_entries
+    };
+
+    const btn = (status === 'Approved') ? ceoModalApproveBtn : ceoModalRejectBtn;
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    try {
+        // Find the task in the UI list *before* doing any network calls
+        const processedTask = userActiveTasks.find(t => t.key === key);
+        if (!processedTask) {
+            // This shouldn't happen, but as a fallback, force a full reload.
+            throw new Error("Task not found in local list. Forcing full refresh.");
+        }
+
+        // Get the original attention (needed for invoice tasks)
+        const originalAttention = processedTask.attention || '';
+
+        // --- Database Updates (These are fast) ---
+        if (source === 'job_entry') {
+            await db.ref(`job_entries/${key}`).update({
+                remarks: updates.remarks,
+                amount: updates.amount,
+                note: updates.note,
+                dateResponded: updates.dateResponded
+            });
+
+        } else if (source === 'invoice' && originalPO && originalKey) {
+            await invoiceDb.ref(`invoice_entries/${originalPO}/${originalKey}`).update({
+                status: updates.status,
+                amountPaid: updates.amountPaid,
+                note: updates.note
+            });
+
+            // We still need to tell the server to remove this from the inbox.
+            // We create the updated data object for the helper function.
+            const updatedInvoiceData = { ...processedTask, ...updates };
+            await updateInvoiceTaskLookup(originalPO, originalKey, updatedInvoiceData, originalAttention);
+
+            // Update local 'allInvoiceData' cache
+            updateLocalInvoiceCache(originalPO, originalKey, updates);
+        } else {
+            throw new Error("Invalid task source or missing keys.");
+        }
+
+        // --- *** THIS IS THE NEW OPTIMIZED LOGIC *** ---
+
+        // 1. Add the updated task to the receipt list
+        processedTask.status = status;
+        processedTask.amountPaid = newAmountPaid;
+        ceoProcessedTasks.push(processedTask);
+
+        // 2. Find the task's index in the main list
+        const taskIndex = userActiveTasks.findIndex(t => t.key === key);
+        if (taskIndex > -1) {
+            // 3. Remove it from the list
+            userActiveTasks.splice(taskIndex, 1);
+        }
+
+        // 4. Manually re-render the table with the modified (shorter) list
+        renderActiveTaskTable(userActiveTasks);
+
+        // 5. Manually update the count badges
+        const taskCount = userActiveTasks.length;
+        if (activeTaskCountDisplay) {
+            activeTaskCountDisplay.textContent = `(Total Tasks: ${taskCount})`;
+        }
+        [wdActiveTaskBadge, imActiveTaskBadge, wdMobileNotifyBadge].forEach(badge => {
+            if (badge) {
+                badge.textContent = taskCount;
+                badge.style.display = taskCount > 0 ? 'inline-block' : 'none';
+            }
+        });
+        // --- *** END OF OPTIMIZED LOGIC *** ---
+
+
+        // Show the "Send Receipt" button
+        sendCeoApprovalReceiptBtn.classList.remove('hidden');
+
+        alert(`Task has been ${status}.`);
+        ceoApprovalModal.classList.add('hidden');
+
+        // We NO LONGER call await populateActiveTasks();
+
+    } catch (error) {
+        console.error("Error updating task:", error);
+        alert("Failed to update task. Please try again.");
+        // If something went wrong, force a full refresh just in case
+        await populateActiveTasks();
+    } finally {
+        btn.disabled = false;
+        btn.textContent = status;
+    }
+}
+
+
+// PASTE THIS ENTIRE BLOCK (replaces the old getNextSeriesNumber function)
+async function getNextSeriesNumber() {
+    // This function no longer needs to access Firebase.
+    // It generates a random 6-character alphanumeric string.
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    // We wrap it in Promise.resolve to keep the async structure.
+    return Promise.resolve(result);
+}
+
+// Inside previewAndSendReceipt function in app.js
+async function previewAndSendReceipt() {
+    // Double check permissions
+    const isCEO = (currentApprover?.Role || '').toLowerCase() === 'admin' &&
+        (currentApprover?.Position || '').toLowerCase() === 'ceo';
+
+    if (!isCEO) {
+        alert("Access Denied: Only the CEO can send approval receipts.");
+        return;
+    }
+
+    sendCeoApprovalReceiptBtn.disabled = true;
+    sendCeoApprovalReceiptBtn.textContent = 'Preparing...';
+
+    try {
+        // 1. Get Series Number
+        const seriesNo = await getNextSeriesNumber();
+        if (seriesNo === 'IBA_ERR') {
+            alert("Error: Could not get a new series number. Check Firebase rules for 'counters'.");
             return;
         }
 
-        const newAmountPaid = ceoModalAmount.value;
-        const newNote = ceoModalNote.value.trim();
+        // 2. Separate tasks
+        const approvedTasks = ceoProcessedTasks.filter(t => t.status === 'Approved');
+        const rejectedTasks = ceoProcessedTasks.filter(t => t.status === 'Rejected');
 
-        if (newAmountPaid === '' || newAmountPaid < 0) {
-            alert("Please enter a valid Amount to be Paid (0 or more).");
-            return;
-        }
-
-        const updates = {
-            status: status, // For invoice_entries
-            remarks: status, // For job_entries
-            amountPaid: newAmountPaid, // For invoice_entries
-            amount: newAmountPaid, // For job_entries (maps 'amount' field)
-            note: newNote,
-            dateResponded: formatDate(new Date()) // For job_entries
+        // 3. Create the data object to pass
+        const receiptData = {
+            approvedTasks: approvedTasks,
+            rejectedTasks: rejectedTasks,
+            seriesNo: seriesNo
         };
 
-        const btn = (status === 'Approved') ? ceoModalApproveBtn : ceoModalRejectBtn;
-        btn.disabled = true;
-        btn.textContent = 'Saving...';
+        // 4. Save data to localStorage
+        localStorage.setItem('pendingReceiptData', JSON.stringify(receiptData));
 
-        try {
-            // Find the task in the UI list *before* doing any network calls
-            const processedTask = userActiveTasks.find(t => t.key === key);
-            if (!processedTask) {
-                // This shouldn't happen, but as a fallback, force a full reload.
-                throw new Error("Task not found in local list. Forcing full refresh.");
-            }
-            
-            // Get the original attention (needed for invoice tasks)
-            const originalAttention = processedTask.attention || '';
+        // 5. Open the new receipt.html tab
+        window.open('receipt.html', '_blank');
 
-            // --- Database Updates (These are fast) ---
-            if (source === 'job_entry') {
-                await db.ref(`job_entries/${key}`).update({
-                    remarks: updates.remarks,
-                    amount: updates.amount,
-                    note: updates.note,
-                    dateResponded: updates.dateResponded 
-                });
-                
-            } else if (source === 'invoice' && originalPO && originalKey) {
-                await invoiceDb.ref(`invoice_entries/${originalPO}/${originalKey}`).update({
-                    status: updates.status,
-                    amountPaid: updates.amountPaid,
-                    note: updates.note
-                });
-                
-                // We still need to tell the server to remove this from the inbox.
-                // We create the updated data object for the helper function.
-                const updatedInvoiceData = {...processedTask, ...updates};
-                await updateInvoiceTaskLookup(originalPO, originalKey, updatedInvoiceData, originalAttention);
-                
-                // Update local 'allInvoiceData' cache
-                updateLocalInvoiceCache(originalPO, originalKey, updates);
-            } else {
-                throw new Error("Invalid task source or missing keys.");
-            }
+        // 6. Clean up
+        ceoProcessedTasks = []; // Clear the list for the next batch
+        sendCeoApprovalReceiptBtn.classList.add('hidden');
 
-            // --- *** THIS IS THE NEW OPTIMIZED LOGIC *** ---
-
-            // 1. Add the updated task to the receipt list
-            processedTask.status = status;
-            processedTask.amountPaid = newAmountPaid;
-            ceoProcessedTasks.push(processedTask);
-
-            // 2. Find the task's index in the main list
-            const taskIndex = userActiveTasks.findIndex(t => t.key === key);
-            if (taskIndex > -1) {
-                // 3. Remove it from the list
-                userActiveTasks.splice(taskIndex, 1);
-            }
-
-            // 4. Manually re-render the table with the modified (shorter) list
-            renderActiveTaskTable(userActiveTasks);
-
-            // 5. Manually update the count badges
-            const taskCount = userActiveTasks.length;
-            if (activeTaskCountDisplay) {
-                activeTaskCountDisplay.textContent = `(Total Tasks: ${taskCount})`;
-            }
-            [wdActiveTaskBadge, imActiveTaskBadge, wdMobileNotifyBadge].forEach(badge => {
-                if (badge) {
-                    badge.textContent = taskCount;
-                    badge.style.display = taskCount > 0 ? 'inline-block' : 'none';
-                }
-            });
-            // --- *** END OF OPTIMIZED LOGIC *** ---
-
-
-            // Show the "Send Receipt" button
-            sendCeoApprovalReceiptBtn.classList.remove('hidden');
-
-            alert(`Task has been ${status}.`);
-            ceoApprovalModal.classList.add('hidden');
-            
-            // We NO LONGER call await populateActiveTasks();
-
-        } catch (error) {
-            console.error("Error updating task:", error);
-            alert("Failed to update task. Please try again.");
-            // If something went wrong, force a full refresh just in case
-            await populateActiveTasks();
-        } finally {
-            btn.disabled = false;
-            btn.textContent = status;
-        }
+    } catch (error) {
+        console.error("Error preparing receipt preview:", error);
+        alert("Error preparing receipt. Please check the console.");
+    } finally {
+        sendCeoApprovalReceiptBtn.disabled = false;
+        sendCeoApprovalReceiptBtn.textContent = 'Send Approval Receipt';
     }
+}
 
+// --- *** ADD LISTENERS FOR NEW BUTTONS *** ---
+if (ceoModalApproveBtn) {
+    ceoModalApproveBtn.addEventListener('click', () => handleCEOAction('Approved'));
+}
+if (ceoModalRejectBtn) {
+    ceoModalRejectBtn.addEventListener('click', () => handleCEOAction('Rejected'));
+}
+if (sendCeoApprovalReceiptBtn) {
+    // --- THIS IS THE FIX ---
+    sendCeoApprovalReceiptBtn.addEventListener('click', previewAndSendReceipt);
+    // --- END OF FIX ---
+}
 
-    // PASTE THIS ENTIRE BLOCK (replaces the old getNextSeriesNumber function)
-    async function getNextSeriesNumber() {
-        // This function no longer needs to access Firebase.
-        // It generates a random 6-character alphanumeric string.
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        let result = '';
-        for (let i = 0; i < 6; i++) {
-            result += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        // We wrap it in Promise.resolve to keep the async structure.
-        return Promise.resolve(result);
-    }
-
-   // PASTE THIS ENTIRE BLOCK (replaces the old generateAndSendReceipt function)
-    async function previewAndSendReceipt() {
-        if (ceoProcessedTasks.length === 0) {
-            alert("No processed tasks to send. Please approve or reject tasks first.");
-            return;
-        }
-
-        sendCeoApprovalReceiptBtn.disabled = true;
-        sendCeoApprovalReceiptBtn.textContent = 'Preparing...';
-
-        try {
-            // 1. Get Series Number
-            const seriesNo = await getNextSeriesNumber();
-            if (seriesNo === 'IBA_ERR') {
-                alert("Error: Could not get a new series number. Check Firebase rules for 'counters'.");
-                return;
-            }
-            
-            // 2. Separate tasks
-            const approvedTasks = ceoProcessedTasks.filter(t => t.status === 'Approved');
-            const rejectedTasks = ceoProcessedTasks.filter(t => t.status === 'Rejected');
-
-            // 3. Create the data object to pass
-            const receiptData = {
-                approvedTasks: approvedTasks,
-                rejectedTasks: rejectedTasks,
-                seriesNo: seriesNo
-            };
-
-            // 4. Save data to localStorage
-            localStorage.setItem('pendingReceiptData', JSON.stringify(receiptData));
-
-            // 5. Open the new receipt.html tab
-            window.open('receipt.html', '_blank');
-
-            // 6. Clean up
-            ceoProcessedTasks = []; // Clear the list for the next batch
-            sendCeoApprovalReceiptBtn.classList.add('hidden');
-
-        } catch (error) {
-            console.error("Error preparing receipt preview:", error);
-            alert("Error preparing receipt. Please check the console.");
-        } finally {
-            sendCeoApprovalReceiptBtn.disabled = false;
-            sendCeoApprovalReceiptBtn.textContent = 'Send Approval Receipt';
-        }
-    }
-
-    // --- *** ADD LISTENERS FOR NEW BUTTONS *** ---
-    if (ceoModalApproveBtn) {
-        ceoModalApproveBtn.addEventListener('click', () => handleCEOAction('Approved'));
-    }
-    if (ceoModalRejectBtn) {
-        ceoModalRejectBtn.addEventListener('click', () => handleCEOAction('Rejected'));
-    }
-    if (sendCeoApprovalReceiptBtn) {
-        // --- THIS IS THE FIX ---
-        sendCeoApprovalReceiptBtn.addEventListener('click', previewAndSendReceipt);
-        // --- END OF FIX ---
-    }
+const mobileSendReceiptBtn = document.getElementById('mobile-send-receipt-btn');
+if (mobileSendReceiptBtn) {
+    mobileSendReceiptBtn.addEventListener('click', previewAndSendReceipt); // Reuse existing function
+}
 }); // END OF DOMCONTENTLOADED
-
