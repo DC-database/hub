@@ -47,16 +47,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 4. Get data from localStorage
     const receiptDataString = localStorage.getItem('pendingReceiptData');
-if (!receiptDataString) {
-    document.body.innerHTML = '<h1>Error</h1><p>No receipt data found. Please go back and try again.</p>';
-    return;
-}
-
-// --- CHANGE THIS LINE ---
-// localStorage.removeItem('pendingReceiptData'); // <--- COMMENT OUT OR DELETE THIS LINE
-// -----------------------
-
-const receiptData = JSON.parse(receiptDataString);
+    if (!receiptDataString) {
+        document.body.innerHTML = '<h1>Error</h1><p>No receipt data found. Please go back and try again.</p>';
+        return;
+    }
+    
+    // Clear the data so it can't be reused
+    localStorage.removeItem('pendingReceiptData');
+    
+    const receiptData = JSON.parse(receiptDataString);
     const { approvedTasks, rejectedTasks, seriesNo, appVersion } = receiptData;
 
     // 5. Populate the receipt HTML

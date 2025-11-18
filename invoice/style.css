@@ -3572,8 +3572,7 @@ body.is-ceo .desktop-only.col-group {
 @media (max-width: 768px) {
     /* Hide the table structure on mobile */
     .hidden-mobile { display: none !important; }
-    .hidden-desktop { display: block !important; } /* This brings it back on mobile */
-}
+    .hidden-desktop { display: block !important; }
 
     /* Task Card Container */
     .mobile-task-card {
@@ -3585,11 +3584,6 @@ body.is-ceo .desktop-only.col-group {
         border: 1px solid #eee;
         transition: all 0.3s ease;
     }
-
-/* Add this global rule to hide mobile elements by default on desktop */
-.hidden-desktop {
-    display: none !important;
-}
 
     .mobile-card-header {
         padding: 15px;
@@ -3732,7 +3726,12 @@ body.is-ceo .desktop-only.col-group {
 @media (min-width: 769px) {
     #active-task-mobile-view, 
     #mobile-receipt-action-container,
-    .mobile-task-card {
+    .mobile-task-card,
+    #active-task-mobile-header { /* <--- ADDED THIS LINE */
+        display: none !important;
+    }
+/* Ensure the generic helper class works as intended on desktop */
+    .hidden-desktop {
         display: none !important;
     }
 }
