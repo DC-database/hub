@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.4.7"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "3.4.8"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -7197,9 +7197,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                     
                     // Setup flow
                     const isEmailMissing = !currentApprover.Email; 
-                    setupEmailContainer.classList.toggle('hidden', !isEmailMissing);
-                    setupSiteContainer.classList.toggle('hidden', !currentApprover.Site);
-                    setupPositionContainer.classList.toggle('hidden', !currentApprover.Position);
+                    
+                    // FIX: We want to add 'hidden' (true) if the data EXISTS (true)
+                    setupEmailContainer.classList.toggle('hidden', !isEmailMissing); // (Keep this, !Missing = Exists)
+                    
+                    // FIX: Changed !currentApprover.Site to !!currentApprover.Site
+                    setupSiteContainer.classList.toggle('hidden', !!currentApprover.Site);
+                    
+                    // FIX: Changed !currentApprover.Position to !!currentApprover.Position
+                    setupPositionContainer.classList.toggle('hidden', !!currentApprover.Position);
                     
                     if(isEmailMissing) setupEmailInput.required = true;
                     showView('setup');
