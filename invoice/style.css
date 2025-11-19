@@ -3766,36 +3766,47 @@ body.is-ceo .desktop-only.col-group {
 
     /* 2. Ensure the header sits correctly at the top */
     #active-task-mobile-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 15px 0;
-        margin-bottom: 10px;
-        background-color: #f4f7fa; /* Match background */
-        position: sticky;
-        top: 0;
-        z-index: 100;
-    }
-
-    #active-task-mobile-header h1 {
-        font-size: 1.8rem;
-        font-weight: 800;
-        color: #003A5C;
-        margin: 0;
-    }
-
-    .mobile-header-icon {
-        font-size: 1.4rem;
-        color: #555;
-        background: none;
-        border: none;
-        cursor: pointer;
-        padding: 5px;
-    }
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px; /* Added side padding */
+    margin: -15px -15px 15px -15px; /* Negative margin to stretch full width */
+    background-color: #fff; /* White background */
+    border-bottom: 1px solid #e0e0e0; /* Clean separator line */
     
-    .mobile-header-icon.logout-icon {
-        color: #C3502F; /* Terracotta for logout */
-    }
+    /* REMOVED: position: sticky, top: 0, z-index */
+    position: relative; 
+}
+
+#active-task-mobile-header h1 {
+    font-size: 1.3rem; /* Adjusted font size */
+    font-weight: 700;
+    color: var(--iba-base-blue);
+    margin: 0;
+}
+
+.mobile-header-icon {
+    font-size: 1.2rem;
+    color: #555;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px; /* Larger touch target */
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.mobile-header-icon:hover {
+    background-color: #f0f0f0;
+}
+
+.mobile-header-icon.logout-icon {
+    color: var(--iba-secondary-terracotta);
 }
 /* Hide the new mobile link on desktop */
 .wd-nav-activetask-mobile {
