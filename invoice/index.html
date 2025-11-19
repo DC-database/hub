@@ -266,7 +266,9 @@
                 <section id="wd-activetask" class="workdesk-section hidden">
                     
                     <div id="active-task-mobile-header" class="hidden-desktop">
-                        <button class="mobile-header-icon" style="visibility: hidden;"><i class="fa-solid fa-bars"></i></button>
+                        <button id="mobile-activetask-refresh-btn" class="mobile-header-icon" title="Refresh Tasks">
+                            <i class="fa-solid fa-sync"></i>
+                        </button>
                         <h1>My Tasks</h1>
                         <button id="mobile-activetask-logout-btn" class="mobile-header-icon logout-icon" title="Logout">
                             <i class="fa-solid fa-power-off"></i>
@@ -763,13 +765,22 @@
     </div>
 
     <div id="im-add-payment-modal" class="modal-overlay hidden">
-        <div class="modal-container" style="max-width: 700px;"> <div class="modal-header"><h2>Add Invoices for Payment</h2><button class="modal-close-btn">&times;</button></div>
+        <div class="modal-container" style="max-width: 700px;"> 
+            <div class="modal-header"><h2>Add Invoices for Payment</h2><button class="modal-close-btn">&times;</button></div>
             <div class="modal-content">
                 <p>Search for a PO to find invoices with status "With Accounts".</p>
                 <div class="search-and-filter-group" style="margin-bottom: 15px;"><input type="text" id="im-payment-modal-po-input" placeholder="Enter PO to Search..." style="flex-grow: 1;"><button id="im-payment-modal-search-btn">Search PO</button></div>
                 <div id="im-payment-modal-results" class="table-wrapper" style="max-height: 40vh; overflow-y: auto;"><p>Enter a PO number to see invoices ready for payment.</p></div>
             </div>
-            <div class="modal-footer"><button id="im-payment-modal-add-selected-btn" class="download-btn"><i class="fa-solid fa-plus"></i> Add Selected to Payment List</button><button class="secondary-btn modal-close-btn">Cancel</button></div>
+            <div class="modal-footer" style="justify-content: space-between; align-items: center;">
+                <div style="font-weight: bold; font-size: 1.1rem; color: #333;">
+                    Selected Total: <span id="payment-modal-total-value" style="color: #003A5C;">0.00</span>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button id="im-payment-modal-add-selected-btn" class="download-btn"><i class="fa-solid fa-plus"></i> Add Selected</button>
+                    <button class="secondary-btn modal-close-btn">Cancel</button>
+                </div>
+            </div>
         </div>
     </div>
 

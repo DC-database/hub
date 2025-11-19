@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.4.0"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "3.4.5"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -286,6 +286,7 @@ let currentlyEditingKey = null; let allJobEntries = []; let userJobEntries = [];
 let userActiveTasks = [];
 let allAdminCalendarTasks = [];
 let ceoProcessedTasks = []; // Stores tasks processed by CEO in this session
+let activeTaskAutoRefreshInterval = null; // <-- ADD THIS LINE
 
 // let userTaskHistory = []; // --- (REMOVED) ---
 let allSystemEntries = [];
@@ -482,6 +483,34 @@ function showView(viewName) {
 }
 function normalizeMobile(mobile) { const digitsOnly = mobile.replace(/\D/g, ''); if (digitsOnly.length === 8) { return `974${digitsOnly}`; } return digitsOnly; }
 
+// [ADD THIS ENTIRE NEW FUNCTION]
+function updatePaymentModalTotal() {
+    const modalResultsContainer = document.getElementById('im-payment-modal-results');
+    const checkboxes = modalResultsContainer.querySelectorAll('.payment-modal-inv-checkbox:checked');
+    
+    // --- CHANGED TARGET ID ---
+    const totalDisplay = document.getElementById('payment-modal-total-value'); 
+
+    if (!totalDisplay) return;
+
+    let totalSum = 0;
+
+    checkboxes.forEach(checkbox => {
+        const row = checkbox.closest('tr');
+        if (row) {
+            const invValueCell = row.cells[2].textContent;
+            const value = parseFloat(String(invValueCell).replace(/,/g, ''));
+            if (!isNaN(value)) {
+                totalSum += value;
+            }
+        }
+    });
+
+    totalDisplay.textContent = formatCurrency(totalSum);
+}
+// [END OF ADDITION]
+
+
 // --- START OF FIX 3 ---
 async function findApprover(identifier) {
     const isEmail = identifier.includes('@');
@@ -576,72 +605,74 @@ function handleSuccessfulLogin() {
     }
 }
 
-// [REPLACE this entire function around line 1032]
-
-// NEW SIGNATURE: Added 'async' and 'newSearchTerm' parameter
 async function showWorkdeskSection(sectionId, newSearchTerm = null) {
+    // 1. Cleanup: Stop auto-refresh if leaving Active Task section
+    if (activeTaskAutoRefreshInterval) {
+        clearInterval(activeTaskAutoRefreshInterval);
+        activeTaskAutoRefreshInterval = null;
+    }
+
+    // 2. Hide all sections, Show target
     workdeskSections.forEach(section => { section.classList.add('hidden'); });
     const targetSection = document.getElementById(sectionId);
     if (targetSection) { targetSection.classList.remove('hidden'); }
 
-    // ++ ADDED: Restore search state on navigation ++
+    // 3. Section-Specific Logic
     if (sectionId === 'wd-dashboard') { 
-        await populateWorkdeskDashboard(); // Added await
-        
-        // --- *** MODIFIED: Render BOTH views *** ---
+        await populateWorkdeskDashboard(); 
         renderWorkdeskCalendar(); 
-        renderYearView(); // Also render the year view data
-        await populateCalendarTasks(); // Added await
-        // --- *** END MODIFICATION *** ---
-
-        // --- CALENDAR LIST FIX: Always show *today's* tasks on load ---
+        renderYearView(); 
+        await populateCalendarTasks(); 
         const today = new Date(); 
         const year = today.getFullYear();
         const month = String(today.getMonth() + 1).padStart(2, '0');
         const day = String(today.getDate()).padStart(2, '0');
         const todayStr = `${year}-${month}-${day}`; 
-        
         displayCalendarTasksForDay(todayStr);
     }
     
     if (sectionId === 'wd-jobentry') {
-        
-        // --- *** THIS IS THE FIX *** ---
-        // If we are NOT in the middle of editing a job,
-        // reset the form to the default "Add New Job" state.
         if (!currentlyEditingKey) {
             resetJobEntryForm(false);
         }
-        // --- *** END OF FIX *** ---
-
         const savedSearch = sessionStorage.getItem('jobEntrySearch');
         if (savedSearch) {
             jobEntrySearchInput.value = savedSearch;
         }
-        await handleJobEntrySearch(jobEntrySearchInput.value); // Added await
+        await handleJobEntrySearch(jobEntrySearchInput.value); 
     }
     
     if (sectionId === 'wd-activetask') {
-        // *** THIS IS THE KEY FIX ***
-        // 1. Await the population. This fills userActiveTasks and sets filter to "All".
         await populateActiveTasks(); 
 
-        // 2. Decide what to search for.
         let searchTerm = '';
         if (newSearchTerm !== null) {
-            // A new search is being forced (from the calendar).
             searchTerm = newSearchTerm;
         } else {
-            // No new search, fall back to session storage.
             searchTerm = sessionStorage.getItem('activeTaskSearch') || '';
         }
 
-        // 3. Apply the search.
         if (searchTerm) {
             activeTaskSearchInput.value = searchTerm;
-            // No timeout needed, data is already loaded.
             handleActiveTaskSearch(searchTerm); 
         }
+
+        // --- START AUTO-REFRESH (Every 15 Seconds) ---
+        console.log("Starting active task auto-refresh...");
+        activeTaskAutoRefreshInterval = setInterval(async () => {
+            // Only run if the section is still visible
+            if (!document.getElementById('wd-activetask').classList.contains('hidden')) {
+                // Invalidate only the Firebase cache (keep heavy CSVs cached)
+                cacheTimestamps.systemEntries = 0; 
+                
+                // Fetch fresh data (false = don't re-download CSVs)
+                await ensureAllEntriesFetched(false); 
+                
+                // Update the UI
+                await populateActiveTasks();
+            }
+        }, 15000); // 15000 ms = 15 seconds
+        // --- END AUTO-REFRESH ---
     }
     
     if (sectionId === 'wd-reporting') {
@@ -649,7 +680,7 @@ async function showWorkdeskSection(sectionId, newSearchTerm = null) {
         if (savedSearch) {
             reportingSearchInput.value = savedSearch;
         }
-         await handleReportingSearch(); // Added await
+         await handleReportingSearch(); 
     }
 
     if (sectionId === 'wd-settings') { populateSettingsForm(); }
@@ -6420,9 +6451,14 @@ async function handleUpdateSummaryChanges() {
     }
 }
 
-// ++ NEW: Functions for Payments Section ++
 async function handlePaymentModalPOSearch() {
     const poNumber = imPaymentModalPOInput.value.trim().toUpperCase();
+    
+    // --- RESET TOTAL ON NEW SEARCH ---
+    const totalDisplay = document.getElementById('payment-modal-total-value');
+    if (totalDisplay) totalDisplay.textContent = formatCurrency(0);
+    // ---------------------------------
+
     if (!poNumber) {
         imPaymentModalResults.innerHTML = '<p>Please enter a PO Number.</p>';
         return;
@@ -6430,14 +6466,21 @@ async function handlePaymentModalPOSearch() {
     imPaymentModalResults.innerHTML = '<p>Searching...</p>';
 
     try {
-        await ensureInvoiceDataFetched(); // Ensure latest data
-        const poData = allPOData[poNumber];
+        await ensureInvoiceDataFetched(); 
         const invoicesData = allInvoiceData[poNumber];
-        const site = poData ? poData['Project ID'] || 'N/A' : 'N/A';
-        const vendor = poData ? poData['Supplier Name'] || 'N/A' : 'N/A';
 
         let resultsFound = false;
-        let tableHTML = `<table><thead><tr><th><input type="checkbox" id="payment-modal-select-all"></th><th>Inv. Entry ID</th><th>Inv. Value</th><th>Status</th></tr></thead><tbody>`;
+        let tableHTML = `
+            <table>
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="payment-modal-select-all"></th>
+                        <th>Inv. Entry ID</th>
+                        <th>Inv. Value</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>`;
 
         if (invoicesData) {
             const sortedInvoices = Object.entries(invoicesData).sort(([, a], [, b]) => (a.invEntryID || '').localeCompare(b.invEntryID || ''));
@@ -6458,10 +6501,17 @@ async function handlePaymentModalPOSearch() {
         if (!resultsFound) {
             imPaymentModalResults.innerHTML = '<p>No invoices found for this PO with status "With Accounts" that haven\'t already been added.</p>';
         } else {
-            tableHTML += `</tbody></table>`;
+            tableHTML += `</tbody></table>`; // --- REMOVED TFOOT FROM HERE ---
+            
             imPaymentModalResults.innerHTML = tableHTML;
+            
             document.getElementById('payment-modal-select-all').addEventListener('change', (e) => {
                 imPaymentModalResults.querySelectorAll('.payment-modal-inv-checkbox').forEach(chk => chk.checked = e.target.checked);
+                updatePaymentModalTotal(); 
+            });
+
+            imPaymentModalResults.querySelectorAll('.payment-modal-inv-checkbox').forEach(chk => {
+                chk.addEventListener('change', updatePaymentModalTotal);
             });
         }
     } catch (error) {
@@ -6469,63 +6519,7 @@ async function handlePaymentModalPOSearch() {
         imPaymentModalResults.innerHTML = '<p>An error occurred while searching.</p>';
     }
 }
-function handleAddSelectedToPayments() {
-    const selectedCheckboxes = imPaymentModalResults.querySelectorAll('.payment-modal-inv-checkbox:checked');
-    if (selectedCheckboxes.length === 0) {
-        alert("Please select at least one invoice.");
-        return;
-    }
 
-    selectedCheckboxes.forEach(checkbox => {
-        const key = checkbox.dataset.key;
-        const poNumber = checkbox.dataset.po;
-
-        const originalInvData = (allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][key])
-            ? allInvoiceData[poNumber][key]
-            : null;
-
-        if (!originalInvData) {
-             console.warn(`Could not find invoice data in cache for key: ${key}, PO: ${poNumber}`);
-             return; 
-        }
-
-        const invData = {
-            key: key,
-            po: poNumber,
-            site: allPOData[poNumber]?.['Project ID'] || 'N/A',
-            vendor: allPOData[poNumber]?.['Supplier Name'] || 'N/A',
-            invEntryID: originalInvData.invEntryID || '',
-            invValue: originalInvData.invValue || '0',
-            currentAmountPaid: originalInvData.amountPaid || '0',
-            status: originalInvData.status,
-            attention: originalInvData.attention // --- ADD THIS to get oldAttention
-        };
-
-        if (!invoicesToPay[invData.key]) { 
-            invoicesToPay[invData.key] = invData; 
-
-            const row = document.createElement('tr');
-            row.setAttribute('data-key', invData.key);
-            row.setAttribute('data-po', invData.po); 
-
-            row.innerHTML = `
-                <td>${invData.po}</td>
-                <td>${invData.site}</td>
-                <td>${invData.vendor}</td>
-                <td>${invData.invEntryID}</td>
-                <td><input type="number" name="invValue" class="payment-input" step="0.01" value="${invData.invValue || '0'}"></td>
-                <td><input type="number" name="amountPaid" class="payment-input" step="0.01" value="${invData.invValue || '0'}"></td> 
-                <td><input type="date" name="releaseDate" class="payment-input" value="${getTodayDateString()}"></td>
-                <td>${invData.status}</td>
-                <td><button type="button" class="delete-btn payment-remove-btn">&times;</button></td>
-            `;
-            imPaymentsTableBody.appendChild(row);
-        }
-    });
-    
-    updatePaymentsCount(); // (NEW) Update Count
-    imAddPaymentModal.classList.add('hidden'); // Close the modal
-}
 
 // --- (MODIFIED) handleSavePayments ---
 async function handleSavePayments() {
@@ -6612,6 +6606,85 @@ async function handleSavePayments() {
     }
 }
 
+// --- FIX: Missing Function for Payment Modal ---
+async function handleAddSelectedToPayments() {
+    const selectedCheckboxes = document.getElementById('im-payment-modal-results').querySelectorAll('.payment-modal-inv-checkbox:checked');
+
+    if (selectedCheckboxes.length === 0) {
+        alert("Please select at least one invoice to add.");
+        return;
+    }
+
+    let addedCount = 0;
+
+    // Ensure data is loaded
+    if (!allInvoiceData) await ensureInvoiceDataFetched();
+    if (!allPOData) await ensureAllEntriesFetched();
+
+    selectedCheckboxes.forEach(checkbox => {
+        const key = checkbox.dataset.key;
+        const po = checkbox.dataset.po;
+
+        // 1. Skip if this invoice is already in the "to pay" list
+        if (invoicesToPay[key]) return;
+
+        // 2. Retrieve full invoice data from cache
+        const invData = (allInvoiceData[po] && allInvoiceData[po][key]) ? allInvoiceData[po][key] : null;
+
+        if (invData) {
+            // 3. Add to the global state object
+            // We store the original data so we can reference it later
+            invoicesToPay[key] = { ...invData, key, po, originalAttention: invData.attention };
+
+            // 4. Get PO details for display
+            const poDetails = allPOData[po] || {};
+            const site = poDetails['Project ID'] || 'N/A';
+            const vendor = poDetails['Supplier Name'] || 'N/A';
+
+            // 5. Create the Table Row
+            const row = document.createElement('tr');
+            row.setAttribute('data-key', key);
+            row.setAttribute('data-po', po);
+            
+            // We default "Amount To Paid" to the full Invoice Value
+            // We default "Release Date" to Today
+            row.innerHTML = `
+                <td>${po}</td>
+                <td>${site}</td>
+                <td>${vendor}</td>
+                <td>${invData.invEntryID || ''}</td>
+                <td>
+                    <input type="number" name="invValue" class="payment-input" step="0.01" value="${invData.invValue || ''}" readonly style="background-color: #f0f0f0;">
+                </td>
+                <td>
+                    <input type="number" name="amountPaid" class="payment-input highlight-field" step="0.01" value="${invData.invValue || ''}">
+                </td>
+                <td>
+                    <input type="date" name="releaseDate" class="payment-input" value="${getTodayDateString()}">
+                </td>
+                <td>${invData.status || ''}</td>
+                <td><button type="button" class="delete-btn payment-remove-btn" title="Remove from list">&times;</button></td>
+            `;
+            
+            imPaymentsTableBody.appendChild(row);
+            addedCount++;
+        }
+    });
+
+    if (addedCount > 0) {
+        updatePaymentsCount(); // Update the counter in the header
+        
+        // Close the modal
+        const modal = document.getElementById('im-add-payment-modal');
+        if(modal) modal.classList.add('hidden');
+        
+        // Reset the modal search
+        document.getElementById('im-payment-modal-po-input').value = '';
+        document.getElementById('im-payment-modal-results').innerHTML = '';
+    } else {
+        alert("The selected invoices are already in your payment list.");
+    }
+}
 
 // ++ NEW: Functions for read-only Finance Report section ++
 function handleFinanceSearch() {
@@ -8744,5 +8817,24 @@ const mobileSendReceiptBtn = document.getElementById('mobile-send-receipt-btn');
     if (mobileSendReceiptBtn) {
         mobileSendReceiptBtn.addEventListener('click', previewAndSendReceipt); // Reuse existing function
     }
+// --- FIX: Mobile Active Task Refresh Button ---
+    const mobileActiveTaskRefreshBtn = document.getElementById('mobile-activetask-refresh-btn');
+    if (mobileActiveTaskRefreshBtn) {
+        mobileActiveTaskRefreshBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            // Visual feedback: Spin the icon
+            const icon = mobileActiveTaskRefreshBtn.querySelector('i');
+            if(icon) icon.classList.add('fa-spin');
+            
+            // Force refresh logic
+            cacheTimestamps.systemEntries = 0; // Invalidate cache
+            await ensureAllEntriesFetched(false); // Fetch fresh data
+            await populateActiveTasks(); // Update UI
+            
+            // Stop spin
+            if(icon) icon.classList.remove('fa-spin');
+        });
+    }
+
 }); // END OF DOMCONTENTLOADED
 
