@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.4.5"; // You can change "1.1.0" to any version you want
+const APP_VERSION = "3.4.7"; // You can change "1.1.0" to any version you want
 
 // --- 1. FIREBASE CONFIGURATION & 2. INITIALIZE FIREBASE ---
 // Main DB for approvers, job_entries, project_sites
@@ -1807,32 +1807,51 @@ function displayCalendarTasksForDay(date) { // date is "2025-11-09"
     }
 // ADD THIS ENTIRE BLOCK at the end of the DOMContentLoaded listener
 
-    // --- *** NEW: CEO Day View Click Listener *** ---
+    // --- *** NEW: CEO/Admin Day View Click Listener *** ---
     const wdDayViewTaskList = document.getElementById('wd-dayview-task-list');
     if (wdDayViewTaskList) {
         wdDayViewTaskList.addEventListener('click', (e) => {
-            // 1. Only run for CEO
-            if (!document.body.classList.contains('is-ceo')) {
-                return;
-            }
             
-            // 2. Find the card that was clicked
-            const card = e.target.closest('.ceo-clickable-day-card');
+            // 1. Identify the Card
+            const card = e.target.closest('.dayview-task-card'); // Changed selector to be more generic
             if (!card) return;
-
-            // 3. Get the key
+            
             const key = card.dataset.key;
             if (!key) return;
 
-            // 4. Find the task data
-            const taskData = userActiveTasks.find(t => t.key === key);
+            // 2. Determine User Role & Source List
+            // FIX: If Admin, look in the Admin List. If User, look in Personal List.
+            const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
+            const sourceList = isAdmin ? allAdminCalendarTasks : userActiveTasks;
+
+            // 3. Find the task data
+            const taskData = sourceList.find(t => t.key === key);
+            
             if (!taskData) {
-                alert("Error: Could not find task data.");
+                console.error("Task key not found in source list:", key);
+                // alert("Error: Could not find task data."); // Optional: Comment out to suppress
                 return;
             }
 
-            // 5. Open the modal
-            openCEOApprovalModal(taskData);
+            // 4. CEO Logic: Open Approval Modal
+            if (document.body.classList.contains('is-ceo')) {
+                openCEOApprovalModal(taskData);
+                return;
+            }
+            
+            // 5. Admin/Accounting Logic: Redirect to Report (Mobile Friendly)
+            // If not CEO, but Admin/Accounting, single click can go to report
+            if (isAdmin && taskData.po) {
+                if(confirm(`Go to Reporting for PO ${taskData.po}?`)) {
+                    invoiceManagementButton.click();
+                    setTimeout(() => {
+                        imReportingSearchInput.value = taskData.po;
+                        sessionStorage.setItem('imReportingSearch', taskData.po);
+                        const imReportingLink = imNav.querySelector('a[data-section="im-reporting"]');
+                        if (imReportingLink) imReportingLink.click();
+                    }, 150);
+                }
+            }
         });
     }
     // --- *** END OF NEW LISTENER *** ---

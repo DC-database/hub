@@ -2227,8 +2227,17 @@ body.is-admin .legend-admin-only {
     #workdesk-view .workdesk-navigation li {
         display: none;
     }
-    /* --- *** MODIFICATION: Show Dashboard and Reporting on mobile *** --- */
-    #workdesk-view .workdesk-navigation li.wd-nav-dashboard,
+    
+    /* --- *** MODIFICATION: Show specific mobile links *** --- */
+    /* 1. Dashboard */
+    #workdesk-view .workdesk-navigation li.wd-nav-dashboard {
+        display: list-item;
+    }
+    /* 2. Active Task (My Tasks) - ESSENTIAL FOR CEO */
+    #workdesk-view .workdesk-navigation li.wd-nav-activetask {
+        display: list-item !important;
+    }
+    /* 3. Reporting */
     #workdesk-view .workdesk-navigation li.wd-nav-im-reporting-mobile {
         display: list-item;
     }
@@ -3422,45 +3431,58 @@ body.is-ceo .desktop-only.col-group {
 /* --- END OF Flip Phone Cover Screen Adjustments --- */
 /* ADD THIS ENTIRE BLOCK TO THE END OF style.css */
 
-/* --- CEO Mobile UI Simplification --- */
+/* --- CEO Mobile UI Simplification (FIXED) --- */
 @media (max-width: 768px) {
-    /* 1. Hide the sidebar and bottom nav for CEO */
-    body.is-ceo #workdesk-view .workdesk-sidebar,
-    body.is-ceo #workdesk-view .workdesk-navigation {
+    
+    /* 1. Make the sidebar wrapper visible again (so the Nav bar can exist) */
+    body.is-ceo #workdesk-view .workdesk-sidebar {
+        display: block !important;
+        padding: 0 !important; /* Remove padding so it takes no space at top */
+        height: 0 !important;  /* Collapse height */
+        min-height: 0 !important;
+        border: none !important;
+        overflow: visible !important; /* Allow the fixed Nav to overflow out */
+    }
+
+    /* 2. Hide ALL children of the sidebar by default... */
+    body.is-ceo #workdesk-view .workdesk-sidebar > * {
         display: none !important;
     }
 
-    /* 2. Remove padding from main content */
-    body.is-ceo .workdesk-main {
-        padding: 0 !important;
-        height: 100vh; /* Fill the whole screen */
+    /* 3. ...EXCEPT the Navigation Bar, which we force to show */
+    body.is-ceo #workdesk-view .workdesk-sidebar .workdesk-navigation {
+        display: block !important;
+        /* Ensure it sticks to bottom */
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        z-index: 1000;
     }
 
-    /* 3. Hide the "Back to Calendar" button in Day View */
+    /* 4. Restore padding to main content so it doesn't hide behind the nav */
+    body.is-ceo .workdesk-main {
+        padding: 15px !important; 
+        padding-bottom: 85px !important; 
+        height: auto !important;
+    }
+
+    /* 5. Hide the "Back to Calendar" button in Day View (Optional) */
     body.is-ceo #wd-dayview-mobile-menu-btn {
         display: none !important;
     }
 
-    /* 4. Center the remaining Day View header items */
+    /* 6. Center the remaining Day View header items */
     body.is-ceo .dayview-mobile-header-new {
-        justify-content: flex-end; /* Push items to the right */
+        justify-content: flex-end; 
         padding: 10px 15px;
     }
     
-    /* 5. Center the title */
+    /* 7. Center the title */
     body.is-ceo .dayview-mobile-titles {
         text-align: center;
         padding: 0 15px;
     }
-}
-
-/* 6. Style for clickable Day View cards for CEO */
-.dayview-task-card.ceo-clickable-day-card {
-    cursor: pointer;
-}
-.dayview-task-card.ceo-clickable-day-card:hover {
-    background-color: #e6f7ff; /* Light blue hover */
-    border-color: #b3e0ff;
 }
 /* ========================================= */
 /* MOBILE LOGIN STYLES */
