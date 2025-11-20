@@ -3846,3 +3846,30 @@ body.is-ceo .desktop-only.col-group {
     bottom: 70px !important; /* 65px nav bar + 5px spacing */
     box-shadow: 0 -4px 15px rgba(0,0,0,0.15); /* Enhanced shadow for visibility */
 }
+/* ========================================= */
+/* INVOICE HISTORY MODAL STYLES */
+/* ========================================= */
+#history-table th { 
+    background-color: #e9ecef; 
+    font-size: 0.85rem; 
+    font-weight: 600;
+    color: #555;
+}
+#history-table td { 
+    font-size: 0.9rem; 
+    padding: 10px; 
+    vertical-align: top;
+}
+.history-duration { 
+    font-weight: bold; 
+    color: var(--iba-secondary-teal); 
+    font-size: 0.85rem; 
+}
+.history-btn {
+    background-color: #6c757d; 
+    color: white;
+    margin-left: 5px;
+}
+.history-btn:hover {
+    background-color: #5a6268;
+}
