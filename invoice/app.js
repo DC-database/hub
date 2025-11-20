@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.5.3"; 
+const APP_VERSION = "3.5.4"; 
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -3783,29 +3783,19 @@ async function handleAddInvoice(e) {
     invoiceData.dateAdded = getTodayDateString();
     invoiceData.createdAt = firebase.database.ServerValue.TIMESTAMP;
 
-    if (!invoiceData.invName) {
-        const site = document.getElementById('im-po-site').textContent;
-        const po = document.getElementById('im-po-no').textContent;
-        const invId = document.getElementById('im-inv-entry-id').value;
-        let vendor = document.getElementById('im-po-vendor').textContent;
-        if (vendor.length > 21) vendor = vendor.substring(0, 21);
-        invoiceData.invName = `${site}-${po}-${invId}-${vendor}`;
-    }
-
-    const srvNameLower = (invoiceData.srvName || '').toLowerCase();
-    if (invoiceData.status === 'With Accounts' && srvNameLower !== 'nil' && srvNameLower.trim() === '') {
-        const poDetails = allPOData[currentPO];
-        if(poDetails) {
-            const today = new Date();
-            const yyyy = today.getFullYear();
-            const mm = String(today.getMonth() + 1).padStart(2, '0');
-            const dd = String(today.getDate()).padStart(2, '0');
-            const formattedDate = `${yyyy}${mm}${dd}`;
-            let vendor = poDetails['Supplier Name'] || '';
-            if (vendor.length > 21) vendor = vendor.substring(0, 21);
-            const site = poDetails['Project ID'] || 'N/A';
-            const invEntryID = invoiceData.invEntryID || 'INV-XX';
-            invoiceData.srvName = `${formattedDate}-${currentPO}-${invEntryID}-${site}-${vendor}`;
+    // --- [NEW CODE START] Capture Origin Data from Job Entry ---
+    if (jobEntryToUpdateAfterInvoice) {
+        // jobEntryToUpdateAfterInvoice holds the Key of the job entry
+        // We look it up in our cached allSystemEntries list
+        const originJobEntry = allSystemEntries.find(entry => entry.key === jobEntryToUpdateAfterInvoice);
+        
+        if (originJobEntry) {
+            // Save the original timestamp (when the job was first entered)
+            invoiceData.originTimestamp = originJobEntry.timestamp;
+            // Save who originally entered the job
+            invoiceData.originEnteredBy = originJobEntry.enteredBy;
+            // Optional: Add a flag to know this came from a job entry
+            invoiceData.originType = "Job Entry";
         }
     }
 
@@ -7018,21 +7008,40 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const imNavLinks = imNav.querySelectorAll('li');
 
-        imNavLinks.forEach(li => {
+imNavLinks.forEach(li => {
             const link = li.querySelector('a');
-             if (!link) return;
+            if (!link) return;
+            
             const section = link.dataset.section;
+            
+            // 1. Reset display first
             li.style.display = '';
 
+            // 2. FORCE HIDE MOBILE LINKS ON DESKTOP
+            // This specifically targets the duplicate "Active Task" link
+            if (li.classList.contains('wd-nav-activetask-mobile')) {
+                // If screen width is greater than 768px (Desktop), hide it immediately
+                if (window.innerWidth > 768) {
+                    li.style.display = 'none';
+                    return; // Stop processing this item
+                }
+            }
+
+            // 3. Hide Desktop Dashboard link for non-admins
             if (section === 'im-dashboard' && !isAdmin) li.style.display = 'none';
+            
+            // 4. Hide Accounting-only links
             if ((section === 'im-invoice-entry' || section === 'im-batch-entry' || section === 'im-summary-note') && !isAccountingAdmin) li.style.display = 'none';
+            
+            // 5. Handle Payments link
             if (section === 'im-payments') {
                 if (isAccountsOrAccounting) link.classList.remove('hidden'); 
                 else li.style.display = 'none'; 
             }
+            
+            // 6. Hide Finance Report for non-admins
             if (section === 'im-finance-report' && !isAdmin) li.style.display = 'none';
         });
-
         document.getElementById('im-nav-workdesk').classList.remove('hidden');
 
         const isMobile = window.innerWidth <= 768; 
@@ -7633,13 +7642,29 @@ window.showInvoiceHistory = async function(poNumber, invoiceKey) {
         const invSnapshot = await invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}`).once('value');
         const invData = invSnapshot.val();
         
-        if (invData && invData.createdAt) {
-            historyData.unshift({
-                status: "Created / Received",
-                timestamp: invData.createdAt,
-                updatedBy: "System",
-                note: "Initial Entry"
-            });
+        if (invData) {
+            // 1. Determine the Start Time
+            // If we have an origin timestamp (from the job entry), use it. 
+            // Otherwise, fall back to the invoice creation time.
+            const startTime = invData.originTimestamp || invData.createdAt;
+
+            // 2. Determine the Initiator
+            // If we have an origin creator, use them. Else use "System".
+            const initiator = invData.originEnteredBy || "System";
+
+            // 3. Determine the Note
+            const startNote = invData.originTimestamp 
+                ? "Originated from Job Entry" 
+                : "Initial Invoice Entry";
+
+            if (startTime) {
+                historyData.unshift({
+                    status: "Created / Received",
+                    timestamp: startTime,
+                    updatedBy: initiator,
+                    note: startNote
+                });
+            }
         }
 
         if(loader) loader.classList.add('hidden');
