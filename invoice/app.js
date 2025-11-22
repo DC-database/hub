@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.5.7"; 
+const APP_VERSION = "3.5.8"; 
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -3797,6 +3797,7 @@ function populateInvoiceFormForEditing(invoiceKey) {
 async function handleAddInvoice(e) {
     e.preventDefault();
     if (!currentPO) { alert('No PO is loaded. Please search for a PO first.'); return; }
+    
     const formData = new FormData(imNewInvoiceForm);
     const invoiceData = Object.fromEntries(formData.entries());
     let attentionValue = imAttentionSelectChoices.getValue(true);
@@ -3805,6 +3806,22 @@ async function handleAddInvoice(e) {
     if (invoiceData.status === 'Under Review' || invoiceData.status === 'With Accounts') {
         invoiceData.attention = '';
     }
+
+    // --- FIX START: Auto-generate Invoice Name if blank ---
+    if (!invoiceData.invName || invoiceData.invName.trim() === "") {
+        const poDetails = allPOData[currentPO] || {};
+        const site = poDetails['Project ID'] || 'N/A';
+        let vendor = poDetails['Supplier Name'] || 'N/A';
+        
+        // Shorten vendor name to 21 chars max (consistent with other logic)
+        if (vendor.length > 21) vendor = vendor.substring(0, 21);
+        
+        const invEntryID = invoiceData.invEntryID || 'INV-XX';
+        
+        // Format: Site-PO-InvID-Vendor
+        invoiceData.invName = `${site}-${currentPO}-${invEntryID}-${vendor}`;
+    }
+    // --- FIX END ---
 
     invoiceData.dateAdded = getTodayDateString();
     invoiceData.createdAt = firebase.database.ServerValue.TIMESTAMP;
