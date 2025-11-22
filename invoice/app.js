@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.5.6"; 
+const APP_VERSION = "3.5.7"; 
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -3625,6 +3625,7 @@ function fetchAndDisplayInvoices(poNumber) {
 
             const historyBtn = `<button type="button" class="history-btn action-btn" title="View Status History" onclick="event.stopPropagation(); showInvoiceHistory('${poNumber}', '${inv.key}')"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
 
+            // FIXED: Removed the Note column so the Action buttons align correctly
             row.innerHTML = `
                 <td>${inv.invEntryID || ''}</td>
                 <td>${inv.invNumber || ''}</td>
@@ -3633,13 +3634,13 @@ function fetchAndDisplayInvoices(poNumber) {
                 <td>${amountPaidDisplay}</td>
                 <td>${inv.status || ''}</td>
                 <td>${releaseDateDisplay}</td>
-                <td>${inv.note || ''}</td> <td><div class="action-btn-group">${invPDFLink} ${srvPDFLink} ${historyBtn} <button class="delete-btn" data-key="${inv.key}">Delete</button></div></td>
+                <td><div class="action-btn-group">${invPDFLink} ${srvPDFLink} ${historyBtn} <button class="delete-btn" data-key="${inv.key}">Delete</button></div></td>
             `;
             imInvoicesTableBody.appendChild(row);
         });
         imExistingInvoicesContainer.classList.remove('hidden');
     } else {
-        imInvoicesTableBody.innerHTML = '<tr><td colspan="9">No invoices have been entered for this PO yet.</td></tr>';
+        imInvoicesTableBody.innerHTML = '<tr><td colspan="8">No invoices have been entered for this PO yet.</td></tr>';
         imExistingInvoicesContainer.classList.remove('hidden');
     }
     
