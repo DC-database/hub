@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.5.4"; 
+const APP_VERSION = "3.5.6"; 
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -16,8 +16,11 @@ const firebaseConfig = {
   appId: "1:152429622957:web:f79a80df75ce662e97b824",
   measurementId: "G-KR3KDQ3NRC"
 };
-firebase.initializeApp(firebaseConfig);
+
+// Initialize Main App and Services
+const mainApp = firebase.initializeApp(firebaseConfig); 
 const db = firebase.database();
+const mainStorage = firebase.storage(mainApp); // Initialized Storage for CSV fetching
 
 // Payments DB (For Finance Report)
 const paymentFirebaseConfig = {
@@ -55,7 +58,6 @@ const storage = firebase.storage(invoiceApp);
 const PDF_BASE_PATH = "https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/DC%20Files/INVOICE/";
 const SRV_BASE_PATH = "https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/DC%20Files/SRV/";
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours cache
-const ECOST_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/Ecost.csv";
 
 // -- State Variables --
 let currentApprover = null; 
@@ -176,29 +178,45 @@ function loadDataFromLocalStorage() {
     return false;
 }
 
+// NEW HELPER: Get URL from Firebase Storage
+async function getFirebaseCSVUrl(filename) {
+    try {
+        const url = await mainStorage.ref(filename).getDownloadURL();
+        console.log(`Retrieved Firebase URL for: ${filename}`);
+        return url;
+    } catch (error) {
+        console.error(`Error getting URL for ${filename}:`, error);
+        return null;
+    }
+}
+
 async function silentlyRefreshStaleCaches() {
     console.log("Checking for stale background caches...");
     const now = Date.now();
-    const EPICORE_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/Ecost.csv";
-    const SITES_CSV_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/Site.csv";
 
     try {
         if (cacheTimestamps.epicoreData === 0) {
             console.log("Silently refreshing Ecost.csv...");
-            const epicoreCsvData = await fetchAndParseEpicoreCSV(EPICORE_DATA_URL);
-            if (epicoreCsvData) {
-                allEpicoreData = epicoreCsvData;
-                setCache('cached_EPICORE', allEpicoreData);
-                cacheTimestamps.epicoreData = now;
+            const url = await getFirebaseCSVUrl('Ecost.csv');
+            if (url) {
+                const epicoreCsvData = await fetchAndParseEpicoreCSV(url);
+                if (epicoreCsvData) {
+                    allEpicoreData = epicoreCsvData;
+                    setCache('cached_EPICORE', allEpicoreData);
+                    cacheTimestamps.epicoreData = now;
+                }
             }
         }
         if (cacheTimestamps.sitesCSV === 0) {
             console.log("Silently refreshing Site.csv...");
-            const sitesCsvData = await fetchAndParseSitesCSV(SITES_CSV_URL);
-            if (sitesCsvData) {
-                allSitesCSVData = sitesCsvData;
-                setCache('cached_SITES', allSitesCSVData);
-                cacheTimestamps.sitesCSV = now;
+            const url = await getFirebaseCSVUrl('Site.csv');
+            if (url) {
+                const sitesCsvData = await fetchAndParseSitesCSV(url);
+                if (sitesCsvData) {
+                    allSitesCSVData = sitesCsvData;
+                    setCache('cached_SITES', allSitesCSVData);
+                    cacheTimestamps.sitesCSV = now;
+                }
             }
         }
         console.log("Background cache check complete.");
@@ -252,9 +270,9 @@ async function fetchAndParseCSV(url) {
             if (poKey) poDataByPO[poKey] = poEntry;
             if (refKey) poDataByRef[refKey] = poEntry;
         }
-        console.log(`Successfully parsed ${Object.keys(poDataByPO).length} POs and ${Object.keys(poDataByRef).length} Refs from GitHub.`);
+        console.log(`Successfully parsed ${Object.keys(poDataByPO).length} POs and ${Object.keys(poDataByRef).length} Refs.`);
         return { poDataByPO, poDataByRef };
-    } catch (error) { console.error("Error fetching or parsing PO CSV:", error); alert("CRITICAL ERROR: Could not load Purchase Order data from GitHub."); return null; }
+    } catch (error) { console.error("Error fetching or parsing PO CSV:", error); alert("CRITICAL ERROR: Could not load Purchase Order data."); return null; }
 }
 
 async function fetchAndParseEpicoreCSV(url) {
@@ -284,7 +302,7 @@ async function fetchAndParseEpicoreCSV(url) {
         }
         console.log(`Successfully fetched and parsed ${Object.keys(epicoreMap).length} entries from Epicore CSV.`);
         return epicoreMap;
-    } catch (error) { console.error("Error fetching or parsing Epicore CSV:", error); alert("CRITICAL ERROR: Could not load Epicore data from GitHub."); return null; }
+    } catch (error) { console.error("Error fetching or parsing Epicore CSV:", error); alert("CRITICAL ERROR: Could not load Epicore data."); return null; }
 }
 
 async function fetchAndParseSitesCSV(url) {
@@ -319,7 +337,7 @@ async function fetchAndParseSitesCSV(url) {
         }
         console.log(`Successfully fetched and parsed ${sitesData.length} sites from Site.csv.`);
         return sitesData;
-    } catch (error) { console.error("Error fetching or parsing Site.csv:", error); alert("CRITICAL ERROR: Could not load Site data from GitHub."); return null; }
+    } catch (error) { console.error("Error fetching or parsing Site.csv:", error); alert("CRITICAL ERROR: Could not load Site data."); return null; }
 }
 
 async function fetchAndParseEcommitCSV(url) {
@@ -340,22 +358,14 @@ async function fetchAndParseEcommitCSV(url) {
             return values.map(v => v.replace(/^"|"$/g, ''));
         };
 
-        // --- Helper to expand scientific notation (e.g. 2.41E+11 -> 241057...) ---
         const cleanInvoiceNumber = (str) => {
             if (!str) return '';
             let cleanStr = str.trim().replace(/^"|"$/g, '');
-            
-            // If it contains "E+" or "e+", it is likely scientific notation text
             if (cleanStr.toUpperCase().includes('E+')) {
                 try {
-                    // Force conversion to a full string number without scientific notation
                     const num = Number(cleanStr);
-                    if (!isNaN(num)) {
-                        return num.toLocaleString('fullwide', { useGrouping: false });
-                    }
-                } catch (e) {
-                    return cleanStr;
-                }
+                    if (!isNaN(num)) { return num.toLocaleString('fullwide', { useGrouping: false }); }
+                } catch (e) { return cleanStr; }
             }
             return cleanStr;
         };
@@ -366,7 +376,7 @@ async function fetchAndParseEcommitCSV(url) {
 
         const requiredHeaders = ['PO', 'Whse', 'Date', 'Sys Date', 'Name', 'Packing Slip', 'Extended Cost'];
         if (!requiredHeaders.every(h => headerMap.hasOwnProperty(h))) {
-            throw new Error("Ecommit CSV is missing required headers (PO, Whse, Date, Sys Date, Name, Packing Slip, Extended Cost).");
+            throw new Error("Ecommit CSV is missing required headers.");
         }
 
         const poMap = {}; 
@@ -378,8 +388,6 @@ async function fetchAndParseEcommitCSV(url) {
             if (!po) continue;
 
             const extendedCost = parseFloat(values[headerMap['Extended Cost']]?.replace(/,/g, '') || 0);
-
-            // Use the cleaner on the Packing Slip
             const rawPackingSlip = values[headerMap['Packing Slip']] || '';
             const fixedPackingSlip = cleanInvoiceNumber(rawPackingSlip);
 
@@ -389,7 +397,7 @@ async function fetchAndParseEcommitCSV(url) {
                 date: values[headerMap['Date']] || '',
                 sysDate: values[headerMap['Sys Date']] || '', 
                 supplierName: values[headerMap['Name']] || '',
-                packingSlip: fixedPackingSlip, // Use the fixed version
+                packingSlip: fixedPackingSlip, 
                 invValue: extendedCost, 
                 rawDate: values[headerMap['Date']] 
             };
@@ -450,7 +458,7 @@ async function fetchAndParseEcommitCSV(url) {
         return finalEcommitData;
     } catch (error) { 
         console.error("Error fetching or parsing Ecommit CSV:", error); 
-        alert("CRITICAL ERROR: Could not load Ecommit data from GitHub."); 
+        alert("CRITICAL ERROR: Could not load Ecommit data."); 
         return null; 
     }
 }
@@ -537,15 +545,18 @@ async function fetchAndParseEcostCSV(url) {
     }
 }
 
-// --- Data fetch controllers ---
+// --- Data fetch controllers (Updated to use Firebase) ---
 
 async function ensureEcostDataFetched(forceRefresh = false) {
     const now = Date.now();
     if (!forceRefresh && allEcostData && (now - ecostDataTimestamp < CACHE_DURATION)) {
         return allEcostData;
     }
-    console.log("Fetching Ecost.csv data...");
-    allEcostData = await fetchAndParseEcostCSV(ECOST_DATA_URL);
+    console.log("Fetching Ecost.csv data from Firebase...");
+    const url = await getFirebaseCSVUrl('Ecost.csv');
+    if (!url) return null;
+
+    allEcostData = await fetchAndParseEcostCSV(url);
     if (allEcostData) {
         ecostDataTimestamp = now;
         console.log("Ecost.csv data cached.");
@@ -555,10 +566,6 @@ async function ensureEcostDataFetched(forceRefresh = false) {
 
 async function ensureInvoiceDataFetched(forceRefresh = false) {
     const now = Date.now();
-    const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
-    const EPICORE_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/Ecost.csv";
-    const SITES_CSV_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/Site.csv";
-    const ECOMMIT_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/ECommit.csv";
 
     if (!forceRefresh && allPOData && allInvoiceData && allEpicoreData && allSitesCSVData && allEcommitDataProcessed) {
         return; 
@@ -570,21 +577,28 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
 
     try {
         const promisesToRun = [];
-        if (!allPOData || forceRefresh) {
-            console.log("Fetching POVALUE2.csv from network...");
-            promisesToRun.push(fetchAndParseCSV(PO_DATA_URL));
+        
+        // Get URLs from Firebase Storage
+        const poUrl = (!allPOData || forceRefresh) ? await getFirebaseCSVUrl('POVALUE2.csv') : null;
+        const ecostUrl = (!allEpicoreData || forceRefresh) ? await getFirebaseCSVUrl('Ecost.csv') : null;
+        const siteUrl = (!allSitesCSVData || forceRefresh) ? await getFirebaseCSVUrl('Site.csv') : null;
+        const ecommitUrl = (!allEcommitDataProcessed || forceRefresh) ? await getFirebaseCSVUrl('ECommit.csv') : null;
+
+        if (poUrl) {
+            console.log("Fetching POVALUE2.csv...");
+            promisesToRun.push(fetchAndParseCSV(poUrl));
         }
-        if (!allEpicoreData || forceRefresh) {
-            console.log("Fetching Ecost.csv from network...");
-            promisesToRun.push(fetchAndParseEpicoreCSV(EPICORE_DATA_URL));
+        if (ecostUrl) {
+            console.log("Fetching Ecost.csv...");
+            promisesToRun.push(fetchAndParseEpicoreCSV(ecostUrl));
         }
-        if (!allSitesCSVData || forceRefresh) {
-            console.log("Fetching Site.csv from network...");
-            promisesToRun.push(fetchAndParseSitesCSV(SITES_CSV_URL));
+        if (siteUrl) {
+            console.log("Fetching Site.csv...");
+            promisesToRun.push(fetchAndParseSitesCSV(siteUrl));
         }
-        if (!allEcommitDataProcessed || forceRefresh) {
-            console.log("Fetching ECommit.csv from network...");
-            promisesToRun.push(fetchAndParseEcommitCSV(ECOMMIT_DATA_URL));
+        if (ecommitUrl) {
+            console.log("Fetching ECommit.csv...");
+            promisesToRun.push(fetchAndParseEcommitCSV(ecommitUrl));
         }
         if (!allInvoiceData || forceRefresh) {
             console.log("Fetching Firebase invoice data...");
@@ -594,25 +608,25 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
         const results = await Promise.all(promisesToRun);
         let resultIndex = 0;
 
-        if (!allPOData || forceRefresh) {
+        if (poUrl) {
             const csvData = results[resultIndex++];
             if (csvData === null) throw new Error("Failed to load POVALUE2.csv");
             allPOData = csvData.poDataByPO;
             cacheTimestamps.poData = now;
         }
-        if (!allEpicoreData || forceRefresh) {
+        if (ecostUrl) {
             allEpicoreData = results[resultIndex++];
             if (allEpicoreData === null) throw new Error("Failed to load Ecost.csv");
             setCache('cached_EPICORE', allEpicoreData); 
             cacheTimestamps.epicoreData = now;
         }
-        if (!allSitesCSVData || forceRefresh) {
+        if (siteUrl) {
             allSitesCSVData = results[resultIndex++];
             if (allSitesCSVData === null) throw new Error("Failed to load Site.csv");
             setCache('cached_SITES', allSitesCSVData); 
             cacheTimestamps.sitesCSV = now;
         }
-        if (!allEcommitDataProcessed || forceRefresh) {
+        if (ecommitUrl) {
             allEcommitDataProcessed = results[resultIndex++];
             if (allEcommitDataProcessed === null) throw new Error("Failed to load ECommit.csv");
             cacheTimestamps.ecommitData = now;
@@ -646,10 +660,12 @@ async function ensureAllEntriesFetched(forceRefresh = false) {
     }
 
     if (!allPOData || forceRefresh) {
-        console.log("Fetching POVALUE2.csv for Workdesk from network...");
+        console.log("Fetching POVALUE2.csv for Workdesk from Firebase...");
         try {
-            const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
-            const { poDataByPO } = await fetchAndParseCSV(PO_DATA_URL) || {};
+            const poUrl = await getFirebaseCSVUrl('POVALUE2.csv');
+            if (!poUrl) throw new Error("Failed to get download URL for POVALUE2.csv");
+
+            const { poDataByPO } = await fetchAndParseCSV(poUrl) || {};
             if (poDataByPO) {
                 allPOData = poDataByPO;
                 cacheTimestamps.poData = now;
@@ -2774,12 +2790,14 @@ async function populateSiteDropdown() {
         
         siteSelectChoices.setChoices([{ value: '', label: 'Loading...', disabled: true, selected: true }], 'value', 'label', true);
 
+        // We use the cached CSV content here (fetched in ensureInvoiceDataFetched)
+        // If not loaded yet, we fetch it specifically now
         if (!allSitesCSVData) { 
-            console.log("Fetching Site.csv for WorkDesk dropdown...");
-            const SITES_CSV_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/Site.csv";
-            allSitesCSVData = await fetchAndParseSitesCSV(SITES_CSV_URL); 
-            if (allSitesCSVData) {
-                 cacheTimestamps.sitesCSV = Date.now();
+            console.log("Fetching Site.csv for WorkDesk dropdown from Firebase...");
+            const url = await getFirebaseCSVUrl('Site.csv');
+            if(url) {
+                allSitesCSVData = await fetchAndParseSitesCSV(url); 
+                cacheTimestamps.sitesCSV = Date.now();
             }
         }
         
@@ -3501,12 +3519,20 @@ async function handlePOSearch(poNumberFromInput) {
     
     try {
         if (!allPOData) {
-            console.log("Loading PO data from GitHub for the first time...");
-            const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
-            allPOData = await fetchAndParseCSV(PO_DATA_URL);
-            if (!allPOData) {
-                 alert("CRITICAL ERROR: Could not load PO data.");
-                 return;
+            // If not loaded, attempt to fetch from Firebase now
+            console.log("Loading PO data from Firebase for search...");
+            const url = await getFirebaseCSVUrl('POVALUE2.csv');
+            if (url) {
+                const { poDataByPO } = await fetchAndParseCSV(url) || {};
+                if (poDataByPO) {
+                    allPOData = poDataByPO;
+                } else {
+                    alert("CRITICAL ERROR: Could not load PO data.");
+                    return;
+                }
+            } else {
+                alert("CRITICAL ERROR: Could not get URL for PO data.");
+                return;
             }
         }
 
@@ -3597,7 +3623,6 @@ function fetchAndDisplayInvoices(poNumber) {
                 ? `<a href="${SRV_BASE_PATH}${encodeURIComponent(srvPDFName)}.pdf" target="_blank" class="action-btn srv-pdf-btn">SRV</a>`
                 : '';
 
-            // *** ADDED: History Button ***
             const historyBtn = `<button type="button" class="history-btn action-btn" title="View Status History" onclick="event.stopPropagation(); showInvoiceHistory('${poNumber}', '${inv.key}')"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
 
             row.innerHTML = `
@@ -3608,13 +3633,13 @@ function fetchAndDisplayInvoices(poNumber) {
                 <td>${amountPaidDisplay}</td>
                 <td>${inv.status || ''}</td>
                 <td>${releaseDateDisplay}</td>
-                <td><div class="action-btn-group">${invPDFLink} ${srvPDFLink} ${historyBtn} <button class="delete-btn" data-key="${inv.key}">Delete</button></div></td>
+                <td>${inv.note || ''}</td> <td><div class="action-btn-group">${invPDFLink} ${srvPDFLink} ${historyBtn} <button class="delete-btn" data-key="${inv.key}">Delete</button></div></td>
             `;
             imInvoicesTableBody.appendChild(row);
         });
         imExistingInvoicesContainer.classList.remove('hidden');
     } else {
-        imInvoicesTableBody.innerHTML = '<tr><td colspan="8">No invoices have been entered for this PO yet.</td></tr>';
+        imInvoicesTableBody.innerHTML = '<tr><td colspan="9">No invoices have been entered for this PO yet.</td></tr>';
         imExistingInvoicesContainer.classList.remove('hidden');
     }
     
@@ -3783,18 +3808,11 @@ async function handleAddInvoice(e) {
     invoiceData.dateAdded = getTodayDateString();
     invoiceData.createdAt = firebase.database.ServerValue.TIMESTAMP;
 
-    // --- [NEW CODE START] Capture Origin Data from Job Entry ---
     if (jobEntryToUpdateAfterInvoice) {
-        // jobEntryToUpdateAfterInvoice holds the Key of the job entry
-        // We look it up in our cached allSystemEntries list
         const originJobEntry = allSystemEntries.find(entry => entry.key === jobEntryToUpdateAfterInvoice);
-        
         if (originJobEntry) {
-            // Save the original timestamp (when the job was first entered)
             invoiceData.originTimestamp = originJobEntry.timestamp;
-            // Save who originally entered the job
             invoiceData.originEnteredBy = originJobEntry.enteredBy;
-            // Optional: Add a flag to know this came from a job entry
             invoiceData.originType = "Job Entry";
         }
     }
@@ -3807,8 +3825,9 @@ async function handleAddInvoice(e) {
 
         await updateInvoiceTaskLookup(currentPO, newKey, invoiceData, null); 
         
-        // *** ADDED: Log History ***
-        await logInvoiceHistory(currentPO, newKey, invoiceData.status, "Initial Entry");
+        if (window.logInvoiceHistory) {
+             await window.logInvoiceHistory(currentPO, newKey, invoiceData.status, "Initial Entry");
+        }
 
         alert('Invoice added successfully!');
         
@@ -3894,9 +3913,8 @@ async function handleUpdateInvoice(e) {
         const oldAttn = originalInvoiceData ? originalInvoiceData.attention : null;
         await updateInvoiceTaskLookup(currentPO, currentlyEditingInvoiceKey, invoiceData, oldAttn);
 
-        // *** ADDED: Log History if Status Changed ***
-        if (newStatus !== oldStatus) {
-             await logInvoiceHistory(currentPO, currentlyEditingInvoiceKey, newStatus, invoiceData.note);
+        if (newStatus !== oldStatus && window.logInvoiceHistory) {
+             await window.logInvoiceHistory(currentPO, currentlyEditingInvoiceKey, newStatus, invoiceData.note);
         }
 
         alert('Invoice updated successfully!');
@@ -4047,19 +4065,26 @@ async function populateInvoiceReporting(searchTerm = '') {
             const site = poDetails['Project ID'] || 'N/A';
             const vendor = poDetails['Supplier Name'] || 'N/A';
 
-            // Merge Logic
+            // 1. Get Firebase Invoices
             const firebaseInvoices = allInvoicesByPO[poNumber] ? Object.entries(allInvoicesByPO[poNumber]).map(([key, value]) => ({ key, ...value, source: 'firebase' })) : [];
 
+            // 2. Create a set of Normalized Firebase Invoice Numbers (Trimmed + Lowercase)
+            // This creates a "Block List" of invoice numbers that already exist in the system
             const firebasePackingSlips = new Set(
-                firebaseInvoices.map(inv => inv.invNumber).filter(Boolean) 
+                firebaseInvoices.map(inv => String(inv.invNumber || '').trim().toLowerCase()).filter(Boolean) 
             );
 
+            // 3. Get ECommit Invoices
             const ecommitInvoices = allEcommit[poNumber] || []; 
             
-            const filteredEcommitInvoices = ecommitInvoices.filter(inv => 
-                !inv.invNumber || !firebasePackingSlips.has(inv.invNumber)
-            );
+            // 4. Filter ECommit: Only keep ones that are NOT in the Firebase Block List
+            const filteredEcommitInvoices = ecommitInvoices.filter(inv => {
+                const csvInvNum = String(inv.invNumber || '').trim().toLowerCase();
+                // Keep the CSV row ONLY if we don't have a matching Firebase row
+                return !csvInvNum || !firebasePackingSlips.has(csvInvNum);
+            });
 
+            // 5. Combine them (Firebase gets natural priority because it's first, and duplicates were removed from CSV)
             let invoices = [...firebaseInvoices, ...filteredEcommitInvoices];
 
             invoices.sort((a, b) => {
@@ -4070,6 +4095,7 @@ async function populateInvoiceReporting(searchTerm = '') {
             });
 
             invoices.forEach((inv, index) => {
+                // Generate sequential IDs for display
                 inv.invEntryID = `INV-${String(index + 1).padStart(2, '0')}`;
             });
 
@@ -4320,18 +4346,40 @@ function buildDesktopReportView(reportData) {
 
     reportData.sort((a, b) => a.poNumber.localeCompare(b.poNumber));
     reportData.forEach(poData => {
-        let totalInvValue = 0, totalAmountPaid = 0, allWithAccounts = poData.filteredInvoices.length > 0;
+        
+        // --- SMART LOGIC VARIABLES ---
+        let totalInvValue = 0;
+        let totalPaidWithRetention = 0;    // Sum of EVERYTHING
+        let totalPaidWithoutRetention = 0; // Sum excluding "Retention" notes
+        // -----------------------------
+
+        let allWithAccounts = poData.filteredInvoices.length > 0;
         const detailRowId = `detail-${poData.poNumber}`;
         let nestedTableRows = '';
+        
         poData.filteredInvoices.sort((a, b) => {
             const numA = parseInt((a.invEntryID || 'INV-0').split('-')[1] || 0);
             const numB = parseInt((b.invEntryID || 'INV-0').split('-')[1] || 0);
             return numA - numB;
         });
+
         poData.filteredInvoices.forEach(inv => {
             if (inv.status !== 'With Accounts') allWithAccounts = false;
-            const invValue = parseFloat(inv.invValue) || 0, amountPaid = parseFloat(inv.amountPaid) || 0;
-            totalInvValue += invValue; totalAmountPaid += amountPaid;
+            
+            // --- 1. Calculate Values ---
+            const invValue = parseFloat(inv.invValue) || 0;
+            const amountPaid = parseFloat(inv.amountPaid) || 0;
+            const noteText = (inv.note || '').toLowerCase();
+
+            totalInvValue += invValue;
+            totalPaidWithRetention += amountPaid;
+
+            // Check if note contains "retention"
+            if (!noteText.includes('retention')) {
+                totalPaidWithoutRetention += amountPaid;
+            }
+            // ---------------------------
+
             const releaseDateDisplay = inv.releaseDate ? new Date(normalizeDateForInput(inv.releaseDate) + 'T00:00:00').toLocaleDateString('en-GB') : '';
             const invoiceDateDisplay = inv.invoiceDate ? new Date(normalizeDateForInput(inv.invoiceDate) + 'T00:00:00').toLocaleDateString('en-GB') : '';
 
@@ -4340,7 +4388,6 @@ function buildDesktopReportView(reportData) {
 
             let actionButtonsHTML = '';
             
-            // *** MODIFIED BLOCK START: Add History Button ***
             if (inv.source !== 'ecommit' && (isAdmin || isAccounting)) {
                 const invPDFName = inv.invName || '';
                 const invPDFLink = (invPDFName.trim() && invPDFName.toLowerCase() !== 'nil')
@@ -4351,15 +4398,12 @@ function buildDesktopReportView(reportData) {
                     ? `<a href="${SRV_BASE_PATH}${encodeURIComponent(srvPDFName)}.pdf" target="_blank" class="action-btn srv-pdf-btn">SRV</a>`
                     : '';
                 
-                // New History Button
                 const historyBtn = `<button type="button" class="history-btn action-btn" title="View Status History" onclick="event.stopPropagation(); showInvoiceHistory('${poData.poNumber}', '${inv.key}')"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
                 
-                // Combine buttons
                 if (invPDFLink || srvPDFLink || historyBtn) {
                     actionButtonsHTML = `<div class="action-btn-group">${invPDFLink} ${srvPDFLink} ${historyBtn}</div>`;
                 }
             }
-            // *** MODIFIED BLOCK END ***
             
             nestedTableRows += `<tr class="nested-invoice-row" 
                                     data-po-number="${poData.poNumber}" 
@@ -4378,11 +4422,21 @@ function buildDesktopReportView(reportData) {
             </tr>`;
         });
 
+        // --- 2. Apply Smart Logic to Report Footer ---
+        let finalTotalPaid = totalPaidWithoutRetention;
+        // If adding retention makes it match Invoice Value perfectly, include it.
+        if (Math.abs(totalPaidWithRetention - totalInvValue) < 0.01) {
+            finalTotalPaid = totalPaidWithRetention;
+        }
+        // ---------------------------------------------
+
         const totalInvValueDisplay = (isAdmin || isAccounting) ? `<strong>QAR ${formatCurrency(totalInvValue)}</strong>` : '---';
-        const totalAmountPaidDisplay = (isAdmin || isAccounting) ? `<strong>QAR ${formatCurrency(totalAmountPaid)}</strong>` : '---';
-        const poValueDisplay = (isAdmin || isAccounting) ? (poData.poDetails.Amount ? `QAR ${formatCurrency(poData.poDetails.Amount)}` : 'N/A') : '---';
+        const totalAmountPaidDisplay = (isAdmin || isAccounting) ? `<strong>QAR ${formatCurrency(finalTotalPaid)}</strong>` : '---';
         
+        const poValueDisplay = (isAdmin || isAccounting) ? (poData.poDetails.Amount ? `QAR ${formatCurrency(poData.poDetails.Amount)}` : 'N/A') : '---';
         const poValueNum = parseFloat(poData.poDetails.Amount) || 0;
+        
+        // Balance Calculation: uses simple Sum - Sum
         const balanceNum = poValueNum - totalInvValue;
         const balanceDisplay = (isAdmin || isAccounting) ? `QAR ${formatCurrency(balanceNum)}` : '---';
 
@@ -4394,7 +4448,8 @@ function buildDesktopReportView(reportData) {
 
             if (isInvValueMatch) {
                 if (allWithAccounts) {
-                    const isAmountPaidMatch = Math.abs(totalAmountPaid - poValueNum) < epsilon;
+                    // For highlighting, we compare Total Paid (Smart) vs PO Value
+                    const isAmountPaidMatch = Math.abs(finalTotalPaid - poValueNum) < epsilon;
                     highlightClass = isAmountPaidMatch ? 'highlight-fully-paid' : 'highlight-partial';
                 }
             } else if (hasBalance) {
@@ -4409,6 +4464,7 @@ function buildDesktopReportView(reportData) {
     tableHTML += `</tbody></table>`;
     container.innerHTML = tableHTML;
 }
+
 
 // ==========================================================================
 // 17. INVOICE MANAGEMENT: REPORTING ACTIONS
@@ -7644,12 +7700,9 @@ window.showInvoiceHistory = async function(poNumber, invoiceKey) {
         
         if (invData) {
             // 1. Determine the Start Time
-            // If we have an origin timestamp (from the job entry), use it. 
-            // Otherwise, fall back to the invoice creation time.
             const startTime = invData.originTimestamp || invData.createdAt;
 
             // 2. Determine the Initiator
-            // If we have an origin creator, use them. Else use "System".
             const initiator = invData.originEnteredBy || "System";
 
             // 3. Determine the Note

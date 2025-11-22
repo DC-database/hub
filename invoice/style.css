@@ -3865,11 +3865,21 @@ body.is-ceo .desktop-only.col-group {
     color: var(--iba-secondary-teal); 
     font-size: 0.85rem; 
 }
+/* FORCE History Button Green */
 .history-btn {
-    background-color: #6c757d; 
-    color: white;
+    background-color: #28a745 !important; /* Force Green */
+    color: white !important;
+    border-radius: 4px;
+    border: none !important;
     margin-left: 5px;
+    padding: 5px 10px; /* Ensure consistent size */
 }
+
 .history-btn:hover {
-    background-color: #5a6268;
+    background-color: #218838 !important; /* Force Darker Green on Hover */
+}
+
+/* Ensure the icon inside is white */
+.history-btn i {
+    color: white !important;
 }
