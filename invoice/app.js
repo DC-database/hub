@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.5.8"; 
+const APP_VERSION = "3.6.0"; 
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -280,6 +280,7 @@ async function fetchAndParseEpicoreCSV(url) {
         const response = await fetch(url, { cache: 'no-store' });
         if (!response.ok) { throw new Error(`Failed to fetch CSV: ${response.statusText}`); }
         const csvText = await response.text();
+        
         const parseCsvRow = (rowStr) => {
             const values = []; let inQuote = false; let currentVal = ''; const cleanRowStr = rowStr.trim();
             for (let i = 0; i < cleanRowStr.length; i++) {
@@ -289,14 +290,21 @@ async function fetchAndParseEpicoreCSV(url) {
             values.push(currentVal.trim().replace(/^"|"$/g, ''));
             return values;
         };
+
         const lines = csvText.replace(/^\uFEFF/, '').split('\n').filter(line => line.trim() !== '');
         if (lines.length < 1) { throw new Error("Epicore CSV is empty."); }
+        
         const epicoreMap = {};
         for (let i = 0; i < lines.length; i++) { 
             const values = parseCsvRow(lines[i]);
-            if (values.length > 3) { 
+            
+            // Column Mapping (0-based index):
+            // A[0], B[1], C[2]=PO, D[3]=Project#, E[4]=Description
+            
+            if (values.length > 4) { 
                 const poKey = values[2] ? values[2].toUpperCase().trim() : null; 
-                const description = values[3] || ''; 
+                const description = values[4] || ''; // Grab Column E
+                
                 if (poKey) { epicoreMap[poKey] = description; }
             }
         }
@@ -4895,8 +4903,12 @@ async function handleAddPOToBatch() {
 async function addInvoiceToBatchTable(invData) {
     const batchTableBody = document.getElementById('im-batch-table-body');
     if (batchTableBody.querySelector(`tr[data-key="${invData.key}"]`)) return;
+    
     const row = document.createElement('tr');
-    row.setAttribute('data-po', invData.po); row.setAttribute('data-key', invData.key); row.setAttribute('data-site', invData.site); row.setAttribute('data-vendor', invData.vendor);
+    row.setAttribute('data-po', invData.po); 
+    row.setAttribute('data-key', invData.key); 
+    row.setAttribute('data-site', invData.site); 
+    row.setAttribute('data-vendor', invData.vendor);
 
     row.innerHTML = `
         <td>${invData.po} <span class="existing-indicator">(Existing: ${invData.invEntryID})</span></td>
@@ -4920,12 +4932,14 @@ async function addInvoiceToBatchTable(invData) {
             <option value="On Hold">On Hold</option>
             <option value="CLOSED">CLOSED</option>
             <option value="Cancelled">Cancelled</option>
-	    <option value="Original PO">Original PO</option>
+            <option value="Original PO">Original PO</option>
         </select></td>
         <td><input type="text" name="note" class="batch-input" value="${invData.note || ''}"></td>
         <td><button type="button" class="delete-btn batch-remove-btn">&times;</button></td>
     `;
-    batchTableBody.prepend(row);
+    
+    batchTableBody.prepend(row); // Add to top of list
+    
     const attentionSelect = row.querySelector('select[name="attention"]');
     const statusSelect = row.querySelector('select[name="status"]');
     const noteInput = row.querySelector('input[name="note"]');
@@ -4942,12 +4956,17 @@ async function addInvoiceToBatchTable(invData) {
     });
     row.choicesInstance = choices; 
 
+    // --- FIX STARTS HERE ---
     const globalAttentionVal = imBatchGlobalAttentionChoices ? imBatchGlobalAttentionChoices.getValue(true) : null;
+    
     if (globalAttentionVal) {
-        choices.setValue(globalAttentionVal); 
+        // ERROR WAS HERE: It needs square brackets [] to be an array
+        choices.setValue([globalAttentionVal]); 
     } else if (invData.attention) {
+        // This method handles strings automatically, so it was fine
         choices.setChoiceByValue(invData.attention); 
     }
+    // --- FIX ENDS HERE ---
 
     if (imBatchGlobalStatus.value) statusSelect.value = imBatchGlobalStatus.value;
     if (imBatchGlobalNote.value) noteInput.value = imBatchGlobalNote.value;
@@ -5168,15 +5187,64 @@ async function handleBatchModalPOSearch() {
 
 async function handleAddSelectedToBatch() {
     const selectedCheckboxes = document.getElementById('im-batch-modal-results').querySelectorAll('.modal-inv-checkbox:checked');
-    if (selectedCheckboxes.length === 0) { alert("Please select at least one invoice."); return; }
-    const promises = [];
-    for (const checkbox of selectedCheckboxes) {
-        const invData = JSON.parse(decodeURIComponent(checkbox.dataset.invoice));
-        promises.push(addInvoiceToBatchTable(invData));
+    
+    if (selectedCheckboxes.length === 0) { 
+        alert("Please select at least one invoice."); 
+        return; 
     }
-    await Promise.all(promises);
-    document.getElementById('im-batch-modal-po-input').value = '';
-    document.getElementById('im-batch-modal-results').innerHTML = `<p>${selectedCheckboxes.length} invoice(s) were added to the batch. You can search for another PO.</p>`;
+    
+    // Optional: Change button text briefly
+    const addBtn = document.getElementById('im-batch-modal-add-selected-btn');
+    if (addBtn) addBtn.textContent = "Adding...";
+
+    try {
+        const promises = [];
+        for (const checkbox of selectedCheckboxes) {
+            try {
+                const invData = JSON.parse(decodeURIComponent(checkbox.dataset.invoice));
+                promises.push(addInvoiceToBatchTable(invData));
+            } catch (err) {
+                console.error("Row error:", err);
+            }
+        }
+        
+        await Promise.all(promises);
+
+        // --- SPEED WORKFLOW UPDATE ---
+        const searchInput = document.getElementById('im-batch-modal-po-input');
+        const resultsContainer = document.getElementById('im-batch-modal-results');
+
+        // 1. Instantly clear the input box
+        if (searchInput) {
+            searchInput.value = '';
+        }
+        
+        // 2. Clear the table and show a small "Ready" indicator
+        // We keep this small so it doesn't distract you
+        if (resultsContainer) {
+            resultsContainer.innerHTML = `
+                <div style="padding: 15px; text-align: center; color: #28a745;">
+                    <strong><i class="fa-solid fa-check"></i> Added ${selectedCheckboxes.length} invoice(s).</strong>
+                    <p style="color: #777; margin-top: 5px; font-size: 0.9rem;">Ready for next PO...</p>
+                </div>
+            `;
+        }
+
+        // 3. AUTO-FOCUS: This puts the cursor back in the box immediately
+        if (searchInput) {
+            // Small delay ensures the UI update finishes before we grab focus
+            setTimeout(() => {
+                searchInput.focus();
+            }, 50);
+        }
+
+    } catch (error) {
+        console.error("Batch Error:", error);
+        alert("Error adding batch.");
+    } finally {
+        // Reset button text
+        if (addBtn) addBtn.textContent = "Add Selected to Batch";
+    }
 }
 
 // ==========================================================================
@@ -5301,12 +5369,21 @@ async function handleGenerateSummary() {
         snPreviousPayment.textContent = `${formatCurrency(previousPaymentTotal)} Qatari Riyals`;
         snCurrentPayment.textContent = `${formatCurrency(currentPaymentTotal)} Qatari Riyals`;
         snTableBody.innerHTML = '';
+        
         for (const inv of allCurrentInvoices) {
             const row = document.createElement('tr');
             row.setAttribute('data-po', inv.po); row.setAttribute('data-key', inv.key);
 
             const poKey = inv.po.toUpperCase();
-            const epicoreDescription = (epicoreData && epicoreData[poKey]) ? epicoreData[poKey] : (inv.details || '');
+            
+            // 1. Get the Raw Description from Epicore (This grabs the data from Column E)
+let rawDescription = (epicoreData && epicoreData[poKey]) ? epicoreData[poKey] : (inv.details || '');
+
+// 2. Truncate to 25 Characters (This cuts the letters)
+let truncatedDescription = rawDescription;
+if (rawDescription.length > 25) {
+    truncatedDescription = rawDescription.substring(0, 25) + "...";
+}
 
             let invCountDisplay = '';
             if (inv.invEntryID) {
@@ -5323,7 +5400,7 @@ async function handleGenerateSummary() {
                 <td>${invCountDisplay}</td>
                 <td>${inv.po}</td>
                 <td>${inv.site}</td>
-                <td><input type="text" class="summary-edit-input" name="details" value="${epicoreDescription}"></td>
+                <td><input type="text" class="summary-edit-input" name="details" value="${truncatedDescription}"></td>
                 <td><input type="date" class="summary-edit-input" name="invoiceDate" value="${normalizeDateForInput(inv.invoiceDate) || ''}"></td>
                 <td>${formatCurrency(inv.invValue)}</td>
             `;
@@ -6319,6 +6396,7 @@ async function previewAndSendReceipt() {
         sendCeoApprovalReceiptBtn.textContent = 'Send Approval Receipt';
     }
 }
+
 // ==========================================================================
 // 24. INITIALIZATION & EVENT LISTENERS
 // ==========================================================================
@@ -7395,7 +7473,26 @@ imNavLinks.forEach(li => {
             }
         });
     }
-    if (imBatchSearchExistingButton) imBatchSearchExistingButton.addEventListener('click', () => { if(imBatchSearchModal) imBatchSearchModal.classList.remove('hidden'); document.getElementById('im-batch-modal-results').innerHTML = '<p>Enter a PO number to see its invoices.</p>'; document.getElementById('im-batch-modal-po-input').value = ''; });
+    
+    // Locate this in the "Event Listeners" section of Part 6
+    if (imBatchSearchExistingButton) {
+        imBatchSearchExistingButton.addEventListener('click', () => { 
+            // 1. Show the modal
+            if(imBatchSearchModal) imBatchSearchModal.classList.remove('hidden'); 
+            
+            // 2. FORCE RESET: This wipes out any old tables or success messages
+            document.getElementById('im-batch-modal-results').innerHTML = '<p>Enter a PO number to see its invoices.</p>'; 
+            
+            // 3. Clear the input and focus it so you are ready to type the NEW PO immediately
+            const inputField = document.getElementById('im-batch-modal-po-input');
+            if (inputField) {
+                inputField.value = ''; 
+                setTimeout(() => inputField.focus(), 100); 
+            }
+        });
+    }
+    // --- END MODIFIED ---
+
     if (imBatchSearchModal) {
         const modalSearchBtn = document.getElementById('im-batch-modal-search-btn'), addSelectedBtn = document.getElementById('im-batch-modal-add-selected-btn'), modalPOInput = document.getElementById('im-batch-modal-po-input');
         if(modalSearchBtn) modalSearchBtn.addEventListener('click', handleBatchModalPOSearch);
