@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.6.0"; 
+const APP_VERSION = "3.6.2"; 
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -3393,6 +3393,13 @@ async function handleSaveModifiedTask() {
             
             await updateInvoiceTaskLookup(originalPO, originalKey, updatedInvoiceData, originalAttention);
             updateLocalInvoiceCache(originalPO, originalKey, updates);
+
+            // --- FIX: LOG HISTORY HERE ---
+            // This captures the CURRENT USER performing the modification
+            if (window.logInvoiceHistory) {
+                await window.logInvoiceHistory(originalPO, originalKey, updates.status, updates.note);
+            }
+            // -----------------------------
         } else {
             throw new Error("Invalid task source or missing keys.");
         }
@@ -3591,8 +3598,11 @@ function fetchAndDisplayInvoices(poNumber) {
 
     let invoiceCount = 0; 
     
+    // --- SMART LOGIC VARIABLES ---
     let totalInvValueSum = 0;
-    let totalAmountPaidSum = 0;
+    let totalPaidWithRetention = 0;    
+    let totalPaidWithoutRetention = 0; 
+    // -----------------------------
 
     if (invoicesData) {
         const invoices = Object.entries(invoicesData).map(([key, value]) => ({ key, ...value }));
@@ -3610,8 +3620,18 @@ function fetchAndDisplayInvoices(poNumber) {
         invoices.sort((a, b) => (a.invEntryID || '').localeCompare(b.invEntryID || ''));
         invoices.forEach(inv => {
             
-            totalInvValueSum += parseFloat(inv.invValue) || 0;
-            totalAmountPaidSum += parseFloat(inv.amountPaid) || 0;
+            // --- 1. Calculate Values ---
+            const currentInvValue = parseFloat(inv.invValue) || 0;
+            const currentAmtPaid = parseFloat(inv.amountPaid) || 0;
+            const noteText = (inv.note || '').toLowerCase();
+
+            totalInvValueSum += currentInvValue;
+            totalPaidWithRetention += currentAmtPaid;
+
+            if (!noteText.includes('retention')) {
+                totalPaidWithoutRetention += currentAmtPaid;
+            }
+            // ---------------------------
 
             const row = document.createElement('tr');
             row.style.cursor = 'pointer';
@@ -3631,9 +3651,15 @@ function fetchAndDisplayInvoices(poNumber) {
                 ? `<a href="${SRV_BASE_PATH}${encodeURIComponent(srvPDFName)}.pdf" target="_blank" class="action-btn srv-pdf-btn">SRV</a>`
                 : '';
 
-            const historyBtn = `<button type="button" class="history-btn action-btn" title="View Status History" onclick="event.stopPropagation(); showInvoiceHistory('${poNumber}', '${inv.key}')"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
+            // --- FIX: Only show History Button if data exists ---
+            let historyBtn = '';
+            // We check for 'history' (updates), 'createdAt' (creation time), or 'originTimestamp' (job entry origin)
+            if (inv.history || inv.createdAt || inv.originTimestamp) {
+                historyBtn = `<button type="button" class="history-btn action-btn" title="View Status History" onclick="event.stopPropagation(); showInvoiceHistory('${poNumber}', '${inv.key}')"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
+            }
+            // ---------------------------------------------------
 
-            // FIXED: Removed the Note column so the Action buttons align correctly
+            // Note: Note column is REMOVED as per your previous request
             row.innerHTML = `
                 <td>${inv.invEntryID || ''}</td>
                 <td>${inv.invNumber || ''}</td>
@@ -3661,11 +3687,20 @@ function fetchAndDisplayInvoices(poNumber) {
     resetInvoiceForm();
     imNewInvoiceForm.classList.remove('hidden');
 
+    // --- 2. Apply Smart Logic to Footer ---
     const footer = document.getElementById('im-invoices-table-footer');
     if (footer) {
         const isAdminOrAccounting = isAdmin || isAccounting;
+        
+        let finalTotalPaid = totalPaidWithoutRetention;
+
+        if (Math.abs(totalPaidWithRetention - totalInvValueSum) < 0.01) {
+            finalTotalPaid = totalPaidWithRetention;
+        }
+
         document.getElementById('im-invoices-total-value').textContent = isAdminOrAccounting ? formatCurrency(totalInvValueSum) : '---';
-        document.getElementById('im-invoices-total-paid').textContent = isAdminOrAccounting ? formatCurrency(totalAmountPaidSum) : '---';
+        document.getElementById('im-invoices-total-paid').textContent = isAdminOrAccounting ? formatCurrency(finalTotalPaid) : '---';
+        
         footer.style.display = invoiceCount > 0 ? '' : 'none';
     }
 
@@ -3679,6 +3714,7 @@ function fetchAndDisplayInvoices(poNumber) {
         pendingJobEntryDataForInvoice = null;
     }
 }
+
 
 // ==========================================================================
 // 14. INVOICE MANAGEMENT: SIDEBAR & ACTIVE JOBS
@@ -4400,7 +4436,6 @@ function buildDesktopReportView(reportData) {
             totalInvValue += invValue;
             totalPaidWithRetention += amountPaid;
 
-            // Check if note contains "retention"
             if (!noteText.includes('retention')) {
                 totalPaidWithoutRetention += amountPaid;
             }
@@ -4424,7 +4459,12 @@ function buildDesktopReportView(reportData) {
                     ? `<a href="${SRV_BASE_PATH}${encodeURIComponent(srvPDFName)}.pdf" target="_blank" class="action-btn srv-pdf-btn">SRV</a>`
                     : '';
                 
-                const historyBtn = `<button type="button" class="history-btn action-btn" title="View Status History" onclick="event.stopPropagation(); showInvoiceHistory('${poData.poNumber}', '${inv.key}')"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
+                // --- FIX: Only show History Button if data exists ---
+                let historyBtn = '';
+                if (inv.history || inv.createdAt || inv.originTimestamp) {
+                    historyBtn = `<button type="button" class="history-btn action-btn" title="View Status History" onclick="event.stopPropagation(); showInvoiceHistory('${poData.poNumber}', '${inv.key}')"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
+                }
+                // ---------------------------------------------------
                 
                 if (invPDFLink || srvPDFLink || historyBtn) {
                     actionButtonsHTML = `<div class="action-btn-group">${invPDFLink} ${srvPDFLink} ${historyBtn}</div>`;
@@ -4450,7 +4490,6 @@ function buildDesktopReportView(reportData) {
 
         // --- 2. Apply Smart Logic to Report Footer ---
         let finalTotalPaid = totalPaidWithoutRetention;
-        // If adding retention makes it match Invoice Value perfectly, include it.
         if (Math.abs(totalPaidWithRetention - totalInvValue) < 0.01) {
             finalTotalPaid = totalPaidWithRetention;
         }
@@ -4462,7 +4501,6 @@ function buildDesktopReportView(reportData) {
         const poValueDisplay = (isAdmin || isAccounting) ? (poData.poDetails.Amount ? `QAR ${formatCurrency(poData.poDetails.Amount)}` : 'N/A') : '---';
         const poValueNum = parseFloat(poData.poDetails.Amount) || 0;
         
-        // Balance Calculation: uses simple Sum - Sum
         const balanceNum = poValueNum - totalInvValue;
         const balanceDisplay = (isAdmin || isAccounting) ? `QAR ${formatCurrency(balanceNum)}` : '---';
 
@@ -4474,7 +4512,6 @@ function buildDesktopReportView(reportData) {
 
             if (isInvValueMatch) {
                 if (allWithAccounts) {
-                    // For highlighting, we compare Total Paid (Smart) vs PO Value
                     const isAmountPaidMatch = Math.abs(finalTotalPaid - poValueNum) < epsilon;
                     highlightClass = isAmountPaidMatch ? 'highlight-fully-paid' : 'highlight-partial';
                 }
@@ -4490,7 +4527,6 @@ function buildDesktopReportView(reportData) {
     tableHTML += `</tbody></table>`;
     container.innerHTML = tableHTML;
 }
-
 
 // ==========================================================================
 // 17. INVOICE MANAGEMENT: REPORTING ACTIONS
@@ -6305,6 +6341,15 @@ async function handleCEOAction(status) {
             await updateInvoiceTaskLookup(originalPO, originalKey, updatedInvoiceData, originalAttention);
             
             updateLocalInvoiceCache(originalPO, originalKey, updates);
+
+            // --- FIX: LOG HISTORY HERE ---
+            // This captures the CEO performing the action
+            if (window.logInvoiceHistory) {
+                const historyNote = updates.note ? `CEO Action: ${updates.note}` : `Marked as ${status} by CEO`;
+                await window.logInvoiceHistory(originalPO, originalKey, status, historyNote);
+            }
+            // -----------------------------
+
         } else {
             throw new Error("Invalid task source or missing keys.");
         }
@@ -6792,10 +6837,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (taskData.source === 'invoice') {
                     const updates = { releaseDate: getTodayDateString(), status: 'SRV Done' };
                     await invoiceDb.ref(`invoice_entries/${taskData.originalPO}/${taskData.originalKey}`).update(updates);
+                    
                     if (!allInvoiceData) await ensureInvoiceDataFetched(); 
                     const originalInvoice = (allInvoiceData && allInvoiceData[taskData.originalPO]) ? allInvoiceData[taskData.originalPO][taskData.originalKey] : {};
                     const updatedInvoiceData = {...originalInvoice, ...updates};
                     await updateInvoiceTaskLookup(taskData.originalPO, taskData.originalKey, updatedInvoiceData, taskData.attention);
+
+                    // --- FIX: LOG HISTORY HERE ---
+                    // This captures the CURRENT USER (e.g., the person who clicked the button)
+                    if (window.logInvoiceHistory) {
+                        await window.logInvoiceHistory(taskData.originalPO, taskData.originalKey, 'SRV Done', 'Marked as SRV Done via Active Task');
+                    }
+                    // -----------------------------
+
                 } else if (taskData.source === 'job_entry') {
                     const updates = { dateResponded: formatDate(new Date()), remarks: 'SRV Done' };
                     await db.ref(`job_entries/${taskData.key}`).update(updates);
