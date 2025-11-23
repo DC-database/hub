@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.6.6"; 
+const APP_VERSION = "3.6.7"; 
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -3036,10 +3036,13 @@ async function handleDeleteJobEntry(e) {
     }
 
     const userPositionLower = (currentApprover?.Position || '').toLowerCase();
-    if (userPositionLower !== 'accounting') {
-        alert("You do not have permission to delete entries.");
+    
+    // --- SECURITY UPDATE: Strict check for "Irwin" ---
+    if (userPositionLower !== 'accounting' || currentApprover.Name !== 'Irwin') {
+        alert("Access Denied: Only the original Administrator (Irwin) can permanently delete entries.");
         return;
     }
+    // ------------------------------------------------
 
     if (!confirm("Are you sure you want to permanently delete this job entry? This action cannot be undone.")) {
         return;
@@ -3176,11 +3179,14 @@ function populateFormForEditing(key) {
     updateJobButton.classList.remove('hidden');
 
     const userPositionLower = (currentApprover?.Position || '').toLowerCase();
-    if (userPositionLower === 'accounting') {
+    
+    // --- SECURITY UPDATE: Only "Irwin" can see the Delete button ---
+    if (userPositionLower === 'accounting' && currentApprover.Name === 'Irwin') {
         deleteJobButton.classList.remove('hidden');
     } else {
         deleteJobButton.classList.add('hidden');
     }
+    // -------------------------------------------------------------
 
     amountInput.classList.remove('highlight-field');
     poInput.classList.remove('highlight-field');
@@ -3689,6 +3695,7 @@ function fetchAndDisplayInvoices(poNumber) {
         });
 
         invoices.sort((a, b) => (a.invEntryID || '').localeCompare(b.invEntryID || ''));
+        
         invoices.forEach(inv => {
             
             // --- 1. Calculate Values ---
@@ -3707,8 +3714,10 @@ function fetchAndDisplayInvoices(poNumber) {
             const row = document.createElement('tr');
             row.style.cursor = 'pointer';
             row.setAttribute('data-key', inv.key);
+            
             const releaseDateDisplay = inv.releaseDate ? new Date(normalizeDateForInput(inv.releaseDate) + 'T00:00:00').toLocaleDateString('en-GB') : 'N/A';
             const invoiceDateDisplay = inv.invoiceDate ? new Date(normalizeDateForInput(inv.invoiceDate) + 'T00:00:00').toLocaleDateString('en-GB') : 'N/A';
+            
             const invValueDisplay = (isAdmin || isAccounting) ? formatCurrency(inv.invValue) : '---';
             const amountPaidDisplay = (isAdmin || isAccounting) ? formatCurrency(inv.amountPaid) : '---';
 
@@ -3722,15 +3731,19 @@ function fetchAndDisplayInvoices(poNumber) {
                 ? `<a href="${SRV_BASE_PATH}${encodeURIComponent(srvPDFName)}.pdf" target="_blank" class="action-btn srv-pdf-btn">SRV</a>`
                 : '';
 
-            // --- FIX: Only show History Button if data exists ---
+            // --- History Button Logic ---
             let historyBtn = '';
-            // We check for 'history' (updates), 'createdAt' (creation time), or 'originTimestamp' (job entry origin)
             if (inv.history || inv.createdAt || inv.originTimestamp) {
                 historyBtn = `<button type="button" class="history-btn action-btn" title="View Status History" onclick="event.stopPropagation(); showInvoiceHistory('${poNumber}', '${inv.key}')"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
             }
-            // ---------------------------------------------------
 
-            // Note: Note column is REMOVED as per your previous request
+            // --- SECURITY UPDATE: Irwin-Only Delete Button ---
+            let deleteBtnHTML = '';
+            if (currentApprover.Name === 'Irwin') {
+                deleteBtnHTML = `<button class="delete-btn" data-key="${inv.key}">Delete</button>`;
+            }
+            // -------------------------------------------------
+
             row.innerHTML = `
                 <td>${inv.invEntryID || ''}</td>
                 <td>${inv.invNumber || ''}</td>
@@ -3739,7 +3752,7 @@ function fetchAndDisplayInvoices(poNumber) {
                 <td>${amountPaidDisplay}</td>
                 <td>${inv.status || ''}</td>
                 <td>${releaseDateDisplay}</td>
-                <td><div class="action-btn-group">${invPDFLink} ${srvPDFLink} ${historyBtn} <button class="delete-btn" data-key="${inv.key}">Delete</button></div></td>
+                <td><div class="action-btn-group">${invPDFLink} ${srvPDFLink} ${historyBtn} ${deleteBtnHTML}</div></td>
             `;
             imInvoicesTableBody.appendChild(row);
         });
@@ -3785,7 +3798,6 @@ function fetchAndDisplayInvoices(poNumber) {
         pendingJobEntryDataForInvoice = null;
     }
 }
-
 
 // ==========================================================================
 // 14. INVOICE MANAGEMENT: SIDEBAR & ACTIVE JOBS
@@ -4068,6 +4080,13 @@ async function handleUpdateInvoice(e) {
 
 async function handleDeleteInvoice(key) {
     if (!currentPO || !key) { alert("Could not identify the invoice to delete."); return; }
+    
+    // --- SECURITY UPDATE: Strict check for "Irwin" ---
+    if (currentApprover.Name !== 'Irwin') {
+        alert("Access Denied: Only the original Administrator (Irwin) can delete invoices.");
+        return;
+    }
+    // ------------------------------------------------
     
     const invoiceToDelete = currentPOInvoices[key];
     if (!invoiceToDelete) {
