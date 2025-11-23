@@ -93,11 +93,15 @@
                     <li class="wd-nav-taskhistory hidden"><a href="#" data-section="wd-taskhistory"><i class="fa-solid fa-clock-rotate-left"></i> Task History</a></li>
                     <li class="wd-nav-reporting"><a href="#" data-section="wd-reporting"><i class="fa-solid fa-chart-line"></i> Job Records</a></li>
                     <li class="wd-nav-im-reporting-mobile"><a href="#" id="wd-im-reporting-link-mobile"><i class="fa-solid fa-chart-line"></i> Reporting</a></li>
+                    
+                    <li class="mobile-only-nav-item"><a href="#" id="mobile-nav-logout"><i class="fa-solid fa-power-off" style="color: #C3502F;"></i> <span style="color: #C3502F;">Logout</span></a></li>
                 </ul>
             </nav>
             <div class="workdesk-footer-nav">
                  <ul>
-                    <li id="workdesk-im-link-container" class="hidden" style="margin-top: 20px; border-top: 1px solid #003366; padding-top: 10px;"><a href="#" id="workdesk-im-link"><i class="fa-solid fa-file-invoice-dollar"></i> Invoice Management</a></li>
+                    <li id="workdesk-im-link-container" class="hidden" style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 10px;">
+                        <a href="#" id="workdesk-im-link"><i class="fa-solid fa-file-invoice-dollar"></i> Invoice Management</a>
+                    </li>
                     <li><a href="#" data-section="wd-settings"><i class="fa-solid fa-gear"></i> Settings</a></li>
                     <li><a href="#" id="wd-logout-button"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</a></li>
                 </ul>
@@ -270,9 +274,7 @@
                             <i class="fa-solid fa-sync"></i>
                         </button>
                         <h1>My Tasks</h1>
-                        <button id="mobile-activetask-logout-btn" class="mobile-header-icon logout-icon" title="Logout">
-                            <i class="fa-solid fa-power-off"></i>
-                        </button>
+                       
                     </div>
 
                     <h1 class="hidden-mobile">Your Active Tasks <span id="active-task-count-display" class="table-count-display"></span></h1>
@@ -394,7 +396,6 @@
             <nav id="im-nav" class="workdesk-navigation">
                 <ul>
                     <li class="wd-nav-dashboard-mobile"><a href="#" id="im-back-to-wd-dashboard-link"><i class="fa-solid fa-calendar-days"></i> Task Calendar</a></li>
-                    
                     <li class="wd-nav-activetask-mobile">
                         <a href="#" id="im-mobile-activetask-link">
                             <i class="fa-solid fa-list-check"></i> Active Task
@@ -402,22 +403,34 @@
                         </a>
                     </li>
 
-                    <li class="im-nav-dashboard desktop-only-li"><a href="#" data-section="im-dashboard" class="active"><i class="fa-solid fa-table-columns"></i> Dashboard</a></li>
-                    <li class="im-nav-invoice-entry desktop-only-li"><a href="#" data-section="im-invoice-entry"><i class="fa-solid fa-file-pen"></i> Invoice Entry</a></li>
+                    <li class="im-nav-dashboard desktop-only-li">
+                        <a href="#" id="im-dashboard-nav-link" data-section="im-dashboard" class="active" title="Double-click to load charts">
+                            <i class="fa-solid fa-table-columns"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="im-nav-reporting"><a href="#" data-section="im-reporting"><i class="fa-solid fa-chart-line"></i> Invoice Records</a></li>
+                    <li class="wd-nav-im-reporting-mobile"><a href="#" id="wd-im-reporting-link-mobile"><i class="fa-solid fa-chart-line"></i> Invoice Records</a></li>
+
+                    <li class="nav-section-divider im-nav-invoice-entry desktop-only-li" style="border-top: 1px solid rgba(255,255,255,0.3) !important;"><a href="#" data-section="im-invoice-entry"><i class="fa-solid fa-file-pen"></i> Invoice Entry</a></li>
                     <li class="im-nav-batch-entry desktop-only-li"><a href="#" id="batch-entry-nav-link" data-section="im-batch-entry"><i class="fa-solid fa-file-excel"></i> Batch Entry</a></li>
                     <li class="im-nav-summary-note desktop-only-li"><a href="#" id="summary-note-nav-link" data-section="im-summary-note"><i class="fa-solid fa-receipt"></i> Summary Note</a></li>
                     
-                    <li class="im-nav-reporting"><a href="#" data-section="im-reporting"><i class="fa-solid fa-chart-line"></i> Reporting</a></li>
-                    
-                    <li class="wd-nav-im-reporting-mobile"><a href="#" id="wd-im-reporting-link-mobile"><i class="fa-solid fa-chart-line"></i> Reporting</a></li>
-                    
-                    <li class="nav-section-divider im-nav-payments desktop-only-li"><a href="#" id="payments-nav-link" data-section="im-payments" class="hidden"><i class="fa-solid fa-money-check-dollar"></i> Payments</a></li>
+                    <li class="nav-section-divider im-nav-payments desktop-only-li" style="border-top: 1px solid rgba(255,255,255,0.3) !important;"><a href="#" id="payments-nav-link" data-section="im-payments" class="hidden"><i class="fa-solid fa-money-check-dollar"></i> Payments</a></li>
                     <li class="im-nav-finance-report desktop-only-li"><a href="#" id="im-finance-report-nav-link" data-section="im-finance-report"><i class="fa-solid fa-building-columns"></i> Finance Report</a></li>
+                    
+                    <li class="mobile-only-nav-item">
+                        <a href="#" id="im-mobile-nav-logout">
+                            <i class="fa-solid fa-power-off" style="color: #C3502F;"></i> 
+                            <span style="color: #C3502F;">Logout</span>
+                        </a>
+                    </li>
                 </ul>
             </nav>
             <div class="workdesk-footer-nav">
                  <ul>
-                    <li id="im-nav-workdesk" class="hidden" style="margin-top: 20px; border-top: 1px solid #003366; padding-top: 10px;"><a href="#" id="im-workdesk-button"><i class="fa-solid fa-briefcase"></i> WorkDesk</a></li>
+                    <li id="im-nav-workdesk" class="hidden" style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 10px;">
+                        <a href="#" id="im-workdesk-button"><i class="fa-solid fa-briefcase"></i> WorkDesk</a>
+                    </li>
                     <li class="im-nav-activetask-link"><a href="#" id="im-activetask-button"><i class="fa-solid fa-list-check"></i> Active Task <span id="im-active-task-badge" class="notification-badge" style="display: none;">0</span></a></li>
                     <li><a href="#" id="im-logout-button"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</a></li>
                 </ul>
@@ -603,7 +616,7 @@
 
                 <section id="im-reporting" class="workdesk-section hidden">
                     <div class="report-header">
-                        <h1>Invoice Summary Report <span id="reporting-count-display" class="table-count-display"></span></h1>
+                        <h1>Invoice Records <span id="reporting-count-display" class="table-count-display"></span></h1>
                         <button id="im-mobile-search-btn" class="im-mobile-search-btn" type="button"><i class="fa-solid fa-magnifying-glass"></i></button>
                         <div class="daily-report-section">
                            <input type="date" id="im-daily-report-date" title="Select a date for the daily report">
@@ -780,6 +793,48 @@
                     <button id="im-payment-modal-add-selected-btn" class="download-btn"><i class="fa-solid fa-plus"></i> Add Selected</button>
                     <button class="secondary-btn modal-close-btn">Cancel</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="im-manual-po-modal" class="modal-overlay hidden">
+        <div class="modal-container" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>Add New PO (Manual)</h2>
+                <button class="modal-close-btn" onclick="document.getElementById('im-manual-po-modal').classList.add('hidden')">&times;</button>
+            </div>
+            <div class="modal-content">
+                <p style="margin-bottom: 15px; color: #666; font-size: 0.9rem;">
+                    This PO was not found in the database. Please enter its details manually to proceed.
+                </p>
+                <form id="im-manual-po-form">
+                    <div class="form-group">
+                        <label>PO Number</label>
+                        <input type="text" id="manual-po-number" readonly style="background-color: #eee;">
+                    </div>
+                    <div class="form-group">
+                        <label>Supplier ID</label>
+                        <input type="text" id="manual-supplier-id" placeholder="Enter ID to search vendor...">
+                    </div>
+                    <div class="form-group">
+                        <label>Vendor Name</label>
+                        <input type="text" id="manual-vendor-name" readonly placeholder="Vendor will appear here..." style="background-color: #f9f9f9;">
+                    </div>
+                    <div class="form-group">
+                        <label>Site / Project</label>
+                        <select id="manual-site-select">
+                            <option value="">Select Site...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Total PO Value</label>
+                        <input type="number" id="manual-po-amount" step="0.01" placeholder="0.00">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="secondary-btn modal-close-btn" onclick="document.getElementById('im-manual-po-modal').classList.add('hidden')">Cancel</button>
+                <button id="im-save-manual-po-btn" class="download-btn">Save & Continue</button>
             </div>
         </div>
     </div>

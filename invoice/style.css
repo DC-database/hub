@@ -2156,7 +2156,19 @@ body.is-admin .legend-admin-only {
     gap: 15px;
     padding: 0 5px;
   }
+/* Show Logout in Bottom Nav */
+    .workdesk-navigation li.mobile-only-nav-item {
+    display: list-item !important;
 }
+    
+    /* Optional: Hide the top-right header logout button since it's now at the bottom */
+    #wd-dayview-mobile-logout-btn-new {
+        display: none !important;
+    }
+}
+
+
+
 
 /* MOBILE RESPONSIVE STYLES */
 @media (max-width: 768px) {
@@ -2229,25 +2241,31 @@ body.is-admin .legend-admin-only {
     }
     
     /* --- *** MODIFICATION: Show specific mobile links *** --- */
-    /* 1. Dashboard */
+    
+    /* 1. Dashboard (Day View) - Visible for EVERYONE */
     #workdesk-view .workdesk-navigation li.wd-nav-dashboard {
-        display: list-item;
+        display: list-item !important;
     }
-    /* 2. Active Task (My Tasks) - ESSENTIAL FOR CEO */
+
+    /* 2. Active Task (My Tasks / CEO Approvals) - Visible for EVERYONE */
+    /* The content changes automatically based on role, but the button must be visible */
     #workdesk-view .workdesk-navigation li.wd-nav-activetask {
         display: list-item !important;
     }
-    /* 3. Reporting */
+
+    /* 3. Reporting - HIDDEN by default (for Regular Users) */
     #workdesk-view .workdesk-navigation li.wd-nav-im-reporting-mobile {
-        display: list-item;
+        display: none !important;
     }
+
+    /* 4. Reporting - VISIBLE ONLY for Admins & CEO */
+    /* This relies on the JS adding the 'is-admin' class to the body */
+    body.is-admin #workdesk-view .workdesk-navigation li.wd-nav-im-reporting-mobile {
+        display: list-item !important;
+    }
+
     /* --- *** END OF MODIFICATION *** --- */
-    /* Hide the mobile-only reporting link when in IM view */
-    #invoice-management-view .workdesk-navigation li.wd-nav-im-reporting-mobile {
-        display: none;
-    }
-    
-/* --- *** START OF MOBILE NAV FIX *** --- */
+
     /* Hide all desktop-only links on mobile */
     .desktop-only-li {
         display: none !important;
@@ -2433,7 +2451,8 @@ body.is-admin .legend-admin-only {
 .workdesk-navigation li.nav-section-divider {
     margin-top: 15px;
     padding-top: 15px;
-    border-top: 1px solid var(--iba-base-blue-light); /* MODIFIED: Separator color */
+    /* Use semi-transparent white for a clean look on the blue background */
+    border-top: 1px solid rgba(255, 255, 255, 0.3); 
 }
 
 /* ++ NEW: 3-Column Grid Layout for Invoice Entry Form ++ */
@@ -3887,4 +3906,40 @@ body.is-ceo .desktop-only.col-group {
 /* Ensure the icon inside is white */
 .history-btn i {
     color: white !important;
+}
+/* Hide Mobile Logout on Desktop */
+.mobile-only-nav-item {
+    display: none;
+}
+/* Dashboard Double-Click Tooltip */
+#im-dashboard-nav-link {
+    position: relative;
+}
+
+/* Only show this custom tooltip on Desktop */
+@media (min-width: 769px) {
+    #im-dashboard-nav-link:hover::after {
+        content: "Double-click to load data";
+        position: absolute;
+        left: 100%; /* Position to the right of the link */
+        top: 50%;
+        transform: translateY(-50%);
+        background-color: #333;
+        color: #fff;
+        padding: 5px 10px;
+        border-radius: 4px;
+        white-space: nowrap;
+        font-size: 0.75rem;
+        margin-left: 10px; /* Spacing from the button */
+        z-index: 2000;
+        pointer-events: none;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        opacity: 0;
+        animation: fadeIn 0.3s forwards;
+        animation-delay: 0.5s; /* Slight delay before showing */
+    }
+}
+
+@keyframes fadeIn {
+    to { opacity: 1; }
 }

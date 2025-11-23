@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.6.2"; 
+const APP_VERSION = "3.6.6"; 
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -115,6 +115,7 @@ let allEcommitDataProcessed = null;
 let allApproversCache = null;
 let allSitesCache = null;
 let allApproverDataCache = null; 
+let allVendorsData = null; // New Cache for Vendors.csv
 
 // -- Workdesk <-> IM Context --
 let jobEntryToUpdateAfterInvoice = null;
@@ -575,7 +576,8 @@ async function ensureEcostDataFetched(forceRefresh = false) {
 async function ensureInvoiceDataFetched(forceRefresh = false) {
     const now = Date.now();
 
-    if (!forceRefresh && allPOData && allInvoiceData && allEpicoreData && allSitesCSVData && allEcommitDataProcessed) {
+    // Check if everything is already loaded (including new vendors data)
+    if (!forceRefresh && allPOData && allInvoiceData && allEpicoreData && allSitesCSVData && allEcommitDataProcessed && allVendorsData) {
         return; 
     }
 
@@ -591,6 +593,9 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
         const ecostUrl = (!allEpicoreData || forceRefresh) ? await getFirebaseCSVUrl('Ecost.csv') : null;
         const siteUrl = (!allSitesCSVData || forceRefresh) ? await getFirebaseCSVUrl('Site.csv') : null;
         const ecommitUrl = (!allEcommitDataProcessed || forceRefresh) ? await getFirebaseCSVUrl('ECommit.csv') : null;
+        
+        // --- NEW: Get Vendors URL ---
+        const vendorUrl = (!allVendorsData || forceRefresh) ? await getFirebaseCSVUrl('Vendors.csv') : null;
 
         if (poUrl) {
             console.log("Fetching POVALUE2.csv...");
@@ -608,6 +613,13 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
             console.log("Fetching ECommit.csv...");
             promisesToRun.push(fetchAndParseEcommitCSV(ecommitUrl));
         }
+        
+        // --- NEW: Fetch Vendors ---
+        if (vendorUrl) {
+            console.log("Fetching Vendors.csv...");
+            promisesToRun.push(fetchAndParseVendorsCSV(vendorUrl));
+        }
+
         if (!allInvoiceData || forceRefresh) {
             console.log("Fetching Firebase invoice data...");
             promisesToRun.push(invoiceDb.ref('invoice_entries').once('value'));
@@ -639,6 +651,14 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
             if (allEcommitDataProcessed === null) throw new Error("Failed to load ECommit.csv");
             cacheTimestamps.ecommitData = now;
         }
+        
+        // --- NEW: Handle Vendors Result ---
+        if (vendorUrl) {
+            allVendorsData = results[resultIndex++];
+            // Ensure it is at least an empty object if fetch failed gracefully
+            if (!allVendorsData) allVendorsData = {};
+        }
+
         if (!allInvoiceData || forceRefresh) {
             const invoiceSnapshot = results[resultIndex++];
             allInvoiceData = invoiceSnapshot.val() || {};
@@ -793,6 +813,38 @@ function removeFromLocalInvoiceCache(poNumber, invoiceKey) {
         delete allInvoiceData[poNumber][invoiceKey];
     }
 }
+
+async function fetchAndParseVendorsCSV(url) {
+    try {
+        const response = await fetch(url, { cache: 'no-store' });
+        if (!response.ok) throw new Error("Failed to fetch Vendors CSV");
+        const csvText = await response.text();
+        const lines = csvText.replace(/^\uFEFF/, '').split('\n').filter(line => line.trim() !== '');
+        
+        const vendorMap = {}; // Key: Supplier ID, Value: Vendor Name
+        
+        // Assuming Header is Row 0: Name,Supplier ID
+        for (let i = 1; i < lines.length; i++) {
+            // Simple comma split (assuming no commas IN the names for now, or use complex parser if needed)
+            const parts = lines[i].split(','); 
+            if (parts.length >= 2) {
+                // Assuming Column 0 = Name, Column 1 = ID
+                // Clean up quotes if present
+                const name = parts[0].replace(/^"|"$/g, '').trim();
+                const id = parts[1].replace(/^"|"$/g, '').trim();
+                if (id && name) {
+                    vendorMap[id] = name;
+                }
+            }
+        }
+        console.log(`Cached ${Object.keys(vendorMap).length} vendors.`);
+        return vendorMap;
+    } catch (error) {
+        console.error("Error parsing Vendors.csv:", error);
+        return {};
+    }
+}
+
 
 // ==========================================================================
 // 4. GENERAL HELPER FUNCTIONS
@@ -1314,11 +1366,26 @@ function handleSuccessfulLogin() {
     const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
     document.body.classList.toggle('is-admin', isAdmin);
 
+    const userPositionLower = (currentApprover?.Position || '').toLowerCase();
+    const isAccounting = userPositionLower === 'accounting';
+    const isAccounts = userPositionLower === 'accounts';
+
+    // --- Hide Finance Report Button for non-Accounts ---
     const financeReportButton = document.querySelector('a[href="https://ibaport.site/Finance/"]');
     if (financeReportButton) {
-        const userPositionLower = (currentApprover?.Position || '').toLowerCase();
-        const isAccountsOrAccounting = userPositionLower === 'accounts' || userPositionLower === 'accounting';
+        const isAccountsOrAccounting = isAccounts || isAccounting;
         financeReportButton.classList.toggle('hidden', !isAccountsOrAccounting);
+    }
+
+    // --- NEW FIX: Hide Invoice Management Button for Unauthorized Users ---
+    // Only Admins, Accounting, or Accounts should see this button
+    const invoiceMgmtBtn = document.getElementById('invoice-mgmt-button');
+    if (invoiceMgmtBtn) {
+        if (isAdmin || isAccounting || isAccounts) {
+            invoiceMgmtBtn.classList.remove('hidden');
+        } else {
+            invoiceMgmtBtn.classList.add('hidden');
+        }
     }
 }
 
@@ -1398,38 +1465,38 @@ async function showWorkdeskSection(sectionId, newSearchTerm = null) {
 }
 
 // --- Invoice Management Navigation ---
-
 function showIMSection(sectionId) {
-    // Access Control Check
-    const userPositionLower = (currentApprover?.Position || '').toLowerCase();
-    const userRoleLower = (currentApprover?.Role || '').toLowerCase();
-    const isAccountingAdmin = userPositionLower === 'accounting' && userRoleLower === 'admin';
-    const isAccountsOrAccounting = userPositionLower === 'accounts' || userPositionLower === 'accounting';
-    const isAdmin = userRoleLower === 'admin'; 
-    const isAccountingPosition = userPositionLower === 'accounting';
+    // 1. Get User Credentials
+    const userPos = (currentApprover?.Position || '').trim(); // Case sensitive check next
+    const userRole = (currentApprover?.Role || '').toLowerCase();
+    
+    // 2. Define Permission Flags (Strict Logic)
+    const isAdmin = userRole === 'admin';
+    const isAccountingPos = userPos === 'Accounting'; // Case sensitive as per request usually, but let's be safe
+    const isAccountsPos = userPos === 'Accounts';
 
-    // Show/hide daily report buttons based on 'accounting' POSITION
-    const dailyReportContainer = document.querySelector('.daily-report-section');
-    if (dailyReportContainer) {
-        const isMobile = window.innerWidth <= 768;
-        dailyReportContainer.style.display = (isAccountingPosition && !isMobile) ? 'flex' : 'none';
-    }
-    if (imReportingDownloadCSVButton) {
-        imReportingDownloadCSVButton.style.display = isAccountingPosition ? 'inline-block' : 'none';
-    }
+    // "Admin with Accounting" (Has Everything)
+    const isAccountingAdmin = isAdmin && isAccountingPos; // Strictly Admin + Accounting
+    
+    // "Admin with Accounts" (Has Payments)
+    // Note: We allow AccountingAdmin to see payments too since they have "everything"
+    const isAccountsAdmin = (isAdmin && isAccountsPos) || isAccountingAdmin;
 
-    // Block access based on role
-    if (sectionId === 'im-invoice-entry' && !isAccountingAdmin) { alert('Access Denied: Requires Accounting Admin position.'); return; }
-    if (sectionId === 'im-batch-entry' && !isAccountingAdmin) { alert('Access Denied: Requires Accounting Admin position.'); return; }
-    if (sectionId === 'im-summary-note' && !isAccountingAdmin) { alert('Access Denied: Requires Accounting Admin position.'); return; }
-    if (sectionId === 'im-payments' && !isAccountsOrAccounting) { alert('Access Denied: Requires Accounts or Accounting position.'); return; }
-    if (sectionId === 'im-finance-report' && !isAdmin) { alert('Access Denied: Requires Admin role.'); return; }
+    // 3. Strict Access Control Checks
+    if (sectionId === 'im-invoice-entry' && !isAccountingAdmin) { alert('Access Denied: Restricted to Admin & Accounting position.'); return; }
+    if (sectionId === 'im-batch-entry' && !isAccountingAdmin) { alert('Access Denied: Restricted to Admin & Accounting position.'); return; }
+    if (sectionId === 'im-summary-note' && !isAccountingAdmin) { alert('Access Denied: Restricted to Admin & Accounting position.'); return; }
+    
+    if (sectionId === 'im-payments' && !isAccountsAdmin) { alert('Access Denied: Restricted to Admin & Accounts/Accounting position.'); return; }
+    
+    if (sectionId === 'im-finance-report' && !isAdmin) { alert('Access Denied: Restricted to Admins.'); return; }
 
+    // 4. Show/Hide Views
     imContentArea.querySelectorAll('.workdesk-section').forEach(section => section.classList.add('hidden'));
     const targetSection = document.getElementById(sectionId);
     if (targetSection) targetSection.classList.remove('hidden');
 
-    // Sidebar Logic
+    // 5. Sidebar Handling
     if (sectionId === 'im-invoice-entry') {
         if(imEntrySidebar) imEntrySidebar.classList.remove('hidden');
         if(imMainElement) imMainElement.classList.add('with-sidebar'); 
@@ -1439,56 +1506,44 @@ function showIMSection(sectionId) {
         if(imMainElement) imMainElement.classList.remove('with-sidebar'); 
     }
 
-    if (sectionId === 'im-dashboard') { populateInvoiceDashboard(false); }
-    
-    if (sectionId === 'im-invoice-entry') { 
-        const savedPOSearch = sessionStorage.getItem('imPOSearch');
-        if (savedPOSearch) {
-            imPOSearchInput.value = savedPOSearch;
-            imPOSearchInputBottom.value = savedPOSearch;
-            handlePOSearch(savedPOSearch); 
-        } else {
-            resetInvoiceEntryPage();
-        }
-        if (imAttentionSelectChoices) { 
-            populateAttentionDropdown(imAttentionSelectChoices); 
-        } 
+    // 6. Section Specific Initializers
+    if (sectionId === 'im-dashboard') { 
+        // STOP AUTOMATIC LOADING
+        // populateInvoiceDashboard(false); <--- REMOVED
+        
+        // Show "Standby" Message instead
+        const dbSection = document.getElementById('im-dashboard');
+        dbSection.innerHTML = `
+            <h1>Dashboard</h1>
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; color: #777; text-align: center;">
+                <i class="fa-solid fa-chart-column" style="font-size: 4rem; margin-bottom: 20px; color: #ccc;"></i>
+                <h2 style="margin-bottom: 10px;">Dashboard Standby</h2>
+                <p>To view heavy chart data, please <strong>Double-Click</strong> the "Dashboard" button in the sidebar.</p>
+            </div>
+        `;
     }
     
     if (sectionId === 'im-batch-entry') {
         const savedBatchSearch = sessionStorage.getItem('imBatchSearch');
         const savedBatchNoteSearch = sessionStorage.getItem('imBatchNoteSearch'); 
-        const batchTableBody = document.getElementById('im-batch-table-body');
+        if (savedBatchSearch) document.getElementById('im-batch-po-input').value = savedBatchSearch;
+        else document.getElementById('im-batch-po-input').value = '';
         
-        if (savedBatchSearch) {
-            document.getElementById('im-batch-po-input').value = savedBatchSearch;
-        } else {
-             document.getElementById('im-batch-po-input').value = '';
-        }
-        batchTableBody.innerHTML = '';
+        document.getElementById('im-batch-table-body').innerHTML = '';
         updateBatchCount(); 
 
         if (!imBatchGlobalAttentionChoices) {
-             imBatchGlobalAttentionChoices = new Choices(imBatchGlobalAttention, { searchEnabled: true, shouldSort: false, itemSelectText: '', });
+             imBatchGlobalAttentionChoices = new Choices(document.getElementById('im-batch-global-attention'), { searchEnabled: true, shouldSort: false, itemSelectText: '', });
              populateAttentionDropdown(imBatchGlobalAttentionChoices);
-        } else {
-             populateAttentionDropdown(imBatchGlobalAttentionChoices);
-        }
+        } else populateAttentionDropdown(imBatchGlobalAttentionChoices);
         
         if (!imBatchNoteSearchChoices) {
-            imBatchNoteSearchChoices = new Choices(imBatchNoteSearchSelect, {
-                searchEnabled: true,
-                shouldSort: true,
-                itemSelectText: '',
-                removeItemButton: true,
-                placeholder: true,
-                placeholderValue: 'Search by Note...'
+            imBatchNoteSearchChoices = new Choices(document.getElementById('im-batch-note-search-select'), {
+                searchEnabled: true, shouldSort: true, itemSelectText: '', removeItemButton: true, placeholder: true, placeholderValue: 'Search by Note...'
             });
         }
         populateNoteDropdown(imBatchNoteSearchChoices).then(() => {
-            if (savedBatchNoteSearch) {
-                imBatchNoteSearchChoices.setChoiceByValue(savedBatchNoteSearch);
-            }
+            if (savedBatchNoteSearch) imBatchNoteSearchChoices.setChoiceByValue(savedBatchNoteSearch);
         });
     }
 
@@ -1496,11 +1551,9 @@ function showIMSection(sectionId) {
         initializeNoteSuggestions(); 
         const savedPrevNote = sessionStorage.getItem('imSummaryPrevNote');
         const savedCurrNote = sessionStorage.getItem('imSummaryCurrNote');
-        
         if (savedPrevNote) summaryNotePreviousInput.value = savedPrevNote;
-        if (savedCurrNote) summaryNoteCurrentInput.value = savedCurrNote;
-
         if (savedCurrNote) {
+            summaryNoteCurrentInput.value = savedCurrNote;
             handleGenerateSummary();
         } else {
             summaryNotePrintArea.classList.add('hidden');
@@ -1521,6 +1574,14 @@ function showIMSection(sectionId) {
             currentReportData = [];
         }
         populateSiteFilterDropdown();
+        
+        // Visibility check for Accounting-specific download buttons
+        const showReportBtns = isAccountingAdmin && (window.innerWidth > 768);
+        if (imReportingDownloadCSVButton) imReportingDownloadCSVButton.style.display = showReportBtns ? 'inline-block' : 'none';
+        if (imDownloadDailyReportButton) imDownloadDailyReportButton.style.display = showReportBtns ? 'inline-block' : 'none';
+        if (imDownloadWithAccountsReportButton) imDownloadWithAccountsReportButton.style.display = showReportBtns ? 'inline-block' : 'none';
+        if (imDailyReportDateInput) imDailyReportDateInput.style.display = showReportBtns ? 'inline-block' : 'none';
+        if (imReportingPrintBtn) imReportingPrintBtn.disabled = !isAccountingAdmin;
     }
     
     if (sectionId === 'im-payments') {
@@ -3528,63 +3589,73 @@ async function handlePOSearch(poNumberFromInput) {
     }
 
     sessionStorage.setItem('imPOSearch', poNumber);
-
     imPOSearchInput.value = poNumber;
     imPOSearchInputBottom.value = poNumber;
     
     try {
-        if (!allPOData) {
-            // If not loaded, attempt to fetch from Firebase now
-            console.log("Loading PO data from Firebase for search...");
-            const url = await getFirebaseCSVUrl('POVALUE2.csv');
-            if (url) {
-                const { poDataByPO } = await fetchAndParseCSV(url) || {};
-                if (poDataByPO) {
-                    allPOData = poDataByPO;
-                } else {
-                    alert("CRITICAL ERROR: Could not load PO data.");
-                    return;
-                }
-            } else {
-                alert("CRITICAL ERROR: Could not get URL for PO data.");
-                return;
-            }
-        }
+        if (!allPOData) await ensureAllEntriesFetched();
 
-        const poData = allPOData[poNumber];
+        let poData = allPOData[poNumber];
+
+        // --- NEW LOGIC: FALLBACK MODAL ---
         if (!poData) {
-            alert('PO Number not found in the database.');
-            resetInvoiceEntryPage();
-            return;
+            // Open the Manual Entry Modal
+            document.getElementById('manual-po-number').value = poNumber;
+            document.getElementById('manual-supplier-id').value = '';
+            document.getElementById('manual-vendor-name').value = '';
+            document.getElementById('manual-po-amount').value = '';
+            
+            // Populate Modal Site Dropdown (reuse existing logic)
+            const modalSiteSelect = document.getElementById('manual-site-select');
+            if (modalSiteSelect.options.length <= 1 && allSitesCSVData) {
+                allSitesCSVData.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s.site;
+                    opt.textContent = `${s.site} - ${s.description}`;
+                    modalSiteSelect.appendChild(opt);
+                });
+            }
+            
+            document.getElementById('im-manual-po-modal').classList.remove('hidden');
+            return; // Stop here, wait for modal save
         }
+        // ---------------------------------
 
-        const invoicesSnapshot = await invoiceDb.ref(`invoice_entries/${poNumber}`).once('value');
-        const invoicesData = invoicesSnapshot.val();
-
-        if (!allInvoiceData) allInvoiceData = {};
-        allInvoiceData[poNumber] = invoicesData || {}; 
-
-        currentPO = poNumber;
-        const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
-        const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
-        const poValueText = (isAdmin || isAccounting) ? (poData.Amount ? `QAR ${formatCurrency(poData.Amount)}` : 'N/A') : '---'; 
-        const siteText = poData['Project ID'] || 'N/A';
-        const vendorText = poData['Supplier Name'] || 'N/A';
-
-        document.querySelectorAll('.im-po-no').forEach(el => el.textContent = poNumber);
-        document.querySelectorAll('.im-po-site').forEach(el => el.textContent = siteText);
-        document.querySelectorAll('.im-po-value').forEach(el => el.textContent = poValueText);
-        document.querySelectorAll('.im-po-vendor').forEach(el => el.textContent = vendorText);
-        
-        document.querySelectorAll('.im-po-details-container').forEach(el => el.classList.remove('hidden'));
-
-        fetchAndDisplayInvoices(poNumber);
+        // Standard Logic continues if PO was found...
+        proceedWithPOLoading(poNumber, poData);
 
     } catch (error) {
         console.error("Error searching for PO:", error);
         alert('An error occurred while searching for the PO.');
     }
 }
+
+// Helper to continue loading once we have data (Real or Manual)
+async function proceedWithPOLoading(poNumber, poData) {
+    const invoicesSnapshot = await invoiceDb.ref(`invoice_entries/${poNumber}`).once('value');
+    const invoicesData = invoicesSnapshot.val();
+
+    if (!allInvoiceData) allInvoiceData = {};
+    allInvoiceData[poNumber] = invoicesData || {}; 
+
+    currentPO = poNumber;
+    const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
+    const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
+    
+    const poValueText = (isAdmin || isAccounting) ? (poData.Amount ? `QAR ${formatCurrency(poData.Amount)}` : 'N/A') : '---'; 
+    const siteText = poData['Project ID'] || 'N/A';
+    const vendorText = poData['Supplier Name'] || 'N/A';
+
+    document.querySelectorAll('.im-po-no').forEach(el => el.textContent = poNumber);
+    document.querySelectorAll('.im-po-site').forEach(el => el.textContent = siteText);
+    document.querySelectorAll('.im-po-value').forEach(el => el.textContent = poValueText);
+    document.querySelectorAll('.im-po-vendor').forEach(el => el.textContent = vendorText);
+    
+    document.querySelectorAll('.im-po-details-container').forEach(el => el.classList.remove('hidden'));
+
+    fetchAndDisplayInvoices(poNumber);
+}
+
 
 function fetchAndDisplayInvoices(poNumber) {
     const invoicesData = allInvoiceData[poNumber];
@@ -4548,7 +4619,7 @@ function handleGeneratePrintReport() {
 
     const siteFilter = document.getElementById('im-reporting-site-filter').value;
     const statusFilter = document.getElementById('im-reporting-status-filter').value;
-    let title = "Invoice Summary Report";
+    let title = "Invoice Records";
     if (siteFilter && !statusFilter) title = `Invoice Report for Site: ${siteFilter}`;
     if (statusFilter && !siteFilter) title = `Invoice Report - Status: ${statusFilter}`;
     if (siteFilter && statusFilter) title = `Invoice Report for Site: ${siteFilter} (Status: ${statusFilter})`;
@@ -6600,6 +6671,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+// Mobile Bottom Nav Logout
+    const mobileNavLogout = document.getElementById('mobile-nav-logout');
+    if (mobileNavLogout) {
+        mobileNavLogout.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (confirm("Are you sure you want to logout?")) {
+                handleLogout();
+            }
+        });
+    }
+
+// Invoice Management Mobile Bottom Nav Logout
+const imMobileNavLogout = document.getElementById('im-mobile-nav-logout');
+if (imMobileNavLogout) {
+    imMobileNavLogout.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (confirm("Are you sure you want to logout?")) {
+            handleLogout();
+        }
+    });
+}
+
     // --- 4. Workdesk Navigation & Setup ---
 
     workdeskButton.addEventListener('click', async () => {
@@ -6607,9 +6700,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         wdUsername.textContent = currentApprover.Name || 'User';
         wdUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile;
 
-        document.body.classList.toggle('is-admin', (currentApprover?.Role || '').toLowerCase() === 'admin');
+        // 1. Define User Roles
+        const userPos = (currentApprover?.Position || '').trim();
+        const userRole = (currentApprover?.Role || '').toLowerCase();
+        const isAdmin = userRole === 'admin';
+        const isAccounting = userPos === 'Accounting';
+        const isAccounts = userPos === 'Accounts';
+
+        // 2. Toggle Admin Body Class
+        document.body.classList.toggle('is-admin', isAdmin);
         
-        workdeskIMLinkContainer.classList.remove('hidden');
+        // 3. SECURITY FIX: Only show IM Link for authorized roles
+        // Users with role "User" (who are not Accounting/Accounts) will NOT see this
+        if (isAdmin || isAccounting || isAccounts) {
+    workdeskIMLinkContainer.classList.remove('hidden');
+} else {
+    workdeskIMLinkContainer.classList.add('hidden');
+}
+
         wdCurrentCalendarDate = new Date();
 
         // Initialize Dropdowns
@@ -6639,9 +6747,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         if (!modifyTaskAttentionChoices) {
             modifyTaskAttentionChoices = new Choices(modifyTaskAttention, {
-                searchEnabled: true,
-                shouldSort: false,
-                itemSelectText: '',
+                searchEnabled: true, shouldSort: false, itemSelectText: '',
             });
             populateAttentionDropdown(modifyTaskAttentionChoices); 
         }
@@ -6649,22 +6755,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateWorkdeskDateTime();
         if (workdeskDateTimeInterval) clearInterval(workdeskDateTimeInterval);
         workdeskDateTimeInterval = setInterval(updateWorkdeskDateTime, 1000);
+        
         showView('workdesk');
 
-        // Default View Logic
-        const isMobile = window.innerWidth <= 768;
+        // --- STRICT ROUTING: ALWAYS ACTIVE TASK ---
         document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a').forEach(a => a.classList.remove('active')); 
-
-        if (isMobile) {
-            console.log("Mobile device detected: Defaulting to Active Task List.");
-            const activeTaskLink = workdeskNav.querySelector('a[data-section="wd-activetask"]');
-            if (activeTaskLink) activeTaskLink.classList.add('active'); 
+        
+        const activeTaskLink = workdeskNav.querySelector('a[data-section="wd-activetask"]');
+        if (activeTaskLink) {
+            activeTaskLink.classList.add('active');
             await showWorkdeskSection('wd-activetask');
-        } else {
-            console.log("Desktop device detected: Defaulting to Dashboard.");
-            const dashboardLink = workdeskNav.querySelector('a[data-section="wd-dashboard"]');
-            if (dashboardLink) dashboardLink.classList.add('active'); 
-            await showWorkdeskSection('wd-dashboard'); 
         }
     });
 
@@ -7205,89 +7305,73 @@ document.addEventListener('DOMContentLoaded', async () => {
         await populateAttentionDropdown(imAttentionSelectChoices); 
         imAttentionSelect.addEventListener('choice', handleIMAttentionChoice); 
 
-        const userPositionLower = (currentApprover.Position || '').toLowerCase();
-        const userRoleLower = (currentApprover.Role || '').toLowerCase();
-        const isAccountingAdmin = userPositionLower === 'accounting' && userRoleLower === 'admin';
-        const isAccountsOrAccounting = userPositionLower === 'accounts' || userPositionLower === 'accounting';
-        const isAdmin = userRoleLower === 'admin';
-        const isAccountingPosition = userPositionLower === 'accounting';
+        // 1. Define Roles strictly
+        const userPos = (currentApprover?.Position || '').trim();
+        const userRole = (currentApprover?.Role || '').toLowerCase();
+        const isAdmin = userRole === 'admin';
+        const isAccountingPos = userPos === 'Accounting';
+        const isAccountsPos = userPos === 'Accounts';
+
+        // 2. Define Access Groups
+        const isAccountingAdmin = isAdmin && isAccountingPos; // Strictly Admin + Accounting
+        const isAccountsAdmin = (isAdmin && isAccountsPos) || isAccountingAdmin; // Admin + Accounts (or Accounting)
 
         const imNavLinks = imNav.querySelectorAll('li');
 
-imNavLinks.forEach(li => {
+        imNavLinks.forEach(li => {
             const link = li.querySelector('a');
             if (!link) return;
-            
             const section = link.dataset.section;
             
-            // 1. Reset display first
-            li.style.display = '';
+            li.style.display = ''; // Reset
 
-            // 2. FORCE HIDE MOBILE LINKS ON DESKTOP
-            // This specifically targets the duplicate "Active Task" link
+            // Mobile link hiding on Desktop
             if (li.classList.contains('wd-nav-activetask-mobile')) {
-                // If screen width is greater than 768px (Desktop), hide it immediately
-                if (window.innerWidth > 768) {
-                    li.style.display = 'none';
-                    return; // Stop processing this item
-                }
+                if (window.innerWidth > 768) { li.style.display = 'none'; return; }
             }
 
-            // 3. Hide Desktop Dashboard link for non-admins
-            if (section === 'im-dashboard' && !isAdmin) li.style.display = 'none';
+            // --- STRICT MENU HIDING RULES ---
             
-            // 4. Hide Accounting-only links
-            if ((section === 'im-invoice-entry' || section === 'im-batch-entry' || section === 'im-summary-note') && !isAccountingAdmin) li.style.display = 'none';
+            // 1. Entry Group: Strictly Admin + Accounting
+            if ((section === 'im-invoice-entry' || section === 'im-batch-entry' || section === 'im-summary-note') && !isAccountingAdmin) {
+                li.style.display = 'none';
+            }
             
-            // 5. Handle Payments link
+            // 2. Payments: Admin + Accounts (or Accounting)
             if (section === 'im-payments') {
-                if (isAccountsOrAccounting) link.classList.remove('hidden'); 
-                else li.style.display = 'none'; 
+                if(!isAccountsAdmin) li.style.display = 'none';
+                else link.classList.remove('hidden');
             }
             
-            // 6. Hide Finance Report for non-admins
-            if (section === 'im-finance-report' && !isAdmin) li.style.display = 'none';
+            // 3. Finance/Dashboard: Any Admin
+            if ((section === 'im-finance-report' || section === 'im-dashboard') && !isAdmin) {
+                li.style.display = 'none';
+            }
         });
+        
         document.getElementById('im-nav-workdesk').classList.remove('hidden');
-
-        const isMobile = window.innerWidth <= 768; 
-        const showReportBtns = isAccountingPosition && !isMobile;
-        imReportingDownloadCSVButton.style.display = showReportBtns ? 'inline-block' : 'none';
-        imDownloadDailyReportButton.style.display = showReportBtns ? 'inline-block' : 'none';
-        imDownloadWithAccountsReportButton.style.display = showReportBtns ? 'inline-block' : 'none';
-        imDailyReportDateInput.style.display = showReportBtns ? 'inline-block' : 'none';
-        imReportingPrintBtn.disabled = !isAccountingAdmin;
 
         updateIMDateTime();
         if (imDateTimeInterval) clearInterval(imDateTimeInterval); 
         imDateTimeInterval = setInterval(updateIMDateTime, 1000);
+        
         showView('invoice-management');
         
-        let defaultSection = 'im-reporting'; 
-        let defaultLink = imNav.querySelector('a[data-section="im-reporting"]');
-
-        if (isAdmin) {
-            defaultSection = 'im-dashboard'; 
-            defaultLink = imNav.querySelector('a[data-section="im-dashboard"]');
-        }
-        
-        if (isMobile) {
-            defaultSection = 'im-reporting';
-            defaultLink = imNav.querySelector('a[data-section="im-reporting"]');
-        }
-        
+        // --- STRICT ROUTING: ALWAYS DASHBOARD ---
         imNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
-        if (defaultLink) {
-            defaultLink.classList.add('active');
-        } else {
-             const firstVisibleLink = imNav.querySelector('li:not([style*="display: none"]) a');
-             if(firstVisibleLink) {
-                 firstVisibleLink.classList.add('active');
-                 defaultSection = firstVisibleLink.dataset.section || 'im-reporting';
-             }
-        }
-        showIMSection(defaultSection);
+        
+        // We default to Dashboard for everyone who can see IM. 
+        // If they are not admin, they shouldn't see the IM button in the first place (handled in login).
+        // But if they are here, Dashboard is the safe landing page.
+        const dashLink = imNav.querySelector('a[data-section="im-dashboard"]');
+        if (dashLink) dashLink.classList.add('active');
+        
+        // Load Dashboard immediately (Single Click Fix)
+        setTimeout(() => {
+            showIMSection('im-dashboard');
+        }, 50);
     });
+
 
     function handleIMAttentionChoice(event) {
         if (event.detail && event.detail.value && imAttentionSelectChoices) {
@@ -7934,5 +8018,77 @@ window.showInvoiceHistory = async function(poNumber, invoiceKey) {
         if(tbody) tbody.innerHTML = '<tr><td colspan="4">Error loading history.</td></tr>';
     }
 };
+// --- NEW: Dashboard Double-Click Logic ---
+    const dashboardNavLink = document.getElementById('im-dashboard-nav-link');
+    if (dashboardNavLink) {
+        dashboardNavLink.addEventListener('dblclick', (e) => {
+            e.preventDefault();
+            // Only load if we are currently IN the IM view
+            if (!invoiceManagementView.classList.contains('hidden')) {
+                // Visual Feedback
+                const dbSection = document.getElementById('im-dashboard');
+                dbSection.innerHTML = `
+                    <h1>Dashboard</h1>
+                    <div style="text-align: center; padding-top: 50px;">
+                        <p>Loading data...</p>
+                    </div>
+                `;
+                // Trigger the Load
+                populateInvoiceDashboard(true);
+            }
+        });
+    }
+
+// --- Manual PO Entry Logic ---
+    const manualSupplierIdInput = document.getElementById('manual-supplier-id');
+    
+    // 1. Auto-lookup Vendor Name when ID is typed
+    if (manualSupplierIdInput) {
+        manualSupplierIdInput.addEventListener('input', (e) => {
+            const id = e.target.value.trim();
+            const nameInput = document.getElementById('manual-vendor-name');
+            
+            if (allVendorsData && allVendorsData[id]) {
+                nameInput.value = allVendorsData[id];
+                nameInput.style.backgroundColor = "#d4edda"; // Green tint for success
+            } else {
+                nameInput.value = "";
+                nameInput.style.backgroundColor = "#f9f9f9";
+            }
+        });
+    }
+
+    // 2. Save Manual PO Button
+    const saveManualPOBtn = document.getElementById('im-save-manual-po-btn');
+    if (saveManualPOBtn) {
+        saveManualPOBtn.addEventListener('click', () => {
+            const po = document.getElementById('manual-po-number').value;
+            const vendor = document.getElementById('manual-vendor-name').value;
+            const site = document.getElementById('manual-site-select').value;
+            const amount = document.getElementById('manual-po-amount').value;
+
+            if (!vendor || !site || !amount) {
+                alert("Please fill in all fields (Supplier ID, Site, Amount).");
+                return;
+            }
+
+            // Construct a "Fake" PO Object to inject into cache
+            const manualPOData = {
+                'PO': po,
+                'Supplier Name': vendor,
+                'Project ID': site,
+                'Amount': amount,
+                'IsManual': true // Flag for debugging
+            };
+
+            // Inject into global cache
+            if (!allPOData) allPOData = {};
+            allPOData[po] = manualPOData;
+
+            // Close Modal and Proceed
+            document.getElementById('im-manual-po-modal').classList.add('hidden');
+            proceedWithPOLoading(po, manualPOData);
+        });
+    }
 
 }); // END OF DOMCONTENTLOADED
