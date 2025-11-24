@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.6.7"; 
+const APP_VERSION = "3.6.8"; 
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -181,14 +181,12 @@ function loadDataFromLocalStorage() {
 
 // NEW HELPER: Get URL from Firebase Storage
 async function getFirebaseCSVUrl(filename) {
-    try {
-        const url = await mainStorage.ref(filename).getDownloadURL();
-        console.log(`Retrieved Firebase URL for: ${filename}`);
-        return url;
-    } catch (error) {
-        console.error(`Error getting URL for ${filename}:`, error);
-        return null;
-    }
+    // This Base URL points to your specific GitHub repository via a fast CDN
+    const baseUrl = "https://cdn.jsdelivr.net/gh/DC-database/Hub@main/";
+    
+    // This automatically combines the base URL with whatever filename is requested
+    // Example: baseUrl + 'POVALUE2.csv'
+    return `${baseUrl}${filename}`;
 }
 
 async function silentlyRefreshStaleCaches() {
