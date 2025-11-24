@@ -219,53 +219,63 @@
                         </div>
                     </div>
                     <form id="jobentry-form" class="jobentry-form-2col">
-                        <div class="form-column">
-                            <div class="form-group">
-                                <label for="job-for">Job</label>
-                                <select id="job-for" name="for" required onchange="toggleJobOtherInput()">
-                                    <option value="" disabled selected>Select a Type</option>
-                                    <option value="PR">PR</option>
-                                    <option value="Invoice">Invoice</option>
-                                    <option value="IPC">IPC</option>
-                                    <option value="Payment">Payment</option>
-                                    <option value="Transfer">Transfer</option>
-                                    <option value="Trip">Trip</option>
-                                    <option value="Report">Report</option>
-                                    <option value="Other" style="font-weight: bold;">-- Other (Specify) --</option>
-                                </select>
-                                <input type="text" id="job-other-specify" class="hidden" placeholder="Type new Job Name (e.g. Quotation)..." style="margin-top: 5px; border-color: #00748C;">
-                            </div>
-                            <div class="form-group"><label for="job-ref">Reference</label><input type="text" id="job-ref" name="ref"></div>
-                            <div class="form-group"><label for="job-po">PO Number</label><input type="text" id="job-po" name="po" placeholder="PO Number"></div>
-                            <div class="form-group"><label for="job-amount">Amount</label><input type="number" id="job-amount" name="amount" placeholder="0.00" step="0.01"></div>
-                            
-                            <div class="form-group" style="background: #f0f8ff; padding: 10px; border-radius: 6px; border: 1px dashed #ccc;">
-                                <label style="font-size: 0.85rem;"><i class="fa-solid fa-paperclip"></i> Attachment</label>
-                                <div style="display: flex; gap: 5px;">
-                                    <a href="https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/Attachments" target="_blank" class="secondary-btn" style="padding: 6px 10px; font-size: 0.8rem; text-decoration: none; background: #00748C; color: white; border-radius: 4px;" title="Upload to ShareDrive">
-                                        <i class="fa-solid fa-cloud-arrow-up"></i>
-                                    </a>
-                                    <input type="text" id="job-attachment" name="attachmentName" placeholder="Paste filename (e.g. quote.pdf)" style="margin-bottom: 0; flex-grow: 1; font-size: 0.9rem;">
-                                    <button type="button" id="job-attachment-view-btn" style="padding: 6px 12px; font-size: 0.9rem; background: #6f42c1; color: white; border: none; border-radius: 4px; cursor: pointer;" title="View Attached File">
-                                        <i class="fa-solid fa-eye"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="form-column">
-                             <div class="form-group"><label for="job-site">Site / Project No.</label><select id="job-site" name="site" required></select></div>
-                            <div class="form-group"><label for="job-group">Group</label><select id="job-group" name="group" required><option value="" disabled selected>Select a Group</option><option value="Civil">Civil</option><option value="MEP">MEP</option><option value="Logistic">Logistic</option><option value="Other">Other</option></select></div>
-                            <div class="form-group"><label for="job-attention">Attention</label><select id="job-attention" name="attention" required></select></div>
-                            <div class="form-group"><label for="job-status">Status</label><input type="text" id="job-status" name="status" list="job-status-options" placeholder="e.g., Waiting For Approval"><datalist id="job-status-options"><option value="Waiting For Approval"></option><option value="Under Review"></option><option value="On Hold"></option></datalist></div>
-                             <div class="form-buttons-container">
-                                <button type="button" id="add-job-button">Add</button>
-                                <button type="button" id="update-job-button" class="hidden">Update</button>
-                                <button type="button" id="clear-job-button" class="secondary-btn">Clear</button>
-                                <button type="button" id="delete-job-button" class="delete-btn hidden">Delete</button>
-                            </div>
-                        </div>
-                         <div class="form-group hidden"><label for="job-date">Date</label><input type="text" id="job-date" name="date" readonly></div>
-                    </form>
+    <div class="form-column">
+        <div class="form-group">
+            <label for="job-for">Job</label>
+            <select id="job-for" name="for" required onchange="toggleJobOtherInput()">
+                <option value="" disabled selected>Select a Type</option>
+                <option value="PR">PR</option>
+                <option value="Invoice">Invoice</option>
+                <option value="IPC">IPC</option>
+                <option value="Payment">Payment</option>
+                <option value="Transfer">Transfer</option>
+                <option value="Trip">Trip</option>
+                <option value="Report">Report</option>
+                <option value="Other" style="font-weight: bold;">-- Other (Specify) --</option>
+            </select>
+            <input type="text" id="job-other-specify" class="hidden" placeholder="Type new Job Name (e.g. Quotation)..." style="margin-top: 5px; border-color: #00748C;">
+        </div>
+        <div class="form-group"><label for="job-ref">Reference</label><input type="text" id="job-ref" name="ref"></div>
+        <div class="form-group"><label for="job-po">PO Number</label><input type="text" id="job-po" name="po" placeholder="PO Number"></div>
+        <div class="form-group"><label for="job-amount">Amount</label><input type="number" id="job-amount" name="amount" placeholder="0.00" step="0.01"></div>
+        
+        <div class="form-group" style="background: #f0f8ff; padding: 10px; border-radius: 6px; border: 1px dashed #ccc;">
+            <label style="font-size: 0.85rem;"><i class="fa-solid fa-paperclip"></i> Attachment</label>
+            <div style="display: flex; gap: 5px;">
+                <a href="https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/Attachments" target="_blank" class="secondary-btn" style="padding: 6px 10px; font-size: 0.8rem; text-decoration: none; background: #00748C; color: white; border-radius: 4px;" title="Upload to ShareDrive">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                </a>
+                <input type="text" id="job-attachment" name="attachmentName" placeholder="Paste filename (e.g. quote.pdf)" style="margin-bottom: 0; flex-grow: 1; font-size: 0.9rem;">
+                <button type="button" id="job-attachment-view-btn" style="padding: 6px 12px; font-size: 0.9rem; background: #6f42c1; color: white; border: none; border-radius: 4px; cursor: pointer;" title="View Attached File">
+                    <i class="fa-solid fa-eye"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="form-column">
+            <div class="form-group"><label for="job-site">Site / Project No.</label><select id="job-site" name="site" required></select></div>
+        <div class="form-group"><label for="job-group">Group</label><select id="job-group" name="group" required><option value="" disabled selected>Select a Group</option><option value="Civil">Civil</option><option value="MEP">MEP</option><option value="Logistic">Logistic</option><option value="Other">Other</option></select></div>
+        <div class="form-group"><label for="job-attention">Attention</label><select id="job-attention" name="attention" required></select></div>
+        
+        <div class="form-group">
+            <label for="job-status">Status</label>
+            <input type="text" id="job-status" name="status" list="job-status-options" placeholder="e.g., Requesting PO">
+            <datalist id="job-status-options">
+                <option value="Requesting PO"></option> <option value="Waiting For Approval"></option>
+                <option value="Under Review"></option>
+                <option value="On Hold"></option>
+            </datalist>
+        </div>
+
+        <div class="form-buttons-container">
+            <button type="button" id="add-job-button">Add</button>
+            <button type="button" id="update-job-button" class="hidden">Update</button>
+            <button type="button" id="clear-job-button" class="secondary-btn">Clear</button>
+            <button type="button" id="delete-job-button" class="delete-btn hidden">Delete</button>
+        </div>
+    </div>
+    <div class="form-group hidden"><label for="job-date">Date</label><input type="text" id="job-date" name="date" readonly></div>
+</form>
                     <hr class="section-divider">
                     <div class="search-and-table-container">
                         <h2>Your Pending Job Entries</h2>
