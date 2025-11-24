@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.7.5"; 
+const APP_VERSION = "3.7.7"; 
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -680,12 +680,15 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
     }
 }
 
+// --- UPDATED: Fetch BOTH Jobs and Transfers ---
 async function ensureAllEntriesFetched(forceRefresh = false) {
     const now = Date.now();
+    // Check cache validity
     if (!forceRefresh && allSystemEntries.length > 0 && (now - cacheTimestamps.systemEntries < CACHE_DURATION)) {
         if (allPOData) return; 
     }
 
+    // 1. Ensure PO Data is loaded first
     if (!allPOData || forceRefresh) {
         console.log("Fetching POVALUE2.csv for Workdesk from Firebase...");
         try {
@@ -706,13 +709,21 @@ async function ensureAllEntriesFetched(forceRefresh = false) {
         }
     }
     
-    console.log("Fetching all job_entries for Workdesk...");
-    const jobEntriesSnapshot = await db.ref('job_entries').orderByChild('timestamp').once('value');
+    console.log("Fetching Job & Transfer entries...");
+
+    // 2. FETCH BOTH: Job Entries AND Transfer Entries in parallel
+    const [jobEntriesSnapshot, transferSnapshot] = await Promise.all([
+        db.ref('job_entries').orderByChild('timestamp').once('value'),
+        db.ref('transfer_entries').orderByChild('timestamp').once('value')
+    ]);
+
     const jobEntriesData = jobEntriesSnapshot.val() || {};
+    const transferData = transferSnapshot.val() || {};
     
     const purchaseOrdersDataByRef = {}; 
     const purchaseOrdersDataByPO = allPOData || {};
     
+    // Index POs by Ref for quick lookup
     for (const poKey in purchaseOrdersDataByPO) {
         const poEntry = purchaseOrdersDataByPO[poKey];
         const refKey = poEntry['ReqNum']; 
@@ -721,9 +732,10 @@ async function ensureAllEntriesFetched(forceRefresh = false) {
         }
     }
     
-    const processedJobEntries = [];
+    const processedEntries = [];
     const updatesToFirebase = {}; 
 
+    // 3. PROCESS STANDARD JOB ENTRIES
     Object.entries(jobEntriesData).forEach(([key, value]) => {
         let entry = { key, ...value, source: 'job_entry' };
 
@@ -762,9 +774,29 @@ async function ensureAllEntriesFetched(forceRefresh = false) {
             entry.vendorName = purchaseOrdersDataByPO[entry.po]['Supplier Name'] || 'N/A';
         }
 
-        processedJobEntries.push(entry);
+        processedEntries.push(entry);
     });
 
+    // 4. PROCESS TRANSFER ENTRIES (NEW LOGIC)
+    Object.entries(transferData).forEach(([key, value]) => {
+        processedEntries.push({
+            key,
+            ...value,
+            source: 'transfer_entry',
+            for: 'Transfer', // This creates the "Transfer" Tab automatically
+            
+            // Map fields so they display nicely in the "All" view
+            ref: value.controlId,
+            site: `${value.fromSite} -> ${value.toSite}`,
+            amount: value.orderedQty, 
+            vendorName: value.productName,
+            date: value.shippingDate,
+            enteredBy: value.enteredBy,
+            remarks: 'Recorded' 
+        });
+    });
+
+    // 5. Handle auto-updates for PRs
     if (Object.keys(updatesToFirebase).length > 0) {
         console.log(`Auto-updating ${Object.keys(updatesToFirebase).length} PRs from CSV...`);
         try {
@@ -775,10 +807,11 @@ async function ensureAllEntriesFetched(forceRefresh = false) {
         }
     }
 
-    allSystemEntries = processedJobEntries; 
+    // 6. Combine and Sort
+    allSystemEntries = processedEntries; 
     allSystemEntries.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     cacheTimestamps.systemEntries = now; 
-    console.log(`Workdesk Job Records cache updated with ${allSystemEntries.length} job entries.`);
+    console.log(`Workdesk Cache Updated: ${allSystemEntries.length} entries loaded.`);
 }
 
 async function ensureApproverDataCached() {
@@ -843,7 +876,6 @@ async function fetchAndParseVendorsCSV(url) {
         return {};
     }
 }
-
 
 // ==========================================================================
 // 4. GENERAL HELPER FUNCTIONS
@@ -3408,41 +3440,89 @@ function updateJobEntryNavControls() {
 function renderReportingTable(entries) {
     reportingTableBody.innerHTML = '';
     
+    // --- 1. ADD THIS: Dynamic Header Logic ---
+    const tableHead = document.querySelector('#reporting-printable-area table thead');
+    
+    if (currentReportFilter === 'Transfer') {
+        // Show TRANSFER Headers
+        tableHead.innerHTML = `
+            <tr>
+                <th>Control ID</th>
+                <th>Product Name</th>
+                <th>From Site</th>
+                <th>To Site</th>
+                <th>Ordered Qty</th>
+                <th>Delivered Qty</th>
+                <th>Shipping Date</th>
+                <th>Contact</th>
+                <th>Status</th>
+            </tr>`;
+    } else {
+        // Show STANDARD Headers (Restore default)
+        tableHead.innerHTML = `
+            <tr>
+                <th>Job</th>
+                <th>Ref</th>
+                <th>Site</th>
+                <th>PO</th>
+                <th>Vendor Name</th>
+                <th>Amount</th>
+                <th>Entered By</th>
+                <th>Date Entered</th>
+                <th>Attention</th>
+                <th>Date Responded</th>
+                <th>Status</th>
+            </tr>`;
+    }
+
     const count = entries.length;
-    if (jobRecordsCountDisplay) {
-        jobRecordsCountDisplay.textContent = `(Total Records: ${count})`;
+    if(document.getElementById('job-records-count-display')) {
+        document.getElementById('job-records-count-display').textContent = `(Total Records: ${count})`;
     }
     
     if (!entries || count === 0) { 
-        reportingTableBody.innerHTML = '<tr><td colspan="11">No entries found for the selected criteria.</td></tr>'; 
+        reportingTableBody.innerHTML = '<tr><td colspan="11">No entries found.</td></tr>'; 
         return; 
     }
     
     entries.forEach(entry => {
-        const status = isTaskComplete(entry) ? (entry.remarks || 'Completed') : (entry.remarks || 'Pending');
         const row = document.createElement('tr');
-	
-	    row.setAttribute('data-key', entry.key); 
-        const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin'; 
-        if (isAdmin) row.classList.add('admin-clickable-row'); 
+        row.setAttribute('data-key', entry.key); 
 
-        row.innerHTML = `
-            <td>${entry.for || ''}</td>
-            <td>${entry.ref || ''}</td>
-            <td>${entry.site || ''}</td>
-            <td>${entry.po || ''}</td>
-            <td>${entry.vendorName || 'N/A'}</td>
-            <td>${entry.amount || ''}</td>
-            <td>${entry.enteredBy || ''}</td>
-            <td>${entry.date || ''}</td>
-            <td>${entry.attention || ''}</td>
-            <td>${entry.dateResponded || 'N/A'}</td>
-            <td>${status}</td>
-        `;
+        // --- 2. ADD THIS: Dynamic Row Logic ---
+        if (currentReportFilter === 'Transfer' && entry.for === 'Transfer') {
+            // Render TRANSFER Row
+            row.innerHTML = `
+                <td><strong>${entry.controlId || ''}</strong></td>
+                <td>${entry.productName || ''}</td>
+                <td>${entry.fromSite || ''}</td>
+                <td>${entry.toSite || ''}</td>
+                <td>${entry.orderedQty || 0}</td>
+                <td>${entry.deliveredQty || 0}</td>
+                <td>${entry.shippingDate || ''}</td>
+                <td>${entry.contactName || ''}</td>
+                <td><span style="color:green; font-weight:bold;">Recorded</span></td>
+            `;
+        } else {
+            // Render STANDARD Row (Existing logic)
+            const status = entry.remarks || 'Pending';
+            row.innerHTML = `
+                <td>${entry.for || ''}</td>
+                <td>${entry.ref || ''}</td>
+                <td>${entry.site || ''}</td>
+                <td>${entry.po || ''}</td>
+                <td>${entry.vendorName || 'N/A'}</td>
+                <td>${entry.amount || ''}</td>
+                <td>${entry.enteredBy || ''}</td>
+                <td>${entry.date || ''}</td>
+                <td>${entry.attention || ''}</td>
+                <td>${entry.dateResponded || ''}</td>
+                <td>${status}</td>
+            `;
+        }
         reportingTableBody.appendChild(row);
     });
 }
-
 function filterAndRenderReport(baseEntries = []) {
     let filteredEntries = [...baseEntries];
     if (currentReportFilter !== 'All') { filteredEntries = filteredEntries.filter(entry => entry.for === currentReportFilter); }
@@ -8466,6 +8546,5 @@ window.showInvoiceHistory = async function(poNumber, invoiceKey) {
             proceedWithPOLoading(po, manualPOData);
         });
     }
-
 
 }); // END OF DOMCONTENTLOADED

@@ -1,0 +1,176 @@
+/* ========================================= */
+/* TRANSFER & MATERIAL STOCK STYLES          */
+/* ========================================= */
+
+/* --- Uniform Button Styling --- */
+#add-transfer-btn, 
+#cancel-transfer-btn, 
+#add-stock-btn, 
+#upload-stock-csv-btn, 
+#download-stock-template-btn, 
+#save-stock-btn, 
+#cancel-stock-btn, 
+.stock-actions-toolbar button {
+    padding: 0 20px; 
+    height: 38px; 
+    font-size: 13px; 
+    font-weight: 600; 
+    border-radius: 4px;
+    border: none; 
+    cursor: pointer; 
+    display: inline-flex; 
+    align-items: center; 
+    justify-content: center;
+    gap: 8px; 
+    box-sizing: border-box; 
+    transition: background-color 0.3s ease;
+    white-space: nowrap; 
+    line-height: 1; 
+    margin-bottom: 0;
+}
+
+/* --- Transfer Fields Container (COMPACT VERSION) --- */
+#transfer-fields-container {
+    background-color: #f9fcff;
+    padding: 15px; /* Reduced padding */
+    border: 1px solid #b3d7ff;
+    border-radius: 6px;
+    margin-bottom: 15px;
+}
+
+/* Grid for Transfer Inputs */
+.transfer-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); 
+    gap: 10px 15px; /* Tighter gap (Row / Column) */
+}
+
+/* Compact Form Group inside Transfer */
+.transfer-grid .form-group {
+    margin-bottom: 0;
+}
+.transfer-grid label {
+    font-size: 0.8rem; /* Smaller label */
+    margin-bottom: 2px;
+}
+.transfer-grid input, .transfer-grid select {
+    padding: 6px 10px; /* Smaller input padding */
+    font-size: 0.9rem;
+    height: 36px; /* Fixed compact height */
+}
+
+/* Full width utility */
+.transfer-full-width { 
+    grid-column: 1 / -1; 
+}
+
+/* Button Colors */
+#add-transfer-btn { 
+    background-color: #17a2b8; 
+    color: white; 
+    min-width: 120px; 
+}
+#add-transfer-btn:hover { 
+    background-color: #138496; 
+}
+
+#cancel-transfer-btn { 
+    background-color: #dc3545; 
+    color: white; 
+    min-width: 120px; 
+}
+#cancel-transfer-btn:hover { 
+    background-color: #c82333; 
+}
+
+/* Stock Table & Header */
+#wd-material-stock .stock-header { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    margin-bottom: 15px; 
+    gap: 10px; 
+}
+.stock-actions-toolbar { 
+    display: flex; 
+    gap: 10px; 
+    align-items: center; 
+}
+
+#add-stock-btn { 
+    background-color: #28a745; 
+    color: white; 
+}
+#add-stock-btn:hover { 
+    background-color: #218838; 
+}
+
+#upload-stock-csv-btn { 
+    background-color: #007bff; 
+    color: white; 
+}
+#upload-stock-csv-btn:hover { 
+    background-color: #0069d9; 
+}
+
+#download-stock-template-btn { 
+    background-color: #6c757d; 
+    color: white; 
+}
+#download-stock-template-btn:hover { 
+    background-color: #5a6268; 
+}
+
+#material-stock-table th { 
+    background-color: #003A5C; 
+    color: white; 
+}
+
+/* Stock Form */
+#material-stock-form-container { 
+    background-color: #f8f9fa; 
+    padding: 15px; 
+    border-radius: 8px; 
+    margin-bottom: 20px; 
+    border-top: 4px solid #003A5C; 
+}
+.stock-form-grid { 
+    display: grid; 
+    grid-template-columns: repeat(3, 1fr); 
+    gap: 10px; 
+    margin-bottom: 15px; 
+}
+.stock-balance-display { 
+    font-weight: bold; 
+    color: #003A5C; 
+    background: #e9ecef; 
+    padding: 0 12px; 
+    height: 45px; 
+    display: flex; 
+    align-items: center; 
+    border-radius: 4px; 
+    border: 1px solid #ccc; 
+    width: 100%; 
+    box-sizing: border-box; 
+    margin-top: 0; 
+}
+
+/* Mobile Restrictions */
+@media (max-width: 768px) {
+    #nav-material-stock, 
+    #wd-material-stock, 
+    #transfer-fields-container, 
+    #add-transfer-btn, 
+    #cancel-transfer-btn { 
+        display: none !important; 
+    }
+    
+    #job-for option[value="Transfer"] { 
+        display: none !important; 
+    }
+    
+    .transfer-grid, 
+    .stock-form-grid { 
+        grid-template-columns: 1fr; 
+    }
+}

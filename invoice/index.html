@@ -7,6 +7,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
     <link rel="stylesheet" href="style.css">
+    <!-- NEW: Link the specific styles for Transfer/Stock -->
+    <link rel="stylesheet" href="transfer_stock.css">
+    
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
@@ -93,6 +96,10 @@
                     <li class="wd-nav-activetask"><a href="#" data-section="wd-activetask"><i class="fa-solid fa-list-check"></i> Active Task <span id="wd-active-task-badge" class="notification-badge" style="display: none;">0</span></a></li>
                     <li class="wd-nav-taskhistory hidden"><a href="#" data-section="wd-taskhistory"><i class="fa-solid fa-clock-rotate-left"></i> Task History</a></li>
                     <li class="wd-nav-reporting"><a href="#" data-section="wd-reporting"><i class="fa-solid fa-chart-line"></i> Job Records</a></li>
+                    
+                    <!-- NEW: Material Stock Nav (Hidden by default, shown via JS for Site DC/Admin) -->
+                    <li id="nav-material-stock" class="hidden"><a href="#" data-section="wd-material-stock"><i class="fa-solid fa-boxes-stacked"></i> Material Stock</a></li>
+                    
                     <li class="wd-nav-im-reporting-mobile"><a href="#" id="wd-im-reporting-link-mobile"><i class="fa-solid fa-chart-line"></i> Reporting</a></li>
                     
                     <li class="mobile-only-nav-item"><a href="#" id="mobile-nav-logout"><i class="fa-solid fa-power-off" style="color: #C3502F;"></i> <span style="color: #C3502F;">Logout</span></a></li>
@@ -218,63 +225,96 @@
                             <button type="button" id="nav-next-job" class="secondary-btn" title="Next job in list">Next &rarr;</button>
                         </div>
                     </div>
-                    <form id="jobentry-form" class="jobentry-form-2col">
-    <div class="form-column">
-        <div class="form-group">
-            <label for="job-for">Job</label>
-            <select id="job-for" name="for" required onchange="toggleJobOtherInput()">
-                <option value="" disabled selected>Select a Type</option>
-                <option value="PR">PR</option>
-                <option value="Invoice">Invoice</option>
-                <option value="IPC">IPC</option>
-                <option value="Payment">Payment</option>
-                <option value="Transfer">Transfer</option>
-                <option value="Trip">Trip</option>
-                <option value="Report">Report</option>
-                <option value="Other" style="font-weight: bold;">-- Other (Specify) --</option>
-            </select>
-            <input type="text" id="job-other-specify" class="hidden" placeholder="Type new Job Name (e.g. Quotation)..." style="margin-top: 5px; border-color: #00748C;">
+                    <form id="jobentry-form">
+    <!-- Standard 2-column layout for normal jobs -->
+    <div class="jobentry-form-2col">
+        <div class="form-column">
+            <div class="form-group">
+                <label for="job-for">Job</label>
+                <select id="job-for" name="for" required onchange="toggleJobOtherInput()">
+                    <option value="" disabled selected>Select a Type</option>
+                    <option value="PR">PR</option>
+                    <option value="Invoice">Invoice</option>
+                    <option value="IPC">IPC</option>
+                    <option value="Payment">Payment</option>
+                    <option value="Transfer">Transfer</option>
+                    <option value="Trip">Trip</option>
+                    <option value="Report">Report</option>
+                    <option value="Other" style="font-weight: bold;">-- Other (Specify) --</option>
+                </select>
+                <input type="text" id="job-other-specify" class="hidden" placeholder="Type new Job Name (e.g. Quotation)..." style="margin-top: 5px; border-color: #00748C;">
+            </div>
+            <div class="form-group"><label for="job-ref">Reference</label><input type="text" id="job-ref" name="ref"></div>
+            <div class="form-group"><label for="job-po">PO Number</label><input type="text" id="job-po" name="po" placeholder="PO Number"></div>
+            <div class="form-group"><label for="job-amount">Amount</label><input type="number" id="job-amount" name="amount" placeholder="0.00" step="0.01"></div>
+            
+            <div class="form-group" style="background: #f0f8ff; padding: 10px; border-radius: 6px; border: 1px dashed #ccc;">
+                <label style="font-size: 0.85rem;"><i class="fa-solid fa-paperclip"></i> Attachment</label>
+                <div style="display: flex; gap: 5px;">
+                    <a href="https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/Attachments" target="_blank" class="secondary-btn" style="padding: 6px 10px; font-size: 0.8rem; text-decoration: none; background: #00748C; color: white; border-radius: 4px;" title="Upload to ShareDrive">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                    </a>
+                    <input type="text" id="job-attachment" name="attachmentName" placeholder="Paste filename (e.g. quote.pdf)" style="margin-bottom: 0; flex-grow: 1; font-size: 0.9rem;">
+                    <button type="button" id="job-attachment-view-btn" style="padding: 6px 12px; font-size: 0.9rem; background: #6f42c1; color: white; border: none; border-radius: 4px; cursor: pointer;" title="View Attached File">
+                        <i class="fa-solid fa-eye"></i>
+                    </button>
+                </div>
+            </div>
         </div>
-        <div class="form-group"><label for="job-ref">Reference</label><input type="text" id="job-ref" name="ref"></div>
-        <div class="form-group"><label for="job-po">PO Number</label><input type="text" id="job-po" name="po" placeholder="PO Number"></div>
-        <div class="form-group"><label for="job-amount">Amount</label><input type="number" id="job-amount" name="amount" placeholder="0.00" step="0.01"></div>
-        
-        <div class="form-group" style="background: #f0f8ff; padding: 10px; border-radius: 6px; border: 1px dashed #ccc;">
-            <label style="font-size: 0.85rem;"><i class="fa-solid fa-paperclip"></i> Attachment</label>
-            <div style="display: flex; gap: 5px;">
-                <a href="https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/Attachments" target="_blank" class="secondary-btn" style="padding: 6px 10px; font-size: 0.8rem; text-decoration: none; background: #00748C; color: white; border-radius: 4px;" title="Upload to ShareDrive">
-                    <i class="fa-solid fa-cloud-arrow-up"></i>
-                </a>
-                <input type="text" id="job-attachment" name="attachmentName" placeholder="Paste filename (e.g. quote.pdf)" style="margin-bottom: 0; flex-grow: 1; font-size: 0.9rem;">
-                <button type="button" id="job-attachment-view-btn" style="padding: 6px 12px; font-size: 0.9rem; background: #6f42c1; color: white; border: none; border-radius: 4px; cursor: pointer;" title="View Attached File">
-                    <i class="fa-solid fa-eye"></i>
-                </button>
+        <div class="form-column">
+                <div class="form-group"><label for="job-site">Site / Project No.</label><select id="job-site" name="site" required></select></div>
+            <div class="form-group"><label for="job-group">Group</label><select id="job-group" name="group" required><option value="" disabled selected>Select a Group</option><option value="Civil">Civil</option><option value="MEP">MEP</option><option value="Logistic">Logistic</option><option value="Other">Other</option></select></div>
+            <div class="form-group"><label for="job-attention">Attention</label><select id="job-attention" name="attention" required></select></div>
+            
+            <div class="form-group">
+                <label for="job-status">Status</label>
+                <input type="text" id="job-status" name="status" list="job-status-options" placeholder="e.g., Requesting PO">
+                <datalist id="job-status-options">
+                    <option value="Requesting PO"></option> <option value="Waiting For Approval"></option>
+                    <option value="Under Review"></option>
+                    <option value="On Hold"></option>
+                </datalist>
             </div>
         </div>
     </div>
-    <div class="form-column">
-            <div class="form-group"><label for="job-site">Site / Project No.</label><select id="job-site" name="site" required></select></div>
-        <div class="form-group"><label for="job-group">Group</label><select id="job-group" name="group" required><option value="" disabled selected>Select a Group</option><option value="Civil">Civil</option><option value="MEP">MEP</option><option value="Logistic">Logistic</option><option value="Other">Other</option></select></div>
-        <div class="form-group"><label for="job-attention">Attention</label><select id="job-attention" name="attention" required></select></div>
-        
-        <div class="form-group">
-            <label for="job-status">Status</label>
-            <input type="text" id="job-status" name="status" list="job-status-options" placeholder="e.g., Requesting PO">
-            <datalist id="job-status-options">
-                <option value="Requesting PO"></option> <option value="Waiting For Approval"></option>
-                <option value="Under Review"></option>
-                <option value="On Hold"></option>
-            </datalist>
-        </div>
 
-        <div class="form-buttons-container">
-            <button type="button" id="add-job-button">Add</button>
-            <button type="button" id="update-job-button" class="hidden">Update</button>
-            <button type="button" id="clear-job-button" class="secondary-btn">Clear</button>
-            <button type="button" id="delete-job-button" class="delete-btn hidden">Delete</button>
+    <!-- NEW: Transfer Specific Fields (Hidden by default, shown when Job=Transfer) -->
+    <div id="transfer-fields-container" class="hidden">
+        <h3 style="margin-top: 0; color: #00748C; border-bottom: 1px solid #eee; padding-bottom: 10px;">Transfer Details</h3>
+        <div class="transfer-grid">
+            <div class="form-group"><label>Control ID</label><input type="text" id="trf-control-id" readonly placeholder="Auto-generated"></div>
+            <div class="form-group"><label>Product ID</label><input type="text" id="trf-product-id"></div>
+            
+            <div class="form-group"><label>Product Name</label><input type="text" id="trf-product-name"></div>
+            <div class="form-group"><label>Details</label><input type="text" id="trf-details"></div>
+            
+            <div class="form-group"><label>From Site</label><select id="trf-from-site"></select></div>
+            <div class="form-group"><label>To Site</label><select id="trf-to-site"></select></div>
+            
+            <div class="form-group"><label>Ordered Qty</label><input type="number" id="trf-ordered-qty" step="0.01"></div>
+            <div class="form-group"><label>Delivered Qty</label><input type="number" id="trf-delivered-qty" step="0.01"></div>
+            
+            <div class="form-group"><label>Shipping Date</label><input type="date" id="trf-shipping-date"></div>
+            <div class="form-group"><label>Acquired Date</label><input type="date" id="trf-acquired-date"></div>
+            
+            <div class="form-group"><label>Contact Name</label><select id="trf-contact-name"></select></div>
+            <div class="form-group"><label>Operator Name</label><input type="text" id="trf-operator-name"></div>
         </div>
     </div>
+
     <div class="form-group hidden"><label for="job-date">Date</label><input type="text" id="job-date" name="date" readonly></div>
+
+    <div class="form-buttons-container">
+    <button type="button" id="add-job-button">Add</button>
+    
+    <button type="button" id="add-transfer-btn" class="hidden">Add Transfer</button>
+    
+    <button type="button" id="cancel-transfer-btn" class="secondary-btn hidden">Cancel</button> 
+    
+    <button type="button" id="update-job-button" class="hidden">Update</button>
+    <button type="button" id="clear-job-button" class="secondary-btn">Clear</button>
+    <button type="button" id="delete-job-button" class="delete-btn hidden">Delete</button>
+</div>
 </form>
                     <hr class="section-divider">
                     <div class="search-and-table-container">
@@ -289,6 +329,57 @@
                                 <tbody id="job-entry-table-body"></tbody>
                             </table>
                         </div>
+                    </div>
+                </section>
+
+                <!-- NEW: Material Stock Section -->
+                <section id="wd-material-stock" class="workdesk-section hidden">
+                    <div class="stock-header">
+                        <h1>Material Stock Control</h1>
+                        <div class="stock-actions-toolbar">
+                            <!-- Only Admin sees these in JS -->
+                            <button id="add-stock-btn" class="download-btn hidden"><i class="fa-solid fa-plus"></i> Add Material Stock</button>
+                            <button id="upload-stock-csv-btn" class="secondary-btn hidden" onclick="document.getElementById('stock-csv-upload').click()"><i class="fa-solid fa-file-csv"></i> Upload CSV</button>
+                            <input type="file" id="stock-csv-upload" accept=".csv" class="hidden">
+                            <button id="download-stock-template-btn" class="secondary-btn hidden"><i class="fa-solid fa-download"></i> Get Template</button>
+                        </div>
+                    </div>
+
+                    <div id="material-stock-form-container" class="hidden">
+                        <h3>Add/Update Stock</h3>
+                        <div class="stock-form-grid">
+                            <div class="form-group"><label>Product ID</label><input type="text" id="stock-product-id"></div>
+                            <div class="form-group"><label>Product Name</label><input type="text" id="stock-product-name"></div>
+                            <div class="form-group"><label>Details</label><input type="text" id="stock-details"></div>
+                            
+                            <div class="form-group"><label>Stock QTY</label><input type="number" id="stock-qty" step="0.01" value="0"></div>
+                            <div class="form-group"><label>Transferred QTY</label><input type="number" id="stock-transferred-qty" step="0.01" value="0"></div>
+                            <div class="form-group"><label>Balance QTY</label><span id="stock-balance-display" class="stock-balance-display">0</span>
+                            </div>
+                        </div>
+                        <div class="form-buttons-container">
+                            <button id="save-stock-btn">Save Stock</button>
+                            <button id="cancel-stock-btn" class="secondary-btn">Cancel</button>
+                        </div>
+                    </div>
+
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Product ID</th>
+                                    <th>Product Name</th>
+                                    <th>Details</th>
+                                    <th>Stock QTY</th>
+                                    <th>Transferred QTY</th>
+                                    <th>Balance QTY</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="material-stock-table-body">
+                                <tr><td colspan="7">Loading stock data...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </section>
 
@@ -1044,6 +1135,9 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
     <script src="app.js"></script>
+    
+    <!-- NEW: Transfer & Stock Logic -->
+    <script src="transfer_stock.js"></script>
 
 </body>
 </html>
