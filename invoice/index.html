@@ -10,6 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -221,7 +222,7 @@
                         <div class="form-column">
                             <div class="form-group">
                                 <label for="job-for">Job</label>
-                                <select id="job-for" name="for" required>
+                                <select id="job-for" name="for" required onchange="toggleJobOtherInput()">
                                     <option value="" disabled selected>Select a Type</option>
                                     <option value="PR">PR</option>
                                     <option value="Invoice">Invoice</option>
@@ -230,12 +231,26 @@
                                     <option value="Transfer">Transfer</option>
                                     <option value="Trip">Trip</option>
                                     <option value="Report">Report</option>
-                                    <option value="Other">Other</option>
+                                    <option value="Other" style="font-weight: bold;">-- Other (Specify) --</option>
                                 </select>
+                                <input type="text" id="job-other-specify" class="hidden" placeholder="Type new Job Name (e.g. Quotation)..." style="margin-top: 5px; border-color: #00748C;">
                             </div>
                             <div class="form-group"><label for="job-ref">Reference</label><input type="text" id="job-ref" name="ref"></div>
                             <div class="form-group"><label for="job-po">PO Number</label><input type="text" id="job-po" name="po" placeholder="PO Number"></div>
                             <div class="form-group"><label for="job-amount">Amount</label><input type="number" id="job-amount" name="amount" placeholder="0.00" step="0.01"></div>
+                            
+                            <div class="form-group" style="background: #f0f8ff; padding: 10px; border-radius: 6px; border: 1px dashed #ccc;">
+                                <label style="font-size: 0.85rem;"><i class="fa-solid fa-paperclip"></i> Attachment</label>
+                                <div style="display: flex; gap: 5px;">
+                                    <a href="https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/Attachments" target="_blank" class="secondary-btn" style="padding: 6px 10px; font-size: 0.8rem; text-decoration: none; background: #00748C; color: white; border-radius: 4px;" title="Upload to ShareDrive">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                                    </a>
+                                    <input type="text" id="job-attachment" name="attachmentName" placeholder="Paste filename (e.g. quote.pdf)" style="margin-bottom: 0; flex-grow: 1; font-size: 0.9rem;">
+                                    <button type="button" id="job-attachment-view-btn" style="padding: 6px 12px; font-size: 0.9rem; background: #6f42c1; color: white; border: none; border-radius: 4px; cursor: pointer;" title="View Attached File">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                         <div class="form-column">
                              <div class="form-group"><label for="job-site">Site / Project No.</label><select id="job-site" name="site" required></select></div>
@@ -482,15 +497,37 @@
                         <hr class="section-divider">
                         <h2 id="im-form-title">Add New Invoice for this PO</h2>
                         <div class="form-grid-3col">
+                            
                             <div class="form-group"><label>Invoice Entry ID</label><input type="text" id="im-inv-entry-id" name="invEntryID"></div>
                             <div class="form-group"><label for="im-inv-no">Invoice No.</label><input type="text" id="im-inv-no" name="invNumber"></div>
                             <div class="form-group"><label for="im-details">Details</label><input type="text" id="im-details" name="details"></div>
+                            
                             <div class="form-group"><label for="im-inv-value">Invoice Value</label><input type="number" id="im-inv-value" name="invValue" step="0.01"></div>
                             <div class="form-group"><label for="im-invoice-date">Invoice Date</label><input type="date" id="im-invoice-date" name="invoiceDate"></div>
-                            <div class="form-group"><label for="im-inv-name">Invoice Name</label><input type="text" id="im-inv-name" name="invName"></div>
+                            
+                            <div class="form-group">
+                                <label for="im-inv-name">Invoice Name</label>
+                                <div style="display: flex; gap: 5px;">
+                                    <input type="text" id="im-inv-name" name="invName" style="flex-grow: 1;">
+                                    <a href="https://ibaqatar-my.sharepoint.com/:f:/g/personal/dc_iba_com_qa/EvqWlmpKcz5FjOdOu8-0NYYBrKmJl6jYeyHB6Le80VBH2Q?e=VCWM6y" target="_blank" class="secondary-btn" style="padding: 10px 12px; background-color: #00748C; color: white; border-radius: 4px; text-decoration: none;" title="Open Invoice Folder">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                                    </a>
+                                </div>
+                            </div>
+
                             <div class="form-group"><label for="im-amount-paid">Amount To Paid</label><input type="number" id="im-amount-paid" name="amountPaid" step="0.01" value="0"></div>
                             <div class="form-group"><label for="im-release-date">Release Date</label><input type="date" id="im-release-date" name="releaseDate"></div>
-                             <div class="form-group"><label for="im-srv-name">SRV Name</label><input type="text" id="im-srv-name" name="srvName"></div>
+                             
+                            <div class="form-group">
+                                <label for="im-srv-name">SRV Name</label>
+                                <div style="display: flex; gap: 5px;">
+                                    <input type="text" id="im-srv-name" name="srvName" style="flex-grow: 1;">
+                                    <a href="https://ibaqatar-my.sharepoint.com/:f:/g/personal/dc_iba_com_qa/Eto6AI-roNtCsQagGp6c3BoBNv62iA8bElYbgDpA4vRSJg?e=FfdiRh" target="_blank" class="secondary-btn" style="padding: 10px 12px; background-color: #00748C; color: white; border-radius: 4px; text-decoration: none;" title="Open SRV Folder">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                                    </a>
+                                </div>
+                            </div>
+
                            <div class="form-group">
                                 <label for="im-status">Status</label>
                                 <select id="im-status" name="status">
@@ -507,6 +544,7 @@
                              <div class="form-group"><label for="im-attention">Attention</label><select id="im-attention" name="attention"></select></div>
                             <div class="form-group"> <label for="im-note">Note</label><textarea id="im-note" name="note" rows="2"></textarea> </div>
                         </div>
+                        
                         <div id="im-po-search-container-bottom" class="im-po-search-container-bottom">
                             <div class="search-bar-local"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="im-po-search-input-bottom" placeholder="Enter New PO Number..."></div>
                             <button id="im-po-search-button-bottom" type="button">Search PO</button>
@@ -574,8 +612,14 @@
                 <section id="im-summary-note" class="workdesk-section hidden">
                     <h1>Summary Note Print <span id="summary-note-count-display" class="table-count-display"></span></h1>
                     <div id="summary-note-controls">
-                        <div class="form-group"><label for="summary-note-previous-input">Previous Note</label><input type="text" id="summary-note-previous-input" list="note-suggestions" placeholder="e.g., 1st Payment"></div>
-                        <div class="form-group"><label for="summary-note-current-input">Current Note</label><input type="text" id="summary-note-current-input" list="note-suggestions" placeholder="e.g., 2nd Payment"></div>
+                        <div class="form-group">
+                            <label for="summary-note-previous-input">Previous Note</label>
+                            <input type="text" id="summary-note-previous-input" list="note-suggestions" placeholder="e.g., 1st Payment">
+                        </div>
+                        <div class="form-group">
+                            <label for="summary-note-current-input">Current Note</label>
+                            <input type="text" id="summary-note-current-input" list="note-suggestions" placeholder="e.g., 2nd Payment">
+                        </div>
                         <div class="form-group">
                             <label for="summary-note-status-input">Set Status</label>
                             <select id="summary-note-status-input">
@@ -590,21 +634,55 @@
                                 <option value="Original PO">Original PO</option>
                             </select>
                         </div>
-                        <div class="form-group"><label for="summary-note-srv-input">Set SRV Name</label><input type="text" id="summary-note-srv-input" placeholder="Enter new SRV Name..."></div>
+                        <div class="form-group">
+                            <label for="summary-note-srv-input">Set SRV Name</label>
+                            <input type="text" id="summary-note-srv-input" placeholder="Enter new SRV Name...">
+                        </div>
                         <datalist id="note-suggestions"></datalist>
-                        <div class="form-buttons-container" style="margin-top: 0; padding-top: 25px;">
-                            <button type="button" id="im-refresh-summary-button" class="secondary-btn" title="Refresh data from Firebase"><i class="fa-solid fa-sync"></i></button>
-                            <button type="button" id="summary-note-generate-btn">Generate Summary</button>
-                            <button type="button" id="summary-note-update-btn" class="secondary-btn">Update Changes</button>
-                            <button type="button" id="summary-note-print-btn" class="print-btn"><i class="fa-solid fa-print"></i> Print</button>
-                            <button type="button" id="summary-note-clear-btn" class="secondary-btn" style="background-color: #dc3545;">Clear</button>
+
+                        <div class="summary-button-row" style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; width: 100%; padding-top: 25px; border-top: 1px solid #eee;">
+                            
+                            <div class="left-buttons" style="display: flex; gap: 10px;">
+                                <button type="button" id="summary-note-generate-btn" style="background-color: #00748C; color: white;">Generate Summary</button>
+                                
+                                <button type="button" id="summary-note-prev-pdf-btn" style="background-color: #6f42c1; color: white; border: none; border-radius: 4px; padding: 10px 15px; cursor: pointer; font-weight: bold;">
+                                    <i class="fa-regular fa-file-pdf"></i> Prev Summary
+                                </button>
+                                
+                                <button type="button" id="summary-note-print-btn" class="print-btn" style="background-color: #17a2b8; color: white;">
+                                    <i class="fa-solid fa-print"></i> Print Summary
+                                </button>
+                            </div>
+
+                            <div class="right-buttons" style="display: flex; gap: 10px;">
+                                <button type="button" id="summary-note-update-btn" class="secondary-btn" style="background-color: #6c757d; color: white;">Update Changes</button>
+                                
+                                <button type="button" id="summary-note-clear-btn" style="background-color: #dc3545; color: white; border: none; border-radius: 4px; padding: 10px 15px; cursor: pointer; font-weight: bold;">Clear</button>
+                                
+                                <button type="button" id="im-refresh-summary-button" class="secondary-btn" style="background-color: #6c757d; color: white;" title="Refresh data from Firebase"><i class="fa-solid fa-sync"></i></button>
+                            </div>
+
                         </div>
                     </div>
 
                     <div class="form-group no-print" style="margin-top: 20px;"><label for="summary-note-custom-notes-input">Custom Notes for Print:</label><textarea id="summary-note-custom-notes-input" rows="3" placeholder="Enter any specific remarks or instructions to appear on the printout..."></textarea></div>
                     <hr class="section-divider">
+                    
                     <div id="summary-note-printable-area" class="hidden">
-                        <div class="sn-print-header"><div class="sn-print-company"><h2>ISMAIL BIN ALI TRADING & CONT. CO. W.L.L</h2></div><div class="sn-print-title"><h1>PAYMENT SUMMARY</h1><p id="sn-date">Date: 14-October-2025</p></div></div>
+                        <div class="sn-print-header">
+                            <div class="sn-print-company">
+                                <h2>ISMAIL BIN ALI TRADING & CONT. CO. W.L.L</h2>
+                                <div class="sn-qr-container" style="margin-top: 5px; text-align: left;">
+                                    <div id="sn-prev-summary-qr"></div> 
+                                    <p style="font-size: 8pt; margin: 3px 0 0 0; font-weight: bold;">Prev Summary</p>
+                                </div>
+                            </div>
+                            <div class="sn-print-title">
+                                <h1>PAYMENT SUMMARY</h1>
+                                <p id="sn-date">Date: --/--/----</p>
+                            </div>
+                        </div>
+                        
                         <div class="sn-vendor-info"><div class="sn-vendor-summary-title"><p><strong>Summary for :</strong> <span id="sn-vendor-name"></span></p></div></div>
                         <div class="sn-payment-details"><div><strong>Previous Payment:</strong> <span id="sn-previous-payment"></span></div><div><strong>Current Payment:</strong> <span id="sn-current-payment"></span></div></div>
                         <table class="sn-table"><thead><tr><th>Inv S/N</th><th>P.O.No.</th><th>Site</th><th>Bill Description</th><th>Bill Date</th><th>Payment Amount</th></tr></thead><tbody id="sn-table-body"></tbody></table>

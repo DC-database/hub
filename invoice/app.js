@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.6.8"; 
+const APP_VERSION = "3.7.4"; 
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -55,6 +55,7 @@ const storage = firebase.storage(invoiceApp);
 // 2. GLOBAL CONSTANTS & STATE VARIABLES
 // ==========================================================================
 
+const ATTACHMENT_BASE_PATH = "https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/Attachments/";
 const PDF_BASE_PATH = "https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/DC%20Files/INVOICE/";
 const SRV_BASE_PATH = "https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/DC%20Files/SRV/";
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours cache
@@ -1210,6 +1211,7 @@ const summaryNotePreviousInput = document.getElementById('summary-note-previous-
 const summaryNoteCurrentInput = document.getElementById('summary-note-current-input');
 const summaryNoteGenerateBtn = document.getElementById('summary-note-generate-btn');
 const summaryNoteUpdateBtn = document.getElementById('summary-note-update-btn');
+const summaryNotePrevPdfBtn = document.getElementById('summary-note-prev-pdf-btn'); // <--- ADD THIS
 const summaryNotePrintBtn = document.getElementById('summary-note-print-btn');
 const summaryNotePrintArea = document.getElementById('summary-note-printable-area');
 const snDate = document.getElementById('sn-date');
@@ -2769,6 +2771,21 @@ function resetJobEntryForm(keepJobType = false) {
     sessionStorage.removeItem('jobEntrySearch');
 }
 
+// --- Helper: Toggle "Other" Input ---
+function toggleJobOtherInput() {
+    const select = document.getElementById('job-for');
+    const otherInput = document.getElementById('job-other-specify');
+    if (select.value === 'Other') {
+        otherInput.classList.remove('hidden');
+        otherInput.focus();
+    } else {
+        otherInput.classList.add('hidden');
+        otherInput.value = ''; // Clear it if they switch back
+    }
+}
+// Expose to global scope for HTML onchange
+window.toggleJobOtherInput = toggleJobOtherInput;
+
 async function populateAttentionDropdown(choicesInstance) {
     try {
         if (!choicesInstance) return;
@@ -2846,6 +2863,53 @@ async function populateAttentionDropdown(choicesInstance) {
     }
 }
 
+// --- Helper: Populate Job Types Dynamically ---
+function updateJobTypeDropdown() {
+    const select = document.getElementById('job-for');
+    if (!select) return;
+
+    // 1. Default Types (Hardcoded)
+    const defaultTypes = new Set(['PR', 'Invoice', 'IPC', 'Payment', 'Transfer', 'Trip', 'Report', 'Other']);
+    
+    // 2. Learn from History
+    // (allSystemEntries is your cached list of all jobs)
+    if (allSystemEntries && allSystemEntries.length > 0) {
+        allSystemEntries.forEach(entry => {
+            if (entry.for && entry.for.trim() !== '') {
+                // If this type isn't in our default list, it's a custom one!
+                defaultTypes.add(entry.for.trim());
+            }
+        });
+    }
+
+    // 3. Rebuild Options
+    // Save current selection to restore it after rebuild
+    const currentVal = select.value; 
+    
+    select.innerHTML = '<option value="" disabled>Select a Type</option>';
+    
+    // Sort them alphabetically
+    const sortedTypes = Array.from(defaultTypes).sort();
+
+    sortedTypes.forEach(type => {
+        if (type === 'Other') return; // Skip 'Other', we add it at the end manually
+        const opt = document.createElement('option');
+        opt.value = type;
+        opt.textContent = type;
+        select.appendChild(opt);
+    });
+
+    // Always add 'Other' at the end
+    const otherOpt = document.createElement('option');
+    otherOpt.value = 'Other';
+    otherOpt.textContent = '-- Other (Specify) --';
+    otherOpt.style.fontWeight = 'bold';
+    select.appendChild(otherOpt);
+
+    // Restore selection if possible
+    if (currentVal) select.value = currentVal;
+}
+
 async function populateSiteDropdown() {
     try {
         if (!siteSelectChoices) return;
@@ -2899,20 +2963,52 @@ async function populateSiteDropdown() {
 
 function renderJobEntryTable(entries) {
     jobEntryTableBody.innerHTML = '';
+    
     if (!entries || entries.length === 0) {
         jobEntryTableBody.innerHTML = `<tr><td colspan="8">No pending entries found for your search.</td></tr>`;
         return;
     }
+
     entries.forEach(entry => {
         const row = document.createElement('tr');
         row.setAttribute('data-key', entry.key);
+        
+        // Make row clickable for editing (unless it's a pure invoice task)
         if (entry.source !== 'invoice') {
             row.style.cursor = 'pointer';
         }
+
+        // --- Attachment Display Logic ---
+        let refDisplay = entry.ref || '';
+        
+        if (entry.attachmentName && entry.attachmentName.trim() !== '') {
+            const val = entry.attachmentName.trim();
+            
+            // Smart Link Construction (Same as above)
+            let fullPath;
+            if (val.startsWith('http')) {
+                fullPath = val;
+            } else {
+                fullPath = ATTACHMENT_BASE_PATH + encodeURIComponent(val);
+            }
+            
+            // Smart Icon Detection
+            let iconClass = "fa-paperclip"; 
+            const lowerName = val.toLowerCase();
+            
+            if (lowerName.endsWith('.zip') || lowerName.endsWith('.rar')) iconClass = "fa-file-zipper";
+            else if (lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') || lowerName.endsWith('.png')) iconClass = "fa-file-image";
+            else if (lowerName.endsWith('.pdf')) iconClass = "fa-file-pdf";
+            else if (lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls')) iconClass = "fa-file-excel";
+
+            // Add the clickable icon
+            refDisplay += ` <a href="${fullPath}" target="_blank" style="color: #6f42c1; margin-left: 8px; text-decoration: none;" title="View Attachment" onclick="event.stopPropagation()"><i class="fa-solid ${iconClass}"></i></a>`;
+        }
+        // -------------------------------------
+
         row.innerHTML = `
             <td>${entry.for || ''}</td>
-            <td>${entry.ref || ''}</td>
-            <td>${entry.po || ''}</td>
+            <td>${refDisplay}</td> <td>${entry.po || ''}</td>
             <td>${entry.site || ''}</td>
             <td>${entry.group || ''}</td>
             <td>${entry.attention || ''}</td>
@@ -2961,8 +3057,21 @@ async function handleJobEntrySearch(searchTerm) {
 
 function getJobDataFromForm() {
     const formData = new FormData(jobEntryForm);
+    let jobType = formData.get('for');
+    
+    // 1. Handle "Other" Logic
+    if (jobType === 'Other') {
+        const customType = document.getElementById('job-other-specify').value.trim();
+        if (customType) {
+            jobType = customType; // Use the text input instead of "Other"
+        } else {
+            alert("Please specify the Job Type in the text box.");
+            return null; // Stop execution
+        }
+    }
+
     const data = {
-        for: formData.get('for'),
+        for: jobType,
         ref: (formData.get('ref') || '').trim(), 
         amount: formData.get('amount') || '',
         po: (formData.get('po') || '').trim(), 
@@ -2970,57 +3079,106 @@ function getJobDataFromForm() {
         group: formData.get('group'),
         attention: attentionSelectChoices.getValue(true),
         date: formatDate(new Date()),
-        remarks: (formData.get('status') || 'Pending').trim() 
+        remarks: (formData.get('status') || 'Pending').trim(),
+        
+        // 2. CRITICAL: Capture Attachment Name explicitly by ID
+        attachmentName: (document.getElementById('job-attachment').value || '').trim()
     };
     return data;
 }
 
 async function handleAddJobEntry(e) {
     e.preventDefault();
+    
+    // 1. Disable button immediately
     addJobButton.disabled = true;
-    addJobButton.textContent = 'Adding...';
+
+    // 2. Get Data (This now handles the "Other" text input validation internally)
     const jobData = getJobDataFromForm();
     
+    // 3. If getJobDataFromForm returned null, it means validation failed (e.g., empty "Other" box)
+    if (!jobData) {
+        addJobButton.disabled = false;
+        return; // Stop execution here
+    }
+
+    addJobButton.textContent = 'Adding...';
+    
     const isInvoiceJob = jobData.for === 'Invoice';
+
+    // 4. Basic Validation
     if (!jobData.for || !jobData.site || !jobData.group) {
         alert('Please fill in Job, Site, and Group.');
+        addJobButton.disabled = false;
+        addJobButton.textContent = 'Add';
         return;
     }
+    
+    // 5. Attention Validation (Skip for Invoice)
     if (!isInvoiceJob && !jobData.attention) { 
          alert('Please select an Attention user.'); 
+         addJobButton.disabled = false;
+         addJobButton.textContent = 'Add';
          return; 
     }
 
+    // 6. IPC Specific Logic (QS Checks & Duplicate Warnings)
     if (jobData.for === 'IPC') {
         const isQS = currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'qs';
         if (isQS) {
             jobData.remarks = 'Ready';
-            if (!jobData.amount || !jobData.po) { alert('As a QS, IPC jobs require both an Amount and PO number.'); return; }
+            if (!jobData.amount || !jobData.po) { 
+                alert('As a QS, IPC jobs require both an Amount and PO number.'); 
+                addJobButton.disabled = false;
+                addJobButton.textContent = 'Add';
+                return; 
+            }
         } else {
-            if (!jobData.po) { alert('For IPC jobs, a PO number is required.'); return; }
+            if (!jobData.po) { 
+                alert('For IPC jobs, a PO number is required.'); 
+                addJobButton.disabled = false;
+                addJobButton.textContent = 'Add';
+                return; 
+            }
         }
+        
+        // Check for duplicates
         await ensureAllEntriesFetched(); 
         const duplicatePO = allSystemEntries.find(entry => entry.for === 'IPC' && entry.po && entry.po.trim() !== '' && entry.po === jobData.po);
         if (duplicatePO) {
             const message = `WARNING: An IPC for PO Number "${jobData.po}" already exists.\n\nPress OK if this is a new IPC for this PO.\nPress Cancel to check the "Job Records" section first.`;
-            if (!confirm(message)) { return; }
+            if (!confirm(message)) { 
+                addJobButton.disabled = false;
+                addJobButton.textContent = 'Add';
+                return; 
+            }
         }
     }
 
+    // 7. Add Metadata
     jobData.timestamp = Date.now();
     jobData.enteredBy = currentApprover.Name;
+
     try {
-        const newRef = await db.ref('job_entries').push(jobData);
+        // 8. Push to Firebase
+        await db.ref('job_entries').push(jobData);
 
         alert('Job Entry Added Successfully!');
         
+        // 9. Refresh Data & UI
         await ensureAllEntriesFetched(true); 
+        
+        // IMPORTANT: Refresh the dropdown list so the new "Custom Type" appears immediately
+        updateJobTypeDropdown(); 
+        
         handleJobEntrySearch(jobEntrySearchInput.value); 
         resetJobEntryForm();
         
     } catch (error) { 
         console.error("Error adding job entry:", error); 
         alert('Failed to add Job Entry. Please try again.'); 
+    } finally {
+        // 10. Re-enable button
         addJobButton.disabled = false; 
         addJobButton.textContent = 'Add';
     }
@@ -3065,42 +3223,52 @@ async function handleDeleteJobEntry(e) {
 async function handleUpdateJobEntry(e) {
     e.preventDefault();
     if (!currentlyEditingKey) { alert("No entry selected for update."); return; }
-    const formData = new FormData(jobEntryForm);
     
-    const jobData = { 
-        for: formData.get('for'), 
-        ref: (formData.get('ref') || '').trim(), 
-        amount: formData.get('amount') || '', 
-        po: (formData.get('po') || '').trim(), 
-        site: formData.get('site'), 
-        group: formData.get('group'), 
-        attention: attentionSelectChoices.getValue(true) || '', 
-        remarks: (formData.get('status') || 'Pending').trim() 
-    };
+    // 1. Disable button
+    updateJobButton.disabled = true;
+    updateJobButton.textContent = 'Updating...';
+
+    // 2. Get Data (Reuses the same logic as Add - handles Attachment & Other)
+    const jobData = getJobDataFromForm();
     
+    if (!jobData) {
+        updateJobButton.disabled = false;
+        updateJobButton.textContent = 'Update';
+        return; // Validation failed
+    }
+    
+    // 3. Special Logic for Invoice Jobs (Clear Attention)
     if (jobData.for === 'Invoice') {
         jobData.attention = '';
     }
 
+    // 4. Validation
     const isInvoiceJob = jobData.for === 'Invoice';
     if (!jobData.for || !jobData.site || !jobData.group) {
         alert('Please fill in Job, Site, and Group.');
+        updateJobButton.disabled = false;
+        updateJobButton.textContent = 'Update';
         return;
     }
     if (!isInvoiceJob && !jobData.attention) { 
          alert('Please select an Attention user.'); 
+         updateJobButton.disabled = false;
+         updateJobButton.textContent = 'Update';
          return; 
     }
     
     try {
+        // 5. Fetch original to preserve immutable data (timestamp, enteredBy)
         await ensureAllEntriesFetched(); 
         const originalEntry = allSystemEntries.find(entry => entry.key === currentlyEditingKey);
                 
         if (originalEntry) { 
+            // Keep original creator and time
             jobData.enteredBy = originalEntry.enteredBy; 
             jobData.timestamp = originalEntry.timestamp; 
             jobData.date = originalEntry.date; 
 
+            // Logic: Should we reset 'Date Responded'?
             let newDateResponded = originalEntry.dateResponded || null; 
 
             if (currentApprover.Name === (originalEntry.attention || '') && 
@@ -3108,9 +3276,11 @@ async function handleUpdateJobEntry(e) {
                 jobData.for !== 'Invoice' && 
                 jobData.attention === (originalEntry.attention || '')) 
             {
+                // If I am the attention user and I am updating it, mark as responded
                 newDateResponded = formatDate(new Date());
             } 
             else {
+                // If critical fields changed, reset response date (re-open task)
                 const hasChanged = (
                     jobData.for !== originalEntry.for ||
                     jobData.ref !== (originalEntry.ref || '') ||
@@ -3132,22 +3302,30 @@ async function handleUpdateJobEntry(e) {
             jobData.dateResponded = null;
         }
 
+        // QS Logic Fix
         const isQS = currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'qs';
         if (jobData.for === 'IPC' && jobData.attention === 'All' && isQS) {
             jobData.remarks = 'Ready';
         }
         
+        // 6. Save to Database
         await db.ref(`job_entries/${currentlyEditingKey}`).update(jobData); 
 
         alert('Job Entry Updated Successfully!');
         
+        // 7. Refresh
         await ensureAllEntriesFetched(true); 
+        updateJobTypeDropdown(); // Refresh dropdown in case type changed
         handleJobEntrySearch(jobEntrySearchInput.value); 
         resetJobEntryForm(); 
         populateActiveTasks(); 
+
     } catch (error) { 
         console.error("Error updating job entry:", error); 
         alert('Failed to update Job Entry. Please try again.'); 
+    } finally {
+        updateJobButton.disabled = false;
+        updateJobButton.textContent = 'Update';
     }
 }
 
@@ -3157,37 +3335,58 @@ function populateFormForEditing(key) {
 
     currentlyEditingKey = key;
     
-    const jobForInput = document.getElementById('job-for');
-    jobForInput.value = entryData.for || '';
-    jobForInput.dispatchEvent(new Event('change'));
-
-    document.getElementById('job-ref').value = entryData.ref || '';
-    const amountInput = document.getElementById('job-amount');
-    const poInput = document.getElementById('job-po');
-    amountInput.value = entryData.amount || '';
-    poInput.value = entryData.po || '';
-    document.getElementById('job-group').value = entryData.group || '';
-    siteSelectChoices.setChoiceByValue(entryData.site || '');
+    // --- 1. Handle Job Type ---
+    const jobTypeSelect = document.getElementById('job-for');
+    const otherInput = document.getElementById('job-other-specify');
     
-    attentionSelectChoices.setChoiceByValue(entryData.attention || '');
+    // Check if saved type matches a dropdown option
+    const exists = Array.from(jobTypeSelect.options).some(opt => opt.value === entryData.for);
+    
+    if (exists) {
+        jobTypeSelect.value = entryData.for || '';
+        otherInput.classList.add('hidden');
+    } else {
+        // Custom type: switch to 'Other' and show text box
+        jobTypeSelect.value = 'Other';
+        otherInput.value = entryData.for || '';
+        otherInput.classList.remove('hidden');
+    }
 
+    // --- 2. Populate Standard Fields ---
+    document.getElementById('job-ref').value = entryData.ref || '';
+    document.getElementById('job-amount').value = entryData.amount || '';
+    document.getElementById('job-po').value = entryData.po || '';
+    
+    // --- 3. Populate Attachment Field (CRITICAL) ---
+    const attachmentInput = document.getElementById('job-attachment');
+    if (attachmentInput) {
+        // If data exists, fill it. If not, empty string.
+        attachmentInput.value = entryData.attachmentName || '';
+    }
+
+    // --- 4. Populate Dropdowns ---
+    document.getElementById('job-group').value = entryData.group || '';
+    if (siteSelectChoices) siteSelectChoices.setChoiceByValue(entryData.site || '');
+    if (attentionSelectChoices) attentionSelectChoices.setChoiceByValue(entryData.attention || '');
+
+    // --- 5. UI Updates ---
     document.getElementById('job-status').value = (entryData.remarks === 'Pending') ? '' : entryData.remarks || '';
+    
     jobEntryFormTitle.textContent = 'Editing Job Entry';
     addJobButton.classList.add('hidden');
     updateJobButton.classList.remove('hidden');
 
+    // Security: Delete button for Irwin only
     const userPositionLower = (currentApprover?.Position || '').toLowerCase();
-    
-    // --- SECURITY UPDATE: Only "Irwin" can see the Delete button ---
     if (userPositionLower === 'accounting' && currentApprover.Name === 'Irwin') {
         deleteJobButton.classList.remove('hidden');
     } else {
         deleteJobButton.classList.add('hidden');
     }
-    // -------------------------------------------------------------
 
-    amountInput.classList.remove('highlight-field');
-    poInput.classList.remove('highlight-field');
+    // Reset styling
+    document.getElementById('job-amount').classList.remove('highlight-field');
+    document.getElementById('job-po').classList.remove('highlight-field');
     window.scrollTo(0, 0);
 }
 
@@ -3673,11 +3872,9 @@ function fetchAndDisplayInvoices(poNumber) {
 
     let invoiceCount = 0; 
     
-    // --- SMART LOGIC VARIABLES ---
     let totalInvValueSum = 0;
     let totalPaidWithRetention = 0;    
     let totalPaidWithoutRetention = 0; 
-    // -----------------------------
 
     if (invoicesData) {
         const invoices = Object.entries(invoicesData).map(([key, value]) => ({ key, ...value }));
@@ -3696,7 +3893,6 @@ function fetchAndDisplayInvoices(poNumber) {
         
         invoices.forEach(inv => {
             
-            // --- 1. Calculate Values ---
             const currentInvValue = parseFloat(inv.invValue) || 0;
             const currentAmtPaid = parseFloat(inv.amountPaid) || 0;
             const noteText = (inv.note || '').toLowerCase();
@@ -3707,7 +3903,6 @@ function fetchAndDisplayInvoices(poNumber) {
             if (!noteText.includes('retention')) {
                 totalPaidWithoutRetention += currentAmtPaid;
             }
-            // ---------------------------
 
             const row = document.createElement('tr');
             row.style.cursor = 'pointer';
@@ -3719,6 +3914,7 @@ function fetchAndDisplayInvoices(poNumber) {
             const invValueDisplay = (isAdmin || isAccounting) ? formatCurrency(inv.invValue) : '---';
             const amountPaidDisplay = (isAdmin || isAccounting) ? formatCurrency(inv.amountPaid) : '---';
 
+            // --- Standard Invoice/SRV Links (Using Base Paths) ---
             const invPDFName = inv.invName || '';
             const invPDFLink = (invPDFName.trim() && invPDFName.toLowerCase() !== 'nil')
                 ? `<a href="${PDF_BASE_PATH}${encodeURIComponent(invPDFName)}.pdf" target="_blank" class="action-btn invoice-pdf-btn">Invoice</a>`
@@ -3729,18 +3925,17 @@ function fetchAndDisplayInvoices(poNumber) {
                 ? `<a href="${SRV_BASE_PATH}${encodeURIComponent(srvPDFName)}.pdf" target="_blank" class="action-btn srv-pdf-btn">SRV</a>`
                 : '';
 
-            // --- History Button Logic ---
             let historyBtn = '';
             if (inv.history || inv.createdAt || inv.originTimestamp) {
                 historyBtn = `<button type="button" class="history-btn action-btn" title="View Status History" onclick="event.stopPropagation(); showInvoiceHistory('${poNumber}', '${inv.key}')"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
             }
 
-            // --- SECURITY UPDATE: Irwin-Only Delete Button ---
             let deleteBtnHTML = '';
             if (currentApprover.Name === 'Irwin') {
                 deleteBtnHTML = `<button class="delete-btn" data-key="${inv.key}">Delete</button>`;
             }
-            // -------------------------------------------------
+
+            // --- Reverted: No generic attachment button here (Job Entry only) ---
 
             row.innerHTML = `
                 <td>${inv.invEntryID || ''}</td>
@@ -3769,7 +3964,6 @@ function fetchAndDisplayInvoices(poNumber) {
     resetInvoiceForm();
     imNewInvoiceForm.classList.remove('hidden');
 
-    // --- 2. Apply Smart Logic to Footer ---
     const footer = document.getElementById('im-invoices-table-footer');
     if (footer) {
         const isAdminOrAccounting = isAdmin || isAccounting;
@@ -5449,32 +5643,53 @@ async function handleGenerateSummary() {
         return n + (s[(v - 20) % 10] || s[v] || s[0]);
     };
 
-    const prevNote = summaryNotePreviousInput.value.trim(), currentNote = summaryNoteCurrentInput.value.trim();
+    const prevNote = summaryNotePreviousInput.value.trim();
+    const currentNote = summaryNoteCurrentInput.value.trim();
     
     sessionStorage.setItem('imSummaryPrevNote', prevNote);
     sessionStorage.setItem('imSummaryCurrNote', currentNote);
 
     if (!currentNote) { alert("Please enter a note for the 'Current Note' search."); return; }
-    summaryNoteGenerateBtn.textContent = 'Generating...'; summaryNoteGenerateBtn.disabled = true;
+    
+    summaryNoteGenerateBtn.textContent = 'Generating...'; 
+    summaryNoteGenerateBtn.disabled = true;
+
     try {
         await ensureInvoiceDataFetched(); 
         const allInvoicesByPO = allInvoiceData;
         const allPOs = allPOData;
         const epicoreData = allEpicoreData; 
 
-        let previousPaymentTotal = 0, currentPaymentTotal = 0, allCurrentInvoices = [];
+        let previousPaymentTotal = 0;
+        let currentPaymentTotal = 0;
+        let allCurrentInvoices = [];
+        
+        // --- NEW: Variables for SRV Lookup ---
+        let srvNameForQR = null;
+        let foundSrv = false;
+
         for (const poNumber in allInvoicesByPO) {
             const invoices = allInvoicesByPO[poNumber];
             for (const key in invoices) {
                 const inv = invoices[key];
-                if (inv.note) {
-                    const vendorName = (allPOs[poNumber] && allPOs[poNumber]['Supplier Name']) ? allPOs[poNumber]['Supplier Name'] : 'N/A';
-                    if (prevNote && inv.note === prevNote) previousPaymentTotal += parseFloat(inv.invValue) || 0;
-                    if (inv.note === currentNote) {
-                        const site = (allPOs[poNumber] && allPOs[poNumber]['Project ID']) ? allPOs[poNumber]['Project ID'] : 'N/A';
-                        currentPaymentTotal += parseFloat(inv.invValue) || 0;
-                        allCurrentInvoices.push({ po: poNumber, key: key, site, vendor: vendorName, ...inv });
+                
+                // 1. Logic for Previous Payment Calculation & SRV Lookup
+                if (inv.note === prevNote) {
+                    previousPaymentTotal += parseFloat(inv.invValue) || 0;
+                    
+                    // Capture the FIRST matching srvName for the QR code
+                    if (!foundSrv && inv.srvName && inv.srvName.toLowerCase() !== 'nil' && inv.srvName.trim() !== '') {
+                        srvNameForQR = inv.srvName;
+                        foundSrv = true; // Stop looking after finding one
                     }
+                }
+
+                // 2. Logic for Current Payment Table
+                if (inv.note === currentNote) {
+                    const vendorName = (allPOs[poNumber] && allPOs[poNumber]['Supplier Name']) ? allPOs[poNumber]['Supplier Name'] : 'N/A';
+                    const site = (allPOs[poNumber] && allPOs[poNumber]['Project ID']) ? allPOs[poNumber]['Project ID'] : 'N/A';
+                    currentPaymentTotal += parseFloat(inv.invValue) || 0;
+                    allCurrentInvoices.push({ po: poNumber, key: key, site, vendor: vendorName, ...inv });
                 }
             }
         }
@@ -5484,12 +5699,49 @@ async function handleGenerateSummary() {
             summaryNoteCountDisplay.textContent = `(Total Items: ${count})`;
         }
         
-        if (allCurrentInvoices.length === 0) { alert(`No invoices found with the note: "${currentNote}"`); summaryNotePrintArea.classList.add('hidden'); return; }
+        if (allCurrentInvoices.length === 0) { 
+            alert(`No invoices found with the note: "${currentNote}"`); 
+            summaryNotePrintArea.classList.add('hidden'); 
+            return; 
+        }
+
+        // --- NEW: Generate QR CODE (LINK TO PDF) ---
+        const qrElement = document.getElementById('sn-prev-summary-qr');
+        if (qrElement) {
+            // 1. Clear previous QR code
+            qrElement.innerHTML = ''; 
+            
+            if (srvNameForQR) {
+                try {
+                    // 2. Construct the Full PDF URL
+                    // SRV_BASE_PATH is defined at the top of your file
+                    const pdfUrl = SRV_BASE_PATH + encodeURIComponent(srvNameForQR) + ".pdf";
+
+                    // 3. Generate New QR with the URL
+                    new QRCode(qrElement, {
+                        text: pdfUrl, // <--- NOW USES THE FULL LINK
+                        width: 60,  
+                        height: 60, 
+                        colorDark : "#000000",
+                        colorLight : "#ffffff",
+                        correctLevel : QRCode.CorrectLevel.L // 'L' (Low) is better for long URLs in small sizes
+                    });
+                } catch (e) {
+                    console.error("QR generation failed:", e);
+                }
+            } else {
+                console.warn("No SRV Name found for previous note, skipping QR.");
+            }
+        }
+        // -----------------------------
+
         allCurrentInvoices.sort((a, b) => (a.site || '').localeCompare(b.site || ''));
         const vendorData = allPOs[allCurrentInvoices[0].po];
         snVendorName.textContent = vendorData ? vendorData['Supplier Name'] : 'N/A';
+        
         const today = new Date();
         snDate.textContent = `Date: ${today.toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' }).replace(/ /g, '-')}`;
+        
         snPreviousPayment.textContent = `${formatCurrency(previousPaymentTotal)} Qatari Riyals`;
         snCurrentPayment.textContent = `${formatCurrency(currentPaymentTotal)} Qatari Riyals`;
         snTableBody.innerHTML = '';
@@ -5499,15 +5751,11 @@ async function handleGenerateSummary() {
             row.setAttribute('data-po', inv.po); row.setAttribute('data-key', inv.key);
 
             const poKey = inv.po.toUpperCase();
-            
-            // 1. Get the Raw Description from Epicore (This grabs the data from Column E)
-let rawDescription = (epicoreData && epicoreData[poKey]) ? epicoreData[poKey] : (inv.details || '');
-
-// 2. Truncate to 25 Characters (This cuts the letters)
-let truncatedDescription = rawDescription;
-if (rawDescription.length > 25) {
-    truncatedDescription = rawDescription.substring(0, 25) + "...";
-}
+            let rawDescription = (epicoreData && epicoreData[poKey]) ? epicoreData[poKey] : (inv.details || '');
+            let truncatedDescription = rawDescription;
+            if (rawDescription.length > 25) {
+                truncatedDescription = rawDescription.substring(0, 25) + "...";
+            }
 
             let invCountDisplay = '';
             if (inv.invEntryID) {
@@ -5533,8 +5781,14 @@ if (rawDescription.length > 25) {
         snTotalNumeric.textContent = formatCurrency(currentPaymentTotal);
         snTotalInWords.textContent = numberToWords(currentPaymentTotal);
         summaryNotePrintArea.classList.remove('hidden');
-    } catch (error) { console.error("Error generating summary:", error); alert("An error occurred. Please check the notes and try again."); }
-    finally { summaryNoteGenerateBtn.textContent = 'Generate Summary'; summaryNoteGenerateBtn.disabled = false; }
+
+    } catch (error) { 
+        console.error("Error generating summary:", error); 
+        alert("An error occurred. Please check the notes and try again."); 
+    } finally { 
+        summaryNoteGenerateBtn.textContent = 'Generate Summary'; 
+        summaryNoteGenerateBtn.disabled = false; 
+    }
 }
 
 async function handleUpdateSummaryChanges() {
@@ -7508,15 +7762,41 @@ if (imMobileNavLogout) {
 
             const poNumber = invoiceRow.dataset.poNumber;
             const invoiceKey = invoiceRow.dataset.invoiceKey;
+            
             if (!poNumber || !invoiceKey) return;
 
-            if (confirm(`Do you want to edit this invoice?\n\PO: ${poNumber}\nInvoice Key: ${invoiceKey}`)) {
+            if (confirm(`Do you want to edit this specific invoice entry?\n\nPO: ${poNumber}\nInvoice Key: ${invoiceKey}`)) {
+                // 1. Switch View
                 imNav.querySelector('a[data-section="im-invoice-entry"]').click();
-                setTimeout(() => {
-                    handlePOSearch(poNumber).then(() => {
-                        populateInvoiceFormForEditing(invoiceKey);
-                    });
-                }, 100); 
+                
+                // 2. Force PO Search immediately
+                imPOSearchInput.value = poNumber;
+                
+                // 3. Manually trigger the load sequence to ensure timing is correct
+                // We await the data check to ensure we have the record in memory
+                ensureInvoiceDataFetched().then(() => {
+                    // Set the global current PO context
+                    currentPO = poNumber;
+                    
+                    // If we have data for this PO, load the table and the form
+                    if (allPOData && allPOData[poNumber]) {
+                        // Load PO Details at top
+                        proceedWithPOLoading(poNumber, allPOData[poNumber]).then(() => {
+                            // NOW populate the specific form box
+                            populateInvoiceFormForEditing(invoiceKey);
+                            
+                            // Show the back button
+                            imBackToActiveTaskButton.classList.remove('hidden');
+                        });
+                    } else {
+                        // Fallback if PO data isn't strictly in cache (rare)
+                        handlePOSearch(poNumber).then(() => {
+                            setTimeout(() => {
+                                populateInvoiceFormForEditing(invoiceKey);
+                            }, 300);
+                        });
+                    }
+                });
             }
             return; 
         }
@@ -7763,6 +8043,57 @@ if (imMobileNavLogout) {
         });
     }
 
+
+// --- NEW: Previous Summary PDF Button ---
+    if (summaryNotePrevPdfBtn) {
+        summaryNotePrevPdfBtn.addEventListener('click', async () => {
+            const prevNote = document.getElementById('summary-note-previous-input').value.trim();
+            
+            if (!prevNote) {
+                alert("Please enter a 'Previous Note' to search for.");
+                return;
+            }
+
+            summaryNotePrevPdfBtn.textContent = "Searching...";
+            
+            try {
+                await ensureInvoiceDataFetched();
+                
+                let foundSrvName = null;
+                let foundPo = null;
+
+                // Scan all invoices to find the FIRST match for this note
+                // We use a label to break out of both loops once found
+                outerLoop:
+                for (const po in allInvoiceData) {
+                    for (const key in allInvoiceData[po]) {
+                        const inv = allInvoiceData[po][key];
+                        // Check if note matches and we have a valid SRV name
+                        if (inv.note === prevNote && inv.srvName && inv.srvName.toLowerCase() !== 'nil' && inv.srvName.trim() !== '') {
+                            foundSrvName = inv.srvName;
+                            foundPo = po;
+                            break outerLoop; // Stop looking, we found one
+                        }
+                    }
+                }
+
+                if (foundSrvName) {
+                    const pdfUrl = `${SRV_BASE_PATH}${encodeURIComponent(foundSrvName)}.pdf`;
+                    window.open(pdfUrl, '_blank');
+                } else {
+                    alert(`No SRV document found for Previous Note: "${prevNote}"`);
+                }
+
+            } catch (e) {
+                console.error("Error searching for Prev Summary:", e);
+                alert("An error occurred while searching.");
+            } finally {
+                summaryNotePrevPdfBtn.innerHTML = '<i class="fa-regular fa-file-pdf"></i> Prev Summary';
+            }
+        });
+    }
+
+
     if (imAddPaymentButton) {
         imAddPaymentButton.addEventListener('click', () => {
             imPaymentModalPOInput.value = '';
@@ -7922,6 +8253,34 @@ if (imMobileNavLogout) {
     if (sendCeoApprovalReceiptBtn) sendCeoApprovalReceiptBtn.addEventListener('click', previewAndSendReceipt);
     if (mobileSendReceiptBtn) mobileSendReceiptBtn.addEventListener('click', previewAndSendReceipt); 
 
+
+// --- NEW: Job Entry "View Attachment" Button Logic ---
+    const jobAttachmentViewBtn = document.getElementById('job-attachment-view-btn');
+    if (jobAttachmentViewBtn) {
+        jobAttachmentViewBtn.addEventListener('click', () => {
+            // 1. Get the filename from the input box
+            const val = document.getElementById('job-attachment').value.trim();
+            
+            if (!val) {
+                alert("Please paste a filename first.");
+                return;
+            }
+            
+            // 2. Smart Link Construction
+            let fullPath;
+            if (val.startsWith('http')) {
+                // If they pasted a full link, use it as-is
+                fullPath = val;
+            } else {
+                // If they just pasted "file.pdf", combine it with your specific path
+                // encodeURIComponent ensures spaces become %20
+                fullPath = ATTACHMENT_BASE_PATH + encodeURIComponent(val);
+            }
+            
+            // 3. Open in new tab
+            window.open(fullPath, '_blank');
+        });
+    }
 
 // ==========================================================================
 // NEW HELPERS: HISTORY TRACKING
