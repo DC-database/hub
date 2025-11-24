@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.7.4"; 
+const APP_VERSION = "3.7.5"; 
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -8466,5 +8466,6 @@ window.showInvoiceHistory = async function(poNumber, invoiceKey) {
             proceedWithPOLoading(po, manualPOData);
         });
     }
+
 
 }); // END OF DOMCONTENTLOADED
