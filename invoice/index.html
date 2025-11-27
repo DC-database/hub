@@ -6,10 +6,10 @@
     <title>System Login</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
-    <link rel="stylesheet" href="style.css">
-    <!-- NEW: Link the specific styles for Transfer/Stock -->
-    <link rel="stylesheet" href="transfer_stock.css">
     
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="transfer_stock.css"> 
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
@@ -97,9 +97,8 @@
                     <li class="wd-nav-taskhistory hidden"><a href="#" data-section="wd-taskhistory"><i class="fa-solid fa-clock-rotate-left"></i> Task History</a></li>
                     <li class="wd-nav-reporting"><a href="#" data-section="wd-reporting"><i class="fa-solid fa-chart-line"></i> Job Records</a></li>
                     
-                    <!-- NEW: Material Stock Nav (Hidden by default, shown via JS for Site DC/Admin) -->
-                    <li id="nav-material-stock" class="hidden"><a href="#" data-section="wd-material-stock"><i class="fa-solid fa-boxes-stacked"></i> Material Stock</a></li>
-                    
+                    <li class="wd-nav-material"><a href="#" data-section="wd-material-stock"><i class="fa-solid fa-boxes-stacked"></i> Material Stock</a></li>
+
                     <li class="wd-nav-im-reporting-mobile"><a href="#" id="wd-im-reporting-link-mobile"><i class="fa-solid fa-chart-line"></i> Reporting</a></li>
                     
                     <li class="mobile-only-nav-item"><a href="#" id="mobile-nav-logout"><i class="fa-solid fa-power-off" style="color: #C3502F;"></i> <span style="color: #C3502F;">Logout</span></a></li>
@@ -225,97 +224,66 @@
                             <button type="button" id="nav-next-job" class="secondary-btn" title="Next job in list">Next &rarr;</button>
                         </div>
                     </div>
-                    <form id="jobentry-form">
-    <!-- Standard 2-column layout for normal jobs -->
-    <div class="jobentry-form-2col">
-        <div class="form-column">
-            <div class="form-group">
-                <label for="job-for">Job</label>
-                <select id="job-for" name="for" required onchange="toggleJobOtherInput()">
-                    <option value="" disabled selected>Select a Type</option>
-                    <option value="PR">PR</option>
-                    <option value="Invoice">Invoice</option>
-                    <option value="IPC">IPC</option>
-                    <option value="Payment">Payment</option>
-                    <option value="Transfer">Transfer</option>
-                    <option value="Trip">Trip</option>
-                    <option value="Report">Report</option>
-                    <option value="Other" style="font-weight: bold;">-- Other (Specify) --</option>
-                </select>
-                <input type="text" id="job-other-specify" class="hidden" placeholder="Type new Job Name (e.g. Quotation)..." style="margin-top: 5px; border-color: #00748C;">
-            </div>
-            <div class="form-group"><label for="job-ref">Reference</label><input type="text" id="job-ref" name="ref"></div>
-            <div class="form-group"><label for="job-po">PO Number</label><input type="text" id="job-po" name="po" placeholder="PO Number"></div>
-            <div class="form-group"><label for="job-amount">Amount</label><input type="number" id="job-amount" name="amount" placeholder="0.00" step="0.01"></div>
-            
-            <div class="form-group" style="background: #f0f8ff; padding: 10px; border-radius: 6px; border: 1px dashed #ccc;">
-                <label style="font-size: 0.85rem;"><i class="fa-solid fa-paperclip"></i> Attachment</label>
-                <div style="display: flex; gap: 5px;">
-                    <a href="https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/Attachments" target="_blank" class="secondary-btn" style="padding: 6px 10px; font-size: 0.8rem; text-decoration: none; background: #00748C; color: white; border-radius: 4px;" title="Upload to ShareDrive">
-                        <i class="fa-solid fa-cloud-arrow-up"></i>
-                    </a>
-                    <input type="text" id="job-attachment" name="attachmentName" placeholder="Paste filename (e.g. quote.pdf)" style="margin-bottom: 0; flex-grow: 1; font-size: 0.9rem;">
-                    <button type="button" id="job-attachment-view-btn" style="padding: 6px 12px; font-size: 0.9rem; background: #6f42c1; color: white; border: none; border-radius: 4px; cursor: pointer;" title="View Attached File">
-                        <i class="fa-solid fa-eye"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-        <div class="form-column">
-                <div class="form-group"><label for="job-site">Site / Project No.</label><select id="job-site" name="site" required></select></div>
-            <div class="form-group"><label for="job-group">Group</label><select id="job-group" name="group" required><option value="" disabled selected>Select a Group</option><option value="Civil">Civil</option><option value="MEP">MEP</option><option value="Logistic">Logistic</option><option value="Other">Other</option></select></div>
-            <div class="form-group"><label for="job-attention">Attention</label><select id="job-attention" name="attention" required></select></div>
-            
-            <div class="form-group">
-                <label for="job-status">Status</label>
-                <input type="text" id="job-status" name="status" list="job-status-options" placeholder="e.g., Requesting PO">
-                <datalist id="job-status-options">
-                    <option value="Requesting PO"></option> <option value="Waiting For Approval"></option>
-                    <option value="Under Review"></option>
-                    <option value="On Hold"></option>
-                </datalist>
-            </div>
-        </div>
-    </div>
+                    <form id="jobentry-form" class="jobentry-form-2col">
+                        <div class="form-column">
+                            <div class="form-group">
+                                <label for="job-for">Job</label>
+                                <select id="job-for" name="for" required onchange="toggleJobOtherInput()">
+                                    <option value="" disabled selected>Select a Type</option>
+                                    <option value="PR">PR</option>
+                                    <option value="Invoice">Invoice</option>
+                                    <option value="IPC">IPC</option>
+                                    <option value="Trip">Trip</option>
+                                    <option value="Payment">Payment</option>
+                                    <option value="Report">Report</option>
+                                    <option value="Transfer">Transfer</option>
+                                    <option value="Return">Return</option>
+                                    <option value="Restock">Restock</option> 
+                                    <option value="Other" style="font-weight: bold;">-- Other (Specify) --</option>
+                                </select>
+                                <input type="text" id="job-other-specify" class="hidden" placeholder="Type new Job Name (e.g. Quotation)..." style="margin-top: 5px; border-color: #00748C;">
+                            </div>
+                            <div class="form-group"><label for="job-ref">Reference</label><input type="text" id="job-ref" name="ref"></div>
+                            <div class="form-group"><label for="job-po">PO Number</label><input type="text" id="job-po" name="po" placeholder="PO Number"></div>
+                            <div class="form-group"><label for="job-amount">Amount</label><input type="number" id="job-amount" name="amount" placeholder="0.00" step="0.01"></div>
+                            
+                            <div class="form-group" style="background: #f0f8ff; padding: 10px; border-radius: 6px; border: 1px dashed #ccc;">
+                                <label style="font-size: 0.85rem;"><i class="fa-solid fa-paperclip"></i> Attachment</label>
+                                <div style="display: flex; gap: 5px;">
+                                    <a href="https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/Attachments" target="_blank" class="secondary-btn" style="padding: 6px 10px; font-size: 0.8rem; text-decoration: none; background: #00748C; color: white; border-radius: 4px;" title="Upload to ShareDrive">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                                    </a>
+                                    <input type="text" id="job-attachment" name="attachmentName" placeholder="Paste filename (e.g. quote.pdf)" style="margin-bottom: 0; flex-grow: 1; font-size: 0.9rem;">
+                                    <button type="button" id="job-attachment-view-btn" style="padding: 6px 12px; font-size: 0.9rem; background: #6f42c1; color: white; border: none; border-radius: 4px; cursor: pointer;" title="View Attached File">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-column">
+                                <div class="form-group"><label for="job-site">Site / Project No.</label><select id="job-site" name="site" required></select></div>
+                            <div class="form-group"><label for="job-group">Group</label><select id="job-group" name="group" required><option value="" disabled selected>Select a Group</option><option value="Civil">Civil</option><option value="MEP">MEP</option><option value="Logistic">Logistic</option><option value="Other">Other</option></select></div>
+                            <div class="form-group"><label for="job-attention">Attention</label><select id="job-attention" name="attention" required></select></div>
+                            
+                            <div class="form-group">
+                                <label for="job-status">Status</label>
+                                <input type="text" id="job-status" name="status" list="job-status-options" placeholder="e.g., Requesting PO">
+                                <datalist id="job-status-options">
+                                    <option value="Requesting PO"></option> <option value="Waiting For Approval"></option>
+                                    <option value="Under Review"></option>
+                                    <option value="On Hold"></option>
+                                </datalist>
+                            </div>
 
-    <!-- NEW: Transfer Specific Fields (Hidden by default, shown when Job=Transfer) -->
-    <div id="transfer-fields-container" class="hidden">
-        <h3 style="margin-top: 0; color: #00748C; border-bottom: 1px solid #eee; padding-bottom: 10px;">Transfer Details</h3>
-        <div class="transfer-grid">
-            <div class="form-group"><label>Control ID</label><input type="text" id="trf-control-id" readonly placeholder="Auto-generated"></div>
-            <div class="form-group"><label>Product ID</label><input type="text" id="trf-product-id"></div>
-            
-            <div class="form-group"><label>Product Name</label><input type="text" id="trf-product-name"></div>
-            <div class="form-group"><label>Details</label><input type="text" id="trf-details"></div>
-            
-            <div class="form-group"><label>From Site</label><select id="trf-from-site"></select></div>
-            <div class="form-group"><label>To Site</label><select id="trf-to-site"></select></div>
-            
-            <div class="form-group"><label>Ordered Qty</label><input type="number" id="trf-ordered-qty" step="0.01"></div>
-            <div class="form-group"><label>Delivered Qty</label><input type="number" id="trf-delivered-qty" step="0.01"></div>
-            
-            <div class="form-group"><label>Shipping Date</label><input type="date" id="trf-shipping-date"></div>
-            <div class="form-group"><label>Acquired Date</label><input type="date" id="trf-acquired-date"></div>
-            
-            <div class="form-group"><label>Contact Name</label><select id="trf-contact-name"></select></div>
-            <div class="form-group"><label>Operator Name</label><input type="text" id="trf-operator-name"></div>
-        </div>
-    </div>
-
-    <div class="form-group hidden"><label for="job-date">Date</label><input type="text" id="job-date" name="date" readonly></div>
-
-    <div class="form-buttons-container">
-    <button type="button" id="add-job-button">Add</button>
-    
-    <button type="button" id="add-transfer-btn" class="hidden">Add Transfer</button>
-    
-    <button type="button" id="cancel-transfer-btn" class="secondary-btn hidden">Cancel</button> 
-    
-    <button type="button" id="update-job-button" class="hidden">Update</button>
-    <button type="button" id="clear-job-button" class="secondary-btn">Clear</button>
-    <button type="button" id="delete-job-button" class="delete-btn hidden">Delete</button>
-</div>
-</form>
+                            <div class="form-buttons-container">
+                                <button type="button" id="add-job-button">Add</button>
+                                <button type="button" id="update-job-button" class="hidden">Update</button>
+                                <button type="button" id="clear-job-button" class="secondary-btn">Clear</button>
+                                <button type="button" id="delete-job-button" class="delete-btn hidden">Delete</button>
+                            </div>
+                        </div>
+                        <div class="form-group hidden"><label for="job-date">Date</label><input type="text" id="job-date" name="date" readonly></div>
+                    </form>
                     <hr class="section-divider">
                     <div class="search-and-table-container">
                         <h2>Your Pending Job Entries</h2>
@@ -329,57 +297,6 @@
                                 <tbody id="job-entry-table-body"></tbody>
                             </table>
                         </div>
-                    </div>
-                </section>
-
-                <!-- NEW: Material Stock Section -->
-                <section id="wd-material-stock" class="workdesk-section hidden">
-                    <div class="stock-header">
-                        <h1>Material Stock Control</h1>
-                        <div class="stock-actions-toolbar">
-                            <!-- Only Admin sees these in JS -->
-                            <button id="add-stock-btn" class="download-btn hidden"><i class="fa-solid fa-plus"></i> Add Material Stock</button>
-                            <button id="upload-stock-csv-btn" class="secondary-btn hidden" onclick="document.getElementById('stock-csv-upload').click()"><i class="fa-solid fa-file-csv"></i> Upload CSV</button>
-                            <input type="file" id="stock-csv-upload" accept=".csv" class="hidden">
-                            <button id="download-stock-template-btn" class="secondary-btn hidden"><i class="fa-solid fa-download"></i> Get Template</button>
-                        </div>
-                    </div>
-
-                    <div id="material-stock-form-container" class="hidden">
-                        <h3>Add/Update Stock</h3>
-                        <div class="stock-form-grid">
-                            <div class="form-group"><label>Product ID</label><input type="text" id="stock-product-id"></div>
-                            <div class="form-group"><label>Product Name</label><input type="text" id="stock-product-name"></div>
-                            <div class="form-group"><label>Details</label><input type="text" id="stock-details"></div>
-                            
-                            <div class="form-group"><label>Stock QTY</label><input type="number" id="stock-qty" step="0.01" value="0"></div>
-                            <div class="form-group"><label>Transferred QTY</label><input type="number" id="stock-transferred-qty" step="0.01" value="0"></div>
-                            <div class="form-group"><label>Balance QTY</label><span id="stock-balance-display" class="stock-balance-display">0</span>
-                            </div>
-                        </div>
-                        <div class="form-buttons-container">
-                            <button id="save-stock-btn">Save Stock</button>
-                            <button id="cancel-stock-btn" class="secondary-btn">Cancel</button>
-                        </div>
-                    </div>
-
-                    <div class="table-wrapper">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Product ID</th>
-                                    <th>Product Name</th>
-                                    <th>Details</th>
-                                    <th>Stock QTY</th>
-                                    <th>Transferred QTY</th>
-                                    <th>Balance QTY</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="material-stock-table-body">
-                                <tr><td colspan="7">Loading stock data...</td></tr>
-                            </tbody>
-                        </table>
                     </div>
                 </section>
 
@@ -467,6 +384,54 @@
                     <div class="search-bar-local"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="reporting-search" placeholder="Type to search all system entries..."></div>
                     <div id="reporting-printable-area"><div class="table-wrapper"><table><thead><tr><th>Job</th><th>Ref</th><th>Site</th><th>PO</th><th>Vendor Name</th><th>Amount</th><th>Entered By</th><th>Date Entered</th><th>Attention</th><th>Date Responded</th><th>Status</th></tr></thead><tbody id="reporting-table-body"></tbody></table></div></div>
                  </section>
+
+                 <section id="wd-material-stock" class="workdesk-section hidden">
+                    <h1>Material Stock</h1>
+                    
+                    <div class="report-controls" style="margin-bottom: 20px; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                        
+                        <div style="display: flex; gap: 5px;">
+                            <button id="ms-add-new-btn" style="background-color: #00748C;"><i class="fa-solid fa-plus"></i> Add Material</button>
+                            <button id="ms-upload-csv-btn" class="secondary-btn"><i class="fa-solid fa-file-csv"></i> Upload</button>
+                            <button id="ms-template-btn" class="secondary-btn" style="background-color: #6c757d;"><i class="fa-solid fa-download"></i> Template</button>
+                            <input type="file" id="ms-csv-file-input" accept=".csv" style="display: none;">
+                        </div>
+
+                        <div style="display: flex; gap: 5px;">
+                            <button onclick="openTransferModal('Transfer')" style="background-color: #17a2b8; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">
+                                <i class="fa-solid fa-arrow-right-arrow-left"></i> Transfer
+                            </button>
+                            <button onclick="openTransferModal('Restock')" style="background-color: #28a745; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">
+                                <i class="fa-solid fa-boxes-packing"></i> Restock
+                            </button>
+                            <button onclick="openTransferModal('Return')" style="background-color: #ffc107; color: #212529; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">
+                                <i class="fa-solid fa-rotate-left"></i> Return
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="search-bar-local">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="ms-search-input" placeholder="Search by Product ID or Name...">
+                    </div>
+
+                    <div class="table-wrapper">
+                        <table id="ms-table">
+                           <thead>
+    <tr>
+        <th style="width: 50px;"></th> <th style="width: 15%;">Product ID</th>
+        <th style="width: 25%;">Product Name</th>
+        <th style="width: 25%;">Details</th>
+        <th style="width: 15%;">Total Stock</th>
+        <th style="width: 10%;">Transferred</th>
+        <th style="width: 10%; text-align: center;">Action</th>
+    </tr>
+</thead>
+                            <tbody id="ms-table-body">
+                                </tbody>
+                        </table>
+                    </div>
+                </section>
 
                  <section id="wd-settings" class="workdesk-section hidden">
                     <h1>Account Settings</h1>
@@ -968,6 +933,8 @@
                 <div style="font-weight: bold; font-size: 1.1rem; color: #333;">
                     Selected Total: <span id="payment-modal-total-value" style="color: #003A5C;">0.00</span>
                 </div>
+
+
                 <div style="display: flex; gap: 10px;">
                     <button id="im-payment-modal-add-selected-btn" class="download-btn"><i class="fa-solid fa-plus"></i> Add Selected</button>
                     <button class="secondary-btn modal-close-btn">Cancel</button>
@@ -1095,6 +1062,257 @@
         </div>
     </div>
 
+    <div id="ms-new-material-modal" class="modal-overlay hidden">
+        <div class="modal-container">
+            <div class="modal-header">
+    <h2 id="ms-modal-title">Add New Material</h2> <button class="modal-close-btn" ...>&times;</button>
+</div>
+            <div class="modal-content">
+                <form id="ms-new-material-form">
+                    <div class="form-group">
+    <label>Product ID / Name Search</label>
+    <select id="ms-new-id" placeholder="Type ID or Name (e.g. Apple)..."></select>
+</div>
+                    <div class="form-group">
+                        <label>Product Name</label>
+                        <input type="text" id="ms-new-name" placeholder="Enter Product Name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Details</label>
+                        <input type="text" id="ms-new-details" placeholder="Description / Size / Unit">
+                    </div>
+                   
+<div style="display: flex; gap: 10px;">
+    <div class="form-group" style="flex: 60%;">
+        <label>Opening Stock Site</label>
+        <select id="ms-new-site-select" style="background-color: #fff; border: 1px solid #ccc; height: 45px;">
+            <option value="Main Store">Main Store</option>
+            </select>
+    </div>
+    <div class="form-group" style="flex: 40%;">
+        <label>Quantity</label>
+        <input type="number" id="ms-new-stock-qty" placeholder="0" step="any" style="height: 45px;">
+    </div>
+</div>
+
+
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="secondary-btn modal-close-btn" onclick="document.getElementById('ms-new-material-modal').classList.add('hidden')">Cancel</button>
+                <button id="ms-save-new-btn" type="button">Save Material</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="ms-add-stock-modal" class="modal-overlay hidden">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2>Add / Adjust Stock</h2>
+                <button class="modal-close-btn" onclick="document.getElementById('ms-add-stock-modal').classList.add('hidden')">&times;</button>
+            </div>
+            <div class="modal-content">
+                <input type="hidden" id="ms-add-key"> <div class="form-group">
+                    <label>Product ID</label>
+                    <input type="text" id="ms-add-id" readonly style="background-color: #eee;">
+                </div>
+                <div class="form-group">
+                    <label>Product Name</label>
+                    <input type="text" id="ms-add-name" readonly style="background-color: #eee;">
+                </div>
+                <div class="form-group">
+                    <label>Details</label>
+                    <input type="text" id="ms-add-details" readonly style="background-color: #eee;">
+                </div>
+                
+                <div class="form-group" style="margin-top: 10px;">
+                    <label>Target Site / Store</label>
+                    <select id="ms-add-site-select" style="background-color: #fff; font-weight: bold; border: 1px solid #00748C;">
+                        <option value="Main Store">Main Store</option>
+                        </select>
+                </div>
+
+                <div style="display: flex; gap: 15px; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Global Total</label>
+                        <input type="number" id="ms-add-current-stock" readonly style="background-color: #f9f9f9; font-weight: bold;">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label style="color: #28a745;">+/- Adjust QTY</label>
+                        <input type="number" id="ms-add-qty-input" placeholder="Enter QTY" class="highlight-field" step="any">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="secondary-btn modal-close-btn" onclick="document.getElementById('ms-add-stock-modal').classList.add('hidden')">Cancel</button>
+                <button id="ms-save-stock-btn" type="button" class="download-btn"><i class="fa-solid fa-plus"></i> Update Stock</button>
+            </div>
+        </div>
+    </div>
+
+
+<div id="transfer-job-modal" class="modal-overlay hidden">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2 id="transfer-modal-title">New Transaction</h2>
+                <button class="modal-close-btn" onclick="closeTransferModal()">&times;</button>
+            </div>
+            
+            <div class="modal-content">
+                <form id="transfer-job-form">
+                    
+                    <div class="transfer-2col-grid">
+                        
+                        <div class="transfer-col">
+                            <div class="form-group">
+                                <label>Job Type</label>
+                                <input type="text" id="tf-job-type" readonly style="font-weight: bold; color: #003A5C;">
+                            </div>
+                            <div class="form-group">
+                                <label>Control Number</label>
+                                <input type="text" id="tf-control-no" readonly style="background-color: #e9ecef; font-weight: bold;">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Product Search (Type ID or Name)</label>
+                                <select id="tf-product-select"></select> 
+                            </div>
+
+                            <div class="form-group">
+                                <label>Product Name</label>
+                                <input type="text" id="tf-product-name" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label>Details</label>
+                                <input type="text" id="tf-details" readonly>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Requestor</label>
+                                <input type="text" id="tf-requestor" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label>Approver (Admin)</label>
+                                <select id="tf-approver"></select>
+                            </div>
+                        </div>
+
+                        <div class="transfer-col">
+                            <div style="display: flex; gap: 8px;">
+                                <div class="form-group" style="flex: 1;">
+                                    <label>Shipping Date</label>
+                                    <input type="date" id="tf-shipping-date">
+                                </div>
+                                <div class="form-group" style="flex: 1;">
+                                    <label>Arrival Date (Receiver)</label>
+                                    <input type="date" id="tf-arrival-date">
+                                </div>
+                            </div>
+
+                            <div style="display: flex; gap: 8px;">
+                                <div class="form-group" style="flex: 1;">
+                                    <label style="color: #00748C;">Required</label>
+                                    <input type="number" id="tf-req-qty" step="any">
+                                </div>
+                                <div class="form-group" style="flex: 1;">
+                                    <label style="color: #8a7300;">Approved</label>
+                                    <input type="number" id="tf-app-qty" step="any">
+                                </div>
+                                <div class="form-group" style="flex: 1;">
+                                    <label style="color: #28a745;">Received</label>
+                                    <input type="number" id="tf-rec-qty" step="any">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>From (Source Site)</label>
+                                <select id="tf-from"></select>
+                            </div>
+
+                            <div class="form-group">
+                                <label style="color: #d39e00; font-weight: bold;">Source Site Contact (Attention)</label>
+                                <select id="tf-source-contact"></select>
+                            </div>
+                            <div class="form-group">
+                                <label>To (Destination Site)</label>
+                                <select id="tf-to"></select>
+                            </div>
+                            <div class="form-group">
+                                <label>Receiver</label>
+                                <select id="tf-receiver"></select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Status</label>
+                                <select id="tf-status">
+                                    <option value="Pending Source">Pending Source</option>
+                                    <option value="Pending Admin">Pending Admin</option>
+                                    <option value="In Transit">In Transit</option>
+                                    <option value="Completed">Completed</option>
+                                    <option value="Cancelled">Cancelled</option>
+                                    <option value="Rejected">Rejected</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Remarks</label>
+                                <textarea id="tf-remarks" rows="1"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="modal-footer" style="justify-content: space-between;">
+                <button id="tf-print-btn" type="button" class="secondary-btn" style="background-color: #6f42c1; color: white;">
+                    <i class="fa-solid fa-print"></i> Print Waybill
+                </button>
+            
+                <div style="display: flex; gap: 10px;">
+                    <button class="secondary-btn modal-close-btn" onclick="closeTransferModal()" type="button">Cancel</button>
+                    <button id="tf-save-btn" class="download-btn" type="button">Save Transaction</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="transfer-approval-modal" class="modal-overlay hidden">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h2 id="transfer-modal-title">Transfer Action</h2>
+            <button class="modal-close-btn" onclick="document.getElementById('transfer-approval-modal').classList.add('hidden')">&times;</button>
+        </div>
+        <div class="modal-content">
+            <input type="hidden" id="transfer-modal-key">
+            
+            <div id="transfer-modal-details" style="background: #f4f7fa; padding: 15px; border-radius: 4px; margin-bottom: 20px; line-height: 1.6;">
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                <div class="form-group" style="flex: 1;">
+                    <label>Confirmed Quantity</label>
+                    <input type="number" id="transfer-modal-qty" step="any">
+                </div>
+
+                <div class="form-group hidden" id="transfer-modal-date-container" style="flex: 1;">
+                    <label style="color: #28a745; font-weight: bold;">Arrival Date</label>
+                    <input type="date" id="transfer-modal-date" style="border: 2px solid #28a745; background-color: #f0fff4;">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Note / Remark</label>
+                <textarea id="transfer-modal-note" rows="3" placeholder="Add a note..."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer" style="justify-content: space-between;">
+            <button id="transfer-modal-reject-btn" class="delete-btn">Reject</button>
+            <button id="transfer-modal-approve-btn" class="download-btn" style="background-color: #28a745;">Approve</button>
+        </div>
+    </div>
+</div>
+
     <div id="im-reporting-printable-area" class="hidden">
         <header class="print-header"><div class="print-logo"><h1>ISMAIL BIN ALI TRADING & CONT. CO. W.L.L</h1></div><div class="print-title-section"><h2 id="im-print-report-title">Invoice Summary Report</h2><p id="im-print-report-date"></p></div></header>
         <section class="print-summary">
@@ -1128,16 +1346,143 @@
             <div id="receipt-rejected-list" style="margin-bottom: 10px; color: #555;"></div>
             <div class="total" style="font-weight: bold; border-top: 1px dashed #999; margin-top: 5px; padding-top: 5px; display: flex; justify-content: space-between; color: #D32F2F;"><span>REJECTED TOTAL:</span><span id="receipt-rejected-total">QR 0.00</span></div>
         </div>
+        <div id="receipt-footer" style="text-align: center; margin-top: 15px; padding-top: 10px; border-top: 1px dashed #999;">
+            <p id="footer-esn" style="font-weight: bold; font-size: 0.9rem; margin: 5px 0;">ESN #: <span></span></p>
+            <img id="barcode" style="width: 80%; height: 40px; margin: 5px 0; object-fit: contain;">
+            <p id="footer-date" style="font-size: 0.8rem; margin: 5px 0;"></p>
+        </div>
     </div>
+
+<div id="transfer-waybill-template" style="position: fixed; left: -9999px; top: 0; width: 800px; background: white; font-family: Arial, sans-serif; box-sizing: border-box; color: #000;">
+    
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 2px solid #003A5C;">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div style="background-color: #003A5C; color: white; font-weight: 900; font-size: 32px; padding: 5px 15px; letter-spacing: 2px;">IBA</div>
+            <div>
+                <h2 id="wb-doc-title" style="margin: 0; font-size: 18px; text-transform: uppercase; font-weight: 800; color: #003A5C;">Material Transfer Note</h2>
+                <p style="margin: 0; font-size: 10px; color: #555;">Ismail Bin Ali Tradg. & Cont. Co. W.L.L</p>
+            </div>
+        </div>
+        <div style="text-align: right;">
+            <div id="wb-status-badge" style="border: 2px solid #000; padding: 5px 10px; font-weight: bold; font-size: 14px; display: inline-block;">PENDING</div>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border: 2px solid #000;">
+        
+        <div style="display: flex; flex-direction: column;">
+            <div style="border-bottom: 1px solid #000; height: 50%;">
+                <div style="background-color: #003A5C; color: white; padding: 2px 5px; font-size: 12px; font-weight: bold; -webkit-print-color-adjust: exact;">1. FROM (SENDER)</div>
+                <div style="padding: 10px;">
+                    <div style="font-size: 10px; color: #666;">Site / Location</div>
+                    <div id="wb-from-site" style="font-size: 14px; font-weight: bold; margin-bottom: 8px;">-</div>
+                    <div style="font-size: 10px; color: #666;">Authorized By</div>
+                    <div id="wb-requestor" style="font-size: 12px;">-</div>
+                </div>
+            </div>
+            <div style="height: 50%;">
+                <div style="background-color: #003A5C; color: white; padding: 2px 5px; font-size: 12px; font-weight: bold; -webkit-print-color-adjust: exact;">2. TO (RECEIVER)</div>
+                <div style="padding: 10px;">
+                    <div style="font-size: 10px; color: #666;">Site / Location</div>
+                    <div id="wb-to-site" style="font-size: 14px; font-weight: bold; margin-bottom: 8px;">-</div>
+                    <div style="font-size: 10px; color: #666;">Contact / Attention</div>
+                    <div id="wb-receiver" style="font-size: 12px;">-</div>
+                </div>
+            </div>
+        </div>
+
+        <div style="border-left: 1px solid #000;">
+            <div style="border-bottom: 1px solid #000;">
+                <div style="background-color: #003A5C; color: white; padding: 2px 5px; font-size: 12px; font-weight: bold; -webkit-print-color-adjust: exact;">3. DETAILS</div>
+                <div style="padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div><div style="font-size: 10px; color: #666;">Issue Date</div><div id="wb-date" style="font-size: 12px; font-weight: bold;">-</div></div>
+                    <div><div style="font-size: 10px; color: #666;">Control ID</div><div id="wb-control-id" style="font-size: 12px; font-weight: bold;">-</div></div>
+                    
+                    <div style="grid-column: span 2; border-top: 1px dashed #ccc; padding-top: 5px;">
+                        <div style="font-size: 10px; color: #666;">Arrival Date (Completed)</div>
+                        <div id="wb-arrival-date" style="font-size: 12px; font-weight: bold;">PENDING ARRIVAL</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div>
+                <div style="background-color: #003A5C; color: white; padding: 2px 5px; font-size: 12px; font-weight: bold; -webkit-print-color-adjust: exact;">4. APPROVAL</div>
+                <div style="padding: 10px; text-align: center;">
+                    <div style="font-size: 10px; color: #666; text-align: left;">Approver ESN</div>
+                    
+                    <img id="wb-barcode-approver" style="width: 100%; height: 40px; display: block; margin-bottom: 5px; object-fit: contain;">
+                    
+                    <div id="wb-esn-text" style="font-size: 11px; font-family: monospace; font-weight: bold;">PENDING APPROVAL</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div style="margin-top: 10px; border: 2px solid #000;">
+        <div style="background-color: #ffc107; color: black; padding: 2px 5px; font-size: 12px; font-weight: bold; border-bottom: 1px solid #000; -webkit-print-color-adjust: exact;">5. ITEM DESCRIPTION</div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <thead style="background: #f0f0f0;">
+                <tr>
+                    <th style="border-right: 1px solid #000; padding: 5px; width: 20%;">Product ID</th>
+                    <th style="border-right: 1px solid #000; padding: 5px; width: 40%;">Description</th>
+                    <th style="border-right: 1px solid #000; padding: 5px; width: 25%;">Details</th>
+                    <th style="padding: 5px; text-align: right; width: 15%;">Quantity</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td id="wb-prod-id" style="border-right: 1px solid #000; padding: 10px; border-top: 1px solid #000;">-</td>
+                    <td id="wb-prod-name" style="border-right: 1px solid #000; padding: 10px; font-weight: bold; border-top: 1px solid #000;">-</td>
+                    <td id="wb-details" style="border-right: 1px solid #000; padding: 10px; border-top: 1px solid #000;">-</td>
+                    <td id="wb-qty" style="padding: 10px; text-align: right; font-weight: bold; font-size: 14px; border-top: 1px solid #000;">0</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div style="margin-top: 20px; display: flex; gap: 10px; align-items: flex-end;">
+        
+        <div style="flex: 1; border: 1px dashed #000; padding: 10px; text-align: center;">
+            <div style="font-size: 10px; font-weight: bold; color: #003A5C; margin-bottom: 5px;">FINAL RECEIVER VERIFICATION</div>
+            
+            <div id="wb-receiver-esn-container" style="display: none;">
+                <img id="wb-barcode-receiver" style="width: 100%; height: 40px; display: block; margin-bottom: 5px; object-fit: contain;">
+                <div id="wb-receiver-esn-text" style="font-size: 12px; font-weight: bold; font-family: monospace;"></div>
+            </div>
+            
+            <div id="wb-receiver-pending-text" style="font-size: 10px; color: #999; margin-top: 15px;">
+                (Barcode generated upon completion)
+            </div>
+        </div>
+
+        <div style="flex: 1; display: flex; gap: 10px;">
+            <div style="flex: 1; text-align: center;">
+                <div style="border-bottom: 1px solid #000; height: 40px;"></div>
+                <small>Driver / Carrier</small>
+            </div>
+            <div style="flex: 1; text-align: center;">
+                <div style="border-bottom: 1px solid #000; height: 40px;"></div>
+                <small>Receiver Signature</small>
+            </div>
+        </div>
+    </div>
+    
+    <div style="text-align: center; font-size: 9px; margin-top: 10px; color: #777;">
+        Printed: <span id="wb-print-date"></span>
+    </div>
+</div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
-    <script src="app.js"></script>
     
-    <!-- NEW: Transfer & Stock Logic -->
-    <script src="transfer_stock.js"></script>
+    <script src="materialStock.js"></script>
+    
+    <script src="transferLogic.js"></script>
+    
+    <script src="app.js"></script>
+    <script src="receipt.js"></script>
 
 </body>
 </html>

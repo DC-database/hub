@@ -3917,3 +3917,137 @@ body.is-ceo .desktop-only.col-group {
 @keyframes fadeIn {
     to { opacity: 1; }
 }
+/* Add this to style.css */
+.edit-inv-no-btn {
+    background-color: #17a2b8 !important; /* Blue */
+    color: white !important;
+    border: none !important;
+    border-radius: 4px;
+    padding: 5px 8px;
+    margin-right: 5px;
+    cursor: pointer;
+}
+.edit-inv-no-btn:hover {
+    background-color: #138496 !important;
+}
+
+/* ==========================================================================
+   WAYBILL PRINT STYLES (DHL STYLE)
+   ========================================================================== */
+@media print {
+    /* 1. Hide everything else */
+    body.printing-waybill,
+    body.printing-waybill * {
+        visibility: hidden;
+        overflow: visible !important;
+    }
+
+    /* 2. Show Template */
+    body.printing-waybill #transfer-waybill-template,
+    body.printing-waybill #transfer-waybill-template * {
+        visibility: visible !important;
+        height: auto !important;
+    }
+
+    /* 3. Position & Style */
+    body.printing-waybill #transfer-waybill-template {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 20px !important;
+        background: white !important;
+        display: block !important;
+        z-index: 99999 !important;
+        font-size: 12pt !important;
+        
+        /* FORCE COLORS TO PRINT */
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+    
+    /* Ensure grid lines print clearly */
+    body.printing-waybill #transfer-waybill-template div {
+        border-color: #000 !important;
+    }
+}
+
+/* ==========================================================================
+   WAYBILL BARCODE FIX & PRINT STYLES (Updated)
+   ========================================================================== */
+@media print {
+    /* 1. Force Barcode Images to be Visible and have Height */
+    body.printing-waybill img#wb-barcode-approver,
+    body.printing-waybill img#wb-barcode-receiver {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        height: 50px !important; /* Force height so it doesn't collapse */
+        width: 100% !important;
+        max-width: 300px !important; 
+        margin: 0 auto 5px auto !important;
+    }
+    
+    /* 2. Ensure the container holding the barcode is visible */
+    body.printing-waybill #wb-receiver-esn-container {
+        display: block !important;
+        visibility: visible !important;
+        height: auto !important;
+    }
+
+    /* 3. Ensure Text under barcode is visible */
+    body.printing-waybill #wb-esn-text,
+    body.printing-waybill #wb-receiver-esn-text {
+        color: #000 !important;
+        text-shadow: none !important;
+        visibility: visible !important;
+    }
+}
+/* --- STOCK TABLE ACCORDION STYLES --- */
+.ms-expand-btn {
+    background-color: #003A5C;
+    color: white;
+    border: none;
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.3s;
+}
+.ms-expand-btn:hover {
+    background-color: #00748C;
+}
+
+.stock-child-row {
+    background-color: #f8f9fa;
+    border-left: 5px solid #003A5C; /* Visual indicator */
+}
+
+.stock-child-row.hidden {
+    display: none;
+}
+
+.stock-detail-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+    background: white;
+    border: 1px solid #ddd;
+}
+.stock-detail-table th, .stock-detail-table td {
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+    font-size: 0.9rem;
+}
+.stock-detail-table th {
+    background-color: #e9ecef;
+    text-align: left;
+}

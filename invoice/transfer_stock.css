@@ -1,176 +1,151 @@
 /* ========================================= */
-/* TRANSFER & MATERIAL STOCK STYLES          */
+/* COMPACT 2-COLUMN TRANSFER MODAL (FINAL)   */
 /* ========================================= */
 
-/* --- Uniform Button Styling --- */
-#add-transfer-btn, 
-#cancel-transfer-btn, 
-#add-stock-btn, 
-#upload-stock-csv-btn, 
-#download-stock-template-btn, 
-#save-stock-btn, 
-#cancel-stock-btn, 
-.stock-actions-toolbar button {
-    padding: 0 20px; 
-    height: 38px; 
-    font-size: 13px; 
-    font-weight: 600; 
-    border-radius: 4px;
-    border: none; 
-    cursor: pointer; 
-    display: inline-flex; 
-    align-items: center; 
-    justify-content: center;
-    gap: 8px; 
-    box-sizing: border-box; 
-    transition: background-color 0.3s ease;
-    white-space: nowrap; 
-    line-height: 1; 
-    margin-bottom: 0;
+/* 1. Force the modal container size */
+#transfer-job-modal .modal-container {
+    max-width: 850px !important; /* Wide enough for 2 columns */
+    width: 95% !important;
+    padding: 0 !important;
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh !important; /* Never taller than 90% of screen */
+    overflow: hidden !important;
+    border-radius: 8px;
+    background: #fff;
 }
 
-/* --- Transfer Fields Container (COMPACT VERSION) --- */
-#transfer-fields-container {
-    background-color: #f9fcff;
-    padding: 15px; /* Reduced padding */
-    border: 1px solid #b3d7ff;
-    border-radius: 6px;
-    margin-bottom: 15px;
+/* 2. Header Styling */
+#transfer-job-modal .modal-header {
+    padding: 10px 20px !important;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 0 !important;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0; /* Prevent header shrinking */
 }
 
-/* Grid for Transfer Inputs */
-.transfer-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr); 
-    gap: 10px 15px; /* Tighter gap (Row / Column) */
+#transfer-job-modal h2 {
+    font-size: 1.1rem !important;
+    margin: 0 !important;
+    font-weight: 700;
+    color: #333;
 }
 
-/* Compact Form Group inside Transfer */
-.transfer-grid .form-group {
-    margin-bottom: 0;
-}
-.transfer-grid label {
-    font-size: 0.8rem; /* Smaller label */
-    margin-bottom: 2px;
-}
-.transfer-grid input, .transfer-grid select {
-    padding: 6px 10px; /* Smaller input padding */
-    font-size: 0.9rem;
-    height: 36px; /* Fixed compact height */
+/* 3. Content Area (Scrollable) */
+#transfer-job-modal .modal-content {
+    padding: 20px !important;
+    overflow-y: auto !important; /* Only this part scrolls */
+    flex-grow: 1;
 }
 
-/* Full width utility */
-.transfer-full-width { 
-    grid-column: 1 / -1; 
+/* 4. Footer Styling */
+#transfer-job-modal .modal-footer {
+    padding: 10px 20px !important;
+    background-color: #f8f9fa;
+    border-top: 1px solid #ddd;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 0 !important;
+    flex-shrink: 0; /* Prevent footer shrinking */
 }
 
-/* Button Colors */
-#add-transfer-btn { 
-    background-color: #17a2b8; 
-    color: white; 
-    min-width: 120px; 
-}
-#add-transfer-btn:hover { 
-    background-color: #138496; 
+/* 5. THE 2-COLUMN GRID SYSTEM */
+.transfer-2col-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important; /* Two Equal Columns */
+    gap: 25px !important; /* Gutter between columns */
+    align-items: start !important;
 }
 
-#cancel-transfer-btn { 
-    background-color: #dc3545; 
-    color: white; 
-    min-width: 120px; 
-}
-#cancel-transfer-btn:hover { 
-    background-color: #c82333; 
+.transfer-col {
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* Vertical space between inputs */
 }
 
-/* Stock Table & Header */
-#wd-material-stock .stock-header { 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center; 
-    margin-bottom: 15px; 
-    gap: 10px; 
-}
-.stock-actions-toolbar { 
-    display: flex; 
-    gap: 10px; 
-    align-items: center; 
+/* 6. Compact Inputs & Labels */
+#transfer-job-modal .form-group {
+    margin-bottom: 0 !important; /* Remove external margins */
+    width: 100%;
 }
 
-#add-stock-btn { 
-    background-color: #28a745; 
-    color: white; 
-}
-#add-stock-btn:hover { 
-    background-color: #218838; 
-}
-
-#upload-stock-csv-btn { 
-    background-color: #007bff; 
-    color: white; 
-}
-#upload-stock-csv-btn:hover { 
-    background-color: #0069d9; 
+#transfer-job-modal label {
+    font-size: 0.75rem !important;
+    margin-bottom: 4px !important;
+    color: #555;
+    font-weight: 600;
+    display: block;
+    text-align: left;
 }
 
-#download-stock-template-btn { 
-    background-color: #6c757d; 
-    color: white; 
-}
-#download-stock-template-btn:hover { 
-    background-color: #5a6268; 
-}
-
-#material-stock-table th { 
-    background-color: #003A5C; 
-    color: white; 
-}
-
-/* Stock Form */
-#material-stock-form-container { 
-    background-color: #f8f9fa; 
-    padding: 15px; 
-    border-radius: 8px; 
-    margin-bottom: 20px; 
-    border-top: 4px solid #003A5C; 
-}
-.stock-form-grid { 
-    display: grid; 
-    grid-template-columns: repeat(3, 1fr); 
-    gap: 10px; 
-    margin-bottom: 15px; 
-}
-.stock-balance-display { 
-    font-weight: bold; 
-    color: #003A5C; 
-    background: #e9ecef; 
-    padding: 0 12px; 
-    height: 45px; 
-    display: flex; 
-    align-items: center; 
-    border-radius: 4px; 
-    border: 1px solid #ccc; 
-    width: 100%; 
-    box-sizing: border-box; 
-    margin-top: 0; 
+#transfer-job-modal input, 
+#transfer-job-modal select,
+#transfer-job-modal textarea,
+#transfer-job-modal .choices__inner {
+    height: 34px !important; /* Compact fixed height */
+    min-height: 34px !important;
+    padding: 0 8px !important;
+    font-size: 0.9rem !important;
+    border: 1px solid #ccc !important;
+    border-radius: 4px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    display: flex;
+    align-items: center;
+    margin-bottom: 0 !important;
 }
 
-/* Mobile Restrictions */
+#transfer-job-modal textarea {
+    height: 60px !important; /* Slightly taller for text area */
+    padding: 6px 8px !important;
+    resize: none;
+    align-items: flex-start;
+}
+
+/* 7. Fix Choices.js Height */
+#transfer-job-modal .choices { margin-bottom: 0 !important; }
+#transfer-job-modal .choices__list--single { padding: 0 !important; }
+
+/* 8. Quantity Row (Flexbox) */
+.qty-row {
+    display: flex !important;
+    gap: 10px !important;
+    width: 100%;
+}
+.qty-row .form-group {
+    flex: 1;
+}
+
+/* 9. Readonly & Visuals */
+#transfer-job-modal input[readonly],
+#transfer-job-modal input:disabled {
+    background-color: #f0f0f0 !important;
+    color: #888;
+    cursor: not-allowed;
+}
+
+#tf-req-qty { background-color: #f0fbff !important; border-color: #00748C !important; }
+#tf-app-qty { background-color: #fffdf0 !important; border-color: #ffc107 !important; }
+#tf-rec-qty { background-color: #f0fff4 !important; border-color: #28a745 !important; }
+
+/* Mobile Override */
 @media (max-width: 768px) {
-    #nav-material-stock, 
-    #wd-material-stock, 
-    #transfer-fields-container, 
-    #add-transfer-btn, 
-    #cancel-transfer-btn { 
-        display: none !important; 
+    .transfer-2col-grid {
+        grid-template-columns: 1fr !important; /* Stack on mobile */
+        gap: 15px !important;
     }
-    
-    #job-for option[value="Transfer"] { 
-        display: none !important; 
-    }
-    
-    .transfer-grid, 
-    .stock-form-grid { 
-        grid-template-columns: 1fr; 
-    }
+}
+/* --- NEW: Highlight for Sender Fields --- */
+.sender-required {
+    background-color: #fffde7 !important; /* Light Yellow */
+    border: 1px solid #fdd835 !important; /* Yellow-ish Border */
+}
+
+.sender-required:focus {
+    background-color: #ffffff !important; /* White on focus */
+    border-color: #00748C !important;
 }
