@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.9.6"; 
+const APP_VERSION = "3.9.7"; 
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -1246,6 +1246,7 @@ const imMobileSearchRunBtn = document.getElementById('im-mobile-search-run-btn')
 const imMobileSearchClearBtn = document.getElementById('im-mobile-search-clear-btn');
 const imMobileSearchCloseBtn = document.querySelector('[data-modal-id="im-mobile-search-modal"]');
 const wdImReportingLinkMobile = document.getElementById('wd-im-reporting-link-mobile');
+const imNavReportingLinkMobile = document.getElementById('im-nav-reporting-link-mobile'); // New Selector
 const mobileSendReceiptBtn = document.getElementById('mobile-send-receipt-btn');
 const mobileActiveTaskLogoutBtn = document.getElementById('mobile-activetask-logout-btn');
 const imMobileActiveTaskLink = document.getElementById('im-mobile-activetask-link');
@@ -1719,11 +1720,16 @@ function isTaskComplete(task) {
 // --- Dashboard Population ---
 
 async function populateWorkdeskDashboard() {
-    // 1. Populate the user's personal task list (for the card)
+    // 1. Populate the user's personal task list
     await populateActiveTasks(); 
-    dbActiveTasksCount.textContent = userActiveTasks.length;
+    
+    // SAFEGUARD: Only update count if element exists
+    const activeCountEl = document.getElementById('db-active-tasks-count');
+    if (activeCountEl) {
+        activeCountEl.textContent = userActiveTasks.length;
+    }
 
-    // 2. Populate the admin's "all tasks" list (for the calendar)
+    // 2. Populate the admin's "all tasks" list
     await populateAdminCalendarTasks();
 
     // 3. Populate completed tasks count
@@ -1734,50 +1740,41 @@ async function populateWorkdeskDashboard() {
     );
 
     let completedInvoiceTasks = [];
-    const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
+    const isAccounting = (currentApprover.Position || '').toLowerCase() === 'accounting';
 
     await ensureInvoiceDataFetched(); 
 
     if (allInvoiceData) {
-        if (isAccounting) {
-            for (const poNumber in allInvoiceData) {
-                const poInvoices = allInvoiceData[poNumber];
-                for (const invoiceKey in poInvoices) {
-                    const inv = poInvoices[invoiceKey];
-                    const invoiceTask = {
-                        key: `${poNumber}_${invoiceKey}`,
-                        source: 'invoice',
-                        remarks: inv.status,
-                        enteredBy: currentApprover.Name 
-                    };
-                    if (isTaskComplete(invoiceTask)) {
-                        completedInvoiceTasks.push(invoiceTask);
-                    }
+        for (const poNumber in allInvoiceData) {
+            const poInvoices = allInvoiceData[poNumber];
+            for (const invoiceKey in poInvoices) {
+                const inv = poInvoices[invoiceKey];
+                const invoiceTask = {
+                    key: `${poNumber}_${invoiceKey}`,
+                    source: 'invoice',
+                    remarks: inv.status,
+                    enteredBy: isAccounting ? currentApprover.Name : 'Irwin' 
+                };
+                
+                let shouldInclude = false;
+                if (isAccounting) {
+                    if (isTaskComplete(invoiceTask)) shouldInclude = true;
+                } else {
+                    if (inv.attention === currentApprover.Name && isTaskComplete(invoiceTask)) shouldInclude = true;
                 }
-            }
-        } else {
-            for (const poNumber in allInvoiceData) {
-                const poInvoices = allInvoiceData[poNumber];
-                for (const invoiceKey in poInvoices) {
-                    const inv = poInvoices[invoiceKey];
-                    if (inv.attention === currentApprover.Name) {
-                        const invoiceTask = {
-                            key: `${poNumber}_${invoiceKey}`,
-                            source: 'invoice',
-                            remarks: inv.status,
-                            enteredBy: 'Irwin' 
-                        };
-                        if (isTaskComplete(invoiceTask)) {
-                            completedInvoiceTasks.push(invoiceTask);
-                        }
-                    }
-                }
+                
+                if (shouldInclude) completedInvoiceTasks.push(invoiceTask);
             }
         }
     }
     
     const totalCompleted = completedJobTasks.length + completedInvoiceTasks.length;
-    dbCompletedTasksCount.textContent = totalCompleted;
+    
+    // SAFEGUARD: Only update count if element exists
+    const completedCountEl = document.getElementById('db-completed-tasks-count');
+    if (completedCountEl) {
+        completedCountEl.textContent = totalCompleted;
+    }
 }
 
 // --- Calendar Logic (Month, Year, Day Views) ---
@@ -2347,13 +2344,16 @@ function renderReportingTable(entries) {
 
             const noteDisplay = entry.note ? `<br><small style="color:#666; font-style:italic;">${entry.note}</small>` : '';
             
-            // --- NEW: PRINT & DELETE BUTTONS ---
+            // --- NEW: PRINT, HISTORY & DELETE BUTTONS ---
             let actions = '';
             
-            // 1. Print Button (Available to everyone)
+            // 1. Print
             actions += `<button class="print-btn waybill-btn" data-key="${entry.key}" style="padding:2px 6px; margin-right:5px; font-size:0.7rem; background:#6f42c1; color:white; border:none; border-radius:4px;" title="Print Waybill"><i class="fa-solid fa-print"></i></button>`;
             
-            // 2. Delete Button (Admin Only)
+            // 2. History (NEW)
+            actions += `<button class="history-btn action-btn" onclick="showTransferHistory('${entry.key}')" style="padding:2px 6px; margin-right:5px; font-size:0.7rem; background:#17a2b8; color:white; border:none; border-radius:4px;" title="View History"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
+
+            // 3. Delete
             if (isAdmin) {
                 actions += `<button class="delete-btn transfer-delete-btn" data-key="${entry.key}" style="padding:2px 6px; font-size:0.7rem; border-radius:4px;">Del</button>`;
             }
@@ -2484,8 +2484,7 @@ async function populateActiveTasks() {
 
     try {
         const currentUserName = currentApprover.Name;
-        const userPositionLower = (currentApprover?.Position || '').toLowerCase();
-
+        const userPositionLower = (currentApprover.Position || '').toLowerCase();
         const isAccounting = userPositionLower === 'accounting'; 
         const isQS = userPositionLower === 'qs'; 
         const isProcurement = userPositionLower === 'procurement';
@@ -2493,21 +2492,27 @@ async function populateActiveTasks() {
         let userTasks = [];
         let pulledInvoiceKeys = new Set(); 
 
-        // Part 1: Fetch job_entry & transfer_entry tasks
         await ensureAllEntriesFetched(); 
         await ensureApproverDataCached();
         
+        // --- THIS IS THE UPDATED FILTER BLOCK ---
         const jobTasks = allSystemEntries.filter(entry => {
+            // 1. Filter out completed tasks first
             if (isTaskComplete(entry)) return false; 
 
-            // Transfer Logic
+            // 2. Transfer / Restock / Return Logic
             if (['Transfer', 'Restock', 'Return'].includes(entry.for)) {
+                // If Pending, show to Approver (Admin)
                 if (entry.remarks === 'Pending') return entry.approver === currentUserName;
-                if (entry.remarks === 'Approved') return entry.receiver === currentUserName;
+                
+                // If Approved/In Transit, show to Receiver
+                if (entry.remarks === 'Approved' || entry.remarks === 'In Transit') return entry.receiver === currentUserName;
+                
+                // Fallback to standard attention check
                 return entry.attention === currentUserName;
             }
 
-            // Standard Job Logic
+            // 3. Standard Job Logic (Invoice, PR, IPC)
             if (entry.for === 'Invoice') return isAccounting; 
             if (entry.for === 'PR') {
                 if (isProcurement) return true; 
@@ -2516,15 +2521,16 @@ async function populateActiveTasks() {
             }
             if (entry.for === 'IPC') return isQS && entry.attention === currentUserName;
             
+            // Default check
             return entry.attention === currentUserName;
         });
+        // ----------------------------------------
 
         userTasks = jobTasks.map(task => {
             if(['Transfer', 'Restock', 'Return'].includes(task.for)) return {...task, source: 'transfer_entry'}; 
             return {...task, source: 'job_entry'};
         });
 
-        // Part 2: Fetch invoice_entry tasks (Standard Logic)
         const sanitizeFirebaseKey = (key) => key.replace(/[.#$[\]]/g, '_');
         const safeCurrentUserName = sanitizeFirebaseKey(currentUserName);
         const invoiceTaskSnapshot = await invoiceDb.ref(`invoice_tasks_by_user/${safeCurrentUserName}`).once('value');
@@ -2552,14 +2558,13 @@ async function populateActiveTasks() {
                     remarks: task.status,
                     timestamp: Date.now(), 
                     invName: task.invName,
-                    vendorName: (task.po && allPOData && allPOData[task.po]) ? (allPOData[task.po]['Supplier Name'] || 'N/A') : 'N/A',
+                    vendorName: (task.po && allPOData && allPOData[task.po]) ? (allPOData[task.po]['Supplier Name'] || 'N/A') : 'N/A', 
                     note: task.note
                 };
                 userTasks.push(transformedInvoice);
             }
         }
 
-        // Part 3: Scan ALL invoices for "Accounting"
         if (isAccounting) {
             await ensureInvoiceDataFetched(); 
             const statusesToPull = ['Pending', 'Report', 'Original PO'];
@@ -2580,7 +2585,7 @@ async function populateActiveTasks() {
                                 ref: inv.invNumber || '',
                                 po: poNumber,
                                 amount: inv.invValue || '',
-                                site: poDetails['Project ID'] || 'N/A',
+                                site: poDetails['Project ID'] || 'N/A', 
                                 group: 'N/A',
                                 attention: inv.attention || '',
                                 enteredBy: 'Irwin', 
@@ -2588,7 +2593,7 @@ async function populateActiveTasks() {
                                 remarks: inv.status,
                                 timestamp: Date.now(),
                                 invName: inv.invName || '',
-                                vendorName: poDetails['Supplier Name'] || 'N/A',
+                                vendorName: poDetails['Supplier Name'] || 'N/A', 
                                 note: inv.note || ''
                             };
                             userTasks.push(transformedInvoice);
@@ -2600,7 +2605,6 @@ async function populateActiveTasks() {
 
         userActiveTasks = userTasks.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
         
-        // Update Badges
         const taskCount = userActiveTasks.length;
         if (activeTaskCountDisplay) activeTaskCountDisplay.textContent = `(Total Tasks: ${taskCount})`;
         [wdActiveTaskBadge, imActiveTaskBadge, wdMobileNotifyBadge].forEach(badge => {
@@ -2610,18 +2614,11 @@ async function populateActiveTasks() {
             }
         });
 
-        // --- HYBRID TABBING LOGIC ---
         const tabCounts = {};
         userActiveTasks.forEach(task => {
             let key = '';
-            // 1. If it's an Inventory Job, group by TYPE
-            if (['Transfer', 'Restock', 'Return'].includes(task.for)) {
-                key = task.for; 
-            } 
-            // 2. Otherwise, group by STATUS
-            else {
-                key = task.remarks || 'Pending';
-            }
+            if (['Transfer', 'Restock', 'Return'].includes(task.for)) { key = task.for; } 
+            else { key = task.remarks || 'Pending'; }
             tabCounts[key] = (tabCounts[key] || 0) + 1;
         });
 
@@ -2632,19 +2629,13 @@ async function populateActiveTasks() {
             if (currentActiveTaskFilter === 'All' || !uniqueTabs.includes(currentActiveTaskFilter)) {
                 currentActiveTaskFilter = uniqueTabs[0];
             }
-            
             uniqueTabs.forEach(tabName => {
                 const activeClass = (tabName === currentActiveTaskFilter) ? 'active' : '';
-                
-                // Custom colors for Inventory Types
-                let badgeColor = '#6c757d'; // Default Grey for Statuses
+                let badgeColor = '#6c757d'; 
                 if(tabName === 'Transfer') badgeColor = '#00748C';
                 if(tabName === 'Restock') badgeColor = '#28a745';
                 if(tabName === 'Return') badgeColor = '#ffc107';
-                
-                tabsHTML += `<button class="${activeClass}" data-status-filter="${tabName}">
-                    ${tabName} <span class="notification-badge" style="background-color: ${badgeColor}; font-size: 0.7rem; margin-left: 5px;">${tabCounts[tabName]}</span>
-                </button>`;
+                tabsHTML += `<button class="${activeClass}" data-status-filter="${tabName}">${tabName} <span class="notification-badge" style="background-color: ${badgeColor}; font-size: 0.7rem; margin-left: 5px;">${tabCounts[tabName]}</span></button>`;
             });
         } else {
             tabsHTML = '<button class="active" disabled>No Tasks</button>';
@@ -2652,7 +2643,6 @@ async function populateActiveTasks() {
             activeTaskFilters.innerHTML = tabsHTML;
             return;
         }
-
         activeTaskFilters.innerHTML = tabsHTML;
         renderActiveTaskTable(userTasks); 
 
@@ -2661,7 +2651,6 @@ async function populateActiveTasks() {
         activeTaskTableBody.innerHTML = `<tr><td colspan="10">Error loading tasks.</td></tr>`;
     }
 }
-
 function handleActiveTaskSearch(searchTerm) {
     const searchText = searchTerm.toLowerCase();
     sessionStorage.setItem('activeTaskSearch', searchText); 
@@ -2830,37 +2819,33 @@ function renderMobileActiveTasks(tasks) {
     
     if (container) container.innerHTML = '';
 
-    const isCEO = (currentApprover?.Role || '').toLowerCase() === 'admin' && 
-                  (currentApprover?.Position || '').toLowerCase() === 'ceo';
+    const isCEO = (currentApprover.Role || '').toLowerCase() === 'admin' && (currentApprover.Position || '').toLowerCase() === 'ceo';
 
     let filteredTasks = tasks;
     if (currentActiveTaskFilter !== 'All') {
         if (currentActiveTaskFilter === 'Other') {
             filteredTasks = tasks.filter(task => task.remarks !== 'For SRV' && task.remarks !== 'Pending Signature');
         } else {
-            filteredTasks = tasks.filter(task => task.remarks === currentActiveTaskFilter);
+            // Hybrid filtering logic
+            filteredTasks = tasks.filter(task => {
+                if(['Transfer', 'Restock', 'Return'].includes(task.for)) return task.for === currentActiveTaskFilter;
+                return task.remarks === currentActiveTaskFilter;
+            });
         }
     }
 
     if (!filteredTasks || filteredTasks.length === 0) {
         container.innerHTML = '<div class="im-mobile-empty-state"><p>No active tasks found.</p></div>';
-        
         if (receiptContainer) {
-            if (isCEO && ceoProcessedTasks.length > 0) {
-                receiptContainer.classList.remove('hidden'); 
-            } else {
-                receiptContainer.classList.add('hidden'); 
-            }
+            if (isCEO && ceoProcessedTasks.length > 0) { receiptContainer.classList.remove('hidden'); } 
+            else { receiptContainer.classList.add('hidden'); }
         }
         return;
     }
 
     if (receiptContainer) {
-        if (isCEO && ceoProcessedTasks.length > 0) {
-            receiptContainer.classList.remove('hidden');
-        } else {
-            receiptContainer.classList.add('hidden');
-        }
+        if (isCEO && ceoProcessedTasks.length > 0) { receiptContainer.classList.remove('hidden'); } 
+        else { receiptContainer.classList.add('hidden'); }
     }
 
     filteredTasks.forEach(task => {
@@ -2875,12 +2860,12 @@ function renderMobileActiveTasks(tasks) {
         let html = `
             <div class="mobile-card-header">
                 <div class="m-card-main">
-                    <h3>${task.vendorName || 'Unknown Vendor'}</h3>
-                    <div class="m-card-sub">${task.po || task.ref} - ${task.site}</div>
+                    <h3>${task.vendorName || task.productName || 'Unknown'}</h3>
+                    <div class="m-card-sub">${task.po || task.ref || task.controlNumber} - ${task.site || task.fromSite || ''}</div>
                     <div class="m-card-sub" style="color: #C3502F;">${task.remarks}</div>
                 </div>
                 <div class="m-card-amount">
-                    <span class="m-card-val">${formatCurrency(task.amount)}</span>
+                    <span class="m-card-val">${task.amount || task.orderedQty || 0}</span>
                     <span class="m-card-ref">${task.invEntryID || ''}</span>
                 </div>
             </div>
@@ -2891,7 +2876,11 @@ function renderMobileActiveTasks(tasks) {
             html += `<a href="${pdfLink}" target="_blank" class="m-pdf-btn"><i class="fa-regular fa-file-pdf"></i> View Invoice PDF</a>`;
         }
 
-        html += `
+        // Action Buttons for Mobile
+        if (['Transfer', 'Restock', 'Return'].includes(task.for)) {
+             html += `<div class="m-btn-row"><button class="m-btn-approve transfer-action-btn" data-key="${task.key}" style="background-color: #17a2b8;">Open Action</button></div>`;
+        } else {
+            html += `
                 <div class="m-action-group">
                     <label>Amount to Paid</label>
                     <input type="number" class="m-input-amount" value="${task.amount || ''}" step="0.01" ${!isCEO ? 'readonly' : ''}>
@@ -2900,19 +2889,12 @@ function renderMobileActiveTasks(tasks) {
                     <label>Note / Remark</label>
                     <textarea class="m-input-note" rows="2" ${!isCEO ? 'readonly' : ''}>${task.note || ''}</textarea>
                 </div>
-        `;
-
-        if (isCEO) {
-            html += `
-                <div class="m-btn-row">
-                    <button class="m-btn-approve" data-key="${task.key}">Approve</button>
-                    <button class="m-btn-reject" data-key="${task.key}">Reject</button>
-                </div>
             `;
-        } else {
-             html += `<div style="text-align:center; padding:10px; color:#777; background:#f0f0f0; border-radius:8px; margin-top:10px;">
-                        <i class="fa-solid fa-lock"></i> View Only (CEO Permission Required)
-                      </div>`;
+            if (isCEO) {
+                html += `<div class="m-btn-row"><button class="m-btn-approve" data-key="${task.key}">Approve</button><button class="m-btn-reject" data-key="${task.key}">Reject</button></div>`;
+            } else {
+                html += `<div style="text-align:center; padding:10px; color:#777; background:#f0f0f0; border-radius:8px; margin-top:10px;"><i class="fa-solid fa-lock"></i> View Only</div>`;
+            }
         }
 
         html += `</div>`; 
@@ -2921,29 +2903,19 @@ function renderMobileActiveTasks(tasks) {
         const header = card.querySelector('.mobile-card-header');
         const body = card.querySelector('.mobile-card-body');
         header.addEventListener('click', () => {
-            document.querySelectorAll('.mobile-card-body.open').forEach(el => {
-                if (el !== body) el.classList.remove('open');
-            });
+            document.querySelectorAll('.mobile-card-body.open').forEach(el => { if (el !== body) el.classList.remove('open'); });
             body.classList.toggle('open');
-            if (body.classList.contains('open')) {
-                setTimeout(() => { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300);
-            }
         });
 
-        if (isCEO) {
+        if (isCEO && !['Transfer', 'Restock', 'Return'].includes(task.for)) {
             const btnApprove = card.querySelector('.m-btn-approve');
             const btnReject = card.querySelector('.m-btn-reject');
             const inputAmt = card.querySelector('.m-input-amount');
             const inputNote = card.querySelector('.m-input-note');
-
-            const handleAction = (status) => {
-                processMobileCEOAction(task, status, inputAmt.value, inputNote.value, card);
-            };
-
+            const handleAction = (status) => { processMobileCEOAction(task, status, inputAmt.value, inputNote.value, card); };
             if(btnApprove) btnApprove.addEventListener('click', () => handleAction('Approved'));
             if(btnReject) btnReject.addEventListener('click', () => handleAction('Rejected'));
         }
-
         container.appendChild(card);
     });
 }
@@ -8257,6 +8229,11 @@ if (imMobileNavLogout) {
             window.open(PDF_BASE_PATH + encodeURIComponent(taskData.invName) + ".pdf", '_blank');
         }
     });
+    
+    
+     
+    
+    
 
     // --- 7. Workdesk: Calendar Listeners ---
 
@@ -8473,88 +8450,158 @@ if (imMobileNavLogout) {
         });
     }, 500));
     
-   // ==========================================================================
-// REPLACED EVENT LISTENER: reportingTableBody
 // ==========================================================================
-reportingTableBody.addEventListener('click', async (e) => {
-    
-    // 1. NEW: Handle Print Waybill Click
-    const printBtn = e.target.closest('.waybill-btn');
-    if (printBtn) {
-        e.stopPropagation(); // Stop row click
-        const key = printBtn.getAttribute('data-key');
-        
-        // Fetch fresh data just in case
-        if (!allSystemEntries || allSystemEntries.length === 0) await ensureAllEntriesFetched();
-        
-        const entryData = allSystemEntries.find(entry => entry.key === key);
-        if (entryData && window.handlePrintWaybill) {
-            window.handlePrintWaybill(entryData);
-        } else {
-            alert("Error loading entry data for printing.");
-        }
-        return;
+    // 1. REPORTING TABLE LISTENER (Job Records)
+    // Handles: Print Waybill, Admin Delete, Edit Row
+    // ==========================================================================
+    if (reportingTableBody) {
+        reportingTableBody.addEventListener('click', async (e) => {
+            
+            // A. HANDLE PRINT WAYBILL (Waybill Button)
+            const printBtn = e.target.closest('.waybill-btn');
+            if (printBtn) {
+                e.stopPropagation(); 
+                const key = printBtn.getAttribute('data-key');
+                
+                // Ensure data is loaded
+                if (!allSystemEntries || allSystemEntries.length === 0) await ensureAllEntriesFetched();
+                
+                const entryData = allSystemEntries.find(entry => entry.key === key);
+                if (entryData && window.handlePrintWaybill) {
+                    window.handlePrintWaybill(entryData);
+                } else {
+                    alert("Error loading entry data for printing.");
+                }
+                return;
+            }
+
+            // B. HANDLE TRANSFER DELETE (Delete Button)
+            const deleteBtn = e.target.closest('.transfer-delete-btn');
+            if (deleteBtn) {
+                e.stopPropagation(); 
+                const key = deleteBtn.getAttribute('data-key');
+                if (typeof handleDeleteTransferEntry === 'function') {
+                    handleDeleteTransferEntry(key);
+                }
+                return;
+            }
+
+            // C. HANDLE EXPAND BUTTON (Standard Grouping)
+            const expandBtn = e.target.closest('.expand-btn'); 
+            if (expandBtn) { 
+                const masterRow = expandBtn.closest('.master-row'); 
+                const detailRow = document.querySelector(masterRow.dataset.target); 
+                if (detailRow) detailRow.classList.toggle('hidden'); 
+                return; 
+            }
+
+            // D. HANDLE ROW CLICK (Edit Mode)
+            const row = e.target.closest('tr');
+            if (!row) return;
+            const key = row.dataset.key;
+            if (!key) return;
+
+            // Load data to check type
+            await ensureAllEntriesFetched();
+            const entryData = allSystemEntries.find(entry => entry.key === key);
+            if (!entryData) return;
+
+            // Scenario D1: Transfer Edit
+            if (['Transfer', 'Restock', 'Return'].includes(entryData.for)) {
+                if (entryData.remarks === 'Pending') {
+                    if (confirm("Edit this Pending Request?")) {
+                        const jobEntryLink = workdeskNav.querySelector('a[data-section="wd-jobentry"]');
+                        if (jobEntryLink) jobEntryLink.click();
+                        setTimeout(() => { 
+                            if (window.loadTransferForEdit) window.loadTransferForEdit(entryData); 
+                        }, 200);
+                    }
+                } else {
+                    console.log("Cannot edit processed transfers.");
+                }
+                return;
+            }
+
+            // Scenario D2: Standard Job Edit (Invoice/PR/etc)
+            if (entryData.source === 'invoice') return; 
+
+            if (confirm("Move to Job Entry form for editing?")) {
+                const jobEntryLink = workdeskNav.querySelector('a[data-section="wd-jobentry"]');
+                if (jobEntryLink) jobEntryLink.click();
+                setTimeout(() => populateFormForEditing(key), 100);
+            }
+        });
     }
 
-    // 2. Handle Transfer Delete
-    if (e.target.classList.contains('transfer-delete-btn')) {
-        e.stopPropagation();
-        const key = e.target.getAttribute('data-key');
-        if (typeof handleDeleteTransferEntry === 'function') {
-            handleDeleteTransferEntry(key);
-        }
-        return;
+    // ==========================================================================
+    // 2. ACTIVE TASK LISTENER (Inbox) - FIXED
+    // ==========================================================================
+    if (activeTaskTableBody) {
+        activeTaskTableBody.addEventListener('click', async (e) => {
+            // Ignore clicks inside the mobile view container (handled separately)
+            if (e.target.closest('.mobile-only')) return;
+            
+            // --- A. HANDLE TRANSFER ACTION ---
+            // We use .closest() to ensure it catches the click even if you hit the text inside
+            const transferBtn = e.target.closest('.transfer-action-btn');
+            
+            if (transferBtn) {
+                e.preventDefault(); // Stop any default button behavior
+                e.stopPropagation(); // Stop the row click from firing
+                
+                const key = transferBtn.getAttribute('data-key');
+                console.log("Transfer Button Clicked for Key:", key);
+
+                // Find the task data
+                const task = userActiveTasks.find(t => t.key === key);
+                
+                if (!task) {
+                    alert("Error: Task data not found in memory. Please refresh the page.");
+                    return;
+                }
+                
+                // Check if the modal function exists
+                if (window.openTransferActionModal) {
+                    await window.openTransferActionModal(task); 
+                } else {
+                    console.error("Missing function: window.openTransferActionModal");
+                    alert("System Error: The Transfer Logic script is not loaded correctly. Check console for details.");
+                }
+                return;
+            }
+
+            // --- B. HANDLE STANDARD ACTIONS (CEO/SRV/Edit) ---
+            const row = e.target.closest('tr');
+            if (!row) return;
+            const key = row.dataset.key;
+            const taskData = userActiveTasks.find(entry => entry.key === key);
+            
+            if (!taskData) return;
+
+            if (e.target.classList.contains('ceo-approve-btn')) { 
+                openCEOApprovalModal(taskData); 
+                return; 
+            }
+            if (e.target.classList.contains('srv-done-btn')) { 
+                // Existing SRV Logic would go here
+                return; 
+            }
+            if (e.target.classList.contains('modify-btn')) { 
+                openModifyTaskModal(taskData); 
+                return; 
+            }
+            
+            // --- C. HANDLE PDF CLICK (If clicking the row, not a button) ---
+            const invName = taskData.invName || '';
+            const isInvoiceFromIrwin = taskData.source === 'invoice' && taskData.enteredBy === 'Irwin';
+            const isClickable = (isInvoiceFromIrwin || (taskData.source === 'invoice' && invName)) && invName.trim() && invName.toLowerCase() !== 'nil';
+
+            // Only open PDF if we didn't click a button
+            if (isClickable && !e.target.closest('button') && !e.target.closest('a')) {
+                 window.open(PDF_BASE_PATH + encodeURIComponent(invName) + ".pdf", '_blank');
+            }
+        });
     }
-
-    const row = e.target.closest('tr');
-    if (!row) return;
-    const key = row.dataset.key;
-    if (!key) return;
-
-    await ensureAllEntriesFetched();
-    const entryData = allSystemEntries.find(entry => entry.key === key);
-    if (!entryData) return;
-
-    // 3. Handle Expand Button (Details)
-    const expandBtn = e.target.closest('.expand-btn'); 
-    if (expandBtn) { 
-        const masterRow = expandBtn.closest('.master-row'); 
-        const detailRow = document.querySelector(masterRow.dataset.target); 
-        if (detailRow) detailRow.classList.toggle('hidden'); 
-        return; 
-    }
-
-    // 4. Transfer Edit Logic
-    if (['Transfer', 'Restock', 'Return'].includes(entryData.for)) {
-        if (entryData.remarks !== 'Pending') {
-            alert(`This ${entryData.for} is ${entryData.remarks} and cannot be edited.`);
-            return;
-        }
-        const currentUser = currentApprover ? currentApprover.Name : '';
-        if (entryData.requestor !== currentUser && (!currentApprover || currentApprover.Role !== 'admin')) {
-            alert("Only the Requestor can edit this pending request.");
-            return;
-        }
-        if (confirm("Edit this Pending Request?")) {
-            const jobEntryLink = workdeskNav.querySelector('a[data-section="wd-jobentry"]');
-            if (jobEntryLink) jobEntryLink.click();
-            setTimeout(() => {
-                if (window.loadTransferForEdit) window.loadTransferForEdit(entryData);
-            }, 200);
-        }
-        return; 
-    }
-
-    // 5. Standard Job Edit Logic
-    if (entryData.source === 'invoice') return;
-
-    if (confirm("Move to Job Entry form for editing?")) {
-        const jobEntryLink = workdeskNav.querySelector('a[data-section="wd-jobentry"]');
-        if (jobEntryLink) jobEntryLink.click();
-        setTimeout(() => populateFormForEditing(key), 100);
-    }
-});
-
 
     printReportButton.addEventListener('click', () => {
         if (summaryNotePrintArea) summaryNotePrintArea.classList.add('hidden');
@@ -8574,6 +8621,7 @@ reportingTableBody.addEventListener('click', async (e) => {
             }
         }, 1000);
     });
+    
     
     downloadWdReportButton.addEventListener('click', handleDownloadWorkdeskCSV);
     reportTabsContainer.addEventListener('click', (e) => { 
@@ -8718,6 +8766,23 @@ reportingTableBody.addEventListener('click', async (e) => {
             }, 100);
         });
     }
+    
+// NEW: Listener for the renamed Invoice Management mobile link
+if (imNavReportingLinkMobile) {
+    imNavReportingLinkMobile.addEventListener('click', (e) => {
+        e.preventDefault();
+        // Ensure we are in IM view
+        if(invoiceManagementView.classList.contains('hidden')) {
+             invoiceManagementButton.click();
+        }
+        setTimeout(() => {
+            const imReportingLink = imNav.querySelector('a[data-section="im-reporting"]');
+            if (imReportingLink) {
+                imReportingLink.click();
+            }
+        }, 100);
+    });
+}    
     
     if (imBackToWDDashboardLink) {
         imBackToWDDashboardLink.addEventListener('click', (e) => {
@@ -9341,83 +9406,6 @@ reportingTableBody.addEventListener('click', async (e) => {
     }
 
 
-// 1. Handle "Action" Button Click (Transfer/Restock/Return)
-activeTaskTableBody.addEventListener('click', (e) => {
-    if (e.target.classList.contains('transfer-action-btn')) {
-        const key = e.target.getAttribute('data-key');
-        const task = userActiveTasks.find(t => t.key === key);
-        if (!task) return;
-
-        document.getElementById('transfer-modal-key').value = task.key;
-        document.getElementById('transfer-modal-note').value = task.note || '';
-        
-        // Determine Stage
-        const isReceiverStage = (task.remarks === 'Approved' || task.remarks === 'In Transit');
-
-        // --- 1. MANAGE QUANTITY FIELD ---
-        const currentQty = isReceiverStage 
-                           ? (task.approvedQty || task.orderedQty) // Receiver sees Approved Qty
-                           : (task.amount || task.orderedQty);     // Approver sees Ordered Qty
-        
-        document.getElementById('transfer-modal-qty').value = currentQty;
-        
-        // --- 2. MANAGE ARRIVAL DATE FIELD ---
-        const dateContainer = document.getElementById('transfer-modal-date-container');
-        const dateInput = document.getElementById('transfer-modal-date');
-
-        if (isReceiverStage) {
-            // SHOW Date Input for Receiver
-            dateContainer.classList.remove('hidden');
-            dateInput.value = new Date().toISOString().split('T')[0]; // Default to Today
-        } else {
-            // HIDE Date Input for Approver
-            dateContainer.classList.add('hidden');
-            dateInput.value = ''; 
-        }
-
-        // --- 3. BUILD UI DETAILS ---
-        const fromSite = task.fromSite || task.fromLocation || 'N/A';
-        const toSite = task.toSite || task.toLocation || 'N/A';
-        const jobType = task.jobType || task.for || 'Transfer';
-        
-        let typeColor = '#00748C'; 
-        let typeLabel = 'Transfer (Site to Site)';
-        if (jobType === 'Restock') { typeColor = '#28a745'; typeLabel = 'Restock (Stock In)'; } 
-        else if (jobType === 'Return') { typeColor = '#ffc107'; typeLabel = 'Return (Stock Back)'; } 
-        
-        const detailsHTML = `
-            <div style="margin-bottom: 15px; font-size: 1.2rem; border-bottom: 1px solid #eee; padding-bottom: 10px;">
-                <strong>Type:</strong> 
-                <span style="background-color: ${typeColor}; color: ${jobType === 'Return' ? '#212529' : 'white'}; padding: 4px 10px; border-radius: 4px; font-weight: bold;">
-                    ${typeLabel}
-                </span>
-            </div>
-            <div style="margin-bottom: 5px;"><strong>Product:</strong> ${task.vendorName || task.productName}</div>
-            <div style="margin-bottom: 5px;"><strong>Route:</strong> ${fromSite} <i class="fa-solid fa-arrow-right"></i> ${toSite}</div>
-            <div style="margin-bottom: 5px;"><strong>Requestor:</strong> ${task.requestor || 'N/A'}</div>
-            <div style="color: #666; font-size: 0.9rem;">${task.details || ''}</div>
-        `;
-        document.getElementById('transfer-modal-details').innerHTML = detailsHTML;
-
-        // --- 4. BUTTON TEXT ---
-        const approveBtn = document.getElementById('transfer-modal-approve-btn');
-        const title = document.getElementById('transfer-modal-title');
-        
-        if (isReceiverStage) {
-            approveBtn.textContent = "Confirm Receipt"; 
-            approveBtn.style.backgroundColor = "#17a2b8"; 
-            title.textContent = "Confirm Delivery";
-        } else {
-            approveBtn.textContent = "Approve"; 
-            approveBtn.style.backgroundColor = "#28a745"; 
-            title.textContent = "Transfer Approval";
-        }
-
-        document.getElementById('transfer-approval-modal').classList.remove('hidden');
-    }
-});
-
-
 // ==========================================================================
 // NEW HELPERS: HISTORY TRACKING
 // ==========================================================================
@@ -9427,12 +9415,17 @@ window.logInvoiceHistory = async function(poNumber, invoiceKey, newStatus, note 
     if (!poNumber || !invoiceKey) return;
     
     const historyEntry = {
-        status: newStatus,
-        timestamp: firebase.database.ServerValue.TIMESTAMP,
-        updatedBy: currentApprover.Name,
-        note: note
-    };
+            action: nextStatus, // "Pending Admin", "In Transit", "Completed"
+            by: currentUser,
+            timestamp: Date.now(),
+            note: note || ''
+        };
 
+// We push this separately to ensure it's added to the list
+        await db.ref(`transfer_entries/${key}/history`).push(historyEntry);
+
+        await db.ref(`transfer_entries/${key}`).update(updates);    
+    
     try {
         await invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}/history`).push(historyEntry);
     } catch (e) {
@@ -9603,6 +9596,64 @@ window.showInvoiceHistory = async function(poNumber, invoiceKey) {
         });
     }
 
+window.showTransferHistory = async function(key) {
+    const modal = document.getElementById('history-modal');
+    const loader = document.getElementById('history-modal-loader');
+    const tbody = document.getElementById('history-table-body');
+    
+    if(modal) modal.classList.remove('hidden');
+    if(loader) loader.classList.remove('hidden');
+    if(tbody) tbody.innerHTML = '';
+
+    try {
+        // 1. Get the entry
+        const snapshot = await db.ref(`transfer_entries/${key}`).once('value');
+        const entry = snapshot.val();
+        
+        if (!entry) throw new Error("Entry not found");
+
+        const historyData = [];
+
+        // 2. Parse History (It might be an array or an object depending on how it was saved)
+        if (entry.history) {
+            if (Array.isArray(entry.history)) {
+                historyData.push(...entry.history);
+            } else {
+                Object.values(entry.history).forEach(h => historyData.push(h));
+            }
+        }
+
+        if(loader) loader.classList.add('hidden');
+
+        if (historyData.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4">No history recorded.</td></tr>';
+            return;
+        }
+
+        // Sort by timestamp
+        historyData.sort((a, b) => a.timestamp - b.timestamp);
+
+        historyData.forEach((h) => {
+            const dateObj = new Date(h.timestamp);
+            const dateStr = dateObj.toLocaleDateString('en-GB') + ' ' + dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            const row = `
+                <tr>
+                    <td><strong>${h.action || h.status}</strong><br><small>${h.note || ''}</small></td>
+                    <td>${dateStr}</td>
+                    <td>${h.by || 'System'}</td>
+                    <td>-</td>
+                </tr>
+            `;
+            tbody.innerHTML += row; 
+        });
+
+    } catch (error) {
+        console.error(error);
+        if(loader) loader.classList.add('hidden');
+        if(tbody) tbody.innerHTML = '<tr><td colspan="4">Error loading history.</td></tr>';
+    }
+};    
 
 // ==========================================================================
 // NEW HELPER: Reverse Stock (Undo a transaction)
@@ -9711,13 +9762,15 @@ async function handleDeleteTransferEntry(key) {
     }
 }
 
+// ==========================================================================
+// FIXED: Stock Inventory Update (Site-Specific)
+// ==========================================================================
+async function updateStockInventory(id, qty, action, siteName) {
+    if (!id || !qty || !siteName) return;
 
-// ==========================================================================
-// REPLACE YOUR updateStockInventory FUNCTION WITH THIS (Fixes Math)
-// ==========================================================================
-async function updateStockInventory(id, qty, jobType) {
-    if (!id || !qty) return;
-    console.log(`Stock Update: ${jobType} ${qty} for ${id}`);
+    // Sanitize Site Name
+    const safeSiteName = siteName.replace(/[.#$[\]]/g, "_");
+    console.log(`Stock Update: ${action} ${qty} at ${safeSiteName} for ${id}`);
 
     try {
         let snapshot = await db.ref('material_stock').orderByChild('productID').equalTo(id).once('value');
@@ -9727,147 +9780,146 @@ async function updateStockInventory(id, qty, jobType) {
 
         if (snapshot.exists()) {
             const data = snapshot.val();
-            const key = Object.keys(data)[0];
+            const key = Object.keys(data)[0]; 
             const item = data[key];
-
-            let currentTransferred = parseFloat(item.transferredQty) || 0;
-            let currentStock = parseFloat(item.stockQty) || 0;
+            let sites = item.sites || {};
+            let currentSiteStock = parseFloat(sites[safeSiteName] || 0);
             const amount = parseFloat(qty);
 
-            if (jobType === 'Transfer') {
-                currentTransferred += amount; 
-            } 
-            else if (jobType === 'Restock') {
-                currentStock += amount;       
-            } 
-            else if (jobType === 'Return') {
-                currentTransferred -= amount; 
-                if (currentTransferred < 0) currentTransferred = 0;
+            if (action === 'Deduct') {
+                currentSiteStock -= amount;
+                if (currentSiteStock < 0) currentSiteStock = 0; 
+            } else if (action === 'Add') {
+                currentSiteStock += amount;
             }
 
-            const newBalance = currentStock - currentTransferred;
+            sites[safeSiteName] = currentSiteStock;
+
+            let newGlobalStock = 0;
+            Object.values(sites).forEach(val => newGlobalStock += parseFloat(val) || 0);
 
             await db.ref(`material_stock/${key}`).update({
-                stockQty: currentStock,
-                transferredQty: currentTransferred,
-                balanceQty: newBalance,
+                sites: sites,
+                stockQty: newGlobalStock,
                 lastUpdated: firebase.database.ServerValue.TIMESTAMP
             });
         }
-    } catch (error) { console.error("Stock error:", error); }
+    } catch (error) { console.error("Stock update failed:", error); }
 }
-
+    
 // ==========================================================================
-// REPLACED FUNCTION: handleTransferAction (Saves Date from Small Modal)
+// REPLACED FUNCTION: handleTransferAction (Fixed Site Variable Names)
 // ==========================================================================
 const handleTransferAction = async (status) => {
     const key = document.getElementById('transfer-modal-key').value;
     const qty = parseFloat(document.getElementById('transfer-modal-qty').value) || 0;
     const note = document.getElementById('transfer-modal-note').value;
-    
-    // --- FIX: Read Date from the SMALL modal ---
     const arrivalDateVal = document.getElementById('transfer-modal-date').value; 
 
     const btn = status === 'Approved' ? document.getElementById('transfer-modal-approve-btn') : document.getElementById('transfer-modal-reject-btn');
     btn.disabled = true; btn.textContent = "Processing...";
+
+    // --- HELPER: Generate Mixed ESN (Letters + Numbers) ---
+    const generateMixedESN = (length) => {
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        let result = "";
+        for (let i = 0; i < length; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+    };
 
     try {
         const taskIndex = userActiveTasks.findIndex(t => t.key === key);
         if (taskIndex === -1) throw new Error("Task not found in local list");
         const task = userActiveTasks[taskIndex];
 
+        // --- CRITICAL FIX: Ensure we get the site names correctly ---
+        const sourceSite = task.fromLocation || task.fromSite;
+        const destSite = task.toLocation || task.toSite;
+        const pID = task.productID || task.productId;
+        // ------------------------------------------------------------
+
         const jobType = task.jobType || task.for || 'Transfer';
         let nextStatus = status;
         let nextAttention = ''; 
-        const updates = {
-            note: note,
-            dateResponded: formatDate(new Date())
-        };
+        const updates = { note: note, dateResponded: formatDate(new Date()) };
 
         if (status === 'Rejected') {
             nextStatus = 'Rejected';
             nextAttention = task.requestor; 
         } 
         else if (status === 'Approved') {
-            
             const currentUser = currentApprover ? currentApprover.Name : 'Unknown';
-            const cleanName = currentUser.replace(/Engr\.?\s*/gi, '').trim();
+            const cleanName = currentUser.replace(/Engr\.?\s*/gi, '').trim().toUpperCase();
 
-            // --- STAGE 1: APPROVER ---
-            if (task.remarks === 'Pending') {
-                if (!task.esn) {
-                    const digits = Math.floor(100000 + Math.random() * 900000);
-                    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-                    let randomChars = '';
-                    for (let i = 0; i < 6; i++) randomChars += chars.charAt(Math.floor(Math.random() * chars.length));
-                    updates.esn = `${digits}${randomChars}/${cleanName}`;
-                }
-                
-                if (jobType === 'Restock' || jobType === 'Return') {
-                    nextStatus = 'Completed';
-                    nextAttention = 'Records'; 
-                    updates.approvedQty = qty; 
-                    updates.receivedQty = qty;
-                    const pID = task.productID || task.productId;
-                    if (pID) await updateStockInventory(pID, qty, jobType);
-                } else {
-                    nextStatus = 'Approved';
-                    nextAttention = task.receiver; 
-                    updates.approvedQty = qty; 
+            // --- STEP 1: SOURCE CONFIRMATION ---
+            if (task.remarks === 'Pending Source') {
+                nextStatus = 'Pending Admin';
+                nextAttention = task.approver;
+                updates.approvedQty = qty; 
+                alert(`Source Confirmed! Sending to Admin: ${nextAttention}`);
+            }
+            
+            // --- STEP 2: ADMIN APPROVAL ---
+            else if (task.remarks === 'Pending Admin' || task.remarks === 'Pending') {
+                if (!task.esn) updates.esn = `${generateMixedESN(12)}/${cleanName}`;
+                updates.approvedQty = qty; 
+
+                if (jobType === 'Restock') {
+                    nextStatus = 'Completed'; nextAttention = 'Records'; updates.receivedQty = qty;
+                    // Add to Destination
+                    if (pID) await updateStockInventory(pID, qty, 'Add', destSite);
+                } 
+                else if (jobType === 'Return') {
+                    nextStatus = 'Completed'; nextAttention = 'Records'; updates.receivedQty = qty;
+                    // Deduct from Source
+                    if (pID) await updateStockInventory(pID, qty, 'Deduct', sourceSite);
+                } 
+                else {
+                    nextStatus = 'In Transit'; nextAttention = task.receiver; 
+                    // Deduct from Source
+                    if (pID && sourceSite) {
+                        await updateStockInventory(pID, qty, 'Deduct', sourceSite);
+                        alert(`Authorized! Stock deducted from ${sourceSite}. Sending to Receiver.`);
+                    } else {
+                        alert("Error: Source Site not defined. Stock not deducted.");
+                    }
                 }
             } 
-            // --- STAGE 2: RECEIVER (Final Confirmation) ---
-            else if (task.remarks === 'Approved' || task.remarks === 'In Transit') {
-                nextStatus = 'Completed';
-                nextAttention = 'Records'; 
+            
+            // --- STEP 3: RECEIVER CONFIRMATION ---
+            else if (task.remarks === 'In Transit' || task.remarks === 'Approved') {
+                nextStatus = 'Completed'; nextAttention = 'Records'; 
                 updates.receivedQty = qty; 
-                
-                // --- SAVE ARRIVAL DATE ---
                 if(arrivalDateVal) updates.arrivalDate = arrivalDateVal;
 
-                // Generate Receiver ESN (4 Digit + 4 Char)
-                const digits4 = Math.floor(1000 + Math.random() * 9000);
-                const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-                let randomChars4 = '';
-                for (let i = 0; i < 4; i++) randomChars4 += chars.charAt(Math.floor(Math.random() * chars.length));
-                
-                updates.receiverEsn = `${digits4}${randomChars4}/${cleanName}`;
+                updates.receiverEsn = `${generateMixedESN(8)}/${cleanName}`;
 
-                const pID = task.productID || task.productId;
-                if (pID) await updateStockInventory(pID, qty, jobType);
+                // Add to Destination
+                if (pID && destSite) {
+                    await updateStockInventory(pID, qty, 'Add', destSite);
+                    alert(`Transfer Completed! Stock added to ${destSite}.`);
+                } else {
+                    alert("Error: Destination Site not defined. Stock not added.");
+                }
             }
         }
 
-        updates.remarks = nextStatus;
-        updates.status = nextStatus;
-        updates.attention = nextAttention; 
-
+        updates.remarks = nextStatus; updates.status = nextStatus; updates.attention = nextAttention; 
+        
         await db.ref(`transfer_entries/${key}`).update(updates);
 
         document.getElementById('transfer-approval-modal').classList.add('hidden');
-        userActiveTasks.splice(taskIndex, 1);
-        renderActiveTaskTable(userActiveTasks);
+        cacheTimestamps.systemEntries = 0; 
+        await ensureAllEntriesFetched(true);
+        await populateActiveTasks();
         
-        const count = userActiveTasks.length;
-        if (document.getElementById('active-task-count-display')) 
-            document.getElementById('active-task-count-display').textContent = `(Total Tasks: ${count})`;
-        
-        // Alert logic
-        if (updates.receiverEsn) {
-            alert(`Transfer Completed!\n\nReceiver ESN: ${updates.receiverEsn}`);
-        } else if (updates.esn) {
-            alert(`Transfer Approved!\n\nApprover ESN: ${updates.esn}`);
-        } else {
-            alert(`Task updated to: ${nextStatus}`);
-        }
-
-    } catch (error) {
-        console.error("Error:", error); alert("Failed to update.");
-    } finally {
-        btn.disabled = false;
-        btn.textContent = status === 'Approved' ? "Approve" : "Reject";
-    }
+    } catch (error) { console.error("Error:", error); alert("Failed to update."); } 
+    finally { btn.disabled = false; btn.textContent = status === 'Approved' ? "Approve" : "Reject"; }
 };
+    
+    
     // 3. Bind Buttons (Removes old listeners to prevent errors)
     const tfApproveBtn = document.getElementById('transfer-modal-approve-btn');
     const tfRejectBtn = document.getElementById('transfer-modal-reject-btn');
@@ -9913,8 +9965,6 @@ const handleTransferAction = async (status) => {
         });
     }
 
-    // Transfer Modal Buttons
-    document.getElementById('transfer-modal-approve-btn').addEventListener('click', () => handleTransferAction('Approved'));
-    document.getElementById('transfer-modal-reject-btn').addEventListener('click', () => handleTransferAction('Rejected'));
+    
 
 }); // END OF DOMCONTENTLOADED

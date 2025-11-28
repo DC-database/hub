@@ -1,11 +1,13 @@
 // ==========================================================================
-// MATERIAL STOCK MANAGEMENT (Smart Search + Site Names + Layout Fix)
+// MATERIAL STOCK MANAGEMENT (With Scrollable History & Breakdown)
 // ==========================================================================
 
 let allMaterialStockData = [];
-let msProductChoices = null; // Instance for the smart dropdown
+let allTransferData = []; // Store transfers for history
+let msProductChoices = null; 
+let lastTypedProductID = ""; 
 
-// 1. Load Data from Firebase
+// 1. Load Data from Firebase (Stock + Transfers)
 async function populateMaterialStock() {
     const tableBody = document.getElementById('ms-table-body');
     if (!tableBody) return;
@@ -13,14 +15,30 @@ async function populateMaterialStock() {
     tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Loading stock data...</td></tr>';
 
     try {
-        const snapshot = await db.ref('material_stock').once('value');
-        const data = snapshot.val();
-        allMaterialStockData = [];
+        // Fetch both Stock and Transfers in parallel
+        const [stockSnap, transferSnap] = await Promise.all([
+            db.ref('material_stock').once('value'),
+            db.ref('transfer_entries').orderByChild('timestamp').once('value')
+        ]);
 
-        if (data) {
-            Object.keys(data).forEach(key => {
-                allMaterialStockData.push({ key: key, ...data[key] });
+        // Process Stock
+        const stockData = stockSnap.val();
+        allMaterialStockData = [];
+        if (stockData) {
+            Object.keys(stockData).forEach(key => {
+                allMaterialStockData.push({ key: key, ...stockData[key] });
             });
+        }
+
+        // Process Transfers
+        const tData = transferSnap.val();
+        allTransferData = [];
+        if (tData) {
+            Object.keys(tData).forEach(key => {
+                allTransferData.push({ key: key, ...tData[key] });
+            });
+            // Sort newest first
+            allTransferData.sort((a, b) => b.timestamp - a.timestamp);
         }
 
         renderMaterialStockTable(allMaterialStockData);
@@ -31,13 +49,13 @@ async function populateMaterialStock() {
     }
 }
 
-// 2. Render Table (Fixed Alignment & Site Names)
+// 2. Render Table (With Scrollable Breakdown)
 function renderMaterialStockTable(data) {
     const tableBody = document.getElementById('ms-table-body');
     const searchInput = document.getElementById('ms-search-input');
     const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
     
-    // Helper: Get Site Name from Cache
+    // Helper: Get Site Name
     const getSiteDisplayName = (siteCode) => {
         if (siteCode === "Main Store") return "Main Store";
         const cachedSites = localStorage.getItem('cached_SITES');
@@ -48,7 +66,7 @@ function renderMaterialStockTable(data) {
                 if (found) return `<span style="color:#00748C; font-weight:bold;">${found.site}</span> - ${found.description}`;
             } catch (e) {}
         }
-        return siteCode; // Fallback
+        return siteCode; 
     };
 
     tableBody.innerHTML = '';
@@ -65,9 +83,9 @@ function renderMaterialStockTable(data) {
     }
 
     filtered.forEach(item => {
-        // Calculate Totals
+        // --- 1. Calculate Current Stock ---
         let totalStock = 0;
-        let detailRows = '';
+        let breakdownRows = '';
         let hasSites = false;
 
         if (item.sites) {
@@ -76,8 +94,7 @@ function renderMaterialStockTable(data) {
                 if (q !== 0) {
                     hasSites = true;
                     totalStock += q;
-                    // Use helper to show "175 - Project Name"
-                    detailRows += `
+                    breakdownRows += `
                         <tr>
                             <td style="width: 70%; padding-left: 20px;">${getSiteDisplayName(site)}</td>
                             <td style="width: 30%; font-weight:bold;">${q}</td>
@@ -90,13 +107,57 @@ function renderMaterialStockTable(data) {
         if (!hasSites) {
             const legacyStock = parseFloat(item.stockQty) || 0;
             totalStock = legacyStock;
-            detailRows = `<tr><td style="padding-left: 20px;">Unassigned (Global)</td><td>${legacyStock}</td></tr>`;
+            breakdownRows = `<tr><td style="padding-left: 20px;">Unassigned (Global)</td><td>${legacyStock}</td></tr>`;
         }
 
-        const transferred = parseFloat(item.transferredQty) || 0;
+        // --- 2. Build History Rows ---
+        const productTransfers = allTransferData.filter(t => 
+            (t.productID === item.productID) || (t.productID === item.productId) ||
+            (t.productId === item.productID) || (t.productId === item.productId)
+        );
+
+        let historyRows = '';
+        if (productTransfers.length === 0) {
+            historyRows = '<tr><td colspan="6" style="text-align:center; color:#999; font-style:italic; padding: 20px;">No movement history found.</td></tr>';
+        } else {
+            productTransfers.forEach(t => {
+                const date = t.shippingDate || new Date(t.timestamp).toISOString().split('T')[0];
+                const type = t.jobType || t.for || 'Transfer';
+                let route = '-';
+                
+                if (type === 'Transfer') route = `${t.fromLocation || t.fromSite} <i class="fa-solid fa-arrow-right" style="font-size:0.8em; color:#888;"></i> ${t.toLocation || t.toSite}`;
+                else if (type === 'Restock') route = `<span style="color:#28a745;">+ Add to ${t.toLocation || t.toSite}</span>`;
+                else if (type === 'Return') route = `<span style="color:#dc3545;">- Return from ${t.fromLocation || t.fromSite}</span>`;
+                else if (type === 'Usage') route = `<span style="color:#6f42c1;">- Used at ${t.fromLocation || t.fromSite}</span>`;
+
+                const qtyOrdered = t.orderedQty || 0;
+                const qtyApproved = t.approvedQty || 0;
+                const qtyReceived = t.receivedQty || 0;
+                
+                let statusColor = '#333';
+                if(t.remarks === 'Completed') statusColor = '#003A5C';
+                if(t.remarks === 'In Transit') statusColor = '#17a2b8';
+                if(t.remarks.includes('Pending')) statusColor = '#dc3545';
+
+                historyRows += `
+                    <tr>
+                        <td style="font-size:0.85rem;">${date}</td>
+                        <td style="font-size:0.85rem; font-weight:600;">${type}</td>
+                        <td style="font-size:0.85rem;">${route}</td>
+                        <td style="font-size:0.85rem; text-align:center;">
+                            <span title="Ordered" style="color:#999;">${qtyOrdered}</span> / 
+                            <span title="Approved" style="color:#17a2b8;">${qtyApproved}</span> / 
+                            <span title="Received" style="color:#28a745; font-weight:bold;">${qtyReceived}</span>
+                        </td>
+                        <td style="font-size:0.85rem;">${t.enteredBy || 'System'}</td>
+                        <td style="font-size:0.85rem; font-weight:bold; color:${statusColor};">${t.remarks}</td>
+                    </tr>
+                `;
+            });
+        }
+
         const uniqueId = `detail-${item.key}`;
 
-        // PARENT ROW
         const parentRow = document.createElement('tr');
         parentRow.innerHTML = `
             <td><button class="ms-expand-btn" onclick="toggleStockDetail('${uniqueId}', this)">+</button></td>
@@ -104,7 +165,6 @@ function renderMaterialStockTable(data) {
             <td><strong>${item.productName}</strong></td>
             <td>${item.details || ''}</td>
             <td style="font-size: 1.1em; font-weight: bold; color: #003A5C;">${totalStock}</td>
-            <td>${transferred}</td>
             <td style="text-align: center;">
                 <button class="delete-btn ms-delete-btn" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem;" title="Delete Item">
                     <i class="fa-solid fa-trash"></i>
@@ -112,16 +172,49 @@ function renderMaterialStockTable(data) {
             </td>
         `;
 
-        // CHILD ROW
+        // --- CHILD ROW (WITH SCROLLBARS) ---
         const childRow = document.createElement('tr');
         childRow.id = uniqueId;
         childRow.className = 'stock-child-row hidden';
         childRow.innerHTML = `
-            <td colspan="7" style="padding: 10px 20px;">
-                <div style="font-weight:bold; margin-bottom:5px; color:#555; border-bottom: 1px solid #ddd;">Stock Breakdown:</div>
-                <table class="stock-detail-table">
-                    <tbody>${detailRows}</tbody>
-                </table>
+            <td colspan="7" style="padding: 15px 25px; background-color: #fcfcfc;">
+                
+                <div style="display: flex; gap: 30px; flex-wrap: wrap; align-items: flex-start;">
+                    
+                    <div style="flex: 1; min-width: 300px;">
+                        <h4 style="margin: 0 0 10px 0; color: #003A5C; border-bottom: 2px solid #003A5C; padding-bottom: 5px;">
+                            <i class="fa-solid fa-cubes"></i> Current Stock Breakdown
+                        </h4>
+                        <div style="max-height: 300px; overflow-y: auto; border: 1px solid #eee; background: #fff;">
+                            <table class="stock-detail-table" style="width: 100%; margin: 0;">
+                                <thead style="background:#f0f0f0; position: sticky; top: 0;"><tr><th>Site</th><th>Qty</th></tr></thead>
+                                <tbody>${breakdownRows}</tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div style="flex: 2; min-width: 400px;">
+                        <h4 style="margin: 0 0 10px 0; color: #6f42c1; border-bottom: 2px solid #6f42c1; padding-bottom: 5px;">
+                            <i class="fa-solid fa-clock-rotate-left"></i> Movement History
+                        </h4>
+                        <div style="max-height: 300px; overflow-y: auto; border: 1px solid #eee; background: #fff;">
+                            <table class="stock-detail-table" style="width: 100%; margin: 0;">
+                                <thead style="background:#f0f0f0; position: sticky; top: 0;">
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Type</th>
+                                        <th>Route</th>
+                                        <th style="text-align:center;">Qty (Ord/App/Rec)</th>
+                                        <th>By</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${historyRows}</tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
             </td>
         `;
 
@@ -153,104 +246,104 @@ window.toggleStockDetail = function(rowId, btn) {
     }
 };
 
-// --- 3. SMART MODAL: Search & Add ---
-
-function openNewMaterialModal() {
+// ==========================================================================
+// 3. SMART MODAL: Search & Add (Standard)
+// ==========================================================================
+async function openNewMaterialModal() {
     document.getElementById('ms-new-material-form').reset();
     
-    // Reset UI
     const nameInput = document.getElementById('ms-new-name');
     const detailsInput = document.getElementById('ms-new-details');
     nameInput.readOnly = false; nameInput.style.backgroundColor = '#fff';
     detailsInput.readOnly = false; detailsInput.style.backgroundColor = '#fff';
-    
     delete document.getElementById('ms-new-material-form').dataset.existingKey;
-    
-    document.getElementById('ms-modal-title').textContent = "Add Material / Stock";
+    document.getElementById('ms-modal-title').textContent = "Register New Product";
     document.getElementById('ms-save-new-btn').textContent = "Save";
 
-    // 1. Initialize Smart Search (Choices.js)
     const selectEl = document.getElementById('ms-new-id');
     if (msProductChoices) msProductChoices.destroy();
     
-    // Prepare options from existing data
     const options = allMaterialStockData.map(item => ({
         value: item.productID || item.productId,
-        label: `${item.productID} - ${item.productName}`, // Show "ID - Name"
-        customProperties: { 
-            name: item.productName, 
-            details: item.details,
-            key: item.key
-        }
+        label: `${item.productID} - ${item.productName}`,
+        customProperties: { name: item.productName, details: item.details, key: item.key }
     }));
 
     msProductChoices = new Choices(selectEl, {
-        choices: options,
-        searchEnabled: true,
-        shouldSort: false,
-        itemSelectText: '',
-        placeholder: true,
-        placeholderValue: 'Type Product ID or Name...',
-        removeItemButton: true,
-        addItems: true, // Allows adding NEW IDs
-        addItemText: (value) => `Press Enter to create new ID: <b>"${value}"</b>`
+        choices: options, searchEnabled: true, shouldSort: false, itemSelectText: '',
+        placeholder: true, placeholderValue: 'Type Product ID or Name...',
+        removeItemButton: true, addItems: true,
+        noResultsText: 'Press Enter (or Click Away) to use this ID',
+        addItemText: (value) => `Press Enter to add ID: <b>"${value}"</b>`
     });
 
-    // 2. Handle Selection (Auto-Fill)
-    selectEl.addEventListener('change', (e) => {
-        const val = msProductChoices.getValue(true);
+    const handleSelection = (val) => {
+        if (!val) return;
         const selectedItem = msProductChoices._store.choices.find(c => c.value === val);
 
         if (selectedItem && selectedItem.customProperties && selectedItem.customProperties.key) {
-            // EXISTING ITEM SELECTED
             const data = selectedItem.customProperties;
             nameInput.value = data.name;
             detailsInput.value = data.details;
-            
-            // Lock fields
             nameInput.readOnly = true; nameInput.style.backgroundColor = '#e9ecef';
             detailsInput.readOnly = true; detailsInput.style.backgroundColor = '#e9ecef';
-            
             document.getElementById('ms-new-material-form').dataset.existingKey = data.key;
             document.getElementById('ms-modal-title').textContent = "Add Stock to Existing Product";
         } else {
-            // NEW ITEM (User typed a new ID)
-            // Only clear if we switched from an existing item
-            if (nameInput.readOnly) {
-                nameInput.value = '';
-                detailsInput.value = '';
-            }
-            // Unlock fields
+            if (nameInput.readOnly) { nameInput.value = ''; detailsInput.value = ''; }
             nameInput.readOnly = false; nameInput.style.backgroundColor = '#fff';
             detailsInput.readOnly = false; detailsInput.style.backgroundColor = '#fff';
-            
             delete document.getElementById('ms-new-material-form').dataset.existingKey;
             document.getElementById('ms-modal-title').textContent = "Register New Product";
         }
-    });
+    };
 
-    // 3. Populate Site Dropdown
+    selectEl.addEventListener('change', (e) => handleSelection(e.detail.value));
+    selectEl.addEventListener('addItem', (e) => handleSelection(e.detail.value));
+
+    lastTypedProductID = "";
+    if (msProductChoices.input && msProductChoices.input.element) {
+        msProductChoices.input.element.addEventListener('input', function() {
+            lastTypedProductID = this.value; 
+        });
+        msProductChoices.input.element.addEventListener('blur', function() {
+            const val = lastTypedProductID.trim();
+            const hasSelection = msProductChoices.getValue(true);
+            if (val && !hasSelection) {
+                msProductChoices.setValue([{ value: val, label: val }]);
+                handleSelection(val);
+            }
+        });
+    }
+
     const siteSelect = document.getElementById('ms-new-site-select');
     if (siteSelect) {
-        siteSelect.innerHTML = ''; 
-        const mainOpt = document.createElement('option');
-        mainOpt.value = "Main Store"; mainOpt.textContent = "Main Store";
-        siteSelect.appendChild(mainOpt);
-
+        siteSelect.innerHTML = '<option value="Main Store">Main Store</option>'; 
+        let sitesData = [];
         const cachedSites = localStorage.getItem('cached_SITES');
-        if (cachedSites) { 
-            try { 
-                const sitesData = JSON.parse(cachedSites).data || []; 
-                sitesData.forEach(site => {
-                    if (site.site !== "Main Store") {
-                        const opt = document.createElement('option');
-                        opt.value = site.site;
-                        opt.textContent = `${site.site} - ${site.description}`;
-                        siteSelect.appendChild(opt);
-                    }
-                });
-            } catch (e) {} 
+        if (cachedSites) { try { sitesData = JSON.parse(cachedSites).data || []; } catch (e) {} }
+
+        if (sitesData.length === 0) {
+            try {
+                const res = await fetch("https://cdn.jsdelivr.net/gh/DC-database/Hub@main/Site.csv");
+                const txt = await res.text();
+                const lines = txt.split('\n');
+                for (let i = 1; i < lines.length; i++) {
+                    const cols = lines[i].split(',');
+                    if (cols.length >= 2) sitesData.push({ site: cols[0].replace(/"/g,'').trim(), description: cols[1].replace(/"/g,'').trim() });
+                }
+            } catch(e) {}
         }
+        
+        sitesData.sort((a, b) => parseInt(a.site) - parseInt(b.site));
+        sitesData.forEach(site => {
+            if (site.site !== "Main Store") {
+                const opt = document.createElement('option');
+                opt.value = site.site;
+                opt.textContent = `${site.site} - ${site.description}`;
+                siteSelect.appendChild(opt);
+            }
+        });
     }
 
     document.getElementById('ms-new-material-modal').classList.remove('hidden');
@@ -261,8 +354,11 @@ async function handleSaveNewMaterial() {
     const form = document.getElementById('ms-new-material-form');
     const existingKey = form.dataset.existingKey;
     
-    // Get ID from Choices.js
-    const id = msProductChoices ? msProductChoices.getValue(true) : '';
+    let id = msProductChoices ? msProductChoices.getValue(true) : '';
+    if (!id && lastTypedProductID) {
+        id = lastTypedProductID.trim(); 
+    }
+
     const name = document.getElementById('ms-new-name').value.trim();
     const details = document.getElementById('ms-new-details').value.trim();
     const selectedSite = document.getElementById('ms-new-site-select').value;
@@ -276,10 +372,8 @@ async function handleSaveNewMaterial() {
 
     try {
         if (existingKey) {
-            // --- UPDATE EXISTING ---
             const item = allMaterialStockData.find(m => m.key === existingKey);
             let sites = item.sites || {};
-            
             const currentSiteStock = parseFloat(sites[selectedSite]) || 0;
             const newSiteStock = currentSiteStock + stockQty;
             sites[selectedSite] = newSiteStock;
@@ -295,19 +389,15 @@ async function handleSaveNewMaterial() {
             alert(`Stock added to ${selectedSite}!`);
 
         } else {
-            // --- CREATE NEW ---
-            // Double check duplicate if manual entry
             const duplicate = allMaterialStockData.find(m => (m.productID || m.productId || '').toLowerCase() === id.toLowerCase());
             if (duplicate) {
-                alert("Product ID already exists. Please select it from the dropdown.");
+                alert("Product ID already exists.");
                 btn.disabled = false;
                 return;
             }
 
             const sitesInit = {};
-            if (stockQty > 0) {
-                sitesInit[selectedSite] = stockQty;
-            }
+            if (stockQty > 0) sitesInit[selectedSite] = stockQty;
 
             const newMaterial = {
                 productID: id,
@@ -339,7 +429,7 @@ window.handleDeleteMaterial = async function(key) {
         await db.ref(`material_stock/${key}`).remove();
         populateMaterialStock(); 
     } catch (error) { alert("Error deleting."); }
-}
+};
 
 // --- 6. CSV & Template ---
 function handleUploadCSV(event) {
