@@ -681,7 +681,7 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
 }
 
 // ==========================================================================
-// REPLACE YOUR EXISTING ensureAllEntriesFetched FUNCTION WITH THIS
+// UPDATED FUNCTION: ensureAllEntriesFetched (With Usage Data Formatting)
 // ==========================================================================
 async function ensureAllEntriesFetched(forceRefresh = false) {
     const now = Date.now();
@@ -712,7 +712,6 @@ async function ensureAllEntriesFetched(forceRefresh = false) {
     // 3. PROCESS STANDARD JOB ENTRIES
     Object.entries(jobEntriesData).forEach(([key, value]) => {
         let entry = { key, ...value, source: 'job_entry' };
-        // ... (Existing PO/PR Logic remains the same) ...
         if (!entry.vendorName && entry.po && allPOData && allPOData[entry.po]) {
             entry.vendorName = allPOData[entry.po]['Supplier Name'] || 'N/A';
         }
@@ -722,10 +721,15 @@ async function ensureAllEntriesFetched(forceRefresh = false) {
   // 4. PROCESS TRANSFER ENTRIES
     Object.entries(transferData).forEach(([key, value]) => {
         
-        // Combine Sites: "From -> To"
         const from = value.fromLocation || value.fromSite || 'N/A';
         const to = value.toLocation || value.toSite || 'N/A';
-        const combinedSite = `${from} ➜ ${to}`;
+        
+        // --- FIX: Better Site Display for Usage ---
+        let combinedSite = `${from} ➜ ${to}`;
+        if (value.jobType === 'Usage') {
+            combinedSite = `Used at ${from}`;
+        }
+        // ------------------------------------------
 
         // Determine Contact based on Stage
         let contactPerson = value.receiver || 'N/A';
@@ -735,29 +739,19 @@ async function ensureAllEntriesFetched(forceRefresh = false) {
             key,
             ...value, 
             source: 'transfer_entry',
-            
             productID: value.productID || '',
             jobType: value.jobType || 'Transfer',
             for: value.jobType || 'Transfer', 
             
-            // --- CORRECT MAPPING FOR TABLE ---
             ref: value.controlNumber, 
             controlId: value.controlNumber,
-            site: combinedSite, // Combined Column
-            
-            // Map Qty to "Ordered Qty" column
+            site: combinedSite, // Uses the cleaner display
             orderedQty: value.requiredQty || 0, 
-            
-            // Map Received to "Delivered Qty" column
             deliveredQty: value.receivedQty || 0, 
-            
-            // Map Dates
             shippingDate: value.shippingDate || 'N/A',
             arrivalDate: value.arrivalDate || 'N/A',
-            
             contactName: contactPerson,
-            vendorName: value.productName, // Re-use vendor column for Product Name
-            
+            vendorName: value.productName, 
             remarks: value.remarks || value.status || 'Pending'
         });
     });
@@ -2280,14 +2274,18 @@ function handleDownloadWorkdeskCSV() {
 }
 
 // ==========================================================================
-// REPLACED FUNCTION: renderReportingTable (Adds Print Button)
+// UPDATED FUNCTION: renderReportingTable (Includes 'Usage' in Inventory Layout)
 // ==========================================================================
 function renderReportingTable(entries) {
     reportingTableBody.innerHTML = '';
     
-    const inventoryTypes = ['Transfer', 'Restock', 'Return'];
+    // --- FIX: Added 'Usage' to this list ---
+    const inventoryTypes = ['Transfer', 'Restock', 'Return', 'Usage'];
+    // ---------------------------------------
+
     const tableHead = document.querySelector('#reporting-printable-area table thead');
     
+    // CHECK: If the CURRENT filter is one of these, change headers
     if (inventoryTypes.includes(currentReportFilter)) {
         tableHead.innerHTML = `
             <tr>
@@ -2334,7 +2332,8 @@ function renderReportingTable(entries) {
         const row = document.createElement('tr');
         row.setAttribute('data-key', entry.key); 
 
-        if (inventoryTypes.includes(currentReportFilter) && inventoryTypes.includes(entry.for)) {
+        // CHECK: If this SPECIFIC ROW is one of these, render Inventory Columns
+        if (inventoryTypes.includes(entry.for)) {
             
             let statusColor = 'black';
             if (entry.remarks === 'Approved') statusColor = '#28a745';
@@ -2344,16 +2343,15 @@ function renderReportingTable(entries) {
 
             const noteDisplay = entry.note ? `<br><small style="color:#666; font-style:italic;">${entry.note}</small>` : '';
             
-            // --- NEW: PRINT, HISTORY & DELETE BUTTONS ---
             let actions = '';
             
-            // 1. Print
+            // Print
             actions += `<button class="print-btn waybill-btn" data-key="${entry.key}" style="padding:2px 6px; margin-right:5px; font-size:0.7rem; background:#6f42c1; color:white; border:none; border-radius:4px;" title="Print Waybill"><i class="fa-solid fa-print"></i></button>`;
             
-            // 2. History (NEW)
+            // History
             actions += `<button class="history-btn action-btn" onclick="showTransferHistory('${entry.key}')" style="padding:2px 6px; margin-right:5px; font-size:0.7rem; background:#17a2b8; color:white; border:none; border-radius:4px;" title="View History"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
 
-            // 3. Delete
+            // Delete (Admin Only)
             if (isAdmin) {
                 actions += `<button class="delete-btn transfer-delete-btn" data-key="${entry.key}" style="padding:2px 6px; font-size:0.7rem; border-radius:4px;">Del</button>`;
             }
@@ -2393,7 +2391,6 @@ function renderReportingTable(entries) {
         reportingTableBody.appendChild(row);
     });
 }
-
 function filterAndRenderReport(baseEntries = []) {
     let filteredEntries = [...baseEntries];
 
@@ -2473,7 +2470,7 @@ async function handleReportingSearch() {
 }
 
 // ==========================================================================
-// UPDATED FUNCTION: populateActiveTasks (Hybrid Tabbing Logic)
+// UPDATED FUNCTION: populateActiveTasks (Added 'Usage' to Transfer Group)
 // ==========================================================================
 async function populateActiveTasks() {
     activeTaskTableBody.innerHTML = `<tr><td colspan="10">Loading tasks...</td></tr>`;
@@ -2495,24 +2492,28 @@ async function populateActiveTasks() {
         await ensureAllEntriesFetched(); 
         await ensureApproverDataCached();
         
-        // --- THIS IS THE UPDATED FILTER BLOCK ---
+        // --- UPDATED FILTER BLOCK ---
         const jobTasks = allSystemEntries.filter(entry => {
-            // 1. Filter out completed tasks first
             if (isTaskComplete(entry)) return false; 
 
-            // 2. Transfer / Restock / Return Logic
-            if (['Transfer', 'Restock', 'Return'].includes(entry.for)) {
-                // If Pending, show to Approver (Admin)
-                if (entry.remarks === 'Pending') return entry.approver === currentUserName;
+            // 1. Transfer / Restock / Return / Usage Logic
+            // Added 'Usage' to this list
+            if (['Transfer', 'Restock', 'Return', 'Usage'].includes(entry.for)) {
                 
-                // If Approved/In Transit, show to Receiver
+                // If Pending Source, check Source Contact (Not applicable for Usage usually, but safe to keep)
+                if (entry.remarks === 'Pending Source') return entry.sourceContact === currentUserName;
+
+                // If Pending Admin, check Approver
+                if (entry.remarks === 'Pending Admin' || entry.remarks === 'Pending') return entry.approver === currentUserName;
+                
+                // If Approved/In Transit, check Receiver
                 if (entry.remarks === 'Approved' || entry.remarks === 'In Transit') return entry.receiver === currentUserName;
                 
-                // Fallback to standard attention check
+                // Fallback
                 return entry.attention === currentUserName;
             }
 
-            // 3. Standard Job Logic (Invoice, PR, IPC)
+            // 2. Standard Job Logic
             if (entry.for === 'Invoice') return isAccounting; 
             if (entry.for === 'PR') {
                 if (isProcurement) return true; 
@@ -2521,16 +2522,19 @@ async function populateActiveTasks() {
             }
             if (entry.for === 'IPC') return isQS && entry.attention === currentUserName;
             
-            // Default check
             return entry.attention === currentUserName;
         });
         // ----------------------------------------
 
         userTasks = jobTasks.map(task => {
-            if(['Transfer', 'Restock', 'Return'].includes(task.for)) return {...task, source: 'transfer_entry'}; 
+            // Added 'Usage' here so it uses the Transfer Table Layout
+            if(['Transfer', 'Restock', 'Return', 'Usage'].includes(task.for)) {
+                return {...task, source: 'transfer_entry'}; 
+            }
             return {...task, source: 'job_entry'};
         });
 
+        // ... (Invoice Task Fetching Logic - No Changes Here) ...
         const sanitizeFirebaseKey = (key) => key.replace(/[.#$[\]]/g, '_');
         const safeCurrentUserName = sanitizeFirebaseKey(currentUserName);
         const invoiceTaskSnapshot = await invoiceDb.ref(`invoice_tasks_by_user/${safeCurrentUserName}`).once('value');
@@ -2614,10 +2618,12 @@ async function populateActiveTasks() {
             }
         });
 
+        // --- TAB GROUPING LOGIC ---
         const tabCounts = {};
         userActiveTasks.forEach(task => {
             let key = '';
-            if (['Transfer', 'Restock', 'Return'].includes(task.for)) { key = task.for; } 
+            // Added 'Usage' here so it gets its own Tab
+            if (['Transfer', 'Restock', 'Return', 'Usage'].includes(task.for)) { key = task.for; } 
             else { key = task.remarks || 'Pending'; }
             tabCounts[key] = (tabCounts[key] || 0) + 1;
         });
@@ -2635,6 +2641,8 @@ async function populateActiveTasks() {
                 if(tabName === 'Transfer') badgeColor = '#00748C';
                 if(tabName === 'Restock') badgeColor = '#28a745';
                 if(tabName === 'Return') badgeColor = '#ffc107';
+                if(tabName === 'Usage') badgeColor = '#6f42c1'; // Purple for Usage
+                
                 tabsHTML += `<button class="${activeClass}" data-status-filter="${tabName}">${tabName} <span class="notification-badge" style="background-color: ${badgeColor}; font-size: 0.7rem; margin-left: 5px;">${tabCounts[tabName]}</span></button>`;
             });
         } else {
@@ -2674,7 +2682,7 @@ function handleActiveTaskSearch(searchTerm) {
 }
 
 // ==========================================================================
-// UPDATED FUNCTION: renderActiveTaskTable (With Admin Delete)
+// UPDATED FUNCTION: renderActiveTaskTable (Added 'Usage' to Transfer View)
 // ==========================================================================
 function renderActiveTaskTable(tasks) {
     const isMobile = window.innerWidth <= 768;
@@ -2685,9 +2693,9 @@ function renderActiveTaskTable(tasks) {
 
     activeTaskTableBody.innerHTML = '';
     
-    // Filter by Hybrid Tabs
+    // Filter by Hybrid Tabs (Added Usage)
     let filteredTasks = tasks.filter(task => {
-        const specialTypes = ['Transfer', 'Restock', 'Return'];
+        const specialTypes = ['Transfer', 'Restock', 'Return', 'Usage'];
         const isSpecialTab = specialTypes.includes(currentActiveTaskFilter);
         const taskIsSpecial = specialTypes.includes(task.for);
 
@@ -2703,7 +2711,8 @@ function renderActiveTaskTable(tasks) {
         return;
     }
 
-    const isTransferView = filteredTasks.length > 0 && ['Transfer', 'Restock', 'Return'].includes(filteredTasks[0].for);
+    // Check if we are in Transfer/Usage View
+    const isTransferView = filteredTasks.length > 0 && ['Transfer', 'Restock', 'Return', 'Usage'].includes(filteredTasks[0].for);
     const tableHead = document.querySelector('#wd-activetask table thead');
 
     // --- HEADER SETUP ---
@@ -2736,28 +2745,34 @@ function renderActiveTaskTable(tasks) {
     }
 
     const isCEO = document.body.classList.contains('is-ceo');
-    const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin'; // CHECK ADMIN ROLE
+    const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin'; 
 
     filteredTasks.forEach(task => {
         const row = document.createElement('tr');
         row.setAttribute('data-key', task.key);
 
         if (isTransferView) {
-            // --- TRANSFER ROW ---
+            // --- TRANSFER / USAGE ROW ---
             let actionButtons = `<button class="transfer-action-btn" data-key="${task.key}" style="background-color: #17a2b8; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 600;">Action</button>`;
             
-            // --- NEW: ADMIN DELETE BUTTON ---
             if (isAdmin) {
                 actionButtons += `<button class="delete-btn transfer-delete-btn" data-key="${task.key}" style="margin-left: 5px; padding: 6px 12px;">Delete</button>`;
             }
 
             const fromLoc = task.fromSite || task.fromLocation || 'N/A';
             const toLoc = task.toSite || task.toLocation || 'N/A';
-            const movement = `${fromLoc} <i class="fa-solid fa-arrow-right" style="color: #888; font-size: 0.8rem;"></i> ${toLoc}`;
+            
+            // Different icon/text for Usage
+            let movement = `${fromLoc} <i class="fa-solid fa-arrow-right" style="color: #888; font-size: 0.8rem;"></i> ${toLoc}`;
+            if (task.for === 'Usage') {
+                movement = `<span style="color: #6f42c1;">Consumed at ${fromLoc}</span>`;
+            }
+
             const displayQty = task.amount || task.orderedQty || task.requiredQty || 0;
 
             let statusColor = '#333';
             if(task.remarks === 'Pending') statusColor = '#dc3545'; 
+            if(task.remarks === 'Pending Admin') statusColor = '#dc3545'; 
             if(task.remarks === 'Approved') statusColor = '#28a745'; 
             if(task.remarks === 'Completed') statusColor = '#003A5C'; 
 
@@ -2774,6 +2789,7 @@ function renderActiveTaskTable(tasks) {
 
         } else {
             // --- STANDARD ROW (Invoice/PR) ---
+            // ... (Existing Standard Row Logic) ...
             const isInvoiceFromIrwin = task.source === 'invoice' && task.enteredBy === 'Irwin';
             const invName = task.invName || '';
             const isClickable = (isInvoiceFromIrwin || (task.source === 'invoice' && invName)) &&
