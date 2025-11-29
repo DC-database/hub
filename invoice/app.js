@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "4.0.7"; 
+const APP_VERSION = "4.0.8"; 
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -9940,5 +9940,6 @@ async function updateStockInventory(id, qty, action, siteName) {
 }
     
     
+
 
 }); // END OF DOMCONTENTLOADED
