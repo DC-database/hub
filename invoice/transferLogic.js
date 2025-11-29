@@ -571,7 +571,7 @@ window.handlePrintWaybill = function(entry) {
         if(badgeEl) { badgeEl.textContent = "WAITING APPROVAL"; badgeEl.style.borderColor = "#dc3545"; badgeEl.style.color = "#dc3545"; }
     }
     else if (entry.remarks === 'In Transit' || entry.remarks === 'Approved') {
-        if(titleEl) titleEl.textContent = "WAYBILL / GATE PASS";
+        if(titleEl) titleEl.textContent = "TRANSFER SLIP";
         if(badgeEl) { badgeEl.textContent = "AUTHORIZED FOR TRANSIT"; badgeEl.style.borderColor = "#00748C"; badgeEl.style.color = "#00748C"; }
         if (entry.esn) {
             const esnCode = entry.esn.split('/')[0];
@@ -815,4 +815,5 @@ window.closeTransferModal = function() {
     document.getElementById('transfer-job-modal').classList.add('hidden');
     // Optional: Reset form fields here if you want
     if(typeof resetTransferForm === 'function') resetTransferForm();
+
 };
