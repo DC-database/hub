@@ -110,11 +110,18 @@ function renderMaterialStockTable(data) {
             breakdownRows = `<tr><td style="padding-left: 20px;">Unassigned (Global)</td><td>${legacyStock}</td></tr>`;
         }
 
+        const stockID = (item.productID || item.productId || '').trim();
+
         const productTransfers = allTransferData.filter(t => {
-            const idMatch = (t.productID === item.productID) || (t.productID === item.productId) ||
-                            (t.productId === item.productID) || (t.productId === item.productId);
+            // Standardize the transfer ID for comparison
+            const transferID = (t.productID || t.productId || '').trim();
+            
+            // STRICT EXACT MATCH on the standardized IDs
+            const idMatch = transferID === stockID;
+            
             // Hide Ghost History: Only show movement after creation
             const isAfterCreation = t.timestamp >= (item.timestamp || 0);
+            
             return idMatch && isAfterCreation;
         });
 
@@ -596,4 +603,5 @@ document.addEventListener('DOMContentLoaded', () => {
         uploadBtn.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', handleUploadCSV);
     }
+
 });
