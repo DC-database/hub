@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "4.0.6"; 
+const APP_VERSION = "4.0.7"; 
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -6093,6 +6093,7 @@ async function handleAddPOToBatch() {
     let isExistingInvoice = false;
     existingRows.forEach(row => { if (!row.dataset.key) isExistingInvoice = true; });
     if (isExistingInvoice) { alert(`A new invoice for PO ${poNumber} is already in the batch list.`); return; }
+
     try {
         await ensureInvoiceDataFetched();
         const poData = allPOData[poNumber];
@@ -6115,8 +6116,7 @@ async function handleAddPOToBatch() {
         const site = poData['Project ID'] || 'N/A';
         const vendor = poData['Supplier Name'] || 'N/A';
         const row = document.createElement('tr');
-        row.setAttribute('data-po', poNumber); row.setAttribute('data-site', site); row.setAttribute
-('data-vendor', vendor); row.setAttribute('data-next-invid', nextInvId);
+        row.setAttribute('data-po', poNumber); row.setAttribute('data-site', site); row.setAttribute('data-vendor', vendor); row.setAttribute('data-next-invid', nextInvId);
 
         row.innerHTML = `
             <td>${poNumber} <span class="new-indicator">(New)</span></td>
@@ -6157,10 +6157,13 @@ async function handleAddPOToBatch() {
         });
         row.choicesInstance = choices; 
 
+        // --- THE FIX IS HERE ---
         const globalAttnValue = imBatchGlobalAttentionChoices ? imBatchGlobalAttentionChoices.getValue(true) : null;
         if (globalAttnValue) {
-            choices.setValue(globalAttnValue); 
+            // Must pass as an array [value] to prevent library errors
+            choices.setValue([globalAttnValue]); 
         }
+        // -----------------------
 
         if (imBatchGlobalStatus.value) statusSelect.value = imBatchGlobalStatus.value;
         if (imBatchGlobalNote.value) noteInput.value = imBatchGlobalNote.value;
@@ -6168,7 +6171,10 @@ async function handleAddPOToBatch() {
         updateBatchCount(); 
 
         batchPOInput.value = ''; batchPOInput.focus();
-    } catch (error) { console.error("Error adding PO to batch:", error); alert('An error occurred while adding the PO.'); }
+    } catch (error) { 
+        console.error("Error adding PO to batch:", error); 
+        alert('An error occurred while adding the PO.'); 
+    }
 }
 
 async function addInvoiceToBatchTable(invData) {
