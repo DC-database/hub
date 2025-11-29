@@ -30550,7 +30550,6 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 ,56202,11251,E-Government,1111,1220,12-02-2025,IBA Head Office,H.Abbas
 ,56203,19999,Cash,173,171,12-02-2025,Eng. Saravanan Palani,H.Abbas
 ,56204,10133,Mohd. Yousuf Kafood & Sons. Trad. & Cont. Co.,M28,60700,12-02-2025,Shahul Hameed,Awais
-,56205,10255,AL WATANIA STEEL QATAR,173,5891150,12-02-2025,Eng. Khamis Farhan,Cyril
 ,56206,19999,Cash,100,80,12-02-2025,IBA Head Office,H.Abbas
 ,56207,19999,Cash,176,309,12-02-2025,Eng. Mohammed Gomaa,H.Abbas
 ,56208,10245,Don Construction Products - Qatar W.L.L,180,2560,12-02-2025,Eng. Al Bara Gharaibeh,Awais
@@ -35787,7 +35786,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 ,61695,30168,RATTAN HOUSE,1061,16000,20-11-2025,Eng. Al Bara Gharaibeh,Awais
 ,61696,19999,Cash,100,712.5,20-11-2025,IBA Head Office,H.Abbas
 21269,61697,11237,Aslak Trading & General Contracting,175,135,20-11-2025,Eng. Sahaya Edwin,Cyril
-21247,61698,11832,Casting Trading Contracting & Services,173,4000,20-11-2025,Eng. Khamis Farhan,mohsin
+21247,61698,11832,Casting Trading Contracting & Services,173,3000,20-11-2025,Eng. Khamis Farhan,mohsin
 21161,61699,19999,Cash,169,157.05,20-11-2025,Eng. Seif Awwad,H.Abbas
 21223,61700,19999,Cash,175,30,20-11-2025,Eng. Seif Awwad,H.Abbas
 21222,61701,19999,Cash,181,390.01,20-11-2025,Eng. Seif Awwad,H.Abbas
@@ -35815,15 +35814,15 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 21288,61724,11600,Lamha Trading Co.,169,337,23-11-2025,Muhammed Siddique,Cyril
 21285,61725,11600,Lamha Trading Co.,181,271,23-11-2025,Muhammed Siddique,Cyril
 21289,61726,11600,Lamha Trading Co.,175,364,23-11-2025,Muhammed Siddique,Cyril
-,61727,30577,Pool Masters Trading Contracting & Services LLC,173,160000,24-11-2025,Eng. Khamis Farhan,Cyril
-,61729,19999,Cash,173,745,23-11-2025,IBA Head Office,sayed
+,61727,30577,Pool Masters Trading Contracting & Services LLC,173,160000,29-11-2025,Eng. Khamis Farhan,Cyril
+,61729,19999,Cash,173,730,23-11-2025,IBA Head Office,sayed
 21263,61730,30170,Sea Gulf For Equipment Company W.L.L,176,1900,23-11-2025,Eng. Khamis Farhan,mohsin
 ,61731,19999,Cash,1111,360,23-11-2025,IBA Head Office,sayed
 ,61732,19999,Cash,176,172,23-11-2025,IBA Head Office,sayed
 ,61733,30395,Specialists Trading & Contracting Co. (W.L.L.),176,5208.59,23-11-2025,Eng. Mohammed Gomaa,Awais
 ,61734,11853,QUALITY HYDRAULICS & GENERAL WLL,173,3200,23-11-2025,IBA Head Office,sayed
 21293,61735,30393,Dream Glass Trading & Contracting W.L.L,166,600,24-11-2025,Eng. Mohamed Abulez,Cyril
-,61736,31055,Multilink Trading & Contracting W.L.L,173,80000,24-11-2025,Eng. Khamis Farhan,Awais
+,61736,31055,Multilink Trading & Contracting W.L.L,173,80000,29-11-2025,Eng. Khamis Farhan,Awais
 ,61737,31059,Saif Trading & Decoration,176,4800,24-11-2025,Eng. Mohammed Gomaa,Awais
 21286,61738,11732,Nay Trading Co. W.L.L.,176,1387.5,24-11-2025,Eng. Mohammed Gomaa,Cyril
 ,61739,11475,Doha Petroleum Construction Co. LTD.,168,1840,24-11-2025,IBA Head Office,sayed
@@ -35870,6 +35869,18 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 21313,61781,10245,Don Construction Products - Qatar W.L.L,166,7150,27-11-2025,Eng. Mohamed Abulez,Cyril
 21306,61782,10151,Hilti Qatar W.L.L,181,1539.94,27-11-2025,Eng. Seif Awwad,Cyril
 ,61783,19999,Cash,M163,236,27-11-2025,IBA Head Office,H.Abbas
-20993,61784,31052,Al Doha Landscape Trading & Contracting W.L.L,173,290730,27-11-2025,Eng. Khamis Farhan,Awais
+20993,61784,19999,Cash,173,290730,27-11-2025,Eng. Khamis Farhan,Awais
 21308,61785,11304,SunTech Trading Co. W.L.L,176,248,27-11-2025,Eng. Mohamed Abdelhamid,Cyril
 ,61786,10243,Al Obaidly Trading & Services W.L.L.,100,632,27-11-2025,IBA Head Office,H.Abbas
+21317,61787,11832,Casting Trading Contracting & Services,181,2000,27-11-2025,Eng. Seif Awwad,sayed
+21315,61788,11847,United Gulf Cement Company,173,27500,29-11-2025,Eng. Khamis Farhan,H.Abbas
+21318,61789,19999,Cash,173,906,29-11-2025,Eng. Khamis Farhan,H.Abbas
+,61790,19999,Cash,173,870,29-11-2025,IBA Head Office,sayed
+21319,61791,11254,New Tools and Bolts Trading,173,624,29-11-2025,Eng. Khamis Farhan,Cyril
+21320,61792,10245,Don Construction Products - Qatar W.L.L,173,1400,29-11-2025,Eng. Khamis Farhan,Cyril
+,61793,19999,Cash,181,328,29-11-2025,IBA Head Office,sayed
+,61794,19999,Cash,100,1093,29-11-2025,IBA Head Office,H.Abbas
+,61795,19999,Cash,176,656,29-11-2025,IBA Head Office,sayed
+21311,61796,19999,Cash,173,844.38,29-11-2025,Eng. Khamis Farhan,H.Abbas
+,61797,19999,Cash,100,7724,29-11-2025,IBA Head Office,Irwin
+,61798,19999,Cash,173,160,29-11-2025,IBA Head Office,sayed
