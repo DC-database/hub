@@ -1,13 +1,15 @@
 // ==========================================================================
-// MATERIAL STOCK MANAGEMENT (With Scrollable History & Breakdown)
+// MATERIAL STOCK MANAGEMENT (Final Version: Strict Exact Match Logic)
 // ==========================================================================
 
 let allMaterialStockData = [];
-let allTransferData = []; // Store transfers for history
+let allTransferData = []; 
 let msProductChoices = null; 
 let lastTypedProductID = ""; 
 
-// 1. Load Data from Firebase (Stock + Transfers)
+// ==========================================================================
+// 1. LOAD DATA (Stock + Transfers)
+// ==========================================================================
 async function populateMaterialStock() {
     const tableBody = document.getElementById('ms-table-body');
     if (!tableBody) return;
@@ -15,13 +17,13 @@ async function populateMaterialStock() {
     tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Loading stock data...</td></tr>';
 
     try {
-        // Fetch both Stock and Transfers in parallel
+        const database = (typeof db !== 'undefined') ? db : firebase.database();
+
         const [stockSnap, transferSnap] = await Promise.all([
-            db.ref('material_stock').once('value'),
-            db.ref('transfer_entries').orderByChild('timestamp').once('value')
+            database.ref('material_stock').once('value'),
+            database.ref('transfer_entries').orderByChild('timestamp').once('value')
         ]);
 
-        // Process Stock
         const stockData = stockSnap.val();
         allMaterialStockData = [];
         if (stockData) {
@@ -30,14 +32,12 @@ async function populateMaterialStock() {
             });
         }
 
-        // Process Transfers
         const tData = transferSnap.val();
         allTransferData = [];
         if (tData) {
             Object.keys(tData).forEach(key => {
                 allTransferData.push({ key: key, ...tData[key] });
             });
-            // Sort newest first
             allTransferData.sort((a, b) => b.timestamp - a.timestamp);
         }
 
@@ -49,13 +49,14 @@ async function populateMaterialStock() {
     }
 }
 
-// 2. Render Table (With Scrollable Breakdown)
+// ==========================================================================
+// 2. RENDER TABLE
+// ==========================================================================
 function renderMaterialStockTable(data) {
     const tableBody = document.getElementById('ms-table-body');
     const searchInput = document.getElementById('ms-search-input');
     const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
     
-    // Helper: Get Site Name
     const getSiteDisplayName = (siteCode) => {
         if (siteCode === "Main Store") return "Main Store";
         const cachedSites = localStorage.getItem('cached_SITES');
@@ -83,7 +84,6 @@ function renderMaterialStockTable(data) {
     }
 
     filtered.forEach(item => {
-        // --- 1. Calculate Current Stock ---
         let totalStock = 0;
         let breakdownRows = '';
         let hasSites = false;
@@ -110,11 +110,13 @@ function renderMaterialStockTable(data) {
             breakdownRows = `<tr><td style="padding-left: 20px;">Unassigned (Global)</td><td>${legacyStock}</td></tr>`;
         }
 
-        // --- 2. Build History Rows ---
-        const productTransfers = allTransferData.filter(t => 
-            (t.productID === item.productID) || (t.productID === item.productId) ||
-            (t.productId === item.productID) || (t.productId === item.productId)
-        );
+        const productTransfers = allTransferData.filter(t => {
+            const idMatch = (t.productID === item.productID) || (t.productID === item.productId) ||
+                            (t.productId === item.productID) || (t.productId === item.productId);
+            // Hide Ghost History: Only show movement after creation
+            const isAfterCreation = t.timestamp >= (item.timestamp || 0);
+            return idMatch && isAfterCreation;
+        });
 
         let historyRows = '';
         if (productTransfers.length === 0) {
@@ -172,15 +174,12 @@ function renderMaterialStockTable(data) {
             </td>
         `;
 
-        // --- CHILD ROW (WITH SCROLLBARS) ---
         const childRow = document.createElement('tr');
         childRow.id = uniqueId;
         childRow.className = 'stock-child-row hidden';
         childRow.innerHTML = `
             <td colspan="7" style="padding: 15px 25px; background-color: #fcfcfc;">
-                
                 <div style="display: flex; gap: 30px; flex-wrap: wrap; align-items: flex-start;">
-                    
                     <div style="flex: 1; min-width: 300px;">
                         <h4 style="margin: 0 0 10px 0; color: #003A5C; border-bottom: 2px solid #003A5C; padding-bottom: 5px;">
                             <i class="fa-solid fa-cubes"></i> Current Stock Breakdown
@@ -192,7 +191,6 @@ function renderMaterialStockTable(data) {
                             </table>
                         </div>
                     </div>
-
                     <div style="flex: 2; min-width: 400px;">
                         <h4 style="margin: 0 0 10px 0; color: #6f42c1; border-bottom: 2px solid #6f42c1; padding-bottom: 5px;">
                             <i class="fa-solid fa-clock-rotate-left"></i> Movement History
@@ -200,20 +198,12 @@ function renderMaterialStockTable(data) {
                         <div style="max-height: 300px; overflow-y: auto; border: 1px solid #eee; background: #fff;">
                             <table class="stock-detail-table" style="width: 100%; margin: 0;">
                                 <thead style="background:#f0f0f0; position: sticky; top: 0;">
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Type</th>
-                                        <th>Route</th>
-                                        <th style="text-align:center;">Qty (Ord/App/Rec)</th>
-                                        <th>By</th>
-                                        <th>Status</th>
-                                    </tr>
+                                    <tr><th>Date</th><th>Type</th><th>Route</th><th style="text-align:center;">Qty (Ord/App/Rec)</th><th>By</th><th>Status</th></tr>
                                 </thead>
                                 <tbody>${historyRows}</tbody>
                             </table>
                         </div>
                     </div>
-
                 </div>
             </td>
         `;
@@ -247,93 +237,179 @@ window.toggleStockDetail = function(rowId, btn) {
 };
 
 // ==========================================================================
-// 3. SMART MODAL: Search & Add (Standard)
+// 3. SMART MODAL: STRICT EXACT MATCH (Final "Kill Switch" Fix)
 // ==========================================================================
 async function openNewMaterialModal() {
     document.getElementById('ms-new-material-form').reset();
     
+    // UI References
     const nameInput = document.getElementById('ms-new-name');
     const detailsInput = document.getElementById('ms-new-details');
+    const qtyInput = document.getElementById('ms-new-stock-qty'); 
+    const selectEl = document.getElementById('ms-new-id');
+    const siteSelect = document.getElementById('ms-new-site-select');
+    const btn = document.getElementById('ms-save-new-btn');
+    const title = document.getElementById('ms-modal-title');
+
+    // State
+    let currentProductData = null; 
+    const isAdmin = (typeof currentApprover !== 'undefined' && (currentApprover.Role || '').toLowerCase() === 'admin');
+
+    // 1. Reset UI
     nameInput.readOnly = false; nameInput.style.backgroundColor = '#fff';
     detailsInput.readOnly = false; detailsInput.style.backgroundColor = '#fff';
+    qtyInput.disabled = false; qtyInput.style.backgroundColor = '#fff';
+    qtyInput.placeholder = "Initial Stock";
+    qtyInput.value = "";
     delete document.getElementById('ms-new-material-form').dataset.existingKey;
-    document.getElementById('ms-modal-title').textContent = "Register New Product";
-    document.getElementById('ms-save-new-btn').textContent = "Save";
+    title.textContent = "Register New Product";
+    btn.textContent = "Save";
 
-    const selectEl = document.getElementById('ms-new-id');
+    // 2. Initialize Dropdown
     if (msProductChoices) msProductChoices.destroy();
     
+    // Pre-build options list for fast checking
     const options = allMaterialStockData.map(item => ({
         value: item.productID || item.productId,
         label: `${item.productID} - ${item.productName}`,
-        customProperties: { name: item.productName, details: item.details, key: item.key }
+        customProperties: { 
+            name: item.productName, 
+            details: item.details, 
+            key: item.key,
+            sites: item.sites || {} 
+        }
     }));
 
     msProductChoices = new Choices(selectEl, {
-        choices: options, searchEnabled: true, shouldSort: false, itemSelectText: '',
-        placeholder: true, placeholderValue: 'Type Product ID or Name...',
-        removeItemButton: true, addItems: true,
-        noResultsText: 'Press Enter (or Click Away) to use this ID',
+        choices: options,
+        searchEnabled: true,
+        shouldSort: false,
+        itemSelectText: '',
+        placeholder: true,
+        placeholderValue: 'Type ID or Name...',
+        removeItemButton: true,
+        addItems: true, 
+        duplicateItemsAllowed: false,
+        addItemFilter: (value) => { return !!value && value !== ""; },
+        
+        // Disable sorting so exact matches appear logically
+        fuseOptions: { threshold: 0.0, distance: 0 }, 
+        
+        noResultsText: 'Press Enter to add this ID',
         addItemText: (value) => `Press Enter to add ID: <b>"${value}"</b>`
     });
 
-    const handleSelection = (val) => {
-        if (!val) return;
-        const selectedItem = msProductChoices._store.choices.find(c => c.value === val);
-
-        if (selectedItem && selectedItem.customProperties && selectedItem.customProperties.key) {
-            const data = selectedItem.customProperties;
-            nameInput.value = data.name;
-            detailsInput.value = data.details;
-            nameInput.readOnly = true; nameInput.style.backgroundColor = '#e9ecef';
-            detailsInput.readOnly = true; detailsInput.style.backgroundColor = '#e9ecef';
-            document.getElementById('ms-new-material-form').dataset.existingKey = data.key;
-            document.getElementById('ms-modal-title').textContent = "Add Stock to Existing Product";
+    // --- LOGIC A: PERMISSION CHECKER ---
+    const checkPermissions = () => {
+        const selectedSite = siteSelect.value;
+        if (!currentProductData) {
+            qtyInput.disabled = false; qtyInput.style.backgroundColor = '#fff'; qtyInput.placeholder = "Initial Stock"; btn.disabled = false;
+            return;
+        }
+        const existingSites = currentProductData.sites || {};
+        if (existingSites[selectedSite] !== undefined) {
+            if (isAdmin) {
+                qtyInput.disabled = false; qtyInput.style.backgroundColor = '#fff'; qtyInput.placeholder = "Add Qty (+)"; btn.disabled = false;
+            } else {
+                qtyInput.disabled = true; qtyInput.style.backgroundColor = '#e9ecef'; qtyInput.value = ""; qtyInput.placeholder = "Already exists (Admin Only)";
+            }
         } else {
-            if (nameInput.readOnly) { nameInput.value = ''; detailsInput.value = ''; }
-            nameInput.readOnly = false; nameInput.style.backgroundColor = '#fff';
-            detailsInput.readOnly = false; detailsInput.style.backgroundColor = '#fff';
-            delete document.getElementById('ms-new-material-form').dataset.existingKey;
-            document.getElementById('ms-modal-title').textContent = "Register New Product";
+            qtyInput.disabled = false; qtyInput.style.backgroundColor = '#fff'; qtyInput.placeholder = "New stock for this site"; btn.disabled = false;
         }
     };
 
-    selectEl.addEventListener('change', (e) => handleSelection(e.detail.value));
-    selectEl.addEventListener('addItem', (e) => handleSelection(e.detail.value));
+    // --- LOGIC B: HANDLE SELECTION (Standard) ---
+    const handleMainSelection = (val) => {
+        if (!val) {
+            currentProductData = null;
+            nameInput.readOnly = false; nameInput.style.backgroundColor = '#fff'; nameInput.value = '';
+            detailsInput.readOnly = false; detailsInput.style.backgroundColor = '#fff'; detailsInput.value = '';
+            delete document.getElementById('ms-new-material-form').dataset.existingKey;
+            title.textContent = "Register New Product";
+            checkPermissions();
+            return;
+        }
 
-    lastTypedProductID = "";
+        const existingMatch = allMaterialStockData.find(item => 
+            (item.productID || item.productId).toLowerCase() === val.toLowerCase()
+        );
+
+        if (existingMatch) {
+            // ---> EXISTING ITEM
+            currentProductData = {
+                name: existingMatch.productName,
+                details: existingMatch.details,
+                key: existingMatch.key,
+                sites: existingMatch.sites || {}
+            };
+            nameInput.value = currentProductData.name;
+            detailsInput.value = currentProductData.details;
+            nameInput.readOnly = true; nameInput.style.backgroundColor = '#e9ecef';
+            detailsInput.readOnly = true; detailsInput.style.backgroundColor = '#e9ecef';
+            document.getElementById('ms-new-material-form').dataset.existingKey = currentProductData.key;
+            title.textContent = "Add Stock to Existing Product";
+        } 
+        else {
+            // ---> NEW ITEM
+            currentProductData = null;
+            if(nameInput.readOnly) { nameInput.value = ''; detailsInput.value = ''; }
+            nameInput.readOnly = false; nameInput.style.backgroundColor = '#fff';
+            detailsInput.readOnly = false; detailsInput.style.backgroundColor = '#fff';
+            delete document.getElementById('ms-new-material-form').dataset.existingKey;
+            title.textContent = "Register New Product";
+        }
+        checkPermissions();
+    };
+
+    selectEl.addEventListener('addItem', (e) => handleMainSelection(e.detail.value));
+    selectEl.addEventListener('removeItem', () => handleMainSelection(null));
+
+    // --- LOGIC C: THE "KILL SWITCH" FOR ENTER KEY ---
     if (msProductChoices.input && msProductChoices.input.element) {
-        msProductChoices.input.element.addEventListener('input', function() {
-            lastTypedProductID = this.value; 
-        });
-        msProductChoices.input.element.addEventListener('blur', function() {
-            const val = lastTypedProductID.trim();
-            const hasSelection = msProductChoices.getValue(true);
-            if (val && !hasSelection) {
-                msProductChoices.setValue([{ value: val, label: val }]);
-                handleSelection(val);
+        const inputEl = msProductChoices.input.element;
+
+        inputEl.addEventListener('keydown', function(e) {
+            // Check for Enter (13) or Tab (9)
+            if (e.keyCode === 13 || e.keyCode === 9) {
+                const val = this.value; 
+                
+                if (val && val.trim() !== "") {
+                    const typedLower = val.trim().toLowerCase();
+
+                    // 1. IS IT A PERFECT 100% MATCH?
+                    const exactMatch = options.find(o => o.value.toLowerCase() === typedLower);
+
+                    if (exactMatch) {
+                        // PERFECT MATCH: Let the library handle it naturally
+                        // (It will select the existing item, which is what we want)
+                        return; 
+                    } 
+                    else {
+                        // NOT A PERFECT MATCH (Even if library is suggesting something similar)
+                        // KILL THE LIBRARY'S EVENT
+                        e.stopImmediatePropagation();
+                        e.preventDefault();
+
+                        // FORCE ADD NEW VALUE
+                        msProductChoices.setValue([{ value: val.trim(), label: val.trim() }]);
+                        handleMainSelection(val.trim());
+                        
+                        // Clean up
+                        msProductChoices.clearInput();
+                        msProductChoices.hideDropdown();
+                        
+                        if (e.keyCode === 9) { setTimeout(() => nameInput.focus(), 50); }
+                    }
+                }
             }
-        });
+        }, true); // <--- TRUE IS CRITICAL (Captures event before library sees it)
     }
 
-    const siteSelect = document.getElementById('ms-new-site-select');
     if (siteSelect) {
         siteSelect.innerHTML = '<option value="Main Store">Main Store</option>'; 
         let sitesData = [];
         const cachedSites = localStorage.getItem('cached_SITES');
         if (cachedSites) { try { sitesData = JSON.parse(cachedSites).data || []; } catch (e) {} }
-
-        if (sitesData.length === 0) {
-            try {
-                const res = await fetch("https://cdn.jsdelivr.net/gh/DC-database/Hub@main/Site.csv");
-                const txt = await res.text();
-                const lines = txt.split('\n');
-                for (let i = 1; i < lines.length; i++) {
-                    const cols = lines[i].split(',');
-                    if (cols.length >= 2) sitesData.push({ site: cols[0].replace(/"/g,'').trim(), description: cols[1].replace(/"/g,'').trim() });
-                }
-            } catch(e) {}
-        }
         
         sitesData.sort((a, b) => parseInt(a.site) - parseInt(b.site));
         sitesData.forEach(site => {
@@ -345,19 +421,20 @@ async function openNewMaterialModal() {
             }
         });
     }
+    
+    siteSelect.addEventListener('change', checkPermissions);
 
     document.getElementById('ms-new-material-modal').classList.remove('hidden');
 }
 
-// --- 4. SAVE LOGIC ---
+// ==========================================================================
+// 4. SAVE LOGIC
+// ==========================================================================
 async function handleSaveNewMaterial() {
     const form = document.getElementById('ms-new-material-form');
-    const existingKey = form.dataset.existingKey;
-    
+    let targetKey = form.dataset.existingKey; 
     let id = msProductChoices ? msProductChoices.getValue(true) : '';
-    if (!id && lastTypedProductID) {
-        id = lastTypedProductID.trim(); 
-    }
+    if (!id && lastTypedProductID) id = lastTypedProductID.trim(); 
 
     const name = document.getElementById('ms-new-name').value.trim();
     const details = document.getElementById('ms-new-details').value.trim();
@@ -368,47 +445,50 @@ async function handleSaveNewMaterial() {
     if (!name) { alert("Product Name is required."); return; }
 
     const btn = document.getElementById('ms-save-new-btn');
-    btn.disabled = true; btn.textContent = "Saving...";
+    btn.disabled = true; btn.textContent = "Processing...";
+
+    const database = (typeof db !== 'undefined') ? db : firebase.database();
 
     try {
-        if (existingKey) {
-            const item = allMaterialStockData.find(m => m.key === existingKey);
+        if (!targetKey) {
+            const existingItem = allMaterialStockData.find(m => (m.productID || m.productId || '').toLowerCase() === id.toLowerCase());
+            if (existingItem) targetKey = existingItem.key; 
+        }
+
+        if (targetKey) {
+            const item = allMaterialStockData.find(m => m.key === targetKey);
             let sites = item.sites || {};
-            const currentSiteStock = parseFloat(sites[selectedSite]) || 0;
-            const newSiteStock = currentSiteStock + stockQty;
-            sites[selectedSite] = newSiteStock;
             
+            if (sites[selectedSite] !== undefined) {
+                alert(`Error: Product "${item.productName}" already exists at ${selectedSite}.\nUse "Add" button to adjust stock.`);
+                btn.disabled = false; btn.textContent = "Save"; return;
+            }
+
+            const confirmMsg = `Product "${item.productName}" exists.\nAdd ${stockQty} to ${selectedSite}?`;
+            if (!confirm(confirmMsg)) { btn.disabled = false; btn.textContent = "Save"; return; }
+
+            sites[selectedSite] = stockQty;
             let newGlobalStock = 0;
             Object.values(sites).forEach(q => newGlobalStock += parseFloat(q));
 
-            await db.ref(`material_stock/${existingKey}`).update({
-                stockQty: newGlobalStock,
-                sites: sites,
-                lastUpdated: firebase.database.ServerValue.TIMESTAMP
+            await database.ref(`material_stock/${targetKey}`).update({
+                stockQty: newGlobalStock, sites: sites, lastUpdated: firebase.database.ServerValue.TIMESTAMP
             });
-            alert(`Stock added to ${selectedSite}!`);
+            alert(`Added ${selectedSite} to existing product!`);
 
         } else {
-            const duplicate = allMaterialStockData.find(m => (m.productID || m.productId || '').toLowerCase() === id.toLowerCase());
-            if (duplicate) {
-                alert("Product ID already exists.");
-                btn.disabled = false;
-                return;
-            }
-
             const sitesInit = {};
             if (stockQty > 0) sitesInit[selectedSite] = stockQty;
 
             const newMaterial = {
-                productID: id,
-                productName: name,
-                details: details,
-                stockQty: stockQty,
-                transferredQty: 0,
+                productID: id, productName: name, details: details,
+                stockQty: stockQty, transferredQty: 0, balanceQty: stockQty,
                 sites: sitesInit,
-                timestamp: firebase.database.ServerValue.TIMESTAMP
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                updatedBy: (typeof currentApprover !== 'undefined' ? currentApprover.Name : 'System')
             };
-            await db.ref('material_stock').push(newMaterial);
+
+            await database.ref('material_stock').push(newMaterial);
             alert("New Product Registered!");
         }
 
@@ -416,7 +496,8 @@ async function handleSaveNewMaterial() {
         populateMaterialStock(); 
 
     } catch (error) {
-        console.error(error); alert("Failed to save.");
+        console.error("Save Error:", error); 
+        alert("Failed to save. Check console.");
     } finally {
         btn.disabled = false; btn.textContent = "Save";
     }
@@ -426,7 +507,8 @@ async function handleSaveNewMaterial() {
 window.handleDeleteMaterial = async function(key) {
     if (!confirm("WARNING: This will permanently delete this material.\n\nAre you sure?")) return;
     try {
-        await db.ref(`material_stock/${key}`).remove();
+        const database = (typeof db !== 'undefined') ? db : firebase.database();
+        await database.ref(`material_stock/${key}`).remove();
         populateMaterialStock(); 
     } catch (error) { alert("Error deleting."); }
 };
@@ -441,6 +523,8 @@ function handleUploadCSV(event) {
         const lines = text.split('\n');
         const updates = {};
         let count = 0;
+        const database = (typeof db !== 'undefined') ? db : firebase.database();
+
         for (let i = 1; i < lines.length; i++) {
             const line = lines[i].trim();
             if (!line) continue;
@@ -451,7 +535,7 @@ function handleUploadCSV(event) {
                 const pDetails = cols[2] ? cols[2].trim() : '';
                 const pStock = parseFloat(cols[3]) || 0;
                 if(pID && pName) {
-                    const newRef = db.ref('material_stock').push();
+                    const newRef = database.ref('material_stock').push();
                     const sitesInit = {};
                     if(pStock > 0) sitesInit["Main Store"] = pStock;
                     updates[newRef.key] = {
@@ -464,7 +548,7 @@ function handleUploadCSV(event) {
         }
         if (count > 0) {
             if(confirm(`Found ${count} items. Upload?`)) {
-                await db.ref('material_stock').update(updates);
+                await database.ref('material_stock').update(updates);
                 alert(`Uploaded ${count} materials.`);
                 populateMaterialStock();
             }

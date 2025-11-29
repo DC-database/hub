@@ -1,151 +1,173 @@
 /* ========================================= */
-/* COMPACT 2-COLUMN TRANSFER MODAL (FINAL)   */
+/* TRANSFER MODAL STYLES (Dropdown Fix)      */
 /* ========================================= */
 
-/* 1. Force the modal container size */
+/* 1. Modal Container - ALLOW OVERFLOW */
 #transfer-job-modal .modal-container {
-    max-width: 850px !important; /* Wide enough for 2 columns */
+    max-width: 900px !important;
     width: 95% !important;
     padding: 0 !important;
     display: flex;
     flex-direction: column;
-    max-height: 90vh !important; /* Never taller than 90% of screen */
-    overflow: hidden !important;
+    height: auto !important;
+    max-height: 90vh !important; /* Keep it within screen */
     border-radius: 8px;
     background: #fff;
+    
+    /* CRITICAL FIX: Allow dropdowns to pop out */
+    overflow: visible !important; 
 }
 
 /* 2. Header Styling */
 #transfer-job-modal .modal-header {
-    padding: 10px 20px !important;
+    padding: 15px 25px !important;
     background-color: #f8f9fa;
     border-bottom: 1px solid #ddd;
-    margin-bottom: 0 !important;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    flex-shrink: 0; /* Prevent header shrinking */
+    border-radius: 8px 8px 0 0;
 }
 
 #transfer-job-modal h2 {
-    font-size: 1.1rem !important;
+    font-size: 1.2rem !important;
     margin: 0 !important;
     font-weight: 700;
     color: #333;
 }
 
-/* 3. Content Area (Scrollable) */
+/* 3. Content Area - SCROLLABLE BUT VISIBLE */
 #transfer-job-modal .modal-content {
-    padding: 20px !important;
-    overflow-y: auto !important; /* Only this part scrolls */
+    padding: 20px 30px !important;
+    
+    /* This allows scrolling if the form is too tall, 
+       but might clip dropdowns if they are very long. 
+       Ideally, Choices.js handles this, but 'visible' is safer if scrolling isn't needed. */
+    overflow-y: auto !important; 
+    overflow-x: visible !important; 
     flex-grow: 1;
 }
 
 /* 4. Footer Styling */
 #transfer-job-modal .modal-footer {
-    padding: 10px 20px !important;
+    padding: 15px 25px !important;
     background-color: #f8f9fa;
     border-top: 1px solid #ddd;
     display: flex;
     justify-content: flex-end;
     gap: 10px;
-    margin-top: 0 !important;
-    flex-shrink: 0; /* Prevent footer shrinking */
+    border-radius: 0 0 8px 8px;
 }
 
-/* 5. THE 2-COLUMN GRID SYSTEM */
+/* 5. 2-Column Grid */
 .transfer-2col-grid {
     display: grid !important;
-    grid-template-columns: 1fr 1fr !important; /* Two Equal Columns */
-    gap: 25px !important; /* Gutter between columns */
+    grid-template-columns: 1fr 1fr !important;
+    gap: 30px !important;
     align-items: start !important;
 }
 
 .transfer-col {
     display: flex;
     flex-direction: column;
-    gap: 10px; /* Vertical space between inputs */
+    gap: 15px;
 }
 
-/* 6. Compact Inputs & Labels */
+/* 6. Inputs & Dropdowns */
 #transfer-job-modal .form-group {
-    margin-bottom: 0 !important; /* Remove external margins */
+    margin-bottom: 0 !important;
     width: 100%;
 }
 
 #transfer-job-modal label {
-    font-size: 0.75rem !important;
-    margin-bottom: 4px !important;
+    font-size: 0.8rem !important;
+    margin-bottom: 5px !important;
     color: #555;
     font-weight: 600;
     display: block;
-    text-align: left;
 }
 
 #transfer-job-modal input, 
 #transfer-job-modal select,
 #transfer-job-modal textarea,
 #transfer-job-modal .choices__inner {
-    height: 34px !important; /* Compact fixed height */
-    min-height: 34px !important;
-    padding: 0 8px !important;
-    font-size: 0.9rem !important;
+    min-height: 40px !important; /* Taller touch target */
+    padding: 5px 10px !important;
+    font-size: 0.95rem !important;
     border: 1px solid #ccc !important;
     border-radius: 4px !important;
     width: 100% !important;
     box-sizing: border-box !important;
-    display: flex;
-    align-items: center;
-    margin-bottom: 0 !important;
+    background-color: #fff !important;
 }
 
 #transfer-job-modal textarea {
-    height: 60px !important; /* Slightly taller for text area */
-    padding: 6px 8px !important;
-    resize: none;
-    align-items: flex-start;
+    height: 80px !important;
+    resize: vertical;
 }
 
-/* 7. Fix Choices.js Height */
-#transfer-job-modal .choices { margin-bottom: 0 !important; }
-#transfer-job-modal .choices__list--single { padding: 0 !important; }
-
-/* 8. Quantity Row (Flexbox) */
-.qty-row {
-    display: flex !important;
-    gap: 10px !important;
-    width: 100%;
-}
-.qty-row .form-group {
-    flex: 1;
+/* Fix Choices.js Dropdown Visibility */
+#transfer-job-modal .choices { 
+    margin-bottom: 0 !important; 
+    overflow: visible !important; 
 }
 
-/* 9. Readonly & Visuals */
+#transfer-job-modal .choices__list--dropdown { 
+    z-index: 9999 !important; /* Float above everything */
+    border: 1px solid #00748C !important;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+/* 7. Visuals */
 #transfer-job-modal input[readonly],
 #transfer-job-modal input:disabled {
     background-color: #f0f0f0 !important;
     color: #888;
-    cursor: not-allowed;
 }
 
-#tf-req-qty { background-color: #f0fbff !important; border-color: #00748C !important; }
-#tf-app-qty { background-color: #fffdf0 !important; border-color: #ffc107 !important; }
-#tf-rec-qty { background-color: #f0fff4 !important; border-color: #28a745 !important; }
+#tf-req-qty { 
+    background-color: #f0fbff !important; 
+    border-color: #00748C !important; 
+    font-weight: bold; 
+}
+
+.sender-required {
+    background-color: #fffde7 !important;
+    border: 1px solid #fdd835 !important;
+}
 
 /* Mobile Override */
 @media (max-width: 768px) {
     .transfer-2col-grid {
-        grid-template-columns: 1fr !important; /* Stack on mobile */
+        grid-template-columns: 1fr !important;
         gap: 15px !important;
     }
-}
-/* --- NEW: Highlight for Sender Fields --- */
-.sender-required {
-    background-color: #fffde7 !important; /* Light Yellow */
-    border: 1px solid #fdd835 !important; /* Yellow-ish Border */
+    #transfer-job-modal .modal-content {
+        overflow-y: auto !important;
+    }
 }
 
-.sender-required:focus {
-    background-color: #ffffff !important; /* White on focus */
-    border-color: #00748C !important;
+/* ========================================= */
+/* PRINT STYLES - BARCODE FIX                */
+/* ========================================= */
+@media print {
+    /* Ensure Barcodes are visible ONLY if they have a source */
+    #wb-barcode-approver[src=""], 
+    #wb-barcode-approver:not([src]),
+    #wb-barcode-receiver[src=""], 
+    #wb-barcode-receiver:not([src]) {
+        display: none !important;
+    }
+
+    /* Ensure text visibility */
+    #wb-esn-text, #wb-receiver-esn-text {
+        color: #000 !important;
+        visibility: visible !important;
+    }
+    
+    /* Ensure containers don't collapse if we need them */
+    #transfer-waybill-template {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
 }

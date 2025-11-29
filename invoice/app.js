@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "3.9.7"; 
+const APP_VERSION = "4.0.6"; 
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -2500,6 +2500,9 @@ async function populateActiveTasks() {
             // Added 'Usage' to this list
             if (['Transfer', 'Restock', 'Return', 'Usage'].includes(entry.for)) {
                 
+		// Add this line for the NEW Usage Flow:
+                if (entry.remarks === 'Pending Confirmation') return entry.requestor === currentUserName;
+
                 // If Pending Source, check Source Contact (Not applicable for Usage usually, but safe to keep)
                 if (entry.remarks === 'Pending Source') return entry.sourceContact === currentUserName;
 
@@ -2682,7 +2685,7 @@ function handleActiveTaskSearch(searchTerm) {
 }
 
 // ==========================================================================
-// UPDATED FUNCTION: renderActiveTaskTable (Added 'Usage' to Transfer View)
+// UPDATED FUNCTION: renderActiveTaskTable (Shows Adjusted/Approved Qty)
 // ==========================================================================
 function renderActiveTaskTable(tasks) {
     const isMobile = window.innerWidth <= 768;
@@ -2693,7 +2696,7 @@ function renderActiveTaskTable(tasks) {
 
     activeTaskTableBody.innerHTML = '';
     
-    // Filter by Hybrid Tabs (Added Usage)
+    // Filter by Hybrid Tabs
     let filteredTasks = tasks.filter(task => {
         const specialTypes = ['Transfer', 'Restock', 'Return', 'Usage'];
         const isSpecialTab = specialTypes.includes(currentActiveTaskFilter);
@@ -2717,14 +2720,14 @@ function renderActiveTaskTable(tasks) {
 
     // --- HEADER SETUP ---
     if (isTransferView) {
+        // Change header to reflect dynamic quantity
         tableHead.innerHTML = `
             <tr>
                 <th class="desktop-only">Control ID</th>
                 <th class="desktop-only">Product Name</th>
                 <th class="desktop-only">Details</th>
                 <th class="desktop-only">Movement</th>
-                <th class="desktop-only">Ordered Qty</th>
-                <th class="desktop-only">Contact</th>
+                <th class="desktop-only">Current Qty</th> <th class="desktop-only">Contact</th>
                 <th class="desktop-only">Status</th>
                 <th class="desktop-only">Action</th>
             </tr>`;
@@ -2762,13 +2765,30 @@ function renderActiveTaskTable(tasks) {
             const fromLoc = task.fromSite || task.fromLocation || 'N/A';
             const toLoc = task.toSite || task.toLocation || 'N/A';
             
-            // Different icon/text for Usage
             let movement = `${fromLoc} <i class="fa-solid fa-arrow-right" style="color: #888; font-size: 0.8rem;"></i> ${toLoc}`;
             if (task.for === 'Usage') {
                 movement = `<span style="color: #6f42c1;">Consumed at ${fromLoc}</span>`;
             }
 
-            const displayQty = task.amount || task.orderedQty || task.requiredQty || 0;
+            // *** FIX: SMART QUANTITY DISPLAY ***
+            // 1. Default to what was ordered/requested
+            let displayQty = task.orderedQty || task.requiredQty || 0;
+            let qtyLabel = ""; // Optional helper text
+
+            // 2. If Source Confirmed (Pending Admin) or Admin Approved (In Transit), show the APPROVED qty
+            // This allows the Approver to see what the Source actually confirmed.
+            if (task.approvedQty !== undefined && task.approvedQty !== null) {
+                displayQty = task.approvedQty;
+                // If it differs from ordered, maybe highlight it?
+                if (displayQty != task.orderedQty) qtyLabel = " (Adj)";
+            }
+
+            // 3. If Received/Completed, show the FINAL RECEIVED qty
+            if (task.receivedQty !== undefined && task.receivedQty !== null) {
+                displayQty = task.receivedQty;
+                qtyLabel = "";
+            }
+            // ***********************************
 
             let statusColor = '#333';
             if(task.remarks === 'Pending') statusColor = '#dc3545'; 
@@ -2781,7 +2801,7 @@ function renderActiveTaskTable(tasks) {
                 <td class="desktop-only">${task.vendorName || task.productName}</td>
                 <td class="desktop-only">${task.details || ''}</td>
                 <td class="desktop-only">${movement}</td>
-                <td class="desktop-only" style="font-weight: bold;">${displayQty}</td>
+                <td class="desktop-only" style="font-weight: bold; color: #003A5C;">${displayQty}${qtyLabel}</td>
                 <td class="desktop-only">${task.contactName || task.requestor || ''}</td>
                 <td class="desktop-only"><span style="color: ${statusColor}; font-weight: bold;">${task.remarks}</span></td>
                 <td class="desktop-only">${actionButtons}</td>
@@ -2789,7 +2809,6 @@ function renderActiveTaskTable(tasks) {
 
         } else {
             // --- STANDARD ROW (Invoice/PR) ---
-            // ... (Existing Standard Row Logic) ...
             const isInvoiceFromIrwin = task.source === 'invoice' && task.enteredBy === 'Irwin';
             const invName = task.invName || '';
             const isClickable = (isInvoiceFromIrwin || (task.source === 'invoice' && invName)) &&
@@ -9431,16 +9450,11 @@ window.logInvoiceHistory = async function(poNumber, invoiceKey, newStatus, note 
     if (!poNumber || !invoiceKey) return;
     
     const historyEntry = {
-            action: nextStatus, // "Pending Admin", "In Transit", "Completed"
-            by: currentUser,
-            timestamp: Date.now(),
-            note: note || ''
-        };
-
-// We push this separately to ensure it's added to the list
-        await db.ref(`transfer_entries/${key}/history`).push(historyEntry);
-
-        await db.ref(`transfer_entries/${key}`).update(updates);    
+        status: newStatus,
+        updatedBy: currentApprover ? currentApprover.Name : 'System',
+        timestamp: Date.now(),
+        note: note || ''
+    };
     
     try {
         await invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}/history`).push(historyEntry);
@@ -9672,10 +9686,15 @@ window.showTransferHistory = async function(key) {
 };    
 
 // ==========================================================================
-// NEW HELPER: Reverse Stock (Undo a transaction)
+// FIXED HELPER: Reverse Stock (Undo a transaction)
 // ==========================================================================
-async function reverseStockInventory(id, qty, jobType) {
+async function reverseStockInventory(id, qty, jobType, fromSite, toSite) {
     if (!id || !qty) return;
+    
+    // Sanitize Site Names
+    const safeFrom = fromSite ? fromSite.replace(/[.#$[\]]/g, "_") : null;
+    const safeTo = toSite ? toSite.replace(/[.#$[\]]/g, "_") : null;
+
     console.log(`Reversing Stock -> Type: ${jobType}, Qty: ${qty}, ID: ${id}`);
 
     try {
@@ -9688,93 +9707,184 @@ async function reverseStockInventory(id, qty, jobType) {
             const data = snapshot.val();
             const key = Object.keys(data)[0];
             const item = data[key];
-
-            let currentTransferred = parseFloat(item.transferredQty) || 0;
-            let currentStock = parseFloat(item.stockQty) || 0;
+            let sites = item.sites || {};
             const amount = parseFloat(qty);
 
-            // --- REVERSAL MATH ---
-            if (jobType === 'Transfer') {
-                // Original: Transferred += Amount
-                // Reversal: Transferred -= Amount
-                currentTransferred -= amount;
-                if (currentTransferred < 0) currentTransferred = 0;
+            // --- REVERSAL LOGIC ---
+            
+            // A. USAGE or RETURN (Original: Deducted Source -> Reversal: ADD Source)
+            if (jobType === 'Usage' || jobType === 'Return') {
+                if (safeFrom) {
+                    let current = parseFloat(sites[safeFrom] || 0);
+                    sites[safeFrom] = current + amount; // Add back to source
+                }
             } 
+            
+            // B. RESTOCK (Original: Added Dest -> Reversal: DEDUCT Dest)
             else if (jobType === 'Restock') {
-                // Original: Stock += Amount
-                // Reversal: Stock -= Amount
-                currentStock -= amount;
-                if (currentStock < 0) currentStock = 0;
+                if (safeTo) {
+                    let current = parseFloat(sites[safeTo] || 0);
+                    sites[safeTo] = current - amount;
+                    if (sites[safeTo] < 0) sites[safeTo] = 0;
+                }
             } 
-            else if (jobType === 'Return') {
-                // Original: Transferred -= Amount
-                // Reversal: Transferred += Amount
-                currentTransferred += amount;
+            
+            // C. TRANSFER (Original: Moved Source->Dest -> Reversal: Move Dest->Source)
+            else {
+                // Default to Transfer logic if type is missing
+                if (safeFrom && safeTo) {
+                    let curFrom = parseFloat(sites[safeFrom] || 0);
+                    let curTo = parseFloat(sites[safeTo] || 0);
+                    
+                    sites[safeFrom] = curFrom + amount; // Return to source
+                    sites[safeTo] = curTo - amount;     // Remove from dest
+                    if (sites[safeTo] < 0) sites[safeTo] = 0;
+                }
             }
 
-            const newBalance = currentStock - currentTransferred;
+            // Recalculate Global Total
+            let newGlobalStock = 0;
+            Object.values(sites).forEach(val => newGlobalStock += parseFloat(val) || 0);
 
             await db.ref(`material_stock/${key}`).update({
-                stockQty: currentStock,
-                transferredQty: currentTransferred,
-                balanceQty: newBalance,
+                sites: sites,
+                stockQty: newGlobalStock,
                 lastUpdated: firebase.database.ServerValue.TIMESTAMP
             });
             console.log("Stock Reversal Successful.");
         }
-    } catch (error) {
-        console.error("Stock reversal error:", error);
-    }
+    } catch (error) { console.error("Stock reversal error:", error); }
 }
 
 // ==========================================================================
-// NEW HANDLER: Delete Transfer Entry (And revert stock if needed)
+// HANDLE DELETE -> PROMPTS FOR QTY -> CREATES RETURN -> REMOVES ORIGINAL
 // ==========================================================================
 async function handleDeleteTransferEntry(key) {
-    if (!confirm("WARNING: Are you sure you want to permanently DELETE this transaction?\n\nIf this transaction was already Completed, the stock quantity will be REVERSED automatically.")) {
+    await ensureAllEntriesFetched(); 
+    const task = allSystemEntries.find(t => t.key === key);
+    
+    if (!task) { alert("Error: Task not found."); return; }
+
+    const isCompleted = ['Completed', 'Received', 'SRV Done'].includes(task.remarks);
+
+    // 1. PENDING TASK? Just Delete.
+    if (!isCompleted) {
+        if (confirm("Delete this pending request?")) {
+            await db.ref(`transfer_entries/${key}`).remove();
+            alert("Request deleted.");
+            location.reload();
+        }
+        return;
+    }
+
+    // 2. DETERMINE MAX QUANTITY
+    // We can only return what was actually received (or ordered if not tracked)
+    const maxQty = parseFloat(task.receivedQty || task.orderedQty || 0);
+
+    if (maxQty <= 0) {
+        alert("Error: This task has no quantity recorded to return.");
+        return;
+    }
+
+    // 3. PROMPT USER FOR QUANTITY
+    const returnQtyStr = prompt(
+        `Creating Return Request for: ${task.productName}\n\nMax Quantity Available: ${maxQty}\n\nPlease enter the Quantity to Return:`, 
+        maxQty
+    );
+
+    // If user clicks Cancel, stop everything
+    if (returnQtyStr === null) return;
+
+    const returnQty = parseFloat(returnQtyStr);
+
+    // 4. VALIDATE QUANTITY
+    if (isNaN(returnQty) || returnQty <= 0) {
+        alert("Invalid Quantity. Please enter a number greater than 0.");
+        return;
+    }
+    if (returnQty > maxQty) {
+        alert(`Error: You cannot return ${returnQty} because the original transaction was only for ${maxQty}.`);
+        return;
+    }
+
+    // 5. DETERMINE LOCATIONS (Robust Site Fix)
+    const origSource = task.fromSite || task.fromLocation || task.site || 'Main Store';
+    const origDest   = task.toSite || task.toLocation || 'Unknown';
+    
+    let retFrom = '';
+    let retTo = '';
+    let detailsMsg = '';
+
+    if (task.jobType === 'Restock') {
+        detailsMsg = `Reversal of Restock (${task.controlNumber})`;
+        retFrom = origDest;       // Deduct from where it is now
+        retTo = 'Outside Supplier'; 
+    } 
+    else if (task.jobType === 'Usage') {
+        detailsMsg = `Reversal of Usage (${task.controlNumber})`;
+        retFrom = origSource; // Usage occurred at source, return adds back to source
+        retTo = origSource;   
+    } 
+    else if (task.jobType === 'Transfer') {
+        detailsMsg = `Reversal of Transfer (${task.controlNumber})`;
+        retFrom = origDest;   // Currently at Destination
+        retTo = origSource;   // Return to Source
+    } else {
+        alert("Cannot reverse this transaction type.");
         return;
     }
 
     try {
-        // 1. Find the task to get details
-        await ensureAllEntriesFetched(); // Ensure we have latest data
-        const task = allSystemEntries.find(t => t.key === key);
+        const currentUser = currentApprover ? currentApprover.Name : 'Unknown';
+        const newRef = db.ref('transfer_entries').push();
         
-        if (!task) {
-            alert("Error: Task not found.");
-            return;
-        }
-
-        // 2. Check if we need to reverse stock
-        // We only reverse if it was "Completed" or "Received", meaning stock was already touched.
-        const isCompleted = ['Completed', 'Received'].includes(task.remarks);
-        
-        if (isCompleted) {
-            const qty = task.receivedQty || task.orderedQty || 0;
-            const pID = task.productID || task.productId;
-            const type = task.jobType || task.for;
+        // 6. CREATE REVERSAL DATA
+        const reversalData = {
+            controlNumber: `RET-${task.controlNumber}`, 
+            jobType: 'Return',
+            for: 'Return', 
+            productID: task.productID || task.productId,
+            productName: task.productName,
+            details: detailsMsg,
             
-            if (pID && qty > 0) {
-                await reverseStockInventory(pID, qty, type);
-                alert(`Stock quantities for ${pID} have been reverted.`);
-            }
-        }
+            // Swapped Locations
+            fromSite: retFrom, 
+            toSite: retTo,
+            fromLocation: retFrom,
+            toLocation: retTo,
+            
+            // USER DEFINED QUANTITY
+            requiredQty: returnQty, 
+            orderedQty: returnQty,
+            
+            requestor: currentUser,
+            approver: task.approver, 
+            receiver: (task.jobType === 'Transfer') ? task.sourceContact : 'System', 
+            
+            status: 'Pending Admin', 
+            remarks: 'Pending Admin',
+            attention: task.approver, 
+            
+            originalJobType: task.jobType, 
+            timestamp: firebase.database.ServerValue.TIMESTAMP,
+            enteredBy: currentUser,
+            history: [{ action: "Return Requested", by: currentUser, timestamp: Date.now(), note: `Qty: ${returnQty}` }]
+        };
 
-        // 3. Delete the entry from Database
+        // 7. SAVE & DELETE OLD
+        await newRef.set(reversalData);
         await db.ref(`transfer_entries/${key}`).remove();
+
+        alert(`Return Request Created for ${returnQty} units! Sent to Approver.`);
         
-        // 4. Refresh UI
-        alert("Transaction record deleted successfully.");
-        
-        // Update local lists instantly
+        // Refresh
         allSystemEntries = allSystemEntries.filter(t => t.key !== key);
-        userActiveTasks = userActiveTasks.filter(t => t.key !== key);
-        
-        populateActiveTasks(); // Re-render table
+        if(typeof populateActiveTasks === 'function') populateActiveTasks();
+        if(document.getElementById('reporting-table-body')) renderReportingTable(allSystemEntries);
 
     } catch (error) {
-        console.error("Delete Error:", error);
-        alert("Failed to delete transaction.");
+        console.error(error);
+        alert("Failed to create return request.");
     }
 }
 
@@ -9823,164 +9933,6 @@ async function updateStockInventory(id, qty, action, siteName) {
     } catch (error) { console.error("Stock update failed:", error); }
 }
     
-// ==========================================================================
-// REPLACED FUNCTION: handleTransferAction (Fixed Site Variable Names)
-// ==========================================================================
-const handleTransferAction = async (status) => {
-    const key = document.getElementById('transfer-modal-key').value;
-    const qty = parseFloat(document.getElementById('transfer-modal-qty').value) || 0;
-    const note = document.getElementById('transfer-modal-note').value;
-    const arrivalDateVal = document.getElementById('transfer-modal-date').value; 
-
-    const btn = status === 'Approved' ? document.getElementById('transfer-modal-approve-btn') : document.getElementById('transfer-modal-reject-btn');
-    btn.disabled = true; btn.textContent = "Processing...";
-
-    // --- HELPER: Generate Mixed ESN (Letters + Numbers) ---
-    const generateMixedESN = (length) => {
-        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        let result = "";
-        for (let i = 0; i < length; i++) {
-            result += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return result;
-    };
-
-    try {
-        const taskIndex = userActiveTasks.findIndex(t => t.key === key);
-        if (taskIndex === -1) throw new Error("Task not found in local list");
-        const task = userActiveTasks[taskIndex];
-
-        // --- CRITICAL FIX: Ensure we get the site names correctly ---
-        const sourceSite = task.fromLocation || task.fromSite;
-        const destSite = task.toLocation || task.toSite;
-        const pID = task.productID || task.productId;
-        // ------------------------------------------------------------
-
-        const jobType = task.jobType || task.for || 'Transfer';
-        let nextStatus = status;
-        let nextAttention = ''; 
-        const updates = { note: note, dateResponded: formatDate(new Date()) };
-
-        if (status === 'Rejected') {
-            nextStatus = 'Rejected';
-            nextAttention = task.requestor; 
-        } 
-        else if (status === 'Approved') {
-            const currentUser = currentApprover ? currentApprover.Name : 'Unknown';
-            const cleanName = currentUser.replace(/Engr\.?\s*/gi, '').trim().toUpperCase();
-
-            // --- STEP 1: SOURCE CONFIRMATION ---
-            if (task.remarks === 'Pending Source') {
-                nextStatus = 'Pending Admin';
-                nextAttention = task.approver;
-                updates.approvedQty = qty; 
-                alert(`Source Confirmed! Sending to Admin: ${nextAttention}`);
-            }
-            
-            // --- STEP 2: ADMIN APPROVAL ---
-            else if (task.remarks === 'Pending Admin' || task.remarks === 'Pending') {
-                if (!task.esn) updates.esn = `${generateMixedESN(12)}/${cleanName}`;
-                updates.approvedQty = qty; 
-
-                if (jobType === 'Restock') {
-                    nextStatus = 'Completed'; nextAttention = 'Records'; updates.receivedQty = qty;
-                    // Add to Destination
-                    if (pID) await updateStockInventory(pID, qty, 'Add', destSite);
-                } 
-                else if (jobType === 'Return') {
-                    nextStatus = 'Completed'; nextAttention = 'Records'; updates.receivedQty = qty;
-                    // Deduct from Source
-                    if (pID) await updateStockInventory(pID, qty, 'Deduct', sourceSite);
-                } 
-                else {
-                    nextStatus = 'In Transit'; nextAttention = task.receiver; 
-                    // Deduct from Source
-                    if (pID && sourceSite) {
-                        await updateStockInventory(pID, qty, 'Deduct', sourceSite);
-                        alert(`Authorized! Stock deducted from ${sourceSite}. Sending to Receiver.`);
-                    } else {
-                        alert("Error: Source Site not defined. Stock not deducted.");
-                    }
-                }
-            } 
-            
-            // --- STEP 3: RECEIVER CONFIRMATION ---
-            else if (task.remarks === 'In Transit' || task.remarks === 'Approved') {
-                nextStatus = 'Completed'; nextAttention = 'Records'; 
-                updates.receivedQty = qty; 
-                if(arrivalDateVal) updates.arrivalDate = arrivalDateVal;
-
-                updates.receiverEsn = `${generateMixedESN(8)}/${cleanName}`;
-
-                // Add to Destination
-                if (pID && destSite) {
-                    await updateStockInventory(pID, qty, 'Add', destSite);
-                    alert(`Transfer Completed! Stock added to ${destSite}.`);
-                } else {
-                    alert("Error: Destination Site not defined. Stock not added.");
-                }
-            }
-        }
-
-        updates.remarks = nextStatus; updates.status = nextStatus; updates.attention = nextAttention; 
-        
-        await db.ref(`transfer_entries/${key}`).update(updates);
-
-        document.getElementById('transfer-approval-modal').classList.add('hidden');
-        cacheTimestamps.systemEntries = 0; 
-        await ensureAllEntriesFetched(true);
-        await populateActiveTasks();
-        
-    } catch (error) { console.error("Error:", error); alert("Failed to update."); } 
-    finally { btn.disabled = false; btn.textContent = status === 'Approved' ? "Approve" : "Reject"; }
-};
-    
-    
-    // 3. Bind Buttons (Removes old listeners to prevent errors)
-    const tfApproveBtn = document.getElementById('transfer-modal-approve-btn');
-    const tfRejectBtn = document.getElementById('transfer-modal-reject-btn');
-
-    if(tfApproveBtn) {
-        const newApprove = tfApproveBtn.cloneNode(true); 
-        tfApproveBtn.parentNode.replaceChild(newApprove, tfApproveBtn);
-        newApprove.addEventListener('click', () => handleTransferAction('Approved'));
-    }
-    
-    if(tfRejectBtn) {
-        const newReject = tfRejectBtn.cloneNode(true); 
-        tfRejectBtn.parentNode.replaceChild(newReject, tfRejectBtn);
-        newReject.addEventListener('click', () => handleTransferAction('Rejected'));
-    }
-
-// --- BACKUP LISTENER FOR MATERIAL STOCK "ADD" BUTTON ---
-    const msTableBody = document.getElementById('ms-table-body');
-    if (msTableBody) {
-        msTableBody.addEventListener('click', (e) => {
-            // Check if the clicked element (or its parent) has the add-stock class
-            const btn = e.target.closest('.ms-add-stock-btn') || e.target.closest('button[onclick*="openAddStockModal"]');
-            
-            if (btn) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                // Extract key from the button's onclick attribute or dataset
-                let key = btn.dataset.key;
-                
-                // Fallback: parse onclick string if dataset is missing
-                if (!key && btn.getAttribute('onclick')) {
-                    const match = btn.getAttribute('onclick').match(/'([^']+)'/);
-                    if (match) key = match[1];
-                }
-
-                if (key && window.openAddStockModal) {
-                    window.openAddStockModal(key);
-                } else {
-                    console.error("Cannot find openAddStockModal function or Key is missing");
-                }
-            }
-        });
-    }
-
     
 
 }); // END OF DOMCONTENTLOADED
