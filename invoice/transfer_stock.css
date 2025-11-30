@@ -212,3 +212,41 @@
     background-color: rgba(255, 255, 255, 0.1);
     border-radius: 50%;
 }
+/* ========================================= */
+/* UNIVERSAL BLUE MODAL HEADER               */
+/* ========================================= */
+
+/* Apply Blue Theme to Batch Search Modal & Transfer Modal */
+#im-batch-search-modal .modal-header,
+#transfer-job-modal .modal-header,
+#im-add-payment-modal .modal-header {
+    background-color: #003A5C !important; /* Brand Blue */
+    color: #ffffff !important;             /* White Text */
+    border-bottom: 3px solid #002a48;      /* 3D Border effect */
+    border-radius: 8px 8px 0 0;
+    padding: 15px 25px;
+}
+
+/* Title Text */
+#im-batch-search-modal .modal-header h2,
+#im-add-payment-modal .modal-header h2 {
+    color: #ffffff !important;
+    font-weight: 700;
+    margin: 0;
+}
+
+/* Close Button (X) */
+#im-batch-search-modal .modal-close-btn,
+#im-add-payment-modal .modal-close-btn {
+    color: #ffffff !important;
+    opacity: 0.8;
+    font-size: 2rem;
+    line-height: 1;
+}
+
+#im-batch-search-modal .modal-close-btn:hover,
+#im-add-payment-modal .modal-close-btn:hover {
+    opacity: 1;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+}

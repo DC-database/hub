@@ -161,11 +161,8 @@ button:hover { background-color: #005a6e; } /* MODIFIED: Darker teal */
 
 #workdesk-datetime, #im-datetime { font-size: 0.9rem; color: #555; font-weight: 500; text-align: right; margin-bottom: 15px; }
 .workdesk-section { background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); }
-
+.workdesk-section h1 { margin-top: 0; margin-bottom: 25px; }
 .workdesk-section h2 { border-bottom: 1px solid #eee; padding-bottom: 10px; margin-top: 0; }
-
-
-
 
 /* ++ NEW: Table Count Display ++ */
 .table-count-display {
@@ -562,147 +559,94 @@ tbody tr:hover { background-color: #f1f1f1; }
     margin-bottom: 0;
     font-weight: normal;
 }
-
-/* ========================================= */
-/* INVOICE MANAGEMENT DASHBOARD (FIXED ALIGNMENT) */
-/* ========================================= */
-
-/* 1. Dashboard Background */
+/* --- INVOICE MANAGEMENT DASHBOARD --- */
+/* ++ NEW: Dark theme for IM Dashboard ++ */
 #im-dashboard {
-    background-color: transparent !important;
+    background-color: var(--db-bg);
 }
-
-/* 2. Main Title */
 #im-dashboard h1 {
-    color: #003A5C !important;
-    border-bottom: 1px solid #e0e0e0;
+    color: var(--db-text-primary);
+    border-bottom: 1px solid var(--db-border);
 }
-
-/* 3. Grid Layout */
-.im-dashboard-grid {
+.im-dashboard-grid { /* Changed from .im-dashboard-full-grid */
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 25px; /* Increased gap for better spacing */
+    grid-template-columns: repeat(3, 1fr); /* 3 columns */
+    gap: 20px;
 }
-
-/* 4. Chart Cards (Base Dark Style) */
 .im-chart-card {
-    background-color: #003A5C !important;
-    color: #ffffff !important;
-    border-radius: 12px;
-    padding: 25px;
-    box-shadow: 0 10px 25px rgba(0, 58, 92, 0.2);
-    border: none !important;
-    display: flex;
-    flex-direction: column;
+    background-color: var(--db-card-bg);
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid var(--db-border);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
-
-/* 5. Headers */
+.im-chart-card.full-width-card {
+    grid-column: 1 / -1; /* Span all 3 columns */
+}
 .im-chart-card h2 {
-    color: #ffffff !important;
-    font-weight: 800;
     margin-top: 0;
     margin-bottom: 20px;
-    font-size: 1.2rem;
-    padding-bottom: 10px;
-    border-bottom-width: 4px;
-    border-bottom-style: solid;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    font-size: 1.1rem;
+    border-bottom: none;
+    color: var(--db-text-primary);
+}
+.im-chart-container-half {
+    height: 300px;
+}
+.im-chart-container-full {
+    height: 350px;
 }
 
-/* --- CARD THEMES (Same as before) --- */
-.im-chart-card:nth-child(1) h2 { border-bottom-color: #d81b60 !important; }
-.im-chart-card:nth-child(1) .top5-value { color: #d81b60 !important; background-color: #ffffff !important; }
-
-.im-chart-card:nth-child(2) h2 { border-bottom-color: #ffc107 !important; }
-.im-chart-card:nth-child(2) .top5-value { color: #ffc107 !important; background-color: rgba(255, 255, 255, 0.1) !important; border: 1px solid #ffc107; }
-
-.im-chart-card:nth-child(3) h2 { border-bottom-color: #28a745 !important; }
-.im-chart-card:nth-child(3) .top5-value { color: #28a745 !important; background-color: #ffffff !important; }
-
-/* Yearly Overview Card */
-.im-chart-card.full-width-card { grid-column: 1 / -1; }
-.im-chart-card:nth-child(4) h2 { border-bottom-color: #5A87D9 !important; }
-
-/* 6. FIXED LIST ALIGNMENT (The Fix) */
+/* ++ NEW: Top 5 List Styles ++ */
 .dashboard-top5-list {
-    list-style: none !important; /* Remove bullets */
-    padding: 0 !important;
-    margin: 0 !important;
-    width: 100%;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 0.9rem;
 }
-
 .dashboard-top5-list li {
-    display: flex !important;
-    justify-content: space-between !important; /* Push Name Left, Value Right */
-    align-items: center !important;
-    padding: 12px 0 !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
-    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--db-border);
+    color: var(--db-text-secondary);
 }
-
 .dashboard-top5-list li:last-child {
-    border-bottom: none !important;
+    border-bottom: none;
 }
-
-/* 7. Names & Values */
 .dashboard-top5-list .top5-name {
-    color: #ffffff;
-    font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    padding-right: 10px;
-    text-align: left;
+    padding-right: 15px;
 }
-
 .dashboard-top5-list .top5-value {
-    font-weight: 800;
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 0.85rem;
+    color: #ffc107;
+    font-weight: 600;
     white-space: nowrap;
-    flex-shrink: 0; /* Prevent value from squishing */
 }
 
-/* 8. Controls (Fixed Width for Year Dropdown) */
+/* ++ NEW: Chart Header Styles ++ */
+.dashboard-chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+.dashboard-chart-header h2 {
+    margin-bottom: 0;
+}
 .dashboard-chart-header select {
-    background-color: rgba(255, 255, 255, 0.1) !important;
-    color: #ffffff !important;
-    border: 1px solid rgba(255, 255, 255, 0.3) !important;
-    
-    /* THE FIX: Prevent stretching */
-    width: auto !important; 
-    min-width: 100px !important; /* Just wide enough for the year */
-    flex-grow: 0 !important;
-    
+    background-color: var(--db-card-bg);
+    color: var(--db-text-primary);
+    border: 1px solid var(--db-border);
     padding: 5px 10px;
     border-radius: 4px;
     font-size: 0.9rem;
+    width: auto;
     margin-bottom: 0;
-    cursor: pointer;
 }
-
-/* Style the dropdown options to match dark theme */
-.dashboard-chart-header select option {
-    background-color: #003A5C;
-    color: white;
-}
-
-/* 9. FIXED CHART HEIGHT (The Fix) */
-.im-chart-container-full {
-    height: 450px !important; /* Increased from 350px */
-    width: 100% !important;
-    position: relative;
-}
-
-/* Mobile Adjustments */
-@media (max-width: 768px) {
-    .im-dashboard-grid {
-        grid-template-columns: 1fr;
-    }
-}
+/* -- End IM Dashboard Styles -- */
 
 
 /* --- BATCH INVOICE ENTRY TABLE STYLES --- */
@@ -2270,7 +2214,7 @@ body.is-admin .legend-admin-only {
     .workdesk-footer-nav ul { display: flex; }
     .workdesk-footer-nav a { padding: 8px; font-size: 18px; margin-bottom: 0; background-color: var(--iba-base-blue-light); } /* MODIFIED: Button color */
     .workdesk-footer-nav a:hover { background-color: var(--iba-base-blue-light); } /* MODIFIED: Hover color */
-    
+    .workdesk-section h1 { font-size: 1.5rem; }
     
     /* --- (MODIFIED) Mobile WorkDesk Nav --- */
     .workdesk-navigation { display: block !important; position: fixed; bottom: 0; left: 0; width: 100%; height: 65px; background-color: #ffffff; box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1); z-index: 1000; margin-top: 0; flex-grow: 0; }
@@ -4122,34 +4066,26 @@ body.is-ceo .desktop-only.col-group {
 /* INVOICE ENTRY FORM MAKEOVER               */
 /* ========================================= */
 
-/* 1. Transform Form into a Card (FIXED OVERFLOW) */
+/* 1. Transform Form into a Card */
 #im-new-invoice-form {
     background: #ffffff;
     border-radius: 8px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); /* Soft Shadow */
     border: 1px solid #e0e0e0;
-    
-    /* CRITICAL FIX: Changed from 'hidden' to 'visible' */
-    overflow: visible !important; 
-    
+    overflow: hidden; /* Clips children to corners */
     margin-bottom: 30px;
-    position: relative; /* Ensure z-index works if needed */
 }
 
-/* 2. The "Cool" Header (Fixed Colors & Corners) */
+/* 2. The "Cool" Header (Blue Bar) */
 #im-new-invoice-form h2#im-form-title {
-    background-color: #003A5C !important; /* Brand Blue Background */
-    color: #ffffff !important;            /* Force White Text */
+    background-color: #003A5C;
+    color: #ffffff;
     padding: 15px 25px;
     margin: 0;
-    
     font-size: 1.2rem;
     font-weight: 600;
     letter-spacing: 0.5px;
-    border-bottom: 3px solid #002a48;
-    
-    /* Rounded corners manually since we removed overflow:hidden */
-    border-radius: 8px 8px 0 0; 
+    border-bottom: 3px solid #002a48; /* Slight 3D effect */
 }
 
 /* 3. Hide the old divider line inside the form */
@@ -4163,21 +4099,13 @@ body.is-ceo .desktop-only.col-group {
     padding: 25px;
 }
 
-/* 5. Improve Button Container Spacing (Transparent Fix) */
+/* 5. Improve Button Container Spacing */
 #im-new-invoice-form .form-buttons-container {
-    padding: 0;                 /* Remove extra padding */
-    background-color: transparent !important; /* Remove Grey Background */
-    border-top: none;           /* Remove border */
+    padding: 20px 25px;
+    background-color: #f8f9fa; /* Light grey footer area */
+    border-top: 1px solid #eee;
     margin-top: 0;
-    
-    /* Ensure it aligns with the search bar */
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    flex-grow: 1;               /* Fill remaining space */
-    justify-content: flex-end;  /* Push buttons to right */
 }
-
 /* ========================================= */
 /* HIGHLIGHTS & MODAL HEADER THEME           */
 /* ========================================= */
@@ -4213,335 +4141,4 @@ body.is-ceo .desktop-only.col-group {
 .input-required-highlight + label::after {
     color: #003A5C; 
     font-weight: bold;
-}
-/* ========================================= */
-/* BATCH ENTRY TABLE MAKEOVER (Premium Grid) */
-/* ========================================= */
-
-/* 1. The Container (Card Look) */
-#im-batch-entry .table-wrapper {
-    background: #ffffff;
-    border-radius: 8px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); /* Soft Shadow */
-    border: 1px solid #e0e0e0;
-    overflow: hidden; /* Clips corners */
-    max-height: 60vh; /* Keeps header fixed while scrolling */
-}
-
-/* 2. The Header (Brand Blue) */
-#im-batch-entry-table thead th {
-    background-color: #003A5C; /* Brand Blue */
-    color: #ffffff;
-    font-weight: 600;
-    padding: 12px 10px;
-    border: none;
-    border-right: 1px solid rgba(255, 255, 255, 0.1); /* Subtle divider */
-    position: sticky;
-    top: 0;
-    z-index: 10;
-}
-
-/* 3. Row Styling */
-#im-batch-entry-table tbody tr {
-    transition: background-color 0.2s ease;
-    border-bottom: 1px solid #eee;
-}
-
-#im-batch-entry-table tbody tr:hover {
-    background-color: #f7fbff; /* Very light blue on hover */
-}
-
-/* 4. Cell Styling */
-#im-batch-entry-table td {
-    padding: 5px; /* Tighter padding for data entry */
-    vertical-align: middle;
-}
-
-/* 5. The "Ghost" Inputs (Clean Look) */
-#im-batch-entry-table .batch-input {
-    width: 100%;
-    padding: 8px;
-    font-size: 0.9rem;
-    
-    /* Subtle default state */
-    border: 1px solid transparent; 
-    background-color: transparent; 
-    border-radius: 4px;
-    color: #333;
-    transition: all 0.2s ease;
-}
-
-/* Give inputs a faint border on hover so user knows they are editable */
-#im-batch-entry-table .batch-input:hover {
-    border: 1px solid #e0e0e0;
-    background-color: #ffffff;
-}
-
-/* 6. Active Input State (Sharp Blue Highlight) */
-#im-batch-entry-table .batch-input:focus {
-    outline: none;
-    background-color: #ffffff;
-    border: 1px solid #003A5C; /* Sharp Brand Blue */
-    box-shadow: 0 2px 6px rgba(0, 58, 92, 0.15); /* Floating effect */
-    color: #003A5C;
-    font-weight: 500;
-}
-
-/* 7. Dropdowns inside the table */
-#im-batch-entry-table select.batch-input {
-    cursor: pointer;
-}
-
-/* 8. The Delete Button (Stylish Red Circle) */
-#im-batch-entry-table .batch-remove-btn {
-    background-color: #ffebee; /* Light Red bg */
-    color: #c62828;            /* Dark Red Icon */
-    border: none;
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.2rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    margin: 0 auto;
-}
-
-#im-batch-entry-table .batch-remove-btn:hover {
-    background-color: #c62828;
-    color: #ffffff;
-    transform: scale(1.1);
-}
-
-/* 9. Indicator Tags */
-.new-indicator {
-    background-color: #28a745;
-    color: white;
-    font-size: 0.65rem;
-    padding: 2px 5px;
-    border-radius: 4px;
-    font-weight: normal;
-    margin-left: 5px;
-    vertical-align: middle;
-}
-
-.existing-indicator {
-    font-size: 0.7rem;
-    color: #00748C;
-    display: block;
-    margin-top: 2px;
-}
-/* ========================================= */
-/* BATCH ENTRY PAGE: FULL MAKEOVER           */
-/* ========================================= */
-
-/* 1. Main Page Header */
-#im-batch-entry h1 {
-    color: #003A5C;
-    font-weight: 800;
-    border-bottom: 3px solid #e0e0e0;
-    padding-bottom: 10px;
-    margin-bottom: 15px;
-    letter-spacing: 0.5px;
-}
-
-#im-batch-entry p {
-    color: #666;
-    margin-bottom: 25px;
-}
-
-/* 2. Control Bars (Containers) - WITH Z-INDEX FIX */
-#im-batch-po-add-container,
-#im-batch-global-controls {
-    background-color: #ffffff !important;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 20px !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-    display: flex;
-    gap: 15px;
-    align-items: flex-end;
-    margin-bottom: 25px;
-    
-    /* CRITICAL: Allow dropdowns to hang out */
-    overflow: visible !important; 
-    position: relative !important;
-}
-
-/* 2a. STACKING ORDER (Fixes dropdown going behind) */
-#im-batch-po-add-container {
-    z-index: 50 !important; /* Top row must be higher */
-}
-
-#im-batch-global-controls {
-    z-index: 20 !important; /* Bottom row must be lower */
-}
-
-/* 3. Input & Dropdown Styling */
-#im-batch-po-add-container input,
-#im-batch-global-controls input,
-#im-batch-global-controls select {
-    border: 1px solid #ccc;
-    background-color: #f9fbfd;
-    border-radius: 6px;
-    padding: 0 15px; 
-    height: 45px;
-    line-height: 45px;
-    font-size: 0.95rem;
-    color: #333;
-    transition: all 0.3s ease;
-    box-sizing: border-box;
-}
-
-/* Choices.js Dropdowns - Inner Box */
-#im-batch-po-add-container .choices .choices__inner, 
-#im-batch-global-controls .choices .choices__inner {
-    border: 1px solid #ccc !important;
-    background-color: #f9fbfd !important;
-    border-radius: 6px !important;
-    padding: 0 15px !important;
-    
-    /* Force Height & Alignment */
-    min-height: 45px !important;
-    height: 45px !important;
-    
-    display: flex !important;
-    align-items: center !important;
-    
-    font-size: 0.95rem !important;
-    color: #333 !important;
-}
-
-/* Fix Dropdown Menu (No Gap + Premium Look) */
-.choices__list.choices__list--dropdown {
-    z-index: 1000 !important;       /* Top of everything */
-    margin-top: 0 !important;       /* NO GAP */
-    top: 100% !important;           /* Snap to bottom */
-    
-    border: 1px solid #003A5C !important; 
-    border-top: none !important;    
-    border-radius: 0 0 6px 6px !important; 
-    
-    box-shadow: 0 10px 20px rgba(0, 58, 92, 0.15) !important;
-    padding: 0 !important;
-    background: white !important;
-}
-
-/* Style the List Items */
-.choices__list--dropdown .choices__item {
-    padding: 10px 15px !important;
-    font-size: 0.9rem !important;
-    color: #333 !important;
-    border-bottom: 1px solid #f0f0f0 !important;
-    transition: background-color 0.2s;
-}
-
-/* Hover Effect */
-.choices__list--dropdown .choices__item--selectable.is-highlighted {
-    background-color: #e3f2fd !important; /* Light Blue */
-    color: #003A5C !important;
-    font-weight: 600 !important;
-}
-
-/* Fix Search Input Inside Dropdown */
-.choices__list--dropdown .choices__input {
-    background-color: #f9f9f9 !important;
-    border-bottom: 1px solid #ddd !important;
-    margin-bottom: 0 !important;
-    padding: 10px !important;
-}
-
-/* Focus State for All Inputs */
-#im-batch-po-add-container input:focus,
-#im-batch-global-controls input:focus,
-#im-batch-global-controls select:focus,
-#im-batch-po-add-container .choices.is-focused .choices__inner,
-#im-batch-global-controls .choices.is-focused .choices__inner {
-    outline: none !important;
-    border-color: #003A5C !important;
-    background-color: #ffffff !important;
-    box-shadow: 0 4px 8px rgba(0, 58, 92, 0.1) !important;
-}
-
-/* 4. Dropdown Labels */
-#im-batch-global-controls label {
-    color: #003A5C;
-    font-weight: 700;
-    font-size: 0.85rem;
-    margin-bottom: 8px;
-    display: block;
-}
-
-/* 5. Buttons */
-#im-batch-entry button {
-    height: 45px;
-    font-weight: 600;
-    border-radius: 6px;
-    letter-spacing: 0.5px;
-    padding: 0 20px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-#im-batch-entry button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-}
-
-/* Button Colors */
-#im-batch-add-po-button { background-color: #003A5C; color: white; }
-#im-batch-save-button { background-color: #28a745; color: white; }
-#im-refresh-batch-button { background-color: #ffffff; color: #555; border: 1px solid #ccc; }
-
-/* ========================================= */
-/* GLOBAL HEADER STANDARDIZATION (BOLD & BIG)*/
-/* Matches the original Batch Entry Style    */
-/* ========================================= */
-
-.workdesk-section h1 {
-    /* 1. Brand Blue Color */
-    color: #003A5C !important;
-    
-    /* 2. Extra Bold & Large (Restored to the style you liked) */
-    font-weight: 800 !important;      /* Extra Bold */
-    font-size: 2rem !important;       /* Much Bigger */
-    letter-spacing: 0.5px !important; /* Slight spacing for impact */
-    
-    /* 3. Thicker Divider Line */
-    border-bottom: 3px solid #e0e0e0 !important; /* Thicker line */
-    padding-bottom: 10px !important;
-    margin-bottom: 25px !important;
-    
-    /* 4. Use the default font (Removed the system font override) */
-    font-family: inherit !important;
-    
-    /* 5. Flex Alignment */
-    display: flex;
-    align-items: baseline; /* Align text by baseline */
-    justify-content: space-between;
-    gap: 15px;
-    margin-top: 0;
-}
-
-/* Ensure the "Total Records" text stays small and grey */
-.workdesk-section h1 span,
-.table-count-display {
-    font-size: 1rem !important;
-    font-weight: 500 !important;
-    color: #6c757d !important;
-    margin-left: 15px;
-    letter-spacing: normal;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important; /* Keep count text clean */
-}
-
-/* Force specific ID headers to follow suit */
-#jobentry-form-title,
-#wd-dayview-title,
-#im-form-title,
-#im-batch-entry h1 {
-    font-weight: 800 !important;
-    border-bottom: 3px solid #e0e0e0 !important;
-    color: #003A5C !important;
 }
