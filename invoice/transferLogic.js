@@ -8,7 +8,7 @@ let editingTransferData = null;
 let tfFromSiteChoices, tfToSiteChoices, tfApproverChoices, tfReceiverChoices, tfSourceContactChoices;
 
 // ==========================================================================
-// 1. OPEN NEW TRANSFER (Creation)
+// 1. OPEN NEW TRANSFER (Creation with Highlights)
 // ==========================================================================
 async function openTransferModal(type) {
     currentTransferType = type;
@@ -27,7 +27,7 @@ async function openTransferModal(type) {
     await initTransferDropdowns(); 
     await generateSequentialTransferId(type);
 
-    // --- VISIBILITY TOGGLES ---
+    // --- VISIBILITY TOGGLES & HIGHLIGHT RESET ---
     const sourceGroup = document.getElementById('tf-from').closest('.form-group');
     const contactGroup = document.getElementById('tf-source-contact').closest('.form-group');
     const destGroup = document.getElementById('tf-to').closest('.form-group');
@@ -35,40 +35,63 @@ async function openTransferModal(type) {
     const recvGroup = document.getElementById('tf-receiver').closest('.form-group');
     const arrivalGroup = document.getElementById('tf-arrival-date').closest('.form-group');
     
-    // HIDE STATUS & REMARKS (System Controlled)
-    const statusGroup = document.getElementById('tf-status').closest('.form-group');
-    const remarksGroup = document.getElementById('tf-remarks').closest('.form-group');
-    statusGroup.style.display = 'none';
-    remarksGroup.style.display = 'none';
+    // Hide Status/Remarks
+    document.getElementById('tf-status').closest('.form-group').style.display = 'none';
+    document.getElementById('tf-remarks').closest('.form-group').style.display = 'none';
 
-    // 1. Reset: Show fields by default
+    // 1. Show all fields by default
     sourceGroup.style.display = 'block';
     contactGroup.style.display = 'block';
     destGroup.style.display = 'block';
     approverGroup.style.display = 'block';
     recvGroup.style.display = 'block';
-    arrivalGroup.style.display = 'none'; // Always hide arrival on create
+    arrivalGroup.style.display = 'none'; 
 
-    // 2. Specific Logic
+    // --- NEW: HIGHLIGHT LOGIC ---
+    
+    // Helper to add/remove highlight class
+    const highlight = (ids, status) => {
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            
+            // Handle Dropdowns (Choices.js) vs Normal Inputs
+            const parentChoices = el.closest('.choices');
+            const target = parentChoices ? parentChoices.querySelector('.choices__inner') : el;
+            
+            if (status) target.classList.add('input-required-highlight');
+            else target.classList.remove('input-required-highlight');
+        });
+    };
+
+    // Clear ALL potential highlights first
+    const allFields = ['tf-product-select', 'tf-req-qty', 'tf-from', 'tf-to', 'tf-source-contact', 'tf-approver', 'tf-receiver'];
+    highlight(allFields, false);
+
+    // 2. Specific Logic & Highlights
     if (type === 'Transfer') {
-        // Show All
+        highlight(['tf-product-select', 'tf-req-qty', 'tf-from', 'tf-to', 'tf-source-contact', 'tf-approver', 'tf-receiver'], true);
     }
     else if (type === 'Restock') {
-        sourceGroup.style.display = 'none'; // No Source
+        sourceGroup.style.display = 'none'; 
         contactGroup.style.display = 'none';
+        highlight(['tf-product-select', 'tf-req-qty', 'tf-to', 'tf-approver', 'tf-receiver'], true);
     }
     else if (type === 'Usage') {
-        destGroup.style.display = 'none'; // No Dest
+        destGroup.style.display = 'none'; 
         recvGroup.style.display = 'none'; 
+        highlight(['tf-product-select', 'tf-req-qty', 'tf-from', 'tf-approver'], true);
     }
     else if (type === 'Return') {
-        // Show All
+        // Return logic is usually handled by initiateReturn, but if opened manually:
+        highlight(['tf-product-select', 'tf-req-qty', 'tf-from', 'tf-to', 'tf-approver'], true);
     }
 
     document.getElementById('transfer-job-modal').classList.remove('hidden');
 }
 
-// 2. OPEN APPROVAL MODAL
+
+// 2. OPEN APPROVAL MODAL (With Highlights)
 window.openTransferActionModal = async function(task) {
     const modal = document.getElementById('transfer-approval-modal');
     const keyInput = document.getElementById('transfer-modal-key');
@@ -81,44 +104,70 @@ window.openTransferActionModal = async function(task) {
     const rejectBtn = document.getElementById('transfer-modal-reject-btn');
     const detailsDiv = document.getElementById('transfer-modal-details');
 
+    // 1. Reset Fields & Highlights
     keyInput.value = task.key;
     if(noteInput) noteInput.value = task.note || '';
+    
+    // Remove old highlights
+    qtyInput.classList.remove('input-required-highlight');
+    if(dateInput) dateInput.classList.remove('input-required-highlight');
     
     qtyInput.disabled = false;
     dateContainer.classList.add('hidden');
     rejectBtn.classList.remove('hidden');
     approveBtn.innerHTML = "Approve";
 
-    // Header Logic
+    // 2. Determine Logic & Highlights based on Status
     if (task.remarks === 'Pending Source') {
         title.textContent = "Step 1: Source Confirmation";
         approveBtn.textContent = "Confirm & Send";
         approveBtn.style.backgroundColor = "#17a2b8"; 
         qtyInput.value = task.orderedQty; 
+        
+        // Highlight Qty
+        qtyInput.classList.add('input-required-highlight');
+
     } else if (task.remarks === 'Pending Admin' || task.remarks === 'Pending') {
         title.textContent = "Step 2: Admin Authorization";
         approveBtn.textContent = "Authorize";
         approveBtn.style.backgroundColor = "#28a745"; 
         qtyInput.value = task.approvedQty || task.orderedQty; 
+        
+        // Highlight Qty
+        qtyInput.classList.add('input-required-highlight');
+
     } else if (task.remarks === 'In Transit') {
         title.textContent = "Step 3: Confirm Receipt";
         approveBtn.textContent = "Confirm Received";
         approveBtn.style.backgroundColor = "#003A5C"; 
         qtyInput.value = task.approvedQty; 
+        
         dateContainer.classList.remove('hidden');
-        if(dateInput) dateInput.value = new Date().toISOString().split('T')[0];
-        rejectBtn.classList.add('hidden');
+        if(dateInput) {
+            dateInput.value = new Date().toISOString().split('T')[0];
+            // Highlight Date
+            dateInput.classList.add('input-required-highlight');
+        }
+        // Highlight Qty
+        qtyInput.classList.add('input-required-highlight');
+        
+        rejectBtn.classList.add('hidden'); 
+
     } else if (task.remarks === 'Pending Confirmation') {
         title.textContent = "Final Step: Confirm Usage";
         approveBtn.textContent = "Confirm Usage";
         approveBtn.style.backgroundColor = "#6f42c1"; 
         qtyInput.value = task.approvedQty;
+        
+        // Highlight Qty
+        qtyInput.classList.add('input-required-highlight');
     }
 
     detailsDiv.innerHTML = `
         <div style="font-size:0.9rem; color:#333;">
             <p><strong>Ref:</strong> ${task.ref || task.controlNumber}</p>
             <p><strong>Item:</strong> ${task.vendorName || task.productName}</p>
+            <p><strong>Type:</strong> ${task.for || 'Transfer'}</p>
             <p><strong>Status:</strong> <span style="color:#00748C; font-weight:bold;">${task.remarks}</span></p>
         </div>`;
 

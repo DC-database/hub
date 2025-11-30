@@ -50,13 +50,15 @@ async function populateMaterialStock() {
 }
 
 // ==========================================================================
-// 2. RENDER TABLE
+// 2. RENDER TABLE (UPDATED: "Return" Button Logic)
 // ==========================================================================
 function renderMaterialStockTable(data) {
     const tableBody = document.getElementById('ms-table-body');
     const searchInput = document.getElementById('ms-search-input');
     const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
-    
+    // Safe check for currentUser
+    const currentUser = (typeof currentApprover !== 'undefined') ? currentApprover.Name : '';
+
     const getSiteDisplayName = (siteCode) => {
         if (siteCode === "Main Store") return "Main Store";
         const cachedSites = localStorage.getItem('cached_SITES');
@@ -113,21 +115,15 @@ function renderMaterialStockTable(data) {
         const stockID = (item.productID || item.productId || '').trim();
 
         const productTransfers = allTransferData.filter(t => {
-            // Standardize the transfer ID for comparison
             const transferID = (t.productID || t.productId || '').trim();
-            
-            // STRICT EXACT MATCH on the standardized IDs
             const idMatch = transferID === stockID;
-            
-            // Hide Ghost History: Only show movement after creation
             const isAfterCreation = t.timestamp >= (item.timestamp || 0);
-            
             return idMatch && isAfterCreation;
         });
 
         let historyRows = '';
         if (productTransfers.length === 0) {
-            historyRows = '<tr><td colspan="6" style="text-align:center; color:#999; font-style:italic; padding: 20px;">No movement history found.</td></tr>';
+            historyRows = '<tr><td colspan="7" style="text-align:center; color:#999; font-style:italic; padding: 20px;">No movement history found.</td></tr>';
         } else {
             productTransfers.forEach(t => {
                 const date = t.shippingDate || new Date(t.timestamp).toISOString().split('T')[0];
@@ -148,6 +144,21 @@ function renderMaterialStockTable(data) {
                 if(t.remarks === 'In Transit') statusColor = '#17a2b8';
                 if(t.remarks.includes('Pending')) statusColor = '#dc3545';
 
+                // --- RETURN BUTTON LOGIC ---
+                let actionBtn = '';
+                
+                // 1. Must be Completed (You physically have the item)
+                const isCompleted = (t.remarks === 'Completed' || t.remarks === 'Received');
+                
+                // 2. You must be the Receiver (It was sent TO you)
+                const isMyReceipt = (t.receiver === currentUser);
+                
+                // 3. Show button if conditions met
+                if (isCompleted && isMyReceipt && type !== 'Return') {
+                    actionBtn = `<button class="secondary-btn" onclick="initiateReturn('${t.key}')" style="padding:2px 8px; font-size:0.75rem; background-color:#ffc107; color:#212529; border:none; border-radius:4px; cursor:pointer;" title="Return this item"><i class="fa-solid fa-rotate-left"></i> Return</button>`;
+                }
+                // ---------------------------
+
                 historyRows += `
                     <tr>
                         <td style="font-size:0.85rem;">${date}</td>
@@ -160,6 +171,7 @@ function renderMaterialStockTable(data) {
                         </td>
                         <td style="font-size:0.85rem;">${t.enteredBy || 'System'}</td>
                         <td style="font-size:0.85rem; font-weight:bold; color:${statusColor};">${t.remarks}</td>
+                        <td style="text-align:center;">${actionBtn}</td>
                     </tr>
                 `;
             });
@@ -205,7 +217,7 @@ function renderMaterialStockTable(data) {
                         <div style="max-height: 300px; overflow-y: auto; border: 1px solid #eee; background: #fff;">
                             <table class="stock-detail-table" style="width: 100%; margin: 0;">
                                 <thead style="background:#f0f0f0; position: sticky; top: 0;">
-                                    <tr><th>Date</th><th>Type</th><th>Route</th><th style="text-align:center;">Qty (Ord/App/Rec)</th><th>By</th><th>Status</th></tr>
+                                    <tr><th>Date</th><th>Type</th><th>Route</th><th style="text-align:center;">Qty</th><th>By</th><th>Status</th><th>Action</th></tr>
                                 </thead>
                                 <tbody>${historyRows}</tbody>
                             </table>
@@ -605,3 +617,49 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 });
+
+// ==========================================================================
+// 8. INITIATE RETURN LOGIC
+// ==========================================================================
+window.initiateReturn = function(transferKey) {
+    // 1. Find the original transfer data
+    const originalTask = allTransferData.find(t => t.key === transferKey);
+    if (!originalTask) {
+        alert("Error: Original transaction data not found.");
+        return;
+    }
+
+    // 2. Open the Modal in "Return" mode
+    openTransferModal('Return');
+
+    // 3. Pre-fill Data (REVERSING THE LOGIC)
+    
+    // Product
+    if (transferProductChoices) {
+        // Set Product (Use ID)
+        transferProductChoices.setChoiceByValue(originalTask.productId || originalTask.productID);
+    }
+    document.getElementById('tf-product-name').value = originalTask.productName;
+    document.getElementById('tf-details').value = `Return of: ${originalTask.controlNumber || originalTask.ref}`;
+
+    // Qty (Default to what was received)
+    document.getElementById('tf-req-qty').value = originalTask.receivedQty || 0;
+
+    // --- CRITICAL: SWAP LOCATIONS ---
+    // Return FROM: Where it is now (The Destination of original)
+    const returnFrom = originalTask.toSite || originalTask.toLocation;
+    
+    // Return TO: Where it came from (The Source of original)
+    const returnTo = originalTask.fromSite || originalTask.fromLocation;
+
+    // Set Dropdowns
+    if (tfFromSiteChoices) tfFromSiteChoices.setChoiceByValue(returnFrom);
+    if (tfToSiteChoices) tfToSiteChoices.setChoiceByValue(returnTo);
+
+    // Set People
+    // Approver: Usually the original sender needs to approve taking it back
+    // Or set to Admin if that's your flow. For now, let's leave it for user to select or map to original Requestor.
+    
+    // Scroll to top of modal
+    document.querySelector('#transfer-job-modal .modal-content').scrollTop = 0;
+};

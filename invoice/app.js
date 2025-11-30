@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "4.0.8"; 
+const APP_VERSION = "4.1.1"; 
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -108,6 +108,7 @@ let allUniqueNotes = new Set();
 let allEcostData = null;
 let ecostDataTimestamp = 0;
 let allPOData = null;
+let allPODataByRef = null;
 let allInvoiceData = null;
 let allApproverData = null;
 let allEpicoreData = null; 
@@ -630,7 +631,10 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
         if (poUrl) {
             const csvData = results[resultIndex++];
             if (csvData === null) throw new Error("Failed to load POVALUE2.csv");
+            
             allPOData = csvData.poDataByPO;
+            allPODataByRef = csvData.poDataByRef; // <--- ADD THIS LINE
+            
             cacheTimestamps.poData = now;
         }
         if (ecostUrl) {
@@ -2430,28 +2434,33 @@ function filterAndRenderReport(baseEntries = []) {
 }
 
 // ==========================================================================
-// REPLACED FUNCTION: handleReportingSearch (Removes "All Jobs" Tab)
+// REPLACED FUNCTION: handleReportingSearch (With PR Auto-Fix)
 // ==========================================================================
 async function handleReportingSearch() {
     reportingTableBody.innerHTML = '<tr><td colspan="11">Loading records...</td></tr>';
+    
     try {
+        // 1. Load Job Entries
         await ensureAllEntriesFetched(); 
         
-        // 1. Get Unique Job Types
+        // 2. Load CSV Data (Required for PR Reconciliation)
+        await ensureInvoiceDataFetched(false);
+
+        // 3. Run Reconciliation (Updates PRs if PO found in CSV)
+        await reconcilePendingPRs();
+
+        // 4. Standard Filtering Logic
         const uniqueJobTypes = [...new Set(allSystemEntries.map(entry => entry.for || 'Other'))];
         uniqueJobTypes.sort(); 
 
         let tabsHTML = '';
 
-        // 2. LOGIC CHANGE: Force selection of the first type if "All" is set
         if (uniqueJobTypes.length > 0) {
-            // If currently set to 'All' (default) OR the current selection doesn't exist anymore
             if (currentReportFilter === 'All' || !uniqueJobTypes.includes(currentReportFilter)) {
-                currentReportFilter = uniqueJobTypes[0]; // Auto-select first tab (e.g., "Invoice")
+                currentReportFilter = uniqueJobTypes[0]; 
             }
         }
 
-        // 3. Generate Tabs (NO "All Jobs" BUTTON ADDED HERE)
         uniqueJobTypes.forEach(jobType => {
             const activeClass = (jobType === currentReportFilter) ? 'active' : '';
             tabsHTML += `<button class="${activeClass}" data-job-type="${jobType}">${jobType}</button>`;
@@ -2460,7 +2469,7 @@ async function handleReportingSearch() {
         const tabsContainer = document.getElementById('report-tabs');
         if(tabsContainer) tabsContainer.innerHTML = tabsHTML;
 
-        // 4. Render
+        // 5. Render
         filterAndRenderReport(allSystemEntries);
 
     } catch (error) {
@@ -2470,7 +2479,7 @@ async function handleReportingSearch() {
 }
 
 // ==========================================================================
-// UPDATED FUNCTION: populateActiveTasks (Added 'Usage' to Transfer Group)
+// UPDATED FUNCTION: populateActiveTasks (Includes PR Auto-Reconciliation)
 // ==========================================================================
 async function populateActiveTasks() {
     activeTaskTableBody.innerHTML = `<tr><td colspan="10">Loading tasks...</td></tr>`;
@@ -2489,27 +2498,37 @@ async function populateActiveTasks() {
         let userTasks = [];
         let pulledInvoiceKeys = new Set(); 
 
+        // 1. Ensure Standard Job Data is Loaded
         await ensureAllEntriesFetched(); 
         await ensureApproverDataCached();
+
+        // 2. NEW: Ensure CSV Data is Loaded (For PR Checks)
+        // Passing 'false' uses cache if available, but ensures 'allPODataByRef' is populated
+        await ensureInvoiceDataFetched(false); 
+
+        // 3. NEW: Run Auto-Reconciliation for PRs
+        // Checks pending PRs against CSV. If found, updates DB to "PO Ready" and removes from this list.
+        if (typeof reconcilePendingPRs === 'function') {
+            await reconcilePendingPRs();
+        }
         
         // --- UPDATED FILTER BLOCK ---
         const jobTasks = allSystemEntries.filter(entry => {
             if (isTaskComplete(entry)) return false; 
 
             // 1. Transfer / Restock / Return / Usage Logic
-            // Added 'Usage' to this list
             if (['Transfer', 'Restock', 'Return', 'Usage'].includes(entry.for)) {
                 
-		// Add this line for the NEW Usage Flow:
+                // Usage Flow
                 if (entry.remarks === 'Pending Confirmation') return entry.requestor === currentUserName;
 
-                // If Pending Source, check Source Contact (Not applicable for Usage usually, but safe to keep)
+                // Pending Source
                 if (entry.remarks === 'Pending Source') return entry.sourceContact === currentUserName;
 
-                // If Pending Admin, check Approver
+                // Pending Admin / Pending
                 if (entry.remarks === 'Pending Admin' || entry.remarks === 'Pending') return entry.approver === currentUserName;
                 
-                // If Approved/In Transit, check Receiver
+                // Approved / In Transit
                 if (entry.remarks === 'Approved' || entry.remarks === 'In Transit') return entry.receiver === currentUserName;
                 
                 // Fallback
@@ -2530,7 +2549,6 @@ async function populateActiveTasks() {
         // ----------------------------------------
 
         userTasks = jobTasks.map(task => {
-            // Added 'Usage' here so it uses the Transfer Table Layout
             if(['Transfer', 'Restock', 'Return', 'Usage'].includes(task.for)) {
                 return {...task, source: 'transfer_entry'}; 
             }
@@ -2625,7 +2643,6 @@ async function populateActiveTasks() {
         const tabCounts = {};
         userActiveTasks.forEach(task => {
             let key = '';
-            // Added 'Usage' here so it gets its own Tab
             if (['Transfer', 'Restock', 'Return', 'Usage'].includes(task.for)) { key = task.for; } 
             else { key = task.remarks || 'Pending'; }
             tabCounts[key] = (tabCounts[key] || 0) + 1;
@@ -2644,7 +2661,7 @@ async function populateActiveTasks() {
                 if(tabName === 'Transfer') badgeColor = '#00748C';
                 if(tabName === 'Restock') badgeColor = '#28a745';
                 if(tabName === 'Return') badgeColor = '#ffc107';
-                if(tabName === 'Usage') badgeColor = '#6f42c1'; // Purple for Usage
+                if(tabName === 'Usage') badgeColor = '#6f42c1'; 
                 
                 tabsHTML += `<button class="${activeClass}" data-status-filter="${tabName}">${tabName} <span class="notification-badge" style="background-color: ${badgeColor}; font-size: 0.7rem; margin-left: 5px;">${tabCounts[tabName]}</span></button>`;
             });
@@ -2662,6 +2679,7 @@ async function populateActiveTasks() {
         activeTaskTableBody.innerHTML = `<tr><td colspan="10">Error loading tasks.</td></tr>`;
     }
 }
+
 function handleActiveTaskSearch(searchTerm) {
     const searchText = searchTerm.toLowerCase();
     sessionStorage.setItem('activeTaskSearch', searchText); 
@@ -2682,6 +2700,85 @@ function handleActiveTaskSearch(searchTerm) {
         });
     }
     renderActiveTaskTable(searchedTasks);
+}
+
+// ==========================================================================
+// AUTO-RECONCILE PR JOBS (FIXED: Order Date & Immediate UI Update)
+// ==========================================================================
+async function reconcilePendingPRs() {
+    // Safety checks: Ensure we have both System Entries and CSV Data
+    if (!allSystemEntries || allSystemEntries.length === 0) return;
+    if (!allPODataByRef) return;
+
+    const updates = {};
+    let updateCount = 0;
+
+    // Loop through all system entries
+    allSystemEntries.forEach(entry => {
+        // Look for: Job Entries -> Type PR -> Not yet "PO Ready" -> Has a Reference No.
+        if (entry.source === 'job_entry' && 
+            entry.for === 'PR' && 
+            entry.remarks !== 'PO Ready' && 
+            entry.ref) {
+            
+            // Clean the reference key (trim spaces)
+            const refKey = String(entry.ref).trim();
+            const matchedPO = allPODataByRef[refKey] || allPODataByRef[refKey.toUpperCase()];
+
+            if (matchedPO) {
+                // --- FOUND A MATCH! Get Data from CSV ---
+                const poNum = matchedPO['PO Number'] || matchedPO['PO'] || matchedPO['po'] || '';
+                const supplier = matchedPO['Supplier Name'] || matchedPO['Supplier'] || matchedPO['Name'] || 'N/A';
+                const entryPerson = matchedPO['Entry Person'] || matchedPO['entry person'] || 'Records';
+                
+                // Get Amount (Remove commas)
+                let amount = entry.amount; 
+                if (matchedPO['Amount']) {
+                    amount = String(matchedPO['Amount']).replace(/,/g, '');
+                }
+
+                // Get ORDER DATE (Use as Date Responded)
+                // Use today as fallback if CSV date is missing
+                let orderDate = matchedPO['Order Date'] || formatDate(new Date());
+                
+                // Normalize date format if needed (e.g., if CSV is DD/MM/YYYY or similar)
+                if (orderDate.includes('/')) {
+                    // Basic normalizer, or assume it's valid string
+                    // You can use your normalizeDateForInput(orderDate) if it needs reformatting
+                }
+
+                // 1. Prepare Database Update
+                const key = entry.key;
+                updates[`job_entries/${key}/po`] = poNum;
+                updates[`job_entries/${key}/vendorName`] = supplier; // Save Vendor to DB
+                updates[`job_entries/${key}/amount`] = amount;
+                updates[`job_entries/${key}/attention`] = entryPerson;
+                updates[`job_entries/${key}/remarks`] = 'PO Ready';
+                updates[`job_entries/${key}/dateResponded`] = orderDate; 
+                
+                // 2. UPDATE LOCAL MEMORY IMMEDIATELY (Crucial for UI)
+                // This ensures the table updates instantly without needing a second refresh
+                entry.po = poNum;
+                entry.vendorName = supplier;
+                entry.amount = amount;
+                entry.attention = entryPerson;
+                entry.remarks = 'PO Ready';
+                entry.dateResponded = orderDate;
+                
+                updateCount++;
+            }
+        }
+    });
+
+    // 3. Commit Updates to Firebase
+    if (updateCount > 0) {
+        console.log(`Auto-Reconcile: Updated ${updateCount} PRs from CSV.`);
+        try {
+            await db.ref().update(updates);
+        } catch (e) {
+            console.error("Error committing PR updates:", e);
+        }
+    }
 }
 
 // ==========================================================================
@@ -5177,7 +5274,22 @@ async function populateSiteFilterDropdown() {
     }
 }
 
+// ==========================================================================
+// 16. INVOICE MANAGEMENT: REPORTING ENGINE (UPDATED)
+// ==========================================================================
+
+// --- STATE TRACKING VARIABLE (Keeps rows open after refresh) ---
+let imLastExpandedRowId = null; 
+
 async function populateInvoiceReporting(searchTerm = '') {
+    // 1. CAPTURE STATE: Before wiping the table, check which row is open
+    const openRow = document.querySelector('#im-reporting-content .detail-row:not(.hidden)');
+    if (openRow) {
+        imLastExpandedRowId = openRow.id; // e.g., "detail-PO12345"
+    } else {
+        imLastExpandedRowId = null;
+    }
+
     sessionStorage.setItem('imReportingSearch', searchTerm);
 
     const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
@@ -5232,8 +5344,7 @@ async function populateInvoiceReporting(searchTerm = '') {
             const site = poDetails['Project ID'] || 'N/A';
             const vendor = poDetails['Supplier Name'] || 'N/A';
             
-            // --- NEW: Search by Note Logic ---
-            // Check if ANY invoice inside this PO has a note matching the search term
+            // Search by Note Logic
             let hasNoteMatch = false;
             if (allInvoicesByPO[poNumber]) {
                 const invoices = Object.values(allInvoicesByPO[poNumber]);
@@ -5241,9 +5352,7 @@ async function populateInvoiceReporting(searchTerm = '') {
                     inv.note && inv.note.toLowerCase().includes(searchText)
                 );
             }
-            // ---------------------------------
             
-            // Updated Match Condition: PO OR Vendor OR Note
             const searchMatch = !searchText || 
                                 poNumber.toLowerCase().includes(searchText) || 
                                 vendor.toLowerCase().includes(searchText) || 
@@ -5258,24 +5367,19 @@ async function populateInvoiceReporting(searchTerm = '') {
             const site = poDetails['Project ID'] || 'N/A';
             const vendor = poDetails['Supplier Name'] || 'N/A';
 
-            // 1. Get Firebase Invoices
             const firebaseInvoices = allInvoicesByPO[poNumber] ? Object.entries(allInvoicesByPO[poNumber]).map(([key, value]) => ({ key, ...value, source: 'firebase' })) : [];
 
-            // 2. Create Block List
             const firebasePackingSlips = new Set(
                 firebaseInvoices.map(inv => String(inv.invNumber || '').trim().toLowerCase()).filter(Boolean) 
             );
 
-            // 3. Get ECommit Invoices
             const ecommitInvoices = allEcommit[poNumber] || []; 
             
-            // 4. Filter ECommit
             const filteredEcommitInvoices = ecommitInvoices.filter(inv => {
                 const csvInvNum = String(inv.invNumber || '').trim().toLowerCase();
                 return !csvInvNum || !firebasePackingSlips.has(csvInvNum);
             });
 
-            // 5. Combine
             let invoices = [...firebaseInvoices, ...filteredEcommitInvoices];
 
             invoices.sort((a, b) => {
@@ -5290,8 +5394,8 @@ async function populateInvoiceReporting(searchTerm = '') {
             });
 
             let calculatedTotalPaid = 0;
-            let latestPaidDate = null;
             let latestPaidDateObj = null;
+            let latestPaidDate = null;
 
             for (const inv of invoices) {
                 if (inv.status === 'Paid') {
@@ -5309,7 +5413,7 @@ async function populateInvoiceReporting(searchTerm = '') {
                                     latestPaidDateObj = currentDate;
                                 }
                             }
-                         } catch (e) { console.warn(`Could not parse date "${dateStr}" for PO ${poNumber}`); }
+                         } catch (e) { }
                     }
                 }
             }
@@ -5321,12 +5425,6 @@ async function populateInvoiceReporting(searchTerm = '') {
                 const normalizedReleaseDate = normalizeDateForInput(inv.releaseDate);
                 const dateMatch = !monthFilter || (normalizedReleaseDate && normalizedReleaseDate.startsWith(monthFilter));
                 const statusMatch = !statusFilter || inv.status === statusFilter;
-                
-                // --- OPTIONAL: Filter inner rows by search term too? ---
-                // Currently, if the PO matches, we show ALL invoices for that PO (filtered by date/status).
-                // This is usually better for context. If you want to hide non-matching rows, 
-                // we would add logic here. For now, I will leave it to show the whole PO context.
-                
                 return dateMatch && statusMatch;
             });
 
@@ -5361,8 +5459,8 @@ async function populateInvoiceReporting(searchTerm = '') {
 
     } catch (error) {
         console.error("Error generating invoice report:", error);
-        if (desktopContainer) desktopContainer.innerHTML = '<p>An error occurred while generating the report. Check console for details.</p>';
-        if (mobileContainer) mobileContainer.innerHTML = '<p>An error occurred while generating the report. Check console for details.</p>';
+        if (desktopContainer) desktopContainer.innerHTML = '<p>An error occurred. Check console.</p>';
+        if (mobileContainer) mobileContainer.innerHTML = '<p>An error occurred. Check console.</p>';
     }
 }
 
@@ -5526,7 +5624,7 @@ function buildMobileReportView(reportData) {
     container.innerHTML = mobileHTML;
 }
 
-// Replace the existing buildDesktopReportView function in app.js
+// Replace the existing buildDesktopReportView function
 function buildDesktopReportView(reportData) {
     const container = document.getElementById('im-reporting-content');
     if (!container) return;
@@ -5542,14 +5640,21 @@ function buildDesktopReportView(reportData) {
     let tableHTML = `<table><thead><tr><th></th><th>PO</th><th>Site</th><th>Vendor</th><th>Value</th><th>Balance</th></tr></thead><tbody>`;
 
     reportData.sort((a, b) => a.poNumber.localeCompare(b.poNumber));
+    
     reportData.forEach(poData => {
-        
         let totalInvValue = 0;
         let totalPaidWithRetention = 0;
         let totalPaidWithoutRetention = 0;
-
         let allWithAccounts = poData.filteredInvoices.length > 0;
+        
+        // --- RESTORE STATE: Check if this row should be open ---
         const detailRowId = `detail-${poData.poNumber}`;
+        const isExpanded = (detailRowId === imLastExpandedRowId);
+        
+        // Use class 'detail-row' if open, 'detail-row hidden' if closed
+        const detailClass = isExpanded ? 'detail-row' : 'detail-row hidden';
+        const buttonText = isExpanded ? '-' : '+';
+        
         let nestedTableRows = '';
         
         poData.filteredInvoices.sort((a, b) => {
@@ -5581,7 +5686,7 @@ function buildDesktopReportView(reportData) {
             let actionButtonsHTML = '';
             
             if (inv.source !== 'ecommit' && (isAdmin || isAccounting)) {
-                // 1. PDF Links
+                // ... Existing Buttons (Edit, PDF, History) ...
                 const invPDFName = inv.invName || '';
                 const invPDFLink = (invPDFName.trim() && invPDFName.toLowerCase() !== 'nil')
                     ? `<a href="${PDF_BASE_PATH}${encodeURIComponent(invPDFName)}.pdf" target="_blank" class="action-btn invoice-pdf-btn" onclick="event.stopPropagation();">Invoice</a>`
@@ -5591,25 +5696,33 @@ function buildDesktopReportView(reportData) {
                     ? `<a href="${SRV_BASE_PATH}${encodeURIComponent(srvPDFName)}.pdf" target="_blank" class="action-btn srv-pdf-btn" onclick="event.stopPropagation();">SRV</a>`
                     : '';
                 
-                // 2. History Button
                 let historyBtn = '';
                 if (inv.history || inv.createdAt || inv.originTimestamp) {
                     historyBtn = `<button type="button" class="history-btn action-btn" title="View Status History" onclick="event.stopPropagation(); showInvoiceHistory('${poData.poNumber}', '${inv.key}')"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
                 }
 
-                // 3. NEW: Quick Edit Inv No Button
                 let editBtn = `<button type="button" class="edit-inv-no-btn action-btn" title="Edit Inv. No." data-po="${poData.poNumber}" data-key="${inv.key}" data-current="${inv.invNumber || ''}"><i class="fa-solid fa-pen-to-square"></i></button>`;
                 
                 actionButtonsHTML = `<div class="action-btn-group">${editBtn} ${invPDFLink} ${srvPDFLink} ${historyBtn}</div>`;
+            } 
+            else if (inv.source === 'ecommit' && (isAdmin || isAccounting)) {
+                // Import Button (Click Visual)
+                actionButtonsHTML = `<span style="font-size:0.8rem; color:#6f42c1; font-weight:bold; cursor:pointer;"><i class="fa-solid fa-file-import"></i> Click to Import</span>`;
             }
             
+            // --- DATA INJECTION: Pass dates to HTML so the click listener can find them ---
             nestedTableRows += `<tr class="nested-invoice-row" 
                                     data-po-number="${poData.poNumber}" 
                                     data-invoice-key="${inv.key}" 
                                     data-source="${inv.source}"
-                                    title="${inv.source === 'ecommit' ? 'Historical Record - Read Only' : 'Click row for full edit'}">
+                                    data-inv-number="${inv.invNumber || ''}"
+                                    data-inv-date="${inv.invoiceDate || ''}"
+                                    data-release-date="${inv.releaseDate || ''}"
+                                    data-inv-value="${inv.invValue || ''}"
+                                    title="${inv.source === 'ecommit' ? 'Click to Import this Epicore Record' : 'Click row for full edit'}">
                 <td>${inv.invEntryID || ''}</td>
-                <td style="font-weight: bold; color: #00748C;">${inv.invNumber || ''}</td> <td>${invoiceDateDisplay}</td>
+                <td style="font-weight: bold; color: #00748C;">${inv.invNumber || ''}</td> 
+                <td>${invoiceDateDisplay}</td>
                 <td>${invValueDisplay}</td>
                 <td>${amountPaidDisplay}</td>
                 <td>${releaseDateDisplay}</td>
@@ -5626,37 +5739,28 @@ function buildDesktopReportView(reportData) {
 
         const totalInvValueDisplay = (isAdmin || isAccounting) ? `<strong>QAR ${formatCurrency(totalInvValue)}</strong>` : '---';
         const totalAmountPaidDisplay = (isAdmin || isAccounting) ? `<strong>QAR ${formatCurrency(finalTotalPaid)}</strong>` : '---';
-        
         const poValueDisplay = (isAdmin || isAccounting) ? (poData.poDetails.Amount ? `QAR ${formatCurrency(poData.poDetails.Amount)}` : 'N/A') : '---';
-        const poValueNum = parseFloat(poData.poDetails.Amount) || 0;
-        
-        const balanceNum = poValueNum - totalInvValue;
+        const balanceNum = (parseFloat(poData.poDetails.Amount) || 0) - totalInvValue;
         const balanceDisplay = (isAdmin || isAccounting) ? `QAR ${formatCurrency(balanceNum)}` : '---';
 
         let highlightClass = '';
         if (isAdmin || isAccounting) {
-            const epsilon = 0.01;
-            const isInvValueMatch = Math.abs(balanceNum) < epsilon;
-            const hasBalance = balanceNum > epsilon;
-
-            if (isInvValueMatch) {
-                if (allWithAccounts) {
-                    const isAmountPaidMatch = Math.abs(finalTotalPaid - poValueNum) < epsilon;
-                    highlightClass = isAmountPaidMatch ? 'highlight-fully-paid' : 'highlight-partial';
-                }
-            } else if (hasBalance) {
-                highlightClass = 'highlight-open-balance';
-            }
+            if (Math.abs(balanceNum) < 0.01) {
+                if (allWithAccounts && Math.abs(finalTotalPaid - parseFloat(poData.poDetails.Amount)) < 0.01) highlightClass = 'highlight-fully-paid';
+                else if (allWithAccounts) highlightClass = 'highlight-partial';
+            } else if (balanceNum > 0.01) highlightClass = 'highlight-open-balance';
         }
 
-        tableHTML += `<tr class="master-row ${highlightClass}" data-target="#${detailRowId}"><td><button class="expand-btn">+</button></td><td>${poData.poNumber}</td><td>${poData.site}</td><td>${poData.vendor}</td><td>${poValueDisplay}</td><td>${balanceDisplay}</td></tr>`;
+        tableHTML += `<tr class="master-row ${highlightClass}" data-target="#${detailRowId}">
+            <td><button class="expand-btn">${buttonText}</button></td>
+            <td>${poData.poNumber}</td><td>${poData.site}</td><td>${poData.vendor}</td><td>${poValueDisplay}</td><td>${balanceDisplay}</td>
+        </tr>`;
         
-        tableHTML += `<tr id="${detailRowId}" class="detail-row hidden"><td colspan="6"><div class="detail-content"><h4>Invoice Entries for PO ${poData.poNumber}</h4><table class="nested-invoice-table"><thead><tr><th>Inv. Entry</th><th>Inv. No.</th><th>Inv. Date</th><th>Inv. Value</th><th>Amt. Paid</th><th>Release Date</th><th>Status</th><th>Note</th><th>Action</th></tr></thead><tbody>${nestedTableRows}</tbody><tfoot><tr><td colspan="3" style="text-align: right;"><strong>TOTAL</strong></td><td>${totalInvValueDisplay}</td><td>${totalAmountPaidDisplay}</td><td colspan="4"></td></tr></tfoot></table></div></td></tr>`;
+        tableHTML += `<tr id="${detailRowId}" class="${detailClass}"><td colspan="6"><div class="detail-content"><h4>Invoice Entries for PO ${poData.poNumber}</h4><table class="nested-invoice-table"><thead><tr><th>Inv. Entry</th><th>Inv. No.</th><th>Inv. Date</th><th>Inv. Value</th><th>Amt. Paid</th><th>Release Date</th><th>Status</th><th>Note</th><th>Action</th></tr></thead><tbody>${nestedTableRows}</tbody><tfoot><tr><td colspan="3" style="text-align: right;"><strong>TOTAL</strong></td><td>${totalInvValueDisplay}</td><td>${totalAmountPaidDisplay}</td><td colspan="4"></td></tr></tfoot></table></div></td></tr>`;
     });
     tableHTML += `</tbody></table>`;
     container.innerHTML = tableHTML;
 }
-
 
 // ==========================================================================
 // 17. INVOICE MANAGEMENT: REPORTING ACTIONS
@@ -6617,13 +6721,14 @@ async function handleGenerateSummary() {
         await ensureInvoiceDataFetched(); 
         const allInvoicesByPO = allInvoiceData;
         const allPOs = allPOData;
+        
+        // This variable holds the data from Ecost.csv
         const epicoreData = allEpicoreData; 
 
         let previousPaymentTotal = 0;
         let currentPaymentTotal = 0;
         let allCurrentInvoices = [];
         
-        // --- NEW: Variables for SRV Lookup ---
         let srvNameForQR = null;
         let foundSrv = false;
 
@@ -6632,18 +6737,17 @@ async function handleGenerateSummary() {
             for (const key in invoices) {
                 const inv = invoices[key];
                 
-                // 1. Logic for Previous Payment Calculation & SRV Lookup
+                // 1. Previous Payment Logic
                 if (inv.note === prevNote) {
                     previousPaymentTotal += parseFloat(inv.invValue) || 0;
                     
-                    // Capture the FIRST matching srvName for the QR code
                     if (!foundSrv && inv.srvName && inv.srvName.toLowerCase() !== 'nil' && inv.srvName.trim() !== '') {
                         srvNameForQR = inv.srvName;
-                        foundSrv = true; // Stop looking after finding one
+                        foundSrv = true; 
                     }
                 }
 
-                // 2. Logic for Current Payment Table
+                // 2. Current Payment Logic
                 if (inv.note === currentNote) {
                     const vendorName = (allPOs[poNumber] && allPOs[poNumber]['Supplier Name']) ? allPOs[poNumber]['Supplier Name'] : 'N/A';
                     const site = (allPOs[poNumber] && allPOs[poNumber]['Project ID']) ? allPOs[poNumber]['Project ID'] : 'N/A';
@@ -6664,35 +6768,26 @@ async function handleGenerateSummary() {
             return; 
         }
 
-        // --- NEW: Generate QR CODE (LINK TO PDF) ---
+        // QR Code Generation
         const qrElement = document.getElementById('sn-prev-summary-qr');
         if (qrElement) {
-            // 1. Clear previous QR code
             qrElement.innerHTML = ''; 
-            
             if (srvNameForQR) {
                 try {
-                    // 2. Construct the Full PDF URL
-                    // SRV_BASE_PATH is defined at the top of your file
                     const pdfUrl = SRV_BASE_PATH + encodeURIComponent(srvNameForQR) + ".pdf";
-
-                    // 3. Generate New QR with the URL
                     new QRCode(qrElement, {
-                        text: pdfUrl, // <--- NOW USES THE FULL LINK
+                        text: pdfUrl, 
                         width: 60,  
                         height: 60, 
                         colorDark : "#000000",
                         colorLight : "#ffffff",
-                        correctLevel : QRCode.CorrectLevel.L // 'L' (Low) is better for long URLs in small sizes
+                        correctLevel : QRCode.CorrectLevel.L 
                     });
                 } catch (e) {
                     console.error("QR generation failed:", e);
                 }
-            } else {
-                console.warn("No SRV Name found for previous note, skipping QR.");
             }
         }
-        // -----------------------------
 
         allCurrentInvoices.sort((a, b) => (a.site || '').localeCompare(b.site || ''));
         const vendorData = allPOs[allCurrentInvoices[0].po];
@@ -6710,11 +6805,23 @@ async function handleGenerateSummary() {
             row.setAttribute('data-po', inv.po); row.setAttribute('data-key', inv.key);
 
             const poKey = inv.po.toUpperCase();
+            
+            // --- UPDATED DESCRIPTION FETCHING LOGIC ---
+            // 1. Try Ecost.csv (Epicore) using PO Key
+            // 2. If not found, use Invoice Details
+            // 3. Fallback to empty string
             let rawDescription = (epicoreData && epicoreData[poKey]) ? epicoreData[poKey] : (inv.details || '');
+            
+            // Ensure it is a string
+            rawDescription = String(rawDescription);
+
             let truncatedDescription = rawDescription;
-            if (rawDescription.length > 25) {
-                truncatedDescription = rawDescription.substring(0, 25) + "...";
+            
+            // Cut to 20 characters as requested
+            if (rawDescription.length > 20) {
+                truncatedDescription = rawDescription.substring(0, 20) + "...";
             }
+            // ------------------------------------------
 
             let invCountDisplay = '';
             if (inv.invEntryID) {
@@ -8877,102 +8984,160 @@ if (imNavReportingLinkMobile) {
         }
     });
 
-    // Find this existing listener in app.js and UPDATE it
-    imReportingContent.addEventListener('click', async (e) => { 
-        
-        // 1. Handle Expand Button (Existing)
-        const expandBtn = e.target.closest('.expand-btn'); 
-        if (expandBtn) { 
-            const masterRow = expandBtn.closest('.master-row'); 
-            const detailRow = document.querySelector(masterRow.dataset.target); 
-            if (detailRow) { 
-                detailRow.classList.toggle('hidden'); 
-                expandBtn.textContent = detailRow.classList.contains('hidden') ? '+' : '-'; 
-            } 
-            return; 
-        }
-
-        // 3. Handle "Edit Inv No" Button (Existing)
-    const editInvBtn = e.target.closest('.edit-inv-no-btn');
-    if (editInvBtn) {
-        e.stopPropagation(); 
-        const po = editInvBtn.dataset.po;
-        const key = editInvBtn.dataset.key;
-        const currentVal = editInvBtn.dataset.current;
-
-        const newVal = prompt("Enter new Invoice Number:", currentVal);
-        
-        if (newVal !== null && newVal.trim() !== currentVal) {
-            try {
-                await invoiceDb.ref(`invoice_entries/${po}/${key}`).update({
-                    invNumber: newVal.trim()
-                });
-                if (allInvoiceData && allInvoiceData[po] && allInvoiceData[po][key]) {
-                    allInvoiceData[po][key].invNumber = newVal.trim();
-                }
-                alert("Invoice Number updated!");
-                const currentSearch = sessionStorage.getItem('imReportingSearch') || '';
-                populateInvoiceReporting(currentSearch);
-            } catch (err) {
-                console.error(err);
-                alert("Error updating invoice number.");
+    // ==========================================================================
+    // 1. REPORTING TABLE LISTENER (UPDATED: IMPORT DEFAULTS)
+    // ==========================================================================
+    if (imReportingContent) {
+        imReportingContent.addEventListener('click', async (e) => { 
+            
+            // 1. Handle Expand Button
+            const expandBtn = e.target.closest('.expand-btn'); 
+            if (expandBtn) { 
+                const masterRow = expandBtn.closest('.master-row'); 
+                const detailRow = document.querySelector(masterRow.dataset.target); 
+                if (detailRow) { 
+                    detailRow.classList.toggle('hidden'); 
+                    expandBtn.textContent = detailRow.classList.contains('hidden') ? '+' : '-'; 
+                } 
+                return; 
             }
-        }
-        return;
+
+            // 2. Handle "Edit Inv No" Button
+            const editInvBtn = e.target.closest('.edit-inv-no-btn');
+            if (editInvBtn) {
+                e.stopPropagation(); 
+                const po = editInvBtn.dataset.po;
+                const key = editInvBtn.dataset.key;
+                const currentVal = editInvBtn.dataset.current;
+
+                const newVal = prompt("Enter new Invoice Number:", currentVal);
+                
+                if (newVal !== null && newVal.trim() !== currentVal) {
+                    try {
+                        await invoiceDb.ref(`invoice_entries/${po}/${key}`).update({
+                            invNumber: newVal.trim()
+                        });
+                        if (allInvoiceData && allInvoiceData[po] && allInvoiceData[po][key]) {
+                            allInvoiceData[po][key].invNumber = newVal.trim();
+                        }
+                        alert("Invoice Number updated!");
+                        const currentSearch = sessionStorage.getItem('imReportingSearch') || '';
+                        populateInvoiceReporting(currentSearch);
+                    } catch (err) {
+                        console.error(err);
+                        alert("Error updating invoice number.");
+                    }
+                }
+                return;
+            }
+
+            // 3. Handle Row Click (Import or Edit)
+            const invoiceRow = e.target.closest('.nested-invoice-row');
+            if (invoiceRow) {
+                const userPositionLower = (currentApprover?.Position || '').toLowerCase();
+                if (userPositionLower !== 'accounting') return; 
+
+                const poNumber = invoiceRow.dataset.poNumber;
+                const invoiceKey = invoiceRow.dataset.invoiceKey;
+                const source = invoiceRow.dataset.source; 
+
+                if (!poNumber || !invoiceKey) return;
+
+                // --- SCENARIO A: IMPORT FROM EPICORE (CSV) ---
+                if (source === 'ecommit') {
+                    if (confirm(`Import this Epicore record to Invoice Entry?\n\nPO: ${poNumber}\nInv: ${invoiceRow.dataset.invNumber || 'N/A'}`)) {
+                        
+                        imNav.querySelector('a[data-section="im-invoice-entry"]').click();
+                        imPOSearchInput.value = poNumber;
+                        
+                        handlePOSearch(poNumber).then(() => {
+                            setTimeout(() => {
+                                const invNo = invoiceRow.dataset.invNumber;
+                                const invDate = invoiceRow.dataset.invDate;
+                                const releaseDate = invoiceRow.dataset.releaseDate; 
+                                const invValue = invoiceRow.dataset.invValue;
+
+                                if (invNo) document.getElementById('im-inv-no').value = invNo;
+                                if (invDate) document.getElementById('im-invoice-date').value = normalizeDateForInput(invDate);
+                                if (releaseDate) document.getElementById('im-release-date').value = normalizeDateForInput(releaseDate);
+                                
+                                if (invValue) {
+                                    document.getElementById('im-inv-value').value = invValue;
+                                    document.getElementById('im-amount-paid').value = invValue; 
+                                }
+
+                                // --- UPDATED IMPORT DEFAULTS ---
+                                document.getElementById('im-status').value = 'Under Review'; 
+                                document.getElementById('im-inv-name').value = 'Nil';
+                                if (imAttentionSelectChoices) imAttentionSelectChoices.removeActiveItems(); // Clear Attention
+                                // -------------------------------
+                                
+                                currentlyEditingInvoiceKey = null; 
+                                imAddInvoiceButton.classList.remove('hidden');
+                                imUpdateInvoiceButton.classList.add('hidden');
+                                imFormTitle.textContent = `Importing Invoice: ${invNo || 'New'}`;
+
+                                document.getElementById('im-new-invoice-form').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }, 500); 
+                        });
+                    }
+                    return; 
+                }
+
+                // --- SCENARIO B: EDIT EXISTING FIREBASE ENTRY ---
+                if (confirm(`Do you want to edit this specific invoice entry?\n\nPO: ${poNumber}\nInvoice Key: ${invoiceKey}`)) {
+                     imNav.querySelector('a[data-section="im-invoice-entry"]').click();
+                     imPOSearchInput.value = poNumber;
+                     
+                     ensureInvoiceDataFetched().then(() => {
+                        currentPO = poNumber;
+                        if (allPOData && allPOData[poNumber]) {
+                            proceedWithPOLoading(poNumber, allPOData[poNumber]).then(() => {
+                                populateInvoiceFormForEditing(invoiceKey);
+                                imBackToActiveTaskButton.classList.remove('hidden');
+                            });
+                        } else {
+                            handlePOSearch(poNumber).then(() => {
+                                setTimeout(() => { populateInvoiceFormForEditing(invoiceKey); }, 300);
+                            });
+                        }
+                    });
+                }
+                return; 
+            }
+        });
     }
 
 
-        // 3. Handle Row Click (Existing - Full Edit)
-        const invoiceRow = e.target.closest('.nested-invoice-row');
-        if (invoiceRow) {
-            // ... (Keep your existing logic for opening the full edit form) ...
-            // Just ensure this logic runs ONLY if the above buttons weren't clicked
-            const userPositionLower = (currentApprover?.Position || '').toLowerCase();
-            if (userPositionLower !== 'accounting') return; 
-
-            // ... rest of your existing row click logic ...
-            const poNumber = invoiceRow.dataset.poNumber;
-            const invoiceKey = invoiceRow.dataset.invoiceKey;
-            if (!poNumber || !invoiceKey) return;
-
-            if (confirm(`Do you want to edit this specific invoice entry?\n\nPO: ${poNumber}\nInvoice Key: ${invoiceKey}`)) {
-                 // ... switch to edit view logic ...
-                 imNav.querySelector('a[data-section="im-invoice-entry"]').click();
-                 imPOSearchInput.value = poNumber;
-                 ensureInvoiceDataFetched().then(() => {
-                    currentPO = poNumber;
-                    if (allPOData && allPOData[poNumber]) {
-                        proceedWithPOLoading(poNumber, allPOData[poNumber]).then(() => {
-                            populateInvoiceFormForEditing(invoiceKey);
-                            imBackToActiveTaskButton.classList.remove('hidden');
-                        });
-                    } else {
-                        handlePOSearch(poNumber).then(() => {
-                            setTimeout(() => { populateInvoiceFormForEditing(invoiceKey); }, 300);
-                        });
-                    }
-                });
-            }
+    // Reporting Form Listeners
+if (imReportingForm) {
+    imReportingForm.addEventListener('submit', (e) => { 
+        e.preventDefault(); 
+        const searchTerm = imReportingSearchInput.value.trim(); 
+        if (!searchTerm && !document.getElementById('im-reporting-site-filter').value && !document.getElementById('im-reporting-date-filter').value && !document.getElementById('im-reporting-status-filter').value) { 
+            document.getElementById('im-reporting-content').innerHTML = '<p style="color: red; font-weight: bold;">Please specify at least one search criteria.</p>'; 
             return; 
-        }
+        } 
+        populateInvoiceReporting(searchTerm); 
     });
+}
 
+if (imReportingClearButton) {
+    imReportingClearButton.addEventListener('click', () => { 
+        imReportingForm.reset(); 
+        sessionStorage.removeItem('imReportingSearch'); 
+        document.getElementById('im-reporting-content').innerHTML = '<p>Please enter a search term and click Search.</p>'; 
+        currentReportData = []; 
+        if (reportingCountDisplay) reportingCountDisplay.textContent = ''; 
+    });
+}
 
+if (imReportingDownloadCSVButton) imReportingDownloadCSVButton.addEventListener('click', handleDownloadCSV);
+if (imDownloadDailyReportButton) imDownloadDailyReportButton.addEventListener('click', handleDownloadDailyReport);
+if (imDownloadWithAccountsReportButton) imDownloadWithAccountsReportButton.addEventListener('click', handleDownloadWithAccountsReport);
+if (imReportingPrintBtn) imReportingPrintBtn.addEventListener('click', handleGeneratePrintReport);
 
-
-
-
-
-
-
-
-    imReportingForm.addEventListener('submit', (e) => { e.preventDefault(); const searchTerm = imReportingSearchInput.value.trim(); if (!searchTerm && !document.getElementById('im-reporting-site-filter').value && !document.getElementById('im-reporting-date-filter').value && !document.getElementById('im-reporting-status-filter').value) { imReportingContent.innerHTML = '<p style="color: red; font-weight: bold;">Please specify at least one search criteria.</p>'; return; } populateInvoiceReporting(searchTerm); });
-    imReportingClearButton.addEventListener('click', () => { imReportingForm.reset(); sessionStorage.removeItem('imReportingSearch'); imReportingContent.innerHTML = '<p>Please enter a search term and click Search.</p>'; currentReportData = []; if (reportingCountDisplay) reportingCountDisplay.textContent = ''; });
-    imReportingDownloadCSVButton.addEventListener('click', handleDownloadCSV);
-    imDownloadDailyReportButton.addEventListener('click', handleDownloadDailyReport);
-    if(imDownloadWithAccountsReportButton) imDownloadWithAccountsReportButton.addEventListener('click', handleDownloadWithAccountsReport);
-    if(imReportingPrintBtn) imReportingPrintBtn.addEventListener('click', handleGeneratePrintReport);
-    
+if (imStatusSelect) {
     imStatusSelect.addEventListener('change', (e) => {
         if (imAttentionSelectChoices) {
             if (e.target.value === 'Under Review') {
@@ -8980,6 +9145,7 @@ if (imNavReportingLinkMobile) {
             }
         }
     });
+}
 
     // --- 11. Modals, Settings & Misc Listeners ---
 
@@ -8994,6 +9160,8 @@ if (imNavReportingLinkMobile) {
             settingsReplacementEmailInput.value = '';
         }
     });
+
+
 
     if (calendarModalViewTasksBtn) {
         calendarModalViewTasksBtn.addEventListener('click', () => { 
@@ -9940,6 +10108,5 @@ async function updateStockInventory(id, qty, action, siteName) {
 }
     
     
-
 
 }); // END OF DOMCONTENTLOADED

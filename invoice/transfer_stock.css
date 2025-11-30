@@ -171,3 +171,44 @@
         print-color-adjust: exact !important;
     }
 }
+/* ========================================= */
+/* HIGHLIGHTS & MODAL HEADER THEME           */
+/* ========================================= */
+
+/* 1. Blue Highlight for Required Fields */
+.input-required-highlight {
+    border: 4px solid #003A5C !important; /* Brand Blue Border */
+    background-color: #e3f2fd !important; /* Very Light Blue Tint Background */
+    box-shadow: 0 0 8px rgba(0, 58, 92, 0.3); /* Blue Glow */
+    transition: all 0.3s ease;
+}
+
+/* Optional: Update the label text color to match */
+.input-required-highlight + label::after {
+    color: #003A5C; 
+}
+
+/* 2. "New Transaction" Modal Header Styling */
+#transfer-job-modal .modal-header {
+    background-color: #003A5C !important; /* Blue Background */
+    color: #ffffff !important;             /* White Text */
+    border-bottom: 4px solid #002a48;      /* Darker Border */
+    border-radius: 8px 8px 0 0;            /* Rounded top corners */
+}
+
+/* Force the Title to be White */
+#transfer-job-modal .modal-header h2 {
+    color: #ffffff !important;
+}
+
+/* Make the Close (X) button White so it is visible */
+#transfer-job-modal .modal-header .modal-close-btn {
+    color: #ffffff !important;
+    opacity: 0.8;
+}
+
+#transfer-job-modal .modal-header .modal-close-btn:hover {
+    opacity: 1;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+}
