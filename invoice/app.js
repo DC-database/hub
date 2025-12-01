@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "4.1.3"; 
+const APP_VERSION = "4.1.6"; 
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -1005,7 +1005,7 @@ const jobDateInput = document.getElementById('job-date');
 const jobEntrySearchInput = document.getElementById('job-entry-search'); 
 const jobEntryTableWrapper = document.getElementById('job-entry-table-wrapper'); 
 const jobEntryTableBody = document.getElementById('job-entry-table-body');
-const jobEntryFormTitle = document.getElementById('jobentry-form-title');
+const jobEntryFormTitle = document.getElementById('standard-modal-title');
 const deleteJobButton = document.getElementById('delete-job-button'); 
 const jobEntryNavControls = document.getElementById('jobentry-nav-controls'); 
 const navPrevJobButton = document.getElementById('nav-prev-job'); 
@@ -2400,7 +2400,7 @@ function filterAndRenderReport(baseEntries = []) {
 
     // 1. Filter by Tab (Job Type)
     if (currentReportFilter !== 'All') {
-        filteredEntries = filteredEntries.filter(entry => entry.for === currentReportFilter);
+        filteredEntries = filteredEntries.filter(entry => (entry.for || 'Other') === currentReportFilter);
     }
 
     // 2. Filter by Search Text
@@ -3123,57 +3123,61 @@ async function processMobileCEOAction(taskData, status, amount, note, cardElemen
 // --- Form Reset & Dropdown Population ---
 
 function resetJobEntryForm(keepJobType = false) {
-    const jobType = jobForSelect.value;
-    jobEntryForm.reset(); 
+    const jobType = document.getElementById('job-for').value;
     
+    // 1. Reset the actual form inputs
+    document.getElementById('jobentry-form').reset(); 
+    
+    // 2. Restore Job Type if requested
     if (keepJobType) {
-         jobForSelect.value = jobType;
+         document.getElementById('job-for').value = jobType;
     }
 
-    currentlyEditingKey = null;
-    ['job-amount', 'job-po'].forEach(id => document.getElementById(id).classList.remove('highlight-field'));
+    // 3. CRITICAL: Switch Mode back to "ADD"
+    currentlyEditingKey = null; // Forget the ID we were editing
+    document.getElementById('standard-modal-title').textContent = 'Add New Job Entry';
+
+    // 4. Toggle Buttons (Hide Update/Delete, Show Add)
+    // We use classList to ensure we don't break the layout
+    const addBtn = document.getElementById('add-job-button');
+    const updateBtn = document.getElementById('update-job-button');
+    const deleteBtn = document.getElementById('delete-job-button');
+
+    if(addBtn) addBtn.classList.remove('hidden');
+    if(updateBtn) updateBtn.classList.add('hidden');
+    if(deleteBtn) deleteBtn.classList.add('hidden');
+
+    // 5. Remove Highlight Visuals
+    ['job-amount', 'job-po'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.classList.remove('highlight-field');
+    });
     
-    if (attentionSelectChoices.disabled) {
-        attentionSelectChoices.enable();
+    // 6. Reset Dropdowns (Choices.js)
+    if (attentionSelectChoices) {
+        if (attentionSelectChoices.disabled) attentionSelectChoices.enable();
+        attentionSelectChoices.clearInput();
+        attentionSelectChoices.removeActiveItems();
+        // Repopulate to ensure list is clean
+        populateAttentionDropdown(attentionSelectChoices); 
     }
-    attentionSelectChoices.clearInput();
-    attentionSelectChoices.removeActiveItems();
-    populateAttentionDropdown(attentionSelectChoices);
     
     if (siteSelectChoices) {
         siteSelectChoices.clearInput();
         siteSelectChoices.removeActiveItems();
     }
 
-    jobEntryFormTitle.textContent = 'Add New Job Entry';
-    
-    // --- STRICT UI RESET: FORCE NORMAL VIEW ---
-    // 1. Hide Transfer Stuff
+    // 7. Hide Transfer Fields (Just in case)
     const transferContainer = document.getElementById('transfer-fields-container');
     if (transferContainer) transferContainer.classList.add('hidden');
     
-    ['add-transfer-btn', 'update-transfer-btn', 'cancel-transfer-btn'].forEach(id => {
-        const btn = document.getElementById(id);
-        if(btn) btn.classList.add('hidden');
-    });
-
-    // 2. Show Normal Stuff
     document.querySelectorAll('.jobentry-form-2col .form-column').forEach(col => col.classList.remove('hidden'));
-    addJobButton.classList.remove('hidden');
-    updateJobButton.classList.add('hidden'); // Hide update button
-    deleteJobButton.classList.add('hidden'); 
     
-    addJobButton.disabled = false;
-    addJobButton.textContent = 'Add';
-
-    if (jobEntryNavControls) jobEntryNavControls.classList.add('hidden');
-    navigationContextList = [];
-    navigationContextIndex = -1;
-
-    jobEntrySearchInput.value = '';
+    // 8. Reset Search (Optional, keeps UI clean)
+    const searchInput = document.getElementById('job-entry-search');
+    if(searchInput) searchInput.value = '';
     sessionStorage.removeItem('jobEntrySearch');
 }
-
 
 // --- Helper: Toggle "Other" Input ---
 function toggleJobOtherInput() {
@@ -3576,8 +3580,10 @@ async function handleAddJobEntry(e) {
         // IMPORTANT: Refresh the dropdown list so the new "Custom Type" appears immediately
         updateJobTypeDropdown(); 
         
-        handleJobEntrySearch(jobEntrySearchInput.value); 
-        resetJobEntryForm();
+       handleJobEntrySearch(jobEntrySearchInput.value); 
+        
+        // REPLACED: Close the modal instead of resetting the old form
+        closeStandardJobModal();
         
     } catch (error) { 
         console.error("Error adding job entry:", error); 
@@ -3616,7 +3622,10 @@ async function handleDeleteJobEntry(e) {
         
         await ensureAllEntriesFetched(true); 
         handleJobEntrySearch(jobEntrySearchInput.value); 
-        resetJobEntryForm();
+        
+        // REPLACED: Close the modal instead of resetting the old form
+        closeStandardJobModal(); 
+        
         populateActiveTasks(); 
 
     } catch (error) {
@@ -3738,80 +3747,22 @@ function populateFormForEditing(key) {
     const entryData = allSystemEntries.find(entry => entry.key === key);
     if (!entryData) return;
 
-    // --- SAFETY CHECK: If it's a Transfer, send it to the Transfer Loader ---
-    if (entryData.for === 'Transfer') {
+    // --- 1. TRANSFER GROUP LOGIC (KEPT SAME) ---
+    // We check for all transfer types to be safe. 
+    // If matched, we hand it over to transferLogic.js just like before.
+    if (['Transfer', 'Restock', 'Return', 'Usage'].includes(entryData.for)) {
         if (window.loadTransferForEdit) {
-            // This function exists in transfer_stock.js and handles the UI switch
             window.loadTransferForEdit(entryData);
         } else {
             console.error("Transfer loader not found.");
         }
-        return; // STOP HERE. Do not load normal fields.
+        return; // STOP HERE. The Transfer Modal takes over.
     }
 
-    currentlyEditingKey = key;
-    
-    // --- STRICT UI SWITCH: FORCE NORMAL VIEW ---
-    // 1. Hide Transfer Stuff
-    const transferContainer = document.getElementById('transfer-fields-container');
-    if (transferContainer) transferContainer.classList.add('hidden');
-    
-    ['add-transfer-btn', 'update-transfer-btn', 'cancel-transfer-btn'].forEach(id => {
-        const btn = document.getElementById(id);
-        if(btn) btn.classList.add('hidden');
-    });
-
-    // 2. Show Normal Stuff
-    document.querySelectorAll('.jobentry-form-2col .form-column').forEach(col => col.classList.remove('hidden'));
-    
-    // --- 3. Handle Job Type ---
-    const jobTypeSelect = document.getElementById('job-for');
-    const otherInput = document.getElementById('job-other-specify');
-    
-    const exists = Array.from(jobTypeSelect.options).some(opt => opt.value === entryData.for);
-    
-    if (exists) {
-        jobTypeSelect.value = entryData.for || '';
-        otherInput.classList.add('hidden');
-    } else {
-        jobTypeSelect.value = 'Other';
-        otherInput.value = entryData.for || '';
-        otherInput.classList.remove('hidden');
-    }
-
-    // --- 4. Populate Standard Fields ---
-    document.getElementById('job-ref').value = entryData.ref || '';
-    document.getElementById('job-amount').value = entryData.amount || '';
-    document.getElementById('job-po').value = entryData.po || '';
-    
-    const attachmentInput = document.getElementById('job-attachment');
-    if (attachmentInput) {
-        attachmentInput.value = entryData.attachmentName || '';
-    }
-
-    document.getElementById('job-group').value = entryData.group || '';
-    if (siteSelectChoices) siteSelectChoices.setChoiceByValue(entryData.site || '');
-    if (attentionSelectChoices) attentionSelectChoices.setChoiceByValue(entryData.attention || '');
-
-    document.getElementById('job-status').value = (entryData.remarks === 'Pending') ? '' : entryData.remarks || '';
-    
-    jobEntryFormTitle.textContent = 'Editing Job Entry';
-    
-    // Show Update Button, Hide Add
-    addJobButton.classList.add('hidden');
-    updateJobButton.classList.remove('hidden');
-
-    // Security: Delete button for Irwin only
-    const userPositionLower = (currentApprover?.Position || '').toLowerCase();
-    if (userPositionLower === 'accounting' && currentApprover.Name === 'Irwin') {
-        deleteJobButton.classList.remove('hidden');
-    } else {
-        deleteJobButton.classList.add('hidden');
-    }
-
-    document.getElementById('job-amount').classList.remove('highlight-field');
-    document.getElementById('job-po').classList.remove('highlight-field');
-    window.scrollTo(0, 0);
+    // --- 2. STANDARD GROUP LOGIC (NEW) ---
+    // Previously, this code filled the static form on the page.
+    // Now, we simply tell it to open the new Modal in 'Edit' mode.
+    openStandardJobModal('Edit', entryData);
 }
 
 function updateJobEntryNavControls() {
@@ -7818,6 +7769,37 @@ document.addEventListener('DOMContentLoaded', async () => {
         } 
     });
 
+
+// --- NEW: Open SharePoint Folder when clicking "Attachment" Label ---
+    const attachmentLabel = document.getElementById('job-attachment-label');
+    if (attachmentLabel) {
+        attachmentLabel.addEventListener('click', () => {
+            // Opens the global variable defined at the top of app.js
+            // ATTACHMENT_BASE_PATH = ".../Documents/Attachments/"
+            window.open(ATTACHMENT_BASE_PATH, '_blank');
+        });
+    }
+
+// --- NEW: Sidebar "Add New Job" Action ---
+    const sidebarAddJobBtn = document.getElementById('wd-sidebar-add-job-btn');
+    if (sidebarAddJobBtn) {
+        sidebarAddJobBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            
+            // 1. Navigate to "Job Records" Section
+            // We simulate a click on the existing Job Records link so it handles the view switching/active state for us
+            const jobRecordsLink = workdeskNav.querySelector('a[data-section="wd-reporting"]');
+            if (jobRecordsLink) {
+                jobRecordsLink.click();
+            }
+            
+            // 2. Open the "Add New Job" Modal
+            // We use a tiny delay to ensure the view transition finishes first
+            setTimeout(() => {
+                openStandardJobModal('Add');
+            }, 100);
+        });
+    }
     // Password Form
     passwordForm.addEventListener('submit', (e) => { 
         e.preventDefault(); 
@@ -8023,6 +8005,15 @@ if (imMobileNavLogout) {
     clearJobButton.addEventListener('click', () => resetJobEntryForm(false));
     deleteJobButton.addEventListener('click', handleDeleteJobEntry); 
     
+   // [NEW] Listener for opening the Standard Job Modal (Updated for multiple buttons)
+const btnOpenStandard = document.querySelectorAll('.btn-open-standard-modal');
+btnOpenStandard.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        e.preventDefault(); // Prevent default behavior if needed
+        openStandardJobModal('Add');
+    });
+});
+
     jobEntryTableBody.addEventListener('click', (e) => { 
         const row = e.target.closest('tr'); 
         if (row) { 
@@ -8039,36 +8030,21 @@ if (imMobileNavLogout) {
     });
 
     jobForSelect.addEventListener('change', (e) => { 
-        const jobType = e.target.value;
+    const jobType = e.target.value;
+    const transferTypes = ['Transfer', 'Restock', 'Return', 'Usage'];
 
-        // 1. REDIRECT LOGIC: If Transfer, Return, or Restock
-        const redirectTypes = ['Transfer', 'Restock', 'Return'];
+    if (transferTypes.includes(jobType)) {
+        // 1. Close Standard Modal
+        closeStandardJobModal();
         
-        if (redirectTypes.includes(jobType)) {
-            // A. Reset the Job Entry dropdown so it's clean if they come back
-            e.target.value = ""; 
-            resetJobEntryForm(false); // Clear any typed data in Job Entry
-
-            // B. Navigate to Material Stock Section
-            showWorkdeskSection('wd-material-stock');
-
-            // C. Update Sidebar Highlight manually (Visual Polish)
-            document.querySelectorAll('#workdesk-nav a').forEach(el => el.classList.remove('active'));
-            const msLink = document.querySelector('a[data-section="wd-material-stock"]');
-            if(msLink) msLink.classList.add('active');
-
-            // D. Open the Modal (Small timeout ensures the view has switched first)
-            setTimeout(() => {
-                if (typeof openTransferModal === 'function') {
-                    openTransferModal(jobType);
-                } else {
-                    console.error("Error: openTransferModal function not found in transferLogic.js");
-                    alert("Could not open modal. Please check connection.");
-                }
-            }, 150); // 150ms delay
-
-            return; // STOP HERE. Do not run the standard logic below.
-        }
+        // 2. Open Transfer Modal
+        setTimeout(() => {
+            if (typeof openTransferModal === 'function') {
+                openTransferModal(jobType); // Pass the type (e.g. 'Restock')
+            }
+        }, 150);
+        return;
+    }
 
         // 2. STANDARD JOB LOGIC
         const isQS = currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'qs'; 
@@ -8258,10 +8234,7 @@ if (imMobileNavLogout) {
         }
     });
     
-    
-     
-    
-    
+          
 
     // --- 7. Workdesk: Calendar Listeners ---
 
@@ -9986,7 +9959,77 @@ async function updateStockInventory(id, qty, action, siteName) {
         }
     } catch (error) { console.error("Stock update failed:", error); }
 }
+
+// A. OPEN MODAL (Handles both Add and Edit modes)
+window.openStandardJobModal = function(mode, entryData = null) {
+    const modal = document.getElementById('standard-job-modal');
+    const title = document.getElementById('standard-modal-title');
     
+    // Get Buttons
+    const addBtn = document.getElementById('add-job-button');
+    const updateBtn = document.getElementById('update-job-button');
+    const deleteBtn = document.getElementById('delete-job-button');
+    
+    // 1. ADD MODE
+    if (mode === 'Add') {
+        resetJobEntryForm(false); // Clean form
+        title.textContent = "Add New Job Entry";
+        
+        // Show Add, Hide Update/Delete
+        addBtn.classList.remove('hidden');
+        updateBtn.classList.add('hidden');
+        deleteBtn.classList.add('hidden');
+    } 
+    // 2. EDIT MODE
+    else if (mode === 'Edit' && entryData) {
+        currentlyEditingKey = entryData.key;
+        title.textContent = "Edit Job Entry";
+        
+        // Hide Add, Show Update
+        addBtn.classList.add('hidden');
+        updateBtn.classList.remove('hidden');
+        
+        // Check permission for Delete button
+        const userPositionLower = (currentApprover?.Position || '').toLowerCase();
+        if (userPositionLower === 'accounting' && currentApprover.Name === 'Irwin') {
+            deleteBtn.classList.remove('hidden');
+        } else {
+            deleteBtn.classList.add('hidden');
+        }
+
+        // Populate Form Data
+        document.getElementById('job-for').value = entryData.for || 'Other';
+        // Handle "Other" Input Visibility
+        if (!['PR','Invoice','IPC','Payment','Report','Transfer','Restock','Return','Usage'].includes(entryData.for)) {
+             document.getElementById('job-for').value = 'Other';
+             document.getElementById('job-other-specify').value = entryData.for;
+             document.getElementById('job-other-specify').classList.remove('hidden');
+        } else {
+             document.getElementById('job-other-specify').classList.add('hidden');
+        }
+
+        document.getElementById('job-ref').value = entryData.ref || '';
+        document.getElementById('job-po').value = entryData.po || '';
+        document.getElementById('job-amount').value = entryData.amount || '';
+        document.getElementById('job-attachment').value = entryData.attachmentName || '';
+        document.getElementById('job-group').value = entryData.group || '';
+        document.getElementById('job-status').value = (entryData.remarks === 'Pending') ? '' : entryData.remarks || '';
+
+        if (siteSelectChoices) siteSelectChoices.setChoiceByValue(entryData.site || '');
+        if (attentionSelectChoices) attentionSelectChoices.setChoiceByValue(entryData.attention || '');
+    }
+
+    modal.classList.remove('hidden');
+};
+
+
+// B. CLOSE MODAL
+window.closeStandardJobModal = function() {
+    document.getElementById('standard-job-modal').classList.add('hidden');
+    // Optional: clear form on close
+    resetJobEntryForm(false);
+};
+
     
 
 }); // END OF DOMCONTENTLOADED

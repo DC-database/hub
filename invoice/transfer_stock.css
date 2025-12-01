@@ -1,155 +1,311 @@
-/* ========================================= */
-/* TRANSFER MODAL STYLES (Dropdown Fix)      */
-/* ========================================= */
+/* ============================================================= */
+/* TRANSFER & MODAL STYLESHEET (V4.1.3 - Fixed)                  */
+/* Organized by Group & Number                                   */
+/* ============================================================= */
 
-/* 1. Modal Container - ALLOW OVERFLOW */
-#transfer-job-modal .modal-container {
+/* ============================================================= */
+/* 1. MODAL CONTAINER, FOOTER & BUTTON CONSISTENCY               */
+/* ============================================================= */
+
+/* Shared Container Logic */
+#transfer-job-modal .modal-container,
+#standard-job-modal .modal-container,
+#im-batch-search-modal .modal-container,
+#im-add-payment-modal .modal-container {
     max-width: 900px !important;
     width: 95% !important;
     padding: 0 !important;
     display: flex;
     flex-direction: column;
     height: auto !important;
-    max-height: 90vh !important; /* Keep it within screen */
+    max-height: 90vh !important;
     border-radius: 8px;
     background: #fff;
-    
-    /* CRITICAL FIX: Allow dropdowns to pop out */
     overflow: visible !important; 
 }
 
-/* 2. Header Styling */
-#transfer-job-modal .modal-header {
-    padding: 15px 25px !important;
-    background-color: #f8f9fa;
-    border-bottom: 1px solid #ddd;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-radius: 8px 8px 0 0;
-}
-
-#transfer-job-modal h2 {
-    font-size: 1.2rem !important;
-    margin: 0 !important;
-    font-weight: 700;
-    color: #333;
-}
-
-/* 3. Content Area - SCROLLABLE BUT VISIBLE */
-#transfer-job-modal .modal-content {
+/* Content Area */
+#transfer-job-modal .modal-content,
+#standard-job-modal .modal-content,
+#im-batch-search-modal .modal-content,
+#im-add-payment-modal .modal-content {
     padding: 20px 30px !important;
-    
-    /* This allows scrolling if the form is too tall, 
-       but might clip dropdowns if they are very long. 
-       Ideally, Choices.js handles this, but 'visible' is safer if scrolling isn't needed. */
     overflow-y: auto !important; 
     overflow-x: visible !important; 
     flex-grow: 1;
 }
 
-/* 4. Footer Styling */
-#transfer-job-modal .modal-footer {
+/* --- [FIX] Footer Styling (White Background) --- */
+#transfer-job-modal .modal-footer,
+#standard-job-modal .modal-footer,
+#im-batch-search-modal .modal-footer,
+#im-add-payment-modal .modal-footer {
     padding: 15px 25px !important;
-    background-color: #f8f9fa;
-    border-top: 1px solid #ddd;
+    background-color: #ffffff !important; /* Changed from Grey to White */
+    border-top: 1px solid #eee;           /* Subtle separator line */
     display: flex;
     justify-content: flex-end;
+    align-items: center;
     gap: 10px;
     border-radius: 0 0 8px 8px;
 }
 
-/* 5. 2-Column Grid */
+/* --- [FIX] Footer Buttons (Uniform Size) --- */
+/* This forces Clear, Cancel, Update, and Delete to match exactly */
+#standard-job-modal .modal-footer button,
+#transfer-job-modal .modal-footer button {
+    height: 40px !important;        /* Fixed consistent height */
+    min-width: 90px !important;     /* Minimum width so they don't look squashed */
+    padding: 0 20px !important;     /* Consistent padding */
+    font-size: 0.95rem !important;
+    border-radius: 4px !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    line-height: 1 !important;
+    margin: 0 !important;           /* Remove random margins */
+}
+
+/* ============================================================= */
+/* 2. UNIVERSAL BLUE HEADER THEME (FIXED BUTTONS)                */
+/* ============================================================= */
+
+/* Apply Blue Theme to Transfer, Batch, Payment, and STANDARD JOB Modals */
+#transfer-job-modal .modal-header,
+#im-batch-search-modal .modal-header,
+#im-add-payment-modal .modal-header,
+#standard-job-modal .modal-header {
+    background-color: #003A5C !important; /* Brand Blue */
+    color: #ffffff !important;             /* White Text */
+    border-bottom: 3px solid #002a48;      /* Darker 3D Border */
+    border-radius: 8px 8px 0 0;            /* Rounded Top Corners */
+    padding: 15px 25px !important;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Title Text */
+#transfer-job-modal h2,
+#im-batch-search-modal h2,
+#im-add-payment-modal h2,
+#standard-job-modal h2 {
+    color: #ffffff !important;
+    font-size: 1.2rem !important;
+    font-weight: 700;
+    margin: 0 !important;
+}
+
+/* --- [FIX START] Split Header and Footer Button Styles --- */
+
+/* 1. Header Close Button (The 'X') - Transparent & Big */
+#transfer-job-modal .modal-header .modal-close-btn,
+#im-batch-search-modal .modal-header .modal-close-btn,
+#im-add-payment-modal .modal-header .modal-close-btn,
+#standard-job-modal .modal-header .modal-close-btn {
+    color: #ffffff !important;
+    opacity: 0.8;
+    font-size: 1.8rem;
+    line-height: 1;
+    background: none !important;
+    border: none !important;
+    cursor: pointer;
+    padding: 0 10px;
+}
+
+#transfer-job-modal .modal-header .modal-close-btn:hover,
+#im-batch-search-modal .modal-header .modal-close-btn:hover,
+#im-add-payment-modal .modal-header .modal-close-btn:hover,
+#standard-job-modal .modal-header .modal-close-btn:hover {
+    opacity: 1;
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    border-radius: 50%;
+}
+
+/* 2. Footer Cancel Button (The actual Button) - Grey Background */
+#transfer-job-modal .modal-footer .modal-close-btn,
+#standard-job-modal .modal-footer .modal-close-btn,
+#im-batch-search-modal .modal-footer .modal-close-btn,
+#im-add-payment-modal .modal-footer .modal-close-btn {
+    background-color: #6c757d !important; /* Grey Background */
+    color: #ffffff !important;             /* White Text */
+    font-size: 0.95rem !important;
+    opacity: 1 !important;
+    width: auto !important;
+    height: auto !important;
+    border-radius: 4px !important;
+    padding: 10px 20px !important;
+    line-height: normal !important;
+    border: none !important;
+    cursor: pointer;
+}
+
+#transfer-job-modal .modal-footer .modal-close-btn:hover,
+#standard-job-modal .modal-footer .modal-close-btn:hover {
+    background-color: #5a6268 !important; /* Darker Grey on Hover */
+}
+/* --- [FIX END] --- */
+
+/* ============================================================= */
+/* 3. GRID SYSTEM (COMPACT & ALIGNED)                            */
+/* ============================================================= */
+
 .transfer-2col-grid {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
-    gap: 30px !important;
+    gap: 15px !important; /* Horizontal gap between columns */
     align-items: start !important;
 }
 
 .transfer-col {
     display: flex;
     flex-direction: column;
-    gap: 15px;
-}
-
-/* 6. Inputs & Dropdowns */
-#transfer-job-modal .form-group {
-    margin-bottom: 0 !important;
-    width: 100%;
-}
-
-#transfer-job-modal label {
-    font-size: 0.8rem !important;
-    margin-bottom: 5px !important;
-    color: #555;
-    font-weight: 600;
-    display: block;
-}
-
-#transfer-job-modal input, 
-#transfer-job-modal select,
-#transfer-job-modal textarea,
-#transfer-job-modal .choices__inner {
-    min-height: 40px !important; /* Taller touch target */
-    padding: 5px 10px !important;
-    font-size: 0.95rem !important;
-    border: 1px solid #ccc !important;
-    border-radius: 4px !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
-    background-color: #fff !important;
-}
-
-#transfer-job-modal textarea {
-    height: 80px !important;
-    resize: vertical;
-}
-
-/* Fix Choices.js Dropdown Visibility */
-#transfer-job-modal .choices { 
-    margin-bottom: 0 !important; 
-    overflow: visible !important; 
-}
-
-#transfer-job-modal .choices__list--dropdown { 
-    z-index: 9999 !important; /* Float above everything */
-    border: 1px solid #00748C !important;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-}
-
-/* 7. Visuals */
-#transfer-job-modal input[readonly],
-#transfer-job-modal input:disabled {
-    background-color: #f0f0f0 !important;
-    color: #888;
-}
-
-#tf-req-qty { 
-    background-color: #f0fbff !important; 
-    border-color: #00748C !important; 
-    font-weight: bold; 
-}
-
-.sender-required {
-    background-color: #fffde7 !important;
-    border: 1px solid #fdd835 !important;
+    /* This 'gap' controls vertical space between fields. 
+       Reduced to 8px for a compact look. */
+    gap: 8px !important; 
 }
 
 /* Mobile Override */
 @media (max-width: 768px) {
     .transfer-2col-grid {
         grid-template-columns: 1fr !important;
-        gap: 15px !important;
-    }
-    #transfer-job-modal .modal-content {
-        overflow-y: auto !important;
+        gap: 10px !important;
     }
 }
 
-/* ========================================= */
-/* PRINT STYLES - BARCODE FIX                */
-/* ========================================= */
+/* ============================================================= */
+/* 4. INPUTS, FORMS & FLOATING FOCUS EFFECT                      */
+/* ============================================================= */
+
+/* Group Spacing - Ensures rows start at the same vertical position */
+#transfer-job-modal .form-group,
+#standard-job-modal .form-group {
+    margin-bottom: 15px !important; /* Fixed gap between rows */
+    width: 100%;
+}
+
+/* Labels - Uniform height and spacing */
+#transfer-job-modal label,
+#standard-job-modal label {
+    font-size: 0.8rem !important;
+    margin-bottom: 4px !important;
+    color: #555;
+    font-weight: 600;
+    display: block;
+    line-height: 1.2 !important;
+}
+
+/* --- UNIVERSAL FIELD STYLING (The Alignment Fix) --- */
+#transfer-job-modal input, 
+#transfer-job-modal select,
+#transfer-job-modal textarea,
+#transfer-job-modal .choices__inner,
+#standard-job-modal input, 
+#standard-job-modal select,
+#standard-job-modal .choices__inner {
+    /* Dimensions */
+    min-height: 36px !important;
+    height: 36px !important;
+    width: 100% !important;
+    
+    /* Content Alignment */
+    padding: 6px 10px !important;
+    font-size: 0.9rem !important;
+    line-height: normal !important;
+    
+    /* Borders & Background */
+    border: 1px solid #ccc !important;
+    border-radius: 4px !important;
+    background-color: #fff !important;
+    box-sizing: border-box !important;
+    
+    /* Smooth Transition for the Float Effect */
+    transition: all 0.2s ease-in-out !important;
+}
+
+/* --- THE FLOATING HIGHLIGHT EFFECT --- */
+#transfer-job-modal input:focus, 
+#transfer-job-modal select:focus,
+#transfer-job-modal textarea:focus,
+#transfer-job-modal .choices.is-focused .choices__inner,
+#standard-job-modal input:focus, 
+#standard-job-modal select:focus,
+#standard-job-modal textarea:focus,
+#standard-job-modal .choices.is-focused .choices__inner {
+    outline: none !important;
+    border-color: #003A5C !important;
+    background-color: #ffffff !important;
+    
+    /* The "Floating" Shadow */
+    box-shadow: 0 4px 12px rgba(0, 58, 92, 0.15) !important;
+    
+    /* The Physical Lift */
+    transform: translateY(-2px) !important;
+}
+
+/* Textarea Exception (Needs more height) */
+#transfer-job-modal textarea,
+#standard-job-modal textarea {
+    height: 60px !important;
+    resize: vertical;
+}
+
+/* ============================================================= */
+/* 5. DROPDOWN FIXES (CHOICES.JS ALIGNMENT)                      */
+/* ============================================================= */
+
+/* Remove default wrapper margin so it aligns with standard inputs */
+#transfer-job-modal .choices,
+#standard-job-modal .choices { 
+    margin-bottom: 0 !important; 
+    overflow: visible !important; 
+}
+
+/* Fix the inner container to behave like a standard input */
+#transfer-job-modal .choices__inner,
+#standard-job-modal .choices__inner {
+    display: flex !important;
+    align-items: center !important;
+    margin: 0 !important;
+    border: 1px solid #ccc !important;
+    background-color: #fff !important;
+}
+
+/* Fix the dropdown list z-index and shadow */
+#transfer-job-modal .choices__list--dropdown,
+#standard-job-modal .choices__list--dropdown { 
+    z-index: 9999 !important;
+    border: 1px solid #003A5C !important;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.15) !important;
+    margin-top: 2px !important; /* Slight gap for visual clarity */
+}
+
+/* ============================================================= */
+/* 6. HIGHLIGHTS & VISUAL FEEDBACK                               */
+/* ============================================================= */
+
+/* Blue Highlight for Required/Active Fields */
+.input-required-highlight {
+    border: 4px solid #003A5C !important; /* Brand Blue Border */
+    background-color: #e3f2fd !important; /* Light Blue Tint */
+    box-shadow: 0 0 8px rgba(0, 58, 92, 0.3); /* Blue Glow */
+    transition: all 0.3s ease;
+}
+
+.input-required-highlight + label::after {
+    color: #003A5C; 
+}
+
+/* Sender Required Warning (Yellow) */
+.sender-required {
+    background-color: #fffde7 !important;
+    border: 1px solid #fdd835 !important;
+}
+
+/* ============================================================= */
+/* 7. PRINT STYLES (BARCODE VISIBILITY)                          */
+/* ============================================================= */
+
 @media print {
     /* Ensure Barcodes are visible ONLY if they have a source */
     #wb-barcode-approver[src=""], 
@@ -171,82 +327,96 @@
         print-color-adjust: exact !important;
     }
 }
-/* ========================================= */
-/* HIGHLIGHTS & MODAL HEADER THEME           */
-/* ========================================= */
 
-/* 1. Blue Highlight for Required Fields */
-.input-required-highlight {
-    border: 4px solid #003A5C !important; /* Brand Blue Border */
-    background-color: #e3f2fd !important; /* Very Light Blue Tint Background */
-    box-shadow: 0 0 8px rgba(0, 58, 92, 0.3); /* Blue Glow */
-    transition: all 0.3s ease;
+/* ============================================================= */
+/* 8. ATTACHMENT FIELD FIX (ALIGNED)                             */
+/* ============================================================= */
+
+/* 1. Input Field */
+#standard-job-modal #job-attachment {
+    width: auto !important;
+    flex-grow: 1 !important;
+    margin-bottom: 0 !important;
+    height: 36px !important; /* Matches other inputs */
 }
 
-/* Optional: Update the label text color to match */
-.input-required-highlight + label::after {
-    color: #003A5C; 
+/* 2. View Button */
+#standard-job-modal #job-attachment-view-btn {
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    margin-bottom: 0 !important;
+    
+    /* Add Float Effect to Button too for consistency */
+    transition: all 0.2s ease-in-out !important;
 }
 
-/* 2. "New Transaction" Modal Header Styling */
-#transfer-job-modal .modal-header {
-    background-color: #003A5C !important; /* Blue Background */
-    color: #ffffff !important;             /* White Text */
-    border-bottom: 4px solid #002a48;      /* Darker Border */
-    border-radius: 8px 8px 0 0;            /* Rounded top corners */
+#standard-job-modal #job-attachment-view-btn:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
 }
 
-/* Force the Title to be White */
-#transfer-job-modal .modal-header h2 {
-    color: #ffffff !important;
+/* 3. Center Icon */
+#standard-job-modal #job-attachment-view-btn i {
+    font-size: 1rem !important;
+    line-height: 1 !important;
+    margin: 0 !important;
 }
 
-/* Make the Close (X) button White so it is visible */
-#transfer-job-modal .modal-header .modal-close-btn {
-    color: #ffffff !important;
-    opacity: 0.8;
+/* ============================================================= */
+/* 9. FINAL POLISH: ALIGNMENT & REMOVE SPINNERS                  */
+/* ============================================================= */
+
+/* A. Remove Up/Down Arrows from Number Inputs */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+    -webkit-appearance: none; 
+    margin: 0; 
+}
+input[type=number] {
+    -moz-appearance: textfield; /* Firefox */
 }
 
-#transfer-job-modal .modal-header .modal-close-btn:hover {
-    opacity: 1;
-    background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 50%;
-}
-/* ========================================= */
-/* UNIVERSAL BLUE MODAL HEADER               */
-/* ========================================= */
-
-/* Apply Blue Theme to Batch Search Modal & Transfer Modal */
-#im-batch-search-modal .modal-header,
-#transfer-job-modal .modal-header,
-#im-add-payment-modal .modal-header {
-    background-color: #003A5C !important; /* Brand Blue */
-    color: #ffffff !important;             /* White Text */
-    border-bottom: 3px solid #002a48;      /* 3D Border effect */
-    border-radius: 8px 8px 0 0;
-    padding: 15px 25px;
+/* B. Force Perfect Row Alignment */
+/* 1. Prevent labels from wrapping to 2 lines (which breaks alignment) */
+#standard-job-modal label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    height: 16px; /* Fixed Label Height */
+    line-height: 16px;
+    margin-bottom: 4px !important;
 }
 
-/* Title Text */
-#im-batch-search-modal .modal-header h2,
-#im-add-payment-modal .modal-header h2 {
-    color: #ffffff !important;
-    font-weight: 700;
-    margin: 0;
+/* 2. Force Groups to exact same vertical size */
+#standard-job-modal .form-group {
+    height: 60px !important; /* Fixed Container Height (Label + Input + Margin) */
+    margin-bottom: 0 !important;
+    overflow: visible;
 }
 
-/* Close Button (X) */
-#im-batch-search-modal .modal-close-btn,
-#im-add-payment-modal .modal-close-btn {
-    color: #ffffff !important;
-    opacity: 0.8;
-    font-size: 2rem;
-    line-height: 1;
+/* 3. Attachment Row Exception (It's special, so we let it be auto) */
+#standard-job-modal .form-group:has(#job-attachment) {
+    height: auto !important;
 }
 
-#im-batch-search-modal .modal-close-btn:hover,
-#im-add-payment-modal .modal-close-btn:hover {
-    opacity: 1;
-    background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 50%;
+/* A. Remove Up/Down Arrows from Number Inputs */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+    -webkit-appearance: none; 
+    margin: 0; 
+}
+input[type=number] {
+    -moz-appearance: textfield; /* Firefox */
+}
+
+/* --- CRITICAL FIX: Hide buttons when JS adds .hidden class --- */
+#standard-job-modal .modal-footer button.hidden,
+#transfer-job-modal .modal-footer button.hidden {
+    display: none !important;
 }
