@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "4.1.6"; 
+const APP_VERSION = "4.1.7"; 
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -228,52 +228,83 @@ async function silentlyRefreshStaleCaches() {
 
 // --- CSV Parsers ---
 
+// [REPLACE THIS WHOLE FUNCTION]
 async function fetchAndParseCSV(url) {
     try {
         const response = await fetch(url, { cache: 'no-store' });
         if (!response.ok) { throw new Error(`Failed to fetch CSV: ${response.statusText}`); }
         const csvText = await response.text();
+        // Remove Byte Order Mark (BOM) if present
         const lines = csvText.replace(/^\uFEFF/, '').split('\n').filter(line => line.trim() !== '');
+        
         if (lines.length < 2) { throw new Error("CSV is empty or has no data rows."); }
         
         const parseCsvRow = (rowStr) => {
             const values = []; let inQuote = false; let currentVal = ''; const cleanRowStr = rowStr.trim();
             for (let i = 0; i < cleanRowStr.length; i++) {
                 const char = cleanRowStr[i];
-                if (char === '"' && (i === 0 || cleanRowStr[i-1] !== '\\')) { inQuote = !inQuote; } else if (char === ',' && !inQuote) { values.push(currentVal.trim()); currentVal = ''; } else { currentVal += char; }
+                if (char === '"' && (i === 0 || cleanRowStr[i-1] !== '\\')) { inQuote = !inQuote; } 
+                else if (char === ',' && !inQuote) { values.push(currentVal.trim()); currentVal = ''; } 
+                else { currentVal += char; }
             }
             values.push(currentVal.trim());
-            return values.map(v => v.replace(/^"|"$/g, ''));
+            // CRITICAL FIX: Add .trim() here to remove spaces from "21284 "
+            return values.map(v => v.replace(/^"|"$/g, '').trim());
         };
 
+        // 1. Identify Headers
         const headers = parseCsvRow(lines[0]).map(h => h.trim());
-        let poHeaderIndex = headers.findIndex(h => h.toLowerCase() === 'po number' || h.toLowerCase() === 'po' || h.toLowerCase() === 'po_number');
-        if (poHeaderIndex === -1) { poHeaderIndex = 1; } 
+        const headersLower = headers.map(h => h.toLowerCase());
+        
+        console.log("CSV Headers Found:", headers);
 
-        let refHeaderIndex = headers.findIndex(h => h.toLowerCase() === 'reqnum'); 
-        if (refHeaderIndex === -1) { refHeaderIndex = 0; } 
+        // 2. Find 'PO' Column (Flexible)
+        let poHeaderIndex = headersLower.findIndex(h => h.includes('po number') || h === 'po' || h === 'po_number');
+        if (poHeaderIndex === -1) poHeaderIndex = 1; // Fallback to Col B
+
+        // 3. Find 'ReqNum' Column (Flexible)
+        // Looks for "reqnum", "req num", "req no", or just starts with "req"
+        let refHeaderIndex = headersLower.findIndex(h => h === 'reqnum' || h === 'req num' || h === 'req no' || h.startsWith('req'));
+        if (refHeaderIndex === -1) refHeaderIndex = 0; // Fallback to Col A
+
+        console.log(`Mapping: PO is Col ${poHeaderIndex}, ReqNum is Col ${refHeaderIndex}`);
 
         const poDataByPO = {}; 
         const poDataByRef = {}; 
 
+        // 4. Parse Rows
         for (let i = 1; i < lines.length; i++) {
             const values = parseCsvRow(lines[i]);
-            if (values.length !== headers.length) { console.warn(`Skipping malformed CSV row: ${lines[i]}`); continue; }
-
-            const poKey = values[poHeaderIndex].toUpperCase();
-            const refKey = values[refHeaderIndex]; 
-
+            
+            // Map values to headers
             const poEntry = {};
             headers.forEach((header, index) => {
-                if (header.toLowerCase() === 'amount') { poEntry[header] = values[index].replace(/,/g, '') || '0'; } else { poEntry[header] = values[index]; }
+                let val = values[index] || '';
+                if (header.toLowerCase() === 'amount') { val = val.replace(/,/g, '') || '0'; } 
+                poEntry[header] = val;
             });
 
+            // Index by PO
+            const poKey = values[poHeaderIndex] ? values[poHeaderIndex].toUpperCase() : null;
             if (poKey) poDataByPO[poKey] = poEntry;
-            if (refKey) poDataByRef[refKey] = poEntry;
+
+            // Index by Ref (ReqNum) - CRITICAL: Force String and Trim
+            const rawRef = values[refHeaderIndex];
+            if (rawRef) {
+                const refKey = String(rawRef).trim();
+                poDataByRef[refKey] = poEntry;
+                // Backup: Save uppercase version too just in case
+                poDataByRef[refKey.toUpperCase()] = poEntry;
+            }
         }
-        console.log(`Successfully parsed ${Object.keys(poDataByPO).length} POs and ${Object.keys(poDataByRef).length} Refs.`);
+        
+        console.log(`CSV Loaded. ${Object.keys(poDataByRef).length} References indexed.`);
         return { poDataByPO, poDataByRef };
-    } catch (error) { console.error("Error fetching or parsing PO CSV:", error); alert("CRITICAL ERROR: Could not load Purchase Order data."); return null; }
+
+    } catch (error) { 
+        console.error("Error fetching PO CSV:", error); 
+        return null; 
+    }
 }
 
 async function fetchAndParseEpicoreCSV(url) {
@@ -554,18 +585,15 @@ async function fetchAndParseEcostCSV(url) {
     }
 }
 
-// --- Data fetch controllers (Updated to use Firebase) ---
-
+// ++ NEW: Cache function for Ecost data ++
 async function ensureEcostDataFetched(forceRefresh = false) {
     const now = Date.now();
     if (!forceRefresh && allEcostData && (now - ecostDataTimestamp < CACHE_DURATION)) {
         return allEcostData;
     }
-    console.log("Fetching Ecost.csv data from Firebase...");
-    const url = await getFirebaseCSVUrl('Ecost.csv');
-    if (!url) return null;
-
-    allEcostData = await fetchAndParseEcostCSV(url);
+    
+    console.log("Fetching Ecost.csv data...");
+    allEcostData = await fetchAndParseEcostCSV(ECOST_DATA_URL);
     if (allEcostData) {
         ecostDataTimestamp = now;
         console.log("Ecost.csv data cached.");
@@ -687,22 +715,23 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
 // ==========================================================================
 // UPDATED FUNCTION: ensureAllEntriesFetched (With Usage Data Formatting)
 // ==========================================================================
-async function ensureAllEntriesFetched(forceRefresh = false) {
+async function ensureAllEntriesFetched(forceRefresh = false) { // <--- ADD THIS LINE
     const now = Date.now();
-    
-    // 1. Ensure PO Data is loaded first
-    if (!allPOData || forceRefresh) {
-        try {
-            const poUrl = await getFirebaseCSVUrl('POVALUE2.csv');
-            if (poUrl) {
-                const { poDataByPO } = await fetchAndParseCSV(poUrl) || {};
-                if (poDataByPO) allPOData = poDataByPO;
-            }
-        } catch (error) { console.error("PO Load Error", error); }
+    // 1. Check Cache
+    if (!forceRefresh && allSystemEntries.length > 0 && (now - cacheTimestamps.systemEntries < CACHE_DURATION)) {
+        return; 
     }
     
-    console.log("Fetching Job & Transfer entries...");
-
+    console.log("Loading Data for Workdesk...");
+    
+    // 2. Load PO Data (Always fetch fresh if needed for PRs)
+    const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
+    const { poDataByPO, poDataByRef } = await fetchAndParseCSV(PO_DATA_URL) || {};
+    
+    allPOData = poDataByPO || {}; 
+    const purchaseOrdersDataByRef = poDataByRef || {}; 
+    
+    // 3. Fetch Job Entries from Firebase
     const [jobEntriesSnapshot, transferSnapshot] = await Promise.all([
         db.ref('job_entries').orderByChild('timestamp').once('value'),
         db.ref('transfer_entries').orderByChild('timestamp').once('value')
@@ -712,44 +741,87 @@ async function ensureAllEntriesFetched(forceRefresh = false) {
     const transferData = transferSnapshot.val() || {};
     
     const processedEntries = [];
+    const updatesToFirebase = {}; 
 
-    // 3. PROCESS STANDARD JOB ENTRIES
+    // 4. Process Job Entries (PR Matching Here)
     Object.entries(jobEntriesData).forEach(([key, value]) => {
         let entry = { key, ...value, source: 'job_entry' };
-        if (!entry.vendorName && entry.po && allPOData && allPOData[entry.po]) {
+
+        // --- *** PR AUTO-SOLVE LOGIC *** ---
+        if (entry.for === 'PR' && entry.ref) {
+            
+            // Force String and Trim
+            const refKey = String(entry.ref).trim();
+            
+            // Try exact match OR uppercase match
+            const csvMatch = purchaseOrdersDataByRef[refKey] || purchaseOrdersDataByRef[refKey.toUpperCase()];
+
+            if (csvMatch) {
+                console.log(`>> PR MATCH FOUND: ${refKey}`, csvMatch);
+
+                // Get Data from CSV
+                const newPO = csvMatch['PO'] || csvMatch['PO Number'] || '';
+                const newVendor = csvMatch['Supplier Name'] || csvMatch['Supplier'] || 'N/A';
+                const newAmount = csvMatch['Amount'] || '';
+                // Look for "Buyer Name" OR "Entry Person"
+                const newAttention = csvMatch['Buyer Name'] || csvMatch['Entry Person'] || 'Records';
+                
+                // Date Fix
+                let rawDate = csvMatch['Order Date'] || '';
+                // If CSV date is like "22-11-25", we need to parse it correctly
+                let newDate = rawDate; 
+                // Basic attempt to format, or just use what's in CSV
+                if(rawDate) newDate = formatYYYYMMDD(normalizeDateForInput(rawDate));
+
+                // 1. Update Local Object (Immediate Display)
+                entry.po = newPO;
+                entry.vendorName = newVendor;
+                entry.amount = newAmount;
+                entry.attention = newAttention;
+                entry.dateResponded = newDate;
+                entry.remarks = 'PO Ready'; // Force Status Update
+
+                // 2. Queue Firebase Update (Only if not already updated)
+                if (value.remarks !== 'PO Ready') {
+                    updatesToFirebase[key] = {
+                        po: newPO,
+                        vendorName: newVendor,
+                        amount: newAmount,
+                        attention: newAttention,
+                        dateResponded: newDate,
+                        remarks: 'PO Ready'
+                    };
+                }
+            }
+        }
+        // --- *** END PR LOGIC *** ---
+
+        // Fallback for non-PR vendor names
+        if (!entry.vendorName && entry.po && allPOData[entry.po]) {
             entry.vendorName = allPOData[entry.po]['Supplier Name'] || 'N/A';
         }
+
         processedEntries.push(entry);
     });
 
-  // 4. PROCESS TRANSFER ENTRIES
+    // 5. Process Transfer Entries
     Object.entries(transferData).forEach(([key, value]) => {
-        
         const from = value.fromLocation || value.fromSite || 'N/A';
         const to = value.toLocation || value.toSite || 'N/A';
-        
-        // --- FIX: Better Site Display for Usage ---
-        let combinedSite = `${from} ➜ ${to}`;
-        if (value.jobType === 'Usage') {
-            combinedSite = `Used at ${from}`;
-        }
-        // ------------------------------------------
+        let combinedSite = `${from} ➔ ${to}`;
+        if (value.jobType === 'Usage') combinedSite = `Used at ${from}`;
 
-        // Determine Contact based on Stage
         let contactPerson = value.receiver || 'N/A';
         if(value.remarks === 'Pending') contactPerson = value.approver;
 
         processedEntries.push({
-            key,
-            ...value, 
-            source: 'transfer_entry',
+            key, ...value, source: 'transfer_entry',
             productID: value.productID || '',
             jobType: value.jobType || 'Transfer',
             for: value.jobType || 'Transfer', 
-            
             ref: value.controlNumber, 
             controlId: value.controlNumber,
-            site: combinedSite, // Uses the cleaner display
+            site: combinedSite,
             orderedQty: value.requiredQty || 0, 
             deliveredQty: value.receivedQty || 0, 
             shippingDate: value.shippingDate || 'N/A',
@@ -760,9 +832,20 @@ async function ensureAllEntriesFetched(forceRefresh = false) {
         });
     });
 
+    // 6. Apply Firebase Updates
+    if (Object.keys(updatesToFirebase).length > 0) {
+        console.log(`Auto-updating ${Object.keys(updatesToFirebase).length} PRs...`);
+        try {
+            await db.ref('job_entries').update(updatesToFirebase);
+        } catch (error) {
+            console.error("Failed to auto-update PRs:", error);
+        }
+    }
+
     allSystemEntries = processedEntries; 
     allSystemEntries.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-    console.log(`Entries loaded: ${allSystemEntries.length}`);
+    cacheTimestamps.systemEntries = now;
+    console.log(`Loaded ${allSystemEntries.length} entries.`);
 }
 
    
@@ -2703,83 +2786,121 @@ function handleActiveTaskSearch(searchTerm) {
 }
 
 // ==========================================================================
-// AUTO-RECONCILE PR JOBS (FIXED: Order Date & Immediate UI Update)
+// AUTO-RECONCILE PR JOBS (Universal Date Fixer)
 // ==========================================================================
 async function reconcilePendingPRs() {
-    // Safety checks: Ensure we have both System Entries and CSV Data
+    // 1. Safety Checks
     if (!allSystemEntries || allSystemEntries.length === 0) return;
-    if (!allPODataByRef) return;
+    
+    if (!allPODataByRef) {
+        console.log("CSV Data missing, attempting auto-load...");
+        await ensureInvoiceDataFetched(false);
+        if (!allPODataByRef) return; 
+    }
 
     const updates = {};
     let updateCount = 0;
 
-    // Loop through all system entries
+    // 2. Scan Job Entries
     allSystemEntries.forEach(entry => {
-        // Look for: Job Entries -> Type PR -> Not yet "PO Ready" -> Has a Reference No.
         if (entry.source === 'job_entry' && 
             entry.for === 'PR' && 
             entry.remarks !== 'PO Ready' && 
             entry.ref) {
             
-            // Clean the reference key (trim spaces)
             const refKey = String(entry.ref).trim();
             const matchedPO = allPODataByRef[refKey] || allPODataByRef[refKey.toUpperCase()];
 
             if (matchedPO) {
-                // --- FOUND A MATCH! Get Data from CSV ---
-                const poNum = matchedPO['PO Number'] || matchedPO['PO'] || matchedPO['po'] || '';
-                const supplier = matchedPO['Supplier Name'] || matchedPO['Supplier'] || matchedPO['Name'] || 'N/A';
-                const entryPerson = matchedPO['Entry Person'] || matchedPO['entry person'] || 'Records';
-                
-                // Get Amount (Remove commas)
-                let amount = entry.amount; 
-                if (matchedPO['Amount']) {
-                    amount = String(matchedPO['Amount']).replace(/,/g, '');
+                console.log(`>> MATCHED PR: ${refKey}`, matchedPO);
+
+                // --- A. GET DATA ---
+                const getVal = (keyPart) => {
+                    const exactKey = Object.keys(matchedPO).find(k => k.toLowerCase().includes(keyPart.toLowerCase()));
+                    return exactKey ? matchedPO[exactKey] : '';
+                };
+
+                const poNum = getVal('PO') || '';
+                const supplier = getVal('Supplier') || 'N/A';
+                let amount = String(getVal('Amount') || '0').replace(/,/g, ''); 
+                const entryPerson = getVal('Entry Person') || getVal('Buyer') || 'Records';
+
+                // --- B. "ABSOLUTE" DATE FIXER ---
+                // This handles: 18-11-19, 18/11/2019, 18.11.19, etc.
+                let rawDate = getVal('Order Date'); 
+                let finalDate = '';
+
+                if (rawDate) {
+                    const cleanDate = rawDate.trim();
+                    
+                    // Split by ANY separator (Hyphen, Slash, Dot, Space)
+                    const parts = cleanDate.split(/[\/\-\.\s]+/); 
+                    
+                    if (parts.length === 3) {
+                        // Assume Standard International Format: Day - Month - Year
+                        let d = parts[0];
+                        let m = parts[1];
+                        let y = parts[2];
+                        
+                        // Fix Year: If 2 digits (e.g. "19" or "25"), make it "2019" or "2025"
+                        if (y.length === 2) y = "20" + y;
+                        
+                        // Fix Day/Month: Ensure they are 2 digits (e.g. "1" -> "01")
+                        d = d.padStart(2, '0');
+                        m = m.padStart(2, '0');
+                        
+                        // Create ISO String (YYYY-MM-DD) which formatYYYYMMDD understands
+                        const isoDate = `${y}-${m}-${d}`;
+                        
+                        // Convert to System Format: "18-Nov-2019"
+                        finalDate = formatYYYYMMDD(isoDate); 
+                    } 
+                    else {
+                        // Fallback: Let the browser guess
+                        finalDate = formatYYYYMMDD(normalizeDateForInput(cleanDate));
+                    }
                 }
 
-                // Get ORDER DATE (Use as Date Responded)
-                // Use today as fallback if CSV date is missing
-                let orderDate = matchedPO['Order Date'] || formatDate(new Date());
-                
-                // Normalize date format if needed (e.g., if CSV is DD/MM/YYYY or similar)
-                if (orderDate.includes('/')) {
-                    // Basic normalizer, or assume it's valid string
-                    // You can use your normalizeDateForInput(orderDate) if it needs reformatting
+                // Fallback if empty: Use Today
+                if (!finalDate || finalDate === 'N/A') {
+                    finalDate = formatDate(new Date()); 
                 }
 
-                // 1. Prepare Database Update
+                // --- C. UPDATE ---
                 const key = entry.key;
                 updates[`job_entries/${key}/po`] = poNum;
-                updates[`job_entries/${key}/vendorName`] = supplier; // Save Vendor to DB
+                updates[`job_entries/${key}/vendorName`] = supplier;
                 updates[`job_entries/${key}/amount`] = amount;
                 updates[`job_entries/${key}/attention`] = entryPerson;
-                updates[`job_entries/${key}/remarks`] = 'PO Ready';
-                updates[`job_entries/${key}/dateResponded`] = orderDate; 
+                updates[`job_entries/${key}/dateResponded`] = finalDate; 
+                updates[`job_entries/${key}/remarks`] = 'PO Ready'; 
                 
-                // 2. UPDATE LOCAL MEMORY IMMEDIATELY (Crucial for UI)
-                // This ensures the table updates instantly without needing a second refresh
+                // --- D. UPDATE DISPLAY ---
                 entry.po = poNum;
                 entry.vendorName = supplier;
                 entry.amount = amount;
                 entry.attention = entryPerson;
+                entry.dateResponded = finalDate; 
                 entry.remarks = 'PO Ready';
-                entry.dateResponded = orderDate;
                 
                 updateCount++;
             }
         }
     });
 
-    // 3. Commit Updates to Firebase
     if (updateCount > 0) {
-        console.log(`Auto-Reconcile: Updated ${updateCount} PRs from CSV.`);
+        console.log(`Auto-Reconcile: Updating ${updateCount} PRs...`);
         try {
             await db.ref().update(updates);
+            if (document.getElementById('wd-activetask') && !document.getElementById('wd-activetask').classList.contains('hidden')) {
+                populateActiveTasks();
+            }
         } catch (e) {
             console.error("Error committing PR updates:", e);
         }
     }
 }
+
 
 // ==========================================================================
 // UPDATED FUNCTION: renderActiveTaskTable (Shows Adjusted/Approved Qty)
@@ -5422,26 +5543,23 @@ function buildMobileReportView(reportData) {
     }
 
     let mobileHTML = '';
-    
-    // REMOVED: reportData.sort by PO Number. It uses the Balance sort now.
 
     reportData.forEach((poData, poIndex) => {
         const { poNumber, site, vendor, poDetails, filteredInvoices, balance } = poData;
         const toggleId = `mobile-invoice-list-${poIndex}`;
         
-        // Use the balance we calculated in populateInvoiceReporting
+        // Calculate Balance
         const balanceNum = balance !== undefined ? balance : ((parseFloat(poDetails.Amount) || 0) - filteredInvoices.reduce((sum, inv) => sum + (parseFloat(inv.invValue) || 0), 0));
         
         let statusClass = 'status-progress'; 
         let balanceStyle = "";
 
         if (balanceNum < -0.01) {
-            statusClass = 'status-negative'; // Add CSS for this if you want red card
-            balanceStyle = "color: #ff4d4d;"; // Force red text for balance
+            statusClass = 'status-pending'; // Red styling for negative
+            balanceStyle = "color: #ff4d4d;";
         } else if (balanceNum > 0.01) {
             statusClass = 'status-open';
         } else {
-            // ... (Your existing status logic for Close/Open/New/Pending) ...
             let allClose = filteredInvoices.length > 0;
             const closeStatuses = ['With Accounts', 'Paid', 'Epicore Value'];
             for (const inv of filteredInvoices) {
@@ -5453,6 +5571,7 @@ function buildMobileReportView(reportData) {
         const poValueDisplay = canViewAmounts ? `QAR ${formatCurrency(parseFloat(poDetails.Amount))}` : '---';
         const balanceDisplay = canViewAmounts ? `QAR ${formatCurrency(balanceNum)}` : '---';
 
+        // 1. Build PO Card
         mobileHTML += `
             <div class="im-mobile-report-container">
                 <div class="im-po-balance-card ${statusClass}" data-toggle-target="#${toggleId}" style="cursor: pointer;">
@@ -5468,19 +5587,55 @@ function buildMobileReportView(reportData) {
                         <span class="po-card-site">Site: ${site}</span>
                     </div>
                 </div>
+                
                 <div id="${toggleId}" class="hidden-invoice-list"> 
                     <div class="im-invoice-list-header"><h2>Transactions (${filteredInvoices.length})</h2></div>
                     <ul class="im-invoice-list">
         `;
         
-        // ... (Invoice List Loop - Same as before) ...
-        filteredInvoices.forEach(inv => {
-             // ... generate list items ...
-             const invValueDisplay = canViewAmounts ? `QAR ${formatCurrency(inv.invValue)}` : '---';
-             const releaseDateDisplay = inv.releaseDate ? formatYYYYMMDD(inv.releaseDate) : '';
-             // ... actions ...
-             mobileHTML += `<li class="im-invoice-item">...</li>`; // (Simplified for brevity)
-        });
+        // 2. Build Invoice List Items
+        if (filteredInvoices.length === 0) {
+             mobileHTML += `<li class="im-invoice-item-empty">No invoices recorded.</li>`;
+        } else {
+            filteredInvoices.forEach(inv => {
+                 const invValueDisplay = canViewAmounts ? `QAR ${formatCurrency(inv.invValue)}` : '---';
+                 const releaseDateDisplay = inv.releaseDate ? formatYYYYMMDD(inv.releaseDate) : '';
+                 const invDateDisplay = inv.invoiceDate ? formatYYYYMMDD(inv.invoiceDate) : '';
+                 
+                 const status = inv.status || 'Pending';
+                 let iconClass = 'pending';
+                 let iconChar = '<i class="fa-solid fa-clock"></i>';
+                 
+                 if (status === 'Paid' || status === 'With Accounts') {
+                     iconClass = 'paid';
+                     iconChar = '<i class="fa-solid fa-check"></i>';
+                 }
+
+                 // PDF Links
+                 let actionsHTML = '';
+                 if (inv.invName && inv.invName.toLowerCase() !== 'nil') {
+                     actionsHTML += `<a href="${PDF_BASE_PATH}${encodeURIComponent(inv.invName)}.pdf" target="_blank" class="im-tx-action-btn invoice-pdf-btn">INV</a>`;
+                 }
+                 if (inv.srvName && inv.srvName.toLowerCase() !== 'nil') {
+                     actionsHTML += `<a href="${SRV_BASE_PATH}${encodeURIComponent(inv.srvName)}.pdf" target="_blank" class="im-tx-action-btn srv-pdf-btn">SRV</a>`;
+                 }
+
+                 mobileHTML += `
+                    <li class="im-invoice-item">
+                        <div class="im-tx-icon ${iconClass}">${iconChar}</div>
+                        <div class="im-tx-details">
+                            <span class="im-tx-title">${inv.invNumber || 'No Inv#'}</span>
+                            <span class="im-tx-subtitle">${inv.status}</span>
+                            <span class="im-tx-date">Date: ${invDateDisplay}</span>
+                        </div>
+                        <div class="im-tx-amount">
+                            <span class="im-tx-value ${iconClass}">${invValueDisplay}</span>
+                            <div class="im-tx-actions">${actionsHTML}</div>
+                        </div>
+                    </li>
+                 `;
+            });
+        }
         
         mobileHTML += `</ul></div></div>`;
     });
@@ -7957,14 +8112,15 @@ if (imMobileNavLogout) {
         
         showView('workdesk');
 
-        // --- STRICT ROUTING: ALWAYS ACTIVE TASK ---
-        document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a').forEach(a => a.classList.remove('active')); 
-        
-        const activeTaskLink = workdeskNav.querySelector('a[data-section="wd-activetask"]');
-        if (activeTaskLink) {
-            activeTaskLink.classList.add('active');
-            await showWorkdeskSection('wd-activetask');
-        }
+// --- STRICT ROUTING: ALWAYS ACTIVE TASK ---
+// This ensures that even if Dashboard is hidden, we land on Active Tasks
+document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a').forEach(a => a.classList.remove('active')); 
+
+const activeTaskLink = workdeskNav.querySelector('a[data-section="wd-activetask"]');
+if (activeTaskLink) {
+    activeTaskLink.classList.add('active');
+    await showWorkdeskSection('wd-activetask');
+}
     });
 
     // Sidebar Navigation
