@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "4.1.7"; 
+const APP_VERSION = "4.2.0"; 
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -585,7 +585,9 @@ async function fetchAndParseEcostCSV(url) {
     }
 }
 
-// ++ NEW: Cache function for Ecost data ++
+// ==========================================================================
+// FIX: ensureEcostDataFetched (Uses correct URL generator)
+// ==========================================================================
 async function ensureEcostDataFetched(forceRefresh = false) {
     const now = Date.now();
     if (!forceRefresh && allEcostData && (now - ecostDataTimestamp < CACHE_DURATION)) {
@@ -593,10 +595,16 @@ async function ensureEcostDataFetched(forceRefresh = false) {
     }
     
     console.log("Fetching Ecost.csv data...");
-    allEcostData = await fetchAndParseEcostCSV(ECOST_DATA_URL);
-    if (allEcostData) {
-        ecostDataTimestamp = now;
-        console.log("Ecost.csv data cached.");
+    
+    // --- THE FIX IS HERE: Get the URL dynamically instead of using undefined variable ---
+    const url = await getFirebaseCSVUrl('Ecost.csv');
+    
+    if (url) {
+        allEcostData = await fetchAndParseEcostCSV(url);
+        if (allEcostData) {
+            ecostDataTimestamp = now;
+            console.log("Ecost.csv data cached.");
+        }
     }
     return allEcostData;
 }
@@ -2331,22 +2339,35 @@ function generateDateScroller(selectedDate) {
 }
 
 // ==========================================================================
-// 8. ACTIVE TASK LOGIC (Inbox)
+// FIX: Clean Excel Download (Removes Buttons before saving)
 // ==========================================================================
-
-// --- MISSING FUNCTIONS RESTORED ---
-
 function handleDownloadWorkdeskCSV() {
-    const table = document.querySelector("#reporting-printable-area table");
-    if (!table) { alert("Report table not found."); return; }
+    const originalTable = document.querySelector("#reporting-printable-area table");
+    if (!originalTable) { alert("Report table not found."); return; }
 
+    // 1. Clone the table so we don't mess up the actual screen
+    const tableClone = originalTable.cloneNode(true);
+
+    // 2. REMOVE ALL BUTTONS & ICONS FROM THE CLONE
+    // This strips out the "Print", "History", "Del" text
+    const junk = tableClone.querySelectorAll('button, .action-btn, .waybill-btn, .history-btn, .delete-btn, i');
+    junk.forEach(el => el.remove());
+
+    // 3. Generate CSV from the CLEAN clone
     let csv = [];
-    const rows = table.querySelectorAll("tr");
+    const rows = tableClone.querySelectorAll("tr");
     
     for (let i = 0; i < rows.length; i++) {
         const row = [], cols = rows[i].querySelectorAll("td, th");
-        for (let j = 0; j < cols.length; j++) 
-            row.push('"' + cols[j].innerText.replace(/"/g, '""') + '"');
+        
+        for (let j = 0; j < cols.length; j++) {
+            // Clean up extra whitespace left behind by removed buttons
+            // .trim() removes spaces from start/end
+            let cleanText = cols[j].innerText.replace(/\s+/g, ' ').trim();
+            
+            // Escape double quotes for CSV format
+            row.push('"' + cleanText.replace(/"/g, '""') + '"');
+        }
         csv.push(row.join(","));
     }
 

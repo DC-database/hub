@@ -4545,3 +4545,21 @@ body.is-ceo .desktop-only.col-group {
     border-bottom: 3px solid #e0e0e0 !important;
     color: #003A5C !important;
 }
+
+/* ========================================= */
+/* ICON ONLY BUTTONS (For Job Records)       */
+/* ========================================= */
+.icon-only-btn {
+    width: 42px !important;        /* Fixed width */
+    height: 40px !important;       /* Fixed height */
+    padding: 0 !important;         /* Remove padding so icon centers */
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem !important;  /* Slightly larger icon */
+    border-radius: 4px;
+}
+
+.icon-only-btn i {
+    margin-right: 0 !important;    /* Remove spacing usually reserved for text */
+}

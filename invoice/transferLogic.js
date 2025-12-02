@@ -559,10 +559,11 @@ async function saveTransferEntry(e) {
 
 
 // ==========================================================================
-// 6. PRINT LOGIC (Fixed: Status Badge & ESN Text)
+// 6. PRINT LOGIC (INVISIBLE FRAME METHOD - SEAMLESS)
 // ==========================================================================
 window.handlePrintWaybill = function(entry) {
-    const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val || '-'; };
+    
+    // --- 1. PREPARE DATA (Same as before) ---
     const getFullSiteName = (code) => {
         if (!code) return '-';
         if (typeof allSitesCSVData !== 'undefined' && allSitesCSVData) {
@@ -572,101 +573,216 @@ window.handlePrintWaybill = function(entry) {
         return code; 
     };
 
-    setText('wb-date', formatYYYYMMDD(entry.shippingDate));
-    setText('wb-control-id', entry.controlId || entry.ref);
-    setText('wb-from-site', getFullSiteName(entry.fromSite || entry.fromLocation));
-    setText('wb-to-site', getFullSiteName(entry.toSite || entry.toLocation));
-    setText('wb-requestor', entry.requestor);
-    setText('wb-receiver', entry.receiver);
-    setText('wb-prod-id', entry.productId || entry.productID);
-    setText('wb-prod-name', entry.productName);
-    setText('wb-details', entry.details);
-    
-    let displayQty = entry.orderedQty;
-    if (entry.remarks === 'Completed') displayQty = entry.receivedQty;
-    else if (entry.remarks === 'In Transit') displayQty = entry.approvedQty;
-    setText('wb-qty', displayQty || 0);
-    setText('wb-print-date', new Date().toLocaleString());
-
-    const titleEl = document.getElementById('wb-doc-title');
-    const badgeEl = document.getElementById('wb-status-badge');
-    const approverImg = document.getElementById('wb-barcode-approver');
-    const receiverImg = document.getElementById('wb-barcode-receiver');
-    const receiverContainer = document.getElementById('wb-receiver-esn-container');
-    const receiverText = document.getElementById('wb-receiver-pending-text');
-    const esnText = document.getElementById('wb-esn-text');
-    const receiverEsnText = document.getElementById('wb-receiver-esn-text');
-    const arrivalDateEl = document.getElementById('wb-arrival-date');
-
+    // Generate Barcode Base64
     const generateBarcodeSrc = (text) => {
         try {
             const canvas = document.createElement('canvas');
             const cleanText = text.replace(/[^a-zA-Z0-9-]/g, ""); 
-            JsBarcode(canvas, cleanText, { format: "CODE128", displayValue: false, height: 45, margin: 0, width: 2, background: "#ffffff" });
+            JsBarcode(canvas, cleanText, { format: "CODE128", displayValue: false, height: 50, margin: 0, width: 2, background: "#ffffff" });
             return canvas.toDataURL("image/png");
         } catch(e) { return ""; }
     };
 
-    const isApproved = ['In Transit', 'Approved', 'Completed', 'Received'].includes(entry.remarks);
+    const date = formatYYYYMMDD(entry.shippingDate);
+    const controlId = entry.controlId || entry.ref;
+    const fromSite = getFullSiteName(entry.fromSite || entry.fromLocation);
+    const toSite = getFullSiteName(entry.toSite || entry.toLocation);
+    const requestor = entry.requestor || '-';
+    const receiver = entry.receiver || '-';
+    const prodId = entry.productId || entry.productID;
+    const prodName = entry.productName;
+    const details = entry.details;
     
-    // --- APPROVER SECTION ---
-    if (isApproved) {
-        if(titleEl) titleEl.textContent = "TRANSFER SLIP";
-        if(badgeEl) { badgeEl.textContent = "AUTHORIZED"; badgeEl.style.borderColor = "#00748C"; badgeEl.style.color = "#00748C"; }
+    let displayQty = entry.orderedQty;
+    if (entry.remarks === 'Completed') displayQty = entry.receivedQty;
+    else if (entry.remarks === 'In Transit') displayQty = entry.approvedQty;
+    
+    const printDate = new Date().toLocaleString();
 
-        let esnString = entry.esn;
-        if (!esnString) esnString = (entry.controlId || entry.ref) + "/APP"; 
-        
+    const isApproved = ['In Transit', 'Approved', 'Completed', 'Received'].includes(entry.remarks);
+    const isCompleted = ['Completed', 'Received'].includes(entry.remarks);
+
+    let title = isApproved ? "TRANSFER SLIP" : "DRAFT REQUEST";
+    let badgeText = isApproved ? "AUTHORIZED" : "PENDING APPROVAL";
+    let badgeColor = isApproved ? "#00748C" : "#dc3545";
+    if(isCompleted) { badgeText = "COMPLETED"; badgeColor = "#28a745"; }
+
+    // Approver Section
+    let approverSectionHTML = '';
+    if(isApproved) {
+        let esnString = entry.esn || ((entry.controlId || entry.ref) + "/APP");
         let signerName = entry.approver || "Admin";
         if (esnString.includes('/')) signerName = esnString.split('/')[1];
-
-        // Just show ESN and Name (Lines are now in HTML)
-        if(esnText) {
-            esnText.innerHTML = `<div style="margin-bottom:2px;">Digital Sig: ${signerName}</div><div style="font-family:monospace;">${esnString}</div>`;
-        }
+        const barcodeSrc = generateBarcodeSrc(esnString);
         
-        if(approverImg) { approverImg.src = generateBarcodeSrc(esnString); approverImg.style.display = 'block'; }
+        approverSectionHTML = `
+            <div style="text-align: center;">
+                <img src="${barcodeSrc}" style="width: 80%; height: 50px; object-fit: contain;">
+                <div style="font-size: 10px; font-family: monospace; font-weight: bold; margin-top: 2px; color: black;">
+                    <div style="margin-bottom:2px;">Digital Sig: ${signerName}</div>
+                    <div>${esnString}</div>
+                </div>
+            </div>`;
     } else {
-        if(titleEl) titleEl.textContent = "DRAFT REQUEST";
-        if(badgeEl) { badgeEl.textContent = "PENDING APPROVAL"; badgeEl.style.borderColor = "#dc3545"; badgeEl.style.color = "#dc3545"; }
-        if(esnText) esnText.textContent = "PENDING APPROVAL";
-        if(approverImg) approverImg.style.display = 'none';
+        approverSectionHTML = `<div style="text-align: center; font-weight: bold; color: #dc3545; padding: 20px;">PENDING APPROVAL</div>`;
     }
 
-    // --- RECEIVER SECTION ---
-    const isCompleted = ['Completed', 'Received'].includes(entry.remarks);
-    
-    if (isCompleted) {
-        if(badgeEl) { badgeEl.textContent = "COMPLETED"; badgeEl.style.borderColor = "#28a745"; badgeEl.style.color = "#28a745"; }
-        if(receiverText) receiverText.style.display = 'none';
-        
-        if (entry.jobType !== 'Usage' && entry.jobType !== 'Return') {
-            let recString = entry.receiverEsn;
-            if (!recString) recString = (entry.controlId || entry.ref) + "/REC"; 
-
+    // Receiver Section
+    let receiverSectionHTML = '';
+    if(isCompleted) {
+        if(entry.jobType !== 'Usage' && entry.jobType !== 'Return') {
+            let recString = entry.receiverEsn || ((entry.controlId || entry.ref) + "/REC");
             let recName = entry.receiver || "Receiver";
             if (recString.includes('/')) recName = recString.split('/')[1];
+            const barcodeSrc = generateBarcodeSrc(recString);
 
-            if(receiverEsnText) {
-                receiverEsnText.innerHTML = `<div style="margin-bottom:2px;">Received By: ${recName}</div><div style="font-family:monospace;">${recString}</div>`;
-            }
-            if(receiverImg) { receiverImg.src = generateBarcodeSrc(recString); receiverImg.style.display = 'block'; }
-            if(receiverContainer) receiverContainer.style.display = 'block';
+            receiverSectionHTML = `
+                <img src="${barcodeSrc}" style="width: 80%; height: 50px; margin: 0 auto; object-fit: contain; display: block;">
+                <div style="font-size: 12px; font-weight: bold; font-family: monospace; margin-top: 5px; color: black;">
+                    <div style="margin-bottom:2px;">Received By: ${recName}</div>
+                    <div>${recString}</div>
+                </div>`;
         } else {
-             if(receiverText) { receiverText.style.display = 'block'; receiverText.textContent = "(System Processed)"; }
+            receiverSectionHTML = `<div style="font-size: 10px; color: #777; margin-top: 15px;">(System Processed)</div>`;
         }
     } else {
-        if(receiverImg) receiverImg.style.display = 'none';
-        if(receiverEsnText) receiverEsnText.textContent = "";
-        if(receiverContainer) receiverContainer.style.display = 'none';
-        if(receiverText) receiverText.style.display = 'block';
+        receiverSectionHTML = `<div style="font-size: 10px; color: #999; margin-top: 15px;">(Barcode generated upon completion)</div>`;
     }
 
-    document.body.classList.add('printing-waybill');
-    setTimeout(() => {
-        window.print();
-        setTimeout(() => { document.body.classList.remove('printing-waybill'); }, 1000);
-    }, 500);
+    // --- 2. CONSTRUCT HTML ---
+    const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Print Waybill - ${controlId}</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #000; background: white; }
+            .header { display: flex; justify-content: space-between; border-bottom: 3px solid #003A5C; padding-bottom: 10px; margin-bottom: 20px; }
+            .logo { background-color: #003A5C; color: white; font-weight: 900; font-size: 36px; padding: 5px 15px; letter-spacing: 2px; margin-right: 15px; }
+            .doc-title { font-size: 22px; font-weight: 800; color: #003A5C; margin: 0; }
+            .grid-container { display: grid; grid-template-columns: 1fr 1fr; border: 2px solid #000; }
+            .grid-item { padding: 10px; }
+            .border-right { border-right: 2px solid #000; }
+            .border-bottom { border-bottom: 2px solid #000; }
+            .label-box { background-color: #003A5C; color: white; padding: 2px 5px; font-size: 11px; font-weight: bold; display: inline-block; margin-bottom: 5px; }
+            .yellow-header { background-color: #ffc107; color: black; padding: 5px 10px; font-size: 12px; font-weight: bold; border-bottom: 2px solid #000; }
+            table { width: 100%; border-collapse: collapse; font-size: 12px; }
+            th { border-right: 1px solid #000; padding: 8px; background: #f0f0f0; text-align: left; }
+            td { border-right: 1px solid #000; padding: 10px; border-top: 1px solid #000; }
+            .footer-grid { display: flex; gap: 20px; margin-top: 30px; }
+            .footer-box { flex: 1; border: 2px dashed #000; padding: 15px; text-align: center; border-radius: 8px; }
+            .signature-line { border-bottom: 1px solid #000; height: 20px; margin-bottom: 5px; }
+            
+            @media print {
+                @page { margin: 0.5cm; size: auto; }
+                body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div style="display: flex; align-items: center;">
+                <div class="logo">IBA</div>
+                <div>
+                    <h2 class="doc-title">${title}</h2>
+                    <p style="margin: 5px 0 0 0; font-size: 11px; color: #555;">Ismail Bin Ali Tradg. & Cont. Co. W.L.L</p>
+                </div>
+            </div>
+            <div style="border: 2px solid #000; padding: 5px 15px; font-weight: bold; font-size: 16px; color: ${badgeColor}; border-color: ${badgeColor};">
+                ${badgeText}
+            </div>
+        </div>
+
+        <div class="grid-container">
+            <div class="border-right">
+                <div class="grid-item border-bottom">
+                    <div class="label-box">1. FROM</div>
+                    <div style="margin-bottom: 8px;"><strong style="font-size: 14px;">${fromSite}</strong></div>
+                    <div style="font-size: 12px;"><span style="color: #666; font-size: 10px;">By:</span> ${requestor}</div>
+                </div>
+                <div class="grid-item">
+                    <div class="label-box">2. TO</div>
+                    <div style="margin-bottom: 8px;"><strong style="font-size: 14px;">${toSite}</strong></div>
+                    <div style="font-size: 12px;"><span style="color: #666; font-size: 10px;">Contact:</span> ${receiver}</div>
+                </div>
+            </div>
+            <div>
+                <div class="grid-item border-bottom">
+                    <div class="label-box">3. DETAILS</div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <div><span style="font-size: 10px; color: #666;">Date</span><br><strong>${date}</strong></div>
+                        <div><span style="font-size: 10px; color: #666;">Control ID</span><br><strong>${controlId}</strong></div>
+                    </div>
+                </div>
+                <div class="grid-item">
+                    <div class="label-box">4. APPROVAL</div>
+                    ${approverSectionHTML}
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top: 20px; border: 2px solid #000;">
+            <div class="yellow-header">5. ITEM DESCRIPTION</div>
+            <table>
+                <thead>
+                    <tr><th>ID</th><th>Name</th><th>Details</th><th style="border-right: none;">Qty</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>${prodId}</td>
+                        <td><strong>${prodName}</strong></td>
+                        <td>${details}</td>
+                        <td style="border-right: none; text-align: right; font-weight: bold;">${displayQty}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="footer-grid">
+            <div class="footer-box">
+                <div style="font-size: 9px; font-weight: bold; color: #003A5C; margin-bottom: 10px;">FINAL VERIFICATION / RECEIPT</div>
+                ${receiverSectionHTML}
+            </div>
+            <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-around;">
+                <div><div class="signature-line"></div><div style="font-size: 10px; font-weight: bold;">Approver Signature</div></div>
+                <div><div class="signature-line"></div><div style="font-size: 10px; font-weight: bold;">Receiver Signature</div></div>
+            </div>
+        </div>
+
+        <div style="text-align: center; font-size: 9px; margin-top: 20px; color: #777;">Printed: ${printDate}</div>
+    </body>
+    </html>`;
+
+    // --- 3. EXECUTE PRINT VIA INVISIBLE IFRAME ---
+    // This creates a hidden frame, puts the content in, prints, then destroys it.
+    
+    // Remove old frame if it exists (cleanup)
+    const oldFrame = document.getElementById('waybill-print-frame');
+    if (oldFrame) oldFrame.remove();
+
+    const iframe = document.createElement('iframe');
+    iframe.id = 'waybill-print-frame';
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(htmlContent);
+    doc.close();
+
+    // Wait for content (images/barcodes) to be "ready" before printing
+    iframe.onload = function() {
+        setTimeout(() => {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+            // We don't remove the iframe immediately to ensure print dialog doesn't break on some browsers
+        }, 500);
+    };
 };
 
 // ==========================================================================
