@@ -1,5 +1,5 @@
 // ==========================================================================
-// TRANSFER LOGIC: WORKFLOW ENGINE (Corrected)
+// TRANSFER LOGIC: WORKFLOW ENGINE (Fixed & Cleaned)
 // ==========================================================================
 
 let currentTransferType = '';
@@ -13,6 +13,8 @@ let tfFromSiteChoices, tfToSiteChoices, tfApproverChoices, tfReceiverChoices, tf
 async function openTransferModal(type) {
     currentTransferType = type;
     editingTransferData = null;
+    
+    // Reset Form
     document.getElementById('transfer-job-form').reset();
     document.getElementById('tf-job-type').value = type;
     
@@ -21,9 +23,11 @@ async function openTransferModal(type) {
         document.getElementById('tf-requestor').value = currentApprover.Name;
     }
 
+    // Set Date
     const dateEl = document.getElementById('tf-shipping-date');
     if(dateEl) dateEl.value = new Date().toISOString().split('T')[0];
     
+    // Initialize Dropdowns & ID
     await initTransferDropdowns(); 
     await generateSequentialTransferId(type);
 
@@ -35,7 +39,7 @@ async function openTransferModal(type) {
     const recvGroup = document.getElementById('tf-receiver').closest('.form-group');
     const arrivalGroup = document.getElementById('tf-arrival-date').closest('.form-group');
     
-    // Hide Status/Remarks
+    // Hide Status/Remarks by default for new entries
     document.getElementById('tf-status').closest('.form-group').style.display = 'none';
     document.getElementById('tf-remarks').closest('.form-group').style.display = 'none';
 
@@ -47,14 +51,11 @@ async function openTransferModal(type) {
     recvGroup.style.display = 'block';
     arrivalGroup.style.display = 'none'; 
 
-    // --- NEW: HIGHLIGHT LOGIC ---
-    
     // Helper to add/remove highlight class
     const highlight = (ids, status) => {
         ids.forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
-            
             // Handle Dropdowns (Choices.js) vs Normal Inputs
             const parentChoices = el.closest('.choices');
             const target = parentChoices ? parentChoices.querySelector('.choices__inner') : el;
@@ -83,7 +84,6 @@ async function openTransferModal(type) {
         highlight(['tf-product-select', 'tf-req-qty', 'tf-from', 'tf-approver'], true);
     }
     else if (type === 'Return') {
-        // Return logic is usually handled by initiateReturn, but if opened manually:
         highlight(['tf-product-select', 'tf-req-qty', 'tf-from', 'tf-to', 'tf-approver'], true);
     }
 
@@ -123,8 +123,6 @@ window.openTransferActionModal = async function(task) {
         approveBtn.textContent = "Confirm & Send";
         approveBtn.style.backgroundColor = "#17a2b8"; 
         qtyInput.value = task.orderedQty; 
-        
-        // Highlight Qty
         qtyInput.classList.add('input-required-highlight');
 
     } else if (task.remarks === 'Pending Admin' || task.remarks === 'Pending') {
@@ -132,8 +130,6 @@ window.openTransferActionModal = async function(task) {
         approveBtn.textContent = "Authorize";
         approveBtn.style.backgroundColor = "#28a745"; 
         qtyInput.value = task.approvedQty || task.orderedQty; 
-        
-        // Highlight Qty
         qtyInput.classList.add('input-required-highlight');
 
     } else if (task.remarks === 'In Transit') {
@@ -145,12 +141,9 @@ window.openTransferActionModal = async function(task) {
         dateContainer.classList.remove('hidden');
         if(dateInput) {
             dateInput.value = new Date().toISOString().split('T')[0];
-            // Highlight Date
             dateInput.classList.add('input-required-highlight');
         }
-        // Highlight Qty
         qtyInput.classList.add('input-required-highlight');
-        
         rejectBtn.classList.add('hidden'); 
 
     } else if (task.remarks === 'Pending Confirmation') {
@@ -158,8 +151,6 @@ window.openTransferActionModal = async function(task) {
         approveBtn.textContent = "Confirm Usage";
         approveBtn.style.backgroundColor = "#6f42c1"; 
         qtyInput.value = task.approvedQty;
-        
-        // Highlight Qty
         qtyInput.classList.add('input-required-highlight');
     }
 
@@ -188,22 +179,12 @@ window.handleTransferAction = async (status) => {
 
     const database = (typeof db !== 'undefined') ? db : firebase.database();
 
-    // --- NEW: STRICT ESN GENERATOR ---
     const generateStructuredESN = (letters, digits) => {
         const charSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         const numSet = "0123456789";
         let result = "";
-        
-        // 1. Get required Letters
-        for (let i = 0; i < letters; i++) {
-            result += charSet.charAt(Math.floor(Math.random() * charSet.length));
-        }
-        // 2. Get required Digits
-        for (let i = 0; i < digits; i++) {
-            result += numSet.charAt(Math.floor(Math.random() * numSet.length));
-        }
-        
-        // 3. Shuffle the result to mix them up
+        for (let i = 0; i < letters; i++) result += charSet.charAt(Math.floor(Math.random() * charSet.length));
+        for (let i = 0; i < digits; i++) result += numSet.charAt(Math.floor(Math.random() * numSet.length));
         return result.split('').sort(() => 0.5 - Math.random()).join('');
     };
 
@@ -217,9 +198,7 @@ window.handleTransferAction = async (status) => {
         const pID = task.productID || task.productId;
         const jobType = (task.jobType || task.for || '').trim(); 
 
-        let nextStatus = status;
-        let nextAttention = ''; 
-        const updates = { 
+        let updates = { 
             note: note, 
             dateResponded: formatDate(new Date())
         };
@@ -236,7 +215,6 @@ window.handleTransferAction = async (status) => {
         // --- APPROVAL ---
         if (status === 'Approved') {
             const currentUser = currentApprover ? currentApprover.Name : 'Unknown';
-            // Clean name for ESN tag (e.g., IRWIN)
             const cleanName = currentUser.replace(/Engr\.?\s*/gi, '').trim().toUpperCase().split(' ')[0];
 
             // 1. RESTOCK
@@ -247,10 +225,7 @@ window.handleTransferAction = async (status) => {
                     updates.status = 'In Transit';
                     updates.remarks = 'In Transit';
                     updates.attention = task.receiver;
-                    
-                    // GENERATE APPROVER ESN: 6 Letters + 6 Digits
                     updates.esn = `${generateStructuredESN(6, 6)}/${cleanName}`;
-                    
                     alert(`Restock Authorized! Sent to Receiver.`);
                     await commitUpdate(database, key, updates, note);
                     return; 
@@ -258,10 +233,7 @@ window.handleTransferAction = async (status) => {
                 if (task.remarks === 'In Transit') {
                     updates.status = 'Completed'; updates.remarks = 'Completed'; updates.attention = 'Records';
                     updates.receivedQty = qty; updates.arrivalDate = arrivalDateVal;
-                    
-                    // GENERATE RECEIVER ESN: 4 Letters + 4 Digits
                     updates.receiverEsn = `${generateStructuredESN(4, 4)}/${cleanName}`;
-
                     if (pID && destSite) await updateStockInventory(pID, qty, 'Add', destSite);
                     alert(`Restock Confirmed! Stock Added.`);
                     await commitUpdate(database, key, updates, note);
@@ -273,9 +245,8 @@ window.handleTransferAction = async (status) => {
             if (jobType === 'Usage') {
                 if (task.remarks === 'Pending Admin' || task.remarks === 'Pending') {
                     updates.approvedQty = qty;
-                    updates.status = 'Pending Confirmation'; updates.remarks = 'Pending Confirmation'; updates.attention = task.requestor;
-                    updates.esn = `${generateStructuredESN(6, 6)}/${cleanName}`; // Approver ESN
-                    
+                    updates.status = 'Pending'; updates.remarks = 'Pending Confirmation'; updates.attention = task.requestor;
+                    updates.esn = `${generateStructuredESN(6, 6)}/${cleanName}`;
                     if (pID && sourceSite) await updateStockInventory(pID, qty, 'Deduct', sourceSite);
                     alert("Usage Authorized. Stock Deducted.");
                     await commitUpdate(database, key, updates, note);
@@ -294,7 +265,7 @@ window.handleTransferAction = async (status) => {
             if (jobType === 'Transfer') {
                 if (task.remarks === 'Pending Source') {
                     updates.approvedQty = qty;
-                    updates.status = 'Pending Admin'; updates.remarks = 'Pending Admin'; updates.attention = task.approver;
+                    updates.status = 'Pending'; updates.remarks = 'Pending Admin'; updates.attention = task.approver;
                     alert("Source Confirmed.");
                     await commitUpdate(database, key, updates, note);
                     return;
@@ -302,28 +273,19 @@ window.handleTransferAction = async (status) => {
                 if (task.remarks === 'Pending Admin') {
                     updates.approvedQty = qty;
                     updates.status = 'In Transit'; updates.remarks = 'In Transit'; updates.attention = task.receiver;
-                    
-                    // GENERATE APPROVER ESN: 6 Letters + 6 Digits
                     updates.esn = `${generateStructuredESN(6, 6)}/${cleanName}`;
-
                     if (pID && sourceSite) await updateStockInventory(pID, qty, 'Deduct', sourceSite);
                     alert("Transfer Authorized. Stock Deducted.");
                     await commitUpdate(database, key, updates, note);
                     return;
                 }
-                
-                // RECEIVER CONFIRM
                 if (task.remarks === 'In Transit') {
                     updates.status = 'Completed'; updates.remarks = 'Completed'; updates.attention = 'Records';
                     updates.receivedQty = qty; updates.arrivalDate = arrivalDateVal;
-                    
-                    // GENERATE RECEIVER ESN: 4 Letters + 4 Digits
                     updates.receiverEsn = `${generateStructuredESN(4, 4)}/${cleanName}`;
-
-                    // Add to Dest
                     if (pID && destSite) await updateStockInventory(pID, qty, 'Add', destSite);
                     
-                    // Reconciliation (Partial Receive Logic)
+                    // Partial Logic
                     const approved = parseFloat(task.approvedQty) || 0;
                     const diff = approved - qty;
                     if (diff > 0 && pID && sourceSite) {
@@ -332,7 +294,6 @@ window.handleTransferAction = async (status) => {
                     } else {
                         alert("Transfer Received. Stock Added.");
                     }
-                    
                     await commitUpdate(database, key, updates, note);
                     return;
                 }
@@ -342,9 +303,7 @@ window.handleTransferAction = async (status) => {
             if (jobType === 'Return') {
                 if (task.remarks === 'Pending Admin') {
                     updates.approvedQty = qty;
-                    // GENERATE APPROVER ESN
                     updates.esn = `${generateStructuredESN(6, 6)}/${cleanName}`;
-
                     if (task.originalJobType === 'Restock') {
                         updates.status = 'Completed'; updates.remarks = 'Completed'; updates.attention = 'Records';
                         if (pID && sourceSite) await updateStockInventory(pID, qty, 'Deduct', sourceSite);
@@ -356,7 +315,6 @@ window.handleTransferAction = async (status) => {
                         alert("Usage Return Approved. Stock Restored.");
                     } 
                     else {
-                        // Transfer Return
                         updates.status = 'In Transit'; updates.remarks = 'In Transit'; updates.attention = task.receiver;
                         if (pID && sourceSite) await updateStockInventory(pID, qty, 'Deduct', sourceSite);
                         alert("Return Authorized. Stock Deducted.");
@@ -364,33 +322,16 @@ window.handleTransferAction = async (status) => {
                     await commitUpdate(database, key, updates, note);
                     return;
                 }
-                
-                // RECEIVER CONFIRM (Return)
                 if (task.remarks === 'In Transit') {
                     updates.status = 'Completed'; updates.remarks = 'Completed'; updates.attention = 'Records';
                     updates.receivedQty = qty;
-                    
-                    // GENERATE RECEIVER ESN
                     updates.receiverEsn = `${generateStructuredESN(4, 4)}/${cleanName}`;
-
                     if (pID && destSite) await updateStockInventory(pID, qty, 'Add', destSite);
-                    
-                    // Reconciliation
-                    const approved = parseFloat(task.approvedQty) || 0;
-                    const diff = approved - qty;
-                    if (diff > 0 && pID && sourceSite) {
-                        await updateStockInventory(pID, diff, 'Add', sourceSite);
-                        alert(`Partial Return Receive: ${diff} returned to origin.`);
-                    } else {
-                        alert("Return Received. Stock Restored.");
-                    }
-
                     await commitUpdate(database, key, updates, note);
                     return;
                 }
             }
         }
-
     } catch (error) {
         console.error("Error:", error);
         alert("Action failed. Check console.");
@@ -399,22 +340,34 @@ window.handleTransferAction = async (status) => {
     }
 };
 
-
-// Helper
+// Helper: Commit Update to DB AND Refresh Data
 async function commitUpdate(db, key, updates, note) {
     const historyEntry = { 
-        action: updates.status, 
+        action: (updates.remarks || updates.status), 
         by: (typeof currentApprover !== 'undefined' ? currentApprover.Name : 'Unknown'), 
         timestamp: Date.now(), 
         note: note || '' 
     };
+    
+    // 1. Update Firebase
     await db.ref(`transfer_entries/${key}`).update(updates);
     await db.ref(`transfer_entries/${key}/history`).push(historyEntry);
+    
+    // 2. Close Modal
     document.getElementById('transfer-approval-modal').classList.add('hidden');
-    if(typeof populateActiveTasks === 'function') await populateActiveTasks();
+    
+    // 3. CRITICAL FIX: Force re-download of data so the task disappears/moves
+    if(typeof ensureAllEntriesFetched === 'function') {
+        await ensureAllEntriesFetched(true); // <--- TRUE forces a fresh download
+    }
+    
+    // 4. Re-render the list with the new data
+    if(typeof populateActiveTasks === 'function') {
+        await populateActiveTasks();
+    }
 }
 
-// 8. STOCK UPDATE HELPER (Ensure this is at the bottom of transferLogic.js)
+// Helper: Update Stock Inventory
 async function updateStockInventory(id, qty, action, siteName) {
     if (!id || !qty || !siteName) { console.error("Missing params"); return; }
     const safeSiteName = siteName.replace(/[.#$[\]]/g, "_");
@@ -450,29 +403,14 @@ async function updateStockInventory(id, qty, action, siteName) {
     } catch (error) { console.error("Stock update failed:", error); }
 }
 
-// Helper
-async function commitUpdate(db, key, updates, note) {
-    const historyEntry = { 
-        action: updates.status, 
-        by: (typeof currentApprover !== 'undefined' ? currentApprover.Name : 'Unknown'), 
-        timestamp: Date.now(), 
-        note: note || '' 
-    };
-    await db.ref(`transfer_entries/${key}`).update(updates);
-    await db.ref(`transfer_entries/${key}/history`).push(historyEntry);
-    document.getElementById('transfer-approval-modal').classList.add('hidden');
-    if(typeof populateActiveTasks === 'function') await populateActiveTasks();
-}
-
 // ==========================================================================
-// 4. SAVE ENTRY (The Only Save Function You Need)
+// 4. SAVE ENTRY (Corrected to ensure non-null status)
 // ==========================================================================
 async function saveTransferEntry(e) {
     if(e) e.preventDefault(); 
     const btn = document.getElementById('tf-save-btn');
     btn.disabled = true; btn.textContent = "Saving...";
 
-    // 1. Get Values
     const fromLoc = (tfFromSiteChoices ? tfFromSiteChoices.getValue(true) : document.getElementById('tf-from').value) || '';
     const toLoc = (tfToSiteChoices ? tfToSiteChoices.getValue(true) : document.getElementById('tf-to').value) || '';
     const productID = (transferProductChoices ? transferProductChoices.getValue(true) : document.getElementById('tf-product-select').value) || '';
@@ -482,7 +420,6 @@ async function saveTransferEntry(e) {
     const qty = parseFloat(document.getElementById('tf-req-qty').value) || 0;
     const type = document.getElementById('tf-job-type').value;
 
-    // 2. VALIDATION LOGIC (Critical for Workflow)
     if (type === 'Usage' || type === 'Return') {
         if (!productID || !fromLoc || !approver) {
             alert("Please fill in: Product, Source Site, and Approver."); 
@@ -490,31 +427,28 @@ async function saveTransferEntry(e) {
         }
     } 
     else if (type === 'Restock') {
-        // MUST have Receiver so Admin knows who to send it back to
         if (!productID || !toLoc || !approver || !receiver) {
             alert("For Restock, you MUST select:\n1. Destination Site\n2. Approver\n3. Receiver (Yourself)"); 
             btn.disabled = false; btn.textContent = "Save Transaction"; return;
         }
     }
     else {
-        // Transfer requires everything
         if (!productID || !fromLoc || !toLoc || !sourceContact || !approver || !receiver) {
             alert("Please fill in ALL fields for Transfer."); 
             btn.disabled = false; btn.textContent = "Save Transaction"; return;
         }
     }
 
-    // 3. Determine Start Status
     const currentUser = currentApprover ? currentApprover.Name : 'Unknown';
     let startStatus = 'Pending';
+    let startRemarks = 'Pending';
     let startAttention = '';
 
     if (type === 'Transfer') { 
-        startStatus = 'Pending Source'; 
+        startRemarks = 'Pending Source';
         startAttention = sourceContact; 
     } else { 
-        // Restock, Usage, Return all go to Admin first
-        startStatus = 'Pending Admin'; 
+        startRemarks = 'Pending Admin';
         startAttention = approver; 
     } 
 
@@ -528,12 +462,16 @@ async function saveTransferEntry(e) {
         fromLocation: fromLoc, fromSite: fromLoc,
         toLocation: toLoc, toSite: toLoc,
         shippingDate: document.getElementById('tf-shipping-date').value,
-        status: startStatus, remarks: startStatus, attention: startAttention, 
+        
+        // FIXED: Ensure status is set correctly for filtering
+        status: startStatus, 
+        remarks: startRemarks, 
+        attention: startAttention, 
+        
         timestamp: firebase.database.ServerValue.TIMESTAMP, enteredBy: currentUser, 
-        history: [{ action: "Created", by: currentUser, timestamp: Date.now(), status: startStatus }]
+        history: [{ action: "Created", by: currentUser, timestamp: Date.now(), status: startStatus, remarks: startRemarks }]
     };
 
-    // 4. Save to DB
     const database = (typeof db !== 'undefined') ? db : firebase.database();
 
     try {
@@ -564,9 +502,11 @@ async function saveTransferEntry(e) {
 window.handlePrintWaybill = function(entry) {
     
     // --- 1. PREPARE DATA (Same as before) ---
+    // [4.bz] getFullSiteName
     const getFullSiteName = (code) => {
         if (!code) return '-';
         if (typeof allSitesCSVData !== 'undefined' && allSitesCSVData) {
+            // [4.ca] found
             const found = allSitesCSVData.find(s => s.site == code);
             if (found) return `${found.site} - ${found.description}`;
         }
@@ -574,52 +514,75 @@ window.handlePrintWaybill = function(entry) {
     };
 
     // Generate Barcode Base64
+    // [4.cb] generateBarcodeSrc
     const generateBarcodeSrc = (text) => {
         try {
+            // [4.cc] canvas
             const canvas = document.createElement('canvas');
+            // [4.cd] cleanText
             const cleanText = text.replace(/[^a-zA-Z0-9-]/g, ""); 
             JsBarcode(canvas, cleanText, { format: "CODE128", displayValue: false, height: 50, margin: 0, width: 2, background: "#ffffff" });
             return canvas.toDataURL("image/png");
         } catch(e) { return ""; }
     };
 
+    // [4.ce] date
     const date = formatYYYYMMDD(entry.shippingDate);
+    // [4.cf] controlId
     const controlId = entry.controlId || entry.ref;
+    // [4.cg] fromSite
     const fromSite = getFullSiteName(entry.fromSite || entry.fromLocation);
+    // [4.ch] toSite
     const toSite = getFullSiteName(entry.toSite || entry.toLocation);
+    // [4.ci] requestor
     const requestor = entry.requestor || '-';
+    // [4.cj] receiver
     const receiver = entry.receiver || '-';
+    // [4.ck] prodId
     const prodId = entry.productId || entry.productID;
+    // [4.cl] prodName
     const prodName = entry.productName;
+    // [4.cm] details
     const details = entry.details;
     
+    // [4.cn] displayQty
     let displayQty = entry.orderedQty;
     if (entry.remarks === 'Completed') displayQty = entry.receivedQty;
     else if (entry.remarks === 'In Transit') displayQty = entry.approvedQty;
     
+    // [4.co] printDate
     const printDate = new Date().toLocaleString();
 
+    // [4.cp] isApproved
     const isApproved = ['In Transit', 'Approved', 'Completed', 'Received'].includes(entry.remarks);
+    // [4.cq] isCompleted
     const isCompleted = ['Completed', 'Received'].includes(entry.remarks);
 
+    // [4.cr] title
     let title = isApproved ? "TRANSFER SLIP" : "DRAFT REQUEST";
+    // [4.cs] badgeText
     let badgeText = isApproved ? "AUTHORIZED" : "PENDING APPROVAL";
+    // [4.ct] badgeColor
     let badgeColor = isApproved ? "#00748C" : "#dc3545";
     if(isCompleted) { badgeText = "COMPLETED"; badgeColor = "#28a745"; }
 
     // Approver Section
+    // [4.cu] approverSectionHTML
     let approverSectionHTML = '';
     if(isApproved) {
+        // [4.cv] esnString
         let esnString = entry.esn || ((entry.controlId || entry.ref) + "/APP");
+        // [4.cw] signerName
         let signerName = entry.approver || "Admin";
         if (esnString.includes('/')) signerName = esnString.split('/')[1];
+        // [4.cx] barcodeSrc
         const barcodeSrc = generateBarcodeSrc(esnString);
         
         approverSectionHTML = `
             <div style="text-align: center;">
                 <img src="${barcodeSrc}" style="width: 80%; height: 50px; object-fit: contain;">
                 <div style="font-size: 10px; font-family: monospace; font-weight: bold; margin-top: 2px; color: black;">
-                    <div style="margin-bottom:2px;">Digital Sig: ${signerName}</div>
+
                     <div>${esnString}</div>
                 </div>
             </div>`;
@@ -628,18 +591,22 @@ window.handlePrintWaybill = function(entry) {
     }
 
     // Receiver Section
+    // [4.cy] receiverSectionHTML
     let receiverSectionHTML = '';
     if(isCompleted) {
         if(entry.jobType !== 'Usage' && entry.jobType !== 'Return') {
+            // [4.cz] recString
             let recString = entry.receiverEsn || ((entry.controlId || entry.ref) + "/REC");
+            // [4.da] recName
             let recName = entry.receiver || "Receiver";
             if (recString.includes('/')) recName = recString.split('/')[1];
+            // [4.db] barcodeSrc
             const barcodeSrc = generateBarcodeSrc(recString);
 
             receiverSectionHTML = `
                 <img src="${barcodeSrc}" style="width: 80%; height: 50px; margin: 0 auto; object-fit: contain; display: block;">
                 <div style="font-size: 12px; font-weight: bold; font-family: monospace; margin-top: 5px; color: black;">
-                    <div style="margin-bottom:2px;">Received By: ${recName}</div>
+                    
                     <div>${recString}</div>
                 </div>`;
         } else {
@@ -650,6 +617,7 @@ window.handlePrintWaybill = function(entry) {
     }
 
     // --- 2. CONSTRUCT HTML ---
+    // [4.dc] htmlContent
     const htmlContent = `
     <!DOCTYPE html>
     <html>
@@ -757,9 +725,11 @@ window.handlePrintWaybill = function(entry) {
     // This creates a hidden frame, puts the content in, prints, then destroys it.
     
     // Remove old frame if it exists (cleanup)
+    // [4.dd] oldFrame
     const oldFrame = document.getElementById('waybill-print-frame');
     if (oldFrame) oldFrame.remove();
 
+    // [4.de] iframe
     const iframe = document.createElement('iframe');
     iframe.id = 'waybill-print-frame';
     iframe.style.position = 'fixed';
@@ -770,6 +740,7 @@ window.handlePrintWaybill = function(entry) {
     iframe.style.border = '0';
     document.body.appendChild(iframe);
 
+    // [4.df] doc
     const doc = iframe.contentWindow.document;
     doc.open();
     doc.write(htmlContent);
@@ -784,9 +755,8 @@ window.handlePrintWaybill = function(entry) {
         }, 500);
     };
 };
-
 // ==========================================================================
-// 7. HELPERS (DB Safe)
+// 7. HELPERS & DROPDOWNS
 // ==========================================================================
 window.closeTransferModal = function() { document.getElementById('transfer-job-modal').classList.add('hidden'); };
 
@@ -804,7 +774,6 @@ async function generateSequentialTransferId(type) {
     } catch (e) { input.value = `${prefix}-0001`; }
 }
 
-// ROBUST DROPDOWN INITIALIZER
 async function initTransferDropdowns() {
     const database = (typeof db !== 'undefined') ? db : firebase.database();
     
@@ -835,10 +804,10 @@ async function initTransferDropdowns() {
     if (!tfFromSiteChoices) tfFromSiteChoices = new Choices(document.getElementById('tf-from'), { searchEnabled: true, itemSelectText: '' });
     if (!tfToSiteChoices) tfToSiteChoices = new Choices(document.getElementById('tf-to'), { searchEnabled: true, itemSelectText: '' });
     
-    // Force Fetch Sites if Cache Empty
+    // Robust Site Fetching
     let sitesData = [];
     if (typeof allSitesCache !== 'undefined' && allSitesCache.length > 0) {
-        sitesData = allSitesCache;
+        sitesData = allSitesCache; // Use global cache from app.js
     } else {
         try {
             const res = await fetch("https://cdn.jsdelivr.net/gh/DC-database/Hub@main/Site.csv");
@@ -864,7 +833,6 @@ async function initTransferDropdowns() {
     if (!tfReceiverChoices) tfReceiverChoices = new Choices(document.getElementById('tf-receiver'), opts);
     if (!tfSourceContactChoices) tfSourceContactChoices = new Choices(document.getElementById('tf-source-contact'), opts);
 
-    // Force Fetch Approvers
     let approverList = [];
     if (typeof allApproversCache !== 'undefined' && allApproversCache.length > 0) {
         approverList = allApproversCache;
@@ -889,26 +857,24 @@ function updateFromSiteOptions(sitesData) {
     if (!tfFromSiteChoices) return;
     tfFromSiteChoices.clearStore(); tfFromSiteChoices.clearInput();
     const currentJobType = document.getElementById('tf-job-type').value;
-    // ... (Keep rest of logic) ...
-     const newChoices = [];
+    
+    const newChoices = [];
     if (sitesData) {
         Object.entries(sitesData).forEach(([site, qty]) => {
             if (parseFloat(qty) > 0) newChoices.push({ value: site, label: `${site} (Avail: ${qty})` });
         });
     }
-    // Fallback if empty
-    if (newChoices.length > 0) tfFromSiteChoices.setChoices(newChoices, 'value', 'label', true);
-    else {
-        // If Restock, load ALL sites
-        if (currentJobType === 'Restock') {
-             // Re-run init logic for this specific dropdown or just show all
+    
+    if (newChoices.length > 0) {
+        tfFromSiteChoices.setChoices(newChoices, 'value', 'label', true);
+    } else {
+        if (currentJobType === 'Restock' && typeof allSitesCache !== 'undefined') {
+             tfFromSiteChoices.setChoices(allSitesCache, 'value', 'label', true);
         } else {
             tfFromSiteChoices.setChoices([{ value: '', label: 'No stock available', disabled: true, selected: true }]);
         }
     }
 }
-function highlightSenderFields(isActive) { /* Keep */ }
-function updateFieldLocks(mode) { /* Keep */ }
 
 // Events
 document.addEventListener('DOMContentLoaded', () => {
@@ -919,68 +885,3 @@ document.addEventListener('DOMContentLoaded', () => {
     const rejBtn = document.getElementById('transfer-modal-reject-btn');
     if(rejBtn) rejBtn.addEventListener('click', () => handleTransferAction('Rejected'));
 });
-
-// ==========================================================================
-// 8. STOCK UPDATE HELPER (Required for Approval Logic)
-// ==========================================================================
-async function updateStockInventory(id, qty, action, siteName) {
-    if (!id || !qty || !siteName) {
-        console.error("Missing parameters for stock update:", {id, qty, action, siteName});
-        return;
-    }
-
-    // Sanitize Site Name (Firebase doesn't like ., #, $, [, ])
-    const safeSiteName = siteName.replace(/[.#$[\]]/g, "_");
-    
-    // Safety check for DB connection
-    const database = (typeof db !== 'undefined') ? db : firebase.database();
-
-    console.log(`Executing Stock Update: ${action} ${qty} at ${safeSiteName} for Product ${id}`);
-
-    try {
-        // 1. Find the product (search by ID)
-        let snapshot = await database.ref('material_stock').orderByChild('productID').equalTo(id).once('value');
-        if (!snapshot.exists()) {
-            // Try searching by the other field name just in case
-            snapshot = await database.ref('material_stock').orderByChild('productId').equalTo(id).once('value');
-        }
-
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            const key = Object.keys(data)[0]; 
-            const item = data[key];
-            
-            // 2. Calculate New Site Qty
-            let sites = item.sites || {};
-            let currentSiteStock = parseFloat(sites[safeSiteName] || 0);
-            const amount = parseFloat(qty);
-
-            if (action === 'Deduct') {
-                currentSiteStock -= amount;
-                if (currentSiteStock < 0) currentSiteStock = 0; // Prevent negatives
-            } else if (action === 'Add') {
-                currentSiteStock += amount;
-            }
-
-            sites[safeSiteName] = currentSiteStock;
-
-            // 3. Recalculate Global Total
-            let newGlobalStock = 0;
-            Object.values(sites).forEach(val => newGlobalStock += parseFloat(val) || 0);
-
-            // 4. Save to DB
-            await database.ref(`material_stock/${key}`).update({
-                sites: sites,
-                stockQty: newGlobalStock,
-                lastUpdated: firebase.database.ServerValue.TIMESTAMP
-            });
-            
-            console.log("Stock successfully updated.");
-        } else {
-            console.warn("Product ID not found in Material Stock database:", id);
-        }
-    } catch (error) { 
-        console.error("Stock update failed:", error); 
-        alert("Critical Error: Failed to update stock inventory in database.");
-    }
-}

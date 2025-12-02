@@ -1,6 +1,11 @@
+// =====================================
+// [File 3] receipt.js
+// =====================================
+
 // This is the entire content for receipt.js
 
 // 1. Firebase Configuration for the INVOICE app (where storage is)
+// [3.a] invoiceFirebaseConfig
 const invoiceFirebaseConfig = {
   apiKey: "AIzaSyB5_CCTk-dvr_Lsv0K2ScPwHJkkCY7VoAM",
   authDomain: "invoiceentry-b15a8.firebaseapp.com",
@@ -12,11 +17,15 @@ const invoiceFirebaseConfig = {
   measurementId: "G-R409J22B97"
 };
 // Initialize ONLY the invoice app
+// [3.b] invoiceApp
 const invoiceApp = firebase.initializeApp(invoiceFirebaseConfig, 'invoiceEntry');
+// [3.c] storage
 const storage = firebase.storage(invoiceApp);
 
 // 2. Helper function to format currency
+// [3.d] formatCurrency
 function formatCurrency(value) {
+    // [3.e] number
     const number = parseFloat(String(value).replace(/,/g, ''));
     if (isNaN(number)) return 'N/A';
     return number.toLocaleString('en-US', {
@@ -27,25 +36,40 @@ function formatCurrency(value) {
 
 // 3. Main function to load and display data
 document.addEventListener('DOMContentLoaded', () => {
+    // [3.f] receiptElement
     const receiptElement = document.getElementById('ceo-receipt-template');
+    // [3.g] approvedListEl
     const approvedListEl = document.getElementById('receipt-approved-list');
+    // [3.h] rejectedListEl
     const rejectedListEl = document.getElementById('receipt-rejected-list');
+    // [3.i] approvedTotalEl
     const approvedTotalEl = document.getElementById('receipt-approved-total');
+    // [3.j] rejectedTotalEl
     const rejectedTotalEl = document.getElementById('receipt-rejected-total');
+    // [3.k] approvedSection
     const approvedSection = document.getElementById('approved-section');
+    // [3.l] rejectedSection
     const rejectedSection = document.getElementById('rejected-section');
+    // [3.m] titleEl
     const titleEl = document.getElementById('receipt-title');
+    // [3.n] sendBtn
     const sendBtn = document.getElementById('send-whatsapp-btn');
+    // [3.o] statusText
     const statusText = document.getElementById('status-text');
+    // [3.p] versionEl
     const versionEl = document.getElementById('receipt-version');
 
     // *** ADD NEW DOM ELEMENTS ***
+    // [3.q] footerEsnEl
     const footerEsnEl = document.querySelector('#footer-esn span');
+    // [3.r] barcodeEl
     const barcodeEl = document.getElementById('barcode');
+    // [3.s] footerDateEl
     const footerDateEl = document.getElementById('footer-date');
 
 
     // 4. Get data from localStorage
+    // [3.t] receiptDataString
     const receiptDataString = localStorage.getItem('pendingReceiptData');
     if (!receiptDataString) {
         document.body.innerHTML = '<h1>Error</h1><p>No receipt data found. Please go back and try again.</p>';
@@ -55,6 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Clear the data so it can't be reused
     localStorage.removeItem('pendingReceiptData');
     
+    // [3.u] receiptData
     const receiptData = JSON.parse(receiptDataString);
     const { approvedTasks, rejectedTasks, seriesNo, appVersion } = receiptData;
 
@@ -68,15 +93,22 @@ if (receiptData.title) {
         versionEl.textContent = appVersion;
     }
 
+    // [3.v] approvedHTML
     let approvedHTML = '';
+    // [3.w] approvedTotal
     let approvedTotal = 0;
+    // [3.x] rejectedHTML
     let rejectedHTML = '';
+    // [3.y] rejectedTotal
     let rejectedTotal = 0;
 
     // Build Approved List
     approvedTasks.forEach((task, index) => {
+        // [3.z] vendor
         const vendor = (task.vendorName || 'N/A').substring(0, 10);
+        // [3.aa] invId
         const invId = task.invEntryID || task.ref || 'N/A';
+        // [3.ab] amount
         const amount = parseFloat(task.amountPaid) || 0;
         approvedTotal += amount;
         
@@ -94,8 +126,11 @@ if (receiptData.title) {
 
     // Build Rejected List
     rejectedTasks.forEach((task, index) => {
+        // [3.ac] vendor
         const vendor = (task.vendorName || 'N/A').substring(0, 10);
+        // [3.ad] invId
         const invId = task.invEntryID || task.ref || 'N/A';
+        // [3.ae] amount
         const amount = parseFloat(task.amountPaid) || 0;
         rejectedTotal += amount;
 
@@ -125,6 +160,7 @@ if (receiptData.title) {
         });
     } catch (e) {
         console.error("Barcode generation failed:", e);
+        // [3.af] barcodeContainer
         const barcodeContainer = document.getElementById('receipt-footer');
         if(barcodeContainer) barcodeContainer.innerHTML = "<p>Error generating barcode.</p>";
     }
@@ -139,6 +175,7 @@ if (receiptData.title) {
         try {
             
             // --- *** FIX: Updated PDF margins and width options *** ---
+            // [3.ag] options
             const options = { 
                 margin: 0.1, // Adjusted margin
                 filename: `${seriesNo}.pdf`, 
@@ -148,21 +185,29 @@ if (receiptData.title) {
             };
             // --- *** END OF FIX *** ---
             
+            // [3.ah] pdfBlob
             const pdfBlob = await html2pdf().set(options).from(receiptElement).output('blob');
 
             // 7. Upload PDF to Firebase Storage
             sendBtn.textContent = 'Uploading...';
+            // [3.ai] filename
             const filename = `receipts/${seriesNo}.pdf`;
+            // [3.aj] storageRef
             const storageRef = storage.ref(filename);
+            // [3.ak] snapshot
             const snapshot = await storageRef.put(pdfBlob);
+            // [3.al] downloadURL
             const downloadURL = await snapshot.ref.getDownloadURL();
 
             // 8. Build and Open WhatsApp
             statusText.textContent = 'Opening WhatsApp...';
             
+            // [3.am] message
             const message = `Authorize Approval\nESN #: ${seriesNo}\n\nView Receipt: ${downloadURL}`;
+            // [3.an] encodedMessage
             const encodedMessage = encodeURIComponent(message);
             
+            // [3.ao] whatsappURL
             const whatsappURL = `https://wa.me/?text=${encodedMessage}`;
 
             window.open(whatsappURL, '_blank');

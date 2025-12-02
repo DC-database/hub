@@ -1,22 +1,32 @@
+// =====================================
+// [File 2] materialStock.js
+// =====================================
+
 // ==========================================================================
 // MATERIAL STOCK MANAGEMENT (Final Version: Strict Exact Match Logic)
 // ==========================================================================
 
+// [2.a] allMaterialStockData
 let allMaterialStockData = [];
+// [2.b] allTransferData
 let allTransferData = []; 
+// [2.c] msProductChoices
 let msProductChoices = null; 
+// [2.d] lastTypedProductID
 let lastTypedProductID = ""; 
 
 // ==========================================================================
 // 1. LOAD DATA (Stock + Transfers)
 // ==========================================================================
 async function populateMaterialStock() {
+    // [2.e] tableBody
     const tableBody = document.getElementById('ms-table-body');
     if (!tableBody) return;
     
     tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Loading stock data...</td></tr>';
 
     try {
+        // [2.f] database
         const database = (typeof db !== 'undefined') ? db : firebase.database();
 
         const [stockSnap, transferSnap] = await Promise.all([
@@ -24,6 +34,7 @@ async function populateMaterialStock() {
             database.ref('transfer_entries').orderByChild('timestamp').once('value')
         ]);
 
+        // [2.g] stockData
         const stockData = stockSnap.val();
         allMaterialStockData = [];
         if (stockData) {
@@ -32,6 +43,7 @@ async function populateMaterialStock() {
             });
         }
 
+        // [2.h] tData
         const tData = transferSnap.val();
         allTransferData = [];
         if (tData) {
@@ -52,19 +64,28 @@ async function populateMaterialStock() {
 // ==========================================================================
 // 2. RENDER TABLE (UPDATED: "Return" Button Logic)
 // ==========================================================================
+// [2.i] renderMaterialStockTable
 function renderMaterialStockTable(data) {
+    // [2.j] tableBody
     const tableBody = document.getElementById('ms-table-body');
+    // [2.k] searchInput
     const searchInput = document.getElementById('ms-search-input');
+    // [2.l] searchTerm
     const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
     // Safe check for currentUser
+    // [2.m] currentUser
     const currentUser = (typeof currentApprover !== 'undefined') ? currentApprover.Name : '';
 
+    // [2.n] getSiteDisplayName
     const getSiteDisplayName = (siteCode) => {
         if (siteCode === "Main Store") return "Main Store";
+        // [2.o] cachedSites
         const cachedSites = localStorage.getItem('cached_SITES');
         if (cachedSites) {
             try {
+                // [2.p] sitesData
                 const sitesData = JSON.parse(cachedSites).data || [];
+                // [2.q] found
                 const found = sitesData.find(s => s.site == siteCode);
                 if (found) return `<span style="color:#00748C; font-weight:bold;">${found.site}</span> - ${found.description}`;
             } catch (e) {}
@@ -74,8 +95,11 @@ function renderMaterialStockTable(data) {
 
     tableBody.innerHTML = '';
 
+    // [2.r] filtered
     const filtered = data.filter(item => {
+        // [2.s] pID
         const pID = (item.productID || item.productId || '').toLowerCase();
+        // [2.t] pName
         const pName = (item.productName || '').toLowerCase();
         return pID.includes(searchTerm) || pName.includes(searchTerm);
     });
@@ -86,12 +110,16 @@ function renderMaterialStockTable(data) {
     }
 
     filtered.forEach(item => {
+        // [2.u] totalStock
         let totalStock = 0;
+        // [2.v] breakdownRows
         let breakdownRows = '';
+        // [2.w] hasSites
         let hasSites = false;
 
         if (item.sites) {
             Object.entries(item.sites).forEach(([site, qty]) => {
+                // [2.x] q
                 const q = parseFloat(qty);
                 if (q !== 0) {
                     hasSites = true;
@@ -107,27 +135,37 @@ function renderMaterialStockTable(data) {
         }
         
         if (!hasSites) {
+            // [2.y] legacyStock
             const legacyStock = parseFloat(item.stockQty) || 0;
             totalStock = legacyStock;
             breakdownRows = `<tr><td style="padding-left: 20px;">Unassigned (Global)</td><td>${legacyStock}</td></tr>`;
         }
 
+        // [2.z] stockID
         const stockID = (item.productID || item.productId || '').trim();
 
+        // [2.aa] productTransfers
         const productTransfers = allTransferData.filter(t => {
+            // [2.ab] transferID
             const transferID = (t.productID || t.productId || '').trim();
+            // [2.ac] idMatch
             const idMatch = transferID === stockID;
+            // [2.ad] isAfterCreation
             const isAfterCreation = t.timestamp >= (item.timestamp || 0);
             return idMatch && isAfterCreation;
         });
 
+        // [2.ae] historyRows
         let historyRows = '';
         if (productTransfers.length === 0) {
             historyRows = '<tr><td colspan="7" style="text-align:center; color:#999; font-style:italic; padding: 20px;">No movement history found.</td></tr>';
         } else {
             productTransfers.forEach(t => {
+                // [2.af] date
                 const date = t.shippingDate || new Date(t.timestamp).toISOString().split('T')[0];
+                // [2.ag] type
                 const type = t.jobType || t.for || 'Transfer';
+                // [2.ah] route
                 let route = '-';
                 
                 if (type === 'Transfer') route = `${t.fromLocation || t.fromSite} <i class="fa-solid fa-arrow-right" style="font-size:0.8em; color:#888;"></i> ${t.toLocation || t.toSite}`;
@@ -135,22 +173,29 @@ function renderMaterialStockTable(data) {
                 else if (type === 'Return') route = `<span style="color:#dc3545;">- Return from ${t.fromLocation || t.fromSite}</span>`;
                 else if (type === 'Usage') route = `<span style="color:#6f42c1;">- Used at ${t.fromLocation || t.fromSite}</span>`;
 
+                // [2.ai] qtyOrdered
                 const qtyOrdered = t.orderedQty || 0;
+                // [2.aj] qtyApproved
                 const qtyApproved = t.approvedQty || 0;
+                // [2.ak] qtyReceived
                 const qtyReceived = t.receivedQty || 0;
                 
+                // [2.al] statusColor
                 let statusColor = '#333';
                 if(t.remarks === 'Completed') statusColor = '#003A5C';
                 if(t.remarks === 'In Transit') statusColor = '#17a2b8';
                 if(t.remarks.includes('Pending')) statusColor = '#dc3545';
 
                 // --- RETURN BUTTON LOGIC ---
+                // [2.am] actionBtn
                 let actionBtn = '';
                 
                 // 1. Must be Completed (You physically have the item)
+                // [2.an] isCompleted
                 const isCompleted = (t.remarks === 'Completed' || t.remarks === 'Received');
                 
                 // 2. You must be the Receiver (It was sent TO you)
+                // [2.ao] isMyReceipt
                 const isMyReceipt = (t.receiver === currentUser);
                 
                 // 3. Show button if conditions met
@@ -177,8 +222,10 @@ function renderMaterialStockTable(data) {
             });
         }
 
+        // [2.ap] uniqueId
         const uniqueId = `detail-${item.key}`;
 
+        // [2.aq] parentRow
         const parentRow = document.createElement('tr');
         parentRow.innerHTML = `
             <td><button class="ms-expand-btn" onclick="toggleStockDetail('${uniqueId}', this)">+</button></td>
@@ -193,6 +240,7 @@ function renderMaterialStockTable(data) {
             </td>
         `;
 
+        // [2.ar] childRow
         const childRow = document.createElement('tr');
         childRow.id = uniqueId;
         childRow.className = 'stock-child-row hidden';
@@ -240,8 +288,10 @@ function renderMaterialStockTable(data) {
 }
 
 window.toggleStockDetail = function(rowId, btn) {
+    // [2.as] row
     const row = document.getElementById(rowId);
     if (row) {
+        // [2.at] isHidden
         const isHidden = row.classList.contains('hidden');
         if (isHidden) {
             row.classList.remove('hidden');
@@ -262,16 +312,25 @@ async function openNewMaterialModal() {
     document.getElementById('ms-new-material-form').reset();
     
     // UI References
+    // [2.au] nameInput
     const nameInput = document.getElementById('ms-new-name');
+    // [2.av] detailsInput
     const detailsInput = document.getElementById('ms-new-details');
+    // [2.aw] qtyInput
     const qtyInput = document.getElementById('ms-new-stock-qty'); 
+    // [2.ax] selectEl
     const selectEl = document.getElementById('ms-new-id');
+    // [2.ay] siteSelect
     const siteSelect = document.getElementById('ms-new-site-select');
+    // [2.az] btn
     const btn = document.getElementById('ms-save-new-btn');
+    // [2.ba] title
     const title = document.getElementById('ms-modal-title');
 
     // State
+    // [2.bb] currentProductData
     let currentProductData = null; 
+    // [2.bc] isAdmin
     const isAdmin = (typeof currentApprover !== 'undefined' && (currentApprover.Role || '').toLowerCase() === 'admin');
 
     // 1. Reset UI
@@ -288,6 +347,7 @@ async function openNewMaterialModal() {
     if (msProductChoices) msProductChoices.destroy();
     
     // Pre-build options list for fast checking
+    // [2.bd] options
     const options = allMaterialStockData.map(item => ({
         value: item.productID || item.productId,
         label: `${item.productID} - ${item.productName}`,
@@ -319,12 +379,15 @@ async function openNewMaterialModal() {
     });
 
     // --- LOGIC A: PERMISSION CHECKER ---
+    // [2.be] checkPermissions
     const checkPermissions = () => {
+        // [2.bf] selectedSite
         const selectedSite = siteSelect.value;
         if (!currentProductData) {
             qtyInput.disabled = false; qtyInput.style.backgroundColor = '#fff'; qtyInput.placeholder = "Initial Stock"; btn.disabled = false;
             return;
         }
+        // [2.bg] existingSites
         const existingSites = currentProductData.sites || {};
         if (existingSites[selectedSite] !== undefined) {
             if (isAdmin) {
@@ -338,6 +401,7 @@ async function openNewMaterialModal() {
     };
 
     // --- LOGIC B: HANDLE SELECTION (Standard) ---
+    // [2.bh] handleMainSelection
     const handleMainSelection = (val) => {
         if (!val) {
             currentProductData = null;
@@ -349,6 +413,7 @@ async function openNewMaterialModal() {
             return;
         }
 
+        // [2.bi] existingMatch
         const existingMatch = allMaterialStockData.find(item => 
             (item.productID || item.productId).toLowerCase() === val.toLowerCase()
         );
@@ -385,17 +450,21 @@ async function openNewMaterialModal() {
 
     // --- LOGIC C: THE "KILL SWITCH" FOR ENTER KEY ---
     if (msProductChoices.input && msProductChoices.input.element) {
+        // [2.bj] inputEl
         const inputEl = msProductChoices.input.element;
 
         inputEl.addEventListener('keydown', function(e) {
             // Check for Enter (13) or Tab (9)
             if (e.keyCode === 13 || e.keyCode === 9) {
+                // [2.bk] val
                 const val = this.value; 
                 
                 if (val && val.trim() !== "") {
+                    // [2.bl] typedLower
                     const typedLower = val.trim().toLowerCase();
 
                     // 1. IS IT A PERFECT 100% MATCH?
+                    // [2.bm] exactMatch
                     const exactMatch = options.find(o => o.value.toLowerCase() === typedLower);
 
                     if (exactMatch) {
@@ -426,13 +495,16 @@ async function openNewMaterialModal() {
 
     if (siteSelect) {
         siteSelect.innerHTML = '<option value="Main Store">Main Store</option>'; 
+        // [2.bn] sitesData
         let sitesData = [];
+        // [2.bo] cachedSites
         const cachedSites = localStorage.getItem('cached_SITES');
         if (cachedSites) { try { sitesData = JSON.parse(cachedSites).data || []; } catch (e) {} }
         
         sitesData.sort((a, b) => parseInt(a.site) - parseInt(b.site));
         sitesData.forEach(site => {
             if (site.site !== "Main Store") {
+                // [2.bp] opt
                 const opt = document.createElement('option');
                 opt.value = site.site;
                 opt.textContent = `${site.site} - ${site.description}`;
@@ -450,32 +522,44 @@ async function openNewMaterialModal() {
 // 4. SAVE LOGIC
 // ==========================================================================
 async function handleSaveNewMaterial() {
+    // [2.bq] form
     const form = document.getElementById('ms-new-material-form');
+    // [2.br] targetKey
     let targetKey = form.dataset.existingKey; 
+    // [2.bs] id
     let id = msProductChoices ? msProductChoices.getValue(true) : '';
     if (!id && lastTypedProductID) id = lastTypedProductID.trim(); 
 
+    // [2.bt] name
     const name = document.getElementById('ms-new-name').value.trim();
+    // [2.bu] details
     const details = document.getElementById('ms-new-details').value.trim();
+    // [2.bv] selectedSite
     const selectedSite = document.getElementById('ms-new-site-select').value;
+    // [2.bw] stockQty
     const stockQty = parseFloat(document.getElementById('ms-new-stock-qty').value) || 0;
 
     if (!id) { alert("Product ID is required."); return; }
     if (!name) { alert("Product Name is required."); return; }
 
+    // [2.bx] btn
     const btn = document.getElementById('ms-save-new-btn');
     btn.disabled = true; btn.textContent = "Processing...";
 
+    // [2.by] database
     const database = (typeof db !== 'undefined') ? db : firebase.database();
 
     try {
         if (!targetKey) {
+            // [2.bz] existingItem
             const existingItem = allMaterialStockData.find(m => (m.productID || m.productId || '').toLowerCase() === id.toLowerCase());
             if (existingItem) targetKey = existingItem.key; 
         }
 
         if (targetKey) {
+            // [2.ca] item
             const item = allMaterialStockData.find(m => m.key === targetKey);
+            // [2.cb] sites
             let sites = item.sites || {};
             
             if (sites[selectedSite] !== undefined) {
@@ -483,10 +567,12 @@ async function handleSaveNewMaterial() {
                 btn.disabled = false; btn.textContent = "Save"; return;
             }
 
+            // [2.cc] confirmMsg
             const confirmMsg = `Product "${item.productName}" exists.\nAdd ${stockQty} to ${selectedSite}?`;
             if (!confirm(confirmMsg)) { btn.disabled = false; btn.textContent = "Save"; return; }
 
             sites[selectedSite] = stockQty;
+            // [2.cd] newGlobalStock
             let newGlobalStock = 0;
             Object.values(sites).forEach(q => newGlobalStock += parseFloat(q));
 
@@ -496,9 +582,11 @@ async function handleSaveNewMaterial() {
             alert(`Added ${selectedSite} to existing product!`);
 
         } else {
+            // [2.ce] sitesInit
             const sitesInit = {};
             if (stockQty > 0) sitesInit[selectedSite] = stockQty;
 
+            // [2.cf] newMaterial
             const newMaterial = {
                 productID: id, productName: name, details: details,
                 stockQty: stockQty, transferredQty: 0, balanceQty: stockQty,
@@ -526,6 +614,7 @@ async function handleSaveNewMaterial() {
 window.handleDeleteMaterial = async function(key) {
     if (!confirm("WARNING: This will permanently delete this material.\n\nAre you sure?")) return;
     try {
+        // [2.cg] database
         const database = (typeof db !== 'undefined') ? db : firebase.database();
         await database.ref(`material_stock/${key}`).remove();
         populateMaterialStock(); 
@@ -533,28 +622,44 @@ window.handleDeleteMaterial = async function(key) {
 };
 
 // --- 6. CSV & Template ---
+// [2.ch] handleUploadCSV
 function handleUploadCSV(event) {
+    // [2.ci] file
     const file = event.target.files[0];
     if (!file) return;
+    // [2.cj] reader
     const reader = new FileReader();
     reader.onload = async function(e) {
+        // [2.ck] text
         const text = e.target.result;
+        // [2.cl] lines
         const lines = text.split('\n');
+        // [2.cm] updates
         const updates = {};
+        // [2.cn] count
         let count = 0;
+        // [2.co] database
         const database = (typeof db !== 'undefined') ? db : firebase.database();
 
         for (let i = 1; i < lines.length; i++) {
+            // [2.cp] line
             const line = lines[i].trim();
             if (!line) continue;
+            // [2.cq] cols
             const cols = line.split(',');
             if (cols.length >= 2) { 
+                // [2.cr] pID
                 const pID = cols[0].trim();
+                // [2.cs] pName
                 const pName = cols[1].trim();
+                // [2.ct] pDetails
                 const pDetails = cols[2] ? cols[2].trim() : '';
+                // [2.cu] pStock
                 const pStock = parseFloat(cols[3]) || 0;
                 if(pID && pName) {
+                    // [2.cv] newRef
                     const newRef = database.ref('material_stock').push();
+                    // [2.cw] sitesInit
                     const sitesInit = {};
                     if(pStock > 0) sitesInit["Main Store"] = pStock;
                     updates[newRef.key] = {
@@ -577,10 +682,15 @@ function handleUploadCSV(event) {
     reader.readAsText(file);
 }
 
+// [2.cx] handleGetTemplate
 function handleGetTemplate() {
+    // [2.cy] headers
     const headers = ["Product ID", "Product Name", "Details", "Stock QTY (Main Store)"];
+    // [2.cz] csvContent
     const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + "A001,Apple,Red Fruit,100";
+    // [2.da] encodedUri
     const encodedUri = encodeURI(csvContent);
+    // [2.db] link
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
     link.setAttribute("download", "material_stock_template.csv");
@@ -591,6 +701,7 @@ function handleGetTemplate() {
 
 // --- Listeners ---
 document.addEventListener('DOMContentLoaded', () => {
+    // [2.dc] searchInput
     const searchInput = document.getElementById('ms-search-input');
     if (searchInput) {
         let timeout;
@@ -600,16 +711,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // [2.dd] addNewBtn
     const addNewBtn = document.getElementById('ms-add-new-btn');
     if (addNewBtn) addNewBtn.addEventListener('click', openNewMaterialModal);
 
+    // [2.de] saveNewBtn
     const saveNewBtn = document.getElementById('ms-save-new-btn');
     if (saveNewBtn) saveNewBtn.addEventListener('click', handleSaveNewMaterial);
 
+    // [2.df] templateBtn
     const templateBtn = document.getElementById('ms-template-btn');
     if (templateBtn) templateBtn.addEventListener('click', handleGetTemplate);
 
+    // [2.dg] uploadBtn
     const uploadBtn = document.getElementById('ms-upload-csv-btn');
+    // [2.dh] fileInput
     const fileInput = document.getElementById('ms-csv-file-input');
     if (uploadBtn && fileInput) {
         uploadBtn.addEventListener('click', () => fileInput.click());
@@ -623,6 +739,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // ==========================================================================
 window.initiateReturn = function(transferKey) {
     // 1. Find the original transfer data
+    // [2.di] originalTask
     const originalTask = allTransferData.find(t => t.key === transferKey);
     if (!originalTask) {
         alert("Error: Original transaction data not found.");
@@ -647,9 +764,11 @@ window.initiateReturn = function(transferKey) {
 
     // --- CRITICAL: SWAP LOCATIONS ---
     // Return FROM: Where it is now (The Destination of original)
+    // [2.dj] returnFrom
     const returnFrom = originalTask.toSite || originalTask.toLocation;
     
     // Return TO: Where it came from (The Source of original)
+    // [2.dk] returnTo
     const returnTo = originalTask.fromSite || originalTask.fromLocation;
 
     // Set Dropdowns

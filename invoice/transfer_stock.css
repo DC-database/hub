@@ -35,6 +35,12 @@
     flex-grow: 1;
 }
 
+/* FIX: give space for bottom dropdowns (Choices.js) */
+#transfer-job-modal .modal-content {
+  padding-bottom: 260px !important;
+}
+
+
 /* --- [FIX] Footer Styling (White Background) --- */
 #transfer-job-modal .modal-footer,
 #standard-job-modal .modal-footer,
@@ -419,4 +425,87 @@ input[type=number] {
 #standard-job-modal .modal-footer button.hidden,
 #transfer-job-modal .modal-footer button.hidden {
     display: none !important;
+}
+
+/* Allow Choices dropdown to overlay above other modal content */
+#transfer-job-modal .choices {
+  overflow: visible !important;
+}
+
+#transfer-job-modal .choices__list--dropdown,
+#transfer-job-modal .choices__list[aria-expanded="true"] {
+  z-index: 99999 !important;
+}
+
+/* ============================================================= */
+/* 10. CHOICES.JS: ALWAYS SHOW DROPDOWNS (AUTO UP/DOWN)           */
+/* ============================================================= */
+/* When a Choices dropdown opens inside a scrollable modal, it can be clipped.
+   We temporarily unlock overflow via a class added by JS (.choices-open),
+   and we explicitly support the .is-flipped (drop-up) state. */
+
+#transfer-job-modal .modal-content.choices-open {
+    overflow: visible !important;
+}
+
+#transfer-job-modal .choices__list--dropdown,
+#transfer-job-modal .choices__list[aria-expanded="true"] {
+    z-index: 999999 !important;
+}
+
+/* Default dropdown (down) */
+#transfer-job-modal .choices[data-type*="select-one"] .choices__list--dropdown {
+    top: 100% !important;
+    bottom: auto !important;
+}
+
+/* Flipped dropdown (up) */
+#transfer-job-modal .choices[data-type*="select-one"].is-flipped .choices__list--dropdown {
+    top: auto !important;
+    bottom: 100% !important;
+}
+/* ============================================================= */
+/* CRITICAL PRINT FIX: FORCE TEMPLATE VISIBILITY                 */
+/* ============================================================= */
+@media print {
+    /* 1. Hide the normal app interface */
+    body.printing-waybill #app-container,
+    body.printing-waybill .workdesk-sidebar,
+    body.printing-waybill .workdesk-main,
+    body.printing-waybill .modal-overlay {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    /* 2. Reset Body constraints */
+    body.printing-waybill {
+        background: white !important;
+        overflow: visible !important;
+        height: auto !important;
+    }
+
+    /* 3. Force the Template to appear */
+    body.printing-waybill #transfer-waybill-template {
+        display: block !important;
+        visibility: visible !important;
+        
+        /* Override the hiding method */
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        margin: 0 !important;
+        
+        /* Ensure it fits */
+        width: 100% !important;
+        z-index: 99999 !important;
+        
+        /* Force Colors */
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    /* 4. Ensure content inside is visible */
+    body.printing-waybill #transfer-waybill-template * {
+        visibility: visible !important;
+    }
 }
