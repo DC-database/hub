@@ -2283,9 +2283,9 @@ body.is-admin .legend-admin-only {
     
     /* --- *** MODIFICATION: Show specific mobile links *** --- */
     
-    /* 1. Dashboard (Day View) - Visible for EVERYONE */
+    /* 1. Dashboard (Day View) - HIDE THIS to clean up navigation */
     #workdesk-view .workdesk-navigation li.wd-nav-dashboard {
-        display: list-item !important;
+        display: none !important; 
     }
 
     /* 2. Active Task (My Tasks / CEO Approvals) - Visible for EVERYONE */
