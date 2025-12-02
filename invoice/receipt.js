@@ -58,8 +58,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const receiptData = JSON.parse(receiptDataString);
     const { approvedTasks, rejectedTasks, seriesNo, appVersion } = receiptData;
 
-    // 5. Populate the receipt HTML
-    titleEl.textContent = 'Authorize Approval';
+    // New Code
+if (receiptData.title) {
+    titleEl.textContent = receiptData.title; // Uses "Manager Approval" if passed
+} else {
+    titleEl.textContent = 'Authorize Approval'; // Default to CEO
+}
     if (versionEl && appVersion) {
         versionEl.textContent = appVersion;
     }

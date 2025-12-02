@@ -1,5 +1,5 @@
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
-const APP_VERSION = "4.2.0"; 
+const APP_VERSION = "4.2.2"; 
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -85,6 +85,7 @@ let userJobEntries = [];
 let userActiveTasks = [];
 let allAdminCalendarTasks = [];
 let ceoProcessedTasks = []; 
+let managerProcessedTasks = []; // <--- ADD THIS
 let allSystemEntries = [];
 let navigationContextList = []; 
 let navigationContextIndex = -1;
@@ -3089,12 +3090,17 @@ function renderActiveTaskTable(tasks) {
 
 function renderMobileActiveTasks(tasks) {
     const container = document.getElementById('active-task-mobile-view');
-    const receiptContainer = document.getElementById('mobile-receipt-action-container');
+    // Ensure we handle the receipt containers visibility based on lists
+    const ceoContainer = document.getElementById('mobile-receipt-action-container');
     
+    // Reset
     if (container) container.innerHTML = '';
 
+    // 1. Define Roles
     const isCEO = (currentApprover.Role || '').toLowerCase() === 'admin' && (currentApprover.Position || '').toLowerCase() === 'ceo';
+    const isAdmin = (currentApprover.Role || '').toLowerCase() === 'admin';
 
+    // 2. Apply Filtering (Tabs)
     let filteredTasks = tasks;
     if (currentActiveTaskFilter !== 'All') {
         if (currentActiveTaskFilter === 'Other') {
@@ -3102,35 +3108,65 @@ function renderMobileActiveTasks(tasks) {
         } else {
             // Hybrid filtering logic
             filteredTasks = tasks.filter(task => {
-                if(['Transfer', 'Restock', 'Return'].includes(task.for)) return task.for === currentActiveTaskFilter;
+                if(['Transfer', 'Restock', 'Return', 'Usage'].includes(task.for)) return task.for === currentActiveTaskFilter;
                 return task.remarks === currentActiveTaskFilter;
             });
         }
     }
 
+    // 3. Handle Empty State
     if (!filteredTasks || filteredTasks.length === 0) {
         container.innerHTML = '<div class="im-mobile-empty-state"><p>No active tasks found.</p></div>';
-        if (receiptContainer) {
-            if (isCEO && ceoProcessedTasks.length > 0) { receiptContainer.classList.remove('hidden'); } 
-            else { receiptContainer.classList.add('hidden'); }
+        
+        // Toggle Receipt Buttons Visibility based on pending lists
+        if (ceoContainer) {
+            const showCeoBtn = isCEO && ceoProcessedTasks.length > 0;
+            const showMgrBtn = isAdmin && (typeof managerProcessedTasks !== 'undefined' && managerProcessedTasks.length > 0);
+            
+            if (showCeoBtn || showMgrBtn) {
+                ceoContainer.classList.remove('hidden');
+                if(document.getElementById('mobile-send-receipt-btn')) 
+                    document.getElementById('mobile-send-receipt-btn').classList.toggle('hidden', !showCeoBtn);
+                if(document.getElementById('mobile-send-manager-receipt-btn')) 
+                    document.getElementById('mobile-send-manager-receipt-btn').classList.toggle('hidden', !showMgrBtn);
+            } else {
+                ceoContainer.classList.add('hidden');
+            }
         }
         return;
     }
 
-    if (receiptContainer) {
-        if (isCEO && ceoProcessedTasks.length > 0) { receiptContainer.classList.remove('hidden'); } 
-        else { receiptContainer.classList.add('hidden'); }
+    // Ensure container is visible if we have lists (even if we have tasks)
+    if (ceoContainer) {
+        const showCeoBtn = isCEO && ceoProcessedTasks.length > 0;
+        const showMgrBtn = isAdmin && (typeof managerProcessedTasks !== 'undefined' && managerProcessedTasks.length > 0);
+        
+        if (showCeoBtn || showMgrBtn) {
+            ceoContainer.classList.remove('hidden');
+            if(document.getElementById('mobile-send-receipt-btn')) 
+                document.getElementById('mobile-send-receipt-btn').classList.toggle('hidden', !showCeoBtn);
+            if(document.getElementById('mobile-send-manager-receipt-btn')) 
+                document.getElementById('mobile-send-manager-receipt-btn').classList.toggle('hidden', !showMgrBtn);
+        } else {
+            ceoContainer.classList.add('hidden');
+        }
     }
 
+    // 4. Render Loop
     filteredTasks.forEach(task => {
+        // Determine Document Link
         const invName = task.invName || '';
         const pdfLink = (task.source === 'invoice' && invName.trim() && invName.toLowerCase() !== 'nil') 
             ? `${PDF_BASE_PATH}${encodeURIComponent(invName)}.pdf` 
             : null;
 
+        // Check if this is a Manager Task (Admin + "For Approval")
+        const isManagerTask = isAdmin && task.remarks === 'For Approval';
+
         const card = document.createElement('div');
         card.className = 'mobile-task-card';
         
+        // --- HEADER ---
         let html = `
             <div class="mobile-card-header">
                 <div class="m-card-main">
@@ -3146,34 +3182,48 @@ function renderMobileActiveTasks(tasks) {
             <div class="mobile-card-body">
         `;
 
+        // --- BODY CONTENT ---
         if (pdfLink) {
             html += `<a href="${pdfLink}" target="_blank" class="m-pdf-btn"><i class="fa-regular fa-file-pdf"></i> View Invoice PDF</a>`;
         }
 
-        // Action Buttons for Mobile
-        if (['Transfer', 'Restock', 'Return'].includes(task.for)) {
+        // Logic for Inputs & Buttons
+        if (['Transfer', 'Restock', 'Return', 'Usage'].includes(task.for)) {
+             // Inventory Logic
              html += `<div class="m-btn-row"><button class="m-btn-approve transfer-action-btn" data-key="${task.key}" style="background-color: #17a2b8;">Open Action</button></div>`;
         } else {
+            // Standard Job/Invoice Logic
             html += `
                 <div class="m-action-group">
                     <label>Amount to Paid</label>
-                    <input type="number" class="m-input-amount" value="${task.amount || ''}" step="0.01" ${!isCEO ? 'readonly' : ''}>
+                    <input type="number" class="m-input-amount" value="${task.amount || ''}" step="0.01" ${(!isCEO && !isManagerTask) ? 'readonly' : ''}>
                 </div>
                 <div class="m-action-group">
                     <label>Note / Remark</label>
-                    <textarea class="m-input-note" rows="2" ${!isCEO ? 'readonly' : ''}>${task.note || ''}</textarea>
+                    <textarea class="m-input-note" rows="2" ${(!isCEO && !isManagerTask) ? 'readonly' : ''}>${task.note || ''}</textarea>
                 </div>
             `;
-            if (isCEO) {
-                html += `<div class="m-btn-row"><button class="m-btn-approve" data-key="${task.key}">Approve</button><button class="m-btn-reject" data-key="${task.key}">Reject</button></div>`;
-            } else {
+            
+            if (isCEO && !isManagerTask) {
+                // CEO Buttons (Green/Red)
+                html += `<div class="m-btn-row"><button class="m-btn-approve ceo-action" data-action="Approved">Approve</button><button class="m-btn-reject ceo-action" data-action="Rejected">Reject</button></div>`;
+            } 
+            else if (isManagerTask) {
+                // Manager Buttons (Teal/Red)
+                html += `<div class="m-btn-row"><button class="m-btn-approve manager-action" data-action="Approved" style="background-color: #00748C;">Approve</button><button class="m-btn-reject manager-action" data-action="Rejected">Reject</button></div>`;
+            } 
+            else {
+                // View Only
                 html += `<div style="text-align:center; padding:10px; color:#777; background:#f0f0f0; border-radius:8px; margin-top:10px;"><i class="fa-solid fa-lock"></i> View Only</div>`;
             }
         }
 
-        html += `</div>`; 
+        html += `</div>`; // Close Body
         card.innerHTML = html;
         
+        // --- EVENT LISTENERS ---
+        
+        // Accordion Toggle
         const header = card.querySelector('.mobile-card-header');
         const body = card.querySelector('.mobile-card-body');
         header.addEventListener('click', () => {
@@ -3181,18 +3231,38 @@ function renderMobileActiveTasks(tasks) {
             body.classList.toggle('open');
         });
 
-        if (isCEO && !['Transfer', 'Restock', 'Return'].includes(task.for)) {
-            const btnApprove = card.querySelector('.m-btn-approve');
-            const btnReject = card.querySelector('.m-btn-reject');
-            const inputAmt = card.querySelector('.m-input-amount');
-            const inputNote = card.querySelector('.m-input-note');
-            const handleAction = (status) => { processMobileCEOAction(task, status, inputAmt.value, inputNote.value, card); };
-            if(btnApprove) btnApprove.addEventListener('click', () => handleAction('Approved'));
-            if(btnReject) btnReject.addEventListener('click', () => handleAction('Rejected'));
+        // CEO Action Listeners
+        const ceoBtns = card.querySelectorAll('.ceo-action');
+        ceoBtns.forEach(btn => {
+            btn.addEventListener('click', () => processMobileCEOAction(task, btn.dataset.action, card.querySelector('.m-input-amount').value, card.querySelector('.m-input-note').value, card));
+        });
+
+        // Manager Action Listeners (NEW)
+        const mgrBtns = card.querySelectorAll('.manager-action');
+        mgrBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                if(typeof processMobileManagerAction === 'function') {
+                    processMobileManagerAction(task, btn.dataset.action, card.querySelector('.m-input-amount').value, card.querySelector('.m-input-note').value, card);
+                } else {
+                    alert("Manager function not found. Please refresh.");
+                }
+            });
+        });
+
+        // Transfer Action Listeners
+        const trfBtn = card.querySelector('.transfer-action-btn');
+        if(trfBtn) {
+            trfBtn.addEventListener('click', () => {
+                if (window.openTransferActionModal) {
+                    window.openTransferActionModal(task);
+                }
+            });
         }
+
         container.appendChild(card);
     });
 }
+
 
 async function processMobileCEOAction(taskData, status, amount, note, cardElement) {
     if (!amount || amount < 0) {
@@ -3257,6 +3327,109 @@ async function processMobileCEOAction(taskData, status, amount, note, cardElemen
         cardElement.style.pointerEvents = 'auto';
     }
 }
+
+async function processMobileManagerAction(taskData, status, amount, note, cardElement) {
+    // Visual feedback
+    cardElement.style.opacity = '0.5';
+    cardElement.style.pointerEvents = 'none';
+
+    // Prepare Updates
+    const updates = {
+        status: status, 
+        remarks: status, // Sets to "Approved" or "Rejected"
+        amountPaid: amount, // Optional for managers, but good to have
+        amount: amount, 
+        note: note ? note.trim() : '',
+        dateResponded: formatDate(new Date())
+    };
+    
+    // Append " (Manager)" to note if needed, or keep clean
+    if(taskData.attention) {
+        updates.note = `${updates.note} [Action by ${currentApprover.Name}]`;
+    }
+
+    try {
+        // 1. Update Database
+        if (taskData.source === 'job_entry') {
+            await db.ref(`job_entries/${taskData.key}`).update(updates);
+        } else if (taskData.source === 'invoice') {
+            await invoiceDb.ref(`invoice_entries/${taskData.originalPO}/${taskData.originalKey}`).update(updates);
+            // Sync Inbox
+            if (!allInvoiceData) await ensureInvoiceDataFetched();
+            const originalInvoice = (allInvoiceData && allInvoiceData[taskData.originalPO]) ? allInvoiceData[taskData.originalPO][taskData.originalKey] : {};
+            const updatedInvoiceData = {...originalInvoice, ...updates};
+            await updateInvoiceTaskLookup(taskData.originalPO, taskData.originalKey, updatedInvoiceData, taskData.attention);
+            updateLocalInvoiceCache(taskData.originalPO, taskData.originalKey, updates);
+        }
+
+        // 2. Add to Manager Processed List
+        taskData.status = status;
+        taskData.amountPaid = amount;
+        managerProcessedTasks.push(taskData);
+
+        // 3. Remove from UI
+        const taskIndex = userActiveTasks.findIndex(t => t.key === taskData.key);
+        if (taskIndex > -1) userActiveTasks.splice(taskIndex, 1);
+
+        cardElement.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            cardElement.remove();
+            // Show Manager Button
+            document.getElementById('mobile-receipt-action-container').classList.remove('hidden');
+            document.getElementById('mobile-send-manager-receipt-btn').classList.remove('hidden');
+        }, 300);
+
+    } catch (error) {
+        console.error("Manager Action Error:", error);
+        alert("Failed to process. Check connection.");
+        cardElement.style.opacity = '1';
+        cardElement.style.pointerEvents = 'auto';
+    }
+}
+
+async function previewAndSendManagerReceipt() {
+    const btn = document.getElementById('mobile-send-manager-receipt-btn');
+    btn.disabled = true; btn.textContent = 'Preparing...';
+
+    try {
+        // --- CHANGE THIS LINE ---
+        // Old: const seriesNo = await getNextSeriesNumber();
+        // New: Use the specific Manager generator
+        const seriesNo = await getManagerSeriesNumber(); 
+        // ------------------------
+        
+        const approvedTasks = managerProcessedTasks.filter(t => t.status === 'Approved');
+        const rejectedTasks = managerProcessedTasks.filter(t => t.status === 'Rejected');
+
+        const receiptData = {
+            title: "Manager Approval", 
+            approvedTasks: approvedTasks,
+            rejectedTasks: rejectedTasks,
+            seriesNo: seriesNo,
+            appVersion: typeof APP_VERSION !== 'undefined' ? APP_VERSION : '4.0'
+        };
+
+        localStorage.setItem('pendingReceiptData', JSON.stringify(receiptData));
+        window.open('receipt.html', '_blank');
+
+        // Reset
+        managerProcessedTasks = [];
+        document.getElementById('mobile-receipt-action-container').classList.add('hidden');
+        btn.classList.add('hidden');
+
+    } catch (error) {
+        console.error("Error:", error);
+        alert("Error generating receipt.");
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-file-signature"></i> Send Manager Receipt';
+    }
+}
+
+
+// Add Listener at bottom of app.js
+const mgrReceiptBtn = document.getElementById('mobile-send-manager-receipt-btn');
+if(mgrReceiptBtn) mgrReceiptBtn.addEventListener('click', previewAndSendManagerReceipt);
 
 // ==========================================================================
 // 9. WORKDESK LOGIC: JOB ENTRY (CRUD)
@@ -7805,14 +7978,54 @@ async function handleCEOAction(status) {
     }
 }
 
-async function getNextSeriesNumber() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let result = '';
-    for (let i = 0; i < 6; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
+// ==========================================================================
+// MANAGER ESN GENERATOR (5 Letters + 5 Digits Shuffled)
+// ==========================================================================
+async function getManagerSeriesNumber() {
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const digits = "0123456789";
+    let resultArr = [];
+
+    // 1. Get exactly 5 Random Letters
+    for (let i = 0; i < 5; i++) {
+        resultArr.push(letters.charAt(Math.floor(Math.random() * letters.length)));
     }
-    return Promise.resolve(result);
+
+    // 2. Get exactly 5 Random Digits
+    for (let i = 0; i < 5; i++) {
+        resultArr.push(digits.charAt(Math.floor(Math.random() * digits.length)));
+    }
+
+    // 3. Shuffle them together (e.g., A9K2P5M1X3)
+    const finalESN = resultArr.sort(() => 0.5 - Math.random()).join('');
+
+    return Promise.resolve(finalESN);
 }
+
+// ==========================================================================
+// CEO ESN GENERATOR (5 Letters + 6 Digits)
+// ==========================================================================
+async function getNextSeriesNumber() {
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const digits = "0123456789";
+    let resultArr = [];
+
+    // 1. Get exactly 5 Random Letters
+    for (let i = 0; i < 5; i++) {
+        resultArr.push(letters.charAt(Math.floor(Math.random() * letters.length)));
+    }
+
+    // 2. Get exactly 6 Random Digits
+    for (let i = 0; i < 6; i++) {
+        resultArr.push(digits.charAt(Math.floor(Math.random() * digits.length)));
+    }
+
+    // 3. Shuffle them together so they are mixed (e.g. "A9B8C7D6E54")
+    const finalESN = resultArr.sort(() => 0.5 - Math.random()).join('');
+
+    return Promise.resolve(finalESN);
+}
+
 
 async function previewAndSendReceipt() {
     const isCEO = (currentApprover?.Role || '').toLowerCase() === 'admin' && 
