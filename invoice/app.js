@@ -4,7 +4,7 @@
 
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
 // [1.a] APP_VERSION
-const APP_VERSION = "4.2.9"; 
+const APP_VERSION = "4.3.5"; 
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -2333,8 +2333,18 @@ async function handleUpdateSettings(e) {
     try {
         await db.ref(`approvers/${currentApprover.key}`).update(updates);
         currentApprover = { ...currentApprover, ...updates, Vacation: updates.Vacation === "Yes" };
-        allApproversCache = null; 
+        allApproversCache = null;
+        allApproverData = null;
         allApproverDataCache = null; 
+        // Refresh dropdowns that use cached approver data (so Vacation updates show immediately).
+        try {
+            if (typeof attentionSelectChoices !== 'undefined' && attentionSelectChoices) await populateAttentionDropdown(attentionSelectChoices);
+            if (typeof modifyTaskAttentionChoices !== 'undefined' && modifyTaskAttentionChoices) await populateAttentionDropdown(modifyTaskAttentionChoices);
+            if (typeof imAttentionSelectChoices !== 'undefined' && imAttentionSelectChoices) await populateAttentionDropdown(imAttentionSelectChoices);
+        } catch (refreshErr) {
+            console.warn('Could not refresh attention dropdowns after settings update:', refreshErr);
+        }
+
         settingsMessage.textContent = 'Settings updated successfully!';
         settingsMessage.className = 'success-message';
         settingsPasswordInput.value = '';
@@ -2344,11 +2354,11 @@ async function handleUpdateSettings(e) {
         } else {
              populateSettingsForm(); 
         }
-    } catch (error) {
-        console.error("Error updating settings:", error);
-        settingsMessage.textContent = 'An error occurred. Please try again.';
-        settingsMessage.className = 'error-message';
-    }
+   } catch (error) {
+  console.error("Error updating settings:", error);
+  settingsMessage.textContent = `Update failed: ${error?.message || error}`;
+  settingsMessage.className = 'error-message';
+}
 }
 
 // --- Placeholder Clock Functions ---
@@ -4380,15 +4390,20 @@ async function populateAttentionDropdown(choicesInstance) {
                 const isOnVacation = approver.Vacation === true || approver.Vacation === "Yes";
                 // [1.afx] isVacationActive
                 let isVacationActive = false;
-                if (isOnVacation && approver.DateReturn) {
-                    try {
-                        // [1.afy] returnDate
-                        const returnDate = new Date(approver.DateReturn + 'T00:00:00Z'); 
-                         if (!isNaN(returnDate) && returnDate >= today) {
-                            isVacationActive = true;
+                if (isOnVacation) {
+                    // If no return date is provided, treat vacation as active (manual toggle).
+                    if (!approver.DateReturn) {
+                        isVacationActive = true;
+                    } else {
+                        try {
+                            // [1.afy] returnDate
+                            const returnDate = new Date(approver.DateReturn + 'T00:00:00Z');
+                            if (!isNaN(returnDate) && returnDate >= today) {
+                                isVacationActive = true;
+                            }
+                        } catch (e) {
+                            console.error(`Error parsing return date "${approver.DateReturn}" for ${approver.Name}:`, e);
                         }
-                    } catch (e) {
-                         console.error(`Error parsing return date "${approver.DateReturn}" for ${approver.Name}:`, e);
                     }
                 }
 
@@ -7027,46 +7042,39 @@ async function handleDownloadCSV() {
 // REPLACED FUNCTIONS: 1-Hour Reporting
 // ==========================================================================
 
-// 1. Updated Daily Report (Last 2 Hours Only)
+// Updated Daily Report (More robust timestamp checking)
 async function handleDownloadDailyReport() {
-    // [1.awl] isAccountingPosition
     const isAccountingPosition = (currentApprover?.Position || '').toLowerCase() === 'accounting';
     if (!isAccountingPosition) {
         alert("You do not have permission to download this report.");
         return;
     }
     
-    // Calculate timestamp for 2 hours ago
-    // [1.awm] twoHoursAgo
-    const twoHoursAgo = Date.now() - (2 * 60 * 60 * 1000); // <--- CHANGED HERE
+    const twoHoursAgo = Date.now() - (2 * 60 * 60 * 1000);
 
     try {
-        // Force refresh to ensure timestamps are numbers
         await ensureInvoiceDataFetched(true);
         
-        // [1.awn] allInvoicesByPO
         const allInvoicesByPO = allInvoiceData;
-        // [1.awo] allPOs
         const allPOs = allPOData;
 
         if (!allInvoicesByPO || !allPOs) throw new Error("Data not loaded for report.");
 
-        // [1.awp] recentEntries
         let recentEntries = [];
 
-        // 1. Collect Data
         for (const poNumber in allInvoicesByPO) {
-            // [1.awq] invoices
             const invoices = allInvoicesByPO[poNumber];
             for (const key in invoices) {
-                // [1.awr] inv
                 const inv = invoices[key];
                 
-                // [1.aws] creationTime
-                const creationTime = inv.createdAt || 0;
+                // 1. FIX: Handle both number and string timestamps safeley
+                let creationTime = inv.createdAt || inv.timestamp || 0;
+                if(typeof creationTime === 'string') {
+                    creationTime = new Date(creationTime).getTime();
+                }
                 
                 // Check if created within the last 2 hours
-                if (typeof creationTime === 'number' && creationTime > twoHoursAgo) {
+                if (creationTime > twoHoursAgo) {
                     recentEntries.push({
                         po: poNumber,
                         site: allPOs[poNumber]?.['Project ID'] || 'N/A',
@@ -7079,18 +7087,13 @@ async function handleDownloadDailyReport() {
 
         if (recentEntries.length === 0) { alert("No new invoices found in the last 2 hours."); return; }
 
-        // 2. Sort by Timestamp
         recentEntries.sort((a, b) => a.sortTime - b.sortTime);
 
-        // 3. Build CSV
-        // [1.awt] csvContent
         let csvContent = "data:text/csv;charset=utf-8,";
-        // [1.awu] headers
         const headers = ["Time", "PO", "Site", "Inv No", "Inv Name", "Inv Amount", "Amount Paid", "Status"];
         csvContent += headers.join(",") + "\r\n";
 
         recentEntries.forEach(entry => {
-            // [1.awv] timeString
             let timeString = '';
             if(entry.createdAt) {
                 const dateObj = new Date(entry.createdAt);
@@ -7099,7 +7102,6 @@ async function handleDownloadDailyReport() {
                 }
             }
 
-            // [1.awx] row
             const row = [
                 timeString,
                 entry.po,
@@ -7113,14 +7115,10 @@ async function handleDownloadDailyReport() {
             csvContent += row.join(",") + "\r\n";
         });
 
-        // [1.awy] timestampStr
         const timestampStr = new Date().toISOString().replace(/[:.]/g, '-');
-        // [1.awz] encodedUri
         const encodedUri = encodeURI(csvContent);
-        // [1.axa] link
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
-        // Updated filename
         link.setAttribute("download", `entry_report_last_2hrs_${timestampStr}.csv`);
         document.body.appendChild(link);
         link.click();
@@ -7132,45 +7130,43 @@ async function handleDownloadDailyReport() {
     }
 }
 
-// 2. Updated With Accounts Report (Last 2 Hours Only)
+// Updated With Accounts Report (Checks Release Date OR Creation Time)
 async function handleDownloadWithAccountsReport() {
-    // [1.axb] isAccountingPosition
     const isAccountingPosition = (currentApprover?.Position || '').toLowerCase() === 'accounting';
     if (!isAccountingPosition) {
         alert("You do not have permission to download this report.");
         return;
     }
 
-    // Calculate timestamp for 2 hours ago
-    // [1.axc] twoHoursAgo
-    const twoHoursAgo = Date.now() - (2 * 60 * 60 * 1000); // <--- CHANGED HERE
+    // 1. Setup Time Checkers
+    const twoHoursAgo = Date.now() - (2 * 60 * 60 * 1000);
+    const todayStr = getTodayDateString(); // Gets "YYYY-MM-DD" for today
 
     try {
-        // Force refresh
         await ensureInvoiceDataFetched(true);
         
-        // [1.axd] allInvoicesByPO
         const allInvoicesByPO = allInvoiceData;
-        // [1.axe] allPOs
         const allPOs = allPOData;
 
         if (!allInvoicesByPO || !allPOs) throw new Error("Data not loaded for report.");
 
-        // [1.axf] recentEntries
         let recentEntries = [];
 
         for (const poNumber in allInvoicesByPO) {
-            // [1.axg] invoices
             const invoices = allInvoicesByPO[poNumber];
             for (const key in invoices) {
-                // [1.axh] inv
                 const inv = invoices[key];
                 
-                // [1.axi] creationTime
-                const creationTime = inv.createdAt || 0; 
+                // 2. Normalize Timestamp (Handle strings or numbers)
+                let creationTime = inv.createdAt || inv.timestamp || 0;
+                if(typeof creationTime === 'string') creationTime = new Date(creationTime).getTime();
                 
-                // Check status and time (2 hours)
-                if (inv.status === 'With Accounts' && typeof creationTime === 'number' && creationTime > twoHoursAgo) {
+                // 3. THE FIX: Check if Created Recently OR Released Today
+                const isRecent = (creationTime > twoHoursAgo);
+                const isReleasedToday = (inv.releaseDate === todayStr);
+
+                // Only include if status is correct AND (it's new OR it was updated today)
+                if (inv.status === 'With Accounts' && (isRecent || isReleasedToday)) {
                     recentEntries.push({
                         po: poNumber,
                         site: allPOs[poNumber]?.['Project ID'] || 'N/A',
@@ -7181,19 +7177,19 @@ async function handleDownloadWithAccountsReport() {
             }
         }
 
-        if (recentEntries.length === 0) { alert("No invoices found for 'With Accounts' in the last 2 hours."); return; }
+        if (recentEntries.length === 0) { 
+            alert("No 'With Accounts' invoices found from Today or the last 2 hours."); 
+            return; 
+        }
 
         // Sort Ascending
         recentEntries.sort((a, b) => a.sortTime - b.sortTime);
 
-        // [1.axj] csvContent
         let csvContent = "data:text/csv;charset=utf-8,";
-        // [1.axk] headers
         const headers = ["Time", "PO", "Site", "Inv No", "SRV Name", "Inv Amount", "Amount Paid", "Status"];
         csvContent += headers.join(",") + "\r\n";
 
         recentEntries.forEach(entry => {
-            // [1.axl] timeString
             let timeString = '';
             if(entry.createdAt) {
                 const dateObj = new Date(entry.createdAt);
@@ -7202,7 +7198,6 @@ async function handleDownloadWithAccountsReport() {
                 }
             }
 
-            // [1.axn] row
             const row = [
                 timeString,
                 entry.po,
@@ -7216,15 +7211,11 @@ async function handleDownloadWithAccountsReport() {
             csvContent += row.join(",") + "\r\n";
         });
 
-        // [1.axo] timestampStr
         const timestampStr = new Date().toISOString().replace(/[:.]/g, '-');
-        // [1.axp] encodedUri
         const encodedUri = encodeURI(csvContent);
-        // [1.axq] link
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
-        // Updated filename
-        link.setAttribute("download", `with_accounts_report_last_2hrs_${timestampStr}.csv`);
+        link.setAttribute("download", `with_accounts_report_${timestampStr}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -7234,6 +7225,7 @@ async function handleDownloadWithAccountsReport() {
         alert("An error occurred while generating the report."); 
     }
 }
+
 // ==========================================================================
 // 18. INVOICE MANAGEMENT: BATCH ENTRY
 // ==========================================================================

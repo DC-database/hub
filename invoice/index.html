@@ -1087,45 +1087,79 @@
         </div>
     </div>
 
-    <div id="ms-new-material-modal" class="modal-overlay hidden">
+<div id="ms-new-material-modal" class="modal-overlay hidden">
         <div class="modal-container">
             <div class="modal-header">
-    <h2 id="ms-modal-title">Add New Material</h2> <button class="modal-close-btn" ...>&times;</button>
-</div>
+                <h2 id="ms-modal-title">Register New Product</h2> 
+                <button class="modal-close-btn" onclick="document.getElementById('ms-new-material-modal').classList.add('hidden')">&times;</button>
+            </div>
             <div class="modal-content">
                 <form id="ms-new-material-form">
-                    <div class="form-group">
-    <label>Product ID / Name Search</label>
-    <select id="ms-new-id" placeholder="Type ID or Name (e.g. Apple)..."></select>
-</div>
+                    
+                    <div id="ms-type-container" class="form-group">
+                        <label>Item Type</label>
+                        <select id="ms-new-type" style="background-color: #f0f8ff; border: 1px solid #00748C; font-weight: bold; width: 100%; padding: 10px;">
+                            <option value="Bulk">Bulk (Tiles, Cement, etc.)</option>
+                            <option value="Serialized">Serialized (Drill, Grinder, etc.)</option>
+                        </select>
+                    </div>
+
+                    <div id="ms-id-search-group" class="form-group">
+                        <label>Product ID / Name Search</label>
+                        <select id="ms-new-id" placeholder="Type ID or Name..."></select>
+                    </div>
+
+                    <div id="ms-id-display-group" class="form-group hidden">
+                        <label>Product ID</label>
+                        <input type="text" id="ms-edit-id-display" readonly style="background-color: #e9ecef; color: #555; font-weight: bold; cursor: not-allowed;">
+                    </div>
+                    
                     <div class="form-group">
                         <label>Product Name</label>
                         <input type="text" id="ms-new-name" placeholder="Enter Product Name" required>
                     </div>
+
+                    <div id="ms-serial-container" class="form-group hidden" style="border: 1px dashed #00748C; padding: 10px; background: #e0f7fa; border-radius: 4px;">
+                        <label style="color: #00748C;">Serial Number</label>
+                        <input type="text" id="ms-new-serial" placeholder="Enter Serial No. (e.g., SN-12345)" style="background: #fff;">
+                    </div>
+
                     <div class="form-group">
                         <label>Details</label>
                         <input type="text" id="ms-new-details" placeholder="Description / Size / Unit">
                     </div>
+                    
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select id="ms-new-status" style="width: 100%; padding: 10px;">
+                            <option value="Active">Active</option>
+                            <option value="Broken">Broken</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+                    </div>
                    
-<div style="display: flex; gap: 10px;">
-    <div class="form-group" style="flex: 60%;">
-        <label>Opening Stock Site</label>
-        <select id="ms-new-site-select" style="background-color: #fff; border: 1px solid #ccc; height: 45px;">
-            <option value="Main Store">Main Store</option>
-            </select>
-    </div>
-    <div class="form-group" style="flex: 40%;">
-        <label>Quantity</label>
-        <input type="number" id="ms-new-stock-qty" placeholder="0" step="any" style="height: 45px;">
-    </div>
-</div>
-
+                    <div id="ms-stock-entry-row" style="display: flex; gap: 10px; margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+                        <div class="form-group" style="flex: 60%;">
+                            <label>Opening Stock Site</label>
+                            <select id="ms-new-site-select" style="background-color: #fff; border: 1px solid #ccc; height: 45px; width: 100%;">
+                                <option value="Main Store">Main Store</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex: 40%;">
+                            <label>Quantity</label>
+                            <input type="number" id="ms-new-stock-qty" placeholder="0" step="any" style="height: 45px;">
+                        </div>
+                    </div>
 
                 </form>
             </div>
-            <div class="modal-footer">
-                <button class="secondary-btn modal-close-btn" onclick="document.getElementById('ms-new-material-modal').classList.add('hidden')">Cancel</button>
-                <button id="ms-save-new-btn" type="button">Save Material</button>
+            
+            <div class="modal-footer" style="justify-content: space-between;">
+                <button type="button" id="ms-clear-form-btn" class="secondary-btn" style="background-color: #ffc107; color: #212529; border: none;">Clear</button>
+                <div style="display: flex; gap: 10px;">
+                    <button class="secondary-btn modal-close-btn" onclick="document.getElementById('ms-new-material-modal').classList.add('hidden')">Cancel</button>
+                    <button id="ms-save-new-btn" type="button" class="download-btn">Save</button>
+                </div>
             </div>
         </div>
     </div>
