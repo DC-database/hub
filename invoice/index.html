@@ -391,53 +391,60 @@
         </div>
     </div>
 </section>
-                 <section id="wd-material-stock" class="workdesk-section hidden">
-                    <h1>Material Stock</h1>
-                    
-                    <div class="report-controls" style="margin-bottom: 20px; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
-                        
-                        <div style="display: flex; gap: 5px;">
-                            <button id="ms-add-new-btn" style="background-color: #00748C;"><i class="fa-solid fa-plus"></i> Add Material</button>
-                            <button id="ms-upload-csv-btn" class="secondary-btn"><i class="fa-solid fa-file-csv"></i> Upload</button>
-                            <button id="ms-template-btn" class="secondary-btn" style="background-color: #6c757d;"><i class="fa-solid fa-download"></i> Template</button>
-                            <input type="file" id="ms-csv-file-input" accept=".csv" style="display: none;">
-                        </div>
 
-                        <div style="display: flex; gap: 5px;">
-    <button onclick="openTransferModal('Transfer')" style="background-color: #17a2b8; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">
-        <i class="fa-solid fa-arrow-right-arrow-left"></i> Transfer
-    </button>
-    <button onclick="openTransferModal('Restock')" style="background-color: #28a745; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">
-        <i class="fa-solid fa-boxes-packing"></i> Restock
-    </button>
-    <button onclick="openTransferModal('Usage')" style="background-color: #6f42c1; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">
-        <i class="fa-solid fa-screwdriver-wrench"></i> Usage
-    </button>
+<section id="wd-material-stock" class="workdesk-section hidden">
+    <h1>Material Stock</h1>
+    
+    <div class="report-controls" style="margin-bottom: 20px; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; gap: 5px;">
+            <button id="ms-add-new-btn" style="background-color: #00748C;"><i class="fa-solid fa-plus"></i> Add Material</button>
+            <button id="ms-upload-csv-btn" class="secondary-btn"><i class="fa-solid fa-file-csv"></i> Upload</button>
+            <button id="ms-template-btn" class="secondary-btn" style="background-color: #6c757d;"><i class="fa-solid fa-download"></i> Template</button>
+            <input type="file" id="ms-csv-file-input" accept=".csv" style="display: none;">
+            <button id="ms-refresh-btn" class="secondary-btn" title="Force Refresh"><i class="fa-solid fa-sync"></i></button>
+        </div>
+
+        <div style="display: flex; gap: 5px;">
+            <button onclick="openTransferModal('Transfer')" style="background-color: #17a2b8; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">
+                <i class="fa-solid fa-arrow-right-arrow-left"></i> Transfer
+            </button>
+            <button onclick="openTransferModal('Restock')" style="background-color: #28a745; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">
+                <i class="fa-solid fa-boxes-packing"></i> Restock
+            </button>
+            <button onclick="openTransferModal('Usage')" style="background-color: #6f42c1; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">
+                <i class="fa-solid fa-screwdriver-wrench"></i> Usage
+            </button>
+        </div>
     </div>
-                    </div>
 
-                    <div class="search-bar-local">
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                        <input type="text" id="ms-search-input" placeholder="Search by Product ID or Name...">
-                    </div>
+    <div id="ms-category-tabs" class="report-tabs" style="margin-bottom: 15px; border-bottom: 2px solid #eee; overflow-x: auto; white-space: nowrap; display: flex; gap: 10px; padding-bottom: 5px;">
+        <span style="color:#999; font-style:italic; padding:10px;">Loading categories...</span>
+    </div>
 
-                    <div class="table-wrapper">
-                        <table id="ms-table">
-                           <thead>
-    <tr>
-        <th style="width: 50px;"></th> 
-        <th style="width: 15%;">Product ID</th>
-        <th style="width: 25%;">Product Name</th>
-        <th style="width: 25%;">Details</th>
-        <th style="width: 15%;">Total Stock</th>
-        <th style="width: 10%; text-align: center;">Action</th>
-    </tr>
-</thead>
-                            <tbody id="ms-table-body">
-                                </tbody>
-                        </table>
-                    </div>
-                </section>
+    <div class="search-bar-local">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="ms-search-input" placeholder="Search by Product ID or Name...">
+    </div>
+
+    <div class="table-wrapper">
+        <table id="ms-table">
+           <thead>
+                <tr>
+                    <th style="width: 50px;"></th> 
+                    <th style="width: 15%;">Product ID</th>
+                    <th style="width: 25%;">Product Name</th>
+                    <th style="width: 10%;">Category</th> <th style="width: 20%;">Details</th>
+                    <th style="width: 10%;">Total Stock</th>
+                    <th style="width: 10%; text-align: center;">Action</th>
+                </tr>
+            </thead>
+            <tbody id="ms-table-body">
+                <tr><td colspan="7" style="text-align:center; padding:30px; color:#777;">Please select a Category tab above to view stock.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>                 
+
 
                  <section id="wd-settings" class="workdesk-section hidden">
                     <h1>Account Settings</h1>
@@ -1108,6 +1115,18 @@
                         <label>Product ID / Name Search</label>
                         <select id="ms-new-id" placeholder="Type ID or Name..."></select>
                     </div>
+                    
+                    <div class="form-group">
+        <label>Category</label>
+        <input type="text" id="ms-new-category" list="ms-category-list" placeholder="e.g. Tools, Equipment, Safety" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+        <datalist id="ms-category-list">
+            <option value="Tools">
+            <option value="Equipment">
+            <option value="Consumables">
+            <option value="Safety">
+            <option value="Materials">
+        </datalist>
+    </div>
 
                     <div id="ms-id-display-group" class="form-group hidden">
                         <label>Product ID</label>

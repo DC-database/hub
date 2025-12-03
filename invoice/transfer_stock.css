@@ -1,5 +1,5 @@
 /* ============================================================= */
-/* TRANSFER & MODAL STYLESHEET (V4.1.3 - Fixed)                  */
+/* TRANSFER & MODAL STYLESHEET (V4.2 - Updated for Material MS)  */
 /* Organized by Group & Number                                   */
 /* ============================================================= */
 
@@ -10,6 +10,7 @@
 /* Shared Container Logic */
 #transfer-job-modal .modal-container,
 #standard-job-modal .modal-container,
+#ms-new-material-modal .modal-container, /* <--- ADDED THIS */
 #im-batch-search-modal .modal-container,
 #im-add-payment-modal .modal-container {
     max-width: 900px !important;
@@ -27,6 +28,7 @@
 /* Content Area */
 #transfer-job-modal .modal-content,
 #standard-job-modal .modal-content,
+#ms-new-material-modal .modal-content, /* <--- ADDED THIS */
 #im-batch-search-modal .modal-content,
 #im-add-payment-modal .modal-content {
     padding: 20px 30px !important;
@@ -36,7 +38,8 @@
 }
 
 /* FIX: give space for bottom dropdowns (Choices.js) */
-#transfer-job-modal .modal-content {
+#transfer-job-modal .modal-content,
+#ms-new-material-modal .modal-content { /* <--- ADDED THIS */
   padding-bottom: 260px !important;
 }
 
@@ -44,6 +47,7 @@
 /* --- [FIX] Footer Styling (White Background) --- */
 #transfer-job-modal .modal-footer,
 #standard-job-modal .modal-footer,
+#ms-new-material-modal .modal-footer, /* <--- ADDED THIS */
 #im-batch-search-modal .modal-footer,
 #im-add-payment-modal .modal-footer {
     padding: 15px 25px !important;
@@ -57,8 +61,8 @@
 }
 
 /* --- [FIX] Footer Buttons (Uniform Size) --- */
-/* This forces Clear, Cancel, Update, and Delete to match exactly */
 #standard-job-modal .modal-footer button,
+#ms-new-material-modal .modal-footer button, /* <--- ADDED THIS */
 #transfer-job-modal .modal-footer button {
     height: 40px !important;        /* Fixed consistent height */
     min-width: 90px !important;     /* Minimum width so they don't look squashed */
@@ -80,6 +84,7 @@
 #transfer-job-modal .modal-header,
 #im-batch-search-modal .modal-header,
 #im-add-payment-modal .modal-header,
+#ms-new-material-modal .modal-header, /* <--- ADDED THIS */
 #standard-job-modal .modal-header {
     background-color: #003A5C !important; /* Brand Blue */
     color: #ffffff !important;             /* White Text */
@@ -95,6 +100,7 @@
 #transfer-job-modal h2,
 #im-batch-search-modal h2,
 #im-add-payment-modal h2,
+#ms-new-material-modal h2, /* <--- ADDED THIS */
 #standard-job-modal h2 {
     color: #ffffff !important;
     font-size: 1.2rem !important;
@@ -108,6 +114,7 @@
 #transfer-job-modal .modal-header .modal-close-btn,
 #im-batch-search-modal .modal-header .modal-close-btn,
 #im-add-payment-modal .modal-header .modal-close-btn,
+#ms-new-material-modal .modal-header .modal-close-btn, /* <--- ADDED THIS */
 #standard-job-modal .modal-header .modal-close-btn {
     color: #ffffff !important;
     opacity: 0.8;
@@ -122,6 +129,7 @@
 #transfer-job-modal .modal-header .modal-close-btn:hover,
 #im-batch-search-modal .modal-header .modal-close-btn:hover,
 #im-add-payment-modal .modal-header .modal-close-btn:hover,
+#ms-new-material-modal .modal-header .modal-close-btn:hover, /* <--- ADDED THIS */
 #standard-job-modal .modal-header .modal-close-btn:hover {
     opacity: 1;
     background-color: rgba(255, 255, 255, 0.1) !important;
@@ -132,6 +140,7 @@
 #transfer-job-modal .modal-footer .modal-close-btn,
 #standard-job-modal .modal-footer .modal-close-btn,
 #im-batch-search-modal .modal-footer .modal-close-btn,
+#ms-new-material-modal .modal-footer .modal-close-btn, /* <--- ADDED THIS */
 #im-add-payment-modal .modal-footer .modal-close-btn {
     background-color: #6c757d !important; /* Grey Background */
     color: #ffffff !important;             /* White Text */
@@ -147,6 +156,7 @@
 }
 
 #transfer-job-modal .modal-footer .modal-close-btn:hover,
+#ms-new-material-modal .modal-footer .modal-close-btn:hover, /* <--- ADDED THIS */
 #standard-job-modal .modal-footer .modal-close-btn:hover {
     background-color: #5a6268 !important; /* Darker Grey on Hover */
 }
@@ -185,6 +195,7 @@
 
 /* Group Spacing - Ensures rows start at the same vertical position */
 #transfer-job-modal .form-group,
+#ms-new-material-modal .form-group, /* <--- ADDED THIS */
 #standard-job-modal .form-group {
     margin-bottom: 15px !important; /* Fixed gap between rows */
     width: 100%;
@@ -192,6 +203,7 @@
 
 /* Labels - Uniform height and spacing */
 #transfer-job-modal label,
+#ms-new-material-modal label, /* <--- ADDED THIS */
 #standard-job-modal label {
     font-size: 0.8rem !important;
     margin-bottom: 4px !important;
@@ -208,7 +220,10 @@
 #transfer-job-modal .choices__inner,
 #standard-job-modal input, 
 #standard-job-modal select,
-#standard-job-modal .choices__inner {
+#standard-job-modal .choices__inner,
+#ms-new-material-modal input, /* <--- ADDED THIS */
+#ms-new-material-modal select, /* <--- ADDED THIS */
+#ms-new-material-modal .choices__inner { /* <--- ADDED THIS */
     /* Dimensions */
     min-height: 36px !important;
     height: 36px !important;
@@ -237,7 +252,10 @@
 #standard-job-modal input:focus, 
 #standard-job-modal select:focus,
 #standard-job-modal textarea:focus,
-#standard-job-modal .choices.is-focused .choices__inner {
+#standard-job-modal .choices.is-focused .choices__inner,
+#ms-new-material-modal input:focus, /* <--- ADDED THIS */
+#ms-new-material-modal select:focus, /* <--- ADDED THIS */
+#ms-new-material-modal .choices.is-focused .choices__inner { /* <--- ADDED THIS */
     outline: none !important;
     border-color: #003A5C !important;
     background-color: #ffffff !important;
@@ -262,6 +280,7 @@
 
 /* Remove default wrapper margin so it aligns with standard inputs */
 #transfer-job-modal .choices,
+#ms-new-material-modal .choices, /* <--- ADDED THIS */
 #standard-job-modal .choices { 
     margin-bottom: 0 !important; 
     overflow: visible !important; 
@@ -269,6 +288,7 @@
 
 /* Fix the inner container to behave like a standard input */
 #transfer-job-modal .choices__inner,
+#ms-new-material-modal .choices__inner, /* <--- ADDED THIS */
 #standard-job-modal .choices__inner {
     display: flex !important;
     align-items: center !important;
@@ -279,6 +299,7 @@
 
 /* Fix the dropdown list z-index and shadow */
 #transfer-job-modal .choices__list--dropdown,
+#ms-new-material-modal .choices__list--dropdown, /* <--- ADDED THIS */
 #standard-job-modal .choices__list--dropdown { 
     z-index: 9999 !important;
     border: 1px solid #003A5C !important;
@@ -423,17 +444,21 @@ input[type=number] {
 
 /* --- CRITICAL FIX: Hide buttons when JS adds .hidden class --- */
 #standard-job-modal .modal-footer button.hidden,
+#ms-new-material-modal .modal-footer button.hidden, /* <--- ADDED THIS */
 #transfer-job-modal .modal-footer button.hidden {
     display: none !important;
 }
 
 /* Allow Choices dropdown to overlay above other modal content */
-#transfer-job-modal .choices {
+#transfer-job-modal .choices,
+#ms-new-material-modal .choices { /* <--- ADDED THIS */
   overflow: visible !important;
 }
 
 #transfer-job-modal .choices__list--dropdown,
-#transfer-job-modal .choices__list[aria-expanded="true"] {
+#transfer-job-modal .choices__list[aria-expanded="true"],
+#ms-new-material-modal .choices__list--dropdown, /* <--- ADDED THIS */
+#ms-new-material-modal .choices__list[aria-expanded="true"] { /* <--- ADDED THIS */
   z-index: 99999 !important;
 }
 
@@ -444,7 +469,8 @@ input[type=number] {
    We temporarily unlock overflow via a class added by JS (.choices-open),
    and we explicitly support the .is-flipped (drop-up) state. */
 
-#transfer-job-modal .modal-content.choices-open {
+#transfer-job-modal .modal-content.choices-open,
+#ms-new-material-modal .modal-content.choices-open { /* <--- ADDED THIS */
     overflow: visible !important;
 }
 
