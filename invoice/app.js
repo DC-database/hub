@@ -4,7 +4,7 @@
 
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
 // [1.a] APP_VERSION
-const APP_VERSION = "4.4.1";
+const APP_VERSION = "4.4.0";
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION

@@ -1,5 +1,5 @@
 // =====================================
-// [File 2] materialStock.js (V6.0 - Categorized Tabs & Caching & Enter Key Fix)
+// [File 2] materialStock.js (V6.0 - Categorized Tabs & Caching)
 // =====================================
 
 let allMaterialStockData = [];
@@ -627,7 +627,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (clearBtn) clearBtn.addEventListener('click', handleClearMaterialForm);
 });
 
-// Modal Helpers (Fixed to load data and handle Enter key)
+// Modal Helpers (Fixed to load data)
 window.openNewMaterialModal = async function() {
     // 1. ENSURE DATA IS LOADED FIRST (Fixes Empty Dropdowns)
     if (!allMaterialStockData || allMaterialStockData.length === 0) {
@@ -664,8 +664,7 @@ window.openNewMaterialModal = async function() {
             details: item.details, 
             key: item.key,
             sites: item.sites || {},
-            status: item.status || 'Active',
-            category: item.category || ''
+            status: item.status || 'Active'
         }
     }));
 
@@ -685,7 +684,7 @@ window.openNewMaterialModal = async function() {
         addItemText: (value) => `Press Enter to add ID: <b>"${value}"</b>`
     });
 
-    // Attach Listeners for selection
+    // Attach Listeners
     selectEl.addEventListener('addItem', (e) => handleMainSelection(e.detail.value));
     selectEl.addEventListener('removeItem', () => handleMainSelection(null));
     
@@ -722,78 +721,41 @@ window.openNewMaterialModal = async function() {
                 }
             });
         }
+        
+        // Re-attach logic
+        const newSiteSelect = siteSelect.cloneNode(true);
+        siteSelect.parentNode.replaceChild(newSiteSelect, siteSelect);
+        newSiteSelect.addEventListener('change', checkPermissions);
     }
     
-    // Kill Switch for Choices Input (ENTER KEY FIX)
+    // Kill Switch for Choices Input
     if (msProductChoices.input && msProductChoices.input.element) {
         const inputEl = msProductChoices.input.element;
         inputEl.addEventListener('keydown', function(e) {
-            if (e.keyCode === 13 || e.keyCode === 9) { // Enter or Tab
+            if (e.keyCode === 13 || e.keyCode === 9) {
                 const val = this.value; 
                 if (val && val.trim() !== "") {
                     const typedLower = val.trim().toLowerCase();
                     const exactMatch = options.find(o => o.value.toLowerCase() === typedLower);
-                    
-                    if (exactMatch) { 
-                        return; // Let Choices handle existing match
-                    } else {
-                        // Force add new value
+                    if (exactMatch) { return; } 
+                    else {
                         e.stopImmediatePropagation();
                         e.preventDefault();
-                        
                         msProductChoices.setValue([{ value: val.trim(), label: val.trim() }]);
                         handleMainSelection(val.trim());
-                        
                         msProductChoices.clearInput();
                         msProductChoices.hideDropdown();
-                        
-                        // If Tab, move focus
                         if (e.keyCode === 9) { setTimeout(() => document.getElementById('ms-new-name').focus(), 50); }
                     }
                 }
             }
-        }, true); // Capture phase
+        }, true); 
     }
 };
-
-// [NEW] Handles selection logic for both existing and new items
-function handleMainSelection(val) {
-    lastTypedProductID = val;
-    
-    if (!val) {
-        // Clear if removed
-        document.getElementById('ms-new-name').value = '';
-        document.getElementById('ms-new-details').value = '';
-        document.getElementById('ms-new-category').value = '';
-        delete document.getElementById('ms-new-material-form').dataset.existingKey;
-        return;
-    }
-
-    // Check if it exists in data
-    const item = allMaterialStockData.find(i => (i.productID || i.productId) == val);
-    
-    if (item) {
-        // Populates fields for existing item
-        document.getElementById('ms-new-name').value = item.productName || '';
-        document.getElementById('ms-new-details').value = item.details || '';
-        document.getElementById('ms-new-category').value = item.category || '';
-        document.getElementById('ms-new-material-form').dataset.existingKey = item.key;
-    } else {
-        // New item: clear other fields but keep ID
-        // We do NOT clear name/details here to allow typing new ones
-        document.getElementById('ms-new-material-form').dataset.existingKey = ''; 
-    }
-}
 
 window.handleClearMaterialForm = function() {
     document.getElementById('ms-new-material-form').reset();
-    if(msProductChoices) {
-        msProductChoices.removeActiveItems();
-        msProductChoices.clearInput();
-    }
-    delete document.getElementById('ms-new-material-form').dataset.existingKey;
 };
-
 window.handleDeleteMaterial = async function(key) {
     if(confirm("Permanently delete this item?")) {
         await firebase.database().ref(`material_stock/${key}`).remove();

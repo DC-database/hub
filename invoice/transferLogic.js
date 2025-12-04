@@ -1,5 +1,5 @@
 // ==========================================================================
-// TRANSFER LOGIC: WORKFLOW ENGINE (V5.0 - Multi-Item Support)
+// TRANSFER LOGIC: WORKFLOW ENGINE (V4.5 - Admin-Only Approver Filter)
 // ==========================================================================
 
 let currentTransferType = '';
@@ -7,23 +7,15 @@ let transferProductChoices = null;
 let editingTransferData = null;
 let tfFromSiteChoices, tfToSiteChoices, tfApproverChoices, tfReceiverChoices, tfSourceContactChoices;
 
-// New Global Array to hold multiple items
-let currentTransferItems = []; 
-
 // ==========================================================================
 // 1. OPEN NEW TRANSFER
 // ==========================================================================
 async function openTransferModal(type) {
     currentTransferType = type;
     editingTransferData = null;
-    currentTransferItems = []; // Reset list
     
     document.getElementById('transfer-job-form').reset();
     document.getElementById('tf-job-type').value = type;
-    
-    // Clear the table body
-    const tbody = document.getElementById('tf-items-list-body');
-    if(tbody) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#777;">No items added yet.</td></tr>';
     
     if (typeof currentApprover !== 'undefined' && currentApprover) {
         document.getElementById('tf-requestor').value = currentApprover.Name;
@@ -35,150 +27,454 @@ async function openTransferModal(type) {
     await initTransferDropdowns(); 
     await generateSequentialTransferId(type);
 
-    // Toggle Field Visibility based on Type
     const sourceGroup = document.getElementById('tf-from').closest('.form-group');
     const contactGroup = document.getElementById('tf-source-contact').closest('.form-group');
     const destGroup = document.getElementById('tf-to').closest('.form-group');
-    const receiverGroup = document.getElementById('tf-receiver').closest('.form-group');
+    const approverGroup = document.getElementById('tf-approver').closest('.form-group');
+    const recvGroup = document.getElementById('tf-receiver').closest('.form-group');
     
-    // Hidden fields for status logic
     document.getElementById('tf-status').closest('.form-group').style.display = 'none';
     document.getElementById('tf-remarks').closest('.form-group').style.display = 'none';
 
-    // Default: Show all
     sourceGroup.style.display = 'block';
     contactGroup.style.display = 'block';
     destGroup.style.display = 'block';
-    receiverGroup.style.display = 'block';
+    approverGroup.style.display = 'block';
+    recvGroup.style.display = 'block';
 
-    if (type === 'Restock') {
+    const highlight = (ids, status) => {
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const parentChoices = el.closest('.choices');
+            const target = parentChoices ? parentChoices.querySelector('.choices__inner') : el;
+            
+            if (status) target.classList.add('input-required-highlight');
+            else target.classList.remove('input-required-highlight');
+        });
+    };
+
+    const allFields = ['tf-product-select', 'tf-req-qty', 'tf-from', 'tf-to', 'tf-source-contact', 'tf-approver', 'tf-receiver'];
+    highlight(allFields, false);
+
+    if (type === 'Transfer') {
+        highlight(['tf-product-select', 'tf-req-qty', 'tf-from', 'tf-to', 'tf-source-contact', 'tf-approver', 'tf-receiver'], true);
+    }
+    else if (type === 'Restock') {
         sourceGroup.style.display = 'none'; 
         contactGroup.style.display = 'none';
+        highlight(['tf-product-select', 'tf-req-qty', 'tf-to', 'tf-approver', 'tf-receiver'], true);
     }
     else if (type === 'Usage') {
         destGroup.style.display = 'none'; 
-        receiverGroup.style.display = 'none'; 
+        recvGroup.style.display = 'none'; 
+        highlight(['tf-product-select', 'tf-req-qty', 'tf-from', 'tf-approver'], true);
+    }
+    else if (type === 'Return') {
+        highlight(['tf-product-select', 'tf-req-qty', 'tf-from', 'tf-to', 'tf-approver'], true);
     }
 
     document.getElementById('transfer-job-modal').classList.remove('hidden');
 }
 
-window.closeTransferModal = function() { 
-    document.getElementById('transfer-job-modal').classList.add('hidden'); 
-};
-
 // ==========================================================================
-// 2. ADD ITEM TO LIST LOGIC (NEW)
+// 2. OPEN APPROVAL MODAL
 // ==========================================================================
-function handleAddLineItem() {
-    const pID = transferProductChoices ? transferProductChoices.getValue(true) : '';
-    const pName = document.getElementById('tf-product-name').value;
-    const pDetails = document.getElementById('tf-details').value;
-    const qty = parseFloat(document.getElementById('tf-req-qty').value);
+window.openTransferActionModal = async function(task) {
+    const modal = document.getElementById('transfer-approval-modal');
+    const keyInput = document.getElementById('transfer-modal-key');
+    const noteInput = document.getElementById('transfer-modal-note');
+    const qtyInput = document.getElementById('transfer-modal-qty');
+    const dateContainer = document.getElementById('transfer-modal-date-container');
+    const dateInput = document.getElementById('transfer-modal-date');
+    const title = document.getElementById('transfer-approval-modal-title'); 
+    const approveBtn = document.getElementById('transfer-modal-approve-btn');
+    const rejectBtn = document.getElementById('transfer-modal-reject-btn');
+    const detailsDiv = document.getElementById('transfer-modal-details');
 
-    if (!pID) { alert("Please select a product."); return; }
-    if (!qty || qty <= 0) { alert("Please enter a valid quantity."); return; }
+    keyInput.value = task.key;
+    if(noteInput) noteInput.value = task.note || '';
+    
+    qtyInput.classList.remove('input-required-highlight');
+    if(dateInput) dateInput.classList.remove('input-required-highlight');
+    
+    qtyInput.disabled = false;
+    dateContainer.classList.add('hidden');
+    rejectBtn.classList.remove('hidden');
+    approveBtn.innerHTML = "Approve";
 
-    // Add to Array
-    currentTransferItems.push({
-        productID: pID,
-        productName: pName,
-        details: pDetails,
-        orderedQty: qty,
-        approvedQty: qty, // Default to ordered
-        receivedQty: 0
-    });
+    if (task.remarks === 'Pending Source') {
+        title.textContent = "Step 1: Source Confirmation";
+        approveBtn.textContent = "Confirm & Send";
+        approveBtn.style.backgroundColor = "#17a2b8"; 
+        qtyInput.value = task.orderedQty; 
+        qtyInput.classList.add('input-required-highlight');
 
-    renderTransferItemsTable();
+    } else if (task.remarks === 'Pending Admin' || task.remarks === 'Pending') {
+        title.textContent = "Step 2: Admin Authorization";
+        approveBtn.textContent = "Authorize";
+        approveBtn.style.backgroundColor = "#28a745"; 
+        qtyInput.value = task.approvedQty || task.orderedQty; 
+        qtyInput.classList.add('input-required-highlight');
 
-    // Clear Inputs
-    transferProductChoices.removeActiveItems();
-    document.getElementById('tf-req-qty').value = '';
-    document.getElementById('tf-product-name').value = '';
-    document.getElementById('tf-details').value = '';
-}
+    } else if (task.remarks === 'In Transit') {
+        title.textContent = "Step 3: Confirm Receipt";
+        approveBtn.textContent = "Confirm Received";
+        approveBtn.style.backgroundColor = "#003A5C"; 
+        qtyInput.value = task.approvedQty; 
+        
+        dateContainer.classList.remove('hidden');
+        if(dateInput) {
+            dateInput.value = new Date().toISOString().split('T')[0];
+            dateInput.classList.add('input-required-highlight');
+        }
+        qtyInput.classList.add('input-required-highlight');
+        rejectBtn.classList.add('hidden'); 
 
-function renderTransferItemsTable() {
-    const tbody = document.getElementById('tf-items-list-body');
-    tbody.innerHTML = '';
-
-    if (currentTransferItems.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#777;">No items added yet.</td></tr>';
-        return;
+    } else if (task.remarks === 'Pending Confirmation') {
+        title.textContent = "Final Step: Confirm Usage";
+        approveBtn.textContent = "Confirm Actual Usage";
+        approveBtn.style.backgroundColor = "#6f42c1"; 
+        qtyInput.value = task.approvedQty;
+        qtyInput.classList.add('input-required-highlight');
     }
 
-    currentTransferItems.forEach((item, index) => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${item.productName}</td>
-            <td>${item.details || '-'}</td>
-            <td style="font-weight:bold; text-align:center;">${item.orderedQty}</td>
-            <td style="text-align:center;">
-                <button type="button" class="delete-btn" onclick="removeTransferItem(${index})" style="padding:2px 6px; font-size:0.7rem;">&times;</button>
-            </td>
-        `;
-        tbody.appendChild(row);
-    });
-}
+    detailsDiv.innerHTML = `
+        <div style="font-size:0.9rem; color:#333;">
+            <p><strong>Ref:</strong> ${task.ref || task.controlNumber}</p>
+            <p><strong>Item:</strong> ${task.vendorName || task.productName}</p>
+            <p><strong>Type:</strong> ${task.for || 'Transfer'}</p>
+            <p><strong>Status:</strong> <span style="color:#00748C; font-weight:bold;">${task.remarks}</span></p>
+        </div>`;
 
-window.removeTransferItem = function(index) {
-    currentTransferItems.splice(index, 1);
-    renderTransferItemsTable();
+    modal.classList.remove('hidden');
 };
 
 // ==========================================================================
-// 3. SAVE ENTRY (Handles Array)
+// 3. HANDLE ACTION CLICK
+// ==========================================================================
+window.handleTransferAction = async (status) => {
+    const key = document.getElementById('transfer-modal-key').value;
+    const qty = parseFloat(document.getElementById('transfer-modal-qty').value) || 0;
+    const note = document.getElementById('transfer-modal-note').value;
+    const arrivalDateVal = document.getElementById('transfer-modal-date') ? document.getElementById('transfer-modal-date').value : ''; 
+    
+    const btn = status === 'Approved' ? document.getElementById('transfer-modal-approve-btn') : document.getElementById('transfer-modal-reject-btn');
+    if(btn) { btn.disabled = true; btn.textContent = "Processing..."; }
+
+    const database = (typeof db !== 'undefined') ? db : firebase.database();
+
+    const generateStructuredESN = (letters, digits) => {
+        const charSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const numSet = "0123456789";
+        let result = "";
+        for (let i = 0; i < letters; i++) result += charSet.charAt(Math.floor(Math.random() * charSet.length));
+        for (let i = 0; i < digits; i++) result += numSet.charAt(Math.floor(Math.random() * numSet.length));
+        return result.split('').sort(() => 0.5 - Math.random()).join('');
+    };
+
+    try {
+        const snapshot = await database.ref(`transfer_entries/${key}`).once('value');
+        const task = snapshot.val();
+        task.key = key; 
+
+        const destSite = task.toLocation || task.toSite; 
+        const sourceSite = task.fromLocation || task.fromSite; 
+        const pID = task.productID || task.productId;
+        const jobType = (task.jobType || task.for || '').trim(); 
+
+        let updates = { 
+            note: note, 
+            dateResponded: formatDate(new Date())
+        };
+
+        if (status === 'Rejected') {
+            updates.status = 'Rejected';
+            updates.remarks = 'Rejected';
+            updates.attention = task.requestor;
+            await commitUpdate(database, key, updates, note);
+            return; 
+        } 
+        
+       if (status === 'Approved') {
+            const currentUser = currentApprover ? currentApprover.Name : 'Unknown';
+            const cleanName = currentUser.replace(/Engr\.?\s*/gi, '').trim().toUpperCase().split(' ')[0];
+
+            // 1. GENERATE ESN HERE (Single Source of Truth)
+            // This ensures the DB and the Receipt get the EXACT same number
+            const generatedESN = `${generateStructuredESN(6, 6)}/${cleanName}`;
+
+            // 2. DEFINE MOVEMENT STRING (e.g., "Store > Site")
+            const fromLoc = task.fromLocation || task.fromSite || 'Src';
+            const toLoc = task.toLocation || task.toSite || 'Dst';
+            let movement = `${fromLoc} > ${toLoc}`;
+            if (jobType === 'Usage') movement = `Used at ${fromLoc}`;
+            if (jobType === 'Restock') movement = `Restock > ${toLoc}`;
+
+            // 3. CAPTURE FOR RECEIPT (Admin OR Assigned Approver)
+            const isApproverStage = (task.remarks === 'Pending Admin' || task.remarks === 'Pending');
+            const isAuthorized = (currentApprover?.Role || '').toLowerCase() === 'admin' || (task.approver === currentUser);
+
+            if (isAuthorized && isApproverStage) {
+                const receiptItem = {
+                    po: task.controlNumber || task.ref,
+                    vendorName: task.productName,
+                    invEntryID: task.jobType,
+                    amountPaid: qty,
+                    status: 'Approved',
+                    isInventory: true,
+                    esn: generatedESN,     // <--- PASS THE GENERATED ESN
+                    movement: movement     // <--- PASS THE MOVEMENT
+                };
+
+                if (typeof window.transferProcessedTasks !== 'undefined') {
+                    window.transferProcessedTasks.push(receiptItem);
+                    
+                    // Show Buttons
+                    const dBtn = document.getElementById('send-transfer-approval-receipt-btn');
+                    if(dBtn) dBtn.classList.remove('hidden');
+
+                    const mCont = document.getElementById('mobile-receipt-action-container');
+                    const mBtn = document.getElementById('mobile-send-transfer-receipt-btn');
+                    if(mBtn && mCont) {
+                        mCont.classList.remove('hidden');
+                        mBtn.classList.remove('hidden');
+                    }
+                }
+            }
+
+            // 4. UPDATE DATABASE (Using the SAME ESN)
+            // Note: We set updates.esn = generatedESN;
+            
+            if (jobType === 'Restock') {
+                if (task.remarks === 'Pending Admin' || task.remarks === 'Pending') {
+                    if (!task.receiver) { alert("Error: No Receiver."); btn.disabled = false; return; }
+                    updates.approvedQty = qty; 
+                    updates.status = 'In Transit';
+                    updates.remarks = 'In Transit';
+                    updates.attention = task.receiver;
+                    updates.esn = generatedESN; // <--- USE IT HERE
+                    alert(`Restock Authorized! Sent to Receiver.`);
+                    await commitUpdate(database, key, updates, note);
+                    return; 
+                }
+                // ... (Keep 'In Transit' logic as is, receiver makes their own ESN) ...
+                 if (task.remarks === 'In Transit') {
+                    updates.status = 'Completed'; updates.remarks = 'Completed'; updates.attention = 'Records';
+                    updates.receivedQty = qty; updates.arrivalDate = arrivalDateVal;
+                    updates.receiverEsn = `${generateStructuredESN(4, 4)}/${cleanName}`; // Receiver ESN is new
+                    if (pID && destSite) await updateStockInventory(pID, qty, 'Add', destSite);
+                    alert(`Restock Confirmed! ${qty} Added to Stock.`);
+                    await commitUpdate(database, key, updates, note);
+                    return; 
+                }
+            }
+
+            if (jobType === 'Usage') {
+                if (task.remarks === 'Pending Admin' || task.remarks === 'Pending') {
+                    updates.approvedQty = qty;
+                    updates.status = 'Pending'; updates.remarks = 'Pending Confirmation'; updates.attention = task.requestor;
+                    updates.esn = generatedESN; // <--- USE IT HERE
+                    if (pID && sourceSite) await updateStockInventory(pID, qty, 'Deduct', sourceSite);
+                    alert("Usage Authorized. Stock Reserved (Deducted).");
+                    await commitUpdate(database, key, updates, note);
+                    return;
+                }
+                // ... (Keep Confirmation logic) ...
+                if (task.remarks === 'Pending Confirmation') {
+                    updates.status = 'Completed'; updates.remarks = 'Completed'; updates.attention = 'Records';
+                    updates.receivedQty = qty;
+                    // ... stock restore logic ...
+                    const approved = parseFloat(task.approvedQty) || 0;
+                    const diff = approved - qty; 
+                    if (diff > 0 && pID && sourceSite) await updateStockInventory(pID, diff, 'Add', sourceSite);
+                    else if (diff < 0) await updateStockInventory(pID, Math.abs(diff), 'Deduct', sourceSite);
+                    
+                    alert("Usage Closed.");
+                    await commitUpdate(database, key, updates, note);
+                    return;
+                }
+            }
+
+            if (jobType === 'Transfer') {
+                if (task.remarks === 'Pending Source') {
+                    updates.approvedQty = qty;
+                    updates.status = 'Pending'; updates.remarks = 'Pending Admin'; updates.attention = task.approver;
+                    alert("Source Confirmed.");
+                    await commitUpdate(database, key, updates, note);
+                    return;
+                }
+                if (task.remarks === 'Pending Admin') {
+                    updates.approvedQty = qty;
+                    updates.status = 'In Transit'; updates.remarks = 'In Transit'; updates.attention = task.receiver;
+                    updates.esn = generatedESN; // <--- USE IT HERE
+                    if (pID && sourceSite) await updateStockInventory(pID, qty, 'Deduct', sourceSite);
+                    alert("Transfer Authorized. Stock Deducted from Source.");
+                    await commitUpdate(database, key, updates, note);
+                    return;
+                }
+                // ... (Keep In Transit logic) ...
+                if (task.remarks === 'In Transit') {
+                    updates.status = 'Completed'; updates.remarks = 'Completed'; updates.attention = 'Records';
+                    updates.receivedQty = qty; updates.arrivalDate = arrivalDateVal;
+                    updates.receiverEsn = `${generateStructuredESN(4, 4)}/${cleanName}`;
+                    if (pID && destSite) await updateStockInventory(pID, qty, 'Add', destSite);
+                    alert("Transfer Received.");
+                    await commitUpdate(database, key, updates, note);
+                    return;
+                }
+            }
+
+            if (jobType === 'Return') {
+                if (task.remarks === 'Pending Admin') {
+                    updates.approvedQty = qty;
+                    updates.esn = generatedESN; // <--- USE IT HERE
+                    // ... (Logic for rest of return) ...
+                     if (task.originalJobType === 'Restock') {
+                        updates.status = 'Completed'; updates.remarks = 'Completed'; updates.attention = 'Records';
+                        if (pID && sourceSite) await updateStockInventory(pID, qty, 'Deduct', sourceSite);
+                    } else if (task.originalJobType === 'Usage') {
+                        updates.status = 'Completed'; updates.remarks = 'Completed'; updates.attention = 'Records';
+                        if (pID && sourceSite) await updateStockInventory(pID, qty, 'Add', sourceSite);
+                    } else {
+                        updates.status = 'In Transit'; updates.remarks = 'In Transit'; updates.attention = task.receiver;
+                        if (pID && sourceSite) await updateStockInventory(pID, qty, 'Deduct', sourceSite);
+                    }
+                    alert("Return Authorized.");
+                    await commitUpdate(database, key, updates, note);
+                    return;
+                }
+                // ... (Keep In Transit logic) ...
+                if (task.remarks === 'In Transit') {
+                    updates.status = 'Completed'; updates.remarks = 'Completed'; updates.attention = 'Records';
+                    updates.receivedQty = qty;
+                    updates.receiverEsn = `${generateStructuredESN(4, 4)}/${cleanName}`;
+                    if (pID && destSite) await updateStockInventory(pID, qty, 'Add', destSite);
+                    alert("Return Received.");
+                    await commitUpdate(database, key, updates, note);
+                    return;
+                }
+            }
+        }
+    } catch (error) {
+        console.error("Error:", error);
+        alert("Action failed. Check console.");
+    } finally {
+        if(btn) btn.disabled = false;
+    }
+};
+
+// ==========================================================================
+// 4. HELPERS
+// ==========================================================================
+async function commitUpdate(db, key, updates, note) {
+    const historyEntry = { 
+        action: (updates.remarks || updates.status), 
+        by: (typeof currentApprover !== 'undefined' ? currentApprover.Name : 'Unknown'), 
+        timestamp: Date.now(), 
+        note: note || '' 
+    };
+    
+    await db.ref(`transfer_entries/${key}`).update(updates);
+    await db.ref(`transfer_entries/${key}/history`).push(historyEntry);
+    
+    document.getElementById('transfer-approval-modal').classList.add('hidden');
+    
+    if(typeof ensureAllEntriesFetched === 'function') await ensureAllEntriesFetched(true); 
+    if(typeof populateActiveTasks === 'function') await populateActiveTasks();
+}
+
+async function updateStockInventory(id, qty, action, siteName) {
+    if (!id || !qty || !siteName) { console.error("Missing params"); return; }
+    const safeSiteName = siteName.replace(/[.#$[\]]/g, "_");
+    const database = (typeof db !== 'undefined') ? db : firebase.database();
+
+    try {
+        let snapshot = await database.ref('material_stock').orderByChild('productID').equalTo(id).once('value');
+        if (!snapshot.exists()) snapshot = await database.ref('material_stock').orderByChild('productId').equalTo(id).once('value');
+
+        if (snapshot.exists()) {
+            const data = snapshot.val();
+            const key = Object.keys(data)[0]; 
+            const item = data[key];
+            let sites = item.sites || {};
+            let currentSiteStock = parseFloat(sites[safeSiteName] || 0);
+            const amount = parseFloat(qty);
+
+            if (action === 'Deduct') {
+                currentSiteStock -= amount;
+                if (currentSiteStock < 0) currentSiteStock = 0; 
+            } else if (action === 'Add') {
+                currentSiteStock += amount;
+            }
+            sites[safeSiteName] = currentSiteStock;
+
+            let newGlobalStock = 0;
+            Object.values(sites).forEach(val => newGlobalStock += parseFloat(val) || 0);
+
+            await database.ref(`material_stock/${key}`).update({
+                sites: sites, stockQty: newGlobalStock, lastUpdated: firebase.database.ServerValue.TIMESTAMP
+            });
+        }
+    } catch (error) { console.error("Stock update failed:", error); }
+}
+
+// ==========================================================================
+// 5. SAVE ENTRY
 // ==========================================================================
 async function saveTransferEntry(e) {
     if(e) e.preventDefault(); 
     const btn = document.getElementById('tf-save-btn');
     btn.disabled = true; btn.textContent = "Saving...";
 
-    // 1. Validate Global Fields
     const fromLoc = (tfFromSiteChoices ? tfFromSiteChoices.getValue(true) : document.getElementById('tf-from').value) || '';
     const toLoc = (tfToSiteChoices ? tfToSiteChoices.getValue(true) : document.getElementById('tf-to').value) || '';
+    const productID = (transferProductChoices ? transferProductChoices.getValue(true) : document.getElementById('tf-product-select').value) || '';
+    const sourceContact = (tfSourceContactChoices ? tfSourceContactChoices.getValue(true) : document.getElementById('tf-source-contact').value) || '';
     const approver = (tfApproverChoices ? tfApproverChoices.getValue(true) : document.getElementById('tf-approver').value) || '';
+    const receiver = (tfReceiverChoices ? tfReceiverChoices.getValue(true) : document.getElementById('tf-receiver').value) || '';
+    const qty = parseFloat(document.getElementById('tf-req-qty').value) || 0;
     const type = document.getElementById('tf-job-type').value;
 
-    if (currentTransferItems.length === 0) {
-        alert("Please add at least one item to the list.");
-        btn.disabled = false; btn.textContent = "Save Transaction"; return;
+    if (type === 'Usage' || type === 'Return') {
+        if (!productID || !fromLoc || !approver) {
+            alert("Please fill in: Product, Source Site, and Approver."); 
+            btn.disabled = false; btn.textContent = "Save Transaction"; return;
+        }
+    } 
+    else if (type === 'Restock') {
+        if (!productID || !toLoc || !approver || !receiver) {
+            alert("For Restock, you MUST select:\n1. Destination Site\n2. Approver\n3. Receiver (Yourself)"); 
+            btn.disabled = false; btn.textContent = "Save Transaction"; return;
+        }
+    }
+    else {
+        if (!productID || !fromLoc || !toLoc || !sourceContact || !approver || !receiver) {
+            alert("Please fill in ALL fields for Transfer."); 
+            btn.disabled = false; btn.textContent = "Save Transaction"; return;
+        }
     }
 
-    if (type === 'Transfer' && (!fromLoc || !toLoc || !approver)) {
-        alert("Please select Source, Destination, and Approver.");
-        btn.disabled = false; btn.textContent = "Save Transaction"; return;
-    }
-
-    // 2. Prepare Data
     const currentUser = currentApprover ? currentApprover.Name : 'Unknown';
     let startStatus = 'Pending';
-    let startRemarks = (type === 'Transfer') ? 'Pending Source' : 'Pending Admin';
-    let startAttention = (type === 'Transfer') ? 
-        (tfSourceContactChoices ? tfSourceContactChoices.getValue(true) : '') : 
-        approver;
+    let startRemarks = 'Pending';
+    let startAttention = '';
 
-    // Use the FIRST item for the main display columns (backward compatibility)
-    const firstItem = currentTransferItems[0];
+    if (type === 'Transfer') { 
+        startRemarks = 'Pending Source';
+        startAttention = sourceContact; 
+    } else { 
+        startRemarks = 'Pending Admin';
+        startAttention = approver; 
+    } 
 
     const entryData = {
         controlNumber: document.getElementById('tf-control-no').value,
         jobType: type, for: type,
-        
-        // Main Display Data (Legacy compatibility)
-        productID: firstItem.productID, 
-        productName: (currentTransferItems.length > 1) ? "Multi-Item Transfer" : firstItem.productName,
-        details: (currentTransferItems.length > 1) ? `${currentTransferItems.length} Items` : firstItem.details,
-        orderedQty: (currentTransferItems.length > 1) ? 0 : firstItem.orderedQty,
-
-        // THE NEW LIST
-        items: currentTransferItems,
-
-        requestor: document.getElementById('tf-requestor').value,
-        sourceContact: (tfSourceContactChoices ? tfSourceContactChoices.getValue(true) : ''),
-        approver: approver, 
-        receiver: (tfReceiverChoices ? tfReceiverChoices.getValue(true) : '') || '',
-        
+        productID: productID, productName: document.getElementById('tf-product-name').value,
+        details: document.getElementById('tf-details').value, requestor: document.getElementById('tf-requestor').value,
+        sourceContact: sourceContact, approver: approver, receiver: receiver || '',
+        requiredQty: qty, orderedQty: qty, 
         fromLocation: fromLoc, fromSite: fromLoc,
         toLocation: toLoc, toSite: toLoc,
         shippingDate: document.getElementById('tf-shipping-date').value,
@@ -194,8 +490,14 @@ async function saveTransferEntry(e) {
     const database = (typeof db !== 'undefined') ? db : firebase.database();
 
     try {
-        await database.ref('transfer_entries').push(entryData);
-        alert("Transaction Saved!");
+        if (typeof editingTransferData !== 'undefined' && editingTransferData && editingTransferData.key) {
+            await database.ref(`transfer_entries/${editingTransferData.key}`).update(entryData);
+            alert("Transaction Updated!");
+        } else {
+            const newRef = await database.ref('transfer_entries').push(entryData);
+            entryData.key = newRef.key; 
+            alert("Transaction Saved!");
+        }
         document.getElementById('transfer-job-modal').classList.add('hidden');
         if(typeof ensureAllEntriesFetched === 'function') await ensureAllEntriesFetched(true);
         if(typeof populateActiveTasks === 'function') await populateActiveTasks();
@@ -208,125 +510,9 @@ async function saveTransferEntry(e) {
     }
 }
 
-// ==========================================================================
-// 4. APPROVAL ACTION (Loop through items)
-// ==========================================================================
-window.openTransferActionModal = async function(task) {
-    const modal = document.getElementById('transfer-approval-modal');
-    const keyInput = document.getElementById('transfer-modal-key');
-    const detailsDiv = document.getElementById('transfer-modal-details');
-    const title = document.getElementById('transfer-approval-modal-title');
-    const approveBtn = document.getElementById('transfer-modal-approve-btn');
-    
-    // Hide single qty input for multi-item tasks
-    const qtyInputDiv = document.getElementById('transfer-modal-qty').closest('.form-group');
-    
-    keyInput.value = task.key;
-    
-    // Check if it has items array
-    let itemsHtml = '';
-    if (task.items && Array.isArray(task.items)) {
-        qtyInputDiv.style.display = 'none'; // Hide single Qty input
-        itemsHtml = `<table style="width:100%; font-size:0.85rem; margin-top:10px; border-collapse:collapse;">
-            <thead style="background:#eee;"><tr><th>Item</th><th>Qty</th></tr></thead><tbody>`;
-        task.items.forEach(item => {
-            itemsHtml += `<tr><td style="border:1px solid #ddd; padding:4px;">${item.productName}</td><td style="border:1px solid #ddd; padding:4px; font-weight:bold;">${item.orderedQty}</td></tr>`;
-        });
-        itemsHtml += `</tbody></table>`;
-    } else {
-        qtyInputDiv.style.display = 'block'; // Show single Qty input for old records
-        document.getElementById('transfer-modal-qty').value = task.orderedQty;
-    }
-
-    if (task.remarks === 'Pending Source') { title.textContent = "Step 1: Source Confirmation"; approveBtn.textContent = "Confirm & Send"; }
-    else if (task.remarks === 'Pending Admin' || task.remarks === 'Pending') { title.textContent = "Step 2: Admin Authorization"; approveBtn.textContent = "Authorize"; }
-    else if (task.remarks === 'In Transit') { title.textContent = "Step 3: Confirm Receipt"; approveBtn.textContent = "Confirm Received"; }
-
-    detailsDiv.innerHTML = `
-        <p><strong>Control:</strong> ${task.controlNumber || task.ref}</p>
-        <p><strong>Route:</strong> ${task.fromSite} > ${task.toSite}</p>
-        ${itemsHtml}
-    `;
-
-    modal.classList.remove('hidden');
-};
-
-window.handleTransferAction = async (status) => {
-    const key = document.getElementById('transfer-modal-key').value;
-    const note = document.getElementById('transfer-modal-note').value;
-    const database = (typeof db !== 'undefined') ? db : firebase.database();
-
-    try {
-        const snapshot = await database.ref(`transfer_entries/${key}`).once('value');
-        const task = snapshot.val();
-        
-        let updates = { note: note, dateResponded: formatDate(new Date()) };
-
-        const generateStructuredESN = (letters, digits) => {
-            const charSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-            const numSet = "0123456789";
-            let result = "";
-            for (let i = 0; i < letters; i++) result += charSet.charAt(Math.floor(Math.random() * charSet.length));
-            for (let i = 0; i < digits; i++) result += numSet.charAt(Math.floor(Math.random() * numSet.length));
-            return result.split('').sort(() => 0.5 - Math.random()).join('');
-        };
-
-        if (status === 'Rejected') {
-            updates.status = 'Rejected';
-            updates.remarks = 'Rejected';
-            updates.attention = task.requestor;
-        } else if (status === 'Approved') {
-            
-            // Generate ESN if approved by Admin
-            const currentUser = currentApprover ? currentApprover.Name : 'Unknown';
-            const cleanName = currentUser.replace(/Engr\.?\s*/gi, '').trim().toUpperCase().split(' ')[0];
-            
-            // Define next stage based on current status
-            if (task.remarks === 'Pending Source') {
-                updates.remarks = 'Pending Admin';
-                updates.attention = task.approver;
-            } else if (task.remarks === 'Pending Admin' || task.remarks === 'Pending') {
-                updates.remarks = 'In Transit';
-                updates.attention = task.receiver;
-                updates.esn = `${generateStructuredESN(6, 6)}/${cleanName}`; // Approver ESN
-                
-                // DEDUCT STOCK
-                await processStockMovement(task, 'Deduct');
-            } else if (task.remarks === 'In Transit') {
-                updates.remarks = 'Completed';
-                updates.status = 'Completed';
-                updates.attention = 'Records';
-                updates.receiverEsn = `${generateStructuredESN(4, 4)}/${cleanName}`; // Receiver ESN
-                
-                // ADD STOCK
-                await processStockMovement(task, 'Add');
-            }
-        }
-
-        await commitUpdate(database, key, updates, note);
-
-    } catch (e) {
-        console.error(e);
-        alert("Action failed.");
-    }
-};
-
-async function processStockMovement(task, action) {
-    const site = (action === 'Deduct') ? (task.fromLocation || task.fromSite) : (task.toLocation || task.toSite);
-    
-    if (task.items && Array.isArray(task.items)) {
-        // Multi Item
-        for (const item of task.items) {
-            await updateStockInventory(item.productID, item.orderedQty, action, site);
-        }
-    } else {
-        // Single Item (Legacy)
-        await updateStockInventory(task.productID, task.orderedQty, action, site);
-    }
-}
 
 // ==========================================================================
-// 5. PRINT WAYBILL (RESTORED & UPDATED FOR MULTI-ITEM)
+// 6. PRINT LOGIC (RESTORED)
 // ==========================================================================
 window.handlePrintWaybill = function(entry) {
     const getFullSiteName = (code) => {
@@ -353,6 +539,13 @@ window.handlePrintWaybill = function(entry) {
     const toSite = getFullSiteName(entry.toSite || entry.toLocation);
     const requestor = entry.requestor || '-';
     const receiver = entry.receiver || '-';
+    const prodId = entry.productId || entry.productID;
+    const prodName = entry.productName;
+    const details = entry.details;
+    
+    let displayQty = entry.orderedQty;
+    if (entry.remarks === 'Completed') displayQty = entry.receivedQty;
+    else if (entry.remarks === 'In Transit') displayQty = entry.approvedQty;
     
     const printDate = new Date().toLocaleString();
     const isApproved = ['In Transit', 'Approved', 'Completed', 'Received'].includes(entry.remarks);
@@ -362,36 +555,6 @@ window.handlePrintWaybill = function(entry) {
     let badgeText = isApproved ? "AUTHORIZED" : "PENDING APPROVAL";
     let badgeColor = isApproved ? "#00748C" : "#dc3545";
     if(isCompleted) { badgeText = "COMPLETED"; badgeColor = "#28a745"; }
-
-    // --- ITEM TABLE BUILDER ---
-    let itemsTableRows = '';
-    
-    if (entry.items && Array.isArray(entry.items)) {
-        // Multi-Item
-        entry.items.forEach(item => {
-            let displayQty = item.orderedQty;
-            itemsTableRows += `
-                <tr>
-                    <td>${item.productID}</td>
-                    <td><strong>${item.productName}</strong></td>
-                    <td>${item.details || '-'}</td>
-                    <td style="border-right: none; text-align: right; font-weight: bold;">${displayQty}</td>
-                </tr>`;
-        });
-    } else {
-        // Single Item (Legacy)
-        let displayQty = entry.orderedQty;
-        if (entry.remarks === 'Completed') displayQty = entry.receivedQty;
-        else if (entry.remarks === 'In Transit') displayQty = entry.approvedQty;
-        
-        itemsTableRows = `
-            <tr>
-                <td>${entry.productId || entry.productID}</td>
-                <td><strong>${entry.productName}</strong></td>
-                <td>${entry.details}</td>
-                <td style="border-right: none; text-align: right; font-weight: bold;">${displayQty}</td>
-            </tr>`;
-    }
 
     let approverSectionHTML = '';
     if(isApproved) {
@@ -505,7 +668,12 @@ window.handlePrintWaybill = function(entry) {
                     <tr><th>ID</th><th>Name</th><th>Details</th><th style="border-right: none;">Qty</th></tr>
                 </thead>
                 <tbody>
-                    ${itemsTableRows}
+                    <tr>
+                        <td>${prodId}</td>
+                        <td><strong>${prodName}</strong></td>
+                        <td>${details}</td>
+                        <td style="border-right: none; text-align: right; font-weight: bold;">${displayQty}</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -553,27 +721,54 @@ window.handlePrintWaybill = function(entry) {
 };
 
 // ==========================================================================
-// 6. DROPDOWNS & HELPERS
+// 7. HELPERS & DROPDOWNS
 // ==========================================================================
-document.addEventListener('DOMContentLoaded', () => {
-    const sBtn = document.getElementById('tf-save-btn');
-    if(sBtn) sBtn.addEventListener('click', saveTransferEntry);
-    
-    const addLineBtn = document.getElementById('tf-add-line-btn');
-    if(addLineBtn) addLineBtn.addEventListener('click', handleAddLineItem);
-    
-    // Approval Buttons
-    const appBtn = document.getElementById('transfer-modal-approve-btn');
-    if(appBtn) appBtn.addEventListener('click', () => handleTransferAction('Approved'));
-    const rejBtn = document.getElementById('transfer-modal-reject-btn');
-    if(rejBtn) rejBtn.addEventListener('click', () => handleTransferAction('Rejected'));
-});
+window.closeTransferModal = function() { document.getElementById('transfer-job-modal').classList.add('hidden'); };
+
+async function generateSequentialTransferId(type) {
+    const database = (typeof db !== 'undefined') ? db : firebase.database();
+    const prefix = (type === 'Transfer' ? 'TRF' : (type === 'Restock' ? 'STK' : (type === 'Usage' ? 'USE' : 'RET')));
+    const input = document.getElementById('tf-control-no');
+    input.value = "Generating...";
+    try {
+        const snap = await database.ref('transfer_entries').once('value');
+        const data = snap.val();
+        let max = 0;
+        if (data) Object.values(data).forEach(i => { if(i.controlNumber && i.controlNumber.startsWith(prefix)) { const n = parseInt(i.controlNumber.split('-')[1]); if(n > max) max = n; } });
+        input.value = `${prefix}-${String(max + 1).padStart(4, '0')}`;
+    } catch (e) { input.value = `${prefix}-0001`; }
+}
 
 async function initTransferDropdowns() {
+    const database = (typeof db !== 'undefined') ? db : firebase.database();
+    
+    const selectElement = document.getElementById('tf-product-select');
+    if (transferProductChoices) { transferProductChoices.destroy(); } 
+    
+    transferProductChoices = new Choices(selectElement, { searchEnabled: true, itemSelectText: '', placeholder: true, placeholderValue: 'Type ID or Name...', shouldSort: false });
+    
+    try {
+        const snap = await database.ref('material_stock').once('value');
+        const data = snap.val();
+        if (data) {
+            const choices = Object.values(data).map(item => ({ value: item.productID, label: `${item.productID} - ${item.productName}`, customProperties: { name: item.productName, details: item.details, sites: item.sites } }));
+            transferProductChoices.setChoices(choices, 'value', 'label', true);
+        }
+    } catch (e) { console.error(e); }
+
+    selectElement.addEventListener('change', () => {
+        const val = transferProductChoices.getValue(true);
+        const item = transferProductChoices._store.choices.find(c => c.value === val);
+        if (item && item.customProperties) {
+            document.getElementById('tf-product-name').value = item.customProperties.name;
+            document.getElementById('tf-details').value = item.customProperties.details;
+            updateFromSiteOptions(item.customProperties.sites);
+        }
+    });
+
     if (!tfFromSiteChoices) tfFromSiteChoices = new Choices(document.getElementById('tf-from'), { searchEnabled: true, itemSelectText: '' });
     if (!tfToSiteChoices) tfToSiteChoices = new Choices(document.getElementById('tf-to'), { searchEnabled: true, itemSelectText: '' });
     
-    // Load Sites
     let sitesData = [];
     if (typeof allSitesCache !== 'undefined' && allSitesCache.length > 0) {
         sitesData = allSitesCache; 
@@ -596,32 +791,6 @@ async function initTransferDropdowns() {
         tfToSiteChoices.setChoices(sitesData, 'value', 'label', true);
         tfFromSiteChoices.setChoices(sitesData, 'value', 'label', true);
     }
-    
-    // Product Search Dropdown
-    const selectElement = document.getElementById('tf-product-select');
-    if (transferProductChoices) { transferProductChoices.destroy(); } 
-    transferProductChoices = new Choices(selectElement, { searchEnabled: true, itemSelectText: '', placeholder: true, placeholderValue: 'Type to search...' });
-    
-    const database = (typeof db !== 'undefined') ? db : firebase.database();
-    try {
-        const snap = await database.ref('material_stock').once('value');
-        const data = snap.val();
-        if (data) {
-            const choices = Object.values(data).map(item => ({ value: item.productID, label: `${item.productID} - ${item.productName}`, customProperties: { name: item.productName, details: item.details, sites: item.sites } }));
-            transferProductChoices.setChoices(choices, 'value', 'label', true);
-        }
-    } catch (e) { console.error(e); }
-
-    selectElement.addEventListener('change', () => {
-        const val = transferProductChoices.getValue(true);
-        const item = transferProductChoices._store.choices.find(c => c.value === val);
-        if (item && item.customProperties) {
-            document.getElementById('tf-product-name').value = item.customProperties.name;
-            document.getElementById('tf-details').value = item.customProperties.details;
-            // Trigger site update based on this product
-            updateFromSiteOptions(item.customProperties.sites);
-        }
-    });
 
     // --- UPDATED LOGIC FOR APPROVER FILTERING ---
     const opts = { searchEnabled: true, itemSelectText: '' };
@@ -630,9 +799,12 @@ async function initTransferDropdowns() {
     if (!tfSourceContactChoices) tfSourceContactChoices = new Choices(document.getElementById('tf-source-contact'), opts);
 
     let rawData = null;
+
+    // Check Global Raw Data first
     if (typeof allApproverData !== 'undefined' && allApproverData) {
         rawData = allApproverData;
     } else {
+        // Fallback fetch
         try {
             const snap = await database.ref('approvers').once('value');
             rawData = snap.val();
@@ -641,9 +813,17 @@ async function initTransferDropdowns() {
 
     if (rawData) {
         const allUsers = Object.values(rawData);
-        const adminList = allUsers.filter(u => (u.Role || '').toLowerCase() === 'admin').map(u => ({ value: u.Name, label: `${u.Name} - ${u.Position||''} (Admin)` }));
-        const fullList = allUsers.map(u => ({ value: u.Name, label: `${u.Name} - ${u.Position||''}` }));
 
+        // 1. Admin Only List (For Approver Field)
+        const adminList = allUsers
+            .filter(u => (u.Role || '').toLowerCase() === 'admin')
+            .map(u => ({ value: u.Name, label: `${u.Name} - ${u.Position||''} (Admin)` }));
+
+        // 2. Full List (For Receiver/Source Contact)
+        const fullList = allUsers
+            .map(u => ({ value: u.Name, label: `${u.Name} - ${u.Position||''}` }));
+
+        // Apply
         tfApproverChoices.setChoices(adminList, 'value', 'label', true);
         tfReceiverChoices.setChoices(fullList, 'value', 'label', true);
         tfSourceContactChoices.setChoices(fullList, 'value', 'label', true);
@@ -673,66 +853,12 @@ function updateFromSiteOptions(sitesData) {
     }
 }
 
-async function generateSequentialTransferId(type) {
-    const database = (typeof db !== 'undefined') ? db : firebase.database();
-    const prefix = (type === 'Transfer' ? 'TRF' : (type === 'Restock' ? 'STK' : (type === 'Usage' ? 'USE' : 'RET')));
-    const input = document.getElementById('tf-control-no');
-    input.value = "Generating...";
-    try {
-        const snap = await database.ref('transfer_entries').once('value');
-        const data = snap.val();
-        let max = 0;
-        if (data) Object.values(data).forEach(i => { if(i.controlNumber && i.controlNumber.startsWith(prefix)) { const n = parseInt(i.controlNumber.split('-')[1]); if(n > max) max = n; } });
-        input.value = `${prefix}-${String(max + 1).padStart(4, '0')}`;
-    } catch (e) { input.value = `${prefix}-0001`; }
-}
-
-async function commitUpdate(db, key, updates, note) {
-    const historyEntry = { 
-        action: (updates.remarks || updates.status), 
-        by: (typeof currentApprover !== 'undefined' ? currentApprover.Name : 'Unknown'), 
-        timestamp: Date.now(), 
-        note: note || '' 
-    };
-    
-    await db.ref(`transfer_entries/${key}`).update(updates);
-    await db.ref(`transfer_entries/${key}/history`).push(historyEntry);
-    
-    document.getElementById('transfer-approval-modal').classList.add('hidden');
-    if(typeof populateActiveTasks === 'function') await populateActiveTasks();
-}
-
-async function updateStockInventory(id, qty, action, siteName) {
-    if (!id || !qty || !siteName) return;
-    const safeSiteName = siteName.replace(/[.#$[\]]/g, "_");
-    const database = (typeof db !== 'undefined') ? db : firebase.database();
-
-    try {
-        let snapshot = await database.ref('material_stock').orderByChild('productID').equalTo(id).once('value');
-        if (!snapshot.exists()) snapshot = await database.ref('material_stock').orderByChild('productId').equalTo(id).once('value');
-
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            const key = Object.keys(data)[0]; 
-            const item = data[key];
-            let sites = item.sites || {};
-            let currentSiteStock = parseFloat(sites[safeSiteName] || 0);
-            const amount = parseFloat(qty);
-
-            if (action === 'Deduct') {
-                currentSiteStock -= amount;
-                if (currentSiteStock < 0) currentSiteStock = 0; 
-            } else if (action === 'Add') {
-                currentSiteStock += amount;
-            }
-            sites[safeSiteName] = currentSiteStock;
-
-            let newGlobalStock = 0;
-            Object.values(sites).forEach(val => newGlobalStock += parseFloat(val) || 0);
-
-            await database.ref(`material_stock/${key}`).update({
-                sites: sites, stockQty: newGlobalStock, lastUpdated: firebase.database.ServerValue.TIMESTAMP
-            });
-        }
-    } catch (error) { console.error("Stock update failed:", error); }
-}
+// Events
+document.addEventListener('DOMContentLoaded', () => {
+    const sBtn = document.getElementById('tf-save-btn');
+    if(sBtn) sBtn.addEventListener('click', saveTransferEntry);
+    const appBtn = document.getElementById('transfer-modal-approve-btn');
+    if(appBtn) appBtn.addEventListener('click', () => handleTransferAction('Approved'));
+    const rejBtn = document.getElementById('transfer-modal-reject-btn');
+    if(rejBtn) rejBtn.addEventListener('click', () => handleTransferAction('Rejected'));
+});
