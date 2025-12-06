@@ -3,106 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Approval Receipt Preview</title>
+    <title>Approval Receipt</title>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; background-color: #f4f4f4; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        /* Screen Styles */
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            background-color: #f4f4f4; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            padding: 20px; 
+        }
         
-        /* --- 1. RECEIPT CONTAINER (FIXED WIDTH) --- */
         #ceo-receipt-template { 
-            width: 300px; /* FIXED WIDTH */
-            padding: 10px;
+            width: 300px; 
+            padding: 10px; /* Reduced padding slightly */
             border: 1px solid #ccc;
             background-color: #fff;
             font-family: 'Courier New', Courier, monospace;
-            font-size: 14px;
-            line-height: 1.5;
-            box-sizing: border-box;
+            font-size: 13px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            box-sizing: border-box; /* Ensures padding doesn't add to width */
         }
-        #receipt-title { text-align: center; margin-top: 0; margin-bottom: 10px; font-size: 1.2rem; }
-        #ceo-receipt-template hr { border: none; border-top: 1px dashed #999; margin: 10px 0; }
+
+        #receipt-title { text-align: center; margin: 0 0 10px 0; font-size: 1.2rem; border-bottom: 2px solid #000; padding-bottom: 5px; }
         
-        /* --- 2. ITEM STYLES --- */
-        #approved-section h3, #rejected-section h3 { margin: 10px 0 5px 0; font-size: 1rem; border-bottom: 1px solid #999; }
-        #rejected-section { margin-top: 15px; }
-        #rejected-section h3 { color: #D32F2F; }
-        #rejected-section .item-details { color: #555; }
-        
-        /* --- ITEM ROW CONTAINER --- */
-        .item { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 5px; }
-        
-        /* --- LEFT COLUMN: Item Name (GIVEN MORE SPACE) --- */
-        .item-details { 
-            flex-basis: 75%; /* CHANGED FROM 60% */
-            word-break: break-word; 
-        }
-        
-        /* --- RIGHT COLUMN: Price and Status (GIVEN LESS SPACE) --- */
-        .item-status { 
-            flex-basis: 25%; /* CHANGED FROM 40% */
-            text-align: right; 
-            font-weight: bold; 
-            line-height: 1.1; 
-        }
-        
+        .item { display: flex; justify-content: space-between; margin-bottom: 5px; }
+        .item-details { flex-basis: 70%; word-break: break-all; }
+        .item-status { flex-basis: 30%; text-align: right; font-weight: bold; }
         .status-approved { color: #28a745; }
         .status-rejected { color: #D32F2F; }
         
-        /* --- 3. TOTALS STYLES --- */
-        .total { 
-            font-weight: bold; 
-            border-top: 1px dashed #999; 
-            margin-top: 5px; 
-            padding-top: 5px; 
-            display: flex; 
-            justify-content: space-between; 
-        }
+        .total { border-top: 1px dashed #000; margin-top: 5px; padding-top: 5px; font-weight: bold; display: flex; justify-content: space-between; }
         .total-rejected { color: #D32F2F; }
+        
+        #receipt-footer { text-align: center; margin-top: 20px; padding-top: 10px; border-top: 2px solid #000; }
+        #footer-esn { font-weight: bold; font-size: 0.9rem; }
+        #barcode { width: 90%; height: 40px; margin: 5px 0; } /* Increased width slightly */
+        #footer-date { font-size: 0.8rem; }
 
-        /* --- 4. GENERAL STYLES --- */
-        .hidden { display: none; }
+        /* Controls */
         #button-container { text-align: center; margin-top: 25px; }
-        #send-whatsapp-btn {
-            padding: 12px 25px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            background-color: #25D366; /* WhatsApp Green */
-            color: white;
-            border: none;
-            border-radius: 5px;
-            transition: background-color 0.3s;
-        }
-        #send-whatsapp-btn:hover { background-color: #1DA851; }
-        #send-whatsapp-btn:disabled { background-color: #aaa; cursor: not-allowed; }
+        .action-btn { padding: 12px 25px; font-size: 16px; font-weight: bold; cursor: pointer; border: none; border-radius: 5px; color: white; margin: 5px; }
+        #print-btn { background-color: #00748C; }
+        #send-whatsapp-btn { background-color: #25D366; }
         #status-text { margin-top: 10px; color: #555; font-style: italic; }
 
-        /* --- 5. FOOTER STYLES --- */
-        #receipt-footer {
-            text-align: center;
-            margin-top: 15px;
-            padding-top: 10px;
-            border-top: 1px dashed #999;
-        }
-        #receipt-footer p {
-            margin: 5px 0;
-        }
-        #footer-esn {
-            font-weight: bold;
-            font-size: 0.9rem;
-        }
-        #barcode {
-            width: 80%;
-            height: 40px;
-            margin: 5px 0;
-        }
-        #footer-date {
-            font-size: 0.8rem;
+        /* --- CRITICAL PRINT FIXES --- */
+        @media print {
+            body { 
+                background-color: white; 
+                padding: 0 !important; /* REMOVE BODY PADDING */
+                margin: 0 !important;  /* REMOVE BODY MARGIN */
+                display: block;        /* Reset flexbox */
+            }
+            
+            #button-container { display: none !important; }
+            
+            #ceo-receipt-template { 
+                width: 100% !important;      /* Allow printer to control width */
+                max-width: 100% !important; 
+                margin: 0 !important;        /* Remove centering margin */
+                padding: 0 !important;       /* Remove internal padding causing shift */
+                border: none !important; 
+                box-shadow: none !important; 
+                
+                /* Ensure content starts at absolute top-left */
+                position: absolute;
+                top: 0;
+                left: 0;
+            }
+
+            /* Make contents full width to avoid clipping */
+            #receipt-footer, .total, #receipt-title {
+                width: 100%;
+            }
         }
     </style>
 </head>
@@ -111,21 +95,19 @@
     <div id="ceo-receipt-template">
         <h2 id="receipt-title">Authorize Approval</h2>
         
-        <hr>
-        
         <div id="approved-section">
-            <h3>APPROVED</h3>
+            <h3 style="border-bottom: 1px solid #ccc; font-size: 0.9rem; margin-bottom: 5px;">APPROVED</h3>
             <div id="receipt-approved-list"></div>
             <div class="total">
-                <span>APPROVED TOTAL:</span> <span id="receipt-approved-total">QR 0.00</span>
+                <span>TOTAL:</span> <span id="receipt-approved-total">QR 0.00</span>
             </div>
         </div>
 
-        <div id="rejected-section" class="hidden">
-            <h3>REJECTED</h3>
+        <div id="rejected-section" class="hidden" style="margin-top: 15px;">
+            <h3 style="border-bottom: 1px solid #ccc; font-size: 0.9rem; color: #D32F2F; margin-bottom: 5px;">REJECTED</h3>
             <div id="receipt-rejected-list"></div>
             <div class="total total-rejected">
-                <span>TOTAL REJECTED:</span> <span id="receipt-rejected-total">QR 0.00</span>
+                <span>TOTAL:</span> <span id="receipt-rejected-total">QR 0.00</span>
             </div>
         </div>
 
@@ -137,7 +119,8 @@
     </div>
 
     <div id="button-container">
-        <button id="send-whatsapp-btn">Send to WhatsApp</button>
+        <button id="print-btn" class="action-btn">Print</button>
+        <button id="send-whatsapp-btn" class="action-btn">Send to WhatsApp</button>
         <p id="status-text">Ready to send.</p>
     </div>
 

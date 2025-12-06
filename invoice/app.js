@@ -4,7 +4,7 @@
 
 // --- ADD THIS LINE AT THE VERY TOP OF APP.JS ---
 // [1.a] APP_VERSION
-const APP_VERSION = "4.4.0";
+const APP_VERSION = "4.5.2";
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -2323,10 +2323,15 @@ async function showWorkdeskSection(sectionId, newSearchTerm = null) {
     }
 
     if (sectionId === 'wd-reporting') {
-        // [1.ut] savedSearch
+        // --- NEW: Reset filter to clean slate ---
+        currentReportFilter = null; 
+        
         const savedSearch = sessionStorage.getItem('reportingSearch');
         if (savedSearch) {
             reportingSearchInput.value = savedSearch;
+        } else {
+            // Clear search input if no saved search
+            reportingSearchInput.value = '';
         }
         await handleReportingSearch();
     }
@@ -3373,52 +3378,32 @@ function handleDownloadWorkdeskCSV() {
 }
 
 // ==========================================================================
-// UPDATED FUNCTION: renderReportingTable (Includes 'Usage' in Inventory Layout)
+// UPDATED FUNCTION: renderReportingTable (Includes 'Usage' & Strict Sticker Logic)
 // ==========================================================================
-// [1.aan] renderReportingTable
+// [1.aan] renderReportingTable (Desktop - CLEAN, No Sticker Button)
 function renderReportingTable(entries) {
     reportingTableBody.innerHTML = '';
 
-    // --- FIX: Added 'Usage' to this list ---
-    // [1.aao] inventoryTypes
     const inventoryTypes = ['Transfer', 'Restock', 'Return', 'Usage'];
-    // ---------------------------------------
-
-    // [1.aap] tableHead
     const tableHead = document.querySelector('#reporting-printable-area table thead');
 
-    // CHECK: If the CURRENT filter is one of these, change headers
     if (inventoryTypes.includes(currentReportFilter)) {
         tableHead.innerHTML = `
             <tr>
-                <th>Control ID</th>
-                <th>Product Name</th>
-                <th>Site Route</th>
-                <th>Ordered Qty</th>
-                <th>Delivered Qty</th>
-                <th>Shipping Date</th>
-                <th>Arrival Date</th>
-                <th>Contact</th>
-                <th>Status / Remarks</th>
+                <th>Control ID</th><th>Product Name</th><th>Site Route</th>
+                <th>Ordered Qty</th><th>Delivered Qty</th><th>Shipping Date</th>
+                <th>Arrival Date</th><th>Contact</th><th>Status / Remarks</th>
             </tr>`;
     } else {
         tableHead.innerHTML = `
             <tr>
-                <th>Job</th>
-                <th>Ref</th>
-                <th>Site</th>
-                <th>PO</th>
-                <th>Vendor Name</th>
-                <th>Amount</th>
-                <th>Entered By</th>
-                <th>Date Entered</th>
-                <th>Attention</th>
-                <th>Date Responded</th>
+                <th>Job</th><th>Ref</th><th>Site</th><th>PO</th>
+                <th>Vendor Name</th><th>Amount</th><th>Entered By</th>
+                <th>Date Entered</th><th>Attention</th><th>Date Responded</th>
                 <th>Status</th>
             </tr>`;
     }
 
-    // [1.aaq] count
     const count = entries.length;
     if (document.getElementById('job-records-count-display')) {
         document.getElementById('job-records-count-display').textContent = `(Total Records: ${count})`;
@@ -3429,37 +3414,26 @@ function renderReportingTable(entries) {
         return;
     }
 
-    // [1.aar] isAdmin
     const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
 
     entries.forEach(entry => {
-        // [1.aas] row
         const row = document.createElement('tr');
         row.setAttribute('data-key', entry.key);
 
-        // CHECK: If this SPECIFIC ROW is one of these, render Inventory Columns
         if (inventoryTypes.includes(entry.for)) {
-
-            // [1.aat] statusColor
             let statusColor = 'black';
             if (entry.remarks === 'Approved') statusColor = '#28a745';
             if (entry.remarks === 'Pending') statusColor = '#dc3545';
             if (entry.remarks === 'Rejected') statusColor = 'red';
             if (entry.remarks === 'Completed') statusColor = '#003A5C';
 
-            // [1.aau] noteDisplay
             const noteDisplay = entry.note ? `<br><small style="color:#666; font-style:italic;">${entry.note}</small>` : '';
-
-            // [1.aav] actions
-            let actions = '';
-
-            // Print
-            actions += `<button class="print-btn waybill-btn" data-key="${entry.key}" style="padding:2px 6px; margin-right:5px; font-size:0.7rem; background:#6f42c1; color:white; border:none; border-radius:4px;" title="Print Waybill"><i class="fa-solid fa-print"></i></button>`;
-
-            // History
+            
+            // Inventory Actions (NO STICKER HERE)
+            let actions = `<button class="print-btn waybill-btn" data-key="${entry.key}" style="padding:2px 6px; margin-right:5px; font-size:0.7rem; background:#6f42c1; color:white; border:none; border-radius:4px;" title="Print Waybill"><i class="fa-solid fa-print"></i></button>`;
+            
             actions += `<button class="history-btn action-btn" onclick="showTransferHistory('${entry.key}')" style="padding:2px 6px; margin-right:5px; font-size:0.7rem; background:#17a2b8; color:white; border:none; border-radius:4px;" title="View History"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
 
-            // Delete (Admin Only)
             if (isAdmin) {
                 actions += `<button class="delete-btn transfer-delete-btn" data-key="${entry.key}" style="padding:2px 6px; font-size:0.7rem; border-radius:4px;">Del</button>`;
             }
@@ -3480,15 +3454,10 @@ function renderReportingTable(entries) {
                 </td>
             `;
         } else {
-            // Standard Row (IPC, PR, Invoice, etc.)
             const status = entry.remarks || 'Pending';
-
-            // --- NEW: Action Buttons (History) ---
-            let actions = '';
-
-            // Add History Button for PR and IPC (or all)
-            // We verify if it's not a Transfer (already handled above)
-            actions += `<button class="history-btn action-btn" onclick="event.stopPropagation(); showJobHistory('${entry.key}')" style="padding:2px 6px; font-size:0.7rem; background:#17a2b8; color:white; border:none; border-radius:4px;" title="View History"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
+            
+            // Standard Actions (NO STICKER HERE)
+            let actions = `<button class="history-btn action-btn" onclick="event.stopPropagation(); showJobHistory('${entry.key}')" style="padding:2px 6px; font-size:0.7rem; background:#17a2b8; color:white; border:none; border-radius:4px;" title="View History"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
 
             row.innerHTML = `
                 <td>${entry.for || ''}</td>
@@ -3510,6 +3479,7 @@ function renderReportingTable(entries) {
         reportingTableBody.appendChild(row);
     });
 }
+
 // [1.aax] filterAndRenderReport
 function filterAndRenderReport(baseEntries = []) {
     // [1.aay] filteredEntries
@@ -3553,51 +3523,61 @@ function filterAndRenderReport(baseEntries = []) {
 }
 
 // ==========================================================================
-// REPLACED FUNCTION: handleReportingSearch (With PR Auto-Fix)
+// REPLACED FUNCTION: handleReportingSearch (Clean Start / Lazy Render)
 // ==========================================================================
 async function handleReportingSearch() {
-    reportingTableBody.innerHTML = '<tr><td colspan="11">Loading records...</td></tr>';
+    // Show loading initially
+    reportingTableBody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:20px;">Loading categories...</td></tr>';
 
     try {
-        // 1. Load Job Entries
+        // 1. Load All Data (Still required to build the buttons)
         await ensureAllEntriesFetched();
-
-        // 2. Load CSV Data (Required for PR Reconciliation)
         await ensureInvoiceDataFetched(false);
-
-        // 3. Run Reconciliation (Updates PRs if PO found in CSV)
         await reconcilePendingPRs();
 
-        // 4. Standard Filtering Logic
-        // [1.abb] uniqueJobTypes
+        // 2. Build Tabs
         const uniqueJobTypes = [...new Set(allSystemEntries.map(entry => entry.for || 'Other'))];
         uniqueJobTypes.sort();
 
-        // [1.abc] tabsHTML
         let tabsHTML = '';
-
-        if (uniqueJobTypes.length > 0) {
-            if (currentReportFilter === 'All' || !uniqueJobTypes.includes(currentReportFilter)) {
-                currentReportFilter = uniqueJobTypes[0];
-            }
-        }
-
+        
+        // --- CHANGE: Do NOT auto-select the first tab ---
         uniqueJobTypes.forEach(jobType => {
-            // [1.abd] activeClass
             const activeClass = (jobType === currentReportFilter) ? 'active' : '';
             tabsHTML += `<button class="${activeClass}" data-job-type="${jobType}">${jobType}</button>`;
         });
 
-        // [1.abe] tabsContainer
         const tabsContainer = document.getElementById('report-tabs');
         if (tabsContainer) tabsContainer.innerHTML = tabsHTML;
 
-        // 5. Render
-        filterAndRenderReport(allSystemEntries);
+        // 3. Render Logic (The "Clean" Check)
+        const savedSearch = sessionStorage.getItem('reportingSearch');
+
+        // Condition A: If user typed in Search box, show results immediately
+        if (savedSearch && savedSearch.trim() !== '') {
+             filterAndRenderReport(allSystemEntries);
+        } 
+        // Condition B: If user clicked a tab (Filter is active), show results
+        else if (currentReportFilter && currentReportFilter !== 'All') {
+             filterAndRenderReport(allSystemEntries);
+        } 
+        // Condition C: CLEAN START (No Search, No Tab Clicked)
+        else {
+             reportingTableBody.innerHTML = `
+                <tr>
+                    <td colspan="11" style="text-align: center; padding: 50px; color: #888;">
+                        <i class="fa-solid fa-arrow-up" style="font-size: 2rem; margin-bottom: 15px; color: #00748C;"></i><br>
+                        <strong style="font-size: 1.1rem; color: #333;">Select a Category above</strong><br>
+                        <span>(e.g., IPC, Invoice, Transfer) to view records.</span>
+                    </td>
+                </tr>`;
+             // Clear the count display
+             if (reportingCountDisplay) reportingCountDisplay.textContent = '';
+        }
 
     } catch (error) {
         console.error("Error loading reporting:", error);
-        reportingTableBody.innerHTML = '<tr><td colspan="11">Error loading data.</td></tr>';
+        reportingTableBody.innerHTML = '<tr><td colspan="11" style="color:red; text-align:center;">Error loading data.</td></tr>';
     }
 }
 
@@ -4366,15 +4346,10 @@ function renderMobileActiveTasks(tasks) {
 }
 
 async function processMobileCEOAction(taskData, status, amount, note, cardElement) {
-    if (!amount || amount < 0) {
-        alert("Please enter a valid Amount.");
-        return;
-    }
+    if (!amount || amount < 0) { alert("Please enter a valid Amount."); return; }
 
-    cardElement.style.opacity = '0.5';
-    cardElement.style.pointerEvents = 'none';
+    cardElement.style.opacity = '0.5'; cardElement.style.pointerEvents = 'none';
 
-    // [1.aes] updates
     const updates = {
         status: status,
         remarks: status,
@@ -4384,100 +4359,87 @@ async function processMobileCEOAction(taskData, status, amount, note, cardElemen
         dateResponded: formatDate(new Date())
     };
 
+    // --- NEW: SAVE ESN ---
+    if (status === 'Approved') {
+        const baseESN = await getNextSeriesNumber();
+        const name = currentApprover.Name.split(' ')[0].toUpperCase();
+        updates.esn = `${baseESN}/${name}`;
+    }
+    // ---------------------
+
     try {
         if (taskData.source === 'job_entry') {
-            await db.ref(`job_entries/${taskData.key}`).update({
-                remarks: updates.remarks,
-                amount: updates.amount,
-                note: updates.note,
-                dateResponded: updates.dateResponded
-            });
+            await db.ref(`job_entries/${taskData.key}`).update(updates);
         } else if (taskData.source === 'invoice') {
-            await invoiceDb.ref(`invoice_entries/${taskData.originalPO}/${taskData.originalKey}`).update({
-                status: updates.status,
-                amountPaid: updates.amountPaid,
-                note: updates.note
-            });
-            if (!allInvoiceData) await ensureInvoiceDataFetched();
-            // [1.aet] originalInvoice
+            await invoiceDb.ref(`invoice_entries/${taskData.originalPO}/${taskData.originalKey}`).update(updates);
+            
             const originalInvoice = (allInvoiceData && allInvoiceData[taskData.originalPO]) ? allInvoiceData[taskData.originalPO][taskData.originalKey] : {};
-            // [1.aeu] updatedInvoiceData
-            const updatedInvoiceData = {
-                ...originalInvoice,
-                ...updates
-            };
+            const updatedInvoiceData = { ...originalInvoice, ...updates };
             await updateInvoiceTaskLookup(taskData.originalPO, taskData.originalKey, updatedInvoiceData, taskData.attention);
             updateLocalInvoiceCache(taskData.originalPO, taskData.originalKey, updates);
         }
 
         taskData.status = status;
         taskData.amountPaid = amount;
+        if(updates.esn) taskData.esn = updates.esn;
         ceoProcessedTasks.push(taskData);
 
-        // [1.aev] taskIndex
         const taskIndex = userActiveTasks.findIndex(t => t.key === taskData.key);
-        if (taskIndex > -1) {
-            userActiveTasks.splice(taskIndex, 1);
-        }
+        if (taskIndex > -1) userActiveTasks.splice(taskIndex, 1);
 
         cardElement.style.transform = 'translateX(100%)';
         setTimeout(() => {
             cardElement.remove();
-            // [1.aew] count
-            const count = userActiveTasks.length;
-            if (activeTaskCountDisplay) activeTaskCountDisplay.textContent = `(Total Tasks: ${count})`;
-            renderMobileActiveTasks(userActiveTasks);
+            document.getElementById('mobile-receipt-action-container').classList.remove('hidden');
+            document.getElementById('mobile-send-receipt-btn').classList.remove('hidden');
         }, 300);
 
     } catch (error) {
         console.error("Mobile Action Error:", error);
-        alert("Failed to process task. Check connection.");
-        cardElement.style.opacity = '1';
-        cardElement.style.pointerEvents = 'auto';
+        alert("Failed to process task.");
+        cardElement.style.opacity = '1'; cardElement.style.pointerEvents = 'auto';
     }
 }
 
 async function processMobileManagerAction(taskData, status, amount, note, cardElement) {
-    // Visual feedback
-    cardElement.style.opacity = '0.5';
-    cardElement.style.pointerEvents = 'none';
+    cardElement.style.opacity = '0.5'; cardElement.style.pointerEvents = 'none';
 
-    // Prepare Updates
     const updates = {
         status: status,
         remarks: status,
-        amountPaid: amount, // This gets the value directly from the "Amount to Paid" box
-        amount: amount, // Sync main amount to match (optional, but safe)
+        amountPaid: amount,
+        amount: amount, 
         note: note ? note.trim() : '',
         dateResponded: formatDate(new Date())
     };
 
-    if (taskData.attention) {
-        updates.note = `${updates.note} [Action by ${currentApprover.Name}]`;
+    if (taskData.attention) updates.note = `${updates.note} [Action by ${currentApprover.Name}]`;
+
+    // --- NEW: SAVE ESN ---
+    if (status === 'Approved') {
+        const baseESN = await getManagerSeriesNumber();
+        const name = currentApprover.Name.split(' ')[0].toUpperCase();
+        updates.esn = `${baseESN}/${name}`;
     }
+    // ---------------------
 
     try {
-        // 1. Update Database (Keep existing logic)
         if (taskData.source === 'job_entry') {
             await db.ref(`job_entries/${taskData.key}`).update(updates);
         } else if (taskData.source === 'invoice') {
             await invoiceDb.ref(`invoice_entries/${taskData.originalPO}/${taskData.originalKey}`).update(updates);
-            if (!allInvoiceData) await ensureInvoiceDataFetched();
+            
             const originalInvoice = (allInvoiceData && allInvoiceData[taskData.originalPO]) ? allInvoiceData[taskData.originalPO][taskData.originalKey] : {};
-            const updatedInvoiceData = {
-                ...originalInvoice,
-                ...updates
-            };
+            const updatedInvoiceData = { ...originalInvoice, ...updates };
             await updateInvoiceTaskLookup(taskData.originalPO, taskData.originalKey, updatedInvoiceData, taskData.attention);
             updateLocalInvoiceCache(taskData.originalPO, taskData.originalKey, updates);
         }
 
-        // 2. Add to Manager Processed List (CRITICAL FIX FOR RECEIPT)
         taskData.status = status;
-        taskData.amountPaid = amount; // <--- Explicitly save the "Amount To Paid" value
+        taskData.amountPaid = amount;
+        if(updates.esn) taskData.esn = updates.esn;
         managerProcessedTasks.push(taskData);
 
-        // 3. Remove from UI
         const taskIndex = userActiveTasks.findIndex(t => t.key === taskData.key);
         if (taskIndex > -1) userActiveTasks.splice(taskIndex, 1);
 
@@ -4490,12 +4452,10 @@ async function processMobileManagerAction(taskData, status, amount, note, cardEl
 
     } catch (error) {
         console.error("Manager Action Error:", error);
-        alert("Failed to process. Check connection.");
-        cardElement.style.opacity = '1';
-        cardElement.style.pointerEvents = 'auto';
+        alert("Failed to process.");
+        cardElement.style.opacity = '1'; cardElement.style.pointerEvents = 'auto';
     }
 }
-
 // [FIXED] Mobile Action - APPROVAL ONLY (No Receipt)
 window.processMobileTransferAction = async function(task, action, cardElement) {
     if (!task || !action) return;
@@ -4554,29 +4514,38 @@ window.processMobileTransferAction = async function(task, action, cardElement) {
 // RECEIPT GENERATION FUNCTIONS (SEPARATED & FIXED)
 // =========================================================
 
-// 1. Manager Receipt Generator (For Invoices - "Manager Approval")
+// 1. Manager Receipt (Invoices) - Updated ESN
 async function previewAndSendManagerReceipt() {
     const btn = document.getElementById('mobile-send-manager-receipt-btn');
     if(btn) { btn.disabled = true; btn.textContent = 'Preparing...'; }
 
     try {
-        const seriesNo = await getManagerSeriesNumber(); 
-        
         const approvedTasks = managerProcessedTasks.filter(t => t.status === 'Approved');
         const rejectedTasks = managerProcessedTasks.filter(t => t.status === 'Rejected');
+
+        // CRITICAL FIX: Use the ESN from the first approved task if it exists
+        // This ensures the PDF matches the Database
+        let finalESN = "";
+        if (approvedTasks.length > 0 && approvedTasks[0].esn) {
+            finalESN = approvedTasks[0].esn;
+        } else {
+            // Fallback (only if something went wrong or only rejections)
+            const baseSeriesNo = await getManagerSeriesNumber(); 
+            const approverName = currentApprover ? currentApprover.Name.toUpperCase().split(' ')[0] : 'ADMIN';
+            finalESN = `${baseSeriesNo}/${approverName}`;
+        }
 
         const receiptData = {
             title: "Manager Approval", 
             approvedTasks: approvedTasks,
             rejectedTasks: rejectedTasks,
-            seriesNo: seriesNo,
-            appVersion: typeof APP_VERSION !== 'undefined' ? APP_VERSION : '4.0'
+            seriesNo: finalESN, 
+            appVersion: typeof APP_VERSION !== 'undefined' ? APP_VERSION : '4.5'
         };
 
         localStorage.setItem('pendingReceiptData', JSON.stringify(receiptData));
         window.open('receipt.html', '_blank');
 
-        // Reset
         managerProcessedTasks = [];
         const mCont = document.getElementById('mobile-receipt-action-container');
         if (mCont) mCont.classList.add('hidden');
@@ -4592,32 +4561,36 @@ async function previewAndSendManagerReceipt() {
         }
     }
 }
-
-// 2. Transfer Receipt Generator (For Inventory - "Authorize Transaction")
+// 2. Transfer Receipt (Inventory) - Updated ESN
 async function previewAndSendTransferReceipt() {
     const btn = document.getElementById('mobile-send-transfer-receipt-btn') || document.getElementById('send-transfer-approval-receipt-btn');
     if(btn) { btn.disabled = true; btn.textContent = 'Preparing...'; }
 
     try {
-        // Use the ESN from the task if available
-        const seriesNo = (transferProcessedTasks.length > 0 && transferProcessedTasks[0].esn) 
+        let baseSeriesNo = (transferProcessedTasks.length > 0 && transferProcessedTasks[0].esn) 
                          ? transferProcessedTasks[0].esn 
                          : await getManagerSeriesNumber();
+        
+        // --- NEW: Append Name (if not exists) ---
+        const approverName = currentApprover ? currentApprover.Name.toUpperCase().split(' ')[0] : 'ADMIN';
+        let finalESN = baseSeriesNo;
+        if (!finalESN.includes('/')) {
+            finalESN = `${baseSeriesNo}/${approverName}`;
+        }
         
         const receiptData = {
             title: "Authorize Transaction", 
             approvedTasks: transferProcessedTasks,
             rejectedTasks: [], 
-            seriesNo: seriesNo,
+            seriesNo: finalESN,
             isInventory: true, 
             movement: (transferProcessedTasks.length > 0) ? transferProcessedTasks[0].movement : '',
-            appVersion: typeof APP_VERSION !== 'undefined' ? APP_VERSION : '4.3.7'
+            appVersion: typeof APP_VERSION !== 'undefined' ? APP_VERSION : '4.5'
         };
 
         localStorage.setItem('pendingReceiptData', JSON.stringify(receiptData));
         window.open('receipt.html', '_blank');
 
-        // Reset
         transferProcessedTasks = [];
         const mCont = document.getElementById('mobile-receipt-action-container');
         if (mCont) mCont.classList.add('hidden');
@@ -7155,70 +7128,46 @@ async function populateInvoiceReporting(searchTerm = '') {
     }
 }
 
-// [1.ata] buildMobileReportView
+// [1.ata] buildMobileReportView (Fixed: Passes PO Number for Sticker)
 function buildMobileReportView(reportData) {
-    // [1.atb] container
     const container = document.getElementById('im-reporting-mobile-view');
     if (!container) return;
 
-    // [1.atc] isAdmin
-    const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
-    // [1.atd] isAccounting
-    const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
-    // [1.ate] canViewAmounts
-    const canViewAmounts = isAdmin || isAccounting;
+    // --- PERMISSION CHECK ---
+    const userRole = (currentApprover?.Role || '').toLowerCase();
+    const userPos = (currentApprover?.Position || '').trim().toLowerCase();
+    const canPrintSticker = (userRole === 'admin' && userPos === 'accounting');
+    const canViewAmounts = (userRole === 'admin' || userPos === 'accounting');
 
     if (reportData.length === 0) {
         container.innerHTML = `<div class="im-mobile-empty-state"><i class="fa-solid fa-file-circle-question"></i><h3>No Results Found</h3><p>Try a different search.</p></div>`;
         return;
     }
 
-    // [1.atf] mobileHTML
     let mobileHTML = '';
 
     reportData.forEach((poData, poIndex) => {
-        const {
-            poNumber,
-            site,
-            vendor,
-            poDetails,
-            filteredInvoices,
-            balance
-        } = poData;
-        // [1.atg] toggleId
+        const { poNumber, site, vendor, poDetails, filteredInvoices, balance } = poData;
         const toggleId = `mobile-invoice-list-${poIndex}`;
-
-        // Calculate Balance
-        // [1.ath] balanceNum
         const balanceNum = balance !== undefined ? balance : ((parseFloat(poDetails.Amount) || 0) - filteredInvoices.reduce((sum, inv) => sum + (parseFloat(inv.invValue) || 0), 0));
 
-        // [1.ati] statusClass
         let statusClass = 'status-progress';
-        // [1.atj] balanceStyle
         let balanceStyle = "";
 
         if (balanceNum < -0.01) {
-            statusClass = 'status-pending'; // Red styling for negative
-            balanceStyle = "color: #ff4d4d;";
+            statusClass = 'status-pending'; balanceStyle = "color: #ff4d4d;";
         } else if (balanceNum > 0.01) {
             statusClass = 'status-open';
         } else {
-            // [1.atk] allClose
             let allClose = filteredInvoices.length > 0;
-            // [1.atl] closeStatuses
             const closeStatuses = ['With Accounts', 'Paid', 'Epicore Value'];
-            for (const inv of filteredInvoices) {
-                if (!closeStatuses.includes(inv.status)) allClose = false;
-            }
+            for (const inv of filteredInvoices) { if (!closeStatuses.includes(inv.status)) allClose = false; }
             if (allClose) statusClass = 'status-close';
         }
 
-        // [1.atm] poValueDisplay
         const poValueDisplay = canViewAmounts ? `QAR ${formatCurrency(parseFloat(poDetails.Amount))}` : '---';
-        // [1.atn] balanceDisplay
         const balanceDisplay = canViewAmounts ? `QAR ${formatCurrency(balanceNum)}` : '---';
 
-        // 1. Build PO Card
         mobileHTML += `
             <div class="im-mobile-report-container">
                 <div class="im-po-balance-card ${statusClass}" data-toggle-target="#${toggleId}" style="cursor: pointer;">
@@ -7234,44 +7183,33 @@ function buildMobileReportView(reportData) {
                         <span class="po-card-site">Site: ${site}</span>
                     </div>
                 </div>
-                
                 <div id="${toggleId}" class="hidden-invoice-list"> 
                     <div class="im-invoice-list-header"><h2>Transactions (${filteredInvoices.length})</h2></div>
-                    <ul class="im-invoice-list">
-        `;
+                    <ul class="im-invoice-list">`;
 
-        // 2. Build Invoice List Items
         if (filteredInvoices.length === 0) {
             mobileHTML += `<li class="im-invoice-item-empty">No invoices recorded.</li>`;
         } else {
             filteredInvoices.forEach(inv => {
-                // [1.ato] invValueDisplay
                 const invValueDisplay = canViewAmounts ? `QAR ${formatCurrency(inv.invValue)}` : '---';
-                // [1.atp] releaseDateDisplay
-                const releaseDateDisplay = inv.releaseDate ? formatYYYYMMDD(inv.releaseDate) : '';
-                // [1.atq] invDateDisplay
                 const invDateDisplay = inv.invoiceDate ? formatYYYYMMDD(inv.invoiceDate) : '';
-
-                // [1.atr] status
                 const status = inv.status || 'Pending';
-                // [1.ats] iconClass
+                
                 let iconClass = 'pending';
-                // [1.att] iconChar
                 let iconChar = '<i class="fa-solid fa-clock"></i>';
+                if (status === 'Paid' || status === 'With Accounts') { iconClass = 'paid'; iconChar = '<i class="fa-solid fa-check"></i>'; }
 
-                if (status === 'Paid' || status === 'With Accounts') {
-                    iconClass = 'paid';
-                    iconChar = '<i class="fa-solid fa-check"></i>';
-                }
-
-                // PDF Links
-                // [1.atu] actionsHTML
                 let actionsHTML = '';
                 if (inv.invName && inv.invName.toLowerCase() !== 'nil') {
                     actionsHTML += `<a href="${PDF_BASE_PATH}${encodeURIComponent(inv.invName)}.pdf" target="_blank" class="im-tx-action-btn invoice-pdf-btn">INV</a>`;
                 }
                 if (inv.srvName && inv.srvName.toLowerCase() !== 'nil') {
                     actionsHTML += `<a href="${SRV_BASE_PATH}${encodeURIComponent(inv.srvName)}.pdf" target="_blank" class="im-tx-action-btn srv-pdf-btn">SRV</a>`;
+                }
+                
+                // --- FIX IS HERE: Added '${poNumber}' as 3rd argument ---
+                if (canPrintSticker) {
+                    actionsHTML += `<button class="im-tx-action-btn" onclick="event.stopPropagation(); handlePrintSticker('${inv.key}', 'Invoice', '${poNumber}')" style="background-color: #28a745; border: none; cursor: pointer; color: white; margin-left: 4px; padding: 3px 8px; border-radius: 6px;" title="Print Sticker"><i class="fa-solid fa-qrcode"></i></button>`;
                 }
 
                 mobileHTML += `
@@ -7286,11 +7224,9 @@ function buildMobileReportView(reportData) {
                             <span class="im-tx-value ${iconClass}">${invValueDisplay}</span>
                             <div class="im-tx-actions">${actionsHTML}</div>
                         </div>
-                    </li>
-                 `;
+                    </li>`;
             });
         }
-
         mobileHTML += `</ul></div></div>`;
     });
     container.innerHTML = mobileHTML;
@@ -9812,129 +9748,89 @@ function openCEOApprovalModal(taskData) {
 }
 
 async function handleCEOAction(status) {
-    // [1.bgi] key
     const key = document.getElementById('ceo-modal-key').value;
-    // [1.bgj] source
     const source = document.getElementById('ceo-modal-source').value;
-    // [1.bgk] originalPO
     const originalPO = document.getElementById('ceo-modal-originalPO').value;
-    // [1.bgl] originalKey
     const originalKey = document.getElementById('ceo-modal-originalKey').value;
 
-    if (!key || !source) {
-        alert("Error: Task identifiers are missing.");
-        return;
-    }
+    if (!key || !source) { alert("Error: Task identifiers are missing."); return; }
 
-    // [1.bgm] newAmountPaid
     const newAmountPaid = ceoModalAmount.value;
-    // [1.bgn] newNote
     const newNote = ceoModalNote.value.trim();
 
-    if (newAmountPaid === '' || newAmountPaid < 0) {
-        alert("Please enter a valid Amount to be Paid (0 or more).");
-        return;
-    }
+    if (newAmountPaid === '' || newAmountPaid < 0) { alert("Please enter a valid Amount."); return; }
 
-    // [1.bgo] updates
-    const updates = {
-        status: status,
-        remarks: status,
-        amountPaid: newAmountPaid,
-        amount: newAmountPaid,
-        note: newNote,
-        dateResponded: formatDate(new Date())
-    };
-
-    // [1.bgp] btn
     const btn = (status === 'Approved') ? ceoModalApproveBtn : ceoModalRejectBtn;
-    btn.disabled = true;
-    btn.textContent = 'Saving...';
+    btn.disabled = true; btn.textContent = 'Saving...';
 
     try {
-        // [1.bgq] processedTask
-        const processedTask = userActiveTasks.find(t => t.key === key);
-        if (!processedTask) {
-            throw new Error("Task not found in local list. Forcing full refresh.");
-        }
+        const updates = {
+            status: status,
+            remarks: status,
+            amountPaid: newAmountPaid,
+            amount: newAmountPaid,
+            note: newNote,
+            dateResponded: formatDate(new Date())
+        };
 
-        // [1.bgr] originalAttention
-        const originalAttention = processedTask.attention || '';
+        // --- NEW: GENERATE & SAVE ESN PERMANENTLY ---
+        if (status === 'Approved') {
+            const baseESN = await getNextSeriesNumber(); 
+            const approverName = currentApprover.Name.split(' ')[0].toUpperCase();
+            updates.esn = `${baseESN}/${approverName}`; // Save this string to Firebase!
+        }
+        // --------------------------------------------
+
+        const processedTask = userActiveTasks.find(t => t.key === key);
+        const originalAttention = processedTask ? (processedTask.attention || '') : '';
 
         if (source === 'job_entry') {
-            await db.ref(`job_entries/${key}`).update({
-                remarks: updates.remarks,
-                amount: updates.amount,
-                note: updates.note,
-                dateResponded: updates.dateResponded
-            });
-
+            await db.ref(`job_entries/${key}`).update(updates);
         } else if (source === 'invoice' && originalPO && originalKey) {
-            await invoiceDb.ref(`invoice_entries/${originalPO}/${originalKey}`).update({
-                status: updates.status,
-                amountPaid: updates.amountPaid,
-                note: updates.note
-            });
-
-            // [1.bgs] updatedInvoiceData
-            const updatedInvoiceData = {
-                ...processedTask,
-                ...updates
-            };
+            await invoiceDb.ref(`invoice_entries/${originalPO}/${originalKey}`).update(updates);
+            
+            const updatedInvoiceData = { ...processedTask, ...updates };
             await updateInvoiceTaskLookup(originalPO, originalKey, updatedInvoiceData, originalAttention);
-
             updateLocalInvoiceCache(originalPO, originalKey, updates);
 
-            // --- FIX: LOG HISTORY HERE ---
-            // This captures the CEO performing the action
             if (window.logInvoiceHistory) {
-                // [1.bgt] historyNote
-                const historyNote = updates.note ? `CEO Action: ${updates.note}` : `Marked as ${status} by CEO`;
+                const historyNote = updates.esn ? `Approved (ESN: ${updates.esn})` : `Marked as ${status}`;
                 await window.logInvoiceHistory(originalPO, originalKey, status, historyNote);
             }
-            // -----------------------------
-
-        } else {
-            throw new Error("Invalid task source or missing keys.");
         }
 
-        processedTask.status = status;
-        processedTask.amountPaid = newAmountPaid;
-        ceoProcessedTasks.push(processedTask);
-
-        // [1.bgu] taskIndex
-        const taskIndex = userActiveTasks.findIndex(t => t.key === key);
-        if (taskIndex > -1) {
-            userActiveTasks.splice(taskIndex, 1);
+        // Update local memory so Receipt sees the new ESN immediately
+        if (processedTask) {
+            processedTask.status = status;
+            processedTask.amountPaid = newAmountPaid;
+            if(updates.esn) processedTask.esn = updates.esn; // Crucial!
+            ceoProcessedTasks.push(processedTask);
+            
+            const taskIndex = userActiveTasks.findIndex(t => t.key === key);
+            if (taskIndex > -1) userActiveTasks.splice(taskIndex, 1);
         }
 
         renderActiveTaskTable(userActiveTasks);
-
-        // [1.bgv] taskCount
+        
         const taskCount = userActiveTasks.length;
-        if (activeTaskCountDisplay) {
-            activeTaskCountDisplay.textContent = `(Total Tasks: ${taskCount})`;
-        }
-        [wdActiveTaskBadge, imActiveTaskBadge, wdMobileNotifyBadge].forEach(badge => {
-            if (badge) {
-                badge.textContent = taskCount;
-                badge.style.display = taskCount > 0 ? 'inline-block' : 'none';
-            }
+        if (activeTaskCountDisplay) activeTaskCountDisplay.textContent = `(Total Tasks: ${taskCount})`;
+        [wdActiveTaskBadge, imActiveTaskBadge, wdMobileNotifyBadge].forEach(b => {
+            if(b) { b.textContent = taskCount; b.style.display = taskCount > 0 ? 'inline-block' : 'none'; }
         });
 
         sendCeoApprovalReceiptBtn.classList.remove('hidden');
-        alert(`Task has been ${status}.`);
+        alert(`Task ${status}!`);
         ceoApprovalModal.classList.add('hidden');
 
     } catch (error) {
         console.error("Error updating task:", error);
-        alert("Failed to update task. Please try again.");
+        alert("Failed to update task.");
         await populateActiveTasks();
     } finally {
-        btn.disabled = false;
-        btn.textContent = status;
+        btn.disabled = false; btn.textContent = status;
     }
 }
+
 
 // ==========================================================================
 // MANAGER ESN GENERATOR (5 Letters + 5 Digits Shuffled)
@@ -9993,10 +9889,13 @@ async function getNextSeriesNumber() {
 }
 
 
+// =========================================================
+// CEO RECEIPT GENERATOR (V5.0 - Fixed ESN Mismatch)
+// =========================================================
 async function previewAndSendReceipt() {
-    // [1.bhe] isCEO
-    const isCEO = (currentApprover?.Role || '').toLowerCase() === 'admin' &&
-        (currentApprover?.Position || '').toLowerCase() === 'ceo';
+    // Check permissions
+    const isCEO = (currentApprover?.Role || '').toLowerCase() === 'admin' && 
+                  (currentApprover?.Position || '').toLowerCase() === 'ceo';
 
     if (!isCEO) {
         alert("Access Denied: Only the CEO can send approval receipts.");
@@ -10007,23 +9906,27 @@ async function previewAndSendReceipt() {
     sendCeoApprovalReceiptBtn.textContent = 'Preparing...';
 
     try {
-        // [1.bhf] seriesNo
-        const seriesNo = await getNextSeriesNumber();
-        if (seriesNo === 'IBA_ERR') {
-            alert("Error: Could not get a new series number.");
-            return;
-        }
-
-        // [1.bhg] approvedTasks
         const approvedTasks = ceoProcessedTasks.filter(t => t.status === 'Approved');
-        // [1.bhh] rejectedTasks
         const rejectedTasks = ceoProcessedTasks.filter(t => t.status === 'Rejected');
 
-        // [1.bhi] receiptData
+        // --- CRITICAL FIX: USE SAVED ESN ---
+        // 1. Try to find the ESN we just saved to the database in handleCEOAction
+        let finalESN = "";
+        if (approvedTasks.length > 0 && approvedTasks[0].esn) {
+            finalESN = approvedTasks[0].esn;
+        } else {
+            // 2. Fallback (Only generates new if one wasn't found)
+            const baseSeriesNo = await getNextSeriesNumber();
+            const approverName = currentApprover.Name.split(' ')[0].toUpperCase();
+            finalESN = `${baseSeriesNo}/${approverName}`;
+        }
+        // -----------------------------------
+
         const receiptData = {
             approvedTasks: approvedTasks,
             rejectedTasks: rejectedTasks,
-            seriesNo: seriesNo
+            seriesNo: finalESN, // Send the MATCHING ESN
+            title: "Authorize Approval"
         };
 
         localStorage.setItem('pendingReceiptData', JSON.stringify(receiptData));
@@ -10034,7 +9937,7 @@ async function previewAndSendReceipt() {
 
     } catch (error) {
         console.error("Error preparing receipt preview:", error);
-        alert("Error preparing receipt. Please check the console.");
+        alert("Error preparing receipt.");
     } finally {
         sendCeoApprovalReceiptBtn.disabled = false;
         sendCeoApprovalReceiptBtn.textContent = 'Send Approval Receipt';
@@ -11156,12 +11059,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
 
+ // 1. Keep the Download Button Listener
     downloadWdReportButton.addEventListener('click', handleDownloadWorkdeskCSV);
+
+    // FIX: Tab Listener (Safe for Clean Start)
     reportTabsContainer.addEventListener('click', (e) => {
         if (e.target.tagName === 'BUTTON') {
-            reportTabsContainer.querySelector('.active').classList.remove('active');
+            // 1. Check if there is an active tab first to avoid NULL error
+            const currentActive = reportTabsContainer.querySelector('.active');
+            if (currentActive) {
+                currentActive.classList.remove('active');
+            }
+
+            // 2. Set the new active tab
             e.target.classList.add('active');
             currentReportFilter = e.target.getAttribute('data-job-type');
+            
             ensureAllEntriesFetched().then(() => {
                 filterAndRenderReport(allSystemEntries);
             });
@@ -12887,7 +12800,144 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
+// =========================================================
+// NEW: STICKER PRINT LOGIC (V7.0 - Reads Saved ESN)
+// =========================================================
+window.handlePrintSticker = async function(key, type, poNumber = null) {
+    let entry = null;
+    let vendorName = 'N/A';
 
-    
-    
+    // 1. FETCH DATA
+    if (type === 'Invoice' && poNumber) {
+        // Try local cache first
+        if (allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][key]) {
+            entry = allInvoiceData[poNumber][key];
+            if (allPOData && allPOData[poNumber]) vendorName = allPOData[poNumber]['Supplier Name'] || 'N/A';
+        } else {
+            // If not in cache, force fetch from DB
+            try {
+                const snap = await invoiceDb.ref(`invoice_entries/${poNumber}/${key}`).once('value');
+                entry = snap.val();
+                const poSnap = await db.ref(`purchase_orders/${poNumber}`).once('value'); 
+            } catch(e) {}
+        }
+    } else {
+        entry = allSystemEntries.find(e => e.key === key);
+    }
+
+    if (!entry) { alert("Data not found. Please refresh."); return; }
+
+    // 2. GET SAVED ESN
+    // Since we are now saving it, this will retrieve "G3JPAN3669/IRWIN" correctly.
+    // If it is an old record, it will show NO-ESN.
+    let esnDisplay = entry.esn || entry.receiverEsn || "NO-ESN/RECORD"; 
+
+    // 3. GENERATE QR LINK (Optional)
+    // You mentioned scanning it should show details. 
+    // If you want the link to the PDF, we construct it here.
+    const safeFilename = esnDisplay.replace(/\//g, '_'); 
+    const bucket = "invoiceentry-b15a8.firebasestorage.app";
+    const pdfLink = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/receipts%2F${safeFilename}.pdf?alt=media`;
+
+    // 4. VISUALS
+    const isRejected = (entry.remarks === 'Rejected' || entry.status === 'Rejected');
+    const statusText = isRejected ? "REJECT" : "APPROVED";
+    const statusColor = isRejected ? "#D32F2F" : "#28a745";
+    const dateStr = new Date().toLocaleDateString('en-GB');
+
+    // 5. PRINT WINDOW
+    const printWindow = window.open('', '', 'height=500,width=500');
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>Sticker Print</title>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
+            <style>
+                body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Arial', sans-serif; }
+                #sticker {
+                    width: 250px; 
+                    border: 3px solid #000;
+                    padding: 10px;
+                    display: flex;
+                    flex-direction: row;
+                    box-sizing: border-box;
+                    align-items: center;
+                }
+                .main { flex-grow: 1; text-align: center; }
+                
+                .status { 
+                    font-weight: 900; 
+                    font-size: 20px; 
+                    text-transform: uppercase; 
+                    margin-bottom: 5px; 
+                    color: ${statusColor}; 
+                }
+                
+                .esn { 
+                    font-weight: bold; 
+                    font-size: 9px; 
+                    margin-top: 8px; 
+                    font-family: monospace;
+                    white-space: nowrap;
+                    color: #000;
+                }
+                
+                .side { 
+                    width: 25px; 
+                    border-left: 2px solid #000; 
+                    display: flex; 
+                    align-items: center; 
+                    justify-content: center;
+                    writing-mode: vertical-rl; 
+                    text-orientation: mixed;
+                    font-weight: bold;
+                    font-size: 10px;
+                    margin-left: 10px;
+                    height: 120px; 
+                }
+                #qrcode { margin: 5px auto; }
+                #qrcode img { display: block; margin: 0 auto; }
+            </style>
+        </head>
+        <body>
+            <div id="sticker">
+                <div class="main">
+                    <div class="status">${statusText}</div>
+                    <div id="qrcode"></div>
+                    <div class="esn">ESN: ${esnDisplay}</div>
+                </div>
+                <div class="side">${dateStr}</div>
+            </div>
+            <script>
+                new QRCode(document.getElementById("qrcode"), {
+                    text: "${pdfLink}", /* Or put full details here */
+                    width: 110,
+                    height: 110,
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+                setTimeout(() => { window.print(); window.close(); }, 700);
+            <\/script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+};
+
+// =========================================================
+// HELPER: Save Approval to History List
+// =========================================================
+async function saveApprovalToList(po, key, esn, name, role) {
+    try {
+        await invoiceDb.ref(`invoice_entries/${po}/${key}/approvals`).push({
+            esn: esn,
+            approver: name,
+            role: role || 'Approver',
+            date: new Date().toLocaleDateString('en-GB'),
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        });
+    } catch (e) {
+        console.error("Failed to save approval list:", e);
+    }
+}
+
 }); // END OF DOMCONTENTLOADED
