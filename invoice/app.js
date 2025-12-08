@@ -5,7 +5,7 @@
   - Cleanup note: removed bracket labels like // [1.a], kept logic unchanged.
 */
 
-const APP_VERSION = "4.6.5";
+const APP_VERSION = "4.6.6";
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -11367,55 +11367,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
 // =========================================================
-// NEW: STICKER PRINT LOGIC (V7.0 - Reads Saved ESN)
+// NEW: STICKER PRINT LOGIC (V7.1 - Forces Fresh Data)
 // =========================================================
 window.handlePrintSticker = async function(key, type, poNumber = null) {
     let entry = null;
-    let vendorName = 'N/A';
-
-    // 1. FETCH DATA
-    if (type === 'Invoice' && poNumber) {
-        // Try local cache first
-        if (allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][key]) {
-            entry = allInvoiceData[poNumber][key];
-            if (allPOData && allPOData[poNumber]) vendorName = allPOData[poNumber]['Supplier Name'] || 'N/A';
+    
+    // 1. FORCE FRESH FETCH (THE FIX)
+    // We ignore local cache to ensure we get the ESN that was just generated.
+    try {
+        if (type === 'Invoice' && poNumber) {
+            // Fetch directly from Invoice DB
+            const snap = await invoiceDb.ref(`invoice_entries/${poNumber}/${key}`).once('value');
+            entry = snap.val();
         } else {
-            // If not in cache, force fetch from DB
-            try {
-                const snap = await invoiceDb.ref(`invoice_entries/${poNumber}/${key}`).once('value');
-                entry = snap.val();
-                const poSnap = await db.ref(`purchase_orders/${poNumber}`).once('value');
-            } catch(e) {}
+            // Fetch from Transfer or Job DB
+            let snap = await db.ref(`transfer_entries/${key}`).once('value');
+            if (!snap.exists()) {
+                snap = await db.ref(`job_entries/${key}`).once('value');
+            }
+            entry = snap.val();
         }
-    } else {
-        entry = allSystemEntries.find(e => e.key === key);
+    } catch (e) {
+        console.error("Sticker Data Fetch Error:", e);
+        alert("Network Error: Could not fetch latest sticker data.");
+        return;
     }
 
-    if (!entry) { alert("Data not found. Please refresh."); return; }
+    if (!entry) { alert("Data record not found. Please refresh."); return; }
 
-    // 2. GET OR GENERATE ESN (THE FIX)
-    let esnDisplay = entry.esn || entry.receiverEsn;
+    // 2. GET SAVED ESN
+    // Now that we have fresh data, this will match the receipt exactly.
+    let esnDisplay = entry.esn || entry.receiverEsn || "NO-ESN/RECORD";
 
-    // If ESN is missing (Legacy record), generate one on the fly for display
-    if (!esnDisplay) {
-        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-        const digits = "0123456789";
-        let resultArr = [];
-        
-        // Generate 5 Letters + 5 Digits
-        for (let i = 0; i < 5; i++) resultArr.push(letters.charAt(Math.floor(Math.random() * letters.length)));
-        for (let i = 0; i < 5; i++) resultArr.push(digits.charAt(Math.floor(Math.random() * digits.length)));
-        
-        // Shuffle them
-        const baseESN = resultArr.sort(() => 0.5 - Math.random()).join('');
-        
-        // Use Current User Name or Fallback
-        const name = (currentApprover && currentApprover.Name) ? currentApprover.Name.split(' ')[0].toUpperCase() : 'ADMIN';
-        
-        esnDisplay = `${baseESN}/${name}`;
-    }
-
-    // 3. GENERATE QR LINK (Optional)
+    // 3. GENERATE QR LINK
     const safeFilename = esnDisplay.replace(/\//g, '_');
     const bucket = "invoiceentry-b15a8.firebasestorage.app";
     const pdfLink = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/receipts%2F${safeFilename}.pdf?alt=media`;
