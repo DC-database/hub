@@ -616,10 +616,22 @@
 
 <div id="im-invoice-entry-modal" class="modal-overlay hidden">
     <div class="modal-container">
-        <div class="modal-header">
-            <h2 id="im-form-title">Invoice Entry</h2>
+        
+<div class="modal-header">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <h2 id="im-form-title" style="margin: 0;">Invoice Entry</h2>
+                
+                <div id="im-nav-controls" class="hidden" style="display: flex; align-items: center; gap: 5px;">
+                    <button type="button" id="im-nav-prev" class="secondary-btn" title="Previous Invoice" style="padding: 2px 8px; height: 30px; min-width: 30px; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);">&larr;</button>
+                    
+                    <span id="im-nav-counter" style="color: white; font-weight: bold; font-size: 0.9rem; min-width: 50px; text-align: center;"></span>
+                    
+                    <button type="button" id="im-nav-next" class="secondary-btn" title="Next Invoice" style="padding: 2px 8px; height: 30px; min-width: 30px; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);">&rarr;</button>
+                </div>
+            </div>
             <button type="button" class="modal-close-btn">&times;</button>
         </div>
+
 
         <div class="modal-content">
 
