@@ -5,7 +5,7 @@
   - Cleanup note: removed bracket labels like // [1.a], kept logic unchanged.
 */
 
-const APP_VERSION = "4.6.2";
+const APP_VERSION = "4.6.4";
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -1811,6 +1811,23 @@ function handleSuccessfulLogin() {
             invoiceMgmtBtn.classList.add('hidden');
         }
     }
+
+// [START] Auto-Open Inventory Mode
+    // Check if the URL contains "?mode=inventory"
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('mode') === 'inventory') {
+        console.log("Inventory mode detected. Auto-clicking button...");
+        setTimeout(() => {
+            const invBtn = document.getElementById('inventory-button');
+            if (invBtn) {
+                invBtn.click();
+                // Optional: Clean URL so refreshing doesn't trigger it again
+                // window.history.replaceState({}, document.title, window.location.pathname); 
+            }
+        }, 500); // Short delay to ensure view is rendered
+    }
+    // [END] Auto-Open Inventory Mode
+
 }
 
 function handleLogout() {
@@ -11497,37 +11514,47 @@ const inventoryButton = document.getElementById('inventory-button');
 // 1. Handle "Inventory" Click
 if (inventoryButton) {
     inventoryButton.addEventListener('click', async () => {
-        // --- 1. MOBILE GUARD (NEW) ---
-        // If on mobile, STOP Inventory Mode and open Standard WorkDesk instead
+        // --- 1. MOBILE GUARD ---
         if (window.innerWidth <= 768) {
             console.log("Mobile detected: Redirecting to Standard WorkDesk");
-            workdeskButton.click(); // Simulate clicking the main WorkDesk button
-            return; // STOP HERE. Do not load Inventory Mode.
+            workdeskButton.click(); 
+            return; 
         }
 
         if (!currentApprover) { handleLogout(); return; }
 
-        // 2. Enter Inventory Mode (Desktop Only)
+        // --- 2. IMMEDIATE UI SWITCH (THE FIX) ---
+        // A. Enter Inventory Mode styling
         document.body.classList.add('inventory-mode');
 
-        // 3. Update Sidebar
+        // B. Update Sidebar Text
         const wdUser = document.getElementById('wd-username');
         const wdId = document.getElementById('wd-user-identifier');
         if(wdUser) wdUser.textContent = currentApprover.Name;
         if(wdId) wdId.textContent = "Inventory Access";
 
-        // 4. Show View
+        // C. PRE-EMPTIVE SECTION SWAP (Crucial Step)
+        // Immediately hide all sections and show only Material Stock
+        // This prevents the Dashboard from flashing while data loads
+        document.querySelectorAll('.workdesk-section').forEach(el => el.classList.add('hidden'));
+        const stockSection = document.getElementById('wd-material-stock');
+        if (stockSection) stockSection.classList.remove('hidden');
+
+        // D. Update Active Nav Link Visually
+        document.querySelectorAll('#workdesk-nav a').forEach(el => el.classList.remove('active'));
+        const stockLink = document.querySelector('a[data-section="wd-material-stock"]');
+        if (stockLink) stockLink.classList.add('active');
+
+        // E. Show the Main View
         showView('workdesk');
 
-        // 5. Force-click Material Stock Tab
-        const stockLink = document.querySelector('a[data-section="wd-material-stock"]');
-        if (stockLink) {
-            document.querySelectorAll('#workdesk-nav a').forEach(el => el.classList.remove('active'));
-            stockLink.classList.add('active');
-        }
-
-        // 6. Load Data (Desktop Only)
+        // --- 3. LOAD DATA (Happens while user sees the empty stock table) ---
         console.log("Loading Inventory Data...");
+        
+        // Show a loading state in the table if possible (optional but good UX)
+        const stockTableBody = document.getElementById('ms-table-body');
+        if(stockTableBody) stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px;">Loading Inventory Data...</td></tr>';
+
         if (typeof ensureInvoiceDataFetched === 'function') await ensureInvoiceDataFetched(false); 
         if (typeof ensureAllEntriesFetched === 'function') await ensureAllEntriesFetched(false);
         if (typeof ensureApproverDataCached === 'function') await ensureApproverDataCached();
@@ -11542,7 +11569,10 @@ if (inventoryButton) {
              if (typeof populateAttentionDropdown === 'function') await populateAttentionDropdown(attentionSelectChoices);
         }
 
+        // --- 4. POPULATE THE TABLE ---
+        // Now that data is ready, run the logic to fill the table
         if (typeof showWorkdeskSection === 'function') {
+            // Pass 'wd-material-stock' to trigger the specific logic for that section
             await showWorkdeskSection('wd-material-stock');
         }
     });
