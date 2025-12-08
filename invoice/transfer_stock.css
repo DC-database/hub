@@ -12,6 +12,7 @@
 #standard-job-modal .modal-container,
 #ms-new-material-modal .modal-container, /* <--- ADDED THIS */
 #im-batch-search-modal .modal-container,
+#im-invoice-entry-modal .modal-container,
 #im-add-payment-modal .modal-container {
     max-width: 900px !important;
     width: 95% !important;
@@ -22,7 +23,7 @@
     max-height: 90vh !important;
     border-radius: 8px;
     background: #fff;
-    overflow: visible !important; 
+    overflow: visible !important;
 }
 
 /* Content Area */
@@ -30,10 +31,11 @@
 #standard-job-modal .modal-content,
 #ms-new-material-modal .modal-content, /* <--- ADDED THIS */
 #im-batch-search-modal .modal-content,
+#im-invoice-entry-modal .modal-content,
 #im-add-payment-modal .modal-content {
     padding: 20px 30px !important;
-    overflow-y: auto !important; 
-    overflow-x: visible !important; 
+    overflow-y: auto !important;
+    overflow-x: visible !important;
     flex-grow: 1;
 }
 
@@ -49,6 +51,7 @@
 #standard-job-modal .modal-footer,
 #ms-new-material-modal .modal-footer, /* <--- ADDED THIS */
 #im-batch-search-modal .modal-footer,
+#im-invoice-entry-modal .modal-footer,
 #im-add-payment-modal .modal-footer {
     padding: 15px 25px !important;
     background-color: #ffffff !important; /* Changed from Grey to White */
@@ -83,6 +86,7 @@
 /* Apply Blue Theme to Transfer, Batch, Payment, and STANDARD JOB Modals */
 #transfer-job-modal .modal-header,
 #im-batch-search-modal .modal-header,
+#im-invoice-entry-modal .modal-header,
 #im-add-payment-modal .modal-header,
 #ms-new-material-modal .modal-header, /* <--- ADDED THIS */
 #standard-job-modal .modal-header {
@@ -99,6 +103,7 @@
 /* Title Text */
 #transfer-job-modal h2,
 #im-batch-search-modal h2,
+#im-invoice-entry-modal h2,
 #im-add-payment-modal h2,
 #ms-new-material-modal h2, /* <--- ADDED THIS */
 #standard-job-modal h2 {
@@ -113,6 +118,7 @@
 /* 1. Header Close Button (The 'X') - Transparent & Big */
 #transfer-job-modal .modal-header .modal-close-btn,
 #im-batch-search-modal .modal-header .modal-close-btn,
+#im-invoice-entry-modal .modal-header .modal-close-btn,
 #im-add-payment-modal .modal-header .modal-close-btn,
 #ms-new-material-modal .modal-header .modal-close-btn, /* <--- ADDED THIS */
 #standard-job-modal .modal-header .modal-close-btn {
@@ -128,6 +134,7 @@
 
 #transfer-job-modal .modal-header .modal-close-btn:hover,
 #im-batch-search-modal .modal-header .modal-close-btn:hover,
+#im-invoice-entry-modal .modal-header .modal-close-btn:hover,
 #im-add-payment-modal .modal-header .modal-close-btn:hover,
 #ms-new-material-modal .modal-header .modal-close-btn:hover, /* <--- ADDED THIS */
 #standard-job-modal .modal-header .modal-close-btn:hover {
@@ -141,6 +148,7 @@
 #standard-job-modal .modal-footer .modal-close-btn,
 #im-batch-search-modal .modal-footer .modal-close-btn,
 #ms-new-material-modal .modal-footer .modal-close-btn, /* <--- ADDED THIS */
+#im-invoice-entry-modal .modal-footer .modal-close-btn,
 #im-add-payment-modal .modal-footer .modal-close-btn {
     background-color: #6c757d !important; /* Grey Background */
     color: #ffffff !important;             /* White Text */
@@ -176,9 +184,9 @@
 .transfer-col {
     display: flex;
     flex-direction: column;
-    /* This 'gap' controls vertical space between fields. 
+    /* This 'gap' controls vertical space between fields.
        Reduced to 8px for a compact look. */
-    gap: 8px !important; 
+    gap: 8px !important;
 }
 
 /* Mobile Override */
@@ -214,11 +222,11 @@
 }
 
 /* --- UNIVERSAL FIELD STYLING (The Alignment Fix) --- */
-#transfer-job-modal input, 
+#transfer-job-modal input,
 #transfer-job-modal select,
 #transfer-job-modal textarea,
 #transfer-job-modal .choices__inner,
-#standard-job-modal input, 
+#standard-job-modal input,
 #standard-job-modal select,
 #standard-job-modal .choices__inner,
 #ms-new-material-modal input, /* <--- ADDED THIS */
@@ -228,28 +236,28 @@
     min-height: 36px !important;
     height: 36px !important;
     width: 100% !important;
-    
+
     /* Content Alignment */
     padding: 6px 10px !important;
     font-size: 0.9rem !important;
     line-height: normal !important;
-    
+
     /* Borders & Background */
     border: 1px solid #ccc !important;
     border-radius: 4px !important;
     background-color: #fff !important;
     box-sizing: border-box !important;
-    
+
     /* Smooth Transition for the Float Effect */
     transition: all 0.2s ease-in-out !important;
 }
 
 /* --- THE FLOATING HIGHLIGHT EFFECT --- */
-#transfer-job-modal input:focus, 
+#transfer-job-modal input:focus,
 #transfer-job-modal select:focus,
 #transfer-job-modal textarea:focus,
 #transfer-job-modal .choices.is-focused .choices__inner,
-#standard-job-modal input:focus, 
+#standard-job-modal input:focus,
 #standard-job-modal select:focus,
 #standard-job-modal textarea:focus,
 #standard-job-modal .choices.is-focused .choices__inner,
@@ -259,10 +267,10 @@
     outline: none !important;
     border-color: #003A5C !important;
     background-color: #ffffff !important;
-    
+
     /* The "Floating" Shadow */
     box-shadow: 0 4px 12px rgba(0, 58, 92, 0.15) !important;
-    
+
     /* The Physical Lift */
     transform: translateY(-2px) !important;
 }
@@ -281,9 +289,9 @@
 /* Remove default wrapper margin so it aligns with standard inputs */
 #transfer-job-modal .choices,
 #ms-new-material-modal .choices, /* <--- ADDED THIS */
-#standard-job-modal .choices { 
-    margin-bottom: 0 !important; 
-    overflow: visible !important; 
+#standard-job-modal .choices {
+    margin-bottom: 0 !important;
+    overflow: visible !important;
 }
 
 /* Fix the inner container to behave like a standard input */
@@ -300,7 +308,7 @@
 /* Fix the dropdown list z-index and shadow */
 #transfer-job-modal .choices__list--dropdown,
 #ms-new-material-modal .choices__list--dropdown, /* <--- ADDED THIS */
-#standard-job-modal .choices__list--dropdown { 
+#standard-job-modal .choices__list--dropdown {
     z-index: 9999 !important;
     border: 1px solid #003A5C !important;
     box-shadow: 0 10px 20px rgba(0,0,0,0.15) !important;
@@ -320,7 +328,7 @@
 }
 
 .input-required-highlight + label::after {
-    color: #003A5C; 
+    color: #003A5C;
 }
 
 /* Sender Required Warning (Yellow) */
@@ -335,9 +343,9 @@
 
 @media print {
     /* Ensure Barcodes are visible ONLY if they have a source */
-    #wb-barcode-approver[src=""], 
+    #wb-barcode-approver[src=""],
     #wb-barcode-approver:not([src]),
-    #wb-barcode-receiver[src=""], 
+    #wb-barcode-receiver[src=""],
     #wb-barcode-receiver:not([src]) {
         display: none !important;
     }
@@ -347,7 +355,7 @@
         color: #000 !important;
         visibility: visible !important;
     }
-    
+
     /* Ensure containers don't collapse if we need them */
     #transfer-waybill-template {
         -webkit-print-color-adjust: exact !important;
@@ -378,7 +386,7 @@
     justify-content: center !important;
     flex-shrink: 0 !important;
     margin-bottom: 0 !important;
-    
+
     /* Add Float Effect to Button too for consistency */
     transition: all 0.2s ease-in-out !important;
 }
@@ -400,10 +408,10 @@
 /* ============================================================= */
 
 /* A. Remove Up/Down Arrows from Number Inputs */
-input[type=number]::-webkit-inner-spin-button, 
-input[type=number]::-webkit-outer-spin-button { 
-    -webkit-appearance: none; 
-    margin: 0; 
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
 input[type=number] {
     -moz-appearance: textfield; /* Firefox */
@@ -433,10 +441,10 @@ input[type=number] {
 }
 
 /* A. Remove Up/Down Arrows from Number Inputs */
-input[type=number]::-webkit-inner-spin-button, 
-input[type=number]::-webkit-outer-spin-button { 
-    -webkit-appearance: none; 
-    margin: 0; 
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
 input[type=number] {
     -moz-appearance: textfield; /* Firefox */
@@ -514,22 +522,22 @@ input[type=number] {
     body.printing-waybill #transfer-waybill-template {
         display: block !important;
         visibility: visible !important;
-        
+
         /* Override the hiding method */
         position: absolute !important;
         left: 0 !important;
         top: 0 !important;
         margin: 0 !important;
-        
+
         /* Ensure it fits */
         width: 100% !important;
         z-index: 99999 !important;
-        
+
         /* Force Colors */
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
     }
-    
+
     /* 4. Ensure content inside is visible */
     body.printing-waybill #transfer-waybill-template * {
         visibility: visible !important;

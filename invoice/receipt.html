@@ -4,88 +4,143 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Approval Receipt</title>
-    
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    
+
     <style>
-        /* Screen Styles */
-        body { 
-            font-family: Arial, sans-serif; 
-            margin: 0; 
-            background-color: #f4f4f4; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            padding: 20px; 
-        }
-        
-        #ceo-receipt-template { 
-            width: 300px; 
-            padding: 10px; /* Reduced padding slightly */
-            border: 1px solid #ccc;
-            background-color: #fff;
+        /* SCREEN STYLES */
+        body {
             font-family: 'Courier New', Courier, monospace;
-            font-size: 13px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-            box-sizing: border-box; /* Ensures padding doesn't add to width */
+            margin: 0;
+            background-color: #555;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 40px;
+            min-height: 100vh;
         }
 
-        #receipt-title { text-align: center; margin: 0 0 10px 0; font-size: 1.2rem; border-bottom: 2px solid #000; padding-bottom: 5px; }
+        #ceo-receipt-template {
+            width: 320px;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            margin-bottom: 20px;
+            box-sizing: border-box;
+            position: relative; 
+            display: block; 
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        h2#receipt-title {
+            text-align: center; 
+            margin: 0 0 15px 0; 
+            font-size: 1.1rem; 
+            font-weight: bold;
+            border-bottom: 2px solid #000; 
+            padding-bottom: 10px;
+        }
+
+        /* --- ITEM LAYOUT FIX --- */
+        .item { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: flex-start; /* Aligns price to top */
+            margin-bottom: 10px; 
+            font-size: 0.85rem;
+            border-bottom: 1px dashed #eee; /* Separator line */
+            padding-bottom: 5px;
+        }
+        .item-details { 
+            flex-basis: 70%; 
+            display: flex;
+            flex-direction: column;
+        }
         
-        .item { display: flex; justify-content: space-between; margin-bottom: 5px; }
-        .item-details { flex-basis: 70%; word-break: break-all; }
-        .item-status { flex-basis: 30%; text-align: right; font-weight: bold; }
+        /* New Lines */
+        .line-po { font-size: 0.9rem; margin-bottom: 2px; }
+        .line-inv { font-size: 0.85rem; margin-bottom: 2px; }
+        .line-vendor { font-size: 0.75rem; color: #555; font-style: italic; }
+
+        .item-status { 
+            flex-basis: 30%; 
+            text-align: right; 
+            font-weight: bold; 
+            font-size: 1rem;
+        }
+        
         .status-approved { color: #28a745; }
         .status-rejected { color: #D32F2F; }
-        
-        .total { border-top: 1px dashed #000; margin-top: 5px; padding-top: 5px; font-weight: bold; display: flex; justify-content: space-between; }
+
+        .total { 
+            border-top: 1px dashed #000; 
+            margin-top: 10px; 
+            padding-top: 8px; 
+            font-weight: bold; 
+            display: flex; 
+            justify-content: space-between; 
+            font-size: 0.9rem;
+        }
         .total-rejected { color: #D32F2F; }
+
+        #receipt-footer { 
+            text-align: center; 
+            margin-top: 25px; 
+            padding-top: 15px; 
+            border-top: 2px solid #000; 
+        }
         
-        #receipt-footer { text-align: center; margin-top: 20px; padding-top: 10px; border-top: 2px solid #000; }
-        #footer-esn { font-weight: bold; font-size: 0.9rem; }
-        #barcode { width: 90%; height: 40px; margin: 5px 0; } /* Increased width slightly */
-        #footer-date { font-size: 0.8rem; }
+        #footer-esn { 
+            font-weight: bold; 
+            font-size: 0.9rem; 
+            margin: 5px 0; 
+        }
 
-        /* Controls */
-        #button-container { text-align: center; margin-top: 25px; }
-        .action-btn { padding: 12px 25px; font-size: 16px; font-weight: bold; cursor: pointer; border: none; border-radius: 5px; color: white; margin: 5px; }
-        #print-btn { background-color: #00748C; }
+        #receipt-qr-code {
+            display: flex;
+            justify-content: center;
+            margin: 15px 0;
+        }
+        #receipt-qr-code img { max-width: 100%; }
+
+        #footer-date { font-size: 0.8rem; margin-top: 5px; color: #555; }
+
+        /* BUTTONS */
+        #button-container { text-align: center; margin-bottom: 30px; }
+        .action-btn { 
+            padding: 12px 30px; 
+            font-size: 16px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            border: none; 
+            border-radius: 50px; 
+            color: white; 
+            margin: 5px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+        }
+        .action-btn:hover { transform: translateY(-2px); }
         #send-whatsapp-btn { background-color: #25D366; }
-        #status-text { margin-top: 10px; color: #555; font-style: italic; }
+        #send-whatsapp-btn:disabled { background-color: #888; cursor: not-allowed; }
+        #status-text { margin-top: 15px; color: #fff; font-family: Arial, sans-serif; font-style: italic; font-size: 0.9rem; }
 
-        /* --- CRITICAL PRINT FIXES --- */
+        /* PRINT STYLES */
         @media print {
-            body { 
-                background-color: white; 
-                padding: 0 !important; /* REMOVE BODY PADDING */
-                margin: 0 !important;  /* REMOVE BODY MARGIN */
-                display: block;        /* Reset flexbox */
-            }
-            
+            @page { margin: 0; size: auto; }
+            body { background-color: white; padding: 0; margin: 0; }
             #button-container { display: none !important; }
-            
-            #ceo-receipt-template { 
-                width: 100% !important;      /* Allow printer to control width */
-                max-width: 100% !important; 
-                margin: 0 !important;        /* Remove centering margin */
-                padding: 0 !important;       /* Remove internal padding causing shift */
-                border: none !important; 
-                box-shadow: none !important; 
-                
-                /* Ensure content starts at absolute top-left */
+            #ceo-receipt-template {
+                box-shadow: none !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
                 position: absolute;
-                top: 0;
-                left: 0;
-            }
-
-            /* Make contents full width to avoid clipping */
-            #receipt-footer, .total, #receipt-title {
-                width: 100%;
+                top: 0; left: 0;
+                padding: 5px 10px !important;
             }
         }
     </style>
@@ -94,17 +149,17 @@
 
     <div id="ceo-receipt-template">
         <h2 id="receipt-title">Authorize Approval</h2>
-        
+
         <div id="approved-section">
-            <h3 style="border-bottom: 1px solid #ccc; font-size: 0.9rem; margin-bottom: 5px;">APPROVED</h3>
+            <h3 style="border-bottom: 1px dashed #000; font-size: 0.8rem; margin: 10px 0 5px 0;">APPROVED</h3>
             <div id="receipt-approved-list"></div>
             <div class="total">
                 <span>TOTAL:</span> <span id="receipt-approved-total">QR 0.00</span>
             </div>
         </div>
 
-        <div id="rejected-section" class="hidden" style="margin-top: 15px;">
-            <h3 style="border-bottom: 1px solid #ccc; font-size: 0.9rem; color: #D32F2F; margin-bottom: 5px;">REJECTED</h3>
+        <div id="rejected-section" class="hidden" style="margin-top: 10px;">
+            <h3 style="border-bottom: 1px dashed #000; font-size: 0.8rem; color: #D32F2F; margin: 10px 0 5px 0;">REJECTED</h3>
             <div id="receipt-rejected-list"></div>
             <div class="total total-rejected">
                 <span>TOTAL:</span> <span id="receipt-rejected-total">QR 0.00</span>
@@ -112,16 +167,15 @@
         </div>
 
         <div id="receipt-footer">
-            <p id="footer-esn">ESN #: <span></span></p>
-            <svg id="barcode"></svg>
+            <p id="footer-esn">ESN: <span></span></p>
+            <div id="receipt-qr-code"></div>
             <p id="footer-date"></p>
         </div>
     </div>
 
     <div id="button-container">
-        <button id="print-btn" class="action-btn">Print</button>
-        <button id="send-whatsapp-btn" class="action-btn">Send to WhatsApp</button>
-        <p id="status-text">Ready to send.</p>
+        <button id="send-whatsapp-btn" class="action-btn"><i class="fa-brands fa-whatsapp"></i> Send to WhatsApp</button>
+        <p id="status-text">Generating receipt...</p>
     </div>
 
     <script src="receipt.js"></script>

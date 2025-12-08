@@ -1,16 +1,14 @@
-// =====================================
-// [File 2] materialStock.js (V6.2 - Irwin-Only Delete Protection)
-// =====================================
+// materialStock.js
 
 let allMaterialStockData = [];
-let allTransferData = []; 
-let msProductChoices = null; 
-let lastTypedProductID = ""; 
-let currentCategoryFilter = null; 
+let allTransferData = [];
+let msProductChoices = null;
+let lastTypedProductID = "";
+let currentCategoryFilter = null;
 
 // Constants
 const STOCK_CACHE_KEY = "cached_MATERIAL_STOCK";
-const STOCK_CACHE_DURATION = 24 * 60 * 60 * 1000; 
+const STOCK_CACHE_DURATION = 24 * 60 * 60 * 1000;
 
 // ==========================================================================
 // 1. LOAD DATA (WITH CACHING)
@@ -18,7 +16,7 @@ const STOCK_CACHE_DURATION = 24 * 60 * 60 * 1000;
 async function populateMaterialStock(forceRefresh = false) {
     const tableBody = document.getElementById('ms-table-body');
     const tabsContainer = document.getElementById('ms-category-tabs');
-    
+
     if (!tableBody) return;
 
     // 1. Check Cache First
@@ -31,9 +29,9 @@ async function populateMaterialStock(forceRefresh = false) {
                 if (age < STOCK_CACHE_DURATION) {
                     console.log("Loading Stock from Cache...");
                     allMaterialStockData = parsed.data || [];
-                    await fetchTransfersOnly(); 
-                    renderCategoryTabs(); 
-                    return; 
+                    await fetchTransfersOnly();
+                    renderCategoryTabs();
+                    return;
                 }
             } catch (e) { console.error("Cache parse error", e); }
         }
@@ -73,7 +71,7 @@ async function populateMaterialStock(forceRefresh = false) {
             allTransferData.sort((a, b) => b.timestamp - a.timestamp);
         }
 
-        renderCategoryTabs(); 
+        renderCategoryTabs();
 
     } catch (error) {
         console.error("Error loading material stock:", error);
@@ -102,7 +100,7 @@ async function fetchTransfersOnly() {
 function renderCategoryTabs() {
     const tabsContainer = document.getElementById('ms-category-tabs');
     const tableBody = document.getElementById('ms-table-body');
-    
+
     if (!tabsContainer) return;
 
     const categories = new Set();
@@ -124,7 +122,7 @@ function renderCategoryTabs() {
     }
 
     tabsContainer.innerHTML = html;
-    
+
     const activeTabs = tabsContainer.querySelectorAll('.active');
     activeTabs.forEach(tab => {
         tab.style.borderBottomColor = '#00748C';
@@ -134,13 +132,13 @@ function renderCategoryTabs() {
     if (!currentCategoryFilter) {
         tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:#777; font-weight:bold; font-size:1.1em;">Please select a Category tab above to view records.</td></tr>';
     } else {
-        renderMaterialStockTable(allMaterialStockData); 
+        renderMaterialStockTable(allMaterialStockData);
     }
 }
 
 window.filterStockByCategory = function(category) {
     currentCategoryFilter = category;
-    renderCategoryTabs(); 
+    renderCategoryTabs();
     renderMaterialStockTable(allMaterialStockData);
 };
 
@@ -151,7 +149,7 @@ function renderMaterialStockTable(data) {
     const tableBody = document.getElementById('ms-table-body');
     const searchInput = document.getElementById('ms-search-input');
     const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
-    
+
     // Check Permissions
     const isAdmin = (typeof currentApprover !== 'undefined' && (currentApprover.Role || '').toLowerCase() === 'admin');
     const isIrwin = (typeof currentApprover !== 'undefined' && currentApprover.Name === 'Irwin');
@@ -166,7 +164,7 @@ function renderMaterialStockTable(data) {
                 if (found) return `<span style="color:#00748C; font-weight:bold;">${found.site}</span> - ${found.description}`;
             } catch (e) {}
         }
-        return siteCode; 
+        return siteCode;
     };
 
     const filtered = data.filter(item => {
@@ -222,19 +220,19 @@ function renderMaterialStockTable(data) {
                 const date = t.shippingDate || new Date(t.timestamp).toISOString().split('T')[0];
                 const type = t.jobType || t.for || 'Transfer';
                 let route = '-';
-                
+
                 if (type === 'Transfer') route = `${t.fromLocation || t.fromSite} -> ${t.toLocation || t.toSite}`;
                 else if (type === 'Restock') route = `<span style="color:#28a745;">+ Add to ${t.toLocation || t.toSite}</span>`;
                 else if (type === 'Return') route = `<span style="color:#dc3545;">- Return from ${t.fromLocation || t.fromSite}</span>`;
                 else if (type === 'Usage') route = `<span style="color:#6f42c1;">- Used at ${t.fromLocation || t.fromSite}</span>`;
 
                 const qtyReceived = t.receivedQty || 0;
-                
+
                 let actionBtn = '';
                 const isCompleted = (t.remarks === 'Completed' || t.remarks === 'Received');
                 const currentUser = (typeof currentApprover !== 'undefined') ? currentApprover.Name : '';
                 const isMyReceipt = (t.receiver === currentUser);
-                
+
                 if (isCompleted && isMyReceipt && type !== 'Return') {
                     actionBtn = `<button class="secondary-btn" onclick="initiateReturn('${t.key}')" style="padding:2px 8px; font-size:0.75rem; background-color:#ffc107; color:#212529; border:none; border-radius:4px; cursor:pointer;" title="Return this item"><i class="fa-solid fa-rotate-left"></i> Return</button>`;
                 }
@@ -254,12 +252,12 @@ function renderMaterialStockTable(data) {
         }
 
         const uniqueId = `detail-${item.key}`;
-        
+
         let actionButtons = '';
         if(isAdmin) {
             // All Admins can Edit
             actionButtons += `<button class="secondary-btn" onclick="editMaterialDetails('${item.key}')" style="padding: 5px 10px; font-size: 0.8rem; background-color: #17a2b8; color: white; margin-right: 5px;" title="Edit Details"><i class="fa-solid fa-pen"></i></button>`;
-            
+
             // --- STRICT CHECK: Only Irwin can see Delete ---
             if (isIrwin) {
                 actionButtons += `<button class="delete-btn ms-delete-btn" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem;" title="Delete Item"><i class="fa-solid fa-trash"></i></button>`;
@@ -312,7 +310,7 @@ function renderMaterialStockTable(data) {
                 </div>
             </td>
         `;
-        
+
         tableBody.appendChild(parentRow);
         tableBody.appendChild(childRow);
     });
@@ -346,16 +344,16 @@ window.handleDeleteMaterial = async function(key) {
     const productName = item.productName;
 
     // 2. Count transactions to be deleted
-    const relatedTransfers = allTransferData.filter(t => 
+    const relatedTransfers = allTransferData.filter(t =>
         (t.productID === productID || t.productId === productID)
     );
 
     const confirmMsg = `⚠️ MASTER DELETE (Super Admin) ⚠️\n\nProduct: ${productName}\nID: ${productID}\n\nThis will DELETE the item AND ALL ${relatedTransfers.length} related transactions history from the database.\n\nThis cannot be undone. Proceed?`;
-    
+
     if (confirm(confirmMsg)) {
         const database = firebase.database();
         const updates = {};
-        
+
         // A. Mark Material Stock Item for Deletion
         updates[`material_stock/${key}`] = null;
 
@@ -367,9 +365,9 @@ window.handleDeleteMaterial = async function(key) {
         try {
             // Execute Atomic Update (All or Nothing)
             await database.ref().update(updates);
-            
+
             alert(`Master Delete Successful.\nRemoved: ${productName}\nDeleted: ${relatedTransfers.length} transactions.`);
-            
+
             // Refresh
             localStorage.removeItem(STOCK_CACHE_KEY);
             populateMaterialStock(true);
@@ -388,17 +386,17 @@ window.editMaterialDetails = function(key) {
     document.getElementById('ms-new-material-modal').classList.remove('hidden');
     document.getElementById('ms-new-material-form').reset();
     document.getElementById('ms-modal-title').textContent = "Edit Item Details";
-    
+
     const form = document.getElementById('ms-new-material-form');
     form.dataset.editMode = "details_only";
     form.dataset.existingKey = key;
 
     document.getElementById('ms-new-name').value = item.productName || '';
     document.getElementById('ms-new-details').value = item.details || '';
-    
+
     const catInput = document.getElementById('ms-new-category');
-    if(catInput) catInput.value = item.category || ''; 
-    
+    if(catInput) catInput.value = item.category || '';
+
     document.getElementById('ms-id-search-group').classList.add('hidden');
     document.getElementById('ms-id-display-group').classList.remove('hidden');
     document.getElementById('ms-edit-id-display').value = item.productID || item.productId;
@@ -408,15 +406,15 @@ window.editMaterialDetails = function(key) {
 
 async function handleSaveNewMaterial() {
     const form = document.getElementById('ms-new-material-form');
-    let targetKey = form.dataset.existingKey; 
+    let targetKey = form.dataset.existingKey;
     let id = msProductChoices ? msProductChoices.getValue(true) : '';
-    if (!id && lastTypedProductID) id = lastTypedProductID.trim(); 
+    if (!id && lastTypedProductID) id = lastTypedProductID.trim();
 
     const name = document.getElementById('ms-new-name').value.trim();
     const details = document.getElementById('ms-new-details').value.trim();
     const catInput = document.getElementById('ms-new-category');
-    const category = catInput ? catInput.value.trim() : ''; 
-    
+    const category = catInput ? catInput.value.trim() : '';
+
     const selectedSite = document.getElementById('ms-new-site-select') ? document.getElementById('ms-new-site-select').value : "Main Store";
     const stockQty = parseFloat(document.getElementById('ms-new-stock-qty').value) || 0;
     const statusSelect = document.getElementById('ms-new-status');
@@ -433,7 +431,7 @@ async function handleSaveNewMaterial() {
             await database.ref(`material_stock/${targetKey}`).update({
                 productName: name,
                 details: details,
-                category: category, 
+                category: category,
                 status: status,
                 lastUpdated: firebase.database.ServerValue.TIMESTAMP
             });
@@ -450,13 +448,13 @@ async function handleSaveNewMaterial() {
 
         if (!targetKey) {
             const existingItem = allMaterialStockData.find(m => (m.productID || m.productId || '').toLowerCase() === id.toLowerCase());
-            if (existingItem) targetKey = existingItem.key; 
+            if (existingItem) targetKey = existingItem.key;
         }
 
         if (targetKey) {
             const item = allMaterialStockData.find(m => m.key === targetKey);
             let sites = item.sites || {};
-            
+
             if (sites[selectedSite] !== undefined) {
                 alert(`Error: Product "${item.productName}" already exists at ${selectedSite}.\nUse "Add" button to adjust stock.`);
                 btn.disabled = false; btn.textContent = "Save"; return;
@@ -470,10 +468,10 @@ async function handleSaveNewMaterial() {
             Object.values(sites).forEach(q => newGlobalStock += parseFloat(q));
 
             await database.ref(`material_stock/${targetKey}`).update({
-                stockQty: newGlobalStock, 
-                sites: sites, 
+                stockQty: newGlobalStock,
+                sites: sites,
                 status: status,
-                category: category, 
+                category: category,
                 lastUpdated: firebase.database.ServerValue.TIMESTAMP
             });
             alert(`Added ${selectedSite} to existing product!`);
@@ -484,10 +482,10 @@ async function handleSaveNewMaterial() {
 
             const newMaterial = {
                 productID: id, productName: name, details: details,
-                category: category, 
+                category: category,
                 stockQty: stockQty, transferredQty: 0, balanceQty: stockQty,
                 sites: sitesInit,
-                status: status, 
+                status: status,
                 timestamp: firebase.database.ServerValue.TIMESTAMP,
                 updatedBy: (typeof currentApprover !== 'undefined' ? currentApprover.Name : 'System')
             };
@@ -498,9 +496,9 @@ async function handleSaveNewMaterial() {
 
         document.getElementById('ms-new-material-modal').classList.add('hidden');
         localStorage.removeItem(STOCK_CACHE_KEY);
-        populateMaterialStock(true); 
+        populateMaterialStock(true);
 
-    } catch (error) { console.error("Save Error:", error); alert("Failed to save."); } 
+    } catch (error) { console.error("Save Error:", error); alert("Failed to save."); }
     finally { btn.disabled = false; btn.textContent = "Save"; }
 }
 
@@ -511,7 +509,7 @@ function handleGetTemplate() {
     const headers = ["Product ID", "Product Name", "Category", "Details", "Stock QTY", "Site", "Status", "Item Type"];
     const row1 = "BULK-001,Cement 50kg,Materials,Grey OPC,100,Main Store,Active,Bulk";
     const row2 = "TOOL-101,Hilti Drill,Tools,Cordless,1,Main Store,Broken,Serialized";
-    
+
     const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + row1 + "\n" + row2;
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -526,7 +524,7 @@ function handleUploadCSV(event) {
     const file = event.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    
+
     reader.onload = async function(e) {
         const text = e.target.result;
         const lines = text.split('\n');
@@ -537,38 +535,38 @@ function handleUploadCSV(event) {
             const line = lines[i].trim();
             if (!line) continue;
             const cols = line.split(',');
-            
-            if (cols.length >= 3) { 
+
+            if (cols.length >= 3) {
                 const pID = cols[0].trim();
                 const pName = cols[1].trim();
-                const pCat = cols[2].trim(); 
+                const pCat = cols[2].trim();
                 const pDetails = cols[3] ? cols[3].trim() : '';
                 const pStock = parseFloat(cols[4]) || 0;
                 const pSite = (cols[5] && cols[5].trim() !== "") ? cols[5].trim() : "Main Store";
-                
+
                 if(pID && pName) {
-                    const existingItem = allMaterialStockData.find(item => 
+                    const existingItem = allMaterialStockData.find(item =>
                         (item.productID || item.productId).toLowerCase() === pID.toLowerCase()
                     );
-                    
+
                     if (existingItem) {
                         const sites = existingItem.sites || {};
                         sites[pSite] = (parseFloat(sites[pSite]||0)) + pStock;
                         let total = 0; Object.values(sites).forEach(v=>total+=parseFloat(v));
-                        
+
                         updates[existingItem.key] = {
                             stockQty: total,
                             sites: sites,
-                            category: pCat, 
+                            category: pCat,
                             lastUpdated: firebase.database.ServerValue.TIMESTAMP
                         };
                     } else {
                         const newKey = firebase.database().ref('material_stock').push().key;
                         const sites = {}; if(pStock>0) sites[pSite]=pStock;
                         updates[newKey] = {
-                            productID: pID, 
+                            productID: pID,
                             productName: pName,
-                            category: pCat, 
+                            category: pCat,
                             details: pDetails,
                             stockQty: pStock,
                             sites: sites,
@@ -579,12 +577,12 @@ function handleUploadCSV(event) {
                 }
             }
         }
-        
+
         if (Object.keys(updates).length > 0) {
             if(confirm(`Process ${Object.keys(updates).length} records?`)) {
                 await firebase.database().ref('material_stock').update(updates);
                 alert("Upload Complete!");
-                localStorage.removeItem(STOCK_CACHE_KEY); 
+                localStorage.removeItem(STOCK_CACHE_KEY);
                 populateMaterialStock(true);
             }
         }
@@ -607,7 +605,7 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.removeItem(STOCK_CACHE_KEY);
         populateMaterialStock(true);
     });
-    
+
     const addNewBtn = document.getElementById('ms-add-new-btn');
     if (addNewBtn) addNewBtn.addEventListener('click', openNewMaterialModal);
 
@@ -623,7 +621,7 @@ document.addEventListener('DOMContentLoaded', () => {
         uploadBtn.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', handleUploadCSV);
     }
-    
+
     const clearBtn = document.getElementById('ms-clear-form-btn');
     if (clearBtn) clearBtn.addEventListener('click', handleClearMaterialForm);
 });
@@ -632,31 +630,31 @@ window.openNewMaterialModal = async function() {
     if (!allMaterialStockData || allMaterialStockData.length === 0) {
         const btn = document.getElementById('ms-add-new-btn');
         if(btn) btn.textContent = "Loading Data...";
-        await populateMaterialStock(false); 
+        await populateMaterialStock(false);
         if(btn) btn.innerHTML = '<i class="fa-solid fa-plus"></i> Add Material';
     }
 
     document.getElementById('ms-new-material-modal').classList.remove('hidden');
     document.getElementById('ms-new-material-form').reset();
     document.getElementById('ms-modal-title').textContent = "Register New Product";
-    
+
     document.getElementById('ms-id-search-group').classList.remove('hidden');
     document.getElementById('ms-id-display-group').classList.add('hidden');
-    
+
     const form = document.getElementById('ms-new-material-form');
     form.dataset.editMode = "new";
     delete form.dataset.existingKey;
     form.currentProductData = null;
-    
+
     if(msProductChoices) msProductChoices.destroy();
-    
+
     const selectEl = document.getElementById('ms-new-id');
     const options = allMaterialStockData.map(item => ({
         value: item.productID || item.productId,
         label: `${item.productID} - ${item.productName}`,
-        customProperties: { 
-            name: item.productName, 
-            details: item.details, 
+        customProperties: {
+            name: item.productName,
+            details: item.details,
             key: item.key,
             sites: item.sites || {},
             status: item.status || 'Active'
@@ -671,20 +669,20 @@ window.openNewMaterialModal = async function() {
         placeholder: true,
         placeholderValue: 'Type ID or Name...',
         removeItemButton: true,
-        addItems: true, 
+        addItems: true,
         duplicateItemsAllowed: false,
         addItemFilter: (value) => { return !!value && value !== ""; },
-        fuseOptions: { threshold: 0.0, distance: 0 }, 
+        fuseOptions: { threshold: 0.0, distance: 0 },
         noResultsText: 'Press Enter to add this ID',
         addItemText: (value) => `Press Enter to add ID: <b>"${value}"</b>`
     });
 
     selectEl.addEventListener('addItem', (e) => handleMainSelection(e.detail.value));
     selectEl.addEventListener('removeItem', () => handleMainSelection(null));
-    
+
     const siteSelect = document.getElementById('ms-new-site-select');
     if (siteSelect) {
-        siteSelect.innerHTML = '<option value="Main Store">Main Store</option>'; 
+        siteSelect.innerHTML = '<option value="Main Store">Main Store</option>';
         let sitesData = [];
         const cachedSites = localStorage.getItem('cached_SITES');
         if (cachedSites) { try { sitesData = JSON.parse(cachedSites).data || []; } catch (e) {} }
@@ -701,7 +699,7 @@ window.openNewMaterialModal = async function() {
                 }
             } catch(e) {}
         }
-        
+
         if(sitesData.length > 0) {
             sitesData.sort((a, b) => parseInt(a.site) - parseInt(b.site));
             sitesData.forEach(site => {
@@ -713,20 +711,20 @@ window.openNewMaterialModal = async function() {
                 }
             });
         }
-        
+
         const newSiteSelect = siteSelect.cloneNode(true);
         siteSelect.parentNode.replaceChild(newSiteSelect, siteSelect);
     }
-    
+
     if (msProductChoices.input && msProductChoices.input.element) {
         const inputEl = msProductChoices.input.element;
         inputEl.addEventListener('keydown', function(e) {
             if (e.keyCode === 13 || e.keyCode === 9) {
-                const val = this.value; 
+                const val = this.value;
                 if (val && val.trim() !== "") {
                     const typedLower = val.trim().toLowerCase();
                     const exactMatch = options.find(o => o.value.toLowerCase() === typedLower);
-                    if (exactMatch) { return; } 
+                    if (exactMatch) { return; }
                     else {
                         e.stopImmediatePropagation();
                         e.preventDefault();
@@ -738,7 +736,7 @@ window.openNewMaterialModal = async function() {
                     }
                 }
             }
-        }, true); 
+        }, true);
     }
 };
 

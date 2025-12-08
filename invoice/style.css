@@ -31,7 +31,7 @@
     --text-color-light: var(--text-on-base);
     --text-color-dark: var(--text-on-light);
     --sidebar-width: 300px;
-    
+
     /* Dashboard Theme Colors */
     --db-bg: var(--iba-base-blue-dark);
     --db-card-bg: var(--iba-base-blue);
@@ -163,8 +163,6 @@ button:hover { background-color: #005a6e; } /* MODIFIED: Darker teal */
 .workdesk-section { background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); }
 
 .workdesk-section h2 { border-bottom: 1px solid #eee; padding-bottom: 10px; margin-top: 0; }
-
-
 
 
 /* ++ NEW: Table Count Display ++ */
@@ -305,7 +303,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     border: 1px solid #f8bbd0; /* Soft Pink Border */
     border-radius: 8px;
     margin-bottom: 20px;
-    
+
     /* Matching Font Color */
     color: #880e4f; /* Deep Fuschia/Burgundy for readability */
     font-weight: 500;
@@ -671,12 +669,12 @@ tbody tr:hover { background-color: #f1f1f1; }
     background-color: rgba(255, 255, 255, 0.1) !important;
     color: #ffffff !important;
     border: 1px solid rgba(255, 255, 255, 0.3) !important;
-    
+
     /* THE FIX: Prevent stretching */
-    width: auto !important; 
+    width: auto !important;
     min-width: 100px !important; /* Just wide enough for the year */
     flex-grow: 0 !important;
-    
+
     padding: 5px 10px;
     border-radius: 4px;
     font-size: 0.9rem;
@@ -852,7 +850,7 @@ tbody tr:hover { background-color: #f1f1f1; }
 }
 
 /* Hide print-only notes ON SCREEN */
-.sn-print-notes-section { 
+.sn-print-notes-section {
     display: none;
 }
 
@@ -1133,11 +1131,11 @@ tbody tr:hover { background-color: #f1f1f1; }
 /* FINAL CLEANED PRINT STYLES - V4     */
 /* =================================== */
 @media print {
-    
+
     /* 1. GLOBAL PAGE RESET */
     /* We remove specific size here to allow switching between Portrait/Landscape */
     @page {
-        margin: 0; 
+        margin: 0;
     }
 
     /* 2. DOCUMENT ROOT CONTROL (Kills Blank Page 2 on Summary Note) */
@@ -1174,24 +1172,24 @@ tbody tr:hover { background-color: #f1f1f1; }
         position: absolute !important;
         left: 0 !important;
         top: 0 !important;
-        
+
         /* Width logic: 96% allows 2% margin on each side to prevent cutoff */
         width: 96% !important;
         max-width: 96% !important;
         margin: 0 auto !important; /* Centers it */
         right: 0 !important;
-        
+
         /* Padding for the content */
         padding-top: 10mm !important;
         padding-bottom: 0 !important;
-        
+
         border: none !important;
         box-shadow: none !important;
         background: white !important;
-        
+
         display: block !important;
         z-index: 9999 !important;
-        
+
         /* Prevent page break immediately after */
         page-break-after: avoid !important;
     }
@@ -1208,7 +1206,7 @@ tbody tr:hover { background-color: #f1f1f1; }
         text-align: left;
     }
     #summary-note-printable-area:not(.hidden) .sn-print-company h2 {
-        margin: 0 0 5px 0 !important; 
+        margin: 0 0 5px 0 !important;
         font-size: 12pt !important;
         font-weight: bold;
         line-height: 1.1;
@@ -1233,7 +1231,7 @@ tbody tr:hover { background-color: #f1f1f1; }
         height: auto !important;
         visibility: visible !important;
     }
-    
+
     #summary-note-printable-area:not(.hidden) #sn-prev-summary-qr {
         /* QR Code container size */
         width: 60px !important;
@@ -1241,7 +1239,7 @@ tbody tr:hover { background-color: #f1f1f1; }
         display: block !important;
         visibility: visible !important;
     }
-    
+
     /* Make the actual image inside the QR div visible */
     #summary-note-printable-area:not(.hidden) #sn-prev-summary-qr img {
         width: 100% !important;
@@ -1306,19 +1304,19 @@ tbody tr:hover { background-color: #f1f1f1; }
         border: 1px solid #333 !important;
         padding: 1px 6px !important;
     }
-    
+
     /* Column Widths */
-    #summary-note-printable-area:not(.hidden) .sn-table th:nth-child(1), 
+    #summary-note-printable-area:not(.hidden) .sn-table th:nth-child(1),
     #summary-note-printable-area:not(.hidden) .sn-table td:nth-child(1) { width: 8% !important; text-align: center !important; word-break: break-all; }
-    #summary-note-printable-area:not(.hidden) .sn-table th:nth-child(2), 
+    #summary-note-printable-area:not(.hidden) .sn-table th:nth-child(2),
     #summary-note-printable-area:not(.hidden) .sn-table td:nth-child(2) { width: 8% !important; text-align: center !important; }
-    #summary-note-printable-area:not(.hidden) .sn-table th:nth-child(3), 
+    #summary-note-printable-area:not(.hidden) .sn-table th:nth-child(3),
     #summary-note-printable-area:not(.hidden) .sn-table td:nth-child(3) { width: 8% !important; text-align: center !important; }
-    #summary-note-printable-area:not(.hidden) .sn-table th:nth-child(4), 
+    #summary-note-printable-area:not(.hidden) .sn-table th:nth-child(4),
     #summary-note-printable-area:not(.hidden) .sn-table td:nth-child(4) { width: 44% !important; }
-    #summary-note-printable-area:not(.hidden) .sn-table th:nth-child(5), 
+    #summary-note-printable-area:not(.hidden) .sn-table th:nth-child(5),
     #summary-note-printable-area:not(.hidden) .sn-table td:nth-child(5) { width: 16% !important; text-align: center !important; }
-    #summary-note-printable-area:not(.hidden) .sn-table th:nth-child(6), 
+    #summary-note-printable-area:not(.hidden) .sn-table th:nth-child(6),
     #summary-note-printable-area:not(.hidden) .sn-table td:nth-child(6) { width: 16% !important; text-align: right !important; }
 
     #summary-note-printable-area:not(.hidden) .sn-table tr {
@@ -1382,8 +1380,8 @@ tbody tr:hover { background-color: #f1f1f1; }
     }
 
     /* Hide Screen Elements & Other Reports */
-    #summary-note-controls, 
-    .sn-print-notes-section[style*="display: none"], 
+    #summary-note-controls,
+    .sn-print-notes-section[style*="display: none"],
     .no-print,
     #summary-note-printable-area:not(.hidden) ~ #im-finance-report-modal,
     #summary-note-printable-area:not(.hidden) ~ #im-reporting-printable-area {
@@ -1394,7 +1392,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     /* ============================================= */
     /* SECTION B: FINANCE REPORT (PORTRAIT)          */
     /* ============================================= */
-    
+
     #im-finance-report-modal:not(.hidden),
     #im-finance-report-modal:not(.hidden) * {
         visibility: visible !important;
@@ -1417,15 +1415,15 @@ tbody tr:hover { background-color: #f1f1f1; }
         z-index: 9999 !important;
         font-size: 14pt !important;
     }
-    #im-finance-report-modal:not(.hidden) .modal-container { 
-        width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; border: none !important; 
+    #im-finance-report-modal:not(.hidden) .modal-container {
+        width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; border: none !important;
     }
     #im-finance-report-modal:not(.hidden) .modal-header,
     #im-finance-report-modal:not(.hidden) .modal-footer { display: none !important; }
 
     #im-finance-report-modal:not(.hidden) .modal-content,
-    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area { 
-        display: block !important; padding: 0 !important; margin: 0 !important; border: none !important; box-shadow: none !important; max-height: none !important; overflow: visible !important; 
+    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area {
+        display: block !important; padding: 0 !important; margin: 0 !important; border: none !important; box-shadow: none !important; max-height: none !important; overflow: visible !important;
     }
 
     /* Finance Styles */
@@ -1461,7 +1459,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     /* ============================================= */
     /* SECTION C: LANDSCAPE REPORTS                  */
     /* ============================================= */
-    
+
     @page landscape {
         size: A4 landscape;
         margin: 5mm;
@@ -1474,14 +1472,14 @@ tbody tr:hover { background-color: #f1f1f1; }
         height: auto;
     }
     #im-reporting-printable-area:not(.hidden) {
-        page: landscape; 
+        page: landscape;
         position: absolute !important;
         left: 0 !important;
         top: 0 !important;
         width: 100% !important;
         height: auto !important;
         margin: 0 !important;
-        padding: 10mm 0mm !important; 
+        padding: 10mm 0mm !important;
         border: none !important;
         box-shadow: none !important;
         background: white !important;
@@ -1502,33 +1500,33 @@ tbody tr:hover { background-color: #f1f1f1; }
     .print-summary-grid span { font-size: 10pt; color: #333; display: block; }
     .print-summary-grid strong { font-size: 14pt; color: #000; display: block; }
     #im-print-report-body { margin-top: 25px; }
-    
-    .print-po-container { 
-        border: 1px solid #aaa; 
-        border-radius: 5px; 
-        margin-bottom: 15px; 
+
+    .print-po-container {
+        border: 1px solid #aaa;
+        border-radius: 5px;
+        margin-bottom: 15px;
         page-break-inside: auto;
     }
-    .print-po-header { 
-        background: var(--iba-base-blue); 
-        color: white; 
-        padding: 10px 5px; 
+    .print-po-header {
+        background: var(--iba-base-blue);
+        color: white;
+        padding: 10px 5px;
         display: grid;
-        grid-template-columns: 1fr 1fr 1.5fr; 
-        grid-template-rows: auto auto; 
-        gap: 5px 20px; 
-        border-radius: 5px 5px 0 0; 
-        -webkit-print-color-adjust: exact !important; 
-        print-color-adjust: exact !important; 
+        grid-template-columns: 1fr 1fr 1.5fr;
+        grid-template-rows: auto auto;
+        gap: 5px 20px;
+        border-radius: 5px 5px 0 0;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
         page-break-after: avoid;
     }
     .po-header-item { font-size: 10pt; }
     .po-header-vendor { grid-column: 1 / span 2; }
-    
-    .print-invoice-table { 
-        width: 100%; 
-        border-collapse: collapse; 
-        page-break-inside: auto; 
+
+    .print-invoice-table {
+        width: 100%;
+        border-collapse: collapse;
+        page-break-inside: auto;
     }
     .print-invoice-table tbody tr { page-break-inside: avoid; }
     .print-invoice-table tfoot { page-break-inside: auto; display: table-footer-group; }
@@ -1539,7 +1537,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     .print-number { text-align: right !important; font-family: monospace; }
     .print-footer-label { text-align: right !important; font-weight: bold; }
     .print-footer { font-weight: bold; font-size: 10pt; }
-    
+
     .print-footer-signatures { display: none !important; }
 
     /* Hide on-screen report elements */
@@ -1833,7 +1831,7 @@ body.is-admin .legend-admin-only {
         white-space: nowrap;
         z-index: 10;
         box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        pointer-events: none; 
+        pointer-events: none;
     }
 }
 /* === END OF NEW RULE === */
@@ -2201,7 +2199,7 @@ body.is-admin .legend-admin-only {
     .workdesk-navigation li.mobile-only-nav-item {
     display: list-item !important;
 }
-    
+
     /* Optional: Hide the top-right header logout button since it's now at the bottom */
     #wd-dayview-mobile-logout-btn-new {
         display: none !important;
@@ -2209,27 +2207,25 @@ body.is-admin .legend-admin-only {
 }
 
 
-
-
 /* MOBILE RESPONSIVE STYLES */
 @media (max-width: 768px) {
-    
-    
+
+
     /* *** MODIFICATION: Move IM datetime to sidebar *** */
-    #im-datetime { 
-        text-align: center; 
+    #im-datetime {
+        text-align: center;
         font-size: 0.8rem;
         color: #a0aec0; /* Match version text color */
         margin: 10px 0 -5px 0; /* Adjust spacing */
         order: 10; /* Move it after footer */
         display: block; /* Ensure it's visible */
     }
-    
+
     .workdesk-main { padding: 15px; padding-bottom: 80px; display: flex; flex-direction: column; }
-    .report-header { 
-        flex-direction: column; 
+    .report-header {
+        flex-direction: column;
         /* *** MODIFICATION: Align mobile report header left *** */
-        align-items: flex-start; 
+        align-items: flex-start;
         gap: 5px; /* Reduce gap */
     }
     /* *** MODIFICATION: Align mobile report header left *** */
@@ -2237,7 +2233,7 @@ body.is-admin .legend-admin-only {
         font-size: 1.5rem;
         margin: 0;
     }
-    
+
     /* --- (NEW) Mobile Reporting Cleanup --- */
     #im-reporting .report-header .daily-report-section,
     #im-reporting .reporting-legend,
@@ -2259,7 +2255,7 @@ body.is-admin .legend-admin-only {
     .wd-user-avatar { width: 45px; height: 45px; margin: 0; font-size: 24px; }
     #wd-username, #im-username { font-size: 1rem; margin: 0; }
     #wd-user-identifier, #im-user-identifier, .workdesk-sidebar .workdesk-navigation, .workdesk-footer-nav .hidden, .workdesk-footer-nav a span { display: none; }
-    
+
     /* --- (NEW) Hide elements in IM sidebar on mobile --- */
     #invoice-management-view .workdesk-sidebar .mobile-hide {
         display: none !important;
@@ -2270,8 +2266,8 @@ body.is-admin .legend-admin-only {
     .workdesk-footer-nav ul { display: flex; }
     .workdesk-footer-nav a { padding: 8px; font-size: 18px; margin-bottom: 0; background-color: var(--iba-base-blue-light); } /* MODIFIED: Button color */
     .workdesk-footer-nav a:hover { background-color: var(--iba-base-blue-light); } /* MODIFIED: Hover color */
-    
-    
+
+
     /* --- (MODIFIED) Mobile WorkDesk Nav --- */
     .workdesk-navigation { display: block !important; position: fixed; bottom: 0; left: 0; width: 100%; height: 65px; background-color: #ffffff; box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1); z-index: 1000; margin-top: 0; flex-grow: 0; }
     .workdesk-navigation ul { display: flex; justify-content: space-around; align-items: center; height: 100%; }
@@ -2280,12 +2276,12 @@ body.is-admin .legend-admin-only {
     #workdesk-view .workdesk-navigation li {
         display: none;
     }
-    
+
     /* --- *** MODIFICATION: Show specific mobile links *** --- */
-    
+
     /* 1. Dashboard (Day View) - HIDE THIS to clean up navigation */
     #workdesk-view .workdesk-navigation li.wd-nav-dashboard {
-        display: none !important; 
+        display: none !important;
     }
 
     /* 2. Active Task (My Tasks / CEO Approvals) - Visible for EVERYONE */
@@ -2311,23 +2307,23 @@ body.is-admin .legend-admin-only {
     .desktop-only-li {
         display: none !important;
     }
-    
+
     /* Show our mobile-only WorkDesk "Task Calendar" link */
     #invoice-management-view .workdesk-navigation li.wd-nav-dashboard-mobile {
         display: list-item;
     }
-    
+
     /* Hide the desktop IM Reporting link on mobile */
     #invoice-management-view .workdesk-navigation li.im-nav-reporting {
         display: none;
     }
-    
+
     /* Show the mobile IM Reporting link */
      #invoice-management-view .workdesk-navigation li.wd-nav-im-reporting-mobile {
         display: list-item;
     }
     /* --- *** END OF MOBILE NAV FIX *** --- */
-    
+
     .workdesk-navigation a { flex-direction: column; justify-content: center; gap: 4px; height: 100%; font-size: 0.7rem; color: #555; margin-bottom: 0; padding: 5px 0; border-radius: 0; }
     .workdesk-navigation a:hover { background-color: #f4f7fa; color: var(--iba-secondary-teal); } /* MODIFIED: Hover color */
     .workdesk-navigation a.active { color: var(--iba-secondary-teal); background-color: transparent; font-weight: bold; border-top: 3px solid var(--iba-secondary-teal); border-radius: 0; padding-top: 2px; } /* MODIFIED: Active color */
@@ -2337,9 +2333,9 @@ body.is-admin .legend-admin-only {
 
     .jobentry-form-2col { grid-template-columns: 1fr; }
     .form-buttons-container { justify-content: center; }
-    
+
     /* ++ NEW: Dashboard mobile layout ++ */
-    .im-dashboard-grid { 
+    .im-dashboard-grid {
         grid-template-columns: 1fr; /* Stack all cards */
     }
 
@@ -2493,7 +2489,7 @@ body.is-admin .legend-admin-only {
     margin-top: 15px;
     padding-top: 15px;
     /* Use semi-transparent white for a clean look on the blue background */
-    border-top: 1px solid rgba(255, 255, 255, 0.3); 
+    border-top: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 /* ++ NEW: 3-Column Grid Layout for Invoice Entry Form ++ */
@@ -2789,7 +2785,7 @@ body.is-admin .legend-admin-only {
     .dayview-date-scroller::-webkit-scrollbar {
         display: none; /* Chrome, Safari, Opera */
     }
-    
+
     /* --- THIS IS THE FIX --- */
     /* The selector was `.dayview-date-scroller-inner` and should be `#dayview-date-scroller-inner` */
     #dayview-date-scroller-inner {
@@ -2821,7 +2817,7 @@ body.is-admin .legend-admin-only {
     .day-scroller-item .day-scroller-char {
         font-size: 0.9rem;
     }
-    
+
     .day-scroller-item.active {
         background-color: var(--iba-base-blue); /* Use brand blue */
         color: white;
@@ -2846,7 +2842,7 @@ body.is-admin .legend-admin-only {
     .dayview-task-container-blue {
         display: block;
         flex-grow: 1; /* Make it fill the remaining height */
-        
+
         /* This is needed to contain the task cards */
         padding-bottom: 80px; /* Space for the bottom nav bar */
     }
@@ -2857,14 +2853,14 @@ body.is-admin .legend-admin-only {
         flex-direction: column;
         gap: 15px;
     }
-    
-      
+
+
     .dayview-task-container-blue .dayview-task-card strong {
         font-size: 1.1rem;
         color: #333;
         margin-bottom: 10px;
     }
-    
+
     .dayview-task-container-blue .dayview-task-card .task-details-grid {
         grid-template-columns: 1fr; /* Stack details on mobile */
         gap: 5px;
@@ -2876,17 +2872,17 @@ body.is-admin .legend-admin-only {
         color: #555; /* Darken label slightly */
         margin-right: 5px;
     }
-    
+
     .dayview-task-container-blue .dayview-task-card .task-detail-item.status .label {
         color: #333;
     }
-    
+
     .dayview-task-container-blue .dayview-task-card .task-detail-item.note {
         margin-top: 10px;
         padding-top: 10px;
         border-top: 1px dashed #eee;
     }
-    
+
     /* Make the <p> tag for "No tasks" white */
     .dayview-task-container-blue #wd-dayview-task-list p {
         text-align: center;
@@ -3028,12 +3024,12 @@ body.is-admin .legend-admin-only {
     .im-po-balance-card.status-open {
       background: linear-gradient(135deg, var(--iba-secondary-periwinkle), #3b71c4); /* Light Blue */
     }
-    
+
     /* 3. Yellow ("New"): Any invoice is "For IPC" or "For SRV" */
     .im-po-balance-card.status-new {
       background: linear-gradient(135deg, var(--iba-secondary-gold), #8a7300); /* Yellow/Gold */
     }
-    
+
     /* 4. Light Red ("Pending"): Any invoice is "Pending" */
     .im-po-balance-card.status-pending {
       background: linear-gradient(135deg, var(--iba-secondary-terracotta), #a24227); /* Light Red/Terracotta */
@@ -3212,7 +3208,7 @@ body.is-admin .legend-admin-only {
   #im-reporting-mobile-view .im-po-balance-card.status-complete {
     border-left: none;
   }
-  
+
   #im-reporting-mobile-view .im-invoice-item .invoice-count,
   #im-reporting-mobile-view .im-invoice-item .invoice-details {
     display: none;
@@ -3263,7 +3259,7 @@ body.is-admin .legend-admin-only {
   .im-mobile-legend {
     display: flex; /* Visible on mobile */
   }
-  
+
   /* Hide the old desktop legend on mobile */
   #im-reporting .reporting-legend {
     display: none !important;
@@ -3301,7 +3297,7 @@ body.is-admin .legend-admin-only {
 }
 /* --- NEW: Flip Phone Cover Screen Adjustments --- */
 @media (max-width: 400px) {
-    
+
     /* Make the modal take up almost the full screen */
     #im-mobile-search-modal .modal-container {
         width: 98%;
@@ -3332,14 +3328,14 @@ body.is-admin .legend-admin-only {
         font-size: 0.8rem;
         margin-bottom: 3px;
     }
-    
+
     #im-mobile-search-modal input[type="text"],
     #im-mobile-search-modal input[type="month"],
     #im-mobile-search-modal select {
         font-size: 0.9rem;
         padding: 8px; /* Smaller padding */
     }
-    
+
     /* Make footer and buttons smaller */
     #im-mobile-search-modal .modal-footer {
         padding-top: 10px;
@@ -3352,7 +3348,7 @@ body.is-admin .legend-admin-only {
 }
 /* --- NEW: Flip Phone Cover Screen Height Adjustments --- */
 @media (max-height: 450px) {
-    
+
     /* Make the modal container take up the full height */
     #im-mobile-search-modal .modal-container {
         top: 0;
@@ -3389,7 +3385,7 @@ body.is-admin .legend-admin-only {
 
     /* Make form elements even smaller */
     #im-mobile-search-modal .form-group {
-        margin-bottom: 5px; 
+        margin-bottom: 5px;
     }
     #im-mobile-search-modal .form-group label {
         font-size: 0.8rem;
@@ -3493,7 +3489,7 @@ body.is-ceo .desktop-only.col-group {
 
 /* --- CEO Mobile UI Simplification (FIXED) --- */
 @media (max-width: 768px) {
-    
+
     /* 1. Make the sidebar wrapper visible again (so the Nav bar can exist) */
     body.is-ceo #workdesk-view .workdesk-sidebar {
         display: block !important;
@@ -3522,8 +3518,8 @@ body.is-ceo .desktop-only.col-group {
 
     /* 4. Restore padding to main content so it doesn't hide behind the nav */
     body.is-ceo .workdesk-main {
-        padding: 15px !important; 
-        padding-bottom: 85px !important; 
+        padding: 15px !important;
+        padding-bottom: 85px !important;
         height: auto !important;
     }
 
@@ -3534,10 +3530,10 @@ body.is-ceo .desktop-only.col-group {
 
     /* 6. Center the remaining Day View header items */
     body.is-ceo .dayview-mobile-header-new {
-        justify-content: flex-end; 
+        justify-content: flex-end;
         padding: 10px 15px;
     }
-    
+
     /* 7. Center the title */
     body.is-ceo .dayview-mobile-titles {
         text-align: center;
@@ -3585,7 +3581,7 @@ body.is-ceo .desktop-only.col-group {
     display: flex;
     gap: 10px;
 }
-    
+
     .iba-logo-anim span {
         opacity: 0;
         animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
@@ -3608,7 +3604,7 @@ body.is-ceo .desktop-only.col-group {
         position: relative;
         margin-bottom: 20px;
     }
-    
+
     .input-icon-wrap i {
         position: absolute;
         left: 15px;
@@ -3686,7 +3682,7 @@ body.is-ceo .desktop-only.col-group {
         font-size: 1.1rem;
         color: #333;
     }
-    
+
     .m-card-sub {
         font-size: 0.85rem;
         color: #777;
@@ -3696,14 +3692,14 @@ body.is-ceo .desktop-only.col-group {
     .m-card-amount {
         text-align: right;
     }
-    
+
     .m-card-val {
         display: block;
         font-size: 1.1rem;
         font-weight: bold;
         color: #003A5C;
     }
-    
+
     .m-card-ref {
         display: block;
         font-size: 0.8rem;
@@ -3727,14 +3723,14 @@ body.is-ceo .desktop-only.col-group {
     .m-action-group {
         margin-bottom: 15px;
     }
-    
+
     .m-action-group label {
         font-size: 0.85rem;
         color: #555;
         margin-bottom: 5px;
         display: block;
     }
-    
+
     .m-action-group input, .m-action-group textarea {
         width: 100%;
         padding: 10px;
@@ -3760,7 +3756,7 @@ body.is-ceo .desktop-only.col-group {
         cursor: pointer;
         color: white;
     }
-    
+
     .m-btn-approve { background-color: #28a745; }
     .m-btn-reject { background-color: #D32F2F; }
 
@@ -3788,7 +3784,7 @@ body.is-ceo .desktop-only.col-group {
         z-index: 100;
         box-sizing: border-box;
     }
-    
+
     .whatsapp-float-btn {
         width: 100%;
         background-color: #25D366;
@@ -3806,7 +3802,7 @@ body.is-ceo .desktop-only.col-group {
 }
 /* --- CRITICAL FIX: Hide Mobile Active Task View on Desktop --- */
 @media (min-width: 769px) {
-    #active-task-mobile-view, 
+    #active-task-mobile-view,
     #mobile-receipt-action-container,
     .mobile-task-card,
     #active-task-mobile-header { /* <--- ADDED THIS LINE */
@@ -3833,9 +3829,9 @@ body.is-ceo .desktop-only.col-group {
     margin: -15px -15px 15px -15px; /* Negative margin to stretch full width */
     background-color: #fff; /* White background */
     border-bottom: 1px solid #e0e0e0; /* Clean separator line */
-    
+
     /* REMOVED: position: sticky, top: 0, z-index */
-    position: relative; 
+    position: relative;
 }
 
 #active-task-mobile-header h1 {
@@ -3878,13 +3874,13 @@ body.is-ceo .desktop-only.col-group {
     #invoice-management-view .workdesk-navigation li.wd-nav-activetask-mobile {
         display: list-item !important;
     }
-    
+
     /* Ensure the 3 icons fit nicely */
     .workdesk-navigation ul {
         justify-content: space-between;
         padding: 0 10px; /* Add small padding to sides */
     }
-    
+
     /* Optional: Make icons slightly smaller if 3 items feel crowded */
     .workdesk-navigation a {
         font-size: 0.65rem;
@@ -3898,7 +3894,7 @@ body.is-ceo .desktop-only.col-group {
 /* 1. Add extra scroll space to the bottom of the list */
 #active-task-mobile-view {
     /* This ensures the last card can be scrolled up past the button */
-    padding-bottom: 160px !important; 
+    padding-bottom: 160px !important;
 }
 
 /* 2. Move the button up so it sits ABOVE the bottom navigation bar */
@@ -3913,21 +3909,21 @@ body.is-ceo .desktop-only.col-group {
 /* ========================================= */
 /* INVOICE HISTORY MODAL STYLES (GLOBAL)     */
 /* ========================================= */
-#history-table th { 
-    background-color: #e9ecef; 
-    font-size: 0.85rem; 
-    font-weight: 600; 
+#history-table th {
+    background-color: #e9ecef;
+    font-size: 0.85rem;
+    font-weight: 600;
     color: #555;
 }
-#history-table td { 
-    font-size: 0.9rem; 
-    padding: 10px; 
+#history-table td {
+    font-size: 0.9rem;
+    padding: 10px;
     vertical-align: top;
 }
-.history-duration { 
-    font-weight: bold; 
-    color: var(--iba-secondary-teal); 
-    font-size: 0.85rem; 
+.history-duration {
+    font-weight: bold;
+    color: var(--iba-secondary-teal);
+    font-size: 0.85rem;
 }
 
 /* FORCE History Button Green (Global) */
@@ -4028,13 +4024,13 @@ body.is-ceo .desktop-only.col-group {
         display: block !important;
         z-index: 99999 !important;
         font-size: 12pt !important;
-        
+
         /* FORCE COLORS TO PRINT */
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
         color-adjust: exact !important;
     }
-    
+
     /* Ensure grid lines print clearly */
     body.printing-waybill #transfer-waybill-template div {
         border-color: #000 !important;
@@ -4053,10 +4049,10 @@ body.is-ceo .desktop-only.col-group {
         opacity: 1 !important;
         height: 50px !important; /* Force height so it doesn't collapse */
         width: 100% !important;
-        max-width: 300px !important; 
+        max-width: 300px !important;
         margin: 0 auto 5px auto !important;
     }
-    
+
     /* 2. Ensure the container holding the barcode is visible */
     body.printing-waybill #wb-receiver-esn-container {
         display: block !important;
@@ -4128,12 +4124,26 @@ body.is-ceo .desktop-only.col-group {
     border-radius: 8px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
     border: 1px solid #e0e0e0;
-    
+
     /* CRITICAL FIX: Changed from 'hidden' to 'visible' */
-    overflow: visible !important; 
-    
+    overflow: visible !important;
+
     margin-bottom: 30px;
     position: relative; /* Ensure z-index works if needed */
+}
+
+
+
+/* Invoice Entry Modal: avoid "card inside a card" look */
+#im-invoice-entry-modal #im-new-invoice-form {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    margin: 0;
+}
+#im-invoice-entry-modal .modal-content {
+    padding-top: 0;
 }
 
 /* 2. The "Cool" Header (Fixed Colors & Corners) */
@@ -4142,14 +4152,14 @@ body.is-ceo .desktop-only.col-group {
     color: #ffffff !important;            /* Force White Text */
     padding: 15px 25px;
     margin: 0;
-    
+
     font-size: 1.2rem;
     font-weight: 600;
     letter-spacing: 0.5px;
     border-bottom: 3px solid #002a48;
-    
+
     /* Rounded corners manually since we removed overflow:hidden */
-    border-radius: 8px 8px 0 0; 
+    border-radius: 8px 8px 0 0;
 }
 
 /* 3. Hide the old divider line inside the form */
@@ -4169,7 +4179,7 @@ body.is-ceo .desktop-only.col-group {
     background-color: transparent !important; /* Remove Grey Background */
     border-top: none;           /* Remove border */
     margin-top: 0;
-    
+
     /* Ensure it aligns with the search bar */
     display: flex;
     gap: 10px;
@@ -4185,18 +4195,18 @@ body.is-ceo .desktop-only.col-group {
 /* 1. Global Blue Highlight (Delicate Floating Style) */
 .input-required-highlight {
     /* Make the border semi-transparent so it looks very thin */
-    border: 1px solid rgba(0, 58, 92, 0.25) !important; 
-    
+    border: 1px solid rgba(0, 58, 92, 0.25) !important;
+
     /* Very light blue tint background */
-    background-color: #f7fbff !important; 
-    
+    background-color: #f7fbff !important;
+
     /* Soft shadow underneath to give the 'floating' lift */
-    box-shadow: 0 3px 6px rgba(0, 58, 92, 0.08) !important; 
-    
+    box-shadow: 0 3px 6px rgba(0, 58, 92, 0.08) !important;
+
     /* Text Styling */
     color: #003A5C !important;
     font-weight: 600 !important;
-    
+
     transition: all 0.3s ease;
 }
 
@@ -4211,7 +4221,7 @@ body.is-ceo .desktop-only.col-group {
 
 /* Optional: Label text color */
 .input-required-highlight + label::after {
-    color: #003A5C; 
+    color: #003A5C;
     font-weight: bold;
 }
 /* ========================================= */
@@ -4262,10 +4272,10 @@ body.is-ceo .desktop-only.col-group {
     width: 100%;
     padding: 8px;
     font-size: 0.9rem;
-    
+
     /* Subtle default state */
-    border: 1px solid transparent; 
-    background-color: transparent; 
+    border: 1px solid transparent;
+    background-color: transparent;
     border-radius: 4px;
     color: #333;
     transition: all 0.2s ease;
@@ -4364,9 +4374,9 @@ body.is-ceo .desktop-only.col-group {
     gap: 15px;
     align-items: flex-end;
     margin-bottom: 25px;
-    
+
     /* CRITICAL: Allow dropdowns to hang out */
-    overflow: visible !important; 
+    overflow: visible !important;
     position: relative !important;
 }
 
@@ -4386,7 +4396,7 @@ body.is-ceo .desktop-only.col-group {
     border: 1px solid #ccc;
     background-color: #f9fbfd;
     border-radius: 6px;
-    padding: 0 15px; 
+    padding: 0 15px;
     height: 45px;
     line-height: 45px;
     font-size: 0.95rem;
@@ -4396,20 +4406,20 @@ body.is-ceo .desktop-only.col-group {
 }
 
 /* Choices.js Dropdowns - Inner Box */
-#im-batch-po-add-container .choices .choices__inner, 
+#im-batch-po-add-container .choices .choices__inner,
 #im-batch-global-controls .choices .choices__inner {
     border: 1px solid #ccc !important;
     background-color: #f9fbfd !important;
     border-radius: 6px !important;
     padding: 0 15px !important;
-    
+
     /* Force Height & Alignment */
     min-height: 45px !important;
     height: 45px !important;
-    
+
     display: flex !important;
     align-items: center !important;
-    
+
     font-size: 0.95rem !important;
     color: #333 !important;
 }
@@ -4419,11 +4429,11 @@ body.is-ceo .desktop-only.col-group {
     z-index: 1000 !important;       /* Top of everything */
     margin-top: 0 !important;       /* NO GAP */
     top: 100% !important;           /* Snap to bottom */
-    
-    border: 1px solid #003A5C !important; 
-    border-top: none !important;    
-    border-radius: 0 0 6px 6px !important; 
-    
+
+    border: 1px solid #003A5C !important;
+    border-top: none !important;
+    border-radius: 0 0 6px 6px !important;
+
     box-shadow: 0 10px 20px rgba(0, 58, 92, 0.15) !important;
     padding: 0 !important;
     background: white !important;
@@ -4503,20 +4513,20 @@ body.is-ceo .desktop-only.col-group {
 .workdesk-section h1 {
     /* 1. Brand Blue Color */
     color: #003A5C !important;
-    
+
     /* 2. Extra Bold & Large (Restored to the style you liked) */
     font-weight: 800 !important;      /* Extra Bold */
     font-size: 2rem !important;       /* Much Bigger */
     letter-spacing: 0.5px !important; /* Slight spacing for impact */
-    
+
     /* 3. Thicker Divider Line */
     border-bottom: 3px solid #e0e0e0 !important; /* Thicker line */
     padding-bottom: 10px !important;
     margin-bottom: 25px !important;
-    
+
     /* 4. Use the default font (Removed the system font override) */
     font-family: inherit !important;
-    
+
     /* 5. Flex Alignment */
     display: flex;
     align-items: baseline; /* Align text by baseline */
@@ -4562,4 +4572,588 @@ body.is-ceo .desktop-only.col-group {
 
 .icon-only-btn i {
     margin-right: 0 !important;    /* Remove spacing usually reserved for text */
+}
+
+
+
+/* ============================================================= */
+/* INVOICE ENTRY MODAL (IM) – Professional Form Layout            */
+/* Scoped ONLY to: #im-invoice-entry-modal                        */
+/* ============================================================= */
+
+#im-invoice-entry-modal #im-new-invoice-form {
+    /* The form is inside a modal; keep it flat and clean */
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+}
+
+/* Grid layout: tidy spacing + better alignment */
+#im-invoice-entry-modal #im-new-invoice-form .form-grid-3col {
+    padding: 0 !important;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(220px, 1fr));
+    gap: 16px 18px;
+    align-items: start; /* labels + inputs align nicely */
+}
+
+/* Responsive: 2 cols on medium, 1 col on small */
+@media (max-width: 980px) {
+    #im-invoice-entry-modal #im-new-invoice-form .form-grid-3col {
+        grid-template-columns: repeat(2, minmax(220px, 1fr));
+    }
+}
+@media (max-width: 640px) {
+    #im-invoice-entry-modal #im-new-invoice-form .form-grid-3col {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+}
+
+/* Span helpers (set on the .form-group wrappers) */
+#im-invoice-entry-modal #im-new-invoice-form .form-group.im-span-2 { grid-column: span 2; }
+#im-invoice-entry-modal #im-new-invoice-form .form-group.im-span-3 { grid-column: 1 / -1; }
+
+/* Form group spacing */
+#im-invoice-entry-modal #im-new-invoice-form .form-group {
+    margin-bottom: 0 !important;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* Labels: cleaner + consistent */
+#im-invoice-entry-modal #im-new-invoice-form .form-group label {
+    margin-bottom: 0 !important;
+    font-size: 12.5px;
+    letter-spacing: 0.2px;
+    color: #495057;
+}
+
+/* Required marker (clean + subtle) */
+#im-invoice-entry-modal #im-new-invoice-form .form-group.is-required > label::after {
+    content: " *";
+    color: #d93025;
+    font-weight: 700;
+}
+
+/* Inputs / selects / textarea: modern field box */
+#im-invoice-entry-modal #im-new-invoice-form input[type="text"],
+#im-invoice-entry-modal #im-new-invoice-form input[type="number"],
+#im-invoice-entry-modal #im-new-invoice-form input[type="date"],
+#im-invoice-entry-modal #im-new-invoice-form select,
+#im-invoice-entry-modal #im-new-invoice-form textarea {
+    margin-bottom: 0 !important; /* kill the global margin-bottom */
+    border-radius: 10px;
+    border: 1px solid #d6dbe1;
+    background: #f8fafc;
+    padding: 11px 12px;
+    min-height: 44px;
+    font-size: 15px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+/* Textarea: nicer default */
+#im-invoice-entry-modal #im-new-invoice-form textarea {
+    min-height: 96px;
+    resize: vertical;
+    line-height: 1.35;
+}
+
+/* Focus state */
+#im-invoice-entry-modal #im-new-invoice-form input:focus,
+#im-invoice-entry-modal #im-new-invoice-form select:focus,
+#im-invoice-entry-modal #im-new-invoice-form textarea:focus {
+    background: #ffffff;
+    border-color: var(--iba-secondary-teal);
+    box-shadow: 0 0 0 3px rgba(0, 116, 140, 0.16);
+    outline: none;
+}
+
+/* Choices.js dropdown (Attention): match field styling */
+#im-invoice-entry-modal #im-new-invoice-form .choices__inner {
+    margin-bottom: 0 !important;
+    border-radius: 10px !important;
+    border: 1px solid #d6dbe1 !important;
+    background: #f8fafc !important;
+    min-height: 44px !important;
+    padding: 8px 10px !important;
+    display: flex;
+    align-items: center;
+}
+#im-invoice-entry-modal #im-new-invoice-form .choices.is-focused .choices__inner {
+    background: #ffffff !important;
+    border-color: var(--iba-secondary-teal) !important;
+    box-shadow: 0 0 0 3px rgba(0, 116, 140, 0.16) !important;
+}
+
+/* Action icon buttons inside "Invoice Name" / "SRV Name" */
+#im-invoice-entry-modal #im-new-invoice-form .form-group a.secondary-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0 !important;
+    border-radius: 10px !important;
+    background-color: var(--iba-secondary-teal) !important;
+    color: #fff !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+#im-invoice-entry-modal #im-new-invoice-form .form-group a.secondary-btn:hover {
+    filter: brightness(0.95);
+}
+
+/* Validation (visual only): clean red highlight */
+#im-invoice-entry-modal #im-new-invoice-form .form-group.im-invalid > label,
+#im-invoice-entry-modal #im-new-invoice-form .form-group.im-invalid label {
+    color: #b3261e;
+}
+#im-invoice-entry-modal #im-new-invoice-form .form-group.im-invalid input,
+#im-invoice-entry-modal #im-new-invoice-form input.im-invalid,
+#im-invoice-entry-modal #im-new-invoice-form .form-group.im-invalid select,
+#im-invoice-entry-modal #im-new-invoice-form select.im-invalid,
+#im-invoice-entry-modal #im-new-invoice-form .form-group.im-invalid textarea,
+#im-invoice-entry-modal #im-new-invoice-form textarea.im-invalid {
+    background: #fff5f5 !important;
+    border-color: #d93025 !important;
+    box-shadow: 0 0 0 3px rgba(217, 48, 37, 0.12) !important;
+}
+#im-invoice-entry-modal #im-attention-group.im-invalid .choices__inner {
+    background: #fff5f5 !important;
+    border-color: #d93025 !important;
+    box-shadow: 0 0 0 3px rgba(217, 48, 37, 0.12) !important;
+}
+
+/* Bottom area: PO search + action buttons */
+#im-invoice-entry-modal #im-po-search-container-bottom {
+    margin-top: 18px !important;
+    padding: 16px 0 0 !important;
+    border-top: 1px solid #e9ecef !important;
+
+    display: grid !important;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: end;
+}
+#im-invoice-entry-modal #im-po-search-container-bottom .search-bar-local {
+    max-width: none !important;
+    margin-bottom: 0 !important;
+}
+#im-invoice-entry-modal #im-po-search-button-bottom {
+    height: 44px;
+    border-radius: 10px;
+    padding: 0 16px;
+    font-weight: 600;
+}
+
+/* Action buttons row */
+#im-invoice-entry-modal #im-po-search-container-bottom .form-buttons-container {
+    grid-column: 1 / -1;
+    margin-top: 6px !important;
+    padding-top: 0 !important;
+    border-top: none !important;
+
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: flex-end;
+}
+#im-invoice-entry-modal #im-po-search-container-bottom .form-buttons-container button {
+    height: 44px;
+    border-radius: 10px;
+    padding: 0 16px;
+    font-weight: 700;
+    min-width: 130px;
+}
+
+/* Primary buttons */
+#im-invoice-entry-modal #im-add-invoice-button,
+#im-invoice-entry-modal #im-update-invoice-button {
+    background-color: var(--iba-secondary-teal);
+    color: #fff;
+    border: none;
+}
+#im-invoice-entry-modal #im-add-invoice-button:hover,
+#im-invoice-entry-modal #im-update-invoice-button:hover {
+    filter: brightness(0.95);
+}
+
+/* Secondary buttons (Clear / Back) */
+#im-invoice-entry-modal #im-po-search-container-bottom .form-buttons-container .secondary-btn {
+    background-color: #6c757d !important;
+    color: #fff !important;
+    border: none !important;
+}
+#im-invoice-entry-modal #im-po-search-container-bottom .form-buttons-container .secondary-btn:hover {
+    filter: brightness(0.95);
+}
+
+/* Mobile: stack search + buttons nicely */
+@media (max-width: 640px) {
+    #im-invoice-entry-modal #im-po-search-container-bottom {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+    #im-invoice-entry-modal #im-po-search-container-bottom .form-buttons-container {
+        justify-content: stretch;
+    }
+    #im-invoice-entry-modal #im-po-search-container-bottom .form-buttons-container button {
+        width: 100%;
+        min-width: 0;
+    }
+}
+
+
+/* ============================================================
+   Invoice Entry Modal – Layout, Fields & Buttons Polish
+   (Non-breaking: only affects #im-invoice-entry-modal scope)
+   ============================================================ */
+
+/* Grid layout: 3 columns on desktop, 2 on medium, 1 on small */
+#im-invoice-entry-modal #im-new-invoice-form .form-grid-3col {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px 20px;
+}
+
+/* Make sure generic invoice form groups can shrink nicely */
+#im-invoice-entry-modal #im-new-invoice-form .form-group {
+    min-width: 0;
+}
+
+/* Span full width (for long text areas or notes) */
+#im-invoice-entry-modal #im-new-invoice-form .form-group.im-span-3 {
+    grid-column: 1 / -1;
+}
+
+/* Optional two-column span if used anywhere */
+#im-invoice-entry-modal #im-new-invoice-form .form-group.im-span-2 {
+    grid-column: span 2;
+}
+
+/* Responsive breakpoints */
+@media (max-width: 1200px) {
+    #im-invoice-entry-modal #im-new-invoice-form .form-grid-3col {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+@media (max-width: 768px) {
+    #im-invoice-entry-modal #im-new-invoice-form .form-grid-3col {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* Field boxes – full width & consistent sizing */
+#im-invoice-entry-modal #im-new-invoice-form input[type="text"],
+#im-invoice-entry-modal #im-new-invoice-form input[type="number"],
+#im-invoice-entry-modal #im-new-invoice-form input[type="date"],
+#im-invoice-entry-modal #im-new-invoice-form select,
+#im-invoice-entry-modal #im-new-invoice-form textarea {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 8px;
+    border: 1px solid #d6dbe1;
+    background: #f8fafc;
+    padding: 10px 12px;
+    min-height: 40px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+/* Focus state – subtle teal outline */
+#im-invoice-entry-modal #im-new-invoice-form input[type="text"]:focus,
+#im-invoice-entry-modal #im-new-invoice-form input[type="number"]:focus,
+#im-invoice-entry-modal #im-new-invoice-form input[type="date"]:focus,
+#im-invoice-entry-modal #im-new-invoice-form select:focus,
+#im-invoice-entry-modal #im-new-invoice-form textarea:focus {
+    outline: none;
+    border-color: #00748C;
+    box-shadow: 0 0 0 1px rgba(0, 116, 140, 0.2);
+    background: #ffffff;
+}
+
+/* Required marker – clean red star on label */
+#im-invoice-entry-modal #im-new-invoice-form .form-group.is-required > label::after {
+    content: " *";
+    color: #d93025;
+    font-weight: 600;
+}
+
+/* Extra visual cue for required fields: subtle left border */
+#im-invoice-entry-modal #im-new-invoice-form .form-group.is-required input,
+#im-invoice-entry-modal #im-new-invoice-form .form-group.is-required select,
+#im-invoice-entry-modal #im-new-invoice-form .form-group.is-required textarea {
+    border-left: 3px solid rgba(217, 48, 37, 0.7);
+}
+
+/* Bottom PO search + buttons row – tidy & responsive */
+#im-invoice-entry-modal #im-po-search-container-bottom {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    padding-top: 10px;
+    padding-bottom: 5px;
+}
+
+/* Make the search bar grow and keep buttons on the right */
+#im-invoice-entry-modal #im-po-search-container-bottom .search-bar-local {
+    flex: 1 1 260px;
+}
+
+/* Buttons box sticks to the right but wraps nicely on mobile */
+#im-invoice-entry-modal #im-po-search-container-bottom .form-buttons-container {
+    flex: 0 1 auto;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+/* Mobile tweak – stack search + buttons vertically */
+@media (max-width: 768px) {
+    #im-invoice-entry-modal #im-po-search-container-bottom {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    #im-invoice-entry-modal #im-po-search-container-bottom .form-buttons-container {
+        justify-content: flex-start;
+    }
+}
+
+/* Primary invoice action buttons – rounded & consistent */
+#im-add-invoice-button,
+#im-update-invoice-button {
+    background-color: #00748C;
+    color: #ffffff;
+    border: none;
+    border-radius: 999px;
+    padding: 8px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+/* Secondary actions – light grey pills */
+#im-clear-form-button,
+#im-back-to-active-task-button {
+    background-color: #e9ecef;
+    color: #333333;
+    border: none;
+    border-radius: 999px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+/* Hover states */
+#im-add-invoice-button:hover,
+#im-update-invoice-button:hover {
+    background-color: #005f6f;
+}
+
+#im-clear-form-button:hover,
+#im-back-to-active-task-button:hover {
+    background-color: #d6dce2;
+}
+
+/* Make sure any icons inside buttons are aligned */
+#im-add-invoice-button i,
+#im-update-invoice-button i {
+    font-size: 14px;
+}
+/* ========================================= */
+/* INVENTORY MODE (Corrected Visibility)     */
+/* ========================================= */
+
+/* 1. HIDE Distractions (Dashboard, Settings, Add Job Button) */
+body.inventory-mode .wd-nav-dashboard,
+body.inventory-mode .wd-nav-taskhistory,
+body.inventory-mode #wd-sidebar-add-job-btn,
+body.inventory-mode #workdesk-im-link-container,
+body.inventory-mode a[data-section="wd-settings"],
+body.inventory-mode .wd-nav-im-reporting-mobile {
+    display: none !important;
+}
+
+/* 2. FORCE SHOW Inventory Tools */
+/* Use !important to override any default hiding */
+body.inventory-mode .wd-nav-material,    /* Material Stock */
+body.inventory-mode .wd-nav-activetask,  /* Active Task */
+body.inventory-mode .wd-nav-reporting    /* Job Records */
+{
+    display: block !important;
+    visibility: visible !important;
+}
+
+/* 3. Add a separator for cleanliness */
+body.inventory-mode .wd-nav-material {
+    border-top: 1px solid rgba(255,255,255,0.1);
+    margin-top: 10px;
+    padding-top: 10px;
+}
+
+/* 4. Hide Inventory Button on Mobile (Optional) */
+@media (max-width: 768px) {
+    /* Completely hide the Inventory button on mobile */
+    #inventory-button {
+        display: none !important;
+    }
+}
+/* === COMPACT MODAL PO DETAILS === */
+.im-po-details-compact {
+    background-color: #e3f2fd; /* Light Blue background */
+    border: 1px solid #90caf9;
+    border-radius: 6px;
+    padding: 10px 15px;
+    margin-bottom: 15px;
+    font-size: 0.9rem;
+}
+
+.po-compact-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr; /* 3 columns */
+    gap: 5px 15px;
+}
+
+.po-compact-grid label {
+    display: inline;
+    font-weight: bold;
+    color: #003A5C;
+    margin-right: 5px;
+    font-size: 0.85rem;
+}
+
+.po-compact-grid span {
+    color: #333;
+    font-weight: 500;
+}
+
+/* On mobile, stack them */
+@media (max-width: 600px) {
+    .po-compact-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* ========================================================= */
+/* COMPACT MODAL V4 (Reduced Width/Length + PO Box)          */
+/* ========================================================= */
+
+/* 1. FORCE SMALL WIDTH (This reduces the length of fields) */
+#im-invoice-entry-modal .modal-container {
+    width: 500px !important;      /* Fixed narrow width */
+    max-width: 95vw !important;   /* Mobile safe */
+    padding: 15px !important;
+}
+
+/* 2. PO DETAILS BOX (The Blue Header) */
+.im-po-details-compact {
+    background-color: #e3f2fd;
+    border: 1px solid #90caf9;
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 15px;
+    font-size: 0.8rem;
+    display: block !important; /* Ensure it blocks if visible */
+}
+
+/* Grid for the Blue Box info */
+.po-compact-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* 2 Columns */
+    gap: 5px 10px;
+}
+
+.po-compact-grid div {
+    display: flex; /* Keep label and value on same line */
+    align-items: center;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.po-compact-grid label {
+    font-weight: 700;
+    color: #003A5C;
+    margin-right: 5px;
+    margin-bottom: 0 !important;
+    font-size: 0.75rem !important;
+}
+
+.po-compact-grid span {
+    color: #333;
+    font-weight: 500;
+    font-size: 0.8rem;
+}
+
+/* 3. FORM GRID (2 Columns to fit narrow width) */
+.form-grid-compact {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 12px; /* Tight gaps */
+}
+
+/* 4. COMPACT INPUTS */
+#im-invoice-entry-modal input,
+#im-invoice-entry-modal select,
+#im-invoice-entry-modal .choices__inner {
+    height: 36px !important;       /* Increased from 30px */
+    min-height: 36px !important;   /* Increased from 30px */
+    padding: 4px 8px !important;   /* Slightly more padding for comfort */
+    font-size: 0.85rem !important;
+    width: 100%;
+}
+
+#im-invoice-entry-modal label {
+    font-size: 0.75rem !important;
+    margin-bottom: 2px !important;
+}
+
+#im-invoice-entry-modal .form-group {
+    margin-bottom: 6px !important;
+}
+
+/* Note Field stays separate */
+#im-invoice-entry-modal textarea {
+    height: 40px !important;
+    min-height: 40px !important;
+}
+
+/* 5. Force Dropdowns UP */
+#im-invoice-entry-modal .choices .choices__list--dropdown {
+    bottom: 100% !important;
+    top: auto !important;
+}
+
+/* 6. Bottom Search Bar */
+#im-po-search-container-bottom {
+    margin-top: 15px !important;
+    padding-top: 10px !important;
+    border-top: 1px solid #eee;
+    justify-content: space-between;
+}
+
+#im-po-search-container-bottom .search-bar-local {
+    flex: 0 1 180px !important; /* Short search bar */
+    min-width: 100px !important;
+}
+
+#im-po-search-container-bottom button {
+    height: 30px !important;
+    padding: 0 10px !important;
+    font-size: 0.8rem !important;
+}
+@keyframes pulse {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 82, 82, 0.7); }
+    70% { transform: scale(1.02); box-shadow: 0 0 0 10px rgba(255, 82, 82, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 82, 82, 0); }
 }
