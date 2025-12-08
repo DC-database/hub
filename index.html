@@ -294,7 +294,7 @@
   .card:nth-child(2) { animation: cardAppear 0.6s ease-out 3.8s forwards; }
   .card:nth-child(3) { animation: cardAppear 0.6s ease-out 4.0s forwards; }
   .card:nth-child(4) { animation: cardAppear 0.6s ease-out 4.2s forwards; }
-
+  .card:nth-child(5) { animation: cardAppear 0.6s ease-out 4.4s forwards; }
   @keyframes cardAppear {
     0% { opacity: 0; transform: translateY(30px); }
     100% { opacity: 1; transform: translateY(0); }
@@ -396,11 +396,15 @@
   width:90%;max-width:420px;padding:14px 18px;border-radius:16px;font:600 1.08rem Montserrat,system-ui;
   color:#fff;box-shadow:0 8px 16px rgba(0,58,92,.18);border:0}
 .app-btn i{font-size:1.2rem;opacity:.95}
+/* Existing colors */
 .app-btn.invoices{background:linear-gradient(135deg,#0ea5e9,#0369a1)}
 .app-btn.vehicles{background:linear-gradient(135deg,#475569,#1f2937)}
 .app-btn.cash{background:linear-gradient(135deg,#10b981,#059669)}
 .app-btn.inquiries{background:linear-gradient(135deg,#f59e0b,#d97706)}
 .app-btn.supplier{background:linear-gradient(135deg,#8b5cf6,#7c3aed)}
+
+/* ADD THIS NEW COLOR: */
+.app-btn.inventory{background:linear-gradient(135deg,#ec4899,#be185d)} /* Pink/Reddish style */
 .app-btn:active{transform:scale(.99)}
 /* Mobile: show ONLY the menu (no header/title/cards/footer) */
 @media (max-width:768px){
@@ -528,6 +532,7 @@
   <a id="btnCash" class="app-btn cash" href="#"><i class="fas fa-code"></i><span>Letter Code Generator</span></a>
   <a id="btnInquiries" class="app-btn inquiries" href="#"><i class="fas fa-question-circle"></i><span>Inquiries</span></a>
   <a id="btnSupplier" class="app-btn supplier" href="#"><i class="fas fa-truck"></i><span>Supplier</span></a>
+  <a id="btnInventory" class="app-btn inventory" href="#"><i class="fas fa-boxes-stacked"></i><span>Inventory</span></a>
 </nav>
 
 
@@ -539,7 +544,6 @@
     <i class="fas fa-file-invoice"></i> Open Task
   </a>
 </div>
-
 
     <div class="card">
       <h2><i class="fas fa-car-alt"></i> Vehicle Reports</h2>
@@ -564,7 +568,16 @@
         <i class="fas fa-truck"></i> Supplier
       </a>
     </div>
-  </div>
+
+<div class="card">
+  <h2><i class="fas fa-boxes-stacked"></i> Inventory</h2>
+  <a class="btn" href="https://ibaport.site/invoice/?mode=inventory" target="_self">
+    <i class="fas fa-boxes-stacked"></i> Manage Stock
+  </a>
+</div>
+ </div>
+
+ 
 
   
 
@@ -666,10 +679,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const cardLinks = document.querySelectorAll('.card a.btn');
     const map = [
       {el: document.getElementById('btnInvoices'), idx: 0},
-      {el: document.getElementById('btnVehicles'), idx: 1},
-      {el: document.getElementById('btnCash'), idx: 2},
+      {el: document.getElementById('btnVehicles'), idx: 1},   // Shifted to 2
+      {el: document.getElementById('btnCash'), idx: 2},       // Shifted to 3
       {el: document.getElementById('btnInquiries'), idx: 3},
-      {el: document.getElementById('btnSupplier'), idx: 4}
+      {el: document.getElementById('btnSupplier'), idx: 4},   // <--- Added comma here
+      {el: document.getElementById('btnInventory'), idx: 5}  // New Inventory Button
     ];
     map.forEach(m => {
       if (m.el && cardLinks[m.idx]) {
