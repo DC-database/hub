@@ -5157,3 +5157,108 @@ body.inventory-mode .wd-nav-material {
     70% { transform: scale(1.02); box-shadow: 0 0 0 10px rgba(255, 82, 82, 0); }
     100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 82, 82, 0); }
 }
+
+/* --- MATERIAL STOCK SEARCH & BUTTON LAYOUT --- */
+
+/* 1. The Main Container: Spans full width to push Left/Right groups apart */
+#wd-material-stock #ms-search-container {
+    display: flex !important;
+    justify-content: space-between !important; /* Pushes Left/Right groups to edges */
+    align-items: center !important;
+    width: 100% !important; /* Must be 100% to fill the screen */
+    height: 45px !important; /* Fixed height for perfect alignment */
+    margin-bottom: 15px !important;
+    gap: 20px !important;
+}
+
+/* 2. The Left Group (Search Bar + Clear Button) */
+/* We target the first div inside the container */
+#wd-material-stock #ms-search-container > div:first-child {
+    display: flex !important;
+    align-items: stretch !important; /* Force equal height */
+    gap: 10px !important;
+    flex-grow: 1 !important;
+    max-width: 50% !important; /* Restricts search bar length (like your screenshot) */
+    height: 100% !important;
+}
+
+/* 3. The Right Group (Action Buttons) */
+/* We target the last div inside the container */
+#wd-material-stock #ms-search-container > div:last-child {
+    display: flex !important;
+    gap: 5px !important;
+    align-items: stretch !important;
+    height: 100% !important;
+}
+
+/* 4. Inputs & Buttons Inside */
+#wd-material-stock #ms-search-container input,
+#wd-material-stock #ms-search-container button {
+    height: 100% !important; /* Fill the 45px height */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* 5. Mobile Adjustments */
+@media (max-width: 768px) {
+    #wd-material-stock #ms-search-container {
+        flex-direction: column !important; /* Stack them on phone */
+        height: auto !important;
+        gap: 10px !important;
+    }
+    #wd-material-stock #ms-search-container > div:first-child,
+    #wd-material-stock #ms-search-container > div:last-child {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 45px !important;
+    }
+}
+
+@media print {
+    /* 1. Hide Everything Else */
+    body * {
+        visibility: hidden;
+    }
+
+    /* 2. Show Modal Content ONLY */
+    #ms-report-modal,
+    #ms-report-modal .modal-container,
+    #ms-report-modal .modal-content,
+    #ms-report-modal .modal-content * {
+        visibility: visible !important;
+    }
+
+    /* 3. Position the Report properly */
+    #ms-report-modal {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: auto;
+        background: white;
+        z-index: 999999;
+        display: block !important;
+    }
+
+    #ms-report-modal .modal-container {
+        box-shadow: none !important;
+        border: none !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    #ms-report-modal .modal-header,
+    #ms-report-modal .modal-footer,
+    #ms-report-modal .modal-close-btn {
+        display: none !important; /* Hide buttons on paper */
+    }
+
+    /* 4. Show Print-Only Elements */
+    .print-footer {
+        display: flex !important;
+    }
+}

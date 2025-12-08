@@ -5,7 +5,7 @@
   - Cleanup note: removed bracket labels like // [1.a], kept logic unchanged.
 */
 
-const APP_VERSION = "4.7.1";
+const APP_VERSION = "4.7.2";
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION

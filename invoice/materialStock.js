@@ -600,21 +600,26 @@ window.toggleStockDetail = function(rowId, btn) {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+    // 1. Refresh Button
     const refreshBtn = document.getElementById('ms-refresh-btn');
     if(refreshBtn) refreshBtn.addEventListener('click', () => {
         localStorage.removeItem(STOCK_CACHE_KEY);
         populateMaterialStock(true);
     });
 
+    // 2. Add New Material Button
     const addNewBtn = document.getElementById('ms-add-new-btn');
     if (addNewBtn) addNewBtn.addEventListener('click', openNewMaterialModal);
 
+    // 3. Save New Material Button
     const saveNewBtn = document.getElementById('ms-save-new-btn');
     if (saveNewBtn) saveNewBtn.addEventListener('click', handleSaveNewMaterial);
 
+    // 4. Download Template Button
     const templateBtn = document.getElementById('ms-template-btn');
     if (templateBtn) templateBtn.addEventListener('click', handleGetTemplate);
 
+    // 5. Upload CSV Button & Input
     const uploadBtn = document.getElementById('ms-upload-csv-btn');
     const fileInput = document.getElementById('ms-csv-file-input');
     if (uploadBtn && fileInput) {
@@ -622,9 +627,140 @@ document.addEventListener('DOMContentLoaded', () => {
         fileInput.addEventListener('change', handleUploadCSV);
     }
 
+    // 6. Clear Form Button
     const clearBtn = document.getElementById('ms-clear-form-btn');
     if (clearBtn) clearBtn.addEventListener('click', handleClearMaterialForm);
-});
+
+    // 7. --- SEARCH LOGIC ---
+    const msSearchInput = document.getElementById('ms-search-input');
+    if (msSearchInput) {
+        msSearchInput.addEventListener('input', () => {
+            renderMaterialStockTable(allMaterialStockData);
+        });
+    }
+
+    // 8. --- CLEAR BUTTON LOGIC (NEW) ---
+    const msClearBtn = document.getElementById('ms-search-clear-btn');
+    if (msClearBtn) {
+        msClearBtn.addEventListener('click', () => {
+            const input = document.getElementById('ms-search-input');
+            if (input) {
+                input.value = ''; 
+                renderMaterialStockTable(allMaterialStockData); 
+                input.focus(); 
+            }
+        });
+    }
+    
+    // --- NEW REPORTING BUTTONS ---
+    const openReportBtn = document.getElementById('ms-open-report-modal-btn');
+    if(openReportBtn) openReportBtn.addEventListener('click', openStockReportModal);
+
+    const printModalBtn = document.getElementById('ms-modal-print-btn');
+    if(printModalBtn) printModalBtn.addEventListener('click', () => {
+        // Trigger print on the modal content
+        window.print();
+    });
+
+    const excelModalBtn = document.getElementById('ms-modal-excel-btn');
+    if(excelModalBtn) excelModalBtn.addEventListener('click', downloadFixedStockCSV);
+    
+    
+}); // End of DOMContentLoaded
+
+// --- 1. OPEN & POPULATE MODAL ---
+function openStockReportModal() {
+    const modal = document.getElementById('ms-report-modal');
+    const tbody = document.getElementById('ms-report-table-body');
+    const dateEl = document.getElementById('ms-report-date');
+    
+    // Filter Data based on current tab
+    let data = allMaterialStockData;
+    if (currentCategoryFilter) {
+        data = allMaterialStockData.filter(i => (i.category || 'Uncategorized') === currentCategoryFilter);
+    }
+
+    // Update Counts
+    document.getElementById('ms-report-total').textContent = data.length;
+    const inStock = data.filter(i => (parseFloat(i.stockQty) || 0) > 0).length;
+    document.getElementById('ms-report-instock').textContent = inStock;
+    document.getElementById('ms-report-outstock').textContent = data.length - inStock;
+    dateEl.textContent = new Date().toLocaleString();
+
+    // Populate Table
+    tbody.innerHTML = '';
+    data.forEach(item => {
+        let locText = 'Main Store: 0';
+        if (item.sites) {
+            const locs = [];
+            Object.entries(item.sites).forEach(([site, qty]) => {
+                if(parseFloat(qty) > 0) locs.push(`${site}: ${qty}`);
+            });
+            if(locs.length > 0) locText = locs.join(', ');
+            else if((parseFloat(item.stockQty)||0) > 0) locText = 'Main Store: ' + item.stockQty;
+            else locText = 'Out of Stock';
+        }
+
+        const row = `
+            <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding: 8px; font-weight: bold;">${item.productID || item.productId}</td>
+                <td style="padding: 8px;">${item.productName}</td>
+                <td style="padding: 8px; text-align: center; font-weight: bold; color: #003A5C;">${item.stockQty}</td>
+                <td style="padding: 8px; color: #555; font-size: 0.85rem;">${locText}</td>
+            </tr>
+        `;
+        tbody.innerHTML += row;
+    });
+
+    modal.classList.remove('hidden');
+}
+
+// --- 2. EXCEL EXPORT (FIXED FOR MATH/ARROWS) ---
+function downloadFixedStockCSV() {
+    let data = allMaterialStockData;
+    if (currentCategoryFilter) {
+        data = allMaterialStockData.filter(i => (i.category || 'Uncategorized') === currentCategoryFilter);
+    }
+
+    if (data.length === 0) { alert("No data to export."); return; }
+
+    let csvContent = "data:text/csv;charset=utf-8,";
+    // Header
+    csvContent += "Product ID,Product Name,Category,Total Stock,Location Breakdown\r\n";
+
+    data.forEach(item => {
+        // Build Location String
+        let locText = "";
+        if (item.sites) {
+            locText = Object.entries(item.sites)
+                .filter(([_, qty]) => parseFloat(qty) > 0)
+                .map(([site, qty]) => `${site}: ${qty}`)
+                .join(" | ");
+        }
+        if(!locText) locText = "Main Store: " + (item.stockQty || 0);
+
+        // --- THE FIX: Wrap in ="..." to force Text Mode in Excel ---
+        // This prevents "176>100" from being treated as math
+        const safeLocText = `="${locText.replace(/"/g, '""')}"`; 
+
+        const row = [
+            `"${item.productID || item.productId || ''}"`,
+            `"${(item.productName || '').replace(/"/g, '""')}"`,
+            `"${item.category || ''}"`,
+            item.stockQty || 0,
+            safeLocText // <--- Uses the fixed format
+        ];
+        csvContent += row.join(",") + "\r\n";
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Stock_Report_${currentCategoryFilter || 'All'}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
 
 window.openNewMaterialModal = async function() {
     if (!allMaterialStockData || allMaterialStockData.length === 0) {
