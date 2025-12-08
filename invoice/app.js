@@ -11393,14 +11393,29 @@ window.handlePrintSticker = async function(key, type, poNumber = null) {
 
     if (!entry) { alert("Data not found. Please refresh."); return; }
 
-    // 2. GET SAVED ESN
-    // Since we are now saving it, this will retrieve "G3JPAN3669/IRWIN" correctly.
-    // If it is an old record, it will show NO-ESN.
-    let esnDisplay = entry.esn || entry.receiverEsn || "NO-ESN/RECORD";
+    // 2. GET OR GENERATE ESN (THE FIX)
+    let esnDisplay = entry.esn || entry.receiverEsn;
+
+    // If ESN is missing (Legacy record), generate one on the fly for display
+    if (!esnDisplay) {
+        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const digits = "0123456789";
+        let resultArr = [];
+        
+        // Generate 5 Letters + 5 Digits
+        for (let i = 0; i < 5; i++) resultArr.push(letters.charAt(Math.floor(Math.random() * letters.length)));
+        for (let i = 0; i < 5; i++) resultArr.push(digits.charAt(Math.floor(Math.random() * digits.length)));
+        
+        // Shuffle them
+        const baseESN = resultArr.sort(() => 0.5 - Math.random()).join('');
+        
+        // Use Current User Name or Fallback
+        const name = (currentApprover && currentApprover.Name) ? currentApprover.Name.split(' ')[0].toUpperCase() : 'ADMIN';
+        
+        esnDisplay = `${baseESN}/${name}`;
+    }
 
     // 3. GENERATE QR LINK (Optional)
-    // You mentioned scanning it should show details.
-    // If you want the link to the PDF, we construct it here.
     const safeFilename = esnDisplay.replace(/\//g, '_');
     const bucket = "invoiceentry-b15a8.firebasestorage.app";
     const pdfLink = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/receipts%2F${safeFilename}.pdf?alt=media`;
@@ -11476,7 +11491,7 @@ window.handlePrintSticker = async function(key, type, poNumber = null) {
             </div>
             <script>
                 new QRCode(document.getElementById("qrcode"), {
-                    text: "${pdfLink}", /* Or put full details here */
+                    text: "${pdfLink}",
                     width: 110,
                     height: 110,
                     correctLevel: QRCode.CorrectLevel.M
