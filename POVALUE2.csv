@@ -33472,7 +33472,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 20010,59243,11732,Nay Trading Co. W.L.L.,181,165,14-Jul-25,Eng. Seif Awwad,Cyril
 ,59244,10209,Madar Building Materials,173,9040,14-Jul-25,Eng. Khamis Farhan,Cyril
 ,59245,19999,Cash,173,280,14-Jul-25,IBA Head Office,mohsin
-,59246,31038,Happy Life Trad. & Cont. & Cleaning W.L.L,173,110133.15,14-Jul-25,Eng. Khamis Farhan,Awais
+,59246,31038,Happy Life Trad. & Cont. & Cleaning W.L.L,173,164305.76,14-Jul-25,Eng. Khamis Farhan,Awais
 ,59247,10239,Abdel Latif,181,64271.95,14-Jul-25,Eng. Ali Al Mughrabi,Awais
 ,59248,19999,Cash,169,2226,14-Jul-25,IBA Head Office,mohsin
 ,59249,10133,Mohd. Yousuf Kafood & Sons. Trad. & Cont. Co.,129,565,22-Jul-25,Muhammed Siddique,Cyril
@@ -33942,7 +33942,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 20309,59762,19999,Cash,173,2625,06-Aug-25,Eng. Khamis Farhan,mohsin
 ,59763,19999,Cash,176,640,06-Aug-25,IBA Head Office,mohsin
 ,59764,19999,Cash,1061,490,07-Aug-25,Eng. Al Bara Gharaibeh,H.Abbas
-20285,59765,30513,Mostafa Khalil,175,11800,07-Aug-25,Muhammed Siddique,Cyril
+20285,59765,30513,Mostafa Khalil,175,14925.2,07-Aug-25,Muhammed Siddique,Cyril
 20320,59766,19999,Cash,173,681.99,07-Aug-25,Eng. Khamis Farhan,H.Abbas
 20261,59767,19999,Cash,169,437,07-Aug-25,Eng. Seif Awwad,H.Abbas
 20258,59768,19999,Cash,174,235,07-Aug-25,Eng. Seif Awwad,H.Abbas
@@ -34394,7 +34394,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 20571,60230,10217,Qatar Internatiol Electrical Co.,175,2136,31-Aug-25,Eng. Sahaya Edwin,Cyril
 ,60231,19999,Cash,173,1220,31-Aug-25,IBA Head Office,mohsin
 20575,60233,11600,Lamha Trading Co.,181,292,31-Aug-25,Muhammed Siddique,Cyril
-20572,60234,31047,MOHAMMED BILLAL TRADING & CONTRACTING WLL,173,14281.89,31-Aug-25,Eng. Khamis Farhan,Cyril
+20572,60234,31047,MOHAMMED BILLAL TRADING & CONTRACTING WLL,173,27321.51,31-Aug-25,Eng. Khamis Farhan,Cyril
 20567,60235,10151,Hilti Qatar W.L.L,181,2745.91,31-Aug-25,Eng. Seif Awwad,Cyril
 20565,60236,11600,Lamha Trading Co.,173,143.5,31-Aug-25,Muhammed Siddique,Cyril
 20574,60237,11449,Qatar Pipeline & Fittings Co. W.L.L,181,380,31-Aug-25,Muhammed Siddique,Cyril
@@ -36042,3 +36042,24 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 ,61956,19999,Cash,M7,6130,07-Dec-25,IBA Head Office,Irwin
 ,61957,11813,QUALITY HYDRAULICS & GENERAL TRADING WLL,173,350,07-Dec-25,IBA Head Office,sayed
 ,61959,30173,Al Hazem Stainless Steel,169,2000,07-Dec-25,IBA Head Office,Irwin
+,61960,10137,Qatar Building Co,173,28560,08-Dec-25,Eng. Khamis Farhan,Awais
+21374,61961,11732,Nay Trading Co. W.L.L.,176,519,08-Dec-25,Eng. Mohamed Abdelhamid,Cyril
+21394,61962,11732,Nay Trading Co. W.L.L.,166,130.5,08-Dec-25,Eng. Mohamed Abulez,Cyril
+21396,61963,10137,Qatar Building Co,181,2660,08-Dec-25,Eng. Seif Awwad,Cyril
+,61964,19999,Cash,100,512.5,08-Dec-25,IBA Head Office,sayed
+,61965,19999,Cash,176,40,08-Dec-25,IBA Head Office,sayed
+,61966,19999,Cash,M17,7.5,08-Dec-25,IBA Head Office,sayed
+,61967,19999,Cash,181,3,08-Dec-25,IBA Head Office,sayed
+,61968,19999,Cash,173,20,08-Dec-25,IBA Head Office,sayed
+,61969,19999,Cash,175,20,08-Dec-25,IBA Head Office,sayed
+,61970,19999,Cash,181,120,08-Dec-25,IBA Head Office,sayed
+,61971,19999,Cash,100,40,08-Dec-25,IBA Head Office,sayed
+,61972,19999,Cash,176,492,08-Dec-25,IBA Head Office,sayed
+21387,61973,11732,Nay Trading Co. W.L.L.,181,140,08-Dec-25,Danish Behlim,m.saad
+,61974,19999,Cash,181,164,08-Dec-25,IBA Head Office,sayed
+21385,61975,11732,Nay Trading Co. W.L.L.,176,420,08-Dec-25,Danish Behlim,m.saad
+,61976,19999,Cash,173,1362,08-Dec-25,IBA Head Office,sayed
+21383,61977,11732,Nay Trading Co. W.L.L.,173,1715,08-Dec-25,Danish Behlim,m.saad
+21388,61978,11285,Olive Office Trading,181,360,08-Dec-25,Danish Behlim,m.saad
+21386,61979,11285,Olive Office Trading,176,560,08-Dec-25,Danish Behlim,m.saad
+21384,61980,11285,Olive Office Trading,173,2760,08-Dec-25,Danish Behlim,m.saad
