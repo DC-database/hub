@@ -1,4 +1,4 @@
-// materialStock.js
+// materialStock.js - V8.4 (Added "Series" Auto-Correction for CSV Upload)
 
 let allMaterialStockData = [];
 let allTransferData = [];
@@ -95,7 +95,7 @@ async function fetchTransfersOnly() {
 }
 
 // ==========================================================================
-// 2. TABS & RENDERING
+// 2. TABS & RENDERING (Updated with ID Legend)
 // ==========================================================================
 function renderCategoryTabs() {
     const tabsContainer = document.getElementById('ms-category-tabs');
@@ -103,18 +103,41 @@ function renderCategoryTabs() {
 
     if (!tabsContainer) return;
 
+    // --- 1. DEFINE YOUR ID LEGEND HERE ---
+    const idLegend = {
+        "Consumables": "1xxxx",  // 1
+        "Equipment":   "2xxxx",  // 2
+        "Materials":   "3xxxx",  // 3
+        "Safety":      "4xxxx",  // 4
+        "Tools":       "5xxxx"   // 5
+    };
+
     const categories = new Set();
     allMaterialStockData.forEach(item => {
         let cat = item.category ? item.category.trim() : "Uncategorized";
+        // Handle singular/plural mismatch (e.g. Material vs Materials) to ensure legend works
+        if(cat === "Material") cat = "Materials"; 
+        if(cat === "Consumable") cat = "Consumables";
         if(cat === "") cat = "Uncategorized";
         categories.add(cat);
     });
 
     const sortedCats = Array.from(categories).sort();
     let html = '';
+
     sortedCats.forEach(cat => {
         const activeClass = (currentCategoryFilter === cat) ? 'active' : '';
-        html += `<button class="${activeClass}" onclick="filterStockByCategory('${cat}')" style="margin-right:5px; padding: 8px 15px; cursor: pointer; border: none; background: transparent; border-bottom: 3px solid transparent; font-weight: 600; color: #555;">${cat}</button>`;
+        
+        // Check if we have a legend rule for this category
+        let labelHTML = cat;
+        if (idLegend[cat]) {
+            // Add the number guide in a smaller, lighter font
+            labelHTML += ` <span style="font-size: 0.75rem; color: #dc3545; font-weight: normal; margin-left: 4px;">[${idLegend[cat]}]</span>`;
+        }
+
+        html += `<button class="${activeClass}" onclick="filterStockByCategory('${cat}')" style="margin-right:5px; padding: 8px 15px; cursor: pointer; border: none; background: transparent; border-bottom: 3px solid transparent; font-weight: 600; color: #555; white-space: nowrap;">
+                    ${labelHTML}
+                 </button>`;
     });
 
     if (sortedCats.length === 0) {
@@ -143,16 +166,42 @@ window.filterStockByCategory = function(category) {
 };
 
 // ==========================================================================
-// 3. RENDER TABLE (UPDATED: RESTRICT DELETE BUTTON)
+// 3. RENDER TABLE
 // ==========================================================================
 function renderMaterialStockTable(data) {
     const tableBody = document.getElementById('ms-table-body');
     const searchInput = document.getElementById('ms-search-input');
     const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+    const countDisplay = document.getElementById('ms-total-count'); 
 
     // Check Permissions
     const isAdmin = (typeof currentApprover !== 'undefined' && (currentApprover.Role || '').toLowerCase() === 'admin');
     const isIrwin = (typeof currentApprover !== 'undefined' && currentApprover.Name === 'Irwin');
+
+    // Show/Hide Bulk Button
+    const bulkBtn = document.getElementById('ms-bulk-delete-btn');
+    if (bulkBtn) {
+        if (isIrwin) bulkBtn.classList.remove('hidden');
+        else bulkBtn.classList.add('hidden');
+    }
+
+    // --- HEADER CHECKBOX LOGIC ---
+    const tableHeadRow = document.querySelector('#ms-table thead tr');
+    if (tableHeadRow) {
+        if (isIrwin) {
+            tableHeadRow.children[0].innerHTML = '<input type="checkbox" id="ms-select-all-header" style="cursor:pointer;">';
+            setTimeout(() => {
+                const selectAll = document.getElementById('ms-select-all-header');
+                if(selectAll) {
+                    selectAll.onclick = (e) => {
+                        document.querySelectorAll('.ms-row-checkbox').forEach(cb => cb.checked = e.target.checked);
+                    };
+                }
+            }, 100);
+        } else {
+            tableHeadRow.children[0].innerHTML = '';
+        }
+    }
 
     const getSiteDisplayName = (siteCode) => {
         if (siteCode === "Main Store") return "Main Store";
@@ -177,10 +226,12 @@ function renderMaterialStockTable(data) {
         return pID.includes(searchTerm) || pName.includes(searchTerm);
     });
 
+    if (countDisplay) countDisplay.textContent = `(Total: ${filtered.length})`;
+
     tableBody.innerHTML = '';
 
     if (filtered.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#777;">No materials found in this category.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#777;">No materials found.</td></tr>';
         return;
     }
 
@@ -254,13 +305,20 @@ function renderMaterialStockTable(data) {
         const uniqueId = `detail-${item.key}`;
 
         let actionButtons = '';
+        let firstColContent = `<button class="ms-expand-btn" onclick="toggleStockDetail('${uniqueId}', this)">+</button>`;
+
         if(isAdmin) {
-            // All Admins can Edit
             actionButtons += `<button class="secondary-btn" onclick="editMaterialDetails('${item.key}')" style="padding: 5px 10px; font-size: 0.8rem; background-color: #17a2b8; color: white; margin-right: 5px;" title="Edit Details"><i class="fa-solid fa-pen"></i></button>`;
 
-            // --- STRICT CHECK: Only Irwin can see Delete ---
             if (isIrwin) {
                 actionButtons += `<button class="delete-btn ms-delete-btn" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem;" title="Delete Item"><i class="fa-solid fa-trash"></i></button>`;
+                
+                firstColContent = `
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <input type="checkbox" class="ms-row-checkbox" data-key="${item.key}" data-name="${item.productName}">
+                        <button class="ms-expand-btn" onclick="toggleStockDetail('${uniqueId}', this)">+</button>
+                    </div>
+                `;
             }
         } else {
             actionButtons = `<small style="color:#999;">View Only</small>`;
@@ -268,7 +326,7 @@ function renderMaterialStockTable(data) {
 
         const parentRow = document.createElement('tr');
         parentRow.innerHTML = `
-            <td><button class="ms-expand-btn" onclick="toggleStockDetail('${uniqueId}', this)">+</button></td>
+            <td>${firstColContent}</td>
             <td>${item.productID || item.productId}</td>
             <td><strong>${item.productName}</strong></td>
             <td><span style="background:#e3f2fd; color:#00748C; padding:2px 6px; border-radius:4px; font-size:0.75rem;">${item.category || 'Uncategorized'}</span></td>
@@ -324,54 +382,43 @@ function renderMaterialStockTable(data) {
 }
 
 // ==========================================================================
-// 4. DELETE & EDIT LOGIC (STRICT IRWIN-ONLY DELETE)
+// 4. DELETE & EDIT LOGIC
 // ==========================================================================
 
 window.handleDeleteMaterial = async function(key) {
     const currentUser = (typeof currentApprover !== 'undefined') ? currentApprover.Name : '';
 
-    // --- SECURITY CHECK ---
     if (currentUser !== 'Irwin') {
         alert("Access Denied: Only Super Admin (Irwin) can delete items.");
         return;
     }
 
-    // 1. Get Item Details
     const item = allMaterialStockData.find(i => i.key === key);
     if (!item) { alert("Error: Item not found."); return; }
 
     const productID = item.productID || item.productId;
     const productName = item.productName;
 
-    // 2. Count transactions to be deleted
     const relatedTransfers = allTransferData.filter(t =>
         (t.productID === productID || t.productId === productID)
     );
 
-    const confirmMsg = `⚠️ MASTER DELETE (Super Admin) ⚠️\n\nProduct: ${productName}\nID: ${productID}\n\nThis will DELETE the item AND ALL ${relatedTransfers.length} related transactions history from the database.\n\nThis cannot be undone. Proceed?`;
+    const confirmMsg = `⚠️ MASTER DELETE (Super Admin) ⚠️\n\nProduct: ${productName}\nID: ${productID}\n\nThis will DELETE the item AND ALL ${relatedTransfers.length} related transactions history.\n\nThis cannot be undone. Proceed?`;
 
     if (confirm(confirmMsg)) {
         const database = firebase.database();
         const updates = {};
 
-        // A. Mark Material Stock Item for Deletion
         updates[`material_stock/${key}`] = null;
-
-        // B. Mark ALL Related Transactions for Deletion
         relatedTransfers.forEach(t => {
             updates[`transfer_entries/${t.key}`] = null;
         });
 
         try {
-            // Execute Atomic Update (All or Nothing)
             await database.ref().update(updates);
-
-            alert(`Master Delete Successful.\nRemoved: ${productName}\nDeleted: ${relatedTransfers.length} transactions.`);
-
-            // Refresh
+            alert(`Master Delete Successful.\nRemoved: ${productName}`);
             localStorage.removeItem(STOCK_CACHE_KEY);
             populateMaterialStock(true);
-
         } catch (e) {
             console.error("Master delete failed:", e);
             alert("Database Error: Could not delete records.");
@@ -397,6 +444,10 @@ window.editMaterialDetails = function(key) {
     const catInput = document.getElementById('ms-new-category');
     if(catInput) catInput.value = item.category || '';
 
+    // Set Item Type
+    const typeSelect = document.getElementById('ms-new-type');
+    if(typeSelect) typeSelect.value = item.itemType || 'Bulk';
+
     document.getElementById('ms-id-search-group').classList.add('hidden');
     document.getElementById('ms-id-display-group').classList.remove('hidden');
     document.getElementById('ms-edit-id-display').value = item.productID || item.productId;
@@ -419,8 +470,12 @@ async function handleSaveNewMaterial() {
     const stockQty = parseFloat(document.getElementById('ms-new-stock-qty').value) || 0;
     const statusSelect = document.getElementById('ms-new-status');
     const status = statusSelect ? statusSelect.value : 'Active';
-    const editMode = form.dataset.editMode;
+    
+    // CAPTURE ITEM TYPE
+    const typeSelect = document.getElementById('ms-new-type');
+    const itemType = typeSelect ? typeSelect.value : 'Bulk';
 
+    const editMode = form.dataset.editMode;
     const btn = document.getElementById('ms-save-new-btn');
     btn.disabled = true; btn.textContent = "Processing...";
 
@@ -433,6 +488,7 @@ async function handleSaveNewMaterial() {
                 details: details,
                 category: category,
                 status: status,
+                itemType: itemType, // Save Type
                 lastUpdated: firebase.database.ServerValue.TIMESTAMP
             });
             alert("Details updated successfully!");
@@ -472,6 +528,7 @@ async function handleSaveNewMaterial() {
                 sites: sites,
                 status: status,
                 category: category,
+                itemType: itemType, // Save Type
                 lastUpdated: firebase.database.ServerValue.TIMESTAMP
             });
             alert(`Added ${selectedSite} to existing product!`);
@@ -486,6 +543,7 @@ async function handleSaveNewMaterial() {
                 stockQty: stockQty, transferredQty: 0, balanceQty: stockQty,
                 sites: sitesInit,
                 status: status,
+                itemType: itemType, // Save Type
                 timestamp: firebase.database.ServerValue.TIMESTAMP,
                 updatedBy: (typeof currentApprover !== 'undefined' ? currentApprover.Name : 'System')
             };
@@ -503,7 +561,7 @@ async function handleSaveNewMaterial() {
 }
 
 // ==========================================================================
-// 5. CSV & TEMPLATE
+// 5. CSV & TEMPLATE (UPDATED)
 // ==========================================================================
 function handleGetTemplate() {
     const headers = ["Product ID", "Product Name", "Category", "Details", "Stock QTY", "Site", "Status", "Item Type"];
@@ -534,19 +592,32 @@ function handleUploadCSV(event) {
         for (let i = 1; i < lines.length; i++) {
             const line = lines[i].trim();
             if (!line) continue;
-            const cols = line.split(',');
+            
+            // Clean split (removes quotes)
+            const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
 
             if (cols.length >= 3) {
-                const pID = cols[0].trim();
-                const pName = cols[1].trim();
-                const pCat = cols[2].trim();
-                const pDetails = cols[3] ? cols[3].trim() : '';
+                const pID = cols[0];
+                const pName = cols[1];
+                const pCat = cols[2];
+                const pDetails = cols[3] || '';
                 const pStock = parseFloat(cols[4]) || 0;
-                const pSite = (cols[5] && cols[5].trim() !== "") ? cols[5].trim() : "Main Store";
+                const pSite = (cols[5] && cols[5] !== "") ? cols[5] : "Main Store";
+                const pStatus = (cols[6] && cols[6] !== "") ? cols[6] : "Active";
+                
+                // --- SMART SERIES LOGIC ---
+                let rawType = (cols[7] || "").toLowerCase();
+                let pType = "Bulk"; // Default
+                
+                // Check for "series" or "serial" anywhere in the word (e.g., "Series", "serialized")
+                if (rawType.includes("series") || rawType.includes("serial")) {
+                    pType = "Serialized";
+                }
+                // --------------------------
 
                 if(pID && pName) {
                     const existingItem = allMaterialStockData.find(item =>
-                        (item.productID || item.productId).toLowerCase() === pID.toLowerCase()
+                        (item.productID || item.productId || '').toLowerCase() === pID.toLowerCase()
                     );
 
                     if (existingItem) {
@@ -558,6 +629,8 @@ function handleUploadCSV(event) {
                             stockQty: total,
                             sites: sites,
                             category: pCat,
+                            status: pStatus,
+                            itemType: pType, // Update Type
                             lastUpdated: firebase.database.ServerValue.TIMESTAMP
                         };
                     } else {
@@ -570,6 +643,8 @@ function handleUploadCSV(event) {
                             details: pDetails,
                             stockQty: pStock,
                             sites: sites,
+                            status: pStatus,
+                            itemType: pType, // Set Type
                             timestamp: Date.now()
                         };
                         count++;
@@ -600,26 +675,21 @@ window.toggleStockDetail = function(rowId, btn) {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Refresh Button
     const refreshBtn = document.getElementById('ms-refresh-btn');
     if(refreshBtn) refreshBtn.addEventListener('click', () => {
         localStorage.removeItem(STOCK_CACHE_KEY);
         populateMaterialStock(true);
     });
 
-    // 2. Add New Material Button
     const addNewBtn = document.getElementById('ms-add-new-btn');
     if (addNewBtn) addNewBtn.addEventListener('click', openNewMaterialModal);
 
-    // 3. Save New Material Button
     const saveNewBtn = document.getElementById('ms-save-new-btn');
     if (saveNewBtn) saveNewBtn.addEventListener('click', handleSaveNewMaterial);
 
-    // 4. Download Template Button
     const templateBtn = document.getElementById('ms-template-btn');
     if (templateBtn) templateBtn.addEventListener('click', handleGetTemplate);
 
-    // 5. Upload CSV Button & Input
     const uploadBtn = document.getElementById('ms-upload-csv-btn');
     const fileInput = document.getElementById('ms-csv-file-input');
     if (uploadBtn && fileInput) {
@@ -627,11 +697,10 @@ document.addEventListener('DOMContentLoaded', () => {
         fileInput.addEventListener('change', handleUploadCSV);
     }
 
-    // 6. Clear Form Button
     const clearBtn = document.getElementById('ms-clear-form-btn');
     if (clearBtn) clearBtn.addEventListener('click', handleClearMaterialForm);
-
-    // 7. --- SEARCH LOGIC ---
+    
+    // --- SEARCH LOGIC ---
     const msSearchInput = document.getElementById('ms-search-input');
     if (msSearchInput) {
         msSearchInput.addEventListener('input', () => {
@@ -639,128 +708,34 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 8. --- CLEAR BUTTON LOGIC (NEW) ---
+    // --- CLEAR BUTTON LOGIC ---
     const msClearBtn = document.getElementById('ms-search-clear-btn');
     if (msClearBtn) {
         msClearBtn.addEventListener('click', () => {
-            const input = document.getElementById('ms-search-input');
-            if (input) {
-                input.value = ''; 
+            if (msSearchInput) {
+                msSearchInput.value = ''; 
                 renderMaterialStockTable(allMaterialStockData); 
-                input.focus(); 
+                msSearchInput.focus(); 
             }
         });
     }
-    
-    // --- NEW REPORTING BUTTONS ---
+
+    // --- REPORTING BUTTONS ---
     const openReportBtn = document.getElementById('ms-open-report-modal-btn');
     if(openReportBtn) openReportBtn.addEventListener('click', openStockReportModal);
 
     const printModalBtn = document.getElementById('ms-modal-print-btn');
     if(printModalBtn) printModalBtn.addEventListener('click', () => {
-        // Trigger print on the modal content
         window.print();
     });
 
     const excelModalBtn = document.getElementById('ms-modal-excel-btn');
     if(excelModalBtn) excelModalBtn.addEventListener('click', downloadFixedStockCSV);
-    
-    
-}); // End of DOMContentLoaded
 
-// --- 1. OPEN & POPULATE MODAL ---
-function openStockReportModal() {
-    const modal = document.getElementById('ms-report-modal');
-    const tbody = document.getElementById('ms-report-table-body');
-    const dateEl = document.getElementById('ms-report-date');
-    
-    // Filter Data based on current tab
-    let data = allMaterialStockData;
-    if (currentCategoryFilter) {
-        data = allMaterialStockData.filter(i => (i.category || 'Uncategorized') === currentCategoryFilter);
-    }
-
-    // Update Counts
-    document.getElementById('ms-report-total').textContent = data.length;
-    const inStock = data.filter(i => (parseFloat(i.stockQty) || 0) > 0).length;
-    document.getElementById('ms-report-instock').textContent = inStock;
-    document.getElementById('ms-report-outstock').textContent = data.length - inStock;
-    dateEl.textContent = new Date().toLocaleString();
-
-    // Populate Table
-    tbody.innerHTML = '';
-    data.forEach(item => {
-        let locText = 'Main Store: 0';
-        if (item.sites) {
-            const locs = [];
-            Object.entries(item.sites).forEach(([site, qty]) => {
-                if(parseFloat(qty) > 0) locs.push(`${site}: ${qty}`);
-            });
-            if(locs.length > 0) locText = locs.join(', ');
-            else if((parseFloat(item.stockQty)||0) > 0) locText = 'Main Store: ' + item.stockQty;
-            else locText = 'Out of Stock';
-        }
-
-        const row = `
-            <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 8px; font-weight: bold;">${item.productID || item.productId}</td>
-                <td style="padding: 8px;">${item.productName}</td>
-                <td style="padding: 8px; text-align: center; font-weight: bold; color: #003A5C;">${item.stockQty}</td>
-                <td style="padding: 8px; color: #555; font-size: 0.85rem;">${locText}</td>
-            </tr>
-        `;
-        tbody.innerHTML += row;
-    });
-
-    modal.classList.remove('hidden');
-}
-
-// --- 2. EXCEL EXPORT (FIXED FOR MATH/ARROWS) ---
-function downloadFixedStockCSV() {
-    let data = allMaterialStockData;
-    if (currentCategoryFilter) {
-        data = allMaterialStockData.filter(i => (i.category || 'Uncategorized') === currentCategoryFilter);
-    }
-
-    if (data.length === 0) { alert("No data to export."); return; }
-
-    let csvContent = "data:text/csv;charset=utf-8,";
-    // Header
-    csvContent += "Product ID,Product Name,Category,Total Stock,Location Breakdown\r\n";
-
-    data.forEach(item => {
-        // Build Location String
-        let locText = "";
-        if (item.sites) {
-            locText = Object.entries(item.sites)
-                .filter(([_, qty]) => parseFloat(qty) > 0)
-                .map(([site, qty]) => `${site}: ${qty}`)
-                .join(" | ");
-        }
-        if(!locText) locText = "Main Store: " + (item.stockQty || 0);
-
-        // --- THE FIX: Wrap in ="..." to force Text Mode in Excel ---
-        // This prevents "176>100" from being treated as math
-        const safeLocText = `="${locText.replace(/"/g, '""')}"`; 
-
-        const row = [
-            `"${item.productID || item.productId || ''}"`,
-            `"${(item.productName || '').replace(/"/g, '""')}"`,
-            `"${item.category || ''}"`,
-            item.stockQty || 0,
-            safeLocText // <--- Uses the fixed format
-        ];
-        csvContent += row.join(",") + "\r\n";
-    });
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Stock_Report_${currentCategoryFilter || 'All'}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
+    // --- BULK DELETE BUTTON ---
+    const bulkDeleteBtn = document.getElementById('ms-bulk-delete-btn');
+    if (bulkDeleteBtn) bulkDeleteBtn.addEventListener('click', handleBulkDelete);
+});
 
 window.openNewMaterialModal = async function() {
     if (!allMaterialStockData || allMaterialStockData.length === 0) {
@@ -881,21 +856,203 @@ window.handleClearMaterialForm = function() {
 };
 
 window.initiateReturn = function(transferKey) {
-    const originalTask = allTransferData.find(t => t.key === transferKey);
-    if (!originalTask) {
-        alert("Error: Original transaction data not found.");
+    const database = (typeof db !== 'undefined') ? db : firebase.database();
+    database.ref(`transfer_entries/${transferKey}`).once('value').then(snap => {
+        const originalTask = snap.val();
+        if (!originalTask) {
+            alert("Error: Original transaction data not found.");
+            return;
+        }
+
+        openTransferModal('Return');
+
+        setTimeout(() => {
+            if (transferProductChoices) {
+                transferProductChoices.setChoiceByValue(originalTask.productID || originalTask.productId);
+            }
+            document.getElementById('tf-product-name').value = originalTask.productName;
+            document.getElementById('tf-details').value = `Return of: ${originalTask.controlNumber || originalTask.ref}`;
+            document.getElementById('tf-req-qty').value = originalTask.receivedQty || 0;
+
+            const returnFrom = originalTask.toSite || originalTask.toLocation;
+            const returnTo = originalTask.fromSite || originalTask.fromLocation;
+
+            if (tfFromSiteChoices) tfFromSiteChoices.setChoiceByValue(returnFrom);
+            if (tfToSiteChoices) tfToSiteChoices.setChoiceByValue(returnTo);
+
+            const modalContent = document.querySelector('#transfer-job-modal .modal-content');
+            if(modalContent) modalContent.scrollTop = 0;
+        }, 500);
+    });
+};
+
+// --- BULK DELETE LOGIC (SAFER V2.0) ---
+async function handleBulkDelete() {
+    // 1. Collect Checked Items
+    const checkedBoxes = document.querySelectorAll('.ms-row-checkbox:checked');
+    if (checkedBoxes.length === 0) {
+        alert("Please select items to delete.");
         return;
     }
-    openTransferModal('Return');
-    if (transferProductChoices) {
-        transferProductChoices.setChoiceByValue(originalTask.productId || originalTask.productID);
+
+    const count = checkedBoxes.length;
+    const confirmMsg = `⚠️ MASTER BULK DELETE ⚠️\n\nYou are about to delete ${count} items from Stock.\n\nThis will also delete the history for these specific Product IDs.\n\nAre you sure you want to proceed?`;
+    
+    if (!confirm(confirmMsg)) return;
+
+    const btn = document.getElementById('ms-bulk-delete-btn');
+    btn.textContent = "Deleting...";
+    btn.disabled = true;
+
+    const database = firebase.database();
+    const updates = {};
+    let transfersDeletedCount = 0;
+
+    // 2. Build Update Object
+    checkedBoxes.forEach(box => {
+        const key = box.dataset.key;
+        
+        // Find the full item data from the master list
+        const stockItem = allMaterialStockData.find(i => i.key === key);
+        const productID = stockItem?.productID || stockItem?.productId || "";
+
+        // A. ALWAYS Mark the Stock Item itself for deletion
+        updates[`material_stock/${key}`] = null;
+
+        // B. SAFETY CHECK: Only delete history if Product ID is valid (Not empty)
+        if (productID && productID.trim() !== "") {
+            
+            // Find transfers strictly matching this ID
+            const relatedTransfers = allTransferData.filter(t => {
+                const tID = (t.productID || t.productId || "").toString().trim();
+                const sID = productID.toString().trim();
+                return tID === sID;
+            });
+
+            // Mark these specific transfers for deletion
+            relatedTransfers.forEach(t => {
+                updates[`transfer_entries/${t.key}`] = null;
+                transfersDeletedCount++;
+            });
+        } else {
+            console.warn(`Skipping history delete for item key ${key} because Product ID is empty.`);
+        }
+    });
+
+    try {
+        // 3. Execute Atomic Delete
+        await database.ref().update(updates);
+        alert(`Success!\n\nDeleted ${count} Stock Items.\nDeleted ${transfersDeletedCount} Related History Entries.`);
+        
+        // 4. Refresh
+        localStorage.removeItem(STOCK_CACHE_KEY);
+        populateMaterialStock(true);
+        
+    } catch (e) {
+        console.error("Bulk delete failed", e);
+        alert("Error during bulk delete. Check console.");
+    } finally {
+        btn.innerHTML = '<i class="fa-solid fa-trash-can"></i> Delete Selected';
+        btn.disabled = false;
     }
-    document.getElementById('tf-product-name').value = originalTask.productName;
-    document.getElementById('tf-details').value = `Return of: ${originalTask.controlNumber || originalTask.ref}`;
-    document.getElementById('tf-req-qty').value = originalTask.receivedQty || 0;
-    const returnFrom = originalTask.toSite || originalTask.toLocation;
-    const returnTo = originalTask.fromSite || originalTask.fromLocation;
-    if (tfFromSiteChoices) tfFromSiteChoices.setChoiceByValue(returnFrom);
-    if (tfToSiteChoices) tfToSiteChoices.setChoiceByValue(returnTo);
-    document.querySelector('#transfer-job-modal .modal-content').scrollTop = 0;
-};
+}
+
+// --- REPORTING FUNCTIONS (PDF/EXCEL) - UPDATED V8.5 ---
+function openStockReportModal() {
+    const modal = document.getElementById('ms-report-modal');
+    const tbody = document.getElementById('ms-report-table-body');
+    const dateEl = document.getElementById('ms-report-date');
+    
+    // 1. Filter Data & Determine Title Suffix
+    let data = allMaterialStockData;
+    let titleSuffix = ""; // Default is empty
+
+    if (currentCategoryFilter) {
+        data = allMaterialStockData.filter(i => (i.category || 'Uncategorized') === currentCategoryFilter);
+        titleSuffix = ` for ${currentCategoryFilter}`; // e.g., " for Tools"
+    }
+
+    // 2. Update Print Title
+    // This targets the specific <p> tag in the print header inside the modal
+    const printTitleEl = document.querySelector('#ms-report-modal .print-only-header p');
+    if (printTitleEl) {
+        printTitleEl.textContent = `Material Stock Status Report${titleSuffix}`;
+        // Result: "Material Stock Status Report for Tools"
+    }
+
+    // 3. Update Stats
+    document.getElementById('ms-report-total').textContent = data.length;
+    const inStock = data.filter(i => (parseFloat(i.stockQty) || 0) > 0).length;
+    document.getElementById('ms-report-instock').textContent = inStock;
+    document.getElementById('ms-report-outstock').textContent = data.length - inStock;
+    dateEl.textContent = new Date().toLocaleString();
+
+    // 4. Render Table
+    tbody.innerHTML = '';
+    data.forEach(item => {
+        let locText = 'Main Store: 0';
+        if (item.sites) {
+            const locs = [];
+            Object.entries(item.sites).forEach(([site, qty]) => {
+                if(parseFloat(qty) > 0) locs.push(`${site}: ${qty}`);
+            });
+            if(locs.length > 0) locText = locs.join(', ');
+            else if((parseFloat(item.stockQty)||0) > 0) locText = 'Main Store: ' + item.stockQty;
+            else locText = 'Out of Stock';
+        }
+
+        const row = `
+            <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding: 8px; font-weight: bold;">${item.productID || item.productId}</td>
+                <td style="padding: 8px;">${item.productName}</td>
+                <td style="padding: 8px; text-align: center; font-weight: bold; color: #003A5C;">${item.stockQty}</td>
+                <td style="padding: 8px; color: #555; font-size: 0.85rem;">${locText}</td>
+            </tr>
+        `;
+        tbody.innerHTML += row;
+    });
+    modal.classList.remove('hidden');
+}
+
+function downloadFixedStockCSV() {
+    let data = allMaterialStockData;
+    if (currentCategoryFilter) {
+        data = allMaterialStockData.filter(i => (i.category || 'Uncategorized') === currentCategoryFilter);
+    }
+
+    if (data.length === 0) { alert("No data to export."); return; }
+
+    let csvContent = "data:text/csv;charset=utf-8,";
+    // Header
+    csvContent += "Product ID,Product Name,Category,Total Stock,Location Breakdown\r\n";
+
+    data.forEach(item => {
+        let locText = "";
+        if (item.sites) {
+            locText = Object.entries(item.sites)
+                .filter(([_, qty]) => parseFloat(qty) > 0)
+                .map(([site, qty]) => `${site}: ${qty}`)
+                .join(" | ");
+        }
+        if(!locText) locText = "Main Store: " + (item.stockQty || 0);
+
+        const safeLocText = `="${locText.replace(/"/g, '""')}"`; 
+
+        const row = [
+            `"${item.productID || item.productId || ''}"`,
+            `"${(item.productName || '').replace(/"/g, '""')}"`,
+            `"${item.category || ''}"`,
+            item.stockQty || 0,
+            safeLocText
+        ];
+        csvContent += row.join(",") + "\r\n";
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Stock_Report_${currentCategoryFilter || 'All'}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}

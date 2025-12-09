@@ -5,7 +5,7 @@
   - Cleanup note: removed bracket labels like // [1.a], kept logic unchanged.
 */
 
-const APP_VERSION = "4.7.2";
+const APP_VERSION = "4.7.8";
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -879,10 +879,11 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
 }
 
 // ==========================================================================
-// UPDATED FUNCTION: ensureAllEntriesFetched (With Usage Data Formatting)
+// DATA FETCHER (Reverted to 4.7.2 Logic + Force Refresh Support)
 // ==========================================================================
-async function ensureAllEntriesFetched(forceRefresh = false) { // <--- ADD THIS LINE
+async function ensureAllEntriesFetched(forceRefresh = false) { 
     const now = Date.now();
+    
     // 1. Check Cache
     if (!forceRefresh && allSystemEntries.length > 0 && (now - cacheTimestamps.systemEntries < CACHE_DURATION)) {
         return;
@@ -890,20 +891,17 @@ async function ensureAllEntriesFetched(forceRefresh = false) { // <--- ADD THIS 
 
     console.log("Loading Data for Workdesk...");
 
-    // 2. Load PO Data (Always fetch fresh if needed for PRs)
     const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
-    const {
-        poDataByPO,
-        poDataByRef
-    } = await fetchAndParseCSV(PO_DATA_URL) || {};
+    const { poDataByPO, poDataByRef } = await fetchAndParseCSV(PO_DATA_URL) || {};
 
     allPOData = poDataByPO || {};
     const purchaseOrdersDataByRef = poDataByRef || {};
 
-    // 3. Fetch Job Entries from Firebase
+    // 2. Fetch from Firebase (Standard + Transfers)
+    // Removed orderByChild to ensure we get ALL data, even if timestamp is missing
     const [jobEntriesSnapshot, transferSnapshot] = await Promise.all([
-        db.ref('job_entries').orderByChild('timestamp').once('value'),
-        db.ref('transfer_entries').orderByChild('timestamp').once('value')
+        db.ref('job_entries').once('value'),
+        db.ref('transfer_entries').once('value')
     ]);
 
     const jobEntriesData = jobEntriesSnapshot.val() || {};
@@ -912,72 +910,41 @@ async function ensureAllEntriesFetched(forceRefresh = false) { // <--- ADD THIS 
     const processedEntries = [];
     const updatesToFirebase = {};
 
-    // 4. Process Job Entries (PR Matching Here)
+    // 3. Process Job Entries
     Object.entries(jobEntriesData).forEach(([key, value]) => {
-        let entry = {
-            key,
-            ...value,
-            source: 'job_entry'
-        };
+        let entry = { key, ...value, source: 'job_entry' };
 
-        // --- *** PR AUTO-SOLVE LOGIC *** ---
+        // PR Matching Logic
         if (entry.for === 'PR' && entry.ref) {
-
-            // Force String and Trim
             const refKey = String(entry.ref).trim();
-
-            // Try exact match OR uppercase match
             const csvMatch = purchaseOrdersDataByRef[refKey] || purchaseOrdersDataByRef[refKey.toUpperCase()];
-
             if (csvMatch) {
-                console.log(`>> PR MATCH FOUND: ${refKey}`, csvMatch);
-
-                // Get Data from CSV
                 const newPO = csvMatch['PO'] || csvMatch['PO Number'] || '';
                 const newVendor = csvMatch['Supplier Name'] || csvMatch['Supplier'] || 'N/A';
                 const newAmount = csvMatch['Amount'] || '';
-                // Look for "Buyer Name" OR "Entry Person"
                 const newAttention = csvMatch['Buyer Name'] || csvMatch['Entry Person'] || 'Records';
-
-                // Date Fix
                 let rawDate = csvMatch['Order Date'] || '';
-                // If CSV date is like "22-11-25", we need to parse it correctly
-                let newDate = rawDate;
-                // Basic attempt to format, or just use what's in CSV
-                if (rawDate) newDate = formatYYYYMMDD(normalizeDateForInput(rawDate));
-
-                // 1. Update Local Object (Immediate Display)
+                let newDate = rawDate ? formatYYYYMMDD(normalizeDateForInput(rawDate)) : rawDate;
+                
                 entry.po = newPO;
                 entry.vendorName = newVendor;
                 entry.amount = newAmount;
                 entry.attention = newAttention;
                 entry.dateResponded = newDate;
-                entry.remarks = 'PO Ready'; // Force Status Update
+                entry.remarks = 'PO Ready'; 
 
-                // 2. Queue Firebase Update (Only if not already updated)
                 if (value.remarks !== 'PO Ready') {
-                    updatesToFirebase[key] = {
-                        po: newPO,
-                        vendorName: newVendor,
-                        amount: newAmount,
-                        attention: newAttention,
-                        dateResponded: newDate,
-                        remarks: 'PO Ready'
-                    };
+                    updatesToFirebase[key] = { po: newPO, vendorName: newVendor, amount: newAmount, attention: newAttention, dateResponded: newDate, remarks: 'PO Ready' };
                 }
             }
         }
-        // --- *** END PR LOGIC *** ---
-
-        // Fallback for non-PR vendor names
         if (!entry.vendorName && entry.po && allPOData[entry.po]) {
             entry.vendorName = allPOData[entry.po]['Supplier Name'] || 'N/A';
         }
-
         processedEntries.push(entry);
     });
 
-    // 5. Process Transfer Entries
+    // 4. Process Transfer Entries (THIS IS WHAT POPULATES THE TAB)
     Object.entries(transferData).forEach(([key, value]) => {
         const from = value.fromLocation || value.fromSite || 'N/A';
         const to = value.toLocation || value.toSite || 'N/A';
@@ -993,7 +960,7 @@ async function ensureAllEntriesFetched(forceRefresh = false) { // <--- ADD THIS 
             source: 'transfer_entry',
             productID: value.productID || '',
             jobType: value.jobType || 'Transfer',
-            for: value.jobType || 'Transfer',
+            for: value.jobType || 'Transfer', // <--- This 'for' property creates the Tab
             ref: value.controlNumber,
             controlId: value.controlNumber,
             site: combinedSite,
@@ -1007,18 +974,14 @@ async function ensureAllEntriesFetched(forceRefresh = false) { // <--- ADD THIS 
         });
     });
 
-    // 6. Apply Firebase Updates
     if (Object.keys(updatesToFirebase).length > 0) {
-        console.log(`Auto-updating ${Object.keys(updatesToFirebase).length} PRs...`);
-        try {
-            await db.ref('job_entries').update(updatesToFirebase);
-        } catch (error) {
-            console.error("Failed to auto-update PRs:", error);
-        }
+        try { await db.ref('job_entries').update(updatesToFirebase); } catch (e) {}
     }
 
+    // 5. Sort & Save
     allSystemEntries = processedEntries;
     allSystemEntries.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    
     cacheTimestamps.systemEntries = now;
     console.log(`Loaded ${allSystemEntries.length} entries.`);
 }
@@ -3896,10 +3859,7 @@ window.processMobileTransferAction = async function(task, action, cardElement) {
 // REPLACE THE EXISTING previewAndSendManagerReceipt FUNCTION IN app.js
 async function previewAndSendManagerReceipt() {
     const btn = document.getElementById('mobile-send-manager-receipt-btn');
-    if(btn) { 
-        btn.disabled = true; 
-        btn.textContent = 'Preparing...'; 
-    }
+    if(btn) { btn.disabled = true; btn.textContent = 'Preparing...'; }
 
     try {
         const approvedTasks = managerProcessedTasks.filter(t => t.status === 'Approved');
@@ -3913,6 +3873,22 @@ async function previewAndSendManagerReceipt() {
             const approverName = currentApprover ? currentApprover.Name.toUpperCase().split(' ')[0] : 'ADMIN';
             finalESN = `${baseSeriesNo}/${approverName}`;
         }
+
+        // --- THE FIX: SAVE ESN TO FIREBASE ---
+        // This ensures the Sticker Print function can find it later.
+        const updatePromises = approvedTasks.map(task => {
+            if (task.source === 'invoice') {
+                return invoiceDb.ref(`invoice_entries/${task.originalPO}/${task.originalKey}`).update({
+                    esn: finalESN
+                });
+            } else if (task.source === 'job_entry') {
+                return db.ref(`job_entries/${task.key}`).update({
+                    esn: finalESN
+                });
+            }
+        });
+        await Promise.all(updatePromises);
+        // -------------------------------------
 
         const receiptData = {
             title: "Manager Approval",
@@ -3931,12 +3907,11 @@ async function previewAndSendManagerReceipt() {
         if (btn) btn.classList.add('hidden');
 
     } catch (error) {
-        console.error("Error:", error);
+        console.error("Error generating receipt:", error);
         alert("Error generating receipt.");
     } finally {
         if(btn) {
             btn.disabled = false;
-            // --- UPDATED TEXT AND ICON HERE ---
             btn.innerHTML = '<span style="font-size: 1.2rem; margin-right: 5px;">🚨</span> REQUIRED: Click Here to Finalize';
         }
     }
@@ -10574,15 +10549,40 @@ document.addEventListener('DOMContentLoaded', async () => {
         initializeNoteSuggestions();
         alert("Data refreshed.");
     });
-    const refreshReportingBtn = document.getElementById('im-refresh-reporting-button');
+    
+const refreshReportingBtn = document.getElementById('im-refresh-reporting-button');
     if (refreshReportingBtn) {
         refreshReportingBtn.addEventListener('click', async () => {
-            alert("Refreshing all data...");
-            await ensureInvoiceDataFetched(true);
-            alert("Data refreshed. Please run your search again.");
-            const searchTerm = imReportingSearchInput.value.trim();
-            if (searchTerm || document.getElementById('im-reporting-site-filter').value || document.getElementById('im-reporting-date-filter').value) {
-                populateInvoiceReporting(searchTerm);
+            const originalText = refreshReportingBtn.innerHTML;
+            refreshReportingBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Refreshing...';
+            refreshReportingBtn.disabled = true;
+
+            try {
+                // 1. Force Clear Global Data Arrays
+                allSystemEntries = []; 
+                
+                // 2. Reset Timestamp to 0 to force a network fetch
+                cacheTimestamps.systemEntries = 0;
+
+                console.log("Force refreshing all data...");
+
+                // 3. Download EVERYTHING (Invoices + Jobs + Transfers)
+                await Promise.all([
+                    ensureInvoiceDataFetched(true),
+                    ensureAllEntriesFetched(true) // <--- THIS WAS MISSING
+                ]);
+
+                alert("Data refreshed successfully. Reloading tabs...");
+
+                // 4. Rebuild Tabs & Table (This makes the "Transfer" tab appear)
+                await handleReportingSearch();
+                
+            } catch (e) {
+                console.error(e);
+                alert("Error refreshing data.");
+            } finally {
+                refreshReportingBtn.innerHTML = originalText;
+                refreshReportingBtn.disabled = false;
             }
         });
     }

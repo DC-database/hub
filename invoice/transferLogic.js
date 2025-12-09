@@ -424,7 +424,8 @@ window.handleTransferAction = async (status) => {
                     alert("Source Confirmed.");
                     await commitUpdate(database, key, updates, note); return;
                 }
-                if (task.remarks === 'Pending Admin') {
+                // FIX: Accept both 'Pending Admin' AND 'Pending'
+                if (task.remarks === 'Pending Admin' || task.remarks === 'Pending') {
                     updates.approvedQty = qty; updates.status = 'In Transit'; updates.remarks = 'In Transit'; updates.attention = task.receiver; updates.esn = generatedESN;
                     if (pID && sourceSite) await updateStockInventory(pID, qty, 'Deduct', sourceSite);
                     alert("Transfer Authorized. Stock Deducted from Source.");
