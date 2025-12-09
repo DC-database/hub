@@ -708,6 +708,8 @@
 
         <div class="modal-content">
 
+
+
 <form id="im-new-invoice-form" class="hidden">
     <div class="form-grid-compact">
 
@@ -800,9 +802,31 @@
 </form>
         </div>
 
-        <div class="modal-footer">
-            <button type="button" class="modal-close-btn">Close</button>
+        <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 25px;">
+            
+            <div style="display: flex; gap: 20px; align-items: center; font-size: 0.9rem; color: #555;">
+                
+                <div style="white-space: nowrap;">
+                    <strong style="color: #003A5C;">PO:</strong> 
+                    <span class="im-po-no" style="font-weight: 600; color: #000;">---</span>
+                </div>
+
+                <div style="white-space: nowrap;">
+                    <strong style="color: #003A5C;">Site:</strong> 
+                    <span class="im-po-site" style="font-weight: 600; color: #000;">---</span>
+                </div>
+
+                <div style="white-space: nowrap; max-width: 300px; overflow: hidden; text-overflow: ellipsis;">
+                    <strong style="color: #003A5C;">Vendor:</strong> 
+                    <span class="im-po-vendor" style="font-weight: 600; color: #000;">---</span>
+                </div>
+
+            </div>
+
+            <button type="button" class="modal-close-btn" style="margin: 0;">Close</button>
         </div>
+
+
     </div>
 </div>
 

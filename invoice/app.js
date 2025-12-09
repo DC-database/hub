@@ -5,7 +5,7 @@
   - Cleanup note: removed bracket labels like // [1.a], kept logic unchanged.
 */
 
-const APP_VERSION = "4.7.9";
+const APP_VERSION = "4.8.1";
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -3692,7 +3692,6 @@ async function processMobileCEOAction(taskData, status, amount, note, cardElemen
 
     cardElement.style.opacity = '0.5'; cardElement.style.pointerEvents = 'none';
 
-    // 1. Prepare updates (NO ESN YET)
     const updates = {
         status: status,
         remarks: status,
@@ -3702,11 +3701,24 @@ async function processMobileCEOAction(taskData, status, amount, note, cardElemen
         dateResponded: formatDate(new Date())
     };
 
+    // --- FIX: Create History Entry Object ---
+    const historyEntry = {
+        action: status, // "Approved" or "Rejected"
+        by: currentApprover.Name,
+        timestamp: firebase.database.ServerValue.TIMESTAMP,
+        note: note || 'Mobile Action'
+    };
+
     try {
         if (taskData.source === 'job_entry') {
             await db.ref(`job_entries/${taskData.key}`).update(updates);
+            // Save History for Job
+            await db.ref(`job_entries/${taskData.key}/history`).push(historyEntry);
+
         } else if (taskData.source === 'invoice') {
             await invoiceDb.ref(`invoice_entries/${taskData.originalPO}/${taskData.originalKey}`).update(updates);
+            // Save History for Invoice
+            await invoiceDb.ref(`invoice_entries/${taskData.originalPO}/${taskData.originalKey}/history`).push(historyEntry);
 
             const originalInvoice = (allInvoiceData && allInvoiceData[taskData.originalPO]) ? allInvoiceData[taskData.originalPO][taskData.originalKey] : {};
             const updatedInvoiceData = { ...originalInvoice, ...updates };
@@ -3714,10 +3726,8 @@ async function processMobileCEOAction(taskData, status, amount, note, cardElemen
             updateLocalInvoiceCache(taskData.originalPO, taskData.originalKey, updates);
         }
 
-        // 2. Add to "Pocket" List
         taskData.status = status;
         taskData.amountPaid = amount;
-        // Do not assign taskData.esn here yet!
         ceoProcessedTasks.push(taskData);
 
         const taskIndex = userActiveTasks.findIndex(t => t.key === taskData.key);
@@ -3751,11 +3761,24 @@ async function processMobileManagerAction(taskData, status, amount, note, cardEl
 
     if (taskData.attention) updates.note = `${updates.note} [Action by ${currentApprover.Name}]`;
 
+    // --- FIX: Create History Entry Object ---
+    const historyEntry = {
+        action: status, // "Approved" or "Rejected"
+        by: currentApprover.Name,
+        timestamp: firebase.database.ServerValue.TIMESTAMP,
+        note: note || 'Mobile Action'
+    };
+
     try {
         if (taskData.source === 'job_entry') {
             await db.ref(`job_entries/${taskData.key}`).update(updates);
+            // Save History for Job
+            await db.ref(`job_entries/${taskData.key}/history`).push(historyEntry);
+
         } else if (taskData.source === 'invoice') {
             await invoiceDb.ref(`invoice_entries/${taskData.originalPO}/${taskData.originalKey}`).update(updates);
+            // Save History for Invoice
+            await invoiceDb.ref(`invoice_entries/${taskData.originalPO}/${taskData.originalKey}/history`).push(historyEntry);
 
             const originalInvoice = (allInvoiceData && allInvoiceData[taskData.originalPO]) ? allInvoiceData[taskData.originalPO][taskData.originalKey] : {};
             const updatedInvoiceData = { ...originalInvoice, ...updates };
@@ -3765,7 +3788,6 @@ async function processMobileManagerAction(taskData, status, amount, note, cardEl
 
         taskData.status = status;
         taskData.amountPaid = amount;
-        // No ESN yet
         managerProcessedTasks.push(taskData);
 
         const taskIndex = userActiveTasks.findIndex(t => t.key === taskData.key);
@@ -3784,6 +3806,7 @@ async function processMobileManagerAction(taskData, status, amount, note, cardEl
         cardElement.style.opacity = '1'; cardElement.style.pointerEvents = 'auto';
     }
 }
+
 
 window.processMobileTransferAction = async function(task, action, cardElement) {
     if (!task || !action) return;
@@ -4780,6 +4803,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let trfProductChoices, stockProductChoices;
     let currentStockSearchText = "";
 
+
+
     // ==========================================================================
     // 1. PERMISSION & INITIALIZATION (FIXED)
     // ==========================================================================
@@ -4820,6 +4845,8 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
         checkPermissions();
     }
+
+
 
     // ==============================================================
     // 3. JOB ENTRY: TRANSFER & SPECIAL TYPES HANDLER (FINAL)
@@ -6411,8 +6438,8 @@ function buildMobileReportView(reportData) {
                     actionsHTML += `<a href="${SRV_BASE_PATH}${encodeURIComponent(inv.srvName)}.pdf" target="_blank" class="im-tx-action-btn srv-pdf-btn">SRV</a>`;
                 }
 
-                // --- FIX IS HERE: Added '${poNumber}' as 3rd argument ---
-                if (canPrintSticker) {
+               // --- FIX: Only show Sticker if ESN exists (inv.esn) ---
+                if (canPrintSticker && inv.esn) {
                     actionsHTML += `<button class="im-tx-action-btn" onclick="event.stopPropagation(); handlePrintSticker('${inv.key}', 'Invoice', '${poNumber}')" style="background-color: #28a745; border: none; cursor: pointer; color: white; margin-left: 4px; padding: 3px 8px; border-radius: 6px;" title="Print Sticker"><i class="fa-solid fa-qrcode"></i></button>`;
                 }
 
@@ -6493,9 +6520,10 @@ function buildDesktopReportView(reportData) {
                 let historyBtn = (inv.history || inv.createdAt || inv.originTimestamp) ? `<button type="button" class="history-btn action-btn" onclick="event.stopPropagation(); showInvoiceHistory('${poData.poNumber}', '${inv.key}')"><i class="fa-solid fa-clock-rotate-left"></i></button>` : '';
                 let editBtn = `<button type="button" class="edit-inv-no-btn action-btn" data-po="${poData.poNumber}" data-key="${inv.key}" data-current="${inv.invNumber || ''}"><i class="fa-solid fa-pen-to-square"></i></button>`;
                 
-                // --- NEW: ADD STICKER BUTTON HERE ---
+                // --- NEW: ADD STICKER BUTTON HERE (ONLY IF ESN EXISTS) ---
                 let stickerBtn = '';
-                if (canPrintSticker) {
+                // Check 'inv.esn' to ensure it has a valid approval receipt
+                if (canPrintSticker && inv.esn) {
                     stickerBtn = `<button type="button" class="action-btn" style="background-color: #28a745; color: white; padding: 4px 8px; border-radius: 4px;" title="Print Sticker" onclick="event.stopPropagation(); handlePrintSticker('${inv.key}', 'Invoice', '${poData.poNumber}')"><i class="fa-solid fa-qrcode"></i></button>`;
                 }
 
@@ -10434,15 +10462,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
    if (batchTableBody) {
-        // Existing click listener for remove button...
-        batchTableBody.addEventListener('click', (e) => { /* ... existing delete logic ... */ });
+        // 1. DELETE BUTTON LISTENER (Fixed)
+        batchTableBody.addEventListener('click', (e) => {
+            if (e.target.classList.contains('batch-remove-btn')) {
+                const row = e.target.closest('tr');
+                if (row) {
+                    row.remove();
+                    updateBatchCount();
+                }
+            }
+        });
 
-        // --- NEW: Change Listener for Smart Filtering in Batch ---
+        // 2. SMART FILTER LISTENER (Kept)
         batchTableBody.addEventListener('change', async (e) => {
             if (e.target.name === 'status') {
                 const row = e.target.closest('tr');
                 const newStatus = e.target.value;
-                const site = row.dataset.site; // Get Site from Row Data
+                const site = row.dataset.site; 
                 
                 // Find the Choices instance for this row
                 if (row.choicesInstance) {
@@ -11538,20 +11574,17 @@ const refreshReportingBtn = document.getElementById('im-refresh-reporting-button
     };
 
 // =========================================================
-// NEW: STICKER PRINT LOGIC (V7.1 - Forces Fresh Data)
+// NEW: STICKER PRINT LOGIC (V7.7 - Text Note Fallback)
 // =========================================================
 window.handlePrintSticker = async function(key, type, poNumber = null) {
     let entry = null;
     
-    // 1. FORCE FRESH FETCH (THE FIX)
-    // We ignore local cache to ensure we get the ESN that was just generated.
+    // 1. FORCE FRESH FETCH
     try {
         if (type === 'Invoice' && poNumber) {
-            // Fetch directly from Invoice DB
             const snap = await invoiceDb.ref(`invoice_entries/${poNumber}/${key}`).once('value');
             entry = snap.val();
         } else {
-            // Fetch from Transfer or Job DB
             let snap = await db.ref(`transfer_entries/${key}`).once('value');
             if (!snap.exists()) {
                 snap = await db.ref(`job_entries/${key}`).once('value');
@@ -11569,90 +11602,149 @@ window.handlePrintSticker = async function(key, type, poNumber = null) {
     // 2. GET SAVED ESN
     let esnDisplay = entry.esn || entry.receiverEsn || "NO-ESN/RECORD";
 
-    // 3. GENERATE QR LINK (Must match receipt.js exactly)
-    // receipt.js uses: seriesNo.replace(/[^a-zA-Z0-9]/g, '_');
-    const safeFilename = esnDisplay.replace(/[^a-zA-Z0-9]/g, '_'); 
-    
+    // 3. GENERATE QR LINK
+    const safeFilename = esnDisplay.replace(/[^a-zA-Z0-9]/g, '_');
     const bucket = "invoiceentry-b15a8.firebasestorage.app";
     const pdfLink = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/receipts%2F${safeFilename}.pdf?alt=media`;
 
-    // 4. VISUALS
+    // 4. DETERMINE POSITION (NOTE PARSING LOGIC)
+    let positionClass = "pos-bottom-right"; // Default Fallback
+    let roleLabel = "APPROVED";
+    
+    // Check Current User Role
+    let isCurrentCEO = false;
+    let currentUserName = '';
+    if (currentApprover) {
+        currentUserName = currentApprover.Name;
+        const pos = (currentApprover.Position || '').toLowerCase();
+        if (pos === 'ceo') isCurrentCEO = true;
+    }
+
+    if (isCurrentCEO) {
+        positionClass = "pos-ceo-stack"; 
+        roleLabel = "CEO APPROVED";
+    } else {
+        // MANAGER LOGIC: Scan the text note for "[Action by Name]"
+        const noteStr = entry.note || "";
+        const regex = /\[Action by (.*?)\]/g;
+        let match;
+        let approversList = [];
+        
+        // 1. Build list from text notes
+        while ((match = regex.exec(noteStr)) !== null) {
+            approversList.push(match[1].trim());
+        }
+
+        // 2. Fallback: If text notes empty, try DB History
+        if (approversList.length === 0 && entry.history) {
+             let hArr = Array.isArray(entry.history) ? entry.history : Object.values(entry.history);
+             hArr.sort((a,b) => a.timestamp - b.timestamp);
+             hArr.forEach(h => {
+                 if ((h.action||'').toLowerCase() === 'approved') approversList.push(h.by);
+             });
+        }
+
+        // 3. Add Current User if not in list yet (Simulate current approval)
+        // We use loose matching
+        const alreadyInList = approversList.some(name => 
+            currentUserName.toLowerCase().includes(name.toLowerCase()) || 
+            name.toLowerCase().includes(currentUserName.toLowerCase())
+        );
+        
+        if (!alreadyInList) {
+            approversList.push(currentUserName);
+        }
+
+        // 4. Determine My Sequence
+        const totalManagers = approversList.length;
+        const myIndex = approversList.findIndex(name => 
+            currentUserName.toLowerCase().includes(name.toLowerCase()) || 
+            name.toLowerCase().includes(currentUserName.toLowerCase())
+        );
+        
+        // 5. Apply Position Rules
+        if (totalManagers <= 1) {
+            // Only 1 Manager -> Right
+            positionClass = "pos-bottom-right";
+        } 
+        else if (totalManagers === 2) {
+            // 2 Managers -> 1st Left, 2nd Right
+            if (myIndex === 0) positionClass = "pos-bottom-left";
+            else positionClass = "pos-bottom-right";
+        } 
+        else {
+            // 3 Managers -> Left, Center, Right
+            if (myIndex === 0) positionClass = "pos-bottom-left";
+            else if (myIndex === 1) positionClass = "pos-bottom-center";
+            else positionClass = "pos-bottom-right";
+        }
+    }
+
     const isRejected = (entry.remarks === 'Rejected' || entry.status === 'Rejected');
-    const statusText = isRejected ? "REJECT" : "APPROVED";
+    const statusText = isRejected ? "REJECTED" : roleLabel;
     const statusColor = isRejected ? "#D32F2F" : "#28a745";
     const dateStr = new Date().toLocaleDateString('en-GB');
 
-    // 5. PRINT WINDOW
-    const printWindow = window.open('', '', 'height=500,width=500');
+    // 5. OPEN PRINT WINDOW
+    const printWindow = window.open('', '', 'width=1000,height=1200');
     printWindow.document.write(`
         <html>
         <head>
-            <title>Sticker Print</title>
+            <title>Sticker Print - ${esnDisplay}</title>
             <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
             <style>
-                body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Arial', sans-serif; }
+                @page { size: A4; margin: 0; }
+                body { 
+                    margin: 0; padding: 0; 
+                    width: 210mm; height: 297mm; 
+                    position: relative; 
+                    font-family: 'Arial', sans-serif;
+                }
+                
                 #sticker {
-                    width: 250px;
-                    border: 3px solid #000;
-                    padding: 10px;
+                    position: absolute;
+                    width: auto;
+                    padding: 5px;
                     display: flex;
                     flex-direction: row;
                     box-sizing: border-box;
                     align-items: center;
-                }
-                .main { flex-grow: 1; text-align: center; }
-
-                .status {
-                    font-weight: 900;
-                    font-size: 20px;
-                    text-transform: uppercase;
-                    margin-bottom: 5px;
-                    color: ${statusColor};
+                    background: white; 
+                    z-index: 100;
                 }
 
-                .esn {
-                    font-weight: bold;
-                    font-size: 9px;
-                    margin-top: 8px;
-                    font-family: monospace;
-                    white-space: nowrap;
-                    color: #000;
-                }
+                .pos-bottom-left { bottom: 20mm; left: 20mm; }
+                .pos-bottom-right { bottom: 20mm; right: 20mm; }
+                .pos-bottom-center { bottom: 20mm; left: 50%; transform: translateX(-50%); }
+                .pos-ceo-stack { bottom: 55mm; right: 20mm; }
 
+                .main { text-align: center; padding-right: 2px; }
+                .status { font-weight: 900; font-size: 16px; text-transform: uppercase; margin-bottom: 2px; color: ${statusColor}; }
+                .esn { font-weight: bold; font-size: 9px; margin-top: 5px; font-family: monospace; white-space: nowrap; color: #000; }
                 .side {
-                    width: 25px;
-                    border-left: 2px solid #000;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    writing-mode: vertical-rl;
-                    text-orientation: mixed;
-                    font-weight: bold;
-                    font-size: 10px;
-                    margin-left: 10px;
-                    height: 120px;
+                    width: 15px; display: flex; align-items: center; justify-content: center;
+                    writing-mode: vertical-rl; text-orientation: mixed; font-weight: bold;
+                    font-size: 9px; margin: 0; height: 90px;
                 }
-                #qrcode { margin: 5px auto; }
+                #qrcode { margin: 2px auto; }
                 #qrcode img { display: block; margin: 0 auto; }
             </style>
         </head>
         <body>
-            <div id="sticker">
+            <div id="sticker" class="${positionClass}">
                 <div class="main">
                     <div class="status">${statusText}</div>
                     <div id="qrcode"></div>
-                    <div class="esn">ESN: ${esnDisplay}</div>
+                    <div class="esn">${esnDisplay}</div>
                 </div>
                 <div class="side">${dateStr}</div>
             </div>
             <script>
                 new QRCode(document.getElementById("qrcode"), {
                     text: "${pdfLink}",
-                    width: 110,
-                    height: 110,
-                    correctLevel: QRCode.CorrectLevel.M
+                    width: 90, height: 90, correctLevel: QRCode.CorrectLevel.M
                 });
-                setTimeout(() => { window.print(); window.close(); }, 700);
+                setTimeout(() => { window.print(); }, 700);
             <\/script>
         </body>
         </html>
@@ -11810,5 +11902,17 @@ if (imNavNext) {
         }
     });
 }
+
+// --- NEW: AUTO-COPY INVOICE VALUE TO AMOUNT PAID ---
+    if (imInvValueInput && imAmountPaidInput) {
+        imInvValueInput.addEventListener('input', () => {
+            const val = imInvValueInput.value;
+            // Only copy if the value is NOT empty (as requested)
+            if (val.trim() !== "") {
+                imAmountPaidInput.value = val;
+            }
+        });
+    }
+
 
 }); // END OF DOMCONTENTLOADED

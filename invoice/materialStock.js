@@ -561,18 +561,22 @@ async function handleSaveNewMaterial() {
 }
 
 // ==========================================================================
-// 5. CSV & TEMPLATE (UPDATED)
+// 5. CSV & TEMPLATE (UPDATED V8.9 - Show "Series" in Example)
 // ==========================================================================
 function handleGetTemplate() {
     const headers = ["Product ID", "Product Name", "Category", "Details", "Stock QTY", "Site", "Status", "Item Type"];
+    
+    // Example 1: Standard Bulk Item
     const row1 = "BULK-001,Cement 50kg,Materials,Grey OPC,100,Main Store,Active,Bulk";
-    const row2 = "TOOL-101,Hilti Drill,Tools,Cordless,1,Main Store,Broken,Serialized";
+    
+    // Example 2: Serialized Item (Showcasing "Series" as the type)
+    const row2 = "TOOL-101,Hilti Drill,Tools,Cordless,1,Main Store,Active,Series";
 
     const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + row1 + "\n" + row2;
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "material_stock_template_v2.csv");
+    link.setAttribute("download", "material_stock_template_v3.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
