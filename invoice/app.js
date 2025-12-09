@@ -5,7 +5,7 @@
   - Cleanup note: removed bracket labels like // [1.a], kept logic unchanged.
 */
 
-const APP_VERSION = "4.8.1";
+const APP_VERSION = "4.8.2";
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -6603,6 +6603,13 @@ function handleGeneratePrintReport() {
     if (statusFilter && !siteFilter) title = `Invoice Report - Status: ${statusFilter}`;
     if (siteFilter && statusFilter) title = `Invoice Report for Site: ${siteFilter} (Status: ${statusFilter})`;
 
+    // --- NEW: INJECT LOGO ---
+    const logoContainer = document.querySelector('.print-logo');
+    if (logoContainer) {
+        logoContainer.innerHTML = '<img src="https://firebasestorage.googleapis.com/v0/b/ibainvoice-3ea51.firebasestorage.app/o/iba_logo.png?alt=media&token=ccc85b7b-d41e-4242-9e27-08942efb3012" style="height: 80px; width: auto;">';
+    }
+    // ------------------------
+   
     imPrintReportTitle.textContent = title;
     imPrintReportDate.textContent = `Generated on: ${new Date().toLocaleString('en-GB')}`;
 
