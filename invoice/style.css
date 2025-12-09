@@ -5355,3 +5355,7 @@ body.inventory-mode .wd-nav-material {
         word-break: break-word !important; 
     }
 }
+/* Indicate that the header can be dragged */
+.modal-header {
+    cursor: move;
+}
