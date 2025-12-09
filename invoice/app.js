@@ -9865,27 +9865,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    printReportButton.addEventListener('click', () => {
-        if (summaryNotePrintArea) summaryNotePrintArea.classList.add('hidden');
-        if (imReportingPrintableArea) imReportingPrintableArea.classList.add('hidden');
-        if (imFinanceReportModal) imFinanceReportModal.classList.add('hidden');
+// Safeguard: Only add listener if button exists
+    if (printReportButton) {
+        printReportButton.addEventListener('click', () => {
+            if (summaryNotePrintArea) summaryNotePrintArea.classList.add('hidden');
+            if (imReportingPrintableArea) imReportingPrintableArea.classList.add('hidden');
+            if (imFinanceReportModal) imFinanceReportModal.classList.add('hidden');
 
-        const wdPrintArea = document.getElementById('reporting-printable-area');
-        if (wdPrintArea) {
-            wdPrintArea.classList.add('printing');
-            document.body.classList.add('workdesk-print-active');
-        }
-        window.print();
-        setTimeout(() => {
+            const wdPrintArea = document.getElementById('reporting-printable-area');
             if (wdPrintArea) {
-                wdPrintArea.classList.remove('printing');
-                document.body.classList.remove('workdesk-print-active');
+                wdPrintArea.classList.add('printing');
+                document.body.classList.add('workdesk-print-active');
             }
-        }, 1000);
-    });
+            window.print();
+            setTimeout(() => {
+                if (wdPrintArea) {
+                    wdPrintArea.classList.remove('printing');
+                    document.body.classList.remove('workdesk-print-active');
+                }
+            }, 1000);
+        });
+    }
 
- // 1. Keep the Download Button Listener
-    downloadWdReportButton.addEventListener('click', handleDownloadWorkdeskCSV);
+    // Safeguard: Only add listener if button exists
+    if (downloadWdReportButton) {
+        downloadWdReportButton.addEventListener('click', handleDownloadWorkdeskCSV);
+    }
 
     // FIX: Tab Listener (Safe for Clean Start)
     reportTabsContainer.addEventListener('click', (e) => {
