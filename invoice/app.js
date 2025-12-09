@@ -8914,45 +8914,50 @@ async function previewAndSendReceipt() {
 
 document.addEventListener('DOMContentLoaded', async () => {
 
-    // --- NEW: DRAGGABLE MODALS LOGIC ---
+    // --- NEW: DRAGGABLE MODALS LOGIC (FIXED V2 - TRANSFORM) ---
     const makeDraggable = (modal) => {
         const header = modal.querySelector('.modal-header');
         const container = modal.querySelector('.modal-container');
         if (!header || !container) return;
 
-        let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+        let currentX = 0;
+        let currentY = 0;
+        let initialX;
+        let initialY;
+        let isDragging = false;
 
-        header.onmousedown = dragMouseDown;
+        header.style.cursor = 'move'; // Show move cursor
 
-        function dragMouseDown(e) {
-            e = e || window.event;
-            e.preventDefault();
-            // Get the mouse cursor position at startup:
-            pos3 = e.clientX;
-            pos4 = e.clientY;
-            document.onmouseup = closeDragElement;
-            // Call a function whenever the cursor moves:
-            document.onmousemove = elementDrag;
+        header.onmousedown = dragStart;
+
+        function dragStart(e) {
+            // Calculate starting point based on previous movements
+            initialX = e.clientX - currentX;
+            initialY = e.clientY - currentY;
+
+            // Only drag if clicking the header
+            if (e.target === header || header.contains(e.target)) {
+                isDragging = true;
+                document.onmouseup = dragEnd;
+                document.onmousemove = drag;
+            }
         }
 
-        function elementDrag(e) {
-            e = e || window.event;
-            e.preventDefault();
-            // Calculate the new cursor position:
-            pos1 = pos3 - e.clientX;
-            pos2 = pos4 - e.clientY;
-            pos3 = e.clientX;
-            pos4 = e.clientY;
-            // Set the element's new position:
-            // We use transform: translate instead of top/left to keep it centered initially
-            // But for simple relative movement on a fixed overlay, simple offsets work best if we set position relative
-            container.style.position = 'relative'; 
-            container.style.top = (container.offsetTop - pos2) + "px";
-            container.style.left = (container.offsetLeft - pos1) + "px";
+        function drag(e) {
+            if (isDragging) {
+                e.preventDefault();
+                
+                // Calculate new position
+                currentX = e.clientX - initialX;
+                currentY = e.clientY - initialY;
+
+                // Use transform to move smoothly without fighting Flexbox
+                container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
+            }
         }
 
-        function closeDragElement() {
-            // Stop moving when mouse button is released:
+        function dragEnd() {
+            isDragging = false;
             document.onmouseup = null;
             document.onmousemove = null;
         }
