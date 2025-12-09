@@ -5,7 +5,7 @@
   - Cleanup note: removed bracket labels like // [1.a], kept logic unchanged.
 */
 
-const APP_VERSION = "4.7.8";
+const APP_VERSION = "4.7.9";
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -3692,6 +3692,7 @@ async function processMobileCEOAction(taskData, status, amount, note, cardElemen
 
     cardElement.style.opacity = '0.5'; cardElement.style.pointerEvents = 'none';
 
+    // 1. Prepare updates (NO ESN YET)
     const updates = {
         status: status,
         remarks: status,
@@ -3700,14 +3701,6 @@ async function processMobileCEOAction(taskData, status, amount, note, cardElemen
         note: note ? note.trim() : '',
         dateResponded: formatDate(new Date())
     };
-
-    // --- NEW: SAVE ESN ---
-    if (status === 'Approved') {
-        const baseESN = await getNextSeriesNumber();
-        const name = currentApprover.Name.split(' ')[0].toUpperCase();
-        updates.esn = `${baseESN}/${name}`;
-    }
-    // ---------------------
 
     try {
         if (taskData.source === 'job_entry') {
@@ -3721,9 +3714,10 @@ async function processMobileCEOAction(taskData, status, amount, note, cardElemen
             updateLocalInvoiceCache(taskData.originalPO, taskData.originalKey, updates);
         }
 
+        // 2. Add to "Pocket" List
         taskData.status = status;
         taskData.amountPaid = amount;
-        if(updates.esn) taskData.esn = updates.esn;
+        // Do not assign taskData.esn here yet!
         ceoProcessedTasks.push(taskData);
 
         const taskIndex = userActiveTasks.findIndex(t => t.key === taskData.key);
@@ -3757,14 +3751,6 @@ async function processMobileManagerAction(taskData, status, amount, note, cardEl
 
     if (taskData.attention) updates.note = `${updates.note} [Action by ${currentApprover.Name}]`;
 
-    // --- NEW: SAVE ESN ---
-    if (status === 'Approved') {
-        const baseESN = await getManagerSeriesNumber();
-        const name = currentApprover.Name.split(' ')[0].toUpperCase();
-        updates.esn = `${baseESN}/${name}`;
-    }
-    // ---------------------
-
     try {
         if (taskData.source === 'job_entry') {
             await db.ref(`job_entries/${taskData.key}`).update(updates);
@@ -3779,7 +3765,7 @@ async function processMobileManagerAction(taskData, status, amount, note, cardEl
 
         taskData.status = status;
         taskData.amountPaid = amount;
-        if(updates.esn) taskData.esn = updates.esn;
+        // No ESN yet
         managerProcessedTasks.push(taskData);
 
         const taskIndex = userActiveTasks.findIndex(t => t.key === taskData.key);
@@ -3859,23 +3845,20 @@ window.processMobileTransferAction = async function(task, action, cardElement) {
 // REPLACE THE EXISTING previewAndSendManagerReceipt FUNCTION IN app.js
 async function previewAndSendManagerReceipt() {
     const btn = document.getElementById('mobile-send-manager-receipt-btn');
-    if(btn) { btn.disabled = true; btn.textContent = 'Preparing...'; }
+    if(btn) { btn.disabled = true; btn.textContent = 'Syncing & Generating...'; }
 
     try {
         const approvedTasks = managerProcessedTasks.filter(t => t.status === 'Approved');
         const rejectedTasks = managerProcessedTasks.filter(t => t.status === 'Rejected');
 
-        let finalESN = "";
-        if (approvedTasks.length > 0 && approvedTasks[0].esn) {
-            finalESN = approvedTasks[0].esn;
-        } else {
-            const baseSeriesNo = await getManagerSeriesNumber();
-            const approverName = currentApprover ? currentApprover.Name.toUpperCase().split(' ')[0] : 'ADMIN';
-            finalESN = `${baseSeriesNo}/${approverName}`;
-        }
+        // 1. Generate ONE Single ESN for the entire batch
+        const baseSeriesNo = await getManagerSeriesNumber();
+        const approverName = currentApprover ? currentApprover.Name.toUpperCase().split(' ')[0] : 'ADMIN';
+        const finalESN = `${baseSeriesNo}/${approverName}`;
 
-        // --- THE FIX: SAVE ESN TO FIREBASE ---
-        // This ensures the Sticker Print function can find it later.
+        console.log(`Syncing Manager Batch with ESN: ${finalESN}`);
+
+        // 2. Update EVERY approved task in Firebase with this ESN
         const updatePromises = approvedTasks.map(task => {
             if (task.source === 'invoice') {
                 return invoiceDb.ref(`invoice_entries/${task.originalPO}/${task.originalKey}`).update({
@@ -3887,8 +3870,11 @@ async function previewAndSendManagerReceipt() {
                 });
             }
         });
+
         await Promise.all(updatePromises);
-        // -------------------------------------
+
+        // 3. Update local list
+        approvedTasks.forEach(t => t.esn = finalESN);
 
         const receiptData = {
             title: "Manager Approval",
@@ -3908,7 +3894,7 @@ async function previewAndSendManagerReceipt() {
 
     } catch (error) {
         console.error("Error generating receipt:", error);
-        alert("Error generating receipt.");
+        alert("Error syncing ESN to database.");
     } finally {
         if(btn) {
             btn.disabled = false;
@@ -8829,30 +8815,42 @@ async function previewAndSendReceipt() {
         return;
     }
 
-    sendCeoApprovalReceiptBtn.disabled = true;
-    sendCeoApprovalReceiptBtn.textContent = 'Preparing...';
+    const btn = document.getElementById('send-ceo-approval-receipt-btn') || document.getElementById('mobile-send-receipt-btn');
+    if(btn) { btn.disabled = true; btn.textContent = 'Syncing & Generating...'; }
 
     try {
         const approvedTasks = ceoProcessedTasks.filter(t => t.status === 'Approved');
         const rejectedTasks = ceoProcessedTasks.filter(t => t.status === 'Rejected');
 
-        // --- CRITICAL FIX: USE SAVED ESN ---
-        // 1. Try to find the ESN we just saved to the database in handleCEOAction
-        let finalESN = "";
-        if (approvedTasks.length > 0 && approvedTasks[0].esn) {
-            finalESN = approvedTasks[0].esn;
-        } else {
-            // 2. Fallback (Only generates new if one wasn't found)
-            const baseSeriesNo = await getNextSeriesNumber();
-            const approverName = currentApprover.Name.split(' ')[0].toUpperCase();
-            finalESN = `${baseSeriesNo}/${approverName}`;
-        }
-        // -----------------------------------
+        // 1. Generate ONE Single ESN for the entire batch
+        const baseSeriesNo = await getNextSeriesNumber();
+        const approverName = currentApprover.Name.split(' ')[0].toUpperCase();
+        const finalESN = `${baseSeriesNo}/${approverName}`;
+
+        console.log(`Syncing Batch with ESN: ${finalESN}`);
+
+        // 2. Update EVERY approved task in Firebase with this ESN
+        const updatePromises = approvedTasks.map(task => {
+            if (task.source === 'invoice') {
+                return invoiceDb.ref(`invoice_entries/${task.originalPO}/${task.originalKey}`).update({
+                    esn: finalESN
+                });
+            } else if (task.source === 'job_entry') {
+                return db.ref(`job_entries/${task.key}`).update({
+                    esn: finalESN
+                });
+            }
+        });
+
+        await Promise.all(updatePromises);
+
+        // 3. Update local list so the Receipt shows the ESN
+        approvedTasks.forEach(t => t.esn = finalESN);
 
         const receiptData = {
             approvedTasks: approvedTasks,
             rejectedTasks: rejectedTasks,
-            seriesNo: finalESN, // Send the MATCHING ESN
+            seriesNo: finalESN, 
             title: "Authorize Approval"
         };
 
@@ -8860,14 +8858,18 @@ async function previewAndSendReceipt() {
         window.open('receipt.html', '_blank');
 
         ceoProcessedTasks = [];
-        sendCeoApprovalReceiptBtn.classList.add('hidden');
+        const mCont = document.getElementById('mobile-receipt-action-container');
+        if (mCont) mCont.classList.add('hidden');
+        if (btn) btn.classList.add('hidden');
 
     } catch (error) {
-        console.error("Error preparing receipt preview:", error);
-        alert("Error preparing receipt.");
+        console.error("Error preparing receipt:", error);
+        alert("Error syncing ESN to database.");
     } finally {
-        sendCeoApprovalReceiptBtn.disabled = false;
-        sendCeoApprovalReceiptBtn.textContent = 'Send Approval Receipt';
+        if(btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<span style="font-size: 1.2rem; margin-right: 5px;">🚨</span> REQUIRED: Click Here to Finalize';
+        }
     }
 }
 
@@ -11565,11 +11567,12 @@ window.handlePrintSticker = async function(key, type, poNumber = null) {
     if (!entry) { alert("Data record not found. Please refresh."); return; }
 
     // 2. GET SAVED ESN
-    // Now that we have fresh data, this will match the receipt exactly.
     let esnDisplay = entry.esn || entry.receiverEsn || "NO-ESN/RECORD";
 
-    // 3. GENERATE QR LINK
-    const safeFilename = esnDisplay.replace(/\//g, '_');
+    // 3. GENERATE QR LINK (Must match receipt.js exactly)
+    // receipt.js uses: seriesNo.replace(/[^a-zA-Z0-9]/g, '_');
+    const safeFilename = esnDisplay.replace(/[^a-zA-Z0-9]/g, '_'); 
+    
     const bucket = "invoiceentry-b15a8.firebasestorage.app";
     const pdfLink = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/receipts%2F${safeFilename}.pdf?alt=media`;
 

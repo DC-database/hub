@@ -5216,34 +5216,35 @@ body.inventory-mode .wd-nav-material {
 }
 
 /* ============================================================= */
-/* MATERIAL STOCK REPORT PRINT STYLES (Auto-Fit Columns)         */
+/* MATERIAL STOCK REPORT PRINT STYLES (FIXED V8.8)               */
 /* ============================================================= */
 @media print {
     /* 1. Page Setup */
     @page {
         size: auto;
-        margin: 5mm; /* Safe margin to prevent printer clipping */
+        margin: 5mm; 
     }
 
-    /* 2. Hide Screen Elements */
-    body * {
+    /* 2. THE SAFETY SWITCH: Only hide everything IF the Stock Report is OPEN */
+    /* This fixes the "Blank Page" issue on Invoice Management */
+    body:has(#ms-report-modal:not(.hidden)) * {
         visibility: hidden;
         height: 0;
         overflow: hidden;
     }
 
-    /* 3. Show Report Modal Only */
-    #ms-report-modal,
-    #ms-report-modal .modal-container,
-    #ms-report-modal .modal-content,
-    #ms-report-modal .modal-content * {
+    /* 3. Make the Stock Report Visible (Only if it's open) */
+    #ms-report-modal:not(.hidden),
+    #ms-report-modal:not(.hidden) .modal-container,
+    #ms-report-modal:not(.hidden) .modal-content,
+    #ms-report-modal:not(.hidden) .modal-content * {
         visibility: visible !important;
         height: auto !important;
         overflow: visible !important;
     }
 
-    /* 4. Position Report */
-    #ms-report-modal {
+    /* 4. Position the Report */
+    #ms-report-modal:not(.hidden) {
         position: absolute !important;
         left: 0 !important;
         top: 0 !important;
@@ -5255,9 +5256,9 @@ body.inventory-mode .wd-nav-material {
         display: block !important;
     }
 
-    #ms-report-modal .modal-container {
+    #ms-report-modal:not(.hidden) .modal-container {
         box-sizing: border-box !important;
-        width: 100% !important; /* Full width */
+        width: 100% !important; 
         max-width: 100% !important;
         margin: 0 !important;
         padding: 0 !important;
@@ -5265,22 +5266,22 @@ body.inventory-mode .wd-nav-material {
         box-shadow: none !important;
     }
 
-    #ms-report-modal .modal-content {
+    #ms-report-modal:not(.hidden) .modal-content {
         padding: 0 !important;
         margin: 0 !important;
     }
 
-    /* 5. Hide Interface Buttons */
+    /* 5. Hide Interface Buttons (Close, Print, Excel) */
     #ms-report-modal .modal-header button,
     #ms-report-modal .modal-footer,
     #ms-report-modal .modal-close-btn {
         display: none !important;
     }
     
-    .print-only-header { display: block !important; }
+    #ms-report-modal:not(.hidden) .print-only-header { display: block !important; }
 
     /* 6. Header Styling */
-    #ms-report-modal .modal-header h2 {
+    #ms-report-modal:not(.hidden) .modal-header h2 {
         color: #003A5C !important;
         font-size: 18pt !important;
         border-bottom: 2px solid #003A5C !important;
@@ -5289,25 +5290,24 @@ body.inventory-mode .wd-nav-material {
         text-align: center !important;
     }
 
-    /* 7. SMART TABLE LAYOUT */
-    #ms-report-modal table {
+    /* 7. Table Layout */
+    #ms-report-modal:not(.hidden) table {
         width: 100% !important;
         border-collapse: collapse !important;
-        /* CHANGE: Auto layout allows columns to adjust based on text length */
         table-layout: auto !important; 
         page-break-inside: auto !important;
     }
 
-    #ms-report-modal thead {
-        display: table-header-group !important; /* Repeats header on new pages */
+    #ms-report-modal:not(.hidden) thead {
+        display: table-header-group !important;
     }
 
-    #ms-report-modal tr {
+    #ms-report-modal:not(.hidden) tr {
         page-break-inside: avoid !important;
         page-break-after: auto !important;
     }
 
-    #ms-report-modal th {
+    #ms-report-modal:not(.hidden) th {
         background-color: #003A5C !important;
         color: white !important;
         -webkit-print-color-adjust: exact !important;
@@ -5318,48 +5318,40 @@ body.inventory-mode .wd-nav-material {
         white-space: nowrap !important;
     }
 
-    #ms-report-modal td {
+    #ms-report-modal:not(.hidden) td {
         border: 1px solid #eee !important;
         border-bottom: 1px solid #ccc !important;
         padding: 6px 4px !important;
         font-size: 9pt !important;
         color: #000 !important;
         vertical-align: top !important;
-        
-        /* PREVENT BLEEDING: Force wrap if text is too long */
         word-wrap: break-word !important;
         overflow-wrap: break-word !important; 
     }
 
-    /* 8. COLUMN SIZING LOGIC */
-
-    /* ID Column: Shrink to fit text exactly (smallest width possible) */
-    #ms-report-modal th:nth-child(1),
-    #ms-report-modal td:nth-child(1) {
+    /* 8. Column Widths */
+    #ms-report-modal:not(.hidden) th:nth-child(1),
+    #ms-report-modal:not(.hidden) td:nth-child(1) {
         width: 1% !important;
         white-space: nowrap !important;
     }
 
-    /* Name Column: Adjust based on length, but wrap if needed */
-    #ms-report-modal th:nth-child(2),
-    #ms-report-modal td:nth-child(2) {
+    #ms-report-modal:not(.hidden) th:nth-child(2),
+    #ms-report-modal:not(.hidden) td:nth-child(2) {
         width: auto !important; 
-        max-width: 200px; /* Optional cap to prevent it eating all space */
+        max-width: 200px; 
     }
 
-    /* Total Qty: Shrink to fit number exactly */
-    #ms-report-modal th:nth-child(3),
-    #ms-report-modal td:nth-child(3) {
+    #ms-report-modal:not(.hidden) th:nth-child(3),
+    #ms-report-modal:not(.hidden) td:nth-child(3) {
         width: 1% !important;
         white-space: nowrap !important;
         text-align: center !important;
     }
 
-    /* Location Breakdown: Takes all remaining space */
-    #ms-report-modal th:nth-child(4),
-    #ms-report-modal td:nth-child(4) {
+    #ms-report-modal:not(.hidden) th:nth-child(4),
+    #ms-report-modal:not(.hidden) td:nth-child(4) {
         width: auto !important;
-        /* Ensure it doesn't bleed */
         word-break: break-word !important; 
     }
 }
