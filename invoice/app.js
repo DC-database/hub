@@ -8907,6 +8907,55 @@ async function previewAndSendReceipt() {
 
 document.addEventListener('DOMContentLoaded', async () => {
 
+    // --- NEW: DRAGGABLE MODALS LOGIC ---
+    const makeDraggable = (modal) => {
+        const header = modal.querySelector('.modal-header');
+        const container = modal.querySelector('.modal-container');
+        if (!header || !container) return;
+
+        let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+
+        header.onmousedown = dragMouseDown;
+
+        function dragMouseDown(e) {
+            e = e || window.event;
+            e.preventDefault();
+            // Get the mouse cursor position at startup:
+            pos3 = e.clientX;
+            pos4 = e.clientY;
+            document.onmouseup = closeDragElement;
+            // Call a function whenever the cursor moves:
+            document.onmousemove = elementDrag;
+        }
+
+        function elementDrag(e) {
+            e = e || window.event;
+            e.preventDefault();
+            // Calculate the new cursor position:
+            pos1 = pos3 - e.clientX;
+            pos2 = pos4 - e.clientY;
+            pos3 = e.clientX;
+            pos4 = e.clientY;
+            // Set the element's new position:
+            // We use transform: translate instead of top/left to keep it centered initially
+            // But for simple relative movement on a fixed overlay, simple offsets work best if we set position relative
+            container.style.position = 'relative'; 
+            container.style.top = (container.offsetTop - pos2) + "px";
+            container.style.left = (container.offsetLeft - pos1) + "px";
+        }
+
+        function closeDragElement() {
+            // Stop moving when mouse button is released:
+            document.onmouseup = null;
+            document.onmousemove = null;
+        }
+    };
+
+    // Apply to all existing modals
+    document.querySelectorAll('.modal-overlay').forEach(modal => {
+        makeDraggable(modal);
+    });
+  
     // --- 1. Version Display ---
     if (document.getElementById('app-version-display')) {
         document.getElementById('app-version-display').textContent = `Version ${APP_VERSION}`;
