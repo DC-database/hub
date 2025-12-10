@@ -5,7 +5,7 @@
   - Cleanup note: removed bracket labels like // [1.a], kept logic unchanged.
 */
 
-const APP_VERSION = "4.8.2";
+const APP_VERSION = "4.8.3";
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -3118,11 +3118,33 @@ async function populateActiveTasks() {
         userActiveTasks = userTasks.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
         const taskCount = userActiveTasks.length;
+        
+        // 1. Update Text Counts
         if (activeTaskCountDisplay) activeTaskCountDisplay.textContent = `(Total Tasks: ${taskCount})`;
+        
+        // 2. Update Badges
         [wdActiveTaskBadge, imActiveTaskBadge, wdMobileNotifyBadge].forEach(badge => {
             if (badge) {
                 badge.textContent = taskCount;
                 badge.style.display = taskCount > 0 ? 'inline-block' : 'none';
+            }
+        });
+
+        // --- NEW: HEARTBEAT ANIMATION LOGIC ---
+        // Targets: WorkDesk Sidebar Link AND Invoice Mgmt Sidebar Link
+        const wdActiveLink = document.querySelector('.wd-nav-activetask a');
+        const imActiveLink = document.getElementById('im-activetask-button');
+        const mobileActiveLink = document.getElementById('im-mobile-activetask-link');
+
+        const targets = [wdActiveLink, imActiveLink, mobileActiveLink];
+
+        targets.forEach(el => {
+            if (el) {
+                if (taskCount > 0) {
+                    el.classList.add('nav-pulse-active'); // Turn ON Heartbeat
+                } else {
+                    el.classList.remove('nav-pulse-active'); // Turn OFF
+                }
             }
         });
 

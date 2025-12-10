@@ -5359,3 +5359,26 @@ body.inventory-mode .wd-nav-material {
 .modal-header {
     cursor: move;
 }
+/* ========================================= */
+/* ACTIVE TASK HEARTBEAT ANIMATION           */
+/* ========================================= */
+
+@keyframes heartbeat-nav {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(195, 80, 47, 0.7); } /* Terracotta Color */
+    50% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(195, 80, 47, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(195, 80, 47, 0); }
+}
+
+/* The class we will toggle with JavaScript */
+.nav-pulse-active {
+    animation: heartbeat-nav 2s infinite !important;
+    background-color: #fff0ed !important; /* Light Red Tint Background */
+    color: #C3502F !important; /* Terracotta Text */
+    font-weight: 800 !important;
+    border-left: 4px solid #C3502F !important;
+}
+
+/* Ensure the icon animates too */
+.nav-pulse-active i {
+    color: #C3502F !important;
+}
