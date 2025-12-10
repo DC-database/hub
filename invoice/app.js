@@ -5,7 +5,7 @@
   - Cleanup note: removed bracket labels like // [1.a], kept logic unchanged.
 */
 
-const APP_VERSION = "4.8.6";
+const APP_VERSION = "4.8.9";
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -745,10 +745,12 @@ async function ensureEcostDataFetched(forceRefresh = false) {
     return allEcostData;
 }
 
+// =========================================================
+// DATA FETCHER (CORRECTED: Reads from 'purchase_orders' in Invoice DB)
+// =========================================================
 async function ensureInvoiceDataFetched(forceRefresh = false) {
     const now = Date.now();
 
-    // Check if everything is already loaded (including new vendors data)
     if (!forceRefresh && allPOData && allInvoiceData && allEpicoreData && allSitesCSVData && allEcommitDataProcessed && allVendorsData) {
         return;
     }
@@ -760,40 +762,28 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
     try {
         const promisesToRun = [];
 
-        // Get URLs from Firebase Storage
+        // URLs
         const poUrl = (!allPOData || forceRefresh) ? await getFirebaseCSVUrl('POVALUE2.csv') : null;
         const ecostUrl = (!allEpicoreData || forceRefresh) ? await getFirebaseCSVUrl('Ecost.csv') : null;
         const siteUrl = (!allSitesCSVData || forceRefresh) ? await getFirebaseCSVUrl('Site.csv') : null;
         const ecommitUrl = (!allEcommitDataProcessed || forceRefresh) ? await getFirebaseCSVUrl('ECommit.csv') : null;
-
-        // --- NEW: Get Vendors URL ---
         const vendorUrl = (!allVendorsData || forceRefresh) ? await getFirebaseCSVUrl('Vendors.csv') : null;
 
         if (poUrl) {
             console.log("Fetching POVALUE2.csv...");
             promisesToRun.push(fetchAndParseCSV(poUrl));
-        }
-        if (ecostUrl) {
-            console.log("Fetching Ecost.csv...");
-            promisesToRun.push(fetchAndParseEpicoreCSV(ecostUrl));
-        }
-        if (siteUrl) {
-            console.log("Fetching Site.csv...");
-            promisesToRun.push(fetchAndParseSitesCSV(siteUrl));
-        }
-        if (ecommitUrl) {
-            console.log("Fetching ECommit.csv...");
-            promisesToRun.push(fetchAndParseEcommitCSV(ecommitUrl));
-        }
 
-        // --- NEW: Fetch Vendors ---
-        if (vendorUrl) {
-            console.log("Fetching Vendors.csv...");
-            promisesToRun.push(fetchAndParseVendorsCSV(vendorUrl));
+            // --- CORRECTED FETCH: Get Manual POs from Invoice DB ---
+            console.log("Fetching Manual POs from purchase_orders...");
+            // Use invoiceDb (invoiceentry-b15a8) instead of db
+            promisesToRun.push(invoiceDb.ref('purchase_orders').once('value'));
         }
+        if (ecostUrl) promisesToRun.push(fetchAndParseEpicoreCSV(ecostUrl));
+        if (siteUrl) promisesToRun.push(fetchAndParseSitesCSV(siteUrl));
+        if (ecommitUrl) promisesToRun.push(fetchAndParseEcommitCSV(ecommitUrl));
+        if (vendorUrl) promisesToRun.push(fetchAndParseVendorsCSV(vendorUrl));
 
         if (!allInvoiceData || forceRefresh) {
-            console.log("Fetching Firebase invoice data...");
             promisesToRun.push(invoiceDb.ref('invoice_entries').once('value'));
         }
 
@@ -801,59 +791,45 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
         let resultIndex = 0;
 
         if (poUrl) {
+            // 1. CSV Result
             const csvData = results[resultIndex++];
+            
+            // 2. Manual PO Result (from purchase_orders)
+            const manualPOSnapshot = results[resultIndex++];
+            const manualPOData = manualPOSnapshot.val();
+
             if (csvData === null) throw new Error("Failed to load POVALUE2.csv");
 
             allPOData = csvData.poDataByPO;
             allPODataByRef = csvData.poDataByRef;
 
+            // --- MERGE LOGIC ---
+            if (manualPOData) {
+                console.log("Merging Manual POs into memory...");
+                if (!allPOData) allPOData = {};
+                Object.keys(manualPOData).forEach(poKey => {
+                    allPOData[poKey] = manualPOData[poKey]; // Add/Overwrite
+                });
+            }
             cacheTimestamps.poData = now;
         }
 
-        // --- FIX: Merge Manual POs from Firebase ---
-        // This ensures manually added POs persist even after refresh
-        try {
-            const manualPOSnapshot = await db.ref('manual_purchase_orders').once('value');
-            const manualPOData = manualPOSnapshot.val();
-            
-            // Ensure allPOData exists before trying to merge
-            if (!allPOData) allPOData = {};
-
-            if (manualPOData) {
-                Object.keys(manualPOData).forEach(poKey => {
-                    // We only overwrite if it doesn't exist, or force update it
-                    allPOData[poKey] = manualPOData[poKey];
-                });
-                console.log("Merged Manual POs into memory.");
-            }
-        } catch (e) {
-            console.warn("Could not load manual POs", e);
-        }
-        // ---------------------------------------------
-
         if (ecostUrl) {
             allEpicoreData = results[resultIndex++];
-            if (allEpicoreData === null) throw new Error("Failed to load Ecost.csv");
             setCache('cached_EPICORE', allEpicoreData);
             cacheTimestamps.epicoreData = now;
         }
         if (siteUrl) {
             allSitesCSVData = results[resultIndex++];
-            if (allSitesCSVData === null) throw new Error("Failed to load Site.csv");
             setCache('cached_SITES', allSitesCSVData);
             cacheTimestamps.sitesCSV = now;
         }
         if (ecommitUrl) {
             allEcommitDataProcessed = results[resultIndex++];
-            if (allEcommitDataProcessed === null) throw new Error("Failed to load ECommit.csv");
             cacheTimestamps.ecommitData = now;
         }
-
-        // --- NEW: Handle Vendors Result ---
         if (vendorUrl) {
-            allVendorsData = results[resultIndex++];
-            // Ensure it is at least an empty object if fetch failed gracefully
-            if (!allVendorsData) allVendorsData = {};
+            allVendorsData = results[resultIndex++] || {};
         }
 
         if (!allInvoiceData || forceRefresh) {
@@ -873,7 +849,7 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
         }
     } catch (error) {
         console.error("CRITICAL: Failed to fetch required data:", error);
-        alert("CRITICAL ERROR: Failed to download required data files. Please check your internet connection and try again.");
+        alert("CRITICAL ERROR: Failed to download data. Check connection.");
         throw error;
     }
 }
@@ -2967,7 +2943,7 @@ async function handleReportingSearch() {
 }
 
 // ==========================================================================
-// UPDATED FUNCTION: populateActiveTasks (Fixes "Amount To Paid" value)
+// UPDATED FUNCTION: populateActiveTasks (Smart Blink Logic)
 // ==========================================================================
 async function populateActiveTasks() {
     activeTaskTableBody.innerHTML = `<tr><td colspan="10">Loading tasks...</td></tr>`;
@@ -2989,7 +2965,7 @@ async function populateActiveTasks() {
         // 1. Load Data
         await ensureAllEntriesFetched();
         await ensureApproverDataCached();
-        await ensureInvoiceDataFetched(false); // Need full data for lookup fallback
+        await ensureInvoiceDataFetched(false);
 
         if (typeof reconcilePendingPRs === 'function') {
             await reconcilePendingPRs();
@@ -2998,6 +2974,8 @@ async function populateActiveTasks() {
         // --- A. Job Entries (Standard) ---
         const jobTasks = allSystemEntries.filter(entry => {
             if (isTaskComplete(entry)) return false;
+            
+            // Transfer Logic (Strictly for the person acting)
             if (['Transfer', 'Restock', 'Return', 'Usage'].includes(entry.for)) {
                 if (entry.remarks === 'Pending Confirmation') return entry.requestor === currentUserName;
                 if (entry.remarks === 'Pending Source') return entry.sourceContact === currentUserName;
@@ -3005,30 +2983,32 @@ async function populateActiveTasks() {
                 if (entry.remarks === 'Approved' || entry.remarks === 'In Transit') return entry.receiver === currentUserName;
                 return entry.attention === currentUserName;
             }
+            
+            // Invoice Logic (Accounting sees ALL, but we only want to blink for assigned)
             if (entry.for === 'Invoice') return isAccounting;
+            
+            // PR Logic (Procurement sees ALL)
             if (entry.for === 'PR') {
                 if (isProcurement) return true;
                 if (entry.attention === currentUserName) return true;
                 return false;
             }
+            
+            // IPC Logic
             if (entry.for === 'IPC') return isQS && entry.attention === currentUserName;
+            
+            // Default
             return entry.attention === currentUserName;
         });
 
         userTasks = jobTasks.map(task => {
             if (['Transfer', 'Restock', 'Return', 'Usage'].includes(task.for)) {
-                return {
-                    ...task,
-                    source: 'transfer_entry'
-                };
+                return { ...task, source: 'transfer_entry' };
             }
-            return {
-                ...task,
-                source: 'job_entry'
-            };
+            return { ...task, source: 'job_entry' };
         });
 
-        // --- B. Invoice Tasks (The Fix) ---
+        // --- B. Invoice Tasks (From Inbox) ---
         const sanitizeFirebaseKey = (key) => key.replace(/[.#$[\]]/g, '_');
         const safeCurrentUserName = sanitizeFirebaseKey(currentUserName);
         const invoiceTaskSnapshot = await invoiceDb.ref(`invoice_tasks_by_user/${safeCurrentUserName}`).once('value');
@@ -3039,7 +3019,6 @@ async function populateActiveTasks() {
                 const task = tasksData[invoiceKey];
                 pulledInvoiceKeys.add(invoiceKey);
 
-                // FIX: Try to get amountPaid from task, otherwise lookup from full data
                 let realAmountPaid = task.amountPaid;
                 if (!realAmountPaid && allInvoiceData && allInvoiceData[task.po] && allInvoiceData[task.po][invoiceKey]) {
                     realAmountPaid = allInvoiceData[task.po][invoiceKey].amountPaid;
@@ -3053,11 +3032,8 @@ async function populateActiveTasks() {
                     for: 'Invoice',
                     ref: task.ref,
                     po: task.po,
-
-                    // Pass correct values
                     amount: task.amount,
-                    amountPaid: realAmountPaid || task.amount, // Fallback to total if no payment amount
-
+                    amountPaid: realAmountPaid || task.amount,
                     site: task.site,
                     group: 'N/A',
                     attention: currentUserName,
@@ -3073,7 +3049,7 @@ async function populateActiveTasks() {
             }
         }
 
-        // --- C. Accounting View ---
+        // --- C. Accounting View (Unassigned Items) ---
         if (isAccounting) {
             const statusesToPull = ['Pending', 'Report', 'Original PO'];
             if (allInvoiceData && allPOData) {
@@ -3082,6 +3058,7 @@ async function populateActiveTasks() {
                     for (const invoiceKey in poInvoices) {
                         if (pulledInvoiceKeys.has(invoiceKey)) continue;
                         const inv = poInvoices[invoiceKey];
+                        // Pull if status matches AND it has NO specific attention (meaning it's for the dept)
                         if (inv && statusesToPull.includes(inv.status) && (!inv.attention || inv.attention === '')) {
                             const poDetails = allPOData[poNumber] || {};
                             const transformedInvoice = {
@@ -3092,14 +3069,11 @@ async function populateActiveTasks() {
                                 for: 'Invoice',
                                 ref: inv.invNumber || '',
                                 po: poNumber,
-
-                                // Fix for Accounting View too
                                 amount: inv.invValue || '',
                                 amountPaid: inv.amountPaid || inv.invValue || '',
-
                                 site: poDetails['Project ID'] || 'N/A',
                                 group: 'N/A',
-                                attention: inv.attention || '',
+                                attention: inv.attention || '', // Empty attention
                                 enteredBy: 'Irwin',
                                 date: formatYYYYMMDD(inv.invoiceDate),
                                 remarks: inv.status,
@@ -3117,21 +3091,29 @@ async function populateActiveTasks() {
 
         userActiveTasks = userTasks.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
-        const taskCount = userActiveTasks.length;
+        const totalTaskCount = userActiveTasks.length;
         
-        // 1. Update Text Counts
-        if (activeTaskCountDisplay) activeTaskCountDisplay.textContent = `(Total Tasks: ${taskCount})`;
+        // --- FIX: CALCULATE "URGENT" COUNT FOR BLINKING ---
+        // Only blink if:
+        // 1. Attention matches my name EXACTLY
+        // 2. OR it is a Transfer task (Transfers in this list are strictly filtered for me already)
+        const urgentCount = userActiveTasks.filter(t => 
+            t.attention === currentUserName || t.source === 'transfer_entry'
+        ).length;
+        // --------------------------------------------------
+
+        // 1. Update Text Counts (Shows Total Pool)
+        if (activeTaskCountDisplay) activeTaskCountDisplay.textContent = `(Total Tasks: ${totalTaskCount})`;
         
-        // 2. Update Badges
+        // 2. Update Badges (Shows Total Pool)
         [wdActiveTaskBadge, imActiveTaskBadge, wdMobileNotifyBadge].forEach(badge => {
             if (badge) {
-                badge.textContent = taskCount;
-                badge.style.display = taskCount > 0 ? 'inline-block' : 'none';
+                badge.textContent = totalTaskCount;
+                badge.style.display = totalTaskCount > 0 ? 'inline-block' : 'none';
             }
         });
 
-        // --- NEW: HEARTBEAT ANIMATION LOGIC ---
-        // Targets: WorkDesk Sidebar Link AND Invoice Mgmt Sidebar Link
+        // 3. HEARTBEAT ANIMATION (Uses Urgent Count)
         const wdActiveLink = document.querySelector('.wd-nav-activetask a');
         const imActiveLink = document.getElementById('im-activetask-button');
         const mobileActiveLink = document.getElementById('im-mobile-activetask-link');
@@ -3140,15 +3122,16 @@ async function populateActiveTasks() {
 
         targets.forEach(el => {
             if (el) {
-                if (taskCount > 0) {
-                    el.classList.add('nav-pulse-active'); // Turn ON Heartbeat
+                // CHANGED: Use urgentCount instead of totalTaskCount
+                if (urgentCount > 0) {
+                    el.classList.add('nav-pulse-active'); // Blink only if assigned to ME
                 } else {
-                    el.classList.remove('nav-pulse-active'); // Turn OFF
+                    el.classList.remove('nav-pulse-active'); // Stop blinking if just viewing pool
                 }
             }
         });
 
-        // Tab Logic
+        // Tab Logic (Same as before)
         const tabCounts = {};
         userActiveTasks.forEach(task => {
             let key = '';
@@ -3330,7 +3313,7 @@ async function reconcilePendingPRs() {
 }
 
 // ==========================================================================
-// UPDATED FUNCTION: renderActiveTaskTable (Shows Adjusted/Approved Qty)
+// UPDATED FUNCTION: renderActiveTaskTable (Fixes Manager Button Logic)
 // ==========================================================================
 function renderActiveTaskTable(tasks) {
     const isMobile = window.innerWidth <= 768;
@@ -3365,7 +3348,6 @@ function renderActiveTaskTable(tasks) {
 
     // --- HEADER SETUP ---
     if (isTransferView) {
-        // Change header to reflect dynamic quantity
         tableHead.innerHTML = `
             <tr>
                 <th class="desktop-only">Control ID</th>
@@ -3393,7 +3375,16 @@ function renderActiveTaskTable(tasks) {
     }
 
     const isCEO = document.body.classList.contains('is-ceo');
-    const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
+    
+    // --- FIX: BETTER MANAGER CHECK ---
+    // We check both Position AND the Role field.
+    const userPos = (currentApprover.Position || '').toLowerCase();
+    const userRole = (currentApprover.Role || '').toLowerCase();
+    
+    const isManager = userPos.includes('manager') || 
+                      userPos.includes('director') || 
+                      userPos.includes('ceo') || 
+                      userRole === 'admin'; // <--- This ensures Admins get the buttons
 
     filteredTasks.forEach(task => {
         const row = document.createElement('tr');
@@ -3403,7 +3394,7 @@ function renderActiveTaskTable(tasks) {
             // --- TRANSFER / USAGE ROW ---
             let actionButtons = `<button class="transfer-action-btn" data-key="${task.key}" style="background-color: #17a2b8; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 600;">Action</button>`;
 
-            if (isAdmin) {
+            if (userRole === 'admin') {
                 actionButtons += `<button class="delete-btn transfer-delete-btn" data-key="${task.key}" style="margin-left: 5px; padding: 6px 12px;">Delete</button>`;
             }
 
@@ -3415,25 +3406,18 @@ function renderActiveTaskTable(tasks) {
                 movement = `<span style="color: #6f42c1;">Consumed at ${fromLoc}</span>`;
             }
 
-            // *** FIX: SMART QUANTITY DISPLAY ***
-            // 1. Default to what was ordered/requested
+            // Smart Quantity Display
             let displayQty = task.orderedQty || task.requiredQty || 0;
-            let qtyLabel = ""; // Optional helper text
+            let qtyLabel = ""; 
 
-            // 2. If Source Confirmed (Pending Admin) or Admin Approved (In Transit), show the APPROVED qty
-            // This allows the Approver to see what the Source actually confirmed.
             if (task.approvedQty !== undefined && task.approvedQty !== null) {
                 displayQty = task.approvedQty;
-                // If it differs from ordered, maybe highlight it?
                 if (displayQty != task.orderedQty) qtyLabel = " (Adj)";
             }
-
-            // 3. If Received/Completed, show the FINAL RECEIVED qty
             if (task.receivedQty !== undefined && task.receivedQty !== null) {
                 displayQty = task.receivedQty;
                 qtyLabel = "";
             }
-            // ***********************************
 
             let statusColor = '#333';
             if (task.remarks === 'Pending') statusColor = '#dc3545';
@@ -3453,84 +3437,78 @@ function renderActiveTaskTable(tasks) {
             `;
 
         } else {
-        // --- STANDARD ROW (Invoice/PR) ---
-        const isInvoiceFromIrwin = task.source === 'invoice' && task.enteredBy === 'Irwin';
-        const invName = task.invName || '';
-        const isClickable = (isInvoiceFromIrwin || (task.source === 'invoice' && invName)) &&
-            invName.trim() &&
-            invName.toLowerCase() !== 'nil';
+            // --- STANDARD ROW (Invoice/PR) ---
+            const isInvoiceFromIrwin = task.source === 'invoice' && task.enteredBy === 'Irwin';
+            const invName = task.invName || '';
+            const isClickable = (isInvoiceFromIrwin || (task.source === 'invoice' && invName)) &&
+                invName.trim() &&
+                invName.toLowerCase() !== 'nil';
 
-        if (isClickable) row.classList.add('clickable-pdf');
-        if (isCEO) row.title = "Click to open approval modal";
-        else if (isClickable) row.title = "Click to open PDF";
+            if (isClickable) row.classList.add('clickable-pdf');
+            if (isCEO) row.title = "Click to open approval modal";
+            else if (isClickable) row.title = "Click to open PDF";
 
-        const displayAmount = task.amountPaid || task.amount || 0;
+            const displayAmount = task.amountPaid || task.amount || 0;
 
-        // 1. Render Columns 1-9 (Text Data)
-        row.innerHTML = `
-            <td class="desktop-only">${task.for || ''}</td>
-            <td class="desktop-only">${task.ref || ''}</td>
-            <td class="desktop-only">${task.po || ''}</td>
-            <td class="desktop-only">${task.vendorName || 'N/A'}</td>
-            <td class="desktop-only">${formatCurrency(displayAmount)}</td>
-            <td class="desktop-only">${task.site || ''}</td>
-            <td class="desktop-only col-group">${task.group || ''}</td>
-            <td class="desktop-only">${task.date || ''}</td>
-            <td class="desktop-only">${task.remarks || 'Pending'}</td>
-        `;
-
-        // 2. Render Column 10 (Smart Actions)
-        const actionsCell = document.createElement('td');
-        actionsCell.className = "desktop-only";
-
-        // CHECK ROLE
-        const userRole = (currentApprover.Position || '').toLowerCase();
-        const isManager = userRole.includes('manager') || userRole.includes('director') || userRole.includes('ceo') || userRole === 'admin';
-
-        // SCENARIO A: Manager viewing "For Approval" -> Show Approve/Reject
-        if (task.remarks === 'For Approval' && isManager) {
-            
-            const approveBtn = document.createElement('button');
-            approveBtn.className = 'action-btn approve-btn';
-            approveBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
-            approveBtn.title = 'Approve';
-            approveBtn.style.backgroundColor = '#28a745';
-            approveBtn.style.color = 'white';
-            approveBtn.style.marginRight = '5px';
-            approveBtn.onclick = (e) => { e.stopPropagation(); handleDesktopApproval(task, 'Approved'); };
-            
-            const rejectBtn = document.createElement('button');
-            rejectBtn.className = 'action-btn reject-btn';
-            rejectBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-            rejectBtn.title = 'Reject';
-            rejectBtn.style.backgroundColor = '#dc3545';
-            rejectBtn.style.color = 'white';
-            rejectBtn.onclick = (e) => { e.stopPropagation(); handleDesktopApproval(task, 'Rejected'); };
-
-            actionsCell.appendChild(approveBtn);
-            actionsCell.appendChild(rejectBtn);
-
-        } 
-        // SCENARIO B: CEO (Keep existing logic)
-        else if (isCEO) {
-            actionsCell.innerHTML = `<button class="ceo-approve-btn" data-key="${task.key}">Make Approval</button>`;
-        } 
-        // SCENARIO C: Standard User (SRV/Edit)
-        else {
-            let srvDoneDisabled = '';
-            if (task.source !== 'invoice') srvDoneDisabled = 'disabled title="Only invoice tasks"';
-            
-            actionsCell.innerHTML = `
-                <button class="srv-done-btn" data-key="${task.key}" ${srvDoneDisabled}>SRV Done</button>
-                <button class="modify-btn" data-key="${task.key}">Edit Action</button>
+            row.innerHTML = `
+                <td class="desktop-only">${task.for || ''}</td>
+                <td class="desktop-only">${task.ref || ''}</td>
+                <td class="desktop-only">${task.po || ''}</td>
+                <td class="desktop-only">${task.vendorName || 'N/A'}</td>
+                <td class="desktop-only">${formatCurrency(displayAmount)}</td>
+                <td class="desktop-only">${task.site || ''}</td>
+                <td class="desktop-only col-group">${task.group || ''}</td>
+                <td class="desktop-only">${task.date || ''}</td>
+                <td class="desktop-only">${task.remarks || 'Pending'}</td>
             `;
-        }
 
-        // Append the smart action cell to the row
-        row.appendChild(actionsCell);
-    }
-    activeTaskTableBody.appendChild(row);
-});
+            // Render Column 10 (Smart Actions)
+            const actionsCell = document.createElement('td');
+            actionsCell.className = "desktop-only";
+
+            // SCENARIO A: Manager/Admin viewing "For Approval" -> Show Approve/Reject
+            if (task.remarks === 'For Approval' && isManager) {
+                
+                const approveBtn = document.createElement('button');
+                approveBtn.className = 'action-btn approve-btn';
+                approveBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
+                approveBtn.title = 'Approve';
+                approveBtn.style.backgroundColor = '#28a745';
+                approveBtn.style.color = 'white';
+                approveBtn.style.marginRight = '5px';
+                approveBtn.onclick = (e) => { e.stopPropagation(); handleDesktopApproval(task, 'Approved'); };
+                
+                const rejectBtn = document.createElement('button');
+                rejectBtn.className = 'action-btn reject-btn';
+                rejectBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                rejectBtn.title = 'Reject';
+                rejectBtn.style.backgroundColor = '#dc3545';
+                rejectBtn.style.color = 'white';
+                rejectBtn.onclick = (e) => { e.stopPropagation(); handleDesktopApproval(task, 'Rejected'); };
+
+                actionsCell.appendChild(approveBtn);
+                actionsCell.appendChild(rejectBtn);
+
+            } 
+            // SCENARIO B: CEO (Keep existing logic)
+            else if (isCEO) {
+                actionsCell.innerHTML = `<button class="ceo-approve-btn" data-key="${task.key}">Make Approval</button>`;
+            } 
+            // SCENARIO C: Standard User (SRV/Edit)
+            else {
+                let srvDoneDisabled = '';
+                if (task.source !== 'invoice') srvDoneDisabled = 'disabled title="Only invoice tasks"';
+                
+                actionsCell.innerHTML = `
+                    <button class="srv-done-btn" data-key="${task.key}" ${srvDoneDisabled}>SRV Done</button>
+                    <button class="modify-btn" data-key="${task.key}">Edit Action</button>
+                `;
+            }
+
+            row.appendChild(actionsCell);
+        }
+        activeTaskTableBody.appendChild(row);
+    });
 }
 
 function renderMobileActiveTasks(tasks) {
@@ -3918,12 +3896,50 @@ window.processMobileTransferAction = async function(task, action, cardElement) {
     }
 };
 
-// =========================================================
-// RECEIPT GENERATION FUNCTIONS (SEPARATED & FIXED)
-// =========================================================
 
-// 1. Manager Receipt (Invoices) - Updated ESN
-// REPLACE THE EXISTING previewAndSendManagerReceipt FUNCTION IN app.js
+// =========================================================
+// UPDATE MANAGER APPROVAL (Corrected: Saves to 'db' > 'manager_approved')
+// =========================================================
+async function updateManagerApprovalRecord(task, finalESN, finalPdfLink) {
+    const safePO = (task.originalPO || task.po || 'NO_PO').replace(/[.#$[\]]/g, '_');
+    const safeInv = (task.originalKey || task.key || 'NO_KEY');
+    const recordKey = `${safePO}_${safeInv}`;
+
+    // FIX: Use 'db' (ibainvoice-3ea51) as requested
+    const dbRef = db.ref(`manager_approved/${recordKey}`);
+
+    try {
+        const snapshot = await dbRef.once('value');
+        let data = snapshot.val() || {};
+
+        let slotIndex = 1;
+        if (data.esn_1) slotIndex = 2;
+        if (data.esn_2) slotIndex = 3;
+        
+        const isCEO = (currentApprover.Position || '').toLowerCase().includes('ceo');
+        if (isCEO) slotIndex = 'ceo';
+
+        const updates = {
+            po: task.originalPO || task.po,
+            inv_no: task.ref || task.invNumber,
+            [`esn_${slotIndex}`]: finalESN,
+            [`pdf_${slotIndex}`]: finalPdfLink,
+            [`approver_${slotIndex}`]: currentApprover.Name,
+            [`date_${slotIndex}`]: new Date().toLocaleDateString('en-GB')
+        };
+
+        await dbRef.update(updates);
+        console.log(`Saved Approval to Slot ${slotIndex} in ibainvoice-3ea51`);
+
+    } catch (error) {
+        console.error("Error saving manager approval:", error);
+    }
+}
+
+
+// =========================================================
+// 2. MANAGER RECEIPT (UPDATED: Saves to manager_approved)
+// =========================================================
 async function previewAndSendManagerReceipt() {
     const btn = document.getElementById('mobile-send-manager-receipt-btn');
     if(btn) { btn.disabled = true; btn.textContent = 'Syncing & Generating...'; }
@@ -3932,29 +3948,54 @@ async function previewAndSendManagerReceipt() {
         const approvedTasks = managerProcessedTasks.filter(t => t.status === 'Approved');
         const rejectedTasks = managerProcessedTasks.filter(t => t.status === 'Rejected');
 
-        // 1. Generate ONE Single ESN for the entire batch
+        if (approvedTasks.length === 0) {
+            alert("No approved tasks to finalize.");
+            if(btn) btn.disabled = false;
+            return;
+        }
+
+        // 1. Generate Batch Info
         const baseSeriesNo = await getManagerSeriesNumber();
         const approverName = currentApprover ? currentApprover.Name.toUpperCase().split(' ')[0] : 'ADMIN';
         const finalESN = `${baseSeriesNo}/${approverName}`;
+        const safeFilename = finalESN.replace(/[^a-zA-Z0-9]/g, '_'); 
+        const bucketName = "invoiceentry-b15a8.firebasestorage.app"; 
+        const finalPdfLink = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/receipts%2F${safeFilename}.pdf?alt=media`;
 
-        console.log(`Syncing Manager Batch with ESN: ${finalESN}`);
+        console.log(`Syncing Invoice Batch ESN: ${finalESN}`);
 
-        // 2. Update EVERY approved task in Firebase with this ESN
+        // 2. Save Data
         const updatePromises = approvedTasks.map(task => {
+            
+            const historyEntry = {
+                action: "Receipt Generated",
+                by: "System",
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                esn: finalESN,
+                pdfLink: finalPdfLink,
+                note: "Batch Finalized"
+            };
+
+            // --- A. SAVE TO MANAGER APPROVED DB (NEW) ---
+            // This runs in the background
+            updateManagerApprovalRecord(task, finalESN, finalPdfLink);
+
+            // --- B. STANDARD SAVE (Invoice Entries) ---
             if (task.source === 'invoice') {
-                return invoiceDb.ref(`invoice_entries/${task.originalPO}/${task.originalKey}`).update({
-                    esn: finalESN
-                });
-            } else if (task.source === 'job_entry') {
-                return db.ref(`job_entries/${task.key}`).update({
-                    esn: finalESN
-                });
+                const mainUpdate = invoiceDb.ref(`invoice_entries/${task.originalPO}/${task.originalKey}`).update({ esn: finalESN });
+                const historyUpdate = invoiceDb.ref(`invoice_entries/${task.originalPO}/${task.originalKey}/history`).push(historyEntry);
+                return Promise.all([mainUpdate, historyUpdate]);
+            } 
+            else if (task.source === 'job_entry') {
+                const mainUpdate = db.ref(`job_entries/${task.key}`).update({ esn: finalESN });
+                const historyUpdate = db.ref(`job_entries/${task.key}/history`).push(historyEntry);
+                return Promise.all([mainUpdate, historyUpdate]);
             }
         });
 
         await Promise.all(updatePromises);
 
-        // 3. Update local list
+        // 3. Receipt Generation (UI)
         approvedTasks.forEach(t => t.esn = finalESN);
 
         const receiptData = {
@@ -3968,9 +4009,14 @@ async function previewAndSendManagerReceipt() {
         localStorage.setItem('pendingReceiptData', JSON.stringify(receiptData));
         window.open('receipt.html', '_blank');
 
+        // Cleanup
         managerProcessedTasks = [];
         const mCont = document.getElementById('mobile-receipt-action-container');
         if (mCont) mCont.classList.add('hidden');
+        
+        const dBtn = document.getElementById('desktop-finalize-btn');
+        if(dBtn) dBtn.classList.add('hidden');
+
         if (btn) btn.classList.add('hidden');
 
     } catch (error) {
@@ -4140,14 +4186,22 @@ window.toggleJobOtherInput = toggleJobOtherInput;
 
 
 // =========================================================
-// NEW: DESKTOP APPROVAL HANDLER ("WAITING ROOM" LOGIC)
+// 1. DESKTOP APPROVAL (CORRECTED DATABASE PATHS)
 // =========================================================
 async function handleDesktopApproval(task, action) {
-    // 1. Ask for Note/Confirmation
     const note = prompt(`Enter optional note for ${action}:`, "");
-    if (note === null) return; // Cancelled
+    if (note === null) return; 
 
-    // 2. Prepare Data
+    // 1. Prepare Status Updates (No ESN yet)
+    const updates = {
+        status: action,
+        remarks: action,
+        note: note ? note.trim() : '',
+        dateResponded: formatDate(new Date()),
+        batch_status: 'pending_receipt', 
+        last_approver: currentApprover.Name
+    };
+
     const historyEntry = {
         action: action,
         by: currentApprover.Name,
@@ -4155,40 +4209,54 @@ async function handleDesktopApproval(task, action) {
         note: note || 'Desktop Action'
     };
 
-    const updates = {
-        status: action,         // "Approved"
-        remarks: action,
-        note: note ? note.trim() : '',
-        dateResponded: formatDate(new Date()),
-        
-        // --- THE WAITING ROOM FLAG ---
-        batch_status: 'pending_receipt', 
-        last_approver: currentApprover.Name 
-        // -----------------------------
-    };
-
-    // 3. Save to Firebase
     try {
+        // --- CASE A: JOB ENTRY (Separate Database Path) ---
         if (task.source === 'job_entry') {
             await db.ref(`job_entries/${task.key}`).update(updates);
             await db.ref(`job_entries/${task.key}/history`).push(historyEntry);
         } 
+        // --- CASE B: INVOICE ENTRY (Separate Database Path) ---
         else if (task.source === 'invoice') {
+            // "invoiceDb" is your specific reference for the Invoice Database
+            // We use originalPO and originalKey to find the exact record
             await invoiceDb.ref(`invoice_entries/${task.originalPO}/${task.originalKey}`).update(updates);
+            
+            // Save history specifically to the invoice's history path
             await invoiceDb.ref(`invoice_entries/${task.originalPO}/${task.originalKey}/history`).push(historyEntry);
             
-            // Update Lookup for search speed
+            // Helper to keep your inbox/task list in sync
             updateInvoiceTaskLookup(task.originalPO, task.originalKey, updates, task.attention);
         }
 
-        alert(`Task marked as ${action}. It is now in your 'Pending Receipt' list.`);
+        alert(`Task marked as ${action}. Added to Queue.`);
         
-        // Refresh the table
-        populateActiveTasks();
+        // 2. Add to Manager Queue for Batching
+        if (action === 'Approved') {
+            managerProcessedTasks.push(task);
+            
+            // Show the "Finalize" buttons (Mobile & Desktop)
+            const mobileContainer = document.getElementById('mobile-receipt-action-container');
+            if(mobileContainer) mobileContainer.classList.remove('hidden');
 
-        // SHOW THE "SEND RECEIPT" BUTTON ON DASHBOARD
-        // This ensures you see the button if you have pending items
-        checkPendingReceipts(); 
+            // Create/Show Desktop Finalize Button
+            let desktopBtn = document.getElementById('desktop-finalize-btn');
+            if (!desktopBtn) {
+                const toolbar = document.querySelector('#wd-activetask .form-buttons-container');
+                if (toolbar) {
+                    desktopBtn = document.createElement('button');
+                    desktopBtn.id = 'desktop-finalize-btn';
+                    desktopBtn.className = 'download-btn';
+                    desktopBtn.style.backgroundColor = '#28a745'; 
+                    desktopBtn.style.marginLeft = '10px';
+                    desktopBtn.innerHTML = '<i class="fa-solid fa-check-double"></i> Finalize Batch & Sync ESN';
+                    desktopBtn.onclick = previewAndSendManagerReceipt; 
+                    toolbar.appendChild(desktopBtn);
+                }
+            }
+            if(desktopBtn) desktopBtn.classList.remove('hidden');
+        }
+
+        populateActiveTasks();
 
     } catch (error) {
         console.error("Approval Error:", error);
@@ -5648,6 +5716,9 @@ function closeIMInvoiceEntryModal() {
     }
 }
 
+// =========================================================
+// SEARCH PO HANDLER (FIXED: Uses Smart Fetcher)
+// =========================================================
 async function handlePOSearch(poNumberFromInput) {
     const poNumber = (poNumberFromInput || imPOSearchInput.value || imPOSearchInputBottom.value).trim().toUpperCase();
 
@@ -5657,23 +5728,35 @@ async function handlePOSearch(poNumberFromInput) {
     }
 
     sessionStorage.setItem('imPOSearch', poNumber);
-    imPOSearchInput.value = poNumber;
-    imPOSearchInputBottom.value = poNumber;
+    if (imPOSearchInput) imPOSearchInput.value = poNumber;
+    if (imPOSearchInputBottom) imPOSearchInputBottom.value = poNumber;
 
     try {
-        if (!allPOData) await ensureAllEntriesFetched();
+        // --- THE FIX IS HERE ---
+        // Old: await ensureAllEntriesFetched();  <-- This only checked CSV
+        // New: await ensureInvoiceDataFetched(); <-- This checks CSV + Firebase DB
+        if (!allPOData) await ensureInvoiceDataFetched(); 
+        // -----------------------
 
         let poData = allPOData[poNumber];
 
-        // --- NEW LOGIC: FALLBACK MODAL ---
+        // Fallback: If not found in memory, force a DB check for this specific PO
+        // (Just in case the list is huge and didn't load completely)
         if (!poData) {
-            // Open the Manual Entry Modal
+            const snap = await invoiceDb.ref(`purchase_orders/${poNumber}`).once('value');
+            if (snap.exists()) {
+                poData = snap.val();
+                allPOData[poNumber] = poData; // Save to memory
+            }
+        }
+
+        // If STILL not found, show Manual Entry Modal
+        if (!poData) {
             document.getElementById('manual-po-number').value = poNumber;
             document.getElementById('manual-supplier-id').value = '';
             document.getElementById('manual-vendor-name').value = '';
             document.getElementById('manual-po-amount').value = '';
 
-            // Populate Modal Site Dropdown (reuse existing logic)
             const modalSiteSelect = document.getElementById('manual-site-select');
             if (modalSiteSelect.options.length <= 1 && allSitesCSVData) {
                 allSitesCSVData.forEach(s => {
@@ -5685,11 +5768,10 @@ async function handlePOSearch(poNumberFromInput) {
             }
 
             document.getElementById('im-manual-po-modal').classList.remove('hidden');
-            return; // Stop here, wait for modal save
+            return; 
         }
-        // ---------------------------------
 
-        // Standard Logic continues if PO was found...
+        // Found it! Proceed.
         proceedWithPOLoading(poNumber, poData);
 
     } catch (error) {
@@ -8974,12 +9056,12 @@ async function getNextSeriesNumber() {
 }
 
 // =========================================================
-// CEO RECEIPT GENERATOR (V5.0 - Fixed ESN Mismatch)
+// CEO RECEIPT GENERATOR (UPDATED: Title Changed to "CEO Approval")
 // =========================================================
 async function previewAndSendReceipt() {
     // Check permissions
     const isCEO = (currentApprover?.Role || '').toLowerCase() === 'admin' &&
-                  (currentApprover?.Position || '').toLowerCase() === 'ceo';
+                  (currentApprover?.Position || '').toLowerCase().includes('ceo');
 
     if (!isCEO) {
         alert("Access Denied: Only the CEO can send approval receipts.");
@@ -8997,32 +9079,52 @@ async function previewAndSendReceipt() {
         const baseSeriesNo = await getNextSeriesNumber();
         const approverName = currentApprover.Name.split(' ')[0].toUpperCase();
         const finalESN = `${baseSeriesNo}/${approverName}`;
+        
+        // Generate Link
+        const safeFilename = finalESN.replace(/[^a-zA-Z0-9]/g, '_'); 
+        const bucketName = "invoiceentry-b15a8.firebasestorage.app"; 
+        const finalPdfLink = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/receipts%2F${safeFilename}.pdf?alt=media`;
 
-        console.log(`Syncing Batch with ESN: ${finalESN}`);
+        console.log(`Syncing CEO Batch ESN: ${finalESN}`);
 
-        // 2. Update EVERY approved task in Firebase with this ESN
+        // 2. Update EVERY approved task
         const updatePromises = approvedTasks.map(task => {
+            
+            const historyEntry = {
+                action: "Receipt Generated",
+                by: "System",
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                esn: finalESN,
+                pdfLink: finalPdfLink,
+                note: "CEO Batch Finalized"
+            };
+
+            // A. SAVE TO MANAGER_APPROVED
+            updateManagerApprovalRecord(task, finalESN, finalPdfLink);
+
+            // B. STANDARD SAVE
             if (task.source === 'invoice') {
-                return invoiceDb.ref(`invoice_entries/${task.originalPO}/${task.originalKey}`).update({
-                    esn: finalESN
-                });
+                const mainUpdate = invoiceDb.ref(`invoice_entries/${task.originalPO}/${task.originalKey}`).update({ esn: finalESN });
+                const historyUpdate = invoiceDb.ref(`invoice_entries/${task.originalPO}/${task.originalKey}/history`).push(historyEntry);
+                return Promise.all([mainUpdate, historyUpdate]);
             } else if (task.source === 'job_entry') {
-                return db.ref(`job_entries/${task.key}`).update({
-                    esn: finalESN
-                });
+                const mainUpdate = db.ref(`job_entries/${task.key}`).update({ esn: finalESN });
+                const historyUpdate = db.ref(`job_entries/${task.key}/history`).push(historyEntry);
+                return Promise.all([mainUpdate, historyUpdate]);
             }
         });
 
         await Promise.all(updatePromises);
 
-        // 3. Update local list so the Receipt shows the ESN
+        // 3. Update local list
         approvedTasks.forEach(t => t.esn = finalESN);
 
         const receiptData = {
             approvedTasks: approvedTasks,
             rejectedTasks: rejectedTasks,
             seriesNo: finalESN, 
-            title: "Authorize Approval"
+            title: "CEO Approval", // <--- CHANGED HERE
+            appVersion: typeof APP_VERSION !== 'undefined' ? APP_VERSION : '4.5'
         };
 
         localStorage.setItem('pendingReceiptData', JSON.stringify(receiptData));
@@ -10392,135 +10494,134 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // ==========================================================================
-    // 1. REPORTING TABLE LISTENER (UPDATED: IMPORT DEFAULTS)
-    // ==========================================================================
-    if (imReportingContent) {
-        imReportingContent.addEventListener('click', async (e) => {
+ // ==========================================================================
+// 1. REPORTING TABLE LISTENER (FIXED SYNTAX)
+// ==========================================================================
+if (imReportingContent) {
+    imReportingContent.addEventListener('click', async (e) => {
 
-            // 1. Handle Expand Button
-            const expandBtn = e.target.closest('.expand-btn');
-            if (expandBtn) {
-                const masterRow = expandBtn.closest('.master-row');
-                const detailRow = document.querySelector(masterRow.dataset.target);
-                if (detailRow) {
-                    detailRow.classList.toggle('hidden');
-                    expandBtn.textContent = detailRow.classList.contains('hidden') ? '+' : '-';
-                }
-                return;
+        // 1. Handle Expand Button
+        const expandBtn = e.target.closest('.expand-btn');
+        if (expandBtn) {
+            const masterRow = expandBtn.closest('.master-row');
+            const detailRow = document.querySelector(masterRow.dataset.target);
+            if (detailRow) {
+                detailRow.classList.toggle('hidden');
+                expandBtn.textContent = detailRow.classList.contains('hidden') ? '+' : '-';
             }
+            return;
+        }
 
-            // 2. Handle "Edit Inv No" Button
-            const editInvBtn = e.target.closest('.edit-inv-no-btn');
-            if (editInvBtn) {
-                e.stopPropagation();
-                const po = editInvBtn.dataset.po;
-                const key = editInvBtn.dataset.key;
-                const currentVal = editInvBtn.dataset.current;
+        // 2. Handle "Edit Inv No" Button
+        const editInvBtn = e.target.closest('.edit-inv-no-btn');
+        if (editInvBtn) {
+            e.stopPropagation();
+            const po = editInvBtn.dataset.po;
+            const key = editInvBtn.dataset.key;
+            const currentVal = editInvBtn.dataset.current;
 
-                const newVal = prompt("Enter new Invoice Number:", currentVal);
+            const newVal = prompt("Enter new Invoice Number:", currentVal);
 
-                if (newVal !== null && newVal.trim() !== currentVal) {
-                    try {
-                        await invoiceDb.ref(`invoice_entries/${po}/${key}`).update({
-                            invNumber: newVal.trim()
-                        });
-                        if (allInvoiceData && allInvoiceData[po] && allInvoiceData[po][key]) {
-                            allInvoiceData[po][key].invNumber = newVal.trim();
-                        }
-                        alert("Invoice Number updated!");
-                        const currentSearch = sessionStorage.getItem('imReportingSearch') || '';
-                        populateInvoiceReporting(currentSearch);
-                    } catch (err) {
-                        console.error(err);
-                        alert("Error updating invoice number.");
+            if (newVal !== null && newVal.trim() !== currentVal) {
+                try {
+                    await invoiceDb.ref(`invoice_entries/${po}/${key}`).update({
+                        invNumber: newVal.trim()
+                    });
+                    if (allInvoiceData && allInvoiceData[po] && allInvoiceData[po][key]) {
+                        allInvoiceData[po][key].invNumber = newVal.trim();
                     }
+                    alert("Invoice Number updated!");
+                    const currentSearch = sessionStorage.getItem('imReportingSearch') || '';
+                    populateInvoiceReporting(currentSearch);
+                } catch (err) {
+                    console.error(err);
+                    alert("Error updating invoice number.");
                 }
-                return;
             }
+            return;
+        }
 
-            // 3. Handle Row Click (Import or Edit)
-            const invoiceRow = e.target.closest('.nested-invoice-row');
-            if (invoiceRow) {
-                const userPositionLower = (currentApprover?.Position || '').toLowerCase();
-                if (userPositionLower !== 'accounting') return;
+        // 3. Handle Row Click (Import or Edit)
+        const invoiceRow = e.target.closest('.nested-invoice-row');
+        if (invoiceRow) {
+            const userPositionLower = (currentApprover?.Position || '').toLowerCase();
+            if (userPositionLower !== 'accounting') return;
 
-                const poNumber = invoiceRow.dataset.poNumber;
-                const invoiceKey = invoiceRow.dataset.invoiceKey;
-                const source = invoiceRow.dataset.source;
+            const poNumber = invoiceRow.dataset.poNumber;
+            const invoiceKey = invoiceRow.dataset.invoiceKey;
+            const source = invoiceRow.dataset.source;
 
-                if (!poNumber || !invoiceKey) return;
+            if (!poNumber || !invoiceKey) return;
 
-                // --- SCENARIO A: IMPORT FROM EPICORE (CSV) ---
-                if (source === 'ecommit') {
-                    if (confirm(`Import this Epicore record to Invoice Entry?\n\nPO: ${poNumber}\nInv: ${invoiceRow.dataset.invNumber || 'N/A'}`)) {
+            // --- SCENARIO A: IMPORT FROM EPICORE (CSV) ---
+            if (source === 'ecommit') {
+                if (confirm(`Import this Epicore record to Invoice Entry?\n\nPO: ${poNumber}\nInv: ${invoiceRow.dataset.invNumber || 'N/A'}`)) {
 
-                        imNav.querySelector('a[data-section="im-invoice-entry"]').click();
-                        imPOSearchInput.value = poNumber;
-
-                        handlePOSearch(poNumber).then(() => {
-                            setTimeout(() => {
-                                const invNo = invoiceRow.dataset.invNumber;
-                                const invDate = invoiceRow.dataset.invDate;
-                                const releaseDate = invoiceRow.dataset.releaseDate;
-                                const invValue = invoiceRow.dataset.invValue;
-
-                                if (invNo) document.getElementById('im-inv-no').value = invNo;
-                                if (invDate) document.getElementById('im-invoice-date').value = normalizeDateForInput(invDate);
-                                if (releaseDate) document.getElementById('im-release-date').value = normalizeDateForInput(releaseDate);
-
-                                if (invValue) {
-                                    document.getElementById('im-inv-value').value = invValue;
-                                    document.getElementById('im-amount-paid').value = invValue;
-                                }
-
-                                // --- UPDATED IMPORT DEFAULTS ---
-                                document.getElementById('im-status').value = 'Under Review';
-                                document.getElementById('im-inv-name').value = 'Nil';
-                                if (imAttentionSelectChoices) imAttentionSelectChoices.removeActiveItems(); // Clear Attention
-                                // -------------------------------
-
-                                currentlyEditingInvoiceKey = null;
-                                imAddInvoiceButton.classList.remove('hidden');
-                                imUpdateInvoiceButton.classList.add('hidden');
-                                imFormTitle.textContent = `Importing Invoice: ${invNo || 'New'}`;
-
-                                openIMInvoiceEntryModal();
-                                    setTimeout(() => {
-                                        const invNoInput = document.getElementById('im-inv-no');
-                                        if (invNoInput) invNoInput.focus();
-                                    }, 0);
-}, 500);
-                        });
-                    }
-                    return;
-                }
-
-                // --- SCENARIO B: EDIT EXISTING FIREBASE ENTRY ---
-                if (confirm(`Do you want to edit this specific invoice entry?\n\nPO: ${poNumber}\nInvoice Key: ${invoiceKey}`)) {
                     imNav.querySelector('a[data-section="im-invoice-entry"]').click();
                     imPOSearchInput.value = poNumber;
 
-                    ensureInvoiceDataFetched().then(() => {
-                        currentPO = poNumber;
-                        if (allPOData && allPOData[poNumber]) {
-                            proceedWithPOLoading(poNumber, allPOData[poNumber]).then(() => {
-                                populateInvoiceFormForEditing(invoiceKey);
-                                imBackToActiveTaskButton.classList.remove('hidden');
-                            });
-                        } else {
-                            handlePOSearch(poNumber).then(() => {
-                                setTimeout(() => {
-                                    populateInvoiceFormForEditing(invoiceKey);
-                                }, 300);
-                            });
-                        }
+                    handlePOSearch(poNumber).then(() => {
+                        setTimeout(() => {
+                            const invNo = invoiceRow.dataset.invNumber;
+                            const invDate = invoiceRow.dataset.invDate;
+                            const releaseDate = invoiceRow.dataset.releaseDate;
+                            const invValue = invoiceRow.dataset.invValue;
+
+                            if (invNo) document.getElementById('im-inv-no').value = invNo;
+                            if (invDate) document.getElementById('im-invoice-date').value = normalizeDateForInput(invDate);
+                            if (releaseDate) document.getElementById('im-release-date').value = normalizeDateForInput(releaseDate);
+
+                            if (invValue) {
+                                document.getElementById('im-inv-value').value = invValue;
+                                document.getElementById('im-amount-paid').value = invValue;
+                            }
+
+                            // Import Defaults
+                            document.getElementById('im-status').value = 'Under Review';
+                            document.getElementById('im-inv-name').value = 'Nil';
+                            if (imAttentionSelectChoices) imAttentionSelectChoices.removeActiveItems();
+
+                            currentlyEditingInvoiceKey = null;
+                            imAddInvoiceButton.classList.remove('hidden');
+                            imUpdateInvoiceButton.classList.add('hidden');
+                            imFormTitle.textContent = `Importing Invoice: ${invNo || 'New'}`;
+
+                            openIMInvoiceEntryModal();
+                            setTimeout(() => {
+                                const invNoInput = document.getElementById('im-inv-no');
+                                if (invNoInput) invNoInput.focus();
+                            }, 50); // Small delay for focus
+                        }, 500); // Delay for PO Search to finish
                     });
                 }
                 return;
             }
-        });
-    }
+
+            // --- SCENARIO B: EDIT EXISTING FIREBASE ENTRY ---
+            if (confirm(`Do you want to edit this specific invoice entry?\n\nPO: ${poNumber}\nInvoice Key: ${invoiceKey}`)) {
+                imNav.querySelector('a[data-section="im-invoice-entry"]').click();
+                imPOSearchInput.value = poNumber;
+
+                ensureInvoiceDataFetched().then(() => {
+                    currentPO = poNumber;
+                    if (allPOData && allPOData[poNumber]) {
+                        proceedWithPOLoading(poNumber, allPOData[poNumber]).then(() => {
+                            populateInvoiceFormForEditing(invoiceKey);
+                            imBackToActiveTaskButton.classList.remove('hidden');
+                        });
+                    } else {
+                        handlePOSearch(poNumber).then(() => {
+                            setTimeout(() => {
+                                populateInvoiceFormForEditing(invoiceKey);
+                            }, 300);
+                        });
+                    }
+                });
+            }
+            return;
+        }
+    });
+}
 
     // Reporting Form Listeners
     if (imReportingForm) {
@@ -11149,99 +11250,100 @@ const refreshReportingBtn = document.getElementById('im-refresh-reporting-button
         }
     };
 
-    // 2. View History Modal
-    window.showInvoiceHistory = async function (poNumber, invoiceKey) {
-        const modal = document.getElementById('history-modal');
-        const loader = document.getElementById('history-modal-loader');
-        const tbody = document.getElementById('history-table-body');
+// =========================================================
+// 2. VIEW HISTORY (SMART VERSION: SHARES ESN ACROSS LINES)
+// =========================================================
+window.showInvoiceHistory = async function (poNumber, invoiceKey) {
+    const modal = document.getElementById('history-modal');
+    const tbody = document.getElementById('history-table-body');
+    const loader = document.getElementById('history-modal-loader');
 
-        if (modal) modal.classList.remove('hidden');
-        if (loader) loader.classList.remove('hidden');
-        if (tbody) tbody.innerHTML = '';
+    if (modal) modal.classList.remove('hidden');
+    if (loader) loader.classList.remove('hidden');
+    if (tbody) tbody.innerHTML = '';
 
-        try {
-            // Fetch history
-            const snapshot = await invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}/history`).orderByChild('timestamp').once('value');
-            const historyData = [];
+    try {
+        const snapshot = await invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}/history`).orderByChild('timestamp').once('value');
+        const historyData = [];
 
-            snapshot.forEach(child => {
-                historyData.push(child.val());
-            });
+        snapshot.forEach(child => { historyData.push(child.val()); });
 
-            // Fetch creation date for the start point
-            const invSnapshot = await invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}`).once('value');
-            const invData = invSnapshot.val();
+        // Sort descending (Newest first)
+        historyData.sort((a, b) => b.timestamp - a.timestamp);
 
-            if (invData) {
-                // 1. Determine the Start Time
-                const startTime = invData.originTimestamp || invData.createdAt;
+        // --- SMART SEARCH: FIND LATEST ESN/LINK ---
+        // We look for the most recent valid ESN/Link in the history
+        // This ensures that if you click "Approved" (which happened BEFORE the receipt),
+        // it still knows about the receipt that happened 5 seconds later.
+        let sharedEsn = null;
+        let sharedLink = null;
 
-                // 2. Determine the Initiator
-                const initiator = invData.originEnteredBy || "System";
-
-                // 3. Determine the Note
-                const startNote = invData.originTimestamp ?
-                    "Originated from Job Entry" :
-                    "Initial Invoice Entry";
-
-                if (startTime) {
-                    historyData.unshift({
-                        status: "Created / Received",
-                        timestamp: startTime,
-                        updatedBy: initiator,
-                        note: startNote
-                    });
-                }
+        for (const entry of historyData) {
+            if (entry.esn && entry.pdfLink) {
+                sharedEsn = entry.esn;
+                sharedLink = entry.pdfLink;
+                break; // Found the newest one, stop looking
             }
-
-            if (loader) loader.classList.add('hidden');
-
-            if (historyData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4">No history recorded yet.</td></tr>';
-                return;
-            }
-
-            let previousTime = null;
-
-            historyData.forEach((entry) => {
-                const dateObj = new Date(entry.timestamp);
-                const dateStr = dateObj.toLocaleDateString('en-GB') + ' ' + dateObj.toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-
-                let durationStr = "---";
-
-                if (previousTime) {
-                    const diffMs = entry.timestamp - previousTime;
-                    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-                    const diffHrs = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                    const diffMins = Math.round(((diffMs % (1000 * 60 * 60)) / (1000 * 60)));
-
-                    if (diffDays > 0) durationStr = `${diffDays}d ${diffHrs}h`;
-                    else if (diffHrs > 0) durationStr = `${diffHrs}h ${diffMins}m`;
-                    else durationStr = `${diffMins} mins`;
-                }
-
-                previousTime = entry.timestamp;
-
-                const row = `
-                <tr>
-                    <td><strong>${entry.status}</strong><br><small style="color:#777">${entry.note || ''}</small></td>
-                    <td>${dateStr}</td>
-                    <td>${entry.updatedBy || 'N/A'}</td>
-                    <td class="history-duration">${durationStr}</td>
-                </tr>
-            `;
-                if (tbody) tbody.innerHTML += row;
-            });
-
-        } catch (error) {
-            console.error(error);
-            if (loader) loader.classList.add('hidden');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="4">Error loading history.</td></tr>';
         }
-    };
+        // ------------------------------------------
+
+        if (loader) loader.classList.add('hidden');
+
+        if (historyData.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4">No history recorded.</td></tr>';
+            return;
+        }
+
+        historyData.forEach((h) => {
+            const dateObj = new Date(h.timestamp);
+            const dateStr = dateObj.toLocaleDateString('en-GB') + ' ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            // --- QR BUTTON LOGIC ---
+            let qrButton = '';
+            
+            // 1. Use the specific ESN from this line if it exists
+            let currentEsn = h.esn;
+            let currentLink = h.pdfLink;
+
+            // 2. If missing, BUT this is an "Approved" line and we found a shared ESN elsewhere, use that!
+            if (!currentEsn && (h.action === 'Approved' || h.status === 'Approved') && sharedEsn) {
+                currentEsn = sharedEsn;
+                currentLink = sharedLink;
+            }
+
+            // 3. Render Button if we have data
+            if (currentEsn && currentLink) {
+                qrButton = `
+                <button onclick="printHistorySticker('${currentEsn}', '${currentLink}')" 
+                        class="action-btn" 
+                        title="Print QR Sticker (${currentEsn})"
+                        style="background-color: #6f42c1; color: white; border: none; padding: 4px 8px; border-radius: 4px; margin-left: 5px; cursor: pointer;">
+                    <i class="fa-solid fa-qrcode"></i> Print
+                </button>`;
+            }
+
+            const row = `
+            <tr>
+                <td>
+                    <strong>${h.action || h.status}</strong>
+                    ${qrButton} <br>
+                    <small style="color:#777">${h.note || ''}</small>
+                </td>
+                <td>${dateStr}</td>
+                <td>${h.updatedBy || h.by || 'System'}</td>
+                <td style="font-family: monospace; font-weight: bold;">${currentEsn || '-'}</td>
+            </tr>
+            `;
+            tbody.innerHTML += row;
+        });
+
+    } catch (error) {
+        console.error(error);
+        if (loader) loader.classList.add('hidden');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="4">Error loading history.</td></tr>';
+    }
+};
+
     // --- NEW: Dashboard Double-Click Logic ---
     const dashboardNavLink = document.getElementById('im-dashboard-nav-link');
     if (dashboardNavLink) {
@@ -11263,6 +11365,95 @@ const refreshReportingBtn = document.getElementById('im-refresh-reporting-button
         });
     }
 
+
+// =========================================================
+// 3. PRINT HISTORY STICKER (MANAGER 1, 2, 3 LOGIC)
+// =========================================================
+window.printHistorySticker = function(esn, link) {
+    if (!esn || !link) {
+        alert("Error: ESN or Link missing for this record.");
+        return;
+    }
+
+    // 1. ASK FOR POSITION
+    const pos = prompt(
+        "Select Sticker Position on A4 Paper:\n\n" +
+        "1 - Manager 1 (Bottom LEFT)\n" +
+        "2 - Manager 2 (Bottom CENTER)\n" +
+        "3 - Manager 3 (Bottom RIGHT)", 
+        "1"
+    );
+
+    if (!pos) return; // Cancelled
+
+    // 2. DEFINE CSS POSITION
+    let cssPosition = "";
+    if (pos === "1") cssPosition = "bottom: 20mm; left: 20mm;"; // Manager 1
+    else if (pos === "2") cssPosition = "bottom: 20mm; left: 50%; transform: translateX(-50%);"; // Manager 2
+    else if (pos === "3") cssPosition = "bottom: 20mm; right: 20mm;"; // Manager 3
+    else { alert("Invalid selection"); return; }
+
+    const dateStr = new Date().toLocaleDateString('en-GB');
+
+    // 3. OPEN PRINT WINDOW
+    const printWin = window.open('', '', 'width=600,height=600');
+    printWin.document.write(`
+        <html>
+        <head>
+            <title>Print Sticker - ${esn}</title>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
+            <style>
+                @page { size: A4; margin: 0; }
+                body { margin: 0; padding: 0; width: 210mm; height: 297mm; position: relative; }
+                
+                #sticker-container {
+                    position: absolute;
+                    ${cssPosition} /* Applies the Manager 1/2/3 logic */
+                    width: auto;
+                    display: flex;
+                    flex-direction: row;
+                    align-items: center;
+                    padding: 5px;
+                    background: white;
+                    border: 1px dashed #ccc; /* Helper border, remove if unwanted */
+                }
+                .main-box { text-align: center; padding-right: 5px; border-right: 1px solid #000; }
+                .status-text { font-weight: 900; font-size: 14px; color: #28a745; margin-bottom: 2px; }
+                .esn-text { font-family: monospace; font-weight: bold; font-size: 10px; margin-top: 2px; }
+                .side-text { 
+                    writing-mode: vertical-rl; 
+                    text-orientation: mixed; 
+                    font-size: 8px; 
+                    font-weight: bold; 
+                    margin-left: 5px;
+                }
+            </style>
+        </head>
+        <body>
+            <div id="sticker-container">
+                <div class="main-box">
+                    <div class="status-text">APPROVED</div>
+                    <div id="qrcode"></div>
+                    <div class="esn-text">${esn}</div>
+                </div>
+                <div class="side-text">${dateStr}</div>
+            </div>
+            <script>
+                new QRCode(document.getElementById("qrcode"), {
+                    text: "${link}",
+                    width: 80,
+                    height: 80,
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+                // Wait for QR render then print
+                setTimeout(() => { window.print(); window.close(); }, 500);
+            <\/script>
+        </body>
+        </html>
+    `);
+    printWin.document.close();
+};
+
     // --- Manual PO Entry Logic ---
     const manualSupplierIdInput = document.getElementById('manual-supplier-id');
 
@@ -11282,10 +11473,12 @@ const refreshReportingBtn = document.getElementById('im-refresh-reporting-button
         });
     }
 
-    // 2. Save Manual PO Button
-    const saveManualPOBtn = document.getElementById('im-save-manual-po-btn');
-    if (saveManualPOBtn) {
-    saveManualPOBtn.addEventListener('click', async () => { // Make async
+   // =========================================================
+// MANUAL PO SAVE (Corrected: Saves to 'invoiceDb' > 'purchase_orders')
+// =========================================================
+const saveManualPOBtn = document.getElementById('im-save-manual-po-btn');
+if (saveManualPOBtn) {
+    saveManualPOBtn.addEventListener('click', async () => {
         const po = document.getElementById('manual-po-number').value.trim().toUpperCase();
         const vendor = document.getElementById('manual-vendor-name').value;
         const site = document.getElementById('manual-site-select').value;
@@ -11308,10 +11501,12 @@ const refreshReportingBtn = document.getElementById('im-refresh-reporting-button
         if (!allPOData) allPOData = {};
         allPOData[po] = manualPOData;
 
-        // 2. SAVE TO FIREBASE PERMANENTLY (The Fix for Persistence)
+        // 2. SAVE TO FIREBASE PERMANENTLY (CORRECTED TARGET)
         try {
             saveManualPOBtn.textContent = "Saving...";
-            await db.ref(`manual_purchase_orders/${po}`).set(manualPOData);
+            
+            // FIX: Use 'invoiceDb' (invoiceentry-b15a8) and 'purchase_orders' path
+            await invoiceDb.ref(`purchase_orders/${po}`).set(manualPOData);
             
             // Close Modal and Proceed
             document.getElementById('im-manual-po-modal').classList.add('hidden');
@@ -11780,115 +11975,184 @@ const refreshReportingBtn = document.getElementById('im-refresh-reporting-button
     };
 
 // =========================================================
-// NEW: STICKER PRINT LOGIC (V8.0 - Manual Workflow Selection)
+// NEW: DYNAMIC STICKER PRINT (Auto-Positioning)
 // =========================================================
-window.handlePrintSticker = async function(key, type, poNumber = null) {
-    let entry = null;
-    
-    // 1. FORCE FRESH FETCH
+window.handlePrintSticker = async function(key, type, poNumber) {
+    if (!key || !poNumber) { alert("Missing data for print."); return; }
+
+    const safePO = poNumber.replace(/[.#$[\]]/g, '_');
+    const recordKey = `${safePO}_${key}`;
+
     try {
-        if (type === 'Invoice' && poNumber) {
-            const snap = await invoiceDb.ref(`invoice_entries/${poNumber}/${key}`).once('value');
-            entry = snap.val();
-        } else {
-            let snap = await db.ref(`transfer_entries/${key}`).once('value');
-            if (!snap.exists()) {
-                snap = await db.ref(`job_entries/${key}`).once('value');
+        // 1. Fetch from manager_approved
+        const snap = await db.ref(`manager_approved/${recordKey}`).once('value');
+        const data = snap.val();
+
+        // 2. Build List of Stickers
+        const stickers = [];
+        if (data) {
+            // FIX: We now send "APPROVED" as the name, instead of data.approver_X
+            if (data.esn_1) stickers.push({ esn: data.esn_1, pdf: data.pdf_1, name: "APPROVED", date: data.date_1 });
+            if (data.esn_2) stickers.push({ esn: data.esn_2, pdf: data.pdf_2, name: "APPROVED", date: data.date_2 });
+            if (data.esn_3) stickers.push({ esn: data.esn_3, pdf: data.pdf_3, name: "APPROVED", date: data.date_3 });
+            
+            // CEO stays as "CEO APPROVED"
+            if (data.esn_ceo) {
+                 stickers.push({ esn: data.esn_ceo, pdf: data.pdf_ceo, name: "CEO APPROVED", date: data.date_ceo, isCeo: true });
             }
-            entry = snap.val();
-        }
-    } catch (e) {
-        console.error("Sticker Data Fetch Error:", e);
-        alert("Network Error: Could not fetch latest sticker data.");
-        return;
-    }
-
-    if (!entry) { alert("Data record not found. Please refresh."); return; }
-
-    // 2. GET SAVED ESN
-    let esnDisplay = entry.esn || entry.receiverEsn || "NO-ESN/RECORD";
-
-    // 3. GENERATE QR LINK
-    const safeFilename = esnDisplay.replace(/[^a-zA-Z0-9]/g, '_');
-    const bucket = "invoiceentry-b15a8.firebasestorage.app";
-    const pdfLink = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/receipts%2F${safeFilename}.pdf?alt=media`;
-
-    // 4. DETERMINE POSITION (USER SELECTION + AUTO-SEQUENCE)
-    let positionClass = "pos-bottom-right"; 
-    let roleLabel = "APPROVED";
-    
-    // Check Current User
-    let isCurrentCEO = false;
-    let currentUserName = "";
-    if (currentApprover) {
-        currentUserName = currentApprover.Name;
-        const pos = (currentApprover.Position || '').toLowerCase();
-        if (pos === 'ceo') isCurrentCEO = true;
-    }
-
-    if (isCurrentCEO) {
-        // CEO ALWAYS goes Top Right
-        positionClass = "pos-ceo-stack"; 
-        roleLabel = "CEO APPROVED";
-        proceedToPrint(positionClass, roleLabel, esnDisplay, pdfLink, entry);
-    } else {
-        // MANAGER LOGIC: Ask User for Workflow Type
-        const input = prompt(
-            "How many Managers are approving this document?\n\n" +
-            "1 - Single Manager (Right)\n" +
-            "2 - Two Managers (Left / Right)\n" +
-            "3 - Three Managers (Left / Middle / Right)", 
-            "1"
-        );
-
-        if (!input) return; // User cancelled
-
-        // A. Find My Sequence Number
-        // We look at the NOTES + HISTORY to find where "I" am in the list of approvers
-        const noteStr = entry.note || "";
-        
-        // Extract names from "[Action by Name]" tags in the note
-        let approversList = [];
-        const regex = /\[Action by (.*?)\]/g;
-        let match;
-        while ((match = regex.exec(noteStr)) !== null) {
-            approversList.push(match[1].trim().toLowerCase());
-        }
-
-        // If I am not in the list yet (e.g. I just approved), assume I am the LATEST one.
-        // We add myself to the end if not found.
-        const myNameLower = currentUserName.toLowerCase();
-        let myIndex = approversList.findIndex(name => name.includes(myNameLower) || myNameLower.includes(name));
-        
-        if (myIndex === -1) {
-            // Not found in notes? Assume I am the next one.
-            myIndex = approversList.length; 
-        }
-
-        // B. Apply "Button" Logic
-        if (input === "1") {
-            // BUTTON 1: Single Manager -> Always Right
-            positionClass = "pos-bottom-right";
         } 
-        else if (input === "2") {
-            // BUTTON 2: Two Managers
-            if (myIndex === 0) positionClass = "pos-bottom-left";  // 1st -> Left
-            else positionClass = "pos-bottom-right";               // 2nd -> Right
-        } 
-        else if (input === "3") {
-            // BUTTON 3: Three Managers
-            if (myIndex === 0) positionClass = "pos-bottom-left";        // 1st -> Left
-            else if (myIndex === 1) positionClass = "pos-bottom-center"; // 2nd -> Middle
-            else positionClass = "pos-bottom-right";                     // 3rd -> Right
-        } 
+        // Fallback for old/standard records
         else {
-            // Fallback
-            positionClass = "pos-bottom-right";
+            const invSnap = await invoiceDb.ref(`invoice_entries/${poNumber}/${key}`).once('value');
+            const inv = invSnap.val();
+            if(inv && inv.esn) {
+                stickers.push({ 
+                    esn: inv.esn, 
+                    pdf: `https://firebasestorage.googleapis.com/v0/b/invoiceentry-b15a8.firebasestorage.app/o/receipts%2F${inv.esn.replace(/[^a-zA-Z0-9]/g, '_')}.pdf?alt=media`, 
+                    name: 'APPROVED', 
+                    date: new Date().toLocaleDateString('en-GB') 
+                });
+            }
         }
 
-        proceedToPrint(positionClass, roleLabel, esnDisplay, pdfLink, entry);
+        if (stickers.length === 0) {
+            alert("No approval stickers found for this invoice.");
+            return;
+        }
+
+        // 3. Print
+        proceedToPrintMulti(stickers);
+
+    } catch (e) {
+        console.error("Print Error:", e);
+        alert("Error loading print data.");
     }
 };
+
+// --- LAYOUT ENGINE: Right-to-Left ---
+function proceedToPrintMulti(stickerList) {
+    const managers = stickerList.filter(s => !s.isCeo);
+    const ceo = stickerList.find(s => s.isCeo);
+
+    // LOGIC: Reverse so Newest (Last index) goes to Right
+    const reversed = [...managers].reverse(); 
+
+    let htmlStickers = "";
+
+    // Render Managers
+    reversed.forEach((s, index) => {
+        const rightPos = 20 + (index * 35); 
+        htmlStickers += createStickerHTML(s, `bottom: 20mm; right: ${rightPos}mm;`);
+    });
+
+    // Render CEO
+    if (ceo) {
+        htmlStickers += createStickerHTML(ceo, `bottom: 55mm; right: 20mm;`);
+    }
+
+    const printWindow = window.open('', '', 'width=1000,height=1200');
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>Multi-Sticker Print</title>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
+            <style>
+                @page { size: A4; margin: 0; }
+                body { margin: 0; padding: 0; width: 210mm; height: 297mm; position: relative; font-family: 'Arial', sans-serif; }
+                
+                .sticker-box {
+                    position: absolute;
+                    width: auto;
+                    padding: 4px;
+                    display: flex;
+                    flex-direction: row;
+                    align-items: center; /* Vertically center the side text */
+                    background: white; 
+                    z-index: 100;
+                }
+
+                /* THE FIX: Use Flexbox to force perfect center alignment */
+                .main { 
+                    display: flex; 
+                    flex-direction: column; 
+                    align-items: center; /* Centers Text, QR, and ESN horizontally */
+                    justify-content: center;
+                    padding-right: 5px; 
+                    border-right: 1px solid #000; 
+                }
+
+                .status { 
+                    font-weight: 900; 
+                    font-size: 12px; 
+                    text-transform: uppercase; 
+                    margin-bottom: 2px; 
+                    color: #28a745;
+                    text-align: center;
+                    white-space: nowrap;
+                }
+                
+                .esn { 
+                    font-weight: bold; 
+                    font-size: 8px; 
+                    margin-top: 2px; 
+                    font-family: monospace; 
+                    white-space: nowrap; 
+                    color: #000;
+                    text-align: center;
+                }
+
+                .side {
+                    width: 12px; 
+                    display: flex; 
+                    align-items: center; 
+                    justify-content: center;
+                    writing-mode: vertical-rl; 
+                    text-orientation: mixed; 
+                    font-weight: bold;
+                    font-size: 8px; 
+                    margin-left: 4px; 
+                    height: 80px; 
+                    color: #555;
+                }
+
+                /* Force QR Container Size */
+                .qr-target {
+                    width: 70px;
+                    height: 70px;
+                    display: flex;
+                    justify-content: center;
+                }
+            </style>
+        </head>
+        <body>
+            ${htmlStickers}
+            <script>
+                const boxes = document.querySelectorAll('.sticker-box');
+                boxes.forEach(box => {
+                    const link = box.dataset.link;
+                    const container = box.querySelector('.qr-target');
+                    new QRCode(container, { text: link, width: 70, height: 70, correctLevel: QRCode.CorrectLevel.M });
+                });
+                setTimeout(() => { window.print(); }, 800);
+            <\/script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+}
+
+function createStickerHTML(data, cssPosition) {
+    const nameDisplay = data.name.length > 12 ? data.name.substring(0, 10) + '..' : data.name;
+    return `
+    <div class="sticker-box" style="${cssPosition}" data-link="${data.pdf}">
+        <div class="main">
+            <div class="status">${nameDisplay}</div>
+            <div class="qr-target"></div>
+            <div class="esn">${data.esn}</div>
+        </div>
+        <div class="side">${data.date}</div>
+    </div>`;
+}
 
 // --- Helper to actually open the window ---
 function proceedToPrint(positionClass, roleLabel, esnDisplay, pdfLink, entry) {
