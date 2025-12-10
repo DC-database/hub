@@ -5,7 +5,7 @@
   - Cleanup note: removed bracket labels like // [1.a], kept logic unchanged.
 */
 
-const APP_VERSION = "4.8.3";
+const APP_VERSION = "4.8.6";
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -3453,48 +3453,84 @@ function renderActiveTaskTable(tasks) {
             `;
 
         } else {
-            // --- STANDARD ROW (Invoice/PR) ---
-            const isInvoiceFromIrwin = task.source === 'invoice' && task.enteredBy === 'Irwin';
-            const invName = task.invName || '';
-            const isClickable = (isInvoiceFromIrwin || (task.source === 'invoice' && invName)) &&
-                invName.trim() &&
-                invName.toLowerCase() !== 'nil';
+        // --- STANDARD ROW (Invoice/PR) ---
+        const isInvoiceFromIrwin = task.source === 'invoice' && task.enteredBy === 'Irwin';
+        const invName = task.invName || '';
+        const isClickable = (isInvoiceFromIrwin || (task.source === 'invoice' && invName)) &&
+            invName.trim() &&
+            invName.toLowerCase() !== 'nil';
 
-            if (isClickable) row.classList.add('clickable-pdf');
-            if (isCEO) row.title = "Click to open approval modal";
-            else if (isClickable) row.title = "Click to open PDF";
+        if (isClickable) row.classList.add('clickable-pdf');
+        if (isCEO) row.title = "Click to open approval modal";
+        else if (isClickable) row.title = "Click to open PDF";
 
-            let actionButtons = '';
-            if (isCEO) {
-                actionButtons = `<button class="ceo-approve-btn" data-key="${task.key}">Make Approval</button>`;
-            } else {
-                let srvDoneDisabled = '';
-                if (task.source !== 'invoice') srvDoneDisabled = 'disabled title="Only invoice tasks"';
-                actionButtons = `
-                    <button class="srv-done-btn" data-key="${task.key}" ${srvDoneDisabled}>SRV Done</button>
-                    <button class="modify-btn" data-key="${task.key}">Edit Action</button>
-                `;
-            }
+        const displayAmount = task.amountPaid || task.amount || 0;
 
-            // FIX: Use 'Amount To Paid' for Desktop Display
-            // This matches the Mobile Card logic
-            const displayAmount = task.amountPaid || task.amount || 0;
+        // 1. Render Columns 1-9 (Text Data)
+        row.innerHTML = `
+            <td class="desktop-only">${task.for || ''}</td>
+            <td class="desktop-only">${task.ref || ''}</td>
+            <td class="desktop-only">${task.po || ''}</td>
+            <td class="desktop-only">${task.vendorName || 'N/A'}</td>
+            <td class="desktop-only">${formatCurrency(displayAmount)}</td>
+            <td class="desktop-only">${task.site || ''}</td>
+            <td class="desktop-only col-group">${task.group || ''}</td>
+            <td class="desktop-only">${task.date || ''}</td>
+            <td class="desktop-only">${task.remarks || 'Pending'}</td>
+        `;
 
-            row.innerHTML = `
-                <td class="desktop-only">${task.for || ''}</td>
-                <td class="desktop-only">${task.ref || ''}</td>
-                <td class="desktop-only">${task.po || ''}</td>
-                <td class="desktop-only">${task.vendorName || 'N/A'}</td>
-                <td class="desktop-only">${formatCurrency(displayAmount)}</td>
-                <td class="desktop-only">${task.site || ''}</td>
-                <td class="desktop-only col-group">${task.group || ''}</td>
-                <td class="desktop-only">${task.date || ''}</td>
-                <td class="desktop-only">${task.remarks || 'Pending'}</td>
-                <td class="desktop-only">${actionButtons}</td>
+        // 2. Render Column 10 (Smart Actions)
+        const actionsCell = document.createElement('td');
+        actionsCell.className = "desktop-only";
+
+        // CHECK ROLE
+        const userRole = (currentApprover.Position || '').toLowerCase();
+        const isManager = userRole.includes('manager') || userRole.includes('director') || userRole.includes('ceo') || userRole === 'admin';
+
+        // SCENARIO A: Manager viewing "For Approval" -> Show Approve/Reject
+        if (task.remarks === 'For Approval' && isManager) {
+            
+            const approveBtn = document.createElement('button');
+            approveBtn.className = 'action-btn approve-btn';
+            approveBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
+            approveBtn.title = 'Approve';
+            approveBtn.style.backgroundColor = '#28a745';
+            approveBtn.style.color = 'white';
+            approveBtn.style.marginRight = '5px';
+            approveBtn.onclick = (e) => { e.stopPropagation(); handleDesktopApproval(task, 'Approved'); };
+            
+            const rejectBtn = document.createElement('button');
+            rejectBtn.className = 'action-btn reject-btn';
+            rejectBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+            rejectBtn.title = 'Reject';
+            rejectBtn.style.backgroundColor = '#dc3545';
+            rejectBtn.style.color = 'white';
+            rejectBtn.onclick = (e) => { e.stopPropagation(); handleDesktopApproval(task, 'Rejected'); };
+
+            actionsCell.appendChild(approveBtn);
+            actionsCell.appendChild(rejectBtn);
+
+        } 
+        // SCENARIO B: CEO (Keep existing logic)
+        else if (isCEO) {
+            actionsCell.innerHTML = `<button class="ceo-approve-btn" data-key="${task.key}">Make Approval</button>`;
+        } 
+        // SCENARIO C: Standard User (SRV/Edit)
+        else {
+            let srvDoneDisabled = '';
+            if (task.source !== 'invoice') srvDoneDisabled = 'disabled title="Only invoice tasks"';
+            
+            actionsCell.innerHTML = `
+                <button class="srv-done-btn" data-key="${task.key}" ${srvDoneDisabled}>SRV Done</button>
+                <button class="modify-btn" data-key="${task.key}">Edit Action</button>
             `;
         }
-        activeTaskTableBody.appendChild(row);
-    });
+
+        // Append the smart action cell to the row
+        row.appendChild(actionsCell);
+    }
+    activeTaskTableBody.appendChild(row);
+});
 }
 
 function renderMobileActiveTasks(tasks) {
@@ -4101,6 +4137,84 @@ function toggleJobOtherInput() {
 }
 // Expose to global scope for HTML onchange
 window.toggleJobOtherInput = toggleJobOtherInput;
+
+
+// =========================================================
+// NEW: DESKTOP APPROVAL HANDLER ("WAITING ROOM" LOGIC)
+// =========================================================
+async function handleDesktopApproval(task, action) {
+    // 1. Ask for Note/Confirmation
+    const note = prompt(`Enter optional note for ${action}:`, "");
+    if (note === null) return; // Cancelled
+
+    // 2. Prepare Data
+    const historyEntry = {
+        action: action,
+        by: currentApprover.Name,
+        timestamp: firebase.database.ServerValue.TIMESTAMP,
+        note: note || 'Desktop Action'
+    };
+
+    const updates = {
+        status: action,         // "Approved"
+        remarks: action,
+        note: note ? note.trim() : '',
+        dateResponded: formatDate(new Date()),
+        
+        // --- THE WAITING ROOM FLAG ---
+        batch_status: 'pending_receipt', 
+        last_approver: currentApprover.Name 
+        // -----------------------------
+    };
+
+    // 3. Save to Firebase
+    try {
+        if (task.source === 'job_entry') {
+            await db.ref(`job_entries/${task.key}`).update(updates);
+            await db.ref(`job_entries/${task.key}/history`).push(historyEntry);
+        } 
+        else if (task.source === 'invoice') {
+            await invoiceDb.ref(`invoice_entries/${task.originalPO}/${task.originalKey}`).update(updates);
+            await invoiceDb.ref(`invoice_entries/${task.originalPO}/${task.originalKey}/history`).push(historyEntry);
+            
+            // Update Lookup for search speed
+            updateInvoiceTaskLookup(task.originalPO, task.originalKey, updates, task.attention);
+        }
+
+        alert(`Task marked as ${action}. It is now in your 'Pending Receipt' list.`);
+        
+        // Refresh the table
+        populateActiveTasks();
+
+        // SHOW THE "SEND RECEIPT" BUTTON ON DASHBOARD
+        // This ensures you see the button if you have pending items
+        checkPendingReceipts(); 
+
+    } catch (error) {
+        console.error("Approval Error:", error);
+        alert("Error saving approval.");
+    }
+}
+
+// =========================================================
+// CHECK DATABASE FOR PENDING RECEIPTS
+// =========================================================
+async function checkPendingReceipts() {
+    // We scan your active tasks or a specific list to see if any are 'pending_receipt'
+    // Since we just refreshed the tasks, we can check the local list 'userActiveTasks' 
+    // BUT for "Approved" items, they might leave the 'Active' list.
+    
+    // For simplicity in this step, we will check the visual button visibility.
+    // Ideally, we query Firebase, but let's start by showing the button if we just clicked approve.
+    
+    const receiptBtn = document.getElementById('desktop-send-receipt-btn'); 
+    // (Ensure you have a button with this ID in your HTML Dashboard)
+    
+    if (receiptBtn) {
+        receiptBtn.classList.remove('hidden');
+        receiptBtn.innerHTML = '<i class="fa-solid fa-file-invoice"></i> Finalize & Send Receipt';
+    }
+}
 
 // ==========================================================================
 // UPDATED: populateAttentionDropdown (Smart Filtering)
@@ -9119,12 +9233,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             }, 100);
         });
     }
-    // Password Form
+    // Password Form (Desktop)
     passwordForm.addEventListener('submit', (e) => {
         e.preventDefault();
         passwordError.textContent = '';
         const enteredPassword = passwordInput.value;
+        
         if (enteredPassword === currentApprover.Password) {
+            
+            // --- NEW: PLAY LOGIN SOUND ---
+            const sound = document.getElementById('login-sound');
+            if (sound) {
+                sound.play().catch(err => console.log("Audio play failed:", err));
+            }
+            // -----------------------------
+
             handleSuccessfulLogin();
         } else {
             passwordError.textContent = 'Incorrect password. Please try again.';
@@ -11657,7 +11780,7 @@ const refreshReportingBtn = document.getElementById('im-refresh-reporting-button
     };
 
 // =========================================================
-// NEW: STICKER PRINT LOGIC (V7.7 - Text Note Fallback)
+// NEW: STICKER PRINT LOGIC (V8.0 - Manual Workflow Selection)
 // =========================================================
 window.handlePrintSticker = async function(key, type, poNumber = null) {
     let entry = null;
@@ -11690,13 +11813,13 @@ window.handlePrintSticker = async function(key, type, poNumber = null) {
     const bucket = "invoiceentry-b15a8.firebasestorage.app";
     const pdfLink = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/receipts%2F${safeFilename}.pdf?alt=media`;
 
-    // 4. DETERMINE POSITION (NOTE PARSING LOGIC)
-    let positionClass = "pos-bottom-right"; // Default Fallback
+    // 4. DETERMINE POSITION (USER SELECTION + AUTO-SEQUENCE)
+    let positionClass = "pos-bottom-right"; 
     let roleLabel = "APPROVED";
     
-    // Check Current User Role
+    // Check Current User
     let isCurrentCEO = false;
-    let currentUserName = '';
+    let currentUserName = "";
     if (currentApprover) {
         currentUserName = currentApprover.Name;
         const pos = (currentApprover.Position || '').toLowerCase();
@@ -11704,71 +11827,76 @@ window.handlePrintSticker = async function(key, type, poNumber = null) {
     }
 
     if (isCurrentCEO) {
+        // CEO ALWAYS goes Top Right
         positionClass = "pos-ceo-stack"; 
         roleLabel = "CEO APPROVED";
+        proceedToPrint(positionClass, roleLabel, esnDisplay, pdfLink, entry);
     } else {
-        // MANAGER LOGIC: Scan the text note for "[Action by Name]"
+        // MANAGER LOGIC: Ask User for Workflow Type
+        const input = prompt(
+            "How many Managers are approving this document?\n\n" +
+            "1 - Single Manager (Right)\n" +
+            "2 - Two Managers (Left / Right)\n" +
+            "3 - Three Managers (Left / Middle / Right)", 
+            "1"
+        );
+
+        if (!input) return; // User cancelled
+
+        // A. Find My Sequence Number
+        // We look at the NOTES + HISTORY to find where "I" am in the list of approvers
         const noteStr = entry.note || "";
+        
+        // Extract names from "[Action by Name]" tags in the note
+        let approversList = [];
         const regex = /\[Action by (.*?)\]/g;
         let match;
-        let approversList = [];
-        
-        // 1. Build list from text notes
         while ((match = regex.exec(noteStr)) !== null) {
-            approversList.push(match[1].trim());
+            approversList.push(match[1].trim().toLowerCase());
         }
 
-        // 2. Fallback: If text notes empty, try DB History
-        if (approversList.length === 0 && entry.history) {
-             let hArr = Array.isArray(entry.history) ? entry.history : Object.values(entry.history);
-             hArr.sort((a,b) => a.timestamp - b.timestamp);
-             hArr.forEach(h => {
-                 if ((h.action||'').toLowerCase() === 'approved') approversList.push(h.by);
-             });
-        }
-
-        // 3. Add Current User if not in list yet (Simulate current approval)
-        // We use loose matching
-        const alreadyInList = approversList.some(name => 
-            currentUserName.toLowerCase().includes(name.toLowerCase()) || 
-            name.toLowerCase().includes(currentUserName.toLowerCase())
-        );
+        // If I am not in the list yet (e.g. I just approved), assume I am the LATEST one.
+        // We add myself to the end if not found.
+        const myNameLower = currentUserName.toLowerCase();
+        let myIndex = approversList.findIndex(name => name.includes(myNameLower) || myNameLower.includes(name));
         
-        if (!alreadyInList) {
-            approversList.push(currentUserName);
+        if (myIndex === -1) {
+            // Not found in notes? Assume I am the next one.
+            myIndex = approversList.length; 
         }
 
-        // 4. Determine My Sequence
-        const totalManagers = approversList.length;
-        const myIndex = approversList.findIndex(name => 
-            currentUserName.toLowerCase().includes(name.toLowerCase()) || 
-            name.toLowerCase().includes(currentUserName.toLowerCase())
-        );
-        
-        // 5. Apply Position Rules
-        if (totalManagers <= 1) {
-            // Only 1 Manager -> Right
+        // B. Apply "Button" Logic
+        if (input === "1") {
+            // BUTTON 1: Single Manager -> Always Right
             positionClass = "pos-bottom-right";
         } 
-        else if (totalManagers === 2) {
-            // 2 Managers -> 1st Left, 2nd Right
-            if (myIndex === 0) positionClass = "pos-bottom-left";
-            else positionClass = "pos-bottom-right";
+        else if (input === "2") {
+            // BUTTON 2: Two Managers
+            if (myIndex === 0) positionClass = "pos-bottom-left";  // 1st -> Left
+            else positionClass = "pos-bottom-right";               // 2nd -> Right
+        } 
+        else if (input === "3") {
+            // BUTTON 3: Three Managers
+            if (myIndex === 0) positionClass = "pos-bottom-left";        // 1st -> Left
+            else if (myIndex === 1) positionClass = "pos-bottom-center"; // 2nd -> Middle
+            else positionClass = "pos-bottom-right";                     // 3rd -> Right
         } 
         else {
-            // 3 Managers -> Left, Center, Right
-            if (myIndex === 0) positionClass = "pos-bottom-left";
-            else if (myIndex === 1) positionClass = "pos-bottom-center";
-            else positionClass = "pos-bottom-right";
+            // Fallback
+            positionClass = "pos-bottom-right";
         }
-    }
 
+        proceedToPrint(positionClass, roleLabel, esnDisplay, pdfLink, entry);
+    }
+};
+
+// --- Helper to actually open the window ---
+function proceedToPrint(positionClass, roleLabel, esnDisplay, pdfLink, entry) {
     const isRejected = (entry.remarks === 'Rejected' || entry.status === 'Rejected');
     const statusText = isRejected ? "REJECTED" : roleLabel;
     const statusColor = isRejected ? "#D32F2F" : "#28a745";
     const dateStr = new Date().toLocaleDateString('en-GB');
 
-    // 5. OPEN PRINT WINDOW
     const printWindow = window.open('', '', 'width=1000,height=1200');
     printWindow.document.write(`
         <html>
@@ -11833,7 +11961,7 @@ window.handlePrintSticker = async function(key, type, poNumber = null) {
         </html>
     `);
     printWindow.document.close();
-};
+}
 
 // =========================================================
 // HELPER: Save Approval to History List
