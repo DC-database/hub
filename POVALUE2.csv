@@ -20496,7 +20496,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 11051,45788,19999,Cash,168,66,14-Aug-23,Eng. Khamis Farhan,M.Cua
 11048,45789,10231,Morden Construction & Supplies,167,638.97,14-Aug-23,Eng. Seif Awwad,Gian
 11023,45791,11518,Alwan Marble & Granite Factory,166,72060,14-Aug-23,Eng. Mohamed Abulez,Gian
-,45792,11621,Alsarf Trading & Contracting Co. W.L.L.,M163,11189064.21,30-Jul-23,IBA Head Office,Irwin
+,45792,11621,Alsarf Trading & Contracting Co. W.L.L.,M163,12286694.62,30-Jul-23,IBA Head Office,Irwin
 ,45793,11240,Qatar General Electricity & Water Corporation,M161,23853,14-Aug-23,IBA Head Office,M.Cua
 ,45794,19999,Cash,123,20,14-Aug-23,Mohammed Mostafa,M.Cua
 11055,45795,11505,Simsima Tiles Blocks & Interlock Factory,167,270,14-Aug-23,Eng. Seif Awwad,Gian
@@ -27320,7 +27320,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 ,52873,19999,Cash,100,6375,26-Sep-24,IBA Head Office,Irwin
 15780,52874,19999,Cash,176,1550,26-Sep-24,Eng. Khamis Farhan,H.Abbas
 15782,52875,19999,Cash,166,120,26-Sep-24,Eng. Ahmad AlHindi,H.Abbas
-,52876,11528,Aamal Readymix W.L.L.,173,7644941.95,26-Sep-24,Eng. Khamis Farhan,Cyril
+,52876,11528,Aamal Readymix W.L.L.,173,7644941.96,26-Sep-24,Eng. Khamis Farhan,Cyril
 15783,52877,19999,Cash,176,3950,26-Sep-24,Eng. Khamis Farhan,H.Abbas
 ,52878,10130,Khalifa Steel Industries Co,173,11686158.92,26-Sep-24,Eng. Khamis Farhan,Cyril
 15786,52879,19999,Cash,166,75,26-Sep-24,Eng. Mohamed Abulez,H.Abbas
@@ -28685,7 +28685,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 ,54289,10139,Qatar Islamic Insurance,122,1336,27-Nov-24,IBA Head Office,H.Abbas
 ,54290,19999,Cash,100,24,27-Nov-24,IBA Head Office,H.Abbas
 16942,54291,19999,Cash,166,25,27-Nov-24,Eng. Ahmad AlHindi,H.Abbas
-,54292,10130,Khalifa Steel Industries Co,176,668996.21,27-Nov-24,Eng. Mohammed Gomaa,Cyril
+,54292,10130,Khalifa Steel Industries Co,176,735222.84,27-Nov-24,Eng. Mohammed Gomaa,Cyril
 ,54293,19999,Cash,100,224.4,27-Nov-24,IBA Head Office,H.Abbas
 16888,54294,19999,Cash,169,272,27-Nov-24,Eng. Seif Awwad,H.Abbas
 16938,54295,19999,Cash,175,116.01,27-Nov-24,Eng. Seif Awwad,H.Abbas
@@ -30274,7 +30274,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 ,55920,39128,ARJUN SARKAR,176,11591.92,30-Jan-25,Eng. Seif Awwad,H.Abbas
 ,55921,17765,Al Attiya Motors and Trading Co.,174,706.92,30-Jan-25,IBA Head Office,mohsin
 ,55922,19999,Cash,100,1887.55,30-Jan-25,IBA Head Office,Irwin
-,55923,11218,Boom Treatment Company,123,8400,30-Jan-25,IBA Head Office,Irwin
+,55923,11218,Boom Treatment Company,123,7700,30-Jan-25,IBA Head Office,Irwin
 ,55924,17765,Al Attiya Motors and Trading Co.,M18,878.64,30-Jan-25,IBA Head Office,mohsin
 ,55925,30361,Grace Qatar Trading & Contracting W.L.L.,180,45543.18,09-Feb-25,Eng. Al Bara Gharaibeh,Awais
 ,55926,30143,Al Emadi Stones,166,147880.35,30-Jan-25,Eng. Mohamed Abulez,Cyril
@@ -31594,7 +31594,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 18918,57278,19999,Cash,173,539,12-Apr-25,Eng. Saravanan Palani,m.saad
 18963,57279,19999,Cash,176,618.25,12-Apr-25,Kanapathipillai Sandrakumar,m.saad
 ,57280,10240,ALNAHA FOR TRADING & CONTRACTING,169,9400,13-Apr-25,IBA Head Office,Irwin
-,57281,10240,ALNAHA FOR TRADING & CONTRACTING,173,85500,13-Apr-25,IBA Head Office,Irwin
+,57281,10240,ALNAHA FOR TRADING & CONTRACTING,173,85250,13-Apr-25,IBA Head Office,Irwin
 ,57282,10240,ALNAHA FOR TRADING & CONTRACTING,176,7750,13-Apr-25,IBA Head Office,Irwin
 ,57283,10240,ALNAHA FOR TRADING & CONTRACTING,166,15500,13-Apr-25,IBA Head Office,Irwin
 ,57284,19999,Cash,19,98,13-Apr-25,IBA Head Office,mohsin
@@ -33623,7 +33623,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 ,59407,10258,True Link Trading and Contracting WLL,100,530,22-Jul-25,IBA Head Office,H.Abbas
 20119,59408,11777,Computer Mart Trading,166,410,22-Jul-25,Eng. Mohamed Abulez,H.Abbas
 ,59409,39123,United Cooperation General Trading WLL,173,2900,22-Jul-25,IBA Head Office,mohsin
-,59410,30540,Drillone Trading and Contracting WLL,173,6130,22-Jul-25,Eng. Khamis Farhan,Cyril
+,59410,30540,Drillone Trading and Contracting WLL,173,4075,22-Jul-25,Eng. Khamis Farhan,Cyril
 20098,59411,11843,ASTRON Certification WLL,173,2300,22-Jul-25,Eng. Khamis Farhan,mohsin
 20130,59412,11539,Almoayyed Air Conditioning,122,6000,22-Jul-25,Muhammed Siddique,Cyril
 ,59413,11832,Casting Trading Contracting & Services,176,13500,22-Jul-25,IBA Head Office,mohsin
@@ -35127,7 +35127,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 ,61004,10239,Abdel Latif,M39,2750,19-Oct-25,Eng. Ali Al Mughrabi,mohsin
 ,61006,19999,Cash,176,1804,19-Oct-25,IBA Head Office,mohsin
 ,61007,30364,Concreters Restoration Buildings W.L.L.,122,22000,19-Oct-25,Eng. Ali Al Mughrabi,Awais
-,61008,31055,Multilink Trading & Contracting W.L.L,173,130000,19-Oct-25,Eng. Khamis Farhan,Awais
+,61008,31055,Multilink Trading & Contracting W.L.L,173,210000,19-Oct-25,Eng. Khamis Farhan,Awais
 20931,61009,11528,Aamal Readymix W.L.L.,173,382500,19-Oct-25,Eng. Khamis Farhan,Cyril
 ,61010,19999,Cash,100,15,20-Oct-25,IBA Head Office,H.Abbas
 ,61011,19999,Cash,173,3822,20-Oct-25,IBA Head Office,mohsin
@@ -35510,7 +35510,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 ,61404,30367,2M Trading & Contracting Co.,100,3900,06-Nov-25,IBA Head Office,Cyril
 21120,61405,19999,Cash,173,750,06-Nov-25,Eng. Khamis Farhan,H.Abbas
 21139,61406,10245,Don Construction Products - Qatar W.L.L,181,435,06-Nov-25,Eng. Seif Awwad,Cyril
-,61407,11528,Aamal Readymix W.L.L.,147,4035,06-Nov-25,Eng. Al Bara Gharaibeh,Awais
+,61407,11528,Aamal Readymix W.L.L.,147,3900.5,06-Nov-25,Eng. Al Bara Gharaibeh,Awais
 ,61408,10133,Mohd. Yousuf Kafood & Sons. Trad. & Cont. Co.,M30,23670,06-Nov-25,Muhammed Siddique,Awais
 ,61409,19999,Cash,181,400,08-Nov-25,IBA Head Office,sayed
 21133,61410,10245,Don Construction Products - Qatar W.L.L,173,1550,08-Nov-25,Eng. Khamis Farhan,Cyril
@@ -35779,7 +35779,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 ,61688,11351,Jotun Paints Qatar,100,408,19-Nov-25,IBA Head Office,Cyril
 21245,61689,19999,Cash,176,1095,20-Nov-25,Eng. Mohammed Gomaa,H.Abbas
 21259,61690,19999,Cash,1061,130,20-Nov-25,Eng. Ahmed Aboushanab,H.Abbas
-21196,61691,19999,Cash,173,482.5,20-Nov-25,Eng. Khamis Farhan,H.Abbas
+21196,61691,19999,Cash,173,507.5,20-Nov-25,Eng. Khamis Farhan,H.Abbas
 21172,61692,19999,Cash,173,525,20-Nov-25,Eng. Khamis Farhan,sayed
 ,61693,19999,Cash,176,40,20-Nov-25,IBA Head Office,sayed
 ,61694,19999,Cash,173,420,20-Nov-25,IBA Head Office,sayed
@@ -35825,7 +35825,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 ,61736,31055,Multilink Trading & Contracting W.L.L,173,80000,29-Nov-25,Eng. Khamis Farhan,Awais
 ,61737,31059,Saif Trading & Decoration,176,4800,24-Nov-25,Eng. Mohammed Gomaa,Awais
 21286,61738,11732,Nay Trading Co. W.L.L.,176,1387.5,24-Nov-25,Eng. Mohammed Gomaa,Cyril
-,61739,11475,Doha Petroleum Construction Co. LTD.,168,1840,24-Nov-25,IBA Head Office,sayed
+,61739,11475,Doha Petroleum Construction Co. LTD.,168,1839.5,24-Nov-25,IBA Head Office,sayed
 ,61740,19999,Cash,173,1650,24-Nov-25,IBA Head Office,sayed
 ,61741,31003,Teyseer Motors W.L.L,173,1280,24-Nov-25,IBA Head Office,sayed
 ,61742,11777,Computer Mart Trading,100,200,24-Nov-25,IBA Head Office,H.Abbas
@@ -35950,12 +35950,12 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 ,61862,19999,Cash,176,820,30-Nov-25,IBA Head Office,sayed
 ,61863,19999,Cash,176,720,30-Nov-25,IBA Head Office,sayed
 21337,61864,10239,Abdel Latif,176,500,01-Dec-25,Eng. Mohammed Gomaa,H.Abbas
-21334,61865,30539,Vibrant Consultancy W.L.L,176,410,01-Dec-25,Eng. Mohamed Abdelhamid,Cyril
+21334,61865,30539,Vibrant Consultancy W.L.L,176,630,01-Dec-25,Eng. Mohamed Abdelhamid,Cyril
 21314,61866,11863,AL MUTATAWER FACTORY FOR BUILDING MATERIALS,173,16000,01-Dec-25,Eng. Khamis Farhan,Cyril
 ,61867,11280,Qatar Green Leaders,M163,25000,01-Dec-25,Eng. Saravanan Palani,Irwin
 ,61868,19999,Cash,1061,145,01-Dec-25,IBA Head Office,H.Abbas
 ,61869,19999,Cash,173,653,01-Dec-25,IBA Head Office,sayed
-,61870,30143,Al Emadi Stones,173,1212961.4,04-Dec-25,Eng. Khamis Farhan,Awais
+,61870,30143,Al Emadi Stones,173,1212960.62,04-Dec-25,Eng. Khamis Farhan,Awais
 ,61871,19999,Cash,173,685,01-Dec-25,IBA Head Office,H.Abbas
 21332,61872,19999,Cash,176,97,01-Dec-25,Muhammed Siddique,H.Abbas
 21343,61873,19999,Cash,173,625,01-Dec-25,Eng. Khamis Farhan,sayed
@@ -35985,7 +35985,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 ,61897,11693,Alaska Cleaning Centre,1061,1053,03-Dec-25,Shahul Hameed,Awais
 ,61898,11559,UAQ Safety Training Centre,173,900,03-Dec-25,IBA Head Office,sayed
 ,61899,11559,UAQ Safety Training Centre,176,750,03-Dec-25,IBA Head Office,sayed
-,61900,31061,Al Nassaem Trading & Contracting,137.19,120000,07-Dec-25,Shahul Hameed,Awais
+,61900,31061,Al Nassaem Trading & Contracting,137.19,120000,10-Dec-25,Shahul Hameed,Awais
 21354,61901,11832,Casting Trading Contracting & Services,181,1500,03-Dec-25,Eng. Seif Awwad,sayed
 ,61902,11862,ALTAYEB ENTERPRISES,176,2200,03-Dec-25,IBA Head Office,sayed
 21357,61903,10239,Abdel Latif,181,500,03-Dec-25,Eng. Seif Awwad,sayed
@@ -35996,7 +35996,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 21345,61908,19999,Cash,169,140,03-Dec-25,Eng. Sirajuddin Salimuddin,m.saad
 21346,61909,19999,Cash,175,69,03-Dec-25,Kanapathipillai Sandrakumar,m.saad
 ,61910,19999,Cash,173,300,04-Dec-25,IBA Head Office,sayed
-21355,61911,30195,Britannic Water Treatment Co.,169,5000,04-Dec-25,Muhammed Siddique,Cyril
+21355,61911,30195,Britannic Water Treatment Co.,169,5000,10-Dec-25,Muhammed Siddique,Cyril
 21358,61912,11541,Al Kuwaiti Stores W.L.L.,M30,1665,04-Dec-25,Muhammed Siddique,Cyril
 ,61913,19999,Cash,137.17,170,04-Dec-25,Muhammed Siddique,m.saad
 21352,61914,10140,Qatar National Cement Co,173,20840.6,06-Dec-25,Eng. Khamis Farhan,m.saad
@@ -36006,9 +36006,9 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 ,61920,19999,Cash,1061,2410,06-Dec-25,IBA Head Office,Irwin
 ,61921,11866,AL SAAD MECHANICAL SERVICES,173,8000,06-Dec-25,IBA Head Office,sayed
 21370,61922,11732,Nay Trading Co. W.L.L.,166,42,07-Dec-25,Eng. Mohamed Abulez,Cyril
-,61923,19999,Cash,100,1181.5,06-Dec-25,IBA Head Office,m.saad
+,61923,19999,Cash,100,1221.75,06-Dec-25,IBA Head Office,m.saad
 ,61924,19999,Cash,173,1476,06-Dec-25,IBA Head Office,sayed
-21371,61925,19999,Cash,181,31,06-Dec-25,Eng. Seif Awwad,Cyril
+21371,61925,19999,Cash,181,26,06-Dec-25,Eng. Seif Awwad,Cyril
 ,61926,19999,Cash,176,492,06-Dec-25,IBA Head Office,sayed
 ,61927,19999,Cash,100,180,06-Dec-25,IBA Head Office,sayed
 ,61928,19999,Cash,176,10,06-Dec-25,IBA Head Office,sayed
@@ -36021,7 +36021,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 ,61935,11813,QUALITY HYDRAULICS & GENERAL TRADING WLL,175,700,06-Dec-25,IBA Head Office,sayed
 ,61936,19999,Cash,M163,232,06-Dec-25,IBA Head Office,m.saad
 21377,61937,11284,Almoayyed Commercial Services,176,2025,07-Dec-25,Eng. Mohamed Abdelhamid,m.saad
-21367,61938,19999,Cash,176,2010.75,07-Dec-25,Eng. Mohamed Abdelhamid,m.saad
+21367,61938,19999,Cash,176,1993.75,07-Dec-25,Eng. Mohamed Abdelhamid,m.saad
 21376,61939,10243,Al Obaidly Trading & Services W.L.L.,176,120,07-Dec-25,Eng. Mohamed Abdelhamid,m.saad
 ,61940,19999,Cash,173,1335,07-Dec-25,IBA Head Office,sayed
 ,61941,19999,Cash,176,363,07-Dec-25,IBA Head Office,sayed
@@ -36038,9 +36038,10 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 ,61952,19999,Cash,100,5000,07-Dec-25,IBA Head Office,m.saad
 21380,61953,11718,Inovec trading,1061,4550,08-Dec-25,Muhammed Siddique,Cyril
 ,61954,10239,Abdel Latif,M18,1100,07-Dec-25,IBA Head Office,sayed
-,61955,11813,QUALITY HYDRAULICS & GENERAL TRADING WLL,173,2000,07-Dec-25,IBA Head Office,sayed
+,61955,19999,Cash,176,1754,07-Dec-25,IBA Head Office,sayed
 ,61956,19999,Cash,M7,6130,07-Dec-25,IBA Head Office,Irwin
 ,61957,11813,QUALITY HYDRAULICS & GENERAL TRADING WLL,173,350,07-Dec-25,IBA Head Office,sayed
+,61958,19999,Cash,173,280,07-Dec-25,IBA Head Office,sayed
 ,61959,30173,Al Hazem Stainless Steel,169,2000,07-Dec-25,IBA Head Office,Irwin
 ,61960,10137,Qatar Building Co,173,28560,08-Dec-25,Eng. Khamis Farhan,Awais
 21374,61961,11732,Nay Trading Co. W.L.L.,176,519,08-Dec-25,Eng. Mohamed Abdelhamid,Cyril
@@ -36063,3 +36064,80 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 21388,61978,11285,Olive Office Trading,181,360,08-Dec-25,Danish Behlim,m.saad
 21386,61979,11285,Olive Office Trading,176,560,08-Dec-25,Danish Behlim,m.saad
 21384,61980,11285,Olive Office Trading,173,2760,08-Dec-25,Danish Behlim,m.saad
+,61981,19999,Cash,1061,300,09-Dec-25,IBA Head Office,m.saad
+,61982,11719,Globelink West Star Shipping W.L.L.,173,8850,09-Dec-25,Eng. Khamis Farhan,m.saad
+,61983,19999,Cash,176,200,09-Dec-25,IBA Head Office,sayed
+,61984,19999,Cash,100,330,09-Dec-25,IBA Head Office,sayed
+21364,61985,11637,Sika Qatar LLC,173,2310,09-Dec-25,Eng. Khamis Farhan,Cyril
+,61986,19999,Cash,169,246,09-Dec-25,IBA Head Office,sayed
+21381,61987,10245,Don Construction Products - Qatar W.L.L,176,1120,09-Dec-25,Eng. Mohamed Abdelhamid,Cyril
+21362,61988,11732,Nay Trading Co. W.L.L.,173,1960.8,09-Dec-25,Eng. Khamis Farhan,Cyril
+,61989,10234,Qatar Fuel (WOQOD),100,3925.52,09-Dec-25,IBA Head Office,sayed
+,61990,19999,Cash,100,750,09-Dec-25,IBA Head Office,sayed
+21395,61991,10126,Hempel Paints,176,1136.8,09-Dec-25,Eng. Mohamed Abdelhamid,Cyril
+,61992,10234,Qatar Fuel (WOQOD),M4,5064.1,09-Dec-25,IBA Head Office,sayed
+,61993,10234,Qatar Fuel (WOQOD),M1,6172.8,09-Dec-25,IBA Head Office,sayed
+,61994,10234,Qatar Fuel (WOQOD),M17,4605.05,09-Dec-25,IBA Head Office,sayed
+,61995,10234,Qatar Fuel (WOQOD),1061,767.6,09-Dec-25,IBA Head Office,sayed
+21401,61996,11452,Nemer Metal Industries Factory,181,975,09-Dec-25,Eng. Seif Awwad,Cyril
+,61997,10234,Qatar Fuel (WOQOD),181,9818.22,09-Dec-25,IBA Head Office,sayed
+,61998,10234,Qatar Fuel (WOQOD),M39,810.6,09-Dec-25,IBA Head Office,sayed
+,61999,10234,Qatar Fuel (WOQOD),147,1946.88,09-Dec-25,IBA Head Office,sayed
+,62000,10234,Qatar Fuel (WOQOD),M7,1120.98,09-Dec-25,IBA Head Office,sayed
+,62001,10234,Qatar Fuel (WOQOD),163,358.32,09-Dec-25,IBA Head Office,sayed
+,62002,10234,Qatar Fuel (WOQOD),166,3481.56,09-Dec-25,IBA Head Office,sayed
+,62003,10234,Qatar Fuel (WOQOD),169,9853.96,09-Dec-25,IBA Head Office,sayed
+,62004,10234,Qatar Fuel (WOQOD),173,72485.87,09-Dec-25,IBA Head Office,sayed
+,62005,10234,Qatar Fuel (WOQOD),175,6991.82,09-Dec-25,IBA Head Office,sayed
+,62006,10234,Qatar Fuel (WOQOD),M18,1077.59,09-Dec-25,IBA Head Office,sayed
+,62007,10234,Qatar Fuel (WOQOD),1111,617.33,09-Dec-25,IBA Head Office,sayed
+,62008,10234,Qatar Fuel (WOQOD),176,14113.03,09-Dec-25,IBA Head Office,sayed
+,62009,10234,Qatar Fuel (WOQOD),176,21588.96,09-Dec-25,IBA Head Office,sayed
+,62010,19999,Cash,M7,58,09-Dec-25,IBA Head Office,m.saad
+,62011,30529,Saad Badi Furniture,100,6500,09-Dec-25,IBA Head Office,Awais
+21328,62012,19999,Cash,173,625,09-Dec-25,Eng. Khamis Farhan,sayed
+,62013,10196,Capital Trading Est.,173,77350,09-Dec-25,Eng. Khamis Farhan,Awais
+,62014,31030,Lilac Landscape,176,2500,10-Dec-25,Eng. Mohammed Gomaa,Awais
+21382,62015,11541,Al Kuwaiti Stores W.L.L.,176,1360,10-Dec-25,Eng. Mohamed Abdelhamid,Cyril
+21382,62016,11804,Beverly Hills Plastic Factory WLL,176,740,10-Dec-25,Eng. Mohamed Abdelhamid,Cyril
+,62017,19999,Cash,173,285,10-Dec-25,IBA Head Office,sayed
+21406,62018,11863,AL MUTATAWER FACTORY FOR BUILDING MATERIALS,173,18000,10-Dec-25,Eng. Khamis Farhan,Cyril
+21412,62019,11681,MAG General Trading LLC,181,900,10-Dec-25,Muhammed Siddique,Cyril
+21404,62020,11237,Aslak Trading & General Contracting,176,195,10-Dec-25,Eng. Mohamed Abdelhamid,Cyril
+21390,62021,19999,Cash,176,613.5,10-Dec-25,Eng. Mohamed Abdelhamid,m.saad
+21398,62022,19999,Cash,181,15,10-Dec-25,Muhammed Siddique,m.saad
+,62023,19999,Cash,176,235,10-Dec-25,IBA Head Office,sayed
+,62024,30367,2M Trading & Contracting Co.,100,3500,10-Dec-25,IBA Head Office,Cyril
+,62025,19999,Cash,100,165,10-Dec-25,IBA Head Office,sayed
+,62026,19999,Cash,168,1518,10-Dec-25,IBA Head Office,m.saad
+,62027,19999,Cash,173,540,10-Dec-25,IBA Head Office,sayed
+,62028,10196,Capital Trading Est.,M40,33853.4,10-Dec-25,Eng. Khamis Farhan,Awais
+,62029,30524,Fire Safety,137.19,5357.6,11-Dec-25,Muhammed Siddique,Cyril
+,62030,19999,Cash,100,2350,10-Dec-25,IBA Head Office,sayed
+,62031,30524,Fire Safety,140,3916.9,11-Dec-25,Muhammed Siddique,Cyril
+,62032,30524,Fire Safety,144,25725.5,11-Dec-25,Muhammed Siddique,Cyril
+21402,62033,10130,Khalifa Steel Industries Co,176,1590,11-Dec-25,Eng. Mohamed Abdelhamid,Cyril
+21402,62034,19999,Cash,176,0,11-Dec-25,Eng. Mohamed Abdelhamid,Cyril
+21418,62035,10130,Khalifa Steel Industries Co,181,16860,11-Dec-25,Eng. Seif Awwad,Cyril
+,62036,11862,ALTAYEB ENTERPRISES,100,4725,11-Dec-25,IBA Head Office,sayed
+21421,62037,10245,Don Construction Products - Qatar W.L.L,166,625,11-Dec-25,Eng. Mohamed Abulez,Cyril
+21409,62038,10140,Qatar National Cement Co,176,6500,11-Dec-25,Eng. Mohamed Abdelhamid,sayed
+21338,62039,31035,Wallace McDowall Ltd.,173,56000,11-Dec-25,Eng. Khamis Farhan,Awais
+21419,62040,19999,Cash,M30,65,13-Dec-25,Eng. Ahmed Aboushanab,H.Abbas
+21414,62041,19999,Cash,176,99,13-Dec-25,Eng. Mohammed Gomaa,H.Abbas
+21429,62042,30313,Sawakin Maintenance & Cleaning Company,169,250,13-Dec-25,Muhammed Siddique,Cyril
+21365,62043,11619,Diamond Professional Trading & Contracting,173,1926,13-Dec-25,Eng. Khamis Farhan,Cyril
+21428,62044,10245,Don Construction Products - Qatar W.L.L,176,3000,13-Dec-25,Eng. Mohamed Abdelhamid,Cyril
+21424,62045,10245,Don Construction Products - Qatar W.L.L,173,3900,13-Dec-25,Eng. Khamis Farhan,Cyril
+,62046,19999,Cash,181,15,13-Dec-25,IBA Head Office,sayed
+,62047,19999,Cash,173,25,13-Dec-25,IBA Head Office,sayed
+21423,62048,11732,Nay Trading Co. W.L.L.,173,3670,13-Dec-25,Eng. Khamis Farhan,Cyril
+,62049,19999,Cash,100,1530,13-Dec-25,IBA Head Office,sayed
+,62050,19999,Cash,100,299.3,13-Dec-25,IBA Head Office,sayed
+21399,62051,19999,Cash,173,660,13-Dec-25,Eng. Khamis Farhan,H.Abbas
+21415,62052,11541,Al Kuwaiti Stores W.L.L.,176,325,13-Dec-25,Eng. Mohamed Abdelhamid,Cyril
+21415,62053,19999,Cash,176,25,13-Dec-25,Eng. Mohamed Abdelhamid,Cyril
+,62054,19999,Cash,176,180,13-Dec-25,IBA Head Office,sayed
+21425,62055,11317,Abdulla Al Emadi Trading Group,169,428,13-Dec-25,Eng. Sahaya Edwin,Cyril
+21437,62056,10239,Abdel Latif,181,975,13-Dec-25,Eng. Seif Awwad,H.Abbas
+21427,62057,11804,Beverly Hills Plastic Factory WLL,166,370,13-Dec-25,Eng. Mohamed Abulez,Cyril
