@@ -1,4 +1,4 @@
-// materialStock.js - V10.0 (Updated to F.RRR.SSSSS Format)
+// materialStock.js - V10.1 (F.RRR.SSSSS Format & Updated Template)
 
 let allMaterialStockData = [];
 let allTransferData = [];
@@ -10,7 +10,7 @@ let currentCategoryFilter = 'All';
 const STOCK_CACHE_KEY = "cached_MATERIAL_STOCK";
 const STOCK_CACHE_DURATION = 24 * 60 * 60 * 1000;
 
-// --- 1. STOCK LEGENDS (New Structure F.RRR) ---
+// --- 1. STOCK LEGENDS (F / RRR Structure) ---
 const STOCK_LEGENDS = {
     "1": {
         "name": "Civil & Structural",
@@ -231,7 +231,7 @@ async function fetchTransfersOnly() {
 }
 
 // ==========================================================================
-// 2. TABS & RENDERING (Updated: Hide Empty Tabs)
+// 2. TABS & RENDERING
 // ==========================================================================
 function renderCategoryTabs() {
     const tabsContainer = document.getElementById('ms-category-tabs');
@@ -721,12 +721,13 @@ async function handleSaveNewMaterial() {
 }
 
 // ==========================================================================
-// 7. CSV UPLOAD
+// 7. CSV UPLOAD (Updated Template)
 // ==========================================================================
 function handleGetTemplate() {
+    // UPDATED TEMPLATE HEADER AND EXAMPLE for F.RRR.SSSSS
     const headers = ["Item Name", "F", "RRR", "Stock", "Site"];
     const row1 = "Marble Black Carrara 75x13,2,201,100,Main Store";
-    const row2 = "Concrete Blocks 200mm,1,101,500,Site 175";
+    const row2 = "Concrete Blocks 200mm,1,104,500,Site 175";
 
     const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + row1 + "\n" + row2;
     const encodedUri = encodeURI(csvContent);
@@ -765,36 +766,22 @@ function handleUploadCSV(event) {
             const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
 
             // Expect: Item Name(0), F(1), RRR(2), Stock(3), Site(4)
-            // But sometimes user uploads Master which has: Code(2), F(3), RRR(5)...
-            // Let's stick to the SIMPLE template format: Name, F, RRR, Stock, Site
-            
-            // Check if user uploaded Master file format (detected by column count > 5 or specific headers)
-            // Simple: Name, F, RRR, Stock, Site
-            
             if (cols.length >= 3) {
-                // Heuristic mapping
-                let pDetail = cols[0];
-                let f = cols[1];
-                let rrr = cols[2];
-                let pStock = parseFloat(cols[3]) || 0;
-                let pSite = (cols[4] && cols[4] !== "") ? cols[4] : "Main Store";
+                const pDetail = cols[0];
+                const ff = cols[1];  // Expect 1 digit
+                const rrr = cols[2]; // Expect 3 digits
+                const pStock = parseFloat(cols[3]) || 0;
+                const pSite = (cols[4] && cols[4] !== "") ? cols[4] : "Main Store";
 
-                // Check if F is valid
-                if (f && STOCK_LEGENDS[f]) {
-                    // Valid
-                } else {
-                    continue; // Skip invalid rows (headers etc)
-                }
-
-                if(pDetail && f && rrr) {
+                if(pDetail && ff && rrr && STOCK_LEGENDS[ff]) {
                     // Auto-Gen Series
                     maxSeries++;
                     const sssss = String(maxSeries).padStart(5, '0');
                     // FORMAT: F.RRR.SSSSS
-                    const pID = `${f}.${rrr}.${sssss}`;
+                    const pID = `${ff}.${rrr}.${sssss}`;
 
-                    const familyName = STOCK_LEGENDS[f].name;
-                    const relationName = STOCK_LEGENDS[f].relations ? STOCK_LEGENDS[f].relations[rrr] : "Unknown";
+                    const familyName = STOCK_LEGENDS[ff].name;
+                    const relationName = STOCK_LEGENDS[ff].relations ? STOCK_LEGENDS[ff].relations[rrr] : "Unknown";
 
                     const newKey = firebase.database().ref('material_stock').push().key;
                     const sites = {}; if(pStock>0) sites[pSite]=pStock;
@@ -802,7 +789,7 @@ function handleUploadCSV(event) {
                     updates[newKey] = {
                         productID: pID,
                         productName: pDetail,
-                        familyCode: f,
+                        familyCode: ff,
                         family: familyName,
                         relationCode: rrr,
                         relationship: relationName,
