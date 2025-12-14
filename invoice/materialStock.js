@@ -66,7 +66,7 @@ const STOCK_LEGENDS = {
         "relations": {
             "401": "HVAC Equipment (AHU/FCU/Fans)",
             "402": "Ductwork & Accessories",
-            "403": "Pipes & Fittings",
+            "403": "Pipes / Sanitary Ware & Fittings",
             "404": "Valves & Controls",
             "405": "Insulation & Cladding",
             "406": "Diffusers, Grilles & Louvers",
