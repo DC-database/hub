@@ -5,7 +5,7 @@
   - Cleanup note: removed bracket labels like // [1.a], kept logic unchanged.
 */
 
-const APP_VERSION = "4.9.7";
+const APP_VERSION = "4.9.8";
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -5924,8 +5924,11 @@ function fetchAndDisplayInvoices(poNumber) {
                 `<a href="${SRV_BASE_PATH}${encodeURIComponent(srvPDFName)}.pdf" target="_blank" class="action-btn srv-pdf-btn">SRV</a>` :
                 '';
 
+            // [MODIFIED] Only show history button if there is ACTUAL history (more than just the creation entry)
             let historyBtn = '';
-            if (inv.history || inv.createdAt || inv.originTimestamp) {
+            const historyCount = inv.history ? Object.keys(inv.history).length : 0;
+            
+            if (historyCount > 1) {
                 historyBtn = `<button type="button" class="history-btn action-btn" title="View Status History" onclick="event.stopPropagation(); showInvoiceHistory('${poNumber}', '${inv.key}')"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
             }
 
@@ -11275,7 +11278,7 @@ const refreshReportingBtn = document.getElementById('im-refresh-reporting-button
     };
 
 // =========================================================
-// 2. VIEW HISTORY (SMART VERSION: SHARES ESN ACROSS LINES)
+// 2. VIEW HISTORY (WITH DURATION CALCULATION FIXED)
 // =========================================================
 window.showInvoiceHistory = async function (poNumber, invoiceKey) {
     const modal = document.getElementById('history-modal');
@@ -11287,29 +11290,47 @@ window.showInvoiceHistory = async function (poNumber, invoiceKey) {
     if (tbody) tbody.innerHTML = '';
 
     try {
-        const snapshot = await invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}/history`).orderByChild('timestamp').once('value');
+        const snapshot = await invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}/history`).once('value');
         const historyData = [];
 
         snapshot.forEach(child => { historyData.push(child.val()); });
 
-        // Sort descending (Newest first)
-        historyData.sort((a, b) => b.timestamp - a.timestamp);
+        // 1. Sort ASCENDING first (Oldest First) to calculate duration
+        historyData.sort((a, b) => a.timestamp - b.timestamp);
 
-        // --- SMART SEARCH: FIND LATEST ESN/LINK ---
-        // We look for the most recent valid ESN/Link in the history
-        // This ensures that if you click "Approved" (which happened BEFORE the receipt),
-        // it still knows about the receipt that happened 5 seconds later.
+        // 2. Calculate Duration
+        historyData.forEach((entry, index) => {
+            if (index === 0) {
+                entry.durationDisplay = '-'; // First entry has no duration
+            } else {
+                const prevTime = historyData[index - 1].timestamp;
+                const currTime = entry.timestamp;
+                const diffMs = currTime - prevTime;
+
+                // Math logic
+                const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                const diffHrs = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+                if (diffDays > 0) entry.durationDisplay = `${diffDays}d ${diffHrs}h`;
+                else if (diffHrs > 0) entry.durationDisplay = `${diffHrs}h ${diffMins}m`;
+                else entry.durationDisplay = `${diffMins}m`;
+            }
+        });
+
+        // 3. Reverse back to DESCENDING (Newest First) for display
+        historyData.reverse();
+
+        // --- SMART SEARCH FOR ESN (Keep existing logic) ---
         let sharedEsn = null;
         let sharedLink = null;
-
         for (const entry of historyData) {
             if (entry.esn && entry.pdfLink) {
                 sharedEsn = entry.esn;
                 sharedLink = entry.pdfLink;
-                break; // Found the newest one, stop looking
+                break;
             }
         }
-        // ------------------------------------------
 
         if (loader) loader.classList.add('hidden');
 
@@ -11322,20 +11343,16 @@ window.showInvoiceHistory = async function (poNumber, invoiceKey) {
             const dateObj = new Date(h.timestamp);
             const dateStr = dateObj.toLocaleDateString('en-GB') + ' ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-            // --- QR BUTTON LOGIC ---
+            // QR Logic
             let qrButton = '';
-            
-            // 1. Use the specific ESN from this line if it exists
             let currentEsn = h.esn;
             let currentLink = h.pdfLink;
 
-            // 2. If missing, BUT this is an "Approved" line and we found a shared ESN elsewhere, use that!
             if (!currentEsn && (h.action === 'Approved' || h.status === 'Approved') && sharedEsn) {
                 currentEsn = sharedEsn;
                 currentLink = sharedLink;
             }
 
-            // 3. Render Button if we have data
             if (currentEsn && currentLink) {
                 qrButton = `
                 <button onclick="printHistorySticker('${currentEsn}', '${currentLink}')" 
@@ -11346,6 +11363,7 @@ window.showInvoiceHistory = async function (poNumber, invoiceKey) {
                 </button>`;
             }
 
+            // [MODIFIED] Added h.durationDisplay to the 4th column
             const row = `
             <tr>
                 <td>
@@ -11355,7 +11373,7 @@ window.showInvoiceHistory = async function (poNumber, invoiceKey) {
                 </td>
                 <td>${dateStr}</td>
                 <td>${h.updatedBy || h.by || 'System'}</td>
-                <td style="font-family: monospace; font-weight: bold;">${currentEsn || '-'}</td>
+                <td style="font-weight: bold; color: #00748C;">${h.durationDisplay}</td>
             </tr>
             `;
             tbody.innerHTML += row;
