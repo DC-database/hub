@@ -5,7 +5,7 @@
   - Cleanup note: removed bracket labels like // [1.a], kept logic unchanged.
 */
 
-const APP_VERSION = "4.8.9";
+const APP_VERSION = "4.9.7";
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -2126,25 +2126,31 @@ function updateIMDateTime() {}
 function isTaskComplete(task) {
     if (!task) return false;
 
+    // 1. Special check for Job Entries (Invoice Type)
     if (task.source === 'job_entry' && task.for === 'Invoice') {
+        // If it's Approved/Rejected, it's NOT complete yet (it goes back to sender).
+        // Only mark complete if it's "With Accounts" or other final states.
+        if (task.remarks === 'Approved' || task.remarks === 'Rejected') {
+            return false; 
+        }
         return !!task.dateResponded;
     }
 
+    // 2. Standard Statuses for Completion
     const completedStatuses = [
         'With Accounts',
         'SRV Done',
         'Paid',
         'CLOSED',
-        'Cancelled',
-        'Approved',
-        'Rejected'
+        'Cancelled'
+        // REMOVED 'Approved' and 'Rejected' so they stay in the list
     ];
 
     if (task.source === 'invoice') {
         if (completedStatuses.includes(task.remarks)) return true;
         if (task.enteredBy === currentApprover?.Name) {
-            const trackingStatuses = ['For SRV', 'For IPC'];
-            if (trackingStatuses.includes(task.remarks)) return false;
+            const trackingStatuses = ['For SRV', 'For IPC', 'Approved', 'Rejected'];
+            if (trackingStatuses.includes(task.remarks)) return false; // Keep these active for the sender
             return true;
         }
         return false;
@@ -2154,6 +2160,8 @@ function isTaskComplete(task) {
         if (task.attention === 'All') return true;
         if (completedStatuses.includes(task.remarks)) return true;
         if (task.for === 'PR' && task.remarks === 'PO Ready') return true;
+        // Allow Approved/Rejected to pass through as active
+        if (task.remarks === 'Approved' || task.remarks === 'Rejected') return false; 
         if (task.for !== 'PR' && task.dateResponded) return true;
     }
 
@@ -3313,10 +3321,10 @@ async function reconcilePendingPRs() {
 }
 
 // ==========================================================================
-// UPDATED FUNCTION: renderActiveTaskTable (Fixes Manager Button Logic)
+// UPDATED FUNCTION: renderActiveTaskTable (With Process Report Button)
 // ==========================================================================
 function renderActiveTaskTable(tasks) {
-    const isMobile = window.innerWidth <= 768;
+    var isMobile = window.innerWidth <= 768;
     if (isMobile) {
         if (typeof renderMobileActiveTasks === 'function') renderMobileActiveTasks(tasks);
         return;
@@ -3325,10 +3333,10 @@ function renderActiveTaskTable(tasks) {
     activeTaskTableBody.innerHTML = '';
 
     // Filter by Hybrid Tabs
-    let filteredTasks = tasks.filter(task => {
-        const specialTypes = ['Transfer', 'Restock', 'Return', 'Usage'];
-        const isSpecialTab = specialTypes.includes(currentActiveTaskFilter);
-        const taskIsSpecial = specialTypes.includes(task.for);
+    var filteredTasks = tasks.filter(function(task) {
+        var specialTypes = ['Transfer', 'Restock', 'Return', 'Usage'];
+        var isSpecialTab = specialTypes.indexOf(currentActiveTaskFilter) !== -1;
+        var taskIsSpecial = specialTypes.indexOf(task.for) !== -1;
 
         if (isSpecialTab) {
             return task.for === currentActiveTaskFilter;
@@ -3338,77 +3346,77 @@ function renderActiveTaskTable(tasks) {
     });
 
     if (filteredTasks.length === 0) {
-        activeTaskTableBody.innerHTML = `<tr><td colspan="10">No tasks found for "${currentActiveTaskFilter}".</td></tr>`;
+        activeTaskTableBody.innerHTML = '<tr><td colspan="10">No tasks found for "' + currentActiveTaskFilter + '".</td></tr>';
         return;
     }
 
     // Check if we are in Transfer/Usage View
-    const isTransferView = filteredTasks.length > 0 && ['Transfer', 'Restock', 'Return', 'Usage'].includes(filteredTasks[0].for);
-    const tableHead = document.querySelector('#wd-activetask table thead');
+    var isTransferView = filteredTasks.length > 0 && ['Transfer', 'Restock', 'Return', 'Usage'].indexOf(filteredTasks[0].for) !== -1;
+    var tableHead = document.querySelector('#wd-activetask table thead');
 
     // --- HEADER SETUP ---
     if (isTransferView) {
-        tableHead.innerHTML = `
-            <tr>
-                <th class="desktop-only">Control ID</th>
-                <th class="desktop-only">Product Name</th>
-                <th class="desktop-only">Details</th>
-                <th class="desktop-only">Movement</th>
-                <th class="desktop-only">Current Qty</th> <th class="desktop-only">Contact</th>
-                <th class="desktop-only">Status</th>
-                <th class="desktop-only">Action</th>
-            </tr>`;
+        tableHead.innerHTML = 
+            '<tr>' +
+                '<th class="desktop-only">Control ID</th>' +
+                '<th class="desktop-only">Product Name</th>' +
+                '<th class="desktop-only">Details</th>' +
+                '<th class="desktop-only">Movement</th>' +
+                '<th class="desktop-only">Current Qty</th> <th class="desktop-only">Contact</th>' +
+                '<th class="desktop-only">Status</th>' +
+                '<th class="desktop-only">Action</th>' +
+            '</tr>';
     } else {
-        tableHead.innerHTML = `
-            <tr>
-                <th class="desktop-only">Job</th>
-                <th class="desktop-only">Ref</th>
-                <th class="desktop-only">PO</th>
-                <th class="desktop-only">Vendor Name</th>
-                <th class="desktop-only">Invoice Amount</th>
-                <th class="desktop-only">Site</th>
-                <th class="desktop-only col-group">Group</th>
-                <th class="desktop-only">Date</th>
-                <th class="desktop-only">Status</th>
-                <th class="desktop-only">Action</th>
-            </tr>`;
+        tableHead.innerHTML = 
+            '<tr>' +
+                '<th class="desktop-only">Job</th>' +
+                '<th class="desktop-only">Ref</th>' +
+                '<th class="desktop-only">PO</th>' +
+                '<th class="desktop-only">Vendor Name</th>' +
+                '<th class="desktop-only">Invoice Amount</th>' +
+                '<th class="desktop-only">Site</th>' +
+                '<th class="desktop-only col-group">Group</th>' +
+                '<th class="desktop-only">Date</th>' +
+                '<th class="desktop-only">Status</th>' +
+                '<th class="desktop-only">Action</th>' +
+            '</tr>';
     }
 
-    const isCEO = document.body.classList.contains('is-ceo');
+    var isCEO = document.body.classList.contains('is-ceo');
     
-    // --- FIX: BETTER MANAGER CHECK ---
-    // We check both Position AND the Role field.
-    const userPos = (currentApprover.Position || '').toLowerCase();
-    const userRole = (currentApprover.Role || '').toLowerCase();
+    // Check Roles
+    var userPos = (currentApprover.Position || '').toLowerCase();
+    var userRole = (currentApprover.Role || '').toLowerCase();
     
-    const isManager = userPos.includes('manager') || 
-                      userPos.includes('director') || 
-                      userPos.includes('ceo') || 
-                      userRole === 'admin'; // <--- This ensures Admins get the buttons
+    var isManager = userPos.indexOf('manager') !== -1 || 
+                    userPos.indexOf('director') !== -1 || 
+                    userPos.indexOf('ceo') !== -1 || 
+                    userRole === 'admin'; 
 
-    filteredTasks.forEach(task => {
-        const row = document.createElement('tr');
+    var isAccounting = userPos === 'accounting' || userPos === 'accounts';
+
+    filteredTasks.forEach(function(task) {
+        var row = document.createElement('tr');
         row.setAttribute('data-key', task.key);
 
         if (isTransferView) {
             // --- TRANSFER / USAGE ROW ---
-            let actionButtons = `<button class="transfer-action-btn" data-key="${task.key}" style="background-color: #17a2b8; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 600;">Action</button>`;
+            var actionButtons = '<button class="transfer-action-btn" data-key="' + task.key + '" style="background-color: #17a2b8; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 600;">Action</button>';
 
             if (userRole === 'admin') {
-                actionButtons += `<button class="delete-btn transfer-delete-btn" data-key="${task.key}" style="margin-left: 5px; padding: 6px 12px;">Delete</button>`;
+                actionButtons += '<button class="delete-btn transfer-delete-btn" data-key="' + task.key + '" style="margin-left: 5px; padding: 6px 12px;">Delete</button>';
             }
 
-            const fromLoc = task.fromSite || task.fromLocation || 'N/A';
-            const toLoc = task.toSite || task.toLocation || 'N/A';
+            var fromLoc = task.fromSite || task.fromLocation || 'N/A';
+            var toLoc = task.toSite || task.toLocation || 'N/A';
 
-            let movement = `${fromLoc} <i class="fa-solid fa-arrow-right" style="color: #888; font-size: 0.8rem;"></i> ${toLoc}`;
+            var movement = fromLoc + ' <i class="fa-solid fa-arrow-right" style="color: #888; font-size: 0.8rem;"></i> ' + toLoc;
             if (task.for === 'Usage') {
-                movement = `<span style="color: #6f42c1;">Consumed at ${fromLoc}</span>`;
+                movement = '<span style="color: #6f42c1;">Consumed at ' + fromLoc + '</span>';
             }
 
-            // Smart Quantity Display
-            let displayQty = task.orderedQty || task.requiredQty || 0;
-            let qtyLabel = ""; 
+            var displayQty = task.orderedQty || task.requiredQty || 0;
+            var qtyLabel = ""; 
 
             if (task.approvedQty !== undefined && task.approvedQty !== null) {
                 displayQty = task.approvedQty;
@@ -3419,28 +3427,27 @@ function renderActiveTaskTable(tasks) {
                 qtyLabel = "";
             }
 
-            let statusColor = '#333';
+            var statusColor = '#333';
             if (task.remarks === 'Pending') statusColor = '#dc3545';
             if (task.remarks === 'Pending Admin') statusColor = '#dc3545';
             if (task.remarks === 'Approved') statusColor = '#28a745';
             if (task.remarks === 'Completed') statusColor = '#003A5C';
 
-            row.innerHTML = `
-                <td class="desktop-only"><strong>${task.ref || task.controlId || task.controlNumber}</strong></td>
-                <td class="desktop-only">${task.vendorName || task.productName}</td>
-                <td class="desktop-only">${task.details || ''}</td>
-                <td class="desktop-only">${movement}</td>
-                <td class="desktop-only" style="font-weight: bold; color: #003A5C;">${displayQty}${qtyLabel}</td>
-                <td class="desktop-only">${task.contactName || task.requestor || ''}</td>
-                <td class="desktop-only"><span style="color: ${statusColor}; font-weight: bold;">${task.remarks}</span></td>
-                <td class="desktop-only">${actionButtons}</td>
-            `;
+            row.innerHTML = 
+                '<td class="desktop-only"><strong>' + (task.ref || task.controlId || task.controlNumber) + '</strong></td>' +
+                '<td class="desktop-only">' + (task.vendorName || task.productName) + '</td>' +
+                '<td class="desktop-only">' + (task.details || '') + '</td>' +
+                '<td class="desktop-only">' + movement + '</td>' +
+                '<td class="desktop-only" style="font-weight: bold; color: #003A5C;">' + displayQty + qtyLabel + '</td>' +
+                '<td class="desktop-only">' + (task.contactName || task.requestor || '') + '</td>' +
+                '<td class="desktop-only"><span style="color: ' + statusColor + '; font-weight: bold;">' + task.remarks + '</span></td>' +
+                '<td class="desktop-only">' + actionButtons + '</td>';
 
         } else {
             // --- STANDARD ROW (Invoice/PR) ---
-            const isInvoiceFromIrwin = task.source === 'invoice' && task.enteredBy === 'Irwin';
-            const invName = task.invName || '';
-            const isClickable = (isInvoiceFromIrwin || (task.source === 'invoice' && invName)) &&
+            var isInvoiceFromIrwin = task.source === 'invoice' && task.enteredBy === 'Irwin';
+            var invName = task.invName || '';
+            var isClickable = (isInvoiceFromIrwin || (task.source === 'invoice' && invName)) &&
                 invName.trim() &&
                 invName.toLowerCase() !== 'nil';
 
@@ -3448,61 +3455,69 @@ function renderActiveTaskTable(tasks) {
             if (isCEO) row.title = "Click to open approval modal";
             else if (isClickable) row.title = "Click to open PDF";
 
-            const displayAmount = task.amountPaid || task.amount || 0;
+            var displayAmount = task.amountPaid || task.amount || 0;
 
-            row.innerHTML = `
-                <td class="desktop-only">${task.for || ''}</td>
-                <td class="desktop-only">${task.ref || ''}</td>
-                <td class="desktop-only">${task.po || ''}</td>
-                <td class="desktop-only">${task.vendorName || 'N/A'}</td>
-                <td class="desktop-only">${formatCurrency(displayAmount)}</td>
-                <td class="desktop-only">${task.site || ''}</td>
-                <td class="desktop-only col-group">${task.group || ''}</td>
-                <td class="desktop-only">${task.date || ''}</td>
-                <td class="desktop-only">${task.remarks || 'Pending'}</td>
-            `;
+            row.innerHTML = 
+                '<td class="desktop-only">' + (task.for || '') + '</td>' +
+                '<td class="desktop-only">' + (task.ref || '') + '</td>' +
+                '<td class="desktop-only">' + (task.po || '') + '</td>' +
+                '<td class="desktop-only">' + (task.vendorName || 'N/A') + '</td>' +
+                '<td class="desktop-only">' + formatCurrency(displayAmount) + '</td>' +
+                '<td class="desktop-only">' + (task.site || '') + '</td>' +
+                '<td class="desktop-only col-group">' + (task.group || '') + '</td>' +
+                '<td class="desktop-only">' + (task.date || '') + '</td>' +
+                '<td class="desktop-only">' + (task.remarks || 'Pending') + '</td>';
 
             // Render Column 10 (Smart Actions)
-            const actionsCell = document.createElement('td');
+            var actionsCell = document.createElement('td');
             actionsCell.className = "desktop-only";
 
-            // SCENARIO A: Manager/Admin viewing "For Approval" -> Show Approve/Reject
+            // SCENARIO A: Manager/Admin viewing "For Approval"
             if (task.remarks === 'For Approval' && isManager) {
-                
-                const approveBtn = document.createElement('button');
+                var approveBtn = document.createElement('button');
                 approveBtn.className = 'action-btn approve-btn';
                 approveBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
                 approveBtn.title = 'Approve';
                 approveBtn.style.backgroundColor = '#28a745';
                 approveBtn.style.color = 'white';
                 approveBtn.style.marginRight = '5px';
-                approveBtn.onclick = (e) => { e.stopPropagation(); handleDesktopApproval(task, 'Approved'); };
+                approveBtn.onclick = function(e) { e.stopPropagation(); handleDesktopApproval(task, 'Approved'); };
                 
-                const rejectBtn = document.createElement('button');
+                var rejectBtn = document.createElement('button');
                 rejectBtn.className = 'action-btn reject-btn';
                 rejectBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
                 rejectBtn.title = 'Reject';
                 rejectBtn.style.backgroundColor = '#dc3545';
                 rejectBtn.style.color = 'white';
-                rejectBtn.onclick = (e) => { e.stopPropagation(); handleDesktopApproval(task, 'Rejected'); };
+                rejectBtn.onclick = function(e) { e.stopPropagation(); handleDesktopApproval(task, 'Rejected'); };
 
                 actionsCell.appendChild(approveBtn);
                 actionsCell.appendChild(rejectBtn);
 
             } 
-            // SCENARIO B: CEO (Keep existing logic)
+            // SCENARIO B: CEO
             else if (isCEO) {
-                actionsCell.innerHTML = `<button class="ceo-approve-btn" data-key="${task.key}">Make Approval</button>`;
+                actionsCell.innerHTML = '<button class="ceo-approve-btn" data-key="' + task.key + '">Make Approval</button>';
             } 
-            // SCENARIO C: Standard User (SRV/Edit)
+            // SCENARIO C: Standard User (SRV/Edit/Report)
             else {
-                let srvDoneDisabled = '';
-                if (task.source !== 'invoice') srvDoneDisabled = 'disabled title="Only invoice tasks"';
-                
-                actionsCell.innerHTML = `
-                    <button class="srv-done-btn" data-key="${task.key}" ${srvDoneDisabled}>SRV Done</button>
-                    <button class="modify-btn" data-key="${task.key}">Edit Action</button>
-                `;
+                var actionsHTML = '';
+
+                // --- NEW: PROCESS REPORT BUTTON (For Accounting Only) ---
+                if (task.remarks === 'Report' && isAccounting) {
+                    actionsHTML = '<button class="download-btn process-report-btn" data-key="' + task.key + '" style="background-color: #6f42c1; color: white; border:none; padding: 5px 10px; border-radius: 4px;">' +
+                        '<i class="fa-solid fa-file-signature"></i> Process Report' +
+                    '</button>';
+                } 
+                else {
+                    var srvDoneDisabled = '';
+                    if (task.source !== 'invoice') srvDoneDisabled = 'disabled title="Only invoice tasks"';
+                    
+                    actionsHTML = '<button class="srv-done-btn" data-key="' + task.key + '" ' + srvDoneDisabled + '>SRV Done</button>' +
+                                  '<button class="modify-btn" data-key="' + task.key + '">Edit Action</button>';
+                }
+
+                actionsCell.innerHTML = actionsHTML;
             }
 
             row.appendChild(actionsCell);
@@ -3936,38 +3951,46 @@ async function updateManagerApprovalRecord(task, finalESN, finalPdfLink) {
     }
 }
 
-
 // =========================================================
-// 2. MANAGER RECEIPT (UPDATED: Saves to manager_approved)
+// 2. MANAGER RECEIPT (SAFE STRINGS FIX)
 // =========================================================
 async function previewAndSendManagerReceipt() {
-    const btn = document.getElementById('mobile-send-manager-receipt-btn');
-    if(btn) { btn.disabled = true; btn.textContent = 'Syncing & Generating...'; }
+    var mobileBtn = document.getElementById('mobile-send-manager-receipt-btn');
+    var desktopBtn = document.getElementById('desktop-finalize-btn');
+
+    var receiptWindow = null;
+    try {
+        receiptWindow = window.open('', '_blank');
+        if (receiptWindow) {
+            receiptWindow.document.write('<html><body style="font-family:sans-serif;text-align:center;padding-top:50px;"><h3>Generating Receipt...</h3><p>Please wait...</p></body></html>');
+        }
+    } catch(e) { console.log("Popup blocked"); }
+
+    if (mobileBtn) { mobileBtn.disabled = true; mobileBtn.textContent = 'Syncing...'; }
+    if (desktopBtn) { desktopBtn.disabled = true; desktopBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Syncing...'; }
 
     try {
-        const approvedTasks = managerProcessedTasks.filter(t => t.status === 'Approved');
-        const rejectedTasks = managerProcessedTasks.filter(t => t.status === 'Rejected');
+        var approvedTasks = managerProcessedTasks.filter(t => t.status === 'Approved');
+        var rejectedTasks = managerProcessedTasks.filter(t => t.status === 'Rejected');
 
-        if (approvedTasks.length === 0) {
-            alert("No approved tasks to finalize.");
-            if(btn) btn.disabled = false;
+        if (approvedTasks.length === 0 && rejectedTasks.length === 0) {
+            alert("No tasks to finalize.");
+            if (receiptWindow) receiptWindow.close();
+            if (mobileBtn) { mobileBtn.disabled = false; mobileBtn.innerHTML = '<span style="font-size: 1.2rem; margin-right: 5px;">🚨</span> Finalize & Send Receipt'; }
+            if (desktopBtn) { desktopBtn.disabled = false; desktopBtn.innerHTML = '<i class="fa-solid fa-check-double"></i> Finalize Batch & Send Receipt'; }
             return;
         }
 
-        // 1. Generate Batch Info
-        const baseSeriesNo = await getManagerSeriesNumber();
-        const approverName = currentApprover ? currentApprover.Name.toUpperCase().split(' ')[0] : 'ADMIN';
-        const finalESN = `${baseSeriesNo}/${approverName}`;
-        const safeFilename = finalESN.replace(/[^a-zA-Z0-9]/g, '_'); 
-        const bucketName = "invoiceentry-b15a8.firebasestorage.app"; 
-        const finalPdfLink = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/receipts%2F${safeFilename}.pdf?alt=media`;
+        var baseSeriesNo = await getManagerSeriesNumber();
+        var approverName = currentApprover ? currentApprover.Name.toUpperCase().split(' ')[0] : 'ADMIN';
+        var finalESN = baseSeriesNo + "/" + approverName;
+        var safeFilename = finalESN.replace(/[^a-zA-Z0-9]/g, '_'); 
+        var bucketName = "invoiceentry-b15a8.firebasestorage.app"; 
+        // FIXED LINE
+        var finalPdfLink = "https://firebasestorage.googleapis.com/v0/b/" + bucketName + "/o/receipts%2F" + safeFilename + ".pdf?alt=media";
 
-        console.log(`Syncing Invoice Batch ESN: ${finalESN}`);
-
-        // 2. Save Data
-        const updatePromises = approvedTasks.map(task => {
-            
-            const historyEntry = {
+        var updatePromises = approvedTasks.map(task => {
+            var historyEntry = {
                 action: "Receipt Generated",
                 by: "System",
                 timestamp: firebase.database.ServerValue.TIMESTAMP,
@@ -3976,29 +3999,27 @@ async function previewAndSendManagerReceipt() {
                 note: "Batch Finalized"
             };
 
-            // --- A. SAVE TO MANAGER APPROVED DB (NEW) ---
-            // This runs in the background
             updateManagerApprovalRecord(task, finalESN, finalPdfLink);
 
-            // --- B. STANDARD SAVE (Invoice Entries) ---
             if (task.source === 'invoice') {
-                const mainUpdate = invoiceDb.ref(`invoice_entries/${task.originalPO}/${task.originalKey}`).update({ esn: finalESN });
-                const historyUpdate = invoiceDb.ref(`invoice_entries/${task.originalPO}/${task.originalKey}/history`).push(historyEntry);
+                // FIXED LINES
+                var mainUpdate = invoiceDb.ref('invoice_entries/' + task.originalPO + '/' + task.originalKey).update({ esn: finalESN });
+                var historyUpdate = invoiceDb.ref('invoice_entries/' + task.originalPO + '/' + task.originalKey + '/history').push(historyEntry);
                 return Promise.all([mainUpdate, historyUpdate]);
             } 
             else if (task.source === 'job_entry') {
-                const mainUpdate = db.ref(`job_entries/${task.key}`).update({ esn: finalESN });
-                const historyUpdate = db.ref(`job_entries/${task.key}/history`).push(historyEntry);
+                // FIXED LINES
+                var mainUpdate = db.ref('job_entries/' + task.key).update({ esn: finalESN });
+                var historyUpdate = db.ref('job_entries/' + task.key + '/history').push(historyEntry);
                 return Promise.all([mainUpdate, historyUpdate]);
             }
         });
 
         await Promise.all(updatePromises);
 
-        // 3. Receipt Generation (UI)
         approvedTasks.forEach(t => t.esn = finalESN);
 
-        const receiptData = {
+        var receiptData = {
             title: "Manager Approval",
             approvedTasks: approvedTasks,
             rejectedTasks: rejectedTasks,
@@ -4007,25 +4028,27 @@ async function previewAndSendManagerReceipt() {
         };
 
         localStorage.setItem('pendingReceiptData', JSON.stringify(receiptData));
-        window.open('receipt.html', '_blank');
 
-        // Cleanup
+        if (receiptWindow) receiptWindow.location.href = 'receipt.html';
+        else window.open('receipt.html', '_blank');
+
         managerProcessedTasks = [];
-        const mCont = document.getElementById('mobile-receipt-action-container');
+        var mCont = document.getElementById('mobile-receipt-action-container');
         if (mCont) mCont.classList.add('hidden');
-        
-        const dBtn = document.getElementById('desktop-finalize-btn');
-        if(dBtn) dBtn.classList.add('hidden');
-
-        if (btn) btn.classList.add('hidden');
+        if (desktopBtn) desktopBtn.classList.add('hidden');
 
     } catch (error) {
-        console.error("Error generating receipt:", error);
-        alert("Error syncing ESN to database.");
+        console.error("Error:", error);
+        alert("Error syncing ESN.");
+        if (receiptWindow) receiptWindow.close();
     } finally {
-        if(btn) {
-            btn.disabled = false;
-            btn.innerHTML = '<span style="font-size: 1.2rem; margin-right: 5px;">🚨</span> REQUIRED: Click Here to Finalize';
+        if (mobileBtn) {
+            mobileBtn.disabled = false;
+            mobileBtn.innerHTML = '<span style="font-size: 1.2rem; margin-right: 5px;">🚨</span> Finalize & Send Receipt';
+        }
+        if (desktopBtn) {
+            desktopBtn.disabled = false;
+            desktopBtn.innerHTML = '<i class="fa-solid fa-check-double"></i> Finalize Batch & Send Receipt';
         }
     }
 }
@@ -4186,23 +4209,39 @@ window.toggleJobOtherInput = toggleJobOtherInput;
 
 
 // =========================================================
-// 1. DESKTOP APPROVAL (CORRECTED DATABASE PATHS)
+// 1. DESKTOP APPROVAL (FINAL: NO WHATSAPP, AUTO-RETURN TO SENDER)
 // =========================================================
 async function handleDesktopApproval(task, action) {
-    const note = prompt(`Enter optional note for ${action}:`, "");
+    // 1. Prompt for Note
+    var note = prompt("Enter optional note for " + action + ":", "");
     if (note === null) return; 
 
-    // 1. Prepare Status Updates (No ESN yet)
-    const updates = {
+    // 2. Prepare Status Updates
+    var updates = {
         status: action,
         remarks: action,
         note: note ? note.trim() : '',
         dateResponded: formatDate(new Date()),
-        batch_status: 'pending_receipt', 
         last_approver: currentApprover.Name
     };
 
-    const historyEntry = {
+    // --- NEW LOGIC: RETURN TO SENDER ---
+    // If Approved, send it back to the person who created it (e.g. Irwin)
+    // so it appears in their Sidebar as "Approved" (Green).
+    if (action === 'Approved') {
+        // Default to 'Irwin' if enteredBy is missing
+        updates.attention = task.enteredBy || 'Irwin'; 
+    } 
+    // If Rejected, also send back to sender so they know
+    else if (action === 'Rejected') {
+        updates.attention = task.enteredBy || 'Irwin';
+    }
+
+    if (task.attention) {
+        updates.note = updates.note + " [Action by " + currentApprover.Name + "]";
+    }
+
+    var historyEntry = {
         action: action,
         by: currentApprover.Name,
         timestamp: firebase.database.ServerValue.TIMESTAMP,
@@ -4210,53 +4249,48 @@ async function handleDesktopApproval(task, action) {
     };
 
     try {
-        // --- CASE A: JOB ENTRY (Separate Database Path) ---
+        // 3. Update Database
         if (task.source === 'job_entry') {
-            await db.ref(`job_entries/${task.key}`).update(updates);
-            await db.ref(`job_entries/${task.key}/history`).push(historyEntry);
+            await db.ref('job_entries/' + task.key).update(updates);
+            await db.ref('job_entries/' + task.key + '/history').push(historyEntry);
         } 
-        // --- CASE B: INVOICE ENTRY (Separate Database Path) ---
         else if (task.source === 'invoice') {
-            // "invoiceDb" is your specific reference for the Invoice Database
-            // We use originalPO and originalKey to find the exact record
-            await invoiceDb.ref(`invoice_entries/${task.originalPO}/${task.originalKey}`).update(updates);
+            await invoiceDb.ref('invoice_entries/' + task.originalPO + '/' + task.originalKey).update(updates);
+            await invoiceDb.ref('invoice_entries/' + task.originalPO + '/' + task.originalKey + '/history').push(historyEntry);
             
-            // Save history specifically to the invoice's history path
-            await invoiceDb.ref(`invoice_entries/${task.originalPO}/${task.originalKey}/history`).push(historyEntry);
+            // Sync local cache & Move task to new owner (Sender)
+            var originalInvoice = (allInvoiceData && allInvoiceData[task.originalPO]) ? allInvoiceData[task.originalPO][task.originalKey] : {};
+            var updatedInvoiceData = { ...originalInvoice, ...updates };
             
-            // Helper to keep your inbox/task list in sync
-            updateInvoiceTaskLookup(task.originalPO, task.originalKey, updates, task.attention);
+            // This moves the task from Manager's Inbox -> Sender's Inbox
+            await updateInvoiceTaskLookup(task.originalPO, task.originalKey, updatedInvoiceData, task.attention);
+            updateLocalInvoiceCache(task.originalPO, task.originalKey, updates);
         }
 
-        alert(`Task marked as ${action}. Added to Queue.`);
-        
-        // 2. Add to Manager Queue for Batching
-        if (action === 'Approved') {
-            managerProcessedTasks.push(task);
-            
-            // Show the "Finalize" buttons (Mobile & Desktop)
-            const mobileContainer = document.getElementById('mobile-receipt-action-container');
-            if(mobileContainer) mobileContainer.classList.remove('hidden');
+        // 4. Add to Manager's Batch Queue (For Receipt)
+        // Even though we sent it back, we keep a copy here for the Manager to print the receipt now.
+        task.status = action;
+        managerProcessedTasks.push(task);
 
-            // Create/Show Desktop Finalize Button
-            let desktopBtn = document.getElementById('desktop-finalize-btn');
-            if (!desktopBtn) {
-                const toolbar = document.querySelector('#wd-activetask .form-buttons-container');
-                if (toolbar) {
-                    desktopBtn = document.createElement('button');
-                    desktopBtn.id = 'desktop-finalize-btn';
-                    desktopBtn.className = 'download-btn';
-                    desktopBtn.style.backgroundColor = '#28a745'; 
-                    desktopBtn.style.marginLeft = '10px';
-                    desktopBtn.innerHTML = '<i class="fa-solid fa-check-double"></i> Finalize Batch & Sync ESN';
-                    desktopBtn.onclick = previewAndSendManagerReceipt; 
-                    toolbar.appendChild(desktopBtn);
-                }
-            }
-            if(desktopBtn) desktopBtn.classList.remove('hidden');
+        // 5. Reveal Finalize Button
+        var desktopBtn = document.getElementById('desktop-finalize-btn');
+        if (desktopBtn) {
+            desktopBtn.classList.remove('hidden');
+            desktopBtn.innerHTML = '<i class="fa-solid fa-check-double"></i> Finalize Batch & Send Receipt (' + managerProcessedTasks.length + ')';
         }
 
-        populateActiveTasks();
+        // 6. Remove row from table (It's done for the Manager)
+        var row = document.querySelector('tr[data-key="' + task.key + '"]');
+        if (row) row.remove();
+
+        var taskIndex = userActiveTasks.findIndex(t => t.key === task.key);
+        if (taskIndex > -1) userActiveTasks.splice(taskIndex, 1);
+
+        if (activeTaskCountDisplay) {
+            activeTaskCountDisplay.textContent = '(Total Tasks: ' + userActiveTasks.length + ')';
+        }
+
+        console.log("Task " + task.key + " approved and returned to " + updates.attention);
 
     } catch (error) {
         console.error("Approval Error:", error);
@@ -5543,21 +5577,21 @@ async function handleSaveModifiedTask() {
 function isInvoiceTaskActive(invoiceData) {
     if (!invoiceData) return false;
 
+    // We REMOVED 'Approved' and 'Rejected' from this list.
+    // Now, they are considered ACTIVE so they can be sent back to the sender.
     const inactiveStatuses = [
         'With Accounts',
-        'Under Review',
         'SRV Done',
         'Paid',
         'On Hold',
         'CLOSED',
-        'Cancelled',
-        'Approved',
-        'Rejected'
+        'Cancelled'
     ];
 
     if (inactiveStatuses.includes(invoiceData.status)) {
         return false;
     }
+    // Must have an attention person assigned
     return !!invoiceData.attention;
 }
 
@@ -5964,28 +5998,32 @@ function fetchAndDisplayInvoices(poNumber) {
 }
 
 // ==========================================================================
-// 14. INVOICE MANAGEMENT: SIDEBAR & ACTIVE JOBS
+// 14. INVOICE MANAGEMENT: SIDEBAR & ACTIVE JOBS (UPDATED: GREEN APPROVALS)
 // ==========================================================================
 
 async function populateActiveJobsSidebar() {
     if (!imEntrySidebarList) return;
 
+    // Refresh active tasks first
     await populateActiveTasks();
-    const tasksToDisplay = userActiveTasks;
+    var tasksToDisplay = userActiveTasks;
 
-    const invoiceJobs = tasksToDisplay.filter(task => {
+    var invoiceJobs = tasksToDisplay.filter(function(task) {
+        // 1. Inbox Items (Assigned to me directly, e.g. Approved Return)
         if (task.source === 'invoice' && task.attention === currentApprover.Name) {
             return true;
         }
-        if (task.source === 'job_entry' && task.for === 'Invoice' && (currentApprover?.Position || '').toLowerCase() === 'accounting') {
+        // 2. Job Entries for Accounting (Standard List)
+        if (task.source === 'job_entry' && task.for === 'Invoice' && (currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'accounting')) {
             return true;
         }
         return false;
     });
 
-    const count = invoiceJobs.length;
+    var count = invoiceJobs.length;
     if (activeJobsSidebarCountDisplay) {
-        activeJobsSidebarCountDisplay.textContent = `Your Active Invoice Jobs (${count})`;
+        // FIXED: Using standard strings to prevent syntax errors
+        activeJobsSidebarCountDisplay.textContent = 'Your Active Invoice Jobs (' + count + ')';
     }
 
     imEntrySidebarList.innerHTML = '';
@@ -5995,9 +6033,18 @@ async function populateActiveJobsSidebar() {
         return;
     }
 
-    invoiceJobs.forEach(job => {
-        const li = document.createElement('li');
+    invoiceJobs.forEach(function(job) {
+        var li = document.createElement('li');
         li.className = 'im-sidebar-item';
+        
+        var status = job.remarks || job.status || 'Pending';
+        // Check for approved status
+        var isApproved = status === 'Approved' || status === 'CEO Approval' || status.indexOf('Approved') !== -1;
+
+        if (isApproved) {
+            li.classList.add('status-approved');
+        }
+
         li.dataset.key = job.key;
         li.dataset.po = job.po || '';
         li.dataset.ref = job.ref || '';
@@ -6007,13 +6054,23 @@ async function populateActiveJobsSidebar() {
         li.dataset.originalKey = job.originalKey || '';
         li.dataset.originalPO = job.originalPO || '';
 
-        // --- UPDATED HTML: Added Group Line ---
-        li.innerHTML = `
-            <span class="im-sidebar-po">PO: ${job.po || 'N/A'}</span>
-            <span class="im-sidebar-vendor">${job.vendorName || 'No Vendor'}</span>
-            <span class="im-sidebar-vendor" style="color: #8ecae6; font-size: 0.8rem;">Group: ${job.group || '-'}</span>
-            <span class="im-sidebar-amount">QAR ${formatCurrency(job.amount)}</span>
-        `;
+        var iconHtml = '';
+        var statusStyle = 'color: #8ecae6;';
+
+        if (isApproved) {
+            iconHtml = '<i class="fa-solid fa-circle-check" style="color: #28a745; margin-right: 5px;"></i>';
+            statusStyle = 'color: #28a745; font-weight: bold;';
+        }
+
+        // FIXED: Standard string concatenation
+        var html = '<span class="im-sidebar-po">' + iconHtml + ' PO: ' + (job.po || 'N/A') + '</span>';
+        html += '<span class="im-sidebar-vendor">' + (job.vendorName || 'No Vendor') + '</span>';
+        html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">';
+        html += '<span class="im-sidebar-vendor" style="' + statusStyle + ' font-size: 0.75rem;">' + status + '</span>';
+        html += '<span class="im-sidebar-amount">QAR ' + formatCurrency(job.amount) + '</span>';
+        html += '</div>';
+
+        li.innerHTML = html;
         imEntrySidebarList.appendChild(li);
     });
 }
@@ -9652,111 +9709,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Active Task Table Click
-    activeTaskTableBody.addEventListener('click', async (e) => {
-        if (e.target.closest('.mobile-only')) return;
-
-        const row = e.target.closest('tr');
-        if (!row) return;
-
-        const key = row.dataset.key;
-        if (!key) return;
-
-        const taskData = userActiveTasks.find(entry => entry.key === key);
-        if (!taskData) {
-            alert("Could not find task details. The list may be out of date. Please refresh.");
-            return;
-        }
-
-        if (e.target.classList.contains('ceo-approve-btn')) {
-            openCEOApprovalModal(taskData);
-            return;
-        }
-
-        if (e.target.classList.contains('srv-done-btn')) {
-            e.target.disabled = true;
-            e.target.textContent = 'Updating...';
-            try {
-                if (taskData.source === 'invoice') {
-                    const updates = {
-                        releaseDate: getTodayDateString(),
-                        status: 'SRV Done'
-                    };
-                    await invoiceDb.ref(`invoice_entries/${taskData.originalPO}/${taskData.originalKey}`).update(updates);
-
-                    if (!allInvoiceData) await ensureInvoiceDataFetched();
-                    const originalInvoice = (allInvoiceData && allInvoiceData[taskData.originalPO]) ? allInvoiceData[taskData.originalPO][taskData.originalKey] : {};
-                    const updatedInvoiceData = {
-                        ...originalInvoice,
-                        ...updates
-                    };
-                    await updateInvoiceTaskLookup(taskData.originalPO, taskData.originalKey, updatedInvoiceData, taskData.attention);
-
-                    // --- FIX: LOG HISTORY HERE ---
-                    // This captures the CURRENT USER (e.g., the person who clicked the button)
-                    if (window.logInvoiceHistory) {
-                        await window.logInvoiceHistory(taskData.originalPO, taskData.originalKey, 'SRV Done', 'Marked as SRV Done via Active Task');
-                    }
-                    // -----------------------------
-
-                } else if (taskData.source === 'job_entry') {
-                    const updates = {
-                        dateResponded: formatDate(new Date()),
-                        remarks: 'SRV Done'
-                    };
-                    await db.ref(`job_entries/${taskData.key}`).update(updates);
-                }
-                alert('Task status updated to "SRV Done".');
-                await populateActiveTasks();
-            } catch (error) {
-                console.error("Error updating task status:", error);
-                alert("Failed to update task status. Please try again.");
-                e.target.disabled = false;
-                e.target.textContent = 'SRV Done';
-            }
-            return;
-        }
-
-        if (e.target.classList.contains('modify-btn')) {
-            openModifyTaskModal(taskData);
-            return;
-        }
-
-        const userPositionLower = (currentApprover?.Position || '').toLowerCase();
-        const isAccountingPosition = userPositionLower === 'accounting';
-
-        if (taskData.source === 'job_entry' && taskData.for === 'Invoice' && isAccountingPosition) {
-            if (!taskData.po) {
-                alert("This job entry is missing a PO number and cannot be processed in Invoice Management.");
-                return;
-            }
-            jobEntryToUpdateAfterInvoice = key;
-            pendingJobEntryDataForInvoice = taskData;
-            invoiceManagementButton.click();
-            setTimeout(() => {
-                imNav.querySelector('a[data-section="im-invoice-entry"]').click();
-                imPOSearchInput.value = taskData.po;
-                imPOSearchButton.click();
-                imBackToActiveTaskButton.classList.remove('hidden');
-            }, 100);
-            return;
-        }
-
-        if (taskData.source === 'job_entry' && taskData.for !== 'Invoice') {
-            const jobEntryLink = workdeskNav.querySelector('a[data-section="wd-jobentry"]');
-            if (jobEntryLink) {
-                jobEntryLink.click();
-            }
-            await ensureAllEntriesFetched();
-            populateFormForEditing(taskData.key);
-            return;
-        }
-
-        if (taskData && taskData.source === 'invoice' && taskData.invName && taskData.invName.trim() && taskData.invName.toLowerCase() !== 'nil') {
-            window.open(PDF_BASE_PATH + encodeURIComponent(taskData.invName) + ".pdf", '_blank');
-        }
-    });
-
     // --- 7. Workdesk: Calendar Listeners ---
 
     if (wdCalendarPrevBtn) {
@@ -10134,74 +10086,146 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ==========================================================================
-    // 2. ACTIVE TASK LISTENER (Inbox) - FIXED
+    // UNIFIED ACTIVE TASK LISTENER (HANDLES EVERYTHING)
     // ==========================================================================
     if (activeTaskTableBody) {
         activeTaskTableBody.addEventListener('click', async (e) => {
-            // Ignore clicks inside the mobile view container (handled separately)
+            // Ignore clicks inside mobile view container
             if (e.target.closest('.mobile-only')) return;
 
-            // --- A. HANDLE TRANSFER ACTION ---
-            // We use .closest() to ensure it catches the click even if you hit the text inside
+            // 1. HANDLE TRANSFER ACTION (Priority 1)
             const transferBtn = e.target.closest('.transfer-action-btn');
-
             if (transferBtn) {
-                e.preventDefault(); // Stop any default button behavior
-                e.stopPropagation(); // Stop the row click from firing
-
+                e.preventDefault();
+                e.stopPropagation();
                 const key = transferBtn.getAttribute('data-key');
-                console.log("Transfer Button Clicked for Key:", key);
-
-                // Find the task data
                 const task = userActiveTasks.find(t => t.key === key);
 
-                if (!task) {
-                    alert("Error: Task data not found in memory. Please refresh the page.");
-                    return;
-                }
-
-                // Check if the modal function exists
-                if (window.openTransferActionModal) {
-                    await window.openTransferActionModal(task);
+                if (task) {
+                    if (window.openTransferActionModal) {
+                        await window.openTransferActionModal(task);
+                    } else {
+                        alert("Transfer Logic script not loaded.");
+                    }
                 } else {
-                    console.error("Missing function: window.openTransferActionModal");
-                    alert("System Error: The Transfer Logic script is not loaded correctly. Check console for details.");
+                    alert("Task not found. Please refresh.");
                 }
-                return;
+                return; // Stop here
             }
 
-            // --- B. HANDLE STANDARD ACTIONS (CEO/SRV/Edit) ---
+            // 2. HANDLE PROCESS REPORT BUTTON (Priority 2)
+            const reportBtn = e.target.closest('.process-report-btn');
+            if (reportBtn) {
+                e.preventDefault();
+                e.stopPropagation(); // <--- THIS STOPS THE PDF FROM OPENING
+                const key = reportBtn.getAttribute('data-key');
+                const task = userActiveTasks.find(t => t.key === key);
+                
+                if (task) {
+                    if (typeof openProcessReportModal === 'function') {
+                        openProcessReportModal(task);
+                    } else {
+                        console.error("openProcessReportModal is missing");
+                        alert("Error: Modal logic not found. Check app.js.");
+                    }
+                }
+                return; // Stop here
+            }
+
+            // 3. GET ROW DATA
             const row = e.target.closest('tr');
             if (!row) return;
             const key = row.dataset.key;
             const taskData = userActiveTasks.find(entry => entry.key === key);
-
+            
             if (!taskData) return;
 
+            // 4. CEO APPROVE BUTTON
             if (e.target.classList.contains('ceo-approve-btn')) {
+                e.stopPropagation();
                 openCEOApprovalModal(taskData);
                 return;
             }
+
+            // 5. SRV DONE BUTTON
             if (e.target.classList.contains('srv-done-btn')) {
-                // Existing SRV Logic would go here
+                e.stopPropagation();
+                e.target.disabled = true;
+                e.target.textContent = 'Updating...';
+                try {
+                    if (taskData.source === 'invoice') {
+                        const updates = { releaseDate: getTodayDateString(), status: 'SRV Done' };
+                        await invoiceDb.ref('invoice_entries/' + taskData.originalPO + '/' + taskData.originalKey).update(updates);
+                        
+                        if (!allInvoiceData) await ensureInvoiceDataFetched();
+                        const originalInv = (allInvoiceData[taskData.originalPO] || {})[taskData.originalKey] || {};
+                        const mergedInv = { ...originalInv, ...updates };
+                        await updateInvoiceTaskLookup(taskData.originalPO, taskData.originalKey, mergedInv, taskData.attention);
+
+                        if (window.logInvoiceHistory) await window.logInvoiceHistory(taskData.originalPO, taskData.originalKey, 'SRV Done', 'Marked SRV Done via Active Task');
+
+                    } else if (taskData.source === 'job_entry') {
+                        await db.ref('job_entries/' + taskData.key).update({ dateResponded: formatDate(new Date()), remarks: 'SRV Done' });
+                    }
+                    alert('Task marked as SRV Done.');
+                    await populateActiveTasks();
+                } catch (err) {
+                    console.error(err);
+                    alert("Error updating task.");
+                    e.target.disabled = false;
+                }
                 return;
             }
+
+            // 6. EDIT BUTTON
             if (e.target.classList.contains('modify-btn')) {
+                e.stopPropagation();
                 openModifyTaskModal(taskData);
                 return;
             }
 
-            // --- C. HANDLE PDF CLICK (If clicking the row, not a button) ---
-            const invName = taskData.invName || '';
-            const isInvoiceFromIrwin = taskData.source === 'invoice' && taskData.enteredBy === 'Irwin';
-            const isClickable = (isInvoiceFromIrwin || (taskData.source === 'invoice' && invName)) && invName.trim() && invName.toLowerCase() !== 'nil';
+            // 7. HANDLE ROW CLICKS (Opening Forms or PDFs)
+            
+            const userPosLower = (currentApprover?.Position || '').toLowerCase();
+            const isAccounting = userPosLower === 'accounting';
 
-            // Only open PDF if we didn't click a button
-            if (isClickable && !e.target.closest('button') && !e.target.closest('a')) {
-                window.open(PDF_BASE_PATH + encodeURIComponent(invName) + ".pdf", '_blank');
+            // A. Job Entry for Accounting (Go to Invoice Entry)
+            if (taskData.source === 'job_entry' && taskData.for === 'Invoice' && isAccounting) {
+                if (!taskData.po) {
+                    alert("Missing PO Number.");
+                    return;
+                }
+                jobEntryToUpdateAfterInvoice = key;
+                pendingJobEntryDataForInvoice = taskData;
+                invoiceManagementButton.click();
+                setTimeout(() => {
+                    const link = imNav.querySelector('a[data-section="im-invoice-entry"]');
+                    if(link) link.click();
+                    imPOSearchInput.value = taskData.po;
+                    imPOSearchButton.click();
+                    imBackToActiveTaskButton.classList.remove('hidden');
+                }, 100);
+                return;
+            }
+
+            // B. Standard Job Entry (Go to Job Form)
+            if (taskData.source === 'job_entry' && taskData.for !== 'Invoice') {
+                const jobLink = workdeskNav.querySelector('a[data-section="wd-jobentry"]');
+                if (jobLink) jobLink.click();
+                await ensureAllEntriesFetched();
+                populateFormForEditing(taskData.key);
+                return;
+            }
+
+            // C. Invoice PDF Open (Only if not clicking a button)
+            if (taskData.source === 'invoice' && taskData.invName && taskData.invName.trim() && taskData.invName.toLowerCase() !== 'nil') {
+                if (!e.target.closest('button') && !e.target.closest('a')) {
+                    window.open(PDF_BASE_PATH + encodeURIComponent(taskData.invName) + ".pdf", '_blank');
+                }
             }
         });
     }
+
 
 // Safeguard: Only add listener if button exists
     if (printReportButton) {
@@ -11975,53 +11999,102 @@ if (saveManualPOBtn) {
     };
 
 // =========================================================
-// NEW: DYNAMIC STICKER PRINT (Auto-Positioning)
+// 3. SMART STICKER POSITIONING (SAFE STRINGS FIX)
 // =========================================================
 window.handlePrintSticker = async function(key, type, poNumber) {
     if (!key || !poNumber) { alert("Missing data for print."); return; }
 
-    const safePO = poNumber.replace(/[.#$[\]]/g, '_');
-    const recordKey = `${safePO}_${key}`;
+    var safePO = poNumber.replace(/[.#$[\]]/g, '_');
+    var recordKey = safePO + "_" + key;
 
     try {
-        // 1. Fetch from manager_approved
-        const snap = await db.ref(`manager_approved/${recordKey}`).once('value');
-        const data = snap.val();
+        if (!allApproverData) {
+            var snap = await db.ref('approvers').once('value');
+            allApproverData = snap.val();
+        }
 
-        // 2. Build List of Stickers
-        const stickers = [];
+        var snap = await db.ref('manager_approved/' + recordKey).once('value');
+        var data = snap.val();
+
+        var rawStickers = [];
         if (data) {
-            // FIX: We now send "APPROVED" as the name, instead of data.approver_X
-            if (data.esn_1) stickers.push({ esn: data.esn_1, pdf: data.pdf_1, name: "APPROVED", date: data.date_1 });
-            if (data.esn_2) stickers.push({ esn: data.esn_2, pdf: data.pdf_2, name: "APPROVED", date: data.date_2 });
-            if (data.esn_3) stickers.push({ esn: data.esn_3, pdf: data.pdf_3, name: "APPROVED", date: data.date_3 });
-            
-            // CEO stays as "CEO APPROVED"
-            if (data.esn_ceo) {
-                 stickers.push({ esn: data.esn_ceo, pdf: data.pdf_ceo, name: "CEO APPROVED", date: data.date_ceo, isCeo: true });
-            }
-        } 
-        // Fallback for old/standard records
-        else {
-            const invSnap = await invoiceDb.ref(`invoice_entries/${poNumber}/${key}`).once('value');
-            const inv = invSnap.val();
+            ['1', '2', '3', 'ceo'].forEach(function(slot) {
+                if (data['esn_' + slot]) {
+                    rawStickers.push({
+                        esn: data['esn_' + slot],
+                        pdf: data['pdf_' + slot],
+                        approverName: data['approver_' + slot] || 'Unknown',
+                        date: data['date_' + slot],
+                        isCeo: (slot === 'ceo')
+                    });
+                }
+            });
+        } else {
+            var invSnap = await invoiceDb.ref('invoice_entries/' + poNumber + '/' + key).once('value');
+            var inv = invSnap.val();
             if(inv && inv.esn) {
-                stickers.push({ 
+                var safeEsn = inv.esn.replace(/[^a-zA-Z0-9]/g, '_');
+                rawStickers.push({ 
                     esn: inv.esn, 
-                    pdf: `https://firebasestorage.googleapis.com/v0/b/invoiceentry-b15a8.firebasestorage.app/o/receipts%2F${inv.esn.replace(/[^a-zA-Z0-9]/g, '_')}.pdf?alt=media`, 
-                    name: 'APPROVED', 
+                    pdf: "https://firebasestorage.googleapis.com/v0/b/invoiceentry-b15a8.firebasestorage.app/o/receipts%2F" + safeEsn + ".pdf?alt=media", 
+                    approverName: 'Admin',
                     date: new Date().toLocaleDateString('en-GB') 
                 });
             }
         }
 
-        if (stickers.length === 0) {
-            alert("No approval stickers found for this invoice.");
+        if (rawStickers.length === 0) {
+            alert("No approval stickers found.");
             return;
         }
 
-        // 3. Print
-        proceedToPrintMulti(stickers);
+        var middleZone = [];
+        var rightZone = [];
+        var ceoZone = [];
+
+        rawStickers.forEach(function(sticker) {
+            if (sticker.isCeo) {
+                ceoZone.push(sticker);
+                return;
+            }
+            var userRecord = Object.values(allApproverData).find(function(u) { return u.Name === sticker.approverName; });
+            var role = userRecord ? (userRecord.Position || '').toLowerCase() : '';
+
+            if (role.includes('ceo')) ceoZone.push(sticker);
+            else if (role.includes('finance') || role.includes('coo')) rightZone.push(sticker);
+            else middleZone.push(sticker);
+        });
+
+        var finalStickers = [];
+
+        rightZone.forEach(function(s, i) {
+            var rightOffset = 20 + (i * 35); 
+            s.cssPosition = "bottom: 20mm; right: " + rightOffset + "mm;";
+            s.displayName = "APPROVED";
+            finalStickers.push(s);
+        });
+
+        ceoZone.forEach(function(s) {
+            s.cssPosition = "bottom: 60mm; right: 20mm;";
+            s.displayName = "CEO APPROVED";
+            finalStickers.push(s);
+        });
+
+        var midCount = middleZone.length;
+        middleZone.forEach(function(s, i) {
+            var leftPercent = 50;
+            if (midCount === 2) leftPercent = (i === 0) ? 40 : 60;
+            else if (midCount === 3) {
+                if (i === 0) leftPercent = 30;
+                if (i === 1) leftPercent = 50;
+                if (i === 2) leftPercent = 70;
+            }
+            s.cssPosition = "bottom: 20mm; left: " + leftPercent + "%; transform: translateX(-50%);";
+            s.displayName = "APPROVED";
+            finalStickers.push(s);
+        });
+
+        proceedToPrintMulti(finalStickers);
 
     } catch (e) {
         console.error("Print Error:", e);
@@ -12029,129 +12102,40 @@ window.handlePrintSticker = async function(key, type, poNumber) {
     }
 };
 
-// --- LAYOUT ENGINE: Right-to-Left ---
+// =========================================================
+// 4. PRINT RENDERER (SAFE STRINGS FIX)
+// =========================================================
 function proceedToPrintMulti(stickerList) {
-    const managers = stickerList.filter(s => !s.isCeo);
-    const ceo = stickerList.find(s => s.isCeo);
-
-    // LOGIC: Reverse so Newest (Last index) goes to Right
-    const reversed = [...managers].reverse(); 
-
-    let htmlStickers = "";
-
-    // Render Managers
-    reversed.forEach((s, index) => {
-        const rightPos = 20 + (index * 35); 
-        htmlStickers += createStickerHTML(s, `bottom: 20mm; right: ${rightPos}mm;`);
+    var htmlStickers = "";
+    stickerList.forEach(function(s) {
+        htmlStickers += createStickerHTML(s, s.cssPosition);
     });
 
-    // Render CEO
-    if (ceo) {
-        htmlStickers += createStickerHTML(ceo, `bottom: 55mm; right: 20mm;`);
-    }
+    var printWindow = window.open('', '', 'width=1000,height=1200');
+    
+    var content = '<html><head><title>Multi-Sticker Print</title>';
+    content += '<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>';
+    content += '<style>@page { size: A4; margin: 0; } body { margin: 0; padding: 0; width: 210mm; height: 297mm; position: relative; font-family: "Arial", sans-serif; } ';
+    content += '.sticker-box { position: absolute; width: auto; padding: 4px; display: flex; flex-direction: row; align-items: center; background: white; z-index: 100; } ';
+    content += '.main { display: flex; flex-direction: column; align-items: center; justify-content: center; padding-right: 5px; border-right: 1px solid #000; } ';
+    content += '.status { font-weight: 900; font-size: 12px; text-transform: uppercase; margin-bottom: 2px; color: #28a745; text-align: center; white-space: nowrap; } ';
+    content += '.esn { font-weight: bold; font-size: 8px; margin-top: 2px; font-family: monospace; white-space: nowrap; color: #000; text-align: center; } ';
+    content += '.side { width: 12px; display: flex; align-items: center; justify-content: center; writing-mode: vertical-rl; text-orientation: mixed; font-weight: bold; font-size: 8px; margin-left: 4px; height: 80px; color: #555; } ';
+    content += '.qr-target { width: 70px; height: 70px; display: flex; justify-content: center; }';
+    content += '</style></head><body>';
+    content += htmlStickers;
+    content += '<script>var boxes = document.querySelectorAll(".sticker-box"); boxes.forEach(function(box) { var link = box.dataset.link; var container = box.querySelector(".qr-target"); new QRCode(container, { text: link, width: 70, height: 70, correctLevel: QRCode.CorrectLevel.M }); }); setTimeout(function() { window.print(); }, 800);<\/script>';
+    content += '</body></html>';
 
-    const printWindow = window.open('', '', 'width=1000,height=1200');
-    printWindow.document.write(`
-        <html>
-        <head>
-            <title>Multi-Sticker Print</title>
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
-            <style>
-                @page { size: A4; margin: 0; }
-                body { margin: 0; padding: 0; width: 210mm; height: 297mm; position: relative; font-family: 'Arial', sans-serif; }
-                
-                .sticker-box {
-                    position: absolute;
-                    width: auto;
-                    padding: 4px;
-                    display: flex;
-                    flex-direction: row;
-                    align-items: center; /* Vertically center the side text */
-                    background: white; 
-                    z-index: 100;
-                }
-
-                /* THE FIX: Use Flexbox to force perfect center alignment */
-                .main { 
-                    display: flex; 
-                    flex-direction: column; 
-                    align-items: center; /* Centers Text, QR, and ESN horizontally */
-                    justify-content: center;
-                    padding-right: 5px; 
-                    border-right: 1px solid #000; 
-                }
-
-                .status { 
-                    font-weight: 900; 
-                    font-size: 12px; 
-                    text-transform: uppercase; 
-                    margin-bottom: 2px; 
-                    color: #28a745;
-                    text-align: center;
-                    white-space: nowrap;
-                }
-                
-                .esn { 
-                    font-weight: bold; 
-                    font-size: 8px; 
-                    margin-top: 2px; 
-                    font-family: monospace; 
-                    white-space: nowrap; 
-                    color: #000;
-                    text-align: center;
-                }
-
-                .side {
-                    width: 12px; 
-                    display: flex; 
-                    align-items: center; 
-                    justify-content: center;
-                    writing-mode: vertical-rl; 
-                    text-orientation: mixed; 
-                    font-weight: bold;
-                    font-size: 8px; 
-                    margin-left: 4px; 
-                    height: 80px; 
-                    color: #555;
-                }
-
-                /* Force QR Container Size */
-                .qr-target {
-                    width: 70px;
-                    height: 70px;
-                    display: flex;
-                    justify-content: center;
-                }
-            </style>
-        </head>
-        <body>
-            ${htmlStickers}
-            <script>
-                const boxes = document.querySelectorAll('.sticker-box');
-                boxes.forEach(box => {
-                    const link = box.dataset.link;
-                    const container = box.querySelector('.qr-target');
-                    new QRCode(container, { text: link, width: 70, height: 70, correctLevel: QRCode.CorrectLevel.M });
-                });
-                setTimeout(() => { window.print(); }, 800);
-            <\/script>
-        </body>
-        </html>
-    `);
+    printWindow.document.write(content);
     printWindow.document.close();
 }
 
 function createStickerHTML(data, cssPosition) {
-    const nameDisplay = data.name.length > 12 ? data.name.substring(0, 10) + '..' : data.name;
-    return `
-    <div class="sticker-box" style="${cssPosition}" data-link="${data.pdf}">
-        <div class="main">
-            <div class="status">${nameDisplay}</div>
-            <div class="qr-target"></div>
-            <div class="esn">${data.esn}</div>
-        </div>
-        <div class="side">${data.date}</div>
-    </div>`;
+    var title = data.displayName || "APPROVED";
+    return '<div class="sticker-box" style="' + cssPosition + '" data-link="' + data.pdf + '">' +
+           '<div class="main"><div class="status">' + title + '</div><div class="qr-target"></div><div class="esn">' + data.esn + '</div></div>' +
+           '<div class="side">' + data.date + '</div></div>';
 }
 
 // --- Helper to actually open the window ---
@@ -12390,4 +12374,142 @@ if (imNavNext) {
     }
 
 
+// Desktop Manager Finalize Button Listener
+    const desktopMgrBtn = document.getElementById('desktop-finalize-btn');
+    if (desktopMgrBtn) {
+        // Remove any existing listener just in case, then add the new one
+        const newBtn = desktopMgrBtn.cloneNode(true);
+        desktopMgrBtn.parentNode.replaceChild(newBtn, desktopMgrBtn);
+        newBtn.addEventListener('click', previewAndSendManagerReceipt);
+    }
+
 }); // END OF DOMCONTENTLOADED
+
+// =========================================================
+// PROCESS REPORT LOGIC (GLOBAL FUNCTIONS)
+// =========================================================
+
+// 1. OPEN MODAL FUNCTION
+async function openProcessReportModal(task) {
+    var modal = document.getElementById('process-report-modal');
+    
+    if (!modal) {
+        alert("ERROR: The 'process-report-modal' HTML is missing from index.html.");
+        return;
+    }
+
+    document.getElementById('process-report-key').value = task.key;
+    document.getElementById('process-report-po').value = task.originalPO || task.po;
+    document.getElementById('process-report-inv').value = task.originalKey || task.key;
+    document.getElementById('process-report-note').value = '';
+
+    // Populate Approvers Dropdown
+    var select = document.getElementById('process-report-approver');
+    select.innerHTML = '<option value="" disabled selected>Loading...</option>';
+
+    if (!allApproverData) {
+        // Try to fetch if missing
+        try {
+            var snap = await db.ref('approvers').once('value');
+            allApproverData = snap.val();
+        } catch(e) { console.error(e); }
+    }
+
+    var validRoles = ['site engineer', 'mep manager', 'project director', 'coo', 'finance', 'ceo', 'manager'];
+    var optionsHTML = '<option value="" disabled selected>Select Approver...</option>';
+    
+    if (allApproverData) {
+        Object.values(allApproverData).forEach(function(user) {
+            var pos = (user.Position || '').toLowerCase();
+            var isMatch = validRoles.some(function(role) { return pos.indexOf(role) !== -1; });
+            if (isMatch) {
+                optionsHTML += '<option value="' + user.Name + '">' + user.Name + ' - ' + user.Position + '</option>';
+            }
+        });
+    }
+
+    select.innerHTML = optionsHTML;
+    modal.classList.remove('hidden');
+}
+
+// 2. SUBMIT BUTTON LISTENER (Runs once when DOM loads)
+document.addEventListener('DOMContentLoaded', function() {
+    var submitBtn = document.getElementById('process-report-submit-btn');
+    if (submitBtn) {
+        // Clone to ensure no duplicate listeners
+        var newBtn = submitBtn.cloneNode(true);
+        submitBtn.parentNode.replaceChild(newBtn, submitBtn);
+        
+        newBtn.addEventListener('click', async function() {
+            var key = document.getElementById('process-report-key').value;
+            var po = document.getElementById('process-report-po').value;
+            var invKey = document.getElementById('process-report-inv').value;
+            var approverName = document.getElementById('process-report-approver').value;
+            var note = document.getElementById('process-report-note').value;
+
+            if (!approverName) {
+                alert("Please select an approver.");
+                return;
+            }
+
+            newBtn.disabled = true;
+            newBtn.textContent = "Processing...";
+
+            try {
+                var safePO = po.replace(/[.#$[\]]/g, '_');
+                var recordKey = safePO + "_" + invKey;
+                
+                // A. SAVE PREPARED BY (SLOT 1)
+                await db.ref('manager_approved/' + recordKey).update({
+                    po: po,
+                    inv_key: invKey,
+                    approver_1: currentApprover.Name, 
+                    role_1: 'Prepared By',
+                    date_1: new Date().toLocaleDateString('en-GB'),
+                    status: 'Pending Approval'
+                });
+
+                // B. UPDATE INVOICE TASK (Send to Manager)
+                var noteText = "Prepared by " + currentApprover.Name;
+                if (note) noteText += ": " + note;
+
+                var updates = {
+                    status: 'Report Approval', 
+                    remarks: 'Report Approval',
+                    attention: approverName,
+                    note: noteText,
+                    dateResponded: formatDate(new Date())
+                };
+
+                await invoiceDb.ref('invoice_entries/' + po + '/' + invKey).update(updates);
+                
+                if (!allInvoiceData) await ensureInvoiceDataFetched();
+                var originalInv = (allInvoiceData[po] && allInvoiceData[po][invKey]) ? allInvoiceData[po][invKey] : {};
+                var updatedInv = { ...originalInv, ...updates };
+                
+                // Move task to Manager's Inbox
+                await updateInvoiceTaskLookup(po, invKey, updatedInv, currentApprover.Name); 
+
+                // C. LOG HISTORY
+                var historyEntry = {
+                    action: "Report Prepared",
+                    by: currentApprover.Name,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP,
+                    note: "Sent to " + approverName + " for Approval"
+                };
+                await invoiceDb.ref('invoice_entries/' + po + '/' + invKey + '/history').push(historyEntry);
+
+                alert("Report Processed! Sent to " + approverName);
+                document.getElementById('process-report-modal').classList.add('hidden');
+                populateActiveTasks();
+
+            } catch (e) {
+                console.error(e);
+                alert("Error processing report.");
+            } finally {
+                newBtn.disabled = false;
+                newBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Confirm & Send';
+            }
+        });
+    }
+});

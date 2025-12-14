@@ -1,14 +1,150 @@
-// materialStock.js - V8.4 (Added "Series" Auto-Correction for CSV Upload)
+// materialStock.js - V10.0 (Updated to F.RRR.SSSSS Format)
 
 let allMaterialStockData = [];
 let allTransferData = [];
 let msProductChoices = null;
 let lastTypedProductID = "";
-let currentCategoryFilter = null;
+let currentCategoryFilter = 'All';
 
 // Constants
 const STOCK_CACHE_KEY = "cached_MATERIAL_STOCK";
 const STOCK_CACHE_DURATION = 24 * 60 * 60 * 1000;
+
+// --- 1. STOCK LEGENDS (New Structure F.RRR) ---
+const STOCK_LEGENDS = {
+    "1": {
+        "name": "Civil & Structural",
+        "relations": {
+            "101": "Concrete & Cementitious",
+            "102": "Reinforcement Steel",
+            "103": "Structural Steel",
+            "104": "Masonry (Blocks/Bricks)",
+            "105": "Formwork & Shuttering",
+            "106": "Waterproofing",
+            "107": "Earthworks & Backfill",
+            "108": "Roadworks & Paving",
+            "109": "Aggregates & Sand",
+            "110": "Fasteners & Anchors",
+            "111": "Chemicals & Admixtures",
+            "112": "Geotextiles & Drainage"
+        }
+    },
+    "2": {
+        "name": "Architectural & Finishes",
+        "relations": {
+            "201": "Tiles & Stone",
+            "202": "Paints & Coatings",
+            "203": "Gypsum & Ceiling Systems",
+            "204": "Doors, Windows & Ironmongery",
+            "205": "Glass & Glazing",
+            "206": "Flooring (Vinyl/Carpet/Laminate)",
+            "207": "Joinery & Woodworks",
+            "208": "Metal Works & Handrails",
+            "209": "Sealants, Adhesives & Grouts",
+            "210": "Wall Cladding & Panels",
+            "211": "Sanitary Fixtures & Accessories",
+            "212": "Accessories & Hardware"
+        }
+    },
+    "3": {
+        "name": "Electrical",
+        "relations": {
+            "301": "Cables & Wires",
+            "302": "Conduits, Trunking & Cable Management",
+            "303": "Switches, Sockets & Wiring Devices",
+            "304": "Lighting Fixtures & Lamps",
+            "305": "Distribution, Breakers & Panels",
+            "306": "Earthing & Lightning Protection",
+            "307": "Cable Accessories (Lugs, Glands, Terminations)",
+            "308": "ELV / ICT (Data, CCTV, Access)",
+            "309": "Batteries & UPS",
+            "310": "Electrical Consumables"
+        }
+    },
+    "4": {
+        "name": "Mechanical (HVAC)",
+        "relations": {
+            "401": "HVAC Equipment (AHU/FCU/Fans)",
+            "402": "Ductwork & Accessories",
+            "403": "Pipes & Fittings",
+            "404": "Valves & Controls",
+            "405": "Insulation & Cladding",
+            "406": "Diffusers, Grilles & Louvers",
+            "407": "Supports, Hangers & Accessories",
+            "408": "Refrigerant & Copper",
+            "409": "Filters & Spares",
+            "410": "Mechanical Consumables"
+        }
+    },
+    "5": {
+        "name": "HSE / PPE",
+        "relations": {
+            "501": "Head Protection",
+            "502": "Hand Protection",
+            "503": "Foot Protection",
+            "504": "Body / Hi-Vis / Coveralls",
+            "505": "Fall Protection",
+            "506": "Respiratory Protection",
+            "507": "Eye & Face Protection",
+            "508": "Hearing Protection",
+            "509": "First Aid & Safety Signs",
+            "510": "Fire Safety"
+        }
+    },
+    "6": {
+        "name": "Office & Site Facilities",
+        "relations": {
+            "601": "Stationery & Printing",
+            "602": "Cleaning & Hygiene",
+            "603": "Pantry & Drinking Water",
+            "604": "Furniture & Fixtures",
+            "605": "IT & Electronics",
+            "606": "Site Accommodation",
+            "607": "Temporary Utilities",
+            "608": "Waste Management",
+            "609": "Small Appliances",
+            "610": "Misc Facilities Supplies"
+        }
+    },
+    "7": {
+        "name": "Equipment & Plant",
+        "relations": {
+            "701": "Heavy Equipment",
+            "702": "Small Plant & Compaction",
+            "703": "Generators & Power Equipment",
+            "704": "Lifting & Rigging",
+            "705": "Vehicles & Transport",
+            "706": "Measuring & Testing Instruments",
+            "707": "Spares & Maintenance",
+            "708": "Fuel & Lubricants",
+            "709": "Welding & Cutting Equipment",
+            "710": "Safety Barriers & Traffic"
+        }
+    },
+    "8": {
+        "name": "Tools & Consumables",
+        "relations": {
+            "801": "Power Tools",
+            "802": "Hand Tools",
+            "803": "Tool Accessories (Bits/Blades)",
+            "804": "Fasteners (Screws/Bolts/Nails)",
+            "805": "Abrasives (Discs/Sandpaper)",
+            "806": "Chemicals & Adhesives (Epoxy/Silicone)",
+            "807": "Marking & Measuring",
+            "808": "Packaging & Protection",
+            "809": "Electrical Hand Tools & Accessories",
+            "810": "General Consumables"
+        }
+    },
+    "9": {
+        "name": "Other / Unclassified",
+        "relations": {
+            "901": "Miscellaneous",
+            "902": "Client-supplied / Unknown",
+            "903": "Scrap / Returns"
+        }
+    }
+};
 
 // ==========================================================================
 // 1. LOAD DATA (WITH CACHING)
@@ -95,54 +231,39 @@ async function fetchTransfersOnly() {
 }
 
 // ==========================================================================
-// 2. TABS & RENDERING (Updated with ID Legend)
+// 2. TABS & RENDERING (Updated: Hide Empty Tabs)
 // ==========================================================================
 function renderCategoryTabs() {
     const tabsContainer = document.getElementById('ms-category-tabs');
-    const tableBody = document.getElementById('ms-table-body');
-
     if (!tabsContainer) return;
 
-    // --- 1. DEFINE YOUR ID LEGEND HERE ---
-    const idLegend = {
-        "Consumables": "1xxxx",  // 1
-        "Equipment":   "2xxxx",  // 2
-        "Materials":   "3xxxx",  // 3
-        "Safety":      "4xxxx",  // 4
-        "Tools":       "5xxxx"   // 5
-    };
-
-    const categories = new Set();
+    // 1. Identify which families actually have data
+    const activeFamilyCodes = new Set();
     allMaterialStockData.forEach(item => {
-        let cat = item.category ? item.category.trim() : "Uncategorized";
-        // Handle singular/plural mismatch (e.g. Material vs Materials) to ensure legend works
-        if(cat === "Material") cat = "Materials"; 
-        if(cat === "Consumable") cat = "Consumables";
-        if(cat === "") cat = "Uncategorized";
-        categories.add(cat);
+        if (item.familyCode) activeFamilyCodes.add(item.familyCode);
     });
 
-    const sortedCats = Array.from(categories).sort();
-    let html = '';
-
-    sortedCats.forEach(cat => {
-        const activeClass = (currentCategoryFilter === cat) ? 'active' : '';
-        
-        // Check if we have a legend rule for this category
-        let labelHTML = cat;
-        if (idLegend[cat]) {
-            // Add the number guide in a smaller, lighter font
-            labelHTML += ` <span style="font-size: 0.75rem; color: #dc3545; font-weight: normal; margin-left: 4px;">[${idLegend[cat]}]</span>`;
-        }
-
-        html += `<button class="${activeClass}" onclick="filterStockByCategory('${cat}')" style="margin-right:5px; padding: 8px 15px; cursor: pointer; border: none; background: transparent; border-bottom: 3px solid transparent; font-weight: 600; color: #555; white-space: nowrap;">
-                    ${labelHTML}
-                 </button>`;
-    });
-
-    if (sortedCats.length === 0) {
-        html = '<span style="padding:10px; color:#777;">No categories found. Add items to start.</span>';
+    // 2. Safety Check: If current filter is empty/gone, reset to All
+    if (currentCategoryFilter !== 'All' && !activeFamilyCodes.has(currentCategoryFilter)) {
+        currentCategoryFilter = 'All';
     }
+
+    // 3. Generate HTML
+    let html = `<button class="${currentCategoryFilter === 'All' ? 'active' : ''}" onclick="filterStockByCategory('All')" style="margin-right:5px; padding: 8px 15px; cursor: pointer; border: none; background: transparent; border-bottom: 3px solid transparent; font-weight: 600; color: #555; white-space: nowrap;">All Families</button>`;
+
+    const sortedFamilies = Object.keys(STOCK_LEGENDS).sort((a, b) => parseInt(a) - parseInt(b));
+
+    sortedFamilies.forEach(code => {
+        // ONLY RENDER IF DATA EXISTS IN THIS FAMILY
+        if (activeFamilyCodes.has(code)) {
+            const name = STOCK_LEGENDS[code].name;
+            const activeClass = (currentCategoryFilter === code) ? 'active' : '';
+            
+            html += `<button class="${activeClass}" onclick="filterStockByCategory('${code}')" style="margin-right:5px; padding: 8px 15px; cursor: pointer; border: none; background: transparent; border-bottom: 3px solid transparent; font-weight: 600; color: #555; white-space: nowrap;">
+                        ${name} <span style="font-size: 0.75rem; color: #dc3545; font-weight: normal; margin-left: 4px;">[${code}]</span>
+                     </button>`;
+        }
+    });
 
     tabsContainer.innerHTML = html;
 
@@ -150,13 +271,10 @@ function renderCategoryTabs() {
     activeTabs.forEach(tab => {
         tab.style.borderBottomColor = '#00748C';
         tab.style.color = '#00748C';
+        tab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
     });
 
-    if (!currentCategoryFilter) {
-        tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:#777; font-weight:bold; font-size:1.1em;">Please select a Category tab above to view records.</td></tr>';
-    } else {
-        renderMaterialStockTable(allMaterialStockData);
-    }
+    renderMaterialStockTable(allMaterialStockData);
 }
 
 window.filterStockByCategory = function(category) {
@@ -189,15 +307,17 @@ function renderMaterialStockTable(data) {
     const tableHeadRow = document.querySelector('#ms-table thead tr');
     if (tableHeadRow) {
         if (isIrwin) {
-            tableHeadRow.children[0].innerHTML = '<input type="checkbox" id="ms-select-all-header" style="cursor:pointer;">';
-            setTimeout(() => {
-                const selectAll = document.getElementById('ms-select-all-header');
-                if(selectAll) {
-                    selectAll.onclick = (e) => {
-                        document.querySelectorAll('.ms-row-checkbox').forEach(cb => cb.checked = e.target.checked);
-                    };
-                }
-            }, 100);
+            if(!document.getElementById('ms-select-all-header')) {
+                tableHeadRow.children[0].innerHTML = '<input type="checkbox" id="ms-select-all-header" style="cursor:pointer;">';
+                setTimeout(() => {
+                    const selectAll = document.getElementById('ms-select-all-header');
+                    if(selectAll) {
+                        selectAll.onclick = (e) => {
+                            document.querySelectorAll('.ms-row-checkbox').forEach(cb => cb.checked = e.target.checked);
+                        };
+                    }
+                }, 100);
+            }
         } else {
             tableHeadRow.children[0].innerHTML = '';
         }
@@ -217,13 +337,16 @@ function renderMaterialStockTable(data) {
     };
 
     const filtered = data.filter(item => {
-        let itemCat = item.category ? item.category.trim() : "Uncategorized";
-        if (itemCat === "") itemCat = "Uncategorized";
-        if (currentCategoryFilter && itemCat !== currentCategoryFilter) return false;
+        // Family Filter Logic
+        if (currentCategoryFilter && currentCategoryFilter !== 'All') {
+            if (item.familyCode !== currentCategoryFilter) return false;
+        }
 
         const pID = (item.productID || item.productId || '').toLowerCase();
         const pName = (item.productName || '').toLowerCase();
-        return pID.includes(searchTerm) || pName.includes(searchTerm);
+        const pDetails = (item.details || item.relationship || '').toLowerCase();
+        
+        return pID.includes(searchTerm) || pName.includes(searchTerm) || pDetails.includes(searchTerm);
     });
 
     if (countDisplay) countDisplay.textContent = `(Total: ${filtered.length})`;
@@ -308,7 +431,7 @@ function renderMaterialStockTable(data) {
         let firstColContent = `<button class="ms-expand-btn" onclick="toggleStockDetail('${uniqueId}', this)">+</button>`;
 
         if(isAdmin) {
-            actionButtons += `<button class="secondary-btn" onclick="editMaterialDetails('${item.key}')" style="padding: 5px 10px; font-size: 0.8rem; background-color: #17a2b8; color: white; margin-right: 5px;" title="Edit Details"><i class="fa-solid fa-pen"></i></button>`;
+            actionButtons += `<button class="secondary-btn" onclick="openAddStockModal('${item.key}')" style="padding: 5px 10px; font-size: 0.8rem; background-color: #28a745; color: white; margin-right: 5px;" title="Add Stock"><i class="fa-solid fa-plus"></i></button>`;
 
             if (isIrwin) {
                 actionButtons += `<button class="delete-btn ms-delete-btn" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem;" title="Delete Item"><i class="fa-solid fa-trash"></i></button>`;
@@ -324,13 +447,16 @@ function renderMaterialStockTable(data) {
             actionButtons = `<small style="color:#999;">View Only</small>`;
         }
 
+        const familyDisplay = item.family || item.category || 'Unclassified';
+        const relationshipDisplay = item.relationship || item.details || '';
+
         const parentRow = document.createElement('tr');
         parentRow.innerHTML = `
             <td>${firstColContent}</td>
-            <td>${item.productID || item.productId}</td>
+            <td style="font-family:monospace; font-weight:bold; color:#00748C;">${item.productID || item.productId}</td>
             <td><strong>${item.productName}</strong></td>
-            <td><span style="background:#e3f2fd; color:#00748C; padding:2px 6px; border-radius:4px; font-size:0.75rem;">${item.category || 'Uncategorized'}</span></td>
-            <td>${item.details || ''}</td>
+            <td><span style="background:#e3f2fd; color:#00748C; padding:2px 6px; border-radius:4px; font-size:0.75rem;">${familyDisplay}</span></td>
+            <td>${relationshipDisplay}</td>
             <td style="font-size: 1.1em; font-weight: bold; color: #003A5C;">${totalStock}</td>
             <td style="text-align: center;">${actionButtons}</td>
         `;
@@ -426,157 +552,187 @@ window.handleDeleteMaterial = async function(key) {
     }
 };
 
-window.editMaterialDetails = function(key) {
-    const item = allMaterialStockData.find(i => i.key === key);
-    if (!item) return;
+window.deleteStock = window.handleDeleteMaterial; 
 
-    document.getElementById('ms-new-material-modal').classList.remove('hidden');
-    document.getElementById('ms-new-material-form').reset();
-    document.getElementById('ms-modal-title').textContent = "Edit Item Details";
+// ==========================================================================
+// 5. MODAL LOGIC: OPEN & AUTO-POPULATION
+// ==========================================================================
+window.openNewMaterialModal = async function() {
+    // 1. Check if data is loaded
+    if (!allMaterialStockData || allMaterialStockData.length === 0) {
+        const btn = document.getElementById('ms-add-new-btn');
+        if(btn) btn.textContent = "Loading Data...";
+        await populateMaterialStock(false);
+        if(btn) btn.innerHTML = '<i class="fa-solid fa-plus"></i> Register New Material';
+    }
 
+    const modal = document.getElementById('ms-new-material-modal');
     const form = document.getElementById('ms-new-material-form');
-    form.dataset.editMode = "details_only";
-    form.dataset.existingKey = key;
+    
+    modal.classList.remove('hidden');
+    form.reset();
+    document.getElementById('ms-modal-title').textContent = "Register New Material";
 
-    document.getElementById('ms-new-name').value = item.productName || '';
-    document.getElementById('ms-new-details').value = item.details || '';
+    // Populate Family Dropdown
+    const familySelect = document.getElementById('ms-new-family');
+    familySelect.innerHTML = '<option value="" disabled selected>Select Family</option>';
+    
+    Object.keys(STOCK_LEGENDS).sort().forEach(code => {
+        const opt = document.createElement('option');
+        opt.value = code;
+        opt.textContent = `${code} - ${STOCK_LEGENDS[code].name}`;
+        familySelect.appendChild(opt);
+    });
 
-    const catInput = document.getElementById('ms-new-category');
-    if(catInput) catInput.value = item.category || '';
+    // Reset Relation Dropdown
+    const relationSelect = document.getElementById('ms-new-relation');
+    relationSelect.innerHTML = '<option value="" disabled selected>Select Relationship</option>';
 
-    // Set Item Type
-    const typeSelect = document.getElementById('ms-new-type');
-    if(typeSelect) typeSelect.value = item.itemType || 'Bulk';
+    // Listener for Family Change
+    familySelect.onchange = function() {
+        const ff = this.value;
+        relationSelect.innerHTML = '<option value="" disabled selected>Select Relationship</option>';
+        
+        if(STOCK_LEGENDS[ff] && STOCK_LEGENDS[ff].relations) {
+            const rels = STOCK_LEGENDS[ff].relations;
+            Object.keys(rels).sort().forEach(rr => {
+                const opt = document.createElement('option');
+                opt.value = rr;
+                opt.textContent = `${rr} - ${rels[rr]}`;
+                relationSelect.appendChild(opt);
+            });
+        }
+        // Generate Preview ID
+        generatePreviewID();
+    };
 
-    document.getElementById('ms-id-search-group').classList.add('hidden');
-    document.getElementById('ms-id-display-group').classList.remove('hidden');
-    document.getElementById('ms-edit-id-display').value = item.productID || item.productId;
+    relationSelect.onchange = generatePreviewID;
 
-    document.getElementById('ms-save-new-btn').textContent = "Update Details";
+    // Reset ID Field
+    document.getElementById('ms-new-id-display').value = "Auto-Generated";
+
+    populateModalSiteDropdown();
 };
 
+function generatePreviewID() {
+    const ff = document.getElementById('ms-new-family').value;
+    const rr = document.getElementById('ms-new-relation').value;
+    const idInput = document.getElementById('ms-new-id-display');
+
+    if(ff && rr) {
+        // Calculate Next Global Series
+        let maxSeries = 0;
+        allMaterialStockData.forEach(item => {
+            if(item.series) {
+                const s = parseInt(item.series);
+                if(!isNaN(s) && s > maxSeries) maxSeries = s;
+            }
+        });
+        const nextSeries = maxSeries + 1;
+        const sssss = String(nextSeries).padStart(5, '0');
+        
+        // FORMAT: F.RRR.SSSSS
+        idInput.value = `${ff}.${rr}.${sssss}`;
+        idInput.dataset.series = nextSeries; // Store for saving
+    } else {
+        idInput.value = "Auto-Generated";
+    }
+}
+
+// ==========================================================================
+// 6. SAVE LOGIC
+// ==========================================================================
 async function handleSaveNewMaterial() {
-    const form = document.getElementById('ms-new-material-form');
-    let targetKey = form.dataset.existingKey;
-    let id = msProductChoices ? msProductChoices.getValue(true) : '';
-    if (!id && lastTypedProductID) id = lastTypedProductID.trim();
-
-    const name = document.getElementById('ms-new-name').value.trim();
-    const details = document.getElementById('ms-new-details').value.trim();
-    const catInput = document.getElementById('ms-new-category');
-    const category = catInput ? catInput.value.trim() : '';
-
-    const selectedSite = document.getElementById('ms-new-site-select') ? document.getElementById('ms-new-site-select').value : "Main Store";
-    const stockQty = parseFloat(document.getElementById('ms-new-stock-qty').value) || 0;
-    const statusSelect = document.getElementById('ms-new-status');
-    const status = statusSelect ? statusSelect.value : 'Active';
-    
-    // CAPTURE ITEM TYPE
-    const typeSelect = document.getElementById('ms-new-type');
-    const itemType = typeSelect ? typeSelect.value : 'Bulk';
-
-    const editMode = form.dataset.editMode;
     const btn = document.getElementById('ms-save-new-btn');
-    btn.disabled = true; btn.textContent = "Processing...";
+    btn.disabled = true; btn.textContent = "Saving...";
+
+    const familyCode = document.getElementById('ms-new-family').value;
+    const relationCode = document.getElementById('ms-new-relation').value;
+    const productDetail = document.getElementById('ms-new-name').value.trim(); 
+    const productID = document.getElementById('ms-new-id-display').value;
+    const series = parseInt(document.getElementById('ms-new-id-display').dataset.series);
+    
+    const stockQty = parseFloat(document.getElementById('ms-new-stock-qty').value) || 0;
+    const selectedSite = document.getElementById('ms-new-site-select').value;
+    const status = document.getElementById('ms-new-status').value;
+
+    if (!familyCode || !relationCode) { alert("Please select Family and Relationship."); btn.disabled = false; return; }
+    if (!productDetail) { alert("Please enter Product Detail."); btn.disabled = false; return; }
+    if (!productID || productID.includes("Auto")) { alert("ID generation failed. Please re-select Family."); btn.disabled = false; return; }
 
     const database = (typeof db !== 'undefined') ? db : firebase.database();
 
     try {
-        if (editMode === "details_only" && targetKey) {
-            await database.ref(`material_stock/${targetKey}`).update({
-                productName: name,
-                details: details,
-                category: category,
-                status: status,
-                itemType: itemType, // Save Type
-                lastUpdated: firebase.database.ServerValue.TIMESTAMP
-            });
-            alert("Details updated successfully!");
-            document.getElementById('ms-new-material-modal').classList.add('hidden');
-            localStorage.removeItem(STOCK_CACHE_KEY);
-            populateMaterialStock(true);
-            btn.disabled = false; btn.textContent = "Save";
+        // Check Duplicate
+        const exists = allMaterialStockData.some(i => (i.productID === productID));
+        if(exists) {
+            alert("System Error: ID Collision. Refreshing data...");
+            await populateMaterialStock(true); 
+            generatePreviewID(); 
+            btn.disabled = false; btn.textContent = "Save"; 
             return;
         }
 
-        if (!id) { alert("Product ID is required."); btn.disabled = false; return; }
-        if (!category) { alert("Category is required."); btn.disabled = false; return; }
+        const sitesInit = {};
+        if (stockQty > 0) sitesInit[selectedSite] = stockQty;
 
-        if (!targetKey) {
-            const existingItem = allMaterialStockData.find(m => (m.productID || m.productId || '').toLowerCase() === id.toLowerCase());
-            if (existingItem) targetKey = existingItem.key;
-        }
+        const familyName = STOCK_LEGENDS[familyCode].name;
+        const relationName = STOCK_LEGENDS[familyCode].relations[relationCode];
 
-        if (targetKey) {
-            const item = allMaterialStockData.find(m => m.key === targetKey);
-            let sites = item.sites || {};
+        const newMaterial = {
+            productID: productID,
+            productName: productDetail,
+            
+            // New Structure
+            familyCode: familyCode,
+            family: familyName,
+            relationCode: relationCode,
+            relationship: relationName,
+            series: series,
 
-            if (sites[selectedSite] !== undefined) {
-                alert(`Error: Product "${item.productName}" already exists at ${selectedSite}.\nUse "Add" button to adjust stock.`);
-                btn.disabled = false; btn.textContent = "Save"; return;
-            }
+            // Mapping for Compatibility
+            category: familyName,
+            details: relationName,
 
-            const confirmMsg = `Product "${item.productName}" exists.\nAdd ${stockQty} to ${selectedSite}?`;
-            if (!confirm(confirmMsg)) { btn.disabled = false; btn.textContent = "Save"; return; }
+            stockQty: stockQty,
+            transferredQty: 0, 
+            balanceQty: stockQty,
+            sites: sitesInit,
+            status: status,
+            timestamp: firebase.database.ServerValue.TIMESTAMP,
+            updatedBy: (typeof currentApprover !== 'undefined' ? currentApprover.Name : 'System')
+        };
 
-            sites[selectedSite] = stockQty;
-            let newGlobalStock = 0;
-            Object.values(sites).forEach(q => newGlobalStock += parseFloat(q));
-
-            await database.ref(`material_stock/${targetKey}`).update({
-                stockQty: newGlobalStock,
-                sites: sites,
-                status: status,
-                category: category,
-                itemType: itemType, // Save Type
-                lastUpdated: firebase.database.ServerValue.TIMESTAMP
-            });
-            alert(`Added ${selectedSite} to existing product!`);
-
-        } else {
-            const sitesInit = {};
-            if (stockQty > 0) sitesInit[selectedSite] = stockQty;
-
-            const newMaterial = {
-                productID: id, productName: name, details: details,
-                category: category,
-                stockQty: stockQty, transferredQty: 0, balanceQty: stockQty,
-                sites: sitesInit,
-                status: status,
-                itemType: itemType, // Save Type
-                timestamp: firebase.database.ServerValue.TIMESTAMP,
-                updatedBy: (typeof currentApprover !== 'undefined' ? currentApprover.Name : 'System')
-            };
-
-            await database.ref('material_stock').push(newMaterial);
-            alert("New Product Registered!");
-        }
-
+        await database.ref('material_stock').push(newMaterial);
+        
+        alert(`Success!\nID: ${productID}\nDetail: ${productDetail}`);
         document.getElementById('ms-new-material-modal').classList.add('hidden');
+        
         localStorage.removeItem(STOCK_CACHE_KEY);
         populateMaterialStock(true);
 
-    } catch (error) { console.error("Save Error:", error); alert("Failed to save."); }
-    finally { btn.disabled = false; btn.textContent = "Save"; }
+    } catch (error) { 
+        console.error("Save Error:", error); 
+        alert("Failed to save."); 
+    } finally { 
+        btn.disabled = false; 
+        btn.textContent = "Save"; 
+    }
 }
 
 // ==========================================================================
-// 5. CSV & TEMPLATE (UPDATED V8.9 - Show "Series" in Example)
+// 7. CSV UPLOAD
 // ==========================================================================
 function handleGetTemplate() {
-    const headers = ["Product ID", "Product Name", "Category", "Details", "Stock QTY", "Site", "Status", "Item Type"];
-    
-    // Example 1: Standard Bulk Item
-    const row1 = "BULK-001,Cement 50kg,Materials,Grey OPC,100,Main Store,Active,Bulk";
-    
-    // Example 2: Serialized Item (Showcasing "Series" as the type)
-    const row2 = "TOOL-101,Hilti Drill,Tools,Cordless,1,Main Store,Active,Series";
+    const headers = ["Item Name", "F", "RRR", "Stock", "Site"];
+    const row1 = "Marble Black Carrara 75x13,2,201,100,Main Store";
+    const row2 = "Concrete Blocks 200mm,1,101,500,Site 175";
 
     const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + row1 + "\n" + row2;
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "material_stock_template_v3.csv");
+    link.setAttribute("download", "Material_Upload_Template_FRRR.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -590,6 +746,14 @@ function handleUploadCSV(event) {
     reader.onload = async function(e) {
         const text = e.target.result;
         const lines = text.split('\n');
+        
+        // 1. Get current Max Series
+        let maxSeries = 0;
+        allMaterialStockData.forEach(item => {
+            const s = parseInt(item.series);
+            if(!isNaN(s) && s > maxSeries) maxSeries = s;
+        });
+
         const updates = {};
         let count = 0;
 
@@ -597,78 +761,114 @@ function handleUploadCSV(event) {
             const line = lines[i].trim();
             if (!line) continue;
             
-            // Clean split (removes quotes)
+            // Clean split
             const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
 
+            // Expect: Item Name(0), F(1), RRR(2), Stock(3), Site(4)
+            // But sometimes user uploads Master which has: Code(2), F(3), RRR(5)...
+            // Let's stick to the SIMPLE template format: Name, F, RRR, Stock, Site
+            
+            // Check if user uploaded Master file format (detected by column count > 5 or specific headers)
+            // Simple: Name, F, RRR, Stock, Site
+            
             if (cols.length >= 3) {
-                const pID = cols[0];
-                const pName = cols[1];
-                const pCat = cols[2];
-                const pDetails = cols[3] || '';
-                const pStock = parseFloat(cols[4]) || 0;
-                const pSite = (cols[5] && cols[5] !== "") ? cols[5] : "Main Store";
-                const pStatus = (cols[6] && cols[6] !== "") ? cols[6] : "Active";
-                
-                // --- SMART SERIES LOGIC ---
-                let rawType = (cols[7] || "").toLowerCase();
-                let pType = "Bulk"; // Default
-                
-                // Check for "series" or "serial" anywhere in the word (e.g., "Series", "serialized")
-                if (rawType.includes("series") || rawType.includes("serial")) {
-                    pType = "Serialized";
+                // Heuristic mapping
+                let pDetail = cols[0];
+                let f = cols[1];
+                let rrr = cols[2];
+                let pStock = parseFloat(cols[3]) || 0;
+                let pSite = (cols[4] && cols[4] !== "") ? cols[4] : "Main Store";
+
+                // Check if F is valid
+                if (f && STOCK_LEGENDS[f]) {
+                    // Valid
+                } else {
+                    continue; // Skip invalid rows (headers etc)
                 }
-                // --------------------------
 
-                if(pID && pName) {
-                    const existingItem = allMaterialStockData.find(item =>
-                        (item.productID || item.productId || '').toLowerCase() === pID.toLowerCase()
-                    );
+                if(pDetail && f && rrr) {
+                    // Auto-Gen Series
+                    maxSeries++;
+                    const sssss = String(maxSeries).padStart(5, '0');
+                    // FORMAT: F.RRR.SSSSS
+                    const pID = `${f}.${rrr}.${sssss}`;
 
-                    if (existingItem) {
-                        const sites = existingItem.sites || {};
-                        sites[pSite] = (parseFloat(sites[pSite]||0)) + pStock;
-                        let total = 0; Object.values(sites).forEach(v=>total+=parseFloat(v));
+                    const familyName = STOCK_LEGENDS[f].name;
+                    const relationName = STOCK_LEGENDS[f].relations ? STOCK_LEGENDS[f].relations[rrr] : "Unknown";
 
-                        updates[existingItem.key] = {
-                            stockQty: total,
-                            sites: sites,
-                            category: pCat,
-                            status: pStatus,
-                            itemType: pType, // Update Type
-                            lastUpdated: firebase.database.ServerValue.TIMESTAMP
-                        };
-                    } else {
-                        const newKey = firebase.database().ref('material_stock').push().key;
-                        const sites = {}; if(pStock>0) sites[pSite]=pStock;
-                        updates[newKey] = {
-                            productID: pID,
-                            productName: pName,
-                            category: pCat,
-                            details: pDetails,
-                            stockQty: pStock,
-                            sites: sites,
-                            status: pStatus,
-                            itemType: pType, // Set Type
-                            timestamp: Date.now()
-                        };
-                        count++;
-                    }
+                    const newKey = firebase.database().ref('material_stock').push().key;
+                    const sites = {}; if(pStock>0) sites[pSite]=pStock;
+
+                    updates[newKey] = {
+                        productID: pID,
+                        productName: pDetail,
+                        familyCode: f,
+                        family: familyName,
+                        relationCode: rrr,
+                        relationship: relationName,
+                        series: maxSeries,
+                        
+                        // Compatibility
+                        category: familyName,
+                        details: relationName,
+
+                        stockQty: pStock,
+                        sites: sites,
+                        status: "Active",
+                        timestamp: Date.now()
+                    };
+                    count++;
                 }
             }
         }
 
-        if (Object.keys(updates).length > 0) {
-            if(confirm(`Process ${Object.keys(updates).length} records?`)) {
+        if (count > 0) {
+            if(confirm(`Process ${count} records?`)) {
                 await firebase.database().ref('material_stock').update(updates);
                 alert("Upload Complete!");
                 localStorage.removeItem(STOCK_CACHE_KEY);
                 populateMaterialStock(true);
             }
+        } else {
+            alert("No valid rows found or formatting error.");
         }
         document.getElementById('ms-csv-file-input').value = '';
     };
     reader.readAsText(file);
 }
+
+// ==========================================================================
+// 8. ADD STOCK MODAL LOGIC
+// ==========================================================================
+window.openAddStockModal = function (key) {
+    const item = allMaterialStockData.find(i => i.key === key);
+    if (!item) return;
+    document.getElementById('ms-add-stock-modal').classList.remove('hidden');
+    document.getElementById('ms-add-key').value = key;
+    document.getElementById('ms-add-id').value = item.productID;
+    document.getElementById('ms-add-name').value = item.productName;
+    document.getElementById('ms-add-details').value = item.relationship || item.details;
+    document.getElementById('ms-add-current-stock').value = item.stockQty;
+    document.getElementById('ms-add-qty-input').value = '';
+    
+    // Repopulate sites
+    const siteSelect = document.getElementById('ms-add-site-select');
+    siteSelect.innerHTML = '<option value="Main Store">Main Store</option>';
+    if (typeof allSitesCSVData !== 'undefined') {
+        allSitesCSVData.forEach(s => {
+            if(s.site !== "Main Store") {
+                const opt = document.createElement('option');
+                opt.value = s.site;
+                opt.textContent = `${s.site} - ${s.description}`;
+                siteSelect.appendChild(opt);
+            }
+        });
+    }
+};
+
+// ==========================================================================
+// 9. HELPERS
+// ==========================================================================
 
 window.toggleStockDetail = function(rowId, btn) {
     const row = document.getElementById(rowId);
@@ -678,6 +878,229 @@ window.toggleStockDetail = function(rowId, btn) {
     }
 };
 
+async function populateModalSiteDropdown() {
+    const siteSelect = document.getElementById('ms-new-site-select');
+    if (!siteSelect) return;
+    siteSelect.innerHTML = '<option value="Main Store">Main Store</option>';
+    if (typeof allSitesCSVData !== 'undefined' && allSitesCSVData) {
+        allSitesCSVData.forEach(site => {
+            if (site.site !== "Main Store") {
+                const opt = document.createElement('option');
+                opt.value = site.site;
+                opt.textContent = `${site.site} - ${site.description}`;
+                siteSelect.appendChild(opt);
+            }
+        });
+    }
+}
+
+window.handleClearMaterialForm = function() {
+    document.getElementById('ms-new-material-form').reset();
+    document.getElementById('ms-new-id-display').value = "Auto-Generated";
+};
+
+window.initiateReturn = function(transferKey) {
+    const database = (typeof db !== 'undefined') ? db : firebase.database();
+    database.ref(`transfer_entries/${transferKey}`).once('value').then(snap => {
+        const originalTask = snap.val();
+        if (!originalTask) {
+            alert("Error: Original transaction data not found.");
+            return;
+        }
+
+        openTransferModal('Return');
+
+        setTimeout(() => {
+            if (transferProductChoices) {
+                transferProductChoices.setChoiceByValue(originalTask.productID || originalTask.productId);
+            }
+            document.getElementById('tf-product-name').value = originalTask.productName;
+            document.getElementById('tf-details').value = `Return of: ${originalTask.controlNumber || originalTask.ref}`;
+            document.getElementById('tf-req-qty').value = originalTask.receivedQty || 0;
+
+            const returnFrom = originalTask.toSite || originalTask.toLocation;
+            const returnTo = originalTask.fromSite || originalTask.fromLocation;
+
+            if (tfFromSiteChoices) tfFromSiteChoices.setChoiceByValue(returnFrom);
+            if (tfToSiteChoices) tfToSiteChoices.setChoiceByValue(returnTo);
+
+            const modalContent = document.querySelector('#transfer-job-modal .modal-content');
+            if(modalContent) modalContent.scrollTop = 0;
+        }, 500);
+    });
+};
+
+// --- BULK DELETE LOGIC ---
+async function handleBulkDelete() {
+    // 1. Collect Checked Items
+    const checkedBoxes = document.querySelectorAll('.ms-row-checkbox:checked');
+    if (checkedBoxes.length === 0) {
+        alert("Please select items to delete.");
+        return;
+    }
+
+    const count = checkedBoxes.length;
+    const confirmMsg = `⚠️ MASTER BULK DELETE ⚠️\n\nYou are about to delete ${count} items from Stock.\n\nThis will also delete the history for these specific Product IDs.\n\nAre you sure you want to proceed?`;
+    
+    if (!confirm(confirmMsg)) return;
+
+    const btn = document.getElementById('ms-bulk-delete-btn');
+    btn.textContent = "Deleting...";
+    btn.disabled = true;
+
+    const database = firebase.database();
+    const updates = {};
+    let transfersDeletedCount = 0;
+
+    // 2. Build Update Object
+    checkedBoxes.forEach(box => {
+        const key = box.dataset.key;
+        
+        // Find the full item data from the master list
+        const stockItem = allMaterialStockData.find(i => i.key === key);
+        const productID = stockItem?.productID || stockItem?.productId || "";
+
+        // A. ALWAYS Mark the Stock Item itself for deletion
+        updates[`material_stock/${key}`] = null;
+
+        // B. SAFETY CHECK: Only delete history if Product ID is valid (Not empty)
+        if (productID && productID.trim() !== "") {
+            
+            // Find transfers strictly matching this ID
+            const relatedTransfers = allTransferData.filter(t => {
+                const tID = (t.productID || t.productId || "").toString().trim();
+                const sID = productID.toString().trim();
+                return tID === sID;
+            });
+
+            // Mark these specific transfers for deletion
+            relatedTransfers.forEach(t => {
+                updates[`transfer_entries/${t.key}`] = null;
+                transfersDeletedCount++;
+            });
+        }
+    });
+
+    try {
+        // 3. Execute Atomic Delete
+        await database.ref().update(updates);
+        alert(`Success!\n\nDeleted ${count} Stock Items.\nDeleted ${transfersDeletedCount} Related History Entries.`);
+        
+        // 4. Refresh
+        localStorage.removeItem(STOCK_CACHE_KEY);
+        populateMaterialStock(true);
+        
+    } catch (e) {
+        console.error("Bulk delete failed", e);
+        alert("Error during bulk delete. Check console.");
+    } finally {
+        btn.innerHTML = '<i class="fa-solid fa-trash-can"></i> Delete Selected';
+        btn.disabled = false;
+    }
+}
+
+// --- REPORTING FUNCTIONS (PDF/EXCEL) ---
+function openStockReportModal() {
+    const modal = document.getElementById('ms-report-modal');
+    const tbody = document.getElementById('ms-report-table-body');
+    const dateEl = document.getElementById('ms-report-date');
+    
+    // 1. Filter Data & Determine Title Suffix
+    let data = allMaterialStockData;
+    let titleSuffix = "";
+
+    if (currentCategoryFilter && currentCategoryFilter !== 'All') {
+        data = allMaterialStockData.filter(i => (i.familyCode === currentCategoryFilter));
+        const familyName = STOCK_LEGENDS[currentCategoryFilter] ? STOCK_LEGENDS[currentCategoryFilter].name : currentCategoryFilter;
+        titleSuffix = ` for ${familyName}`;
+    }
+
+    // 2. Update Print Title
+    const printTitleEl = document.querySelector('#ms-report-modal .print-only-header p');
+    if (printTitleEl) {
+        printTitleEl.textContent = `Material Stock Status Report${titleSuffix}`;
+    }
+
+    // 3. Update Stats
+    document.getElementById('ms-report-total').textContent = data.length;
+    const inStock = data.filter(i => (parseFloat(i.stockQty) || 0) > 0).length;
+    document.getElementById('ms-report-instock').textContent = inStock;
+    document.getElementById('ms-report-outstock').textContent = data.length - inStock;
+    dateEl.textContent = new Date().toLocaleString();
+
+    // 4. Render Table
+    tbody.innerHTML = '';
+    data.forEach(item => {
+        let locText = 'Main Store: 0';
+        if (item.sites) {
+            const locs = [];
+            Object.entries(item.sites).forEach(([site, qty]) => {
+                if(parseFloat(qty) > 0) locs.push(`${site}: ${qty}`);
+            });
+            if(locs.length > 0) locText = locs.join(', ');
+            else if((parseFloat(item.stockQty)||0) > 0) locText = 'Main Store: ' + item.stockQty;
+            else locText = 'Out of Stock';
+        }
+
+        const row = `
+            <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding: 8px; font-weight: bold;">${item.productID || item.productId}</td>
+                <td style="padding: 8px;">${item.productName}</td>
+                <td style="padding: 8px; text-align: center; font-weight: bold; color: #003A5C;">${item.stockQty}</td>
+                <td style="padding: 8px; color: #555; font-size: 0.85rem;">${locText}</td>
+            </tr>
+        `;
+        tbody.innerHTML += row;
+    });
+    modal.classList.remove('hidden');
+}
+
+function downloadFixedStockCSV() {
+    let data = allMaterialStockData;
+    if (currentCategoryFilter && currentCategoryFilter !== 'All') {
+        data = allMaterialStockData.filter(i => (i.familyCode === currentCategoryFilter));
+    }
+
+    if (data.length === 0) { alert("No data to export."); return; }
+
+    let csvContent = "data:text/csv;charset=utf-8,";
+    // Header
+    csvContent += "Product ID,Product Name,Category,Total Stock,Location Breakdown\r\n";
+
+    data.forEach(item => {
+        let locText = "";
+        if (item.sites) {
+            locText = Object.entries(item.sites)
+                .filter(([_, qty]) => parseFloat(qty) > 0)
+                .map(([site, qty]) => `${site}: ${qty}`)
+                .join(" | ");
+        }
+        if(!locText) locText = "Main Store: " + (item.stockQty || 0);
+
+        const safeLocText = `="${locText.replace(/"/g, '""')}"`; 
+
+        const row = [
+            `"${item.productID || item.productId || ''}"`,
+            `"${(item.productName || '').replace(/"/g, '""')}"`,
+            `"${item.family || item.category || ''}"`,
+            item.stockQty || 0,
+            safeLocText
+        ];
+        csvContent += row.join(",") + "\r\n";
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Stock_Report_${currentCategoryFilter || 'All'}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// ==========================================================================
+// 10. EVENTS
+// ==========================================================================
 document.addEventListener('DOMContentLoaded', () => {
     const refreshBtn = document.getElementById('ms-refresh-btn');
     if(refreshBtn) refreshBtn.addEventListener('click', () => {
@@ -739,324 +1162,40 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- BULK DELETE BUTTON ---
     const bulkDeleteBtn = document.getElementById('ms-bulk-delete-btn');
     if (bulkDeleteBtn) bulkDeleteBtn.addEventListener('click', handleBulkDelete);
-});
 
-window.openNewMaterialModal = async function() {
-    if (!allMaterialStockData || allMaterialStockData.length === 0) {
-        const btn = document.getElementById('ms-add-new-btn');
-        if(btn) btn.textContent = "Loading Data...";
-        await populateMaterialStock(false);
-        if(btn) btn.innerHTML = '<i class="fa-solid fa-plus"></i> Add Material';
-    }
-
-    document.getElementById('ms-new-material-modal').classList.remove('hidden');
-    document.getElementById('ms-new-material-form').reset();
-    document.getElementById('ms-modal-title').textContent = "Register New Product";
-
-    document.getElementById('ms-id-search-group').classList.remove('hidden');
-    document.getElementById('ms-id-display-group').classList.add('hidden');
-
-    const form = document.getElementById('ms-new-material-form');
-    form.dataset.editMode = "new";
-    delete form.dataset.existingKey;
-    form.currentProductData = null;
-
-    if(msProductChoices) msProductChoices.destroy();
-
-    const selectEl = document.getElementById('ms-new-id');
-    const options = allMaterialStockData.map(item => ({
-        value: item.productID || item.productId,
-        label: `${item.productID} - ${item.productName}`,
-        customProperties: {
-            name: item.productName,
-            details: item.details,
-            key: item.key,
-            sites: item.sites || {},
-            status: item.status || 'Active'
-        }
-    }));
-
-    msProductChoices = new Choices(selectEl, {
-        choices: options,
-        searchEnabled: true,
-        shouldSort: false,
-        itemSelectText: '',
-        placeholder: true,
-        placeholderValue: 'Type ID or Name...',
-        removeItemButton: true,
-        addItems: true,
-        duplicateItemsAllowed: false,
-        addItemFilter: (value) => { return !!value && value !== ""; },
-        fuseOptions: { threshold: 0.0, distance: 0 },
-        noResultsText: 'Press Enter to add this ID',
-        addItemText: (value) => `Press Enter to add ID: <b>"${value}"</b>`
-    });
-
-    selectEl.addEventListener('addItem', (e) => handleMainSelection(e.detail.value));
-    selectEl.addEventListener('removeItem', () => handleMainSelection(null));
-
-    const siteSelect = document.getElementById('ms-new-site-select');
-    if (siteSelect) {
-        siteSelect.innerHTML = '<option value="Main Store">Main Store</option>';
-        let sitesData = [];
-        const cachedSites = localStorage.getItem('cached_SITES');
-        if (cachedSites) { try { sitesData = JSON.parse(cachedSites).data || []; } catch (e) {} }
-        else {
-            try {
-                const res = await fetch("https://cdn.jsdelivr.net/gh/DC-database/Hub@main/Site.csv");
-                const txt = await res.text();
-                const lines = txt.split('\n');
-                for (let i = 1; i < lines.length; i++) {
-                    const cols = lines[i].split(',');
-                    if (cols.length >= 2) {
-                        sitesData.push({ site: cols[0].replace(/"/g,'').trim(), description: cols[1].replace(/"/g,'').trim() });
-                    }
-                }
-            } catch(e) {}
-        }
-
-        if(sitesData.length > 0) {
-            sitesData.sort((a, b) => parseInt(a.site) - parseInt(b.site));
-            sitesData.forEach(site => {
-                if (site.site !== "Main Store") {
-                    const opt = document.createElement('option');
-                    opt.value = site.site;
-                    opt.textContent = `${site.site} - ${site.description}`;
-                    siteSelect.appendChild(opt);
-                }
-            });
-        }
-
-        const newSiteSelect = siteSelect.cloneNode(true);
-        siteSelect.parentNode.replaceChild(newSiteSelect, siteSelect);
-    }
-
-    if (msProductChoices.input && msProductChoices.input.element) {
-        const inputEl = msProductChoices.input.element;
-        inputEl.addEventListener('keydown', function(e) {
-            if (e.keyCode === 13 || e.keyCode === 9) {
-                const val = this.value;
-                if (val && val.trim() !== "") {
-                    const typedLower = val.trim().toLowerCase();
-                    const exactMatch = options.find(o => o.value.toLowerCase() === typedLower);
-                    if (exactMatch) { return; }
-                    else {
-                        e.stopImmediatePropagation();
-                        e.preventDefault();
-                        msProductChoices.setValue([{ value: val.trim(), label: val.trim() }]);
-                        handleMainSelection(val.trim());
-                        msProductChoices.clearInput();
-                        msProductChoices.hideDropdown();
-                        if (e.keyCode === 9) { setTimeout(() => document.getElementById('ms-new-name').focus(), 50); }
-                    }
-                }
-            }
-        }, true);
-    }
-};
-
-window.handleClearMaterialForm = function() {
-    document.getElementById('ms-new-material-form').reset();
-};
-
-window.initiateReturn = function(transferKey) {
-    const database = (typeof db !== 'undefined') ? db : firebase.database();
-    database.ref(`transfer_entries/${transferKey}`).once('value').then(snap => {
-        const originalTask = snap.val();
-        if (!originalTask) {
-            alert("Error: Original transaction data not found.");
-            return;
-        }
-
-        openTransferModal('Return');
-
-        setTimeout(() => {
-            if (transferProductChoices) {
-                transferProductChoices.setChoiceByValue(originalTask.productID || originalTask.productId);
-            }
-            document.getElementById('tf-product-name').value = originalTask.productName;
-            document.getElementById('tf-details').value = `Return of: ${originalTask.controlNumber || originalTask.ref}`;
-            document.getElementById('tf-req-qty').value = originalTask.receivedQty || 0;
-
-            const returnFrom = originalTask.toSite || originalTask.toLocation;
-            const returnTo = originalTask.fromSite || originalTask.fromLocation;
-
-            if (tfFromSiteChoices) tfFromSiteChoices.setChoiceByValue(returnFrom);
-            if (tfToSiteChoices) tfToSiteChoices.setChoiceByValue(returnTo);
-
-            const modalContent = document.querySelector('#transfer-job-modal .modal-content');
-            if(modalContent) modalContent.scrollTop = 0;
-        }, 500);
-    });
-};
-
-// --- BULK DELETE LOGIC (SAFER V2.0) ---
-async function handleBulkDelete() {
-    // 1. Collect Checked Items
-    const checkedBoxes = document.querySelectorAll('.ms-row-checkbox:checked');
-    if (checkedBoxes.length === 0) {
-        alert("Please select items to delete.");
-        return;
-    }
-
-    const count = checkedBoxes.length;
-    const confirmMsg = `⚠️ MASTER BULK DELETE ⚠️\n\nYou are about to delete ${count} items from Stock.\n\nThis will also delete the history for these specific Product IDs.\n\nAre you sure you want to proceed?`;
-    
-    if (!confirm(confirmMsg)) return;
-
-    const btn = document.getElementById('ms-bulk-delete-btn');
-    btn.textContent = "Deleting...";
-    btn.disabled = true;
-
-    const database = firebase.database();
-    const updates = {};
-    let transfersDeletedCount = 0;
-
-    // 2. Build Update Object
-    checkedBoxes.forEach(box => {
-        const key = box.dataset.key;
-        
-        // Find the full item data from the master list
-        const stockItem = allMaterialStockData.find(i => i.key === key);
-        const productID = stockItem?.productID || stockItem?.productId || "";
-
-        // A. ALWAYS Mark the Stock Item itself for deletion
-        updates[`material_stock/${key}`] = null;
-
-        // B. SAFETY CHECK: Only delete history if Product ID is valid (Not empty)
-        if (productID && productID.trim() !== "") {
+    // --- SAVE ADD STOCK MODAL ---
+    const saveStockBtn = document.getElementById('ms-save-stock-btn');
+    if(saveStockBtn) {
+        saveStockBtn.addEventListener('click', async () => {
+            const key = document.getElementById('ms-add-key').value;
+            const site = document.getElementById('ms-add-site-select').value;
+            const qty = parseFloat(document.getElementById('ms-add-qty-input').value) || 0;
             
-            // Find transfers strictly matching this ID
-            const relatedTransfers = allTransferData.filter(t => {
-                const tID = (t.productID || t.productId || "").toString().trim();
-                const sID = productID.toString().trim();
-                return tID === sID;
+            if(qty === 0) { alert("Enter quantity."); return; }
+            
+            const item = allMaterialStockData.find(i => i.key === key);
+            let sites = item.sites || {};
+            
+            // Add/Subtract logic
+            let currentSiteQty = parseFloat(sites[site] || 0);
+            currentSiteQty += qty;
+            if(currentSiteQty < 0) { alert("Cannot have negative stock."); return; }
+            
+            sites[site] = currentSiteQty;
+            
+            // Recalc Global
+            let total = 0; Object.values(sites).forEach(q => total += q);
+            
+            await firebase.database().ref(`material_stock/${key}`).update({
+                sites: sites,
+                stockQty: total,
+                lastUpdated: firebase.database.ServerValue.TIMESTAMP
             });
-
-            // Mark these specific transfers for deletion
-            relatedTransfers.forEach(t => {
-                updates[`transfer_entries/${t.key}`] = null;
-                transfersDeletedCount++;
-            });
-        } else {
-            console.warn(`Skipping history delete for item key ${key} because Product ID is empty.`);
-        }
-    });
-
-    try {
-        // 3. Execute Atomic Delete
-        await database.ref().update(updates);
-        alert(`Success!\n\nDeleted ${count} Stock Items.\nDeleted ${transfersDeletedCount} Related History Entries.`);
-        
-        // 4. Refresh
-        localStorage.removeItem(STOCK_CACHE_KEY);
-        populateMaterialStock(true);
-        
-    } catch (e) {
-        console.error("Bulk delete failed", e);
-        alert("Error during bulk delete. Check console.");
-    } finally {
-        btn.innerHTML = '<i class="fa-solid fa-trash-can"></i> Delete Selected';
-        btn.disabled = false;
+            
+            alert("Stock Updated Successfully.");
+            document.getElementById('ms-add-stock-modal').classList.add('hidden');
+            localStorage.removeItem(STOCK_CACHE_KEY);
+            populateMaterialStock(true);
+        });
     }
-}
-
-// --- REPORTING FUNCTIONS (PDF/EXCEL) - UPDATED V8.5 ---
-function openStockReportModal() {
-    const modal = document.getElementById('ms-report-modal');
-    const tbody = document.getElementById('ms-report-table-body');
-    const dateEl = document.getElementById('ms-report-date');
-    
-    // 1. Filter Data & Determine Title Suffix
-    let data = allMaterialStockData;
-    let titleSuffix = ""; // Default is empty
-
-    if (currentCategoryFilter) {
-        data = allMaterialStockData.filter(i => (i.category || 'Uncategorized') === currentCategoryFilter);
-        titleSuffix = ` for ${currentCategoryFilter}`; // e.g., " for Tools"
-    }
-
-    // 2. Update Print Title
-    // This targets the specific <p> tag in the print header inside the modal
-    const printTitleEl = document.querySelector('#ms-report-modal .print-only-header p');
-    if (printTitleEl) {
-        printTitleEl.textContent = `Material Stock Status Report${titleSuffix}`;
-        // Result: "Material Stock Status Report for Tools"
-    }
-
-    // 3. Update Stats
-    document.getElementById('ms-report-total').textContent = data.length;
-    const inStock = data.filter(i => (parseFloat(i.stockQty) || 0) > 0).length;
-    document.getElementById('ms-report-instock').textContent = inStock;
-    document.getElementById('ms-report-outstock').textContent = data.length - inStock;
-    dateEl.textContent = new Date().toLocaleString();
-
-    // 4. Render Table
-    tbody.innerHTML = '';
-    data.forEach(item => {
-        let locText = 'Main Store: 0';
-        if (item.sites) {
-            const locs = [];
-            Object.entries(item.sites).forEach(([site, qty]) => {
-                if(parseFloat(qty) > 0) locs.push(`${site}: ${qty}`);
-            });
-            if(locs.length > 0) locText = locs.join(', ');
-            else if((parseFloat(item.stockQty)||0) > 0) locText = 'Main Store: ' + item.stockQty;
-            else locText = 'Out of Stock';
-        }
-
-        const row = `
-            <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 8px; font-weight: bold;">${item.productID || item.productId}</td>
-                <td style="padding: 8px;">${item.productName}</td>
-                <td style="padding: 8px; text-align: center; font-weight: bold; color: #003A5C;">${item.stockQty}</td>
-                <td style="padding: 8px; color: #555; font-size: 0.85rem;">${locText}</td>
-            </tr>
-        `;
-        tbody.innerHTML += row;
-    });
-    modal.classList.remove('hidden');
-}
-
-function downloadFixedStockCSV() {
-    let data = allMaterialStockData;
-    if (currentCategoryFilter) {
-        data = allMaterialStockData.filter(i => (i.category || 'Uncategorized') === currentCategoryFilter);
-    }
-
-    if (data.length === 0) { alert("No data to export."); return; }
-
-    let csvContent = "data:text/csv;charset=utf-8,";
-    // Header
-    csvContent += "Product ID,Product Name,Category,Total Stock,Location Breakdown\r\n";
-
-    data.forEach(item => {
-        let locText = "";
-        if (item.sites) {
-            locText = Object.entries(item.sites)
-                .filter(([_, qty]) => parseFloat(qty) > 0)
-                .map(([site, qty]) => `${site}: ${qty}`)
-                .join(" | ");
-        }
-        if(!locText) locText = "Main Store: " + (item.stockQty || 0);
-
-        const safeLocText = `="${locText.replace(/"/g, '""')}"`; 
-
-        const row = [
-            `"${item.productID || item.productId || ''}"`,
-            `"${(item.productName || '').replace(/"/g, '""')}"`,
-            `"${item.category || ''}"`,
-            item.stockQty || 0,
-            safeLocText
-        ];
-        csvContent += row.join(",") + "\r\n";
-    });
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Stock_Report_${currentCategoryFilter || 'All'}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
+});

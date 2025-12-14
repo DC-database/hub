@@ -1390,70 +1390,220 @@ tbody tr:hover { background-color: #f1f1f1; }
     }
 
     /* ============================================= */
-    /* SECTION B: FINANCE REPORT (PORTRAIT)          */
+    /* SECTION B: FINANCE REPORT (PORTRAIT) - FIXED  */
     /* ============================================= */
 
-    #im-finance-report-modal:not(.hidden),
-    #im-finance-report-modal:not(.hidden) * {
-        visibility: visible !important;
-        height: auto;
+    /* 1. Page Setup (Increased to prevent Right Cutoff) */
+    @page {
+        size: A4 portrait;
+        margin: 10mm; /* 10mm is the safe standard for A4 printers */
     }
 
+    /* 2. Show the Report Modal & Hide Backgrounds */
+    #im-finance-report-modal:not(.hidden),
+    #im-finance-report-modal:not(.hidden) .modal-container,
+    #im-finance-report-modal:not(.hidden) .modal-content,
+    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area,
+    #im-finance-report-modal:not(.hidden) * {
+        visibility: visible !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+
+    /* 3. Position: Reset to flat page (Removes "Floating" effect) */
     #im-finance-report-modal:not(.hidden) {
         position: absolute !important;
         left: 0 !important;
         top: 0 !important;
         width: 100% !important;
-        height: auto !important;
         margin: 0 !important;
         padding: 0 !important;
-        border: none !important;
-        box-shadow: none !important;
         background: white !important;
-        overflow: visible !important;
-        display: block !important;
-        z-index: 9999 !important;
-        font-size: 14pt !important;
+        z-index: 99999 !important;
+        
+        /* Remove Shadow and Border for Print */
+        box-shadow: none !important; 
+        border: none !important;
     }
+
+    /* Target the container specifically to kill the card look */
     #im-finance-report-modal:not(.hidden) .modal-container {
-        width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; border: none !important;
-    }
-    #im-finance-report-modal:not(.hidden) .modal-header,
-    #im-finance-report-modal:not(.hidden) .modal-footer { display: none !important; }
-
-    #im-finance-report-modal:not(.hidden) .modal-content,
-    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area {
-        display: block !important; padding: 0 !important; margin: 0 !important; border: none !important; box-shadow: none !important; max-height: none !important; overflow: visible !important;
+        box-shadow: none !important;
+        border: none !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
 
-    /* Finance Styles */
-    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area .report-header { border-bottom: 2px solid #000 !important; margin-bottom: 15px !important; text-align: center !important; }
-    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area .report-header h3 { font-size: 28px !important; margin-bottom: 10px !important; font-weight: bold;}
-    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area .report-header h4 { font-size: 22px !important; margin: 8px 0 !important; }
-    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area .report-details { margin-bottom: 15px !important; padding-bottom: 10px !important; display: flex !important; justify-content: space-between !important; font-size: 14pt; border-bottom: 1px solid #ddd !important;}
-    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area .report-details-col { width: 48% !important; }
-    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area .report-summary { background-color: #f8f9fa !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; padding: 15px !important; border-radius: 5px !important; margin-bottom: 15px !important; display: flex !important; justify-content: space-between !important; border: 1px solid #dee2e6 !important; font-size: 14pt; }
-    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area .report-summary-col { width: 48% !important; }
-    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area table { width: 100% !important; border-collapse: collapse !important; margin-bottom: 20px !important; font-size: 12pt; page-break-inside: auto !important; }
-    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area table tbody tr { page-break-inside: avoid !important; }
-    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area table tfoot { display: table-footer-group !important; page-break-inside: auto !important; }
-    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area table th, #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area table td { border: 1px solid #000 !important; padding: 10px !important; }
-    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area table th { background-color: var(--iba-base-blue-dark) !important; color: var(--text-color-light) !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; text-align: center !important; font-size: 13pt; font-weight: bold;}
-    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area table tfoot th, #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area table tfoot td { background-color: #e9ecef !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color: #000 !important; text-align: right !important; padding-right: 20px !important; font-size: 14pt; font-weight: bold; }
-    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area .signatures { display: flex !important; justify-content: space-between !important; margin-top: 40px !important; font-size: 14pt; }
-    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area .signature-box { text-align: center !important; width: 30% !important; }
-    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area .signature-line { border-top: 1px solid #000 !important; margin-top: 60px !important; padding-top: 10px !important; display: inline-block !important; width: 80% !important; }
-    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area #im-reportNotesSection { margin-top: 40px !important; page-break-inside: avoid !important; }
-    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area #im-reportNotesSection h5 { font-size: 14pt !important; font-weight: bold; margin-bottom: 10px !important; }
-    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area #im-reportNotesContent { white-space: pre-wrap !important; font-size: 12pt !important; padding: 10px !important; border: 1px solid #ddd !important; background: #f9f9f9 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; min-height: 50px !important; }
-    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area table td:nth-child(3), #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area table td:nth-child(4), #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area table td:nth-child(5) { text-align: right !important; font-family: monospace !important; padding-right: 15px !important; }
-    #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area table td:nth-child(1), #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area table td:nth-child(2), #im-finance-report-modal:not(.hidden) #im-finance-report-printable-area table td:nth-child(6) { text-align: center !important; vertical-align: middle !important; }
+    /* 4. Remove UI Buttons */
+    #im-finance-report-modal .modal-header,
+    #im-finance-report-modal .modal-footer,
+    #im-finance-report-modal .modal-close-btn {
+        display: none !important;
+    }
 
-    /* Hide other reports */
+    /* 5. HEADER STYLING (IBA LOGO) */
+#im-finance-report-modal:not(.hidden) .report-header {
+    border-bottom: 2px solid #000 !important;
+    margin-bottom: 20px !important;
+    padding-bottom: 10px !important;
+    
+    /* ▼ CHANGE THIS TO LEFT ▼ */
+    text-align: left !important; 
+    
+    display: block !important;
+}
+
+/* Ensure Logo sizes correctly on A4 paper */
+#im-finance-report-modal:not(.hidden) .report-header img {
+    max-height: 60px !important; /* Good height for A4 header */
+    width: auto !important;
+    display: inline-block !important;
+}
+
+    /* 6. DETAILS GRID */
+    #im-finance-report-modal:not(.hidden) .report-details {
+        display: flex !important;
+        justify-content: space-between !important;
+        margin-bottom: 15px !important;
+        border-bottom: 1px solid #ccc !important;
+        padding-bottom: 10px !important;
+        font-size: 10pt !important;
+    }
+    #im-finance-report-modal:not(.hidden) .report-details-col {
+        width: 48% !important;
+    }
+    #im-finance-report-modal:not(.hidden) p {
+        margin: 2px 0 !important;
+        line-height: 1.3 !important;
+        color: #000 !important;
+    }
+
+    /* 7. SUMMARY BOX */
+    #im-finance-report-modal:not(.hidden) .report-summary {
+        background-color: #f4f4f4 !important; /* Light Grey Print Safe */
+        border: 1px solid #ccc !important;
+        padding: 8px !important;
+        border-radius: 4px !important;
+        margin-bottom: 20px !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        font-size: 10pt !important;
+    }
+    #im-finance-report-modal:not(.hidden) .report-summary-col {
+        width: 48% !important;
+    }
+
+    /* 8. TABLE STYLING (Fixed Width to prevent cutoff) */
+    #im-finance-report-modal:not(.hidden) table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        font-size: 9pt !important; /* Smaller font fits better */
+        margin-bottom: 20px !important;
+        table-layout: fixed !important; /* STRICT COLUMN WIDTHS */
+    }
+    #im-finance-report-modal:not(.hidden) th,
+    #im-finance-report-modal:not(.hidden) td {
+        border: 1px solid #000 !important;
+        padding: 5px 3px !important;
+        word-wrap: break-word !important;
+    }
+    
+    /* Header - Dark Grey */
+    #im-finance-report-modal:not(.hidden) thead th {
+    background-color: #333 !important;
+    color: white !important;
+    font-weight: bold !important;
+    text-align: center !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    
+    /* ▼ ADD OR CHANGE THIS LINE ▼ */
+    font-size: 9pt !important; 
+    /* ▲ Adjust this value (e.g., 9pt, 11pt, 12px) to resize text ▲ */
+    }
+
+    /* Footer - Light Grey */
+    #im-finance-report-modal:not(.hidden) tfoot td {
+        background-color: #eee !important;
+        font-weight: bold !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* PASTE THIS NEW BLOCK HERE */
+    /* 8. Column Widths & Alignment (Adjusted) */
+
+    /* Col 1: P/N (Reduced to ~50% -> 4%) */
+    #im-finance-report-modal:not(.hidden) th:nth-child(1),
+    #im-finance-report-modal:not(.hidden) td:nth-child(1) {
+    width: 4% !important; 
+    white-space: nowrap !important;
+    text-align: center !important;
+    }
+
+    /* Col 2: Cheque No. (Reduced to ~80% -> 12%) */
+    #im-finance-report-modal:not(.hidden) th:nth-child(2),
+    #im-finance-report-modal:not(.hidden) td:nth-child(2) {
+    width: 12% !important; 
+    max-width: 100px !important;
+    text-align: center !important;
+    }
+
+    /* Col 3, 4, 5: Certified, Retention, Payment (Increased by ~20% -> 22% each) */
+    #im-finance-report-modal:not(.hidden) th:nth-child(3),
+    #im-finance-report-modal:not(.hidden) td:nth-child(3),
+    #im-finance-report-modal:not(.hidden) th:nth-child(4),
+    #im-finance-report-modal:not(.hidden) td:nth-child(4),
+    #im-finance-report-modal:not(.hidden) th:nth-child(5),
+    #im-finance-report-modal:not(.hidden) td:nth-child(5) {
+    width: 22% !important; 
+    text-align: right !important;
+    font-family: monospace !important;
+    }
+
+    /* Col 6: Date (Takes remaining space) */
+    #im-finance-report-modal:not(.hidden) th:nth-child(6),
+    #im-finance-report-modal:not(.hidden) td:nth-child(6) {
+    width: auto !important; 
+    }
+
+    /* 9. SIGNATURES (Text Below Line) */
+    #im-finance-report-modal:not(.hidden) .signatures {
+    display: flex !important;
+    justify-content: space-between !important;
+    margin-top: 20px !important; /* Reduced margin since space is inside box now */
+    page-break-inside: avoid !important;
+    }
+
+    #im-finance-report-modal:not(.hidden) .signature-box {
+    width: 22% !important; 
+    text-align: center !important;
+    display: flex !important;
+    flex-direction: column-reverse !important; /* FLIPS THE ORDER (Text moves to bottom) */
+    align-items: center !important;
+    }
+
+    #im-finance-report-modal:not(.hidden) .signature-line {
+    border-top: 1px solid #000 !important;
+    margin-top: 50px !important; /* Adds space ABOVE the line for the actual signature */
+    margin-bottom: 5px !important; /* Small gap between line and text */
+    width: 100% !important;
+    }
+
+    #im-finance-report-modal:not(.hidden) .signature-box p {
+    margin: 0 !important;
+    font-weight: bold !important;
+    font-size: 10pt !important;
+    }
+
+    /* 10. Hide Other Reports */
     #im-finance-report-modal:not(.hidden) ~ #summary-note-printable-area,
     #im-finance-report-modal:not(.hidden) ~ #im-reporting-printable-area {
         display: none !important;
-        visibility: hidden !important;
     }
 
     /* ============================================= */
@@ -5381,4 +5531,68 @@ body.inventory-mode .wd-nav-material {
 /* Ensure the icon animates too */
 .nav-pulse-active i {
     color: #C3502F !important;
+}
+
+/* ========================================= */
+/* COMPACT PRINT                             */
+/* ========================================= */
+
+@media print {
+    /* 1. Minimize Page Margins to give the table more room */
+    @page {
+        margin: 0.5cm; 
+        size: auto; 
+    }
+
+    /* 2. Force the container to fit the page width */
+    body, table, .container-fluid {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+    }
+
+    /* 3. CRITICAL: Squeeze the columns */
+    th, td {
+        padding: 4px 2px !important; /* Drastically reduces space inside cells */
+        font-size: 10px !important;  /* Reduces font size to fit more text */
+        white-space: nowrap;         /* Keeps numbers on one line */
+    }
+
+    /* 4. Hide unnecessary elements if any (like sidebars/buttons) */
+    .no-print {
+        display: none !important;
+    }
+}
+
+/* ========================================= */
+/* APPROVED SIDEBAR ITEM STYLES (GREEN)      */
+/* ========================================= */
+
+.im-sidebar-item.status-approved {
+    background-color: #e8f5e9 !important; /* Very Light Green Background */
+    border-left: 4px solid #28a745 !important; /* Solid Green Left Border */
+    box-shadow: 0 2px 5px rgba(40, 167, 69, 0.2); /* Subtle Green Glow */
+    transition: all 0.2s ease;
+}
+
+.im-sidebar-item.status-approved:hover {
+    background-color: #d4edda !important; /* Slightly Darker Green on Hover */
+    transform: translateY(-2px); /* Tiny lift effect */
+}
+
+/* Make the PO Number Text Dark Green */
+.im-sidebar-item.status-approved .im-sidebar-po {
+    color: #155724 !important; 
+    font-weight: 700;
+}
+
+/* Make the Vendor Name Darker for contrast */
+.im-sidebar-item.status-approved .im-sidebar-vendor {
+    color: #2f4f35 !important;
+}
+
+/* Style the checkmark icon */
+.im-sidebar-item.status-approved i.fa-circle-check {
+    font-size: 1rem;
+    vertical-align: middle;
 }
