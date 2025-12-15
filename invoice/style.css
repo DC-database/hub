@@ -1100,7 +1100,7 @@ tbody tr:hover { background-color: #f1f1f1; }
 #im-finance-report-modal #im-reportNotesSection h5 { font-weight: bold; margin-bottom: 10px !important; }
 #im-finance-report-modal #im-reportNotesContent { white-space: pre-wrap !important; font-size: 12pt !important; padding: 10px !important; border: 1px solid #ddd !important; background: #f9f9f9 !important; min-height: 50px !important; }
 
-/* ++ NEW (Req 1): Active Jobs Sidebar ++ */
+/* ++ NEW (Req 1): Active Jobs Sidebar (Compact Style) ++ */
 #im-show-active-jobs-btn {
     display: none; /* Hidden on desktop */
     float: right;
@@ -1108,70 +1108,132 @@ tbody tr:hover { background-color: #f1f1f1; }
     font-size: 14px;
     margin-left: 10px;
 }
+
 .im-entry-sidebar {
     width: var(--sidebar-width);
     position: fixed;
     top: 0;
     right: 0;
     height: 100vh;
-    background-color: var(--iba-base-blue); /* MODIFIED: Sidebar color */
+    background-color: var(--iba-base-blue); /* Keep your blue background */
     color: var(--text-color-light);
     border-left: 1px solid var(--iba-base-blue-light);
     z-index: 5;
     display: flex;
     flex-direction: column;
-    padding: 20px;
+    padding: 15px; /* Reduced padding slightly */
     box-sizing: border-box;
     transition: transform 0.3s ease;
 }
-.im-sidebar-title {
+
+.im-sidebar-header h3 {
     margin: 0 0 15px 0;
-    padding-bottom: 15px;
-    border-bottom: 1px solid var(--iba-base-blue-light);
-    font-size: 1.2rem;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 1.1rem;
     text-align: center;
+    color: white;
 }
-.im-sidebar-list {
+
+/* --- NEW: Sidebar List Container --- */
+.im-sidebar-list, #im-entry-sidebar-list {
     list-style: none;
     padding: 0;
     margin: 0;
     overflow-y: auto;
     flex-grow: 1;
+    /* Custom Scrollbar for the list */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.3) transparent;
 }
+
+/* --- NEW: COMPACT CARD STYLE --- */
 .im-sidebar-item {
-    background-color: var(--iba-base-blue-dark); /* MODIFIED: Item color */
-    padding: 12px 15px;
-    border-radius: 6px;
-    margin-bottom: 10px;
+    background-color: white; /* White card for contrast */
+    padding: 8px 12px !important; /* Tight padding */
+    margin-bottom: 8px !important; 
+    border-radius: 6px !important;
+    border: none;
     cursor: pointer;
-    transition: background-color 0.2s ease;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
+
 .im-sidebar-item:hover {
-    background-color: var(--iba-base-blue-light); /* MODIFIED: Hover color */
+    background-color: #f0f8ff; /* Light blue on hover */
+    transform: translateX(-3px); /* Slide effect */
 }
-.im-sidebar-item span {
-    display: block;
-    line-height: 1.4;
+
+/* Compact Text Styles */
+.im-compact-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    line-height: 1.2;
+    margin-bottom: 4px; /* Space between rows */
 }
-.im-sidebar-po {
-    font-weight: 600;
-    font-size: 1rem;
-    color: #fff;
-}
-.im-sidebar-vendor {
-    font-size: 0.85rem;
-    color: #c0c0c0;
-    margin: 2px 0;
-}
-.im-sidebar-amount {
+
+.im-compact-po {
+    font-weight: 700;
     font-size: 0.9rem;
-    color: var(--iba-secondary-gold); /* MODIFIED: Amount color */
-    font-weight: 500;
+    color: #333; /* Dark text on white card */
 }
+
+.im-compact-amount {
+    font-size: 0.85rem;
+    color: #00748C; /* IBA Blue for money */
+    font-weight: 700;
+}
+
+.im-compact-vendor {
+    font-size: 0.75rem;
+    color: #666;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 60%;
+}
+
+.im-compact-status {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: #eee;
+    color: #555;
+    font-weight: 600;
+}
+
+/* Green status for approved items */
+.im-sidebar-item.status-approved .im-compact-status {
+    background: #d4edda;
+    color: #155724;
+}
+
+/* Green left border for approved items */
+.im-sidebar-item.status-approved {
+    border-left: 4px solid #28a745;
+}
+
+/* --- NEW: Search Input Style --- */
+#im-sidebar-search {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+}
+#im-sidebar-search::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+}
+#im-sidebar-search:focus {
+    background: rgba(255, 255, 255, 0.2);
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
 .im-sidebar-no-jobs {
-    color: #888;
+    color: rgba(255,255,255,0.7);
     text-align: center;
     padding-top: 20px;
+    font-style: italic;
 }
 
 /* =================================== */
@@ -5642,4 +5704,34 @@ body.inventory-mode .wd-nav-material {
 .im-sidebar-item.status-approved i.fa-circle-check {
     font-size: 1rem;
     vertical-align: middle;
+}
+/* --- UNIQUE PINK STYLE FOR INVOICE ENTRY NAV --- */
+/* Target specific link in Invoice Management Sidebar */
+#im-nav li a[data-section="im-invoice-entry"] {
+    color: #FF007F !important; /* Bright Pucha/Fuchsia Pink */
+    background-color: rgba(255, 0, 127, 0.05); /* Very faint pink background */
+    border-left: 4px solid #FF007F !important; /* Pink accent border */
+    font-weight: 700; /* Make it bold */
+    transition: all 0.3s ease;
+}
+
+/* Hover State - Cool Glow */
+#im-nav li a[data-section="im-invoice-entry"]:hover {
+    background: linear-gradient(45deg, #FF007F, #ff4081) !important; /* Pink Gradient */
+    color: white !important;
+    box-shadow: 0 4px 15px rgba(255, 0, 127, 0.4); /* Pink Glow Effect */
+    transform: translateX(5px); /* Slight pop-out movement */
+}
+
+/* Active State (When you are on the page) */
+#im-nav li a[data-section="im-invoice-entry"].active {
+    background: #FF007F !important;
+    color: white !important;
+    box-shadow: 0 4px 15px rgba(255, 0, 127, 0.3);
+    border-left: 4px solid #b30059 !important; /* Darker pink border */
+}
+
+/* Force Icon to match text color */
+#im-nav li a[data-section="im-invoice-entry"] i {
+    color: inherit !important;
 }

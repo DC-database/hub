@@ -652,11 +652,17 @@
 
         </aside>
 
-        <aside id="im-entry-sidebar" class="im-entry-sidebar hidden">
-            <h3 id="active-jobs-sidebar-count-display" class="im-sidebar-title">Your Active Invoice Jobs (0)</h3>
-            <ul id="im-entry-sidebar-list" class="im-sidebar-list">
-            </ul>
-        </aside>
+       <aside id="im-entry-sidebar" class="im-entry-sidebar hidden">
+    <h3 id="active-jobs-sidebar-count-display" class="im-sidebar-title">Your Active Invoice Jobs (0)</h3>
+
+    <div style="margin-bottom: 15px;">
+        <input type="text" id="im-sidebar-search" placeholder="Search PO..." 
+               style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.2); color: white; outline: none;">
+    </div>
+
+    <ul id="im-entry-sidebar-list" class="im-sidebar-list">
+        </ul>
+</aside>
 
         <div class="workdesk-main" role="main">
              <div id="im-content-area">
@@ -759,6 +765,8 @@
                 <option value="For Approval">For Approval</option>
                 <option value="CEO Approval">CEO Approval</option>
                 <option value="Report">Report</option>
+		<option value="Report Approval">Report Approval</option>
+		<option value="Report Approved">Report Approved</option>
                 <option value="With Accounts">With Accounts</option>
                 <option value="Original PO">Original PO</option>
             </select>
@@ -769,19 +777,24 @@
         </div>
 
         <div class="form-group">
-            <label>Invoice Name</label>
-            <div style="display: flex; gap: 3px;">
-                <input type="text" id="im-inv-name" name="invName" style="flex-grow: 1;">
-                <a href="#" class="secondary-btn" style="width:30px; padding:0; display:flex; align-items:center; justify-content:center; background-color:#00748C; color:white; border-radius:4px;"><i class="fa-solid fa-cloud-arrow-up"></i></a>
-            </div>
-        </div>
-        <div class="form-group">
-            <label>SRV Name</label>
-            <div style="display: flex; gap: 3px;">
-                <input type="text" id="im-srv-name" name="srvName" style="flex-grow: 1;">
-                <a href="#" class="secondary-btn" style="width:30px; padding:0; display:flex; align-items:center; justify-content:center; background-color:#00748C; color:white; border-radius:4px;"><i class="fa-solid fa-cloud-arrow-up"></i></a>
-            </div>
-        </div>
+    <label>Invoice Name</label>
+    <div style="display: flex; gap: 5px;">
+        <input type="text" id="im-inv-name" name="invName" placeholder="Auto-generated...">
+        <button id="im-btn-view-invoice" type="button" class="action-btn" style="background: #00748C; color: white;">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+        </button>
+    </div>
+</div>
+
+<div class="form-group">
+    <label>SRV Name</label>
+    <div style="display: flex; gap: 5px;">
+        <input type="text" id="im-srv-name" name="srvName" placeholder="Auto-generated...">
+        <button id="im-btn-view-srv" type="button" class="action-btn" style="background: #00748C; color: white;">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+        </button>
+    </div>
+</div>
 
         <div class="form-group" style="grid-column: span 2;">
             <label>Details</label>
@@ -794,6 +807,14 @@
 
     </div>
 
+
+<div id="im-invoice-print-report-container" class="hidden" style="margin: 10px 0; text-align: center; border-top: 1px solid #eee; padding-top: 10px;">
+        <button type="button" id="btn-invoice-entry-print-report" class="action-btn" style="background-color: #17a2b8; color: white; padding: 8px 20px; border-radius: 4px; font-weight: bold; font-size: 0.9rem;">
+            <i class="fa-solid fa-print"></i> Print Finance Report (One-Time)
+        </button>
+        <small style="color: #666; display: block; margin-top: 5px; font-style: italic;">* Printing this will LOCK the report.</small>
+    </div>
+
     <div id="im-po-search-container-bottom" class="im-po-search-container-bottom">
         <div class="search-bar-local">
             <i class="fa-solid fa-magnifying-glass" style="font-size: 0.8rem;"></i>
@@ -802,8 +823,8 @@
         <button id="im-po-search-button-bottom" type="button" style="margin-right: auto;">Search</button>
 
         <div class="form-buttons-container" style="gap: 5px; margin-top:0; padding-top:0; border:none;">
-            <button type="button" id="im-add-invoice-button">Add</button>
-            <button type="button" id="im-update-invoice-button" class="hidden">Update</button>
+            <button type="submit" id="im-add-invoice-button">Add</button>
+            <button type="submit" id="im-update-invoice-button" class="hidden">Update</button>
             <button type="button" id="im-clear-form-button" class="secondary-btn">Clear</button>
             <button type="button" id="im-back-to-active-task-button" class="secondary-btn hidden">Back</button>
         </div>
@@ -835,9 +856,11 @@
             <button type="button" class="modal-close-btn" style="margin: 0;">Close</button>
         </div>
 
-
     </div>
 </div>
+
+
+
 
                     <div id="im-existing-invoices-container" class="hidden">
                          <hr class="section-divider">
@@ -887,6 +910,8 @@
 				<option value="For Approval">For Approval</option>
 				<option value="CEO Approval">CEO Approval</option>
 				<option value="Report">Report</option>
+				<option value="Report Approval">Report Approval</option>
+				<option value="Report Approved">Report Approved</option>
 				<option value="With Accounts">With Accounts</option>
 				<option value="On Hold">On Hold</option>
 				<option value="CLOSED">CLOSED</option>
@@ -938,6 +963,8 @@
 				<option value="For Approval">For Approval</option>
                                 <option value="CEO Approval">CEO Approval</option>
                                 <option value="Report">Report</option>
+				<option value="Report Approval">Report Approval</option>
+				<option value="Report Approved">Report Approved</option>
                                 <option value="With Accounts">With Accounts</option>
                                 <option value="Original PO">Original PO</option>
                             </select>
@@ -1029,6 +1056,8 @@
 					<option value="For Approval">For Approval</option>
 					<option value="CEO Approval">CEO Approval</option>
 					<option value="Report">Report</option>
+					<option value="Report Approval">Report Approval</option>
+					<option value="Report Approved">Report Approved</option>
 					<option value="With Accounts">With Accounts</option>
 					<option value="On Hold">On Hold</option>
 					<option value="CLOSED">CLOSED</option>
@@ -1066,6 +1095,8 @@
 				<option value="For Approval">For Approval</option>
 				<option value="CEO Approval">CEO Approval</option>
 				<option value="Report">Report</option>
+				<option value="Report Approval">Report Approval</option>
+				<option value="Report Approved">Report Approved</option>
 				<option value="With Accounts">With Accounts</option>
 				<option value="On Hold">On Hold</option>
 				<option value="CLOSED">CLOSED</option>
@@ -1174,16 +1205,29 @@
                             <option value="For SRV">For SRV</option>
                             <option value="Pending Signature">Pending Signature</option>
                             <option value="For IPC">For IPC</option>
+			    <option value="Report">Report (Keep Active)</option>
                             <option value="Report Approval">Report Approval</option>
-                            <option value="Report">Report (Keep Active)</option>
-                            <option value="Report Done">Report Done (Complete)</option>
+  			    <option value="Report Approved">Report Approved</option>
                             <option value="PO Found">PO Found (Complete)</option>
                             <option value="PO Not Found">PO Not Found (Complete)</option>
                             <option value="Other">Other (Specify)</option>
                         </select>
                     </div>
-                    <div id="modify-task-status-other-container" class="form-group hidden"><label for="modify-task-status-other">Custom Status</label><input type="text" id="modify-task-status-other" placeholder="Enter custom status"></div>
-                    <div class="form-group"><label for="modify-task-note">Note / Instruction</label><textarea id="modify-task-note" name="note" rows="3"></textarea></div>
+                    <div id="modify-task-status-other-container" class="form-group hidden">
+    <label for="modify-task-status-other">Custom Status</label>
+    <input type="text" id="modify-task-status-other" placeholder="Enter custom status">
+</div>
+
+<div id="modify-task-report-actions" class="hidden" style="margin: 15px 0 10px 0; text-align: center;">
+    <button type="button" id="btn-view-finance-report-modal" class="action-btn" style="background-color: #17a2b8; color: white; width: 100%; padding: 8px; border-radius: 4px; font-weight: bold;">
+        <i class="fa-solid fa-file-invoice-dollar"></i> View Finance Report
+    </button>
+</div>
+
+<div class="form-group">
+    <label for="modify-task-note">Note / Instruction</label>
+    <textarea id="modify-task-note" name="note" rows="3"></textarea>
+</div>
                 </form>
             </div>
             <div class="modal-footer"><button class="secondary-btn modal-close-btn">Cancel</button><button id="modify-task-save-btn" type="button">Save Changes</button></div>
@@ -1331,26 +1375,7 @@
                     </table>
                 </div>
 
-                <div class="signatures">
-                    <div class="signature-box">
-                        <p>Prepared By</p>
-                        <div class="signature-line"></div>
-                    </div>
-                    
-                    <div class="signature-box"> <p>Site Approval</p>
-                        <div class="signature-line"></div>
-                    </div>
-
-                    <div class="signature-box">
-                        <p>Finance</p>
-                        <div class="signature-line"></div>
-                    </div>
-                    
-                    <div class="signature-box">
-                        <p>CEO</p>
-                        <div class="signature-line"></div>
-                    </div>
-                </div>
+                
 
                 <div id="im-reportNotesSection" style="display: none; margin-top: 40px;">
                     <h5 style="font-weight: bold;">Notes:</h5>

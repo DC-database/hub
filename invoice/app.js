@@ -5,7 +5,7 @@
   - Cleanup note: removed bracket labels like // [1.a], kept logic unchanged.
 */
 
-const APP_VERSION = "5.0.3";
+const APP_VERSION = "5.0.8";
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -5439,52 +5439,61 @@ document.addEventListener('DOMContentLoaded', () => {
 function openModifyTaskModal(taskData) {
     if (!taskData) return;
 
-    // 1. Set Keys
+    // 1. Set Keys & Identifiers
     modifyTaskKey.value = taskData.key;
     modifyTaskSource.value = taskData.source;
     modifyTaskOriginalPO.value = taskData.originalPO || '';
     modifyTaskOriginalKey.value = taskData.originalKey || '';
     
-    // Set existing attention if available
     document.getElementById('modify-task-originalAttention').value = taskData.attention || '';
-
-    // 2. Set Note
     modifyTaskNote.value = taskData.note || '';
 
-    // 3. LOGIC: Handle "Report" Automation vs Standard
-    if (taskData.remarks === 'Report') {
-        // A. Auto-set Status to "Report Approval"
-        modifyTaskStatus.value = 'Report Approval';
-        modifyTaskStatusOtherContainer.classList.add('hidden'); // Ensure custom text box is hidden
+    // Identify User Role
+    const userPos = (currentApprover.Position || '').toLowerCase();
+    const isFinance = userPos.includes('finance');
 
-        // B. Auto-set Attention to "Mostafa" (Finance)
+    // 2. SMART AUTOMATION LOGIC
+    // -------------------------------------------------
+
+    // SCENARIO A: FINANCE USER (Status is "Report Approval" -> Send back to Creator)
+    if (isFinance && (taskData.remarks === 'Report Approval')) {
+        // Auto-set Status
+        modifyTaskStatus.value = 'Report Approved';
+        modifyTaskStatusOtherContainer.classList.add('hidden');
+
+        // Auto-set Attention to SENDER (Creator)
         if (modifyTaskAttentionChoices) {
-            // Search the cached approver data for "Mostafa" or Finance position
+            const originalSender = taskData.enteredBy || 'Accounting';
+            modifyTaskAttentionChoices.setChoiceByValue(originalSender);
+        }
+    }
+    // SCENARIO B: MANAGER / SITE (Status is "Report" OR "Report Approval" -> Send to Finance)
+    else if (taskData.remarks === 'Report' || taskData.remarks === 'Report Approval') {
+        // Auto-set Status
+        modifyTaskStatus.value = 'Report Approval';
+        modifyTaskStatusOtherContainer.classList.add('hidden'); 
+
+        // Auto-set Attention to FINANCE
+        if (modifyTaskAttentionChoices) {
             let financeUser = null;
             if (typeof allApproverData !== 'undefined' && allApproverData) {
-                // Try finding by Name "Mostafa" or Position "Finance"
+                // Find user with 'Finance' in position
                 financeUser = Object.values(allApproverData).find(u => 
-                    (u.Name && u.Name.toLowerCase().includes('mostafa')) || 
                     (u.Position && u.Position.toLowerCase().includes('finance'))
                 );
             }
-            
-            // If found, set it; otherwise keep current or empty
             if (financeUser) {
                 modifyTaskAttentionChoices.setChoiceByValue(financeUser.Name);
-            } else if (taskData.attention) {
-                modifyTaskAttentionChoices.setChoiceByValue(taskData.attention);
             }
         }
     } 
+    // SCENARIO C: STANDARD / DEFAULT
     else {
-        // Standard Behavior for other statuses
         if (modifyTaskAttentionChoices) {
             modifyTaskAttentionChoices.setChoiceByValue(taskData.attention || '');
         }
 
         const currentStatus = taskData.remarks || 'Pending';
-        // Check if the status exists in the dropdown options
         const statusOption = modifyTaskStatus.querySelector(`option[value="${currentStatus}"]`);
         
         if (statusOption) {
@@ -5497,12 +5506,48 @@ function openModifyTaskModal(taskData) {
         }
     }
 
-    // 4. Update Button Text
+    // 3. VIEW REPORT BUTTON LOGIC
+    // ----------------------------------------
+    const reportBtnContainer = document.getElementById('modify-task-report-actions');
+    const reportBtn = document.getElementById('btn-view-finance-report-modal');
+    
+    const reportStatuses = ['Report', 'Report Approval', 'Report Approved'];
+    const isReportTask = (taskData.source === 'invoice') && reportStatuses.includes(taskData.remarks);
+
+    if (reportBtnContainer && reportBtn) {
+        if (isReportTask) {
+            reportBtnContainer.classList.remove('hidden');
+            
+            const newBtn = reportBtn.cloneNode(true);
+            reportBtn.parentNode.replaceChild(newBtn, reportBtn);
+
+            newBtn.addEventListener('click', async () => {
+                const po = taskData.originalPO || taskData.po;
+                if (!po) { alert("PO Number missing."); return; }
+
+                if (!allPOData) await ensureInvoiceDataFetched();
+                const poData = allPOData[po] || {};
+                
+                await generateFinanceReport({
+                    poNo: po,
+                    poValue: poData.Amount || 0,
+                    site: poData['Project ID'] || '',
+                    vendor: poData['Supplier Name'] || ''
+                });
+                
+                const reportModal = document.getElementById('im-finance-report-modal');
+                if (reportModal) reportModal.classList.remove('hidden');
+            });
+
+        } else {
+            reportBtnContainer.classList.add('hidden');
+        }
+    }
+
     if (modifyTaskSaveBtn) {
         modifyTaskSaveBtn.textContent = "Confirm Action";
     }
 
-    // 5. Show Modal
     modifyTaskModal.classList.remove('hidden');
 }
 
@@ -5511,8 +5556,8 @@ async function handleSaveModifiedTask() {
     const source = modifyTaskSource.value;
     const originalPO = modifyTaskOriginalPO.value;
     const originalKey = modifyTaskOriginalKey.value;
-
-    const originalAttention = document.getElementById('modify-task-originalAttention').value;
+    const originalAttentionEl = document.getElementById('modify-task-originalAttention');
+    const originalAttention = originalAttentionEl ? originalAttentionEl.value : '';
 
     if (!key || !source) {
         alert("Error: Task identifiers are missing.");
@@ -5548,36 +5593,54 @@ async function handleSaveModifiedTask() {
     modifyTaskSaveBtn.textContent = 'Saving...';
 
     try {
+        // --- REPORT WORKFLOW LOGIC ---
+        if (source === 'invoice' && originalPO && originalKey) {
+            
+            // 1. Finance Auto-Route Logic
+            if (currentApprover && currentApprover.Position) {
+                const isFinance = currentApprover.Position.toLowerCase().includes('finance');
+                
+                if (isFinance && updates.status === 'Report Approval') {
+                    updates.status = 'Report Approved';
+                    updates.remarks = 'Report Approved';
+                    
+                    let accountingUser = null;
+                    if (typeof allApproverData !== 'undefined') {
+                        accountingUser = Object.values(allApproverData).find(u => 
+                            u.Position && (u.Position.toLowerCase().includes('accounting') || u.Position.toLowerCase().includes('accounts'))
+                        );
+                    }
+                    updates.attention = accountingUser ? accountingUser.Name : 'Accounting';
+                    
+                    alert("Finance Approval Confirmed. Routing back to Accounting for printing.");
+                }
+            }
+
+            // 2. Execute Report Database Update
+            // CRITICAL: Checks if function exists before calling
+            if (typeof updateReportWorkflow === 'function') {
+                await updateReportWorkflow(originalPO, originalKey, updates.status, currentApprover, updates.attention);
+            } else {
+                throw new Error("Helper function 'updateReportWorkflow' is missing from app.js!");
+            }
+        }
+        // ----------------------------------
+
         if (source === 'job_entry') {
             await ensureAllEntriesFetched();
             const originalEntry = allSystemEntries.find(entry => entry.key === key);
 
-            const newAttention = updates.attention;
-            const oldAttention = originalEntry ? originalEntry.attention : '';
-
-            if (originalEntry && currentApprover.Name === oldAttention && newAttention === oldAttention) {
-                updates.dateResponded = formatDate(new Date());
-            } else if (newAttention !== oldAttention) {
-                updates.dateResponded = null;
-            } else {
-                updates.dateResponded = originalEntry ? originalEntry.dateResponded : null;
+            if (originalEntry && currentApprover.Name === (originalEntry.attention || '') && updates.attention === originalEntry.attention) {
+                 updates.dateResponded = formatDate(new Date());
+            } else if (updates.attention !== (originalEntry ? originalEntry.attention : '')) {
+                 updates.dateResponded = null;
             }
 
-            await db.ref(`job_entries/${key}`).update({
-                attention: updates.attention,
-                remarks: updates.remarks,
-                note: updates.note,
-                dateResponded: updates.dateResponded
-            });
-
+            await db.ref(`job_entries/${key}`).update(updates);
             allSystemEntries = [];
 
         } else if (source === 'invoice' && originalPO && originalKey) {
-            await invoiceDb.ref(`invoice_entries/${originalPO}/${originalKey}`).update({
-                attention: updates.attention,
-                status: updates.status,
-                note: updates.note
-            });
+            await invoiceDb.ref(`invoice_entries/${originalPO}/${originalKey}`).update(updates);
 
             if (!allInvoiceData) await ensureInvoiceDataFetched();
             const originalInvoice = (allInvoiceData && allInvoiceData[originalPO]) ? allInvoiceData[originalPO][originalKey] : {};
@@ -5589,15 +5652,10 @@ async function handleSaveModifiedTask() {
             await updateInvoiceTaskLookup(originalPO, originalKey, updatedInvoiceData, originalAttention);
             updateLocalInvoiceCache(originalPO, originalKey, updates);
 
-            // --- FIX: LOG HISTORY HERE ---
-            // This captures the CURRENT USER performing the modification
             if (window.logInvoiceHistory) {
                 await window.logInvoiceHistory(originalPO, originalKey, updates.status, updates.note);
             }
-            // -----------------------------
-        } else {
-            throw new Error("Invalid task source or missing keys.");
-        }
+        } 
 
         alert("Task updated successfully!");
         modifyTaskModal.classList.add('hidden');
@@ -5605,11 +5663,12 @@ async function handleSaveModifiedTask() {
         await populateActiveTasks();
 
     } catch (error) {
-        console.error("Error updating task:", error);
-        alert("Failed to update task. Please try again.");
+        console.error("Detailed Error:", error);
+        // --- THIS ALERT SHOWS THE REAL REASON ---
+        alert("Update Failed: " + error.message); 
     } finally {
         modifyTaskSaveBtn.disabled = false;
-        modifyTaskSaveBtn.textContent = 'Save Changes';
+        modifyTaskSaveBtn.textContent = 'Confirm Action';
     }
 }
 
@@ -6056,30 +6115,25 @@ async function populateActiveJobsSidebar() {
 
     // Refresh active tasks first
     await populateActiveTasks();
+    
+    // Filter tasks
     var tasksToDisplay = userActiveTasks;
-
     var invoiceJobs = tasksToDisplay.filter(function(task) {
-        // 1. Inbox Items (Assigned to me directly, e.g. Approved Return)
-        if (task.source === 'invoice' && task.attention === currentApprover.Name) {
-            return true;
-        }
-        // 2. Job Entries for Accounting (Standard List)
-        if (task.source === 'job_entry' && task.for === 'Invoice' && (currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'accounting')) {
-            return true;
-        }
+        if (task.source === 'invoice' && task.attention === currentApprover.Name) return true;
+        if (task.source === 'job_entry' && task.for === 'Invoice' && 
+           (currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'accounting')) return true;
         return false;
     });
 
-    var count = invoiceJobs.length;
+    // Update Header Count
     if (activeJobsSidebarCountDisplay) {
-        // FIXED: Using standard strings to prevent syntax errors
-        activeJobsSidebarCountDisplay.textContent = 'Your Active Invoice Jobs (' + count + ')';
+        activeJobsSidebarCountDisplay.textContent = 'Active Jobs (' + invoiceJobs.length + ')';
     }
 
     imEntrySidebarList.innerHTML = '';
 
     if (invoiceJobs.length === 0) {
-        imEntrySidebarList.innerHTML = '<li class="im-sidebar-no-jobs">No active invoice jobs found.</li>';
+        imEntrySidebarList.innerHTML = '<li class="im-sidebar-no-jobs" style="padding:10px; text-align:center; color:#888; font-size:0.8rem;">No active jobs.</li>';
         return;
     }
 
@@ -6088,15 +6142,13 @@ async function populateActiveJobsSidebar() {
         li.className = 'im-sidebar-item';
         
         var status = job.remarks || job.status || 'Pending';
-        // Check for approved status
-        var isApproved = status === 'Approved' || status === 'CEO Approval' || status.indexOf('Approved') !== -1;
+        var isApproved = status.includes('Approved') || status === 'CEO Approval';
 
-        if (isApproved) {
-            li.classList.add('status-approved');
-        }
+        if (isApproved) li.classList.add('status-approved');
 
-        li.dataset.key = job.key;
+        // Store data for click handling
         li.dataset.po = job.po || '';
+        li.dataset.key = job.key;
         li.dataset.ref = job.ref || '';
         li.dataset.amount = job.amount || '';
         li.dataset.date = job.date || '';
@@ -6104,24 +6156,43 @@ async function populateActiveJobsSidebar() {
         li.dataset.originalKey = job.originalKey || '';
         li.dataset.originalPO = job.originalPO || '';
 
-        var iconHtml = '';
-        var statusStyle = 'color: #8ecae6;';
+        // Truncate Vendor Name if too long
+        var vendorDisplay = (job.vendorName || 'No Vendor');
+        if (vendorDisplay.length > 20) vendorDisplay = vendorDisplay.substring(0, 18) + '...';
 
-        if (isApproved) {
-            iconHtml = '<i class="fa-solid fa-circle-check" style="color: #28a745; margin-right: 5px;"></i>';
-            statusStyle = 'color: #28a745; font-weight: bold;';
-        }
-
-        // FIXED: Standard string concatenation
-        var html = '<span class="im-sidebar-po">' + iconHtml + ' PO: ' + (job.po || 'N/A') + '</span>';
-        html += '<span class="im-sidebar-vendor">' + (job.vendorName || 'No Vendor') + '</span>';
-        html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">';
-        html += '<span class="im-sidebar-vendor" style="' + statusStyle + ' font-size: 0.75rem;">' + status + '</span>';
-        html += '<span class="im-sidebar-amount">QAR ' + formatCurrency(job.amount) + '</span>';
-        html += '</div>';
+        // --- NEW COMPACT HTML ---
+        var html = `
+            <div class="im-compact-row">
+                <span class="im-compact-po"><i class="fa-solid fa-file-invoice" style="margin-right:4px; opacity:0.7;"></i> ${job.po || 'N/A'}</span>
+                <span class="im-compact-amount">${formatCurrency(job.amount)}</span>
+            </div>
+            <div class="im-compact-row">
+                <span class="im-compact-vendor">${vendorDisplay}</span>
+                <span class="im-compact-status">${status}</span>
+            </div>
+        `;
 
         li.innerHTML = html;
         imEntrySidebarList.appendChild(li);
+    });
+}
+
+// --- NEW: SEARCH LISTENER (Place this right after the function above) ---
+const sidebarSearchInput = document.getElementById('im-sidebar-search');
+if (sidebarSearchInput) {
+    sidebarSearchInput.addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase().trim();
+        const items = document.querySelectorAll('.im-sidebar-item');
+        
+        items.forEach(item => {
+            const po = (item.dataset.po || '').toLowerCase();
+            // Search by PO (you can add Vendor check too if you want: || item.innerText.toLowerCase().includes(term))
+            if (po.includes(term)) {
+                item.style.display = ''; // Show
+            } else {
+                item.style.display = 'none'; // Hide
+            }
+        });
     });
 }
 
@@ -6190,7 +6261,7 @@ function populateInvoiceFormForEditing(invoiceKey) {
     resetInvoiceForm();
     currentlyEditingInvoiceKey = invoiceKey;
 
-    // --- NAVIGATION UI UPDATE ---
+    // --- NAVIGATION UI UPDATE (Preserved) ---
     if (typeof imNavigationList !== 'undefined' && imNavigationList.length > 0) {
         imNavigationIndex = imNavigationList.indexOf(invoiceKey);
         
@@ -6202,25 +6273,16 @@ function populateInvoiceFormForEditing(invoiceKey) {
         if (navControls && imNavigationIndex > -1) {
             navControls.classList.remove('hidden');
             navCounter.textContent = `${imNavigationIndex + 1} / ${imNavigationList.length}`;
-            
-            // Disable Previous if at start
             btnPrev.disabled = (imNavigationIndex === 0);
             btnPrev.style.opacity = (imNavigationIndex === 0) ? '0.5' : '1';
-
-            // ENABLE Next button even on the last item (to allow going to "New")
             btnNext.disabled = false;
             btnNext.style.opacity = '1';
-            
-            // Optional: Give visual cue that Next leads to "New"
-            if (imNavigationIndex === imNavigationList.length - 1) {
-                btnNext.title = "Go to New Entry";
-            } else {
-                btnNext.title = "Next Invoice";
-            }
+            btnNext.title = (imNavigationIndex === imNavigationList.length - 1) ? "Go to New Entry" : "Next Invoice";
         }
     }
     // ----------------------------
 
+    // Populate Fields
     imInvEntryIdInput.value = invData.invEntryID || '';
     document.getElementById('im-inv-no').value = invData.invNumber || '';
     imInvoiceDateInput.value = normalizeDateForInput(invData.invoiceDate);
@@ -6234,6 +6296,7 @@ function populateInvoiceFormForEditing(invoiceKey) {
     imStatusSelect.value = invData.status || 'For SRV';
     document.getElementById('im-note').value = invData.note || '';
 
+    // Dropdown Logic
     if (imAttentionSelectChoices) {
         let currentSite = null;
         if (currentPO && allPOData && allPOData[currentPO]) {
@@ -6245,6 +6308,62 @@ function populateInvoiceFormForEditing(invoiceKey) {
             }
         });
     }
+
+    // --- NEW: PRINT REPORT BUTTON LOGIC ---
+    const printBtnContainer = document.getElementById('im-invoice-print-report-container');
+    const printBtn = document.getElementById('btn-invoice-entry-print-report');
+    
+    // Check Status
+    const reportStatuses = ['Report', 'Report Approval', 'Report Approved'];
+    const showPrintBtn = reportStatuses.includes(invData.status);
+
+    if (printBtnContainer && printBtn) {
+        if (showPrintBtn) {
+            printBtnContainer.classList.remove('hidden');
+            
+            // Remove old listener (clone trick)
+            const newBtn = printBtn.cloneNode(true);
+            printBtn.parentNode.replaceChild(newBtn, printBtn);
+
+            // Add Click Listener
+            newBtn.addEventListener('click', async () => {
+                if (!currentPO) { alert("PO Data missing."); return; }
+                const poData = allPOData[currentPO] || {};
+
+                // 1. Generate Report Data
+                await generateFinanceReport({
+                    poNo: currentPO,
+                    poValue: poData.Amount || 0,
+                    site: poData['Project ID'] || '',
+                    vendor: poData['Supplier Name'] || ''
+                });
+
+                // 2. IMPORTANT: Attach the specific Invoice Key to the modal
+                // The print function needs to know WHICH invoice key to lock (this specific one)
+                // We assume 'printFinalFinanceReport' uses the 'key' passed to it, or we set a global variable.
+                // Since 'printFinalFinanceReport' is called FROM the modal button, we need to ensure the modal button knows the key.
+                
+                // We update the "Print" button INSIDE the modal to trigger 'printFinalFinanceReport(currentPO, invoiceKey)'
+                const finalPrintBtn = document.getElementById('im-finance-print-report-btn');
+                if (finalPrintBtn) {
+                    const newFinalBtn = finalPrintBtn.cloneNode(true);
+                    finalPrintBtn.parentNode.replaceChild(newFinalBtn, finalPrintBtn);
+                    
+                    newFinalBtn.addEventListener('click', () => {
+                        window.printFinalFinanceReport(currentPO, invoiceKey);
+                    });
+                }
+
+                // 3. Show Modal
+                const reportModal = document.getElementById('im-finance-report-modal');
+                if (reportModal) reportModal.classList.remove('hidden');
+            });
+
+        } else {
+            printBtnContainer.classList.add('hidden');
+        }
+    }
+    // -------------------------------------
 
     imFormTitle.textContent = `Editing Invoice: ${invData.invEntryID}`;
     imAddInvoiceButton.classList.add('hidden');
@@ -6795,7 +6914,7 @@ function buildDesktopReportView(reportData) {
     const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
     const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
 
-    // --- NEW: Check if user can print stickers (Same as Mobile) ---
+    // --- Check if user can print stickers ---
     const canPrintSticker = (isAdmin && isAccounting); 
 
     if (reportData.length === 0) {
@@ -6841,22 +6960,47 @@ function buildDesktopReportView(reportData) {
             let actionButtonsHTML = '';
 
             if (inv.source !== 'ecommit' && (isAdmin || isAccounting)) {
-                const invPDFName = inv.invName || '';
-                const invPDFLink = (invPDFName.trim() && invPDFName.toLowerCase() !== 'nil') ? `<a href="${PDF_BASE_PATH}${encodeURIComponent(invPDFName)}.pdf" target="_blank" class="action-btn invoice-pdf-btn" onclick="event.stopPropagation();">Invoice</a>` : '';
-                const srvPDFName = inv.srvName || '';
-                const srvPDFLink = (srvPDFName.trim() && srvPDFName.toLowerCase() !== 'nil') ? `<a href="${SRV_BASE_PATH}${encodeURIComponent(srvPDFName)}.pdf" target="_blank" class="action-btn srv-pdf-btn" onclick="event.stopPropagation();">SRV</a>` : '';
+                
+                // --- SMART PDF FIX: REMOVE .pdf IF ALREADY PRESENT ---
+                let finalInvName = (inv.invName || '').trim();
+                if (finalInvName.toLowerCase().endsWith('.pdf')) finalInvName = finalInvName.slice(0, -4);
+
+                let finalSrvName = (inv.srvName || '').trim();
+                if (finalSrvName.toLowerCase().endsWith('.pdf')) finalSrvName = finalSrvName.slice(0, -4);
+                // ---------------------------------------------------
+
+                const invPDFLink = (finalInvName && finalInvName.toLowerCase() !== 'nil') ? 
+                    `<a href="${PDF_BASE_PATH}${encodeURIComponent(finalInvName)}.pdf" target="_blank" class="action-btn invoice-pdf-btn" onclick="event.stopPropagation();">Invoice</a>` : '';
+                
+                const srvPDFLink = (finalSrvName && finalSrvName.toLowerCase() !== 'nil') ? 
+                    `<a href="${SRV_BASE_PATH}${encodeURIComponent(finalSrvName)}.pdf" target="_blank" class="action-btn srv-pdf-btn" onclick="event.stopPropagation();">SRV</a>` : '';
                 
                 let historyBtn = (inv.history || inv.createdAt || inv.originTimestamp) ? `<button type="button" class="history-btn action-btn" onclick="event.stopPropagation(); showInvoiceHistory('${poData.poNumber}', '${inv.key}')"><i class="fa-solid fa-clock-rotate-left"></i></button>` : '';
                 let editBtn = `<button type="button" class="edit-inv-no-btn action-btn" data-po="${poData.poNumber}" data-key="${inv.key}" data-current="${inv.invNumber || ''}"><i class="fa-solid fa-pen-to-square"></i></button>`;
                 
-                // --- NEW: ADD STICKER BUTTON HERE (ONLY IF ESN EXISTS) ---
+                // --- NEW: FINAL REPORT BUTTON (One-Time Print) ---
+                let printReportBtn = '';
+                
+                // Show button ONLY if status is "Report Approved"
+                if (inv.status === 'Report Approved') {
+                    // Check if already printed (we will store this flag in the invoice entry)
+                    if (inv.reportPrinted) {
+                        // Option: Show "Locked" button
+                        printReportBtn = `<button type="button" class="action-btn" style="background-color: #6c757d; color: white; cursor: not-allowed;" title="Already Printed (Locked)"><i class="fa-solid fa-lock"></i> Locked</button>`;
+                    } else {
+                        // Active Print Button
+                        printReportBtn = `<button type="button" class="action-btn" style="background-color: #00748C; color: white;" onclick="event.stopPropagation(); printFinalFinanceReport('${poData.poNumber}', '${inv.key}')" title="Print Official Report (One-Time)"><i class="fa-solid fa-print"></i> Report</button>`;
+                    }
+                }
+                // -------------------------------------------------
+
+                // --- STICKER BUTTON (Standard Invoice ESN) ---
                 let stickerBtn = '';
-                // Check 'inv.esn' to ensure it has a valid approval receipt
                 if (canPrintSticker && inv.esn) {
                     stickerBtn = `<button type="button" class="action-btn" style="background-color: #28a745; color: white; padding: 4px 8px; border-radius: 4px;" title="Print Sticker" onclick="event.stopPropagation(); handlePrintSticker('${inv.key}', 'Invoice', '${poData.poNumber}')"><i class="fa-solid fa-qrcode"></i></button>`;
                 }
 
-                actionButtonsHTML = `<div class="action-btn-group">${editBtn} ${invPDFLink} ${srvPDFLink} ${historyBtn} ${stickerBtn}</div>`;
+                actionButtonsHTML = `<div class="action-btn-group">${editBtn} ${invPDFLink} ${srvPDFLink} ${printReportBtn} ${historyBtn} ${stickerBtn}</div>`;
             
             } else if (inv.source === 'ecommit' && (isAdmin || isAccounting)) {
                 actionButtonsHTML = `<span style="font-size:0.8rem; color:#6f42c1; font-weight:bold; cursor:pointer;"><i class="fa-solid fa-file-import"></i> Click to Import</span>`;
@@ -7802,21 +7946,49 @@ async function handleBatchModalPOSearch() {
     const modalPOSearchInput = document.getElementById('im-batch-modal-po-input');
     const modalResultsContainer = document.getElementById('im-batch-modal-results');
     const poNumber = modalPOSearchInput.value.trim().toUpperCase();
+    
     if (!poNumber) return;
+    
     modalResultsContainer.innerHTML = '<p>Searching...</p>';
+    
     try {
         await ensureInvoiceDataFetched();
-        const poData = allPOData[poNumber],
-            invoicesData = allInvoiceData[poNumber];
+        const poData = allPOData[poNumber];
+        const invoicesData = allInvoiceData[poNumber];
+        
         if (!invoicesData) {
             modalResultsContainer.innerHTML = '<p>No invoices found for this PO.</p>';
             return;
         }
-        const site = poData ? poData['Project ID'] || 'N/A' : 'N/A',
-            vendor = poData ? poData['Supplier Name'] || 'N/A' : 'N/A';
-        let tableHTML = `<table><thead><tr><th><input type="checkbox" id="modal-select-all"></th><th>Inv. Entry ID</th><th>Inv. No.</th><th>Inv. Value</th><th>Status</th></tr></thead><tbody>`;
+        
+        const site = poData ? poData['Project ID'] || 'N/A' : 'N/A';
+        const vendor = poData ? poData['Supplier Name'] || 'N/A' : 'N/A';
+        
+        // 1. Create Table Structure
+        modalResultsContainer.innerHTML = ''; // Clear loading message
+        const table = document.createElement('table');
+        table.innerHTML = `
+            <thead>
+                <tr>
+                    <th><input type="checkbox" id="modal-select-all"></th>
+                    <th>Inv. Entry ID</th>
+                    <th>Inv. No.</th>
+                    <th>Inv. Value</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="batch-modal-tbody"></tbody>
+        `;
+        modalResultsContainer.appendChild(table);
+        
+        const tbody = table.querySelector('tbody');
         const sortedInvoices = Object.entries(invoicesData).sort(([, a], [, b]) => (a.invEntryID || '').localeCompare(b.invEntryID || ''));
+        
+        // 2. Loop and Create Rows with Click Logic
         for (const [key, inv] of sortedInvoices) {
+            const tr = document.createElement('tr');
+            tr.style.cursor = 'pointer'; // Visual cue
+            
             const invDataString = encodeURIComponent(JSON.stringify({
                 key,
                 po: poNumber,
@@ -7824,19 +7996,45 @@ async function handleBatchModalPOSearch() {
                 vendor,
                 ...inv
             }));
-            tableHTML += `<tr><td><input type="checkbox" class="modal-inv-checkbox" data-invoice='${invDataString}'></td><td>${inv.invEntryID || ''}</td><td>${inv.invNumber || ''}</td><td>${formatCurrency(inv.invValue)}</td><td>${inv.status || ''}</td></tr>`;
+            
+            tr.innerHTML = `
+                <td style="text-align:center;">
+                    <input type="checkbox" class="modal-inv-checkbox" data-invoice='${invDataString}'>
+                </td>
+                <td>${inv.invEntryID || ''}</td>
+                <td>${inv.invNumber || ''}</td>
+                <td>${formatCurrency(inv.invValue)}</td>
+                <td>${inv.status || ''}</td>
+            `;
+            
+            // 3. Add Click Event to the Row
+            tr.addEventListener('click', (e) => {
+                // If user clicked the checkbox directly, do nothing (let default behavior handle it)
+                if (e.target.type === 'checkbox') return;
+                
+                // Otherwise, toggle the checkbox manually
+                const checkbox = tr.querySelector('.modal-inv-checkbox');
+                if (checkbox) {
+                    checkbox.checked = !checkbox.checked;
+                }
+            });
+            
+            tbody.appendChild(tr);
         }
-        tableHTML += `</tbody></table>`;
-        modalResultsContainer.innerHTML = tableHTML;
-        document.getElementById('modal-select-all').addEventListener('change', (e) => {
-            modalResultsContainer.querySelectorAll('.modal-inv-checkbox').forEach(chk => chk.checked = e.target.checked);
-        });
+        
+        // 4. "Select All" Logic
+        const selectAll = document.getElementById('modal-select-all');
+        if (selectAll) {
+            selectAll.addEventListener('change', (e) => {
+                modalResultsContainer.querySelectorAll('.modal-inv-checkbox').forEach(chk => chk.checked = e.target.checked);
+            });
+        }
+        
     } catch (error) {
         console.error("Error searching in batch modal:", error);
         modalResultsContainer.innerHTML = '<p>An error occurred.</p>';
     }
 }
-
 async function handleAddSelectedToBatch() {
     const selectedCheckboxes = document.getElementById('im-batch-modal-results').querySelectorAll('.modal-inv-checkbox:checked');
 
@@ -8522,65 +8720,101 @@ function updatePaymentModalTotal() {
 
 async function handlePaymentModalPOSearch() {
     const poNumber = imPaymentModalPOInput.value.trim().toUpperCase();
-
     const totalDisplay = document.getElementById('payment-modal-total-value');
+
+    // 1. Reset Total Display
     if (totalDisplay) totalDisplay.textContent = formatCurrency(0);
 
     if (!poNumber) {
         imPaymentModalResults.innerHTML = '<p>Please enter a PO Number.</p>';
         return;
     }
+    
     imPaymentModalResults.innerHTML = '<p>Searching...</p>';
 
     try {
         await ensureInvoiceDataFetched();
         const invoicesData = allInvoiceData[poNumber];
 
+        if (!invoicesData) {
+             imPaymentModalResults.innerHTML = '<p>No invoices found for this PO.</p>';
+             return;
+        }
+
+        // 2. Create Table Structure Programmatically
+        imPaymentModalResults.innerHTML = ''; // Clear loading text
+        const table = document.createElement('table');
+        table.innerHTML = `
+            <thead>
+                <tr>
+                    <th><input type="checkbox" id="payment-modal-select-all"></th>
+                    <th>Inv. Entry ID</th>
+                    <th>Inv. Value</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="payment-modal-tbody"></tbody>
+        `;
+        imPaymentModalResults.appendChild(table);
+        const tbody = table.querySelector('tbody');
+
+        const sortedInvoices = Object.entries(invoicesData).sort(([, a], [, b]) => (a.invEntryID || '').localeCompare(b.invEntryID || ''));
         let resultsFound = false;
-        let tableHTML = `
-            <table>
-                <thead>
-                    <tr>
-                        <th><input type="checkbox" id="payment-modal-select-all"></th>
-                        <th>Inv. Entry ID</th>
-                        <th>Inv. Value</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>`;
 
-        if (invoicesData) {
-            const sortedInvoices = Object.entries(invoicesData).sort(([, a], [, b]) => (a.invEntryID || '').localeCompare(b.invEntryID || ''));
+        // 3. Loop Through Invoices
+        for (const [key, inv] of sortedInvoices) {
+            // Filter: Only "With Accounts" AND not already in the payment list
+            if (inv.status === 'With Accounts' && !invoicesToPay[key]) {
+                resultsFound = true;
+                
+                const tr = document.createElement('tr');
+                tr.style.cursor = 'pointer'; // Make the cursor look like a hand
 
-            for (const [key, inv] of sortedInvoices) {
-                if (inv.status === 'With Accounts' && !invoicesToPay[key]) {
-                    resultsFound = true;
-                    tableHTML += `<tr>
-                        <td><input type="checkbox" class="payment-modal-inv-checkbox" data-key='${key}' data-po='${poNumber}'></td>
-                        <td>${inv.invEntryID || ''}</td>
-                        <td>${formatCurrency(inv.invValue)}</td>
-                        <td>${inv.status || ''}</td>
-                    </tr>`;
-                }
+                tr.innerHTML = `
+                    <td style="text-align:center;">
+                        <input type="checkbox" class="payment-modal-inv-checkbox" data-key='${key}' data-po='${poNumber}'>
+                    </td>
+                    <td>${inv.invEntryID || ''}</td>
+                    <td>${formatCurrency(inv.invValue)}</td>
+                    <td>${inv.status || ''}</td>
+                `;
+
+                // --- CLICK ROW LOGIC ---
+                tr.addEventListener('click', (e) => {
+                    // If user clicked the checkbox directly, do nothing (let default behavior work)
+                    if (e.target.type === 'checkbox') return;
+
+                    // Otherwise, find the checkbox and toggle it
+                    const checkbox = tr.querySelector('.payment-modal-inv-checkbox');
+                    if (checkbox) {
+                        checkbox.checked = !checkbox.checked;
+                        updatePaymentModalTotal(); // Recalculate Sum immediately
+                    }
+                });
+
+                // Add Listener to Checkbox itself (for direct clicks)
+                const checkbox = tr.querySelector('.payment-modal-inv-checkbox');
+                checkbox.addEventListener('change', updatePaymentModalTotal);
+
+                tbody.appendChild(tr);
             }
         }
 
+        // 4. Handle Empty or Success States
         if (!resultsFound) {
             imPaymentModalResults.innerHTML = '<p>No invoices found for this PO with status "With Accounts" that haven\'t already been added.</p>';
         } else {
-            tableHTML += `</tbody></table>`;
-
-            imPaymentModalResults.innerHTML = tableHTML;
-
-            document.getElementById('payment-modal-select-all').addEventListener('change', (e) => {
-                imPaymentModalResults.querySelectorAll('.payment-modal-inv-checkbox').forEach(chk => chk.checked = e.target.checked);
-                updatePaymentModalTotal();
-            });
-
-            imPaymentModalResults.querySelectorAll('.payment-modal-inv-checkbox').forEach(chk => {
-                chk.addEventListener('change', updatePaymentModalTotal);
-            });
+            // "Select All" Logic
+            const selectAll = document.getElementById('payment-modal-select-all');
+            if (selectAll) {
+                selectAll.addEventListener('change', (e) => {
+                    const checkboxes = tbody.querySelectorAll('.payment-modal-inv-checkbox');
+                    checkboxes.forEach(chk => chk.checked = e.target.checked);
+                    updatePaymentModalTotal(); // Update Total
+                });
+            }
         }
+
     } catch (error) {
         console.error("Error searching in payment modal:", error);
         imPaymentModalResults.innerHTML = '<p>An error occurred while searching.</p>';
@@ -12522,6 +12756,289 @@ if (imNavNext) {
             }
         });
     }
+
+// =========================================================
+// NUCLEAR FIX: REPORT WORKFLOW + RECEIPT UPLOAD
+// =========================================================
+window.updateReportWorkflow = async function(po, key, status, user, nextAttention) {
+    if (!po || !key) return;
+
+    try {
+        const reportKey = `${po}_${key}`.replace(/[.#$[\]]/g, '_');
+        const reportRef = db.ref(`Reports/${reportKey}`);
+        const now = new Date().toLocaleDateString('en-GB');
+
+        const snapshot = await reportRef.once('value');
+        let reportData = snapshot.val() || {};
+
+        // 1. PREPARED BY
+        if (status === 'Report Approval' && !reportData.prepared_by) {
+            let baseESN = "RPT-" + Math.floor(1000 + Math.random() * 9000);
+            if (typeof window.getNextSeriesNumber === 'function') baseESN = await window.getNextSeriesNumber();
+            else if (typeof getNextSeriesNumber === 'function') baseESN = await getNextSeriesNumber();
+            
+            await reportRef.update({
+                po: po,
+                inv_key: key,
+                esn_base: baseESN,
+                prepared_by: { name: user.Name, date: now, esn_full: `${baseESN}/${user.Name.split(' ')[0].toUpperCase()}` }
+            });
+            console.log("Report: Prepared By recorded.");
+        }
+
+        // 2. SITE APPROVAL
+        const isFinance = user.Position.toLowerCase().includes('finance');
+        const isAccounting = user.Position.toLowerCase().includes('accounting') || user.Position.toLowerCase().includes('accounts');
+        
+        if (status === 'Report Approval' && !isFinance && !isAccounting && reportData.prepared_by) {
+            if (!reportData.site_approval) {
+                await reportRef.child('site_approval').set({
+                    name: user.Name,
+                    date: now,
+                    esn_full: `${reportData.esn_base}/${user.Name.split(' ')[0].toUpperCase()}`
+                });
+                console.log("Report: Site Approval recorded.");
+            }
+        }
+
+        // 3. FINANCE APPROVAL (WITH RECEIPT UPLOAD)
+        if (isFinance && reportData.prepared_by) {
+            const financeESN = `${reportData.esn_base}/${user.Name.split(' ')[0].toUpperCase()}`;
+            
+            // A. Prepare File Paths
+            const safeFilename = financeESN.replace(/[^a-zA-Z0-9]/g, '_');
+            const bucketName = "invoiceentry-b15a8.firebasestorage.app";
+            const storagePath = `receipts/${safeFilename}.html`; // Changed to .html for easy viewing
+            const publicLink = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(storagePath)}?alt=media`;
+
+            // B. Generate Digital Receipt Content (Simple HTML)
+            const receiptContent = `
+                <html>
+                <head><title>Digital Receipt</title><style>body{font-family:sans-serif;padding:20px;text-align:center;border:5px solid #00748C;margin:10px;border-radius:10px;}h1{color:#00748C;}.valid{color:green;font-weight:bold;font-size:1.2em;}</style></head>
+                <body>
+                    <h1>OFFICIAL RECEIPT</h1>
+                    <p><strong>PO Number:</strong> ${po}</p>
+                    <p><strong>ESN:</strong> ${financeESN}</p>
+                    <p><strong>Status:</strong> <span class="valid">APPROVED BY FINANCE</span></p>
+                    <p><strong>Date:</strong> ${now}</p>
+                    <p><strong>Approver:</strong> ${user.Name}</p>
+                    <hr>
+                    <small>Ismail Bin Ali Trading & Cont. Co. W.L.L</small>
+                </body>
+                </html>
+            `;
+
+            // C. Upload to Firebase Storage
+            // Note: We use 'storage' variable which is initialized in your app.js for 'invoiceApp'
+            try {
+                const storageRef = storage.ref(storagePath);
+                await storageRef.putString(receiptContent, 'raw', { contentType: 'text/html' });
+                console.log("Report: Digital Receipt Uploaded.");
+            } catch (uploadErr) {
+                console.error("Receipt Upload Failed:", uploadErr);
+                // We continue even if upload fails, just to save the data
+            }
+
+            // D. Save Database Record
+            await reportRef.child('finance_approval').set({
+                name: user.Name,
+                date: now,
+                esn_full: financeESN,
+                qr_link: publicLink
+            });
+            console.log("Report: Finance Approval recorded.");
+        }
+    } catch (err) {
+        console.error("Report Workflow Error:", err);
+        alert("Database Error: " + err.message);
+    }
+};
+console.log("✅ Report Workflow Loaded (With Receipt Upload)");
+
+    // =========================================================
+    // FIX: CLOUD UPLOAD BUTTONS (OPEN SHAREPOINT FOLDERS)
+    // =========================================================
+
+    // 1. Define the specific Folder URLs
+    const INVOICE_FOLDER_URL = "https://ibaqatar-my.sharepoint.com/my?id=%2Fpersonal%2Fdc%5Fiba%5Fcom%5Fqa%2FDocuments%2FDC%20Files%2FINVOICE&viewid=9f9468fa%2D5716%2D4b2c%2D9740%2Df52d4616d6a8";
+    const SRV_FOLDER_URL = "https://ibaqatar-my.sharepoint.com/my?id=%2Fpersonal%2Fdc%5Fiba%5Fcom%5Fqa%2FDocuments%2FDC%20Files%2FSRV&viewid=9f9468fa%2D5716%2D4b2c%2D9740%2Df52d4616d6a8";
+
+    // 2. Invoice Cloud Button Listener
+    const btnInvoiceCloud = document.getElementById('im-btn-view-invoice'); 
+    if (btnInvoiceCloud) {
+        // Remove any old listeners by cloning (optional safety step)
+        const newBtn = btnInvoiceCloud.cloneNode(true);
+        btnInvoiceCloud.parentNode.replaceChild(newBtn, btnInvoiceCloud);
+
+        newBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            // Simply open the folder
+            window.open(INVOICE_FOLDER_URL, '_blank');
+        });
+    }
+
+    // 3. SRV Cloud Button Listener
+    const btnSRVCloud = document.getElementById('im-btn-view-srv'); 
+    if (btnSRVCloud) {
+        // Remove any old listeners by cloning
+        const newBtn = btnSRVCloud.cloneNode(true);
+        btnSRVCloud.parentNode.replaceChild(newBtn, btnSRVCloud);
+
+        newBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            // Simply open the folder
+            window.open(SRV_FOLDER_URL, '_blank');
+        });
+    }
+
+// =========================================================
+// FINAL FINANCE REPORT (SAFE RESTORE + CORRECT LAYOUT)
+// =========================================================
+window.printFinalFinanceReport = async function(po, key) {
+    // 1. Safety Confirm
+    if (!confirm("⚠️ WARNING: This is a One-Time Print.\n\nOnce you print this, the document will be LOCKED.\n\nAre you sure?")) {
+        return;
+    }
+
+    const reportKey = `${po}_${key}`.replace(/[.#$[\]]/g, '_');
+    
+    try {
+        // 2. Fetch Data
+        const snapshot = await db.ref(`Reports/${reportKey}`).once('value');
+        const rpt = snapshot.val();
+
+        if (!rpt) {
+            alert("Approval data not found. Please ensure Finance has approved this.");
+            return;
+        }
+
+        // Check Lock
+        const invSnapshot = await invoiceDb.ref(`invoice_entries/${po}/${key}`).once('value');
+        const invData = invSnapshot.val();
+        if (invData.reportPrinted) {
+            alert("Security Alert: This report has already been printed.");
+            return;
+        }
+
+        // 3. Generate Base Table (Restores the Report Content)
+        await generateFinanceReport({ 
+            poNo: po, 
+            poValue: (allPOData[po] ? allPOData[po].Amount : 0),
+            site: (allPOData[po] ? allPOData[po]['Project ID'] : ''),
+            vendor: (allPOData[po] ? allPOData[po]['Supplier Name'] : '')
+        }); 
+
+        const modalContent = document.getElementById('im-finance-report-modal').querySelector('.modal-container');
+
+        // --- SAFE ANTI-DUPLICATE ---
+        // Instead of hiding all divs, we look specifically for the existing signature footer
+        // usually found after the table.
+        const existingFooter = modalContent.querySelector('.payment-details-wrapper + div, .table-responsive + div');
+        if (existingFooter && existingFooter.innerText.includes('Prepared By')) {
+            existingFooter.style.display = 'none';
+        }
+        // ---------------------------
+
+        // Cleanup old dynamic blocks
+        const oldSig = document.getElementById('report-signature-block');
+        if (oldSig) oldSig.remove();
+
+        // 4. CREATE NEW SIGNATURE BLOCK
+        const sigBlock = document.createElement('div');
+        sigBlock.id = "report-signature-block";
+        // Flexbox: Aligns items to the bottom so lines match up
+        sigBlock.style.cssText = "display: flex; justify-content: space-between; margin-top: 40px; padding: 0 40px; page-break-inside: avoid; align-items: flex-end;";
+        
+        // Helper: CONTENT ABOVE LINE / TITLE BELOW LINE
+        const renderLine = (roleLabel, data, isFinance) => {
+            const name = data ? data.name : '';
+            const esn = data ? data.esn_full : '';
+
+            // A. Content (Above Line)
+            let contentHtml = '';
+            
+            if (isFinance && data && data.qr_link) {
+                // FINANCE: QR + ESN (Name hidden as requested)
+                contentHtml = `
+                    <div id="report-finance-qr" style="margin: 0 auto 5px auto; width: 60px; height: 60px;"></div>
+                    <div style="font-size: 8px; font-family: monospace; letter-spacing: 1px;">${esn}</div>
+                `;
+            } else if (data) {
+                // OTHERS: Name + ESN
+                contentHtml = `
+                    <div style="font-weight: 700; font-size: 13px; margin-bottom: 2px;">${name}</div>
+                    <div style="font-size: 9px; color: #555; font-family: monospace;">${esn}</div>
+                `;
+            } else {
+                // SPACER (Keeps the line aligned even if empty)
+                contentHtml = `<div style="height: 60px;"></div>`; 
+            }
+
+            return `
+            <div style="width: 22%; text-align: center;">
+                <div style="padding-bottom: 5px; min-height: 40px; display: flex; flex-direction: column; justify-content: flex-end;">
+                    ${contentHtml}
+                </div>
+
+                <div style="border-bottom: 1px solid #000; width: 100%; margin-bottom: 8px;"></div>
+
+                <div style="font-weight: bold; font-size: 12px; color: #333;">${roleLabel}</div>
+            </div>`;
+        };
+
+        // Render 4 Columns
+        sigBlock.innerHTML = `
+            ${renderLine('Prepared By', rpt.prepared_by, false)}
+            ${renderLine('Site Approval', rpt.site_approval, false)}
+            ${renderLine('Finance', rpt.finance_approval, true)}
+            ${renderLine('CEO', rpt.ceo_approval, false)}
+        `;
+
+        // Append to modal
+        const tableContainer = modalContent.querySelector('.table-responsive') || modalContent;
+        tableContainer.appendChild(sigBlock);
+
+        // 5. GENERATE QR (Finance Only)
+        if (rpt.finance_approval && rpt.finance_approval.qr_link) {
+            setTimeout(() => {
+                const qrTarget = document.getElementById('report-finance-qr');
+                if (qrTarget) {
+                    qrTarget.innerHTML = '';
+                    new QRCode(qrTarget, {
+                        text: rpt.finance_approval.qr_link,
+                        width: 60,
+                        height: 60,
+                        correctLevel: QRCode.CorrectLevel.M
+                    });
+                }
+            }, 100);
+        }
+
+        // 6. SHOW & PRINT
+        document.getElementById('im-finance-report-modal').classList.remove('hidden');
+        
+        setTimeout(async () => {
+            window.print();
+
+            // 7. LOCK RECORD
+            await invoiceDb.ref(`invoice_entries/${po}/${key}`).update({
+                reportPrinted: true,
+                reportPrintedDate: new Date().toISOString(),
+                reportPrintedBy: currentApprover.Name
+            });
+
+            // Close and refresh
+            document.getElementById('im-finance-report-modal').classList.add('hidden');
+            const currentSearch = sessionStorage.getItem('imReportingSearch') || '';
+            populateInvoiceReporting(currentSearch);
+
+        }, 1000); 
+
+    } catch (e) {
+        console.error("Print Error:", e);
+        alert("System Error: Could not generate report.");
+    }
+}
 
 }); // END OF DOMCONTENTLOADED
 
