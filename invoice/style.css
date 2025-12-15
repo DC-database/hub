@@ -366,10 +366,57 @@ tbody tr:hover { background-color: #f1f1f1; }
     flex-wrap: wrap;
     gap: 15px;
 }
-.report-tabs-container { flex-grow: 1; }
-.report-tabs { display: flex; gap: 5px; border-bottom: 2px solid #e0e0e0; overflow-x: auto; }
-.report-tabs button { background-color: transparent; border: none; border-bottom: 3px solid transparent; padding: 10px 15px; font-size: 15px; font-weight: 600; color: #555; cursor: pointer; border-radius: 0; margin-bottom: -2px; white-space: nowrap; }
-.report-tabs button.active { color: var(--iba-secondary-teal); border-bottom-color: var(--iba-secondary-teal); } /* MODIFIED: Active tab color */
+
+/* --- CLEAN TAB STYLE (Matches Material Stock) --- */
+.report-tabs { 
+    display: flex; 
+    gap: 10px; /* Increased gap for cleaner look */
+    border-bottom: 2px solid #e0e0e0; 
+    overflow-x: auto;
+    overflow-y: hidden; /* Prevents vertical scroll arrows */
+    white-space: nowrap;
+    padding-bottom: 0;
+    
+    /* Hide Scrollbar (Clean Look) */
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+
+/* Hide Scrollbar for Chrome, Safari, Opera */
+.report-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.report-tabs button { 
+    background-color: transparent !important; /* Force Transparent */
+    border: none !important;
+    border-bottom: 3px solid transparent !important; 
+    padding: 8px 15px; /* Tighter padding like Material Stock */
+    font-size: 15px; 
+    font-weight: 600; 
+    color: #555; 
+    cursor: pointer; 
+    border-radius: 0; 
+    margin-bottom: -2px; 
+    white-space: nowrap;
+    box-shadow: none !important; /* Remove any shadows */
+    transition: color 0.2s, border-color 0.2s;
+}
+
+.report-tabs button:hover {
+    color: var(--iba-secondary-teal);
+    background-color: rgba(0, 116, 140, 0.05) !important; /* Very subtle hover tint */
+}
+
+.report-tabs button.active { 
+    color: var(--iba-secondary-teal) !important; 
+    border-bottom-color: var(--iba-secondary-teal) !important; 
+    background-color: transparent !important;
+}
+
+
+
+
 .print-btn { background-color: #17a2b8; padding: 8px 15px; }
 .print-btn:hover { background-color: #138496; }
 .print-btn i { margin-right: 8px; }

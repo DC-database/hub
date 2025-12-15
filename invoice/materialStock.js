@@ -1122,15 +1122,41 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- CLEAR BUTTON LOGIC ---
+    // --- MATERIAL STOCK CLEAR BUTTON LOGIC (WIPE CLEAN) ---
     const msClearBtn = document.getElementById('ms-search-clear-btn');
+    const msTableBody = document.getElementById('ms-table-body');
+    const msCountDisplay = document.getElementById('ms-total-count');
+    const msTabs = document.getElementById('ms-category-tabs');
+
     if (msClearBtn) {
         msClearBtn.addEventListener('click', () => {
+            // 1. Clear Input
             if (msSearchInput) {
-                msSearchInput.value = ''; 
-                renderMaterialStockTable(allMaterialStockData); 
+                msSearchInput.value = '';
                 msSearchInput.focus(); 
             }
+
+            // 2. WIPE TABLE CLEAN
+            if (msTableBody) {
+                msTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:#777;">List cleared. Please select a Family tab above.</td></tr>';
+            }
+
+            // 3. Reset Count
+            if (msCountDisplay) {
+                msCountDisplay.textContent = '';
+            }
+
+            // 4. Reset Active Tab Visuals
+            if (msTabs) {
+                msTabs.querySelectorAll('.active').forEach(tab => {
+                    tab.classList.remove('active');
+                    tab.style.borderBottomColor = 'transparent';
+                    tab.style.color = '#555';
+                });
+            }
+            
+            // 5. Reset Filter State
+            currentCategoryFilter = null; 
         });
     }
 

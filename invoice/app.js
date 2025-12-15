@@ -5,7 +5,7 @@
   - Cleanup note: removed bracket labels like // [1.a], kept logic unchanged.
 */
 
-const APP_VERSION = "4.9.8";
+const APP_VERSION = "5.0.3";
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -3499,22 +3499,18 @@ function renderActiveTaskTable(tasks) {
             else if (isCEO) {
                 actionsCell.innerHTML = '<button class="ceo-approve-btn" data-key="' + task.key + '">Make Approval</button>';
             } 
-            // SCENARIO C: Standard User (SRV/Edit/Report)
+		// SCENARIO C: Standard User (SRV / Process)
             else {
                 var actionsHTML = '';
 
-                // --- NEW: PROCESS REPORT BUTTON (For Accounting Only) ---
-                if (task.remarks === 'Report' && isAccounting) {
-                    actionsHTML = '<button class="download-btn process-report-btn" data-key="' + task.key + '" style="background-color: #6f42c1; color: white; border:none; padding: 5px 10px; border-radius: 4px;">' +
-                        '<i class="fa-solid fa-file-signature"></i> Process Report' +
-                    '</button>';
+                // 1. "For SRV" gets exclusive SRV Button
+                if (task.remarks === 'For SRV') {
+                    // Only show SRV Done button
+                    actionsHTML = `<button class="srv-done-btn" data-key="${task.key}">SRV Done</button>`;
                 } 
+                // 2. ALL other statuses get "Process" (Replacing Edit Action & Report Button)
                 else {
-                    var srvDoneDisabled = '';
-                    if (task.source !== 'invoice') srvDoneDisabled = 'disabled title="Only invoice tasks"';
-                    
-                    actionsHTML = '<button class="srv-done-btn" data-key="' + task.key + '" ' + srvDoneDisabled + '>SRV Done</button>' +
-                                  '<button class="modify-btn" data-key="' + task.key + '">Edit Action</button>';
+                    actionsHTML = `<button class="modify-btn" data-key="${task.key}">Process</button>`;
                 }
 
                 actionsCell.innerHTML = actionsHTML;
@@ -4349,11 +4345,14 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
             if (filterStatus) {
                 switch (filterStatus) {
                     case 'For SRV':
-                        validPositions = ['Site DC'];
+                    case 'No Need SRV':
+                        validPositions = ['Site DC', 'Site Engineer']; // Added Site Engineer for Danish
                         checkSite = true; // Enable Site Filtering
                         break;
+                    // ----------------------------------------------------------------------
                     case 'For IPC':
-                        validPositions = ['QS'];
+                        // REMOVED: validPositions = ['QS']; 
+                        validPositions = null; // Allow selecting ANYONE for IPC
                         break;
                     case 'For Approval':
                         validPositions = ['Site Engineer', 'COO', 'MEP Manager', 'Project Director', 'Accounts', 'Accounting'];
@@ -4700,13 +4699,13 @@ async function handleAddJobEntry(e) {
     // 1. Disable button immediately
     addJobButton.disabled = true;
 
-    // 2. Get Data (This now handles the "Other" text input validation internally)
+    // 2. Get Data (Handles "Other" input validation internally)
     const jobData = getJobDataFromForm();
 
-    // 3. If getJobDataFromForm returned null, it means validation failed (e.g., empty "Other" box)
+    // 3. If validation failed in getJobDataFromForm
     if (!jobData) {
         addJobButton.disabled = false;
-        return; // Stop execution here
+        return;
     }
 
     addJobButton.textContent = 'Adding...';
@@ -4729,24 +4728,13 @@ async function handleAddJobEntry(e) {
         return;
     }
 
-    // 6. IPC Specific Logic (QS Checks & Duplicate Warnings)
+    // 6. IPC Specific Logic (PO Required for Everyone, No Auto-Status)
     if (jobData.for === 'IPC') {
-        const isQS = currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'qs';
-        if (isQS) {
-            jobData.remarks = 'Ready';
-            if (!jobData.amount || !jobData.po) {
-                alert('As a QS, IPC jobs require both an Amount and PO number.');
-                addJobButton.disabled = false;
-                addJobButton.textContent = 'Add';
-                return;
-            }
-        } else {
-            if (!jobData.po) {
-                alert('For IPC jobs, a PO number is required.');
-                addJobButton.disabled = false;
-                addJobButton.textContent = 'Add';
-                return;
-            }
+        if (!jobData.po) {
+            alert('A PO Number is required for IPC jobs.');
+            addJobButton.disabled = false;
+            addJobButton.textContent = 'Add';
+            return;
         }
 
         // Check for duplicates
@@ -4766,7 +4754,7 @@ async function handleAddJobEntry(e) {
     jobData.timestamp = Date.now();
     jobData.enteredBy = currentApprover.Name;
 
-    // --- NEW: INITIAL HISTORY LOG ---
+    // Initial History Log
     jobData.history = [{
         action: "Created",
         by: currentApprover.Name,
@@ -4783,13 +4771,10 @@ async function handleAddJobEntry(e) {
 
         // 9. Refresh Data & UI
         await ensureAllEntriesFetched(true);
-
-        // IMPORTANT: Refresh the dropdown list so the new "Custom Type" appears immediately
         updateJobTypeDropdown();
-
         handleJobEntrySearch(jobEntrySearchInput.value);
-
-        // REPLACED: Close the modal instead of resetting the old form
+        
+        // Close modal
         closeStandardJobModal();
 
     } catch (error) {
@@ -4861,9 +4846,27 @@ async function handleUpdateJobEntry(e) {
         return; // Validation failed
     }
 
-    // 3. Special Logic for Invoice Jobs (Clear Attention)
+   // --- NEW LOGIC: IPC -> INVOICE TRANSITION ---
+    // If the job type is changed to "Invoice", force routing to Accounting
     if (jobData.for === 'Invoice') {
-        jobData.attention = '';
+        
+        // 1. Force Status to Pending
+        jobData.remarks = 'Pending';
+
+        // 2. Find User with Position "Accounting" (or "Accounts")
+        let accountingUser = null;
+        if (typeof allApproverData !== 'undefined' && allApproverData) {
+            accountingUser = Object.values(allApproverData).find(u => 
+                (u.Position && (u.Position.trim().toLowerCase() === 'accounting' || u.Position.trim().toLowerCase() === 'accounts'))
+            );
+        }
+
+        // 3. Set Attention
+        if (accountingUser) {
+            jobData.attention = accountingUser.Name;
+        } else {
+            jobData.attention = 'Accounting'; 
+        }
     }
 
     // 4. Validation
@@ -5436,30 +5439,70 @@ document.addEventListener('DOMContentLoaded', () => {
 function openModifyTaskModal(taskData) {
     if (!taskData) return;
 
+    // 1. Set Keys
     modifyTaskKey.value = taskData.key;
     modifyTaskSource.value = taskData.source;
     modifyTaskOriginalPO.value = taskData.originalPO || '';
     modifyTaskOriginalKey.value = taskData.originalKey || '';
-
+    
+    // Set existing attention if available
     document.getElementById('modify-task-originalAttention').value = taskData.attention || '';
 
-    if (modifyTaskAttentionChoices) {
-        modifyTaskAttentionChoices.setChoiceByValue(taskData.attention || '');
-    }
-
-    const currentStatus = taskData.remarks || 'Pending';
-    const standardStatuses = ['For SRV', 'For IPC', 'Report'];
-    if (standardStatuses.includes(currentStatus)) {
-        modifyTaskStatus.value = currentStatus;
-        modifyTaskStatusOtherContainer.classList.add('hidden');
-        modifyTaskStatusOther.value = '';
-    } else {
-        modifyTaskStatus.value = 'Other';
-        modifyTaskStatusOtherContainer.classList.remove('hidden');
-        modifyTaskStatusOther.value = currentStatus;
-    }
-
+    // 2. Set Note
     modifyTaskNote.value = taskData.note || '';
+
+    // 3. LOGIC: Handle "Report" Automation vs Standard
+    if (taskData.remarks === 'Report') {
+        // A. Auto-set Status to "Report Approval"
+        modifyTaskStatus.value = 'Report Approval';
+        modifyTaskStatusOtherContainer.classList.add('hidden'); // Ensure custom text box is hidden
+
+        // B. Auto-set Attention to "Mostafa" (Finance)
+        if (modifyTaskAttentionChoices) {
+            // Search the cached approver data for "Mostafa" or Finance position
+            let financeUser = null;
+            if (typeof allApproverData !== 'undefined' && allApproverData) {
+                // Try finding by Name "Mostafa" or Position "Finance"
+                financeUser = Object.values(allApproverData).find(u => 
+                    (u.Name && u.Name.toLowerCase().includes('mostafa')) || 
+                    (u.Position && u.Position.toLowerCase().includes('finance'))
+                );
+            }
+            
+            // If found, set it; otherwise keep current or empty
+            if (financeUser) {
+                modifyTaskAttentionChoices.setChoiceByValue(financeUser.Name);
+            } else if (taskData.attention) {
+                modifyTaskAttentionChoices.setChoiceByValue(taskData.attention);
+            }
+        }
+    } 
+    else {
+        // Standard Behavior for other statuses
+        if (modifyTaskAttentionChoices) {
+            modifyTaskAttentionChoices.setChoiceByValue(taskData.attention || '');
+        }
+
+        const currentStatus = taskData.remarks || 'Pending';
+        // Check if the status exists in the dropdown options
+        const statusOption = modifyTaskStatus.querySelector(`option[value="${currentStatus}"]`);
+        
+        if (statusOption) {
+            modifyTaskStatus.value = currentStatus;
+            modifyTaskStatusOtherContainer.classList.add('hidden');
+        } else {
+            modifyTaskStatus.value = 'Other';
+            modifyTaskStatusOtherContainer.classList.remove('hidden');
+            modifyTaskStatusOther.value = currentStatus;
+        }
+    }
+
+    // 4. Update Button Text
+    if (modifyTaskSaveBtn) {
+        modifyTaskSaveBtn.textContent = "Confirm Action";
+    }
+
+    // 5. Show Modal
     modifyTaskModal.classList.remove('hidden');
 }
 
@@ -5899,7 +5942,11 @@ function fetchAndDisplayInvoices(poNumber) {
             totalInvValueSum += currentInvValue;
             totalPaidWithRetention += currentAmtPaid;
 
-            if (!noteText.includes('retention')) {
+            totalInvValueSum += currentInvValue;
+            totalPaidWithRetention += currentAmtPaid;
+
+            // EXCLUDE 'retention' AND 'delivery confirmed' from the running total
+            if (!noteText.includes('retention') && !noteText.includes('delivery confirmed')) {
                 totalPaidWithoutRetention += currentAmtPaid;
             }
 
@@ -6780,7 +6827,11 @@ function buildDesktopReportView(reportData) {
 
             totalInvValue += invValue;
             totalPaidWithRetention += amountPaid;
-            if (!noteText.includes('retention')) totalPaidWithoutRetention += amountPaid;
+            
+            // EXCLUDE 'retention' AND 'delivery confirmed'
+            if (!noteText.includes('retention') && !noteText.includes('delivery confirmed')) {
+                totalPaidWithoutRetention += amountPaid;
+            }
 
             const releaseDateDisplay = inv.releaseDate ? new Date(normalizeDateForInput(inv.releaseDate) + 'T00:00:00').toLocaleDateString('en-GB') : '';
             const invoiceDateDisplay = inv.invoiceDate ? new Date(normalizeDateForInput(inv.invoiceDate) + 'T00:00:00').toLocaleDateString('en-GB') : '';
@@ -7385,6 +7436,7 @@ async function handleAddPOToBatch() {
             <td><select name="attention" class="batch-input"></select></td>
             <td><select name="status" class="batch-input">
                 <option value="For SRV">For SRV</option>
+		<option value="No Need SRV">No Need SRV</option>
                 <option value="Pending">Pending</option>
                 <option value="For IPC">For IPC</option>
                 <option value="Under Review">Under Review</option>
@@ -7455,6 +7507,7 @@ async function addInvoiceToBatchTable(invData) {
         <td><select name="attention" class="batch-input"></select></td>
         <td><select name="status" class="batch-input">
             <option value="For SRV">For SRV</option>
+	    <option value="No Need SRV">No Need SRV</option>
             <option value="Pending">Pending</option>
             <option value="For IPC">For IPC</option>
             <option value="Under Review">Under Review</option>
@@ -9678,12 +9731,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     activeTaskSearchInput.addEventListener('input', debounce((e) => handleActiveTaskSearch(e.target.value), 500));
 
+   // --- FIXED ACTIVE TASK TAB LISTENER ---
     if (activeTaskFilters) {
         activeTaskFilters.addEventListener('click', (e) => {
-            if (e.target.tagName === 'BUTTON') {
-                activeTaskFilters.querySelector('.active').classList.remove('active');
-                e.target.classList.add('active');
-                currentActiveTaskFilter = e.target.dataset.statusFilter;
+            // Find the closest button (in case user clicks an icon/badge inside)
+            const btn = e.target.closest('button');
+            
+            if (btn) {
+                // 1. Safe Removal: Only remove 'active' if a tab is currently selected
+                const currentActive = activeTaskFilters.querySelector('.active');
+                if (currentActive) {
+                    currentActive.classList.remove('active');
+                }
+
+                // 2. Set New Active
+                btn.classList.add('active');
+                currentActiveTaskFilter = btn.dataset.statusFilter;
+
+                // 3. Refresh Table
+                // Ensure we search active tasks, not fetch from scratch unless needed
                 handleActiveTaskSearch(activeTaskSearchInput.value);
             }
         });
@@ -10116,24 +10182,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return; // Stop here
             }
 
-            // 2. HANDLE PROCESS REPORT BUTTON (Priority 2)
-            const reportBtn = e.target.closest('.process-report-btn');
-            if (reportBtn) {
-                e.preventDefault();
-                e.stopPropagation(); // <--- THIS STOPS THE PDF FROM OPENING
-                const key = reportBtn.getAttribute('data-key');
-                const task = userActiveTasks.find(t => t.key === key);
-                
-                if (task) {
-                    if (typeof openProcessReportModal === 'function') {
-                        openProcessReportModal(task);
-                    } else {
-                        console.error("openProcessReportModal is missing");
-                        alert("Error: Modal logic not found. Check app.js.");
-                    }
-                }
-                return; // Stop here
-            }
 
             // 3. GET ROW DATA
             const row = e.target.closest('tr');
@@ -12380,17 +12428,26 @@ if (imNavNext) {
     });
 }
 
-// --- NEW: AUTO-COPY INVOICE VALUE TO AMOUNT PAID ---
+// --- SMART AUTO-FILL LOGIC (Value <-> Paid) ---
     if (imInvValueInput && imAmountPaidInput) {
+        
+        // 1. Typing in "Invoice Value" copies to "Amount Paid"
         imInvValueInput.addEventListener('input', () => {
             const val = imInvValueInput.value;
-            // Only copy if the value is NOT empty (as requested)
             if (val.trim() !== "") {
                 imAmountPaidInput.value = val;
             }
         });
-    }
 
+        // 2. Typing in "Amount Paid" FIRST sets "Invoice Value" to 0
+        imAmountPaidInput.addEventListener('input', () => {
+            // Only set to 0 if Invoice Value is currently empty
+            // This prevents accidental wiping of existing values
+            if (imInvValueInput.value.trim() === "") {
+                imInvValueInput.value = "0";
+            }
+        });
+    }
 
 // Desktop Manager Finalize Button Listener
     const desktopMgrBtn = document.getElementById('desktop-finalize-btn');
@@ -12401,133 +12458,70 @@ if (imNavNext) {
         newBtn.addEventListener('click', previewAndSendManagerReceipt);
     }
 
+// --- JOB RECORDS CLEAR BUTTON LOGIC (WIPE CLEAN) ---
+    const jobRecordsClearBtn = document.getElementById('reporting-clear-button');
+    const jobRecordsInput = document.getElementById('reporting-search');
+    const jobRecordsBody = document.getElementById('reporting-table-body');
+    const jobRecordsCount = document.getElementById('reporting-count-display');
+
+    if (jobRecordsClearBtn) {
+        jobRecordsClearBtn.addEventListener('click', () => {
+            // 1. Clear Input
+            if (jobRecordsInput) {
+                jobRecordsInput.value = '';
+                jobRecordsInput.focus();
+            }
+            
+            // 2. Clear Memory
+            sessionStorage.removeItem('reportingSearch');
+            // IMPORTANT: Reset the filter so no tab is "active" logic-wise until clicked again
+            // (Optional: You might want to keep the tab highlighted but show empty data. 
+            //  If you want to un-highlight tabs, add: 
+            //  document.querySelectorAll('#report-tabs button').forEach(b => b.classList.remove('active')); )
+
+            // 3. WIPE TABLE CLEAN
+            if (jobRecordsBody) {
+                jobRecordsBody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:30px; color:#888;">List cleared. Select a Category above to view records.</td></tr>';
+            }
+
+            // 4. Reset Count
+            if (jobRecordsCount) {
+                jobRecordsCount.textContent = '';
+            }
+            
+            // We DO NOT call handleReportingSearch() here, because that would reload data.
+        });
+    }
+
+    // --- ACTIVE TASK CLEAR BUTTON LOGIC (WIPE CLEAN) ---
+    const activeTaskClearBtn = document.getElementById('active-task-clear-button');
+    const activeTaskInput = document.getElementById('active-task-search');
+    const activeTaskBody = document.getElementById('active-task-table-body');
+    // Note: activeTaskCountDisplay usually shows TOTAL tasks in the pool, not just visible ones. 
+    // If you want to hide that too, uncomment the reset line below.
+
+    if (activeTaskClearBtn) {
+        activeTaskClearBtn.addEventListener('click', () => {
+            // 1. Clear Input
+            if (activeTaskInput) {
+                activeTaskInput.value = '';
+            }
+
+            // 2. Clear Memory
+            sessionStorage.removeItem('activeTaskSearch');
+
+            // 3. WIPE TABLE CLEAN
+            if (activeTaskBody) {
+                activeTaskBody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:30px; color:#888;">List cleared. Click a Status Tab above to view tasks.</td></tr>';
+            }
+            
+            // Optional: Un-highlight tabs so user knows they need to click one
+            const activeFilters = document.getElementById('active-task-filters');
+            if (activeFilters) {
+                activeFilters.querySelectorAll('.active').forEach(btn => btn.classList.remove('active'));
+            }
+        });
+    }
+
 }); // END OF DOMCONTENTLOADED
 
-// =========================================================
-// PROCESS REPORT LOGIC (GLOBAL FUNCTIONS)
-// =========================================================
-
-// 1. OPEN MODAL FUNCTION
-async function openProcessReportModal(task) {
-    var modal = document.getElementById('process-report-modal');
-    
-    if (!modal) {
-        alert("ERROR: The 'process-report-modal' HTML is missing from index.html.");
-        return;
-    }
-
-    document.getElementById('process-report-key').value = task.key;
-    document.getElementById('process-report-po').value = task.originalPO || task.po;
-    document.getElementById('process-report-inv').value = task.originalKey || task.key;
-    document.getElementById('process-report-note').value = '';
-
-    // Populate Approvers Dropdown
-    var select = document.getElementById('process-report-approver');
-    select.innerHTML = '<option value="" disabled selected>Loading...</option>';
-
-    if (!allApproverData) {
-        // Try to fetch if missing
-        try {
-            var snap = await db.ref('approvers').once('value');
-            allApproverData = snap.val();
-        } catch(e) { console.error(e); }
-    }
-
-    var validRoles = ['site engineer', 'mep manager', 'project director', 'coo', 'finance', 'ceo', 'manager'];
-    var optionsHTML = '<option value="" disabled selected>Select Approver...</option>';
-    
-    if (allApproverData) {
-        Object.values(allApproverData).forEach(function(user) {
-            var pos = (user.Position || '').toLowerCase();
-            var isMatch = validRoles.some(function(role) { return pos.indexOf(role) !== -1; });
-            if (isMatch) {
-                optionsHTML += '<option value="' + user.Name + '">' + user.Name + ' - ' + user.Position + '</option>';
-            }
-        });
-    }
-
-    select.innerHTML = optionsHTML;
-    modal.classList.remove('hidden');
-}
-
-// 2. SUBMIT BUTTON LISTENER (Runs once when DOM loads)
-document.addEventListener('DOMContentLoaded', function() {
-    var submitBtn = document.getElementById('process-report-submit-btn');
-    if (submitBtn) {
-        // Clone to ensure no duplicate listeners
-        var newBtn = submitBtn.cloneNode(true);
-        submitBtn.parentNode.replaceChild(newBtn, submitBtn);
-        
-        newBtn.addEventListener('click', async function() {
-            var key = document.getElementById('process-report-key').value;
-            var po = document.getElementById('process-report-po').value;
-            var invKey = document.getElementById('process-report-inv').value;
-            var approverName = document.getElementById('process-report-approver').value;
-            var note = document.getElementById('process-report-note').value;
-
-            if (!approverName) {
-                alert("Please select an approver.");
-                return;
-            }
-
-            newBtn.disabled = true;
-            newBtn.textContent = "Processing...";
-
-            try {
-                var safePO = po.replace(/[.#$[\]]/g, '_');
-                var recordKey = safePO + "_" + invKey;
-                
-                // A. SAVE PREPARED BY (SLOT 1)
-                await db.ref('manager_approved/' + recordKey).update({
-                    po: po,
-                    inv_key: invKey,
-                    approver_1: currentApprover.Name, 
-                    role_1: 'Prepared By',
-                    date_1: new Date().toLocaleDateString('en-GB'),
-                    status: 'Pending Approval'
-                });
-
-                // B. UPDATE INVOICE TASK (Send to Manager)
-                var noteText = "Prepared by " + currentApprover.Name;
-                if (note) noteText += ": " + note;
-
-                var updates = {
-                    status: 'Report Approval', 
-                    remarks: 'Report Approval',
-                    attention: approverName,
-                    note: noteText,
-                    dateResponded: formatDate(new Date())
-                };
-
-                await invoiceDb.ref('invoice_entries/' + po + '/' + invKey).update(updates);
-                
-                if (!allInvoiceData) await ensureInvoiceDataFetched();
-                var originalInv = (allInvoiceData[po] && allInvoiceData[po][invKey]) ? allInvoiceData[po][invKey] : {};
-                var updatedInv = { ...originalInv, ...updates };
-                
-                // Move task to Manager's Inbox
-                await updateInvoiceTaskLookup(po, invKey, updatedInv, currentApprover.Name); 
-
-                // C. LOG HISTORY
-                var historyEntry = {
-                    action: "Report Prepared",
-                    by: currentApprover.Name,
-                    timestamp: firebase.database.ServerValue.TIMESTAMP,
-                    note: "Sent to " + approverName + " for Approval"
-                };
-                await invoiceDb.ref('invoice_entries/' + po + '/' + invKey + '/history').push(historyEntry);
-
-                alert("Report Processed! Sent to " + approverName);
-                document.getElementById('process-report-modal').classList.add('hidden');
-                populateActiveTasks();
-
-            } catch (e) {
-                console.error(e);
-                alert("Error processing report.");
-            } finally {
-                newBtn.disabled = false;
-                newBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Confirm & Send';
-            }
-        });
-    }
-});
