@@ -298,6 +298,18 @@
 
     </div>
 
+<div id="financeBatchControls" style="display: none; margin-bottom: 15px; background: #e8f4f8; padding: 15px; border-radius: 8px; border: 1px solid #00748C; display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <h4 style="margin: 0; color: #003A5C;"><i class="fa-solid fa-layer-group"></i> Finance Batch Approval</h4>
+        <p style="margin: 5px 0 0 0; font-size: 0.85rem; color: #555;">
+            Items marked <strong>"Report Approved"</strong> will be sealed into a single QR Receipt.
+        </p>
+    </div>
+    <button onclick="finalizeApprovedBatch()" class="download-btn" style="background-color: #00748C; font-weight: bold; padding: 10px 20px;">
+        <i class="fas fa-qrcode"></i> Finalize Approved Batch
+    </button>
+</div>
+
     <div class="table-wrapper hidden-mobile">
         <table class="mobile-optimized-table">
             <thead>
@@ -737,18 +749,20 @@
         </div>
 
         <div class="form-group is-required">
-            <label>Value</label>
-            <input type="number" id="im-inv-value" name="invValue" step="0.01">
-        </div>
+    <label>Value</label>
+    <input type="text" id="im-inv-value" name="invValue" placeholder="0.00" inputmode="decimal" 
+           onblur="formatCurrencyField(this)" onfocus="cleanCurrencyField(this)" autocomplete="off">
+</div>
         <div class="form-group is-required">
             <label>Inv Date</label>
             <input type="date" id="im-invoice-date" name="invoiceDate">
         </div>
 
         <div class="form-group">
-            <label>Amt Paid</label>
-            <input type="number" id="im-amount-paid" name="amountPaid" step="0.01">
-        </div>
+    <label>Amt Paid</label>
+    <input type="text" id="im-amount-paid" name="amountPaid" placeholder="0.00" inputmode="decimal" 
+           onblur="formatCurrencyField(this)" onfocus="cleanCurrencyField(this)" autocomplete="off">
+</div>
         <div class="form-group">
             <label>Release</label>
             <input type="date" id="im-release-date" name="releaseDate">
@@ -761,7 +775,10 @@
 		<option value="No Need SRV">No Need SRV</option>
                 <option value="Pending">Pending</option>
                 <option value="For IPC">For IPC</option>
-                <option value="Under Review">Under Review</option>
+                <option value="Under Review" selected>Under Review</option>
+		<option value="In Process">In Process</option>
+ 		<option value="Unresolved">Unresolved</option>
+		<option value="On Hold">On Hold</option>
                 <option value="For Approval">For Approval</option>
                 <option value="CEO Approval">CEO Approval</option>
                 <option value="Report">Report</option>
@@ -796,7 +813,7 @@
     </div>
 </div>
 
-        <div class="form-group" style="grid-column: span 2;">
+       <div class="form-group" style="grid-column: span 2;">
             <label>Details</label>
             <input type="text" id="im-details" name="details">
         </div>
@@ -805,17 +822,7 @@
             <textarea id="im-note" name="note" style="height: 35px; min-height: 35px;"></textarea>
         </div>
 
-    </div>
-
-
-<div id="im-invoice-print-report-container" class="hidden" style="margin: 10px 0; text-align: center; border-top: 1px solid #eee; padding-top: 10px;">
-        <button type="button" id="btn-invoice-entry-print-report" class="action-btn" style="background-color: #17a2b8; color: white; padding: 8px 20px; border-radius: 4px; font-weight: bold; font-size: 0.9rem;">
-            <i class="fa-solid fa-print"></i> Print Finance Report (One-Time)
-        </button>
-        <small style="color: #666; display: block; margin-top: 5px; font-style: italic;">* Printing this will LOCK the report.</small>
-    </div>
-
-    <div id="im-po-search-container-bottom" class="im-po-search-container-bottom">
+    </div> <div id="im-po-search-container-bottom" class="im-po-search-container-bottom">
         <div class="search-bar-local">
             <i class="fa-solid fa-magnifying-glass" style="font-size: 0.8rem;"></i>
             <input type="text" id="im-po-search-input-bottom" placeholder="New PO...">
@@ -829,41 +836,38 @@
             <button type="button" id="im-back-to-active-task-button" class="secondary-btn hidden">Back</button>
         </div>
     </div>
-</form>
-        </div>
+</form> 
+</div> 
 
-        <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 25px;">
-            
+
+<div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 25px;">
             <div style="display: flex; gap: 20px; align-items: center; font-size: 0.9rem; color: #555;">
-                
                 <div style="white-space: nowrap;">
                     <strong style="color: #003A5C;">PO:</strong> 
                     <span class="im-po-no" style="font-weight: 600; color: #000;">---</span>
                 </div>
-
                 <div style="white-space: nowrap;">
                     <strong style="color: #003A5C;">Site:</strong> 
                     <span class="im-po-site" style="font-weight: 600; color: #000;">---</span>
                 </div>
-
                 <div style="white-space: nowrap; max-width: 300px; overflow: hidden; text-overflow: ellipsis;">
                     <strong style="color: #003A5C;">Vendor:</strong> 
                     <span class="im-po-vendor" style="font-weight: 600; color: #000;">---</span>
                 </div>
-
             </div>
 
-            <button type="button" class="modal-close-btn" style="margin: 0;">Close</button>
-        </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <div id="im-invoice-print-report-container" class="hidden">
+                    <button type="button" id="btn-invoice-entry-print-report" class="action-btn" style="background-color: #17a2b8; color: white; padding: 8px 20px; border-radius: 4px; font-weight: bold; font-size: 0.9rem;">
+                        <i class="fa-solid fa-print"></i> Print Finance Report (One-Time)
+                    </button>
+                </div>
 
-    </div>
-</div>
+                <button type="button" class="modal-close-btn" style="margin: 0;">Close</button>
+            </div>
+        </div> </div> </div> <div id="im-existing-invoices-container" class="hidden">
+     <hr class="section-divider">
 
-
-
-
-                    <div id="im-existing-invoices-container" class="hidden">
-                         <hr class="section-divider">
                          <div id="im-po-details-container-duplicate" class="im-po-details-container hidden">
                             <div class="po-details-grid">
                                <p><strong>PO No:</strong> <span class="im-po-no"></span></p>
@@ -894,7 +898,7 @@
                         <button id="im-batch-search-by-status-button" type="button" class="secondary-btn" style="background-color: #17a2b8;">Search by Status</button>
                         <div class="batch-note-search-wrapper"><select id="im-batch-note-search-select" placeholder="Search by Note..."></select></div>
                         <button id="im-batch-search-by-note-button" type="button" class="secondary-btn" style="background-color: #ffc107; color: #212529;">Search by Note</button>
-                        <button id="im-batch-clear-button" type="button" class="secondary-btn" style="background-color: #dc3545;">Clear Batch</button>
+                        <button id="im-batch-clear-button" type="button" class="secondary-btn" style="background-color: #dc3545;">Clear</button>
                     </div>
                     <div id="im-batch-global-controls" class="search-and-filter-group" style="margin-bottom: 20px; background-color: #f8f9fa; padding: 15px; border-radius: 6px;">
                         <div class="form-group" style="flex: 1; min-width: 200px; margin: 0;"><label for="im-batch-global-attention">Global Attention</label><select id="im-batch-global-attention"></select></div>
@@ -907,6 +911,8 @@
 				<option value="Pending">Pending</option>
 				<option value="For IPC">For IPC</option>
 				<option value="Under Review">Under Review</option>
+                                <option value="In Process">In Process</option>
+ 				<option value="Unresolved">Unresolved</option>
 				<option value="For Approval">For Approval</option>
 				<option value="CEO Approval">CEO Approval</option>
 				<option value="Report">Report</option>
@@ -960,6 +966,8 @@
                                 <option value="Pending">Pending</option>
                                 <option value="For IPC">For IPC</option>
                                 <option value="Under Review">Under Review</option>
+				<option value="In Process">In Process</option>
+ 				<option value="Unresolved">Unresolved</option>
 				<option value="For Approval">For Approval</option>
                                 <option value="CEO Approval">CEO Approval</option>
                                 <option value="Report">Report</option>
@@ -1092,6 +1100,8 @@
 				<option value="Pending">Pending</option>
 				<option value="For IPC">For IPC</option>
 				<option value="Under Review">Under Review</option>
+				<option value="In Process">In Process</option>
+ 				<option value="Unresolved">Unresolved</option>
 				<option value="For Approval">For Approval</option>
 				<option value="CEO Approval">CEO Approval</option>
 				<option value="Report">Report</option>
@@ -1230,7 +1240,18 @@
 </div>
                 </form>
             </div>
-            <div class="modal-footer"><button class="secondary-btn modal-close-btn">Cancel</button><button id="modify-task-save-btn" type="button">Save Changes</button></div>
+            <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+    
+    <button id="btn-admin-print-finance" onclick="printFinanceReport()" class="secondary-btn" style="display: none; background: transparent; color: #888; border: 1px solid #ccc; font-size: 0.8rem;">
+        <i class="fas fa-print"></i> Print Finance Report
+    </button>
+
+    <div style="display: flex; gap: 10px;">
+        <button class="secondary-btn modal-close-btn">Cancel</button>
+        <button id="modify-task-save-btn" type="button">Save Changes</button>
+    </div>
+
+</div>
         </div>
     </div>
 
@@ -1762,7 +1783,7 @@
 		    <option value="IPC Approval"></option>
 		    <option value="IPC Ready"></option>
                     <option value="PO Request"></option>
-					<option value="Awaiting Invoice"></option>
+		    <option value="Awaiting Invoice"></option>
                     <option value="Waiting For Approval"></option>
                     <option value="Under Review"></option>
                     <option value="On Hold"></option>

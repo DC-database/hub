@@ -42,7 +42,7 @@ const STOCK_LEGENDS = {
             "208": "Metal Works & Handrails",
             "209": "Sealants, Adhesives & Grouts",
             "210": "Wall Cladding & Panels",
-            "211": "Sanitary Fixtures & Accessories",
+            "211": "Sanitary Fixtures & Accessories & Parts",
             "212": "Accessories & Hardware"
         }
     },
@@ -64,45 +64,45 @@ const STOCK_LEGENDS = {
     "4": {
         "name": "Mechanical (HVAC)",
         "relations": {
-            "401": "HVAC Equipment (AHU/FCU/Fans)",
-            "402": "Ductwork & Accessories",
-            "403": "Pipes & Fittings",
+            "401": "HVAC Equipment",
+            "402": "Ventilation System",
+            "403": "Plumbing",
             "404": "Valves & Controls",
             "405": "Insulation & Cladding",
             "406": "Diffusers, Grilles & Louvers",
-            "407": "Supports, Hangers & Accessories",
-            "408": "Refrigerant & Copper",
+            "407": "Scaffolding",
+            "408": "Refrigerant & Copper Pipe",
             "409": "Filters & Spares",
-            "410": "Mechanical Consumables"
+            "410": "HVAC Consumables"
         }
     },
     "5": {
         "name": "HSE / PPE",
         "relations": {
-            "501": "Head Protection",
-            "502": "Hand Protection",
-            "503": "Foot Protection",
-            "504": "Body / Hi-Vis / Coveralls",
-            "505": "Fall Protection",
+            "501": "PPE - Personal Protective Equipment",
+            "502": "Medical Supplies",
+            "503": "Code Not In USE",
+            "504": "Code Not In USE",
+            "505": "Code Not In USE",
             "506": "Respiratory Protection",
-            "507": "Eye & Face Protection",
-            "508": "Hearing Protection",
-            "509": "First Aid & Safety Signs",
+            "507": "Code Not In USE",
+            "508": "Code Not In USE",
+            "509": "Hazardous Signage",
             "510": "Fire Safety"
         }
     },
     "6": {
         "name": "Office & Site Facilities",
         "relations": {
-            "601": "Stationery & Printing",
+            "601": "Office Supplies",
             "602": "Cleaning & Hygiene",
             "603": "Pantry & Drinking Water",
             "604": "Furniture & Fixtures",
-            "605": "IT & Electronics",
-            "606": "Site Accommodation",
+            "605": "Electronics Device & Appliances",
+            "606": "Code Not In USE",
             "607": "Temporary Utilities",
             "608": "Waste Management",
-            "609": "Small Appliances",
+            "609": "",
             "610": "Misc Facilities Supplies"
         }
     },
@@ -110,11 +110,11 @@ const STOCK_LEGENDS = {
         "name": "Equipment & Plant",
         "relations": {
             "701": "Heavy Equipment",
-            "702": "Small Plant & Compaction",
+            "702": "Plant",
             "703": "Generators & Power Equipment",
             "704": "Lifting & Rigging",
             "705": "Vehicles & Transport",
-            "706": "Measuring & Testing Instruments",
+            "706": "Code Not In USE",
             "707": "Spares & Maintenance",
             "708": "Fuel & Lubricants",
             "709": "Welding & Cutting Equipment",
@@ -127,12 +127,12 @@ const STOCK_LEGENDS = {
             "801": "Power Tools",
             "802": "Hand Tools",
             "803": "Tool Accessories (Bits/Blades)",
-            "804": "Fasteners (Screws/Bolts/Nails)",
+            "804": "Code Not In USE",
             "805": "Abrasives (Discs/Sandpaper)",
             "806": "Chemicals & Adhesives (Epoxy/Silicone)",
             "807": "Marking & Measuring",
             "808": "Packaging & Protection",
-            "809": "Electrical Hand Tools & Accessories",
+            "809": "Code Not In USE",
             "810": "General Consumables"
         }
     },
@@ -739,6 +739,9 @@ function handleGetTemplate() {
     document.body.removeChild(link);
 }
 
+// ==========================================================================
+// CORRECTED CSV UPLOAD (Merges Sites & Quantities)
+// ==========================================================================
 function handleUploadCSV(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -748,78 +751,169 @@ function handleUploadCSV(event) {
         const text = e.target.result;
         const lines = text.split('\n');
         
-        // 1. Get current Max Series
+        // 1. Setup Database & User
+        const database = (typeof db !== 'undefined') ? db : firebase.database();
+        const currentUser = (typeof currentApprover !== 'undefined') ? currentApprover.Name : 'System';
+        
+        // 2. Build an Index of EXISTING items to prevent duplicates
+        // Map: "product name (lowercase)" => Item Object
+        const itemMap = new Map();
         let maxSeries = 0;
+
+        // Load existing DB data into the map
         allMaterialStockData.forEach(item => {
+            if (item.productName) {
+                itemMap.set(item.productName.trim().toLowerCase(), item);
+            }
+            // Track the highest ID series so we can continue numbering
             const s = parseInt(item.series);
-            if(!isNaN(s) && s > maxSeries) maxSeries = s;
+            if (!isNaN(s) && s > maxSeries) maxSeries = s;
         });
 
-        const updates = {};
-        let count = 0;
+        // 3. Prepare an object to hold all our updates
+        const finalUpdates = {}; 
+        let mergedCount = 0;
+        let newCount = 0;
 
+        // 4. Loop through CSV Lines
         for (let i = 1; i < lines.length; i++) {
             const line = lines[i].trim();
             if (!line) continue;
             
-            // Clean split
             const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
-
-            // Expect: Item Name(0), F(1), RRR(2), Stock(3), Site(4)
+            // Expect: Name, F, RRR, Qty, Site
             if (cols.length >= 3) {
-                const pDetail = cols[0];
-                const ff = cols[1];  // Expect 1 digit
-                const rrr = cols[2]; // Expect 3 digits
-                const pStock = parseFloat(cols[3]) || 0;
+                const pName = cols[0];
+                const ff = cols[1];
+                const rrr = cols[2];
+                const pQty = parseFloat(cols[3]) || 0;
                 const pSite = (cols[4] && cols[4] !== "") ? cols[4] : "Main Store";
 
-                if(pDetail && ff && rrr && STOCK_LEGENDS[ff]) {
-                    // Auto-Gen Series
-                    maxSeries++;
-                    const sssss = String(maxSeries).padStart(5, '0');
-                    // FORMAT: F.RRR.SSSSS
-                    const pID = `${ff}.${rrr}.${sssss}`;
+                if (pName) {
+                    const normName = pName.trim().toLowerCase();
+                    
+                    // --- CHECK: Does this item already exist? ---
+                    // (Checks both the Database AND items we just created in previous CSV rows)
+                    let existingItem = itemMap.get(normName);
 
-                    const familyName = STOCK_LEGENDS[ff].name;
-                    const relationName = STOCK_LEGENDS[ff].relations ? STOCK_LEGENDS[ff].relations[rrr] : "Unknown";
-
-                    const newKey = firebase.database().ref('material_stock').push().key;
-                    const sites = {}; if(pStock>0) sites[pSite]=pStock;
-
-                    updates[newKey] = {
-                        productID: pID,
-                        productName: pDetail,
-                        familyCode: ff,
-                        family: familyName,
-                        relationCode: rrr,
-                        relationship: relationName,
-                        series: maxSeries,
+                    if (existingItem) {
+                        // === MERGE MODE (Item Exists) ===
+                        // 1. Initialize sites if missing
+                        if (!existingItem.sites) existingItem.sites = {};
                         
-                        // Compatibility
-                        category: familyName,
-                        details: relationName,
+                        // 2. Add Quantity to the specific Site
+                        let currentSiteQty = parseFloat(existingItem.sites[pSite] || 0);
+                        existingItem.sites[pSite] = currentSiteQty + pQty;
 
-                        stockQty: pStock,
-                        sites: sites,
-                        status: "Active",
-                        timestamp: Date.now()
-                    };
-                    count++;
+                        // 3. Recalculate Total Stock
+                        let total = 0;
+                        Object.values(existingItem.sites).forEach(q => total += parseFloat(q));
+                        existingItem.stockQty = total;
+                        existingItem.balanceQty = total;
+
+                        // 4. Mark as Updated
+                        existingItem.lastUpdated = Date.now();
+                        existingItem.updatedBy = currentUser;
+
+                        // Save to final update list
+                        finalUpdates[existingItem.key] = existingItem;
+                        mergedCount++;
+
+                    } else {
+                        // === NEW ITEM MODE (Item Not Found) ===
+                        if (ff && rrr && STOCK_LEGENDS[ff]) {
+                            maxSeries++;
+                            const sssss = String(maxSeries).padStart(5, '0');
+                            const pID = `${ff}.${rrr}.${sssss}`;
+                            const familyName = STOCK_LEGENDS[ff].name;
+                            const relationName = STOCK_LEGENDS[ff].relations ? STOCK_LEGENDS[ff].relations[rrr] : "Unknown";
+
+                            // Generate a new Firebase Key
+                            const newKey = database.ref('material_stock').push().key;
+
+                            const sites = {};
+                            if (pQty > 0) sites[pSite] = pQty;
+
+                            const newItem = {
+                                key: newKey, // Save key inside so the Map can use it later
+                                productID: pID,
+                                productName: pName,
+                                familyCode: ff,
+                                family: familyName,
+                                relationCode: rrr,
+                                relationship: relationName,
+                                series: maxSeries,
+                                category: familyName,
+                                details: relationName,
+                                stockQty: pQty,
+                                balanceQty: pQty,
+                                sites: sites,
+                                status: "Active",
+                                timestamp: Date.now(),
+                                updatedBy: currentUser
+                            };
+
+                            // Add to Map (so if the next row has the same name, it will Merge instead of Create)
+                            itemMap.set(normName, newItem);
+                            
+                            // Add to final update list
+                            finalUpdates[newKey] = newItem;
+                            newCount++;
+                        }
+                    }
                 }
             }
         }
 
-        if (count > 0) {
-            if(confirm(`Process ${count} records?`)) {
-                await firebase.database().ref('material_stock').update(updates);
-                alert("Upload Complete!");
-                localStorage.removeItem(STOCK_CACHE_KEY);
-                populateMaterialStock(true);
-            }
-        } else {
-            alert("No valid rows found or formatting error.");
+        // 5. Batch Upload Logic (Prevents timeouts)
+        const updateKeys = Object.keys(finalUpdates);
+        if (updateKeys.length === 0) {
+            alert("No valid data found or file is empty.");
+            document.getElementById('ms-csv-file-input').value = '';
+            return;
         }
-        document.getElementById('ms-csv-file-input').value = '';
+
+        const confirmMsg = `Ready to Process:\n\n- New Items: ${newCount}\n- Merged/Updated Items: ${mergedCount}\n\nTotal DB Operations: ${updateKeys.length}\n\nProceed?`;
+        
+        if (!confirm(confirmMsg)) {
+            document.getElementById('ms-csv-file-input').value = '';
+            return;
+        }
+
+        const BATCH_SIZE = 500;
+        let batch = {};
+        let count = 0;
+        const uploadBtn = document.getElementById('ms-upload-csv-btn');
+        if (uploadBtn) { uploadBtn.disabled = true; uploadBtn.innerText = "Processing..."; }
+
+        try {
+            for (let k of updateKeys) {
+                batch[k] = finalUpdates[k];
+                count++;
+
+                if (count >= BATCH_SIZE) {
+                    await database.ref('material_stock').update(batch);
+                    batch = {};
+                    count = 0;
+                }
+            }
+            // Upload remaining items
+            if (count > 0) {
+                await database.ref('material_stock').update(batch);
+            }
+
+            alert("Upload Successful!");
+            localStorage.removeItem(STOCK_CACHE_KEY);
+            populateMaterialStock(true);
+
+        } catch(e) {
+            console.error(e);
+            alert("Error uploading data. Check console.");
+        } finally {
+            if (uploadBtn) { uploadBtn.disabled = false; uploadBtn.innerHTML = '<i class="fa-solid fa-file-csv"></i> Upload CSV'; }
+            document.getElementById('ms-csv-file-input').value = '';
+        }
+
     };
     reader.readAsText(file);
 }

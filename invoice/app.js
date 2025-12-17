@@ -5,7 +5,7 @@
   - Cleanup note: removed bracket labels like // [1.a], kept logic unchanged.
 */
 
-const APP_VERSION = "5.0.8";
+const APP_VERSION = "5.1.5";
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -2128,8 +2128,6 @@ function isTaskComplete(task) {
 
     // 1. Special check for Job Entries (Invoice Type)
     if (task.source === 'job_entry' && task.for === 'Invoice') {
-        // If it's Approved/Rejected, it's NOT complete yet (it goes back to sender).
-        // Only mark complete if it's "With Accounts" or other final states.
         if (task.remarks === 'Approved' || task.remarks === 'Rejected') {
             return false; 
         }
@@ -2143,24 +2141,24 @@ function isTaskComplete(task) {
         'Paid',
         'CLOSED',
         'Cancelled'
-        // REMOVED 'Approved' and 'Rejected' so they stay in the list
     ];
 
     if (task.source === 'invoice') {
         if (completedStatuses.includes(task.remarks)) return true;
         if (task.enteredBy === currentApprover?.Name) {
             const trackingStatuses = ['For SRV', 'For IPC', 'Approved', 'Rejected'];
-            if (trackingStatuses.includes(task.remarks)) return false; // Keep these active for the sender
+            if (trackingStatuses.includes(task.remarks)) return false; 
             return true;
         }
         return false;
     }
 
     if (task.source === 'job_entry') {
-        if (task.attention === 'All') return true;
+        // [CHANGE] REMOVED THE LINE: if (task.attention === 'All') return true; 
+        // "All" tasks should now stay active until status is resolved.
+
         if (completedStatuses.includes(task.remarks)) return true;
         if (task.for === 'PR' && task.remarks === 'PO Ready') return true;
-        // Allow Approved/Rejected to pass through as active
         if (task.remarks === 'Approved' || task.remarks === 'Rejected') return false; 
         if (task.for !== 'PR' && task.dateResponded) return true;
     }
@@ -2955,22 +2953,38 @@ async function handleReportingSearch() {
 // ==========================================================================
 async function populateActiveTasks() {
     activeTaskTableBody.innerHTML = `<tr><td colspan="10">Loading tasks...</td></tr>`;
+    
+    // 1. Check if user is logged in
     if (!currentApprover || !currentApprover.Name) {
         activeTaskTableBody.innerHTML = `<tr><td colspan="10">Could not identify user.</td></tr>`;
         return;
     }
 
+    // =========================================================
+    // FINANCE BATCH VISIBILITY
+    // =========================================================
+    const financeBatchControls = document.getElementById('financeBatchControls');
+    if (financeBatchControls) {
+        const nameLower = (currentApprover.Name || '').toLowerCase();
+        const posLower = (currentApprover.Position || '').toLowerCase();
+        const isAuthorized = nameLower.includes('irwin') || 
+                             posLower.includes('finance') || 
+                             posLower.includes('manager');
+        financeBatchControls.style.display = isAuthorized ? 'flex' : 'none';
+    }
+
     try {
         const currentUserName = currentApprover.Name;
+        const currentUserSite = currentApprover.Site || ''; 
+        
         const userPositionLower = (currentApprover.Position || '').toLowerCase();
-        const isAccounting = userPositionLower === 'accounting';
+        const isAccounting = userPositionLower === 'accounting' || userPositionLower === 'accounts';
         const isQS = userPositionLower === 'qs';
         const isProcurement = userPositionLower === 'procurement';
 
         let userTasks = [];
         let pulledInvoiceKeys = new Set();
 
-        // 1. Load Data
         await ensureAllEntriesFetched();
         await ensureApproverDataCached();
         await ensureInvoiceDataFetched(false);
@@ -2983,7 +2997,7 @@ async function populateActiveTasks() {
         const jobTasks = allSystemEntries.filter(entry => {
             if (isTaskComplete(entry)) return false;
             
-            // Transfer Logic (Strictly for the person acting)
+            // 1. Transfer Logic
             if (['Transfer', 'Restock', 'Return', 'Usage'].includes(entry.for)) {
                 if (entry.remarks === 'Pending Confirmation') return entry.requestor === currentUserName;
                 if (entry.remarks === 'Pending Source') return entry.sourceContact === currentUserName;
@@ -2991,22 +3005,36 @@ async function populateActiveTasks() {
                 if (entry.remarks === 'Approved' || entry.remarks === 'In Transit') return entry.receiver === currentUserName;
                 return entry.attention === currentUserName;
             }
+
+            // 2. Invoice / Accounting Logic
+            if (isAccounting) {
+                if (entry.for === 'Invoice') return true;
+                if (entry.attention === 'Accounting') return true;
+            }
             
-            // Invoice Logic (Accounting sees ALL, but we only want to blink for assigned)
-            if (entry.for === 'Invoice') return isAccounting;
-            
-            // PR Logic (Procurement sees ALL)
+            // 3. PR Logic
             if (entry.for === 'PR') {
                 if (isProcurement) return true;
                 if (entry.attention === currentUserName) return true;
                 return false;
             }
             
-            // IPC Logic
-            if (entry.for === 'IPC') return isQS && entry.attention === currentUserName;
+            // 4. Direct Name Match
+            if (entry.attention === currentUserName) return true;
+
+            // 5. "ALL" Logic
+            if (entry.attention === 'All') {
+                if (currentUserSite === 'All') return true;
+                if (!entry.site || entry.site === 'All') return true;
+                const entrySiteID = entry.site.split(' ')[0];
+                if (currentUserSite.includes(entrySiteID)) return true;
+                return false; 
+            }
             
-            // Default
-            return entry.attention === currentUserName;
+            // 6. IPC Logic
+            if (entry.for === 'IPC' && isQS && entry.attention === currentUserName) return true;
+            
+            return false;
         });
 
         userTasks = jobTasks.map(task => {
@@ -3016,81 +3044,114 @@ async function populateActiveTasks() {
             return { ...task, source: 'job_entry' };
         });
 
-        // --- B. Invoice Tasks (From Inbox) ---
+        // --- B. Invoice Tasks (PERSONAL + ALL Inbox) ---
         const sanitizeFirebaseKey = (key) => key.replace(/[.#$[\]]/g, '_');
         const safeCurrentUserName = sanitizeFirebaseKey(currentUserName);
-        const invoiceTaskSnapshot = await invoiceDb.ref(`invoice_tasks_by_user/${safeCurrentUserName}`).once('value');
+        
+        const [personalSnapshot, allSnapshot] = await Promise.all([
+            invoiceDb.ref(`invoice_tasks_by_user/${safeCurrentUserName}`).once('value'),
+            invoiceDb.ref(`invoice_tasks_by_user/All`).once('value')
+        ]);
 
-        if (invoiceTaskSnapshot.exists()) {
-            const tasksData = invoiceTaskSnapshot.val();
-            for (const invoiceKey in tasksData) {
-                const task = tasksData[invoiceKey];
-                pulledInvoiceKeys.add(invoiceKey);
+        const processInvoiceSnapshot = (snapshot) => {
+            if (snapshot.exists()) {
+                const tasksData = snapshot.val();
+                for (const invoiceKey in tasksData) {
+                    if (pulledInvoiceKeys.has(invoiceKey)) continue;
 
-                let realAmountPaid = task.amountPaid;
-                if (!realAmountPaid && allInvoiceData && allInvoiceData[task.po] && allInvoiceData[task.po][invoiceKey]) {
-                    realAmountPaid = allInvoiceData[task.po][invoiceKey].amountPaid;
+                    const task = tasksData[invoiceKey];
+                    const isFromAll = (snapshot.key === 'All');
+
+                    // Site Check for "All" tasks
+                    if (isFromAll) {
+                        let allowed = false;
+                        if (currentUserSite === 'All') allowed = true;
+                        else if (!task.site || task.site === 'All') allowed = true;
+                        else if (currentUserSite.includes(task.site.split(' ')[0])) allowed = true;
+                        if (!allowed) continue;
+                    }
+
+                    pulledInvoiceKeys.add(invoiceKey);
+
+                    let realAmountPaid = task.amountPaid;
+                    if (!realAmountPaid && allInvoiceData && allInvoiceData[task.po] && allInvoiceData[task.po][invoiceKey]) {
+                        realAmountPaid = allInvoiceData[task.po][invoiceKey].amountPaid;
+                    }
+
+                    // Strict Attention Logic
+                    let finalAttention = task.attention;
+                    if (!finalAttention) {
+                        finalAttention = isFromAll ? 'All' : currentUserName;
+                    }
+
+                    const transformedInvoice = {
+                        key: `${task.po}_${invoiceKey}`,
+                        originalKey: invoiceKey,
+                        originalPO: task.po,
+                        source: 'invoice',
+                        for: 'Invoice',
+                        ref: task.ref,
+                        po: task.po,
+                        amount: task.amount,
+                        amountPaid: realAmountPaid || task.amount,
+                        site: task.site,
+                        group: 'N/A',
+                        attention: finalAttention, 
+                        enteredBy: 'Irwin',
+                        date: formatYYYYMMDD(task.date),
+                        remarks: task.status,
+                        timestamp: Date.now(),
+                        invName: task.invName,
+                        vendorName: (task.po && allPOData && allPOData[task.po]) ? (allPOData[task.po]['Supplier Name'] || 'N/A') : 'N/A',
+                        note: task.note
+                    };
+                    userTasks.push(transformedInvoice);
                 }
-
-                const transformedInvoice = {
-                    key: `${task.po}_${invoiceKey}`,
-                    originalKey: invoiceKey,
-                    originalPO: task.po,
-                    source: 'invoice',
-                    for: 'Invoice',
-                    ref: task.ref,
-                    po: task.po,
-                    amount: task.amount,
-                    amountPaid: realAmountPaid || task.amount,
-                    site: task.site,
-                    group: 'N/A',
-                    attention: currentUserName,
-                    enteredBy: 'Irwin',
-                    date: formatYYYYMMDD(task.date),
-                    remarks: task.status,
-                    timestamp: Date.now(),
-                    invName: task.invName,
-                    vendorName: (task.po && allPOData && allPOData[task.po]) ? (allPOData[task.po]['Supplier Name'] || 'N/A') : 'N/A',
-                    note: task.note
-                };
-                userTasks.push(transformedInvoice);
             }
-        }
+        };
 
-        // --- C. Accounting View (Unassigned Items) ---
+        processInvoiceSnapshot(personalSnapshot);
+        processInvoiceSnapshot(allSnapshot);
+
+        // --- C. Accounting View ---
         if (isAccounting) {
-            const statusesToPull = ['Pending', 'Report', 'Original PO'];
+            const statusesToPull = ['Pending', 'Report', 'Original PO', 'On Hold', 'Unresolved', 'In Process'];
             if (allInvoiceData && allPOData) {
                 for (const poNumber in allInvoiceData) {
                     const poInvoices = allInvoiceData[poNumber];
                     for (const invoiceKey in poInvoices) {
                         if (pulledInvoiceKeys.has(invoiceKey)) continue;
                         const inv = poInvoices[invoiceKey];
-                        // Pull if status matches AND it has NO specific attention (meaning it's for the dept)
-                        if (inv && statusesToPull.includes(inv.status) && (!inv.attention || inv.attention === '')) {
-                            const poDetails = allPOData[poNumber] || {};
-                            const transformedInvoice = {
-                                key: `${poNumber}_${invoiceKey}`,
-                                originalKey: invoiceKey,
-                                originalPO: poNumber,
-                                source: 'invoice',
-                                for: 'Invoice',
-                                ref: inv.invNumber || '',
-                                po: poNumber,
-                                amount: inv.invValue || '',
-                                amountPaid: inv.amountPaid || inv.invValue || '',
-                                site: poDetails['Project ID'] || 'N/A',
-                                group: 'N/A',
-                                attention: inv.attention || '', // Empty attention
-                                enteredBy: 'Irwin',
-                                date: formatYYYYMMDD(inv.invoiceDate),
-                                remarks: inv.status,
-                                timestamp: Date.now(),
-                                invName: inv.invName || '',
-                                vendorName: poDetails['Supplier Name'] || 'N/A',
-                                note: inv.note || ''
-                            };
-                            userTasks.push(transformedInvoice);
+                        
+                        let effAttention = inv.attention;
+                        if (!effAttention || effAttention === '') effAttention = 'Accounting';
+
+                        if (inv && statusesToPull.includes(inv.status)) {
+                            if (effAttention === 'Accounting' || effAttention === 'All') {
+                                const poDetails = allPOData[poNumber] || {};
+                                const transformedInvoice = {
+                                    key: `${poNumber}_${invoiceKey}`,
+                                    originalKey: invoiceKey,
+                                    originalPO: poNumber,
+                                    source: 'invoice',
+                                    for: 'Invoice',
+                                    ref: inv.invNumber || '',
+                                    po: poNumber,
+                                    amount: inv.invValue || '',
+                                    amountPaid: inv.amountPaid || inv.invValue || '',
+                                    site: poDetails['Project ID'] || 'N/A',
+                                    group: 'N/A',
+                                    attention: effAttention, 
+                                    enteredBy: 'Irwin',
+                                    date: formatYYYYMMDD(inv.invoiceDate),
+                                    remarks: inv.status,
+                                    timestamp: Date.now(),
+                                    invName: inv.invName || '',
+                                    vendorName: poDetails['Supplier Name'] || 'N/A',
+                                    note: inv.note || ''
+                                };
+                                userTasks.push(transformedInvoice);
+                            }
                         }
                     }
                 }
@@ -3098,49 +3159,45 @@ async function populateActiveTasks() {
         }
 
         userActiveTasks = userTasks.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-
         const totalTaskCount = userActiveTasks.length;
         
-        // --- FIX: CALCULATE "URGENT" COUNT FOR BLINKING ---
-        // Only blink if:
-        // 1. Attention matches my name EXACTLY
-        // 2. OR it is a Transfer task (Transfers in this list are strictly filtered for me already)
+        // --- URGENT COUNT CALCULATION (Action Count) ---
         const urgentCount = userActiveTasks.filter(t => 
-            t.attention === currentUserName || t.source === 'transfer_entry'
+            t.attention === currentUserName || 
+            t.source === 'transfer_entry' ||
+            (t.attention === 'Accounting' && isAccounting)
         ).length;
-        // --------------------------------------------------
 
-        // 1. Update Text Counts (Shows Total Pool)
-        if (activeTaskCountDisplay) activeTaskCountDisplay.textContent = `(Total Tasks: ${totalTaskCount})`;
+        if (activeTaskCountDisplay) {
+            activeTaskCountDisplay.textContent = `(Action: ${urgentCount} | Records: ${totalTaskCount})`;
+        }
         
-        // 2. Update Badges (Shows Total Pool)
         [wdActiveTaskBadge, imActiveTaskBadge, wdMobileNotifyBadge].forEach(badge => {
             if (badge) {
-                badge.textContent = totalTaskCount;
-                badge.style.display = totalTaskCount > 0 ? 'inline-block' : 'none';
+                badge.textContent = urgentCount;
+                badge.style.display = urgentCount > 0 ? 'inline-block' : 'none';
             }
         });
 
-        // 3. HEARTBEAT ANIMATION (Uses Urgent Count)
         const wdActiveLink = document.querySelector('.wd-nav-activetask a');
         const imActiveLink = document.getElementById('im-activetask-button');
         const mobileActiveLink = document.getElementById('im-mobile-activetask-link');
-
         const targets = [wdActiveLink, imActiveLink, mobileActiveLink];
 
         targets.forEach(el => {
             if (el) {
-                // CHANGED: Use urgentCount instead of totalTaskCount
                 if (urgentCount > 0) {
-                    el.classList.add('nav-pulse-active'); // Blink only if assigned to ME
+                    el.classList.add('nav-pulse-active');
                 } else {
-                    el.classList.remove('nav-pulse-active'); // Stop blinking if just viewing pool
+                    el.classList.remove('nav-pulse-active');
                 }
             }
         });
 
-        // Tab Logic (Same as before)
+        // --- D. Tab Calculation & TARGETED COLORING ---
         const tabCounts = {};
+        const urgentTabCounts = {}; 
+
         userActiveTasks.forEach(task => {
             let key = '';
             if (['Transfer', 'Restock', 'Return', 'Usage'].includes(task.for)) {
@@ -3148,11 +3205,34 @@ async function populateActiveTasks() {
             } else {
                 key = task.remarks || 'Pending';
             }
+            
             tabCounts[key] = (tabCounts[key] || 0) + 1;
+
+            // CHECK: Is this task specifically for ME?
+            if (task.attention === currentUserName || 
+                task.source === 'transfer_entry' ||
+                (task.attention === 'Accounting' && isAccounting)) {
+                
+                urgentTabCounts[key] = (urgentTabCounts[key] || 0) + 1;
+            }
         });
 
         const uniqueTabs = Object.keys(tabCounts).sort();
         let tabsHTML = '';
+
+        const getTabColor = (statusRaw) => {
+            const status = (statusRaw || '').toLowerCase();
+            if (status.includes('approved')) return '#28a745'; 
+            if (status.includes('rejected')) return '#dc3545'; 
+            if (status.includes('pending')) return '#ffc107';  
+            if (status.includes('unresolved')) return '#fd7e14'; 
+            if (status.includes('on hold')) return '#6c757d'; 
+            if (status.includes('process')) return '#17a2b8'; 
+            if (status.includes('report')) return '#007bff';  
+            if (status.includes('original')) return '#6610f2'; 
+            if (status.includes('transfer')) return '#00748C'; 
+            return '#fd7e14';
+        };
 
         if (uniqueTabs.length > 0) {
             if (currentActiveTaskFilter === 'All' || !uniqueTabs.includes(currentActiveTaskFilter)) {
@@ -3160,13 +3240,43 @@ async function populateActiveTasks() {
             }
             uniqueTabs.forEach(tabName => {
                 const activeClass = (tabName === currentActiveTaskFilter) ? 'active' : '';
-                let badgeColor = '#6c757d';
-                if (tabName === 'Transfer') badgeColor = '#00748C';
-                if (tabName === 'Restock') badgeColor = '#28a745';
-                if (tabName === 'Return') badgeColor = '#ffc107';
-                if (tabName === 'Usage') badgeColor = '#6f42c1';
+                
+                // --- CRITICAL VISUAL LOGIC ---
+                // Only color the tab if I have URGENT tasks in it.
+                const hasUrgentTasks = (urgentTabCounts[tabName] || 0) > 0;
+                
+                let tabColor, textColor, borderStyle, fontWeight;
 
-                tabsHTML += `<button class="${activeClass}" data-status-filter="${tabName}">${tabName} <span class="notification-badge" style="background-color: ${badgeColor}; font-size: 0.7rem; margin-left: 5px;">${tabCounts[tabName]}</span></button>`;
+                if (hasUrgentTasks) {
+                    // YES: It's for me. Light it up!
+                    const statusColor = getTabColor(tabName);
+                    tabColor = statusColor;
+                    textColor = statusColor;
+                    fontWeight = 'bold';
+                    // Thicker colored border to catch the eye
+                    borderStyle = `4px solid ${statusColor}`; 
+                } else {
+                    // NO: It's just a record. Keep it Grey/Boring.
+                    tabColor = '#6c757d'; 
+                    textColor = '#555';   
+                    fontWeight = 'normal';
+                    borderStyle = `1px solid #ddd`; 
+                }
+
+                tabsHTML += `
+                <button class="${activeClass}" 
+                        data-status-filter="${tabName}" 
+                        style="
+                            border-bottom: ${borderStyle}; 
+                            color: ${textColor}; 
+                            font-weight: ${fontWeight};
+                        ">
+                    ${tabName} 
+                    <span class="notification-badge" 
+                          style="background-color: ${tabColor}; color: white; font-size: 0.7rem; margin-left: 5px;">
+                        ${tabCounts[tabName]}
+                    </span>
+                </button>`;
             });
         } else {
             tabsHTML = '<button class="active" disabled>No Tasks</button>';
@@ -5994,18 +6104,17 @@ function fetchAndDisplayInvoices(poNumber) {
 
         invoices.forEach(inv => {
 
-            const currentInvValue = parseFloat(inv.invValue) || 0;
-            const currentAmtPaid = parseFloat(inv.amountPaid) || 0;
+            // NEW FIXED CODE
+	    // 1. Convert to string, Remove commas, Then parse
+	    const currentInvValue = parseFloat(String(inv.invValue).replace(/,/g, '')) || 0;
+	    const currentAmtPaid = parseFloat(String(inv.amountPaid).replace(/,/g, '')) || 0;
             const noteText = (inv.note || '').toLowerCase();
 
             totalInvValueSum += currentInvValue;
             totalPaidWithRetention += currentAmtPaid;
-
-            totalInvValueSum += currentInvValue;
-            totalPaidWithRetention += currentAmtPaid;
-
+      
             // EXCLUDE 'retention' AND 'delivery confirmed' from the running total
-            if (!noteText.includes('retention') && !noteText.includes('delivery confirmed')) {
+            if (!noteText.includes('retention')) {
                 totalPaidWithoutRetention += currentAmtPaid;
             }
 
@@ -6091,6 +6200,8 @@ function fetchAndDisplayInvoices(poNumber) {
         footer.style.display = invoiceCount > 0 ? '' : 'none';
     }
 
+    // [Inside fetchAndDisplayInvoices function]
+
     if (pendingJobEntryDataForInvoice) {
         if (pendingJobEntryDataForInvoice.amount) {
             imInvValueInput.value = pendingJobEntryDataForInvoice.amount;
@@ -6102,10 +6213,15 @@ function fetchAndDisplayInvoices(poNumber) {
         if (pendingJobEntryDataForInvoice.date) {
             imInvoiceDateInput.value = convertDisplayDateToInput(pendingJobEntryDataForInvoice.date);
         }
+
+        // --- ADD THESE LINES TO FIX THE STATUS ---
+        imStatusSelect.value = 'Under Review'; 
+        imStatusSelect.dispatchEvent(new Event('change')); // Triggers the "Attention" filter
+        // ----------------------------------------
+
         pendingJobEntryDataForInvoice = null;
     }
 }
-
 // ==========================================================================
 // 14. INVOICE MANAGEMENT: SIDEBAR & ACTIVE JOBS (UPDATED: GREEN APPROVALS)
 // ==========================================================================
@@ -6224,6 +6340,7 @@ async function handleActiveJobClick(e) {
         date
     };
 
+    // SCENARIO 1: It is an EXISTING INVOICE (This part was already working)
     if (source === 'invoice' && originalPO && originalKey) {
         jobEntryToUpdateAfterInvoice = null;
         pendingJobEntryDataForInvoice = null;
@@ -6241,9 +6358,18 @@ async function handleActiveJobClick(e) {
         return;
     }
 
+    // SCENARIO 2: It is a JOB ENTRY (e.g., "Pending")
+    // [FIX APPLIED HERE]
     try {
         await handlePOSearch(po);
         imBackToActiveTaskButton.classList.remove('hidden');
+
+        // --- NEW CODE: Force the modal to open ---
+        setTimeout(() => {
+            openIMInvoiceEntryModal(); 
+        }, 150); // Small delay to allow data to populate first
+        // ----------------------------------------
+
     } catch (error) {
         console.error("Error searching for PO from active job:", error);
         alert("Error searching for PO. Please try again manually.");
@@ -6286,14 +6412,15 @@ function populateInvoiceFormForEditing(invoiceKey) {
     imInvEntryIdInput.value = invData.invEntryID || '';
     document.getElementById('im-inv-no').value = invData.invNumber || '';
     imInvoiceDateInput.value = normalizeDateForInput(invData.invoiceDate);
-    imInvValueInput.value = invData.invValue || '';
-    imAmountPaidInput.value = invData.amountPaid || '0';
+    // FORMAT ON LOAD
+    imInvValueInput.value = formatFinanceNumber(invData.invValue);
+    imAmountPaidInput.value = formatFinanceNumber(invData.amountPaid || '0');
     document.getElementById('im-inv-name').value = invData.invName || '';
     document.getElementById('im-srv-name').value = invData.srvName || '';
     document.getElementById('im-details').value = invData.details || '';
     imReleaseDateInput.value = normalizeDateForInput(invData.releaseDate);
     
-    imStatusSelect.value = invData.status || 'For SRV';
+    imStatusSelect.value = invData.status || 'Under Review';
     document.getElementById('im-note').value = invData.note || '';
 
     // Dropdown Logic
@@ -6385,6 +6512,9 @@ async function handleAddInvoice(e) {
 
     const formData = new FormData(imNewInvoiceForm);
     const invoiceData = Object.fromEntries(formData.entries());
+    // SANITIZE: Remove commas before saving
+    if (invoiceData.invValue) invoiceData.invValue = invoiceData.invValue.replace(/,/g, '');
+    if (invoiceData.amountPaid) invoiceData.amountPaid = invoiceData.amountPaid.replace(/,/g, '');
     let attentionValue = imAttentionSelectChoices.getValue(true);
     invoiceData.attention = (attentionValue === 'None') ? '' : attentionValue;
 
@@ -6491,6 +6621,9 @@ async function handleUpdateInvoice(e) {
     }
     const formData = new FormData(imNewInvoiceForm);
     const invoiceData = Object.fromEntries(formData.entries());
+    // SANITIZE: Remove commas before saving
+    if (invoiceData.invValue) invoiceData.invValue = invoiceData.invValue.replace(/,/g, '');
+    if (invoiceData.amountPaid) invoiceData.amountPaid = invoiceData.amountPaid.replace(/,/g, '');
     let attentionValue = imAttentionSelectChoices.getValue(true);
     invoiceData.attention = (attentionValue === 'None') ? '' : attentionValue;
 
@@ -6948,7 +7081,7 @@ function buildDesktopReportView(reportData) {
             totalPaidWithRetention += amountPaid;
             
             // EXCLUDE 'retention' AND 'delivery confirmed'
-            if (!noteText.includes('retention') && !noteText.includes('delivery confirmed')) {
+            if (!noteText.includes('retention')) {
                 totalPaidWithoutRetention += amountPaid;
             }
 
@@ -7586,6 +7719,8 @@ async function handleAddPOToBatch() {
                 <option value="Under Review">Under Review</option>
                 <option value="CEO Approval">CEO Approval</option>
                 <option value="Report">Report</option>
+		<option value="Report Approval">Report Approval</option>
+		<option value="Report Approved">Report Approved</option>
                 <option value="With Accounts">With Accounts</option>
             </select></td>
             <td><input type="text" name="note" class="batch-input"></td>
@@ -7599,13 +7734,18 @@ async function handleAddPOToBatch() {
 
         await populateApproverSelect(attentionSelect);
 
-        const choices = new Choices(attentionSelect, {
-            searchEnabled: true,
-            shouldSort: false,
-            itemSelectText: '',
-            removeItemButton: true
-        });
-        row.choicesInstance = choices;
+       // 1. Initialize Choices Instance (Empty first)
+const choices = new Choices(attentionSelect, {
+    searchEnabled: true,
+    shouldSort: false,
+    itemSelectText: '',
+    removeItemButton: true
+});
+row.choicesInstance = choices;
+
+// 2. Apply Smart Filter immediately
+// This looks at the default status (e.g. "For SRV") and the PO's Site
+await populateAttentionDropdown(choices, statusSelect.value, site);
 
         // --- THE FIX IS HERE ---
         const globalAttnValue = imBatchGlobalAttentionChoices ? imBatchGlobalAttentionChoices.getValue(true) : null;
@@ -7654,9 +7794,14 @@ async function addInvoiceToBatchTable(invData) {
 	    <option value="No Need SRV">No Need SRV</option>
             <option value="Pending">Pending</option>
             <option value="For IPC">For IPC</option>
-            <option value="Under Review">Under Review</option>
+	    <option value="Unresolved">Unresolved</option>
+            <option value="For Approval">For Approval</option>
+	    <option value="In Process">In Process</option>
+ 	    <option value="Unresolved">Unresolved</option>
             <option value="CEO Approval">CEO Approval</option>
             <option value="Report">Report</option>
+	    <option value="Report Approval">Report Approval</option>
+	    <option value="Report Approved">Report Approved</option>
             <option value="With Accounts">With Accounts</option>
             <option value="On Hold">On Hold</option>
             <option value="CLOSED">CLOSED</option>
@@ -7677,13 +7822,18 @@ async function addInvoiceToBatchTable(invData) {
 
     await populateApproverSelect(attentionSelect);
 
-    const choices = new Choices(attentionSelect, {
-        searchEnabled: true,
-        shouldSort: false,
-        itemSelectText: '',
-        removeItemButton: true
-    });
-    row.choicesInstance = choices;
+    // 1. Initialize Choices Instance
+const choices = new Choices(attentionSelect, {
+    searchEnabled: true,
+    shouldSort: false,
+    itemSelectText: '',
+    removeItemButton: true
+});
+row.choicesInstance = choices;
+
+// 2. Apply Smart Filter immediately
+// uses invData.site which comes from the invoice/PO data
+await populateAttentionDropdown(choices, statusSelect.value, invData.site);
 
     // --- FIX STARTS HERE ---
     const globalAttentionVal = imBatchGlobalAttentionChoices ? imBatchGlobalAttentionChoices.getValue(true) : null;
@@ -7858,14 +8008,20 @@ async function handleSaveBatchInvoices() {
         let oldAttention = null;
 
         if (existingKey) {
+            // --- UPDATING EXISTING INVOICE ---
             if (allInvoiceData[poNumber] && allInvoiceData[poNumber][existingKey]) {
                 oldAttention = allInvoiceData[poNumber][existingKey].attention;
             }
 
+            // 1. Create the update promise
             promise = invoiceDb.ref(`invoice_entries/${poNumber}/${existingKey}`).update(invoiceData);
 
-            savePromises.push(updateInvoiceTaskLookup(poNumber, existingKey, invoiceData, oldAttention));
+            // [FIX IS HERE] You must Add this line:
+            savePromises.push(promise); 
+            // ------------------------------------
 
+            savePromises.push(updateInvoiceTaskLookup(poNumber, existingKey, invoiceData, oldAttention));
+            
             localCacheUpdates.push({
                 type: 'update',
                 po: poNumber,
@@ -7873,10 +8029,14 @@ async function handleSaveBatchInvoices() {
                 data: invoiceData
             });
             updatedInvoicesCount++;
+
         } else {
+            // --- CREATING NEW INVOICE ---
+            // (This part was already correct)
             invoiceData.invEntryID = invEntryID;
             invoiceData.dateAdded = getTodayDateString();
             invoiceData.createdAt = firebase.database.ServerValue.TIMESTAMP;
+
             if (!invoiceData.invName) {
                 invoiceData.invName = `${site}-${poNumber}-${invoiceData.invEntryID}-${vendor}`;
             }
@@ -10775,6 +10935,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (imEntrySidebarList) imEntrySidebarList.addEventListener('click', handleActiveJobClick);
 
     imAddInvoiceButton.addEventListener('click', handleAddInvoice);
+
+// --- FIX: HANDLE ENTER KEY IN INVOICE FORM ---
+if (imNewInvoiceForm) {
+    imNewInvoiceForm.addEventListener('submit', (e) => {
+        e.preventDefault(); // Stop the form from refreshing or defaulting
+
+        // Check if we are in "Edit Mode" (do we have a key?)
+        if (currentlyEditingInvoiceKey) {
+            // We are editing -> Trigger Update
+            handleUpdateInvoice(e);
+        } else {
+            // We are adding -> Trigger Add
+            handleAddInvoice(e);
+        }
+    });
+}
+// ---------------------------------------------
+
+
     imUpdateInvoiceButton.addEventListener('click', handleUpdateInvoice);
     imClearFormButton.addEventListener('click', () => {
         currentPO ? resetInvoiceForm() : resetInvoiceEntryPage();
@@ -11158,15 +11337,33 @@ if (imReportingContent) {
             });
         });
     }
-    if (imBatchGlobalStatus) {
-        imBatchGlobalStatus.addEventListener('change', (e) => {
-            const newValue = e.target.value;
-            const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
-            rows.forEach(row => {
-                row.querySelector('select[name="status"]').value = newValue;
-            });
+    
+if (imBatchGlobalStatus) {
+    imBatchGlobalStatus.addEventListener('change', (e) => {
+        const newValue = e.target.value;
+        const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
+        
+        rows.forEach(async (row) => {
+            // 1. Update the status dropdown value
+            row.querySelector('select[name="status"]').value = newValue;
+
+            // 2. Re-run the filter logic for this row
+            if (row.choicesInstance) {
+                const site = row.dataset.site; // Get site from row data
+                const currentSelection = row.choicesInstance.getValue(true);
+
+                // Apply filter (e.g., if "For SRV", show only Site DCs for this site)
+                await populateAttentionDropdown(row.choicesInstance, newValue, site);
+
+                // Restore previous selection if they are still allowed
+                if (currentSelection) {
+                    row.choicesInstance.setChoiceByValue(currentSelection);
+                }
+            }
         });
-    }
+    });
+}
+
     if (imBatchGlobalNote) {
         const updateNotes = (newValue) => {
             const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
@@ -12892,153 +13089,221 @@ console.log("✅ Report Workflow Loaded (With Receipt Upload)");
     }
 
 // =========================================================
-// FINAL FINANCE REPORT (SAFE RESTORE + CORRECT LAYOUT)
+// START: FINANCE BATCH & PRINT LOGIC (Paste in app.js)
 // =========================================================
-window.printFinalFinanceReport = async function(po, key) {
-    // 1. Safety Confirm
-    if (!confirm("⚠️ WARNING: This is a One-Time Print.\n\nOnce you print this, the document will be LOCKED.\n\nAre you sure?")) {
-        return;
+
+// --- 1. CONFIGURATION ---
+const FINANCE_APPROVER_NAME = "Mostafa"; // The user who manages Finance
+// NOTE: Ensure 'currentUser' variable is available globally in your app.js
+
+// --- 2. LOGIC TO SHOW/HIDE BUTTONS ---
+// Call this function whenever you open the dashboard or modal
+function updateFinanceUI(invoice) {
+    // A. Show Batch Button on Dashboard if user is Finance
+    const batchDiv = document.getElementById('financeBatchControls');
+    if (batchDiv) {
+        // Adjust 'currentUser' variable name based on your existing app code
+        // Assuming global variable 'currentUser' or similar exists
+        if (typeof currentUser !== 'undefined' && (currentUser.name === FINANCE_APPROVER_NAME || currentUser.role === "Admin")) {
+            batchDiv.style.display = "flex"; 
+        } else {
+            batchDiv.style.display = "none";
+        }
     }
 
-    const reportKey = `${po}_${key}`.replace(/[.#$[\]]/g, '_');
-    
-    try {
-        // 2. Fetch Data
-        const snapshot = await db.ref(`Reports/${reportKey}`).once('value');
-        const rpt = snapshot.val();
-
-        if (!rpt) {
-            alert("Approval data not found. Please ensure Finance has approved this.");
-            return;
-        }
-
-        // Check Lock
-        const invSnapshot = await invoiceDb.ref(`invoice_entries/${po}/${key}`).once('value');
-        const invData = invSnapshot.val();
-        if (invData.reportPrinted) {
-            alert("Security Alert: This report has already been printed.");
-            return;
-        }
-
-        // 3. Generate Base Table (Restores the Report Content)
-        await generateFinanceReport({ 
-            poNo: po, 
-            poValue: (allPOData[po] ? allPOData[po].Amount : 0),
-            site: (allPOData[po] ? allPOData[po]['Project ID'] : ''),
-            vendor: (allPOData[po] ? allPOData[po]['Supplier Name'] : '')
-        }); 
-
-        const modalContent = document.getElementById('im-finance-report-modal').querySelector('.modal-container');
-
-        // --- SAFE ANTI-DUPLICATE ---
-        // Instead of hiding all divs, we look specifically for the existing signature footer
-        // usually found after the table.
-        const existingFooter = modalContent.querySelector('.payment-details-wrapper + div, .table-responsive + div');
-        if (existingFooter && existingFooter.innerText.includes('Prepared By')) {
-            existingFooter.style.display = 'none';
-        }
-        // ---------------------------
-
-        // Cleanup old dynamic blocks
-        const oldSig = document.getElementById('report-signature-block');
-        if (oldSig) oldSig.remove();
-
-        // 4. CREATE NEW SIGNATURE BLOCK
-        const sigBlock = document.createElement('div');
-        sigBlock.id = "report-signature-block";
-        // Flexbox: Aligns items to the bottom so lines match up
-        sigBlock.style.cssText = "display: flex; justify-content: space-between; margin-top: 40px; padding: 0 40px; page-break-inside: avoid; align-items: flex-end;";
+    // B. Show Print Button in Modal
+    const printBtn = document.getElementById('btn-admin-print-finance');
+    if (printBtn && invoice) {
+        let isApproved = invoice.status === "Report Approved";
+        let isFinance = (typeof currentUser !== 'undefined' && (currentUser.name === FINANCE_APPROVER_NAME || currentUser.role === "Admin"));
         
-        // Helper: CONTENT ABOVE LINE / TITLE BELOW LINE
-        const renderLine = (roleLabel, data, isFinance) => {
-            const name = data ? data.name : '';
-            const esn = data ? data.esn_full : '';
-
-            // A. Content (Above Line)
-            let contentHtml = '';
-            
-            if (isFinance && data && data.qr_link) {
-                // FINANCE: QR + ESN (Name hidden as requested)
-                contentHtml = `
-                    <div id="report-finance-qr" style="margin: 0 auto 5px auto; width: 60px; height: 60px;"></div>
-                    <div style="font-size: 8px; font-family: monospace; letter-spacing: 1px;">${esn}</div>
-                `;
-            } else if (data) {
-                // OTHERS: Name + ESN
-                contentHtml = `
-                    <div style="font-weight: 700; font-size: 13px; margin-bottom: 2px;">${name}</div>
-                    <div style="font-size: 9px; color: #555; font-family: monospace;">${esn}</div>
-                `;
+        // Only show if Approved AND User is Finance
+        if (isApproved && isFinance) {
+            printBtn.style.display = "block";
+            // Optional: Disable if already printed and not Admin
+            if (invoice.reportPrinted && currentUser.role !== "Admin") {
+                printBtn.disabled = true;
+                printBtn.title = "Report already printed (Locked)";
             } else {
-                // SPACER (Keeps the line aligned even if empty)
-                contentHtml = `<div style="height: 60px;"></div>`; 
+                printBtn.disabled = false;
             }
-
-            return `
-            <div style="width: 22%; text-align: center;">
-                <div style="padding-bottom: 5px; min-height: 40px; display: flex; flex-direction: column; justify-content: flex-end;">
-                    ${contentHtml}
-                </div>
-
-                <div style="border-bottom: 1px solid #000; width: 100%; margin-bottom: 8px;"></div>
-
-                <div style="font-weight: bold; font-size: 12px; color: #333;">${roleLabel}</div>
-            </div>`;
-        };
-
-        // Render 4 Columns
-        sigBlock.innerHTML = `
-            ${renderLine('Prepared By', rpt.prepared_by, false)}
-            ${renderLine('Site Approval', rpt.site_approval, false)}
-            ${renderLine('Finance', rpt.finance_approval, true)}
-            ${renderLine('CEO', rpt.ceo_approval, false)}
-        `;
-
-        // Append to modal
-        const tableContainer = modalContent.querySelector('.table-responsive') || modalContent;
-        tableContainer.appendChild(sigBlock);
-
-        // 5. GENERATE QR (Finance Only)
-        if (rpt.finance_approval && rpt.finance_approval.qr_link) {
-            setTimeout(() => {
-                const qrTarget = document.getElementById('report-finance-qr');
-                if (qrTarget) {
-                    qrTarget.innerHTML = '';
-                    new QRCode(qrTarget, {
-                        text: rpt.finance_approval.qr_link,
-                        width: 60,
-                        height: 60,
-                        correctLevel: QRCode.CorrectLevel.M
-                    });
-                }
-            }, 100);
+        } else {
+            printBtn.style.display = "none";
         }
-
-        // 6. SHOW & PRINT
-        document.getElementById('im-finance-report-modal').classList.remove('hidden');
-        
-        setTimeout(async () => {
-            window.print();
-
-            // 7. LOCK RECORD
-            await invoiceDb.ref(`invoice_entries/${po}/${key}`).update({
-                reportPrinted: true,
-                reportPrintedDate: new Date().toISOString(),
-                reportPrintedBy: currentApprover.Name
-            });
-
-            // Close and refresh
-            document.getElementById('im-finance-report-modal').classList.add('hidden');
-            const currentSearch = sessionStorage.getItem('imReportingSearch') || '';
-            populateInvoiceReporting(currentSearch);
-
-        }, 1000); 
-
-    } catch (e) {
-        console.error("Print Error:", e);
-        alert("System Error: Could not generate report.");
     }
 }
+
+// --- 3. BATCH FINALIZATION FUNCTION ---
+function finalizeApprovedBatch() {
+    if (confirm("Are you sure you want to finalize all 'Report Approved' items? This will generate the official QR codes.")) {
+        
+        const batchID = "BATCH-" + new Date().getTime().toString().substr(-6);
+        const batchDate = new Date().toLocaleDateString();
+        const timestamp = new Date().getTime();
+
+        // Query Firebase for items in Mostafa's queue that are "Report Approved"
+        firebase.database().ref('invoices')
+            .orderByChild('attention')
+            .equalTo(FINANCE_APPROVER_NAME)
+            .once('value')
+            .then(snapshot => {
+                let updates = {};
+                let count = 0;
+
+                snapshot.forEach(child => {
+                    let inv = child.val();
+                    // Check logic: Must be 'Report Approved' AND waiting for batch
+                    // You might need to add a flag 'readyForBatch' during the approval step
+                    // Or just trust the status "Report Approved"
+                    if (inv.status === "Report Approved") {
+                        
+                        // 1. Generate the Finance Signature Block
+                        updates[child.key + '/finance_approval'] = {
+                            name: FINANCE_APPROVER_NAME,
+                            date: batchDate,
+                            timestamp: timestamp,
+                            batchID: batchID, // THE SHARED ID
+                            esn: batchID      // VISUAL ESN
+                        };
+
+                        // 2. Move Task Forward (e.g. back to Sender/Prepared By)
+                        let sender = inv.prepared_by_name || "Sender";
+                        updates[child.key + '/attention'] = sender;
+                        
+                        // 3. Update Status to indicate it's done
+                        updates[child.key + '/status'] = "Report Approved"; // Stays approved
+                        updates[child.key + '/readyForPrint'] = true; 
+
+                        count++;
+                    }
+                });
+
+                if (count > 0) {
+                    firebase.database().ref('invoices').update(updates).then(() => {
+                        alert(`Batch Finalized! ${count} invoices sealed.\nBatch ID: ${batchID}`);
+                        // Reload your table function here if it exists (e.g., loadActiveTasks())
+                        if (typeof loadActiveTasks === 'function') loadActiveTasks(); 
+                    });
+                } else {
+                    alert("No 'Report Approved' items found in your queue.");
+                }
+            });
+    }
+}
+
+// --- 4. PRINT REPORT FUNCTION ---
+function printFinanceReport() {
+    // Get the key from your modal's hidden input
+    const key = document.getElementById('modify-task-key').value; 
+    
+    firebase.database().ref('invoices/' + key).once('value').then(snapshot => {
+        let inv = snapshot.val();
+        
+        if (!inv.finance_approval || !inv.finance_approval.batchID) {
+            alert("Error: This report has not been finalized by Finance yet.");
+            return;
+        }
+
+        // --- PREPARE DATA ---
+        let prepLine = `${inv.date || ''} / ${inv.prepared_by_name || 'Sender'}`;
+        
+        // Site Manager: Date / ESN / Name
+        let siteData = inv.site_approval || {};
+        let siteLine = siteData.name ? `${siteData.date} / ${siteData.esn || ''} / ${siteData.name}` : "";
+
+        // Finance: Date / ESN / Name
+        let finData = inv.finance_approval || {};
+        let finLine = finData.name ? `${finData.date} / ${finData.batchID} / ${finData.name}` : "";
+        
+        // QR Code Logic (Using Batch ID)
+        let qrData = encodeURIComponent(finData.batchID);
+        let qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${qrData}`;
+        let financeQRBlock = `<img src="${qrUrl}" style="width:70px; height:70px; display:block; margin: 0 auto 5px auto;">`;
+
+        // --- OPEN PRINT WINDOW ---
+        let printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>Finance Report ${inv.po_number || ''}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 40px; }
+                    .header { text-align: center; margin-bottom: 40px; }
+                    .sig-container { display: flex; justify-content: space-between; margin-top: 100px; }
+                    .sig-box { width: 30%; text-align: center; position: relative; }
+                    .line { border-top: 1px solid #000; margin-top: 5px; padding-top: 5px; font-size: 12px; }
+                    .role-title { font-weight: bold; margin-top: 5px; }
+                    .qr-holder { height: 75px; display: flex; align-items: flex-end; justify-content: center; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h2>Financial Report Approval</h2>
+                    <p>PO: ${inv.po_number || 'N/A'} | Vendor: ${inv.vendor_name || 'N/A'}</p>
+                </div>
+                
+                <div style="margin-bottom: 50px;">
+                    <p><strong>Status:</strong> ${inv.status}</p>
+                    <p><strong>Amount:</strong> ${inv.invoice_amount || inv.amount || '0.00'}</p>
+                </div>
+
+                <div class="sig-container">
+                    
+                    <div class="sig-box">
+                        <div class="qr-holder"></div>
+                        <div class="line">${prepLine}</div>
+                        <div class="role-title">Prepared By</div>
+                    </div>
+
+                    <div class="sig-box">
+                        <div class="qr-holder"></div>
+                        <div class="line">${siteLine}</div>
+                        <div class="role-title">Site Approval</div>
+                    </div>
+
+                    <div class="sig-box">
+                        <div class="qr-holder">${financeQRBlock}</div>
+                        <div class="line">${finLine}</div>
+                        <div class="role-title">Finance</div>
+                    </div>
+
+                </div>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+        
+        // Lock the report
+        if (currentUser.role !== "Admin") {
+            firebase.database().ref('invoices/' + key).update({ reportPrinted: true });
+        }
+    });
+}
+// =========================================================
+// END: FINANCE BATCH & PRINT LOGIC
+// =========================================================
+
+// =========================================================
+// FINANCE INPUT FORMATTERS (Commas)
+// =========================================================
+window.formatCurrencyField = function(input) {
+    if (!input.value || input.value.trim() === '') return;
+    // Remove existing commas to get raw number
+    let raw = input.value.replace(/,/g, '');
+    let num = parseFloat(raw);
+    if (!isNaN(num)) {
+        // Format with commas and 2 decimal places
+        input.value = num.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
+};
+
+window.cleanCurrencyField = function(input) {
+    if (!input.value) return;
+    // Remove commas so user can edit raw number
+    input.value = input.value.replace(/,/g, '');
+    // Select all text for easy overwriting
+    input.select();
+};
 
 }); // END OF DOMCONTENTLOADED
 
