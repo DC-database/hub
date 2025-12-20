@@ -4617,35 +4617,43 @@ body.is-ceo .desktop-only.col-group {
     color: #333 !important;
 }
 
-/* Fix Dropdown Menu (No Gap + Premium Look) */
+/* ==========================================================================
+   FIX: ALIGN ATTENTION FIELD WITH OTHER INPUTS
+   ========================================================================== */
+
+/* 1. RESET THE CONTAINER (Crucial for Alignment) */
+.choices {
+    box-sizing: border-box !important; /* Include padding/border in width calculation */
+    width: 100% !important;            /* Fit parent exactly */
+    max-width: 100% !important;        /* DO NOT exceed parent width */
+    margin: 0 !important;              /* Remove any default margins pushing it out */
+    padding: 0 !important;             /* Remove specific padding on wrapper */
+    display: block !important;
+}
+
+/* 2. MATCH THE INNER BOX TO STANDARD INPUTS */
+.choices__inner {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-height: 38px !important;       /* Standard height */
+    border: 1px solid #ced4da !important; 
+    border-radius: 4px !important;
+    background-color: white !important;
+    padding: 4px 10px !important;      /* Adjust internal spacing */
+}
+
+/* 3. ENSURE DROPDOWN DOESN'T SHIFT WIDTH */
 .choices__list.choices__list--dropdown {
-    z-index: 1000 !important;       /* Top of everything */
-    margin-top: 0 !important;       /* NO GAP */
-    top: 100% !important;           /* Snap to bottom */
-
-    border: 1px solid #003A5C !important;
-    border-top: none !important;
-    border-radius: 0 0 6px 6px !important;
-
-    box-shadow: 0 10px 20px rgba(0, 58, 92, 0.15) !important;
-    padding: 0 !important;
-    background: white !important;
+    width: 100% !important;            /* Exact match to container */
+    margin-left: 0 !important;         /* No shifting left/right */
+    margin-right: 0 !important;
+    box-sizing: border-box !important;
 }
 
-/* Style the List Items */
-.choices__list--dropdown .choices__item {
-    padding: 10px 15px !important;
-    font-size: 0.9rem !important;
-    color: #333 !important;
-    border-bottom: 1px solid #f0f0f0 !important;
-    transition: background-color 0.2s;
-}
-
-/* Hover Effect */
+/* Hover Effect (Optional but nice) */
 .choices__list--dropdown .choices__item--selectable.is-highlighted {
-    background-color: #e3f2fd !important; /* Light Blue */
-    color: #003A5C !important;
-    font-weight: 600 !important;
+    background-color: #f2f9fb !important; /* Light teal hover */
+    color: #00748C !important;
 }
 
 /* Fix Search Input Inside Dropdown */
@@ -4915,8 +4923,8 @@ body.is-ceo .desktop-only.col-group {
     box-shadow: 0 0 0 3px rgba(217, 48, 37, 0.12) !important;
 }
 #im-invoice-entry-modal #im-attention-group.im-invalid .choices__inner {
-    background: #fff5f5 !important;
-    border-color: #d93025 !important;
+    background: #f0c0c4 !important;
+    border-color: #dc3545 !important;
     box-shadow: 0 0 0 3px rgba(217, 48, 37, 0.12) !important;
 }
 
@@ -5669,3 +5677,146 @@ body.inventory-mode .wd-nav-material {
 #im-nav li a[data-section="im-invoice-entry"] i {
     color: inherit !important;
 }
+
+/* --- INVOICE MODAL TOOLBAR FIX --- */
+
+.im-toolbar-row {
+    display: flex;
+    justify-content: space-between; /* Pushes Search to Left, Buttons to Right */
+    align-items: center;
+    width: 100%;
+}
+
+.im-compact-search {
+    width: 180px !important; /* Forces the search bar to be short */
+    height: 38px;
+    padding: 5px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    margin-bottom: 0 !important; /* Removes default margin */
+}
+
+.im-toolbar-buttons {
+    display: flex;
+    gap: 10px; /* Space between buttons */
+}
+
+.im-toolbar-buttons button {
+    height: 38px;
+    padding: 0 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin: 0 !important; /* Ensures buttons line up perfectly */
+}
+
+/* --- FIX: Make Active Jobs Sidebar Accessible Over Modal --- */
+
+#im-entry-sidebar {
+    /* 1. Raise it above the modal overlay (which is usually z-index 1000-9999) */
+    z-index: 10005 !important; 
+    
+    /* 2. Ensure it positions correctly to accept clicks */
+    position: right; 
+}
+
+/* Optional: Ensure the modal overlay sits just behind it */
+.modal-overlay {
+    z-index: 9999 !important; 
+}
+
+/* ======================================================= */
+/* NEW MODAL STYLING (Red Fields & Green Search)          */
+/* ======================================================= */
+
+/* --- 1. THE RED GROUP (Invoice Details, Status, Attention) --- */
+#im-inv-no, 
+#im-inv-value, 
+#im-invoice-date, 
+#im-status, 
+#im-attention {
+    border: 2px solid #dc3545 !important;    /* Red Border */
+    background-color: rgba(220, 53, 69, 0.05) !important; /* Faint Red Background */
+    color: #000;
+    transition: all 0.3s ease;
+}
+
+/* Red Glow on Focus */
+#im-inv-no:focus, 
+#im-inv-value:focus, 
+#im-invoice-date:focus,
+#im-status:focus, 
+#im-attention:focus {
+    background-color: rgba(220, 53, 69, 0.1) !important;
+    box-shadow: 0 0 10px rgba(220, 53, 69, 0.25) !important; /* Red Glow */
+    outline: none;
+}
+
+
+/* --- 2. THE DARK GREEN SEARCH BAR --- */
+#im-po-search-input-bottom {
+    border: 2px solid #006400 !important;    /* Dark Green Border */
+    background-color: rgba(0, 100, 0, 0.05) !important; /* Very faint Green Background */
+    color: #000;
+    transition: all 0.3s ease;
+}
+
+/* Green Glow on Focus */
+#im-po-search-input-bottom:focus {
+    background-color: rgba(0, 100, 0, 0.1) !important;
+    box-shadow: 0 0 10px rgba(0, 100, 0, 0.3) !important; /* Green Glow */
+    outline: none;
+}
+
+/* ============================================================ */
+/* FORCE ATTENTION DROPDOWN RED (Nuclear Option)                */
+/* ============================================================ */
+
+/* 1. Target the box using the Modal ID + Group ID (Very High Priority) */
+#im-invoice-entry-modal #im-attention-group .choices__inner {
+    border: 2px solid #FF0000 !important;       /* Bright Red */
+    background-color: rgba(255, 0, 0, 0.05) !important; /* Red Tint */
+    color: #000 !important;
+    opacity: 1 !important;
+}
+
+/* 2. Target the search input text inside it */
+#im-invoice-entry-modal #im-attention-group .choices__input {
+    background-color: transparent !important;
+    color: #000 !important;
+}
+
+/* 3. Ensure the dropdown icon is visible/colored */
+#im-invoice-entry-modal #im-attention-group .choices::after {
+    border-color: #FF0000 transparent transparent transparent !important;
+    opacity: 1 !important;
+}
+
+/* 4. Keep it Red when Open/Focused */
+#im-invoice-entry-modal #im-attention-group .choices.is-focused .choices__inner,
+#im-invoice-entry-modal #im-attention-group .choices.is-open .choices__inner {
+    border-color: #FF0000 !important;
+    box-shadow: 0 0 10px rgba(255, 0, 0, 0.3) !important;
+}
+
+/* ======================================================= */
+/* NEW FIELD COLORS (Yellow & Grey)                       */
+/* ======================================================= */
+
+/* --- 2. THE GREY GROUP (Rest of the fields: Release, Details, Note) --- */
+#im-release-date,
+#im-details,
+#im-amount-paid,
+#im-note,
+#im-inv-name,
+#im-srv-name,
+#im-report-name,
+#im-inv-entry-id {
+    border: 2px solid #adb5bd !important;    /* Standard Grey */
+    background-color: rgba(0, 0, 0, 0.02) !important; /* Very Faint Grey */
+    color: #000;
+    transition: all 0.3s ease;
+}
+

@@ -284,7 +284,7 @@ window.filterStockByCategory = function(category) {
 };
 
 // ==========================================================================
-// 3. RENDER TABLE
+// RENDER TABLE (With Super Admin Edit, Item Delete & Site-Specific Delete)
 // ==========================================================================
 function renderMaterialStockTable(data) {
     const tableBody = document.getElementById('ms-table-body');
@@ -296,7 +296,7 @@ function renderMaterialStockTable(data) {
     const isAdmin = (typeof currentApprover !== 'undefined' && (currentApprover.Role || '').toLowerCase() === 'admin');
     const isIrwin = (typeof currentApprover !== 'undefined' && currentApprover.Name === 'Irwin');
 
-    // Show/Hide Bulk Button
+    // Show/Hide Bulk Button (Irwin Only)
     const bulkBtn = document.getElementById('ms-bulk-delete-btn');
     if (bulkBtn) {
         if (isIrwin) bulkBtn.classList.remove('hidden');
@@ -363,24 +363,42 @@ function renderMaterialStockTable(data) {
         let breakdownRows = '';
         let hasSites = false;
 
+        // --- SITE BREAKDOWN LOGIC ---
         if (item.sites) {
             Object.entries(item.sites).forEach(([site, qty]) => {
                 const q = parseFloat(qty);
-                if (q !== 0) {
+                
+                // Show site if quantity > 0 OR if user is Irwin (so he can see 0 qty sites to delete them if needed)
+                if (q !== 0 || isIrwin) {
                     hasSites = true;
                     totalStock += q;
-                    breakdownRows += `<tr><td style="width: 70%; padding-left: 20px;">${getSiteDisplayName(site)}</td><td style="width: 30%; font-weight:bold;">${q}</td></tr>`;
+
+                    let deleteSiteAction = '';
+                    if (isIrwin) {
+                        // The red [x] button to delete ONLY this site
+                        deleteSiteAction = `<span onclick="deleteSiteStock('${item.key}', '${site}')" style="color:red; font-weight:bold; cursor:pointer; margin-left:10px; float:right;" title="Delete ONLY this site stock">[x]</span>`;
+                    }
+
+                    breakdownRows += `
+                        <tr>
+                            <td style="width: 70%; padding-left: 20px;">
+                                ${getSiteDisplayName(site)} ${deleteSiteAction}
+                            </td>
+                            <td style="width: 30%; font-weight:bold;">${q}</td>
+                        </tr>`;
                 }
             });
         }
+        
+        // Handle Legacy/Global Stock (No sites assigned yet)
         if (!hasSites) {
             const legacyStock = parseFloat(item.stockQty) || 0;
             totalStock = legacyStock;
             breakdownRows = `<tr><td style="padding-left: 20px;">Unassigned (Global)</td><td>${legacyStock}</td></tr>`;
         }
 
+        // --- HISTORY LOGIC ---
         const stockID = (item.productID || item.productId || '').trim();
-
         const productTransfers = allTransferData.filter(t => {
             const transferID = (t.productID || t.productId || '').trim();
             return transferID === stockID;
@@ -426,22 +444,27 @@ function renderMaterialStockTable(data) {
         }
 
         const uniqueId = `detail-${item.key}`;
-
         let actionButtons = '';
         let firstColContent = `<button class="ms-expand-btn" onclick="toggleStockDetail('${uniqueId}', this)">+</button>`;
 
+        // --- ACTION BUTTONS PERMISSIONS ---
         if(isAdmin) {
-            actionButtons += `<button class="secondary-btn" onclick="openAddStockModal('${item.key}')" style="padding: 5px 10px; font-size: 0.8rem; background-color: #28a745; color: white; margin-right: 5px;" title="Add Stock"><i class="fa-solid fa-plus"></i></button>`;
-
             if (isIrwin) {
+                // SUPER ADMIN: Edit Item, Add Stock, Delete Item
+                actionButtons += `<button class="secondary-btn" onclick="openSuperAdminEdit('${item.key}')" style="padding: 5px 10px; font-size: 0.8rem; background-color: #00748C; color: white; margin-right: 5px;" title="Edit Details & Add Stock"><i class="fa-solid fa-pen-to-square"></i> Edit</button>`;
+                
                 actionButtons += `<button class="delete-btn ms-delete-btn" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem;" title="Delete Item"><i class="fa-solid fa-trash"></i></button>`;
                 
+                // Add Checkbox for Bulk Delete
                 firstColContent = `
                     <div style="display:flex; align-items:center; gap:10px;">
                         <input type="checkbox" class="ms-row-checkbox" data-key="${item.key}" data-name="${item.productName}">
                         <button class="ms-expand-btn" onclick="toggleStockDetail('${uniqueId}', this)">+</button>
                     </div>
                 `;
+            } else {
+                // REGULAR ADMIN: Add Stock Only
+                actionButtons += `<button class="secondary-btn" onclick="openAddStockModal('${item.key}')" style="padding: 5px 10px; font-size: 0.8rem; background-color: #28a745; color: white; margin-right: 5px;" title="Add Stock"><i class="fa-solid fa-plus"></i></button>`;
             }
         } else {
             actionButtons = `<small style="color:#999;">View Only</small>`;
@@ -450,6 +473,7 @@ function renderMaterialStockTable(data) {
         const familyDisplay = item.family || item.category || 'Unclassified';
         const relationshipDisplay = item.relationship || item.details || '';
 
+        // --- PARENT ROW (Main View) ---
         const parentRow = document.createElement('tr');
         parentRow.innerHTML = `
             <td>${firstColContent}</td>
@@ -461,6 +485,7 @@ function renderMaterialStockTable(data) {
             <td style="text-align: center;">${actionButtons}</td>
         `;
 
+        // --- CHILD ROW (Hidden Details) ---
         const childRow = document.createElement('tr');
         childRow.id = uniqueId;
         childRow.className = 'stock-child-row hidden';
@@ -499,6 +524,7 @@ function renderMaterialStockTable(data) {
         tableBody.appendChild(childRow);
     });
 
+    // Re-attach listeners for the "Trash" buttons (Item Delete)
     document.querySelectorAll('.ms-delete-btn').forEach(btn => {
         btn.addEventListener('click', function(e) {
             e.preventDefault();
@@ -614,7 +640,66 @@ window.openNewMaterialModal = async function() {
     populateModalSiteDropdown();
 };
 
+// ==========================================================================
+// PASTE YOUR NEW FUNCTION HERE
+// ==========================================================================
+window.openSuperAdminEdit = function(key) {
+    const item = allMaterialStockData.find(i => i.key === key);
+    if(!item) return;
+
+    editingItemKey = key; // Set Global Flag to Edit Mode
+
+    // Reuse the "New Material" modal
+    const modal = document.getElementById('ms-new-material-modal');
+    modal.classList.remove('hidden');
+    
+    document.getElementById('ms-modal-title').textContent = "Edit Item & Add Stock";
+    document.getElementById('ms-save-new-btn').textContent = "Update Item";
+
+    // 1. Fill Text Fields
+    document.getElementById('ms-new-name').value = item.productName;
+    document.getElementById('ms-new-id-display').value = item.productID;
+
+    // 2. Set Family Dropdown
+    const famSelect = document.getElementById('ms-new-family');
+    
+    // Repopulate if empty
+    if(famSelect.options.length <= 1) {
+         Object.keys(STOCK_LEGENDS).sort().forEach(code => {
+            const opt = document.createElement('option');
+            opt.value = code;
+            opt.textContent = `${code} - ${STOCK_LEGENDS[code].name}`;
+            famSelect.appendChild(opt);
+        });
+    }
+    famSelect.value = item.familyCode;
+
+    // 3. Trigger Family Change to load Relations
+    const relationSelect = document.getElementById('ms-new-relation');
+    relationSelect.innerHTML = '<option value="" disabled>Select Relationship</option>';
+    if(STOCK_LEGENDS[item.familyCode]) {
+        const rels = STOCK_LEGENDS[item.familyCode].relations;
+        Object.keys(rels).sort().forEach(rr => {
+            const opt = document.createElement('option');
+            opt.value = rr;
+            opt.textContent = `${rr} - ${rels[rr]}`;
+            relationSelect.appendChild(opt);
+        });
+    }
+    relationSelect.value = item.relationCode;
+
+    // 4. Stock Field is for ADDING, not setting
+    const stockInput = document.getElementById('ms-new-stock-qty');
+    stockInput.value = ''; 
+    stockInput.placeholder = "Add Stock (Optional)";
+    
+    populateModalSiteDropdown();
+};
+
 function generatePreviewID() {
+    // FIX: Do not generate new ID if we are in Edit Mode
+    if (typeof editingItemKey !== 'undefined' && editingItemKey) return; 
+
     const ff = document.getElementById('ms-new-family').value;
     const rr = document.getElementById('ms-new-relation').value;
     const idInput = document.getElementById('ms-new-id-display');
@@ -644,70 +729,97 @@ function generatePreviewID() {
 // ==========================================================================
 async function handleSaveNewMaterial() {
     const btn = document.getElementById('ms-save-new-btn');
-    btn.disabled = true; btn.textContent = "Saving...";
+    btn.disabled = true; 
 
     const familyCode = document.getElementById('ms-new-family').value;
     const relationCode = document.getElementById('ms-new-relation').value;
     const productDetail = document.getElementById('ms-new-name').value.trim(); 
-    const productID = document.getElementById('ms-new-id-display').value;
-    const series = parseInt(document.getElementById('ms-new-id-display').dataset.series);
     
-    const stockQty = parseFloat(document.getElementById('ms-new-stock-qty').value) || 0;
+    // In Edit Mode, Stock Input = "Add this amount"
+    // In New Mode, Stock Input = "Initial Stock"
+    const stockInputVal = parseFloat(document.getElementById('ms-new-stock-qty').value) || 0;
     const selectedSite = document.getElementById('ms-new-site-select').value;
-    const status = document.getElementById('ms-new-status').value;
-
-    if (!familyCode || !relationCode) { alert("Please select Family and Relationship."); btn.disabled = false; return; }
-    if (!productDetail) { alert("Please enter Product Detail."); btn.disabled = false; return; }
-    if (!productID || productID.includes("Auto")) { alert("ID generation failed. Please re-select Family."); btn.disabled = false; return; }
-
     const database = (typeof db !== 'undefined') ? db : firebase.database();
 
     try {
-        // Check Duplicate
-        const exists = allMaterialStockData.some(i => (i.productID === productID));
-        if(exists) {
-            alert("System Error: ID Collision. Refreshing data...");
-            await populateMaterialStock(true); 
-            generatePreviewID(); 
-            btn.disabled = false; btn.textContent = "Save"; 
-            return;
+        if (editingItemKey) {
+            // === UPDATE MODE (SUPER ADMIN) ===
+            const item = allMaterialStockData.find(i => i.key === editingItemKey);
+            
+            // 1. Prepare Updates
+            const updates = {};
+            updates['productName'] = productDetail;
+            updates['familyCode'] = familyCode;
+            updates['family'] = STOCK_LEGENDS[familyCode].name;
+            updates['relationCode'] = relationCode;
+            updates['relationship'] = STOCK_LEGENDS[familyCode].relations[relationCode];
+            
+            // Compatibility Fields
+            updates['category'] = STOCK_LEGENDS[familyCode].name;
+            updates['details'] = STOCK_LEGENDS[familyCode].relations[relationCode];
+            
+            updates['updatedBy'] = (typeof currentApprover !== 'undefined' ? currentApprover.Name : 'Irwin');
+            updates['lastUpdated'] = firebase.database.ServerValue.TIMESTAMP;
+
+            // 2. Handle Stock Addition
+            if (stockInputVal > 0) {
+                if (!item.sites) item.sites = {};
+                const currentSiteQty = parseFloat(item.sites[selectedSite] || 0);
+                item.sites[selectedSite] = currentSiteQty + stockInputVal;
+                
+                updates['sites'] = item.sites;
+                
+                // Recalc Total
+                let total = 0;
+                Object.values(item.sites).forEach(q => total += q);
+                updates['stockQty'] = total;
+                updates['balanceQty'] = total;
+            }
+
+            await database.ref(`material_stock/${editingItemKey}`).update(updates);
+            alert("Item Updated Successfully!");
+
+        } else {
+            // === CREATE NEW MODE ===
+            const productID = document.getElementById('ms-new-id-display').value;
+            const series = parseInt(document.getElementById('ms-new-id-display').dataset.series);
+            
+            if (!productID || productID.includes("Auto")) { 
+                alert("ID Generation Error"); btn.disabled = false; return; 
+            }
+
+            const sitesInit = {};
+            if (stockInputVal > 0) sitesInit[selectedSite] = stockInputVal;
+
+            const familyName = STOCK_LEGENDS[familyCode].name;
+            const relationName = STOCK_LEGENDS[familyCode].relations[relationCode];
+
+            const newMaterial = {
+                productID: productID,
+                productName: productDetail,
+                familyCode: familyCode,
+                family: familyName,
+                relationCode: relationCode,
+                relationship: relationName,
+                series: series,
+                category: familyName,
+                details: relationName,
+                stockQty: stockInputVal,
+                transferredQty: 0, 
+                balanceQty: stockInputVal,
+                sites: sitesInit,
+                status: "Active",
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                updatedBy: (typeof currentApprover !== 'undefined' ? currentApprover.Name : 'System')
+            };
+
+            await database.ref('material_stock').push(newMaterial);
+            alert(`Success! Created: ${productID}`);
         }
 
-        const sitesInit = {};
-        if (stockQty > 0) sitesInit[selectedSite] = stockQty;
-
-        const familyName = STOCK_LEGENDS[familyCode].name;
-        const relationName = STOCK_LEGENDS[familyCode].relations[relationCode];
-
-        const newMaterial = {
-            productID: productID,
-            productName: productDetail,
-            
-            // New Structure
-            familyCode: familyCode,
-            family: familyName,
-            relationCode: relationCode,
-            relationship: relationName,
-            series: series,
-
-            // Mapping for Compatibility
-            category: familyName,
-            details: relationName,
-
-            stockQty: stockQty,
-            transferredQty: 0, 
-            balanceQty: stockQty,
-            sites: sitesInit,
-            status: status,
-            timestamp: firebase.database.ServerValue.TIMESTAMP,
-            updatedBy: (typeof currentApprover !== 'undefined' ? currentApprover.Name : 'System')
-        };
-
-        await database.ref('material_stock').push(newMaterial);
-        
-        alert(`Success!\nID: ${productID}\nDetail: ${productDetail}`);
+        // Cleanup
         document.getElementById('ms-new-material-modal').classList.add('hidden');
-        
+        editingItemKey = null; // Reset
         localStorage.removeItem(STOCK_CACHE_KEY);
         populateMaterialStock(true);
 
@@ -721,26 +833,30 @@ async function handleSaveNewMaterial() {
 }
 
 // ==========================================================================
-// 7. CSV UPLOAD (Updated Template)
+// 7. CSV UPLOAD (Updated Template V2 - With Product ID)
 // ==========================================================================
 function handleGetTemplate() {
-    // UPDATED TEMPLATE HEADER AND EXAMPLE for F.RRR.SSSSS
-    const headers = ["Item Name", "F", "RRR", "Stock", "Site"];
-    const row1 = "Marble Black Carrara 75x13,2,201,100,Main Store";
-    const row2 = "Concrete Blocks 200mm,1,104,500,Site 175";
+    // UPDATED TEMPLATE: "Product ID" is now the first column
+    const headers = ["Product ID", "Item Name", "F", "RRR", "Stock", "Site"];
+    
+    // Example 1: Existing ID (Will update stock for this ID)
+    const row1 = "1.104.00150,Concrete Blocks 200mm,1,104,500,Site 175";
+    
+    // Example 2: Empty ID (Will use previous logic: Match Name or Create New Auto-ID)
+    const row2 = ",Marble Black Carrara 75x13,2,201,100,Main Store";
 
     const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + row1 + "\n" + row2;
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "Material_Upload_Template_FRRR.csv");
+    link.setAttribute("download", "Material_Upload_Template_V2.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 }
 
 // ==========================================================================
-// CORRECTED CSV UPLOAD (Merges Sites & Quantities)
+// CORRECTED CSV UPLOAD FUNCTION (V2 - ID Priority)
 // ==========================================================================
 function handleUploadCSV(event) {
     const file = event.target.files[0];
@@ -751,100 +867,119 @@ function handleUploadCSV(event) {
         const text = e.target.result;
         const lines = text.split('\n');
         
-        // 1. Setup Database & User
         const database = (typeof db !== 'undefined') ? db : firebase.database();
         const currentUser = (typeof currentApprover !== 'undefined') ? currentApprover.Name : 'System';
         
-        // 2. Build an Index of EXISTING items to prevent duplicates
-        // Map: "product name (lowercase)" => Item Object
-        const itemMap = new Map();
+        // 1. Build Indexes (ID Map & Name Map)
+        const idMap = new Map();
+        const nameMap = new Map();
         let maxSeries = 0;
 
-        // Load existing DB data into the map
+        // Index existing data
         allMaterialStockData.forEach(item => {
+            // Map by Product ID
+            const pid = (item.productID || item.productId || "").trim();
+            if (pid) idMap.set(pid, item);
+
+            // Map by Product Name (Fallback)
             if (item.productName) {
-                itemMap.set(item.productName.trim().toLowerCase(), item);
+                nameMap.set(item.productName.trim().toLowerCase(), item);
             }
-            // Track the highest ID series so we can continue numbering
+
+            // Track Max Series for Auto-Gen
             const s = parseInt(item.series);
             if (!isNaN(s) && s > maxSeries) maxSeries = s;
         });
 
-        // 3. Prepare an object to hold all our updates
         const finalUpdates = {}; 
         let mergedCount = 0;
         let newCount = 0;
 
-        // 4. Loop through CSV Lines
+        // 2. Process CSV Rows
         for (let i = 1; i < lines.length; i++) {
             const line = lines[i].trim();
             if (!line) continue;
             
+            // Clean split
             const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
-            // Expect: Name, F, RRR, Qty, Site
-            if (cols.length >= 3) {
-                const pName = cols[0];
-                const ff = cols[1];
-                const rrr = cols[2];
-                const pQty = parseFloat(cols[3]) || 0;
-                const pSite = (cols[4] && cols[4] !== "") ? cols[4] : "Main Store";
+
+            // EXPECTED: Product ID(0), Name(1), F(2), RRR(3), Qty(4), Site(5)
+            if (cols.length >= 5) {
+                const pID = cols[0].trim();   // NEW: Product ID
+                const pName = cols[1].trim(); // Item Name
+                const ff = cols[2].trim();
+                const rrr = cols[3].trim();
+                const pQty = parseFloat(cols[4]) || 0;
+                const pSite = (cols[5] && cols[5] !== "") ? cols[5].trim() : "Main Store";
 
                 if (pName) {
-                    const normName = pName.trim().toLowerCase();
-                    
-                    // --- CHECK: Does this item already exist? ---
-                    // (Checks both the Database AND items we just created in previous CSV rows)
-                    let existingItem = itemMap.get(normName);
+                    let existingItem = null;
+
+                    // --- MATCHING STRATEGY ---
+                    if (pID && pID !== "") {
+                        // Priority 1: Match by ID
+                        existingItem = idMap.get(pID);
+                    } else {
+                        // Priority 2: Match by Name (Legacy Logic)
+                        const normName = pName.toLowerCase();
+                        existingItem = nameMap.get(normName);
+                    }
 
                     if (existingItem) {
-                        // === MERGE MODE (Item Exists) ===
-                        // 1. Initialize sites if missing
+                        // === MERGE MODE (Update Existing) ===
                         if (!existingItem.sites) existingItem.sites = {};
                         
-                        // 2. Add Quantity to the specific Site
+                        // Add quantity to specific site
                         let currentSiteQty = parseFloat(existingItem.sites[pSite] || 0);
                         existingItem.sites[pSite] = currentSiteQty + pQty;
 
-                        // 3. Recalculate Total Stock
+                        // Recalculate Totals
                         let total = 0;
                         Object.values(existingItem.sites).forEach(q => total += parseFloat(q));
                         existingItem.stockQty = total;
                         existingItem.balanceQty = total;
-
-                        // 4. Mark as Updated
                         existingItem.lastUpdated = Date.now();
                         existingItem.updatedBy = currentUser;
 
-                        // Save to final update list
                         finalUpdates[existingItem.key] = existingItem;
                         mergedCount++;
 
                     } else {
-                        // === NEW ITEM MODE (Item Not Found) ===
+                        // === CREATE NEW MODE ===
+                        // A. Check Metadata Validity
                         if (ff && rrr && STOCK_LEGENDS[ff]) {
-                            maxSeries++;
-                            const sssss = String(maxSeries).padStart(5, '0');
-                            const pID = `${ff}.${rrr}.${sssss}`;
+                            
+                            // B. Determine ID
+                            let finalID = pID; // Use provided ID
+                            let finalSeries = 0;
+
+                            // If ID is empty, Auto-Generate (F.RRR.SSSSS)
+                            if (!finalID) {
+                                maxSeries++;
+                                finalSeries = maxSeries;
+                                const sssss = String(maxSeries).padStart(5, '0');
+                                finalID = `${ff}.${rrr}.${sssss}`;
+                            }
+
                             const familyName = STOCK_LEGENDS[ff].name;
-                            const relationName = STOCK_LEGENDS[ff].relations ? STOCK_LEGENDS[ff].relations[rrr] : "Unknown";
+                            const relationName = STOCK_LEGENDS[ff].relations[rrr] || "Unknown";
 
-                            // Generate a new Firebase Key
+                            // C. Generate Object
                             const newKey = database.ref('material_stock').push().key;
-
                             const sites = {};
                             if (pQty > 0) sites[pSite] = pQty;
 
                             const newItem = {
-                                key: newKey, // Save key inside so the Map can use it later
-                                productID: pID,
+                                key: newKey,
+                                productID: finalID,
                                 productName: pName,
                                 familyCode: ff,
                                 family: familyName,
                                 relationCode: rrr,
                                 relationship: relationName,
-                                series: maxSeries,
-                                category: familyName,
-                                details: relationName,
+                                category: familyName, // Compatibility
+                                details: relationName, // Compatibility
+                                series: finalSeries,
                                 stockQty: pQty,
                                 balanceQty: pQty,
                                 sites: sites,
@@ -853,10 +988,10 @@ function handleUploadCSV(event) {
                                 updatedBy: currentUser
                             };
 
-                            // Add to Map (so if the next row has the same name, it will Merge instead of Create)
-                            itemMap.set(normName, newItem);
-                            
-                            // Add to final update list
+                            // D. Add to local maps so subsequent rows in same file find this item
+                            idMap.set(finalID, newItem);
+                            nameMap.set(pName.toLowerCase(), newItem);
+
                             finalUpdates[newKey] = newItem;
                             newCount++;
                         }
@@ -865,55 +1000,52 @@ function handleUploadCSV(event) {
             }
         }
 
-        // 5. Batch Upload Logic (Prevents timeouts)
+        // 3. Batch Upload Logic
         const updateKeys = Object.keys(finalUpdates);
         if (updateKeys.length === 0) {
-            alert("No valid data found or file is empty.");
+            alert("No valid data found.");
             document.getElementById('ms-csv-file-input').value = '';
             return;
         }
 
-        const confirmMsg = `Ready to Process:\n\n- New Items: ${newCount}\n- Merged/Updated Items: ${mergedCount}\n\nTotal DB Operations: ${updateKeys.length}\n\nProceed?`;
-        
-        if (!confirm(confirmMsg)) {
+        if (!confirm(`Processing Upload:\n\n- New Items: ${newCount}\n- Updated Items: ${mergedCount}\n\nProceed?`)) {
             document.getElementById('ms-csv-file-input').value = '';
             return;
         }
 
+        // Send in batches
         const BATCH_SIZE = 500;
         let batch = {};
         let count = 0;
         const uploadBtn = document.getElementById('ms-upload-csv-btn');
-        if (uploadBtn) { uploadBtn.disabled = true; uploadBtn.innerText = "Processing..."; }
+        if (uploadBtn) { uploadBtn.disabled = true; uploadBtn.innerText = "Saving..."; }
 
         try {
             for (let k of updateKeys) {
                 batch[k] = finalUpdates[k];
                 count++;
-
                 if (count >= BATCH_SIZE) {
                     await database.ref('material_stock').update(batch);
                     batch = {};
                     count = 0;
                 }
             }
-            // Upload remaining items
-            if (count > 0) {
-                await database.ref('material_stock').update(batch);
-            }
+            if (count > 0) await database.ref('material_stock').update(batch);
 
             alert("Upload Successful!");
-            localStorage.removeItem(STOCK_CACHE_KEY);
+            localStorage.removeItem("cached_MATERIAL_STOCK"); 
             populateMaterialStock(true);
 
         } catch(e) {
             console.error(e);
-            alert("Error uploading data. Check console.");
+            alert("Error: " + e.message);
         } finally {
-            if (uploadBtn) { uploadBtn.disabled = false; uploadBtn.innerHTML = '<i class="fa-solid fa-file-csv"></i> Upload CSV'; }
+            if (uploadBtn) { 
+                uploadBtn.disabled = false; 
+                uploadBtn.innerHTML = '<i class="fa-solid fa-file-csv"></i> Upload CSV'; 
+            }
             document.getElementById('ms-csv-file-input').value = '';
         }
-
     };
     reader.readAsText(file);
 }
@@ -1306,3 +1438,53 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// ==========================================================================
+// NEW: DELETE SPECIFIC SITE STOCK ONLY
+// ==========================================================================
+window.deleteSiteStock = async function(key, siteToDelete) {
+    // 1. Safety Check
+    if (!confirm(`⚠️ WARNING (Super Admin)\n\nAre you sure you want to remove ALL stock from:\n📍 ${siteToDelete}?\n\nOther sites for this item will remain safe.`)) {
+        return;
+    }
+
+    const database = firebase.database();
+    
+    try {
+        // 2. Fetch fresh data to ensure we don't overwrite other updates
+        const snapshot = await database.ref(`material_stock/${key}`).once('value');
+        const item = snapshot.val();
+        
+        if (!item || !item.sites) {
+            alert("Error: Item or sites not found.");
+            return;
+        }
+
+        // 3. Remove the specific site
+        const updatedSites = { ...item.sites };
+        delete updatedSites[siteToDelete];
+
+        // 4. Recalculate Total Stock
+        let newTotal = 0;
+        Object.values(updatedSites).forEach(q => newTotal += parseFloat(q) || 0);
+
+        // 5. Update Database
+        await database.ref(`material_stock/${key}`).update({
+            sites: updatedSites,
+            stockQty: newTotal,
+            balanceQty: newTotal,
+            lastUpdated: firebase.database.ServerValue.TIMESTAMP,
+            updatedBy: "Irwin (Site Deleted)"
+        });
+
+        alert(`Success! Removed stock from ${siteToDelete}.`);
+        
+        // 6. Refresh Table
+        localStorage.removeItem(STOCK_CACHE_KEY);
+        populateMaterialStock(true);
+
+    } catch (e) {
+        console.error("Delete Site Error:", e);
+        alert("Failed to delete site stock.");
+    }
+};

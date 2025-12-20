@@ -5,7 +5,7 @@
   - Cleanup note: removed bracket labels like // [1.a], kept logic unchanged.
 */
 
-const APP_VERSION = "5.1.5";
+const APP_VERSION = "5.2.1";
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -64,6 +64,7 @@ const storage = firebase.storage(invoiceApp);
 const ATTACHMENT_BASE_PATH = "https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/Attachments/";
 const PDF_BASE_PATH = "https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/DC%20Files/INVOICE/";
 const SRV_BASE_PATH = "https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/DC%20Files/SRV/";
+const REPORT_BASE_PATH = "https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/DC%20Files/Report/";
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours cache
 
 // -- State Variables --
@@ -1469,6 +1470,7 @@ function imWireInvoiceValidationUI() {
     clearFor('im-release-date', 'change');
     clearFor('im-inv-name', 'input');
     clearFor('im-srv-name', 'input');
+    clearFor('im-report-name', 'input');
     clearFor('im-note', 'input');
 
     if (imAttentionSelect) {
@@ -4425,19 +4427,15 @@ async function checkPendingReceipts() {
 }
 
 // ==========================================================================
-// UPDATED: populateAttentionDropdown (Smart Filtering)
+// UPDATED: populateAttentionDropdown (Manual Filter Simulation)
+// Logic: 1. Default -> Shows ONLY Suggested Users.
+//        2. Typing  -> Shows ONLY exact name matches (Clean & Fast).
 // ==========================================================================
 async function populateAttentionDropdown(choicesInstance, filterStatus = null, filterSite = null) {
     try {
         if (!choicesInstance) return;
 
-        // 1. If no filter is applied, use the cache for speed
-        if (!filterStatus && allApproversCache) {
-            choicesInstance.setChoices(allApproversCache, 'value', 'label', true);
-            return;
-        }
-
-        // 2. Fetch Data if missing
+        // 1. Fetch Data (if missing)
         if (!allApproverData) {
             const snapshot = await db.ref('approvers').once('value');
             allApproverData = snapshot.val();
@@ -4448,7 +4446,7 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
-            // --- SMART FILTER RULES ---
+            // --- A. DEFINE RULES ---
             let validPositions = null;
             let checkSite = false;
 
@@ -4456,50 +4454,41 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
                 switch (filterStatus) {
                     case 'For SRV':
                     case 'No Need SRV':
-                        validPositions = ['Site DC', 'Site Engineer']; // Added Site Engineer for Danish
-                        checkSite = true; // Enable Site Filtering
+                        validPositions = ['Site DC', 'Site Engineer'];
+                        checkSite = true; // Match User Site with PO Site
                         break;
-                    // ----------------------------------------------------------------------
-                    case 'For IPC':
-                        // REMOVED: validPositions = ['QS']; 
-                        validPositions = null; // Allow selecting ANYONE for IPC
+                        
+                    case 'For IPC':  // <--- ADDED THIS NEW RULE
+                        validPositions = ['QS', 'Senior QS'];
+                        checkSite = true; // Match User Site with PO Site
                         break;
+                        
                     case 'For Approval':
                         validPositions = ['Site Engineer', 'COO', 'MEP Manager', 'Project Director', 'Accounts', 'Accounting'];
                         break;
+                        
                     case 'CEO Approval':
                         validPositions = ['CEO'];
                         break;
+                        
                     case 'Report':
-                        validPositions = ['Accounts']; // Strict "Accounts" only
+                        validPositions = ['Accounts'];
                         break;
+                        
                     default:
-                        validPositions = null; // No restriction for other statuses
+                        validPositions = null; // Everyone suggested
                         break;
                 }
             }
 
-            // 3. Map & Filter Approvers
-            const approverOptions = Object.values(approvers).map(approver => {
+            // --- B. PROCESS ALL USERS (Background Data) ---
+            const allProcessedUsers = Object.values(approvers).map(approver => {
                 if (!approver.Name) return null;
 
                 const position = (approver.Position || '').trim();
                 const userSite = (approver.Site || '').trim();
 
-                // --- FILTER LOGIC ---
-                if (validPositions) {
-                    // A. Check Position
-                    const isPosMatch = validPositions.some(role => position.toLowerCase() === role.toLowerCase());
-                    if (!isPosMatch) return null;
-
-                    // B. Check Site (Only for 'For SRV')
-                    if (checkSite && filterSite) {
-                        // Check if user's site string contains the PO site (e.g., user "175, 176" matches PO "175")
-                        if (!userSite.includes(filterSite)) return null;
-                    }
-                }
-                // --------------------
-
+                // Vacation Logic
                 const isOnVacation = approver.Vacation === true || approver.Vacation === "Yes";
                 let isVacationActive = false;
                 if (isOnVacation) {
@@ -4508,9 +4497,7 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
                     } else {
                         try {
                             const returnDate = new Date(approver.DateReturn + 'T00:00:00Z');
-                            if (!isNaN(returnDate) && returnDate >= today) {
-                                isVacationActive = true;
-                            }
+                            if (!isNaN(returnDate) && returnDate >= today) isVacationActive = true;
                         } catch (e) {}
                     }
                 }
@@ -4523,6 +4510,8 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
                 return {
                     value: approver.Name,
                     label: displayLabel,
+                    position: position,
+                    site: userSite,
                     customProperties: {
                         onVacation: isVacationActive,
                         replacement: {
@@ -4534,21 +4523,63 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
                 };
             }).filter(Boolean);
 
-            // 4. Build Final List
-            const choiceList = [
+            // --- C. CREATE SUGGESTED LIST (Default View) ---
+            const suggestedList = allProcessedUsers.filter(user => {
+                if (!validPositions) return true; 
+
+                // Check Position
+                const isPosMatch = validPositions.some(role => user.position.toLowerCase() === role.toLowerCase());
+                if (!isPosMatch) return false;
+
+                // Check Site (For SRV & IPC)
+                if (checkSite && filterSite) {
+                    if (!user.site.includes(filterSite)) return false;
+                }
+                return true;
+            });
+
+            // Sort lists
+            suggestedList.sort((a, b) => a.label.localeCompare(b.label));
+            allProcessedUsers.sort((a, b) => a.label.localeCompare(b.label));
+
+            // Base Options
+            const baseOptions = [
                 { value: '', label: 'Select Attention', disabled: true, selected: true },
                 { value: 'None', label: 'None (Clear Selection)' },
-                { value: 'All', label: 'All (Send to Records)' },
-                ...approverOptions.sort((a, b) => a.label.localeCompare(b.label))
+                { value: 'All', label: 'All (Send to Records)' }
             ];
 
-            // Update Cache ONLY if this is a full (unfiltered) load
-            if (!filterStatus) {
-                allApproversCache = choiceList;
-            }
+            // --- D. INITIAL RENDER ---
+            const initialChoices = [...baseOptions, ...suggestedList];
+            choicesInstance.clearChoices();
+            choicesInstance.setChoices(initialChoices, 'value', 'label', true);
 
-            // 5. Apply to Dropdown
-            choicesInstance.setChoices(choiceList, 'value', 'label', true);
+            // --- E. "PERFECTION" SEARCH LISTENER ---
+            if (choicesInstance.passedElement && choicesInstance.passedElement.element) {
+                const element = choicesInstance.passedElement.element;
+                
+                if (element._smartSearchHandler) {
+                    element.removeEventListener('search', element._smartSearchHandler);
+                }
+
+                element._smartSearchHandler = function(event) {
+                    const query = (event.detail.value || '').toLowerCase().trim();
+                    
+                    if (query.length > 0) {
+                        // Show ONLY strict matches from the full database
+                        const exactMatches = allProcessedUsers.filter(user => 
+                            user.label.toLowerCase().includes(query)
+                        );
+                        choicesInstance.setChoices([...baseOptions, ...exactMatches], 'value', 'label', true); 
+                    } 
+                    else {
+                        // Revert to Suggestions
+                        choicesInstance.setChoices(initialChoices, 'value', 'label', true);
+                    }
+                };
+
+                element.addEventListener('search', element._smartSearchHandler);
+            }
 
         } else {
             choicesInstance.setChoices([{ value: '', label: 'No approvers found', disabled: true }]);
@@ -6060,7 +6091,6 @@ async function proceedWithPOLoading(poNumber, poData) {
     // openIMInvoiceEntryModal();  <-- Commented out to stop auto-popup
 }
 
-
 function fetchAndDisplayInvoices(poNumber) {
     const invoicesData = allInvoiceData[poNumber];
 
@@ -6097,7 +6127,6 @@ function fetchAndDisplayInvoices(poNumber) {
         invoices.sort((a, b) => (a.invEntryID || '').localeCompare(b.invEntryID || ''));
 
         // --- NEW: CAPTURE NAVIGATION LIST ---
-        // This saves the sorted order so the Next/Prev buttons know where to go
         imNavigationList = invoices.map(inv => inv.key);
         imNavigationIndex = -1; 
         // ------------------------------------
@@ -6105,14 +6134,13 @@ function fetchAndDisplayInvoices(poNumber) {
         invoices.forEach(inv => {
 
             // NEW FIXED CODE
-	    // 1. Convert to string, Remove commas, Then parse
-	    const currentInvValue = parseFloat(String(inv.invValue).replace(/,/g, '')) || 0;
-	    const currentAmtPaid = parseFloat(String(inv.amountPaid).replace(/,/g, '')) || 0;
+            const currentInvValue = parseFloat(String(inv.invValue).replace(/,/g, '')) || 0;
+            const currentAmtPaid = parseFloat(String(inv.amountPaid).replace(/,/g, '')) || 0;
             const noteText = (inv.note || '').toLowerCase();
 
             totalInvValueSum += currentInvValue;
             totalPaidWithRetention += currentAmtPaid;
-      
+       
             // EXCLUDE 'retention' AND 'delivery confirmed' from the running total
             if (!noteText.includes('retention')) {
                 totalPaidWithoutRetention += currentAmtPaid;
@@ -6139,7 +6167,13 @@ function fetchAndDisplayInvoices(poNumber) {
                 `<a href="${SRV_BASE_PATH}${encodeURIComponent(srvPDFName)}.pdf" target="_blank" class="action-btn srv-pdf-btn">SRV</a>` :
                 '';
 
-            // [MODIFIED] Only show history button if there is ACTUAL history (more than just the creation entry)
+            // +++ NEW: REPORT BUTTON LOGIC +++
+            const reportPDFName = inv.reportName || '';
+            const reportPDFLink = (reportPDFName.trim() && reportPDFName.toLowerCase() !== 'nil') ?
+                `<a href="${REPORT_BASE_PATH}${encodeURIComponent(reportPDFName)}.pdf" target="_blank" class="action-btn report-pdf-btn" style="background-color: #6f42c1; color: white;" title="View Report">Report</a>` :
+                '';
+
+            // [MODIFIED] Only show history button if there is ACTUAL history
             let historyBtn = '';
             const historyCount = inv.history ? Object.keys(inv.history).length : 0;
             
@@ -6152,6 +6186,7 @@ function fetchAndDisplayInvoices(poNumber) {
                 deleteBtnHTML = `<button class="delete-btn" data-key="${inv.key}">Delete</button>`;
             }
 
+            // ADDED ${reportPDFLink} TO THE ROW BELOW
             row.innerHTML = `
                 <td>${inv.invEntryID || ''}</td>
                 <td>${inv.invNumber || ''}</td>
@@ -6160,7 +6195,7 @@ function fetchAndDisplayInvoices(poNumber) {
                 <td>${amountPaidDisplay}</td>
                 <td>${inv.status || ''}</td>
                 <td>${releaseDateDisplay}</td>
-                <td><div class="action-btn-group">${invPDFLink} ${srvPDFLink} ${historyBtn} ${deleteBtnHTML}</div></td>
+                <td><div class="action-btn-group">${invPDFLink} ${srvPDFLink} ${reportPDFLink} ${historyBtn} ${deleteBtnHTML}</div></td>
             `;
             imInvoicesTableBody.appendChild(row);
         });
@@ -6200,8 +6235,6 @@ function fetchAndDisplayInvoices(poNumber) {
         footer.style.display = invoiceCount > 0 ? '' : 'none';
     }
 
-    // [Inside fetchAndDisplayInvoices function]
-
     if (pendingJobEntryDataForInvoice) {
         if (pendingJobEntryDataForInvoice.amount) {
             imInvValueInput.value = pendingJobEntryDataForInvoice.amount;
@@ -6216,12 +6249,13 @@ function fetchAndDisplayInvoices(poNumber) {
 
         // --- ADD THESE LINES TO FIX THE STATUS ---
         imStatusSelect.value = 'Under Review'; 
-        imStatusSelect.dispatchEvent(new Event('change')); // Triggers the "Attention" filter
+        imStatusSelect.dispatchEvent(new Event('change')); 
         // ----------------------------------------
 
         pendingJobEntryDataForInvoice = null;
     }
 }
+
 // ==========================================================================
 // 14. INVOICE MANAGEMENT: SIDEBAR & ACTIVE JOBS (UPDATED: GREEN APPROVALS)
 // ==========================================================================
@@ -6390,7 +6424,6 @@ function populateInvoiceFormForEditing(invoiceKey) {
     // --- NAVIGATION UI UPDATE (Preserved) ---
     if (typeof imNavigationList !== 'undefined' && imNavigationList.length > 0) {
         imNavigationIndex = imNavigationList.indexOf(invoiceKey);
-        
         const navControls = document.getElementById('im-nav-controls');
         const navCounter = document.getElementById('im-nav-counter');
         const btnPrev = document.getElementById('im-nav-prev');
@@ -6412,14 +6445,21 @@ function populateInvoiceFormForEditing(invoiceKey) {
     imInvEntryIdInput.value = invData.invEntryID || '';
     document.getElementById('im-inv-no').value = invData.invNumber || '';
     imInvoiceDateInput.value = normalizeDateForInput(invData.invoiceDate);
+    
     // FORMAT ON LOAD
     imInvValueInput.value = formatFinanceNumber(invData.invValue);
     imAmountPaidInput.value = formatFinanceNumber(invData.amountPaid || '0');
+
     document.getElementById('im-inv-name').value = invData.invName || '';
     document.getElementById('im-srv-name').value = invData.srvName || '';
-    document.getElementById('im-details').value = invData.details || '';
-    imReleaseDateInput.value = normalizeDateForInput(invData.releaseDate);
     
+    // --- ADDED: Load Report Name ---
+    document.getElementById('im-report-name').value = invData.reportName || ''; 
+    // -------------------------------
+
+    document.getElementById('im-details').value = invData.details || '';
+    
+    imReleaseDateInput.value = normalizeDateForInput(invData.releaseDate);
     imStatusSelect.value = invData.status || 'Under Review';
     document.getElementById('im-note').value = invData.note || '';
 
@@ -6436,18 +6476,16 @@ function populateInvoiceFormForEditing(invoiceKey) {
         });
     }
 
-    // --- NEW: PRINT REPORT BUTTON LOGIC ---
+    // --- PRINT REPORT BUTTON LOGIC ---
     const printBtnContainer = document.getElementById('im-invoice-print-report-container');
     const printBtn = document.getElementById('btn-invoice-entry-print-report');
     
-    // Check Status
     const reportStatuses = ['Report', 'Report Approval', 'Report Approved'];
     const showPrintBtn = reportStatuses.includes(invData.status);
 
     if (printBtnContainer && printBtn) {
         if (showPrintBtn) {
             printBtnContainer.classList.remove('hidden');
-            
             // Remove old listener (clone trick)
             const newBtn = printBtn.cloneNode(true);
             printBtn.parentNode.replaceChild(newBtn, printBtn);
@@ -6456,47 +6494,36 @@ function populateInvoiceFormForEditing(invoiceKey) {
             newBtn.addEventListener('click', async () => {
                 if (!currentPO) { alert("PO Data missing."); return; }
                 const poData = allPOData[currentPO] || {};
-
-                // 1. Generate Report Data
+                
                 await generateFinanceReport({
                     poNo: currentPO,
                     poValue: poData.Amount || 0,
                     site: poData['Project ID'] || '',
                     vendor: poData['Supplier Name'] || ''
                 });
-
-                // 2. IMPORTANT: Attach the specific Invoice Key to the modal
-                // The print function needs to know WHICH invoice key to lock (this specific one)
-                // We assume 'printFinalFinanceReport' uses the 'key' passed to it, or we set a global variable.
-                // Since 'printFinalFinanceReport' is called FROM the modal button, we need to ensure the modal button knows the key.
                 
-                // We update the "Print" button INSIDE the modal to trigger 'printFinalFinanceReport(currentPO, invoiceKey)'
+                // IMPORTANT: Ensure the final print button knows WHICH invoice key to lock
                 const finalPrintBtn = document.getElementById('im-finance-print-report-btn');
                 if (finalPrintBtn) {
                     const newFinalBtn = finalPrintBtn.cloneNode(true);
                     finalPrintBtn.parentNode.replaceChild(newFinalBtn, finalPrintBtn);
-                    
                     newFinalBtn.addEventListener('click', () => {
                         window.printFinalFinanceReport(currentPO, invoiceKey);
                     });
                 }
 
-                // 3. Show Modal
                 const reportModal = document.getElementById('im-finance-report-modal');
                 if (reportModal) reportModal.classList.remove('hidden');
             });
-
         } else {
             printBtnContainer.classList.add('hidden');
         }
     }
-    // -------------------------------------
 
     imFormTitle.textContent = `Editing Invoice: ${invData.invEntryID}`;
     imAddInvoiceButton.classList.add('hidden');
     imUpdateInvoiceButton.classList.remove('hidden');
     openIMInvoiceEntryModal();
-    
     setTimeout(() => {
         const invNoInput = document.getElementById('im-inv-no');
         if (invNoInput) invNoInput.focus();
@@ -10733,14 +10760,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         imUsername.textContent = currentApprover.Name || 'User';
         imUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile;
 
+        // --- FIX: FORCE DROPDOWN DOWNWARDS ---
         if (imAttentionSelectChoices) {
             imAttentionSelect.removeEventListener('choice', handleIMAttentionChoice);
             imAttentionSelectChoices.destroy();
         }
+        
         imAttentionSelectChoices = new Choices(imAttentionSelect, {
             searchEnabled: true,
-            shouldSort: false,
-            itemSelectText: ''
+            shouldSort: false, // Important: Keep our custom sort (Suggestions first)
+            itemSelectText: '',
+            position: 'bottom' // <--- THIS FORCES IT TO DROP DOWN, NOT UP
         });
         await populateAttentionDropdown(imAttentionSelectChoices);
         imAttentionSelect.addEventListener('choice', handleIMAttentionChoice);
@@ -13059,7 +13089,8 @@ console.log("✅ Report Workflow Loaded (With Receipt Upload)");
     // 1. Define the specific Folder URLs
     const INVOICE_FOLDER_URL = "https://ibaqatar-my.sharepoint.com/my?id=%2Fpersonal%2Fdc%5Fiba%5Fcom%5Fqa%2FDocuments%2FDC%20Files%2FINVOICE&viewid=9f9468fa%2D5716%2D4b2c%2D9740%2Df52d4616d6a8";
     const SRV_FOLDER_URL = "https://ibaqatar-my.sharepoint.com/my?id=%2Fpersonal%2Fdc%5Fiba%5Fcom%5Fqa%2FDocuments%2FDC%20Files%2FSRV&viewid=9f9468fa%2D5716%2D4b2c%2D9740%2Df52d4616d6a8";
-
+    const URL_REPORT = "https://ibaqatar-my.sharepoint.com/my?id=%2Fpersonal%2Fdc%5Fiba%5Fcom%5Fqa%2FDocuments%2FDC%20Files%2FReport&viewid=9f9468fa%2D5716%2D4b2c%2D9740%2Df52d4616d6a8";
+    
     // 2. Invoice Cloud Button Listener
     const btnInvoiceCloud = document.getElementById('im-btn-view-invoice'); 
     if (btnInvoiceCloud) {
@@ -13085,6 +13116,18 @@ console.log("✅ Report Workflow Loaded (With Receipt Upload)");
             e.preventDefault();
             // Simply open the folder
             window.open(SRV_FOLDER_URL, '_blank');
+        });
+    }
+
+// 4. Report Cloud Button Listener (NEW)
+    const btnReportCloud = document.getElementById('btn-open-report-drive'); 
+    if (btnReportCloud) {
+        const newBtn = btnReportCloud.cloneNode(true);
+        btnReportCloud.parentNode.replaceChild(newBtn, btnReportCloud);
+
+        newBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            window.open(URL_REPORT, '_blank');
         });
     }
 
@@ -13279,9 +13322,6 @@ function printFinanceReport() {
         }
     });
 }
-// =========================================================
-// END: FINANCE BATCH & PRINT LOGIC
-// =========================================================
 
 // =========================================================
 // FINANCE INPUT FORMATTERS (Commas)
@@ -13304,6 +13344,53 @@ window.cleanCurrencyField = function(input) {
     // Select all text for easy overwriting
     input.select();
 };
+
+// =========================================================
+// AUTO-GENERATE REPORT NAME (On "Report Approved")
+// =========================================================
+// Renamed variable to 'reportAutoSelect' to fix initialization error
+const reportAutoSelect = document.getElementById('im-status');
+
+if (reportAutoSelect) {
+    reportAutoSelect.addEventListener('change', function() {
+        // 1. Check if the status is the trigger status
+        if (this.value === "Report Approved") {
+            
+            // 2. Get Data from the modal
+            // Use safe selection with optional chaining in case elements are missing
+            const poElement = document.querySelector('#im-invoice-entry-modal .im-po-no');
+            const vendorElement = document.querySelector('#im-invoice-entry-modal .im-po-vendor');
+            const entryIdElement = document.getElementById('im-inv-entry-id');
+
+            if (!poElement || !vendorElement || !entryIdElement) return;
+
+            const poText = poElement.textContent.trim();
+            const vendorText = vendorElement.textContent.trim();
+            const entryId = entryIdElement.value.trim();
+
+            // 3. Validation
+            if (poText === "---" || poText === "" || entryId === "") return;
+
+            // 4. Truncate Vendor Name (Max 17 Chars)
+            const shortVendor = vendorText.substring(0, 17).trim();
+
+            // 5. Construct the String: PO-EntryID-Vendor-Report
+            const generatedName = `${poText}-${entryId}-${shortVendor}-Report`;
+
+            // 6. Set the value
+            const reportNameInput = document.getElementById('im-report-name');
+            if (reportNameInput) {
+                reportNameInput.value = generatedName;
+
+                // Visual Flash
+                reportNameInput.style.backgroundColor = "#ffffcc"; 
+                setTimeout(() => {
+                    reportNameInput.style.backgroundColor = ""; 
+                }, 500);
+            }
+        }
+    });
+}
 
 }); // END OF DOMCONTENTLOADED
 
