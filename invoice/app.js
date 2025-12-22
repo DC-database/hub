@@ -5,7 +5,15 @@
   - Cleanup note: removed bracket labels like // [1.a], kept logic unchanged.
 */
 
-const APP_VERSION = "5.2.1";
+// app.js - Top of file
+const APP_VERSION = "5.2.5";
+
+// DETECT INVENTORY PAGE
+// This checks if the current browser URL has "inventory" in it (e.g., inventory.html)
+const isInventoryPage = window.location.href.toLowerCase().includes('inventory');
+
+// Define what counts as an "Inventory Task"
+const INVENTORY_TYPES = ['Transfer', 'Restock', 'Return', 'Usage'];
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -2951,172 +2959,400 @@ async function handleReportingSearch() {
 }
 
 // ==========================================================================
-// UPDATED FUNCTION: populateActiveTasks (Smart Blink Logic)
+// 1. RENDER ACTIVE TASK TABLE (Clean Version)
 // ==========================================================================
-async function populateActiveTasks() {
-    activeTaskTableBody.innerHTML = `<tr><td colspan="10">Loading tasks...</td></tr>`;
-    
-    // 1. Check if user is logged in
-    if (!currentApprover || !currentApprover.Name) {
-        activeTaskTableBody.innerHTML = `<tr><td colspan="10">Could not identify user.</td></tr>`;
+function renderActiveTaskTable(tasks) {
+    var isMobile = window.innerWidth <= 768;
+    if (isMobile) {
+        if (typeof renderMobileActiveTasks === 'function') renderMobileActiveTasks(tasks);
         return;
     }
 
-    // =========================================================
-    // FINANCE BATCH VISIBILITY
-    // =========================================================
-    const financeBatchControls = document.getElementById('financeBatchControls');
-    if (financeBatchControls) {
-        const nameLower = (currentApprover.Name || '').toLowerCase();
-        const posLower = (currentApprover.Position || '').toLowerCase();
-        const isAuthorized = nameLower.includes('irwin') || 
-                             posLower.includes('finance') || 
-                             posLower.includes('manager');
-        financeBatchControls.style.display = isAuthorized ? 'flex' : 'none';
+    activeTaskTableBody.innerHTML = '';
+
+    // Filter by Hybrid Tabs
+    var filteredTasks = tasks.filter(function(task) {
+        var specialTypes = ['Transfer', 'Restock', 'Return', 'Usage'];
+        var isSpecialTab = specialTypes.indexOf(currentActiveTaskFilter) !== -1;
+        var taskIsSpecial = specialTypes.indexOf(task.for) !== -1;
+
+        if (isSpecialTab) {
+            return task.for === currentActiveTaskFilter;
+        } else {
+            return task.remarks === currentActiveTaskFilter && !taskIsSpecial;
+        }
+    });
+
+    // Handle Empty State
+    if (filteredTasks.length === 0) {
+        activeTaskTableBody.innerHTML = '<tr><td colspan="10">No tasks found for "' + currentActiveTaskFilter + '".</td></tr>';
+        return; 
+    } 
+
+    // Setup Headers
+    var isTransferView = filteredTasks.length > 0 && ['Transfer', 'Restock', 'Return', 'Usage'].indexOf(filteredTasks[0].for) !== -1;
+    var tableHead = document.querySelector('#wd-activetask table thead');
+
+    if (isTransferView) {
+        tableHead.innerHTML = 
+            '<tr>' +
+                '<th class="desktop-only">Control ID</th>' +
+                '<th class="desktop-only">Product Name</th>' +
+                '<th class="desktop-only">Details</th>' +
+                '<th class="desktop-only">Movement</th>' +
+                '<th class="desktop-only">Current Qty</th> <th class="desktop-only">Contact</th>' +
+                '<th class="desktop-only">Status</th>' +
+                '<th class="desktop-only">Action</th>' +
+            '</tr>';
+    } else {
+        tableHead.innerHTML = 
+            '<tr>' +
+                '<th class="desktop-only">Job</th>' +
+                '<th class="desktop-only">Ref</th>' +
+                '<th class="desktop-only">PO</th>' +
+                '<th class="desktop-only">Vendor Name</th>' +
+                '<th class="desktop-only">Invoice Amount</th>' +
+                '<th class="desktop-only">Site</th>' +
+                '<th class="desktop-only col-group">Group</th>' +
+                '<th class="desktop-only">Date</th>' +
+                '<th class="desktop-only">Status</th>' +
+                '<th class="desktop-only">Action</th>' +
+            '</tr>';
+    }
+
+    // Render Rows
+    var isCEO = document.body.classList.contains('is-ceo');
+    var userPos = (currentApprover.Position || '').toLowerCase();
+    var userRole = (currentApprover.Role || '').toLowerCase();
+    var isManager = userPos.indexOf('manager') !== -1 || 
+                    userPos.indexOf('director') !== -1 || 
+                    userPos.indexOf('ceo') !== -1 || 
+                    userRole === 'admin'; 
+
+    filteredTasks.forEach(function(task) {
+        var row = document.createElement('tr');
+        row.setAttribute('data-key', task.key);
+
+        // Grey out rows if they are NOT urgent
+        if (task.isUrgent === false) {
+            row.style.opacity = '0.7';
+            row.style.backgroundColor = '#f9f9f9';
+        }
+
+        if (isTransferView) {
+            // --- TRANSFER ROW ---
+            var actionButtons = '<button class="transfer-action-btn" data-key="' + task.key + '" style="background-color: #17a2b8; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 600;">Action</button>';
+            if (userRole === 'admin') {
+                actionButtons += '<button class="delete-btn transfer-delete-btn" data-key="' + task.key + '" style="margin-left: 5px; padding: 6px 12px;">Delete</button>';
+            }
+
+            var fromLoc = task.fromSite || task.fromLocation || 'N/A';
+            var toLoc = task.toSite || task.toLocation || 'N/A';
+            var movement = fromLoc + ' <i class="fa-solid fa-arrow-right" style="color: #888; font-size: 0.8rem;"></i> ' + toLoc;
+            if (task.for === 'Usage') {
+                movement = '<span style="color: #6f42c1;">Consumed at ' + fromLoc + '</span>';
+            }
+
+            var displayQty = task.orderedQty || task.requiredQty || 0;
+            var qtyLabel = ""; 
+            if (task.approvedQty !== undefined && task.approvedQty !== null) {
+                displayQty = task.approvedQty;
+                if (displayQty != task.orderedQty) qtyLabel = " (Adj)";
+            }
+            if (task.receivedQty !== undefined && task.receivedQty !== null) {
+                displayQty = task.receivedQty;
+                qtyLabel = "";
+            }
+
+            var statusColor = '#333';
+            if (task.remarks === 'Pending') statusColor = '#dc3545';
+            if (task.remarks === 'Pending Admin') statusColor = '#dc3545';
+            if (task.remarks === 'Approved') statusColor = '#28a745';
+            if (task.remarks === 'Completed') statusColor = '#003A5C';
+
+            row.innerHTML = 
+                '<td class="desktop-only"><strong>' + (task.ref || task.controlId || task.controlNumber) + '</strong></td>' +
+                '<td class="desktop-only">' + (task.vendorName || task.productName) + '</td>' +
+                '<td class="desktop-only">' + (task.details || '') + '</td>' +
+                '<td class="desktop-only">' + movement + '</td>' +
+                '<td class="desktop-only" style="font-weight: bold; color: #003A5C;">' + displayQty + qtyLabel + '</td>' +
+                '<td class="desktop-only">' + (task.contactName || task.requestor || '') + '</td>' +
+                '<td class="desktop-only"><span style="color: ' + statusColor + '; font-weight: bold;">' + task.remarks + '</span></td>' +
+                '<td class="desktop-only">' + actionButtons + '</td>';
+
+        } else {
+            // --- STANDARD ROW ---
+            var isInvoiceFromIrwin = task.source === 'invoice' && task.enteredBy === 'Irwin';
+            var invName = task.invName || '';
+            var isClickable = (isInvoiceFromIrwin || (task.source === 'invoice' && invName)) &&
+                              invName.trim() && invName.toLowerCase() !== 'nil';
+
+            if (isClickable) row.classList.add('clickable-pdf');
+            if (isCEO) row.title = "Click to open approval modal";
+            else if (isClickable) row.title = "Click to open PDF";
+
+            var displayAmount = task.amountPaid || task.amount || 0;
+
+            row.innerHTML = 
+                '<td class="desktop-only">' + (task.for || '') + '</td>' +
+                '<td class="desktop-only">' + (task.ref || '') + '</td>' +
+                '<td class="desktop-only">' + (task.po || '') + '</td>' +
+                '<td class="desktop-only">' + (task.vendorName || 'N/A') + '</td>' +
+                '<td class="desktop-only">' + formatCurrency(displayAmount) + '</td>' +
+                '<td class="desktop-only">' + (task.site || '') + '</td>' +
+                '<td class="desktop-only col-group">' + (task.group || '') + '</td>' +
+                '<td class="desktop-only">' + (task.date || '') + '</td>' +
+                '<td class="desktop-only">' + (task.remarks || 'Pending') + '</td>';
+
+            var actionsCell = document.createElement('td');
+            actionsCell.className = "desktop-only";
+
+            if (task.remarks === 'For Approval' && isManager) {
+                var approveBtn = document.createElement('button');
+                approveBtn.className = 'action-btn approve-btn';
+                approveBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
+                approveBtn.title = 'Approve';
+                approveBtn.style.backgroundColor = '#28a745';
+                approveBtn.style.color = 'white';
+                approveBtn.style.marginRight = '5px';
+                approveBtn.onclick = function(e) { e.stopPropagation(); handleDesktopApproval(task, 'Approved'); };
+                
+                var rejectBtn = document.createElement('button');
+                rejectBtn.className = 'action-btn reject-btn';
+                rejectBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                rejectBtn.title = 'Reject';
+                rejectBtn.style.backgroundColor = '#dc3545';
+                rejectBtn.style.color = 'white';
+                rejectBtn.onclick = function(e) { e.stopPropagation(); handleDesktopApproval(task, 'Rejected'); };
+
+                actionsCell.appendChild(approveBtn);
+                actionsCell.appendChild(rejectBtn);
+
+            } else if (isCEO) {
+                actionsCell.innerHTML = '<button class="ceo-approve-btn" data-key="' + task.key + '">Make Approval</button>';
+            } else {
+                var actionsHTML = '';
+                if (task.remarks === 'For SRV') {
+                    actionsHTML = `<button class="srv-done-btn" data-key="${task.key}">SRV Done</button>`;
+                } else {
+                    actionsHTML = `<button class="modify-btn" data-key="${task.key}">Process</button>`;
+                }
+                actionsCell.innerHTML = actionsHTML;
+            }
+            row.appendChild(actionsCell);
+        }
+        activeTaskTableBody.appendChild(row);
+    });
+}
+
+// ==========================================================================
+// UPDATED FUNCTION: populateActiveTasks (Fix for "On Hold" Counting)
+// ==========================================================================
+async function populateActiveTasks() {
+    activeTaskTableBody.innerHTML = `<tr><td colspan="10">Loading tasks...</td></tr>`;
+
+    // --- SAFETY DEFINTIONS ---
+    const isInventoryPage = window.location.href.toLowerCase().includes('inventory');
+    const INVENTORY_TYPES = ['Transfer', 'Restock', 'Return', 'Usage'];
+    
+    if (!currentApprover || !currentApprover.Name) {
+        activeTaskTableBody.innerHTML = `<tr><td colspan="10">Could not identify user.</td></tr>`;
+        return;
     }
 
     try {
         const currentUserName = currentApprover.Name;
         const currentUserSite = currentApprover.Site || ''; 
         
+        const nameLower = (currentApprover.Name || '').toLowerCase();
         const userPositionLower = (currentApprover.Position || '').toLowerCase();
-        const isAccounting = userPositionLower === 'accounting' || userPositionLower === 'accounts';
+
+        // --- ACCOUNTING PERMISSIONS ---
+        const isAccounting = userPositionLower.includes('accounting') || 
+                             userPositionLower.includes('accounts') || 
+                             userPositionLower.includes('finance') ||
+                             nameLower.includes('irwin');
+
         const isQS = userPositionLower === 'qs';
         const isProcurement = userPositionLower === 'procurement';
+
+        // Finance Batch Controls (Hide on Inventory Page)
+        const financeBatchControls = document.getElementById('financeBatchControls');
+        if (financeBatchControls) {
+            if (isInventoryPage) {
+                financeBatchControls.style.display = 'none';
+            } else {
+                financeBatchControls.style.display = isAccounting ? 'flex' : 'none';
+            }
+        }
 
         let userTasks = [];
         let pulledInvoiceKeys = new Set();
 
         await ensureAllEntriesFetched();
         await ensureApproverDataCached();
-        await ensureInvoiceDataFetched(false);
+        
+        if (!isInventoryPage) {
+            await ensureInvoiceDataFetched(false);
+        }
 
         if (typeof reconcilePendingPRs === 'function') {
             await reconcilePendingPRs();
         }
 
-        // --- A. Job Entries (Standard) ---
+        // --- A. JOB ENTRIES FILTER ---
         const jobTasks = allSystemEntries.filter(entry => {
             if (isTaskComplete(entry)) return false;
+
+            // [NEW] INVENTORY PAGE EXCLUSIVE FILTER
+            if (isInventoryPage) {
+                if (!INVENTORY_TYPES.includes(entry.for)) {
+                    return false;
+                }
+            }
+
+            // 1. BLANK ATTENTION CHECK
+            if (!entry.attention || entry.attention.trim() === '' || entry.attention.toLowerCase() === 'none') {
+                // Exception 1: Transfers
+                const isTransfer = ['Transfer', 'Restock', 'Return', 'Usage'].includes(entry.for);
+                // Exception 2: INVOICES for Accounting
+                const isInvoiceForAcc = (entry.for === 'Invoice' && isAccounting && !isInventoryPage);
+
+                if (!isTransfer && !isInvoiceForAcc) {
+                    return false; 
+                }
+            }
             
-            // 1. Transfer Logic
+            // 2. Transfer Logic
             if (['Transfer', 'Restock', 'Return', 'Usage'].includes(entry.for)) {
                 if (entry.remarks === 'Pending Confirmation') return entry.requestor === currentUserName;
                 if (entry.remarks === 'Pending Source') return entry.sourceContact === currentUserName;
                 if (entry.remarks === 'Pending Admin' || entry.remarks === 'Pending') return entry.approver === currentUserName;
                 if (entry.remarks === 'Approved' || entry.remarks === 'In Transit') return entry.receiver === currentUserName;
-                return entry.attention === currentUserName;
+                
+                if (entry.attention === currentUserName) return true;
+                if (entry.attention === 'All' && (entry.site === currentUserSite || currentUserSite === 'All')) return true;
+                return false;
             }
 
-            // 2. Invoice / Accounting Logic
-            if (isAccounting) {
-                if (entry.for === 'Invoice') return true;
+            // 3. Invoice / Accounting Logic (Skip if Inventory Page)
+            if (isAccounting && !isInventoryPage) {
+                if (entry.for === 'Invoice') return true; 
                 if (entry.attention === 'Accounting') return true;
             }
             
-            // 3. PR Logic
+            // 4. PR Logic
             if (entry.for === 'PR') {
                 if (isProcurement) return true;
                 if (entry.attention === currentUserName) return true;
                 return false;
             }
             
-            // 4. Direct Name Match
+            // 5. Direct Name Match
             if (entry.attention === currentUserName) return true;
 
-            // 5. "ALL" Logic
+            // 6. "ALL" Logic
             if (entry.attention === 'All') {
                 if (currentUserSite === 'All') return true;
                 if (!entry.site || entry.site === 'All') return true;
                 const entrySiteID = entry.site.split(' ')[0];
                 if (currentUserSite.includes(entrySiteID)) return true;
-                return false; 
+                if (entry.site === currentUserSite) return true; 
             }
             
-            // 6. IPC Logic
+            // 7. IPC Logic
             if (entry.for === 'IPC' && isQS && entry.attention === currentUserName) return true;
             
             return false;
         });
 
         userTasks = jobTasks.map(task => {
-            if (['Transfer', 'Restock', 'Return', 'Usage'].includes(task.for)) {
-                return { ...task, source: 'transfer_entry' };
-            }
-            return { ...task, source: 'job_entry' };
+            // URGENCY LOGIC
+            const isUrgent = (task.attention === currentUserName) || 
+                             // Mark 'Invoice' as urgent ONLY if NOT 'On Hold'
+                             (isAccounting && (task.attention === 'Accounting' || task.for === 'Invoice') && task.remarks !== 'On Hold' && !isInventoryPage) ||
+                             (['Transfer', 'Restock'].includes(task.for) && task.receiver === currentUserName);
+
+            const source = ['Transfer', 'Restock', 'Return', 'Usage'].includes(task.for) ? 'transfer_entry' : 'job_entry';
+            return { ...task, source: source, isUrgent: isUrgent };
         });
 
-        // --- B. Invoice Tasks (PERSONAL + ALL Inbox) ---
-        const sanitizeFirebaseKey = (key) => key.replace(/[.#$[\]]/g, '_');
-        const safeCurrentUserName = sanitizeFirebaseKey(currentUserName);
-        
-        const [personalSnapshot, allSnapshot] = await Promise.all([
-            invoiceDb.ref(`invoice_tasks_by_user/${safeCurrentUserName}`).once('value'),
-            invoiceDb.ref(`invoice_tasks_by_user/All`).once('value')
-        ]);
+        // --- B. INVOICE TASKS ---
+        if (!isInventoryPage) {
+            const sanitizeFirebaseKey = (key) => key.replace(/[.#$[\]]/g, '_');
+            const safeCurrentUserName = sanitizeFirebaseKey(currentUserName);
+            
+            const [personalSnapshot, allSnapshot] = await Promise.all([
+                invoiceDb.ref(`invoice_tasks_by_user/${safeCurrentUserName}`).once('value'),
+                invoiceDb.ref(`invoice_tasks_by_user/All`).once('value')
+            ]);
 
-        const processInvoiceSnapshot = (snapshot) => {
-            if (snapshot.exists()) {
-                const tasksData = snapshot.val();
-                for (const invoiceKey in tasksData) {
-                    if (pulledInvoiceKeys.has(invoiceKey)) continue;
+            const processInvoiceSnapshot = (snapshot) => {
+                if (snapshot.exists()) {
+                    const tasksData = snapshot.val();
+                    for (const invoiceKey in tasksData) {
+                        if (pulledInvoiceKeys.has(invoiceKey)) continue;
 
-                    const task = tasksData[invoiceKey];
-                    const isFromAll = (snapshot.key === 'All');
+                        const task = tasksData[invoiceKey];
+                        const isFromAll = (snapshot.key === 'All');
 
-                    // Site Check for "All" tasks
-                    if (isFromAll) {
-                        let allowed = false;
-                        if (currentUserSite === 'All') allowed = true;
-                        else if (!task.site || task.site === 'All') allowed = true;
-                        else if (currentUserSite.includes(task.site.split(' ')[0])) allowed = true;
-                        if (!allowed) continue;
+                        if (!task.attention || task.attention.trim() === '') {
+                            if (!isFromAll) continue; 
+                        }
+
+                        if (isFromAll) {
+                            let allowed = false;
+                            if (currentUserSite === 'All') allowed = true;
+                            else if (!task.site || task.site === 'All') allowed = true;
+                            else if (currentUserSite.includes(task.site.split(' ')[0])) allowed = true;
+                            if (!allowed) continue;
+                        }
+
+                        pulledInvoiceKeys.add(invoiceKey);
+
+                        let realAmountPaid = task.amountPaid;
+                        if (!realAmountPaid && allInvoiceData && allInvoiceData[task.po] && allInvoiceData[task.po][invoiceKey]) {
+                            realAmountPaid = allInvoiceData[task.po][invoiceKey].amountPaid;
+                        }
+
+                        let finalAttention = task.attention || (isFromAll ? 'All' : currentUserName);
+                        
+                        // Strict Urgency: Only if Name Match AND NOT On Hold
+                        const isUrgent = (finalAttention === currentUserName && task.status !== 'On Hold');
+
+                        const transformedInvoice = {
+                            key: `${task.po}_${invoiceKey}`,
+                            originalKey: invoiceKey,
+                            originalPO: task.po,
+                            source: 'invoice',
+                            for: 'Invoice',
+                            ref: task.ref,
+                            po: task.po,
+                            amount: task.amount,
+                            amountPaid: realAmountPaid || task.amount,
+                            site: task.site,
+                            group: 'N/A',
+                            attention: finalAttention, 
+                            enteredBy: 'Irwin',
+                            date: formatYYYYMMDD(task.date),
+                            remarks: task.status,
+                            timestamp: Date.now(),
+                            invName: task.invName,
+                            vendorName: (task.po && allPOData && allPOData[task.po]) ? (allPOData[task.po]['Supplier Name'] || 'N/A') : 'N/A',
+                            note: task.note,
+                            isUrgent: isUrgent
+                        };
+                        userTasks.push(transformedInvoice);
                     }
-
-                    pulledInvoiceKeys.add(invoiceKey);
-
-                    let realAmountPaid = task.amountPaid;
-                    if (!realAmountPaid && allInvoiceData && allInvoiceData[task.po] && allInvoiceData[task.po][invoiceKey]) {
-                        realAmountPaid = allInvoiceData[task.po][invoiceKey].amountPaid;
-                    }
-
-                    // Strict Attention Logic
-                    let finalAttention = task.attention;
-                    if (!finalAttention) {
-                        finalAttention = isFromAll ? 'All' : currentUserName;
-                    }
-
-                    const transformedInvoice = {
-                        key: `${task.po}_${invoiceKey}`,
-                        originalKey: invoiceKey,
-                        originalPO: task.po,
-                        source: 'invoice',
-                        for: 'Invoice',
-                        ref: task.ref,
-                        po: task.po,
-                        amount: task.amount,
-                        amountPaid: realAmountPaid || task.amount,
-                        site: task.site,
-                        group: 'N/A',
-                        attention: finalAttention, 
-                        enteredBy: 'Irwin',
-                        date: formatYYYYMMDD(task.date),
-                        remarks: task.status,
-                        timestamp: Date.now(),
-                        invName: task.invName,
-                        vendorName: (task.po && allPOData && allPOData[task.po]) ? (allPOData[task.po]['Supplier Name'] || 'N/A') : 'N/A',
-                        note: task.note
-                    };
-                    userTasks.push(transformedInvoice);
                 }
-            }
-        };
+            };
 
-        processInvoiceSnapshot(personalSnapshot);
-        processInvoiceSnapshot(allSnapshot);
+            processInvoiceSnapshot(personalSnapshot);
+            processInvoiceSnapshot(allSnapshot);
+        }
 
-        // --- C. Accounting View ---
-        if (isAccounting) {
+        // --- C. ACCOUNTING VIEW (FIXED: "On Hold" is NOT Urgent) ---
+        if (isAccounting && !isInventoryPage) { 
             const statusesToPull = ['Pending', 'Report', 'Original PO', 'On Hold', 'Unresolved', 'In Process'];
             if (allInvoiceData && allPOData) {
                 for (const poNumber in allInvoiceData) {
@@ -3131,6 +3367,11 @@ async function populateActiveTasks() {
                         if (inv && statusesToPull.includes(inv.status)) {
                             if (effAttention === 'Accounting' || effAttention === 'All') {
                                 const poDetails = allPOData[poNumber] || {};
+                                
+                                // === FIX HERE ===
+                                // Only mark as URGENT if it is NOT "On Hold"
+                                const isUrgent = (inv.status !== 'On Hold'); 
+
                                 const transformedInvoice = {
                                     key: `${poNumber}_${invoiceKey}`,
                                     originalKey: invoiceKey,
@@ -3150,7 +3391,8 @@ async function populateActiveTasks() {
                                     timestamp: Date.now(),
                                     invName: inv.invName || '',
                                     vendorName: poDetails['Supplier Name'] || 'N/A',
-                                    note: inv.note || ''
+                                    note: inv.note || '',
+                                    isUrgent: isUrgent // Uses the new logic
                                 };
                                 userTasks.push(transformedInvoice);
                             }
@@ -3163,12 +3405,7 @@ async function populateActiveTasks() {
         userActiveTasks = userTasks.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
         const totalTaskCount = userActiveTasks.length;
         
-        // --- URGENT COUNT CALCULATION (Action Count) ---
-        const urgentCount = userActiveTasks.filter(t => 
-            t.attention === currentUserName || 
-            t.source === 'transfer_entry' ||
-            (t.attention === 'Accounting' && isAccounting)
-        ).length;
+        const urgentCount = userActiveTasks.filter(t => t.isUrgent === true).length;
 
         if (activeTaskCountDisplay) {
             activeTaskCountDisplay.textContent = `(Action: ${urgentCount} | Records: ${totalTaskCount})`;
@@ -3196,7 +3433,7 @@ async function populateActiveTasks() {
             }
         });
 
-        // --- D. Tab Calculation & TARGETED COLORING ---
+        // --- D. Tab Calculation ---
         const tabCounts = {};
         const urgentTabCounts = {}; 
 
@@ -3209,12 +3446,7 @@ async function populateActiveTasks() {
             }
             
             tabCounts[key] = (tabCounts[key] || 0) + 1;
-
-            // CHECK: Is this task specifically for ME?
-            if (task.attention === currentUserName || 
-                task.source === 'transfer_entry' ||
-                (task.attention === 'Accounting' && isAccounting)) {
-                
+            if (task.isUrgent === true) {
                 urgentTabCounts[key] = (urgentTabCounts[key] || 0) + 1;
             }
         });
@@ -3242,31 +3474,26 @@ async function populateActiveTasks() {
             }
             uniqueTabs.forEach(tabName => {
                 const activeClass = (tabName === currentActiveTaskFilter) ? 'active' : '';
-                
-                // --- CRITICAL VISUAL LOGIC ---
-                // Only color the tab if I have URGENT tasks in it.
                 const hasUrgentTasks = (urgentTabCounts[tabName] || 0) > 0;
-                
-                let tabColor, textColor, borderStyle, fontWeight;
+                let tabColor, textColor, borderStyle, fontWeight, blinkClass;
 
                 if (hasUrgentTasks) {
-                    // YES: It's for me. Light it up!
                     const statusColor = getTabColor(tabName);
                     tabColor = statusColor;
                     textColor = statusColor;
                     fontWeight = 'bold';
-                    // Thicker colored border to catch the eye
                     borderStyle = `4px solid ${statusColor}`; 
+                    blinkClass = 'blink-tab'; 
                 } else {
-                    // NO: It's just a record. Keep it Grey/Boring.
                     tabColor = '#6c757d'; 
                     textColor = '#555';   
                     fontWeight = 'normal';
                     borderStyle = `1px solid #ddd`; 
+                    blinkClass = ''; 
                 }
 
                 tabsHTML += `
-                <button class="${activeClass}" 
+                <button class="${activeClass} ${blinkClass}" 
                         data-status-filter="${tabName}" 
                         style="
                             border-bottom: ${borderStyle}; 
@@ -3432,207 +3659,45 @@ async function reconcilePendingPRs() {
     }
 }
 
-// ==========================================================================
-// UPDATED FUNCTION: renderActiveTaskTable (With Process Report Button)
-// ==========================================================================
-function renderActiveTaskTable(tasks) {
-    var isMobile = window.innerWidth <= 768;
-    if (isMobile) {
-        if (typeof renderMobileActiveTasks === 'function') renderMobileActiveTasks(tasks);
-        return;
-    }
+    // =========================================================
+    // 5. NEW TAB COLORING LOGIC (ADDED FOR V5.2.5 FIX)
+    // =========================================================
+    // This looks at ALL tasks (not just filtered ones) to color tabs
+    // based on whether YOU are mentioned (Urgent) or just Site (Grey)
+    
+    var categories = ['Invoice', 'PR', 'Transfer', 'Site', 'Admin'];
+    
+    categories.forEach(function(cat) {
+        var tabEl = document.getElementById('tab-' + cat.toLowerCase());
+        if (!tabEl) return;
 
-    activeTaskTableBody.innerHTML = '';
+        // Find tasks belonging to this tab
+        var tasksForTab = tasks.filter(function(t) {
+            return t.for === cat || t.jobType === cat;
+        });
 
-    // Filter by Hybrid Tabs
-    var filteredTasks = tasks.filter(function(task) {
-        var specialTypes = ['Transfer', 'Restock', 'Return', 'Usage'];
-        var isSpecialTab = specialTypes.indexOf(currentActiveTaskFilter) !== -1;
-        var taskIsSpecial = specialTypes.indexOf(task.for) !== -1;
+        // Check if any of them are URGENT (Attention == You)
+        // This 'isUrgent' flag comes from populateActiveTasks
+        var hasUrgent = tasksForTab.some(function(t) { return t.isUrgent === true; });
+        var hasAny = tasksForTab.length > 0;
 
-        if (isSpecialTab) {
-            return task.for === currentActiveTaskFilter;
+        // Reset
+        tabEl.classList.remove('blink-tab', 'tab-active-color', 'tab-grey');
+        tabEl.style.opacity = '1';
+
+        if (hasUrgent) {
+            // Urgent: Color + Blink
+            tabEl.classList.add('tab-active-color', 'blink-tab');
+        } else if (hasAny) {
+            // Not Urgent but has tasks: Grey
+            tabEl.classList.add('tab-grey');
         } else {
-            return task.remarks === currentActiveTaskFilter && !taskIsSpecial;
+            // Empty
+            tabEl.style.opacity = '0.5';
         }
     });
 
-    if (filteredTasks.length === 0) {
-        activeTaskTableBody.innerHTML = '<tr><td colspan="10">No tasks found for "' + currentActiveTaskFilter + '".</td></tr>';
-        return;
-    }
 
-    // Check if we are in Transfer/Usage View
-    var isTransferView = filteredTasks.length > 0 && ['Transfer', 'Restock', 'Return', 'Usage'].indexOf(filteredTasks[0].for) !== -1;
-    var tableHead = document.querySelector('#wd-activetask table thead');
-
-    // --- HEADER SETUP ---
-    if (isTransferView) {
-        tableHead.innerHTML = 
-            '<tr>' +
-                '<th class="desktop-only">Control ID</th>' +
-                '<th class="desktop-only">Product Name</th>' +
-                '<th class="desktop-only">Details</th>' +
-                '<th class="desktop-only">Movement</th>' +
-                '<th class="desktop-only">Current Qty</th> <th class="desktop-only">Contact</th>' +
-                '<th class="desktop-only">Status</th>' +
-                '<th class="desktop-only">Action</th>' +
-            '</tr>';
-    } else {
-        tableHead.innerHTML = 
-            '<tr>' +
-                '<th class="desktop-only">Job</th>' +
-                '<th class="desktop-only">Ref</th>' +
-                '<th class="desktop-only">PO</th>' +
-                '<th class="desktop-only">Vendor Name</th>' +
-                '<th class="desktop-only">Invoice Amount</th>' +
-                '<th class="desktop-only">Site</th>' +
-                '<th class="desktop-only col-group">Group</th>' +
-                '<th class="desktop-only">Date</th>' +
-                '<th class="desktop-only">Status</th>' +
-                '<th class="desktop-only">Action</th>' +
-            '</tr>';
-    }
-
-    var isCEO = document.body.classList.contains('is-ceo');
-    
-    // Check Roles
-    var userPos = (currentApprover.Position || '').toLowerCase();
-    var userRole = (currentApprover.Role || '').toLowerCase();
-    
-    var isManager = userPos.indexOf('manager') !== -1 || 
-                    userPos.indexOf('director') !== -1 || 
-                    userPos.indexOf('ceo') !== -1 || 
-                    userRole === 'admin'; 
-
-    var isAccounting = userPos === 'accounting' || userPos === 'accounts';
-
-    filteredTasks.forEach(function(task) {
-        var row = document.createElement('tr');
-        row.setAttribute('data-key', task.key);
-
-        if (isTransferView) {
-            // --- TRANSFER / USAGE ROW ---
-            var actionButtons = '<button class="transfer-action-btn" data-key="' + task.key + '" style="background-color: #17a2b8; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 600;">Action</button>';
-
-            if (userRole === 'admin') {
-                actionButtons += '<button class="delete-btn transfer-delete-btn" data-key="' + task.key + '" style="margin-left: 5px; padding: 6px 12px;">Delete</button>';
-            }
-
-            var fromLoc = task.fromSite || task.fromLocation || 'N/A';
-            var toLoc = task.toSite || task.toLocation || 'N/A';
-
-            var movement = fromLoc + ' <i class="fa-solid fa-arrow-right" style="color: #888; font-size: 0.8rem;"></i> ' + toLoc;
-            if (task.for === 'Usage') {
-                movement = '<span style="color: #6f42c1;">Consumed at ' + fromLoc + '</span>';
-            }
-
-            var displayQty = task.orderedQty || task.requiredQty || 0;
-            var qtyLabel = ""; 
-
-            if (task.approvedQty !== undefined && task.approvedQty !== null) {
-                displayQty = task.approvedQty;
-                if (displayQty != task.orderedQty) qtyLabel = " (Adj)";
-            }
-            if (task.receivedQty !== undefined && task.receivedQty !== null) {
-                displayQty = task.receivedQty;
-                qtyLabel = "";
-            }
-
-            var statusColor = '#333';
-            if (task.remarks === 'Pending') statusColor = '#dc3545';
-            if (task.remarks === 'Pending Admin') statusColor = '#dc3545';
-            if (task.remarks === 'Approved') statusColor = '#28a745';
-            if (task.remarks === 'Completed') statusColor = '#003A5C';
-
-            row.innerHTML = 
-                '<td class="desktop-only"><strong>' + (task.ref || task.controlId || task.controlNumber) + '</strong></td>' +
-                '<td class="desktop-only">' + (task.vendorName || task.productName) + '</td>' +
-                '<td class="desktop-only">' + (task.details || '') + '</td>' +
-                '<td class="desktop-only">' + movement + '</td>' +
-                '<td class="desktop-only" style="font-weight: bold; color: #003A5C;">' + displayQty + qtyLabel + '</td>' +
-                '<td class="desktop-only">' + (task.contactName || task.requestor || '') + '</td>' +
-                '<td class="desktop-only"><span style="color: ' + statusColor + '; font-weight: bold;">' + task.remarks + '</span></td>' +
-                '<td class="desktop-only">' + actionButtons + '</td>';
-
-        } else {
-            // --- STANDARD ROW (Invoice/PR) ---
-            var isInvoiceFromIrwin = task.source === 'invoice' && task.enteredBy === 'Irwin';
-            var invName = task.invName || '';
-            var isClickable = (isInvoiceFromIrwin || (task.source === 'invoice' && invName)) &&
-                invName.trim() &&
-                invName.toLowerCase() !== 'nil';
-
-            if (isClickable) row.classList.add('clickable-pdf');
-            if (isCEO) row.title = "Click to open approval modal";
-            else if (isClickable) row.title = "Click to open PDF";
-
-            var displayAmount = task.amountPaid || task.amount || 0;
-
-            row.innerHTML = 
-                '<td class="desktop-only">' + (task.for || '') + '</td>' +
-                '<td class="desktop-only">' + (task.ref || '') + '</td>' +
-                '<td class="desktop-only">' + (task.po || '') + '</td>' +
-                '<td class="desktop-only">' + (task.vendorName || 'N/A') + '</td>' +
-                '<td class="desktop-only">' + formatCurrency(displayAmount) + '</td>' +
-                '<td class="desktop-only">' + (task.site || '') + '</td>' +
-                '<td class="desktop-only col-group">' + (task.group || '') + '</td>' +
-                '<td class="desktop-only">' + (task.date || '') + '</td>' +
-                '<td class="desktop-only">' + (task.remarks || 'Pending') + '</td>';
-
-            // Render Column 10 (Smart Actions)
-            var actionsCell = document.createElement('td');
-            actionsCell.className = "desktop-only";
-
-            // SCENARIO A: Manager/Admin viewing "For Approval"
-            if (task.remarks === 'For Approval' && isManager) {
-                var approveBtn = document.createElement('button');
-                approveBtn.className = 'action-btn approve-btn';
-                approveBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
-                approveBtn.title = 'Approve';
-                approveBtn.style.backgroundColor = '#28a745';
-                approveBtn.style.color = 'white';
-                approveBtn.style.marginRight = '5px';
-                approveBtn.onclick = function(e) { e.stopPropagation(); handleDesktopApproval(task, 'Approved'); };
-                
-                var rejectBtn = document.createElement('button');
-                rejectBtn.className = 'action-btn reject-btn';
-                rejectBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-                rejectBtn.title = 'Reject';
-                rejectBtn.style.backgroundColor = '#dc3545';
-                rejectBtn.style.color = 'white';
-                rejectBtn.onclick = function(e) { e.stopPropagation(); handleDesktopApproval(task, 'Rejected'); };
-
-                actionsCell.appendChild(approveBtn);
-                actionsCell.appendChild(rejectBtn);
-
-            } 
-            // SCENARIO B: CEO
-            else if (isCEO) {
-                actionsCell.innerHTML = '<button class="ceo-approve-btn" data-key="' + task.key + '">Make Approval</button>';
-            } 
-		// SCENARIO C: Standard User (SRV / Process)
-            else {
-                var actionsHTML = '';
-
-                // 1. "For SRV" gets exclusive SRV Button
-                if (task.remarks === 'For SRV') {
-                    // Only show SRV Done button
-                    actionsHTML = `<button class="srv-done-btn" data-key="${task.key}">SRV Done</button>`;
-                } 
-                // 2. ALL other statuses get "Process" (Replacing Edit Action & Report Button)
-                else {
-                    actionsHTML = `<button class="modify-btn" data-key="${task.key}">Process</button>`;
-                }
-
-                actionsCell.innerHTML = actionsHTML;
-            }
-
-            row.appendChild(actionsCell);
-        }
-        activeTaskTableBody.appendChild(row);
-    });
-}
 
 function renderMobileActiveTasks(tasks) {
     const container = document.getElementById('active-task-mobile-view');
@@ -4775,33 +4840,45 @@ async function handleJobEntrySearch(searchTerm) {
     try {
         await ensureAllEntriesFetched();
 
-        userJobEntries = allSystemEntries.filter(entry =>
+        // 1. FILTER: My Entries + Not Complete (Standard Logic)
+        let filteredEntries = allSystemEntries.filter(entry =>
             entry.enteredBy === currentApprover.Name && !isTaskComplete(entry)
         );
 
-        let filteredEntries = userJobEntries;
+        // 2. FILTER: Inventory Page Exclusive (New Logic)
+        if (isInventoryPage) {
+            filteredEntries = filteredEntries.filter(entry => 
+                INVENTORY_TYPES.includes(entry.for)
+            );
+        }
 
+        // 3. FILTER: Search Text
         if (searchText) {
-            filteredEntries = userJobEntries.filter(entry => {
+            filteredEntries = filteredEntries.filter(entry => {
                 return (
                     (entry.for && entry.for.toLowerCase().includes(searchText)) ||
                     (entry.ref && entry.ref.toLowerCase().includes(searchText)) ||
                     (entry.site && entry.site.toLowerCase().includes(searchText)) ||
                     (entry.group && entry.group.toLowerCase().includes(searchText)) ||
                     (entry.attention && entry.attention.toLowerCase().includes(searchText)) ||
-                    (entry.po && entry.po.toLowerCase().includes(searchText))
+                    (entry.po && entry.po.toLowerCase().includes(searchText)) ||
+                    // Allow searching by product name for transfers
+                    (entry.productName && entry.productName.toLowerCase().includes(searchText)) 
                 );
             });
         }
+
         renderJobEntryTable(filteredEntries);
+
     } catch (error) {
         console.error("Error during job entry search:", error);
         jobEntryTableBody.innerHTML = '<tr><td colspan="8">Error searching entries.</td></tr>';
     }
 }
 
-// --- CRUD Handlers ---
-
+// ==========================================================================
+// UPDATED FUNCTION: getJobDataFromForm (Fixes Attention + Keeps Custom Logic)
+// ==========================================================================
 function getJobDataFromForm() {
     const formData = new FormData(jobEntryForm);
     let jobType = formData.get('for');
@@ -4817,6 +4894,16 @@ function getJobDataFromForm() {
         }
     }
 
+    // 2. CRITICAL FIX: Get Attention from Raw HTML to avoid "GIO" stale data
+    // We prioritize the element value over the Choices library value
+    const attentionEl = document.getElementById('job-attention');
+    let finalAttention = attentionEl ? attentionEl.value : '';
+
+    if (!finalAttention && typeof attentionSelectChoices !== 'undefined' && attentionSelectChoices) {
+        finalAttention = attentionSelectChoices.getValue(true);
+    }
+
+    // 3. Build the Data Object
     const data = {
         for: jobType,
         ref: (formData.get('ref') || '').trim(),
@@ -4824,13 +4911,23 @@ function getJobDataFromForm() {
         po: (formData.get('po') || '').trim(),
         site: formData.get('site'),
         group: formData.get('group'),
-        attention: attentionSelectChoices.getValue(true),
-        date: formatDate(new Date()),
+        
+        // USE THE FIXED ATTENTION VALUE
+        attention: finalAttention,
+        
+        // Prefer the date in the box, fallback to today
+        date: document.getElementById('job-date').value || formatDate(new Date()),
         remarks: (formData.get('status') || 'Pending').trim(),
+        
+        // Extra fields
+        details: (formData.get('details') || '').trim(),
+        calendarDate: (formData.get('calendarDate') || ''),
+        productName: (document.getElementById('job-product-name')?.value || '').trim(),
 
-        // 2. CRITICAL: Capture Attachment Name explicitly by ID
+        // 4. Capture Attachment Name explicitly by ID
         attachmentName: (document.getElementById('job-attachment').value || '').trim()
     };
+
     return data;
 }
 
@@ -4967,167 +5064,137 @@ async function handleDeleteJobEntry(e) {
     }
 }
 
+// ==========================================================================
+// UPDATED FUNCTION: handleUpdateJobEntry (Safe & Robust)
+// ==========================================================================
 async function handleUpdateJobEntry(e) {
     e.preventDefault();
+    
     if (!currentlyEditingKey) {
         alert("No entry selected for update.");
         return;
     }
 
     // 1. Disable button
-    updateJobButton.disabled = true;
-    updateJobButton.textContent = 'Updating...';
+    const btn = document.getElementById('update-job-btn');
+    if(btn) {
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+    }
 
-    // 2. Get Data (Reuses the same logic as Add - handles Attachment & Other)
+    // 2. Get Data (Using the FIXED function from Step 1)
     const jobData = getJobDataFromForm();
 
     if (!jobData) {
-        updateJobButton.disabled = false;
-        updateJobButton.textContent = 'Update';
-        return; // Validation failed
+        if(btn) { btn.disabled = false; btn.textContent = 'Update'; }
+        return; 
     }
 
-   // --- NEW LOGIC: IPC -> INVOICE TRANSITION ---
-    // If the job type is changed to "Invoice", force routing to Accounting
-    if (jobData.for === 'Invoice') {
-        
-        // 1. Force Status to Pending
-        jobData.remarks = 'Pending';
-
-        // 2. Find User with Position "Accounting" (or "Accounts")
-        let accountingUser = null;
-        if (typeof allApproverData !== 'undefined' && allApproverData) {
-            accountingUser = Object.values(allApproverData).find(u => 
-                (u.Position && (u.Position.trim().toLowerCase() === 'accounting' || u.Position.trim().toLowerCase() === 'accounts'))
-            );
-        }
-
-        // 3. Set Attention
-        if (accountingUser) {
-            jobData.attention = accountingUser.Name;
-        } else {
-            jobData.attention = 'Accounting'; 
-        }
-    }
-
-    // 4. Validation
-    const isInvoiceJob = jobData.for === 'Invoice';
+    // 3. Validation
     if (!jobData.for || !jobData.site || !jobData.group) {
         alert('Please fill in Job, Site, and Group.');
-        updateJobButton.disabled = false;
-        updateJobButton.textContent = 'Update';
+        if(btn) { btn.disabled = false; btn.textContent = 'Update'; }
         return;
     }
-    if (!isInvoiceJob && !jobData.attention) {
+    
+    // Strict Invoice Check: Invoices must have attention (usually Accounting)
+    if (jobData.for !== 'Invoice' && !jobData.attention) {
         alert('Please select an Attention user.');
-        updateJobButton.disabled = false;
-        updateJobButton.textContent = 'Update';
+        if(btn) { btn.disabled = false; btn.textContent = 'Update'; }
         return;
     }
 
     try {
-        // 5. Fetch original to preserve immutable data (timestamp, enteredBy)
         await ensureAllEntriesFetched();
         const originalEntry = allSystemEntries.find(entry => entry.key === currentlyEditingKey);
 
         if (originalEntry) {
-            // Keep original creator and time
+            // Preserve immutable fields
             jobData.enteredBy = originalEntry.enteredBy;
             jobData.timestamp = originalEntry.timestamp;
-            jobData.date = originalEntry.date;
+            
+            // If the user didn't change the Date field manually, keep original
+            if(!jobData.date) jobData.date = originalEntry.date;
 
-            // Logic: Should we reset 'Date Responded'?
-            let newDateResponded = originalEntry.dateResponded || null;
-
-            if (currentApprover.Name === (originalEntry.attention || '') &&
-                !originalEntry.dateResponded &&
-                jobData.for !== 'Invoice' &&
-                jobData.attention === (originalEntry.attention || '')) {
-                // If I am the attention user and I am updating it, mark as responded
-                newDateResponded = formatDate(new Date());
+            // Handle "Date Responded" Reset Logic
+            // If attention changed, WE MUST RESET dateResponded to re-trigger the alert
+            if (jobData.attention !== originalEntry.attention) {
+                jobData.dateResponded = null; 
             } else {
-                // If critical fields changed, reset response date (re-open task)
-                const hasChanged = (
-                    jobData.for !== originalEntry.for ||
-                    jobData.ref !== (originalEntry.ref || '') ||
-                    jobData.amount !== (originalEntry.amount || '') ||
-                    jobData.po !== (originalEntry.po || '') ||
-                    jobData.site !== originalEntry.site ||
-                    jobData.group !== originalEntry.group ||
-                    jobData.attention !== (originalEntry.attention || '') ||
-                    jobData.remarks !== originalEntry.remarks
-                );
-
-                if (hasChanged) {
-                    newDateResponded = null;
+                // If attention matches ME and I am updating, assume I responded
+                if (currentApprover.Name === jobData.attention && !originalEntry.dateResponded) {
+                     jobData.dateResponded = formatDate(new Date());
+                } else {
+                    jobData.dateResponded = originalEntry.dateResponded || null;
                 }
             }
-            jobData.dateResponded = newDateResponded;
-
-        } else {
-            jobData.dateResponded = null;
         }
 
-        // QS Logic Fix
-        const isQS = currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'qs';
-        if (jobData.for === 'IPC' && jobData.attention === 'All' && isQS) {
-            jobData.remarks = 'Ready';
-        }
-
-        // 6. Save to Database
+        // 4. Update Database
         await db.ref(`job_entries/${currentlyEditingKey}`).update(jobData);
 
-        // --- NEW: LOG UPDATE HISTORY ---
+        // 5. Log History
         const historyEntry = {
             action: "Updated",
             by: currentApprover.Name,
             timestamp: Date.now(),
             status: jobData.remarks,
-            note: "Job details updated"
+            note: `Updated Attention to: ${jobData.attention}`
         };
-        // Push to history sub-collection
         await db.ref(`job_entries/${currentlyEditingKey}/history`).push(historyEntry);
 
-        alert('Job Entry Updated Successfully!');
+        alert('Job Updated Successfully!');
 
-        // 7. Refresh
+        // 6. Refresh UI
         await ensureAllEntriesFetched(true);
-        updateJobTypeDropdown(); // Refresh dropdown in case type changed
-        handleJobEntrySearch(jobEntrySearchInput.value);
-        resetJobEntryForm();
-        populateActiveTasks();
+        
+        // Check if we have search text to maintain
+        const currentSearch = sessionStorage.getItem('jobEntrySearch') || '';
+        if(typeof handleJobEntrySearch === 'function') {
+            handleJobEntrySearch(currentSearch);
+        }
+        
+        if(typeof populateActiveTasks === 'function') {
+            populateActiveTasks();
+        }
+
+        // Close Modal
+        if (typeof closeStandardJobModal === 'function') {
+            closeStandardJobModal();
+        }
 
     } catch (error) {
-        console.error("Error updating job entry:", error);
-        alert('Failed to update Job Entry. Please try again.');
+        console.error("Error updating job:", error);
+        alert('Failed to update. Check console.');
     } finally {
-        updateJobButton.disabled = false;
-        updateJobButton.textContent = 'Update';
+        if(btn) { btn.disabled = false; btn.textContent = 'Update'; }
     }
 }
 
+// ==========================================================================
+// HELPER: Populate Form (Kept safe)
+// ==========================================================================
 function populateFormForEditing(key) {
     const entryData = allSystemEntries.find(entry => entry.key === key);
     if (!entryData) return;
 
-    // --- 1. TRANSFER GROUP LOGIC (KEPT SAME) ---
-    // We check for all transfer types to be safe.
-    // If matched, we hand it over to transferLogic.js just like before.
+    // --- 1. TRANSFER GROUP LOGIC ---
     if (['Transfer', 'Restock', 'Return', 'Usage'].includes(entryData.for)) {
         if (window.loadTransferForEdit) {
             window.loadTransferForEdit(entryData);
         } else {
             console.error("Transfer loader not found.");
         }
-        return; // STOP HERE. The Transfer Modal takes over.
+        return; 
     }
 
-    // --- 2. STANDARD GROUP LOGIC (NEW) ---
-    // Previously, this code filled the static form on the page.
-    // Now, we simply tell it to open the new Modal in 'Edit' mode.
+    // --- 2. STANDARD GROUP LOGIC ---
     openStandardJobModal('Edit', entryData);
 }
 
+// ==========================================================================
+// HELPER: Nav Controls (Kept safe)
+// ==========================================================================
 function updateJobEntryNavControls() {
     if (navigationContextList.length > 0 && navigationContextIndex > -1) {
         jobEntryNavControls.classList.remove('hidden');
@@ -5185,6 +5252,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let trfProductChoices, stockProductChoices;
     let currentStockSearchText = "";
 
+    
 
 
     // ==========================================================================
@@ -7035,14 +7103,29 @@ function buildMobileReportView(reportData) {
                 if (status === 'Paid' || status === 'With Accounts') { iconClass = 'paid'; iconChar = '<i class="fa-solid fa-check"></i>'; }
 
                 let actionsHTML = '';
+                
+                // 1. Invoice PDF
                 if (inv.invName && inv.invName.toLowerCase() !== 'nil') {
-                    actionsHTML += `<a href="${PDF_BASE_PATH}${encodeURIComponent(inv.invName)}.pdf" target="_blank" class="im-tx-action-btn invoice-pdf-btn">INV</a>`;
+                    let cleanInv = inv.invName.trim();
+                    if(cleanInv.toLowerCase().endsWith('.pdf')) cleanInv = cleanInv.slice(0, -4);
+                    actionsHTML += `<a href="${PDF_BASE_PATH}${encodeURIComponent(cleanInv)}.pdf" target="_blank" class="im-tx-action-btn invoice-pdf-btn">INV</a>`;
                 }
+                
+                // 2. SRV PDF
                 if (inv.srvName && inv.srvName.toLowerCase() !== 'nil') {
-                    actionsHTML += `<a href="${SRV_BASE_PATH}${encodeURIComponent(inv.srvName)}.pdf" target="_blank" class="im-tx-action-btn srv-pdf-btn">SRV</a>`;
+                    let cleanSrv = inv.srvName.trim();
+                    if(cleanSrv.toLowerCase().endsWith('.pdf')) cleanSrv = cleanSrv.slice(0, -4);
+                    actionsHTML += `<a href="${SRV_BASE_PATH}${encodeURIComponent(cleanSrv)}.pdf" target="_blank" class="im-tx-action-btn srv-pdf-btn">SRV</a>`;
                 }
 
-               // --- FIX: Only show Sticker if ESN exists (inv.esn) ---
+                // 3. REPORT PDF (Mobile)
+                if (inv.reportName && inv.reportName.toLowerCase() !== 'nil') {
+                    let cleanRpt = inv.reportName.trim();
+                    if(cleanRpt.toLowerCase().endsWith('.pdf')) cleanRpt = cleanRpt.slice(0, -4);
+                    actionsHTML += `<a href="${REPORT_BASE_PATH}${encodeURIComponent(cleanRpt)}.pdf" target="_blank" class="im-tx-action-btn" style="background-color: #6f42c1; color: white;">RPT</a>`;
+                }
+
+                // 4. Sticker (Only if ESN exists)
                 if (canPrintSticker && inv.esn) {
                     actionsHTML += `<button class="im-tx-action-btn" onclick="event.stopPropagation(); handlePrintSticker('${inv.key}', 'Invoice', '${poNumber}')" style="background-color: #28a745; border: none; cursor: pointer; color: white; margin-left: 4px; padding: 3px 8px; border-radius: 6px;" title="Print Sticker"><i class="fa-solid fa-qrcode"></i></button>`;
                 }
@@ -7071,8 +7154,10 @@ function buildDesktopReportView(reportData) {
     const container = document.getElementById('im-reporting-content');
     if (!container) return;
 
+    // 1. Calculate Permissions
     const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
     const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
+    const isAllowedUser = (isAdmin || isAccounting);
 
     // --- Check if user can print stickers ---
     const canPrintSticker = (isAdmin && isAccounting); 
@@ -7097,87 +7182,98 @@ function buildDesktopReportView(reportData) {
 
         let nestedTableRows = '';
 
-        poData.filteredInvoices.forEach(inv => {
-            if (inv.status !== 'With Accounts') allWithAccounts = false;
+            poData.filteredInvoices.forEach(inv => {
+                if (inv.status !== 'With Accounts') allWithAccounts = false;
 
-            const invValue = parseFloat(inv.invValue) || 0;
-            const amountPaid = parseFloat(inv.amountPaid) || 0;
-            const noteText = (inv.note || '').toLowerCase();
+                const invValue = parseFloat(inv.invValue) || 0;
+                const amountPaid = parseFloat(inv.amountPaid) || 0;
+                const noteText = (inv.note || '').toLowerCase();
 
-            totalInvValue += invValue;
-            totalPaidWithRetention += amountPaid;
-            
-            // EXCLUDE 'retention' AND 'delivery confirmed'
-            if (!noteText.includes('retention')) {
-                totalPaidWithoutRetention += amountPaid;
-            }
-
-            const releaseDateDisplay = inv.releaseDate ? new Date(normalizeDateForInput(inv.releaseDate) + 'T00:00:00').toLocaleDateString('en-GB') : '';
-            const invoiceDateDisplay = inv.invoiceDate ? new Date(normalizeDateForInput(inv.invoiceDate) + 'T00:00:00').toLocaleDateString('en-GB') : '';
-            const invValueDisplay = (isAdmin || isAccounting) ? formatCurrency(invValue) : '---';
-            const amountPaidDisplay = (isAdmin || isAccounting) ? formatCurrency(amountPaid) : '---';
-
-            let actionButtonsHTML = '';
-
-            if (inv.source !== 'ecommit' && (isAdmin || isAccounting)) {
+                totalInvValue += invValue;
+                totalPaidWithRetention += amountPaid;
                 
-                // --- SMART PDF FIX: REMOVE .pdf IF ALREADY PRESENT ---
-                let finalInvName = (inv.invName || '').trim();
-                if (finalInvName.toLowerCase().endsWith('.pdf')) finalInvName = finalInvName.slice(0, -4);
+                // EXCLUDE 'retention' AND 'delivery confirmed'
+                if (!noteText.includes('retention')) {
+                    totalPaidWithoutRetention += amountPaid;
+                }
 
-                let finalSrvName = (inv.srvName || '').trim();
-                if (finalSrvName.toLowerCase().endsWith('.pdf')) finalSrvName = finalSrvName.slice(0, -4);
-                // ---------------------------------------------------
+                const releaseDateDisplay = inv.releaseDate ? new Date(normalizeDateForInput(inv.releaseDate) + 'T00:00:00').toLocaleDateString('en-GB') : '';
+                const invoiceDateDisplay = inv.invoiceDate ? new Date(normalizeDateForInput(inv.invoiceDate) + 'T00:00:00').toLocaleDateString('en-GB') : '';
+                const invValueDisplay = (isAdmin || isAccounting) ? formatCurrency(invValue) : '---';
+                const amountPaidDisplay = (isAdmin || isAccounting) ? formatCurrency(amountPaid) : '---';
 
-                const invPDFLink = (finalInvName && finalInvName.toLowerCase() !== 'nil') ? 
-                    `<a href="${PDF_BASE_PATH}${encodeURIComponent(finalInvName)}.pdf" target="_blank" class="action-btn invoice-pdf-btn" onclick="event.stopPropagation();">Invoice</a>` : '';
+                // ============================================================
+                // 1. GENERATE ACTION BUTTONS
+                // ============================================================
                 
-                const srvPDFLink = (finalSrvName && finalSrvName.toLowerCase() !== 'nil') ? 
-                    `<a href="${SRV_BASE_PATH}${encodeURIComponent(finalSrvName)}.pdf" target="_blank" class="action-btn srv-pdf-btn" onclick="event.stopPropagation();">SRV</a>` : '';
-                
-                let historyBtn = (inv.history || inv.createdAt || inv.originTimestamp) ? `<button type="button" class="history-btn action-btn" onclick="event.stopPropagation(); showInvoiceHistory('${poData.poNumber}', '${inv.key}')"><i class="fa-solid fa-clock-rotate-left"></i></button>` : '';
-                let editBtn = `<button type="button" class="edit-inv-no-btn action-btn" data-po="${poData.poNumber}" data-key="${inv.key}" data-current="${inv.invNumber || ''}"><i class="fa-solid fa-pen-to-square"></i></button>`;
-                
-                // --- NEW: FINAL REPORT BUTTON (One-Time Print) ---
-                let printReportBtn = '';
-                
-                // Show button ONLY if status is "Report Approved"
-                if (inv.status === 'Report Approved') {
-                    // Check if already printed (we will store this flag in the invoice entry)
-                    if (inv.reportPrinted) {
-                        // Option: Show "Locked" button
-                        printReportBtn = `<button type="button" class="action-btn" style="background-color: #6c757d; color: white; cursor: not-allowed;" title="Already Printed (Locked)"><i class="fa-solid fa-lock"></i> Locked</button>`;
-                    } else {
-                        // Active Print Button
-                        printReportBtn = `<button type="button" class="action-btn" style="background-color: #00748C; color: white;" onclick="event.stopPropagation(); printFinalFinanceReport('${poData.poNumber}', '${inv.key}')" title="Print Official Report (One-Time)"><i class="fa-solid fa-print"></i> Report</button>`;
+                let actionButtonsHTML = '';
+
+                if (inv.source !== 'ecommit' && isAllowedUser) {
+                    
+                    // --- A. Sanitize Names ---
+                    let finalInvName = (inv.invName || '').trim();
+                    if (finalInvName.toLowerCase().endsWith('.pdf')) finalInvName = finalInvName.slice(0, -4);
+
+                    let finalSrvName = (inv.srvName || '').trim();
+                    if (finalSrvName.toLowerCase().endsWith('.pdf')) finalSrvName = finalSrvName.slice(0, -4);
+
+                    let finalReportName = (inv.reportName || '').trim();
+                    if (finalReportName.toLowerCase().endsWith('.pdf')) finalReportName = finalReportName.slice(0, -4);
+
+                    // --- B. Create PDF Links ---
+                    const invPDFLink = (finalInvName && finalInvName.toLowerCase() !== 'nil') ? 
+                        `<a href="${PDF_BASE_PATH}${encodeURIComponent(finalInvName)}.pdf" target="_blank" class="action-btn invoice-pdf-btn" onclick="event.stopPropagation();" title="View Invoice">Inv</a>` : '';
+                    
+                    const srvPDFLink = (finalSrvName && finalSrvName.toLowerCase() !== 'nil') ? 
+                        `<a href="${SRV_BASE_PATH}${encodeURIComponent(finalSrvName)}.pdf" target="_blank" class="action-btn srv-pdf-btn" onclick="event.stopPropagation();" title="View SRV">SRV</a>` : '';
+                    
+                    const reportViewLink = (finalReportName && finalReportName.toLowerCase() !== 'nil') ? 
+                        `<a href="${REPORT_BASE_PATH}${encodeURIComponent(finalReportName)}.pdf" target="_blank" class="action-btn" style="background-color: #6f42c1; color: white;" onclick="event.stopPropagation();" title="View Report PDF">Rpt</a>` : '';
+
+                    // --- C. Create Tool Buttons (FIXED LINE IS HERE) ---
+                    // We simply use the PO Number from the parent loop
+                    let currentPO = poData.poNumber;
+
+                    let historyBtn = (inv.history || inv.createdAt || inv.originTimestamp) ? 
+                        `<button type="button" class="history-btn action-btn" onclick="event.stopPropagation(); showInvoiceHistory('${currentPO}', '${inv.key}')"><i class="fa-solid fa-clock-rotate-left"></i></button>` : '';
+                    
+                    let editBtn = `<button type="button" class="edit-inv-no-btn action-btn" data-po="${currentPO}" data-key="${inv.key}" data-current="${inv.invNumber || ''}"><i class="fa-solid fa-pen-to-square"></i></button>`;
+                    
+                    // --- D. Create Print Report Button ---
+                    let printReportBtn = '';
+                    if (inv.status === 'Report Approved') {
+                        if (inv.reportPrinted) {
+                            printReportBtn = `<button type="button" class="action-btn" style="background-color: #6c757d; color: white; cursor: not-allowed;" title="Locked"><i class="fa-solid fa-lock"></i> Locked</button>`;
+                        } else {
+                            printReportBtn = `<button type="button" class="action-btn" style="background-color: #00748C; color: white;" onclick="event.stopPropagation(); printFinalFinanceReport('${currentPO}', '${inv.key}')" title="Print Report"><i class="fa-solid fa-print"></i> Report</button>`;
+                        }
                     }
+
+                    // --- E. STICKER BUTTON ---
+                    let stickerBtn = '';
+                    if (typeof canPrintSticker !== 'undefined' && canPrintSticker && inv.esn) {
+                         stickerBtn = `<button type="button" class="action-btn" style="background-color: #28a745; color: white; padding: 4px 8px; border-radius: 4px;" title="Print Sticker" onclick="event.stopPropagation(); handlePrintSticker('${inv.key}', 'Invoice', '${currentPO}')"><i class="fa-solid fa-qrcode"></i></button>`;
+                    }
+
+                    // --- F. FINAL COMBINATION ---
+                    actionButtonsHTML = `<div class="action-btn-group">${editBtn} ${invPDFLink} ${srvPDFLink} ${reportViewLink} ${printReportBtn} ${historyBtn} ${stickerBtn}</div>`;
+                
+                } else if (inv.source === 'ecommit' && isAllowedUser) {
+                    actionButtonsHTML = `<span style="font-size:0.8rem; color:#6f42c1; font-weight:bold; cursor:pointer;"><i class="fa-solid fa-file-import"></i> Click to Import</span>`;
                 }
-                // -------------------------------------------------
 
-                // --- STICKER BUTTON (Standard Invoice ESN) ---
-                let stickerBtn = '';
-                if (canPrintSticker && inv.esn) {
-                    stickerBtn = `<button type="button" class="action-btn" style="background-color: #28a745; color: white; padding: 4px 8px; border-radius: 4px;" title="Print Sticker" onclick="event.stopPropagation(); handlePrintSticker('${inv.key}', 'Invoice', '${poData.poNumber}')"><i class="fa-solid fa-qrcode"></i></button>`;
-                }
-
-                actionButtonsHTML = `<div class="action-btn-group">${editBtn} ${invPDFLink} ${srvPDFLink} ${printReportBtn} ${historyBtn} ${stickerBtn}</div>`;
-            
-            } else if (inv.source === 'ecommit' && (isAdmin || isAccounting)) {
-                actionButtonsHTML = `<span style="font-size:0.8rem; color:#6f42c1; font-weight:bold; cursor:pointer;"><i class="fa-solid fa-file-import"></i> Click to Import</span>`;
-            }
-
-            nestedTableRows += `<tr class="nested-invoice-row"
-                                    data-po-number="${poData.poNumber}" data-invoice-key="${inv.key}" data-source="${inv.source}"
-                                    data-inv-number="${inv.invNumber || ''}" data-inv-date="${inv.invoiceDate || ''}"
-                                    data-release-date="${inv.releaseDate || ''}" data-inv-value="${inv.invValue || ''}"
-                                    title="${inv.source === 'ecommit' ? 'Click to Import' : 'Click to Edit'}">
-                <td>${inv.invEntryID || ''}</td>
-                <td style="font-weight: bold; color: #00748C;">${inv.invNumber || ''}</td>
-                <td>${invoiceDateDisplay}</td> <td>${invValueDisplay}</td> <td>${amountPaidDisplay}</td>
-                <td>${releaseDateDisplay}</td> <td>${inv.status || ''}</td> <td>${inv.note || ''}</td>
-                <td>${actionButtonsHTML}</td>
-            </tr>`;
-        });
+                nestedTableRows += `<tr class="nested-invoice-row"
+                                        data-po-number="${poData.poNumber}" data-invoice-key="${inv.key}" data-source="${inv.source}"
+                                        data-inv-number="${inv.invNumber || ''}" data-inv-date="${inv.invoiceDate || ''}"
+                                        data-release-date="${inv.releaseDate || ''}" data-inv-value="${inv.invValue || ''}"
+                                        title="${inv.source === 'ecommit' ? 'Click to Import' : 'Click to Edit'}">
+                    <td>${inv.invEntryID || ''}</td>
+                    <td style="font-weight: bold; color: #00748C;">${inv.invNumber || ''}</td>
+                    <td>${invoiceDateDisplay}</td> <td>${invValueDisplay}</td> <td>${amountPaidDisplay}</td>
+                    <td>${releaseDateDisplay}</td> <td>${inv.status || ''}</td> <td>${inv.note || ''}</td>
+                    <td>${actionButtonsHTML}</td>
+                </tr>`;
+            });
 
         let finalTotalPaid = totalPaidWithoutRetention;
         if (Math.abs(totalPaidWithRetention - totalInvValue) < 0.01) finalTotalPaid = totalPaidWithRetention;
@@ -7407,203 +7503,6 @@ async function handleDownloadCSV() {
 }
 
 // ==========================================================================
-// REPLACED FUNCTIONS: 1-Hour Reporting
-// ==========================================================================
-
-// Updated Daily Report (More robust timestamp checking)
-async function handleDownloadDailyReport() {
-    const isAccountingPosition = (currentApprover?.Position || '').toLowerCase() === 'accounting';
-    if (!isAccountingPosition) {
-        alert("You do not have permission to download this report.");
-        return;
-    }
-
-    const twoHoursAgo = Date.now() - (2 * 60 * 60 * 1000);
-
-    try {
-        await ensureInvoiceDataFetched(true);
-
-        const allInvoicesByPO = allInvoiceData;
-        const allPOs = allPOData;
-
-        if (!allInvoicesByPO || !allPOs) throw new Error("Data not loaded for report.");
-
-        let recentEntries = [];
-
-        for (const poNumber in allInvoicesByPO) {
-            const invoices = allInvoicesByPO[poNumber];
-            for (const key in invoices) {
-                const inv = invoices[key];
-
-                // 1. FIX: Handle both number and string timestamps safeley
-                let creationTime = inv.createdAt || inv.timestamp || 0;
-                if (typeof creationTime === 'string') {
-                    creationTime = new Date(creationTime).getTime();
-                }
-
-                // Check if created within the last 2 hours
-                if (creationTime > twoHoursAgo) {
-                    recentEntries.push({
-                        po: poNumber,
-                        site: allPOs[poNumber]?. ['Project ID'] || 'N/A',
-                        ...inv,
-                        sortTime: creationTime
-                    });
-                }
-            }
-        }
-
-        if (recentEntries.length === 0) {
-            alert("No new invoices found in the last 2 hours.");
-            return;
-        }
-
-        recentEntries.sort((a, b) => a.sortTime - b.sortTime);
-
-        let csvContent = "data:text/csv;charset=utf-8,";
-        const headers = ["Time", "PO", "Site", "Inv No", "Inv Name", "Inv Amount", "Amount Paid", "Status"];
-        csvContent += headers.join(",") + "\r\n";
-
-        recentEntries.forEach(entry => {
-            let timeString = '';
-            if (entry.createdAt) {
-                const dateObj = new Date(entry.createdAt);
-                if (!isNaN(dateObj.getTime())) {
-                    timeString = dateObj.toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
-                }
-            }
-
-            const row = [
-                timeString,
-                entry.po,
-                entry.site,
-                `"${(entry.invNumber || '').replace(/"/g, '""')}"`,
-                `"${(entry.invName || '').replace(/"/g, '""')}"`,
-                entry.invValue || '0',
-                entry.amountPaid || '0',
-                entry.status || ''
-            ];
-            csvContent += row.join(",") + "\r\n";
-        });
-
-        const timestampStr = new Date().toISOString().replace(/[:.]/g, '-');
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `entry_report_last_2hrs_${timestampStr}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-    } catch (error) {
-        console.error("Error generating report:", error);
-        alert("An error occurred while generating the report.");
-    }
-}
-
-// Updated With Accounts Report (Checks Release Date OR Creation Time)
-async function handleDownloadWithAccountsReport() {
-    const isAccountingPosition = (currentApprover?.Position || '').toLowerCase() === 'accounting';
-    if (!isAccountingPosition) {
-        alert("You do not have permission to download this report.");
-        return;
-    }
-
-    // 1. Setup Time Checkers
-    const twoHoursAgo = Date.now() - (2 * 60 * 60 * 1000);
-    const todayStr = getTodayDateString(); // Gets "YYYY-MM-DD" for today
-
-    try {
-        await ensureInvoiceDataFetched(true);
-
-        const allInvoicesByPO = allInvoiceData;
-        const allPOs = allPOData;
-
-        if (!allInvoicesByPO || !allPOs) throw new Error("Data not loaded for report.");
-
-        let recentEntries = [];
-
-        for (const poNumber in allInvoicesByPO) {
-            const invoices = allInvoicesByPO[poNumber];
-            for (const key in invoices) {
-                const inv = invoices[key];
-
-                // 2. Normalize Timestamp (Handle strings or numbers)
-                let creationTime = inv.createdAt || inv.timestamp || 0;
-                if (typeof creationTime === 'string') creationTime = new Date(creationTime).getTime();
-
-                // 3. THE FIX: Check if Created Recently OR Released Today
-                const isRecent = (creationTime > twoHoursAgo);
-                const isReleasedToday = (inv.releaseDate === todayStr);
-
-                // Only include if status is correct AND (it's new OR it was updated today)
-                if (inv.status === 'With Accounts' && (isRecent || isReleasedToday)) {
-                    recentEntries.push({
-                        po: poNumber,
-                        site: allPOs[poNumber]?. ['Project ID'] || 'N/A',
-                        ...inv,
-                        sortTime: creationTime
-                    });
-                }
-            }
-        }
-
-        if (recentEntries.length === 0) {
-            alert("No 'With Accounts' invoices found from Today or the last 2 hours.");
-            return;
-        }
-
-        // Sort Ascending
-        recentEntries.sort((a, b) => a.sortTime - b.sortTime);
-
-        let csvContent = "data:text/csv;charset=utf-8,";
-        const headers = ["Time", "PO", "Site", "Inv No", "SRV Name", "Inv Amount", "Amount Paid", "Status"];
-        csvContent += headers.join(",") + "\r\n";
-
-        recentEntries.forEach(entry => {
-            let timeString = '';
-            if (entry.createdAt) {
-                const dateObj = new Date(entry.createdAt);
-                if (!isNaN(dateObj.getTime())) {
-                    timeString = dateObj.toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
-                }
-            }
-
-            const row = [
-                timeString,
-                entry.po,
-                entry.site,
-                `"${(entry.invNumber || '').replace(/"/g, '""')}"`,
-                `"${(entry.srvName || '').replace(/"/g, '""')}"`,
-                entry.invValue || '0',
-                entry.amountPaid || '0',
-                entry.status || ''
-            ];
-            csvContent += row.join(",") + "\r\n";
-        });
-
-        const timestampStr = new Date().toISOString().replace(/[:.]/g, '-');
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `with_accounts_report_${timestampStr}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-    } catch (error) {
-        console.error("Error generating report:", error);
-        alert("An error occurred while generating the report.");
-    }
-}
-
-// ==========================================================================
 // 18. INVOICE MANAGEMENT: BATCH ENTRY
 // ==========================================================================
 
@@ -7821,7 +7720,7 @@ async function addInvoiceToBatchTable(invData) {
 	    <option value="No Need SRV">No Need SRV</option>
             <option value="Pending">Pending</option>
             <option value="For IPC">For IPC</option>
-	    <option value="Unresolved">Unresolved</option>
+	    <option value="Under Review">Under Review</option>
             <option value="For Approval">For Approval</option>
 	    <option value="In Process">In Process</option>
  	    <option value="Unresolved">Unresolved</option>
@@ -7964,19 +7863,38 @@ async function handleBatchGlobalSearch(searchType) {
     }
 }
 
+// =========================================================
+// FIX: BATCH SAVE (With Crash Protection & Report Name)
+// =========================================================
 async function handleSaveBatchInvoices() {
     const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
     if (rows.length === 0) {
         alert("There are no invoices to save.");
         return;
     }
+    
     if (!confirm(`You are about to save/update ${rows.length} invoice(s). Continue?`)) return;
+
+    // --- [CRITICAL FIX] SAFE USER CHECK ---
+    let currentUserName = 'Admin'; 
+    try {
+        // Try to read currentUser. If it doesn't exist, this fails silently (caught below)
+        if (typeof currentUser !== 'undefined' && currentUser && currentUser.username) {
+            currentUserName = currentUser.username;
+        } else if (window.currentUser && window.currentUser.username) {
+            currentUserName = window.currentUser.username;
+        }
+    } catch (e) {
+        console.warn("User not defined, saving as Admin.");
+    }
+    // --------------------------------------
 
     const savePromises = [];
     const localCacheUpdates = [];
     let newInvoicesCount = 0,
         updatedInvoicesCount = 0;
 
+    // Helper: Generate SRV Name
     const getSrvName = (poNumber, site, vendor, invEntryID) => {
         const today = new Date(),
             yyyy = today.getFullYear(),
@@ -7987,12 +7905,19 @@ async function handleSaveBatchInvoices() {
         return `${yyyy}${mm}${dd}-${poNumber}-${invID}-${site}-${vendor}`;
     };
 
-    await ensureInvoiceDataFetched();
+    // Helper: Generate Report Name
+    const generateReportName = (po, id, vendor) => {
+        const shortVendor = (vendor || 'Vendor').substring(0, 15).trim().replace(/[^a-zA-Z0-9 ]/g, "");
+        return `${po}-${id}-${shortVendor}-Report`;
+    };
+
+    if (typeof ensureInvoiceDataFetched === 'function') await ensureInvoiceDataFetched();
 
     for (const row of rows) {
-        const poNumber = row.dataset.po,
-            site = row.dataset.site,
-            existingKey = row.dataset.key;
+        const poNumber = row.dataset.po;
+        const site = row.dataset.site;
+        const existingKey = row.dataset.key;
+        
         let vendor = row.dataset.vendor;
         let invEntryID = row.dataset.nextInvid;
 
@@ -8001,6 +7926,8 @@ async function handleSaveBatchInvoices() {
             if (existingIDSpan) {
                 const match = existingIDSpan.textContent.match(/\(Existing: (.*)\)/);
                 if (match && match[1]) invEntryID = match[1];
+            } else if (allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][existingKey]) {
+                invEntryID = allInvoiceData[poNumber][existingKey].invEntryID;
             }
         }
 
@@ -8012,120 +7939,76 @@ async function handleSaveBatchInvoices() {
             invValue: row.querySelector('[name="invValue"]').value,
             amountPaid: row.querySelector('[name="amountPaid"]').value,
             status: row.querySelector('[name="status"]').value,
-            note: row.querySelector('[name="note"]').value
+            note: row.querySelector('[name="note"]').value,
+            releaseDate: (typeof getTodayDateString === 'function') ? getTodayDateString() : new Date().toISOString().split('T')[0]
         };
 
-        invoiceData.releaseDate = getTodayDateString();
         invoiceData.attention = row.choicesInstance ? row.choicesInstance.getValue(true) : row.querySelector('select[name="attention"]').value;
         if (invoiceData.attention === 'None') invoiceData.attention = '';
-        if (invoiceData.status === 'Under Review') invoiceData.attention = '';
-        if (invoiceData.status === 'With Accounts') invoiceData.attention = '';
+        if (invoiceData.status === 'Under Review' || invoiceData.status === 'With Accounts') invoiceData.attention = '';
+
         if (!invoiceData.invValue) {
             alert(`Invoice Value is required for PO ${poNumber}. Cannot proceed.`);
             return;
         }
-        if (vendor.length > 21) vendor = vendor.substring(0, 21);
 
+        if (vendor.length > 21) vendor = vendor.substring(0, 21);
         const srvNameLower = (invoiceData.srvName || '').toLowerCase();
         if (invoiceData.status === 'With Accounts' && srvNameLower !== 'nil' && srvNameLower.trim() === '') {
             invoiceData.srvName = getSrvName(poNumber, site, vendor, invEntryID);
         }
 
-        let promise;
-        let oldAttention = null;
-
-        if (existingKey) {
-            // --- UPDATING EXISTING INVOICE ---
-            if (allInvoiceData[poNumber] && allInvoiceData[poNumber][existingKey]) {
-                oldAttention = allInvoiceData[poNumber][existingKey].attention;
-            }
-
-            // 1. Create the update promise
-            promise = invoiceDb.ref(`invoice_entries/${poNumber}/${existingKey}`).update(invoiceData);
-
-            // [FIX IS HERE] You must Add this line:
-            savePromises.push(promise); 
-            // ------------------------------------
-
-            savePromises.push(updateInvoiceTaskLookup(poNumber, existingKey, invoiceData, oldAttention));
-            
-            localCacheUpdates.push({
-                type: 'update',
-                po: poNumber,
-                key: existingKey,
-                data: invoiceData
-            });
-            updatedInvoicesCount++;
-
-        } else {
-            // --- CREATING NEW INVOICE ---
-            // (This part was already correct)
-            invoiceData.invEntryID = invEntryID;
-            invoiceData.dateAdded = getTodayDateString();
-            invoiceData.createdAt = firebase.database.ServerValue.TIMESTAMP;
-
-            if (!invoiceData.invName) {
-                invoiceData.invName = `${site}-${poNumber}-${invoiceData.invEntryID}-${vendor}`;
-            }
-
-            promise = invoiceDb.ref(`invoice_entries/${poNumber}`).push(invoiceData);
-            newInvoicesCount++;
-
-            savePromises.push(
-                promise.then(newRef => {
-                    const newKey = newRef.key;
-                    const cacheUpdate = localCacheUpdates.find(upd => upd.promise === promise);
-                    if (cacheUpdate) cacheUpdate.newKey = newKey;
-
-                    return updateInvoiceTaskLookup(poNumber, newKey, invoiceData, null);
-                })
-            );
-
-            localCacheUpdates.push({
-                type: 'add',
-                po: poNumber,
-                data: invoiceData,
-                promise: promise
-            });
+        // --- REPORT NAME TRIGGER ---
+        // Generates name if status is "Report Approved"
+        if (invoiceData.status === 'Report Approved') {
+            invoiceData.reportName = generateReportName(poNumber, invEntryID, vendor);
         }
-        savePromises.push(promise);
+
+        // SAVE LOGIC (Using safe 'currentUserName')
+        if (existingKey) {
+            invoiceData.updatedAt = firebase.database.ServerValue.TIMESTAMP;
+            invoiceData.updatedBy = currentUserName; 
+            
+            const p = invoiceDb.ref(`invoice_entries/${poNumber}/${existingKey}`).update(invoiceData);
+            savePromises.push(p);
+            updatedInvoicesCount++;
+            
+            localCacheUpdates.push({ po: poNumber, key: existingKey, data: invoiceData });
+        } else {
+            invoiceData.invEntryID = invEntryID;
+            invoiceData.vendor_name = vendor;
+            invoiceData.po_number = poNumber;
+            invoiceData.site_name = site;
+            invoiceData.enteredAt = firebase.database.ServerValue.TIMESTAMP;
+            invoiceData.enteredBy = currentUserName;
+
+            const newRef = invoiceDb.ref(`invoice_entries/${poNumber}`).push();
+            const p = newRef.set(invoiceData);
+            savePromises.push(p);
+            newInvoicesCount++;
+        }
     }
+
     try {
         await Promise.all(savePromises);
-
-        if (allInvoiceData) {
-            for (const update of localCacheUpdates) {
-                if (update.type === 'update') {
-                    if (!allInvoiceData[update.po]) allInvoiceData[update.po] = {};
-                    if (!allInvoiceData[update.po][update.key]) allInvoiceData[update.po][update.key] = {};
-                    allInvoiceData[update.po][update.key] = {
-                        ...allInvoiceData[update.po][update.key],
-                        ...update.data
-                    };
-                } else if (update.type === 'add') {
-                    const newKey = update.newKey;
-                    if (newKey) {
-                        if (!allInvoiceData[update.po]) allInvoiceData[update.po] = {};
-                        allInvoiceData[update.po][newKey] = update.data;
-                    }
+        
+        if (typeof allInvoiceData !== 'undefined') {
+            localCacheUpdates.forEach(update => {
+                if (allInvoiceData[update.po] && allInvoiceData[update.po][update.key]) {
+                    Object.assign(allInvoiceData[update.po][update.key], update.data);
                 }
-
-                if (update.data.note && update.data.note.trim() !== '') {
-                    allUniqueNotes.add(update.data.note.trim());
-                }
-            }
-            console.log("Local invoice cache updated surgically.");
+            });
         }
 
-        alert(`${newInvoicesCount} new invoice(s) created and ${updatedInvoicesCount} invoice(s) updated successfully!`);
-
+        alert(`Batch Process Complete!\n\nNew Invoices: ${newInvoicesCount}\nUpdated Invoices: ${updatedInvoicesCount}`);
+        
         document.getElementById('im-batch-table-body').innerHTML = '';
-        updateBatchCount();
+        if (imBatchSearchModal) imBatchSearchModal.classList.add('hidden');
+        if (typeof loadActiveTasks === 'function') loadActiveTasks();
 
-        allSystemEntries = [];
     } catch (error) {
-        console.error("Error saving batch invoices:", error);
-        alert("An error occurred while saving. Please check the data and try again.");
+        console.error("Batch Save Error:", error);
+        alert("An error occurred while saving. Check console.");
     }
 }
 
@@ -9173,257 +9056,7 @@ async function handleSavePayments() {
     }
 }
 
-// ==========================================================================
-// 22. FINANCE REPORT (READ-ONLY)
-// ==========================================================================
 
-function handleFinanceSearch() {
-    const poNo = imFinanceSearchPoInput.value.trim();
-    if (!poNo) {
-        alert('Please enter a PO No. to search');
-        return;
-    }
-
-    paymentDb.ref('payments').orderByChild('poNo').equalTo(poNo).once('value')
-        .then(snapshot => {
-            imFinanceResults.style.display = 'block';
-            imFinanceResultsBody.innerHTML = '';
-
-            if (!snapshot.exists()) {
-                imFinanceNoResults.style.display = 'block';
-                if (financeReportCountDisplay) financeReportCountDisplay.textContent = '';
-            } else {
-                imFinanceNoResults.style.display = 'none';
-                imFinanceAllPaymentsData = {};
-                snapshot.forEach(childSnapshot => {
-                    imFinanceAllPaymentsData[childSnapshot.key] = {
-                        id: childSnapshot.key,
-                        ...childSnapshot.val()
-                    };
-                });
-                const payments = Object.values(imFinanceAllPaymentsData);
-                if (financeReportCountDisplay) {
-                    financeReportCountDisplay.textContent = `(Total Payments Found: ${payments.length})`;
-                }
-                showFinanceSearchResults(payments);
-            }
-        })
-        .catch(error => console.error('Error searching payments:', error));
-}
-
-function showFinanceSearchResults(payments) {
-    imFinanceResultsBody.innerHTML = '';
-    if (payments.length === 0) return;
-
-    const firstPayment = payments[0];
-    const {
-        site,
-        vendor,
-        vendorId,
-        poNo,
-        poValue
-    } = firstPayment;
-
-    const summaryHtml = `
-        <table class="po-summary-table">
-            <thead>
-                <tr>
-                    <th>Site</th>
-                    <th>Vendor</th>
-                    <th>Vendor ID</th>
-                    <th>PO No.</th>
-                    <th>PO Value</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>${site || ''}</td>
-                    <td>${vendor || ''}</td>
-                    <td>${vendorId || ''}</td>
-                    <td>${poNo || ''}</td>
-                    <td>${formatFinanceNumber(poValue) || ''}</td>
-                </tr>
-            </tbody>
-        </table>
-    `;
-
-    let totalCertified = 0;
-    let totalRetention = 0;
-    let totalPayment = 0;
-
-    const paymentRowsHtml = payments.map(payment => `
-        <tr>
-            <td>${formatFinanceDate(payment.dateEntered) || ''}</td>
-            <td>${payment.paymentNo || ''}</td>
-            <td>${payment.chequeNo || ''}</td>
-            <td>${formatFinanceNumber(payment.certifiedAmount) || ''}</td>
-            <td>${formatFinanceNumber(payment.retention) || ''}</td>
-            <td>${formatFinanceNumber(payment.payment) || ''}</td>
-            <td>${formatFinanceDate(payment.datePaid) || ''}</td>
-            <td>
-                <button class="btn btn-sm btn-info me-2" data-action="report" data-id="${payment.id}">Print Preview</button>
-            </td>
-        </tr>
-    `).join('');
-
-    payments.forEach(payment => {
-        totalCertified += parseFloat(payment.certifiedAmount) || 0;
-        totalRetention += parseFloat(payment.retention) || 0;
-        totalPayment += parseFloat(payment.payment) || 0;
-    });
-
-    const footerHtml = `
-        <tfoot style="background-color: #e9ecef; font-weight: bold;">
-            <tr>
-                <td colspan="3" style="text-align: right;">Total:</td>
-                <td>${formatFinanceNumber(totalCertified)}</td>
-                <td>${formatFinanceNumber(totalRetention)}</td>
-                <td>${formatFinanceNumber(totalPayment)}</td>
-                <td colspan="2"></td>
-            </tr>
-        </tfoot>
-    `;
-
-    const detailsHtml = `
-        <div class="payment-details-wrapper">
-            <h6 class="payment-details-header">Invoice Entries for PO ${poNo}</h6>
-            <div class="table-responsive">
-                <table class="table payment-details-table">
-                    <thead>
-                        <tr>
-                            <th>Date Entered</th>
-                            <th>Payment No.</th>
-                            <th>Cheque No.</th>
-                            <th>Certified Amount</th>
-                            <th>Retention</th>
-                            <th>Payment</th>
-                            <th>Date Paid</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${paymentRowsHtml}
-                    </tbody>
-                    ${footerHtml} </table>
-            </div>
-        </div>
-    `;
-
-    imFinanceResultsBody.innerHTML = summaryHtml + detailsHtml;
-}
-
-function handleFinanceActionClick(e) {
-    const target = e.target.closest('button');
-    if (!target) return;
-
-    const action = target.dataset.action;
-    const id = target.dataset.id;
-    const payment = imFinanceAllPaymentsData[id];
-
-    if (!action || !id || !payment) return;
-
-    if (action === 'report') {
-        generateFinanceReport(payment);
-    }
-}
-
-function resetFinanceSearch() {
-    imFinanceSearchPoInput.value = '';
-    imFinanceResults.style.display = 'none';
-    imFinanceNoResults.style.display = 'none';
-    imFinanceResultsBody.innerHTML = '';
-    imFinanceAllPaymentsData = {};
-    if (financeReportCountDisplay) financeReportCountDisplay.textContent = '';
-}
-
-async function generateFinanceReport(selectedPayment) {
-    const poNo = selectedPayment.poNo;
-    if (!poNo) return;
-    try {
-        const snapshot = await paymentDb.ref('payments').orderByChild('poNo').equalTo(poNo).once('value');
-        if (!snapshot.exists()) {
-            alert('No payments found for this PO No.');
-            return;
-        }
-        const payments = [];
-        snapshot.forEach(childSnapshot => {
-            payments.push(childSnapshot.val());
-        });
-        payments.sort((a, b) => {
-            const aNum = parseInt(String(a.paymentNo).replace('PVN-', ''));
-            const bNum = parseInt(String(b.paymentNo).replace('PVN-', ''));
-            return (isNaN(aNum) ? 0 : aNum) - (isNaN(bNum) ? 0 : bNum);
-        });
-        let totalCertified = 0,
-            totalRetention = 0,
-            totalPayment = 0,
-            totalPrevPayment = 0;
-        let allNotes = [];
-
-        payments.forEach(payment => {
-            const certified = parseFloat(payment.certifiedAmount || 0);
-            const retention = parseFloat(payment.retention || 0);
-            const paymentAmount = parseFloat(payment.payment || 0);
-
-            totalCertified += certified;
-            totalRetention += retention;
-            totalPayment += paymentAmount;
-
-            if (payment.datePaid && String(payment.datePaid).trim() !== '') {
-                totalPrevPayment += paymentAmount;
-            }
-            if (payment.note && String(payment.note).trim() !== '') {
-                allNotes.push(`${String(payment.note).trim()}`);
-            }
-        });
-
-        const totalCommitted = parseFloat(selectedPayment.poValue || 0) - totalCertified;
-        imReportDate.textContent = formatFinanceDateLong(new Date().toISOString());
-        imReportPoNo.textContent = poNo;
-        imReportProject.textContent = selectedPayment.site || '';
-        imReportVendorId.textContent = selectedPayment.vendorId || '';
-        imReportVendorName.textContent = selectedPayment.vendor || '';
-        imReportTotalPoValue.textContent = formatFinanceNumber(selectedPayment.poValue);
-        imReportTotalCertified.textContent = formatFinanceNumber(totalCertified);
-        imReportTotalPrevPayment.textContent = formatFinanceNumber(totalPrevPayment);
-        imReportTotalCommitted.textContent = formatFinanceNumber(totalCommitted);
-        imReportTotalRetention.textContent = formatFinanceNumber(totalRetention);
-
-        imReportTableBody.innerHTML = '';
-        payments.forEach(payment => {
-            const row = document.createElement('tr');
-            const pvn = payment.paymentNo ? String(payment.paymentNo).replace('PVN-', '') : '';
-            row.innerHTML = `
-                <td>${pvn}</td>
-                <td>${payment.chequeNo || ''}</td>
-                <td>${formatFinanceNumber(payment.certifiedAmount)}</td>
-                <td>${formatFinanceNumber(payment.retention)}</td>
-                <td>${formatFinanceNumber(payment.payment)}</td>
-                <td>${payment.datePaid ? formatFinanceDate(payment.datePaid) : ''}</td>`;
-            imReportTableBody.appendChild(row);
-        });
-
-        imReportTotalCertifiedAmount.textContent = formatFinanceNumber(totalCertified);
-        imReportTotalRetentionAmount.textContent = formatFinanceNumber(totalRetention);
-        imReportTotalPaymentAmount.textContent = formatFinanceNumber(totalPayment);
-
-        if (allNotes.length > 0) {
-            imReportNotesContent.textContent = allNotes.join('\n');
-            imReportNotesSection.style.display = 'block';
-        } else {
-            imReportNotesContent.textContent = '';
-            imReportNotesSection.style.display = 'none';
-        }
-
-        imFinanceReportModal.classList.remove('hidden');
-    } catch (error) {
-        console.error('Error generating finance report:', error);
-    }
-}
-
-function printFinanceReport() {
-    window.print();
-}
 
 // ==========================================================================
 // 23. CEO APPROVAL & RECEIPT LOGIC
@@ -11018,14 +10651,42 @@ if (imNewInvoiceForm) {
 if (imReportingContent) {
     imReportingContent.addEventListener('click', async (e) => {
 
-        // 1. Handle Expand Button
+        // 1. Handle Expand Button (Main PO Row)
         const expandBtn = e.target.closest('.expand-btn');
         if (expandBtn) {
             const masterRow = expandBtn.closest('.master-row');
             const detailRow = document.querySelector(masterRow.dataset.target);
+            
             if (detailRow) {
-                detailRow.classList.toggle('hidden');
-                expandBtn.textContent = detailRow.classList.contains('hidden') ? '+' : '-';
+                const isCurrentlyHidden = detailRow.classList.contains('hidden');
+
+                // [NEW] Step A: Close ALL other open POs first
+                if (isCurrentlyHidden) {
+                    // Find all currently open detail rows
+                    const allOpenDetails = document.querySelectorAll('.detail-row:not(.hidden)');
+                    
+                    allOpenDetails.forEach(row => {
+                        // 1. Hide the row
+                        row.classList.add('hidden');
+                        
+                        // 2. Reset the button text to "+"
+                        // The button is in the row BEFORE the detail row (the master row)
+                        const previousRow = row.previousElementSibling;
+                        if (previousRow) {
+                            const btn = previousRow.querySelector('.expand-btn');
+                            if (btn) btn.textContent = '+';
+                        }
+                    });
+                }
+
+                // Step B: Toggle the clicked row
+                if (isCurrentlyHidden) {
+                    detailRow.classList.remove('hidden');
+                    expandBtn.textContent = '-';
+                } else {
+                    detailRow.classList.add('hidden');
+                    expandBtn.textContent = '+';
+                }
             }
             return;
         }
@@ -11060,11 +10721,45 @@ if (imReportingContent) {
         }
 
         // 3. Handle Row Click (Import or Edit)
+        // ---------------------------------------------------------
         const invoiceRow = e.target.closest('.nested-invoice-row');
         if (invoiceRow) {
+
+            // A. Permission Check
             const userPositionLower = (currentApprover?.Position || '').toLowerCase();
             if (userPositionLower !== 'accounting') return;
 
+            // [NEW] B. Handle "Inv. No." Column (Index 1) Logic
+            // ---------------------------------------------------
+            const clickedCell = e.target.closest('td');
+            
+            // If clicking the 2nd column (Index 1)...
+            if (clickedCell && clickedCell.cellIndex === 1) { 
+                
+                // CHECK: Is this a Double Click? (e.detail === 2)
+                if (e.detail === 2) {
+                    const textToCopy = clickedCell.innerText.trim();
+                    if (textToCopy) {
+                        // 1. Copy to Clipboard
+                        navigator.clipboard.writeText(textToCopy).then(() => {
+                            // 2. Visual Feedback: Flash Green
+                            const originalBg = clickedCell.style.backgroundColor;
+                            clickedCell.style.backgroundColor = '#d4edda'; // Light Green
+                            clickedCell.style.transition = 'background-color 0.3s';
+                            
+                            setTimeout(() => {
+                                clickedCell.style.backgroundColor = originalBg;
+                            }, 400);
+                        }).catch(err => console.error('Copy failed', err));
+                    }
+                }
+                
+                // STOP HERE! Do not show the Import/Edit popup.
+                return; 
+            }
+            // ---------------------------------------------------
+
+            // C. Get Row Data
             const poNumber = invoiceRow.dataset.poNumber;
             const invoiceKey = invoiceRow.dataset.invoiceKey;
             const source = invoiceRow.dataset.source;
@@ -11108,8 +10803,8 @@ if (imReportingContent) {
                             setTimeout(() => {
                                 const invNoInput = document.getElementById('im-inv-no');
                                 if (invNoInput) invNoInput.focus();
-                            }, 50); // Small delay for focus
-                        }, 500); // Delay for PO Search to finish
+                            }, 50); 
+                        }, 500); 
                     });
                 }
                 return;
@@ -11120,7 +10815,12 @@ if (imReportingContent) {
                 imNav.querySelector('a[data-section="im-invoice-entry"]').click();
                 imPOSearchInput.value = poNumber;
 
-                ensureInvoiceDataFetched().then(() => {
+                // Ensure data is fetched before populating
+                const fetchPromise = (typeof ensureInvoiceDataFetched === 'function') 
+                                     ? ensureInvoiceDataFetched() 
+                                     : Promise.resolve(); 
+
+                fetchPromise.then(() => {
                     currentPO = poNumber;
                     if (allPOData && allPOData[poNumber]) {
                         proceedWithPOLoading(poNumber, allPOData[poNumber]).then(() => {
@@ -11340,19 +11040,49 @@ if (imReportingContent) {
     }
     // --- END MODIFIED ---
 
-    if (imBatchSearchModal) {
-        const modalSearchBtn = document.getElementById('im-batch-modal-search-btn'),
-            addSelectedBtn = document.getElementById('im-batch-modal-add-selected-btn'),
-            modalPOInput = document.getElementById('im-batch-modal-po-input');
-        if (modalSearchBtn) modalSearchBtn.addEventListener('click', handleBatchModalPOSearch);
-        if (addSelectedBtn) addSelectedBtn.addEventListener('click', handleAddSelectedToBatch);
-        if (modalPOInput) modalPOInput.addEventListener('keypress', (e) => {
+    // Locate this block in app.js
+if (imBatchSearchModal) {
+    const modalSearchBtn = document.getElementById('im-batch-modal-search-btn');
+    const addSelectedBtn = document.getElementById('im-batch-modal-add-selected-btn');
+    const modalPOInput = document.getElementById('im-batch-modal-po-input');
+
+    // 1. Button Clicks
+    if (modalSearchBtn) modalSearchBtn.addEventListener('click', handleBatchModalPOSearch);
+    if (addSelectedBtn) addSelectedBtn.addEventListener('click', handleAddSelectedToBatch);
+
+    // 2. Handle "Enter" inside the Input Field -> Triggers SEARCH
+    if (modalPOInput) {
+        modalPOInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 if (modalSearchBtn) modalSearchBtn.click();
             }
         });
     }
+
+    // 3. [NEW] Handle "Enter" anywhere else -> Triggers ADD SELECTED
+    document.addEventListener('keydown', (e) => {
+        // Only run if this specific modal is visible
+        if (e.key === 'Enter' && !imBatchSearchModal.classList.contains('hidden')) {
+            
+            // IGNORE if the user is typing in the search box (that runs Search)
+            if (document.activeElement === modalPOInput) return;
+
+            // IGNORE if the user is focused on a checkbox (Enter toggles check/uncheck)
+            if (document.activeElement.type === 'checkbox') return;
+
+            // Otherwise, trigger the "Add Selected" button
+            e.preventDefault();
+            if (addSelectedBtn) {
+                // Visual feedback (optional press effect)
+                addSelectedBtn.style.transform = "scale(0.95)";
+                setTimeout(() => addSelectedBtn.style.transform = "scale(1)", 100);
+                
+                addSelectedBtn.click();
+            }
+        }
+    });
+}
 
     if (imBatchGlobalAttention) {
         imBatchGlobalAttention.addEventListener('change', () => {
@@ -13234,6 +12964,329 @@ function finalizeApprovedBatch() {
     }
 }
 
+
+// =========================================================
+// FINANCE INPUT FORMATTERS (Commas)
+// =========================================================
+window.formatCurrencyField = function(input) {
+    if (!input.value || input.value.trim() === '') return;
+    // Remove existing commas to get raw number
+    let raw = input.value.replace(/,/g, '');
+    let num = parseFloat(raw);
+    if (!isNaN(num)) {
+        // Format with commas and 2 decimal places
+        input.value = num.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
+};
+
+window.cleanCurrencyField = function(input) {
+    if (!input.value) return;
+    // Remove commas so user can edit raw number
+    input.value = input.value.replace(/,/g, '');
+    // Select all text for easy overwriting
+    input.select();
+};
+
+// =========================================================
+// AUTO-GENERATE REPORT NAME (On "Report Approved")
+// =========================================================
+// Renamed variable to 'reportAutoSelect' to fix initialization error
+const reportAutoSelect = document.getElementById('im-status');
+
+if (reportAutoSelect) {
+    reportAutoSelect.addEventListener('change', function() {
+        // 1. Check if the status is the trigger status
+        if (this.value === "Report Approved") {
+            
+            // 2. Get Data from the modal
+            // Use safe selection with optional chaining in case elements are missing
+            const poElement = document.querySelector('#im-invoice-entry-modal .im-po-no');
+            const vendorElement = document.querySelector('#im-invoice-entry-modal .im-po-vendor');
+            const entryIdElement = document.getElementById('im-inv-entry-id');
+
+            if (!poElement || !vendorElement || !entryIdElement) return;
+
+            const poText = poElement.textContent.trim();
+            const vendorText = vendorElement.textContent.trim();
+            const entryId = entryIdElement.value.trim();
+
+            // 3. Validation
+            if (poText === "---" || poText === "" || entryId === "") return;
+
+            // 4. Truncate Vendor Name (Max 17 Chars)
+            const shortVendor = vendorText.substring(0, 17).trim();
+
+            // 5. Construct the String: PO-EntryID-Vendor-Report
+            const generatedName = `${poText}-${entryId}-${shortVendor}-Report`;
+
+            // 6. Set the value
+            const reportNameInput = document.getElementById('im-report-name');
+            if (reportNameInput) {
+                reportNameInput.value = generatedName;
+
+                // Visual Flash
+                reportNameInput.style.backgroundColor = "#ffffcc"; 
+                setTimeout(() => {
+                    reportNameInput.style.backgroundColor = ""; 
+                }, 500);
+            }
+        }
+    });
+}
+
+
+// ==========================================================================
+// 22. FINANCE REPORT (READ-ONLY)
+// ==========================================================================
+
+function handleFinanceSearch() {
+    const poNo = imFinanceSearchPoInput.value.trim();
+    if (!poNo) {
+        alert('Please enter a PO No. to search');
+        return;
+    }
+
+    paymentDb.ref('payments').orderByChild('poNo').equalTo(poNo).once('value')
+        .then(snapshot => {
+            imFinanceResults.style.display = 'block';
+            imFinanceResultsBody.innerHTML = '';
+
+            if (!snapshot.exists()) {
+                imFinanceNoResults.style.display = 'block';
+                if (financeReportCountDisplay) financeReportCountDisplay.textContent = '';
+            } else {
+                imFinanceNoResults.style.display = 'none';
+                imFinanceAllPaymentsData = {};
+                snapshot.forEach(childSnapshot => {
+                    imFinanceAllPaymentsData[childSnapshot.key] = {
+                        id: childSnapshot.key,
+                        ...childSnapshot.val()
+                    };
+                });
+                const payments = Object.values(imFinanceAllPaymentsData);
+                if (financeReportCountDisplay) {
+                    financeReportCountDisplay.textContent = `(Total Payments Found: ${payments.length})`;
+                }
+                showFinanceSearchResults(payments);
+            }
+        })
+        .catch(error => console.error('Error searching payments:', error));
+}
+
+function showFinanceSearchResults(payments) {
+    imFinanceResultsBody.innerHTML = '';
+    if (payments.length === 0) return;
+
+    const firstPayment = payments[0];
+    const {
+        site,
+        vendor,
+        vendorId,
+        poNo,
+        poValue
+    } = firstPayment;
+
+    const summaryHtml = `
+        <table class="po-summary-table">
+            <thead>
+                <tr>
+                    <th>Site</th>
+                    <th>Vendor</th>
+                    <th>Vendor ID</th>
+                    <th>PO No.</th>
+                    <th>PO Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>${site || ''}</td>
+                    <td>${vendor || ''}</td>
+                    <td>${vendorId || ''}</td>
+                    <td>${poNo || ''}</td>
+                    <td>${formatFinanceNumber(poValue) || ''}</td>
+                </tr>
+            </tbody>
+        </table>
+    `;
+
+    let totalCertified = 0;
+    let totalRetention = 0;
+    let totalPayment = 0;
+
+    const paymentRowsHtml = payments.map(payment => `
+        <tr>
+            <td>${formatFinanceDate(payment.dateEntered) || ''}</td>
+            <td>${payment.paymentNo || ''}</td>
+            <td>${payment.chequeNo || ''}</td>
+            <td>${formatFinanceNumber(payment.certifiedAmount) || ''}</td>
+            <td>${formatFinanceNumber(payment.retention) || ''}</td>
+            <td>${formatFinanceNumber(payment.payment) || ''}</td>
+            <td>${formatFinanceDate(payment.datePaid) || ''}</td>
+            <td>
+                <button class="btn btn-sm btn-info me-2" data-action="report" data-id="${payment.id}">Print Preview</button>
+            </td>
+        </tr>
+    `).join('');
+
+    payments.forEach(payment => {
+        totalCertified += parseFloat(payment.certifiedAmount) || 0;
+        totalRetention += parseFloat(payment.retention) || 0;
+        totalPayment += parseFloat(payment.payment) || 0;
+    });
+
+    const footerHtml = `
+        <tfoot style="background-color: #e9ecef; font-weight: bold;">
+            <tr>
+                <td colspan="3" style="text-align: right;">Total:</td>
+                <td>${formatFinanceNumber(totalCertified)}</td>
+                <td>${formatFinanceNumber(totalRetention)}</td>
+                <td>${formatFinanceNumber(totalPayment)}</td>
+                <td colspan="2"></td>
+            </tr>
+        </tfoot>
+    `;
+
+    const detailsHtml = `
+        <div class="payment-details-wrapper">
+            <h6 class="payment-details-header">Invoice Entries for PO ${poNo}</h6>
+            <div class="table-responsive">
+                <table class="table payment-details-table">
+                    <thead>
+                        <tr>
+                            <th>Date Entered</th>
+                            <th>Payment No.</th>
+                            <th>Cheque No.</th>
+                            <th>Certified Amount</th>
+                            <th>Retention</th>
+                            <th>Payment</th>
+                            <th>Date Paid</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${paymentRowsHtml}
+                    </tbody>
+                    ${footerHtml} </table>
+            </div>
+        </div>
+    `;
+
+    imFinanceResultsBody.innerHTML = summaryHtml + detailsHtml;
+}
+
+function handleFinanceActionClick(e) {
+    const target = e.target.closest('button');
+    if (!target) return;
+
+    const action = target.dataset.action;
+    const id = target.dataset.id;
+    const payment = imFinanceAllPaymentsData[id];
+
+    if (!action || !id || !payment) return;
+
+    if (action === 'report') {
+        generateFinanceReport(payment);
+    }
+}
+
+function resetFinanceSearch() {
+    imFinanceSearchPoInput.value = '';
+    imFinanceResults.style.display = 'none';
+    imFinanceNoResults.style.display = 'none';
+    imFinanceResultsBody.innerHTML = '';
+    imFinanceAllPaymentsData = {};
+    if (financeReportCountDisplay) financeReportCountDisplay.textContent = '';
+}
+
+async function generateFinanceReport(selectedPayment) {
+    const poNo = selectedPayment.poNo;
+    if (!poNo) return;
+    try {
+        const snapshot = await paymentDb.ref('payments').orderByChild('poNo').equalTo(poNo).once('value');
+        if (!snapshot.exists()) {
+            alert('No payments found for this PO No.');
+            return;
+        }
+        const payments = [];
+        snapshot.forEach(childSnapshot => {
+            payments.push(childSnapshot.val());
+        });
+        payments.sort((a, b) => {
+            const aNum = parseInt(String(a.paymentNo).replace('PVN-', ''));
+            const bNum = parseInt(String(b.paymentNo).replace('PVN-', ''));
+            return (isNaN(aNum) ? 0 : aNum) - (isNaN(bNum) ? 0 : bNum);
+        });
+        let totalCertified = 0,
+            totalRetention = 0,
+            totalPayment = 0,
+            totalPrevPayment = 0;
+        let allNotes = [];
+
+        payments.forEach(payment => {
+            const certified = parseFloat(payment.certifiedAmount || 0);
+            const retention = parseFloat(payment.retention || 0);
+            const paymentAmount = parseFloat(payment.payment || 0);
+
+            totalCertified += certified;
+            totalRetention += retention;
+            totalPayment += paymentAmount;
+
+            if (payment.datePaid && String(payment.datePaid).trim() !== '') {
+                totalPrevPayment += paymentAmount;
+            }
+            if (payment.note && String(payment.note).trim() !== '') {
+                allNotes.push(`${String(payment.note).trim()}`);
+            }
+        });
+
+        const totalCommitted = parseFloat(selectedPayment.poValue || 0) - totalCertified;
+        imReportDate.textContent = formatFinanceDateLong(new Date().toISOString());
+        imReportPoNo.textContent = poNo;
+        imReportProject.textContent = selectedPayment.site || '';
+        imReportVendorId.textContent = selectedPayment.vendorId || '';
+        imReportVendorName.textContent = selectedPayment.vendor || '';
+        imReportTotalPoValue.textContent = formatFinanceNumber(selectedPayment.poValue);
+        imReportTotalCertified.textContent = formatFinanceNumber(totalCertified);
+        imReportTotalPrevPayment.textContent = formatFinanceNumber(totalPrevPayment);
+        imReportTotalCommitted.textContent = formatFinanceNumber(totalCommitted);
+        imReportTotalRetention.textContent = formatFinanceNumber(totalRetention);
+
+        imReportTableBody.innerHTML = '';
+        payments.forEach(payment => {
+            const row = document.createElement('tr');
+            const pvn = payment.paymentNo ? String(payment.paymentNo).replace('PVN-', '') : '';
+            row.innerHTML = `
+                <td>${pvn}</td>
+                <td>${payment.chequeNo || ''}</td>
+                <td>${formatFinanceNumber(payment.certifiedAmount)}</td>
+                <td>${formatFinanceNumber(payment.retention)}</td>
+                <td>${formatFinanceNumber(payment.payment)}</td>
+                <td>${payment.datePaid ? formatFinanceDate(payment.datePaid) : ''}</td>`;
+            imReportTableBody.appendChild(row);
+        });
+
+        imReportTotalCertifiedAmount.textContent = formatFinanceNumber(totalCertified);
+        imReportTotalRetentionAmount.textContent = formatFinanceNumber(totalRetention);
+        imReportTotalPaymentAmount.textContent = formatFinanceNumber(totalPayment);
+
+        if (allNotes.length > 0) {
+            imReportNotesContent.textContent = allNotes.join('\n');
+            imReportNotesSection.style.display = 'block';
+        } else {
+            imReportNotesContent.textContent = '';
+            imReportNotesSection.style.display = 'none';
+        }
+
+        imFinanceReportModal.classList.remove('hidden');
+    } catch (error) {
+        console.error('Error generating finance report:', error);
+    }
+}
+
+function printFinanceReport() {
+    window.print();
+}
+
 // --- 4. PRINT REPORT FUNCTION ---
 function printFinanceReport() {
     // Get the key from your modal's hidden input
@@ -13322,74 +13375,380 @@ function printFinanceReport() {
         }
     });
 }
+    
+// ==========================================================================
+// MASTER EXPORT SECTION: 1-Hour & Special Reports
+// ==========================================================================
 
-// =========================================================
-// FINANCE INPUT FORMATTERS (Commas)
-// =========================================================
-window.formatCurrencyField = function(input) {
-    if (!input.value || input.value.trim() === '') return;
-    // Remove existing commas to get raw number
-    let raw = input.value.replace(/,/g, '');
-    let num = parseFloat(raw);
-    if (!isNaN(num)) {
-        // Format with commas and 2 decimal places
-        input.value = num.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+// 1. DAILY ENTRY REPORT (Last 2 Hours)
+async function handleDownloadDailyReport() {
+    const isAccountingPosition = (currentApprover?.Position || '').toLowerCase() === 'accounting';
+    if (!isAccountingPosition) {
+        alert("You do not have permission to download this report.");
+        return;
     }
-};
 
-window.cleanCurrencyField = function(input) {
-    if (!input.value) return;
-    // Remove commas so user can edit raw number
-    input.value = input.value.replace(/,/g, '');
-    // Select all text for easy overwriting
-    input.select();
-};
+    const twoHoursAgo = Date.now() - (2 * 60 * 60 * 1000);
 
-// =========================================================
-// AUTO-GENERATE REPORT NAME (On "Report Approved")
-// =========================================================
-// Renamed variable to 'reportAutoSelect' to fix initialization error
-const reportAutoSelect = document.getElementById('im-status');
+    try {
+        await ensureInvoiceDataFetched(true);
 
-if (reportAutoSelect) {
-    reportAutoSelect.addEventListener('change', function() {
-        // 1. Check if the status is the trigger status
-        if (this.value === "Report Approved") {
-            
-            // 2. Get Data from the modal
-            // Use safe selection with optional chaining in case elements are missing
-            const poElement = document.querySelector('#im-invoice-entry-modal .im-po-no');
-            const vendorElement = document.querySelector('#im-invoice-entry-modal .im-po-vendor');
-            const entryIdElement = document.getElementById('im-inv-entry-id');
+        const allInvoicesByPO = allInvoiceData;
+        const allPOs = allPOData;
 
-            if (!poElement || !vendorElement || !entryIdElement) return;
+        if (!allInvoicesByPO || !allPOs) throw new Error("Data not loaded for report.");
 
-            const poText = poElement.textContent.trim();
-            const vendorText = vendorElement.textContent.trim();
-            const entryId = entryIdElement.value.trim();
+        let recentEntries = [];
 
-            // 3. Validation
-            if (poText === "---" || poText === "" || entryId === "") return;
+        for (const poNumber in allInvoicesByPO) {
+            const invoices = allInvoicesByPO[poNumber];
+            for (const key in invoices) {
+                const inv = invoices[key];
 
-            // 4. Truncate Vendor Name (Max 17 Chars)
-            const shortVendor = vendorText.substring(0, 17).trim();
+                // Normalize Timestamp
+                let creationTime = inv.createdAt || inv.timestamp || 0;
+                if (typeof creationTime === 'string') {
+                    creationTime = new Date(creationTime).getTime();
+                }
 
-            // 5. Construct the String: PO-EntryID-Vendor-Report
-            const generatedName = `${poText}-${entryId}-${shortVendor}-Report`;
-
-            // 6. Set the value
-            const reportNameInput = document.getElementById('im-report-name');
-            if (reportNameInput) {
-                reportNameInput.value = generatedName;
-
-                // Visual Flash
-                reportNameInput.style.backgroundColor = "#ffffcc"; 
-                setTimeout(() => {
-                    reportNameInput.style.backgroundColor = ""; 
-                }, 500);
+                // Check if created within the last 2 hours
+                if (creationTime > twoHoursAgo) {
+                    recentEntries.push({
+                        po: poNumber,
+                        site: allPOs[poNumber]?.['Project ID'] || 'N/A',
+                        ...inv,
+                        sortTime: creationTime
+                    });
+                }
             }
         }
+
+        if (recentEntries.length === 0) {
+            alert("No new invoices found in the last 2 hours.");
+            return;
+        }
+
+        recentEntries.sort((a, b) => a.sortTime - b.sortTime);
+
+        let csvContent = "data:text/csv;charset=utf-8,";
+        const headers = ["Time", "PO", "Site", "Inv No", "Inv Name", "Inv Amount", "Amount Paid", "Status"];
+        csvContent += headers.join(",") + "\r\n";
+
+        recentEntries.forEach(entry => {
+            let timeString = '';
+            if (entry.createdAt) {
+                const dateObj = new Date(entry.createdAt);
+                if (!isNaN(dateObj.getTime())) {
+                    timeString = dateObj.toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                }
+            }
+
+            const row = [
+                timeString,
+                entry.po,
+                entry.site,
+                `"${(entry.invNumber || '').replace(/"/g, '""')}"`,
+                `"${(entry.invName || '').replace(/"/g, '""')}"`,
+                entry.invValue || '0',
+                entry.amountPaid || '0',
+                entry.status || ''
+            ];
+            csvContent += row.join(",") + "\r\n";
+        });
+
+        const timestampStr = new Date().toISOString().replace(/[:.]/g, '-');
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `entry_report_last_2hrs_${timestampStr}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+    } catch (error) {
+        console.error("Error generating report:", error);
+        alert("An error occurred while generating the report.");
+    }
+}
+
+// 2. WITH ACCOUNTS REPORT (Last 2 Hours OR Released Today)
+async function handleDownloadWithAccountsReport() {
+    const isAccountingPosition = (currentApprover?.Position || '').toLowerCase() === 'accounting';
+    if (!isAccountingPosition) {
+        alert("You do not have permission to download this report.");
+        return;
+    }
+
+    // Setup Time Checkers
+    const twoHoursAgo = Date.now() - (2 * 60 * 60 * 1000);
+    const todayStr = getTodayDateString(); // Gets "YYYY-MM-DD" for today
+
+    try {
+        await ensureInvoiceDataFetched(true);
+
+        const allInvoicesByPO = allInvoiceData;
+        const allPOs = allPOData;
+
+        if (!allInvoicesByPO || !allPOs) throw new Error("Data not loaded for report.");
+
+        let recentEntries = [];
+
+        for (const poNumber in allInvoicesByPO) {
+            const invoices = allInvoicesByPO[poNumber];
+            for (const key in invoices) {
+                const inv = invoices[key];
+
+                // Normalize Timestamp
+                let creationTime = inv.createdAt || inv.timestamp || 0;
+                if (typeof creationTime === 'string') creationTime = new Date(creationTime).getTime();
+
+                // Logic: Check if Created Recently OR Released Today
+                const isRecent = (creationTime > twoHoursAgo);
+                const isReleasedToday = (inv.releaseDate === todayStr);
+
+                // Only include if status is correct AND (it's new OR it was updated today)
+                if (inv.status === 'With Accounts' && (isRecent || isReleasedToday)) {
+                    recentEntries.push({
+                        po: poNumber,
+                        site: allPOs[poNumber]?.['Project ID'] || 'N/A',
+                        ...inv,
+                        sortTime: creationTime
+                    });
+                }
+            }
+        }
+
+        if (recentEntries.length === 0) {
+            alert("No 'With Accounts' invoices found from Today or the last 2 hours.");
+            return;
+        }
+
+        // Sort Ascending
+        recentEntries.sort((a, b) => a.sortTime - b.sortTime);
+
+        let csvContent = "data:text/csv;charset=utf-8,";
+        const headers = ["Time", "PO", "Site", "Inv No", "SRV Name", "Inv Amount", "Amount Paid", "Status"];
+        csvContent += headers.join(",") + "\r\n";
+
+        recentEntries.forEach(entry => {
+            let timeString = '';
+            if (entry.createdAt) {
+                const dateObj = new Date(entry.createdAt);
+                if (!isNaN(dateObj.getTime())) {
+                    timeString = dateObj.toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                }
+            }
+
+            const row = [
+                timeString,
+                entry.po,
+                entry.site,
+                `"${(entry.invNumber || '').replace(/"/g, '""')}"`,
+                `"${(entry.srvName || '').replace(/"/g, '""')}"`,
+                entry.invValue || '0',
+                entry.amountPaid || '0',
+                entry.status || ''
+            ];
+            csvContent += row.join(",") + "\r\n";
+        });
+
+        const timestampStr = new Date().toISOString().replace(/[:.]/g, '-');
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `with_accounts_report_${timestampStr}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+    } catch (error) {
+        console.error("Error generating report:", error);
+        alert("An error occurred while generating the report.");
+    }
+}
+
+// 3. REPORT APPROVED EXPORT (Includes "Report Name")
+// Logic: Last 2 Hours Only
+window.downloadReportingTableToExcel = async function() {
+    const btn = document.getElementById('im-reporting-download-btn');
+    const originalText = btn ? btn.innerHTML : '';
+    
+    if (btn) {
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Checking recent...';
+        btn.disabled = true;
+    }
+
+    try {
+        // 1. Time Filter: Last 2 Hours
+        const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+        const cutoffTime = Date.now() - TWO_HOURS_MS;
+
+        // 2. Database Connection
+        let targetDb = (typeof invoiceDb !== 'undefined') ? invoiceDb : firebase.database();
+
+        // 3. Fetch Data
+        const snapshot = await targetDb.ref('invoice_entries').once('value');
+        
+        if (!snapshot.exists()) {
+            alert("No records found.");
+            if (btn) { btn.innerHTML = originalText; btn.disabled = false; }
+            return;
+        }
+
+        let csvContent = "data:text/csv;charset=utf-8,";
+        // HEADER: Added "Report Name"
+        csvContent += "Time,PO,Site,Inv No,Report Name,Inv Amount,Amount Paid,Status\n";
+
+        let count = 0;
+        
+        snapshot.forEach(poSnap => {
+            const poNumber = poSnap.key;
+            if (poSnap.hasChildren() && typeof poSnap.val() === 'object') {
+                poSnap.forEach(invSnap => {
+                    const inv = invSnap.val();
+                    if (!inv || typeof inv !== 'object') return;
+                    
+                    // --- FILTER 1: STATUS 'Report Approved' ---
+                    if (inv.status !== 'Report Approved') return;
+
+                    // --- FILTER 2: TIME (Last 2 Hours) ---
+                    const itemTime = inv.updatedAt || inv.enteredAt || 0;
+                    if (itemTime < cutoffTime) return; // Skip old items
+                    
+                    // --- DATA MAPPING ---
+                    const time = (inv.invoiceDate || inv.date || '').substring(0, 10);
+                    const site = (inv.site_name || inv.site || '').replace(/"/g, '""');
+                    const invNo = (inv.invNumber || inv.invoice_number || '').replace(/"/g, '""');
+                    
+                    // THE NEW COLUMN
+                    const reportName = (inv.reportName || '').replace(/"/g, '""');
+                    
+                    const invAmount = (inv.invValue || inv.amount || '0').toString().replace(/,/g, '');
+                    const amountPaid = (inv.amountPaid || '0').toString().replace(/,/g, '');
+                    const status = inv.status;
+
+                    const row = `"${time}","${poNumber}","${site}","${invNo}","${reportName}","${invAmount}","${amountPaid}","${status}"`;
+                    csvContent += row + "\n";
+                    count++;
+                });
+            }
+        });
+
+        if (count === 0) {
+            alert("No 'Report Approved' records found from the last 2 hours.");
+            if (btn) { btn.innerHTML = originalText; btn.disabled = false; }
+            return;
+        }
+
+        // 4. Download
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        const dateStr = new Date().toISOString().split('T')[0];
+        link.setAttribute("download", `Invoice_Report_Approved_${dateStr}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+    } catch (error) {
+        console.error("Export Error:", error);
+        alert("An error occurred. See console.");
+    } finally {
+        if (btn) {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    }
+};
+    
+// ==========================================================================
+// MISSING FUNCTION: Handle Print for Job Records
+// ==========================================================================
+function handlePrintReportingTable() {
+    // 1. Get the table rows from the Job Records table
+    const tableBody = document.getElementById('wd-jobentry-table').querySelector('tbody');
+    const rows = Array.from(tableBody.querySelectorAll('tr'));
+
+    if (rows.length === 0 || rows[0].innerText.includes('No entries')) {
+        alert("No records to print.");
+        return;
+    }
+
+    // 2. Build the Print Window Content
+    let printHtml = `
+        <html>
+        <head>
+            <title>Job Records Report</title>
+            <style>
+                body { font-family: 'Segoe UI', sans-serif; padding: 20px; }
+                h2 { text-align: center; color: #003A5C; margin-bottom: 5px; }
+                p.date { text-align: center; color: #666; font-size: 12px; margin-bottom: 20px; }
+                table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                th { background-color: #003A5C; color: white; padding: 6px; text-align: left; }
+                td { border: 1px solid #ddd; padding: 5px; color: #333; }
+                tr:nth-child(even) { background-color: #f9f9f9; }
+                .status-approved { color: #28a745; font-weight: bold; }
+                .status-rejected { color: #dc3545; font-weight: bold; }
+                .status-pending { color: #ffc107; font-weight: bold; }
+            </style>
+        </head>
+        <body>
+            <h2>Job Records Report</h2>
+            <p class="date">Generated on: ${new Date().toLocaleString()}</p>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Job</th>
+                        <th>Ref</th>
+                        <th>PO</th>
+                        <th>Vendor</th>
+                        <th>Amount</th>
+                        <th>Site</th>
+                        <th>Group</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    // 3. Loop through rows and extract text
+    rows.forEach(row => {
+        const cols = row.querySelectorAll('td');
+        if (cols.length < 8) return; // Skip malformed rows
+
+        // Note: We skip the last "Action" column (index 9)
+        printHtml += `
+            <tr>
+                <td>${cols[0]?.innerText || ''}</td> <td>${cols[1]?.innerText || ''}</td> <td>${cols[2]?.innerText || ''}</td> <td>${cols[3]?.innerText || ''}</td> <td>${cols[4]?.innerText || ''}</td> <td>${cols[5]?.innerText || ''}</td> <td>${cols[6]?.innerText || ''}</td> <td>${cols[7]?.innerText || ''}</td> <td>${cols[8]?.innerHTML || ''}</td> </tr>
+        `;
     });
+
+    printHtml += `
+                </tbody>
+            </table>
+            <script>
+                window.onload = function() { window.print(); }
+            </script>
+        </body>
+        </html>
+    `;
+
+    // 4. Open Print Window
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+        printWindow.document.write(printHtml);
+        printWindow.document.close();
+    } else {
+        alert("Pop-up blocked. Please allow pop-ups to print.");
+    }
 }
 
 }); // END OF DOMCONTENTLOADED

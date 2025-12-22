@@ -786,6 +786,7 @@
 		<option value="Report Approved">Report Approved</option>
 		<option value="With Accounts">With Accounts</option>
                 <option value="Original PO">Original PO</option>
+		<option value="Cancelled">Cancelled</option>
             </select>
         </div>
         <div class="form-group is-required" id="im-attention-group">
@@ -1031,8 +1032,8 @@
 
     <div style="flex-grow: 1;"></div>
 
-    <div style="display: flex; align-items: center; gap: 15px; margin-right: 80px;">
-        <button type="button" id="summary-note-generate-btn" style="background-color: #00748C; color: white; padding: 10px 20px; font-weight: bold; border: none; border-radius: 4px; cursor: pointer;">
+    <div style="display: flex; align-items: center; gap: 15px; margin-right: 550px;">
+        <button type="button" id="summary-note-generate-btn" style="background-color: #8c0000; color: white; padding: 10px 20px; font-weight: bold; border: none; border-radius: 4px; cursor: pointer;">
             Generate Summary
         </button>
         <button type="button" id="summary-note-print-btn" class="print-btn" style="background-color: #17a2b8; color: white; padding: 10px 20px; font-weight: bold; border: none; border-radius: 4px; cursor: pointer;">
@@ -1086,6 +1087,7 @@
                            <input type="date" id="im-daily-report-date" title="Select a date for the daily report">
                            <button id="im-download-daily-report-button" class="download-btn" type="button"><i class="fa-solid fa-calendar-day"></i> Daily Entry Report</button>
                            <button id="im-download-with-accounts-report-button" class="download-btn" type="button"><i class="fa-solid fa-file-invoice-dollar"></i> With Accounts Report</button>
+			   <button id="im-reporting-download-btn" class="download-btn" type="button" onclick="downloadReportingTableToExcel()"><i class="fa-solid fa-file-excel"></i> Invoice Records Report</button>
                         </div>
                     </div>
 
@@ -1166,7 +1168,7 @@
                             <button type="submit">Search</button>
                             <button id="im-reporting-clear-button" class="secondary-btn" type="button">Clear</button>
                             <button id="im-refresh-reporting-button" class="secondary-btn" type="button" title="Refresh data from Firebase"><i class="fa-solid fa-sync"></i> Refresh Data</button>
-                            <button id="im-reporting-print-btn" class="print-btn" type="button"><i class="fa-solid fa-print"></i> Print Report</button>
+                            <button id="im-reporting-print-btn" class="print-btn" type="button"><i class="fa-solid fa-print"></i> Print List</button>
                             <button id="im-reporting-download-csv-button" class="download-btn" type="button"><i class="fa-solid fa-download"></i> Download Full Report</button>
                         </div>
                     </form>
