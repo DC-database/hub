@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "5.2.7";
+const APP_VERSION = "5.2.9";
 
 // DETECT INVENTORY PAGE
 // This checks if the current browser URL has "inventory" in it (e.g., inventory.html)
@@ -3149,7 +3149,7 @@ function renderActiveTaskTable(tasks) {
 }
 
 // ==========================================================================
-// UPDATED FUNCTION: populateActiveTasks (Fix: SRV Passive for Accounting)
+// UPDATED FUNCTION: populateActiveTasks (Smart De-Dup + Universal SRV Rule)
 // ==========================================================================
 async function populateActiveTasks() {
     activeTaskTableBody.innerHTML = `<tr><td colspan="10">Loading tasks...</td></tr>`;
@@ -3193,7 +3193,7 @@ async function populateActiveTasks() {
         }
 
         let userTasks = [];
-        let pulledInvoiceKeys = new Set();
+        let pulledInvoiceKeys = new Set(); // Keeps track of what we have seen
 
         await ensureAllEntriesFetched();
         await ensureApproverDataCached();
@@ -3206,13 +3206,24 @@ async function populateActiveTasks() {
             await reconcilePendingPRs();
         }
 
-        // --- A. JOB ENTRIES FILTER ---
+        // --- A. JOB ENTRIES FILTER (WITH SMART DE-DUPLICATION) ---
         const jobTasks = allSystemEntries.filter(entry => {
             if (isTaskComplete(entry)) return false;
 
             if (isInventoryPage) {
                 if (!INVENTORY_TYPES.includes(entry.for)) return false;
             }
+
+            // === [NEW] SMART DE-DUPLICATION LOGIC ===
+            // If this Job Entry has a PO, and that PO exists in the Real Invoice DB,
+            // HIDE this Job Entry. We want to see the Real Invoice instead.
+            if (entry.for === 'Invoice' && entry.po) {
+                if (allInvoiceData && allInvoiceData[entry.po]) {
+                    // "Master Record Found" -> Skip this manual entry so we don't see "In Process"
+                    return false; 
+                }
+            }
+            // ========================================
 
             // 1. BLANK ATTENTION CHECK
             if (!entry.attention || entry.attention.trim() === '' || entry.attention.toLowerCase() === 'none') {
@@ -3265,6 +3276,12 @@ async function populateActiveTasks() {
                     if(task.attention === 'Accounting') isUrgent = true;
                 }
             }
+
+            // === [NEW] UNIVERSAL SRV DONE RULE ===
+            // If it is "SRV Done", it is NEVER Urgent (Grey for everyone)
+            if (task.remarks === 'SRV Done') {
+                isUrgent = false;
+            }
             
             const source = ['Transfer', 'Restock', 'Return', 'Usage'].includes(task.for) ? 'transfer_entry' : 'job_entry';
             return { ...task, source: source, isUrgent: isUrgent };
@@ -3304,9 +3321,12 @@ async function populateActiveTasks() {
                         }
                         let finalAttention = task.attention || (isFromAll ? 'All' : currentUserName);
                         
-                        // URGENCY: Name Match AND Not On Hold
-                        const isUrgent = (finalAttention === currentUserName && task.status !== 'On Hold') ||
-                                         (task.status === 'For SRV' && currentUserSite !== 'All' && task.site && task.site.includes(currentUserSite));
+                        // URGENCY LOGIC
+                        let isUrgent = (finalAttention === currentUserName && task.status !== 'On Hold') ||
+                                       (task.status === 'For SRV' && currentUserSite !== 'All' && task.site && task.site.includes(currentUserSite));
+                        
+                        // === [NEW] UNIVERSAL SRV DONE RULE ===
+                        if (task.status === 'SRV Done') isUrgent = false;
 
                         userTasks.push({
                             key: `${task.po}_${invoiceKey}`,
@@ -3354,36 +3374,36 @@ async function populateActiveTasks() {
                     let shouldShow = false;
                     let isUrgent = false;
 
-                    // 1. Accounting/Admin Logic (Visibility - PASSIVE)
+                    // 1. Accounting/Admin Visibility
                     if ((isAccounting || isAdmin) && accStatuses.includes(inv.status)) {
                         shouldShow = true;
-                        isUrgent = false; // Default to Grey for Accounting/Admin
+                        isUrgent = false; // Default passive
                     }
 
-                    // 2. Site Logic (Visibility - URGENT ONLY FOR REAL SITE USERS)
+                    // 2. Site Visibility
                     if (siteStatuses.includes(inv.status)) {
                         if (currentUserSite === 'All' || currentUserSite.includes(poSite.split(' ')[0])) {
                             shouldShow = true;
-                            
-                            // [FIX] URGENCY CHECK
-                            // Only mark Urgent if:
-                            // a) Status is NOT 'SRV Done'
-                            // b) AND User is NOT Accounting/Admin (prevents Irwin getting urgency for all sites)
                             if (inv.status !== 'SRV Done' && !isAccounting && !isAdmin) {
                                 isUrgent = true;
                             } 
                         }
                     }
 
-                    // 3. OVERRIDE RULE: "My Name = Urgent" (The General Rule)
+                    // 3. Name Match Override
                     if (inv.attention === currentUserName) {
                         shouldShow = true;
                         isUrgent = true;
                     }
-                    // Accounting specific override (Explicit group assignment)
                     if (isAccounting && inv.attention === 'Accounting' && inv.status !== 'On Hold') {
                         shouldShow = true;
                         isUrgent = true;
+                    }
+
+                    // === [NEW] UNIVERSAL SRV DONE RULE (THE FINAL OVERRIDE) ===
+                    // No matter what happened above, if it's SRV Done, it is NOT urgent.
+                    if (inv.status === 'SRV Done') {
+                        isUrgent = false;
                     }
 
                     if (shouldShow) {
@@ -3410,7 +3430,7 @@ async function populateActiveTasks() {
                             invName: inv.invName || '',
                             vendorName: poDetails['Supplier Name'] || 'N/A',
                             note: inv.note || '',
-                            isUrgent: isUrgent
+                            isUrgent: isUrgent 
                         });
                     }
                 }
@@ -3468,6 +3488,10 @@ async function populateActiveTasks() {
             if (status.includes('approved')) return '#28a745'; 
             if (status.includes('rejected')) return '#dc3545'; 
             if (status.includes('pending')) return '#ffc107';  
+            
+            // [NEW] Color for New Entry (Cyan)
+            if (status.includes('new entry')) return '#17a2b8'; 
+
             if (status.includes('unresolved')) return '#fd7e14'; 
             if (status.includes('on hold')) return '#6c757d'; 
             if (status.includes('process')) return '#17a2b8'; 
@@ -4977,7 +5001,7 @@ async function handleJobEntrySearch(searchTerm) {
 }
 
 // ==========================================================================
-// UPDATED FUNCTION: getJobDataFromForm (Fixes Attention + Keeps Custom Logic)
+// UPDATED FUNCTION: getJobDataFromForm (Sets "New Entry" for Invoices)
 // ==========================================================================
 function getJobDataFromForm() {
     const formData = new FormData(jobEntryForm);
@@ -4987,15 +5011,14 @@ function getJobDataFromForm() {
     if (jobType === 'Other') {
         const customType = document.getElementById('job-other-specify').value.trim();
         if (customType) {
-            jobType = customType; // Use the text input instead of "Other"
+            jobType = customType; 
         } else {
             alert("Please specify the Job Type in the text box.");
-            return null; // Stop execution
+            return null; 
         }
     }
 
-    // 2. CRITICAL FIX: Get Attention from Raw HTML to avoid "GIO" stale data
-    // We prioritize the element value over the Choices library value
+    // 2. CRITICAL FIX: Get Attention from Raw HTML
     const attentionEl = document.getElementById('job-attention');
     let finalAttention = attentionEl ? attentionEl.value : '';
 
@@ -5003,7 +5026,14 @@ function getJobDataFromForm() {
         finalAttention = attentionSelectChoices.getValue(true);
     }
 
-    // 3. Build the Data Object
+    // 3. Determine Status
+    // Default is 'Pending', BUT if it's an Invoice, we call it 'New Entry'
+    let status = (formData.get('status') || 'Pending').trim();
+    if (jobType === 'Invoice' && status === 'Pending') {
+        status = 'New Entry';
+    }
+
+    // 4. Build Data Object
     const data = {
         for: jobType,
         ref: (formData.get('ref') || '').trim(),
@@ -5011,78 +5041,83 @@ function getJobDataFromForm() {
         po: (formData.get('po') || '').trim(),
         site: formData.get('site'),
         group: formData.get('group'),
-        
-        // USE THE FIXED ATTENTION VALUE
         attention: finalAttention,
-        
-        // Prefer the date in the box, fallback to today
         date: document.getElementById('job-date').value || formatDate(new Date()),
-        remarks: (formData.get('status') || 'Pending').trim(),
         
-        // Extra fields
+        remarks: status, // <--- Uses the new logic
+
         details: (formData.get('details') || '').trim(),
         calendarDate: (formData.get('calendarDate') || ''),
         productName: (document.getElementById('job-product-name')?.value || '').trim(),
-
-        // 4. Capture Attachment Name explicitly by ID
         attachmentName: (document.getElementById('job-attachment').value || '').trim()
     };
 
     return data;
 }
 
+// ==========================================================================
+// UPDATED FUNCTION: handleAddJobEntry (Forces "New Entry" for Invoices)
+// ==========================================================================
 async function handleAddJobEntry(e) {
     e.preventDefault();
 
     // 1. Disable button immediately
-    addJobButton.disabled = true;
+    const btn = document.getElementById('add-job-btn') || addJobButton;
+    btn.disabled = true;
 
-    // 2. Get Data (Handles "Other" input validation internally)
+    // 2. Get Data
     const jobData = getJobDataFromForm();
 
     // 3. If validation failed in getJobDataFromForm
     if (!jobData) {
-        addJobButton.disabled = false;
+        btn.disabled = false;
         return;
     }
 
-    addJobButton.textContent = 'Adding...';
-
+    btn.textContent = 'Adding...';
     const isInvoiceJob = jobData.for === 'Invoice';
 
     // 4. Basic Validation
     if (!jobData.for || !jobData.site || !jobData.group) {
         alert('Please fill in Job, Site, and Group.');
-        addJobButton.disabled = false;
-        addJobButton.textContent = 'Add';
+        btn.disabled = false;
+        btn.textContent = 'Add';
         return;
     }
 
-    // 5. Attention Validation (Skip for Invoice)
+    // --- [NEW LOGIC] Force "New Entry" Status for Invoices ---
+    if (isInvoiceJob) {
+        jobData.remarks = 'New Entry'; // <--- The Fix
+        
+        // Auto-assign to Accounting if Attention is blank (Safety Check)
+        if (!jobData.attention) {
+            jobData.attention = 'Accounting';
+        }
+    }
+
+    // 5. Attention Validation (Skip for Invoice since we handled it above)
     if (!isInvoiceJob && !jobData.attention) {
         alert('Please select an Attention user.');
-        addJobButton.disabled = false;
-        addJobButton.textContent = 'Add';
+        btn.disabled = false;
+        btn.textContent = 'Add';
         return;
     }
 
-    // 6. IPC Specific Logic (PO Required for Everyone, No Auto-Status)
+    // 6. IPC Specific Logic
     if (jobData.for === 'IPC') {
         if (!jobData.po) {
             alert('A PO Number is required for IPC jobs.');
-            addJobButton.disabled = false;
-            addJobButton.textContent = 'Add';
+            btn.disabled = false;
+            btn.textContent = 'Add';
             return;
         }
-
-        // Check for duplicates
         await ensureAllEntriesFetched();
-        const duplicatePO = allSystemEntries.find(entry => entry.for === 'IPC' && entry.po && entry.po.trim() !== '' && entry.po === jobData.po);
+        const duplicatePO = allSystemEntries.find(entry => entry.for === 'IPC' && entry.po === jobData.po);
         if (duplicatePO) {
-            const message = `WARNING: An IPC for PO Number "${jobData.po}" already exists.\n\nPress OK if this is a new IPC for this PO.\nPress Cancel to check the "Job Records" section first.`;
+            const message = `WARNING: An IPC for PO Number "${jobData.po}" already exists.\n\nPress OK if this is a new IPC for this PO.`;
             if (!confirm(message)) {
-                addJobButton.disabled = false;
-                addJobButton.textContent = 'Add';
+                btn.disabled = false;
+                btn.textContent = 'Add';
                 return;
             }
         }
@@ -5092,12 +5127,12 @@ async function handleAddJobEntry(e) {
     jobData.timestamp = Date.now();
     jobData.enteredBy = currentApprover.Name;
 
-    // Initial History Log
+    // Initial History Log (Will now correctly log "New Entry")
     jobData.history = [{
         action: "Created",
         by: currentApprover.Name,
         timestamp: Date.now(),
-        status: jobData.remarks || 'Pending',
+        status: jobData.remarks, // <--- Uses the updated status
         note: "Initial Entry"
     }];
 
@@ -5109,19 +5144,23 @@ async function handleAddJobEntry(e) {
 
         // 9. Refresh Data & UI
         await ensureAllEntriesFetched(true);
-        updateJobTypeDropdown();
-        handleJobEntrySearch(jobEntrySearchInput.value);
+        if (typeof updateJobTypeDropdown === 'function') updateJobTypeDropdown();
+        
+        // Refresh Search & Lists
+        const currentSearch = sessionStorage.getItem('jobEntrySearch') || '';
+        if (typeof handleJobEntrySearch === 'function') handleJobEntrySearch(currentSearch);
+        if (typeof populateActiveTasks === 'function') populateActiveTasks();
         
         // Close modal
-        closeStandardJobModal();
+        if (typeof closeStandardJobModal === 'function') closeStandardJobModal();
 
     } catch (error) {
         console.error("Error adding job entry:", error);
         alert('Failed to add Job Entry. Please try again.');
     } finally {
         // 10. Re-enable button
-        addJobButton.disabled = false;
-        addJobButton.textContent = 'Add';
+        btn.disabled = false;
+        btn.textContent = 'Add';
     }
 }
 
@@ -5165,7 +5204,7 @@ async function handleDeleteJobEntry(e) {
 }
 
 // ==========================================================================
-// UPDATED FUNCTION: handleUpdateJobEntry (Safe & Robust)
+// UPDATED FUNCTION: handleUpdateJobEntry (With "New Entry" Logic)
 // ==========================================================================
 async function handleUpdateJobEntry(e) {
     e.preventDefault();
@@ -5182,12 +5221,35 @@ async function handleUpdateJobEntry(e) {
         btn.textContent = 'Saving...';
     }
 
-    // 2. Get Data (Using the FIXED function from Step 1)
+    // 2. Get Data
     const jobData = getJobDataFromForm();
 
     if (!jobData) {
         if(btn) { btn.disabled = false; btn.textContent = 'Update'; }
         return; 
+    }
+
+    // --- NEW LOGIC: TRANSITION TO INVOICE ---
+    // If the job type is "Invoice" (or changed to it), force specific rules:
+    if (jobData.for === 'Invoice') {
+        
+        // 1. Force Status to "New Entry" (Distinguishes from DB "Pending")
+        jobData.remarks = 'New Entry'; 
+
+        // 2. Find User with Position "Accounting" (or "Accounts")
+        let accountingUser = null;
+        if (typeof allApproverData !== 'undefined' && allApproverData) {
+            accountingUser = Object.values(allApproverData).find(u => 
+                (u.Position && (u.Position.trim().toLowerCase() === 'accounting' || u.Position.trim().toLowerCase() === 'accounts'))
+            );
+        }
+
+        // 3. Set Attention automatically
+        if (accountingUser) {
+            jobData.attention = accountingUser.Name;
+        } else {
+            jobData.attention = 'Accounting'; 
+        }
     }
 
     // 3. Validation
@@ -5217,7 +5279,6 @@ async function handleUpdateJobEntry(e) {
             if(!jobData.date) jobData.date = originalEntry.date;
 
             // Handle "Date Responded" Reset Logic
-            // If attention changed, WE MUST RESET dateResponded to re-trigger the alert
             if (jobData.attention !== originalEntry.attention) {
                 jobData.dateResponded = null; 
             } else {
@@ -6433,13 +6494,12 @@ async function populateActiveJobsSidebar() {
 
     // Refresh active tasks first
     await populateActiveTasks();
-    
+
     // Filter tasks
     var tasksToDisplay = userActiveTasks;
     var invoiceJobs = tasksToDisplay.filter(function(task) {
         if (task.source === 'invoice' && task.attention === currentApprover.Name) return true;
-        if (task.source === 'job_entry' && task.for === 'Invoice' && 
-           (currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'accounting')) return true;
+        if (task.source === 'job_entry' && task.for === 'Invoice' && (currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'accounting')) return true;
         return false;
     });
 
@@ -6458,11 +6518,29 @@ async function populateActiveJobsSidebar() {
     invoiceJobs.forEach(function(job) {
         var li = document.createElement('li');
         li.className = 'im-sidebar-item';
-        
-        var status = job.remarks || job.status || 'Pending';
-        var isApproved = status.includes('Approved') || status === 'CEO Approval';
 
-        if (isApproved) li.classList.add('status-approved');
+        var status = job.remarks || job.status || 'Pending';
+        
+        // --- NEW COLOR LOGIC START ---
+        var borderColor = '#fd7e14'; // Default Orange (Pending)
+        var statusTextColor = '#666'; // Default Text Color
+
+        if (status === 'New Entry') {
+            borderColor = '#dc3545'; // RED (Urgent / New)
+            statusTextColor = '#dc3545';
+        } 
+        else if (status === 'SRV Done') {
+            borderColor = '#6c757d'; // GREY (Passive)
+            statusTextColor = '#6c757d';
+        }
+        else if (status.includes('Approved') || status === 'CEO Approval') {
+            borderColor = '#28a745'; // GREEN (Approved)
+            statusTextColor = '#28a745';
+        }
+
+        // Apply the visual border color
+        li.style.borderLeft = '4px solid ' + borderColor;
+        // --- NEW COLOR LOGIC END ---
 
         // Store data for click handling
         li.dataset.po = job.po || '';
@@ -6478,7 +6556,7 @@ async function populateActiveJobsSidebar() {
         var vendorDisplay = (job.vendorName || 'No Vendor');
         if (vendorDisplay.length > 20) vendorDisplay = vendorDisplay.substring(0, 18) + '...';
 
-        // --- NEW COMPACT HTML ---
+        // --- COMPACT HTML (With Status Color) ---
         var html = `
             <div class="im-compact-row">
                 <span class="im-compact-po"><i class="fa-solid fa-file-invoice" style="margin-right:4px; opacity:0.7;"></i> ${job.po || 'N/A'}</span>
@@ -6486,7 +6564,7 @@ async function populateActiveJobsSidebar() {
             </div>
             <div class="im-compact-row">
                 <span class="im-compact-vendor">${vendorDisplay}</span>
-                <span class="im-compact-status">${status}</span>
+                <span class="im-compact-status" style="color: ${statusTextColor}; font-weight: bold;">${status}</span>
             </div>
         `;
 
