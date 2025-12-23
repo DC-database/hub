@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "5.2.9";
+const APP_VERSION = "5.3.0";
 
 // DETECT INVENTORY PAGE
 // This checks if the current browser URL has "inventory" in it (e.g., inventory.html)
@@ -3218,11 +3218,18 @@ async function populateActiveTasks() {
             // If this Job Entry has a PO, and that PO exists in the Real Invoice DB,
             // HIDE this Job Entry. We want to see the Real Invoice instead.
             if (entry.for === 'Invoice' && entry.po) {
-                if (allInvoiceData && allInvoiceData[entry.po]) {
-                    // "Master Record Found" -> Skip this manual entry so we don't see "In Process"
-                    return false; 
-                }
-            }
+    // Only hide it if it exists in Master DB AND it is NOT a New Entry
+    if (allInvoiceData && allInvoiceData[entry.po]) {
+        
+        // [FIX] If the status is 'New Entry' or 'Pending', FORCE SHOW IT.
+        // We only want to hide it if it's an old task that's already processed.
+        const currentStatus = entry.remarks || entry.status || '';
+        
+        if (currentStatus !== 'New Entry' && currentStatus !== 'Pending') {
+            return false; // Skip (Hide) only if it's not new
+        }
+    }
+}
             // ========================================
 
             // 1. BLANK ATTENTION CHECK
@@ -3268,24 +3275,34 @@ async function populateActiveTasks() {
         });
 
         userTasks = jobTasks.map(task => {
-            let isUrgent = (task.attention === currentUserName) || 
-                           (['Transfer', 'Restock'].includes(task.for) && task.receiver === currentUserName);
+        // [FIX START] Force "New Entry" for Invoices that are still "Pending"
+        let displayStatus = task.remarks || task.status || 'Pending';
+        
+        if (task.for === 'Invoice' && displayStatus === 'Pending') {
+            displayStatus = 'New Entry'; 
+        }
+        // [FIX END]
 
-            if (!isInventoryPage && !isUrgent && isAccounting) {
-                if ((task.attention === 'Accounting' || task.for === 'Invoice') && task.remarks !== 'On Hold') {
-                    if(task.attention === 'Accounting') isUrgent = true;
-                }
-            }
+        let isUrgent = (task.attention === currentUserName) || 
+                       (['Transfer', 'Restock'].includes(task.for) && task.receiver === currentUserName);
 
-            // === [NEW] UNIVERSAL SRV DONE RULE ===
-            // If it is "SRV Done", it is NEVER Urgent (Grey for everyone)
-            if (task.remarks === 'SRV Done') {
-                isUrgent = false;
+        if (!isInventoryPage && !isUrgent && isAccounting) {
+            // Check if it is for Accounting OR is an Invoice type (and not On Hold)
+            if ((task.attention === 'Accounting' || task.for === 'Invoice') && task.remarks !== 'On Hold') {
+                isUrgent = true; 
             }
-            
-            const source = ['Transfer', 'Restock', 'Return', 'Usage'].includes(task.for) ? 'transfer_entry' : 'job_entry';
-            return { ...task, source: source, isUrgent: isUrgent };
-        });
+        }
+
+        // === [NEW] UNIVERSAL SRV DONE RULE ===
+        if (task.remarks === 'SRV Done') {
+            isUrgent = false;
+        }
+        
+        const source = ['Transfer', 'Restock', 'Return', 'Usage'].includes(task.for) ? 'transfer_entry' : 'job_entry';
+        
+        // Return the task with the UPDATED displayStatus
+        return { ...task, source: source, isUrgent: isUrgent, remarks: displayStatus };
+    });
 
         // --- B. INVOICE TASKS (Personal Notifications) ---
         if (!isInventoryPage) {
