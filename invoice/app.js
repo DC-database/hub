@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "5.2.6";
+const APP_VERSION = "5.2.7";
 
 // DETECT INVENTORY PAGE
 // This checks if the current browser URL has "inventory" in it (e.g., inventory.html)
@@ -2959,7 +2959,7 @@ async function handleReportingSearch() {
 }
 
 // ==========================================================================
-// 1. RENDER ACTIVE TASK TABLE (Clean Version)
+// UPDATED FUNCTION: renderActiveTaskTable (Uses handleSRVDone)
 // ==========================================================================
 function renderActiveTaskTable(tasks) {
     var isMobile = window.innerWidth <= 768;
@@ -2983,7 +2983,6 @@ function renderActiveTaskTable(tasks) {
         }
     });
 
-    // Handle Empty State
     if (filteredTasks.length === 0) {
         activeTaskTableBody.innerHTML = '<tr><td colspan="10">No tasks found for "' + currentActiveTaskFilter + '".</td></tr>';
         return; 
@@ -3020,7 +3019,6 @@ function renderActiveTaskTable(tasks) {
             '</tr>';
     }
 
-    // Render Rows
     var isCEO = document.body.classList.contains('is-ceo');
     var userPos = (currentApprover.Position || '').toLowerCase();
     var userRole = (currentApprover.Role || '').toLowerCase();
@@ -3033,14 +3031,13 @@ function renderActiveTaskTable(tasks) {
         var row = document.createElement('tr');
         row.setAttribute('data-key', task.key);
 
-        // Grey out rows if they are NOT urgent
         if (task.isUrgent === false) {
             row.style.opacity = '0.7';
             row.style.backgroundColor = '#f9f9f9';
         }
 
         if (isTransferView) {
-            // --- TRANSFER ROW ---
+            // --- TRANSFER ROW (Standard) ---
             var actionButtons = '<button class="transfer-action-btn" data-key="' + task.key + '" style="background-color: #17a2b8; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 600;">Action</button>';
             if (userRole === 'admin') {
                 actionButtons += '<button class="delete-btn transfer-delete-btn" data-key="' + task.key + '" style="margin-left: 5px; padding: 6px 12px;">Delete</button>';
@@ -3132,8 +3129,14 @@ function renderActiveTaskTable(tasks) {
                 actionsCell.innerHTML = '<button class="ceo-approve-btn" data-key="' + task.key + '">Make Approval</button>';
             } else {
                 var actionsHTML = '';
-                if (task.remarks === 'For SRV') {
-                    actionsHTML = `<button class="srv-done-btn" data-key="${task.key}">SRV Done</button>`;
+                
+                // --- UPDATE: Wired up handleSRVDone ---
+                if (task.remarks === 'For SRV' || task.remarks === 'Waiting Signature' || task.remarks === 'Waiting Approval') {
+                    // 1. The Finish Button (Uses New Dynamic Function)
+                    actionsHTML += `<button class="srv-done-btn" onclick="handleSRVDone(this, '${task.key}')" style="margin-right: 5px;">SRV Done</button>`;
+                    
+                    // 2. The Edit Button (Process)
+                    actionsHTML += `<button class="modify-btn" data-key="${task.key}">Process</button>`;
                 } else {
                     actionsHTML = `<button class="modify-btn" data-key="${task.key}">Process</button>`;
                 }
@@ -3146,12 +3149,12 @@ function renderActiveTaskTable(tasks) {
 }
 
 // ==========================================================================
-// UPDATED FUNCTION: populateActiveTasks (Fix for "For SRV" Visibility)
+// UPDATED FUNCTION: populateActiveTasks (Fix: SRV Passive for Accounting)
 // ==========================================================================
 async function populateActiveTasks() {
     activeTaskTableBody.innerHTML = `<tr><td colspan="10">Loading tasks...</td></tr>`;
 
-    // --- SAFETY DEFINTIONS ---
+    // --- SAFETY DEFINITIONS ---
     const loc = window.location.pathname.toLowerCase();
     const isMainPage = loc.endsWith('index.html') || loc === '/' || loc.endsWith('/');
     const isInventoryPage = !isMainPage; 
@@ -3168,13 +3171,14 @@ async function populateActiveTasks() {
         
         const nameLower = (currentApprover.Name || '').toLowerCase();
         const userPositionLower = (currentApprover.Position || '').toLowerCase();
+        const userRoleLower = (currentApprover.Role || '').toLowerCase();
 
-        // --- ACCOUNTING PERMISSIONS ---
         const isAccounting = userPositionLower.includes('accounting') || 
                              userPositionLower.includes('accounts') || 
                              userPositionLower.includes('finance') ||
                              nameLower.includes('irwin');
-
+        
+        const isAdmin = userRoleLower === 'admin';
         const isQS = userPositionLower === 'qs';
         const isProcurement = userPositionLower === 'procurement';
 
@@ -3184,7 +3188,7 @@ async function populateActiveTasks() {
             if (isInventoryPage) {
                 financeBatchControls.style.display = 'none';
             } else {
-                financeBatchControls.style.display = isAccounting ? 'flex' : 'none';
+                financeBatchControls.style.display = (isAccounting || isAdmin) ? 'flex' : 'none';
             }
         }
 
@@ -3213,7 +3217,7 @@ async function populateActiveTasks() {
             // 1. BLANK ATTENTION CHECK
             if (!entry.attention || entry.attention.trim() === '' || entry.attention.toLowerCase() === 'none') {
                 const isTransfer = ['Transfer', 'Restock', 'Return', 'Usage'].includes(entry.for);
-                const isInvoiceForAcc = (entry.for === 'Invoice' && isAccounting && !isInventoryPage);
+                const isInvoiceForAcc = (entry.for === 'Invoice' && (isAccounting || isAdmin) && !isInventoryPage);
                 if (!isTransfer && !isInvoiceForAcc) return false; 
             }
             
@@ -3223,14 +3227,13 @@ async function populateActiveTasks() {
                 if (entry.remarks === 'Pending Source') return entry.sourceContact === currentUserName;
                 if (entry.remarks === 'Pending Admin' || entry.remarks === 'Pending') return entry.approver === currentUserName;
                 if (entry.remarks === 'Approved' || entry.remarks === 'In Transit') return entry.receiver === currentUserName;
-                
                 if (entry.attention === currentUserName) return true;
                 if (entry.attention === 'All' && (entry.site === currentUserSite || currentUserSite === 'All')) return true;
                 return false;
             }
 
             // 3. Invoice / Accounting Logic
-            if (isAccounting && !isInventoryPage) {
+            if ((isAccounting || isAdmin) && !isInventoryPage) {
                 if (entry.for === 'Invoice') return true; 
                 if (entry.attention === 'Accounting') return true;
             }
@@ -3254,15 +3257,20 @@ async function populateActiveTasks() {
         });
 
         userTasks = jobTasks.map(task => {
-            const isUrgent = (task.attention === currentUserName) || 
-                             (isAccounting && (task.attention === 'Accounting' || task.for === 'Invoice') && task.remarks !== 'On Hold' && !isInventoryPage) ||
-                             (['Transfer', 'Restock'].includes(task.for) && task.receiver === currentUserName);
+            let isUrgent = (task.attention === currentUserName) || 
+                           (['Transfer', 'Restock'].includes(task.for) && task.receiver === currentUserName);
 
+            if (!isInventoryPage && !isUrgent && isAccounting) {
+                if ((task.attention === 'Accounting' || task.for === 'Invoice') && task.remarks !== 'On Hold') {
+                    if(task.attention === 'Accounting') isUrgent = true;
+                }
+            }
+            
             const source = ['Transfer', 'Restock', 'Return', 'Usage'].includes(task.for) ? 'transfer_entry' : 'job_entry';
             return { ...task, source: source, isUrgent: isUrgent };
         });
 
-        // --- B. INVOICE TASKS (PERSONAL NOTIFICATIONS) ---
+        // --- B. INVOICE TASKS (Personal Notifications) ---
         if (!isInventoryPage) {
             const sanitizeFirebaseKey = (key) => key.replace(/[.#$[\]]/g, '_');
             const safeCurrentUserName = sanitizeFirebaseKey(currentUserName);
@@ -3290,14 +3298,13 @@ async function populateActiveTasks() {
                         }
                         pulledInvoiceKeys.add(invoiceKey);
 
-                        // Fetch Data Details
                         let realAmountPaid = task.amountPaid;
                         if (!realAmountPaid && allInvoiceData && allInvoiceData[task.po] && allInvoiceData[task.po][invoiceKey]) {
                             realAmountPaid = allInvoiceData[task.po][invoiceKey].amountPaid;
                         }
                         let finalAttention = task.attention || (isFromAll ? 'All' : currentUserName);
                         
-                        // Fix for Site DC seeing SRV as Urgent
+                        // URGENCY: Name Match AND Not On Hold
                         const isUrgent = (finalAttention === currentUserName && task.status !== 'On Hold') ||
                                          (task.status === 'For SRV' && currentUserSite !== 'All' && task.site && task.site.includes(currentUserSite));
 
@@ -3330,13 +3337,11 @@ async function populateActiveTasks() {
             processInvoiceSnapshot(allSnapshot);
         }
 
-        // --- C. GLOBAL INVOICE LOOKUP (ACCOUNTING & SITE SAFETY NET) ---
-        // This block now allows Site Users to see "For SRV" even if notifications failed.
+        // --- C. GLOBAL INVOICE LOOKUP ---
         if (!isInventoryPage && allInvoiceData && allPOData) { 
             
-            // Define who sees what status globally
-            const accStatuses = ['Pending', 'Report', 'Original PO', 'On Hold', 'Unresolved', 'In Process'];
-            const siteStatuses = ['For SRV']; // <--- ADDED THIS
+            const accStatuses = ['Pending', 'Report', 'Original PO', 'On Hold', 'Unresolved', 'In Process', 'SRV Done'];
+            const siteStatuses = ['For SRV', 'Waiting Signature', 'Waiting Approval', 'SRV Done']; 
 
             for (const poNumber in allInvoiceData) {
                 const poInvoices = allInvoiceData[poNumber];
@@ -3344,25 +3349,41 @@ async function populateActiveTasks() {
                 const poSite = poDetails['Project ID'] || 'N/A';
 
                 for (const invoiceKey in poInvoices) {
-                    if (pulledInvoiceKeys.has(invoiceKey)) continue; // Skip if already found in Section B
+                    if (pulledInvoiceKeys.has(invoiceKey)) continue; 
                     const inv = poInvoices[invoiceKey];
-                    
                     let shouldShow = false;
                     let isUrgent = false;
 
-                    // 1. Accounting Logic
-                    if (isAccounting && accStatuses.includes(inv.status)) {
+                    // 1. Accounting/Admin Logic (Visibility - PASSIVE)
+                    if ((isAccounting || isAdmin) && accStatuses.includes(inv.status)) {
                         shouldShow = true;
-                        isUrgent = (inv.status !== 'On Hold');
+                        isUrgent = false; // Default to Grey for Accounting/Admin
                     }
 
-                    // 2. Site Logic (Safety Net for "For SRV")
+                    // 2. Site Logic (Visibility - URGENT ONLY FOR REAL SITE USERS)
                     if (siteStatuses.includes(inv.status)) {
-                        // Check if this invoice belongs to the user's site
                         if (currentUserSite === 'All' || currentUserSite.includes(poSite.split(' ')[0])) {
                             shouldShow = true;
-                            isUrgent = true; // "For SRV" is urgent for the site
+                            
+                            // [FIX] URGENCY CHECK
+                            // Only mark Urgent if:
+                            // a) Status is NOT 'SRV Done'
+                            // b) AND User is NOT Accounting/Admin (prevents Irwin getting urgency for all sites)
+                            if (inv.status !== 'SRV Done' && !isAccounting && !isAdmin) {
+                                isUrgent = true;
+                            } 
                         }
+                    }
+
+                    // 3. OVERRIDE RULE: "My Name = Urgent" (The General Rule)
+                    if (inv.attention === currentUserName) {
+                        shouldShow = true;
+                        isUrgent = true;
+                    }
+                    // Accounting specific override (Explicit group assignment)
+                    if (isAccounting && inv.attention === 'Accounting' && inv.status !== 'On Hold') {
+                        shouldShow = true;
+                        isUrgent = true;
                     }
 
                     if (shouldShow) {
@@ -3434,7 +3455,6 @@ async function populateActiveTasks() {
             } else {
                 key = task.remarks || 'Pending';
             }
-            
             tabCounts[key] = (tabCounts[key] || 0) + 1;
             if (task.isUrgent === true) {
                 urgentTabCounts[key] = (urgentTabCounts[key] || 0) + 1;
@@ -3443,7 +3463,6 @@ async function populateActiveTasks() {
 
         const uniqueTabs = Object.keys(tabCounts).sort();
         let tabsHTML = '';
-
         const getTabColor = (statusRaw) => {
             const status = (statusRaw || '').toLowerCase();
             if (status.includes('approved')) return '#28a745'; 
@@ -3455,7 +3474,8 @@ async function populateActiveTasks() {
             if (status.includes('report')) return '#007bff';  
             if (status.includes('original')) return '#6610f2'; 
             if (status.includes('transfer')) return '#00748C'; 
-            if (status.includes('srv')) return '#e83e8c'; // Pink for SRV
+            if (status.includes('srv')) return '#e83e8c'; 
+            if (status.includes('waiting')) return '#6610f2';
             return '#fd7e14';
         };
 
@@ -3482,7 +3502,6 @@ async function populateActiveTasks() {
                     borderStyle = `1px solid #ddd`; 
                     blinkClass = ''; 
                 }
-
                 tabsHTML += `
                 <button class="${activeClass} ${blinkClass}" 
                         data-status-filter="${tabName}" 
@@ -3533,6 +3552,83 @@ function handleActiveTaskSearch(searchTerm) {
         });
     }
     renderActiveTaskTable(searchedTasks);
+}
+
+// ==========================================================================
+// NEW FUNCTION: Handle SRV Done (Routes back to Sender)
+// ==========================================================================
+async function handleSRVDone(btn, key) {
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Processing...';
+    }
+
+    try {
+        await ensureAllEntriesFetched();
+        
+        // 1. Identify where this task lives (Job Entry or Invoice DB?)
+        // Key format: "PO_Key" means Invoice DB. Just "Key" means Job Entry.
+        const isInvoiceDB = key.includes('_');
+        
+        let sender = 'Accounting'; // Default fallback
+        let poNumber = '';
+        let invoiceKey = '';
+
+        if (isInvoiceDB) {
+            // It's from Invoice DB
+            const parts = key.split('_');
+            poNumber = parts[0];
+            invoiceKey = parts[1];
+            
+            // We need to fetch the specific invoice to find 'enteredBy'
+            // Since we don't have the full object here, we default to Accounting
+            // UNLESS we can find it in our loaded data:
+            if (allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][invoiceKey]) {
+                const invData = allInvoiceData[poNumber][invoiceKey];
+                // Use the creator if available, otherwise Accounting
+                sender = invData.enteredBy || 'Accounting';
+            }
+        } else {
+            // It's a Job Entry
+            const jobEntry = allSystemEntries.find(e => e.key === key);
+            if (jobEntry) {
+                sender = jobEntry.enteredBy || 'Accounting';
+            }
+        }
+
+        // 2. Perform the Update
+        if (isInvoiceDB) {
+            await invoiceDb.ref(`invoices/${poNumber}/${invoiceKey}`).update({
+                status: 'SRV Done',
+                attention: sender // <--- DYNAMIC SENDER ASSIGNMENT
+            });
+            
+            // Remove from Site User's "Personal" notification folder (cleanup)
+            // (Optional, but good practice to keep DB clean)
+        } else {
+            await db.ref(`job_entries/${key}`).update({
+                remarks: 'SRV Done',
+                attention: sender // <--- DYNAMIC SENDER ASSIGNMENT
+            });
+        }
+
+        // 3. Log History
+        // (Simplified log for direct action)
+        console.log(`Task ${key} marked SRV Done. Returned to ${sender}.`);
+
+        alert(`SRV Completed. Task returned to ${sender}.`);
+        
+        // 4. Refresh
+        if (typeof populateActiveTasks === 'function') populateActiveTasks();
+
+    } catch (error) {
+        console.error("Error marking SRV Done:", error);
+        alert("Error updating status. Please try again.");
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'SRV Done';
+        }
+    }
 }
 
 // ==========================================================================
