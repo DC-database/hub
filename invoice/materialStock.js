@@ -856,7 +856,7 @@ function handleGetTemplate() {
 }
 
 // ==========================================================================
-// CORRECTED CSV UPLOAD FUNCTION (V2 - ID Priority)
+// CORRECTED CSV UPLOAD FUNCTION (V2 - ID Priority + Name Update)
 // ==========================================================================
 function handleUploadCSV(event) {
     const file = event.target.files[0];
@@ -927,6 +927,12 @@ function handleUploadCSV(event) {
 
                     if (existingItem) {
                         // === MERGE MODE (Update Existing) ===
+                        
+                        // [FIX] Update Name if provided
+                        if (pName && pName !== "") {
+                            existingItem.productName = pName;
+                        }
+
                         if (!existingItem.sites) existingItem.sites = {};
                         
                         // Add quantity to specific site
