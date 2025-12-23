@@ -8059,7 +8059,7 @@ async function handleBatchGlobalSearch(searchType) {
 }
 
 // =========================================================
-// FIX: BATCH SAVE (With Crash Protection & Report Name)
+// FIX: BATCH SAVE (With Crash Protection, Report Name & Cache Sync)
 // =========================================================
 async function handleSaveBatchInvoices() {
     const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
@@ -8070,10 +8070,9 @@ async function handleSaveBatchInvoices() {
     
     if (!confirm(`You are about to save/update ${rows.length} invoice(s). Continue?`)) return;
 
-    // --- [CRITICAL FIX] SAFE USER CHECK ---
+    // --- [CRITICAL] SAFE USER CHECK ---
     let currentUserName = 'Admin'; 
     try {
-        // Try to read currentUser. If it doesn't exist, this fails silently (caught below)
         if (typeof currentUser !== 'undefined' && currentUser && currentUser.username) {
             currentUserName = currentUser.username;
         } else if (window.currentUser && window.currentUser.username) {
@@ -8085,9 +8084,8 @@ async function handleSaveBatchInvoices() {
     // --------------------------------------
 
     const savePromises = [];
-    const localCacheUpdates = [];
-    let newInvoicesCount = 0,
-        updatedInvoicesCount = 0;
+    let newInvoicesCount = 0;
+    let updatedInvoicesCount = 0;
 
     // Helper: Generate SRV Name
     const getSrvName = (poNumber, site, vendor, invEntryID) => {
@@ -8095,9 +8093,12 @@ async function handleSaveBatchInvoices() {
             yyyy = today.getFullYear(),
             mm = String(today.getMonth() + 1).padStart(2, '0'),
             dd = String(today.getDate()).padStart(2, '0');
-        if (vendor.length > 21) vendor = vendor.substring(0, 21);
+        
+        let safeVendor = vendor || 'Vendor';
+        if (safeVendor.length > 21) safeVendor = safeVendor.substring(0, 21);
+        
         const invID = invEntryID || 'INV-XX';
-        return `${yyyy}${mm}${dd}-${poNumber}-${invID}-${site}-${vendor}`;
+        return `${yyyy}${mm}${dd}-${poNumber}-${invID}-${site}-${safeVendor}`;
     };
 
     // Helper: Generate Report Name
@@ -8106,8 +8107,10 @@ async function handleSaveBatchInvoices() {
         return `${po}-${id}-${shortVendor}-Report`;
     };
 
+    // Ensure we have base data before starting (prevents cache errors)
     if (typeof ensureInvoiceDataFetched === 'function') await ensureInvoiceDataFetched();
 
+    // === START LOOP ===
     for (const row of rows) {
         const poNumber = row.dataset.po;
         const site = row.dataset.site;
@@ -8116,6 +8119,7 @@ async function handleSaveBatchInvoices() {
         let vendor = row.dataset.vendor;
         let invEntryID = row.dataset.nextInvid;
 
+        // Recover ID for existing entries
         if (existingKey) {
             const existingIDSpan = row.querySelector('span.existing-indicator');
             if (existingIDSpan) {
@@ -8126,6 +8130,7 @@ async function handleSaveBatchInvoices() {
             }
         }
 
+        // 1. Build Data Object
         const invoiceData = {
             invNumber: row.querySelector('[name="invNumber"]').value,
             invName: row.querySelector('[name="invName"]').value,
@@ -8138,29 +8143,34 @@ async function handleSaveBatchInvoices() {
             releaseDate: (typeof getTodayDateString === 'function') ? getTodayDateString() : new Date().toISOString().split('T')[0]
         };
 
+        // 2. Handle Attention Field
         invoiceData.attention = row.choicesInstance ? row.choicesInstance.getValue(true) : row.querySelector('select[name="attention"]').value;
         if (invoiceData.attention === 'None') invoiceData.attention = '';
         if (invoiceData.status === 'Under Review' || invoiceData.status === 'With Accounts') invoiceData.attention = '';
 
+        // 3. Validation
         if (!invoiceData.invValue) {
             alert(`Invoice Value is required for PO ${poNumber}. Cannot proceed.`);
             return;
         }
 
+        // 4. Auto-Generate Names if needed
         if (vendor.length > 21) vendor = vendor.substring(0, 21);
         const srvNameLower = (invoiceData.srvName || '').toLowerCase();
+        
+        // Auto SRV Name
         if (invoiceData.status === 'With Accounts' && srvNameLower !== 'nil' && srvNameLower.trim() === '') {
             invoiceData.srvName = getSrvName(poNumber, site, vendor, invEntryID);
         }
 
-        // --- REPORT NAME TRIGGER ---
-        // Generates name if status is "Report Approved"
+        // Auto Report Name
         if (invoiceData.status === 'Report Approved') {
             invoiceData.reportName = generateReportName(poNumber, invEntryID, vendor);
         }
 
-        // SAVE LOGIC (Using safe 'currentUserName')
+        // 5. SAVE & CACHE LOGIC
         if (existingKey) {
+            // === UPDATE EXISTING ===
             invoiceData.updatedAt = firebase.database.ServerValue.TIMESTAMP;
             invoiceData.updatedBy = currentUserName; 
             
@@ -8168,8 +8178,12 @@ async function handleSaveBatchInvoices() {
             savePromises.push(p);
             updatedInvoicesCount++;
             
-            localCacheUpdates.push({ po: poNumber, key: existingKey, data: invoiceData });
+            // [FIX] Immediate Local Cache Update
+            if (allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][existingKey]) {
+                Object.assign(allInvoiceData[poNumber][existingKey], invoiceData);
+            }
         } else {
+            // === CREATE NEW ===
             invoiceData.invEntryID = invEntryID;
             invoiceData.vendor_name = vendor;
             invoiceData.po_number = poNumber;
@@ -8177,28 +8191,39 @@ async function handleSaveBatchInvoices() {
             invoiceData.enteredAt = firebase.database.ServerValue.TIMESTAMP;
             invoiceData.enteredBy = currentUserName;
 
+            // Push to Firebase
             const newRef = invoiceDb.ref(`invoice_entries/${poNumber}`).push();
+            const newKey = newRef.key; // Get the key synchronously
             const p = newRef.set(invoiceData);
             savePromises.push(p);
             newInvoicesCount++;
+
+            // [FIX] Immediate Local Cache Creation
+            // Ensure the structure exists
+            if (!allInvoiceData) allInvoiceData = {};
+            if (!allInvoiceData[poNumber]) allInvoiceData[poNumber] = {};
+
+            // Insert into memory so Summary Note sees it immediately
+            allInvoiceData[poNumber][newKey] = {
+                ...invoiceData,
+                key: newKey, // Important: Add the key to the object
+                vendor_name: vendor,
+                site_name: site
+            };
         }
     }
 
+    // === FINALIZE ===
     try {
         await Promise.all(savePromises);
         
-        if (typeof allInvoiceData !== 'undefined') {
-            localCacheUpdates.forEach(update => {
-                if (allInvoiceData[update.po] && allInvoiceData[update.po][update.key]) {
-                    Object.assign(allInvoiceData[update.po][update.key], update.data);
-                }
-            });
-        }
-
         alert(`Batch Process Complete!\n\nNew Invoices: ${newInvoicesCount}\nUpdated Invoices: ${updatedInvoicesCount}`);
         
+        // Clear UI
         document.getElementById('im-batch-table-body').innerHTML = '';
         if (imBatchSearchModal) imBatchSearchModal.classList.add('hidden');
+        
+        // Refresh Task List (Visuals only)
         if (typeof loadActiveTasks === 'function') loadActiveTasks();
 
     } catch (error) {
