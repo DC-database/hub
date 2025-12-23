@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "5.2.5";
+const APP_VERSION = "5.2.6";
 
 // DETECT INVENTORY PAGE
 // This checks if the current browser URL has "inventory" in it (e.g., inventory.html)
@@ -3146,13 +3146,15 @@ function renderActiveTaskTable(tasks) {
 }
 
 // ==========================================================================
-// UPDATED FUNCTION: populateActiveTasks (Fix for "On Hold" Counting)
+// UPDATED FUNCTION: populateActiveTasks (Fix for "For SRV" Visibility)
 // ==========================================================================
 async function populateActiveTasks() {
     activeTaskTableBody.innerHTML = `<tr><td colspan="10">Loading tasks...</td></tr>`;
 
     // --- SAFETY DEFINTIONS ---
-    const isInventoryPage = window.location.href.toLowerCase().includes('inventory');
+    const loc = window.location.pathname.toLowerCase();
+    const isMainPage = loc.endsWith('index.html') || loc === '/' || loc.endsWith('/');
+    const isInventoryPage = !isMainPage; 
     const INVENTORY_TYPES = ['Transfer', 'Restock', 'Return', 'Usage'];
     
     if (!currentApprover || !currentApprover.Name) {
@@ -3176,7 +3178,7 @@ async function populateActiveTasks() {
         const isQS = userPositionLower === 'qs';
         const isProcurement = userPositionLower === 'procurement';
 
-        // Finance Batch Controls (Hide on Inventory Page)
+        // Finance Batch Controls
         const financeBatchControls = document.getElementById('financeBatchControls');
         if (financeBatchControls) {
             if (isInventoryPage) {
@@ -3204,23 +3206,15 @@ async function populateActiveTasks() {
         const jobTasks = allSystemEntries.filter(entry => {
             if (isTaskComplete(entry)) return false;
 
-            // [NEW] INVENTORY PAGE EXCLUSIVE FILTER
             if (isInventoryPage) {
-                if (!INVENTORY_TYPES.includes(entry.for)) {
-                    return false;
-                }
+                if (!INVENTORY_TYPES.includes(entry.for)) return false;
             }
 
             // 1. BLANK ATTENTION CHECK
             if (!entry.attention || entry.attention.trim() === '' || entry.attention.toLowerCase() === 'none') {
-                // Exception 1: Transfers
                 const isTransfer = ['Transfer', 'Restock', 'Return', 'Usage'].includes(entry.for);
-                // Exception 2: INVOICES for Accounting
                 const isInvoiceForAcc = (entry.for === 'Invoice' && isAccounting && !isInventoryPage);
-
-                if (!isTransfer && !isInvoiceForAcc) {
-                    return false; 
-                }
+                if (!isTransfer && !isInvoiceForAcc) return false; 
             }
             
             // 2. Transfer Logic
@@ -3235,23 +3229,17 @@ async function populateActiveTasks() {
                 return false;
             }
 
-            // 3. Invoice / Accounting Logic (Skip if Inventory Page)
+            // 3. Invoice / Accounting Logic
             if (isAccounting && !isInventoryPage) {
                 if (entry.for === 'Invoice') return true; 
                 if (entry.attention === 'Accounting') return true;
             }
             
-            // 4. PR Logic
-            if (entry.for === 'PR') {
-                if (isProcurement) return true;
-                if (entry.attention === currentUserName) return true;
-                return false;
-            }
-            
-            // 5. Direct Name Match
+            // 4. General & Name Match
+            if (entry.for === 'PR' && isProcurement) return true;
             if (entry.attention === currentUserName) return true;
 
-            // 6. "ALL" Logic
+            // 5. "ALL" Logic
             if (entry.attention === 'All') {
                 if (currentUserSite === 'All') return true;
                 if (!entry.site || entry.site === 'All') return true;
@@ -3260,16 +3248,13 @@ async function populateActiveTasks() {
                 if (entry.site === currentUserSite) return true; 
             }
             
-            // 7. IPC Logic
             if (entry.for === 'IPC' && isQS && entry.attention === currentUserName) return true;
             
             return false;
         });
 
         userTasks = jobTasks.map(task => {
-            // URGENCY LOGIC
             const isUrgent = (task.attention === currentUserName) || 
-                             // Mark 'Invoice' as urgent ONLY if NOT 'On Hold'
                              (isAccounting && (task.attention === 'Accounting' || task.for === 'Invoice') && task.remarks !== 'On Hold' && !isInventoryPage) ||
                              (['Transfer', 'Restock'].includes(task.for) && task.receiver === currentUserName);
 
@@ -3277,7 +3262,7 @@ async function populateActiveTasks() {
             return { ...task, source: source, isUrgent: isUrgent };
         });
 
-        // --- B. INVOICE TASKS ---
+        // --- B. INVOICE TASKS (PERSONAL NOTIFICATIONS) ---
         if (!isInventoryPage) {
             const sanitizeFirebaseKey = (key) => key.replace(/[.#$[\]]/g, '_');
             const safeCurrentUserName = sanitizeFirebaseKey(currentUserName);
@@ -3292,14 +3277,10 @@ async function populateActiveTasks() {
                     const tasksData = snapshot.val();
                     for (const invoiceKey in tasksData) {
                         if (pulledInvoiceKeys.has(invoiceKey)) continue;
-
                         const task = tasksData[invoiceKey];
                         const isFromAll = (snapshot.key === 'All');
 
-                        if (!task.attention || task.attention.trim() === '') {
-                            if (!isFromAll) continue; 
-                        }
-
+                        if (!task.attention || task.attention.trim() === '') { if (!isFromAll) continue; }
                         if (isFromAll) {
                             let allowed = false;
                             if (currentUserSite === 'All') allowed = true;
@@ -3307,20 +3288,20 @@ async function populateActiveTasks() {
                             else if (currentUserSite.includes(task.site.split(' ')[0])) allowed = true;
                             if (!allowed) continue;
                         }
-
                         pulledInvoiceKeys.add(invoiceKey);
 
+                        // Fetch Data Details
                         let realAmountPaid = task.amountPaid;
                         if (!realAmountPaid && allInvoiceData && allInvoiceData[task.po] && allInvoiceData[task.po][invoiceKey]) {
                             realAmountPaid = allInvoiceData[task.po][invoiceKey].amountPaid;
                         }
-
                         let finalAttention = task.attention || (isFromAll ? 'All' : currentUserName);
                         
-                        // Strict Urgency: Only if Name Match AND NOT On Hold
-                        const isUrgent = (finalAttention === currentUserName && task.status !== 'On Hold');
+                        // Fix for Site DC seeing SRV as Urgent
+                        const isUrgent = (finalAttention === currentUserName && task.status !== 'On Hold') ||
+                                         (task.status === 'For SRV' && currentUserSite !== 'All' && task.site && task.site.includes(currentUserSite));
 
-                        const transformedInvoice = {
+                        userTasks.push({
                             key: `${task.po}_${invoiceKey}`,
                             originalKey: invoiceKey,
                             originalPO: task.po,
@@ -3341,62 +3322,75 @@ async function populateActiveTasks() {
                             vendorName: (task.po && allPOData && allPOData[task.po]) ? (allPOData[task.po]['Supplier Name'] || 'N/A') : 'N/A',
                             note: task.note,
                             isUrgent: isUrgent
-                        };
-                        userTasks.push(transformedInvoice);
+                        });
                     }
                 }
             };
-
             processInvoiceSnapshot(personalSnapshot);
             processInvoiceSnapshot(allSnapshot);
         }
 
-        // --- C. ACCOUNTING VIEW (FIXED: "On Hold" is NOT Urgent) ---
-        if (isAccounting && !isInventoryPage) { 
-            const statusesToPull = ['Pending', 'Report', 'Original PO', 'On Hold', 'Unresolved', 'In Process'];
-            if (allInvoiceData && allPOData) {
-                for (const poNumber in allInvoiceData) {
-                    const poInvoices = allInvoiceData[poNumber];
-                    for (const invoiceKey in poInvoices) {
-                        if (pulledInvoiceKeys.has(invoiceKey)) continue;
-                        const inv = poInvoices[invoiceKey];
-                        
-                        let effAttention = inv.attention;
-                        if (!effAttention || effAttention === '') effAttention = 'Accounting';
+        // --- C. GLOBAL INVOICE LOOKUP (ACCOUNTING & SITE SAFETY NET) ---
+        // This block now allows Site Users to see "For SRV" even if notifications failed.
+        if (!isInventoryPage && allInvoiceData && allPOData) { 
+            
+            // Define who sees what status globally
+            const accStatuses = ['Pending', 'Report', 'Original PO', 'On Hold', 'Unresolved', 'In Process'];
+            const siteStatuses = ['For SRV']; // <--- ADDED THIS
 
-                        if (inv && statusesToPull.includes(inv.status)) {
-                            if (effAttention === 'Accounting' || effAttention === 'All') {
-                                const poDetails = allPOData[poNumber] || {};
-                                
-                                // === FIX HERE ===
-                                // Only mark as URGENT if it is NOT "On Hold"
-                                const isUrgent = (inv.status !== 'On Hold'); 
+            for (const poNumber in allInvoiceData) {
+                const poInvoices = allInvoiceData[poNumber];
+                const poDetails = allPOData[poNumber] || {};
+                const poSite = poDetails['Project ID'] || 'N/A';
 
-                                const transformedInvoice = {
-                                    key: `${poNumber}_${invoiceKey}`,
-                                    originalKey: invoiceKey,
-                                    originalPO: poNumber,
-                                    source: 'invoice',
-                                    for: 'Invoice',
-                                    ref: inv.invNumber || '',
-                                    po: poNumber,
-                                    amount: inv.invValue || '',
-                                    amountPaid: inv.amountPaid || inv.invValue || '',
-                                    site: poDetails['Project ID'] || 'N/A',
-                                    group: 'N/A',
-                                    attention: effAttention, 
-                                    enteredBy: 'Irwin',
-                                    date: formatYYYYMMDD(inv.invoiceDate),
-                                    remarks: inv.status,
-                                    timestamp: Date.now(),
-                                    invName: inv.invName || '',
-                                    vendorName: poDetails['Supplier Name'] || 'N/A',
-                                    note: inv.note || '',
-                                    isUrgent: isUrgent // Uses the new logic
-                                };
-                                userTasks.push(transformedInvoice);
-                            }
+                for (const invoiceKey in poInvoices) {
+                    if (pulledInvoiceKeys.has(invoiceKey)) continue; // Skip if already found in Section B
+                    const inv = poInvoices[invoiceKey];
+                    
+                    let shouldShow = false;
+                    let isUrgent = false;
+
+                    // 1. Accounting Logic
+                    if (isAccounting && accStatuses.includes(inv.status)) {
+                        shouldShow = true;
+                        isUrgent = (inv.status !== 'On Hold');
+                    }
+
+                    // 2. Site Logic (Safety Net for "For SRV")
+                    if (siteStatuses.includes(inv.status)) {
+                        // Check if this invoice belongs to the user's site
+                        if (currentUserSite === 'All' || currentUserSite.includes(poSite.split(' ')[0])) {
+                            shouldShow = true;
+                            isUrgent = true; // "For SRV" is urgent for the site
                         }
+                    }
+
+                    if (shouldShow) {
+                        let effAttention = inv.attention;
+                        if (!effAttention || effAttention === '') effAttention = isAccounting ? 'Accounting' : 'Site';
+
+                        userTasks.push({
+                            key: `${poNumber}_${invoiceKey}`,
+                            originalKey: invoiceKey,
+                            originalPO: poNumber,
+                            source: 'invoice',
+                            for: 'Invoice',
+                            ref: inv.invNumber || '',
+                            po: poNumber,
+                            amount: inv.invValue || '',
+                            amountPaid: inv.amountPaid || inv.invValue || '',
+                            site: poSite,
+                            group: 'N/A',
+                            attention: effAttention, 
+                            enteredBy: 'Irwin',
+                            date: formatYYYYMMDD(inv.invoiceDate),
+                            remarks: inv.status,
+                            timestamp: Date.now(),
+                            invName: inv.invName || '',
+                            vendorName: poDetails['Supplier Name'] || 'N/A',
+                            note: inv.note || '',
+                            isUrgent: isUrgent
+                        });
                     }
                 }
             }
@@ -3404,7 +3398,6 @@ async function populateActiveTasks() {
 
         userActiveTasks = userTasks.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
         const totalTaskCount = userActiveTasks.length;
-        
         const urgentCount = userActiveTasks.filter(t => t.isUrgent === true).length;
 
         if (activeTaskCountDisplay) {
@@ -3425,11 +3418,8 @@ async function populateActiveTasks() {
 
         targets.forEach(el => {
             if (el) {
-                if (urgentCount > 0) {
-                    el.classList.add('nav-pulse-active');
-                } else {
-                    el.classList.remove('nav-pulse-active');
-                }
+                if (urgentCount > 0) el.classList.add('nav-pulse-active');
+                else el.classList.remove('nav-pulse-active');
             }
         });
 
@@ -3465,6 +3455,7 @@ async function populateActiveTasks() {
             if (status.includes('report')) return '#007bff';  
             if (status.includes('original')) return '#6610f2'; 
             if (status.includes('transfer')) return '#00748C'; 
+            if (status.includes('srv')) return '#e83e8c'; // Pink for SRV
             return '#fd7e14';
         };
 
@@ -4831,11 +4822,24 @@ function renderJobEntryTable(entries) {
     });
 }
 
+// ==========================================================================
+// UPDATED FUNCTION: handleJobEntrySearch (Strict Inventory Filter)
+// ==========================================================================
 async function handleJobEntrySearch(searchTerm) {
     const searchText = (searchTerm || '').toLowerCase();
     sessionStorage.setItem('jobEntrySearch', searchText);
 
     jobEntryTableBody.innerHTML = '<tr><td colspan="8">Searching...</td></tr>';
+
+    // --- STRICT DETECTION ---
+    const loc = window.location.href.toLowerCase();
+    const docTitle = document.title.toLowerCase();
+    // Use Body Class
+    const isInventoryPage = document.body.classList.contains('inventory-page') || 
+                            loc.includes('inventory') || 
+                            docTitle.includes('inventory');
+
+    const INVENTORY_TYPES = ['Transfer', 'Restock', 'Return', 'Usage'];
 
     try {
         await ensureAllEntriesFetched();
@@ -4845,7 +4849,7 @@ async function handleJobEntrySearch(searchTerm) {
             entry.enteredBy === currentApprover.Name && !isTaskComplete(entry)
         );
 
-        // 2. FILTER: Inventory Page Exclusive (New Logic)
+        // 2. FILTER: Inventory Page Exclusive (Strict)
         if (isInventoryPage) {
             filteredEntries = filteredEntries.filter(entry => 
                 INVENTORY_TYPES.includes(entry.for)
