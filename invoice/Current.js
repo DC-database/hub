@@ -1,8 +1,8 @@
-// materialStock.js - V10.5 (Report Features + Fixed Accordion & Strict Site Filter)
+// materialStock.js - V10.4 (Report Matches Search Results)
 
 let allMaterialStockData = [];
 let allTransferData = [];
-let lastFilteredStockData = []; // Stores exactly what is shown in the table for Reports
+let lastFilteredStockData = []; // <--- NEW: Stores exactly what is shown in the table
 let msProductChoices = null;
 let lastTypedProductID = "";
 let currentCategoryFilter = 'All';
@@ -330,7 +330,7 @@ window.filterStockByCategory = function(category) {
 };
 
 // ==========================================================================
-// RENDER TABLE (Fixed: Accordion & Strict Site Filter Restored)
+// RENDER TABLE (Now Saves Filtered Data for Report)
 // ==========================================================================
 function renderMaterialStockTable(data) {
     const tableBody = document.getElementById('ms-table-body');
@@ -405,7 +405,7 @@ function renderMaterialStockTable(data) {
         return true;
     });
 
-    // --- SAVE FILTERED DATA FOR REPORTING ---
+    // --- NEW: SAVE FILTERED DATA FOR REPORTING ---
     lastFilteredStockData = filtered;
 
     if (countDisplay) countDisplay.textContent = `(Total: ${filtered.length})`;
@@ -422,7 +422,6 @@ function renderMaterialStockTable(data) {
         let breakdownRows = '';
         let hasSites = false;
 
-        // Calculate total stock based on filter
         if (siteFilterVal !== 'All') {
             totalStock = parseFloat(item.sites[siteFilterVal] || 0);
         }
@@ -430,13 +429,6 @@ function renderMaterialStockTable(data) {
         if (item.sites) {
             Object.entries(item.sites).forEach(([site, qty]) => {
                 const q = parseFloat(qty);
-                
-                // --- STRICT FILTER RESTORED: Hide other sites if filter is active ---
-                if (siteFilterVal !== 'All' && site !== siteFilterVal) {
-                    return; 
-                }
-                // -------------------------------------------------------------------
-
                 if (q !== 0 || isIrwin) {
                     hasSites = true;
                     if (siteFilterVal === 'All') {
@@ -1067,25 +1059,10 @@ window.openAddStockModal = function (key) {
 };
 
 // ==========================================================================
-// 9. HELPERS (Fixed: Accordion Effect)
+// 9. HELPERS
 // ==========================================================================
 
 window.toggleStockDetail = function(rowId, btn) {
-    // 1. Auto-Minimize Others (Close all other open rows)
-    const allOpenRows = document.querySelectorAll('.stock-child-row:not(.hidden)');
-    allOpenRows.forEach(row => {
-        if (row.id !== rowId) {
-            row.classList.add('hidden');
-            // Reset the button for the closed row
-            const prevRow = row.previousElementSibling;
-            if (prevRow) {
-                const expandBtn = prevRow.querySelector('.ms-expand-btn');
-                if (expandBtn) expandBtn.textContent = '+';
-            }
-        }
-    });
-
-    // 2. Toggle Current Item
     const row = document.getElementById(rowId);
     if (row) {
         row.classList.toggle('hidden');
@@ -1200,7 +1177,7 @@ async function handleBulkDelete() {
     }
 }
 
-// --- REPORTING FUNCTIONS (Uses Filtered Data) ---
+// --- REPORTING FUNCTIONS (UPDATED: Use Filtered Data) ---
 function openStockReportModal() {
     const modal = document.getElementById('ms-report-modal');
     const tbody = document.getElementById('ms-report-table-body');
