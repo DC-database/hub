@@ -320,9 +320,20 @@ window.openTransferActionModal = async function(task) {
 };
 
 // ==========================================================================
-// 3. ACTION HANDLER (MATH FIXED - USES ATOMIC FUNCTION)
+// 3. ACTION HANDLER (WITH SAFETY CONFIRMATION POPUP)
 // ==========================================================================
 window.handleTransferAction = async (status) => {
+    // --- 1. NEW SAFETY CHECK (The "Pop-up") ---
+    if (status === 'Approved') {
+        // This stops the code and waits for him to press OK or Cancel
+        const isSure = confirm("CONFIRMATION REQUIRED:\n\nAre you sure you want to AUTHORIZE this transaction?\n\n• Press OK to Confirm\n• Press Cancel to go back");
+        
+        if (!isSure) {
+            return; // If he pressed Cancel, we stop immediately. Nothing happens.
+        }
+    }
+    // -------------------------------------------
+
     const key = document.getElementById('transfer-modal-key').value;
     const qty = parseFloat(document.getElementById('transfer-modal-qty').value) || 0;
     const note = document.getElementById('transfer-modal-note').value;

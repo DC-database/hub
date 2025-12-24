@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "5.3.0";
+const APP_VERSION = "5.3.2";
 
 // DETECT INVENTORY PAGE
 // This checks if the current browser URL has "inventory" in it (e.g., inventory.html)
@@ -64,6 +64,9 @@ const invoiceFirebaseConfig = {
 const invoiceApp = firebase.initializeApp(invoiceFirebaseConfig, 'invoiceEntry');
 const invoiceDb = invoiceApp.database();
 const storage = firebase.storage(invoiceApp);
+
+
+
 
 // ==========================================================================
 // 2. GLOBAL CONSTANTS & STATE VARIABLES
@@ -3149,7 +3152,9 @@ function renderActiveTaskTable(tasks) {
 }
 
 // ==========================================================================
-// UPDATED FUNCTION: populateActiveTasks (Smart De-Dup + Universal SRV Rule)
+// UPDATED FUNCTION: populateActiveTasks (V5.3.4)
+// FIX: "For SRV" is now STRICTLY Attention-based.
+// It ignores the "All Sites" profile capability.
 // ==========================================================================
 async function populateActiveTasks() {
     activeTaskTableBody.innerHTML = `<tr><td colspan="10">Loading tasks...</td></tr>`;
@@ -3182,18 +3187,13 @@ async function populateActiveTasks() {
         const isQS = userPositionLower === 'qs';
         const isProcurement = userPositionLower === 'procurement';
 
-        // Finance Batch Controls
         const financeBatchControls = document.getElementById('financeBatchControls');
         if (financeBatchControls) {
-            if (isInventoryPage) {
-                financeBatchControls.style.display = 'none';
-            } else {
-                financeBatchControls.style.display = (isAccounting || isAdmin) ? 'flex' : 'none';
-            }
+            financeBatchControls.style.display = (isInventoryPage) ? 'none' : ((isAccounting || isAdmin) ? 'flex' : 'none');
         }
 
         let userTasks = [];
-        let pulledInvoiceKeys = new Set(); // Keeps track of what we have seen
+        let pulledInvoiceKeys = new Set(); 
 
         await ensureAllEntriesFetched();
         await ensureApproverDataCached();
@@ -3206,31 +3206,15 @@ async function populateActiveTasks() {
             await reconcilePendingPRs();
         }
 
-        // --- A. JOB ENTRIES FILTER (WITH SMART DE-DUPLICATION) ---
+        // --- A. JOB ENTRIES FILTER ---
         const jobTasks = allSystemEntries.filter(entry => {
             if (isTaskComplete(entry)) return false;
+            if (isInventoryPage && !INVENTORY_TYPES.includes(entry.for)) return false;
 
-            if (isInventoryPage) {
-                if (!INVENTORY_TYPES.includes(entry.for)) return false;
+            if (entry.for === 'Invoice' && entry.po && allInvoiceData && allInvoiceData[entry.po]) {
+                const currentStatus = entry.remarks || entry.status || '';
+                if (currentStatus !== 'New Entry' && currentStatus !== 'Pending') return false; 
             }
-
-            // === [NEW] SMART DE-DUPLICATION LOGIC ===
-            // If this Job Entry has a PO, and that PO exists in the Real Invoice DB,
-            // HIDE this Job Entry. We want to see the Real Invoice instead.
-            if (entry.for === 'Invoice' && entry.po) {
-    // Only hide it if it exists in Master DB AND it is NOT a New Entry
-    if (allInvoiceData && allInvoiceData[entry.po]) {
-        
-        // [FIX] If the status is 'New Entry' or 'Pending', FORCE SHOW IT.
-        // We only want to hide it if it's an old task that's already processed.
-        const currentStatus = entry.remarks || entry.status || '';
-        
-        if (currentStatus !== 'New Entry' && currentStatus !== 'Pending') {
-            return false; // Skip (Hide) only if it's not new
-        }
-    }
-}
-            // ========================================
 
             // 1. BLANK ATTENTION CHECK
             if (!entry.attention || entry.attention.trim() === '' || entry.attention.toLowerCase() === 'none') {
@@ -3275,34 +3259,24 @@ async function populateActiveTasks() {
         });
 
         userTasks = jobTasks.map(task => {
-        // [FIX START] Force "New Entry" for Invoices that are still "Pending"
-        let displayStatus = task.remarks || task.status || 'Pending';
-        
-        if (task.for === 'Invoice' && displayStatus === 'Pending') {
-            displayStatus = 'New Entry'; 
-        }
-        // [FIX END]
+            let displayStatus = task.remarks || task.status || 'Pending';
+            if (task.for === 'Invoice' && displayStatus === 'Pending') displayStatus = 'New Entry'; 
 
-        let isUrgent = (task.attention === currentUserName) || 
-                       (['Transfer', 'Restock'].includes(task.for) && task.receiver === currentUserName);
+            let isUrgent = (task.attention === currentUserName) || 
+                           (['Transfer', 'Restock'].includes(task.for) && task.receiver === currentUserName);
 
-        if (!isInventoryPage && !isUrgent && isAccounting) {
-            // Check if it is for Accounting OR is an Invoice type (and not On Hold)
-            if ((task.attention === 'Accounting' || task.for === 'Invoice') && task.remarks !== 'On Hold') {
-                isUrgent = true; 
+            if (task.for === 'Invoice') {
+                isUrgent = (currentUserName === 'Irwin'); 
+            } 
+            else if (!isInventoryPage && !isUrgent && isAccounting) {
+                if (task.attention === 'Accounting' && task.remarks !== 'On Hold') isUrgent = true; 
             }
-        }
 
-        // === [NEW] UNIVERSAL SRV DONE RULE ===
-        if (task.remarks === 'SRV Done') {
-            isUrgent = false;
-        }
-        
-        const source = ['Transfer', 'Restock', 'Return', 'Usage'].includes(task.for) ? 'transfer_entry' : 'job_entry';
-        
-        // Return the task with the UPDATED displayStatus
-        return { ...task, source: source, isUrgent: isUrgent, remarks: displayStatus };
-    });
+            if (task.remarks === 'SRV Done') isUrgent = false;
+            
+            const source = ['Transfer', 'Restock', 'Return', 'Usage'].includes(task.for) ? 'transfer_entry' : 'job_entry';
+            return { ...task, source: source, isUrgent: isUrgent, remarks: displayStatus };
+        });
 
         // --- B. INVOICE TASKS (Personal Notifications) ---
         if (!isInventoryPage) {
@@ -3338,13 +3312,9 @@ async function populateActiveTasks() {
                         }
                         let finalAttention = task.attention || (isFromAll ? 'All' : currentUserName);
                         
-                        // URGENCY LOGIC
-                        let isUrgent = (finalAttention === currentUserName && task.status !== 'On Hold') ||
-                                       (task.status === 'For SRV' && currentUserSite !== 'All' && task.site && task.site.includes(currentUserSite));
+                        let isUrgent = false;
+                        if (finalAttention === currentUserName && task.status !== 'On Hold') isUrgent = true;
                         
-                        // === [NEW] UNIVERSAL SRV DONE RULE ===
-                        if (task.status === 'SRV Done') isUrgent = false;
-
                         userTasks.push({
                             key: `${task.po}_${invoiceKey}`,
                             originalKey: invoiceKey,
@@ -3378,7 +3348,10 @@ async function populateActiveTasks() {
         if (!isInventoryPage && allInvoiceData && allPOData) { 
             
             const accStatuses = ['Pending', 'Report', 'Original PO', 'On Hold', 'Unresolved', 'In Process', 'SRV Done'];
-            const siteStatuses = ['For SRV', 'Waiting Signature', 'Waiting Approval', 'SRV Done']; 
+            
+            // [FIX HERE]: Removed 'For SRV' from this list.
+            // This prevents "Site: All" users from automatically seeing 'For SRV' tasks.
+            const siteStatuses = ['Waiting Signature', 'Waiting Approval', 'SRV Done']; 
 
             for (const poNumber in allInvoiceData) {
                 const poInvoices = allInvoiceData[poNumber];
@@ -3394,34 +3367,33 @@ async function populateActiveTasks() {
                     // 1. Accounting/Admin Visibility
                     if ((isAccounting || isAdmin) && accStatuses.includes(inv.status)) {
                         shouldShow = true;
-                        isUrgent = false; // Default passive
+                        isUrgent = false; 
                     }
 
                     // 2. Site Visibility
+                    // Because 'For SRV' was removed from siteStatuses, this block is skipped for SRV tasks.
                     if (siteStatuses.includes(inv.status)) {
                         if (currentUserSite === 'All' || currentUserSite.includes(poSite.split(' ')[0])) {
-                            shouldShow = true;
-                            if (inv.status !== 'SRV Done' && !isAccounting && !isAdmin) {
-                                isUrgent = true;
-                            } 
+                            shouldShow = true; 
                         }
                     }
 
-                    // 3. Name Match Override
-                    if (inv.attention === currentUserName) {
+                    // [FIX 3] ATTENTION CHECK (Strict for "For SRV")
+                    // If Status is 'For SRV', visibility depends ENTIRELY on this block.
+                    if (inv.attention === 'All') {
                         shouldShow = true;
-                        isUrgent = true;
+                        isUrgent = false; // "All" = Visible but NOT Urgent
+                    } 
+                    else if (inv.attention === currentUserName) {
+                        shouldShow = true;
+                        isUrgent = true; // Name Match = Urgent
                     }
-                    if (isAccounting && inv.attention === 'Accounting' && inv.status !== 'On Hold') {
+                    else if (isAccounting && inv.attention === 'Accounting' && inv.status !== 'On Hold') {
                         shouldShow = true;
                         isUrgent = true;
                     }
 
-                    // === [NEW] UNIVERSAL SRV DONE RULE (THE FINAL OVERRIDE) ===
-                    // No matter what happened above, if it's SRV Done, it is NOT urgent.
-                    if (inv.status === 'SRV Done') {
-                        isUrgent = false;
-                    }
+                    if (inv.status === 'SRV Done') isUrgent = false;
 
                     if (shouldShow) {
                         let effAttention = inv.attention;
@@ -3505,10 +3477,7 @@ async function populateActiveTasks() {
             if (status.includes('approved')) return '#28a745'; 
             if (status.includes('rejected')) return '#dc3545'; 
             if (status.includes('pending')) return '#ffc107';  
-            
-            // [NEW] Color for New Entry (Cyan)
             if (status.includes('new entry')) return '#17a2b8'; 
-
             if (status.includes('unresolved')) return '#fd7e14'; 
             if (status.includes('on hold')) return '#6c757d'; 
             if (status.includes('process')) return '#17a2b8'; 
@@ -5072,113 +5041,145 @@ function getJobDataFromForm() {
     return data;
 }
 
-// ==========================================================================
-// UPDATED FUNCTION: handleAddJobEntry (Forces "New Entry" for Invoices)
-// ==========================================================================
+// =========================================================
+// HANDLER: ADD NEW JOB ENTRY (Fully Updated)
+// Includes: Smart Vendor Search & Smart Accounting Assign
+// =========================================================
 async function handleAddJobEntry(e) {
     e.preventDefault();
+    
+    const btn = document.getElementById('btn-add-job');
+    if (btn) btn.disabled = true;
 
-    // 1. Disable button immediately
-    const btn = document.getElementById('add-job-btn') || addJobButton;
-    btn.disabled = true;
-
-    // 2. Get Data
+    // 1. Collect Data from Form
     const jobData = getJobDataFromForm();
-
-    // 3. If validation failed in getJobDataFromForm
     if (!jobData) {
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
         return;
     }
-
-    btn.textContent = 'Adding...';
-    const isInvoiceJob = jobData.for === 'Invoice';
-
-    // 4. Basic Validation
-    if (!jobData.for || !jobData.site || !jobData.group) {
-        alert('Please fill in Job, Site, and Group.');
-        btn.disabled = false;
-        btn.textContent = 'Add';
-        return;
-    }
-
-    // --- [NEW LOGIC] Force "New Entry" Status for Invoices ---
-    if (isInvoiceJob) {
-        jobData.remarks = 'New Entry'; // <--- The Fix
-        
-        // Auto-assign to Accounting if Attention is blank (Safety Check)
-        if (!jobData.attention) {
-            jobData.attention = 'Accounting';
-        }
-    }
-
-    // 5. Attention Validation (Skip for Invoice since we handled it above)
-    if (!isInvoiceJob && !jobData.attention) {
-        alert('Please select an Attention user.');
-        btn.disabled = false;
-        btn.textContent = 'Add';
-        return;
-    }
-
-    // 6. IPC Specific Logic
-    if (jobData.for === 'IPC') {
-        if (!jobData.po) {
-            alert('A PO Number is required for IPC jobs.');
-            btn.disabled = false;
-            btn.textContent = 'Add';
-            return;
-        }
-        await ensureAllEntriesFetched();
-        const duplicatePO = allSystemEntries.find(entry => entry.for === 'IPC' && entry.po === jobData.po);
-        if (duplicatePO) {
-            const message = `WARNING: An IPC for PO Number "${jobData.po}" already exists.\n\nPress OK if this is a new IPC for this PO.`;
-            if (!confirm(message)) {
-                btn.disabled = false;
-                btn.textContent = 'Add';
-                return;
-            }
-        }
-    }
-
-    // 7. Add Metadata
-    jobData.timestamp = Date.now();
-    jobData.enteredBy = currentApprover.Name;
-
-    // Initial History Log (Will now correctly log "New Entry")
-    jobData.history = [{
-        action: "Created",
-        by: currentApprover.Name,
-        timestamp: Date.now(),
-        status: jobData.remarks, // <--- Uses the updated status
-        note: "Initial Entry"
-    }];
 
     try {
-        // 8. Push to Firebase
-        await db.ref('job_entries').push(jobData);
+        // 2. Ensure we have reference data (PO & Vendors)
+        await ensureAllEntriesFetched(); 
 
-        alert('Job Entry Added Successfully!');
+        // =========================================================
+        // LOGIC A: VENDOR RESOLUTION (System PO vs Manual Dropdown)
+        // =========================================================
+        let poMatch = null;
+        if (jobData.po && allPOData && allPOData[jobData.po]) {
+            poMatch = allPOData[jobData.po];
+        }
 
-        // 9. Refresh Data & UI
-        await ensureAllEntriesFetched(true);
-        if (typeof updateJobTypeDropdown === 'function') updateJobTypeDropdown();
+        if (poMatch) {
+            // SCENARIO 1: PO Found in System -> Use CSV Data
+            jobData.vendorName = poMatch['Supplier Name'] || 'N/A';
+            // Optional: If you track Vendor IDs in POVALUE2, add: jobData.vendorId = poMatch['Vendor ID'];
+        } else {
+            // SCENARIO 2: PO Not Found -> Use Manual Dropdown Data
+            if (typeof jobManualVendorChoices !== 'undefined' && jobManualVendorChoices) {
+                const manualValue = jobManualVendorChoices.getValue(true); // Expecting "ID|Name"
+                
+                if (manualValue && manualValue.includes('|')) {
+                    const [vId, vName] = manualValue.split('|');
+                    jobData.vendorName = vName;
+                    jobData.vendorId = vId; // Save ID for future reference
+                    jobData.isManualVendor = true; 
+                } else if (manualValue) {
+                    // Fallback if value isn't split correctly
+                    jobData.vendorName = manualValue;
+                }
+            }
+
+            // Final check: If it's an Invoice and still no vendor, warn user (Optional)
+            if (jobData.for === 'Invoice' && (!jobData.vendorName || jobData.vendorName === 'N/A')) {
+                console.warn("Saving Invoice without Vendor Name (PO not found and no manual selection).");
+            }
+        }
+
+        // =========================================================
+        // LOGIC B: STATUS & SMART ASSIGNMENT
+        // =========================================================
+        const isInvoiceJob = (jobData.for === 'Invoice');
+
+        if (isInvoiceJob) {
+            // 1. Force Status to "New Entry"
+            jobData.remarks = 'New Entry'; 
+
+            // 2. Smart Assign to Accounting (Irwin or Vacation Replacement)
+            if (!jobData.attention) {
+                if (typeof getAccountingUser === 'function') {
+                    jobData.attention = getAccountingUser(); // <--- Uses your new Smart Function
+                } else {
+                    jobData.attention = 'Accounting'; // Safety fallback
+                }
+            }
+        }
+
+        // 3. Add Timestamps & User Info
+        jobData.timestamp = firebase.database.ServerValue.TIMESTAMP;
         
-        // Refresh Search & Lists
-        const currentSearch = sessionStorage.getItem('jobEntrySearch') || '';
-        if (typeof handleJobEntrySearch === 'function') handleJobEntrySearch(currentSearch);
-        if (typeof populateActiveTasks === 'function') populateActiveTasks();
+        let currentUserName = 'Admin';
+        if (typeof currentUser !== 'undefined' && currentUser && currentUser.username) {
+            currentUserName = currentUser.username;
+        }
+        jobData.createdBy = currentUserName;
+
+
+        // =========================================================
+        // SAVE TO FIREBASE
+        // =========================================================
+        const newRef = await db.ref('job_entries').push(jobData);
         
-        // Close modal
-        if (typeof closeStandardJobModal === 'function') closeStandardJobModal();
+        // Update Local Cache immediately so we don't need a hard refresh
+        await ensureAllEntriesFetched(true); 
+
+        // =========================================================
+        // CLEANUP & UI RESET
+        // =========================================================
+        alert("New Job Added Successfully!");
+        
+        const modal = document.getElementById('standard-job-modal');
+        if (modal) modal.classList.add('hidden');
+        
+        // Reset form and choices
+        resetJobEntryForm();
+
+        // Reload the task table to show the new entry
+        if (typeof loadActiveTasks === 'function') loadActiveTasks();
 
     } catch (error) {
-        console.error("Error adding job entry:", error);
-        alert('Failed to add Job Entry. Please try again.');
+        console.error("Error adding job:", error);
+        alert("Failed to save job. Check console for details.");
     } finally {
-        // 10. Re-enable button
-        btn.disabled = false;
-        btn.textContent = 'Add';
+        if (btn) btn.disabled = false;
     }
+}
+
+// =========================================================
+// NEW HELPER: SMART ACCOUNTING ASSIGNMENT
+// =========================================================
+function getAccountingUser() {
+    // 1. Safety Check: If users aren't loaded yet, default to Irwin
+    if (typeof allUsersData === 'undefined' || !allUsersData || allUsersData.length === 0) {
+        return 'Irwin';
+    }
+
+    // 2. Find everyone with Position = 'Accounting' who is NOT 'Disabled'
+    const accountingTeam = allUsersData.filter(user => {
+        const pos = (user.Position || '').trim().toLowerCase();
+        const status = (user.Status || '').trim().toLowerCase();
+        return pos === 'accounting' && status !== 'disabled';
+    });
+
+    // 3. Priority: Check if Irwin is available
+    const irwin = accountingTeam.find(u => u.Name.toLowerCase() === 'irwin');
+    if (irwin) return irwin.Name; 
+
+    // 4. Fallback: Pick the next available accountant
+    if (accountingTeam.length > 0) return accountingTeam[0].Name;
+
+    // 5. Emergency Default
+    return 'Irwin';
 }
 
 async function handleDeleteJobEntry(e) {
@@ -5221,7 +5222,14 @@ async function handleDeleteJobEntry(e) {
 }
 
 // ==========================================================================
-// UPDATED FUNCTION: handleUpdateJobEntry (With "New Entry" Logic)
+// CONFIGURATION: VACATION MODE SETTINGS
+// ==========================================================================
+// Change this name to your replacement (e.g., "Hafiz") when you go on vacation.
+// This ensures all "New Entry" invoices go to the right person automatically.
+const CURRENT_INVOICE_HANDLER = "Irwin"; 
+
+// ==========================================================================
+// UPDATED FUNCTION: handleUpdateJobEntry (Fixed "Gio" Bug)
 // ==========================================================================
 async function handleUpdateJobEntry(e) {
     e.preventDefault();
@@ -5246,27 +5254,19 @@ async function handleUpdateJobEntry(e) {
         return; 
     }
 
-    // --- NEW LOGIC: TRANSITION TO INVOICE ---
-    // If the job type is "Invoice" (or changed to it), force specific rules:
+    // --- FIX: CONTROLLED INVOICE LOGIC ---
+    // This block ensures "New Entry" invoices always go to the correct person (Irwin)
+    // and prevents "Gio" from being selected accidentally.
     if (jobData.for === 'Invoice') {
         
-        // 1. Force Status to "New Entry" (Distinguishes from DB "Pending")
+        // 1. Force Status to "New Entry"
         jobData.remarks = 'New Entry'; 
 
-        // 2. Find User with Position "Accounting" (or "Accounts")
-        let accountingUser = null;
-        if (typeof allApproverData !== 'undefined' && allApproverData) {
-            accountingUser = Object.values(allApproverData).find(u => 
-                (u.Position && (u.Position.trim().toLowerCase() === 'accounting' || u.Position.trim().toLowerCase() === 'accounts'))
-            );
-        }
+        // 2. ASSIGN AUTOMATICALLY (Solves the "Gio" Bug)
+        // Instead of searching for "Accounting" (which finds Gio), we force the value 
+        // to be our configured handler (Irwin).
+        jobData.attention = CURRENT_INVOICE_HANDLER;
 
-        // 3. Set Attention automatically
-        if (accountingUser) {
-            jobData.attention = accountingUser.Name;
-        } else {
-            jobData.attention = 'Accounting'; 
-        }
     }
 
     // 3. Validation
@@ -5276,7 +5276,7 @@ async function handleUpdateJobEntry(e) {
         return;
     }
     
-    // Strict Invoice Check: Invoices must have attention (usually Accounting)
+    // Strict Invoice Check
     if (jobData.for !== 'Invoice' && !jobData.attention) {
         alert('Please select an Attention user.');
         if(btn) { btn.disabled = false; btn.textContent = 'Update'; }
@@ -5300,7 +5300,8 @@ async function handleUpdateJobEntry(e) {
                 jobData.dateResponded = null; 
             } else {
                 // If attention matches ME and I am updating, assume I responded
-                if (currentApprover.Name === jobData.attention && !originalEntry.dateResponded) {
+                // Note: Ensure 'currentApprover' is defined in your global scope
+                if (typeof currentApprover !== 'undefined' && currentApprover.Name === jobData.attention && !originalEntry.dateResponded) {
                      jobData.dateResponded = formatDate(new Date());
                 } else {
                     jobData.dateResponded = originalEntry.dateResponded || null;
@@ -5312,9 +5313,12 @@ async function handleUpdateJobEntry(e) {
         await db.ref(`job_entries/${currentlyEditingKey}`).update(jobData);
 
         // 5. Log History
+        // Ensure currentApprover is defined, otherwise use a generic name
+        const updaterName = (typeof currentApprover !== 'undefined') ? currentApprover.Name : "System";
+        
         const historyEntry = {
             action: "Updated",
-            by: currentApprover.Name,
+            by: updaterName,
             timestamp: Date.now(),
             status: jobData.remarks,
             note: `Updated Attention to: ${jobData.attention}`
