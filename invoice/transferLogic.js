@@ -698,7 +698,7 @@ async function saveTransferEntry(e) {
 }
 
 // ==========================================================================
-// 6. PRINT WAYBILL
+// 6. PRINT WAYBILL (UPDATED: Added SN Column)
 // ==========================================================================
 window.handlePrintWaybill = async function(entry) {
     const database = (typeof db !== 'undefined') ? db : firebase.database();
@@ -751,7 +751,8 @@ window.handlePrintWaybill = async function(entry) {
     if(isRejected) { title = "TRANSFER SLIP (VOID)"; badgeText = "REJECTED"; badgeColor = "#D32F2F"; }
 
     let tableRows = '';
-    batchItems.forEach(item => {
+    // --- UPDATED LOOP: Includes Index (i) for SN ---
+    batchItems.forEach((item, index) => {
         let displayQty = item.orderedQty;
         if (item.remarks === 'Completed') displayQty = item.receivedQty;
         else if (item.remarks === 'In Transit') displayQty = item.approvedQty;
@@ -760,7 +761,14 @@ window.handlePrintWaybill = async function(entry) {
         const prodName = item.productName;
         const details = item.details || '';
 
-        tableRows += `<tr><td style="border-right:1px solid #000; padding:10px; border-top:1px solid #000;">${prodId}</td><td style="border-right:1px solid #000; padding:10px; border-top:1px solid #000; font-weight:bold;">${prodName}</td><td style="border-right:1px solid #000; padding:10px; border-top:1px solid #000;">${details}</td><td style="padding:10px; border-top:1px solid #000; font-weight:bold; text-align:right;">${displayQty}</td></tr>`;
+        tableRows += `
+        <tr>
+            <td style="border-right:1px solid #000; padding:10px; border-top:1px solid #000; text-align:center; font-weight:bold;">${index + 1}</td>
+            <td style="border-right:1px solid #000; padding:10px; border-top:1px solid #000;">${prodId}</td>
+            <td style="border-right:1px solid #000; padding:10px; border-top:1px solid #000; font-weight:bold;">${prodName}</td>
+            <td style="border-right:1px solid #000; padding:10px; border-top:1px solid #000;">${details}</td>
+            <td style="padding:10px; border-top:1px solid #000; font-weight:bold; text-align:right;">${displayQty}</td>
+        </tr>`;
     });
 
     let approverSectionHTML = '';
@@ -783,7 +791,21 @@ window.handlePrintWaybill = async function(entry) {
         receiverSectionHTML = `<div style="font-size: 10px; color: #999; margin-top: 15px;">(Barcode generated upon completion)</div>`;
     }
 
-    const htmlContent = `<!DOCTYPE html><html><head><title>Waybill</title><style>body{font-family:Arial,sans-serif;margin:0;padding:20px;color:#000;background:white}.header{display:flex;justify-content:space-between;border-bottom:3px solid #003A5C;padding-bottom:10px;margin-bottom:20px}.logo{background-color:#003A5C;color:white;font-weight:900;font-size:36px;padding:5px 15px;margin-right:15px}.doc-title{font-size:22px;font-weight:800;color:#003A5C;margin:0}.grid-container{display:grid;grid-template-columns:1fr 1fr;border:2px solid #000}.grid-item{padding:10px}.border-right{border-right:2px solid #000}.border-bottom{border-bottom:2px solid #000}.label-box{background-color:#003A5C;color:white;padding:2px 5px;font-size:11px;font-weight:bold;display:inline-block;margin-bottom:5px}.yellow-header{background-color:#ffc107;color:black;padding:5px 10px;font-size:12px;font-weight:bold;border-bottom:2px solid #000}table{width:100%;border-collapse:collapse;font-size:12px}th{border-right:1px solid #000;padding:8px;background:#f0f0f0;text-align:left}td{border-right:1px solid #000;padding:10px;border-top:1px solid #000}.footer-grid{display:flex;gap:20px;margin-top:30px}.footer-box{flex:1;border:2px dashed #000;padding:15px;text-align:center;border-radius:8px}.signature-line{border-bottom:1px solid #000;height:20px;margin-bottom:5px}@media print{@page{margin:0.5cm;size:auto}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><div class="header"><div style="display:flex;align-items:center;"><div class="logo">IBA</div><div><h2 class="doc-title">${title}</h2><p style="margin:5px 0 0 0;font-size:11px;color:#555;">Ismail Bin Ali Tradg. & Cont. Co. W.L.L</p></div></div><div style="border:2px solid #000;padding:5px 15px;font-weight:bold;font-size:16px;color:${badgeColor};border-color:${badgeColor};">${badgeText}</div></div><div class="grid-container"><div class="border-right"><div class="grid-item border-bottom"><div class="label-box">1. FROM</div><div style="margin-bottom:8px;"><strong style="font-size:14px;">${fromSite}</strong></div><div style="font-size:12px;"><span style="color:#666;font-size:10px;">By:</span> ${requestor}</div></div><div class="grid-item"><div class="label-box">2. TO</div><div style="margin-bottom:8px;"><strong style="font-size:14px;">${toSite}</strong></div><div style="font-size:12px;"><span style="color:#666;font-size:10px;">Contact:</span> ${receiver}</div></div></div><div><div class="grid-item border-bottom"><div class="label-box">3. DETAILS</div><div style="display:flex;justify-content:space-between;"><div><span style="font-size:10px;color:#666;">Date</span><br><strong>${date}</strong></div><div><span style="font-size:10px;color:#666;">Control ID</span><br><strong>${controlId}</strong></div></div></div><div class="grid-item"><div class="label-box">4. APPROVAL</div>${approverSectionHTML}</div></div></div><div style="margin-top:20px;border:2px solid #000;"><div class="yellow-header">5. ITEM DESCRIPTION</div><table><thead><tr><th>ID</th><th>Name</th><th>Details</th><th style="border-right:none;">Qty</th></tr></thead><tbody>${tableRows}</tbody></table></div><div class="footer-grid"><div class="footer-box"><div style="font-size:9px;font-weight:bold;color:#003A5C;margin-bottom:10px;">FINAL VERIFICATION / RECEIPT</div>${receiverSectionHTML}</div><div style="flex:1;display:flex;flex-direction:column;justify-content:space-around;"><div><div class="signature-line"></div><div style="font-size:10px;font-weight:bold;">Sender Signature</div></div><div><div class="signature-line"></div><div style="font-size:10px;font-weight:bold;">Receiver Signature</div></div></div></div><div style="text-align:center;font-size:9px;margin-top:20px;color:#777;">Printed: ${printDate}</div></body></html>`;
+    // --- UPDATED HTML: Added 'SN' Header to Table ---
+    const htmlContent = `<!DOCTYPE html><html><head><title>Waybill</title><style>body{font-family:Arial,sans-serif;margin:0;padding:20px;color:#000;background:white}.header{display:flex;justify-content:space-between;border-bottom:3px solid #003A5C;padding-bottom:10px;margin-bottom:20px}.logo{background-color:#003A5C;color:white;font-weight:900;font-size:36px;padding:5px 15px;margin-right:15px}.doc-title{font-size:22px;font-weight:800;color:#003A5C;margin:0}.grid-container{display:grid;grid-template-columns:1fr 1fr;border:2px solid #000}.grid-item{padding:10px}.border-right{border-right:2px solid #000}.border-bottom{border-bottom:2px solid #000}.label-box{background-color:#003A5C;color:white;padding:2px 5px;font-size:11px;font-weight:bold;display:inline-block;margin-bottom:5px}.yellow-header{background-color:#ffc107;color:black;padding:5px 10px;font-size:12px;font-weight:bold;border-bottom:2px solid #000}table{width:100%;border-collapse:collapse;font-size:12px}th{border-right:1px solid #000;padding:8px;background:#f0f0f0;text-align:left}td{border-right:1px solid #000;padding:10px;border-top:1px solid #000}.footer-grid{display:flex;gap:20px;margin-top:30px}.footer-box{flex:1;border:2px dashed #000;padding:15px;text-align:center;border-radius:8px}.signature-line{border-bottom:1px solid #000;height:20px;margin-bottom:5px}@media print{@page{margin:0.5cm;size:auto}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><div class="header"><div style="display:flex;align-items:center;"><div class="logo">IBA</div><div><h2 class="doc-title">${title}</h2><p style="margin:5px 0 0 0;font-size:11px;color:#555;">Ismail Bin Ali Tradg. & Cont. Co. W.L.L</p></div></div><div style="border:2px solid #000;padding:5px 15px;font-weight:bold;font-size:16px;color:${badgeColor};border-color:${badgeColor};">${badgeText}</div></div><div class="grid-container"><div class="border-right"><div class="grid-item border-bottom"><div class="label-box">1. FROM</div><div style="margin-bottom:8px;"><strong style="font-size:14px;">${fromSite}</strong></div><div style="font-size:12px;"><span style="color:#666;font-size:10px;">By:</span> ${requestor}</div></div><div class="grid-item"><div class="label-box">2. TO</div><div style="margin-bottom:8px;"><strong style="font-size:14px;">${toSite}</strong></div><div style="font-size:12px;"><span style="color:#666;font-size:10px;">Contact:</span> ${receiver}</div></div></div><div><div class="grid-item border-bottom"><div class="label-box">3. DETAILS</div><div style="display:flex;justify-content:space-between;"><div><span style="font-size:10px;color:#666;">Date</span><br><strong>${date}</strong></div><div><span style="font-size:10px;color:#666;">Control ID</span><br><strong>${controlId}</strong></div></div></div><div class="grid-item"><div class="label-box">4. APPROVAL</div>${approverSectionHTML}</div></div></div><div style="margin-top:20px;border:2px solid #000;"><div class="yellow-header">5. ITEM DESCRIPTION</div>
+    <table>
+        <thead>
+            <tr>
+                <th style="width:30px; text-align:center;">SN</th>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Details</th>
+                <th style="border-right:none; text-align:right;">Qty</th>
+            </tr>
+        </thead>
+        <tbody>${tableRows}</tbody>
+    </table>
+    </div><div class="footer-grid"><div class="footer-box"><div style="font-size:9px;font-weight:bold;color:#003A5C;margin-bottom:10px;">FINAL VERIFICATION / RECEIPT</div>${receiverSectionHTML}</div><div style="flex:1;display:flex;flex-direction:column;justify-content:space-around;"><div><div class="signature-line"></div><div style="font-size:10px;font-weight:bold;">Sender Signature</div></div><div><div class="signature-line"></div><div style="font-size:10px;font-weight:bold;">Receiver Signature</div></div></div></div><div style="text-align:center;font-size:9px;margin-top:20px;color:#777;">Printed: ${printDate}</div></body></html>`;
 
     const oldFrame = document.getElementById('waybill-print-frame');
     if (oldFrame) oldFrame.remove();
