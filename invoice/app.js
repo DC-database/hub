@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "5.3.5";
+const APP_VERSION = "5.3.6";
 
 // DETECT INVENTORY PAGE
 // This checks if the current browser URL has "inventory" in it (e.g., inventory.html)
