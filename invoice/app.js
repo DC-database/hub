@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "5.3.4";
+const APP_VERSION = "5.3.5";
 
 // DETECT INVENTORY PAGE
 // This checks if the current browser URL has "inventory" in it (e.g., inventory.html)
@@ -12483,8 +12483,10 @@ if (saveManualPOBtn) {
 // 3. SMART STICKER POSITIONING (SAFE STRINGS FIX)
 // =========================================================
 window.handlePrintSticker = async function(key, type, poNumber) {
-    if (!key || !poNumber) { alert("Missing data for print."); return; }
-
+    if (!key || !poNumber) {
+        alert("Missing data for print.");
+        return;
+    }
     var safePO = poNumber.replace(/[.#$[\]]/g, '_');
     var recordKey = safePO + "_" + key;
 
@@ -12496,8 +12498,8 @@ window.handlePrintSticker = async function(key, type, poNumber) {
 
         var snap = await db.ref('manager_approved/' + recordKey).once('value');
         var data = snap.val();
-
         var rawStickers = [];
+
         if (data) {
             ['1', '2', '3', 'ceo'].forEach(function(slot) {
                 if (data['esn_' + slot]) {
@@ -12511,15 +12513,16 @@ window.handlePrintSticker = async function(key, type, poNumber) {
                 }
             });
         } else {
+            // Fallback for Admin manual print (if no approval record)
             var invSnap = await invoiceDb.ref('invoice_entries/' + poNumber + '/' + key).once('value');
             var inv = invSnap.val();
-            if(inv && inv.esn) {
+            if (inv && inv.esn) {
                 var safeEsn = inv.esn.replace(/[^a-zA-Z0-9]/g, '_');
-                rawStickers.push({ 
-                    esn: inv.esn, 
-                    pdf: "https://firebasestorage.googleapis.com/v0/b/invoiceentry-b15a8.firebasestorage.app/o/receipts%2F" + safeEsn + ".pdf?alt=media", 
+                rawStickers.push({
+                    esn: inv.esn,
+                    pdf: "https://firebasestorage.googleapis.com/v0/b/invoiceentry-b15a8.firebasestorage.app/o/receipts%2F" + safeEsn + ".pdf?alt=media",
                     approverName: 'Admin',
-                    date: new Date().toLocaleDateString('en-GB') 
+                    date: new Date().toLocaleDateString('en-GB')
                 });
             }
         }
@@ -12529,47 +12532,61 @@ window.handlePrintSticker = async function(key, type, poNumber) {
             return;
         }
 
-        var middleZone = [];
-        var rightZone = [];
-        var ceoZone = [];
+        var middleZone = []; // Managers
+        var ceoZone = [];    // CEO
 
         rawStickers.forEach(function(sticker) {
             if (sticker.isCeo) {
                 ceoZone.push(sticker);
                 return;
             }
-            var userRecord = Object.values(allApproverData).find(function(u) { return u.Name === sticker.approverName; });
-            var role = userRecord ? (userRecord.Position || '').toLowerCase() : '';
-
-            if (role.includes('ceo')) ceoZone.push(sticker);
-            else if (role.includes('finance') || role.includes('coo')) rightZone.push(sticker);
-            else middleZone.push(sticker);
+            // Group everyone else (Managers/COO/Finance) into the main row
+            middleZone.push(sticker);
         });
 
         var finalStickers = [];
 
-        rightZone.forEach(function(s, i) {
-            var rightOffset = 20 + (i * 35); 
-            s.cssPosition = "bottom: 20mm; right: " + rightOffset + "mm;";
-            s.displayName = "APPROVED";
-            finalStickers.push(s);
-        });
-
+        // --- 1. CEO POSITION (Always Top Right) ---
         ceoZone.forEach(function(s) {
-            s.cssPosition = "bottom: 60mm; right: 20mm;";
+            // "Top Right above the right spot"
+            s.cssPosition = "bottom: 60mm; right: 15%; transform: translateX(50%);"; 
             s.displayName = "CEO APPROVED";
             finalStickers.push(s);
         });
 
+        // --- 2. MANAGER SMART POSITIONING ---
         var midCount = middleZone.length;
+        
         middleZone.forEach(function(s, i) {
-            var leftPercent = 50;
-            if (midCount === 2) leftPercent = (i === 0) ? 40 : 60;
+            var leftPercent = 50; // Default fallback
+
+            if (midCount === 1) {
+                // 1 Signature: Fall to the Right Spot (not middle)
+                leftPercent = 85; 
+            } 
+            else if (midCount === 2) {
+                // 2 Signatures: 1st Middle, 2nd Right
+                if (i === 0) leftPercent = 50;
+                if (i === 1) leftPercent = 85;
+            } 
             else if (midCount === 3) {
-                if (i === 0) leftPercent = 30;
+                // 3 Signatures: Left, Middle, Right
+                if (i === 0) leftPercent = 15;
                 if (i === 1) leftPercent = 50;
-                if (i === 2) leftPercent = 70;
+                if (i === 2) leftPercent = 85;
+            } 
+            else if (midCount === 4) {
+                // 4 Signatures: Left, Share Middle (40,60), Right
+                if (i === 0) leftPercent = 15;
+                if (i === 1) leftPercent = 38;
+                if (i === 2) leftPercent = 62;
+                if (i === 3) leftPercent = 85;
             }
+            else {
+                // 5+ Signatures: Distribute evenly
+                leftPercent = 15 + (i * (70 / (midCount - 1)));
+            }
+
             s.cssPosition = "bottom: 20mm; left: " + leftPercent + "%; transform: translateX(-50%);";
             s.displayName = "APPROVED";
             finalStickers.push(s);
@@ -12582,7 +12599,6 @@ window.handlePrintSticker = async function(key, type, poNumber) {
         alert("Error loading print data.");
     }
 };
-
 // =========================================================
 // 4. PRINT RENDERER (SAFE STRINGS FIX)
 // =========================================================
