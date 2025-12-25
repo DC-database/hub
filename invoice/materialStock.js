@@ -1,8 +1,8 @@
-// materialStock.js - V10.5 (Report Features + Fixed Accordion & Strict Site Filter)
+// materialStock.js - V10.11 (FINAL COMPLETE: All Fixes Included)
 
 let allMaterialStockData = [];
 let allTransferData = [];
-let lastFilteredStockData = []; // Stores exactly what is shown in the table for Reports
+let lastFilteredStockData = []; 
 let msProductChoices = null;
 let lastTypedProductID = "";
 let currentCategoryFilter = 'All';
@@ -148,9 +148,95 @@ const STOCK_LEGENDS = {
 };
 
 // ==========================================================================
-// INIT SYSTEM & SITE FILTER
+// INIT SYSTEM & SITE FILTER (INCLUDES PRINT CSS FIX)
 // ==========================================================================
 async function initMaterialStockSystem() {
+    
+    // --- 1. INJECT PRINT CSS FIX ---
+    if (!document.getElementById('ms-print-style-fix')) {
+        const style = document.createElement('style');
+        style.id = 'ms-print-style-fix';
+        style.innerHTML = `
+            @media print {
+                @page { margin: 5mm; size: auto; }
+                
+                body { margin: 0 !important; padding: 0 !important; background: white !important; }
+                body * { visibility: hidden; height: 0; overflow: hidden; }
+                
+                /* SHOW MODAL & CONTENT */
+                #ms-report-modal, 
+                #ms-report-modal * {
+                    visibility: visible !important;
+                    height: auto !important;
+                    overflow: visible !important;
+                    color: black !important;
+                }
+
+                /* --- HIDE DUPLICATE TOP TITLE --- */
+                .modal-header, .modal-title, #ms-modal-title {
+                    display: none !important;
+                }
+
+                /* HEADER CONTAINER */
+                .print-only-header {
+                    display: block !important;
+                    visibility: visible !important;
+                    margin-bottom: 20px !important;
+                    overflow: hidden !important; /* Clears floats */
+                }
+
+                /* LOGO: LEFT ALIGNED & LARGER (550px) */
+                .print-only-header img {
+                    width: 550px !important;
+                    max-width: 100% !important;
+                    height: auto !important;
+                    display: block !important;
+                    float: left !important; /* Forces Left Alignment */
+                    margin-bottom: 15px !important;
+                }
+
+                /* TEXT: CENTERED & BELOW LOGO */
+                .print-only-header-text {
+                    clear: both !important; /* Moves it below the floated logo */
+                    display: block !important;
+                    text-align: center !important; /* Centers the text */
+                    width: 100% !important;
+                }
+
+                .print-only-header h3, 
+                .print-only-header p,
+                .print-only-header span {
+                    display: block !important;
+                    visibility: visible !important;
+                    color: black !important;
+                }
+
+                #ms-report-modal {
+                    position: absolute !important;
+                    left: 0 !important; top: 0 !important;
+                    width: 100% !important; margin: 0 !important;
+                    border: none !important;
+                }
+                #ms-report-modal .modal-content {
+                    width: 100% !important; margin: 0 !important; padding: 0 !important;
+                    box-shadow: none !important; border: none !important;
+                }
+
+                #ms-report-modal button, .close-btn, .modal-footer { display: none !important; }
+
+                table { width: 100% !important; border-collapse: collapse !important; }
+                th, td { border: 1px solid #ddd !important; padding: 5px !important; font-size: 11px !important; }
+                
+                th:nth-child(1), td:nth-child(1) { width: 15% !important; } 
+                th:nth-child(2), td:nth-child(2) { width: 35% !important; } 
+                th:nth-child(3), td:nth-child(3) { width: 10% !important; } 
+                th:nth-child(4), td:nth-child(4) { width: 40% !important; } 
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // --- 2. EXISTING UI LOGIC (TABS & FILTER) ---
     const tabsContainer = document.getElementById('ms-category-tabs');
     const filterId = 'ms-site-filter';
     
@@ -164,30 +250,16 @@ async function initMaterialStockSystem() {
         select.id = filterId;
         select.className = 'form-control'; 
         select.style.padding = '5px 10px';
-        select.style.borderRadius = '4px';
-        select.style.border = '1px solid #ccc';
-        
-        select.innerHTML = `
-            <option value="All">All Sites</option>
-            <option value="Main Store">Main Store</option>
-        `;
+        select.innerHTML = `<option value="All">All Sites</option><option value="Main Store">Main Store</option>`;
         
         const cachedSites = localStorage.getItem('cached_SITES');
         if (cachedSites) {
             try {
                 const sitesData = JSON.parse(cachedSites).data || [];
                 sitesData.forEach(s => {
-                    if (s.site !== 'Main Store') {
-                        select.innerHTML += `<option value="${s.site}">${s.site} - ${s.description}</option>`;
-                    }
+                    if (s.site !== 'Main Store') select.innerHTML += `<option value="${s.site}">${s.site} - ${s.description}</option>`;
                 });
             } catch (e) {}
-        } else if (typeof allSitesCSVData !== 'undefined') {
-             allSitesCSVData.forEach(s => {
-                if (s.site !== 'Main Store') {
-                    select.innerHTML += `<option value="${s.site}">${s.site} - ${s.description}</option>`;
-                }
-            });
         }
         
         select.addEventListener('change', () => {
@@ -330,7 +402,7 @@ window.filterStockByCategory = function(category) {
 };
 
 // ==========================================================================
-// RENDER TABLE (Fixed: Accordion & Strict Site Filter Restored)
+// RENDER TABLE (Fixed: Safe String Trim & Smart Site Logic)
 // ==========================================================================
 function renderMaterialStockTable(data) {
     const tableBody = document.getElementById('ms-table-body');
@@ -388,10 +460,11 @@ function renderMaterialStockTable(data) {
             if (item.familyCode !== currentCategoryFilter) return false;
         }
 
-        // 2. Search Text
-        const pID = (item.productID || item.productId || '').toLowerCase();
-        const pName = (item.productName || '').toLowerCase();
-        const pDetails = (item.details || item.relationship || '').toLowerCase();
+        // 2. Search Text (SAFE STRING CONVERSION to prevent crash)
+        const pID = String(item.productID || item.productId || '').toLowerCase();
+        const pName = String(item.productName || '').toLowerCase();
+        const pDetails = String(item.details || item.relationship || '').toLowerCase();
+        
         const matchesText = pID.includes(searchTerm) || pName.includes(searchTerm) || pDetails.includes(searchTerm);
         if (!matchesText) return false;
 
@@ -418,34 +491,43 @@ function renderMaterialStockTable(data) {
     }
 
     filtered.forEach(item => {
+        // 1. PRE-CALCULATE HISTORY (Using String Wrapper to prevent crash)
+        const stockID = String(item.productID || item.productId || '').trim();
+        const productTransfers = allTransferData.filter(t => {
+            const transferID = String(t.productID || t.productId || '').trim();
+            return transferID === stockID;
+        });
+
+        // 2. GENERATE SITE BREAKDOWN
         let totalStock = 0;
         let breakdownRows = '';
         let hasSites = false;
 
-        // Calculate total stock based on filter
-        if (siteFilterVal !== 'All') {
-            totalStock = parseFloat(item.sites[siteFilterVal] || 0);
-        }
+        if (siteFilterVal !== 'All') totalStock = parseFloat(item.sites[siteFilterVal] || 0);
 
         if (item.sites) {
             Object.entries(item.sites).forEach(([site, qty]) => {
                 const q = parseFloat(qty);
                 
-                // --- STRICT FILTER RESTORED: Hide other sites if filter is active ---
-                if (siteFilterVal !== 'All' && site !== siteFilterVal) {
-                    return; 
-                }
-                // -------------------------------------------------------------------
+                // Filter Check
+                if (siteFilterVal !== 'All' && site !== siteFilterVal) return; 
 
-                if (q !== 0 || isIrwin) {
+                // --- SMART LOGIC: Hide 0 qty sites UNLESS there's a pending transfer ---
+                const hasPendingTransaction = productTransfers.some(t => {
+                    const isPending = (t.remarks !== 'Completed' && t.remarks !== 'Received');
+                    const involvesSite = (t.toLocation === site || t.toSite === site || t.fromLocation === site || t.fromSite === site);
+                    return isPending && involvesSite;
+                });
+
+                if (q !== 0 || hasPendingTransaction) {
                     hasSites = true;
-                    if (siteFilterVal === 'All') {
-                        totalStock += q;
-                    }
+                    if (siteFilterVal === 'All') totalStock += q;
+                    
                     let deleteSiteAction = '';
-                    if (isIrwin) {
+                    if (isIrwin && q === 0) { // Only allow deleting if qty is 0
                         deleteSiteAction = `<span onclick="deleteSiteStock('${item.key}', '${site}')" style="color:red; font-weight:bold; cursor:pointer; margin-left:10px; float:right;" title="Delete ONLY this site stock">[x]</span>`;
                     }
+                    
                     breakdownRows += `
                         <tr>
                             <td style="width: 70%; padding-left: 20px;">
@@ -463,12 +545,7 @@ function renderMaterialStockTable(data) {
             breakdownRows = `<tr><td style="padding-left: 20px;">Unassigned (Global)</td><td>${legacyStock}</td></tr>`;
         }
 
-        const stockID = (item.productID || item.productId || '').trim();
-        const productTransfers = allTransferData.filter(t => {
-            const transferID = (t.productID || t.productId || '').trim();
-            return transferID === stockID;
-        });
-
+        // 3. GENERATE HISTORY ROWS
         let historyRows = '';
         if (productTransfers.length === 0) {
             historyRows = '<tr><td colspan="7" style="text-align:center; color:#999; font-style:italic; padding: 20px;">No movement history found.</td></tr>';
@@ -1200,58 +1277,74 @@ async function handleBulkDelete() {
     }
 }
 
-// --- REPORTING FUNCTIONS (Uses Filtered Data) ---
+// ==========================================================================
+// REPORTING FUNCTIONS (Updated: Logo Left, Text Centered Below)
+// ==========================================================================
 function openStockReportModal() {
     const modal = document.getElementById('ms-report-modal');
     const tbody = document.getElementById('ms-report-table-body');
-    const dateEl = document.getElementById('ms-report-date');
-    
-    // --- USE FILTERED DATA FROM TABLE ---
-    let data = lastFilteredStockData;
+    const data = lastFilteredStockData;
+
+    // 1. Prepare Title & Filter Info
     let titleSuffix = "";
-
-    // Adjust title if filtering
     if (currentCategoryFilter && currentCategoryFilter !== 'All') {
-        const familyName = STOCK_LEGENDS[currentCategoryFilter] ? STOCK_LEGENDS[currentCategoryFilter].name : currentCategoryFilter;
-        titleSuffix = ` (Filtered: ${familyName})`;
-    } else if (data.length < allMaterialStockData.length) {
-        titleSuffix = " (Filtered Results)";
+        const familyName = STOCK_LEGENDS[currentCategoryFilter]?.name || currentCategoryFilter;
+        titleSuffix = `<span style="display:block; font-size:14px; font-weight:normal; margin-top:5px; color:#555;">(Filtered: ${familyName})</span>`;
     }
 
-    const printTitleEl = document.querySelector('#ms-report-modal .print-only-header p');
-    if (printTitleEl) {
-        printTitleEl.textContent = `Material Stock Status Report${titleSuffix}`;
+    // 2. INJECT LOGO & HEADER
+    const headerContainer = document.querySelector('#ms-report-modal .print-only-header');
+    if (headerContainer) {
+        headerContainer.innerHTML = `
+            <div style="margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 15px;">
+                
+                <img src="https://firebasestorage.googleapis.com/v0/b/ibainvoice-3ea51.firebasestorage.app/o/iba_logo.png?alt=media&token=ccc85b7b-d41e-4242-9e27-08942efb3012" 
+                     style="width: 550px; max-width: 100%; height: auto;" 
+                     alt="IBA Logo">
+                
+                <div class="print-only-header-text" style="clear: both; text-align: center; margin-top: 10px;">
+                    <h3 style="margin: 0; font-family: sans-serif; color: #222; text-transform: uppercase; font-size: 20px; font-weight: bold; line-height: 1.2;">
+                        Material Stock Status Report
+                    </h3>
+                    ${titleSuffix}
+                    <p style="margin: 5px 0 0 0; font-size: 12px; color: #444;">Generated: ${new Date().toLocaleString()}</p>
+                </div>
+            </div>
+        `;
     }
 
+    // 3. Update Stats Boxes
     document.getElementById('ms-report-total').textContent = data.length;
-    const inStock = data.filter(i => (parseFloat(i.stockQty) || 0) > 0).length;
-    document.getElementById('ms-report-instock').textContent = inStock;
-    document.getElementById('ms-report-outstock').textContent = data.length - inStock;
-    dateEl.textContent = new Date().toLocaleString();
+    document.getElementById('ms-report-instock').textContent = data.filter(i => (parseFloat(i.stockQty) || 0) > 0).length;
+    document.getElementById('ms-report-outstock').textContent = data.length - data.filter(i => (parseFloat(i.stockQty) || 0) > 0).length;
+    
+    // (Optional) Update date if element exists
+    const dateEl = document.getElementById('ms-report-date');
+    if (dateEl) dateEl.textContent = new Date().toLocaleString();
 
+    // 4. Render Table Rows
     tbody.innerHTML = '';
     data.forEach(item => {
         let locText = 'Main Store: 0';
         if (item.sites) {
             const locs = [];
             Object.entries(item.sites).forEach(([site, qty]) => {
-                if(parseFloat(qty) > 0) locs.push(`${site}: ${qty}`);
+                if (parseFloat(qty) > 0) locs.push(`${site}: ${qty}`);
             });
-            if(locs.length > 0) locText = locs.join(', ');
-            else if((parseFloat(item.stockQty)||0) > 0) locText = 'Main Store: ' + item.stockQty;
+            if (locs.length > 0) locText = locs.join(', ');
+            else if ((parseFloat(item.stockQty) || 0) > 0) locText = 'Main Store: ' + item.stockQty;
             else locText = 'Out of Stock';
         }
 
-        const row = `
-            <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 8px; font-weight: bold;">${item.productID || item.productId}</td>
-                <td style="padding: 8px;">${item.productName}</td>
-                <td style="padding: 8px; text-align: center; font-weight: bold; color: #003A5C;">${item.stockQty}</td>
-                <td style="padding: 8px; color: #555; font-size: 0.85rem;">${locText}</td>
-            </tr>
-        `;
-        tbody.innerHTML += row;
+        tbody.innerHTML += `
+            <tr style="border-bottom:1px solid #eee;">
+                <td style="padding:5px; font-weight:bold;">${item.productID || ''}</td>
+                <td style="padding:5px;">${item.productName}</td>
+                <td style="padding:5px; text-align:center; font-weight:bold;">${item.stockQty}</td>
+                <td style="padding:5px; font-size:0.85rem; color:#555;">${locText}</td>
+            </tr>`;
     });
+
     modal.classList.remove('hidden');
 }
 
@@ -1300,6 +1393,7 @@ function downloadFixedStockCSV() {
 // ==========================================================================
 document.addEventListener('DOMContentLoaded', () => {
     initMaterialStockSystem();
+    populateMaterialStock(false); // <--- ENSURE AUTO-LOAD IS ACTIVE
 
     const refreshBtn = document.getElementById('ms-refresh-btn');
     if(refreshBtn) refreshBtn.addEventListener('click', () => {
@@ -1334,7 +1428,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- MATERIAL STOCK CLEAR BUTTON LOGIC ---
+   // --- MATERIAL STOCK CLEAR BUTTON LOGIC ---
     const msClearBtn = document.getElementById('ms-search-clear-btn');
     const msTableBody = document.getElementById('ms-table-body');
     const msCountDisplay = document.getElementById('ms-total-count');
@@ -1342,16 +1436,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (msClearBtn) {
         msClearBtn.addEventListener('click', () => {
+            // 1. Clear Search Input
             if (msSearchInput) {
                 msSearchInput.value = '';
                 msSearchInput.focus(); 
             }
+            
+            // 2. Wipe Table
             if (msTableBody) {
                 msTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:#777;">List cleared. Please select a Family tab above.</td></tr>';
             }
+            
+            // 3. Reset Counts
             if (msCountDisplay) {
                 msCountDisplay.textContent = '';
             }
+            
+            // 4. Reset Category Tabs
             if (msTabs) {
                 msTabs.querySelectorAll('.active').forEach(tab => {
                     tab.classList.remove('active');
@@ -1360,6 +1461,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
             currentCategoryFilter = null; 
+            
+            // 5. NEW: Reset Site Filter to "All"
+            const siteFilter = document.getElementById('ms-site-filter');
+            if(siteFilter) siteFilter.value = 'All';
         });
     }
 
