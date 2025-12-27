@@ -402,7 +402,7 @@ window.filterStockByCategory = function(category) {
 };
 
 // ==========================================================================
-// RENDER TABLE (Fixed: Safe String Trim & Smart Site Logic)
+// RENDER TABLE (Fixed: Safe Null Checks for currentApprover)
 // ==========================================================================
 function renderMaterialStockTable(data) {
     const tableBody = document.getElementById('ms-table-body');
@@ -413,8 +413,9 @@ function renderMaterialStockTable(data) {
     // --- READ SITE FILTER ---
     const siteFilterVal = document.getElementById('ms-site-filter')?.value || 'All';
 
-    const isAdmin = (typeof currentApprover !== 'undefined' && (currentApprover.Role || '').toLowerCase() === 'admin');
-    const isIrwin = (typeof currentApprover !== 'undefined' && currentApprover.Name === 'Irwin');
+    // [FIX] Use strict null check (currentApprover && ...)
+    const isAdmin = (currentApprover && (currentApprover.Role || '').toLowerCase() === 'admin');
+    const isIrwin = (currentApprover && currentApprover.Name === 'Irwin');
 
     const bulkBtn = document.getElementById('ms-bulk-delete-btn');
     if (bulkBtn) {
@@ -491,7 +492,7 @@ function renderMaterialStockTable(data) {
     }
 
     filtered.forEach(item => {
-        // 1. PRE-CALCULATE HISTORY (Using String Wrapper to prevent crash)
+        // 1. PRE-CALCULATE HISTORY
         const stockID = String(item.productID || item.productId || '').trim();
         const productTransfers = allTransferData.filter(t => {
             const transferID = String(t.productID || t.productId || '').trim();
@@ -524,7 +525,7 @@ function renderMaterialStockTable(data) {
                     if (siteFilterVal === 'All') totalStock += q;
                     
                     let deleteSiteAction = '';
-                    if (isIrwin && q === 0) { // Only allow deleting if qty is 0
+                    if (isIrwin && q === 0) { 
                         deleteSiteAction = `<span onclick="deleteSiteStock('${item.key}', '${site}')" style="color:red; font-weight:bold; cursor:pointer; margin-left:10px; float:right;" title="Delete ONLY this site stock">[x]</span>`;
                     }
                     
@@ -564,7 +565,9 @@ function renderMaterialStockTable(data) {
 
                 let actionBtn = '';
                 const isCompleted = (t.remarks === 'Completed' || t.remarks === 'Received');
-                const currentUser = (typeof currentApprover !== 'undefined') ? currentApprover.Name : '';
+                
+                // [FIX] Safe check for currentUser inside the loop
+                const currentUser = (currentApprover) ? currentApprover.Name : '';
                 const isMyReceipt = (t.receiver === currentUser);
 
                 if (isCompleted && isMyReceipt && type !== 'Return') {

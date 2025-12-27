@@ -298,7 +298,7 @@
 
     </div>
 
-<div id="financeBatchControls" style="display: none; margin-bottom: 15px; background: #e8f4f8; padding: 15px; border-radius: 8px; border: 1px solid #00748C; display: flex; justify-content: space-between; align-items: center;">
+<div id="financeBatchControls" style="display: none !important; margin-bottom: 15px; background: #e8f4f8; padding: 15px; border-radius: 8px; border: 1px solid #00748C; justify-content: space-between; align-items: center;">
     <div>
         <h4 style="margin: 0; color: #003A5C;"><i class="fa-solid fa-layer-group"></i> Finance Batch Approval</h4>
         <p style="margin: 5px 0 0 0; font-size: 0.85rem; color: #555;">
@@ -704,6 +704,11 @@
        <div><label>Site:</label> <span class="im-po-site">---</span></div>
        <div><label>Val:</label> <span class="im-po-value">---</span></div>
        <div><label>Vendor:</label> <span class="im-po-vendor">---</span></div>
+       
+       <div style="grid-column: span 2; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 4px; margin-top: 2px;">
+           <label>PO Record:</label> 
+           <span class="im-po-record" style="font-weight: bold; color: #ffeb3b;">Checking...</span>
+       </div>
     </div>
 </div>
 
@@ -863,6 +868,9 @@
             <i class="fa-solid fa-floppy-disk"></i> Update
         </button>
 
+        <button type="button" id="im-delete-invoice-btn" class="secondary-btn hidden" style="background-color: #dc3545; color: white;">
+            <i class="fa-solid fa-trash"></i> Delete
+        </button>
         <button type="button" id="im-clear-form-button" class="secondary-btn" style="background-color: #6c757d; color: white;">
             <i class="fa-solid fa-eraser"></i> Clear
         </button>
@@ -919,7 +927,16 @@
                             <table>
                                 <thead><tr><th>Inv Entry ID</th><th>Inv No.</th><th>Invoice Date</th><th>Inv Value</th><th>Amount To Paid</th><th>Status</th><th>Release Date</th><th>Actions</th></tr></thead>
                                 <tbody id="im-invoices-table-body"></tbody>
-                                <tfoot id="im-invoices-table-footer" style="background-color: #f8f9fa; font-weight: bold;"><tr><td colspan="3" style="text-align: right;">Total:</td><td id="im-invoices-total-value" style="text-align: left;">0.00</td><td id="im-invoices-total-paid" style="text-align: left;">0.00</td><td colspan="3"></td></tr></tfoot>
+
+                                <tfoot id="im-invoices-table-footer" style="background-color: #f8f9fa; font-weight: bold;">
+    <tr>
+        <td colspan="3" style="text-align: right;">Total:</td>
+        <td id="im-invoices-total-value" style="text-align: left;">0.00</td>
+        <td id="im-invoices-total-paid" style="text-align: left;">0.00</td>
+        <td colspan="3"></td> </tr>
+</tfoot>
+
+
                             </table>
                         </div>
                     </div>

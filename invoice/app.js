@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "5.3.6";
+const APP_VERSION = "5.3.9";
 
 // DETECT INVENTORY PAGE
 // This checks if the current browser URL has "inventory" in it (e.g., inventory.html)
@@ -66,7 +66,28 @@ const invoiceDb = invoiceApp.database();
 const storage = firebase.storage(invoiceApp);
 
 
+// =======================================================
+// SECONDARY DATABASE CONFIG (Progress PO)
+// =======================================================
+const progressPOConfig = {
+    apiKey: "AIzaSyC7cfmocz3oPyERDIiJj5XIDeA3wc6rQZI",
+    authDomain: "progress-po.firebaseapp.com",
+    databaseURL: "https://progress-po-default-rtdb.firebaseio.com",
+    projectId: "progress-po",
+    storageBucket: "progress-po.firebasestorage.app",
+    messagingSenderId: "100311283897",
+    appId: "1:100311283897:web:0dc641fd38df3f241f8368",
+    measurementId: "G-YYE9BBQ9SE"
+};
 
+// Initialize the app. We check if it already exists to prevent errors.
+let progressApp;
+try {
+    progressApp = firebase.app("progressApp");
+} catch (e) {
+    progressApp = firebase.initializeApp(progressPOConfig, "progressApp");
+}
+const progressDb = progressApp.database();
 
 // ==========================================================================
 // 2. GLOBAL CONSTANTS & STATE VARIABLES
@@ -3189,7 +3210,11 @@ async function populateActiveTasks() {
 
         const financeBatchControls = document.getElementById('financeBatchControls');
         if (financeBatchControls) {
-            financeBatchControls.style.display = (isInventoryPage) ? 'none' : ((isAccounting || isAdmin) ? 'flex' : 'none');
+            // [VACATION] Force hidden for now
+            financeBatchControls.style.display = 'none'; 
+            
+            // OLD CODE (Keep for later):
+            // financeBatchControls.style.display = (isInventoryPage) ? 'none' : ((isAccounting || isAdmin) ? 'flex' : 'none');
         }
 
         let userTasks = [];
@@ -6212,6 +6237,10 @@ function resetInvoiceForm() {
     imAddInvoiceButton.classList.remove('hidden');
     imUpdateInvoiceButton.classList.add('hidden');
 
+    // [NEW] HIDE DELETE BUTTON ON NEW ENTRY
+    const delBtn = document.getElementById('im-delete-invoice-btn'); 
+    if(delBtn) delBtn.classList.add('hidden');
+
     // 6. Apply Visual Highlights
     const inputs = imNewInvoiceForm.querySelectorAll('.input-required-highlight');
     inputs.forEach(el => el.classList.remove('input-required-highlight'));
@@ -6307,8 +6336,9 @@ async function handlePOSearch(poNumberFromInput) {
     }
 }
 
-// REPLACE THE EXISTING FUNCTION WITH THIS UPDATED VERSION
+// REPLACE THE EXISTING FUNCTION WITH THIS "QUERY" VERSION
 async function proceedWithPOLoading(poNumber, poData) {
+    // 1. Fetch Invoices for this PO (Standard Logic)
     const invoicesSnapshot = await invoiceDb.ref(`invoice_entries/${poNumber}`).once('value');
     const invoicesData = invoicesSnapshot.val();
 
@@ -6323,22 +6353,65 @@ async function proceedWithPOLoading(poNumber, poData) {
     const siteText = poData['Project ID'] || 'N/A';
     const vendorText = poData['Supplier Name'] || 'N/A';
 
-    // Update details text
+    // Update UI text
     document.querySelectorAll('.im-po-no').forEach(el => el.textContent = poNumber);
     document.querySelectorAll('.im-po-site').forEach(el => el.textContent = siteText);
     document.querySelectorAll('.im-po-value').forEach(el => el.textContent = poValueText);
     document.querySelectorAll('.im-po-vendor').forEach(el => el.textContent = vendorText);
 
-    // CRITICAL: Reveal the new compact box inside the modal
+    // ============================================================
+    // [FIX] SEARCH BY COLUMN "PO" (Query)
+    // ============================================================
+    const poRecordEl = document.querySelector('.im-po-record');
+    if (poRecordEl) {
+        poRecordEl.textContent = "Searching...";
+        poRecordEl.style.color = "#ffeb3b"; // Yellow
+
+        try {
+            // 1. Prepare the search term (Remove 'PO-' to get just the digits, e.g. "62032")
+            const searchVal = poNumber.replace(/[^0-9]/g, ''); 
+            
+            // 2. Perform the Query: "Look in 'records' where column 'PO' equals searchVal"
+            // We check both String ("62032") and Number (62032) to be safe.
+            const ref = progressDb.ref('records');
+            
+            console.log(`🔎 QUERYING: records.orderByChild('PO').equalTo("${searchVal}")`);
+
+            let snapshot = await ref.orderByChild('PO').equalTo(searchVal).once('value');
+
+            // If not found as a string, try as a number
+            if (!snapshot.exists()) {
+                console.log(`⚠️ String match failed. Trying Number: ${parseInt(searchVal)}`);
+                snapshot = await ref.orderByChild('PO').equalTo(parseInt(searchVal)).once('value');
+            }
+
+            if (snapshot.exists()) {
+                console.log("✅ MATCH FOUND!");
+                poRecordEl.textContent = "Original in File";
+                poRecordEl.style.color = "#90EE90"; // Green
+            } else {
+                console.warn(`❌ NO MATCH for PO column value: ${searchVal}`);
+                poRecordEl.textContent = "None";
+                poRecordEl.style.color = "#ffcccb"; // Red
+            }
+
+        } catch (error) {
+            console.error("Query Error:", error);
+            // If the error says "Index not defined", it means we need to add an index in Firebase Rules
+            if (error.message.includes("index")) {
+                 console.warn("⚠️ PERMISSION/INDEX ERROR: You might need to add '.indexOn': ['PO'] to your Firebase Rules for 'records'.");
+            }
+            poRecordEl.textContent = "Error";
+            poRecordEl.style.color = "orange";
+        }
+    }
+    // ============================================================
+
     const modalDetails = document.getElementById('im-modal-po-details');
     if(modalDetails) modalDetails.classList.remove('hidden');
 
     fetchAndDisplayInvoices(poNumber);
-
     if (imInvoiceFormTrigger) imInvoiceFormTrigger.classList.remove('hidden');
-
-    // --- CHANGED: DO NOT OPEN MODAL AUTOMATICALLY ---
-    // openIMInvoiceEntryModal();  <-- Commented out to stop auto-popup
 }
 
 function fetchAndDisplayInvoices(poNumber) {
@@ -6482,6 +6555,7 @@ function fetchAndDisplayInvoices(poNumber) {
         document.getElementById('im-invoices-total-value').textContent = isAdminOrAccounting ? formatCurrency(totalInvValueSum) : '---';
         document.getElementById('im-invoices-total-paid').textContent = isAdminOrAccounting ? formatCurrency(finalTotalPaid) : '---';
 
+        
         footer.style.display = invoiceCount > 0 ? '' : 'none';
     }
 
@@ -6790,6 +6864,11 @@ function populateInvoiceFormForEditing(invoiceKey) {
     imFormTitle.textContent = `Editing Invoice: ${invData.invEntryID}`;
     imAddInvoiceButton.classList.add('hidden');
     imUpdateInvoiceButton.classList.remove('hidden');
+
+    // [NEW] SHOW DELETE BUTTON ON EDIT
+    const delBtn = document.getElementById('im-delete-invoice-btn'); 
+    if(delBtn) delBtn.classList.remove('hidden');
+
     openIMInvoiceEntryModal();
     setTimeout(() => {
         const invNoInput = document.getElementById('im-inv-no');
@@ -6915,9 +6994,11 @@ async function handleUpdateInvoice(e) {
     }
     const formData = new FormData(imNewInvoiceForm);
     const invoiceData = Object.fromEntries(formData.entries());
+    
     // SANITIZE: Remove commas before saving
     if (invoiceData.invValue) invoiceData.invValue = invoiceData.invValue.replace(/,/g, '');
     if (invoiceData.amountPaid) invoiceData.amountPaid = invoiceData.amountPaid.replace(/,/g, '');
+    
     let attentionValue = imAttentionSelectChoices.getValue(true);
     invoiceData.attention = (attentionValue === 'None') ? '' : attentionValue;
 
@@ -6962,7 +7043,56 @@ async function handleUpdateInvoice(e) {
     });
 
     try {
+        // 1. Update the Invoice in the Invoice Database
         await invoiceDb.ref(`invoice_entries/${currentPO}/${currentlyEditingInvoiceKey}`).update(invoiceData);
+
+        // ============================================================
+        // [START] JOB ENTRY SYNC FIX - AUTO COMPLETE JOB
+        // ============================================================
+        if (newStatus === "With Accounts" || newStatus === "Paid") {
+            console.log("🔄 Syncing: Checking for linked Job Entries...");
+            
+            // 1. Identify the Job List (use cache or fetch fresh if empty)
+            let jobsToSearch = (typeof allSystemEntries !== 'undefined') ? allSystemEntries : [];
+            
+            // Safety: If list is empty, fetch 'job_entries' directly from DB to ensure we find the match
+            if (!jobsToSearch || jobsToSearch.length === 0) {
+                const jobSnap = await firebase.database().ref('job_entries').once('value');
+                const jobObj = jobSnap.val() || {};
+                jobsToSearch = Object.entries(jobObj).map(([k, v]) => ({ ...v, key: k, source: 'job_entry' }));
+            }
+
+            // 2. Find the matching Job Entry (Matches PO + Invoice Number)
+            const matchedJob = jobsToSearch.find(job => 
+                job.source === 'job_entry' &&
+                job.po === currentPO && 
+                (job.ref === invoiceData.invNumber || job.ref === originalInvoiceData.invNumber)
+            );
+
+            // 3. Update the Job Entry if found
+            if (matchedJob) {
+                console.log(`✅ Found Job Entry ${matchedJob.key}. Updating status...`);
+                const db = firebase.database(); // Ensure we have DB reference
+                
+                await db.ref(`job_entries/${matchedJob.key}`).update({
+                    status: "Completed",        // <--- CRITICAL: Marks it as done
+                    remarks: newStatus,         // Syncs "With Accounts"
+                    dateResponded: new Date().toISOString().split('T')[0], // Marks today as response date
+                    amount: invoiceData.invValue // Syncs amount if changed
+                });
+                
+                // Log history so you know it happened
+                await db.ref(`job_entries/${matchedJob.key}/history`).push({
+                    action: "Auto-Sync",
+                    by: "System",
+                    timestamp: firebase.database.ServerValue.TIMESTAMP,
+                    note: `Status synced from Invoice Entry: ${newStatus}`
+                });
+            }
+        }
+        // ============================================================
+        // [END] JOB ENTRY SYNC FIX
+        // ============================================================
 
         const oldAttn = originalInvoiceData ? originalInvoiceData.attention : null;
         await updateInvoiceTaskLookup(currentPO, currentlyEditingInvoiceKey, invoiceData, oldAttn);
@@ -7366,7 +7496,7 @@ function buildDesktopReportView(reportData) {
         return;
     }
 
-    let tableHTML = `<table><thead><tr><th></th><th>PO</th><th>Site</th><th>Vendor</th><th>Value</th><th>Balance</th></tr></thead><tbody>`;
+    let tableHTML = `<table><thead><tr><th></th><th>PO</th><th>Site</th><th>Vendor</th><th>PO Value</th><th>SRV Balance</th></tr></thead><tbody>`;
 
     reportData.forEach(poData => {
         let totalInvValue = 0;
@@ -7477,6 +7607,14 @@ function buildDesktopReportView(reportData) {
         let finalTotalPaid = totalPaidWithoutRetention;
         if (Math.abs(totalPaidWithRetention - totalInvValue) < 0.01) finalTotalPaid = totalPaidWithRetention;
 
+        // ============================================================
+        // [NEW] CALCULATE DIFFERENCE (Inv Value - Paid)
+        // ============================================================
+        const diffValue = totalInvValue - finalTotalPaid;
+        const diffColor = (diffValue > 0.05) ? '#dc3545' : '#28a745'; // Red if Owed, Green if Paid
+        const diffDisplay = (isAdmin || isAccounting) ? `<strong>QAR ${formatCurrency(diffValue)}</strong>` : '---';
+        // ============================================================
+
         const totalInvValueDisplay = (isAdmin || isAccounting) ? `<strong>QAR ${formatCurrency(totalInvValue)}</strong>` : '---';
         const totalAmountPaidDisplay = (isAdmin || isAccounting) ? `<strong>QAR ${formatCurrency(finalTotalPaid)}</strong>` : '---';
         const poValueDisplay = (isAdmin || isAccounting) ? (poData.poDetails.Amount ? `QAR ${formatCurrency(poData.poDetails.Amount)}` : 'N/A') : '---';
@@ -7500,7 +7638,8 @@ function buildDesktopReportView(reportData) {
             <td style="${balanceNum < -0.01 ? 'color: red; font-weight: bold;' : ''}">${balanceDisplay}</td>
         </tr>`;
 
-        tableHTML += `<tr id="${detailRowId}" class="${detailClass}"><td colspan="6"><div class="detail-content"><h4>Invoice Entries for PO ${poData.poNumber}</h4><table class="nested-invoice-table"><thead><tr><th>Inv. Entry</th><th>Inv. No.</th><th>Inv. Date</th><th>Inv. Value</th><th>Amt. Paid</th><th>Release Date</th><th>Status</th><th>Note</th><th>Action</th></tr></thead><tbody>${nestedTableRows}</tbody><tfoot><tr><td colspan="3" style="text-align: right;"><strong>TOTAL</strong></td><td>${totalInvValueDisplay}</td><td>${totalAmountPaidDisplay}</td><td colspan="4"></td></tr></tfoot></table></div></td></tr>`;
+        // [UPDATED FOOTER] Added the Difference Column below
+        tableHTML += `<tr id="${detailRowId}" class="${detailClass}"><td colspan="6"><div class="detail-content"><h4>Invoice Entries for PO ${poData.poNumber}</h4><table class="nested-invoice-table"><thead><tr><th>Inv. Entry</th><th>Inv. No.</th><th>Inv. Date</th><th>Inv. Value</th><th>Amt. Paid</th><th>Release Date</th><th>Status</th><th>Note</th><th>Action</th></tr></thead><tbody>${nestedTableRows}</tbody><tfoot><tr><td colspan="3" style="text-align: right;"><strong>TOTAL</strong></td><td>${totalInvValueDisplay}</td><td>${totalAmountPaidDisplay}</td><td style="color: ${diffColor};">${diffDisplay}</td><td colspan="3"></td></tr></tfoot></table></div></td></tr>`;
     });
     tableHTML += `</tbody></table>`;
     container.innerHTML = tableHTML;
@@ -13523,14 +13662,122 @@ async function generateFinanceReport(selectedPayment) {
     }
 }
 
-function printFinanceReport() {
+// [RENAMED] This handles the Read-Only modal print
+function printReadOnlyReport() {
     window.print();
 }
 
-// --- 4. PRINT REPORT FUNCTION ---
+
+// =========================================================
+// NEW FUNCTION: Print Finance Summary (Read-Only Report)
+// =========================================================
+function printFinanceReadOnlyReport() {
+    // 1. Gather Data from the Modal Elements
+    // (We use the same IDs that 'generateFinanceReport' populates)
+    const poNo = document.getElementById('im-report-po-no').textContent;
+    const vendor = document.getElementById('im-report-vendor-name').textContent;
+    const site = document.getElementById('im-report-project').textContent;
+    const date = document.getElementById('im-report-date').textContent;
+    const notes = document.getElementById('im-report-notes-content').textContent;
+
+    // Get the table content
+    const tableBody = document.getElementById('im-report-table-body').innerHTML;
+    
+    // Get Totals
+    const totalCert = document.getElementById('im-report-total-certified-amount').textContent;
+    const totalRet = document.getElementById('im-report-total-retention-amount').textContent;
+    const totalPay = document.getElementById('im-report-total-payment-amount').textContent;
+
+    // 2. Build the Print Window HTML
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>Finance Report - ${poNo}</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
+                .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #00748C; padding-bottom: 10px; }
+                .header h2 { margin: 0; color: #00748C; }
+                .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 30px; font-size: 14px; }
+                .info-item label { font-weight: bold; color: #555; display: block; }
+                
+                table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 12px; }
+                th { background-color: #f8f9fa; border: 1px solid #ddd; padding: 8px; text-align: left; }
+                td { border: 1px solid #ddd; padding: 8px; }
+                
+                .totals-section { float: right; width: 300px; }
+                .total-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eee; }
+                .total-row.final { font-weight: bold; border-top: 2px solid #333; border-bottom: none; font-size: 16px; margin-top: 10px; padding-top: 10px; }
+                
+                .notes-box { margin-top: 50px; padding: 10px; background: #f9f9f9; border: 1px solid #eee; font-style: italic; font-size: 12px; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h2>Payment History Report</h2>
+                <p>Generated on: ${date}</p>
+            </div>
+
+            <div class="info-grid">
+                <div class="info-item"><label>PO Number:</label> ${poNo}</div>
+                <div class="info-item"><label>Vendor:</label> ${vendor}</div>
+                <div class="info-item"><label>Site / Project:</label> ${site}</div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Payment No</th>
+                        <th>Cheque No</th>
+                        <th>Certified</th>
+                        <th>Retention</th>
+                        <th>Payment</th>
+                        <th>Date Paid</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tableBody}
+                </tbody>
+            </table>
+
+            <div class="totals-section">
+                <div class="total-row"><span>Total Certified:</span> <span>${totalCert}</span></div>
+                <div class="total-row"><span>Total Retention:</span> <span>${totalRet}</span></div>
+                <div class="total-row final"><span>Total Paid:</span> <span>${totalPay}</span></div>
+            </div>
+
+            ${notes ? `<div class="notes-box"><strong>Notes:</strong><br>${notes}</div>` : ''}
+
+            <script>
+                window.onload = function() { window.print(); }
+            </script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+}
+
+
+
+
+// --- 4. PRINT REPORT FUNCTION (COMPLEX QR/STICKER) ---
+// This handles the Sticker print from the main list
 function printFinanceReport() {
     // Get the key from your modal's hidden input
-    const key = document.getElementById('modify-task-key').value; 
+    const keyElement = document.getElementById('modify-task-key');
+    if (!keyElement) {
+        // If this element doesn't exist, we might be in the read-only modal by mistake.
+        // Fallback to simple print.
+        window.print();
+        return;
+    }
+    const key = keyElement.value;
+    
+    if (!key) { 
+        // If no key found, fallback
+        window.print(); 
+        return;
+    }
     
     firebase.database().ref('invoices/' + key).once('value').then(snapshot => {
         let inv = snapshot.val();
@@ -13615,6 +13862,7 @@ function printFinanceReport() {
         }
     });
 }
+
     
 // ==========================================================================
 // MASTER EXPORT SECTION: 1-Hour & Special Reports
@@ -13989,6 +14237,50 @@ function handlePrintReportingTable() {
     } else {
         alert("Pop-up blocked. Please allow pop-ups to print.");
     }
+}
+
+// ==========================================
+// [NEW] DELETE INVOICE HANDLER
+// ==========================================
+const imDeleteInvoiceBtn = document.getElementById('im-delete-invoice-btn');
+if (imDeleteInvoiceBtn) {
+    imDeleteInvoiceBtn.addEventListener('click', async () => {
+        if (!currentPO || !currentlyEditingInvoiceKey) {
+            alert("Error: No invoice selected to delete.");
+            return;
+        }
+
+        if (!confirm("⚠️ ARE YOU SURE?\n\nThis will permanently delete this invoice entry.\nThis action cannot be undone.")) {
+            return;
+        }
+
+        try {
+            // 1. Delete from Main Invoice Entries
+            await invoiceDb.ref(`invoice_entries/${currentPO}/${currentlyEditingInvoiceKey}`).remove();
+
+            // 2. Delete from Task Lookup (Clean up active tasks if assigned)
+            const lookupKey = `${currentPO}_${currentlyEditingInvoiceKey}`;
+            // We need to find who it was assigned to, to remove it from their specific list.
+            // Since we might not know, we can try removing it from the global/common paths or just rely on the main DB delete.
+            // (The system usually cleans up on load, but let's be safe if you have a specific helper)
+            
+            // 3. UI Cleanup
+            alert("Invoice deleted successfully.");
+            
+            // Close Modal
+            document.getElementById('im-new-invoice-modal').classList.add('hidden'); // Or .classList.remove('active') depending on your CSS
+            
+            // Refresh List
+            fetchAndDisplayInvoices(currentPO);
+            
+            // Reset Global Variable
+            currentlyEditingInvoiceKey = null;
+
+        } catch (error) {
+            console.error("Delete failed:", error);
+            alert("Failed to delete invoice. Check console for details.");
+        }
+    });
 }
 
 }); // END OF DOMCONTENTLOADED
