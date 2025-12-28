@@ -1,7 +1,7 @@
 // ======================
 // Application Version
 // ======================
-const APP_VERSION = "v3.0"; // You can change this in the future
+const APP_VERSION = "v5.0 (Final Complete)";
 
 // ======================
 // Firebase Configuration
@@ -34,64 +34,60 @@ const elements = {
   loginPassword: document.getElementById('loginPassword'),
   loginBtn: document.getElementById('loginBtn'),
   loginError: document.getElementById('loginError'),
+  loginVersionDisplay: document.getElementById('loginVersionDisplay'),
+  
+  // Dashboard & Nav
   mainApp: document.getElementById('mainApp'),
   logoutLink: document.getElementById('logoutLink'),
   userEmailDisplay: document.getElementById('userEmailDisplay'),
-  loginVersionDisplay: document.getElementById('loginVersionDisplay'), // <-- NEW
-  versionDisplay: document.getElementById('versionDisplay'), // <-- NEW
-
-  // Form elements
-  paymentForm: document.getElementById('paymentForm'),
-  saveBtn: document.getElementById('saveBtn'),
-  cancelBtn: document.getElementById('cancelBtn'),
-  clearBtn: document.getElementById('clearBtn'),
-  addNewPaymentBtn: document.getElementById('addNewPaymentBtn'),
-
-  // Vendor elements
-  vendorList: document.getElementById('vendorList'),
-  vendorUploadForm: document.getElementById('vendorUploadForm'),
-
-  // Section elements
+  versionDisplay: document.getElementById('versionDisplay'),
+  paymentLink: document.getElementById('paymentLink'),
+  vendorLink: document.getElementById('vendorLink'),
+  recordsLink: document.getElementById('recordsLink'),
+  
+  // Sections
   paymentSection: document.getElementById('paymentSection'),
   vendorSection: document.getElementById('vendorSection'),
   recordsSection: document.getElementById('recordsSection'),
 
-  // Navigation elements
-  paymentLink: document.getElementById('paymentLink'),
-  vendorLink: document.getElementById('vendorLink'),
-  recordsLink: document.getElementById('recordsLink'),
+  // Search
+  searchPoNo: document.getElementById('searchPoNo'),
+  searchBtn: document.getElementById('searchBtn'),
+  clearSearchBtn: document.getElementById('clearSearchBtn'),
+  searchResults: document.getElementById('searchResults'),
+  searchResultsBody: document.getElementById('searchResultsBody'),
+  noResultsAlert: document.getElementById('noResultsAlert'),
+  addNewBtn: document.getElementById('addNewBtn'), // The main Add button on top
 
-  // Import/Export elements
+  // Form & Modals
+  paymentForm: document.getElementById('paymentForm'),
+  saveBtn: document.getElementById('saveBtn'),
+  cancelBtn: document.getElementById('cancelBtn'),
+  clearBtn: document.getElementById('clearBtn'),
+  addNewPaymentBtn: document.getElementById('addNewPaymentBtn'), // "Save as New" button inside modal
+  
+  // Initialize Modals using Bootstrap API
+  paymentModal: new bootstrap.Modal(document.getElementById('paymentModal')),
+  reportModal: new bootstrap.Modal(document.getElementById('reportModal')),
+  
+  // Vendors & Import
+  vendorList: document.getElementById('vendorList'),
+  vendorUploadForm: document.getElementById('vendorUploadForm'),
   importBtn: document.getElementById('importBtn'),
   paymentCsv: document.getElementById('paymentCsv'),
   overwriteData: document.getElementById('overwriteData'),
-
-  // Search elements
-  searchPoNo: document.getElementById('searchPoNo'),
-  searchBtn: document.getElementById('searchBtn'),
-  searchResults: document.getElementById('searchResults'),
-  noResultsAlert: document.getElementById('noResultsAlert'),
-  searchResultsBody: document.getElementById('searchResultsBody'),
-  addNewBtn: document.getElementById('addNewBtn'),
-
-  // Form display elements
-  paymentFormCard: document.getElementById('paymentFormCard'),
-  formTitle: document.getElementById('formTitle'),
-
-  // Delete elements
-  deleteAllBtn: document.getElementById('deleteAllBtn'),
   downloadTemplateBtn: document.getElementById('downloadTemplateBtn'),
+  
+  // Delete
+  deleteAllBtn: document.getElementById('deleteAllBtn'),
   confirmDelete: document.getElementById('confirmDelete'),
   confirmDeleteBtn: document.getElementById('confirmDeleteBtn'),
-  clearSearchBtn: document.getElementById('clearSearchBtn'),
-
-  // Report elements
-  reportModal: new bootstrap.Modal(document.getElementById('reportModal')),
-  printReportBtn: document.getElementById('printReportBtn'),
-  reportModalContent: document.getElementById('reportModal')
+  
+  // Reports
+  printReportBtn: document.getElementById('printReportBtn')
 };
 
-// Form fields
+// Form fields configuration
 const fields = [
   'paymentNo', 'chequeNo', 'site', 'vendor', 'vendorId', 'poNo',
   'poValue', 'certifiedAmount', 'retention', 'payment', 'datePaid', 'note'
@@ -101,7 +97,7 @@ const fields = [
 let editId = null;
 let isEditing = false;
 let vendorSearchTimeout = null;
-let allPaymentsData = {}; // To store payment data for editing
+let allPaymentsData = {}; 
 
 // ======================
 // Initialization
@@ -114,22 +110,20 @@ document.addEventListener('DOMContentLoaded', function() {
 // Auth Functions
 // ======================
 function setupAuthListeners() {
-  // === NEW: Set version on login screen ===
   elements.loginVersionDisplay.textContent = APP_VERSION;
-
   auth.onAuthStateChanged(user => {
     if (user) {
       // User is logged in
       elements.mainApp.style.display = 'block';
       elements.loginScreen.style.display = 'none';
-      elements.userEmailDisplay.textContent = user.email; // Display email
-      elements.versionDisplay.textContent = APP_VERSION; // <-- NEW: Set navbar version
+      elements.userEmailDisplay.textContent = user.email;
+      elements.versionDisplay.textContent = APP_VERSION;
       initializeApplication();
     } else {
       // User is logged out
       elements.mainApp.style.display = 'none';
       elements.loginScreen.style.display = 'flex';
-      elements.userEmailDisplay.textContent = ''; // Clear email
+      elements.userEmailDisplay.textContent = '';
     }
   });
   elements.loginForm.addEventListener('submit', handleLogin);
@@ -151,7 +145,7 @@ function handleLogin(e) {
     })
     .finally(() => {
       elements.loginBtn.disabled = false;
-      elements.loginBtn.textContent = 'Login';
+      elements.loginBtn.textContent = 'Sign In';
     });
 }
 
@@ -170,54 +164,48 @@ function initializeApplication() {
 // Event Listeners Setup
 // ======================
 function setupEventListeners() {
-  // Navigation
+  // Navigation (Sidebar)
   elements.paymentLink.addEventListener('click', showPaymentSection);
   elements.vendorLink.addEventListener('click', showVendorSection);
   elements.recordsLink.addEventListener('click', showRecordsSection);
   elements.logoutLink.addEventListener('click', handleLogout);
 
-  // Form submission
-  elements.paymentForm.addEventListener('submit', handleFormSubmit);
-
-  // Form buttons
-  elements.cancelBtn.addEventListener('click', cancelEdit);
-  elements.clearBtn.addEventListener('click', resetForm);
-  elements.addNewPaymentBtn.addEventListener('click', addNewPaymentFromEdit);
-  elements.addNewBtn.addEventListener('click', showAddNewForm);
-
-  // Search functionality
+  // Search
   elements.searchBtn.addEventListener('click', searchPayments);
   elements.searchPoNo.addEventListener('keypress', e => { if (e.key === 'Enter') searchPayments(); });
   elements.clearSearchBtn.addEventListener('click', resetSearch);
+  
+  // Main Action Button (Open Modal)
+  elements.addNewBtn.addEventListener('click', showAddNewForm);
 
-  // Vendor autocomplete
+  // Form actions inside Modal
+  elements.paymentForm.addEventListener('submit', handleFormSubmit);
+  elements.cancelBtn.addEventListener('click', cancelEdit);
+  elements.clearBtn.addEventListener('click', resetForm);
+  elements.addNewPaymentBtn.addEventListener('click', addNewPaymentFromEdit);
+
+  // Dynamic Table Actions (Edit/Delete/Report)
+  elements.searchResultsBody.addEventListener('click', handleActionClick);
+
+  // Inputs - Logic for auto-calculations
   document.getElementById('vendor').addEventListener('input', handleVendorInput);
   document.getElementById('vendor').addEventListener('change', handleVendorSelection);
-
-  // Calculation events
   document.getElementById('certifiedAmount').addEventListener('input', calculatePayment);
   document.getElementById('retention').addEventListener('input', calculatePayment);
   document.getElementById('retentionPercentage').addEventListener('input', calculateRetentionFromPercentage);
   document.getElementById('retentionBaseAmount').addEventListener('input', calculateRetentionFromPercentage);
-
-  // NEW LOGIC: Auto-populate Base Amount from Certified Amount
+  
+  // Auto-fill base amount from Certified Amount
   document.getElementById('certifiedAmount').addEventListener('input', (e) => {
     document.getElementById('retentionBaseAmount').value = e.target.value;
   });
 
-  // NEW LOGIC: Use event delegation for dynamic Edit/Delete buttons
-  elements.searchResultsBody.addEventListener('click', handleActionClick);
-
-  // Import/Export
+  // Tools & Imports
   elements.vendorUploadForm.addEventListener('submit', uploadVendorCSV);
   elements.importBtn.addEventListener('click', importPaymentCSV);
   elements.downloadTemplateBtn.addEventListener('click', downloadCSVTemplate);
-
-  // Delete All
   elements.confirmDelete.addEventListener('change', toggleDeleteButton);
   elements.confirmDeleteBtn.addEventListener('click', deleteAllPayments);
-
-  // Report
   elements.printReportBtn.addEventListener('click', printReport);
 }
 
@@ -225,31 +213,29 @@ function setupEventListeners() {
 // Navigation Functions
 // ======================
 function showPaymentSection(e) {
-  e.preventDefault();
-  elements.paymentSection.style.display = 'block';
-  elements.vendorSection.style.display = 'none';
-  elements.recordsSection.style.display = 'none';
-  // Update active class for dropdown
-  document.querySelectorAll('.dropdown-item').forEach(el => el.classList.remove('active'));
-  elements.paymentLink.classList.add('active');
-  resetSearch();
+    if(e) e.preventDefault();
+    elements.paymentSection.style.display = 'block';
+    elements.vendorSection.style.display = 'none';
+    elements.recordsSection.style.display = 'none';
+    
+    // Update active class on Sidebar
+    document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+    elements.paymentLink.classList.add('active');
 }
 function showVendorSection(e) {
-  e.preventDefault();
+  if(e) e.preventDefault();
   elements.paymentSection.style.display = 'none';
   elements.vendorSection.style.display = 'block';
   elements.recordsSection.style.display = 'none';
-  // Update active class for dropdown
-  document.querySelectorAll('.dropdown-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
   elements.vendorLink.classList.add('active');
 }
 function showRecordsSection(e) {
-  e.preventDefault();
+  if(e) e.preventDefault();
   elements.paymentSection.style.display = 'none';
   elements.vendorSection.style.display = 'none';
   elements.recordsSection.style.display = 'block';
-  // Update active class for dropdown
-  document.querySelectorAll('.dropdown-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
   elements.recordsLink.classList.add('active');
 }
 
@@ -262,8 +248,9 @@ function searchPayments() {
     alert('Please enter a PO No. to search');
     return;
   }
-
-  elements.addNewBtn.disabled = false; // <-- MODIFICATION: Enable button
+  
+  // Enable the "New Payment" button now that we have a PO context
+  elements.addNewBtn.disabled = false; 
 
   paymentsRef.orderByChild('poNo').equalTo(poNo).once('value')
     .then(snapshot => {
@@ -273,7 +260,7 @@ function searchPayments() {
       if (!snapshot.exists()) {
         showNoResults(poNo);
       } else {
-        // Clear previous data and store new data
+        // Store data for local access (editing)
         allPaymentsData = {};
         snapshot.forEach(childSnapshot => {
             allPaymentsData[childSnapshot.key] = { id: childSnapshot.key, ...childSnapshot.val() };
@@ -286,128 +273,135 @@ function searchPayments() {
 
 function showNoResults(poNo) {
   elements.noResultsAlert.style.display = 'block';
-  elements.paymentFormCard.style.display = 'none';
 }
 
-// MODIFIED: This function is completely rewritten for the new UI
 function showSearchResults(payments) {
     elements.noResultsAlert.style.display = 'none';
     elements.searchResultsBody.innerHTML = '';
-
     if (payments.length === 0) return;
 
-    // Assuming all payments share the same PO details
-    const firstPayment = payments[0];
-    const { site, vendor, vendorId, poNo, poValue } = firstPayment;
+    // Sort chronologically (Oldest to Newest) based on dateEntered
+    payments.sort((a, b) => {
+        return new Date(a.dateEntered) - new Date(b.dateEntered);
+    });
+    
+    // Get latest payment for Header details (Correct PO Value)
+    const latestPayment = payments[payments.length - 1];
+    const { site, vendor, vendorId, poNo, poValue } = latestPayment;
 
-    // 1. Create the PO Summary Table (Top Level)
+    // 1. Header Table (PO Summary)
     const summaryHtml = `
-        <table class="po-summary-table">
-            <thead>
-                <tr>
-                    <th>Site</th>
-                    <th>Vendor</th>
-                    <th>Vendor ID</th>
-                    <th>PO No.</th>
-                    <th>PO Value</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>${site || ''}</td>
-                    <td>${vendor || ''}</td>
-                    <td>${vendorId || ''}</td>
-                    <td>${poNo || ''}</td>
-                    <td>${formatNumber(poValue) || ''}</td>
-                </tr>
-            </tbody>
-        </table>
-    `;
-
-    // 2. Create the Payment Details Table (Bottom Level)
-    // *** MODIFIED: Moved Date Entered column to the front ***
-    const paymentRowsHtml = payments.map(payment => `
-        <tr>
-            <td>${formatDate(payment.dateEntered) || ''}</td>
-            <td>${payment.paymentNo || ''}</td>
-            <td>${payment.chequeNo || ''}</td>
-            <td>${formatNumber(payment.certifiedAmount) || ''}</td>
-            <td>${formatNumber(payment.retention) || ''}</td>
-            <td>${formatNumber(payment.payment) || ''}</td>
-            <td>${formatDate(payment.datePaid) || ''}</td>
-            <td>
-                <button class="btn btn-sm btn-info me-2" data-action="report" data-id="${payment.id}">Report</button>
-                <button class="btn btn-sm btn-secondary me-2" data-action="edit" data-id="${payment.id}">Edit</button>
-                <button class="btn btn-sm btn-danger" data-action="delete" data-id="${payment.id}">Delete</button>
-            </td>
-        </tr>
-    `).join('');
-
-    const detailsHtml = `
-        <div class="payment-details-wrapper">
-            <h6 class="payment-details-header">Invoice Entries for PO ${poNo}</h6>
-            <div class="table-responsive">
-                <table class="table payment-details-table">
-                    <thead>
+        <div class="card mb-4 bg-white border-0 shadow-sm">
+            <div class="card-body p-0">
+                <table class="table po-summary-table mb-0">
+                    <thead class="bg-light">
                         <tr>
-                            <th>Date Entered</th>
-                            <th>Payment No.</th>
-                            <th>Cheque No.</th>
-                            <th>Certified Amount</th>
-                            <th>Retention</th>
-                            <th>Payment</th>
-                            <th>Date Paid</th>
-                            <th>Actions</th>
+                            <th>Site</th>
+                            <th>Vendor</th>
+                            <th>Vendor ID</th>
+                            <th>PO No.</th>
+                            <th>PO Value</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${paymentRowsHtml}
+                        <tr>
+                            <td class="fw-bold text-primary">${site || ''}</td>
+                            <td>${vendor || ''}</td>
+                            <td>${vendorId || ''}</td>
+                            <td>${poNo || ''}</td>
+                            <td class="fw-bold">${formatNumber(poValue) || ''}</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
         </div>
     `;
 
-    // 3. Append both to the container
+    // 2. Detail Rows
+    const paymentRowsHtml = payments.map(payment => `
+        <tr>
+            <td class="text-muted small">${formatDate(payment.dateEntered) || ''}</td>
+            <td class="fw-bold">${payment.paymentNo || ''}</td>
+            <td>${payment.chequeNo || '-'}</td>
+            <td class="text-end font-monospace">${formatNumber(payment.certifiedAmount) || ''}</td>
+            <td class="text-end font-monospace text-danger">${formatNumber(payment.retention) || ''}</td>
+            <td class="text-end font-monospace fw-bold text-success">${formatNumber(payment.payment) || ''}</td>
+            <td>${formatDate(payment.datePaid) || ''}</td>
+            <td class="text-end">
+                <div class="btn-group">
+                    <button class="btn btn-sm btn-outline-info rounded-start" data-action="report" data-id="${payment.id}" title="Print Report"><i class="bi bi-printer"></i></button>
+                    <button class="btn btn-sm btn-outline-secondary" data-action="edit" data-id="${payment.id}" title="Edit"><i class="bi bi-pencil"></i></button>
+                    <button class="btn btn-sm btn-outline-danger rounded-end" data-action="delete" data-id="${payment.id}" title="Delete"><i class="bi bi-trash"></i></button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+
+    const detailsHtml = `
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+                 <i class="bi bi-list-check me-2"></i>Payment History
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table payment-details-table mb-0 table-hover">
+                        <thead class="bg-light">
+                            <tr>
+                                <th>Date Ent.</th>
+                                <th>Pay No.</th>
+                                <th>Cheque</th>
+                                <th class="text-end">Certified</th>
+                                <th class="text-end">Retention</th>
+                                <th class="text-end">Net Pay</th>
+                                <th>Date Paid</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${paymentRowsHtml}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+
     elements.searchResultsBody.innerHTML = summaryHtml + detailsHtml;
 }
 
-// NEW: Handle clicks on dynamic action buttons
+// Global click handler for dynamic buttons (Edit, Delete, Report)
 function handleActionClick(e) {
     const target = e.target.closest('button');
     if (!target) return;
-
+    
     const action = target.dataset.action;
     const id = target.dataset.id;
     const payment = allPaymentsData[id];
-
+    
     if (!action || !id || !payment) return;
 
-    if (action === 'edit') {
-        editPayment(id, payment);
-    } else if (action === 'delete') {
-        confirmDeletePayment(id);
-    } else if (action === 'report') {
-        generateReport(payment);
-    }
+    if (action === 'edit') editPayment(id, payment);
+    else if (action === 'delete') confirmDeletePayment(id);
+    else if (action === 'report') generateReport(payment);
 }
-
 
 function resetSearch() {
   elements.searchPoNo.value = '';
   elements.searchResults.style.display = 'none';
   elements.noResultsAlert.style.display = 'none';
-  elements.paymentFormCard.style.display = 'none';
   allPaymentsData = {};
-  elements.addNewBtn.disabled = true; // <-- MODIFICATION: Disable button
+  elements.addNewBtn.disabled = true; 
 }
 
 // ======================
-// Form Functions
+// Form & Modal Functions
 // ======================
+
+// Opens the Modal in "Add Mode"
 function showAddNewForm() {
   resetForm();
-  // Pre-fill form with data from the search if available
+  
+  // Pre-fill logic based on search results
   const firstPaymentKey = Object.keys(allPaymentsData)[0];
   if(firstPaymentKey) {
       const p = allPaymentsData[firstPaymentKey];
@@ -415,29 +409,31 @@ function showAddNewForm() {
       document.getElementById('vendor').value = p.vendor || '';
       document.getElementById('vendorId').value = p.vendorId || '';
       document.getElementById('poNo').value = p.poNo || '';
-      document.getElementById('poValue').value = p.poValue || '';
+      // Use latest PO Value from sorted data
+      const sorted = Object.values(allPaymentsData).sort((a,b) => new Date(a.dateEntered) - new Date(b.dateEntered));
+      document.getElementById('poValue').value = sorted[sorted.length-1].poValue || '';
   } else {
      document.getElementById('poNo').value = elements.searchPoNo.value.trim();
   }
 
-  elements.paymentFormCard.style.display = 'block';
-  elements.formTitle.textContent = 'Add New Payment';
+  // UI Updates for Modal
+  document.getElementById('paymentModalLabel').textContent = 'Add New Payment';
   isEditing = false;
   editId = null;
-  // MODIFIED: Changed button text
-  elements.saveBtn.textContent = 'Add';
+  elements.saveBtn.textContent = 'Save Record';
   elements.addNewPaymentBtn.style.display = 'none';
 
-  // NEW: Also highlight fields for "Add New"
+  // Highlight input fields
   const fieldsToHighlight = ['certifiedAmount', 'retention', 'payment', 'datePaid', 'note'];
   fieldsToHighlight.forEach(fieldId => {
       document.getElementById(fieldId).classList.add('highlight-field');
   });
 
-  // MODIFIED: Scroll the form into view
-  elements.paymentFormCard.scrollIntoView({ behavior: 'smooth' });
+  // OPEN MODAL
+  elements.paymentModal.show();
 }
 
+// Opens the Modal in "Edit Mode"
 function editPayment(id, payment) {
   editId = id;
   isEditing = true;
@@ -446,24 +442,21 @@ function editPayment(id, payment) {
     document.getElementById(field).value = formatFieldValue(field, payment[field]) || '';
   });
 
-  // Also populate base amount from certified amount
+  // Logic for Retention Base
   document.getElementById('retentionBaseAmount').value = formatNumber(payment.certifiedAmount) || '';
   document.getElementById('retentionPercentage').value = '';
 
-  elements.saveBtn.textContent = 'Update';
-  elements.cancelBtn.style.display = 'inline-block';
+  elements.saveBtn.textContent = 'Update Record';
   elements.addNewPaymentBtn.style.display = 'inline-block';
-  elements.formTitle.textContent = 'Edit Payment';
-  elements.paymentFormCard.style.display = 'block';
+  document.getElementById('paymentModalLabel').textContent = 'Edit Payment';
 
-  // NEW LOGIC: Add highlight class to specific fields
   const fieldsToHighlight = ['certifiedAmount', 'retention', 'payment', 'datePaid', 'note'];
   fieldsToHighlight.forEach(fieldId => {
       document.getElementById(fieldId).classList.add('highlight-field');
   });
 
-  // MODIFIED: Use scrollIntoView instead of scrolling to bottom
-  elements.paymentFormCard.scrollIntoView({ behavior: 'smooth' });
+  // OPEN MODAL
+  elements.paymentModal.show();
 }
 
 function handleFormSubmit(e) {
@@ -477,6 +470,7 @@ async function savePayment() {
   const paymentData = {};
   fields.forEach(field => {
     const value = document.getElementById(field).value;
+    // Remove commas for numeric fields
     paymentData[field] = ['poValue', 'certifiedAmount', 'retention', 'payment'].includes(field)
       ? value.replace(/,/g, '')
       : value;
@@ -484,37 +478,42 @@ async function savePayment() {
 
   try {
     if (isEditing) {
-      // On edit, we only update the fields from the form.
-      // 'dateEntered' is NOT in the 'fields' array, so it won't be overwritten.
+      // Update existing
       await paymentsRef.child(editId).update(paymentData);
       alert('Payment updated successfully!');
     } else {
-      // *** MODIFIED: Add current date for dateEntered on new records ***
+      // Create new
       const now = new Date();
       const year = now.getFullYear();
       const month = String(now.getMonth() + 1).padStart(2, '0');
       const day = String(now.getDate()).padStart(2, '0');
       paymentData.dateEntered = `${year}-${month}-${day}`;
 
-      // === MODIFIED LOGIC START ===
-      // Check if paymentNo was manually entered.
-      // paymentData.paymentNo was already populated from the 'fields' loop.
+      // Generate PVN if empty
       if (!paymentData.paymentNo) {
-        // If it's empty, generate a new one.
         const nextNumber = await getNextAvailablePVNNumber(paymentData);
         paymentData.paymentNo = generatePaymentNumber(nextNumber);
       }
-      // If it's NOT empty, the code will just use the manual value from the form.
-      // === MODIFIED LOGIC END ===
-
+      
+      // Ensure datePaid has fallback
+      if (!paymentData.datePaid) {
+          paymentData.datePaid = `${year}-${month}-${day}`;
+      }
+      
       await paymentsRef.push(paymentData);
       alert('Payment added successfully!');
     }
+    
+    elements.paymentModal.hide(); // Hide modal
     resetForm();
-    searchPayments();
-  } catch (error) { console.error('Error saving payment:', error); }
+    searchPayments(); // Refresh list
+  } catch (error) { 
+      console.error('Error saving payment:', error); 
+      alert('Error saving data: ' + error.message);
+  }
 }
 
+// "Save as New" button logic (Cloning an existing record)
 async function addNewPaymentFromEdit() {
   if (!isEditing) return;
 
@@ -527,45 +526,30 @@ async function addNewPaymentFromEdit() {
   });
 
   try {
-    // *** MODIFIED: Add current date for dateEntered on new records ***
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
     paymentData.dateEntered = `${year}-${month}-${day}`;
       
-    // === MODIFIED LOGIC START ===
-    // Check if paymentNo was manually entered/kept in the form.
-    // paymentData.paymentNo was already populated from the 'fields' loop.
     if (!paymentData.paymentNo) {
-        // If it's empty, generate a new one.
         const nextNumber = await getNextAvailablePVNNumber(paymentData);
         paymentData.paymentNo = generatePaymentNumber(nextNumber);
     }
-    // If it's NOT empty, the code will just use the manual value from the form.
-    // === MODIFIED LOGIC END ===
       
-    paymentData.chequeNo = '';
+    paymentData.chequeNo = ''; // Reset cheque
     
-    // === MODIFIED LOGIC START: Set default datePaid to today ===
-    // Re-use the 'now' constants from above.
-    // This now correctly reads the value from the form, which resetForm should have set.
-    // If the user changed it, it uses their change.
-    // If the form was just reset, it uses the default.
-    // We only need to ensure datePaid is in paymentData
-    // The 'fields.forEach' loop already handled this.
-    // This block ensures it gets a value *if* it was missing from the form.
     if (!paymentData.datePaid) {
         paymentData.datePaid = `${year}-${month}-${day}`;
     }
-    // === MODIFIED LOGIC END ===
     
-    paymentData.note = ''; // Clear note for new payment
+    paymentData.note = ''; // Reset note
     calculatePayment();
     paymentData.payment = document.getElementById('payment').value.replace(/,/g, '');
 
     await paymentsRef.push(paymentData);
     alert('New payment added successfully!');
+    elements.paymentModal.hide(); // Hide Modal
     resetForm();
     searchPayments();
   } catch (error) { console.error('Error adding new payment:', error); }
@@ -573,28 +557,19 @@ async function addNewPaymentFromEdit() {
 
 function resetForm() {
   document.getElementById('paymentForm').reset();
-  
-  // === THIS IS THE FIX ===
   document.getElementById('note').value = ''; 
-  // =======================
-
   editId = null;
   isEditing = false;
-  // MODIFIED: Changed button text
-  elements.saveBtn.textContent = 'Add';
-  elements.cancelBtn.style.display = 'inline-block';
+  elements.saveBtn.textContent = 'Save Record';
   elements.addNewPaymentBtn.style.display = 'none';
-  elements.formTitle.textContent = 'Add Payment';
+  document.getElementById('paymentModalLabel').textContent = 'Add New Payment';
 
-  // === NEW LOGIC START: Set default datePaid to today ===
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const day = String(now.getDate()).padStart(2, '0');
   document.getElementById('datePaid').value = `${year}-${month}-${day}`;
-  // === NEW LOGIC END ===
 
-  // NEW LOGIC: Remove highlight class from all fields
   const fieldsToHighlight = ['certifiedAmount', 'retention', 'payment', 'datePaid', 'note'];
   fieldsToHighlight.forEach(fieldId => {
       document.getElementById(fieldId).classList.remove('highlight-field');
@@ -602,8 +577,8 @@ function resetForm() {
 }
 
 function cancelEdit() {
-  resetForm();
-  elements.paymentFormCard.style.display = 'none';
+    elements.paymentModal.hide();
+    resetForm();
 }
 
 // ======================
@@ -682,7 +657,6 @@ async function uploadVendorCSV(e) {
 // ======================
 // Calculation Functions
 // ======================
-// MODIFIED: Updated retention logic
 function calculateRetentionFromPercentage() {
   const percentageInput = document.getElementById('retentionPercentage');
   const percentage = parseFloat(percentageInput.value) || 0;
@@ -693,10 +667,8 @@ function calculateRetentionFromPercentage() {
     const calculatedRetention = (baseAmount * percentage) / 100;
     retentionInput.value = formatNumber(calculatedRetention);
   } else if (percentageInput.value.trim() === '') {
-    // If percentage field is cleared, clear retention
     retentionInput.value = '';
   }
-
   calculatePayment();
 }
 
@@ -708,7 +680,7 @@ function calculatePayment() {
 }
 
 // ======================
-// Import/Export & Delete Functions
+// Import/Export & Delete
 // ======================
 async function importPaymentCSV() {
   const file = elements.paymentCsv.files[0];
@@ -721,8 +693,7 @@ async function importPaymentCSV() {
     const content = await readFileAsText(file);
     const lines = content.split('\n');
     const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-    // Note: 'dateEntered' is not added to requiredFields to maintain compatibility with old CSVs.
-    // It will be blank for imported records unless manually added to the CSV.
+    
     const requiredFields = ['Payment No.', 'Cheque No.', 'Site', 'Vendor', 'Vendor ID', 'PO No.', 'PO Value', 'Certified Amount', 'Retention', 'Payment', 'Date Paid', 'Note'];
     const missingFields = requiredFields.filter(field => !headers.includes(field));
     if (missingFields.length > 0) {
@@ -730,11 +701,8 @@ async function importPaymentCSV() {
       return;
     }
     const fieldIndices = {};
-    requiredFields.forEach(field => {
-      fieldIndices[field] = headers.indexOf(field);
-    });
+    requiredFields.forEach(field => { fieldIndices[field] = headers.indexOf(field); });
     
-    // Check for optional 'Date Entered' field
     if (headers.includes('Date Entered')) {
         fieldIndices['Date Entered'] = headers.indexOf('Date Entered');
     }
@@ -759,7 +727,6 @@ async function importPaymentCSV() {
         note: values[fieldIndices['Note']] || ''
       };
       
-      // Add 'dateEntered' only if it was in the CSV header
       if (fieldIndices['Date Entered'] !== undefined) {
           paymentData.dateEntered = values[fieldIndices['Date Entered']];
       }
@@ -849,14 +816,17 @@ async function generateReport(selectedPayment) {
     snapshot.forEach(childSnapshot => {
       payments.push(childSnapshot.val());
     });
+    
     payments.sort((a, b) => {
-      // Handle potential NaN if paymentNo is missing or malformed
       const aNum = parseInt(String(a.paymentNo).replace('PVN-', ''));
       const bNum = parseInt(String(b.paymentNo).replace('PVN-', ''));
       return (isNaN(aNum) ? 0 : aNum) - (isNaN(bNum) ? 0 : bNum);
     });
+
+    const latestPayment = payments[payments.length - 1]; 
+
     let totalCertified = 0, totalRetention = 0, totalPayment = 0, totalPrevPayment = 0;
-    let allNotes = []; // To store notes
+    let allNotes = [];
 
     payments.forEach(payment => {
       const certified = parseFloat(payment.certifiedAmount || 0);
@@ -867,33 +837,43 @@ async function generateReport(selectedPayment) {
       totalRetention += retention;
       totalPayment += paymentAmount;
 
-      // MODIFIED: Changed this logic to check for datePaid
       if (payment.datePaid && String(payment.datePaid).trim() !== '') {
         totalPrevPayment += paymentAmount;
       }
 
-      // *** CHANGED: Removed the hyphen and PVN prefix ***
       if (payment.note && String(payment.note).trim() !== '') {
         allNotes.push(`${String(payment.note).trim()}`);
       }
     });
 
-    const totalCommitted = parseFloat(selectedPayment.poValue || 0) - totalCertified;
+    const totalCommitted = parseFloat(latestPayment.poValue || 0) - totalCertified;
+
     document.getElementById('reportDate').textContent = formatDateLong(new Date().toISOString());
     document.getElementById('reportPoNo').textContent = poNo;
-    document.getElementById('reportProject').textContent = selectedPayment.site || '';
-    document.getElementById('reportVendorId').textContent = selectedPayment.vendorId || '';
-    document.getElementById('reportVendorName').textContent = selectedPayment.vendor || '';
-    document.getElementById('reportTotalPoValue').textContent = formatNumber(selectedPayment.poValue);
+    document.getElementById('reportProject').textContent = latestPayment.site || '';
+    document.getElementById('reportVendorId').textContent = latestPayment.vendorId || '';
+    
+    // ==========================================
+    // TRUNCATE LOGIC: Limit Vendor Name to 27 chars
+    // ==========================================
+    let vName = latestPayment.vendor || '';
+    if (vName.length > 27) {
+        vName = vName.substring(0, 27); 
+    }
+    document.getElementById('reportVendorName').textContent = vName;
+    // ==========================================
+
+    document.getElementById('reportTotalPoValue').textContent = formatNumber(latestPayment.poValue);
+    
     document.getElementById('reportTotalCertified').textContent = formatNumber(totalCertified);
     document.getElementById('reportTotalPrevPayment').textContent = formatNumber(totalPrevPayment);
     document.getElementById('reportTotalCommitted').textContent = formatNumber(totalCommitted);
     document.getElementById('reportTotalRetention').textContent = formatNumber(totalRetention);
+    
     const reportTableBody = document.getElementById('reportTableBody');
     reportTableBody.innerHTML = '';
     payments.forEach(payment => {
       const row = document.createElement('tr');
-       // Handle potential NaN if paymentNo is missing or malformed
       const pvn = payment.paymentNo ? String(payment.paymentNo).replace('PVN-', '') : '';
       row.innerHTML = `<td>${pvn}</td><td>${payment.chequeNo || ''}</td><td>${formatNumber(payment.certifiedAmount)}</td><td>${formatNumber(payment.retention)}</td><td>${formatNumber(payment.payment)}</td><td>${payment.datePaid ? formatDate(payment.datePaid) : ''}</td>`;
       reportTableBody.appendChild(row);
@@ -902,7 +882,6 @@ async function generateReport(selectedPayment) {
     document.getElementById('reportTotalRetentionAmount').textContent = formatNumber(totalRetention);
     document.getElementById('reportTotalPaymentAmount').textContent = formatNumber(totalPayment);
     
-    // NEW: Show/Hide Notes section
     const reportNotesSection = document.getElementById('reportNotesSection');
     const reportNotesContent = document.getElementById('reportNotesContent');
     
@@ -920,12 +899,7 @@ async function generateReport(selectedPayment) {
   }
 }
 
-// ======================
-// PRINT FUNCTION - FIXED
-// ======================
 function printReport() {
-  // All the styling is already handled by the @media print
-  // rules in styles.css. We just need to trigger the print dialog.
   window.print();
 }
 
@@ -936,7 +910,6 @@ function getRelationshipKey(paymentData) {
   return `${paymentData.poNo}_${paymentData.site}_${paymentData.vendor}_${paymentData.vendorId}`.toLowerCase();
 }
 
-// MODIFIED: This function no longer pads with zeros
 function generatePaymentNumber(number) {
   return `PVN-${String(number)}`;
 }
@@ -952,7 +925,6 @@ async function getNextAvailablePVNNumber(paymentData) {
     }
   });
   const pvnNumbers = payments.map(p => {
-    // Handle potential NaN if paymentNo is missing or malformed
     const num = parseInt(String(p.paymentNo).replace('PVN-', ''));
     return isNaN(num) ? 0 : num;
   }).sort((a, b) => a - b);
@@ -973,7 +945,7 @@ function formatFieldValue(field, value) {
     return formatNumber(value);
   }
   if (field === 'datePaid') {
-    return value; // Keep as YYYY-MM-DD for the input[type=date]
+    return value; 
   }
   return value;
 }
@@ -991,56 +963,36 @@ function formatDate(dateStr) {
   if (!dateStr || String(dateStr).trim() === '') return '';
 
   let date;
-  const parts = String(dateStr).split('-'); // Try YYYY-MM-DD first
+  const parts = String(dateStr).split('-'); 
 
-  // 1. Try parsing as YYYY-MM-DD (from the app's date picker)
   if (parts.length === 3 && parts[0].length === 4) {
     try {
       const year = parseInt(parts[0], 10);
-      const monthIndex = parseInt(parts[1], 10) - 1; // Date object month is 0-indexed
+      const monthIndex = parseInt(parts[1], 10) - 1; 
       const day = parseInt(parts[2], 10);
 
-      // Use local time, not UTC, for consistency
       const tempDate = new Date(year, monthIndex, day);
-      
-      // Check for invalid date (e.g., 2025-02-30) and valid parts
-      if (!isNaN(tempDate.getTime()) && 
-          tempDate.getDate() === day && 
-          tempDate.getMonth() === monthIndex && 
-          tempDate.getFullYear() === year) {
+      if (!isNaN(tempDate.getTime()) && tempDate.getDate() === day && tempDate.getMonth() === monthIndex && tempDate.getFullYear() === year) {
         date = tempDate;
       }
-    } catch (e) {
-      // Not a YYYY-MM-DD, fall through
-    }
+    } catch (e) {}
   }
-
-  // 2. If not a valid YYYY-MM-DD, try generic parsing (for "04-Mar-25", etc.)
   if (!date) {
     date = new Date(dateStr);
   }
-
-  // 3. Check for invalid date from either method
   if (isNaN(date.getTime())) {
-    return dateStr; // Return original string if unparseable
+    return dateStr; 
   }
   
-  // 4. Handle 2-digit year problem (e.g., "04-Mar-25" -> 1925)
   let currentYear = date.getFullYear();
   if (currentYear < 2000 && currentYear > 1900) {
-    // If generic parsing resulted in a 19xx year, assume 2-digit year means 20xx
     date.setFullYear(currentYear + 100);
   }
   
-  // 5. Format to DD-Mmm-YYYY
   const dayFormatted = date.getDate().toString().padStart(2, '0');
-  
-  // --- THIS IS THE MODIFIED PART ---
   const monthName = date.toLocaleString('default', { month: 'short' });
   const monthFormatted = monthName.charAt(0).toUpperCase() + monthName.slice(1).toLowerCase();
-  // --- END OF MODIFICATION ---
-
-  const yearFormatted = date.getFullYear(); // Get the (potentially corrected) year
+  const yearFormatted = date.getFullYear(); 
   
   return `${dayFormatted}-${monthFormatted}-${yearFormatted}`;
 }

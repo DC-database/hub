@@ -1,466 +1,305 @@
-#searchResults {
-    border: 1px solid #dee2e6;
-    border-radius: 0.25rem;
-    padding: 1rem;
-    background-color: white;
+/* ========================================= */
+/* GLOBAL VARIABLES & RESET                  */
+/* ========================================= */
+:root {
+    /* CHANGED: New Blue from your Screenshot (Rich Navy) */
+    --primary-color: #17375E; 
+    
+    --accent-color: #4e73df;  /* Highlight Blue */
+    --bg-color: #f0f2f5;      /* Dashboard Background */
+    --card-bg: #ffffff;
+    --text-primary: #2c3e50;
+    --text-secondary: #858796;
+    --border-radius: 15px;
+    --shadow-soft: 0 5px 20px rgba(0, 0, 0, 0.05);
 }
 
-/* This is no longer used, but safe to keep */
-#searchResults table {
-    margin-bottom: 0;
+body {
+    background-color: var(--bg-color);
+    font-family: 'Poppins', sans-serif, Arial;
+    color: var(--text-primary);
+    overflow-x: hidden;
 }
 
-#paymentFormCard {
+/* ========================================= */
+/* LAYOUT: SIDEBAR & MAIN CONTENT            */
+/* ========================================= */
+.dashboard-container {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* Sidebar Styling */
+.sidebar {
+    width: 260px;
+    background-color: var(--primary-color);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    position: fixed;
+    height: 100vh;
+    border-top-right-radius: 30px;
+    border-bottom-right-radius: 30px;
+    z-index: 1000;
+    transition: all 0.3s;
+}
+
+.sidebar-brand {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 2rem;
+    padding-left: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.nav-links {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.nav-item {
+    margin-bottom: 10px;
+}
+
+.nav-link {
+    color: rgba(255,255,255,0.7);
+    text-decoration: none;
+    padding: 12px 20px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
     transition: all 0.3s ease;
+    font-weight: 500;
 }
 
-#addNewBtn i {
-    margin-right: 5px;
+.nav-link:hover, .nav-link.active {
+    background-color: rgba(255,255,255,0.15);
+    color: white;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
 
-/* This is no longer used, but safe to keep */
-#searchResults table th {
-    white-space: nowrap;
+.nav-link.text-danger:hover {
+    background-color: rgba(220, 53, 69, 0.2);
+    color: #ffadad;
 }
 
-/* This is no longer used, but safe to keep */
-#searchResultsBody tr td {
+/* Main Content Area */
+.main-content {
+    flex: 1;
+    margin-left: 260px;
+    padding: 30px 40px;
+}
+
+/* ========================================= */
+/* COMPONENTS: CARDS & BUTTONS               */
+/* ========================================= */
+.card {
+    border: none;
+    border-radius: var(--border-radius);
+    background-color: var(--card-bg);
+    box-shadow: var(--shadow-soft);
+    margin-bottom: 25px;
+    transition: transform 0.2s;
+}
+
+.card-header {
+    background-color: transparent;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    padding: 20px 25px;
+    font-weight: 600;
+    color: var(--primary-color);
+    font-size: 1.1rem;
+}
+
+.card-body {
+    padding: 25px;
+}
+
+/* ========================================= */
+/* NEW INPUT FIELDS (Floating & Visible)     */
+/* ========================================= */
+.form-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.form-control {
+    border-radius: 10px;
+    border: 1px solid #b0b3b8; 
+    padding: 12px 15px;
+    background-color: #ffffff;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.06); 
+    transition: all 0.2s ease-in-out;
+    font-weight: 500;
+    color: #2c3e50;
+    font-size: 0.95rem;
+}
+
+.form-control:focus {
+    background-color: #fff;
+    border-color: var(--accent-color);
+    box-shadow: 0 10px 20px rgba(78, 115, 223, 0.2); 
+    transform: translateY(-2px); 
+    outline: none;
+}
+
+.form-control[readonly] {
+    background-color: #f8f9fc;
+    border-color: #d1d3e2;
+    box-shadow: inset 0 0 4px rgba(0,0,0,0.05);
+    transform: none !important;
+}
+
+/* Search Bar with Brand Border */
+.search-wrapper input {
+    border-radius: 50px;
+    padding: 12px 25px;
+    border: 2px solid var(--primary-color) !important; /* Thick Brand Border */
+    background-color: #fff;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+
+.search-wrapper input:focus {
+    border-color: var(--accent-color) !important;
+    box-shadow: 0 8px 15px rgba(78, 115, 223, 0.2);
+    transform: translateY(-1px);
+}
+
+.highlight-field {
+    background-color: #fffceb !important;
+    border-color: #ffc107 !important;
+    border-width: 2px !important;
+}
+
+/* Buttons */
+.btn {
+    border-radius: 50px;
+    padding: 8px 20px;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.btn-primary {
+    /* Updated Gradient to match new Blue */
+    background: linear-gradient(135deg, var(--primary-color) 0%, #0F2A4A 100%);
+    border: none;
+    box-shadow: 0 4px 10px rgba(23, 55, 94, 0.3);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(23, 55, 94, 0.4);
+}
+
+/* ========================================= */
+/* TABLES: DARK BLUE HEADERS (UNIFORM)       */
+/* ========================================= */
+#searchResults {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+}
+
+.po-summary-table, .payment-details-table {
+    border-collapse: separate;
+    border-spacing: 0 8px;
+}
+
+/* Uniform Header Style */
+.po-summary-table thead th, .payment-details-table thead th {
+    background-color: var(--primary-color) !important; /* Matches Sidebar */
+    color: white !important;       /* White Text */
+    border: none;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 15px;                 
+    font-weight: 600;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+/* Rounded Header Corners */
+.po-summary-table thead th:first-child, .payment-details-table thead th:first-child {
+    border-top-left-radius: 10px;
+    border-bottom-left-radius: 10px;
+}
+
+.po-summary-table thead th:last-child, .payment-details-table thead th:last-child {
+    border-top-right-radius: 10px;
+    border-bottom-right-radius: 10px;
+}
+
+.po-summary-table tbody tr, .payment-details-table tbody tr {
+    background-color: white;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.po-summary-table tbody tr:hover, .payment-details-table tbody tr:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    z-index: 10;
+    position: relative;
+}
+
+.po-summary-table td, .payment-details-table td {
+    border: none;
+    padding: 15px;
     vertical-align: middle;
 }
 
-.btn-edit {
-    background-color: #6c757d;
-    border-color: #6c757d;
-    color: white;
+.po-summary-table td:first-child, .payment-details-table td:first-child {
+    border-top-left-radius: 10px;
+    border-bottom-left-radius: 10px;
 }
 
-.btn-edit:hover {
-    background-color: #5a6268;
-    border-color: #545b62;
-    color: white;
+.po-summary-table td:last-child, .payment-details-table td:last-child {
+    border-top-right-radius: 10px;
+    border-bottom-right-radius: 10px;
 }
 
-.btn-delete {
-    background-color: #dc3545;
-    border-color: #dc3545;
-    color: white;
+.payment-details-table td:nth-child(4),
+.payment-details-table td:nth-child(5),
+.payment-details-table td:nth-child(6) {
+    text-align: right;
+    font-family: monospace;
 }
 
-.btn-delete:hover {
-    background-color: #c82333;
-    border-color: #bd2130;
-    color: white;
-}
-
-.btn-report {
-    background-color: #0dcaf0;
-    border-color: #0dcaf0;
-    color: white;
-}
-
-.btn-report:hover {
-    background-color: #0b9ed8;
-    border-color: #0a95cf;
-    color: white;
-}
-
-#confirmDeleteBtn:disabled {
-    opacity: 0.65;
-    cursor: not-allowed;
-}
-
-/* Records Management section styles */
-#recordsSection .card {
-    margin-bottom: 1.5rem;
-}
-
-#recordsSection .card-body {
-    padding: 1.5rem;
-}
-
-#recordsSection .btn {
-    margin-top: 0.5rem;
-}
-
-/* Clear search button style */
-#clearSearchBtn {
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
-}
-
-/* Enhanced Report Modal Styles */
-#reportModal .modal-content {
-  font-family: Arial, sans-serif;
-  border: 2px solid #000;
-}
-
-.report-header {
-  border-bottom: 2px solid #000;
-  padding-bottom: 15px;
-  margin-bottom: 20px;
-  text-align: center;
-}
-
-.report-header h3 {
-  font-size: 24px;
-  margin-bottom: 5px;
-  font-weight: bold;
-}
-
-.report-header h4 {
-  font-size: 18px;
-  margin: 10px 0;
-}
-
-.report-details {
-  margin-bottom: 25px;
-  padding-bottom: 15px;
-  border-bottom: 1px solid #ddd;
-  display: flex;
-  justify-content: space-between;
-}
-
-.report-details-col {
-  width: 48%;
-}
-
-.report-details p,
-.report-summary p {
-  margin-bottom: 8px;
-  font-size: 14px;
-  line-height: 1.4;
-}
-
-.report-summary {
-  background-color: #f8f9fa;
-  padding: 15px;
-  border-radius: 5px;
-  margin-bottom: 25px;
-  border: 1px solid #dee2e6;
-  display: flex;
-  justify-content: space-between;
-}
-
-.report-summary-col {
-  width: 48%;
-}
-
-.report-summary p {
-  font-weight: bold;
-  display: flex;
-  justify-content: space-between;
-}
-
-.report-summary p span {
-  font-weight: normal;
-  text-align: right;
-  min-width: 150px;
-  display: inline-block;
-}
-
-#reportModal table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 30px;
-}
-
-#reportModal table th, 
-#reportModal table td {
-  padding: 12px 10px;
-  border: 1px solid #dee2e6;
-}
-
-#reportModal table th {
-  background-color: #343a40;
-  color: white;
-  font-weight: bold;
-  font-size: 14px;
-  text-align: center;
-}
-
-#reportModal table tfoot th {
-  background-color: #e9ecef;
-  color: #000;
-  font-weight: bold;
-  font-size: 15px;
-  text-align: right;
-  padding-right: 20px;
-}
-
-#reportModal table tfoot td {
-  font-weight: bold;
-  text-align: right;
-  padding-right: 20px;
-  font-size: 15px;
-}
-
-#reportModal .signatures {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 60px;
-  padding-top: 20px;
-}
-
-/* ================== */
-/* UPDATED RULE #1  */
-/* ================== */
-#reportModal .signature-box {
-  text-align: center;
-  width: 22%; /* <-- CHANGED FROM 30% */
-}
-/* ================== */
-/* END UPDATED RULE */
-/* ================== */
-
-#reportModal .signature-line {
-  border-top: 1px solid #000;
-  margin-top: 40px;
-  padding-top: 10px;
-  display: inline-block;
-  width: 80%;
-}
-
-/* Numeric columns alignment */
-#reportTableBody td:nth-child(3),
-#reportTableBody td:nth-child(4),
-#reportTableBody td:nth-child(5) {
-  text-align: right;
-  font-family: monospace;
-  padding-right: 20px !important;
-}
-
-#reportTotalCertifiedAmount,
-#reportTotalRetentionAmount,
-#reportTotalPaymentAmount {
-  text-align: right;
-  font-family: monospace;
-  font-weight: bold;
-  font-size: 15px;
-  padding-right: 20px !important;
-}
-
-/* =================================== */
-/* Enhanced Print Styles for Report    */
-/* =================================== */
-@media print {
-  body {
-    visibility: hidden;
-    margin: 0;
-    padding: 0 !important; 
-    background: white;
-    font-size: 14pt !important;
-  }
-  
-  #reportModal, 
-  #reportModal * {
-    visibility: visible;
-  }
-  
-  #reportModal {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: auto;
-    margin: 0;
-    padding: 0;
+/* ========================================= */
+/* MODALS (POPUP FORMS)                      */
+/* ========================================= */
+.modal-content {
     border: none;
-    box-shadow: none;
-    background: white;
-    overflow: visible !important;
-    display: block !important;
-  }
-  
-  #reportModal .modal-dialog {
-    width: 100% !important;
-    max-width: none !important;
-    margin: 0 !important;
-  }
-  
-  #reportModal .modal-content {
-      border: none !important;
-      box-shadow: none !important;
-  }
-
-  .modal-header, 
-  .modal-footer {
-    display: none !important;
-  }
-  
-  .modal-body {
-    padding: 0 !important;
-    margin: 0 !important;
-    border: none !important;
-    font-size: 14pt !important;
-  }
-  
-  .report-header {
-    border-bottom: 2px solid #000 !important;
-    margin-bottom: 15px;
-  }
-  
-  .report-header h3 {
-    font-size: 28px !important;
-    margin-bottom: 10px !important;
-  }
-  
-  .report-header h4 {
-    font-size: 22px !important;
-    margin: 8px 0 !important;
-  }
-  
-  .report-details {
-    margin-bottom: 15px !important;
-    padding-bottom: 10px !important;
-    display: flex !important;
-    justify-content: space-between !important;
-    font-size: 14pt;
-  }
-  
-  .report-details-col {
-    width: 48% !important;
-  }
-  
-  .report-summary {
-    background-color: #f8f9fa !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    padding: 15px !important;
-    border-radius: 5px !important;
-    margin-bottom: 15px !important;
-    display: flex !important;
-    justify-content: space-between !important;
-    border: 1px solid #dee2e6 !important;
-    font-size: 14pt;
-  }
-  
-  .report-summary-col {
-    width: 48% !important;
-  }
-  
-  table {
-    width: 100% !important;
-    border-collapse: collapse !important;
-    margin-bottom: 20px !important;
-    font-size: 12pt;
-  }
-  
-  table th, 
-  table td {
-    border: 1px solid #000 !important;
-    padding: 10px !important;
-  }
-  
-  table th {
-    background-color: #343a40 !important;
-    color: white !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    text-align: center !important;
-    font-size: 13pt;
-  }
-  
-  table tfoot th {
-    background-color: #e9ecef !important; 
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    color: #000 !important; 
-    text-align: right !important;
-    padding-right: 20px !important;
-    font-size: 14pt;
-  }
-  
-  table tfoot td {
-    background-color: #e9ecef !important; 
-    font-weight: bold !important;
-    text-align: right !important;
-    padding-right: 20px !important;
-    color: #000 !important;
-    font-size: 14pt;
-  }
-  
-  .signatures {
-    display: flex !important;
-    justify-content: space-between !important;
-    margin-top: 80px !important;
-    font-size: 14pt;
-    page-break-inside: avoid;
-  }
-  
-  /* ================== */
-  /* UPDATED RULE #2  */
-  /* ================== */
-  .signature-box {
-    text-align: center !important;
-    width: 22% !important; /* <-- CHANGED FROM 30% */
-  }
-  /* ================== */
-  /* END UPDATED RULE */
-  /* ================== */
-  
-  .signature-line {
-    border-top: 1px solid #000 !important;
-    margin-top: 60px !important;
-    padding-top: 10px !important;
-    display: inline-block !important;
-    width: 80% !important;
-  }
-  
-  #reportNotesSection {
-      margin-top: 40px !important;
-      page-break-inside: avoid !important;
-  }
-  
-  #reportNotesSection h5 {
-      font-size: 14pt !important;
-      font-weight: bold;
-      margin-bottom: 10px !important;
-  }
-  
-  #reportNotesContent {
-      white-space: pre-wrap !important;
-      font-size: 12pt !important;
-      padding: 10px !important;
-      border: 1px solid #ddd !important;
-      background: #f9f9f9 !important;
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !Mimportant;
-      min-height: 50px !important;
-  }
-
-  /* Numeric columns */
-  #reportTableBody td:nth-child(3),
-  #reportTableBody td:nth-child(4),
-  #reportTableBody td:nth-child(5),
-  #reportTotalCertifiedAmount,
-  #reportTotalRetentionAmount,
-  #reportTotalPaymentAmount {
-    text-align: right !important;
-    font-family: monospace !important;
-    padding-right: 15px !important;
-  }
-  
-  #reportTableBody td:nth-child(1), /* P/N */
-  #reportTableBody td:nth-child(2), /* Cheque No. */
-  #reportTableBody td:nth-child(6) { /* Date Paid */
-      text-align: center !important;
-      vertical-align: middle !important;
-  }
-
-  /* === THIS IS THE CHANGED RULE === */
-  @page {
-    size: A4;
-    margin: 5mm; /* Reduced from 15mm */
-  }
+    border-radius: 20px;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.3);
 }
-/* =================================== */
-/* END OF PRINT STYLES                 */
-/* =================================== */
 
+.modal-header {
+    background-color: var(--primary-color);
+    color: white;
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+    padding: 20px 30px;
+}
 
-/* =================================== */
-/* MODIFIED: Login Screen Styles       */
-/* =================================== */
+.modal-body {
+    padding: 30px;
+    background-color: #f8f9fc;
+}
+
+/* ========================================= */
+/* LOGIN SCREEN                              */
+/* ========================================= */
 #loginScreen {
     display: flex;
     align-items: center;
@@ -470,106 +309,136 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: #0d2d52; /* CHANGED to dark blue */
+    background-color: var(--primary-color);
     z-index: 2000;
 }
 
 #loginCard {
     width: 100%;
     max-width: 400px;
-    border: none;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
-#loginBtn {
-    padding: 0.75rem;
-    font-size: 1rem;
-    font-weight: 600;
+/* ========================================= */
+/* PRINT REPORT STYLES                       */
+/* ========================================= */
+
+.report-header {
+  border-bottom: 2px solid #000;
+  padding-bottom: 15px;
+  margin-bottom: 20px;
+  text-align: left;
+  padding-left: 0;
+  margin-left: 0;
 }
 
-/* =================================== */
-/* NEW: Professional Results Table Styles */
-/* =================================== */
-
-.po-summary-table {
-    width: 100%;
-    margin-bottom: 0;
-    border-collapse: collapse;
+.report-logo {
+  max-height: 96px; 
+  width: auto;
+  display: inline-block;
 }
 
-.po-summary-table th,
-.po-summary-table td {
-    padding: 0.9rem 1rem;
-    vertical-align: middle;
+.report-details, .report-summary {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 15px;
 }
-
-.po-summary-table thead th {
-    background-color: #0d2d52; /* Dark Blue Header */
-    color: #ffffff;
-    font-weight: 600;
-    text-align: left;
-    border: none;
-    font-size: 0.9rem;
-    letter-spacing: 0.5px;
-}
-
-.po-summary-table tbody td {
-    background-color: #f8f9fa; /* Light grey background for data */
+.report-summary {
+    background-color: #f8f9fa;
+    padding: 15px;
     border: 1px solid #dee2e6;
-    border-top: none;
-    font-size: 1rem;
+}
+.report-details-col, .report-summary-col { width: 48%; }
+
+#reportModal table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+#reportModal table th, #reportModal table td { padding: 10px; border: 1px solid #dee2e6; }
+#reportModal table th { background-color: #343a40; color: white; text-align: center; }
+
+.signatures { display: flex; justify-content: space-between; margin-top: 60px; }
+.signature-box { text-align: center; width: 22%; }
+.signature-line { border-top: 1px solid #000; margin-top: 40px; width: 80%; display: inline-block;}
+
+/* === PRINT MODE OVERRIDES === */
+@media print {
+  body { visibility: hidden; background: white; margin: 0; padding: 0 !important; }
+  
+  #reportModal, #reportModal * { visibility: visible; }
+  
+  #reportModal { 
+      position: absolute; 
+      left: 0; 
+      top: 0; 
+      width: 100%; 
+      height: auto; 
+      margin: 0; 
+      padding: 0; 
+      display: block !important; 
+      overflow: visible !important; 
+  }
+  
+  #reportModal .modal-dialog { width: 100% !important; max-width: none; margin: 0; }
+  #reportModal .modal-content { border: none !important; box-shadow: none !important; }
+  .modal-header, .modal-footer, .btn-close { display: none !important; }
+  .modal-body { padding: 0 !important; }
+
+  /* Logo Fix */
+  .report-header { 
+      text-align: left !important; 
+      padding-left: 0 !important; 
+      margin-left: 0 !important; 
+      border-bottom: 2px solid #000 !important;
+      margin-bottom: 10px !important;
+  }
+  
+  .report-logo {
+      height: 2.5cm !important; 
+      width: auto !important;
+      max-height: none !important; 
+  }
+  
+  /* Compact Table Fix */
+  table {
+      font-size: 10pt !important; 
+      width: 100% !important;
+  }
+  
+  table th, table td {
+      padding: 4px 6px !important; 
+      font-size: 10pt !important;
+      border: 1px solid #000 !important;
+      color: #000 !important;
+  }
+  
+  table th {
+      background-color: #343a40 !important; 
+      color: white !important; 
+      -webkit-print-color-adjust: exact !important; 
+      print-color-adjust: exact !important;
+  }
+
+  .report-summary { 
+      background-color: #f8f9fa !important; 
+      -webkit-print-color-adjust: exact !important; 
+      print-color-adjust: exact !important; 
+      padding: 10px !important;
+      margin-bottom: 15px !important;
+  }
+  
+  #reportTableBody td:nth-child(3),
+  #reportTableBody td:nth-child(4),
+  #reportTableBody td:nth-child(5),
+  #reportTotalCertifiedAmount,
+  #reportTotalRetentionAmount,
+  #reportTotalPaymentAmount {
+    text-align: right !important;
+    font-family: monospace !important;
+  }
+  
+  @page { size: A4; margin: 5mm; }
 }
 
-.payment-details-wrapper {
-    padding: 1rem 1.5rem;
-    border: 1px solid #dee2e6;
-    border-top: none;
-    background-color: #fff;
-    margin-bottom: 1.5rem;
-}
-
-.payment-details-header {
-    font-weight: bold;
-    margin-bottom: 0.75rem;
-    font-size: 1.1rem;
-    color: #343a40;
-}
-
-.payment-details-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.payment-details-table th {
-    text-align: left;
-    background-color: #e9ecef;
-    color: #495057;
-    padding: 0.75rem;
-    border: 1px solid #dee2e6;
-    font-size: 0.85rem;
-    white-space: nowrap;
-}
-
-.payment-details-table td {
-    padding: 0.75rem;
-    border: 1px solid #dee2e6;
-    vertical-align: middle;
-}
-
-.payment-details-table tbody tr:nth-of-type(odd) {
-    background-color: #f8f9fa; /* Zebra striping */
-}
-
-/* Align numeric columns */
-.payment-details-table td:nth-child(3),
-.payment-details-table td:nth-child(4),
-.payment-details-table td:nth-child(5) {
-    text-align: right;
-    font-family: monospace;
-}
-
-/* NEW: Highlight class for form fields */
-.highlight-field {
-    background-color: #fff3cd !important; /* Light yellow highlight */
-    border-color: #ffe69c;
+@media (max-width: 768px) {
+    .sidebar { width: 70px; padding: 10px; border-radius: 0; }
+    .sidebar-brand span, .nav-link span { display: none; }
+    .main-content { margin-left: 70px; padding: 15px; }
+    .nav-link { justify-content: center; padding: 15px; }
 }
