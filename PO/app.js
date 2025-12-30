@@ -38,7 +38,6 @@ auth.onAuthStateChanged(user => {
     if (user) btn.classList.add("logout"); else btn.classList.remove("logout");
     btn.onclick = user ? logout : toggleLoginModal;
   }
-  // Optional: Reload GitHub data when admin logs in to ensure freshness
   if (user) loadGitHubMasterData(); 
 });
 
@@ -51,7 +50,6 @@ function logout() { auth.signOut(); }
 
 // ---------- CSV helpers ----------
 function parseCSV(raw) {
-  // Handle standard CSV parsing (robust against commas inside quotes if needed, but simple split used here as per original)
   return raw.replace(/\r/g,"").split("\n").map(l=>l.trim()).filter(Boolean).map(l=>l.split(",").map(v=>v.trim()));
 }
 function toNumberOrRaw(v){ const n=parseFloat(v); return isNaN(n)? v : n; }
@@ -69,24 +67,16 @@ async function loadGitHubMasterData() {
     const text = await response.text();
     const rows = parseCSV(text);
     
-    // CSV Header: ReqNum, PO, Supplier ID, Supplier Name, Project ID, Amount, Order Date, Buyer Name, Entry Person
-    // Index:      0       1   2            3              4           5       6           7           8
-    
-    // Clear old cache
     masterPOCache = {};
-    
-    // Skip header row (slice 1)
     rows.slice(1).forEach(cols => {
-      // Map GitHub columns to App columns
-      // App expects: Site, PO, IDNo, Vendor, Value
       const poNum = cols[1]; 
       if (poNum) {
         masterPOCache[poNum] = {
-          Site: cols[4] || "",       // Project ID -> Site
-          PO: cols[1] || "",         // PO -> PO
-          IDNo: cols[2] || "",       // Supplier ID -> ID No
-          Vendor: cols[3] || "",     // Supplier Name -> Vendor
-          Value: toNumberOrRaw(cols[5]) // Amount -> Value
+          Site: cols[4] || "",       
+          PO: cols[1] || "",         
+          IDNo: cols[2] || "",       
+          Vendor: cols[3] || "",     
+          Value: toNumberOrRaw(cols[5]) 
         };
       }
     });
@@ -99,11 +89,16 @@ async function loadGitHubMasterData() {
 // ---------- UI helpers ----------
 function formatNumber(val){ const num=parseFloat(val); if(isNaN(num)) return val??""; return num.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function generateAZFilter(){
-  const c=document.getElementById("letterFilter"); "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach(letter=>{
+  const c=document.getElementById("letterFilter"); 
+  if(!c) return;
+  c.innerHTML = "";
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach(letter=>{
     const btn=document.createElement("button"); btn.textContent=letter; btn.onclick=()=>filterByVendorLetter(letter); c.appendChild(btn);
   });
 }
-function renderRow(childKey, data){lastRenderedRows[childKey]=data;
+
+function renderRow(childKey, data){
+  lastRenderedRows[childKey]=data;
   const checked = selectedPOs[childKey] ? 'checked' : '';
   const tr=document.createElement('tr');
   tr.innerHTML =
@@ -116,6 +111,7 @@ function renderRow(childKey, data){lastRenderedRows[childKey]=data;
      <td><button onclick="showDeleteConfirm('${childKey}')">Delete</button></td>`;
   return tr;
 }
+
 function updateResultCount(){
   const count=document.querySelectorAll('#poTable tbody tr').length;
   const el=document.getElementById('resultCount');
@@ -158,8 +154,9 @@ function filterByVendorLetter(letter){
 }
 
 function searchRecords(){
-  currentSearchTerm=(document.getElementById('searchBox').value||"").toLowerCase();
-  lastSearchPO = document.getElementById('searchBox').value || "";
+  const searchInput = document.getElementById('searchBox');
+  currentSearchTerm=(searchInput.value||"").toLowerCase();
+  lastSearchPO = searchInput.value || "";
   currentVendorFilter=null;
 
   db.ref('records').once('value', snapshot=>{
@@ -209,20 +206,15 @@ function deleteRecord(key){
 // ---------- Add PO (Uses GitHub Data Now) ----------
 function openAddPOModal(){
   if (!auth.currentUser) { alert("Only admin can add PO"); return; }
-  
-  // Ensure we have the data
   if (Object.keys(masterPOCache).length === 0) {
       loadGitHubMasterData().then(() => {
           document.getElementById('addPOStatus').textContent = "GitHub Data Ready.";
       });
   }
-
-  var m = document.getElementById('addPOModal');
-  if (m) m.classList.remove('hidden');
-  var inp = document.getElementById('addPOInput');
-  var stat = document.getElementById('addPOStatus');
-  if (stat) stat.textContent = "";
-  if (inp) { inp.value = ""; setTimeout(function(){inp.focus();}, 0); }
+  document.getElementById('addPOModal')?.classList.remove('hidden');
+  const inp = document.getElementById('addPOInput');
+  if (document.getElementById('addPOStatus')) document.getElementById('addPOStatus').textContent = "";
+  if (inp) { inp.value = ""; setTimeout(()=>inp.focus(), 50); }
 }
 
 function closeAddPOModal(){
@@ -231,51 +223,34 @@ function closeAddPOModal(){
 
 function addPOFromModal(){
   if (!auth.currentUser) { alert("Only admin can add PO"); return; }
-  
-  var inp = document.getElementById('addPOInput');
-  var stat = document.getElementById('addPOStatus');
-  var po = (inp && inp.value ? inp.value : "").trim();
-  
+  const inp = document.getElementById('addPOInput');
+  const stat = document.getElementById('addPOStatus');
+  const po = (inp?.value || "").trim();
   if (!po) { if (stat) stat.textContent = "Please enter a PO number."; return; }
 
-  // 1. Check Local GitHub Cache first
   const masterData = masterPOCache[po];
-
   if (!masterData) {
     if (stat) stat.textContent = `PO ${po} not found in GitHub list.`;
     return;
   }
 
-  // 2. Check if already exists in Firebase 'records'
   const recRef = db.ref('records');
-  recRef.orderByChild("PO").equalTo(po).once('value').then(function(existsSnap){
+  recRef.orderByChild("PO").equalTo(po).once('value').then(existsSnap => {
     if (existsSnap.exists()) { 
       if (stat) stat.textContent = `PO ${po} already exists in records.`; 
-      if (inp) { inp.value = ""; inp.focus(); } 
       return; 
     }
-    
-    // 3. Add to Firebase
-    var newRef = recRef.push();
-    newRef.set(masterData).then(function(){
-      var tbody = document.querySelector('#poTable tbody');
+    const newRef = recRef.push();
+    newRef.set(masterData).then(() => {
+      const tbody = document.querySelector('#poTable tbody');
       if (tbody) { tbody.appendChild(renderRow(newRef.key, masterData)); updateResultCount(); }
       if (stat) stat.textContent = `Added PO ${po} ✔`;
       if (inp) { inp.value = ""; inp.focus(); }
     });
-  }).catch(function(e){
-    if (stat) stat.textContent = "Error: " + e.message;
-  });
+  }).catch(e => { if (stat) stat.textContent = "Error: " + e.message; });
 }
 
-// Enter key support for modal
-document.addEventListener('keydown', function(e){
-  var modal = document.getElementById('addPOModal');
-  if (!modal || modal.classList.contains('hidden')) return;
-  if (e.key === 'Enter') addPOFromModal();
-});
-
-// ---------- WhatsApp request (auto) ----------
+// ---------- WhatsApp request ----------
 function normalizeWhatsAppNumber(num){
   const digits=(num||"").replace(/\D/g,'');
   return digits.length===8 ? '974'+digits : digits; 
@@ -284,36 +259,19 @@ function normalizeWhatsAppNumber(num){
 async function sendWhatsAppRequestAuto() {
   const po = (lastSearchPO || document.getElementById('searchBox').value || "").trim();
   if (!po) { alert("Please enter a PO number first."); return; }
-
-  // Try to find vendor in GitHub cache first
-  let vendor = "";
-  if (masterPOCache[po]) {
-      vendor = masterPOCache[po].Vendor;
-  } else {
-      // Fallback: check old master-po in firebase if not in GitHub cache? 
-      // Or just leave empty. Let's try firebase briefly just in case.
-      try {
-        const snap = await db.ref('master-po/' + po).once('value');
-        if (snap.exists()) vendor = snap.val().Vendor;
-      } catch(e) { console.log("No vendor in db"); }
-  }
-
+  let vendor = masterPOCache[po] ? masterPOCache[po].Vendor : "";
   const target = normalizeWhatsAppNumber(WHATSAPP_REQUEST_NUMBER);
   const text = `Requesting original for the following:\nPO: ${po}\nVendor: ${vendor || '-'}`;
-  const url = `https://wa.me/${target}?text=${encodeURIComponent(text)}`;
-  window.open(url, '_blank');
-  document.getElementById('noResultsBar').classList.add('hidden');
+  window.open(`https://wa.me/${target}?text=${encodeURIComponent(text)}`, '_blank');
 }
 
 // ---------- Standard Uploads (Admin) ----------
-// Note: Upload Master PO is no longer strictly needed but kept if you want to use the old way too.
 function uploadCSV(){
   const file=document.getElementById('csvUpload').files[0];
   if(!file) return alert("Select a file");
   const reader=new FileReader();
   reader.onload=e=>{
     const rows=parseCSV(e.target.result);
-    // Header check omitted for brevity or can be re-added
     const body=rows.slice(1); const updates={};
     body.forEach(cols=>{
       const [Site,PO,IDNo,Vendor,Value]=cols;
@@ -324,17 +282,56 @@ function uploadCSV(){
   reader.readAsText(file);
 }
 
+// ---------- Login Modal ----------
+function toggleLoginModal() {
+  document.getElementById('loginModal').classList.toggle('hidden');
+}
+function popupLogin() {
+  const email = document.getElementById('popupEmail').value;
+  const pass = document.getElementById('popupPassword').value;
+  auth.signInWithEmailAndPassword(email, pass)
+    .then(() => toggleLoginModal())
+    .catch(err => alert(err.message));
+}
+
+// ---------- Menu Toggle ----------
+function toggleMenu() {
+  const menu = document.getElementById('sideMenu');
+  if (menu) menu.classList.toggle('show');
+}
+
 // ---------- Initializers ----------
-window.onload = ()=>{ 
+window.onload = () => { 
     generateAZFilter(); 
     updateSelectedCount(); 
-    loadGitHubMasterData(); // Load data on startup
+    loadGitHubMasterData(); 
+
+    // Fix: Enter key for main search box
+    const searchBox = document.getElementById('searchBox');
+    if (searchBox) {
+      searchBox.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') searchRecords();
+      });
+    }
+
+    // Row Click Delegation
+    const tbody = document.querySelector('#poTable tbody');
+    if (tbody) {
+      tbody.addEventListener('click', (e) => {
+        if (e.target.closest('input,button')) return;
+        const tr = e.target.closest('tr');
+        if (tr) {
+          const chk = tr.querySelector('input.rowSelect');
+          if (chk) { chk.checked = !chk.checked; }
+        }
+      });
+    }
 };
 
-// expose
+// Global Expose
 window.login=login; window.logout=logout;
-window.toggleLoginModal=toggleLoginModal;
-window.toggleMenu=()=>document.getElementById('sideMenu').classList.toggle('show');
+window.toggleLoginModal=toggleLoginModal; window.popupLogin=popupLogin;
+window.toggleMenu=toggleMenu;
 window.showTab=(id)=>{
   document.querySelectorAll('.tabContent').forEach(t=>t.classList.add('hidden'));
   document.getElementById(id).classList.remove('hidden');
@@ -347,22 +344,3 @@ window.uploadCSV=uploadCSV;
 window.downloadMainTemplate=()=>downloadCSV("progress_po_template.csv","Site,PO,ID No,Vendor,Value");
 window.addCheckedToCollection=addCheckedToCollection; window.viewCollection=viewCollection; window.clearCollection=clearCollection;
 window.sendWhatsAppRequestAuto=sendWhatsAppRequestAuto;
-
-// Row Click Delegation (Selection)
-(function attachRowClickDelegation(){
-  try {
-    var tbody = document.querySelector('#poTable tbody');
-    if (!tbody || tbody.__rowClickBound) return;
-    tbody.__rowClickBound = true;
-    tbody.addEventListener('click', function(e){
-      var ctrl = e.target.closest('input,button,a,select,label,textarea,svg');
-      if (ctrl) return;
-      var tr = e.target.closest('tr');
-      if (!tr) return;
-      var checkbox = tr.querySelector('input.rowSelect');
-      if (!checkbox) return;
-      checkbox.checked = !checkbox.checked;
-      checkbox.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-  } catch (err) {}
-})();
