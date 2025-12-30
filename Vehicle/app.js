@@ -284,7 +284,7 @@ async function loadBook8FromRTDB() {
 
 function loadCSVFromURL() {
     return new Promise((resolve, reject) => {
-        const url = "https://raw.githubusercontent.com/DC-database/Invoice/main/Vehicle.csv";
+        const url = "https://raw.githubusercontent.com/DC-database/Hub/main/Vehicle.csv";
         Papa.parse(url, {
             download: true,
             header: true,
