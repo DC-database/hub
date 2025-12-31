@@ -1,7 +1,7 @@
 // ======================
 // Application Version
 // ======================
-const APP_VERSION = "v5.0 (Final Complete)";
+const APP_VERSION = "v5.1 (Final Complete)";
 
 // ======================
 // Firebase Configuration
@@ -476,6 +476,19 @@ async function savePayment() {
       : value;
   });
 
+  // ============================================================
+  // DATE LOGIC UPDATE:
+  // 1. Always set 'dateEntered' to NOW (for both Add and Update)
+  // 2. Do NOT auto-fill 'datePaid' (User will enter manually)
+  // ============================================================
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  
+  // accurately track when this specific record was touched
+  paymentData.dateEntered = `${year}-${month}-${day}`;
+
   try {
     if (isEditing) {
       // Update existing
@@ -483,22 +496,13 @@ async function savePayment() {
       alert('Payment updated successfully!');
     } else {
       // Create new
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      paymentData.dateEntered = `${year}-${month}-${day}`;
-
       // Generate PVN if empty
       if (!paymentData.paymentNo) {
         const nextNumber = await getNextAvailablePVNNumber(paymentData);
         paymentData.paymentNo = generatePaymentNumber(nextNumber);
       }
       
-      // Ensure datePaid has fallback
-      if (!paymentData.datePaid) {
-          paymentData.datePaid = `${year}-${month}-${day}`;
-      }
+      // We no longer force datePaid to be today. If it's empty, it stays empty.
       
       await paymentsRef.push(paymentData);
       alert('Payment added successfully!');
@@ -526,6 +530,7 @@ async function addNewPaymentFromEdit() {
   });
 
   try {
+    // Set Date Ent. to today (System Audit)
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -537,19 +542,17 @@ async function addNewPaymentFromEdit() {
         paymentData.paymentNo = generatePaymentNumber(nextNumber);
     }
       
-    paymentData.chequeNo = ''; // Reset cheque
+    // Clear specific fields for the new copy
+    paymentData.chequeNo = ''; 
+    paymentData.datePaid = ''; // DATE LOGIC UPDATE: Clear date paid for manual entry
+    paymentData.note = ''; 
     
-    if (!paymentData.datePaid) {
-        paymentData.datePaid = `${year}-${month}-${day}`;
-    }
-    
-    paymentData.note = ''; // Reset note
     calculatePayment();
     paymentData.payment = document.getElementById('payment').value.replace(/,/g, '');
 
     await paymentsRef.push(paymentData);
     alert('New payment added successfully!');
-    elements.paymentModal.hide(); // Hide Modal
+    elements.paymentModal.hide(); 
     resetForm();
     searchPayments();
   } catch (error) { console.error('Error adding new payment:', error); }
@@ -564,17 +567,16 @@ function resetForm() {
   elements.addNewPaymentBtn.style.display = 'none';
   document.getElementById('paymentModalLabel').textContent = 'Add New Payment';
 
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  document.getElementById('datePaid').value = `${year}-${month}-${day}`;
+  // DATE LOGIC UPDATE:
+  // Keep Date Paid BLANK for manual entry
+  document.getElementById('datePaid').value = '';
 
   const fieldsToHighlight = ['certifiedAmount', 'retention', 'payment', 'datePaid', 'note'];
   fieldsToHighlight.forEach(fieldId => {
       document.getElementById(fieldId).classList.remove('highlight-field');
   });
 }
+
 
 function cancelEdit() {
     elements.paymentModal.hide();
