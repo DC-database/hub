@@ -796,23 +796,38 @@ window.handlePrintWaybill = async function(entry) {
     const isCompleted = COMPLETED_STATES.includes(primaryState);
     const isRejected = (primaryState === 'Rejected');
 
-    let title = isApproved ? "TRANSFER SLIP" : "DRAFT REQUEST";
+    // Build a clearer title per job type (Transfer / Usage / Restock / Return)
+    const jobTypeKey = String(primary.jobType || primary.for || primary.job || '').trim().toLowerCase();
+    const titleBase = (jobTypeKey === 'usage') ? 'USAGE SLIP'
+        : (jobTypeKey === 'restock') ? 'RESTOCK SLIP'
+        : (jobTypeKey === 'return') ? 'RETURN SLIP'
+        : 'TRANSFER SLIP';
+
+    let title = isApproved ? titleBase : "DRAFT REQUEST";
     let badgeText = isApproved ? "AUTHORIZED" : "PENDING APPROVAL";
     let badgeColor = isApproved ? "#00748C" : "#dc3545";
 
     if(isCompleted) { badgeText = "COMPLETED"; badgeColor = "#28a745"; }
-    if(isRejected) { title = "TRANSFER SLIP (VOID)"; badgeText = "REJECTED"; badgeColor = "#D32F2F"; }
+    if(isRejected) { title = `${titleBase} (REJECTED)`; badgeText = "REJECTED"; badgeColor = "#D32F2F"; }
 
-    // --- IMPORTANT FIX ---
-    // If a batch has mixed decisions (e.g., some Approved, some Rejected),
-    // the AUTHORIZED waybill must NOT list rejected/pending items.
-    // Updated per request: DO NOT show rejected items anywhere on the printed slip.
-    let includedItems = (isApproved || isCompleted)
-        ? batchItems.filter(i => APPROVED_STATES.includes(normalizeState(i)))
-        : batchItems;
-    // Safety fallback: if states are non-standard, avoid printing a blank slip.
-    if ((isApproved || isCompleted) && includedItems.length === 0) {
-        includedItems = batchItems;
+    const noticeBanner = isRejected
+        ? `<div style="margin-top:10px;margin-bottom:10px;padding:10px 12px;border:2px solid #D32F2F;color:#D32F2F;font-weight:900;text-align:center;text-transform:uppercase;letter-spacing:.6px;">Rejected items only</div>`
+        : '';
+
+    // --- IMPORTANT FIX (Mixed Control IDs) ---
+    // When a Control ID contains mixed decisions:
+    //  - AUTHORIZED/COMPLETED printout must show ONLY approved lines
+    //  - REJECTED printout must show ONLY rejected lines
+    // This prevents the receiver from being confused by unrelated lines.
+    let includedItems = batchItems;
+    if (isRejected) {
+        includedItems = batchItems.filter(i => normalizeState(i) === 'Rejected');
+        // Safety fallback: if state strings are inconsistent, print the clicked row only.
+        if (includedItems.length === 0) includedItems = [primary];
+    } else if (isApproved || isCompleted) {
+        includedItems = batchItems.filter(i => APPROVED_STATES.includes(normalizeState(i)));
+        // Safety fallback: if states are non-standard, avoid printing a blank slip.
+        if (includedItems.length === 0) includedItems = batchItems;
     }
 
     const buildItemRows = (items, startIndex = 0, showStatus = false) => {
@@ -826,7 +841,15 @@ window.handlePrintWaybill = async function(entry) {
 
             const prodId = item.productId || item.productID || '-';
             const prodName = item.productName || '-';
-            const details = item.details || '';
+            let details = item.details || '';
+            // For rejected slips, show the rejection note inline (if any) to avoid confusion.
+            if (state === 'Rejected' && item && item.note) {
+                const safeNote = String(item.note)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+                details = `${details}<div style="margin-top:4px;font-size:10px;color:#D32F2F;"><strong>Note:</strong> ${safeNote}</div>`;
+            }
 
             const statusCell = showStatus
                 ? `<td style="border-right:1px solid #000; padding:10px; border-top:1px solid #000; font-weight:bold; text-align:center; color:${state === 'Rejected' ? '#D32F2F' : '#333'};">${state || '-'}</td>`
@@ -919,6 +942,8 @@ window.handlePrintWaybill = async function(entry) {
     <h2 class="doc-title">${title}</h2>
     <div class="status-badge">${badgeText}</div>
   </div>
+
+  ${noticeBanner}
 
   <div class="grid-container">
     <div class="border-right">

@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "5.6.1";
+const APP_VERSION = "5.6.2";
 
 // DETECT INVENTORY CONTEXT
 // Inventory mode can be triggered by:
