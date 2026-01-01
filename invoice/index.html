@@ -20,7 +20,23 @@
 
 <audio id="login-sound" src="https://firebasestorage.googleapis.com/v0/b/ibainvoice-3ea51.firebasestorage.app/o/Open.mp3?alt=media&token=a71fd804-743c-42e7-a9e5-71adf8e3b44f"></audio>
 
-    <div id="app-container">
+<!-- Celebration Banner (admin-configurable, shows after successful login) -->
+<div id="celebration-overlay" class="celebration-overlay hidden" aria-hidden="true">
+    <div id="celebration-particles" class="celebration-particles" aria-hidden="true"></div>
+
+    <div id="celebration-banner" class="celebration-banner" role="dialog" aria-modal="true" aria-labelledby="celebration-title">
+        <div id="celebration-emoji" class="celebration-emoji" aria-hidden="true">🎆</div>
+        <div class="celebration-text">
+            <div id="celebration-title" class="celebration-title">Happy New Year 2026</div>
+            <div id="celebration-sub" class="celebration-sub">Welcome back — wishing you a successful year.</div>
+        </div>
+        <button id="celebration-close-btn" class="celebration-close-btn" aria-label="Close">×</button>
+    </div>
+
+    <div id="celebration-sound-hint" class="celebration-sound-hint hidden">Tap banner for sound 🔊</div>
+</div>
+
+<div id="app-container">
 
         <div id="login-view">
             <div class="form-container animated-card desktop-only-login">
@@ -559,7 +575,82 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="form-buttons-container" style="justify-content: flex-start; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;"><button type="submit" id="update-settings-button">Update Settings</button></div>
+                        
+                        <!-- Super Admin: Celebration Banner Settings -->
+                        <div id="celebration-settings-container" class="celebration-settings hidden">
+                            <h2 style="margin-top: 18px;">Celebration Banner</h2>
+                            <p class="small-muted" style="margin-top: -6px;">Super Admin only. Configure a festive banner (text + effects) that appears after login during a date range.</p>
+
+                            <div class="jobentry-form-2col">
+                                <div class="form-column">
+                                    <div class="form-group">
+                                        <div class="checkbox-group">
+                                            <input type="checkbox" id="celebration-enabled">
+                                            <label for="celebration-enabled">Enable banner</label>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="celebration-title-input">Banner Title</label>
+                                        <input type="text" id="celebration-title-input" placeholder="Happy New Year 2026">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="celebration-subtitle-input">Banner Subtitle</label>
+                                        <input type="text" id="celebration-subtitle-input" placeholder="Welcome back — wishing you a successful year.">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="celebration-emoji-input">Emoji</label>
+                                        <input type="text" id="celebration-emoji-input" maxlength="4" placeholder="🎆">
+                                    </div>
+                                </div>
+
+                                <div class="form-column">
+                                    <div class="form-group">
+                                        <label for="celebration-start-date">Start Date (Asia/Qatar)</label>
+                                        <input type="date" id="celebration-start-date">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="celebration-end-date">End Date (Asia/Qatar)</label>
+                                        <input type="date" id="celebration-end-date">
+                                        <p class="small-muted" style="margin-top: 6px;">Tip: leave empty to keep showing until you turn it off.</p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="celebration-show-mode">Show Frequency</label>
+                                        <select id="celebration-show-mode">
+                                            <option value="every_login">Every login</option>
+                                            <option value="once_per_device">Once per device</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <div class="checkbox-group">
+                                            <input type="checkbox" id="celebration-sound-enabled">
+                                            <label for="celebration-sound-enabled">Play fireworks sound</label>
+                                        </div>
+                                        <p class="small-muted" style="margin-top: 6px;">On mobile, sound may require a tap due to browser rules.</p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="celebration-sound-url">Sound URL (optional)</label>
+                                        <input type="url" id="celebration-sound-url" placeholder="https://.../fireworks.mp3">
+                                        <p class="small-muted" style="margin-top: 6px;">If empty, the system uses a built-in sound effect. Tip: you can paste a Firebase Storage mp3 link here.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-buttons-container" style="justify-content: flex-start; gap: 10px; flex-wrap: wrap;">
+                                <button type="button" id="celebration-preview-btn" class="secondary-btn">Preview</button>
+                                <button type="button" id="celebration-save-btn">Save Celebration</button>
+                                <button type="button" id="celebration-disable-btn" class="danger-btn">Turn Off</button>
+                            </div>
+
+                            <p id="celebration-settings-message" class="error-message" style="text-align: left;"></p>
+                        </div>
+<div class="form-buttons-container" style="justify-content: flex-start; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;"><button type="submit" id="update-settings-button">Update Settings</button></div>
                         <p id="settings-message" class="error-message" style="text-align: left;"></p>
                     </form>
                 </section>
@@ -1475,6 +1566,27 @@
                 <div id="im-batch-modal-results" class="table-wrapper" style="max-height: 40vh; overflow-y: auto;"><p>Enter a PO number to see existing invoices.</p></div>
             </div>
             <div class="modal-footer"><button id="im-batch-modal-add-selected-btn" class="download-btn">Add Selected to Batch</button><button class="secondary-btn modal-close-btn">Cancel</button></div>
+        </div>
+    </div>
+
+    <!-- Invoice Management: Batch Entry - Attention Picker Modal (Per Row) -->
+    <div id="im-attention-picker-modal" class="modal-overlay hidden">
+        <div class="modal-container" style="max-width: 720px;">
+            <div class="modal-header">
+                <h2>Select Attention</h2>
+                <button class="modal-close-btn" id="im-attention-picker-close">&times;</button>
+            </div>
+            <div class="modal-content">
+                <p style="margin-top: 0; color: #666;">Type to search, then select the correct person.</p>
+                <div class="form-group" style="margin: 0;">
+                    <label for="im-attention-picker-select">Attention Person</label>
+                    <select id="im-attention-picker-select"></select>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button class="secondary-btn" id="im-attention-picker-cancel">Cancel</button>
+                <button class="download-btn" id="im-attention-picker-apply"><i class="fa-solid fa-check"></i> Apply</button>
+            </div>
         </div>
     </div>
 

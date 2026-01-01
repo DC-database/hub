@@ -704,7 +704,7 @@ window.handlePrintWaybill = async function(entry) {
     const database = (typeof db !== 'undefined') ? db : firebase.database();
     // Historically, the identifier has been stored under different keys
     // (controlNumber / controlId / ref). Printing must be resilient to all.
-    const controlNo = entry.controlNumber || entry.controlId || entry.ref;
+    const controlNo = String(entry.controlNumber || entry.controlId || entry.ref || '').trim();
 
     // Company Logo (Firebase Storage)
     const WAYBILL_LOGO_URL = "https://firebasestorage.googleapis.com/v0/b/ibainvoice-3ea51.firebasestorage.app/o/iba_logo.png?alt=media&token=ccc85b7b-d41e-4242-9e27-08942efb3012";
@@ -723,6 +723,22 @@ window.handlePrintWaybill = async function(entry) {
         } else {
             batchItems = [entry];
         }
+
+		// Extra safety net:
+		// Some historical data sets have inconsistent indexing (controlNumber not indexed / saved under different keys).
+		// If the indexed query returns only 1 line but the control has multiple approved rows, do a one-time full scan.
+		if (controlNo && batchItems.length <= 1) {
+			try {
+				const allSnap = await database.ref('transfer_entries').once('value');
+				const matched = [];
+				allSnap.forEach(child => {
+					const v = child.val() || {};
+					const id = String(v.controlNumber || v.controlId || v.ref || '').trim();
+					if (id === controlNo) matched.push({ key: child.key, ...v });
+				});
+				if (matched.length > batchItems.length) batchItems = matched;
+			} catch (_) {}
+		}
     } catch(e) { batchItems = [entry]; }
 
     const getFullSiteName = (code) => {
@@ -756,7 +772,22 @@ window.handlePrintWaybill = async function(entry) {
 
     const printDate = new Date().toLocaleString();
 
-    const normalizeState = (item) => String((item && (item.remarks || item.status)) || '').trim();
+    // IMPORTANT:
+    // Some older records may have "remarks" stuck on a previous state (e.g. Pending)
+    // while "status" is already In Transit/Completed. For printing, we prefer the
+    // most advanced of the two so we don't accidentally hide valid lines.
+    const normalizeState = (item) => {
+        const r = String((item && item.remarks) || '').trim();
+        const s = String((item && item.status) || '').trim();
+
+        const isRejected = (x) => String(x || '').trim().toLowerCase() === 'rejected';
+        if (isRejected(r) || isRejected(s)) return 'Rejected';
+
+        const ADVANCED = ['Received', 'Completed', 'In Transit', 'Approved'];
+        if (ADVANCED.includes(s)) return s;
+        if (ADVANCED.includes(r)) return r;
+        return r || s;
+    };
     const APPROVED_STATES = ['In Transit', 'Approved', 'Completed', 'Received'];
     const COMPLETED_STATES = ['Completed', 'Received'];
 

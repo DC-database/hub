@@ -6,6 +6,164 @@
     100% { border-color: var(--iba-secondary-teal); box-shadow: 0 0 2px var(--iba-secondary-teal), 0 0 5px var(--iba-secondary-teal), 0 0 10px var(--iba-secondary-teal), inset 0 0 0 2px rgba(0,0,0,0.5); }
 }
 
+/* ================================
+   Celebration Banner Overlay (configurable)
+   - Shows after successful login if enabled within date range
+   - Banner style (no card)
+   ================================ */
+
+.celebration-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 999999;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.25);
+    padding: 16px;
+}
+
+.celebration-overlay.hidden { display: none; }
+
+.celebration-particles {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.celebration-particles span {
+    position: absolute;
+    width: 8px;
+    height: 14px;
+    border-radius: 3px;
+    opacity: 0.9;
+    transform: translateY(-10vh) rotate(0deg);
+    animation: celebration-fall 4.8s linear forwards;
+}
+
+@keyframes celebration-fall {
+    to {
+        transform: translateY(110vh) rotate(720deg);
+        opacity: 0.2;
+    }
+}
+
+.celebration-banner {
+    margin-top: 8vh;
+    width: min(92vw, 760px);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.25);
+    color: #ffffff;
+}
+
+.celebration-emoji {
+    font-size: 28px;
+    line-height: 1;
+}
+
+.celebration-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.celebration-title {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+}
+
+.celebration-sub {
+    font-size: 14px;
+    opacity: 0.92;
+}
+
+.celebration-close-btn {
+    margin-left: auto;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+    background: rgba(0, 0, 0, 0.25);
+    color: #ffffff;
+    font-size: 22px;
+    line-height: 34px;
+}
+
+.celebration-close-btn:hover { background: rgba(0, 0, 0, 0.35); }
+
+.celebration-sound-hint {
+    position: fixed;
+    top: calc(8vh + 92px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.35);
+    color: #ffffff;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.celebration-sound-hint.hidden { display: none; }
+
+.small-muted {
+    font-size: 12px;
+    color: #777;
+}
+
+.danger-btn { background-color: #dc3545 !important; }
+.danger-btn:hover { background-color: #c82333 !important; }
+
+@media (max-width: 480px) {
+    .celebration-banner {
+        width: 96vw;
+        border-radius: 18px;
+        margin-top: 6vh;
+        padding: 12px 12px;
+    }
+    .celebration-title { font-size: 18px; }
+    .celebration-sub { font-size: 13px; }
+    .celebration-close-btn { width: 34px; height: 34px; line-height: 32px; }
+}
+
+
+/* ========================================================================== */
+/* Invoice Management: Batch Entry - Attention Picker (Per Row) */
+/* ========================================================================== */
+
+/* Hide the inline Choices dropdown for the per-row Attention field.
+   We use a wider modal picker instead (much easier in a tight table). */
+#im-batch-entry-table td.batch-attention-cell .choices {
+    display: none !important;
+}
+
+#im-batch-entry-table td.batch-attention-cell {
+    min-width: 160px;
+}
+
+#im-batch-entry-table .batch-attention-btn {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+
 /* +++ Custom Variables +++ */
 :root {
     /* IBA Brand Palette */
