@@ -6,12 +6,64 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "5.3.9";
+const APP_VERSION = "5.5.9";
 
-// DETECT INVENTORY PAGE
-// This checks if the current browser URL has "inventory" in it (e.g., inventory.html)
-const isInventoryPage = window.location.href.toLowerCase().includes('inventory');
+// DETECT INVENTORY CONTEXT
+// Inventory mode can be triggered by:
+// - URL query: ?mode=inventory (used by the inventory clone)
+// - A dedicated inventory page (URL/title contains 'inventory')
+// - Body class 'inventory-page'
+// - Inventory view currently visible (single-page view switch)
+function isInventoryContext() {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const mode = (params.get('mode') || '').toLowerCase();
+        if (mode === 'inventory' || mode === 'materialstock' || mode === 'material-stock') return true;
+    } catch (e) { /* ignore */ }
 
+    const href = (window.location.href || '').toLowerCase();
+    const path = (window.location.pathname || '').toLowerCase();
+    const title = (document.title || '').toLowerCase();
+
+    if (document.body && document.body.classList.contains('inventory-page')) return true;
+    if (href.includes('inventory') || path.includes('inventory') || title.includes('inventory')) return true;
+
+    const invView = document.getElementById('inventory-view');
+    if (invView && !invView.classList.contains('hidden')) return true;
+
+	    // --- Detect "Workdesk clone" used for Inventory/Material Stock access ---
+	    // Some deployments use a stripped-down Workdesk layout that only shows:
+	    //   Active Task + Job Records + Material Stock + Logout
+	    // In that case we want Inventory-only behavior even if the URL/title
+	    // does not contain the word "inventory".
+	    try {
+	        const wdView = document.getElementById('workdesk-view');
+	        const wdNav = document.getElementById('workdesk-nav');
+	        const wdViewVisible = (!wdView || !wdView.classList.contains('hidden'));
+	        if (wdNav && wdViewVisible) {
+		            const navText = (wdNav.textContent || '').toLowerCase();
+		            // Prefer structural checks when possible (more robust than text)
+		            const hasMaterial = !!wdNav.querySelector('.wd-nav-material') || navText.includes('material stock');
+		            const hasActiveTask = !!wdNav.querySelector('.wd-nav-activetask') || navText.includes('active task');
+		            const hasJobRecords = !!wdNav.querySelector('.wd-nav-reporting') || navText.includes('job records');
+		            const hasDashboard = !!wdNav.querySelector('.wd-nav-dashboard') || navText.includes('dashboard');
+
+	            // Optional extra signal: the identifier line often shows "Inventory Access"
+	            const idEl = document.getElementById('wd-user-identifier');
+	            const idText = ((idEl && idEl.textContent) ? idEl.textContent : '').toLowerCase();
+	            const idSaysInventory = idText.includes('inventory');
+
+	            if (hasMaterial && hasActiveTask && hasJobRecords && (!hasDashboard || idSaysInventory)) {
+	                return true;
+	            }
+	        }
+	    } catch (e) { /* ignore */ }
+
+    return false;
+}
+
+// Keep legacy variable name for existing code paths
+const isInventoryPage = isInventoryContext();
 // Define what counts as an "Inventory Task"
 const INVENTORY_TYPES = ['Transfer', 'Restock', 'Return', 'Usage'];
 
@@ -155,6 +207,7 @@ let ecostDataTimestamp = 0;
 let allPOData = null;
 let allPODataByRef = null;
 let allInvoiceData = null;
+let ensuredPOInInvoiceDb = new Set(); // Auto-sync used POs into invoiceDb/purchase_orders
 let allApproverData = null;
 let allEpicoreData = null;
 let allSitesCSVData = null;
@@ -841,7 +894,17 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
                 console.log("Merging Manual POs into memory...");
                 if (!allPOData) allPOData = {};
                 Object.keys(manualPOData).forEach(poKey => {
-                    allPOData[poKey] = manualPOData[poKey]; // Add/Overwrite
+                    const normalizedKey = String(poKey || '').trim().toUpperCase();
+                    const poObj = manualPOData[poKey] || {};
+                    // Backward-compat: some older records used colon in keys (e.g. 'Project ID:')
+                    if (poObj['Project ID:'] && !poObj['Project ID']) poObj['Project ID'] = poObj['Project ID:'];
+                    if (poObj['Supplier Name:'] && !poObj['Supplier Name']) poObj['Supplier Name'] = poObj['Supplier Name:'];
+                    // More backward-compat / alternate headers
+                    if (poObj['Supplier'] && !poObj['Supplier Name']) poObj['Supplier Name'] = poObj['Supplier'];
+                    if (poObj['Supplier:'] && !poObj['Supplier Name']) poObj['Supplier Name'] = poObj['Supplier:'];
+                    if (poObj['Po'] && !poObj['PO']) poObj['PO'] = poObj['Po'];
+                    if (poObj['PO'] && !poObj['Po']) poObj['Po'] = poObj['PO'];
+                    allPOData[normalizedKey || poKey] = poObj; // Add/Overwrite
                 });
             }
             cacheTimestamps.poData = now;
@@ -1064,6 +1127,83 @@ async function fetchAndParseVendorsCSV(url) {
 // 4. GENERAL HELPER FUNCTIONS
 // ==========================================================================
 
+// --------------------------------------------------------------------------
+// QUICK COPY SHORTCUTS
+// Double-click supported fields to copy their current value to clipboard.
+// --------------------------------------------------------------------------
+
+function fallbackCopyText(text) {
+    try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.top = '-9999px';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        ta.setSelectionRange(0, ta.value.length);
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        return ok;
+    } catch (e) {
+        console.error('Fallback copy failed', e);
+        return false;
+    }
+}
+
+async function copyTextToClipboard(text, feedbackEl) {
+    if (!text) return false;
+
+    const doFeedback = () => {
+        if (!feedbackEl) return;
+        const originalBg = feedbackEl.style.backgroundColor;
+        feedbackEl.style.backgroundColor = '#d4edda'; // Light green flash
+        feedbackEl.style.transition = 'background-color 0.3s';
+        setTimeout(() => {
+            feedbackEl.style.backgroundColor = originalBg;
+        }, 450);
+    };
+
+    try {
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+            await navigator.clipboard.writeText(text);
+            doFeedback();
+            return true;
+        }
+    } catch (e) {
+        // Ignore and fall back
+    }
+
+    const ok = fallbackCopyText(text);
+    if (ok) doFeedback();
+    return ok;
+}
+
+function bindDblClickCopy(el, getTextFn, feedbackEl) {
+    if (!el) return;
+    if (el.dataset && el.dataset.dblcopyBound === '1') return;
+    if (el.dataset) el.dataset.dblcopyBound = '1';
+
+    el.addEventListener('dblclick', (e) => {
+        const raw = (typeof getTextFn === 'function')
+            ? getTextFn()
+            : (el.value !== undefined ? el.value : (el.innerText || el.textContent || ''));
+
+        const text = (raw || '').toString().trim();
+        if (!text) return;
+
+        e.preventDefault();
+
+        try {
+            if (typeof el.focus === 'function') el.focus();
+            if (typeof el.select === 'function') el.select();
+        } catch (err) { /* ignore */ }
+
+        copyTextToClipboard(text, feedbackEl || el);
+    });
+}
+
 function normalizeMobile(mobile) {
     const digitsOnly = mobile.replace(/\D/g, '');
     if (digitsOnly.length === 8) {
@@ -1217,37 +1357,72 @@ function formatFinanceDateLong(dateStr) {
     const year = date.getFullYear();
     return `${day}-${month}-${year}`;
 }
+
 function numberToWords(num) {
-    const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
-    const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-    const s = ['', 'Thousand', 'Million', 'Billion'];
-    const number = parseFloat(num).toFixed(2);
-    const [integerPart, fractionalPart] = number.split('.');
-    function toWords(n) {
-        if (n < 20) return a[n];
-        let digit = n % 10;
-        return b[Math.floor(n / 10)] + (digit ? ' ' + a[digit] : '');
+  const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+    'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  const scales = ['', 'Thousand', 'Million', 'Billion', 'Trillion'];
+
+  const n = parseFloat(String(num).replace(/,/g, ''));
+  if (!isFinite(n)) return '';
+
+  const fixed = n.toFixed(2);
+  const [intStr, fracStr] = fixed.split('.');
+
+  function twoDigits(x) {
+    if (x < 20) return a[x];
+    const tens = Math.floor(x / 10);
+    const ones = x % 10;
+    return b[tens] + (ones ? ' ' + a[ones] : '');
+  }
+
+  function threeDigits(x) {
+    const hundreds = Math.floor(x / 100);
+    const rem = x % 100;
+    let out = '';
+
+    if (hundreds) {
+      out += a[hundreds] + ' Hundred';
+      if (rem) out += ' and ' + twoDigits(rem);
+    } else if (rem) {
+      out += twoDigits(rem);
     }
-    function convert(nStr) {
-        if (nStr === '0') return 'Zero';
-        let words = '';
-        let i = nStr.length;
-        while (i > 0) {
-            let chunk = nStr.substring(Math.max(0, i - 3), i);
-            if (chunk !== '000') {
-                let num = parseInt(chunk);
-                words = (chunk.length === 3 && num < 100 ? 'and ' : '') + toWords(num % 100) + (num > 99 ? ' Hundred' + (num % 100 ? ' and ' : '') : '') + ' ' + s[(nStr.length - i) / 3] + ' ' + words;
-            }
-            i -= 3;
-        }
-        return words.trim().replace(/\s+/g, ' ');
+    return out.trim();
+  }
+
+  let words = '';
+  let s = intStr;
+  let scaleIndex = 0;
+
+  if (parseInt(s, 10) === 0) {
+    words = 'Zero';
+  } else {
+    const parts = [];
+    while (s.length > 0) {
+      const chunkStr = s.slice(-3);
+      s = s.slice(0, -3);
+      const chunkNum = parseInt(chunkStr, 10);
+
+      if (chunkNum) {
+        const chunkWords = threeDigits(chunkNum);
+        const scale = scales[scaleIndex];
+        parts.push((chunkWords + (scale ? ' ' + scale : '')).trim());
+      }
+      scaleIndex++;
     }
-    let words = convert(integerPart);
-    if (fractionalPart && parseInt(fractionalPart) > 0) {
-        words += ' and ' + parseInt(fractionalPart) + '/100';
-    }
-    return words.charAt(0).toUpperCase() + words.slice(1) + " Qatari Riyals Only";
+    words = parts.reverse().join(' ').trim();
+  }
+
+  // Keep the existing decimal style
+  if (fracStr && parseInt(fracStr, 10) > 0) {
+    words += ' and ' + fracStr + '/100';
+  }
+
+  return words.charAt(0).toUpperCase() + words.slice(1) + ' Qatari Riyals Only';
 }
+
+
 function debounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {
@@ -1552,6 +1727,7 @@ const imReportingPrintableArea = document.getElementById('im-reporting-printable
 const imDailyReportDateInput = document.getElementById('im-daily-report-date');
 const imDownloadDailyReportButton = document.getElementById('im-download-daily-report-button');
 const imDownloadWithAccountsReportButton = document.getElementById('im-download-with-accounts-report-button');
+const imReportingDownloadExcelButton = document.getElementById('im-reporting-download-btn');
 const reportingCountDisplay = document.getElementById('reporting-count-display');
 // Print Report Elements
 const imPrintReportTitle = document.getElementById('im-print-report-title');
@@ -1803,9 +1979,19 @@ function handleSuccessfulLogin() {
     }
     // [END] Auto-Open Inventory Mode
 
+    // --- Smart Live Sync: keep Invoice Records accurate without hard refresh ---
+    if (typeof window.startInvoiceSmartLiveSync === 'function') {
+        window.startInvoiceSmartLiveSync();
+    }
+
 }
 
 function handleLogout() {
+    // Stop background listeners to prevent leaks
+    if (typeof window.stopInvoiceSmartLiveSync === 'function') {
+        window.stopInvoiceSmartLiveSync();
+    }
+
     localStorage.removeItem('approverKey');
 
     if (dateTimeInterval) clearInterval(dateTimeInterval);
@@ -2004,6 +2190,44 @@ function showIMSection(sectionId) {
                 placeholderValue: 'Search by Note...'
             });
         }
+
+
+// Double-click copy shortcut: Batch Entry "Search by Note"
+try {
+    const noteSelectEl = document.getElementById('im-batch-note-search-select');
+    if (noteSelectEl && imBatchNoteSearchChoices) {
+        const choicesWrapper =
+            (noteSelectEl.parentElement && noteSelectEl.parentElement.querySelector('.choices')) ||
+            noteSelectEl.closest('.choices');
+
+        const feedbackEl = choicesWrapper
+            ? (choicesWrapper.querySelector('.choices__inner') || choicesWrapper)
+            : noteSelectEl;
+
+        if (choicesWrapper) {
+            bindDblClickCopy(choicesWrapper, () => {
+                // Prefer selected note labels
+                try {
+                    const selected = imBatchNoteSearchChoices.getValue();
+                    if (Array.isArray(selected) && selected.length) {
+                        return selected
+                            .map(x => (x.label || x.value || ''))
+                            .filter(Boolean)
+                            .join(', ');
+                    }
+                    if (selected && typeof selected === 'object') {
+                        return (selected.label || selected.value || '');
+                    }
+                } catch (e) { /* ignore */ }
+
+                // Fallback: whatever user typed into the search box
+                const inputEl = choicesWrapper.querySelector('input.choices__input');
+                return inputEl ? inputEl.value : '';
+            }, feedbackEl);
+        }
+    }
+} catch (e) { /* ignore */ }
+
         populateNoteDropdown(imBatchNoteSearchChoices).then(() => {
             if (savedBatchNoteSearch) imBatchNoteSearchChoices.setChoiceByValue(savedBatchNoteSearch);
         });
@@ -2036,14 +2260,23 @@ function showIMSection(sectionId) {
             currentReportData = [];
         }
         populateSiteFilterDropdown();
+        // Visibility rules (V5.5.3 update):
+        // - CSV/Excel downloads: Only Super Admin (Irwin)
+        // - Print Preview/List: All Admins (and Accounting)
+        const isSuperAdmin = (currentApprover?.Name || '') === 'Irwin';
+        const isAdminRole = (currentApprover?.Role || '').toLowerCase() === 'admin';
+        const posLower = (currentApprover?.Position || '').toLowerCase();
+        const isAccountingPos = posLower.includes('accounting') || posLower.includes('accounts') || posLower.includes('finance');
 
-        // Visibility check for Accounting-specific download buttons
-        const showReportBtns = isAccountingAdmin && (window.innerWidth > 768);
+        const showReportBtns = isSuperAdmin && (window.innerWidth > 768);
         if (imReportingDownloadCSVButton) imReportingDownloadCSVButton.style.display = showReportBtns ? 'inline-block' : 'none';
         if (imDownloadDailyReportButton) imDownloadDailyReportButton.style.display = showReportBtns ? 'inline-block' : 'none';
         if (imDownloadWithAccountsReportButton) imDownloadWithAccountsReportButton.style.display = showReportBtns ? 'inline-block' : 'none';
         if (imDailyReportDateInput) imDailyReportDateInput.style.display = showReportBtns ? 'inline-block' : 'none';
-        if (imReportingPrintBtn) imReportingPrintBtn.disabled = !isAccountingAdmin;
+        if (imReportingDownloadExcelButton) imReportingDownloadExcelButton.style.display = showReportBtns ? 'inline-block' : 'none';
+
+        const canPrintInvoiceReport = isAdminRole || isAccountingPos;
+        if (imReportingPrintBtn) imReportingPrintBtn.disabled = !canPrintInvoiceReport;
     }
 
     if (sectionId === 'im-payments') {
@@ -2232,6 +2465,8 @@ async function populateWorkdeskDashboard() {
             const poInvoices = allInvoiceData[poNumber];
             for (const invoiceKey in poInvoices) {
                 const inv = poInvoices[invoiceKey];
+                    // Skip completed SRV Done items (never show in Active Tasks)
+                    if (String(inv.status || '').trim() === 'SRV Done') continue;
                 const invoiceTask = {
                     key: `${poNumber}_${invoiceKey}`,
                     source: 'invoice',
@@ -2337,11 +2572,15 @@ async function populateAdminCalendarTasks() {
             const poInvoices = allInvoiceData[poNumber];
             for (const invoiceKey in poInvoices) {
                 const inv = poInvoices[invoiceKey];
+                    // Skip completed SRV Done items (never show in Active Tasks)
+                    if (String(inv.status || '').trim() === 'SRV Done') continue;
                 const isAssignedActive = isInvoiceTaskActive(inv);
                 const isUnassignedActive = unassignedStatuses.includes(inv.status) && (!inv.attention || inv.attention === '');
 
                 if (isAssignedActive || isUnassignedActive) {
-                    const poDetails = allPOData[poNumber] || {};
+                    const poDetails = (typeof getInvoicePurchaseOrderDetails === 'function')
+                    ? await getInvoicePurchaseOrderDetails(poNumber)
+                    : ((typeof allPOData !== 'undefined' && allPOData && allPOData[poNumber]) ? allPOData[poNumber] : {});
                     const transformedInvoice = {
                         key: `${poNumber}_${invoiceKey}`,
                         originalKey: invoiceKey,
@@ -2792,7 +3031,7 @@ function renderReportingTable(entries) {
     const inventoryTypes = ['Transfer', 'Restock', 'Return', 'Usage'];
     const tableHead = document.querySelector('#reporting-printable-area table thead');
 
-    if (inventoryTypes.includes(currentReportFilter)) {
+    if ((typeof isInventoryContext === 'function' && isInventoryContext()) || inventoryTypes.includes(currentReportFilter)) {
         tableHead.innerHTML = `
             <tr>
                 <th>Control ID</th><th>Product Name</th><th>Site Route</th>
@@ -2840,7 +3079,7 @@ function renderReportingTable(entries) {
             actions += `<button class="history-btn action-btn" onclick="showTransferHistory('${entry.key}')" style="padding:2px 6px; margin-right:5px; font-size:0.7rem; background:#17a2b8; color:white; border:none; border-radius:4px;" title="View History"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
 
             if (isAdmin) {
-                actions += `<button class="delete-btn transfer-delete-btn" data-key="${entry.key}" style="padding:2px 6px; font-size:0.7rem; border-radius:4px;">Del</button>`;
+                actions += `<button type="button" class="delete-btn transfer-delete-btn" data-key="${entry.key}" style="padding:2px 6px; font-size:0.7rem; border-radius:4px;">Del</button>`;
             }
 
             row.innerHTML = `
@@ -2888,8 +3127,13 @@ function renderReportingTable(entries) {
 function filterAndRenderReport(baseEntries = []) {
     let filteredEntries = [...baseEntries];
 
+    // 0. Inventory Mode: show ONLY material-stock (inventory) records in inventory clone
+    if (typeof isInventoryContext === 'function' && isInventoryContext()) {
+        filteredEntries = filteredEntries.filter(entry => INVENTORY_TYPES.includes(entry.for));
+    }
+
     // 1. Filter by Tab (Job Type)
-    if (currentReportFilter !== 'All') {
+    if (currentReportFilter && currentReportFilter !== 'All') {
         filteredEntries = filteredEntries.filter(entry => (entry.for || 'Other') === currentReportFilter);
     }
 
@@ -2937,7 +3181,11 @@ async function handleReportingSearch() {
         await reconcilePendingPRs();
 
         // 2. Build Tabs
-        const uniqueJobTypes = [...new Set(allSystemEntries.map(entry => entry.for || 'Other'))];
+        const baseEntries = (typeof isInventoryContext === 'function' && isInventoryContext())
+            ? allSystemEntries.filter(entry => INVENTORY_TYPES.includes(entry.for))
+            : allSystemEntries;
+
+        const uniqueJobTypes = [...new Set(baseEntries.map(entry => entry.for || 'Other'))];
         uniqueJobTypes.sort();
 
         let tabsHTML = '';
@@ -2956,11 +3204,11 @@ async function handleReportingSearch() {
 
         // Condition A: If user typed in Search box, show results immediately
         if (savedSearch && savedSearch.trim() !== '') {
-             filterAndRenderReport(allSystemEntries);
+             filterAndRenderReport(baseEntries);
         }
         // Condition B: If user clicked a tab (Filter is active), show results
         else if (currentReportFilter && currentReportFilter !== 'All') {
-             filterAndRenderReport(allSystemEntries);
+             filterAndRenderReport(baseEntries);
         }
         // Condition C: CLEAN START (No Search, No Tab Clicked)
         else {
@@ -3036,8 +3284,8 @@ function renderActiveTaskTable(tasks) {
                 '<th class="desktop-only">Vendor Name</th>' +
                 '<th class="desktop-only">Invoice Amount</th>' +
                 '<th class="desktop-only">Site</th>' +
-                '<th class="desktop-only col-group">Group</th>' +
                 '<th class="desktop-only">Date</th>' +
+                '<th class="desktop-only">Note</th>' +
                 '<th class="desktop-only">Status</th>' +
                 '<th class="desktop-only">Action</th>' +
             '</tr>';
@@ -3063,8 +3311,11 @@ function renderActiveTaskTable(tasks) {
         if (isTransferView) {
             // --- TRANSFER ROW (Standard) ---
             var actionButtons = '<button class="transfer-action-btn" data-key="' + task.key + '" style="background-color: #17a2b8; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 600;">Action</button>';
-            if (userRole === 'admin') {
-                actionButtons += '<button class="delete-btn transfer-delete-btn" data-key="' + task.key + '" style="margin-left: 5px; padding: 6px 12px;">Delete</button>';
+
+            // Inventory clone: Delete is handled in Job Records (Reporting) to avoid duplicate/confusing delete actions.
+            var inInventoryContext = (typeof isInventoryContext === 'function' && isInventoryContext());
+            if (userRole === 'admin' && !inInventoryContext) {
+                actionButtons += '<button type="button" class="delete-btn transfer-delete-btn" data-key="' + task.key + '" style="margin-left: 5px; padding: 6px 12px;">Delete</button>';
             }
 
             var fromLoc = task.fromSite || task.fromLocation || 'N/A';
@@ -3121,8 +3372,8 @@ function renderActiveTaskTable(tasks) {
                 '<td class="desktop-only">' + (task.vendorName || 'N/A') + '</td>' +
                 '<td class="desktop-only">' + formatCurrency(displayAmount) + '</td>' +
                 '<td class="desktop-only">' + (task.site || '') + '</td>' +
-                '<td class="desktop-only col-group">' + (task.group || '') + '</td>' +
                 '<td class="desktop-only">' + (task.date || '') + '</td>' +
+                '<td class="desktop-only">' + (task.note || '') + '</td>' +
                 '<td class="desktop-only">' + (task.remarks || 'Pending') + '</td>';
 
             var actionsCell = document.createElement('td');
@@ -3181,10 +3432,7 @@ async function populateActiveTasks() {
     activeTaskTableBody.innerHTML = `<tr><td colspan="10">Loading tasks...</td></tr>`;
 
     // --- SAFETY DEFINITIONS ---
-    const loc = window.location.pathname.toLowerCase();
-    const isMainPage = loc.endsWith('index.html') || loc === '/' || loc.endsWith('/');
-    const isInventoryPage = !isMainPage; 
-    const INVENTORY_TYPES = ['Transfer', 'Restock', 'Return', 'Usage'];
+    const isInventoryPage = (typeof isInventoryContext === 'function') ? isInventoryContext() : false;
     
     if (!currentApprover || !currentApprover.Name) {
         activeTaskTableBody.innerHTML = `<tr><td colspan="10">Could not identify user.</td></tr>`;
@@ -3194,6 +3442,45 @@ async function populateActiveTasks() {
     try {
         const currentUserName = currentApprover.Name;
         const currentUserSite = currentApprover.Site || ''; 
+
+// =============================================================
+// Direct-attention + site-match helpers (for accurate UI triggers)
+// Only tasks that are BOTH:
+//   1) attention == current user (case-insensitive), AND
+//   2) task site matches the user's site
+// will be allowed to trigger blink/color/count.
+// =============================================================
+const _norm = (v) => String(v || '').trim().toLowerCase();
+const _userNameNorm = _norm(currentUserName);
+const _userSiteNorm = _norm(currentUserSite);
+
+const isDirectAttentionForUser = (attentionVal) => _norm(attentionVal) === _userNameNorm;
+
+const isSiteMatchForUser = (taskSiteVal) => {
+    // Users with Site "All" can match any site.
+    if (_userSiteNorm === '' || _userSiteNorm === 'all') return true;
+
+    const raw = String(taskSiteVal || '').trim();
+    if (!raw) return true;
+    const siteLower = raw.toLowerCase();
+
+    // "All" / blank site means not restricting by site
+    if (siteLower === 'all') return true;
+
+    // Handle combined strings like "A ➔ B" or "Used at A"
+    if (siteLower.includes(_userSiteNorm)) return true;
+
+    // Fallback to ID-based matching (keeps old behavior)
+    const taskId = siteLower.split(' ')[0];
+    const userId = _userSiteNorm.split(' ')[0];
+    if (_userSiteNorm.includes(taskId)) return true;
+    if (siteLower.includes(userId)) return true;
+
+    return false;
+};
+
+const getTaskSiteForMatch = (t) =>
+    t.site || t.toSite || t.fromSite || t.toLocation || t.fromLocation || '';
         
         const nameLower = (currentApprover.Name || '').toLowerCase();
         const userPositionLower = (currentApprover.Position || '').toLowerCase();
@@ -3287,17 +3574,12 @@ async function populateActiveTasks() {
             let displayStatus = task.remarks || task.status || 'Pending';
             if (task.for === 'Invoice' && displayStatus === 'Pending') displayStatus = 'New Entry'; 
 
-            let isUrgent = (task.attention === currentUserName) || 
-                           (['Transfer', 'Restock'].includes(task.for) && task.receiver === currentUserName);
+            const taskSiteForMatch = getTaskSiteForMatch(task);
+let isUrgent = isDirectAttentionForUser(task.attention) && isSiteMatchForUser(taskSiteForMatch);
 
-            if (task.for === 'Invoice') {
-                isUrgent = (currentUserName === 'Irwin'); 
-            } 
-            else if (!isInventoryPage && !isUrgent && isAccounting) {
-                if (task.attention === 'Accounting' && task.remarks !== 'On Hold') isUrgent = true; 
-            }
-
-            if (task.remarks === 'SRV Done') isUrgent = false;
+// Keep existing "no action" states from triggering UI
+if (String(displayStatus || '').toLowerCase().includes('on hold')) isUrgent = false;
+if (task.remarks === 'SRV Done') isUrgent = false;
             
             const source = ['Transfer', 'Restock', 'Return', 'Usage'].includes(task.for) ? 'transfer_entry' : 'job_entry';
             return { ...task, source: source, isUrgent: isUrgent, remarks: displayStatus };
@@ -3306,6 +3588,8 @@ async function populateActiveTasks() {
         // --- B. INVOICE TASKS (Personal Notifications) ---
         if (!isInventoryPage) {
             const sanitizeFirebaseKey = (key) => key.replace(/[.#$[\]]/g, '_');
+            const cleanupPromises = []; // stale invoice task cleanup
+
             const safeCurrentUserName = sanitizeFirebaseKey(currentUserName);
             
             const [personalSnapshot, allSnapshot] = await Promise.all([
@@ -3313,7 +3597,7 @@ async function populateActiveTasks() {
                 invoiceDb.ref(`invoice_tasks_by_user/All`).once('value')
             ]);
 
-            const processInvoiceSnapshot = (snapshot) => {
+            const processInvoiceSnapshot = async (snapshot) => {
                 if (snapshot.exists()) {
                     const tasksData = snapshot.val();
                     for (const invoiceKey in tasksData) {
@@ -3321,7 +3605,64 @@ async function populateActiveTasks() {
                         const task = tasksData[invoiceKey];
                         const isFromAll = (snapshot.key === 'All');
 
-                        if (!task.attention || task.attention.trim() === '') { if (!isFromAll) continue; }
+                        // Fast cleanup: Completed invoice tasks should not appear in Active Tasks
+                        // (SRV Done, With Accounts, Paid, etc.). If found in inbox, remove it silently.
+                        try {
+                            const st = String(task.status || task.remarks || '').trim();
+                            const completed = ['With Accounts', 'SRV Done', 'Paid', 'On Hold', 'CLOSED', 'Cancelled'];
+                            if (completed.includes(st)) {
+                                cleanupPromises.push(invoiceDb.ref(`invoice_tasks_by_user/${snapshot.key}/${invoiceKey}`).remove());
+                                continue;
+                            }
+                        } catch (_) { /* ignore */ }
+
+
+                        // --- STALE TASK RECONCILE ---
+                        // If the invoice status/attention changed elsewhere (batch edits, etc.),
+                        // remove this stale inbox item so it won't keep showing.
+                        try {
+                            const latestInv = (allInvoiceData && task.po && allInvoiceData[task.po] && allInvoiceData[task.po][invoiceKey])
+                                ? allInvoiceData[task.po][invoiceKey]
+                                : null;
+
+                            if (latestInv && typeof isInvoiceTaskActive === 'function') {
+                                const latestIsActive = isInvoiceTaskActive(latestInv);
+                                const latestAttn = String(latestInv.attention || '').trim();
+                                const latestAttnKey = latestAttn ? sanitizeFirebaseKey(latestAttn) : '';
+                                const thisInboxKey = snapshot.key; // already sanitized
+
+                                let shouldRemoveFromThisInbox = false;
+
+                                // If task is no longer active (e.g., moved to With Accounts/Paid/etc.) => remove
+                                if (!latestIsActive) shouldRemoveFromThisInbox = true;
+
+                                // If attention moved to someone else => remove from this old inbox
+                                if (!shouldRemoveFromThisInbox) {
+                                    if (thisInboxKey === 'All') {
+                                        if (latestAttnKey && latestAttnKey !== 'All') shouldRemoveFromThisInbox = true;
+                                    } else {
+                                        if (latestAttnKey && latestAttnKey !== thisInboxKey) shouldRemoveFromThisInbox = true;
+                                    }
+                                }
+
+                                if (shouldRemoveFromThisInbox) {
+                                    cleanupPromises.push(
+                                        invoiceDb.ref(`invoice_tasks_by_user/${thisInboxKey}/${invoiceKey}`).remove()
+                                    );
+                                    // Optional repair: ensure it exists in the new attention inbox
+                                    if (latestIsActive && latestAttn && typeof updateInvoiceTaskLookup === 'function') {
+                                        cleanupPromises.push(
+                                            updateInvoiceTaskLookup(task.po, invoiceKey, latestInv, task.attention || '')
+                                        );
+                                    }
+                                    continue;
+                                }
+                            }
+                        } catch (e) {
+                            // ignore cleanup errors (never block UI)
+                        }
+
+                        if ((!task.attention || task.attention.trim() === '') && !isFromAll) { task.attention = (currentApprover ? currentApprover.Name : ''); }
                         if (isFromAll) {
                             let allowed = false;
                             if (currentUserSite === 'All') allowed = true;
@@ -3337,9 +3678,28 @@ async function populateActiveTasks() {
                         }
                         let finalAttention = task.attention || (isFromAll ? 'All' : currentUserName);
                         
-                        let isUrgent = false;
-                        if (finalAttention === currentUserName && task.status !== 'On Hold') isUrgent = true;
-                        
+                        const taskSiteForMatch = task.site;
+let isUrgent = isDirectAttentionForUser(finalAttention) &&
+               isSiteMatchForUser(taskSiteForMatch) &&
+               task.status !== 'On Hold';
+
+                        // Resolve PO details (POVALUE2.csv + invoiceDb/purchase_orders) for Vendor/Site fallback
+                        const poDetails = (typeof getInvoicePurchaseOrderDetails === 'function')
+                            ? await getInvoicePurchaseOrderDetails(task.po)
+                            : ((typeof allPOData !== 'undefined' && allPOData && allPOData[task.po]) ? allPOData[task.po] : {});
+
+                        const resolvedVendor = (task.vendorName && String(task.vendorName).trim() && String(task.vendorName).trim().toUpperCase() !== 'N/A')
+                            ? task.vendorName
+                            : (poDetails['Supplier Name'] || poDetails['Supplier Name:'] || poDetails['Supplier'] || poDetails['Supplier:'] || 'N/A');
+
+                        const resolvedSite = (task.site && String(task.site).trim() && String(task.site).trim().toUpperCase() !== 'N/A')
+                            ? task.site
+                            : (poDetails['Project ID'] || poDetails['Project ID:'] || 'N/A');
+
+                        const resolvedPOAmount = (task.amount && String(task.amount).trim() && String(task.amount).trim().toUpperCase() !== 'N/A')
+                            ? task.amount
+                            : (poDetails['Amount'] || poDetails.Amount || '');
+
                         userTasks.push({
                             key: `${task.po}_${invoiceKey}`,
                             originalKey: invoiceKey,
@@ -3348,44 +3708,57 @@ async function populateActiveTasks() {
                             for: 'Invoice',
                             ref: task.ref,
                             po: task.po,
-                            amount: task.amount,
-                            amountPaid: realAmountPaid || task.amount,
-                            site: task.site,
+                            amount: task.amount || resolvedPOAmount,
+                            amountPaid: realAmountPaid || task.amount || resolvedPOAmount,
+                            site: resolvedSite,
                             group: 'N/A',
                             attention: finalAttention, 
-                            enteredBy: 'Irwin',
+                            enteredBy: task.enteredBy || ((allInvoiceData && allInvoiceData[task.po] && allInvoiceData[task.po][invoiceKey]) ? (allInvoiceData[task.po][invoiceKey].enteredBy || '') : '') || 'Accounting',
                             date: formatYYYYMMDD(task.date),
                             remarks: task.status,
                             timestamp: Date.now(),
                             invName: task.invName,
-                            vendorName: (task.po && allPOData && allPOData[task.po]) ? (allPOData[task.po]['Supplier Name'] || 'N/A') : 'N/A',
+                            vendorName: resolvedVendor,
                             note: task.note,
                             isUrgent: isUrgent
                         });
                     }
                 }
             };
-            processInvoiceSnapshot(personalSnapshot);
-            processInvoiceSnapshot(allSnapshot);
+            await processInvoiceSnapshot(personalSnapshot);
+            await processInvoiceSnapshot(allSnapshot);
+
+            // Fire-and-forget cleanup of stale inbox items
+            if (cleanupPromises.length > 0) {
+                Promise.allSettled(cleanupPromises).catch(() => {});
+            }
         }
 
         // --- C. GLOBAL INVOICE LOOKUP ---
-        if (!isInventoryPage && allInvoiceData && allPOData) { 
+        if (!isInventoryPage && allInvoiceData) { 
             
-            const accStatuses = ['Pending', 'Report', 'Original PO', 'On Hold', 'Unresolved', 'In Process', 'SRV Done'];
+            const accStatuses = ['Pending', 'Report', 'Original PO', 'On Hold', 'Unresolved', 'In Process'];
             
             // [FIX HERE]: Removed 'For SRV' from this list.
             // This prevents "Site: All" users from automatically seeing 'For SRV' tasks.
-            const siteStatuses = ['Waiting Signature', 'Waiting Approval', 'SRV Done']; 
+            const siteStatuses = ['Waiting Signature', 'Waiting Approval']; 
 
             for (const poNumber in allInvoiceData) {
                 const poInvoices = allInvoiceData[poNumber];
-                const poDetails = allPOData[poNumber] || {};
-                const poSite = poDetails['Project ID'] || 'N/A';
+                const poDetails = (typeof getInvoicePurchaseOrderDetails === 'function')
+				? await getInvoicePurchaseOrderDetails(poNumber)
+				: (allPOData[poNumber] || {});
+	                // Prefer site from POVALUE2/allPOData. Fall back to invoice fields after inv is defined.
+	                const poSiteFromPO = poDetails['Project ID'] || poDetails['Project ID:'] || 'N/A';
 
                 for (const invoiceKey in poInvoices) {
                     if (pulledInvoiceKeys.has(invoiceKey)) continue; 
                     const inv = poInvoices[invoiceKey];
+                    // Skip completed SRV Done items (never show in Active Tasks)
+                    if (String(inv.status || '').trim() === 'SRV Done') continue;
+	                    const poSite = (poSiteFromPO && poSiteFromPO !== 'N/A')
+	                        ? poSiteFromPO
+	                        : (inv.site_name || inv.site || inv.siteName || 'N/A');
                     let shouldShow = false;
                     let isUrgent = false;
 
@@ -3403,23 +3776,19 @@ async function populateActiveTasks() {
                         }
                     }
 
-                    // [FIX 3] ATTENTION CHECK (Strict for "For SRV")
-                    // If Status is 'For SRV', visibility depends ENTIRELY on this block.
-                    if (inv.attention === 'All') {
-                        shouldShow = true;
-                        isUrgent = false; // "All" = Visible but NOT Urgent
-                    } 
-                    else if (inv.attention === currentUserName) {
-                        shouldShow = true;
-                        isUrgent = true; // Name Match = Urgent
-                    }
-                    else if (isAccounting && inv.attention === 'Accounting' && inv.status !== 'On Hold') {
-                        shouldShow = true;
-                        isUrgent = true;
-                    }
+                    // [FIX 3] ATTENTION CHECK (Direct attention ONLY triggers UI)
+// Visibility may still be granted by the blocks above, but
+// blink/color/count is ONLY for direct attention + site match.
+if (inv.attention === 'All') {
+    shouldShow = true;
+    isUrgent = false; // "All" = visible but NOT a direct action for a specific user
+} 
+else if (isDirectAttentionForUser(inv.attention)) {
+    shouldShow = true;
+    isUrgent = isSiteMatchForUser(poSite) && inv.status !== 'On Hold';
+}
 
-                    if (inv.status === 'SRV Done') isUrgent = false;
-
+                    
                     if (shouldShow) {
                         let effAttention = inv.attention;
                         if (!effAttention || effAttention === '') effAttention = isAccounting ? 'Accounting' : 'Site';
@@ -3434,15 +3803,15 @@ async function populateActiveTasks() {
                             po: poNumber,
                             amount: inv.invValue || '',
                             amountPaid: inv.amountPaid || inv.invValue || '',
-                            site: poSite,
+                            site: (poSite && poSite !== 'N/A') ? poSite : (inv.site || inv.site_name || 'N/A'),
                             group: 'N/A',
                             attention: effAttention, 
-                            enteredBy: 'Irwin',
+                            enteredBy: inv.enteredBy || inv.originEnteredBy || inv.updatedBy || 'Accounting',
                             date: formatYYYYMMDD(inv.invoiceDate),
                             remarks: inv.status,
                             timestamp: Date.now(),
                             invName: inv.invName || '',
-                            vendorName: poDetails['Supplier Name'] || 'N/A',
+                            vendorName: poDetails['Supplier Name'] || poDetails['Supplier Name:'] || poDetails['Supplier'] || poDetails['Supplier:'] || inv.vendorName || inv.vendor_name || 'N/A',
                             note: inv.note || '',
                             isUrgent: isUrgent 
                         });
@@ -3479,23 +3848,27 @@ async function populateActiveTasks() {
         });
 
         // --- D. Tab Calculation ---
-        const tabCounts = {};
-        const urgentTabCounts = {}; 
+// Tabs are built from ALL visible tasks, but blink/color/count is ONLY for
+// tasks that are direct-attention + site-match (task.isUrgent === true).
+const tabCountsAll = {};
+const directTabCounts = {};
 
-        userActiveTasks.forEach(task => {
-            let key = '';
-            if (['Transfer', 'Restock', 'Return', 'Usage'].includes(task.for)) {
-                key = task.for;
-            } else {
-                key = task.remarks || 'Pending';
-            }
-            tabCounts[key] = (tabCounts[key] || 0) + 1;
-            if (task.isUrgent === true) {
-                urgentTabCounts[key] = (urgentTabCounts[key] || 0) + 1;
-            }
-        });
+userActiveTasks.forEach(task => {
+    let key = '';
+    if (['Transfer', 'Restock', 'Return', 'Usage'].includes(task.for)) {
+        key = task.for;
+    } else {
+        key = task.remarks || 'Pending';
+    }
 
-        const uniqueTabs = Object.keys(tabCounts).sort();
+    tabCountsAll[key] = (tabCountsAll[key] || 0) + 1;
+
+    if (task.isUrgent === true) {
+        directTabCounts[key] = (directTabCounts[key] || 0) + 1;
+    }
+});
+
+const uniqueTabs = Object.keys(tabCountsAll).sort();
         let tabsHTML = '';
         const getTabColor = (statusRaw) => {
             const status = (statusRaw || '').toLowerCase();
@@ -3519,39 +3892,47 @@ async function populateActiveTasks() {
                 currentActiveTaskFilter = uniqueTabs[0];
             }
             uniqueTabs.forEach(tabName => {
-                const activeClass = (tabName === currentActiveTaskFilter) ? 'active' : '';
-                const hasUrgentTasks = (urgentTabCounts[tabName] || 0) > 0;
-                let tabColor, textColor, borderStyle, fontWeight, blinkClass;
+    const activeClass = (tabName === currentActiveTaskFilter) ? 'active' : '';
+    const directCount = (directTabCounts[tabName] || 0);
+    const hasDirectTasks = directCount > 0;
 
-                if (hasUrgentTasks) {
-                    const statusColor = getTabColor(tabName);
-                    tabColor = statusColor;
-                    textColor = statusColor;
-                    fontWeight = 'bold';
-                    borderStyle = `4px solid ${statusColor}`; 
-                    blinkClass = 'blink-tab'; 
-                } else {
-                    tabColor = '#6c757d'; 
-                    textColor = '#555';   
-                    fontWeight = 'normal';
-                    borderStyle = `1px solid #ddd`; 
-                    blinkClass = ''; 
-                }
-                tabsHTML += `
-                <button class="${activeClass} ${blinkClass}" 
-                        data-status-filter="${tabName}" 
-                        style="
-                            border-bottom: ${borderStyle}; 
-                            color: ${textColor}; 
-                            font-weight: ${fontWeight};
-                        ">
-                    ${tabName} 
-                    <span class="notification-badge" 
-                          style="background-color: ${tabColor}; color: white; font-size: 0.7rem; margin-left: 5px;">
-                        ${tabCounts[tabName]}
-                    </span>
-                </button>`;
-            });
+    let tabColor, textColor, borderStyle, fontWeight, blinkClass;
+
+    if (hasDirectTasks) {
+        const statusColor = getTabColor(tabName);
+        tabColor = statusColor;
+        textColor = statusColor;
+        fontWeight = 'bold';
+        borderStyle = `4px solid ${statusColor}`;
+        blinkClass = 'blink-tab';
+    } else {
+        // No direct attention tasks for this user in this tab => keep it grey (no count, no blink)
+        tabColor = '#6c757d';
+        textColor = '#555';
+        fontWeight = 'normal';
+        borderStyle = `1px solid #ddd`;
+        blinkClass = '';
+    }
+
+    const badgeHTML = hasDirectTasks
+        ? `<span class="notification-badge"
+                 style="background-color: ${tabColor}; color: white; font-size: 0.7rem; margin-left: 5px;">
+                ${directCount}
+           </span>`
+        : '';
+
+    tabsHTML += `
+    <button class="${activeClass} ${blinkClass}"
+            data-status-filter="${tabName}"
+            style="
+                border-bottom: ${borderStyle};
+                color: ${textColor};
+                font-weight: ${fontWeight};
+            ">
+        ${tabName}
+        ${badgeHTML}
+    </button>`;
+});
         } else {
             tabsHTML = '<button class="active" disabled>No Tasks</button>';
             activeTaskTableBody.innerHTML = `<tr><td colspan="10">You have no active tasks.</td></tr>`;
@@ -3580,7 +3961,7 @@ function handleActiveTaskSearch(searchTerm) {
                 (task.po && task.po.toLowerCase().includes(searchText)) ||
                 (task.vendorName && task.vendorName.toLowerCase().includes(searchText)) ||
                 (task.site && task.site.toLowerCase().includes(searchText)) ||
-                (task.group && task.group.toLowerCase().includes(searchText)) ||
+                (task.note && task.note.toLowerCase().includes(searchText)) ||
                 (task.date && task.date.toLowerCase().includes(searchText)) ||
                 (task.calendarDate && task.calendarDate.toLowerCase().includes(searchText))
             );
@@ -3599,66 +3980,79 @@ async function handleSRVDone(btn, key) {
     }
 
     try {
-        await ensureAllEntriesFetched();
-        
-        // 1. Identify where this task lives (Job Entry or Invoice DB?)
-        // Key format: "PO_Key" means Invoice DB. Just "Key" means Job Entry.
-        const isInvoiceDB = key.includes('_');
-        
-        let sender = 'Accounting'; // Default fallback
+        // Make sure invoice data is available when dealing with invoice tasks
+        if (typeof ensureInvoiceDataFetched === 'function') {
+            await ensureInvoiceDataFetched(false);
+        } else if (typeof ensureAllEntriesFetched === 'function') {
+            await ensureAllEntriesFetched(false);
+        }
+
+        const isInvoiceDB = String(key || '').includes('_');
+
+        let sender = 'Accounting';
+        let oldAttention = '';
         let poNumber = '';
         let invoiceKey = '';
 
         if (isInvoiceDB) {
-            // It's from Invoice DB
-            const parts = key.split('_');
-            poNumber = parts[0];
-            invoiceKey = parts[1];
-            
-            // We need to fetch the specific invoice to find 'enteredBy'
-            // Since we don't have the full object here, we default to Accounting
-            // UNLESS we can find it in our loaded data:
+            [poNumber, invoiceKey] = String(key).split('_');
+
+            // Normalize PO
+            poNumber = String(poNumber || '').trim().toUpperCase();
+
             if (allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][invoiceKey]) {
                 const invData = allInvoiceData[poNumber][invoiceKey];
-                // Use the creator if available, otherwise Accounting
-                sender = invData.enteredBy || 'Accounting';
+                sender = invData.enteredBy || invData.originEnteredBy || 'Accounting';
+                oldAttention = invData.attention || '';
+            } else {
+                // Fallback: fetch directly if cache is missing
+                const invSnap = await invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}`).once('value');
+                const invData = invSnap.val() || {};
+                sender = invData.enteredBy || invData.originEnteredBy || 'Accounting';
+                oldAttention = invData.attention || '';
             }
+
+            // Update Invoice Entry (correct path)
+            const updates = { status: 'SRV Done', attention: '', lastUpdated: firebase.database.ServerValue.TIMESTAMP };
+            await invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}`).update(updates);
+
+            // Move task from current user -> sender (keeps inbox clean)
+            const originalInvoice = (allInvoiceData && allInvoiceData[poNumber]) ? allInvoiceData[poNumber][invoiceKey] : {};
+            const updatedInvoiceData = { ...originalInvoice, ...updates };
+            if (typeof updateInvoiceTaskLookup === 'function') {
+                await updateInvoiceTaskLookup(poNumber, invoiceKey, updatedInvoiceData, oldAttention);
+            }
+            updateLocalInvoiceCache(poNumber, invoiceKey, updates);
+
+            if (window.logInvoiceHistory) {
+                await window.logInvoiceHistory(poNumber, invoiceKey, 'SRV Done', 'Marked SRV Done via Active Task');
+            }
+
         } else {
-            // It's a Job Entry
-            const jobEntry = allSystemEntries.find(e => e.key === key);
+            // Job Entry
+            if (typeof ensureAllEntriesFetched === 'function') await ensureAllEntriesFetched(false);
+            const jobEntry = (allSystemEntries || []).find(e => e.key === key);
+
             if (jobEntry) {
                 sender = jobEntry.enteredBy || 'Accounting';
+                oldAttention = jobEntry.attention || '';
             }
-        }
 
-        // 2. Perform the Update
-        if (isInvoiceDB) {
-            await invoiceDb.ref(`invoices/${poNumber}/${invoiceKey}`).update({
-                status: 'SRV Done',
-                attention: sender // <--- DYNAMIC SENDER ASSIGNMENT
-            });
-            
-            // Remove from Site User's "Personal" notification folder (cleanup)
-            // (Optional, but good practice to keep DB clean)
-        } else {
             await db.ref(`job_entries/${key}`).update({
                 remarks: 'SRV Done',
-                attention: sender // <--- DYNAMIC SENDER ASSIGNMENT
+                attention: '',
+                dateResponded: formatDate(new Date())
             });
         }
 
-        // 3. Log History
-        // (Simplified log for direct action)
-        console.log(`Task ${key} marked SRV Done. Returned to ${sender}.`);
+        alert('SRV Completed. Task removed from Active Tasks.');
 
-        alert(`SRV Completed. Task returned to ${sender}.`);
-        
-        // 4. Refresh
-        if (typeof populateActiveTasks === 'function') populateActiveTasks();
+        if (typeof populateActiveTasks === 'function') await populateActiveTasks();
 
     } catch (error) {
         console.error("Error marking SRV Done:", error);
         alert("Error updating status. Please try again.");
+    } finally {
         if (btn) {
             btn.disabled = false;
             btn.textContent = 'SRV Done';
@@ -4962,15 +5356,8 @@ async function handleJobEntrySearch(searchTerm) {
 
     jobEntryTableBody.innerHTML = '<tr><td colspan="8">Searching...</td></tr>';
 
-    // --- STRICT DETECTION ---
-    const loc = window.location.href.toLowerCase();
-    const docTitle = document.title.toLowerCase();
-    // Use Body Class
-    const isInventoryPage = document.body.classList.contains('inventory-page') || 
-                            loc.includes('inventory') || 
-                            docTitle.includes('inventory');
-
-    const INVENTORY_TYPES = ['Transfer', 'Restock', 'Return', 'Usage'];
+    // --- INVENTORY CONTEXT ---
+    const isInventoryPage = (typeof isInventoryContext === 'function') ? isInventoryContext() : false;
 
     try {
         await ensureAllEntriesFetched();
@@ -5254,10 +5641,10 @@ async function handleDeleteJobEntry(e) {
 const CURRENT_INVOICE_HANDLER = "Irwin"; 
 
 // ==========================================================================
-// UPDATED FUNCTION: handleUpdateJobEntry (Fixed "Gio" Bug)
+// UPDATED FUNCTION: handleUpdateJobEntry (Fixed "Gio" Bug + Fixed "Undefined" Crash)
 // ==========================================================================
 async function handleUpdateJobEntry(e) {
-    e.preventDefault();
+    if(e) e.preventDefault(); // Safety check if 'e' exists
     
     if (!currentlyEditingKey) {
         alert("No entry selected for update.");
@@ -5272,26 +5659,23 @@ async function handleUpdateJobEntry(e) {
     }
 
     // 2. Get Data
-    const jobData = getJobDataFromForm();
+    // We assume this function exists in your system as per your previous code
+    const jobData = typeof getJobDataFromForm === 'function' ? getJobDataFromForm() : null;
 
+    // Fallback if getJobDataFromForm isn't available (Safety)
     if (!jobData) {
+        // Try to grab manually if the helper function is missing
+        console.warn("getJobDataFromForm not found, check your code.");
         if(btn) { btn.disabled = false; btn.textContent = 'Update'; }
         return; 
     }
 
-    // --- FIX: CONTROLLED INVOICE LOGIC ---
-    // This block ensures "New Entry" invoices always go to the correct person (Irwin)
-    // and prevents "Gio" from being selected accidentally.
+    // --- YOUR CUSTOM INVOICE LOGIC (Preserved) ---
     if (jobData.for === 'Invoice') {
-        
-        // 1. Force Status to "New Entry"
         jobData.remarks = 'New Entry'; 
-
-        // 2. ASSIGN AUTOMATICALLY (Solves the "Gio" Bug)
-        // Instead of searching for "Accounting" (which finds Gio), we force the value 
-        // to be our configured handler (Irwin).
-        jobData.attention = CURRENT_INVOICE_HANDLER;
-
+        // Ensure CURRENT_INVOICE_HANDLER is defined, otherwise default to 'Irwin'
+        const handler = (typeof CURRENT_INVOICE_HANDLER !== 'undefined') ? CURRENT_INVOICE_HANDLER : 'Irwin';
+        jobData.attention = handler;
     }
 
     // 3. Validation
@@ -5301,7 +5685,6 @@ async function handleUpdateJobEntry(e) {
         return;
     }
     
-    // Strict Invoice Check
     if (jobData.for !== 'Invoice' && !jobData.attention) {
         alert('Please select an Attention user.');
         if(btn) { btn.disabled = false; btn.textContent = 'Update'; }
@@ -5313,9 +5696,14 @@ async function handleUpdateJobEntry(e) {
         const originalEntry = allSystemEntries.find(entry => entry.key === currentlyEditingKey);
 
         if (originalEntry) {
-            // Preserve immutable fields
-            jobData.enteredBy = originalEntry.enteredBy;
-            jobData.timestamp = originalEntry.timestamp;
+            // --- CRITICAL FIX START ---
+            // We verify 'enteredBy' exists. If not, we fallback to 'System' or You.
+            // This prevents the "values argument contains undefined" error.
+            const currentUser = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover.Name : 'System';
+            jobData.enteredBy = originalEntry.enteredBy || currentUser;
+            
+            jobData.timestamp = originalEntry.timestamp || firebase.database.ServerValue.TIMESTAMP;
+            // --- CRITICAL FIX END ---
             
             // If the user didn't change the Date field manually, keep original
             if(!jobData.date) jobData.date = originalEntry.date;
@@ -5324,28 +5712,31 @@ async function handleUpdateJobEntry(e) {
             if (jobData.attention !== originalEntry.attention) {
                 jobData.dateResponded = null; 
             } else {
-                // If attention matches ME and I am updating, assume I responded
-                // Note: Ensure 'currentApprover' is defined in your global scope
                 if (typeof currentApprover !== 'undefined' && currentApprover.Name === jobData.attention && !originalEntry.dateResponded) {
-                     jobData.dateResponded = formatDate(new Date());
+                     // Format date safely
+                     const today = new Date();
+                     jobData.dateResponded = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, '0') + "-" + String(today.getDate()).padStart(2, '0');
                 } else {
                     jobData.dateResponded = originalEntry.dateResponded || null;
                 }
             }
+        } else {
+            // Fallback if original not found
+             const currentUser = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover.Name : 'System';
+             jobData.enteredBy = currentUser;
+             jobData.timestamp = firebase.database.ServerValue.TIMESTAMP;
         }
 
         // 4. Update Database
         await db.ref(`job_entries/${currentlyEditingKey}`).update(jobData);
 
         // 5. Log History
-        // Ensure currentApprover is defined, otherwise use a generic name
         const updaterName = (typeof currentApprover !== 'undefined') ? currentApprover.Name : "System";
-        
         const historyEntry = {
             action: "Updated",
             by: updaterName,
             timestamp: Date.now(),
-            status: jobData.remarks,
+            status: jobData.remarks || "Updated",
             note: `Updated Attention to: ${jobData.attention}`
         };
         await db.ref(`job_entries/${currentlyEditingKey}/history`).push(historyEntry);
@@ -5355,24 +5746,14 @@ async function handleUpdateJobEntry(e) {
         // 6. Refresh UI
         await ensureAllEntriesFetched(true);
         
-        // Check if we have search text to maintain
         const currentSearch = sessionStorage.getItem('jobEntrySearch') || '';
-        if(typeof handleJobEntrySearch === 'function') {
-            handleJobEntrySearch(currentSearch);
-        }
-        
-        if(typeof populateActiveTasks === 'function') {
-            populateActiveTasks();
-        }
-
-        // Close Modal
-        if (typeof closeStandardJobModal === 'function') {
-            closeStandardJobModal();
-        }
+        if(typeof handleJobEntrySearch === 'function') handleJobEntrySearch(currentSearch);
+        if(typeof populateActiveTasks === 'function') populateActiveTasks();
+        if (typeof closeStandardJobModal === 'function') closeStandardJobModal();
 
     } catch (error) {
         console.error("Error updating job:", error);
-        alert('Failed to update. Check console.');
+        alert('Failed to update. Check console for details.');
     } finally {
         if(btn) { btn.disabled = false; btn.textContent = 'Update'; }
     }
@@ -6113,6 +6494,143 @@ function isInvoiceTaskActive(invoiceData) {
     return !!invoiceData.attention;
 }
 
+
+
+
+// -------------------------------------------------------------
+// PO DETAILS RESOLVER (CSV allPOData + Firebase purchase_orders)
+// Supports purchase_orders keyed by PO OR stored under push-ids with child "Po"/"PO".
+// Canonical output keys: "Supplier Name", "Project ID", "Amount"
+// -------------------------------------------------------------
+const __invoicePOCache = new Map();
+
+function __normalizePOKey(poNumber) {
+    const po = String(poNumber || '').trim();
+    if (!po) return '';
+    return po.toUpperCase();
+}
+
+function __normalizePODetails(raw) {
+    const d = raw || {};
+    const supplier =
+        d['Supplier Name'] || d['Supplier Name:'] || d['Supplier'] || d['Supplier:'] ||
+        d['supplier name'] || d['supplier'] || d['SUPPLIER NAME'] || d['SUPPLIER'] || '';
+    const projectId =
+        d['Project ID'] || d['Project ID:'] || d['Project'] || d['Project:'] ||
+        d['project id'] || d['PROJECT ID'] || '';
+    const amount =
+        d['Amount'] || d['amount'] || d.Amount || d.AMOUNT || '';
+
+    // Return a merged object but ensure canonical keys exist
+    return {
+        ...d,
+        'Supplier Name': supplier || d['Supplier Name'] || d['Supplier'] || '',
+        'Project ID': projectId || d['Project ID'] || '',
+        'Amount': amount || d['Amount'] || ''
+    };
+}
+
+async function getInvoicePurchaseOrderDetails(poNumber) {
+    const poKey = __normalizePOKey(poNumber);
+    if (!poKey) return {};
+
+    if (__invoicePOCache.has(poKey)) return __invoicePOCache.get(poKey);
+
+    // 1) Memory (POVALUE2.csv -> allPOData)
+    let details = (typeof allPOData !== 'undefined' && allPOData && allPOData[poKey]) ? allPOData[poKey] : null;
+
+    // 2) Firebase RTDB fallback (invoiceentry-b15a8 / purchase_orders)
+    if ((!details || Object.keys(details).length === 0) && typeof invoiceDb !== 'undefined' && invoiceDb) {
+        try {
+            // A) Direct key: purchase_orders/<PO>
+            const directSnap = await invoiceDb.ref(`purchase_orders/${poKey}`).once('value');
+            if (directSnap.exists()) details = directSnap.val();
+        } catch (_) { /* ignore */ }
+
+        // B) Query by child "Po" or "PO" if the records are stored under push-ids
+        if (!details || Object.keys(details).length === 0) {
+            const tryQuery = async (child, value) => {
+                try {
+                    const snap = await invoiceDb.ref('purchase_orders').orderByChild(child).equalTo(value).once('value');
+                    if (snap.exists()) {
+                        const obj = snap.val() || {};
+                        const firstKey = Object.keys(obj)[0];
+                        return firstKey ? obj[firstKey] : null;
+                    }
+                } catch (_) { /* ignore */ }
+                return null;
+            };
+
+            details = await tryQuery('Po', poKey) ||
+                      await tryQuery('PO', poKey) ||
+                      await tryQuery('po', poKey) ||
+                      null;
+
+            // Some DBs store Po as number. Try numeric query too.
+            if ((!details || Object.keys(details).length === 0) && /^\d+$/.test(poKey)) {
+                const n = Number(poKey);
+                details = await tryQuery('Po', n) || await tryQuery('PO', n) || await tryQuery('po', n) || details;
+            }
+        }
+    }
+
+    const normalized = __normalizePODetails(details || {});
+    __invoicePOCache.set(poKey, normalized);
+    return normalized;
+}
+async function ensurePORecordInInvoiceDb(poNumber) {
+    try {
+        if (!poNumber || typeof invoiceDb === 'undefined' || !invoiceDb) return;
+        const po = String(poNumber).trim().toUpperCase();
+        if (!po) return;
+
+        // Avoid hammering the DB: only sync each PO once per session
+        if (typeof ensuredPOInInvoiceDb !== 'undefined' && ensuredPOInInvoiceDb.has(po)) return;
+        if (typeof ensuredPOInInvoiceDb !== 'undefined') ensuredPOInInvoiceDb.add(po);
+
+        const mem = (allPOData && allPOData[po]) ? allPOData[po] : null;
+
+        // Quick exit if we have nothing to sync
+        if (!mem) {
+            // Still check if an older record exists with colon-keys and normalize it once
+            const snap = await invoiceDb.ref(`purchase_orders/${po}`).once('value');
+            const existing = snap.val();
+            if (existing && existing['Project ID:'] && !existing['Project ID']) {
+                await invoiceDb.ref(`purchase_orders/${po}`).update({ 'Project ID': existing['Project ID:'] });
+            }
+            if (existing && existing['Supplier Name:'] && !existing['Supplier Name']) {
+                await invoiceDb.ref(`purchase_orders/${po}`).update({ 'Supplier Name': existing['Supplier Name:'] });
+            }
+            if (existing && existing['Supplier'] && !existing['Supplier Name']) {
+                await invoiceDb.ref(`purchase_orders/${po}`).update({ 'Supplier Name': existing['Supplier'] });
+            }
+            return;
+        }
+
+        const supplier = mem['Supplier Name'] || mem['Supplier Name:'] || mem['Supplier'] || mem['Supplier:'] || '';
+        const projectId = mem['Project ID'] || mem['Project ID:'] || '';
+        const amount = mem.Amount || mem['Amount'] || '';
+
+        const ref = invoiceDb.ref(`purchase_orders/${po}`);
+        const snap = await ref.once('value');
+        const existing = snap.val();
+
+        // Build minimal upsert payload (only what you asked for + safe extras)
+        const upsert = {};
+        if (!existing) upsert['PO'] = po;
+        if (supplier) { upsert['Supplier Name'] = supplier; upsert['Supplier'] = supplier; }
+        if (projectId) upsert['Project ID'] = projectId;
+        if (amount && (!existing || !existing.Amount)) upsert['Amount'] = amount;
+        if (!existing) upsert['IsManual'] = false;
+
+        if (Object.keys(upsert).length > 0) {
+            await ref.update(upsert);
+        }
+    } catch (err) {
+        console.warn("PO auto-sync to purchase_orders failed:", err);
+    }
+}
+
 async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAttention) {
     const sanitizeFirebaseKey = (key) => key.replace(/[.#$[\]]/g, '_');
     const newAttention = invoiceData.attention;
@@ -6120,21 +6638,58 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
 
     // 1. Add to new user's inbox
     if (isTaskNowActive && newAttention) {
-        const poDetails = (poNumber && allPOData && allPOData[poNumber]) ? allPOData[poNumber] : {};
+        const poKey = String(poNumber || '').trim().toUpperCase();
+
+        // Keep purchase_orders in-sync for any PO that is actually used in the invoice system
+        if (typeof ensurePORecordInInvoiceDb === 'function') {
+            await ensurePORecordInInvoiceDb(poKey);
+        }
+
+        // Resolve PO details (POVALUE2.csv + invoiceDb/purchase_orders)
+        const poDetails = (typeof getInvoicePurchaseOrderDetails === 'function')
+            ? await getInvoicePurchaseOrderDetails(poKey)
+            : ((poKey && allPOData && allPOData[poKey]) ? allPOData[poKey] : {});
+
+        const vendorName =
+            invoiceData.vendorName ||
+            invoiceData.vendor_name ||
+            poDetails['Supplier Name'] ||
+            poDetails['Supplier Name:'] ||
+            poDetails['Supplier'] ||
+            poDetails['Supplier:'] ||
+            'N/A';
+
+        const site =
+            invoiceData.site ||
+            invoiceData.site_name ||
+            poDetails['Project ID'] ||
+            poDetails['Project ID:'] ||
+            poDetails['Project ID:'] ||
+            'N/A';
+
+        const sender =
+            invoiceData.enteredBy ||
+            invoiceData.originEnteredBy ||
+            invoiceData.createdBy ||
+            '';
 
         const taskData = {
-            ref: invoiceData.invNumber || '',
-            po: poNumber,
+            // include these so Workdesk can route back correctly
+            attention: newAttention,
+            enteredBy: sender,
 
-            // FIX: Save BOTH amounts
+            ref: invoiceData.invNumber || '',
+            po: poKey,
+
+            // Save BOTH amounts
             amount: invoiceData.invValue || '', // Total Invoice Value
             amountPaid: invoiceData.amountPaid || '', // Actual Payment Amount
 
             date: invoiceData.invoiceDate || getTodayDateString(),
             releaseDate: invoiceData.releaseDate || '',
             status: invoiceData.status || 'Pending',
-            vendorName: poDetails['Supplier Name'] || 'N/A',
-            site: poDetails['Project ID'] || 'N/A',
+            vendorName: vendorName,
+            site: site,
             invName: invoiceData.invName || '',
             note: invoiceData.note || ''
         };
@@ -6592,11 +7147,10 @@ async function populateActiveJobsSidebar() {
 
     // Filter tasks
     var tasksToDisplay = userActiveTasks;
-    var invoiceJobs = tasksToDisplay.filter(function(task) {
-        if (task.source === 'invoice' && task.attention === currentApprover.Name) return true;
-        if (task.source === 'job_entry' && task.for === 'Invoice' && (currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'accounting')) return true;
-        return false;
-    });
+	// Show ONLY Job Entries created under Job Entry -> "Invoice" (no invoice approval tasks, no other job types)
+	var invoiceJobs = tasksToDisplay.filter(function(task) {
+		return (task.source === 'job_entry' && task.for === 'Invoice');
+	});
 
     // Update Header Count
     if (activeJobsSidebarCountDisplay) {
@@ -6885,9 +7439,11 @@ async function handleAddInvoice(e) {
 
     const formData = new FormData(imNewInvoiceForm);
     const invoiceData = Object.fromEntries(formData.entries());
+    
     // SANITIZE: Remove commas before saving
     if (invoiceData.invValue) invoiceData.invValue = invoiceData.invValue.replace(/,/g, '');
     if (invoiceData.amountPaid) invoiceData.amountPaid = invoiceData.amountPaid.replace(/,/g, '');
+    
     let attentionValue = imAttentionSelectChoices.getValue(true);
     invoiceData.attention = (attentionValue === 'None') ? '' : attentionValue;
 
@@ -6897,8 +7453,6 @@ async function handleAddInvoice(e) {
     }
 
     // --- NEW: STRICT VALIDATION ---
-    // 1. Check if required fields are filled
-    // Note: We skip 'Attention' check ONLY if status is 'Under Review' or 'With Accounts'
     const isAttentionRequired = (invoiceData.status !== 'Under Review' && invoiceData.status !== 'With Accounts');
 
     if (!invoiceData.invNumber || !invoiceData.invValue || !invoiceData.invoiceDate || !invoiceData.status) {
@@ -6924,6 +7478,26 @@ async function handleAddInvoice(e) {
 
     invoiceData.dateAdded = getTodayDateString();
     invoiceData.createdAt = firebase.database.ServerValue.TIMESTAMP;
+    
+    // [SMART REFRESH] 1. Add Timestamp to record
+    invoiceData.lastUpdated = firebase.database.ServerValue.TIMESTAMP;
+
+    // Track who created it (used for "return to sender" workflow)
+    invoiceData.enteredBy = (typeof currentUserName !== 'undefined' && currentUserName) ? currentUserName : (currentApprover?.Name || '');
+
+    // Persist vendor/site on the invoice record as a fallback (prevents N/A if PO lookup fails)
+    const _poDetailsForInv = (allPOData && allPOData[currentPO]) ? allPOData[currentPO] : {};
+    invoiceData.vendor_name = invoiceData.vendor_name || _poDetailsForInv['Supplier Name'] || _poDetailsForInv['Supplier Name:'] || '';
+    invoiceData.site_name = invoiceData.site_name || _poDetailsForInv['Project ID'] || _poDetailsForInv['Project ID:'] || '';
+
+    // Also keep a simple alias for older screens
+    invoiceData.vendorName = invoiceData.vendorName || invoiceData.vendor_name;
+    invoiceData.site = invoiceData.site || invoiceData.site_name;
+
+    // Ensure this PO exists in invoiceDb/purchase_orders so tasks always have Vendor + Site
+    if (typeof ensurePORecordInInvoiceDb === 'function') {
+        await ensurePORecordInInvoiceDb(currentPO);
+    }
 
     if (jobEntryToUpdateAfterInvoice) {
         const originJobEntry = allSystemEntries.find(entry => entry.key === jobEntryToUpdateAfterInvoice);
@@ -6942,6 +7516,11 @@ async function handleAddInvoice(e) {
     try {
         const newRef = await invoiceDb.ref(`invoice_entries/${currentPO}`).push(invoiceData);
         const newKey = newRef.key;
+
+        // [SMART REFRESH] 2. Log this update so "Smart Refresh" can find it
+        if (typeof logRecentUpdate === 'function') {
+            logRecentUpdate(currentPO);
+        }
 
         await updateInvoiceTaskLookup(currentPO, newKey, invoiceData, null);
 
@@ -7038,6 +7617,15 @@ async function handleUpdateInvoice(e) {
         }
     }
 
+    // [SMART REFRESH] 1. Add Timestamp to record so we know when it changed
+    invoiceData.lastUpdated = firebase.database.ServerValue.TIMESTAMP;
+
+// Ensure this PO exists in invoiceDb/purchase_orders so tasks always have Vendor + Site
+if (typeof ensurePORecordInInvoiceDb === 'function') {
+    await ensurePORecordInInvoiceDb(currentPO);
+}
+
+
     Object.keys(invoiceData).forEach(key => {
         if (invoiceData[key] === null || invoiceData[key] === undefined) delete invoiceData[key];
     });
@@ -7045,6 +7633,11 @@ async function handleUpdateInvoice(e) {
     try {
         // 1. Update the Invoice in the Invoice Database
         await invoiceDb.ref(`invoice_entries/${currentPO}/${currentlyEditingInvoiceKey}`).update(invoiceData);
+
+        // [SMART REFRESH] 2. Log this update so "Smart Refresh" can find it
+        if (typeof logRecentUpdate === 'function') {
+            logRecentUpdate(currentPO);
+        }
 
         // ============================================================
         // [START] JOB ENTRY SYNC FIX - AUTO COMPLETE JOB
@@ -7201,7 +7794,7 @@ async function populateSiteFilterDropdown() {
 // --- STATE TRACKING VARIABLE ---
 let imLastExpandedRowId = null;
 
-async function populateInvoiceReporting(searchTerm = '') {
+async function populateInvoiceReporting(searchTerm = '', options = {}) {
     const openRow = document.querySelector('#im-reporting-content .detail-row:not(.hidden)');
     if (openRow) {
         imLastExpandedRowId = openRow.id;
@@ -7210,6 +7803,8 @@ async function populateInvoiceReporting(searchTerm = '') {
     }
 
     sessionStorage.setItem('imReportingSearch', searchTerm);
+
+    const silent = options && options.silent;
 
     const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
     const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
@@ -7220,17 +7815,22 @@ async function populateInvoiceReporting(searchTerm = '') {
     const desktopContainer = document.getElementById('im-reporting-content');
     const mobileContainer = document.getElementById('im-reporting-mobile-view');
 
-    if (isMobile) {
-        if (mobileContainer) mobileContainer.innerHTML = `
+    if (!silent) {
+        if (isMobile) {
+            if (mobileContainer) mobileContainer.innerHTML = `
             <div class="im-mobile-empty-state">
                 <i class="fa-solid fa-spinner fa-spin"></i>
                 <h3>Searching...</h3>
                 <p>Please wait a moment.</p>
             </div>`;
-        if (desktopContainer) desktopContainer.innerHTML = '';
+            if (desktopContainer) desktopContainer.innerHTML = '';
+        } else {
+            if (desktopContainer) desktopContainer.innerHTML = '<p>Searching... Please wait.</p>';
+            if (mobileContainer) mobileContainer.innerHTML = '';
+        }
     } else {
-        if (desktopContainer) desktopContainer.innerHTML = '<p>Searching... Please wait.</p>';
-        if (mobileContainer) mobileContainer.innerHTML = '';
+        // Silent refresh: avoid blanking the UI while we rebuild results
+        if (reportingCountDisplay) reportingCountDisplay.textContent = '(Updating...)';
     }
 
     const siteFilter = document.getElementById('im-reporting-site-filter').value;
@@ -7792,23 +8392,33 @@ function handleGeneratePrintReport() {
         imPrintReportBody.appendChild(poContainer);
     });
 
+        // Ensure other print targets are hidden (prevents conflicts / blank prints)
     if (summaryNotePrintArea) summaryNotePrintArea.classList.add('hidden');
+    const invoicePrintModal = document.getElementById('im-invoice-print-modal');
+    if (invoicePrintModal) invoicePrintModal.classList.add('hidden');
+
     if (imReportingPrintableArea) imReportingPrintableArea.classList.remove('hidden');
 
-    window.print();
-
-    if (imPrintReportSummaryPaid && imPrintReportSummaryPaid.parentElement) {
-        const parentDiv = imPrintReportSummaryPaid.parentElement;
-        const labelSpan = parentDiv.querySelector('span');
-        if (labelSpan) {
-            labelSpan.textContent = 'Total Amount Paid';
+    const cleanupAfterPrint = () => {
+        // Restore the summary label back to its normal state
+        if (imPrintReportSummaryPaid && imPrintReportSummaryPaid.parentElement) {
+            const parentDiv = imPrintReportSummaryPaid.parentElement;
+            const labelSpan = parentDiv.querySelector('span');
+            if (labelSpan) {
+                labelSpan.textContent = 'Total Amount Paid';
+            }
+            parentDiv.style.display = '';
+            imPrintReportSummaryPaid.textContent = 'QAR 0.00';
         }
-        parentDiv.style.display = '';
-        imPrintReportSummaryPaid.textContent = 'QAR 0.00';
-    }
 
-    if (imReportingPrintableArea) imReportingPrintableArea.classList.add('hidden');
+        if (imReportingPrintableArea) imReportingPrintableArea.classList.add('hidden');
+    };
+
+    // Some browsers can open print before DOM paint; this avoids a blank preview.
+    window.addEventListener('afterprint', cleanupAfterPrint, { once: true });
+    requestAnimationFrame(() => window.print());
 }
+
 
 async function handleDownloadCSV() {
     const isAccountingPosition = (currentApprover?.Position || '').toLowerCase() === 'accounting';
@@ -8202,7 +8812,7 @@ async function handleBatchGlobalSearch(searchType) {
 }
 
 // =========================================================
-// FIX: BATCH SAVE (With Crash Protection, Report Name & Cache Sync)
+// FIX: BATCH SAVE (With Crash Protection, Report Name, Cache Sync & Smart Refresh)
 // =========================================================
 async function handleSaveBatchInvoices() {
     const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
@@ -8311,14 +8921,20 @@ async function handleSaveBatchInvoices() {
             invoiceData.reportName = generateReportName(poNumber, invEntryID, vendor);
         }
 
+        // [SMART REFRESH] 1. Add Timestamp to record
+        invoiceData.lastUpdated = firebase.database.ServerValue.TIMESTAMP;
+
         // 5. SAVE & CACHE LOGIC
         if (existingKey) {
             // === UPDATE EXISTING ===
             invoiceData.updatedAt = firebase.database.ServerValue.TIMESTAMP;
-            invoiceData.updatedBy = currentUserName; 
-            
+            invoiceData.updatedBy = currentUserName;
             const p = invoiceDb.ref(`invoice_entries/${poNumber}/${existingKey}`).update(invoiceData);
             savePromises.push(p);
+            // Keep invoice_tasks_by_user in sync (prevents stale 'For Approval' tasks)
+            const originalInvoice = (allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][existingKey]) ? allInvoiceData[poNumber][existingKey] : {};
+            const updatedFullData = { ...originalInvoice, ...invoiceData };
+            savePromises.push(p.then(() => updateInvoiceTaskLookup(poNumber, existingKey, updatedFullData, originalInvoice.attention)));
             updatedInvoicesCount++;
             
             // [FIX] Immediate Local Cache Update
@@ -8339,6 +8955,8 @@ async function handleSaveBatchInvoices() {
             const newKey = newRef.key; // Get the key synchronously
             const p = newRef.set(invoiceData);
             savePromises.push(p);
+            // Keep invoice_tasks_by_user in sync for new invoices
+            savePromises.push(p.then(() => updateInvoiceTaskLookup(poNumber, newKey, invoiceData, null)));
             newInvoicesCount++;
 
             // [FIX] Immediate Local Cache Creation
@@ -8354,6 +8972,11 @@ async function handleSaveBatchInvoices() {
                 site_name: site
             };
         }
+
+        // [SMART REFRESH] 2. Log this update so "Smart Refresh" can find it
+        if (typeof logRecentUpdate === 'function') {
+            logRecentUpdate(poNumber);
+        }
     }
 
     // === FINALIZE ===
@@ -8364,7 +8987,9 @@ async function handleSaveBatchInvoices() {
         
         // Clear UI
         document.getElementById('im-batch-table-body').innerHTML = '';
-        if (imBatchSearchModal) imBatchSearchModal.classList.add('hidden');
+        if (typeof imBatchSearchModal !== 'undefined' && imBatchSearchModal) {
+            imBatchSearchModal.classList.add('hidden');
+        }
         
         // Refresh Task List (Visuals only)
         if (typeof loadActiveTasks === 'function') loadActiveTasks();
@@ -9744,6 +10369,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         el.textContent = `Version ${APP_VERSION}`;
     });
 
+
+// --- Quick Copy Shortcuts (Double-click to copy) ---
+// Invoice Entry Modal fields: Invoice Name, SRV Name, Report Name
+try {
+    bindDblClickCopy(document.getElementById('im-inv-name'));
+    bindDblClickCopy(document.getElementById('im-srv-name'));
+    bindDblClickCopy(document.getElementById('im-report-name'));
+} catch (e) { /* ignore */ }
+
     // --- 2. Session Restoration ---
     const savedApproverKey = localStorage.getItem('approverKey');
 
@@ -9845,25 +10479,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // --- NEW: Sidebar "Add New Job" Action ---
+    // --- Sidebar "Add New Job" Action ---
+    // Updated: Hide this button across Workdesk + Inventory clone.
+    // Users should create entries from the appropriate modules (e.g., Material Stock).
     const sidebarAddJobBtn = document.getElementById('wd-sidebar-add-job-btn');
     if (sidebarAddJobBtn) {
-        sidebarAddJobBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-
-            // 1. Navigate to "Job Records" Section
-            // We simulate a click on the existing Job Records link so it handles the view switching/active state for us
-            const jobRecordsLink = workdeskNav.querySelector('a[data-section="wd-reporting"]');
-            if (jobRecordsLink) {
-                jobRecordsLink.click();
-            }
-
-            // 2. Open the "Add New Job" Modal
-            // We use a tiny delay to ensure the view transition finishes first
-            setTimeout(() => {
-                openStandardJobModal('Add');
-            }, 100);
-        });
+        sidebarAddJobBtn.style.display = 'none';
     }
     // Password Form (Desktop)
     passwordForm.addEventListener('submit', (e) => {
@@ -10093,13 +10714,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     clearJobButton.addEventListener('click', () => resetJobEntryForm(false));
     deleteJobButton.addEventListener('click', handleDeleteJobEntry);
 
-    const btnOpenStandard = document.querySelectorAll('.btn-open-standard-modal');
-    btnOpenStandard.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.preventDefault(); // Prevent default behavior if needed
-            openStandardJobModal('Add');
-        });
-    });
+    // Updated: Hide "Add New Job" buttons in Job Records across Workdesk + Inventory clone.
+    // (Keeps UI simple and avoids duplicate entry paths.)
+    const btnOpenStandard = document.querySelectorAll(
+        '#wd-reporting .btn-open-standard-modal, #wd-jobentry .btn-open-standard-modal'
+    );
+    btnOpenStandard.forEach(btn => btn.style.display = 'none');
 
     jobEntryTableBody.addEventListener('click', (e) => {
         const row = e.target.closest('tr');
@@ -10449,6 +11069,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                             key: key,
 
                             // IDs & Names
+                            // Provide BOTH fields for compatibility:
+                            // - controlNumber is what the printer expects historically
+                            // - controlId is used elsewhere in the UI
+                            controlNumber: val.controlNumber || val.controlId || val.ref || 'N/A',
                             controlId: val.controlNumber || val.controlId || val.ref || 'N/A',
                             productId: val.productID || val.productId || '',
                             productName: val.productName || '',
@@ -10506,6 +11130,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // --- B. HANDLE TRANSFER DELETE ---
             const deleteBtn = e.target.closest('.transfer-delete-btn');
             if (deleteBtn) {
+                e.preventDefault();
                 e.stopPropagation();
                 const key = deleteBtn.getAttribute('data-key');
                 if (typeof handleDeleteTransferEntry === 'function') {
@@ -11230,7 +11855,18 @@ if (imReportingContent) {
     if (imReportingDownloadCSVButton) imReportingDownloadCSVButton.addEventListener('click', handleDownloadCSV);
     if (imDownloadDailyReportButton) imDownloadDailyReportButton.addEventListener('click', handleDownloadDailyReport);
     if (imDownloadWithAccountsReportButton) imDownloadWithAccountsReportButton.addEventListener('click', handleDownloadWithAccountsReport);
-    if (imReportingPrintBtn) imReportingPrintBtn.addEventListener('click', handleGeneratePrintReport);
+
+    // Invoice Records "PREVIEW LIST" should open the preview modal (not direct print).
+    // Printing is handled inside the modal (isolated print) to avoid conflicts with other reports.
+    if (imReportingPrintBtn) {
+        imReportingPrintBtn.addEventListener('click', () => {
+            if (typeof window.openInvoicePrintPreview === 'function') {
+                window.openInvoicePrintPreview();
+            } else {
+                alert('Print Preview is not available. Please reload the page.');
+            }
+        });
+    }
 
     if (imStatusSelect) {
         imStatusSelect.addEventListener('change', async (e) => {
@@ -11537,25 +12173,31 @@ const refreshReportingBtn = document.getElementById('im-refresh-reporting-button
             refreshReportingBtn.disabled = true;
 
             try {
-                // 1. Force Clear Global Data Arrays
-                allSystemEntries = []; 
-                
-                // 2. Reset Timestamp to 0 to force a network fetch
-                cacheTimestamps.systemEntries = 0;
+                console.log("Force refreshing Invoice Records data...");
 
-                console.log("Force refreshing all data...");
+                // Force a full network fetch of the invoice datasets
+                await ensureInvoiceDataFetched(true);
 
-                // 3. Download EVERYTHING (Invoices + Jobs + Transfers)
-                await Promise.all([
-                    ensureInvoiceDataFetched(true),
-                    ensureAllEntriesFetched(true) // <--- THIS WAS MISSING
-                ]);
+                // Re-populate Site dropdown in case new sites/manual POs were added
+                try { await populateSiteFilterDropdown(); } catch (_) {}
 
-                alert("Data refreshed successfully. Reloading tabs...");
+                // Reload the current Invoice Records view (keeps your filters/search)
+                const searchTerm = (document.getElementById('im-reporting-search')?.value || '').trim();
+                const siteFilter = document.getElementById('im-reporting-site-filter')?.value || '';
+                const monthFilter = document.getElementById('im-reporting-date-filter')?.value || '';
+                const statusFilter = document.getElementById('im-reporting-status-filter')?.value || '';
+                const hasCriteria = !!(searchTerm || siteFilter || monthFilter || statusFilter);
 
-                // 4. Rebuild Tabs & Table (This makes the "Transfer" tab appear)
-                await handleReportingSearch();
-                
+                if (hasCriteria) {
+                    await populateInvoiceReporting(searchTerm);
+                } else {
+                    document.getElementById('im-reporting-content').innerHTML = '<p>Please enter a search term and click Search.</p>';
+                    currentReportData = [];
+                    if (reportingCountDisplay) reportingCountDisplay.textContent = '';
+                }
+
+                alert("Invoice Records refreshed successfully.");
+
             } catch (e) {
                 console.error(e);
                 alert("Error refreshing data.");
@@ -11566,7 +12208,30 @@ const refreshReportingBtn = document.getElementById('im-refresh-reporting-button
         });
     }
 
-    if (summaryNoteGenerateBtn) summaryNoteGenerateBtn.addEventListener('click', handleGenerateSummary);
+if (summaryNoteGenerateBtn) {
+    summaryNoteGenerateBtn.addEventListener('click', function() {
+        // --- NEW LOGIC START ---
+        // 1. Copy Current Note to SRV Name
+        const currentNote = document.getElementById('summary-note-current-input');
+        const srvInput = document.getElementById('summary-note-srv-input');
+        if (currentNote && srvInput && currentNote.value.trim() !== "") {
+            srvInput.value = currentNote.value.trim();
+        }
+
+        // 2. Set Status to "With Accounts"
+        const statusInput = document.getElementById('summary-note-status-input');
+        if (statusInput) {
+            statusInput.value = "With Accounts";
+        }
+        // --- NEW LOGIC END ---
+
+        // 3. Now run the original summary function
+        handleGenerateSummary();
+    });
+}
+
+
+
     if (summaryNoteUpdateBtn) summaryNoteUpdateBtn.addEventListener('click', handleUpdateSummaryChanges);
 
     if (summaryClearBtn) {
@@ -11606,10 +12271,16 @@ const refreshReportingBtn = document.getElementById('im-refresh-reporting-button
                     notesPrintContainer.style.display = 'none';
                 }
 
-                if (imReportingPrintableArea) imReportingPrintableArea.classList.add('hidden');
+                                if (imReportingPrintableArea) imReportingPrintableArea.classList.add('hidden');
                 if (summaryNotePrintArea) summaryNotePrintArea.classList.remove('hidden');
-                window.print();
-            } else {
+
+                const cleanupAfterPrint = () => {
+                    if (summaryNotePrintArea) summaryNotePrintArea.classList.add('hidden');
+                };
+
+                window.addEventListener('afterprint', cleanupAfterPrint, { once: true });
+                requestAnimationFrame(() => window.print());
+} else {
                 window.print();
             }
         });
@@ -12318,7 +12989,24 @@ if (saveManualPOBtn) {
             if (confirm("Delete this pending request?")) {
                 await db.ref(`transfer_entries/${key}`).remove();
                 alert("Request deleted.");
-                location.reload();
+
+                // Remove from local caches and refresh UI without reloading
+                allSystemEntries = allSystemEntries.filter(t => t.key !== key);
+                if (Array.isArray(userActiveTasks)) {
+                    userActiveTasks = userActiveTasks.filter(t => t.key !== key);
+                }
+
+                if (typeof populateActiveTasks === 'function') {
+                    populateActiveTasks();
+                }
+
+                // Respect current tab/search filters in Job Records
+                if (typeof filterAndRenderReport === 'function' && document.getElementById('reporting-table-body')) {
+                    filterAndRenderReport(allSystemEntries);
+                } else if (typeof renderReportingTable === 'function' && document.getElementById('reporting-table-body')) {
+                    renderReportingTable(allSystemEntries);
+                }
+
             }
             return;
         }
@@ -12429,7 +13117,10 @@ if (saveManualPOBtn) {
             // Refresh
             allSystemEntries = allSystemEntries.filter(t => t.key !== key);
             if (typeof populateActiveTasks === 'function') populateActiveTasks();
-            if (document.getElementById('reporting-table-body')) renderReportingTable(allSystemEntries);
+            if (document.getElementById('reporting-table-body')) {
+                if (typeof filterAndRenderReport === 'function') filterAndRenderReport(allSystemEntries);
+                else renderReportingTable(allSystemEntries);
+            }
 
         } catch (error) {
             console.error(error);
@@ -14199,7 +14890,7 @@ function handlePrintReportingTable() {
                         <th>Vendor</th>
                         <th>Amount</th>
                         <th>Site</th>
-                        <th>Group</th>
+                        <th>Note</th>
                         <th>Date</th>
                         <th>Status</th>
                     </tr>
@@ -14282,6 +14973,816 @@ if (imDeleteInvoiceBtn) {
         }
     });
 }
+
+// ==========================================================================
+// SMART REFRESH SYSTEM (Syncs "Batch" & "Summary" efficiently)
+// ==========================================================================
+
+// 1. HELPER: Write to the Log
+// Call this whenever you Add, Update, or Delete an invoice
+async function logRecentUpdate(poNumber) {
+    if (!poNumber) return;
+    try {
+        const logRef = invoiceDb.ref('recent_updates');
+        await logRef.push({
+            poNumber: poNumber,
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        });
+        console.log(`Log: Marked PO ${poNumber} as updated.`);
+    } catch (e) {
+        console.error("Failed to write update log:", e);
+    }
+}
+
+// 2. THE SMART REFRESH FUNCTION
+// This is what the new button will click
+
+window.refreshRecentData = async function(hoursBack = 4, options = {}) { // Defaults to 4 hours to be safe
+    const {
+        showAlerts = true,
+        refreshUI = true,
+        silentUI = false
+    } = options || {};
+
+    const btn = document.getElementById('smart-refresh-btn');
+    const originalText = btn ? btn.innerHTML : '';
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Syncing...';
+    }
+
+    try {
+        const now = Date.now();
+        const startTime = now - (hoursBack * 60 * 60 * 1000);
+
+        console.log(`Smart Refresh: Checking changes since ${new Date(startTime).toLocaleTimeString()}...`);
+
+        // A. Fetch the Log
+        const logSnapshot = await invoiceDb.ref('recent_updates')
+            .orderByChild('timestamp')
+            .startAt(startTime)
+            .once('value');
+
+        const updates = logSnapshot.val();
+
+        if (!updates) {
+            if (showAlerts) {
+                alert("System is up to date. No changes found in the last " + hoursBack + " hours.");
+            }
+            return { changed: false, updatedPOs: [] };
+        }
+
+        // B. Identify Unique POs that changed
+        const affectedPOs = new Set();
+        Object.values(updates).forEach(item => {
+            if (item && item.poNumber) affectedPOs.add(item.poNumber);
+        });
+
+        if (affectedPOs.size === 0) {
+            if (showAlerts) {
+                alert("System is up to date. No changes found in the last " + hoursBack + " hours.");
+            }
+            return { changed: false, updatedPOs: [] };
+        }
+
+        console.log(`Found changes in ${affectedPOs.size} POs:`, Array.from(affectedPOs));
+
+        // Store the latest server timestamp from the log (safer than client clock)
+        try {
+            let maxTs = 0;
+            Object.values(updates).forEach(item => {
+                const ts = item && typeof item.timestamp === 'number' ? item.timestamp : 0;
+                if (ts > maxTs) maxTs = ts;
+            });
+            if (maxTs > 0) localStorage.setItem('imSmartSyncLastTs', String(maxTs));
+        } catch (_) {}
+
+        // C. Download ONLY those POs (and patch in-memory cache)
+        await imApplySmartSync(Array.from(affectedPOs));
+
+        // D. Refresh the Current View (Reporting / Entry / Summary) WITHOUT requiring a hard refresh
+        if (refreshUI) {
+            await imSmartSyncRefreshVisibleViews(Array.from(affectedPOs), { silent: !!silentUI || !showAlerts });
+        }
+
+        if (showAlerts) {
+            alert(`Sync Complete! Updated ${affectedPOs.size} PO records.`);
+        }
+
+        return { changed: true, updatedPOs: Array.from(affectedPOs) };
+
+    } catch (error) {
+        console.error("Smart Refresh Failed:", error);
+        if (showAlerts) {
+            alert("Refresh failed. Please reload the page.");
+        }
+        return { changed: false, updatedPOs: [], error: String(error) };
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
+};
+
+
+// ==========================================================================
+// SMART LIVE SYNC (Auto fetch newly added/updated invoices without hard refresh)
+// - Uses the existing "recent_updates" log
+// - Patches allInvoiceData in memory
+// - If IM Reporting is open with criteria, it silently refreshes the table
+// ==========================================================================
+
+let imSmartLiveSyncStarted = false;
+let imSmartLiveSyncQuery = null;
+let imSmartLiveSyncTimer = null;
+let imSmartLiveSyncPendingPOs = new Set();
+let imSmartLiveSyncNeedsUiRefresh = false;
+
+window.startInvoiceSmartLiveSync = function startInvoiceSmartLiveSync() {
+    if (imSmartLiveSyncStarted) return;
+    imSmartLiveSyncStarted = true;
+
+    // Start from the last known sync time (or a small buffer window)
+    const lastTsRaw = localStorage.getItem('imSmartSyncLastTs');
+    const lastTs = parseInt(lastTsRaw || '0', 10);
+    const startAtTs = Number.isFinite(lastTs) && lastTs > 0 ? lastTs : (Date.now() - (10 * 60 * 1000)); // 10 min buffer
+
+    try {
+        imSmartLiveSyncQuery = invoiceDb.ref('recent_updates')
+            .orderByChild('timestamp')
+            .startAt(startAtTs);
+
+        imSmartLiveSyncQuery.on('child_added', (snap) => {
+            const v = snap.val();
+            if (!v || !v.poNumber) return;
+
+            const ts = typeof v.timestamp === 'number' ? v.timestamp : Date.now();
+            if (Number.isFinite(ts)) localStorage.setItem('imSmartSyncLastTs', String(ts));
+
+            imSmartLiveSyncPendingPOs.add(v.poNumber);
+            scheduleInvoiceSmartLiveSyncProcess();
+        }, (err) => {
+            console.error("Smart Live Sync listener error:", err);
+        });
+
+        // Catch-up when tab becomes visible again (missed background events)
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                scheduleInvoiceSmartLiveSyncProcess();
+            }
+        });
+
+        // Extra catch-up when the browser regains focus
+        window.addEventListener('focus', () => {
+            scheduleInvoiceSmartLiveSyncProcess();
+        });
+
+        // If user stops interacting with the reporting filters, apply any deferred refresh
+        document.addEventListener('focusout', () => {
+            setTimeout(async () => {
+                if (!imSmartLiveSyncNeedsUiRefresh) return;
+                if (isIMReportingInteracting()) return;
+                imSmartLiveSyncNeedsUiRefresh = false;
+                await imSmartSyncRefreshVisibleViews([], { silent: true, force: true });
+            }, 0);
+        }, true);
+
+        console.log("Smart Live Sync started.");
+    } catch (e) {
+        console.error("Failed to start Smart Live Sync:", e);
+    }
+}
+
+window.stopInvoiceSmartLiveSync = function stopInvoiceSmartLiveSync() {
+    if (!imSmartLiveSyncStarted) return;
+    try {
+        if (imSmartLiveSyncQuery) imSmartLiveSyncQuery.off();
+    } catch (e) {
+        console.warn("Smart Live Sync off() failed:", e);
+    }
+    imSmartLiveSyncQuery = null;
+    imSmartLiveSyncPendingPOs = new Set();
+    if (imSmartLiveSyncTimer) clearTimeout(imSmartLiveSyncTimer);
+    imSmartLiveSyncTimer = null;
+    imSmartLiveSyncStarted = false;
+}
+
+function scheduleInvoiceSmartLiveSyncProcess() {
+    if (!imSmartLiveSyncStarted) return;
+    if (imSmartLiveSyncTimer) clearTimeout(imSmartLiveSyncTimer);
+    imSmartLiveSyncTimer = setTimeout(processInvoiceSmartLiveSyncPending, 1500);
+}
+
+async function processInvoiceSmartLiveSyncPending() {
+    if (!imSmartLiveSyncStarted) return;
+
+    const pending = Array.from(imSmartLiveSyncPendingPOs);
+    imSmartLiveSyncPendingPOs.clear();
+
+    // Nothing to process (but we may still need to apply a deferred UI refresh)
+    if (pending.length === 0) {
+        if (imSmartLiveSyncNeedsUiRefresh && !isIMReportingInteracting()) {
+            imSmartLiveSyncNeedsUiRefresh = false;
+            await imSmartSyncRefreshVisibleViews([], { silent: true, force: true });
+        }
+        return;
+    }
+
+    try {
+        await imApplySmartSync(pending);
+
+        // If user is actively changing report filters/search, avoid "jumping" the UI
+        if (isIMReportingInteracting()) {
+            imSmartLiveSyncNeedsUiRefresh = true;
+            return;
+        }
+
+        await imSmartSyncRefreshVisibleViews(pending, { silent: true });
+
+    } catch (e) {
+        console.error("Smart Live Sync processing failed:", e);
+    }
+}
+
+/**
+ * Pulls invoices for specific POs and patches the in-memory cache.
+ * (No heavy full refresh needed)
+ */
+async function imApplySmartSync(poList = []) {
+    if (!poList || poList.length === 0) return;
+
+    // Ensure container exists even if the full invoice dataset hasn't been loaded yet
+    if (!allInvoiceData) allInvoiceData = {};
+    if (!allPOData) allPOData = allPOData || {};
+
+    const fetches = poList.map(async (po) => {
+        try {
+            const snap = await invoiceDb.ref(`invoice_entries/${po}`).once('value');
+            const data = snap.val();
+
+            if (data) {
+                allInvoiceData[po] = data;
+
+                // Keep notes suggestions broadly up to date (additive, safe)
+                Object.values(data).forEach(inv => {
+                    if (inv && inv.note && String(inv.note).trim()) {
+                        allUniqueNotes.add(String(inv.note).trim());
+                    }
+                });
+            } else {
+                // If PO has no invoices anymore
+                delete allInvoiceData[po];
+            }
+
+            // If this is a manual PO not present in CSV memory, pull it from purchase_orders
+            if (!allPOData || !allPOData[po]) {
+                const poSnap = await invoiceDb.ref(`purchase_orders/${po}`).once('value');
+                const poData = poSnap.val();
+                if (poData) {
+                    if (!allPOData) allPOData = {};
+                    allPOData[po] = poData;
+                }
+            }
+        } catch (e) {
+            console.warn(`Smart Sync: Failed to fetch PO ${po}`, e);
+        }
+    });
+
+    await Promise.all(fetches);
+
+    // Keep invoice cache marker fresh
+    cacheTimestamps.invoiceData = Date.now();
+}
+
+/**
+ * Refresh visible IM screens (only where it matters).
+ */
+async function imSmartSyncRefreshVisibleViews(updatedPOs = [], options = {}) {
+    const { silent = true, force = false } = options || {};
+
+    // A) Summary Note: re-run generator if a PO is loaded in the input
+    const summaryInput = document.getElementById('summary-note-current-input');
+    if (summaryInput && summaryInput.value) {
+        try { handleGenerateSummary(); } catch (_) {}
+    }
+
+    // B) Invoice Entry screen: if you're currently on a PO that changed, refresh its list
+    const imEntrySection = document.getElementById('im-invoice-entry');
+    if (imEntrySection && !imEntrySection.classList.contains('hidden') && currentPO) {
+        if (force || updatedPOs.includes(currentPO)) {
+            try { fetchAndDisplayInvoices(currentPO); } catch (_) {}
+        }
+    }
+
+    // C) IM Reporting: if open and user has any criteria, refresh the table
+    const imReportingSection = document.getElementById('im-reporting');
+    if (imReportingSection && !imReportingSection.classList.contains('hidden')) {
+
+        const searchTerm = (document.getElementById('im-reporting-search')?.value || '').trim();
+        const siteFilter = document.getElementById('im-reporting-site-filter')?.value || '';
+        const monthFilter = document.getElementById('im-reporting-date-filter')?.value || '';
+        const statusFilter = document.getElementById('im-reporting-status-filter')?.value || '';
+
+        const hasCriteria = !!(searchTerm || siteFilter || monthFilter || statusFilter);
+
+        if (hasCriteria) {
+            try {
+                await populateInvoiceReporting(searchTerm, { silent: !!silent });
+            } catch (e) {
+                console.error("Smart Sync: Failed to refresh reporting view", e);
+            }
+        }
+    }
+}
+
+function isIMReportingInteracting() {
+    const imReportingSection = document.getElementById('im-reporting');
+    if (!imReportingSection || imReportingSection.classList.contains('hidden')) return false;
+
+    const form = document.getElementById('im-reporting-form');
+    const active = document.activeElement;
+    return !!(form && active && form.contains(active));
+}
+
+
+
+
+// =========================================================
+// INVOICE RECORDS: PROFESSIONAL PREVIEW & PRINT (IM-REPORTING)
+// =========================================================
+
+/**
+ * Keeps the report markup + CSS in one place so the Preview and Print output are identical.
+ * This ONLY affects the Invoice Records print preview/modal flow.
+ */
+const IM_INVOICE_REPORT_PRINT_CSS = `
+  @page { size: A4 landscape; margin: 10mm; }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #fff; color: #000; }
+  body { font-family: Arial, sans-serif; font-size: 11px; }
+
+  .im-invoice-report { width: 100%; }
+  .im-invoice-report-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 2px solid #000;
+    padding-bottom: 10px;
+    gap: 16px;
+  }
+  .im-invoice-report-company {
+    font-size: 14pt;
+    font-weight: 800;
+    margin: 0;
+    line-height: 1.15;
+  }
+  .im-invoice-report-title { text-align: right; }
+  .im-invoice-report-title h2 { font-size: 18pt; margin: 0 0 4px 0; }
+  .im-invoice-report-title p { font-size: 10pt; margin: 0; color: #333; }
+
+  .im-invoice-report-summary {
+    margin: 16px 0 18px;
+    background: #eef3f6;
+    border: 1px solid #cfd8e3;
+    border-radius: 6px;
+    padding: 12px 12px 14px;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .im-invoice-report-summary h3 {
+    margin: 0 0 12px 0;
+    text-align: center;
+    font-size: 12pt;
+    border-bottom: 1px solid #c8d2de;
+    padding-bottom: 8px;
+  }
+  .im-invoice-report-summary-grid {
+    display: flex;
+    justify-content: space-around;
+    gap: 12px;
+    align-items: center;
+  }
+  .im-invoice-report-summary-item { flex: 1; text-align: center; }
+  .im-invoice-report-summary-item span { display: block; font-size: 10pt; color: #222; margin-bottom: 4px; }
+  .im-invoice-report-summary-item strong { display: block; font-size: 14pt; }
+
+  .im-invoice-po {
+    border: 1px solid #b5b5b5;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 14px;
+    page-break-inside: auto;
+  }
+  .im-invoice-po-header {
+    background: #003A5C;
+    color: #fff;
+    padding: 10px 12px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.6fr;
+    grid-template-rows: auto auto;
+    gap: 6px 18px;
+    font-size: 10pt;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .im-invoice-po-header .poValue { text-align: right; }
+  .im-invoice-po-header .vendor { grid-column: 1 / span 2; }
+  .im-invoice-po-header .balance { text-align: right; }
+
+  table.im-invoice-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10px;
+  }
+  table.im-invoice-table thead { display: table-header-group; }
+  table.im-invoice-table tfoot { display: table-footer-group; }
+  table.im-invoice-table th,
+  table.im-invoice-table td {
+    border: 1px solid #cfcfcf;
+    padding: 6px 6px;
+    vertical-align: top;
+  }
+  table.im-invoice-table th {
+    background: #e9ecef;
+    font-weight: 800;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  table.im-invoice-table tbody tr:nth-child(even) td {
+    background: #f9f9f9;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  table.im-invoice-table td.num,
+  table.im-invoice-table th.num {
+    text-align: right;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    white-space: nowrap;
+  }
+  table.im-invoice-table td.date,
+  table.im-invoice-table td.status { white-space: nowrap; }
+  table.im-invoice-table td.note { word-break: break-word; }
+  table.im-invoice-table tr { page-break-inside: avoid; }
+
+  table.im-invoice-table tfoot td {
+    border-top: 2px solid #000;
+    font-weight: 800;
+    background: #fff;
+  }
+  table.im-invoice-table tfoot td.label { text-align: right; }
+
+  /* Safety: make sure UI controls never appear in print */
+  button, input, select, .expand-btn, .action-btn { display: none !important; }
+`;
+
+const IM_INVOICE_REPORT_PREVIEW_CSS = `
+  /* Scoped to the preview container so it never affects the rest of the app */
+  #im-print-modal-body { font-family: Arial, sans-serif; font-size: 11px; color: #000; }
+  #im-print-modal-body .im-invoice-report { width: 100%; }
+  #im-print-modal-body .im-invoice-report-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 2px solid #000;
+    padding-bottom: 10px;
+    gap: 16px;
+  }
+  #im-print-modal-body .im-invoice-report-company {
+    font-size: 14pt;
+    font-weight: 800;
+    margin: 0;
+    line-height: 1.15;
+  }
+  #im-print-modal-body .im-invoice-report-title { text-align: right; }
+  #im-print-modal-body .im-invoice-report-title h2 { font-size: 18pt; margin: 0 0 4px 0; }
+  #im-print-modal-body .im-invoice-report-title p { font-size: 10pt; margin: 0; color: #333; }
+
+  #im-print-modal-body .im-invoice-report-summary {
+    margin: 16px 0 18px;
+    background: #eef3f6;
+    border: 1px solid #cfd8e3;
+    border-radius: 6px;
+    padding: 12px 12px 14px;
+  }
+  #im-print-modal-body .im-invoice-report-summary h3 {
+    margin: 0 0 12px 0;
+    text-align: center;
+    font-size: 12pt;
+    border-bottom: 1px solid #c8d2de;
+    padding-bottom: 8px;
+  }
+  #im-print-modal-body .im-invoice-report-summary-grid {
+    display: flex;
+    justify-content: space-around;
+    gap: 12px;
+    align-items: center;
+  }
+  #im-print-modal-body .im-invoice-report-summary-item { flex: 1; text-align: center; }
+  #im-print-modal-body .im-invoice-report-summary-item span { display: block; font-size: 10pt; color: #222; margin-bottom: 4px; }
+  #im-print-modal-body .im-invoice-report-summary-item strong { display: block; font-size: 14pt; }
+
+  #im-print-modal-body .im-invoice-po {
+    border: 1px solid #b5b5b5;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 14px;
+  }
+  #im-print-modal-body .im-invoice-po-header {
+    background: #003A5C;
+    color: #fff;
+    padding: 10px 12px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.6fr;
+    grid-template-rows: auto auto;
+    gap: 6px 18px;
+    font-size: 10pt;
+  }
+  #im-print-modal-body .im-invoice-po-header .poValue { text-align: right; }
+  #im-print-modal-body .im-invoice-po-header .vendor { grid-column: 1 / span 2; }
+  #im-print-modal-body .im-invoice-po-header .balance { text-align: right; }
+
+  #im-print-modal-body table.im-invoice-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10px;
+  }
+  #im-print-modal-body table.im-invoice-table th,
+  #im-print-modal-body table.im-invoice-table td {
+    border: 1px solid #cfcfcf;
+    padding: 6px 6px;
+    vertical-align: top;
+  }
+  #im-print-modal-body table.im-invoice-table th {
+    background: #e9ecef;
+    font-weight: 800;
+  }
+  #im-print-modal-body table.im-invoice-table tbody tr:nth-child(even) td { background: #f9f9f9; }
+  #im-print-modal-body table.im-invoice-table td.num,
+  #im-print-modal-body table.im-invoice-table th.num {
+    text-align: right;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    white-space: nowrap;
+  }
+  #im-print-modal-body table.im-invoice-table td.date,
+  #im-print-modal-body table.im-invoice-table td.status { white-space: nowrap; }
+  #im-print-modal-body table.im-invoice-table td.note { word-break: break-word; }
+
+  #im-print-modal-body table.im-invoice-table tfoot td {
+    border-top: 2px solid #000;
+    font-weight: 800;
+    background: #fff;
+  }
+  #im-print-modal-body table.im-invoice-table tfoot td.label { text-align: right; }
+`;
+
+// Cache the last generated report so "Print Now" always prints what the user previewed.
+window.__imInvoiceReportCache = window.__imInvoiceReportCache || { css: IM_INVOICE_REPORT_PRINT_CSS, html: '' };
+
+function imEscapeHtml(value) {
+    if (value === null || value === undefined) return '';
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function imGetInvoiceReportTitle() {
+    // Match the legacy format used in the older PDF sample.
+    return 'Invoice Records';
+}
+
+function imBuildInvoiceRecordsReportMarkup(reportData, { title, generatedOn } = {}) {
+    const safeTitle = imEscapeHtml(title || 'Invoice Records');
+    const generatedStr = imEscapeHtml(generatedOn || `Generated on: ${new Date().toLocaleString('en-GB')}`);
+
+    // Totals (match the sample layout: PO Value vs Invoice Value => Balance)
+    let totalPOs = reportData.length;
+    let totalPOValue = 0;
+    let totalInvoiceValue = 0;
+
+    reportData.forEach(po => {
+        totalPOValue += parseFloat(po?.poDetails?.Amount) || 0;
+        (po?.filteredInvoices || []).forEach(inv => {
+            totalInvoiceValue += parseFloat(inv?.invValue) || 0;
+        });
+    });
+
+    const totalBalance = totalPOValue - totalInvoiceValue;
+
+    let poBlocks = '';
+    reportData.forEach(po => {
+        const poNumber = imEscapeHtml(po?.poNumber || '');
+        const site = imEscapeHtml(po?.site || '');
+        const vendor = imEscapeHtml(po?.vendor || '');
+        const poValueNum = parseFloat(po?.poDetails?.Amount) || 0;
+
+        let poInvTotal = 0;
+        let poPaidTotal = 0;
+
+        let rows = '';
+        (po?.filteredInvoices || []).forEach(inv => {
+            const invEntry = imEscapeHtml(inv?.invEntryID || '');
+            const invNo = imEscapeHtml(inv?.invNumber || '');
+            const invValueNum = parseFloat(inv?.invValue) || 0;
+            const amtPaidNum = parseFloat(inv?.amountPaid) || 0;
+            const status = imEscapeHtml(inv?.status || '');
+            const note = imEscapeHtml(inv?.note || '');
+
+            poInvTotal += invValueNum;
+            poPaidTotal += amtPaidNum;
+
+            const releaseDateDisplay = inv?.releaseDate
+                ? new Date(normalizeDateForInput(inv.releaseDate) + 'T00:00:00').toLocaleDateString('en-GB')
+                : '';
+            const invoiceDateDisplay = inv?.invoiceDate
+                ? new Date(normalizeDateForInput(inv.invoiceDate) + 'T00:00:00').toLocaleDateString('en-GB')
+                : '';
+
+            rows += `
+              <tr>
+                <td>${invEntry}</td>
+                <td>${invNo}</td>
+                <td class="date">${invoiceDateDisplay}</td>
+                <td class="num">${formatCurrency(invValueNum)}</td>
+                <td class="num">${formatCurrency(amtPaidNum)}</td>
+                <td class="date">${releaseDateDisplay}</td>
+                <td class="status">${status}</td>
+                <td class="note">${note}</td>
+              </tr>
+            `;
+        });
+
+        const balanceNum = poValueNum - poInvTotal;
+
+        poBlocks += `
+          <div class="im-invoice-po">
+            <div class="im-invoice-po-header">
+              <div class="poNumber"><strong>PO:</strong> ${poNumber}</div>
+              <div class="site"><strong>Site:</strong> ${site}</div>
+              <div class="poValue"><strong>PO Value:</strong> QAR ${formatCurrency(poValueNum)}</div>
+
+              <div class="vendor"><strong>Vendor:</strong> ${vendor}</div>
+              <div class="balance"><strong>Balance:</strong> QAR ${formatCurrency(balanceNum)}</div>
+            </div>
+
+            <table class="im-invoice-table">
+              <thead>
+                <tr>
+                  <th>Inv. Entry</th>
+                  <th>Inv. No.</th>
+                  <th class="date">Inv. Date</th>
+                  <th class="num">Inv. Value</th>
+                  <th class="num">Amt. Paid</th>
+                  <th class="date">Release Date</th>
+                  <th class="status">Status</th>
+                  <th>Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="3" class="label">PO Invoice Totals:</td>
+                  <td class="num">${formatCurrency(poInvTotal)}</td>
+                  <td class="num">${formatCurrency(poPaidTotal)}</td>
+                  <td colspan="3"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        `;
+    });
+
+    return `
+      <div class="im-invoice-report">
+        <div class="im-invoice-report-header">
+          <h1 class="im-invoice-report-company">ISMAIL BIN ALI TRADING &amp; CONT. CO. W.L.L</h1>
+          <div class="im-invoice-report-title">
+            <h2>${safeTitle}</h2>
+            <p>${generatedStr}</p>
+          </div>
+        </div>
+
+        <div class="im-invoice-report-summary">
+          <h3>Report Summary</h3>
+          <div class="im-invoice-report-summary-grid">
+            <div class="im-invoice-report-summary-item">
+              <span>Total POs in Report</span>
+              <strong>${totalPOs}</strong>
+            </div>
+            <div class="im-invoice-report-summary-item">
+              <span>Total PO Value</span>
+              <strong>QAR ${formatCurrency(totalPOValue)}</strong>
+            </div>
+            <div class="im-invoice-report-summary-item">
+              <span>Total Balance</span>
+              <strong>QAR ${formatCurrency(totalBalance)}</strong>
+            </div>
+          </div>
+        </div>
+
+        ${poBlocks}
+      </div>
+    `;
+}
+
+// 1) OPEN PREVIEW (Professional report preview in the modal)
+window.openInvoicePrintPreview = function() {
+    const modal = document.getElementById('im-invoice-print-modal');
+    if (!modal) { alert('Error: Print Modal not found in HTML.'); return; }
+
+    // Keep the existing "blank page" fix (modal must live under <body>)
+    if (modal.parentElement !== document.body) {
+        document.body.appendChild(modal);
+    }
+
+    if (!Array.isArray(currentReportData) || currentReportData.length === 0) {
+        alert('No data to preview. Please run a search first.');
+        return;
+    }
+
+    const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
+    const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
+    if (!isAdmin && !isAccounting) {
+        alert('You do not have permission to print this report.');
+        return;
+    }
+
+    const modalBody = document.getElementById('im-print-modal-body');
+    if (!modalBody) { alert('Error: Print modal body not found.'); return; }
+
+    const title = imGetInvoiceReportTitle();
+    const generatedOn = `Generated on: ${new Date().toLocaleString('en-GB')}`;
+
+    const reportMarkup = imBuildInvoiceRecordsReportMarkup(currentReportData, { title, generatedOn });
+
+    // Cache for Print Now
+    window.__imInvoiceReportCache.html = reportMarkup;
+
+    // Render preview (include styles so preview matches the printed output)
+    modalBody.innerHTML = `<style>${IM_INVOICE_REPORT_PREVIEW_CSS}</style>${reportMarkup}`;
+
+    modal.classList.remove('hidden');
+};
+
+// 2) PRINT NOW (Print exactly what is previewed, in an isolated iframe)
+window.imPrintInvoiceList = function() {
+    if (!window.__imInvoiceReportCache?.html) {
+        // If user clicks Print without previewing, generate preview first (no UX change).
+        if (typeof window.openInvoicePrintPreview === 'function') {
+            window.openInvoicePrintPreview();
+        }
+        if (!window.__imInvoiceReportCache?.html) return;
+    }
+
+    const printDoc = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Invoice Records</title>
+  <style>${window.__imInvoiceReportCache.css || IM_INVOICE_REPORT_PRINT_CSS}</style>
+</head>
+<body>
+  ${window.__imInvoiceReportCache.html}
+</body>
+</html>`;
+
+    const frame = document.createElement('iframe');
+    frame.style.position = 'fixed';
+    frame.style.right = '0';
+    frame.style.bottom = '0';
+    frame.style.width = '0';
+    frame.style.height = '0';
+    frame.style.border = '0';
+    frame.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(frame);
+
+    const doc = frame.contentWindow.document;
+    doc.open();
+    doc.write(printDoc);
+    doc.close();
+
+    // Ensure layout is ready before printing.
+    setTimeout(() => {
+        try {
+            frame.contentWindow.focus();
+            frame.contentWindow.print();
+        } finally {
+            setTimeout(() => {
+                if (frame && frame.parentNode) frame.parentNode.removeChild(frame);
+            }, 800);
+        }
+    }, 150);
+};
+
+
 
 }); // END OF DOMCONTENTLOADED
 

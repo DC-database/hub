@@ -46,6 +46,18 @@
 /* General Body Styles */
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; color: var(--text-color-dark); background-color: #f4f7fa; }
 
+/* -------------------------------------------------------------------------- */
+/* UI SIMPLIFICATION: HIDE "ADD NEW JOB" ENTRY POINTS IN JOB RECORDS */
+/* The system already provides dedicated entry points (e.g., Material Stock). */
+/* This prevents users from creating the wrong type of records from Reporting. */
+/* -------------------------------------------------------------------------- */
+#wd-sidebar-add-job-btn,
+#wd-sidebar-add-job-btn,
+#wd-reporting .btn-open-standard-modal,
+#wd-jobentry .btn-open-standard-modal {
+    display: none !important;
+}
+
 /* +++ Plain Dark Blue Login Background +++ */
 body.login-background {
     display: flex;
@@ -887,14 +899,33 @@ tbody tr:hover { background-color: #f1f1f1; }
     font-size: inherit;
 }
 
-.sn-footer {
-    border-top: 2px solid #333;
-    padding: 15px 0;
-    display: flex;
-    justify-content: space-between;
-    font-weight: bold;
-    margin-top: 10px;
+.sn-footer{
+  display: grid;
+  grid-template-columns: 200px 1fr 170px;
+  margin-top: 12px;
+  font-weight: bold;
+  align-items: stretch;            /* important */
 }
+
+.sn-footer > *{
+  padding: 8px 12px;
+  border-right: 2px solid #000;    /* divider */
+  display: block;                  /* make it a full-height block */
+  height: 100%;                    /* ensure it stretches */
+  box-sizing: border-box;
+}
+
+.sn-footer > *:last-child{
+  border-right: none;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.sn-footer > *:nth-child(2){
+  line-height: 1.35;
+  word-break: break-word;
+}
+
 
 /* Hide print-only notes ON SCREEN */
 .sn-print-notes-section {
@@ -965,6 +996,28 @@ tbody tr:hover { background-color: #f1f1f1; }
     display: flex;
     justify-content: flex-end;
     gap: 10px;
+}
+
+/* ======================================================== */
+/* SIMPLE .modal OVERLAY (used by Invoice Print Preview)     */
+/* Keeps existing modal-overlay logic untouched              */
+/* ======================================================== */
+.modal {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+.modal.hidden {
+    display: none !important;
+}
+.modal > .modal-content {
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
 }
 
 /* ++ NEW: Batch Global Controls ++ */
@@ -5944,5 +5997,105 @@ body.inventory-mode .wd-nav-material {
 @media (max-width: 576px) {
     .invoice-filter-grid {
         grid-template-columns: 1fr; /* 1 col on mobile */
+    }
+}
+
+/* NOTE:
+   The invoice reporting and summary note pages already have dedicated,
+   well-tested print styles earlier in this file.
+   Avoid adding global "hide everything" print overrides here, because they
+   can cause other print views (e.g., Summary Note) to render as a blank page.
+*/
+
+/* ======================================================== */
+/* INVOICE PRINT PREVIEW (MODAL) - SAFE PRINT STYLES         */
+/* This supports printing from the "Print Preview" modal     */
+/* without breaking Summary Note / Invoice Records printing  */
+/* ======================================================== */
+#im-print-modal-body table { width: 100%; border-collapse: collapse; font-size: 11px; }
+#im-print-modal-body th { background: #eee !important; color: black !important; border: 1px solid #000; padding: 5px; }
+#im-print-modal-body td { border: 1px solid #ccc; padding: 5px; color: black; }
+
+@media print {
+    /* Only activate these rules if the modal is actually open */
+    #im-invoice-print-modal:not(.hidden),
+    #im-invoice-print-modal:not(.hidden) * {
+        visibility: visible !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+
+    #im-invoice-print-modal:not(.hidden) {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        margin: 0 !important;
+        background: white !important;
+        z-index: 999999 !important;
+    }
+
+    /* Hide modal chrome (buttons/close) when printing */
+    #im-invoice-print-modal:not(.hidden) .modal-header,
+    #im-invoice-print-modal:not(.hidden) .modal-footer {
+        display: none !important;
+    }
+
+    /* Ensure table layout prints as a real table */
+    #im-invoice-print-modal:not(.hidden) #im-print-modal-body table { display: table !important; }
+    #im-invoice-print-modal:not(.hidden) #im-print-modal-body tr { display: table-row !important; }
+    #im-invoice-print-modal:not(.hidden) #im-print-modal-body th,
+    #im-invoice-print-modal:not(.hidden) #im-print-modal-body td { display: table-cell !important; }
+}
+
+
+/* When printable area is NOT hidden, hide the placeholder message */
+#summary-note-printable-area:not(.hidden) + #summary-placeholder-msg {
+    display: none !important;
+}
+
+/* --- EXACT FIT PRINT STYLES --- */
+@media print {
+    /* 1. Reset Page Margins to Minimum */
+    @page {
+        margin: 5mm; /* Minimum safe margin for most printers */
+        size: auto;  /* Auto paper size */
+    }
+
+    /* 2. Hide Everything Else */
+    body * {
+        visibility: hidden;
+        height: 0;
+        overflow: hidden;
+    }
+
+    /* 3. Show Only the Summary Note */
+    #summary-note-printable-area, 
+    #summary-note-printable-area * {
+        visibility: visible !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+
+    /* 4. Position & Fit the Report EXACTLY */
+    #summary-note-printable-area {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;   /* Stretch to full width */
+        margin: 0 !important;     /* No extra margin */
+        padding: 0 !important;    /* No extra padding inside */
+        box-shadow: none !important;
+        background: white !important;
+        
+        /* Optional: Force fit on one page if content is slightly long */
+        page-break-inside: avoid;
+    }
+    
+    /* 5. Hide the Sidebar Layout */
+    #im-summary-note {
+        display: block !important;
+        height: auto !important;
+        position: static !important;
     }
 }

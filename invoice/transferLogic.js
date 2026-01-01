@@ -702,14 +702,27 @@ async function saveTransferEntry(e) {
 // ==========================================================================
 window.handlePrintWaybill = async function(entry) {
     const database = (typeof db !== 'undefined') ? db : firebase.database();
+    // Historically, the identifier has been stored under different keys
+    // (controlNumber / controlId / ref). Printing must be resilient to all.
     const controlNo = entry.controlNumber || entry.controlId || entry.ref;
+
+    // Company Logo (Firebase Storage)
+    const WAYBILL_LOGO_URL = "https://firebasestorage.googleapis.com/v0/b/ibainvoice-3ea51.firebasestorage.app/o/iba_logo.png?alt=media&token=ccc85b7b-d41e-4242-9e27-08942efb3012";
 
     let batchItems = [];
     try {
         let snap = await database.ref('transfer_entries').orderByChild('controlNumber').equalTo(controlNo).once('value');
+        // Backward compatibility for older entries
+        if (!snap.exists()) snap = await database.ref('transfer_entries').orderByChild('controlId').equalTo(controlNo).once('value');
         if (!snap.exists()) snap = await database.ref('transfer_entries').orderByChild('ref').equalTo(controlNo).once('value');
-        if (snap.exists()) batchItems = Object.values(snap.val());
-        else batchItems = [entry];
+        if (snap.exists()) {
+            // Preserve keys for reliable primary matching
+            const items = [];
+            snap.forEach(child => items.push({ key: child.key, ...(child.val() || {}) }));
+            batchItems = items;
+        } else {
+            batchItems = [entry];
+        }
     } catch(e) { batchItems = [entry]; }
 
     const getFullSiteName = (code) => {
@@ -730,18 +743,27 @@ window.handlePrintWaybill = async function(entry) {
         } catch(e) { return ""; }
     };
 
-    const primary = batchItems[0];
+    // Use the clicked entry as the primary record when possible.
+    const primary = (batchItems.find(i => i && entry && i.key && entry.key && i.key === entry.key) || entry || batchItems[0]);
     const date = primary.shippingDate || new Date().toISOString().split('T')[0];
-    const controlId = primary.controlNumber || primary.ref;
+    // IMPORTANT: Always resolve a printable control identifier.
+    // (Fix for "undefined" appearing in the printout when the UI passes controlId instead of controlNumber.)
+    const controlId = primary.controlNumber || primary.controlId || primary.ref || controlNo || '-';
     const fromSite = getFullSiteName(primary.fromSite || primary.fromLocation);
     const toSite = getFullSiteName(primary.toSite || primary.toLocation);
     const requestor = primary.requestor || '-';
     const receiver = primary.receiver || '-';
 
     const printDate = new Date().toLocaleString();
-    const isApproved = ['In Transit', 'Approved', 'Completed', 'Received'].includes(primary.remarks);
-    const isCompleted = ['Completed', 'Received'].includes(primary.remarks);
-    const isRejected = (primary.remarks === 'Rejected');
+
+    const normalizeState = (item) => String((item && (item.remarks || item.status)) || '').trim();
+    const APPROVED_STATES = ['In Transit', 'Approved', 'Completed', 'Received'];
+    const COMPLETED_STATES = ['Completed', 'Received'];
+
+    const primaryState = normalizeState(primary);
+    const isApproved = APPROVED_STATES.includes(primaryState);
+    const isCompleted = COMPLETED_STATES.includes(primaryState);
+    const isRejected = (primaryState === 'Rejected');
 
     let title = isApproved ? "TRANSFER SLIP" : "DRAFT REQUEST";
     let badgeText = isApproved ? "AUTHORIZED" : "PENDING APPROVAL";
@@ -750,26 +772,49 @@ window.handlePrintWaybill = async function(entry) {
     if(isCompleted) { badgeText = "COMPLETED"; badgeColor = "#28a745"; }
     if(isRejected) { title = "TRANSFER SLIP (VOID)"; badgeText = "REJECTED"; badgeColor = "#D32F2F"; }
 
-    let tableRows = '';
-    // --- UPDATED LOOP: Includes Index (i) for SN ---
-    batchItems.forEach((item, index) => {
-        let displayQty = item.orderedQty;
-        if (item.remarks === 'Completed') displayQty = item.receivedQty;
-        else if (item.remarks === 'In Transit') displayQty = item.approvedQty;
+    // --- IMPORTANT FIX ---
+    // If a batch has mixed decisions (e.g., some Approved, some Rejected),
+    // the AUTHORIZED waybill must NOT list rejected/pending items.
+    // Updated per request: DO NOT show rejected items anywhere on the printed slip.
+    let includedItems = (isApproved || isCompleted)
+        ? batchItems.filter(i => APPROVED_STATES.includes(normalizeState(i)))
+        : batchItems;
+    // Safety fallback: if states are non-standard, avoid printing a blank slip.
+    if ((isApproved || isCompleted) && includedItems.length === 0) {
+        includedItems = batchItems;
+    }
 
-        const prodId = item.productId || item.productID;
-        const prodName = item.productName;
-        const details = item.details || '';
+    const buildItemRows = (items, startIndex = 0, showStatus = false) => {
+        let rows = '';
+        items.forEach((item, index) => {
+            const state = normalizeState(item);
 
-        tableRows += `
-        <tr>
-            <td style="border-right:1px solid #000; padding:10px; border-top:1px solid #000; text-align:center; font-weight:bold;">${index + 1}</td>
-            <td style="border-right:1px solid #000; padding:10px; border-top:1px solid #000;">${prodId}</td>
-            <td style="border-right:1px solid #000; padding:10px; border-top:1px solid #000; font-weight:bold;">${prodName}</td>
-            <td style="border-right:1px solid #000; padding:10px; border-top:1px solid #000;">${details}</td>
-            <td style="padding:10px; border-top:1px solid #000; font-weight:bold; text-align:right;">${displayQty}</td>
-        </tr>`;
-    });
+            let displayQty = item.orderedQty;
+            if (state === 'Completed' || state === 'Received') displayQty = item.receivedQty;
+            else if (state === 'In Transit' || state === 'Approved') displayQty = (item.approvedQty ?? item.orderedQty);
+
+            const prodId = item.productId || item.productID || '-';
+            const prodName = item.productName || '-';
+            const details = item.details || '';
+
+            const statusCell = showStatus
+                ? `<td style="border-right:1px solid #000; padding:10px; border-top:1px solid #000; font-weight:bold; text-align:center; color:${state === 'Rejected' ? '#D32F2F' : '#333'};">${state || '-'}</td>`
+                : '';
+
+            rows += `
+            <tr>
+                <td style="border-right:1px solid #000; padding:10px; border-top:1px solid #000; text-align:center; font-weight:bold;">${startIndex + index + 1}</td>
+                <td style="border-right:1px solid #000; padding:10px; border-top:1px solid #000;">${prodId}</td>
+                <td style="border-right:1px solid #000; padding:10px; border-top:1px solid #000; font-weight:bold;">${prodName}</td>
+                <td style="border-right:1px solid #000; padding:10px; border-top:1px solid #000;">${details}</td>
+                ${statusCell}
+                <td style="padding:10px; border-top:1px solid #000; font-weight:bold; text-align:right;">${displayQty ?? ''}</td>
+            </tr>`;
+        });
+        return rows;
+    };
+
+    let tableRows = buildItemRows(includedItems, 0, false);
 
     let approverSectionHTML = '';
     if(isApproved) {
@@ -791,21 +836,125 @@ window.handlePrintWaybill = async function(entry) {
         receiverSectionHTML = `<div style="font-size: 10px; color: #999; margin-top: 15px;">(Barcode generated upon completion)</div>`;
     }
 
-    // --- UPDATED HTML: Added 'SN' Header to Table ---
-    const htmlContent = `<!DOCTYPE html><html><head><title>Waybill</title><style>body{font-family:Arial,sans-serif;margin:0;padding:20px;color:#000;background:white}.header{display:flex;justify-content:space-between;border-bottom:3px solid #003A5C;padding-bottom:10px;margin-bottom:20px}.logo{background-color:#003A5C;color:white;font-weight:900;font-size:36px;padding:5px 15px;margin-right:15px}.doc-title{font-size:22px;font-weight:800;color:#003A5C;margin:0}.grid-container{display:grid;grid-template-columns:1fr 1fr;border:2px solid #000}.grid-item{padding:10px}.border-right{border-right:2px solid #000}.border-bottom{border-bottom:2px solid #000}.label-box{background-color:#003A5C;color:white;padding:2px 5px;font-size:11px;font-weight:bold;display:inline-block;margin-bottom:5px}.yellow-header{background-color:#ffc107;color:black;padding:5px 10px;font-size:12px;font-weight:bold;border-bottom:2px solid #000}table{width:100%;border-collapse:collapse;font-size:12px}th{border-right:1px solid #000;padding:8px;background:#f0f0f0;text-align:left}td{border-right:1px solid #000;padding:10px;border-top:1px solid #000}.footer-grid{display:flex;gap:20px;margin-top:30px}.footer-box{flex:1;border:2px dashed #000;padding:15px;text-align:center;border-radius:8px}.signature-line{border-bottom:1px solid #000;height:20px;margin-bottom:5px}@media print{@page{margin:0.5cm;size:auto}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><div class="header"><div style="display:flex;align-items:center;"><div class="logo">IBA</div><div><h2 class="doc-title">${title}</h2><p style="margin:5px 0 0 0;font-size:11px;color:#555;">Ismail Bin Ali Tradg. & Cont. Co. W.L.L</p></div></div><div style="border:2px solid #000;padding:5px 15px;font-weight:bold;font-size:16px;color:${badgeColor};border-color:${badgeColor};">${badgeText}</div></div><div class="grid-container"><div class="border-right"><div class="grid-item border-bottom"><div class="label-box">1. FROM</div><div style="margin-bottom:8px;"><strong style="font-size:14px;">${fromSite}</strong></div><div style="font-size:12px;"><span style="color:#666;font-size:10px;">By:</span> ${requestor}</div></div><div class="grid-item"><div class="label-box">2. TO</div><div style="margin-bottom:8px;"><strong style="font-size:14px;">${toSite}</strong></div><div style="font-size:12px;"><span style="color:#666;font-size:10px;">Contact:</span> ${receiver}</div></div></div><div><div class="grid-item border-bottom"><div class="label-box">3. DETAILS</div><div style="display:flex;justify-content:space-between;"><div><span style="font-size:10px;color:#666;">Date</span><br><strong>${date}</strong></div><div><span style="font-size:10px;color:#666;">Control ID</span><br><strong>${controlId}</strong></div></div></div><div class="grid-item"><div class="label-box">4. APPROVAL</div>${approverSectionHTML}</div></div></div><div style="margin-top:20px;border:2px solid #000;"><div class="yellow-header">5. ITEM DESCRIPTION</div>
+    // --- WAYBILL HTML (Layout updated to match the provided screenshot) ---
+    // Notes:
+    //  - Uses company logo from Firebase Storage (with "IBA" fallback if logo fails)
+    //  - Shows ONLY approved items when slip is AUTHORIZED/COMPLETED
+    const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Waybill</title>
+  <style>
+    body{font-family:Arial,sans-serif;margin:0;padding:20px;color:#000;background:#fff}
+    .brand-row{display:flex;justify-content:flex-start;align-items:flex-end}
+    .brand-left{display:flex;align-items:center;gap:12px}
+    .logo-img{height:55px;width:auto;display:block}
+    .logo-fallback{display:none;font-weight:900;font-size:44px;color:#003A5C;letter-spacing:2px;line-height:1}
+    .brand-line{border-bottom:3px solid #003A5C;margin-top:10px}
+    .doc-row{display:flex;justify-content:space-between;align-items:center;margin-top:18px;margin-bottom:18px}
+    /* Title size reduced to 75% (user request) */
+    .doc-title{margin:0;font-size:26px;font-weight:900;color:#003A5C;letter-spacing:.5px;text-transform:uppercase}
+    .status-badge{border:2px solid ${badgeColor};padding:10px 18px;font-weight:800;font-size:16px;display:inline-block;text-transform:uppercase;color:${badgeColor}}
+    .grid-container{display:grid;grid-template-columns:1fr 1fr;border:2px solid #000}
+    .grid-item{padding:10px}
+    .border-right{border-right:2px solid #000}
+    .border-bottom{border-bottom:2px solid #000}
+    .label-box{background:#003A5C;color:#fff;padding:2px 5px;font-size:11px;font-weight:800;display:inline-block;margin-bottom:5px}
+    .yellow-header{background:#ffc107;color:#000;padding:5px 10px;font-size:12px;font-weight:800;border-bottom:2px solid #000}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th{border-right:1px solid #000;padding:8px;background:#f0f0f0;text-align:left}
+    td{border-right:1px solid #000;padding:10px;border-top:1px solid #000}
+    .footer-grid{display:flex;gap:20px;margin-top:30px;align-items:stretch}
+    .footer-box{flex:1;border:2px dashed #000;padding:15px;text-align:center;border-radius:8px}
+    .signature-line{border-bottom:1px solid #000;height:20px;margin-bottom:5px}
+    @media print{@page{margin:.5cm;size:auto}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+  </style>
+</head>
+<body>
+
+  <div class="brand-row">
+    <div class="brand-left">
+      <span id="logo-fallback" class="logo-fallback">IBA</span>
+      <img id="company-logo" class="logo-img" src="${WAYBILL_LOGO_URL}" crossorigin="anonymous"
+           onload="document.getElementById('logo-fallback').style.display='none';"
+           onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='inline-block';" />
+    </div>
+  </div>
+
+  <div class="brand-line"></div>
+
+  <div class="doc-row">
+    <h2 class="doc-title">${title}</h2>
+    <div class="status-badge">${badgeText}</div>
+  </div>
+
+  <div class="grid-container">
+    <div class="border-right">
+      <div class="grid-item border-bottom">
+        <div class="label-box">1. FROM</div>
+        <div style="margin-bottom:8px;"><strong style="font-size:14px;">${fromSite}</strong></div>
+        <div><span style="font-size:10px;color:#666;">By: </span><span style="font-size:12px;">${requestor}</span></div>
+      </div>
+      <div class="grid-item">
+        <div class="label-box">2. TO</div>
+        <div style="margin-bottom:8px;"><strong style="font-size:14px;">${toSite}</strong></div>
+        <div><span style="font-size:10px;color:#666;">Contact: </span><span style="font-size:12px;">${receiver}</span></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="grid-item border-bottom">
+        <div class="label-box">3. DETAILS</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div><span style="font-size:10px;color:#666;">Date</span><br><strong style="font-size:12px;">${date}</strong></div>
+          <div><span style="font-size:10px;color:#666;">Control ID</span><br><strong style="font-size:12px;">${controlId}</strong></div>
+        </div>
+      </div>
+      <div class="grid-item">
+        <div class="label-box">4. APPROVAL</div>
+        ${approverSectionHTML}
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:20px;border:2px solid #000;">
+    <div class="yellow-header">5. ITEM DESCRIPTION</div>
     <table>
-        <thead>
-            <tr>
-                <th style="width:30px; text-align:center;">SN</th>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Details</th>
-                <th style="border-right:none; text-align:right;">Qty</th>
-            </tr>
-        </thead>
-        <tbody>${tableRows}</tbody>
+      <thead>
+        <tr>
+          <th style="width:30px;text-align:center;">SN</th>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Details</th>
+          <th style="border-right:none;text-align:right;">Qty</th>
+        </tr>
+      </thead>
+      <tbody>${tableRows}</tbody>
     </table>
-    </div><div class="footer-grid"><div class="footer-box"><div style="font-size:9px;font-weight:bold;color:#003A5C;margin-bottom:10px;">FINAL VERIFICATION / RECEIPT</div>${receiverSectionHTML}</div><div style="flex:1;display:flex;flex-direction:column;justify-content:space-around;"><div><div class="signature-line"></div><div style="font-size:10px;font-weight:bold;">Sender Signature</div></div><div><div class="signature-line"></div><div style="font-size:10px;font-weight:bold;">Receiver Signature</div></div></div></div><div style="text-align:center;font-size:9px;margin-top:20px;color:#777;">Printed: ${printDate}</div></body></html>`;
+  </div>
+
+  <div class="footer-grid">
+    <div class="footer-box">
+      <div style="font-size:9px;font-weight:800;color:#003A5C;margin-bottom:10px;text-transform:uppercase;">FINAL VERIFICATION / RECEIPT</div>
+      ${receiverSectionHTML}
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:space-around;">
+      <div>
+        <div class="signature-line"></div>
+        <div style="font-size:10px;font-weight:800;">Sender Signature</div>
+      </div>
+      <div>
+        <div class="signature-line"></div>
+        <div style="font-size:10px;font-weight:800;">Receiver Signature</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align:center;font-size:9px;margin-top:20px;color:#777;">Printed: ${printDate}</div>
+
+</body>
+</html>`;
 
     const oldFrame = document.getElementById('waybill-print-frame');
     if (oldFrame) oldFrame.remove();
@@ -815,7 +964,25 @@ window.handlePrintWaybill = async function(entry) {
     document.body.appendChild(iframe);
     const doc = iframe.contentWindow.document;
     doc.open(); doc.write(htmlContent); doc.close();
-    iframe.onload = function() { setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); }, 500); };
+    // Wait for the logo image (remote) to load before printing.
+    iframe.onload = function() {
+        const win = iframe.contentWindow;
+        const doc2 = win.document;
+        const doPrint = () => { try { win.focus(); win.print(); } catch(e) { try { win.print(); } catch(_){} } };
+        const logo = doc2.getElementById('company-logo');
+        if (logo) {
+            if (logo.complete) {
+                setTimeout(doPrint, 250);
+            } else {
+                logo.onload = () => setTimeout(doPrint, 250);
+                logo.onerror = () => setTimeout(doPrint, 250);
+                // Fallback timeout in case onload doesn't fire.
+                setTimeout(doPrint, 1500);
+            }
+        } else {
+            setTimeout(doPrint, 500);
+        }
+    };
 };
 
 // ==========================================================================
