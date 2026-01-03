@@ -306,13 +306,23 @@ window.onload = () => {
     updateSelectedCount(); 
     loadGitHubMasterData(); 
 
-    // Fix: Enter key for main search box
+    // Existing: Enter key for main search box
     const searchBox = document.getElementById('searchBox');
     if (searchBox) {
       searchBox.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') searchRecords();
       });
     }
+
+    // --- FIX STARTS HERE ---
+    // Fix: Enter key for Add PO modal input
+    const addPOInput = document.getElementById('addPOInput');
+    if (addPOInput) {
+      addPOInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') addPOFromModal();
+      });
+    }
+    // --- FIX ENDS HERE ---
 
     // Row Click Delegation
     const tbody = document.querySelector('#poTable tbody');
