@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "5.6.6";
+const APP_VERSION = "5.6.9";
 
 // DETECT INVENTORY CONTEXT
 // Inventory mode can be triggered by:
@@ -5518,10 +5518,12 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
             let checkSite = false;
 
             if (filterStatus) {
-                switch (filterStatus) {
+                const statusKey = (filterStatus || '').toString().trim();
+                switch (statusKey) {
                     case 'For SRV':
                     case 'No Need SRV':
-                        validPositions = ['Site DC', 'Site Engineer'];
+                        // Batch Entry rule: SRV should only suggest Site DC + Camp Boss (site-matched)
+                        validPositions = ['Site DC', 'Camp Boss'];
                         checkSite = true; // Match User Site with PO Site
                         break;
                         
@@ -5529,9 +5531,10 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
                         validPositions = ['QS', 'Senior QS'];
                         checkSite = true; // Match User Site with PO Site
                         break;
-                        
+                    
+                    // For Approval and any other status should show ALL (no auto-filter)
                     case 'For Approval':
-                        validPositions = ['Site Engineer', 'COO', 'MEP Manager', 'Project Director', 'Accounts', 'Accounting'];
+                        validPositions = null;
                         break;
                         
                     case 'CEO Approval':
@@ -5539,7 +5542,8 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
                         break;
                         
                     case 'Report':
-                        validPositions = ['Accounts'];
+                        // Report should suggest Admin users only
+                        validPositions = ['Admin'];
                         break;
                         
                     default:
@@ -5595,7 +5599,14 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
                 if (!validPositions) return true; 
 
                 // Check Position
-                const isPosMatch = validPositions.some(role => user.position.toLowerCase() === role.toLowerCase());
+                const userPos = (user.position || '').toLowerCase();
+                const isPosMatch = validPositions.some(role => {
+                    const r = (role || '').toLowerCase();
+                    if (r === 'admin') return userPos.includes('admin');
+                    if (r === 'camp boss') return userPos.includes('camp') && userPos.includes('boss');
+                    if (r === 'site dc') return userPos.includes('site') && userPos.includes('dc');
+                    return userPos === r;
+                });
                 if (!isPosMatch) return false;
 
                 // Check Site (For SRV & IPC)
@@ -15305,26 +15316,25 @@ async function handleDownloadDailyReport() {
             for (const key in invoices) {
                 const inv = invoices[key];
 
-                // Normalize Timestamp
-                let creationTime = inv.createdAt || inv.timestamp || 0;
-                if (typeof creationTime === 'string') {
-                    creationTime = new Date(creationTime).getTime();
-                }
+                // Normalize Event Timestamp (prefer status/update time; fallback to created time)
+                let eventTime = inv.updatedAt || inv.enteredAt || inv.createdAt || inv.timestamp || 0;
+                if (typeof eventTime === 'string') eventTime = new Date(eventTime).getTime();
 
-                // Check if created within the last 2 hours
-                if (creationTime > twoHoursAgo) {
+                // Only include invoices that are Under Process in the last 2 hours
+                const statusStr = (inv.status || '').toString().trim().toLowerCase();
+                if (statusStr === 'under process' && (eventTime > twoHoursAgo)) {
                     recentEntries.push({
                         po: poNumber,
                         site: allPOs[poNumber]?.['Project ID'] || 'N/A',
                         ...inv,
-                        sortTime: creationTime
+                        sortTime: eventTime
                     });
                 }
             }
         }
 
         if (recentEntries.length === 0) {
-            alert("No new invoices found in the last 2 hours.");
+            alert("No 'Under Process' invoices found in the last 2 hours.");
             return;
         }
 
@@ -15336,8 +15346,8 @@ async function handleDownloadDailyReport() {
 
         recentEntries.forEach(entry => {
             let timeString = '';
-            if (entry.createdAt) {
-                const dateObj = new Date(entry.createdAt);
+            if (entry.sortTime) {
+                const dateObj = new Date(entry.sortTime);
                 if (!isNaN(dateObj.getTime())) {
                     timeString = dateObj.toLocaleTimeString([], {
                         hour: '2-digit',
@@ -15374,7 +15384,7 @@ async function handleDownloadDailyReport() {
     }
 }
 
-// 2. WITH ACCOUNTS REPORT (Last 2 Hours OR Released Today)
+// 2. WITH ACCOUNTS REPORT (Last 2 Hours)
 async function handleDownloadWithAccountsReport() {
     const isAccountingPosition = (currentApprover?.Position || '').toLowerCase() === 'accounting';
     if (!isAccountingPosition) {
@@ -15382,9 +15392,8 @@ async function handleDownloadWithAccountsReport() {
         return;
     }
 
-    // Setup Time Checkers
+    // Setup Time Checker (Last 2 Hours)
     const twoHoursAgo = Date.now() - (2 * 60 * 60 * 1000);
-    const todayStr = getTodayDateString(); // Gets "YYYY-MM-DD" for today
 
     try {
         await ensureInvoiceDataFetched(true);
@@ -15401,28 +15410,25 @@ async function handleDownloadWithAccountsReport() {
             for (const key in invoices) {
                 const inv = invoices[key];
 
-                // Normalize Timestamp
-                let creationTime = inv.createdAt || inv.timestamp || 0;
-                if (typeof creationTime === 'string') creationTime = new Date(creationTime).getTime();
+                // Normalize Event Timestamp (prefer status/update time; fallback to created time)
+                let eventTime = inv.updatedAt || inv.enteredAt || inv.createdAt || inv.timestamp || 0;
+                if (typeof eventTime === 'string') eventTime = new Date(eventTime).getTime();
 
-                // Logic: Check if Created Recently OR Released Today
-                const isRecent = (creationTime > twoHoursAgo);
-                const isReleasedToday = (inv.releaseDate === todayStr);
-
-                // Only include if status is correct AND (it's new OR it was updated today)
-                if (inv.status === 'With Accounts' && (isRecent || isReleasedToday)) {
+                // Only include if status is correct AND in the last 2 hours
+                const statusStr = (inv.status || '').toString().trim().toLowerCase();
+                if (statusStr === 'with accounts' && (eventTime > twoHoursAgo)) {
                     recentEntries.push({
                         po: poNumber,
                         site: allPOs[poNumber]?.['Project ID'] || 'N/A',
                         ...inv,
-                        sortTime: creationTime
+                        sortTime: eventTime
                     });
                 }
             }
         }
 
         if (recentEntries.length === 0) {
-            alert("No 'With Accounts' invoices found from Today or the last 2 hours.");
+            alert("No 'With Accounts' invoices found in the last 2 hours.");
             return;
         }
 
@@ -15435,8 +15441,8 @@ async function handleDownloadWithAccountsReport() {
 
         recentEntries.forEach(entry => {
             let timeString = '';
-            if (entry.createdAt) {
-                const dateObj = new Date(entry.createdAt);
+            if (entry.sortTime) {
+                const dateObj = new Date(entry.sortTime);
                 if (!isNaN(dateObj.getTime())) {
                     timeString = dateObj.toLocaleTimeString([], {
                         hour: '2-digit',
@@ -15518,7 +15524,16 @@ window.downloadReportingTableToExcel = async function() {
                     if (inv.status !== 'Report Approved') return;
 
                     // --- FILTER 2: TIME (Last 2 Hours) ---
-                    const itemTime = inv.updatedAt || inv.enteredAt || 0;
+                    // Normalize to milliseconds since epoch (handles ISO strings and seconds timestamps)
+                    let itemTime = inv.updatedAt || inv.enteredAt || inv.timestamp || 0;
+                    if (typeof itemTime === 'string') {
+                        const parsed = Date.parse(itemTime);
+                        itemTime = isNaN(parsed) ? (parseInt(itemTime, 10) || 0) : parsed;
+                    }
+                    if (typeof itemTime === 'number' && itemTime > 0 && itemTime < 1e12) {
+                        // likely seconds
+                        itemTime = itemTime * 1000;
+                    }
                     if (itemTime < cutoffTime) return; // Skip old items
                     
                     // --- DATA MAPPING ---

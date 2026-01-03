@@ -1188,9 +1188,9 @@ tbody tr:hover { background-color: #f1f1f1; }
     height: 100%;
 
     /* Frosted background */
-    background: rgba(10, 20, 30, 0.45);
-    backdrop-filter: blur(6px) saturate(120%);
-    -webkit-backdrop-filter: blur(6px) saturate(120%);
+    background: rgba(10, 20, 30, 0.25);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 
     display: flex;
     justify-content: center;
@@ -1273,6 +1273,27 @@ tbody tr:hover { background-color: #f1f1f1; }
     display: flex;
     justify-content: flex-end;
     gap: 10px;
+}
+
+/* ======================================================== */
+/* Batch Entry Attention Picker: allow dropdown to expand     */
+/* (Choices dropdown was getting clipped to 1 row)           */
+/* ======================================================== */
+#im-attention-picker-modal .modal-container {
+    /* Let Choices dropdown escape the modal box */
+    overflow: visible !important;
+}
+
+#im-attention-picker-modal .modal-container::before {
+    /* Keep highlight clean even with overflow visible */
+    transform: none !important;
+    clip-path: inset(0 round 16px);
+}
+
+#im-attention-picker-modal .choices__list--dropdown {
+    max-height: 260px !important;
+    overflow-y: auto !important;
+    z-index: 5000 !important;
 }
 
 
