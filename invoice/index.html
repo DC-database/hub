@@ -377,7 +377,15 @@
         <span id="job-records-count-display" class="table-count-display"></span>
     </h1>
 
-    <div class="report-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+    <div class="search-and-filter-group" style="display: flex; flex-wrap: nowrap; align-items: center; gap: 10px; max-width: 500px; margin-bottom: 20px;">
+        <div class="search-bar-local" style="margin-bottom: 0; flex-grow: 1; width: 100%;">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="reporting-search" placeholder="Search entries..." style="margin-bottom: 0;">
+        </div>
+        <button id="reporting-clear-button" class="secondary-btn" type="button" style="height: 45px; margin-bottom: 0; white-space: nowrap;">Clear</button>
+    </div>
+
+<div class="report-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
 
         <div class="report-tabs-container" style="flex-grow: 1;">
             <div id="report-tabs" class="report-tabs"></div>
@@ -387,14 +395,6 @@
             <!-- Removed: "Add New Job" button from Job Records header (requested) -->
             
         </div>
-    </div>
-
-<div class="search-and-filter-group" style="display: flex; flex-wrap: nowrap; align-items: center; gap: 10px; max-width: 500px; margin-bottom: 20px;">
-        <div class="search-bar-local" style="margin-bottom: 0; flex-grow: 1; width: 100%;">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" id="reporting-search" placeholder="Search entries..." style="margin-bottom: 0;">
-        </div>
-        <button id="reporting-clear-button" class="secondary-btn" type="button" style="height: 45px; margin-bottom: 0; white-space: nowrap;">Clear</button>
     </div>
 
     <div id="reporting-printable-area">
@@ -439,10 +439,6 @@
         </div>
     </div>
 
-    <div id="ms-category-tabs" class="report-tabs" style="margin-bottom: 15px; border-bottom: 2px solid #eee; overflow-x: auto; white-space: nowrap; display: flex; gap: 10px; padding-bottom: 5px;">
-        <span style="color:#999; font-style:italic; padding:10px;">Loading families...</span>
-    </div>
-
     <div id="ms-search-container" style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 15px; gap: 20px;">
         <div style="display: flex; gap: 10px; align-items: center; flex-grow: 1; max-width: 50%;"> 
             <div class="search-bar-local" style="flex-grow: 1; margin-bottom: 0; position: relative; height: 40px;">
@@ -466,7 +462,11 @@
             </button>
         </div>
     </div>
-    
+
+    <div id="ms-category-tabs" class="report-tabs" style="margin-bottom: 15px; border-bottom: 2px solid #eee; overflow-x: auto; white-space: nowrap; display: flex; gap: 10px; padding-bottom: 5px;">
+        <span style="color:#999; font-style:italic; padding:10px;">Loading families...</span>
+    </div>
+
     <div class="table-wrapper">
         <table id="ms-table">
            <thead>
@@ -1217,7 +1217,7 @@
                         
                         <div class="sn-qr-container" style="margin-top: 5px; text-align: left;">
                             <div id="sn-prev-summary-qr"></div>
-                            <p style="font-size: 8pt; margin: 3px 0 0 0; font-weight: bold;">Prev Summary</p>
+                            <p style="font-size: 8pt; margin: 3px 0 0 0; font-weight: bold;">Prev Summary<span id="sn-prev-summary-date"></span></p>
                         </div>
                     </div>
                     <div class="sn-print-title">

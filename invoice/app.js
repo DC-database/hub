@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "5.6.2";
+const APP_VERSION = "5.6.6";
 
 // DETECT INVENTORY CONTEXT
 // Inventory mode can be triggered by:
@@ -1804,6 +1804,7 @@ const summaryNotePrevPdfBtn = document.getElementById('summary-note-prev-pdf-btn
 const summaryNotePrintBtn = document.getElementById('summary-note-print-btn');
 const summaryNotePrintArea = document.getElementById('summary-note-printable-area');
 const snDate = document.getElementById('sn-date');
+const snPrevSummaryDate = document.getElementById('sn-prev-summary-date');
 const snVendorName = document.getElementById('sn-vendor-name');
 const snPreviousPayment = document.getElementById('sn-previous-payment');
 const snCurrentPayment = document.getElementById('sn-current-payment');
@@ -4387,21 +4388,19 @@ const uniqueTabs = Object.keys(tabCountsAll).sort();
     const directCount = (directTabCounts[tabName] || 0);
     const hasDirectTasks = directCount > 0;
 
-    let tabColor, textColor, borderStyle, fontWeight, blinkClass;
+    let tabColor, tabText, fontWeight, blinkClass;
 
     if (hasDirectTasks) {
         const statusColor = getTabColor(tabName);
         tabColor = statusColor;
-        textColor = statusColor;
-        fontWeight = 'bold';
-        borderStyle = `4px solid ${statusColor}`;
+        tabText = '#ffffff';
+        fontWeight = '800';
         blinkClass = 'blink-tab';
     } else {
-        // No direct attention tasks for this user in this tab => keep it grey (no count, no blink)
-        tabColor = '#6c757d';
-        textColor = '#555';
-        fontWeight = 'normal';
-        borderStyle = `1px solid #ddd`;
+        // No direct attention tasks for this user in this tab => keep it neutral
+        tabColor = '#d7dbe0';
+        tabText = '#2c2c2c';
+        fontWeight = '700';
         blinkClass = '';
     }
 
@@ -4415,11 +4414,7 @@ const uniqueTabs = Object.keys(tabCountsAll).sort();
     tabsHTML += `
     <button class="${activeClass} ${blinkClass}"
             data-status-filter="${tabName}"
-            style="
-                border-bottom: ${borderStyle};
-                color: ${textColor};
-                font-weight: ${fontWeight};
-            ">
+            style="--tab-color: ${tabColor}; --tab-text: ${tabText}; font-weight: ${fontWeight};">
         ${tabName}
         ${badgeHTML}
     </button>`;
@@ -9979,6 +9974,14 @@ async function handleGenerateSummary() {
         const today = new Date();
         snDate.textContent = `Date: ${today.toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' }).replace(/ /g, '-')}`;
 
+        // Show date next to "Prev Summary" under the QR code
+        if (snPrevSummaryDate) {
+            const dd = String(today.getDate()).padStart(2, '0');
+            const mmm = today.toLocaleString('en-GB', { month: 'short' }).toUpperCase();
+            const yyyy = today.getFullYear();
+            snPrevSummaryDate.textContent = ` (${dd}-${mmm}-${yyyy})`;
+        }
+
         snPreviousPayment.textContent = `${formatCurrency(previousPaymentTotal)} Qatari Riyals`;
         snCurrentPayment.textContent = `${formatCurrency(currentPaymentTotal)} Qatari Riyals`;
         snTableBody.innerHTML = '';
@@ -11104,11 +11107,17 @@ try {
     }
 
     // --- Sidebar "Add New Job" Action ---
-    // Updated: Hide this button across Workdesk + Inventory clone.
-    // Users should create entries from the appropriate modules (e.g., Material Stock).
+    // Restored: users can add a new job entry from the WorkDesk sidebar.
     const sidebarAddJobBtn = document.getElementById('wd-sidebar-add-job-btn');
     if (sidebarAddJobBtn) {
-        sidebarAddJobBtn.style.display = 'none';
+        sidebarAddJobBtn.style.display = ''; // ensure visible
+        sidebarAddJobBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            // open modal in Add mode (function is attached to window later in this file)
+            if (typeof window.openStandardJobModal === 'function') {
+                window.openStandardJobModal('Add');
+            }
+        });
     }
     // Password Form (Desktop)
     passwordForm.addEventListener('submit', (e) => {

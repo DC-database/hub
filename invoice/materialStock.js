@@ -365,11 +365,12 @@ function renderCategoryTabs() {
         if (item.familyCode) activeFamilyCodes.add(item.familyCode);
     });
 
+    // If the selected tab no longer exists in data, fall back to "All"
     if (currentCategoryFilter !== 'All' && !activeFamilyCodes.has(currentCategoryFilter)) {
         currentCategoryFilter = 'All';
     }
 
-    let html = `<button class="${currentCategoryFilter === 'All' ? 'active' : ''}" onclick="filterStockByCategory('All')" style="margin-right:5px; padding: 8px 15px; cursor: pointer; border: none; background: transparent; border-bottom: 3px solid transparent; font-weight: 600; color: #555; white-space: nowrap;">All Families</button>`;
+    let html = `<button class="${currentCategoryFilter === 'All' ? 'active' : ''}" onclick="filterStockByCategory('All')">All Families</button>`;
 
     const sortedFamilies = Object.keys(STOCK_LEGENDS).sort((a, b) => parseInt(a) - parseInt(b));
 
@@ -377,7 +378,7 @@ function renderCategoryTabs() {
         if (activeFamilyCodes.has(code)) {
             const name = STOCK_LEGENDS[code].name;
             const activeClass = (currentCategoryFilter === code) ? 'active' : '';
-            html += `<button class="${activeClass}" onclick="filterStockByCategory('${code}')" style="margin-right:5px; padding: 8px 15px; cursor: pointer; border: none; background: transparent; border-bottom: 3px solid transparent; font-weight: 600; color: #555; white-space: nowrap;">
+            html += `<button class="${activeClass}" onclick="filterStockByCategory('${code}')">
                         ${name} <span style="font-size: 0.75rem; color: #dc3545; font-weight: normal; margin-left: 4px;">[${code}]</span>
                      </button>`;
         }
@@ -385,12 +386,11 @@ function renderCategoryTabs() {
 
     tabsContainer.innerHTML = html;
 
-    const activeTabs = tabsContainer.querySelectorAll('.active');
-    activeTabs.forEach(tab => {
-        tab.style.borderBottomColor = '#00748C';
-        tab.style.color = '#00748C';
-        tab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-    });
+    // Keep the active tab centered when the list is scrollable
+    const activeTab = tabsContainer.querySelector('.active');
+    if (activeTab) {
+        activeTab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
 
     renderMaterialStockTable(allMaterialStockData);
 }

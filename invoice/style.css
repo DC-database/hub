@@ -205,12 +205,9 @@
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; color: var(--text-color-dark); background-color: #f4f7fa; }
 
 /* -------------------------------------------------------------------------- */
-/* UI SIMPLIFICATION: HIDE "ADD NEW JOB" ENTRY POINTS IN JOB RECORDS */
-/* The system already provides dedicated entry points (e.g., Material Stock). */
-/* This prevents users from creating the wrong type of records from Reporting. */
+/* UI SIMPLIFICATION: HIDE "ADD NEW JOB" ENTRY POINTS IN REPORTING LIST VIEWS */
+/* (The WorkDesk sidebar "Add New Job" remains available as the main entry.) */
 /* -------------------------------------------------------------------------- */
-#wd-sidebar-add-job-btn,
-#wd-sidebar-add-job-btn,
 #wd-reporting .btn-open-standard-modal,
 #wd-jobentry .btn-open-standard-modal {
     display: none !important;
@@ -537,56 +534,134 @@ tbody tr:hover { background-color: #f1f1f1; }
     gap: 15px;
 }
 
-/* --- CLEAN TAB STYLE (Matches Material Stock) --- */
-.report-tabs { 
-    display: flex; 
-    gap: 10px; /* Increased gap for cleaner look */
-    border-bottom: 2px solid #e0e0e0; 
+
+/* --- TAB STYLE (Workdesk + Inventory) --- */
+.report-tabs{
+    /* Default colors (can be overridden per button using --tab-color/--tab-text) */
+    --tab-color-default: #d7dbe0;
+    --tab-active-default: var(--iba-secondary-teal);
+
+    display: flex;
+    align-items: flex-end;
+    gap: 0 !important; /* compact segmented tabs */
+    padding: 8px 10px 10px !important;
+    border-bottom: 2px solid #dfe3e8 !important;
+
     overflow-x: auto;
-    overflow-y: hidden; /* Prevents vertical scroll arrows */
+    overflow-y: hidden;
     white-space: nowrap;
-    padding-bottom: 0;
-    
+
     /* Hide Scrollbar (Clean Look) */
     -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+    scrollbar-width: none;     /* Firefox */
 }
 
 /* Hide Scrollbar for Chrome, Safari, Opera */
-.report-tabs::-webkit-scrollbar {
-    display: none;
-}
+.report-tabs::-webkit-scrollbar { display: none; }
 
-.report-tabs button { 
-    background-color: transparent !important; /* Force Transparent */
-    border: none !important;
-    border-bottom: 3px solid transparent !important; 
-    padding: 8px 15px; /* Tighter padding like Material Stock */
-    font-size: 15px; 
-    font-weight: 600; 
-    color: #555; 
-    cursor: pointer; 
-    border-radius: 0; 
-    margin-bottom: -2px; 
+.report-tabs button{
+    flex: 0 0 auto;
+    position: relative;
+
+    border: 1px solid rgba(0,0,0,0.10) !important;
+    cursor: pointer;
+
+    /* Extra left padding to clear the angled corner */
+    padding: 10px 26px 9px 34px;
+    margin: 0 0 -2px 0; /* sit on the bottom border (tab look) */
+    border-radius: 10px 10px 0 0;
+
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
     white-space: nowrap;
-    box-shadow: none !important; /* Remove any shadows */
-    transition: color 0.2s, border-color 0.2s;
+
+    color: var(--tab-text, #1f2937) !important;
+    background:
+        linear-gradient(to bottom, rgba(255,255,255,0.85), rgba(255,255,255,0.35)),
+        var(--tab-color, var(--tab-color-default)) !important;
+
+    /* Folder-tab edge */
+    clip-path: polygon(0 100%, 0 28%, 18px 0, 100% 0, 100% 100%);
+
+    box-shadow: 0 6px 14px rgba(0,0,0,0.12);
+
+    z-index: 1;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
 }
 
-.report-tabs button:hover {
-    color: var(--iba-secondary-teal);
-    background-color: rgba(0, 116, 140, 0.05) !important; /* Very subtle hover tint */
+.report-tabs button:not(:first-child){
+    margin-left: -10px; /* slight overlap */
+    padding-left: 44px; /* keep text centered after overlap */
 }
 
-.report-tabs button.active { 
-    color: var(--iba-secondary-teal) !important; 
-    border-bottom-color: var(--iba-secondary-teal) !important; 
-    background-color: transparent !important;
+.report-tabs button:hover{
+    z-index: 2;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 18px rgba(0,0,0,0.16);
+    filter: brightness(1.01);
 }
 
+.report-tabs button.active{
+    z-index: 3;
+    transform: translateY(-2px);
 
+    color: var(--tab-text, #ffffff) !important;
+    background:
+        linear-gradient(to bottom, rgba(255,255,255,0.30), rgba(0,0,0,0.08)),
+        var(--tab-color, var(--tab-active-default)) !important;
 
+    box-shadow: 0 14px 26px rgba(0,0,0,0.18);
+}
 
+.report-tabs button:disabled{
+    opacity: 0.6;
+    cursor: not-allowed;
+    filter: grayscale(0.2);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.10);
+}
+
+/* Make secondary text inside active tabs readable (e.g., [code] labels) */
+.report-tabs button.active span:not(.notification-badge){
+    color: rgba(255,255,255,0.92) !important;
+}
+
+/* Attention effect used on Active Task tabs */
+@keyframes reportTabPulse {
+    0%   { box-shadow: 0 14px 26px rgba(0,0,0,0.18); }
+    50%  { box-shadow: 0 18px 34px rgba(0,0,0,0.24); }
+    100% { box-shadow: 0 14px 26px rgba(0,0,0,0.18); }
+}
+.report-tabs button.blink-tab{
+    animation: reportTabPulse 1.25s ease-in-out infinite;
+}
+
+@media (max-width: 480px) {
+    .report-tabs{
+        padding: 6px 8px 8px !important;
+    }
+    .report-tabs button{
+        padding: 9px 18px 8px 28px;
+        margin-bottom: -2px;
+        font-size: 13px;
+        clip-path: polygon(0 100%, 0 30%, 14px 0, 100% 0, 100% 100%);
+    }
+    .report-tabs button:not(:first-child){
+        margin-left: -8px;
+        padding-left: 36px;
+    }
+}
+
+    .report-tabs button{
+        padding: 9px 18px;
+        margin-bottom: -16px;
+        font-size: 13px;
+    }
+    .report-tabs button:not(:first-child){
+        margin-left: -14px;
+        padding-left: 32px;
+    }
+}
 .print-btn { background-color: #17a2b8; padding: 8px 15px; }
 .print-btn:hover { background-color: #138496; }
 .print-btn i { margin-right: 8px; }
@@ -1104,57 +1179,102 @@ tbody tr:hover { background-color: #f1f1f1; }
     max-width: 200px;
 }
 
+
 /* ++ NEW: MODAL STYLES ++ */
 .modal-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
+    inset: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.6);
+
+    /* Frosted background */
+    background: rgba(10, 20, 30, 0.45);
+    backdrop-filter: blur(6px) saturate(120%);
+    -webkit-backdrop-filter: blur(6px) saturate(120%);
+
     display: flex;
     justify-content: center;
     align-items: center;
+
     z-index: 2000;
 }
+
 .modal-container {
-    background-color: #fff;
-    padding: 25px;
-    border-radius: 8px;
-    width: 90%;
-    max-width: 500px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    position: relative;
+    overflow: hidden;
+
+    /* Glass / crystal look */
+    background: linear-gradient(135deg, rgba(255,255,255,0.34), rgba(255,255,255,0.12)) !important;
+    border: 1px solid rgba(255,255,255,0.35) !important;
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+
+    padding: 22px;
+    border-radius: 16px;
+    width: 92%;
+    max-width: 520px;
+
+    box-shadow: 0 20px 60px rgba(0,0,0,0.28);
     display: flex;
     flex-direction: column;
+    color: #0f172a;
 }
+
+/* Subtle crystal highlight */
+.modal-container::before{
+    content: "";
+    position: absolute;
+    /* Keep the highlight INSIDE the modal so it never renders as a
+       "floating rectangle" even when a modal overrides overflow. */
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at 25% 25%, rgba(255,255,255,0.45), rgba(255,255,255,0) 60%);
+    transform: rotate(12deg);
+    pointer-events: none;
+}
+
 .modal-header {
+    position: relative;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid #e0e0e0;
-    padding-bottom: 15px;
-    margin-bottom: 15px;
+    border-bottom: 1px solid rgba(255,255,255,0.25);
+    padding-bottom: 12px;
+    margin-bottom: 12px;
 }
 .modal-header h2 {
     margin: 0;
-    font-size: 1.3rem;
+    font-size: 1.25rem;
+    color: inherit;
 }
 .modal-close-btn {
-    background: none;
-    border: none;
-    font-size: 1.8rem;
+    background: rgba(255,255,255,0.18);
+    border: 1px solid rgba(255,255,255,0.28);
+    border-radius: 10px;
+    font-size: 1.4rem;
     cursor: pointer;
-    color: #555;
-    padding: 0 10px;
+    color: rgba(15, 23, 42, 0.8);
+    padding: 4px 12px;
+    line-height: 1;
 }
+.modal-close-btn:hover{
+    background: rgba(255,255,255,0.28);
+}
+
+.modal-content,
+.modal-footer{
+    position: relative; /* sit above the highlight */
+}
+
 .modal-footer {
-    border-top: 1px solid #e0e0e0;
-    padding-top: 15px;
-    margin-top: 15px;
+    border-top: 1px solid rgba(255,255,255,0.25);
+    padding-top: 12px;
+    margin-top: 12px;
     display: flex;
     justify-content: flex-end;
     gap: 10px;
 }
+
 
 /* ======================================================== */
 /* SIMPLE .modal OVERLAY (used by Invoice Print Preview)     */
@@ -1173,9 +1293,14 @@ tbody tr:hover { background-color: #f1f1f1; }
     display: none !important;
 }
 .modal > .modal-content {
-    background: #fff;
-    border-radius: 8px;
+    position: relative;
     overflow: hidden;
+    background: linear-gradient(135deg, rgba(255,255,255,0.34), rgba(255,255,255,0.12));
+    border: 1px solid rgba(255,255,255,0.35);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.28);
 }
 
 /* ++ NEW: Batch Global Controls ++ */

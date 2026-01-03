@@ -21,9 +21,15 @@
     flex-direction: column;
     height: auto !important;
     max-height: 90vh !important;
-    border-radius: 8px;
-    background: #fff;
-    overflow: visible !important;
+    /* Crystal / glass container */
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.32), rgba(255,255,255,0.10)) !important;
+    border: 1px solid rgba(255,255,255,0.35) !important;
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.28);
+    /* Prevent any highlight or backdrop from rendering outside */
+    overflow: hidden !important;
 }
 
 /* Content Area */
@@ -54,13 +60,13 @@
 #im-invoice-entry-modal .modal-footer,
 #im-add-payment-modal .modal-footer {
     padding: 15px 25px !important;
-    background-color: #ffffff !important; /* Changed from Grey to White */
-    border-top: 1px solid #eee;           /* Subtle separator line */
+    background-color: rgba(255, 255, 255, 0.10) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.22);
     display: flex;
     justify-content: flex-end;
     align-items: center;
     gap: 10px;
-    border-radius: 0 0 8px 8px;
+    border-radius: 0 0 16px 16px;
 }
 
 /* --- [FIX] Footer Buttons (Uniform Size) --- */
@@ -90,10 +96,13 @@
 #im-add-payment-modal .modal-header,
 #ms-new-material-modal .modal-header, /* <--- ADDED THIS */
 #standard-job-modal .modal-header {
-    background-color: #003A5C !important; /* Brand Blue */
-    color: #ffffff !important;             /* White Text */
-    border-bottom: 3px solid #002a48;      /* Darker 3D Border */
-    border-radius: 8px 8px 0 0;            /* Rounded Top Corners */
+    /* Glass header with a formal tint */
+    background: linear-gradient(180deg, rgba(0, 58, 92, 0.82), rgba(0, 58, 92, 0.55)) !important;
+    backdrop-filter: blur(10px) saturate(140%);
+    -webkit-backdrop-filter: blur(10px) saturate(140%);
+    color: #ffffff !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 16px 16px 0 0;
     padding: 15px 25px !important;
     display: flex;
     justify-content: space-between;
