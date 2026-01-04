@@ -142,7 +142,7 @@ const STOCK_LEGENDS = {
         "relations": {
             "901": "Miscellaneous",
             "902": "Client-supplied / Unknown",
-            "903": "Scrap / Returns"
+            "903": "Scrap / Returns",
             "904": "Vehicles"
         }
     }
