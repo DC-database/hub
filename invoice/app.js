@@ -6,7 +6,152 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "5.6.9";
+const APP_VERSION = "5.8.3";
+
+// --- Vacation Delegation Helpers (Super Admin Replacement) ---
+// When SUPER_ADMIN_NAME enables Vacation in Settings and sets ReplacementName,
+// that replacement user is granted temporary Invoice Management access (except Delete, which remains Irwin-only).
+const SUPER_ADMIN_NAME = "Irwin";
+
+function getCachedApproversData() {
+    return (typeof allApproverDataCache !== 'undefined' && allApproverDataCache) ? allApproverDataCache : allApproverData;
+}
+
+function getActiveVacationConfig() {
+    const approversData = getCachedApproversData();
+    if (!approversData) return null;
+
+    for (const key in approversData) {
+        const a = approversData[key];
+        if (!a) continue;
+        const name = (a.Name || '').trim();
+        if (!name || name.toLowerCase() !== SUPER_ADMIN_NAME.toLowerCase()) continue;
+
+        const vacationVal = a.Vacation;
+        const onVacation = vacationVal === true || vacationVal === "Yes" || (typeof vacationVal === 'string' && vacationVal.toLowerCase() === 'yes');
+        if (!onVacation) return null;
+
+        const replacementName = (a.ReplacementName || '').trim();
+        if (!replacementName) return null;
+
+        const returnStr = (a.DateReturn || '').trim();
+        let returnDate = null;
+        if (returnStr) {
+            const d = new Date(returnStr);
+            if (!isNaN(d)) {
+                d.setHours(23, 59, 59, 999);
+                returnDate = d;
+            }
+        }
+
+        // Auto-disable after return date (no DB write; just treated as inactive)
+        const now = new Date();
+        if (returnDate && now > returnDate) return null;
+
+        return { superAdminKey: key, replacementName, returnDateStr: returnStr || '' };
+    }
+    return null;
+}
+
+function isVacationDelegateUser() {
+    const vac = getActiveVacationConfig();
+    if (!vac || !currentApprover) return false;
+    const currentName = (currentApprover.Name || '').trim();
+    return currentName && currentName.toLowerCase() === vac.replacementName.toLowerCase();
+}
+
+function getInvoiceHandlerName() {
+    const vac = getActiveVacationConfig();
+    return (vac && vac.replacementName) ? vac.replacementName : SUPER_ADMIN_NAME;
+}
+
+// --- General Vacation Delegation (All Users) ---
+// Any user can enable Vacation in Settings and set ReplacementName + (optional) DateReturn.
+// When active, tasks assigned to the vacationing user will:
+//  - route to the replacement at creation/update time (where possible), and
+//  - appear in the replacement's Active Tasks list even if already assigned to the vacationing user.
+function _normName(v) { return String(v || '').trim().toLowerCase(); }
+
+function _parseReturnDate(dateStr) {
+    const s = String(dateStr || '').trim();
+    if (!s) return null;
+    const d = new Date(s);
+    if (isNaN(d)) return null;
+    d.setHours(23, 59, 59, 999);
+    return d;
+}
+
+function getActiveVacationByName(name) {
+    const approversData = getCachedApproversData();
+    const target = _normName(name);
+    if (!approversData || !target) return null;
+
+    for (const key in approversData) {
+        const a = approversData[key];
+        if (!a) continue;
+        const aName = _normName(a.Name);
+        if (!aName || aName !== target) continue;
+
+        const vacationVal = a.Vacation;
+        const onVacation = vacationVal === true || vacationVal === "Yes" || (typeof vacationVal === 'string' && vacationVal.toLowerCase() === 'yes');
+        if (!onVacation) return null;
+
+        const replacementName = String(a.ReplacementName || '').trim();
+        if (!replacementName) return null;
+
+        const returnDate = _parseReturnDate(a.DateReturn || '');
+        const now = new Date();
+        if (returnDate && now > returnDate) return null;
+
+        return {
+            key,
+            name: (a.Name || '').trim(),
+            replacementName,
+            returnDateStr: String(a.DateReturn || '').trim()
+        };
+    }
+    return null;
+}
+
+function resolveVacationAssignee(name) {
+    const n = String(name || '').trim();
+    if (!n) return n;
+    // Do not rewrite special buckets
+    const lower = n.toLowerCase();
+    if (lower === 'all' || lower === 'accounting') return n;
+
+    const vac = getActiveVacationByName(n);
+    return (vac && vac.replacementName) ? vac.replacementName : n;
+}
+
+function getDelegatorsForReplacement(replacementName) {
+    const approversData = getCachedApproversData();
+    const target = _normName(replacementName);
+    const delegators = [];
+    if (!approversData || !target) return delegators;
+
+    const now = new Date();
+
+    for (const key in approversData) {
+        const a = approversData[key];
+        if (!a) continue;
+
+        const rep = _normName(a.ReplacementName);
+        if (!rep || rep !== target) continue;
+
+        const vacationVal = a.Vacation;
+        const onVacation = vacationVal === true || vacationVal === "Yes" || (typeof vacationVal === 'string' && vacationVal.toLowerCase() === 'yes');
+        if (!onVacation) continue;
+
+        const returnDate = _parseReturnDate(a.DateReturn || '');
+        if (returnDate && now > returnDate) continue;
+
+        const fromName = String(a.Name || '').trim();
+        if (fromName) delegators.push(fromName);
+    }
+    return delegators;
+}
+
 
 // DETECT INVENTORY CONTEXT
 // Inventory mode can be triggered by:
@@ -1970,9 +2115,35 @@ function handleSuccessfulLogin() {
     const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
     document.body.classList.toggle('is-admin', isAdmin);
 
+    // --- Vacation delegation requires full approvers cache (preload + re-apply UI on refresh) ---
+    // On initial login we often already have it, but on session restore we may only have a single user record.
+    // Preload approvers in background and then re-apply Invoice Management visibility once available.
+    if (!allApproverDataCache) {
+        ensureApproverDataCached().then(() => {
+            const _isVacationDelegate = isVacationDelegateUser();
+            document.body.classList.toggle('is-vacation-delegate', _isVacationDelegate);
+            const _invoiceMgmtBtn = document.getElementById('invoice-mgmt-button');
+            if (_invoiceMgmtBtn) {
+                const _userPosLower = (currentApprover?.Position || '').toLowerCase();
+                const _isAccounting = _userPosLower === 'accounting';
+                const _isAccounts = _userPosLower === 'accounts';
+                const _isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
+                if (_isAdmin || _isAccounting || _isAccounts || _isVacationDelegate) {
+                    _invoiceMgmtBtn.classList.remove('hidden');
+                } else {
+                    _invoiceMgmtBtn.classList.add('hidden');
+                }
+            }
+        }).catch((e) => console.warn('Approver cache preload failed:', e));
+    }
+
+
     const userPositionLower = (currentApprover?.Position || '').toLowerCase();
     const isAccounting = userPositionLower === 'accounting';
     const isAccounts = userPositionLower === 'accounts';
+    const isVacationDelegate = isVacationDelegateUser();
+    document.body.classList.toggle('is-vacation-delegate', isVacationDelegate);
+
 
     // --- Hide Finance Report Button for non-Accounts ---
     const financeReportButton = document.querySelector('a[href="https://ibaport.site/Finance/"]');
@@ -1985,7 +2156,7 @@ function handleSuccessfulLogin() {
     // Only Admins, Accounting, or Accounts should see this button
     const invoiceMgmtBtn = document.getElementById('invoice-mgmt-button');
     if (invoiceMgmtBtn) {
-        if (isAdmin || isAccounting || isAccounts) {
+        if (isAdmin || isAccounting || isAccounts || isVacationDelegate) {
             invoiceMgmtBtn.classList.remove('hidden');
         } else {
             invoiceMgmtBtn.classList.add('hidden');
@@ -2503,26 +2674,33 @@ function showIMSection(sectionId) {
     // Note: We allow AccountingAdmin to see payments too since they have "everything"
     const isAccountsAdmin = (isAdmin && isAccountsPos) || isAccountingAdmin;
 
+    // Vacation delegate (replacement for Irwin) gets temporary Invoice Management access
+    const isVacationDelegate = isVacationDelegateUser();
+    const canAccessFullIM = isAccountingAdmin || isVacationDelegate;
+    const canAccessPayments = isAccountsAdmin; // Vacation delegate does NOT get Payments access
+    const canAccessFinanceReport = isAdmin; // Vacation delegate does NOT get Finance Report access
+
+
     // 3. Strict Access Control Checks
-    if (sectionId === 'im-invoice-entry' && !isAccountingAdmin) {
+    if (sectionId === 'im-invoice-entry' && !canAccessFullIM) {
         alert('Access Denied: Restricted to Admin & Accounting position.');
         return;
     }
-    if (sectionId === 'im-batch-entry' && !isAccountingAdmin) {
+    if (sectionId === 'im-batch-entry' && !canAccessFullIM) {
         alert('Access Denied: Restricted to Admin & Accounting position.');
         return;
     }
-    if (sectionId === 'im-summary-note' && !isAccountingAdmin) {
+    if (sectionId === 'im-summary-note' && !canAccessFullIM) {
         alert('Access Denied: Restricted to Admin & Accounting position.');
         return;
     }
 
-    if (sectionId === 'im-payments' && !isAccountsAdmin) {
+    if (sectionId === 'im-payments' && !canAccessPayments) {
         alert('Access Denied: Restricted to Admin & Accounts/Accounting position.');
         return;
     }
 
-    if (sectionId === 'im-finance-report' && !isAdmin) {
+    if (sectionId === 'im-finance-report' && !canAccessFinanceReport) {
         alert('Access Denied: Restricted to Admins.');
         return;
     }
@@ -3521,9 +3699,11 @@ function renderReportingTable(entries) {
     reportingTableBody.innerHTML = '';
 
     const inventoryTypes = ['Transfer', 'Restock', 'Return', 'Usage'];
+    const isInventoryReport = ((typeof isInventoryContext === 'function' && isInventoryContext()) || inventoryTypes.includes(currentReportFilter));
+
     const tableHead = document.querySelector('#reporting-printable-area table thead');
 
-    if ((typeof isInventoryContext === 'function' && isInventoryContext()) || inventoryTypes.includes(currentReportFilter)) {
+    if (isInventoryReport) {
         tableHead.innerHTML = `
             <tr>
                 <th>Control ID</th><th>Product Name</th><th>Site Route</th>
@@ -3540,23 +3720,98 @@ function renderReportingTable(entries) {
             </tr>`;
     }
 
-    const count = entries.length;
-    if (document.getElementById('job-records-count-display')) {
-        document.getElementById('job-records-count-display').textContent = `(Total Records: ${count})`;
-    }
+    const totalRecords = Array.isArray(entries) ? entries.length : 0;
+    const emptyColspan = isInventoryReport ? 9 : 11;
 
-    if (!entries || count === 0) {
-        reportingTableBody.innerHTML = '<tr><td colspan="11">No entries found.</td></tr>';
+    if (!entries || totalRecords === 0) {
+        if (document.getElementById('job-records-count-display')) {
+            document.getElementById('job-records-count-display').textContent = `(Total Records: 0)`;
+        }
+        reportingTableBody.innerHTML = `<tr><td colspan="${emptyColspan}">No entries found.</td></tr>`;
         return;
     }
 
     const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
 
-    entries.forEach(entry => {
-        const row = document.createElement('tr');
-        row.setAttribute('data-key', entry.key);
+    // ---------------------------------------------------------
+    // Inventory Mode: Group by Control ID (Collapsible)
+    // ---------------------------------------------------------
+    if (isInventoryReport) {
+        // helper: safe group id for dataset lookups
+        const makeSafeId = (str) => {
+            const base = (str ?? '').toString().trim();
+            const cleaned = base.replace(/[^a-zA-Z0-9_-]/g, '_');
+            return (cleaned || 'NO_CONTROL_ID').slice(0, 60);
+        };
 
-        if (inventoryTypes.includes(entry.for)) {
+        // preserve order of first appearance
+        const groups = [];
+        const groupMap = new Map(); // controlId -> groupObj
+
+        entries.forEach((entry, idx) => {
+            const rawCid = (entry.controlId ?? '').toString().trim();
+            const cidKey = rawCid !== '' ? rawCid : `NO_CONTROL_ID_${idx}`;
+            if (!groupMap.has(cidKey)) {
+                const groupId = `cid_${makeSafeId(cidKey)}_${groups.length}`;
+                const g = { cidKey, displayCid: rawCid || '(No Control ID)', groupId, items: [] };
+                groupMap.set(cidKey, g);
+                groups.push(g);
+            }
+            groupMap.get(cidKey).items.push(entry);
+        });
+
+        // Update count display: show groups + records
+        if (document.getElementById('job-records-count-display')) {
+            document.getElementById('job-records-count-display').textContent =
+                `(Groups: ${groups.length} | Records: ${totalRecords})`;
+        }
+
+        // Ensure click handler is attached once (for expand/collapse)
+        if (reportingTableBody && !reportingTableBody.dataset.inventoryGroupToggleBound) {
+            reportingTableBody.dataset.inventoryGroupToggleBound = '1';
+            reportingTableBody.addEventListener('click', (e) => {
+                const tr = e.target.closest('tr.inventory-group-row');
+                if (!tr) return;
+
+                // Do not toggle if user clicked a button/link inside (future-proof)
+                if (e.target.closest('button, a, input, select, textarea, label')) return;
+
+                const groupId = tr.dataset.groupId;
+                if (!groupId) return;
+
+                const expanded = tr.dataset.expanded === '1';
+
+                // Accordion behavior: when opening one Control ID group, close all others
+                if (!expanded) {
+                    const openGroups = reportingTableBody.querySelectorAll('tr.inventory-group-row[data-expanded="1"]');
+                    openGroups.forEach(g => {
+                        if (g === tr) return;
+                        const ogid = g.dataset.groupId;
+                        if (!ogid) return;
+
+                        const ochildren = reportingTableBody.querySelectorAll(`tr.inventory-child-row[data-parent="${ogid}"]`);
+                        ochildren.forEach(r => { r.style.display = 'none'; });
+
+                        g.dataset.expanded = '0';
+                        const oicon = g.querySelector('.group-toggle-icon');
+                        if (oicon) oicon.textContent = '▶';
+                    });
+                }
+
+                const children = reportingTableBody.querySelectorAll(`tr.inventory-child-row[data-parent="${groupId}"]`);
+                children.forEach(row => {
+                    row.style.display = expanded ? 'none' : 'table-row';
+                });
+
+                tr.dataset.expanded = expanded ? '0' : '1';
+
+                const icon = tr.querySelector('.group-toggle-icon');
+                if (icon) icon.textContent = expanded ? '▶' : '▼';
+            });
+        }
+
+        // helper: build a normal inventory row (used for both grouped + single)
+        const buildInventoryRow = (entry) => {
             let statusColor = 'black';
             if (entry.remarks === 'Approved') statusColor = '#28a745';
             if (entry.remarks === 'Pending') statusColor = '#dc3545';
@@ -3565,16 +3820,13 @@ function renderReportingTable(entries) {
 
             const noteDisplay = entry.note ? `<br><small style="color:#666; font-style:italic;">${entry.note}</small>` : '';
 
-            // Inventory Actions (NO STICKER HERE)
             let actions = `<button class="print-btn waybill-btn" data-key="${entry.key}" style="padding:2px 6px; margin-right:5px; font-size:0.7rem; background:#6f42c1; color:white; border:none; border-radius:4px;" title="Print Waybill"><i class="fa-solid fa-print"></i></button>`;
-
             actions += `<button class="history-btn action-btn" onclick="showTransferHistory('${entry.key}')" style="padding:2px 6px; margin-right:5px; font-size:0.7rem; background:#17a2b8; color:white; border:none; border-radius:4px;" title="View History"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
-
             if (isAdmin) {
                 actions += `<button type="button" class="delete-btn transfer-delete-btn" data-key="${entry.key}" style="padding:2px 6px; font-size:0.7rem; border-radius:4px;">Del</button>`;
             }
 
-            row.innerHTML = `
+            return `
                 <td><strong>${entry.controlId || ''}</strong></td>
                 <td>${entry.productName || ''}</td>
                 <td>${entry.site || ''}</td>
@@ -3589,29 +3841,107 @@ function renderReportingTable(entries) {
                     <div style="margin-top:5px;">${actions}</div>
                 </td>
             `;
-        } else {
-            const status = entry.remarks || 'Pending';
+        };
 
-            // Standard Actions (NO STICKER HERE)
-            let actions = `<button class="history-btn action-btn" onclick="event.stopPropagation(); showJobHistory('${entry.key}')" style="padding:2px 6px; font-size:0.7rem; background:#17a2b8; color:white; border:none; border-radius:4px;" title="View History"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
+        // Render groups (collapsed by default when multiple)
+        groups.forEach(g => {
+            const items = g.items || [];
+            if (items.length <= 1) {
+                const entry = items[0];
+                const row = document.createElement('tr');
+                row.setAttribute('data-key', entry.key);
+                row.innerHTML = buildInventoryRow(entry);
+                reportingTableBody.appendChild(row);
+                return;
+            }
 
-            row.innerHTML = `
-                <td>${entry.for || ''}</td>
-                <td>${entry.ref || ''}</td>
-                <td>${entry.site || ''}</td>
-                <td>${entry.po || ''}</td>
-                <td>${entry.vendorName || 'N/A'}</td>
-                <td>${entry.amount || ''}</td>
-                <td>${entry.enteredBy || ''}</td>
-                <td>${entry.date || ''}</td>
-                <td>${entry.attention || ''}</td>
-                <td>${entry.dateResponded || ''}</td>
+            // summary info
+            const uniqueProducts = Array.from(new Set(items.map(x => (x.productName || '').toString().trim()).filter(Boolean)));
+            const productSummary = uniqueProducts.length === 1
+                ? uniqueProducts[0]
+                : `Multiple (${uniqueProducts.length})`;
+
+            const uniqueSites = Array.from(new Set(items.map(x => (x.site || '').toString().trim()).filter(Boolean)));
+            const siteSummary = uniqueSites.length === 1
+                ? uniqueSites[0]
+                : (uniqueSites.length > 1 ? `Multiple (${uniqueSites.length})` : '');
+
+            const sumNum = (val) => {
+                const n = parseFloat(val);
+                return Number.isFinite(n) ? n : 0;
+            };
+            const totalOrdered = items.reduce((acc, x) => acc + sumNum(x.orderedQty), 0);
+            const totalDelivered = items.reduce((acc, x) => acc + sumNum(x.deliveredQty), 0);
+
+            // Group header row
+            const groupRow = document.createElement('tr');
+            groupRow.className = 'inventory-group-row';
+            groupRow.dataset.groupId = g.groupId;
+            groupRow.dataset.expanded = '0';
+
+            groupRow.innerHTML = `
                 <td>
-                    ${status}
-                    <div style="margin-top:5px;">${actions}</div>
+                    <span class="group-toggle-icon">▶</span>
+                    <strong>${g.displayCid}</strong>
+                    <span class="group-count-badge">(${items.length})</span>
                 </td>
+                <td>${productSummary}</td>
+                <td>${siteSummary}</td>
+                <td>${totalOrdered}</td>
+                <td>${totalDelivered}</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td><span style="color:#003A5C; font-weight:700;">Grouped</span> <span style="color:#666;">(click to expand)</span></td>
             `;
-        }
+            reportingTableBody.appendChild(groupRow);
+
+            // Child rows (hidden by default)
+            items.forEach(entry => {
+                const child = document.createElement('tr');
+                child.className = 'inventory-child-row';
+                child.dataset.parent = g.groupId;
+                child.style.display = 'none';
+                child.setAttribute('data-key', entry.key);
+                child.innerHTML = buildInventoryRow(entry);
+                reportingTableBody.appendChild(child);
+            });
+        });
+
+        return;
+    }
+
+    // ---------------------------------------------------------
+    // Standard Job Records (No grouping changes)
+    // ---------------------------------------------------------
+    if (document.getElementById('job-records-count-display')) {
+        document.getElementById('job-records-count-display').textContent = `(Total Records: ${totalRecords})`;
+    }
+
+    entries.forEach(entry => {
+        const row = document.createElement('tr');
+        row.setAttribute('data-key', entry.key);
+
+        const status = entry.remarks || 'Pending';
+        let actions = `<button class="history-btn action-btn" onclick="event.stopPropagation(); showJobHistory('${entry.key}')" style="padding:2px 6px; font-size:0.7rem; background:#17a2b8; color:white; border:none; border-radius:4px;" title="View History"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
+
+        row.innerHTML = `
+            <td>${entry.for || ''}</td>
+            <td>${entry.ref || ''}</td>
+            <td>${entry.site || ''}</td>
+            <td>${entry.po || ''}</td>
+            <td>${entry.vendorName || 'N/A'}</td>
+            <td>${entry.amount || ''}</td>
+            <td>${entry.enteredBy || ''}</td>
+            <td>${entry.date || ''}</td>
+            <td>${entry.attention || ''}</td>
+            <td>${entry.dateResponded || ''}</td>
+            <td>
+                ${status}
+                <div style="margin-top:5px;">${actions}</div>
+            </td>
+        `;
+
         reportingTableBody.appendChild(row);
     });
 }
@@ -3935,6 +4265,19 @@ async function populateActiveTasks() {
         const currentUserName = currentApprover.Name;
         const currentUserSite = currentApprover.Site || ''; 
 
+        // Vacation Delegation: if you are listed as ReplacementName for any user currently on vacation,
+        // you will also see their tasks in Active Tasks (so nothing is missed while they are away).
+        const delegatedFromNames = (typeof getDelegatorsForReplacement === 'function')
+            ? getDelegatorsForReplacement(currentUserName)
+            : [];
+        const delegatedFromNorm = new Set(delegatedFromNames.map(n => _normName(n)));
+        const isMeOrDelegated = (nameVal) => {
+            const n = _normName(nameVal);
+            if (!n) return false;
+            if (n === _normName(currentUserName)) return true;
+            return delegatedFromNorm.has(n);
+        };
+
 // =============================================================
 // Direct-attention + site-match helpers (for accurate UI triggers)
 // Only tasks that are BOTH:
@@ -4029,11 +4372,11 @@ const getTaskSiteForMatch = (t) =>
             
             // 2. Transfer Logic
             if (['Transfer', 'Restock', 'Return', 'Usage'].includes(entry.for)) {
-                if (entry.remarks === 'Pending Confirmation') return entry.requestor === currentUserName;
-                if (entry.remarks === 'Pending Source') return entry.sourceContact === currentUserName;
-                if (entry.remarks === 'Pending Admin' || entry.remarks === 'Pending') return entry.approver === currentUserName;
-                if (entry.remarks === 'Approved' || entry.remarks === 'In Transit') return entry.receiver === currentUserName;
-                if (entry.attention === currentUserName) return true;
+                if (entry.remarks === 'Pending Confirmation') return isMeOrDelegated(entry.requestor);
+                if (entry.remarks === 'Pending Source') return isMeOrDelegated(entry.sourceContact);
+                if (entry.remarks === 'Pending Admin' || entry.remarks === 'Pending') return isMeOrDelegated(entry.approver);
+                if (entry.remarks === 'Approved' || entry.remarks === 'In Transit') return isMeOrDelegated(entry.receiver);
+                if (isMeOrDelegated(entry.attention)) return true;
                 if (entry.attention === 'All' && (entry.site === currentUserSite || currentUserSite === 'All')) return true;
                 return false;
             }
@@ -4046,7 +4389,7 @@ const getTaskSiteForMatch = (t) =>
             
             // 4. General & Name Match
             if (entry.for === 'PR' && isProcurement) return true;
-            if (entry.attention === currentUserName) return true;
+            if (isMeOrDelegated(entry.attention)) return true;
 
             // 5. "ALL" Logic
             if (entry.attention === 'All') {
@@ -4057,7 +4400,7 @@ const getTaskSiteForMatch = (t) =>
                 if (entry.site === currentUserSite) return true; 
             }
             
-            if (entry.for === 'IPC' && isQS && entry.attention === currentUserName) return true;
+            if (entry.for === 'IPC' && isQS && isMeOrDelegated(entry.attention)) return true;
             
             return false;
         });
@@ -5498,7 +5841,7 @@ async function checkPendingReceipts() {
 // Logic: 1. Default -> Shows ONLY Suggested Users.
 //        2. Typing  -> Shows ONLY exact name matches (Clean & Fast).
 // ==========================================================================
-async function populateAttentionDropdown(choicesInstance, filterStatus = null, filterSite = null) {
+async function populateAttentionDropdown(choicesInstance, filterStatus = null, filterSite = null, allowOverrideSearch = false) {
     try {
         if (!choicesInstance) return;
 
@@ -5585,6 +5928,7 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
                     site: userSite,
                     customProperties: {
                         onVacation: isVacationActive,
+                        returnDate: (approver.DateReturn ? formatYYYYMMDD(String(approver.DateReturn)).toUpperCase() : 'N/A'),
                         replacement: {
                             name: approver.ReplacementName || 'N/A',
                             contact: approver.ReplacementContact || 'N/A',
@@ -5628,35 +5972,104 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
             ];
 
             // --- D. INITIAL RENDER ---
-            const initialChoices = [...baseOptions, ...suggestedList];
+            // Keep current selection visible even if it is outside the suggested list (override use-case)
+            let selectedExtras = [];
+            try {
+                let selected = (typeof choicesInstance.getValue === 'function') ? choicesInstance.getValue(true) : null;
+                if (selected && !Array.isArray(selected)) selected = [selected];
+                if (Array.isArray(selected)) {
+                    const suggestedValues = new Set(suggestedList.map(u => u.value));
+                    const added = new Set();
+                    selected.map(v => (v || '').toString().trim()).filter(v => v && v !== 'All' && v !== 'None').forEach(val => {
+                        if (suggestedValues.has(val) || added.has(val)) return;
+                        const found = allProcessedUsers.find(u => u.value === val);
+                        if (found) {
+                            selectedExtras.push({ value: found.value, label: found.label });
+                        } else {
+                            selectedExtras.push({ value: val, label: val });
+                        }
+                        added.add(val);
+                    });
+                }
+            } catch (e) {}
+
+            const initialChoices = [...baseOptions, ...selectedExtras, ...suggestedList];
             choicesInstance.clearChoices();
             choicesInstance.setChoices(initialChoices, 'value', 'label', true);
 
-            // --- E. "PERFECTION" SEARCH LISTENER ---
-            if (choicesInstance.passedElement && choicesInstance.passedElement.element) {
+            // --- E. OVERRIDE SEARCH (Batch Entry Use-Case) ---
+            // By default we keep Choices' own search behavior (search within the current suggested list).
+            // When allowOverrideSearch = true, typing will search across ALL approvers (even if they don't match the auto-filter),
+            // so you can select a temporary replacement without editing approver-site mappings.
+            if (allowOverrideSearch && choicesInstance.passedElement && choicesInstance.passedElement.element) {
                 const element = choicesInstance.passedElement.element;
-                
-                if (element._smartSearchHandler) {
-                    element.removeEventListener('search', element._smartSearchHandler);
-                }
 
-                element._smartSearchHandler = function(event) {
-                    const query = (event.detail.value || '').toLowerCase().trim();
-                    
+                // Helper: apply query safely without spamming re-renders
+                const applySmartQuery = (rawQuery) => {
+                    const query = (rawQuery || '').toString().toLowerCase().trim();
+                    if (query === element._lastSmartQuery) return;
+                    element._lastSmartQuery = query;
+
                     if (query.length > 0) {
-                        // Show ONLY strict matches from the full database
-                        const exactMatches = allProcessedUsers.filter(user => 
-                            user.label.toLowerCase().includes(query)
-                        );
-                        choicesInstance.setChoices([...baseOptions, ...exactMatches], 'value', 'label', true); 
-                    } 
-                    else {
-                        // Revert to Suggestions
+                        const matches = allProcessedUsers.filter(u => (u.label || '').toLowerCase().includes(query));
+                        // Keep base options + matches (full override search)
+                        choicesInstance.setChoices([...baseOptions, ...matches], 'value', 'label', true);
+                    } else {
+                        // Reset to the default suggested list (plus any selected extras)
                         choicesInstance.setChoices(initialChoices, 'value', 'label', true);
                     }
                 };
 
+                // Cleanup any old listeners (avoid duplicates on repeated calls)
+                if (element._smartSearchHandler) element.removeEventListener('search', element._smartSearchHandler);
+                if (element._smartHideHandler) element.removeEventListener('hideDropdown', element._smartHideHandler);
+                if (element._smartShowHandler) element.removeEventListener('showDropdown', element._smartShowHandler);
+                if (element._smartSearchInputEl && element._smartSearchInputHandler) {
+                    try { element._smartSearchInputEl.removeEventListener('input', element._smartSearchInputHandler); } catch (e) {}
+                }
+
+                // 1) Choices 'search' event (when supported)
+                element._smartSearchHandler = function (event) {
+                    const q = (event && event.detail && typeof event.detail.value !== 'undefined') ? event.detail.value : '';
+                    applySmartQuery(q);
+                };
                 element.addEventListener('search', element._smartSearchHandler);
+
+                // 2) Direct input listener (more reliable across versions)
+                element._smartSearchInputHandler = function (e) {
+                    const q = e && e.target ? e.target.value : '';
+                    applySmartQuery(q);
+                };
+
+                const attachInputListener = () => {
+                    try {
+                        const outer = choicesInstance.containerOuter && choicesInstance.containerOuter.element;
+                        if (!outer) return;
+                        const inputEl = outer.querySelector('input.choices__input--cloned, input.choices__input');
+                        if (!inputEl) return;
+                        if (element._smartSearchInputEl && element._smartSearchInputHandler) {
+                            try { element._smartSearchInputEl.removeEventListener('input', element._smartSearchInputHandler); } catch (e) {}
+                        }
+                        element._smartSearchInputEl = inputEl;
+                        inputEl.addEventListener('input', element._smartSearchInputHandler);
+                    } catch (e) {}
+                };
+
+                // Attach now + whenever dropdown opens
+                element._smartShowHandler = function () { attachInputListener(); };
+                element.addEventListener('showDropdown', element._smartShowHandler);
+                attachInputListener();
+
+                // Reset list when dropdown closes (keeps system "default strict suggestions" next time)
+                element._smartHideHandler = function () {
+                    // Clear the search box if we can find it
+                    try {
+                        if (element._smartSearchInputEl) element._smartSearchInputEl.value = '';
+                    } catch (e) {}
+                    element._lastSmartQuery = '';
+                    applySmartQuery('');
+                };
+                element.addEventListener('hideDropdown', element._smartHideHandler);
             }
 
         } else {
@@ -6034,7 +6447,16 @@ async function handleAddJobEntry(e) {
         jobData.createdBy = currentUserName;
 
 
+        
         // =========================================================
+        // LOGIC C: VACATION DELEGATION (All Users)
+        // If the selected "attention" user is on vacation and has a replacement,
+        // route this task to the replacement automatically (without changing other logic).
+        if (typeof resolveVacationAssignee === 'function' && jobData.attention) {
+            jobData.attention = resolveVacationAssignee(jobData.attention);
+        }
+
+// =========================================================
         // SAVE TO FIREBASE
         // =========================================================
         const newRef = await db.ref('job_entries').push(jobData);
@@ -6067,10 +6489,11 @@ async function handleAddJobEntry(e) {
 // =========================================================
 // NEW HELPER: SMART ACCOUNTING ASSIGNMENT
 // =========================================================
+
 function getAccountingUser() {
-    // 1. Safety Check: If users aren't loaded yet, default to Irwin
+    // 1. Safety Check: If users aren't loaded yet, default to Irwin (or Irwin's active replacement)
     if (typeof allUsersData === 'undefined' || !allUsersData || allUsersData.length === 0) {
-        return 'Irwin';
+        return resolveVacationAssignee('Irwin');
     }
 
     // 2. Find everyone with Position = 'Accounting' who is NOT 'Disabled'
@@ -6080,16 +6503,21 @@ function getAccountingUser() {
         return pos === 'accounting' && status !== 'disabled';
     });
 
-    // 3. Priority: Check if Irwin is available
-    const irwin = accountingTeam.find(u => u.Name.toLowerCase() === 'irwin');
-    if (irwin) return irwin.Name; 
+    // 3. Priority: Irwin first (but delegate to replacement if Irwin is on vacation)
+    const irwin = accountingTeam.find(u => (u.Name || '').toLowerCase() === 'irwin');
+    if (irwin) return resolveVacationAssignee(irwin.Name);
 
-    // 4. Fallback: Pick the next available accountant
-    if (accountingTeam.length > 0) return accountingTeam[0].Name;
+    // 4. Next: first available accountant, delegating if they are on vacation
+    for (const u of accountingTeam) {
+        const name = (u.Name || '').trim();
+        if (!name) continue;
+        return resolveVacationAssignee(name);
+    }
 
     // 5. Emergency Default
-    return 'Irwin';
+    return resolveVacationAssignee('Irwin');
 }
+
 
 async function handleDeleteJobEntry(e) {
     e.preventDefault();
@@ -6135,7 +6563,9 @@ async function handleDeleteJobEntry(e) {
 // ==========================================================================
 // Change this name to your replacement (e.g., "Hafiz") when you go on vacation.
 // This ensures all "New Entry" invoices go to the right person automatically.
-const CURRENT_INVOICE_HANDLER = "Irwin"; 
+// Invoice handler is dynamic (Irwin or vacation replacement)
+// See getInvoiceHandlerName() near top.
+ 
 
 // ==========================================================================
 // UPDATED FUNCTION: handleUpdateJobEntry (Fixed "Gio" Bug + Fixed "Undefined" Crash)
@@ -6170,9 +6600,9 @@ async function handleUpdateJobEntry(e) {
     // --- YOUR CUSTOM INVOICE LOGIC (Preserved) ---
     if (jobData.for === 'Invoice') {
         jobData.remarks = 'New Entry'; 
-        // Ensure CURRENT_INVOICE_HANDLER is defined, otherwise default to 'Irwin'
-        const handler = (typeof CURRENT_INVOICE_HANDLER !== 'undefined') ? CURRENT_INVOICE_HANDLER : 'Irwin';
-        jobData.attention = handler;
+        // Set attention to current handler (Irwin or vacation replacement)
+        const handler = getInvoiceHandlerName();
+        jobData.attention = (typeof resolveVacationAssignee === 'function') ? resolveVacationAssignee(handler) : handler;
     }
 
     // 3. Validation
@@ -6878,6 +7308,19 @@ async function handleSaveModifiedTask() {
         status: selectedStatus,
         note: modifyTaskNote.value.trim()
     };
+
+    // Safety: do not assign tasks to vacationing users. If selected attention is on vacation,
+    // automatically resolve to the replacement (if configured and active).
+    if (updates.attention && updates.attention !== 'All' && updates.attention !== 'None') {
+        try {
+            if (typeof resolveVacationAssignee === 'function') {
+                const resolved = resolveVacationAssignee(updates.attention);
+                if (resolved && resolved !== updates.attention) {
+                    updates.attention = resolved;
+                }
+            }
+        } catch (e) { /* ignore */ }
+    }
 
     if (updates.status === 'Under Review' || updates.status === 'With Accounts') {
         updates.attention = '';
@@ -9098,7 +9541,7 @@ async function openBatchAttentionPicker(row) {
     const statusEl = row ? row.querySelector('select[name="status"]') : null;
     const status = statusEl ? statusEl.value : null;
     const site = row ? (row.dataset.site || null) : null;
-    await populateAttentionDropdown(imAttentionPickerChoices, status, site);
+    await populateAttentionDropdown(imAttentionPickerChoices, status, site, true);
 
     // Preselect current value
     let currentVal = '';
@@ -9240,7 +9683,7 @@ row.choicesInstance = choices;
 
 // 2. Apply Smart Filter immediately
 // This looks at the default status (e.g. "For SRV") and the PO's Site
-await populateAttentionDropdown(choices, statusSelect.value, site);
+await populateAttentionDropdown(choices, statusSelect.value, site, true);
 
         // --- THE FIX IS HERE ---
         const globalAttnValue = imBatchGlobalAttentionChoices ? imBatchGlobalAttentionChoices.getValue(true) : null;
@@ -9334,7 +9777,7 @@ row.choicesInstance = choices;
 
 // 2. Apply Smart Filter immediately
 // uses invData.site which comes from the invoice/PO data
-await populateAttentionDropdown(choices, statusSelect.value, invData.site);
+await populateAttentionDropdown(choices, statusSelect.value, invData.site, true);
 
     // --- FIX STARTS HERE ---
     const globalAttentionVal = imBatchGlobalAttentionChoices ? imBatchGlobalAttentionChoices.getValue(true) : null;
@@ -9909,6 +10352,43 @@ async function handleGenerateSummary() {
 
         let previousPaymentTotal = 0;
         let currentPaymentTotal = 0;
+
+        // Track the completion date for the Previous Summary note (when it reached With Accounts / Paid)
+        let prevSummaryDateObj = null;
+        const maybeSetPrevSummaryDate = (inv) => {
+            try {
+                const st = (inv?.status || '').toString().trim().toLowerCase();
+                const isCompleted = (st === 'with accounts' || st === 'paid' || st === 'complete paid');
+                if (!isCompleted) return;
+
+                let d = null;
+
+                // 1) Prefer releaseDate (used as the "moved to With Accounts / released" date in this system)
+                if (inv?.releaseDate) {
+                    const norm = normalizeDateForInput(inv.releaseDate);
+                    if (norm) d = new Date(norm + 'T00:00:00');
+                }
+
+                // 2) Fallback to event timestamps if present
+                if (!d && inv?.updatedAt) d = new Date(inv.updatedAt);
+                if (!d && inv?.enteredAt) d = new Date(inv.enteredAt);
+                if (!d && inv?.createdAt) d = new Date(inv.createdAt);
+                if (!d && inv?.timestamp) d = new Date(inv.timestamp);
+
+                // 3) Last fallback: invoiceDate
+                if (!d && inv?.invoiceDate) {
+                    const norm2 = normalizeDateForInput(inv.invoiceDate);
+                    if (norm2) d = new Date(norm2 + 'T00:00:00');
+                }
+
+                if (d && !isNaN(d.getTime())) {
+                    if (!prevSummaryDateObj || d.getTime() > prevSummaryDateObj.getTime()) {
+                        prevSummaryDateObj = d;
+                    }
+                }
+            } catch (_) {}
+        };
+
         let allCurrentInvoices = [];
 
         let srvNameForQR = null;
@@ -9923,6 +10403,7 @@ async function handleGenerateSummary() {
                 // Only sum if prevNote is NOT empty AND matches the invoice note
                 if (prevNote !== "" && inv.note === prevNote) {
                     previousPaymentTotal += parseFloat(inv.invValue) || 0;
+                    maybeSetPrevSummaryDate(inv);
 
                     if (!foundSrv && inv.srvName && inv.srvName.toLowerCase() !== 'nil' && inv.srvName.trim() !== '') {
                         srvNameForQR = inv.srvName;
@@ -9985,15 +10466,18 @@ async function handleGenerateSummary() {
         const today = new Date();
         snDate.textContent = `Date: ${today.toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' }).replace(/ /g, '-')}`;
 
-        // Show date next to "Prev Summary" under the QR code
+        // Show date next to "Prev Summary" under the QR code (use the actual Previous Summary completion date)
         if (snPrevSummaryDate) {
-            const dd = String(today.getDate()).padStart(2, '0');
-            const mmm = today.toLocaleString('en-GB', { month: 'short' }).toUpperCase();
-            const yyyy = today.getFullYear();
-            snPrevSummaryDate.textContent = ` (${dd}-${mmm}-${yyyy})`;
+            if (prevSummaryDateObj) {
+                const dd = String(prevSummaryDateObj.getDate()).padStart(2, '0');
+                const mmm = prevSummaryDateObj.toLocaleString('en-GB', { month: 'short' }).toUpperCase();
+                const yyyy = prevSummaryDateObj.getFullYear();
+                snPrevSummaryDate.textContent = ` (${dd}-${mmm}-${yyyy})`;
+            } else {
+                snPrevSummaryDate.textContent = '';
+            }
         }
-
-        snPreviousPayment.textContent = `${formatCurrency(previousPaymentTotal)} Qatari Riyals`;
+snPreviousPayment.textContent = `${formatCurrency(previousPaymentTotal)} Qatari Riyals`;
         snCurrentPayment.textContent = `${formatCurrency(currentPaymentTotal)} Qatari Riyals`;
         snTableBody.innerHTML = '';
 
@@ -11020,6 +11504,7 @@ try {
     const savedApproverKey = localStorage.getItem('approverKey');
 
     if (savedApproverKey) {
+        try { await ensureApproverDataCached(); } catch (e) { console.warn('Approver cache preload failed:', e); }
         currentApprover = await getApproverByKey(savedApproverKey);
         if (currentApprover) {
             console.log("Resuming session for:", currentApprover.Name);
@@ -11248,12 +11733,14 @@ try {
         const isAccounting = userPos === 'Accounting';
         const isAccounts = userPos === 'Accounts';
 
+        const isVacationDelegate = isVacationDelegateUser();
+
         // 2. Toggle Admin Body Class
         document.body.classList.toggle('is-admin', isAdmin);
 
         // 3. SECURITY FIX: Only show IM Link for authorized roles
         // Users with role "User" (who are not Accounting/Accounts) will NOT see this
-        if (isAdmin || isAccounting || isAccounts) {
+        if (isAdmin || isAccounting || isAccounts || isVacationDelegate) {
             workdeskIMLinkContainer.classList.remove('hidden');
         } else {
             workdeskIMLinkContainer.classList.add('hidden');
@@ -11301,6 +11788,48 @@ try {
                 itemSelectText: '',
             });
             populateAttentionDropdown(modifyTaskAttentionChoices);
+
+            // Vacation notification + auto-switch to replacement in Workdesk Active Tasks (Modify Task modal)
+            if (modifyTaskAttention && !modifyTaskAttention._vacationChoiceListenerAdded) {
+                modifyTaskAttention._vacationChoiceListenerAdded = true;
+                modifyTaskAttention.addEventListener('choice', (event) => {
+                    try {
+                        if (modifyTaskAttention._suppressVacationChoice) return;
+                        if (!event.detail || !event.detail.value || !modifyTaskAttentionChoices) return;
+
+                        const selectedValue = event.detail.value;
+                        const selectedChoice = modifyTaskAttentionChoices._store?.choices?.find(c => c.value === selectedValue);
+
+                        if (selectedChoice && selectedChoice.customProperties && selectedChoice.customProperties.onVacation) {
+                            // Populate & show vacation modal
+                            vacationingUserName.textContent = selectedChoice.value;
+                            vacationReturnDate.textContent = selectedChoice.customProperties.returnDate || 'N/A';
+                            replacementNameDisplay.textContent = selectedChoice.customProperties.replacement?.name || 'N/A';
+                            replacementContactDisplay.textContent = selectedChoice.customProperties.replacement?.contact || 'N/A';
+                            replacementEmailDisplay.textContent = selectedChoice.customProperties.replacement?.email || 'N/A';
+                            if (vacationModal) vacationModal.classList.remove('hidden');
+
+                            // Auto-switch attention to replacement (if available)
+                            const rawReplacement = (selectedChoice.customProperties.replacement?.name || '').toString().trim();
+                            if (rawReplacement && rawReplacement.toUpperCase() !== 'N/A' && rawReplacement !== selectedChoice.value) {
+                                const resolvedReplacement = (typeof resolveVacationAssignee === 'function')
+                                    ? resolveVacationAssignee(rawReplacement)
+                                    : rawReplacement;
+
+                                // Avoid recursion and only switch if the option exists
+                                const hasChoice = modifyTaskAttentionChoices._store?.choices?.some(c => c.value === resolvedReplacement);
+                                if (hasChoice) {
+                                    modifyTaskAttention._suppressVacationChoice = true;
+                                    modifyTaskAttentionChoices.setChoiceByValue(resolvedReplacement);
+                                    setTimeout(() => { modifyTaskAttention._suppressVacationChoice = false; }, 0);
+                                }
+                            }
+                        }
+                    } catch (err) {
+                        console.warn("Vacation choice handler error:", err);
+                    }
+                });
+            }
         }
 
         updateWorkdeskDateTime();
@@ -12050,6 +12579,7 @@ try {
         // 2. Define Access Groups
         const isAccountingAdmin = isAdmin && isAccountingPos; // Strictly Admin + Accounting
         const isAccountsAdmin = (isAdmin && isAccountsPos) || isAccountingAdmin; // Admin + Accounts (or Accounting)
+        const isVacationDelegate = isVacationDelegateUser();
 
         const imNavLinks = imNav.querySelectorAll('li');
 
@@ -12071,18 +12601,24 @@ try {
             // --- STRICT MENU HIDING RULES ---
 
             // 1. Entry Group: Strictly Admin + Accounting
-            if ((section === 'im-invoice-entry' || section === 'im-batch-entry' || section === 'im-summary-note') && !isAccountingAdmin) {
+            if ((section === 'im-invoice-entry' || section === 'im-batch-entry' || section === 'im-summary-note') && !(isAccountingAdmin || isVacationDelegate)) {
                 li.style.display = 'none';
             }
 
             // 2. Payments: Admin + Accounts (or Accounting)
             if (section === 'im-payments') {
+                // Vacation delegate does NOT get Payments access
                 if (!isAccountsAdmin) li.style.display = 'none';
                 else link.classList.remove('hidden');
             }
 
             // 3. Finance/Dashboard: Any Admin
-            if ((section === 'im-finance-report' || section === 'im-dashboard') && !isAdmin) {
+            if (section === 'im-finance-report' && !isAdmin) {
+                // Vacation delegate does NOT get Finance Report access
+                li.style.display = 'none';
+            }
+
+            if (section === 'im-dashboard' && !(isAdmin || isVacationDelegate)) {
                 li.style.display = 'none';
             }
         });
@@ -12323,6 +12859,40 @@ if (imReportingContent) {
             return;
         }
 
+
+
+// 1b. Handle Master Row Click (Toggle Expand/Collapse)
+const masterRowClick = e.target.closest('tr.master-row');
+if (masterRowClick) {
+    const detailRow = document.querySelector(masterRowClick.dataset.target);
+    const expandBtnInRow = masterRowClick.querySelector('.expand-btn');
+    if (detailRow) {
+        const isCurrentlyHidden = detailRow.classList.contains('hidden');
+
+        // Close all other open POs when opening a new one (accordion behavior)
+        if (isCurrentlyHidden) {
+            const allOpenDetails = document.querySelectorAll('.detail-row:not(.hidden)');
+            allOpenDetails.forEach(row => {
+                row.classList.add('hidden');
+                const previousRow = row.previousElementSibling;
+                if (previousRow) {
+                    const btn = previousRow.querySelector('.expand-btn');
+                    if (btn) btn.textContent = '+';
+                }
+            });
+        }
+
+        // Toggle clicked PO
+        if (isCurrentlyHidden) {
+            detailRow.classList.remove('hidden');
+            if (expandBtnInRow) expandBtnInRow.textContent = '-';
+        } else {
+            detailRow.classList.add('hidden');
+            if (expandBtnInRow) expandBtnInRow.textContent = '+';
+        }
+    }
+    return;
+}
         // 2. Handle "Edit Inv No" Button
         const editInvBtn = e.target.closest('.edit-inv-no-btn');
         if (editInvBtn) {
@@ -12633,10 +13203,13 @@ if (settingsVacationCheckbox) {
     if (batchSaveBtn) batchSaveBtn.addEventListener('click', handleSaveBatchInvoices);
 
     if (batchPOInput) {
-        batchPOInput.addEventListener('keypress', (e) => {
+        // UX: pressing Enter in the "Enter PO or Status" field should ONLY add a new PO row.
+        // Searching by PO / Status should be done via the dedicated buttons.
+        batchPOInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                if (batchSearchStatusBtn) batchSearchStatusBtn.click();
+                if (batchAddBtn) batchAddBtn.click();
+                else handleAddPOToBatch();
             }
         });
         batchPOInput.addEventListener('input', debounce((e) => {
@@ -12690,7 +13263,7 @@ if (settingsVacationCheckbox) {
                     const currentSelection = row.choicesInstance.getValue(true);
                     
                     // Apply Smart Filter
-                    await populateAttentionDropdown(row.choicesInstance, newStatus, site);
+                    await populateAttentionDropdown(row.choicesInstance, newStatus, site, true);
                     
                     // Restore selection if valid
                     if(currentSelection) {
@@ -12842,7 +13415,7 @@ if (imBatchGlobalStatus) {
                 const currentSelection = row.choicesInstance.getValue(true);
 
                 // Apply filter (e.g., if "For SRV", show only Site DCs for this site)
-                await populateAttentionDropdown(row.choicesInstance, newValue, site);
+                await populateAttentionDropdown(row.choicesInstance, newValue, site, true);
 
                 // Restore previous selection if they are still allowed
                 if (currentSelection) {
