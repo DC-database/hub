@@ -580,11 +580,47 @@ async function saveTransferEntry(e) {
     const type = document.getElementById('tf-job-type').value;
     const controlNo = document.getElementById('tf-control-no').value;
 
-    // 2. Validate Generals
-    if (!approver || !receiver || !toLoc) {
-        alert("Please fill in Destination, Approver, and Receiver.");
-        btn.disabled = false; btn.textContent = isMultiMode ? "Save All Items" : "Save Transaction";
-        return;
+    // 2. Validate Generals (depends on Job Type)
+    // NOTE:
+    // - Usage does NOT require Destination or Receiver (it deducts from Source and routes confirmation to Requestor).
+    // - Return does NOT require Receiver (it may be confirmed later depending on original job type).
+    // - Restock does NOT require Source / Source Contact.
+    // Keep the UI + required highlights consistent with openTransferJobModal().
+    const requestor = (document.getElementById('tf-requestor')?.value || '').trim();
+
+    const fail = (msg) => {
+        alert(msg);
+        btn.disabled = false;
+        btn.textContent = isMultiMode ? "Save All Items" : "Save Transaction";
+    };
+
+    if (type === 'Transfer') {
+        if (!globalFromLoc || !toLoc || !sourceContact || !approver || !receiver) {
+            fail("Please fill in Source, Destination, Source Contact, Approver, and Receiver.");
+            return;
+        }
+    } else if (type === 'Restock') {
+        if (!toLoc || !approver || !receiver) {
+            fail("Please fill in Destination, Approver, and Receiver.");
+            return;
+        }
+    } else if (type === 'Usage') {
+        // Requestor is important for the confirmation step (Pending Confirmation -> Requestor)
+        if (!globalFromLoc || !approver || !requestor) {
+            fail("Please fill in Requestor, Source, and Approver.");
+            return;
+        }
+    } else if (type === 'Return') {
+        if (!globalFromLoc || !toLoc || !approver) {
+            fail("Please fill in Source, Destination, and Approver.");
+            return;
+        }
+    } else {
+        // Safe default
+        if (!approver) {
+            fail("Please select an Approver.");
+            return;
+        }
     }
 
     // 3. Build Items List

@@ -2326,6 +2326,47 @@
 </div>
 
 
+
+<!-- ============================== -->
+<!-- Live Chat (Global Chatroom)    -->
+<!-- Appears after login (JS shows) -->
+<!-- ============================== -->
+<div id="live-chat-fab" class="live-chat-fab hidden" title="Live Chat">
+    <i class="fa-solid fa-comment-dots"></i>
+    <span id="live-chat-unread-badge" class="live-chat-unread-badge hidden">0</span>
+</div>
+
+<div id="live-chat-panel" class="live-chat-panel hidden" aria-hidden="true" role="dialog" aria-label="Live Chat">
+    <div class="live-chat-header">
+        <div class="live-chat-title">
+            <i class="fa-solid fa-comments"></i>
+            <span>Live Chat</span>
+        </div>
+        <div class="live-chat-header-actions">
+            <button id="live-chat-min-btn" class="live-chat-icon-btn" type="button" title="Minimize">—</button>
+            <button id="live-chat-close-btn" class="live-chat-icon-btn" type="button" title="Close">×</button>
+        </div>
+    </div>
+
+    <div class="live-chat-subheader">
+        <button id="live-chat-online-toggle" class="live-chat-pill" type="button">
+            Online: <span id="live-chat-online-count">0</span>
+        </button>
+        <span id="live-chat-room-label" class="live-chat-room-label">Room: Global</span>
+    </div>
+
+    <div id="live-chat-online-list" class="live-chat-online-list hidden"></div>
+
+    <div id="live-chat-messages" class="live-chat-messages" aria-live="polite"></div>
+
+    <form id="live-chat-form" class="live-chat-inputbar" autocomplete="off">
+        <input id="live-chat-input" type="text" placeholder="Type a message…" maxlength="500" />
+        <button id="live-chat-send" type="submit" title="Send"><i class="fa-solid fa-paper-plane"></i></button>
+    </form>
+</div>
+
+
+
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>

@@ -219,22 +219,65 @@ body.login-background {
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    background-color: var(--db-bg); /* Use dashboard bg for login */
+    /* Slightly richer backdrop for the glass card (desktop login + welcome) */
+    background: radial-gradient(circle at 20% 15%, rgba(0, 180, 165, 0.18), rgba(0,0,0,0) 40%),
+                radial-gradient(circle at 80% 85%, rgba(255, 193, 7, 0.16), rgba(0,0,0,0) 45%),
+                radial-gradient(circle at 90% 20%, rgba(195, 80, 47, 0.14), rgba(0,0,0,0) 35%),
+                var(--db-bg); /* Base */
+    position: relative;
+    overflow: hidden;
 }
 
 /* App Container for centered content */
 #app-container { width: 100%; max-width: 500px; padding: 20px; box-sizing: border-box; }
 
 /* Card Styling */
-.form-container { background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); text-align: center; }
+.form-container {
+    padding: 30px;
+    border-radius: 24px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.28);
+    text-align: center;
+}
 
 /* ++ REVERTED: Animated Card Style for Login/Welcome ++ */
 .animated-card {
-    background-color: rgba(0, 58, 92, 0.85); /* MODIFIED: Use IBA Base Blue */
-    border: 2px solid;
-    border-radius: 10px;
-    animation: glowing-border 6s linear infinite;
-    backdrop-filter: blur(5px);
+    /* Crystal / glass card (login + welcome screen) */
+    background: linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.07));
+    border: 1px solid rgba(255,255,255,0.30);
+    border-radius: 24px;
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    /* Edge glow (subtle, readable) */
+    position: relative;
+    overflow: hidden;
+}
+.animated-card::before{
+    content: "";
+    position: absolute;
+    inset: 0;
+    padding: 2px;
+    border-radius: inherit;
+    background: linear-gradient(
+        90deg,
+        rgba(0, 255, 220, 0.85),
+        rgba(255, 255, 255, 0.55),
+        rgba(255, 200, 0, 0.80),
+        rgba(0, 255, 220, 0.85)
+    );
+    background-size: 300% 100%;
+    animation: ibaEdgeFlow 7s linear infinite;
+    opacity: 0.55;
+    pointer-events: none;
+
+    /* Show as border only */
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+}
+
+@keyframes ibaEdgeFlow {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 300% 50%; }
 }
 .animated-card h2, .animated-card p, .animated-card strong {
     color: var(--text-color-light); /* White text for dark background */
@@ -1204,13 +1247,13 @@ tbody tr:hover { background-color: #f1f1f1; }
     overflow: hidden;
 
     /* Glass / crystal look */
-    background: linear-gradient(135deg, rgba(255,255,255,0.34), rgba(255,255,255,0.12)) !important;
-    border: 1px solid rgba(255,255,255,0.35) !important;
-    backdrop-filter: blur(18px) saturate(140%);
-    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    background: linear-gradient(135deg, rgba(255,255,255,0.78), rgba(255,255,255,0.38)) !important;
+    border: 1px solid rgba(255,255,255,0.55) !important;
+    backdrop-filter: blur(14px) saturate(135%);
+    -webkit-backdrop-filter: blur(14px) saturate(135%);
 
     padding: 22px;
-    border-radius: 16px;
+    border-radius: 24px;
     width: 92%;
     max-width: 520px;
 
@@ -1218,6 +1261,31 @@ tbody tr:hover { background-color: #f1f1f1; }
     display: flex;
     flex-direction: column;
     color: #0f172a;
+}
+
+/* Subtle running edge glow for modals (same family as login/welcome) */
+.modal-container::after{
+    content: "";
+    position: absolute;
+    inset: 0;
+    padding: 2px;
+    border-radius: inherit;
+    background: linear-gradient(
+        90deg,
+        rgba(0, 180, 165, 0.70),
+        rgba(255, 255, 255, 0.40),
+        rgba(255, 193, 7, 0.65),
+        rgba(0, 180, 165, 0.70)
+    );
+    background-size: 300% 100%;
+    animation: ibaEdgeFlow 10s linear infinite;
+    opacity: 0.28;
+    pointer-events: none;
+
+    /* Show as border only */
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
 }
 
 /* Subtle crystal highlight */
@@ -1238,9 +1306,20 @@ tbody tr:hover { background-color: #f1f1f1; }
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid rgba(255,255,255,0.25);
+    background: rgba(255,255,255,0.18) !important;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.10);
     padding-bottom: 12px;
     margin-bottom: 12px;
+}
+
+/* Force uniform glass header/footer even if some modals used inline backgrounds */
+.modal-overlay .modal-container .modal-header,
+.modal-overlay .modal-container .modal-footer {
+    background: rgba(255,255,255,0.22) !important;
+    border-color: rgba(15, 23, 42, 0.10) !important;
+}
+.modal-overlay .modal-container .modal-content {
+    background: transparent !important;
 }
 .modal-header h2 {
     margin: 0;
@@ -1250,7 +1329,7 @@ tbody tr:hover { background-color: #f1f1f1; }
 .modal-close-btn {
     background: rgba(255,255,255,0.18);
     border: 1px solid rgba(255,255,255,0.28);
-    border-radius: 10px;
+    border-radius: 12px;
     font-size: 1.4rem;
     cursor: pointer;
     color: rgba(15, 23, 42, 0.8);
@@ -1267,12 +1346,18 @@ tbody tr:hover { background-color: #f1f1f1; }
 }
 
 .modal-footer {
-    border-top: 1px solid rgba(255,255,255,0.25);
+    background: rgba(255,255,255,0.18) !important;
+    border-top: 1px solid rgba(15, 23, 42, 0.10);
     padding-top: 12px;
     margin-top: 12px;
     display: flex;
     justify-content: flex-end;
     gap: 10px;
+}
+
+/* Prevent inline "white" panels from killing the glass look */
+.modal-overlay .modal-content {
+    background: transparent !important;
 }
 
 /* ======================================================== */
@@ -1287,7 +1372,7 @@ tbody tr:hover { background-color: #f1f1f1; }
 #im-attention-picker-modal .modal-container::before {
     /* Keep highlight clean even with overflow visible */
     transform: none !important;
-    clip-path: inset(0 round 16px);
+    clip-path: inset(0 round 24px);
 }
 
 #im-attention-picker-modal .choices__list--dropdown {
@@ -1316,11 +1401,12 @@ tbody tr:hover { background-color: #f1f1f1; }
 .modal > .modal-content {
     position: relative;
     overflow: hidden;
-    background: linear-gradient(135deg, rgba(255,255,255,0.34), rgba(255,255,255,0.12));
-    border: 1px solid rgba(255,255,255,0.35);
-    backdrop-filter: blur(18px) saturate(140%);
-    -webkit-backdrop-filter: blur(18px) saturate(140%);
-    border-radius: 16px;
+    /* Match the main glass system used by .modal-container */
+    background: linear-gradient(135deg, rgba(255,255,255,0.78), rgba(255,255,255,0.38));
+    border: 1px solid rgba(255,255,255,0.55);
+    backdrop-filter: blur(14px) saturate(135%);
+    -webkit-backdrop-filter: blur(14px) saturate(135%);
+    border-radius: 24px;
     box-shadow: 0 20px 60px rgba(0,0,0,0.28);
 }
 
@@ -4213,7 +4299,18 @@ body.is-ceo .desktop-only.col-group {
 
     .mobile-login-form-wrapper {
         width: 100%;
+        max-width: 420px;
+        margin: 0 auto;
         text-align: center;
+
+        /* Glass card (mobile login) */
+        padding: 26px 22px;
+        border-radius: 26px;
+        background: linear-gradient(135deg, rgba(255,255,255,0.16), rgba(255,255,255,0.06));
+        border: 1px solid rgba(255,255,255,0.28);
+        backdrop-filter: blur(16px) saturate(140%);
+        -webkit-backdrop-filter: blur(16px) saturate(140%);
+        box-shadow: 0 20px 60px rgba(0,0,0,0.30);
     }
 
     .input-icon-wrap {
@@ -6468,4 +6565,281 @@ body.inventory-mode .wd-nav-material {
 }
 .controlid-group-child td {
   border-top: none;
+}
+
+
+/* ======================================================== */
+/* Live Chat Widget (Global)                                */
+/* ======================================================== */
+.live-chat-fab {
+    position: fixed;
+    right: 22px;
+    bottom: 22px;
+    width: 56px;
+    height: 56px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 999999;
+    color: rgba(255,255,255,0.95);
+    background: linear-gradient(135deg, rgba(12, 74, 110, 0.95), rgba(16, 185, 129, 0.85));
+    box-shadow: 0 18px 45px rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.18);
+    backdrop-filter: blur(10px) saturate(140%);
+    -webkit-backdrop-filter: blur(10px) saturate(140%);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.live-chat-fab:hover { transform: translateY(-1px); box-shadow: 0 22px 55px rgba(0,0,0,0.30); }
+.live-chat-fab.hidden { display: none !important; }
+.live-chat-fab.has-unread { animation: liveChatPulse 1.2s ease-in-out infinite; }
+
+@keyframes liveChatPulse {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-2px); }
+}
+
+.live-chat-unread-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    background: rgba(220, 38, 38, 0.95);
+    border: 1px solid rgba(255,255,255,0.25);
+}
+.live-chat-unread-badge.hidden { display: none !important; }
+
+.live-chat-panel {
+    position: fixed;
+    right: 22px;
+    bottom: 90px;
+    width: 360px;
+    max-width: calc(100vw - 44px);
+    height: 520px;
+    max-height: calc(100vh - 140px);
+    z-index: 999999;
+    border-radius: 22px;
+    overflow: hidden;
+    /* Glass style */
+    background: linear-gradient(135deg, rgba(255,255,255,0.70), rgba(255,255,255,0.25));
+    border: 1px solid rgba(255,255,255,0.45);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    box-shadow: 0 24px 70px rgba(0,0,0,0.30);
+    display: flex;
+    flex-direction: column;
+}
+.live-chat-panel.hidden { display: none !important; }
+
+.live-chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: rgba(12, 74, 110, 0.85);
+    color: rgba(255,255,255,0.95);
+    border-bottom: 1px solid rgba(255,255,255,0.18);
+}
+.live-chat-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 800;
+    letter-spacing: 0.2px;
+}
+.live-chat-header-actions { display: flex; gap: 8px; }
+.live-chat-icon-btn {
+    width: 34px;
+    height: 30px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.10);
+    color: rgba(255,255,255,0.95);
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+}
+.live-chat-icon-btn:hover { background: rgba(255,255,255,0.18); }
+
+.live-chat-subheader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    gap: 10px;
+    background: rgba(255,255,255,0.16);
+    border-bottom: 1px solid rgba(15,23,42,0.10);
+}
+.live-chat-pill {
+    border: 1px solid rgba(15,23,42,0.12);
+    background: rgba(255,255,255,0.20);
+    padding: 6px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-weight: 700;
+    color: rgba(15,23,42,0.85);
+}
+.live-chat-pill:hover { background: rgba(255,255,255,0.30); }
+.live-chat-room-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(15,23,42,0.60);
+}
+
+.live-chat-online-list {
+    padding: 10px 12px;
+    max-height: 180px;
+    overflow: auto;
+    background: rgba(255,255,255,0.10);
+    border-bottom: 1px solid rgba(15,23,42,0.10);
+}
+.live-chat-online-list.hidden { display: none !important; }
+
+.live-chat-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 8px;
+    border-radius: 14px;
+}
+.live-chat-user:hover { background: rgba(255,255,255,0.18); }
+.live-chat-user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(12, 74, 110, 0.15);
+    border: 1px solid rgba(12, 74, 110, 0.18);
+    color: rgba(12, 74, 110, 0.85);
+}
+.live-chat-user-info { flex: 1; min-width: 0; }
+.live-chat-user-name {
+    font-weight: 800;
+    font-size: 13px;
+    color: rgba(15,23,42,0.85);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.live-chat-user-meta {
+    font-size: 11px;
+    color: rgba(15,23,42,0.55);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.live-chat-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(34, 197, 94, 0.95);
+    box-shadow: 0 0 0 4px rgba(34,197,94,0.12);
+}
+.live-chat-me {
+    margin-left: 6px;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: rgba(12, 74, 110, 0.12);
+    border: 1px solid rgba(12, 74, 110, 0.14);
+    color: rgba(12,74,110,0.9);
+    font-weight: 800;
+}
+.live-chat-empty {
+    font-size: 12px;
+    color: rgba(15,23,42,0.60);
+    padding: 6px 2px;
+}
+
+.live-chat-messages {
+    flex: 1;
+    padding: 12px 12px;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.live-chat-msg {
+    display: flex;
+    flex-direction: column;
+    max-width: 92%;
+    gap: 6px;
+}
+.live-chat-msg.me { margin-left: auto; align-items: flex-end; }
+.live-chat-msg.them { margin-right: auto; align-items: flex-start; }
+
+.live-chat-msg-meta {
+    display: flex;
+    gap: 10px;
+    font-size: 11px;
+    color: rgba(15,23,42,0.55);
+}
+.live-chat-msg-who { font-weight: 800; color: rgba(15,23,42,0.70); }
+.live-chat-msg-time { font-weight: 700; }
+
+.live-chat-msg-bubble {
+    padding: 10px 12px;
+    border-radius: 16px;
+    border: 1px solid rgba(15,23,42,0.10);
+    background: rgba(255,255,255,0.30);
+    color: rgba(15,23,42,0.90);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.live-chat-msg.me .live-chat-msg-bubble {
+    background: rgba(12, 74, 110, 0.14);
+    border-color: rgba(12, 74, 110, 0.18);
+}
+
+.live-chat-inputbar {
+    display: flex;
+    gap: 10px;
+    padding: 12px 12px;
+    background: rgba(255,255,255,0.18);
+    border-top: 1px solid rgba(15,23,42,0.10);
+}
+.live-chat-inputbar input {
+    flex: 1;
+    border: 1px solid rgba(15,23,42,0.12);
+    background: rgba(255,255,255,0.55);
+    border-radius: 14px;
+    padding: 10px 12px;
+    outline: none;
+    color: rgba(15,23,42,0.90);
+}
+.live-chat-inputbar input:focus {
+    box-shadow: 0 0 0 3px rgba(16,185,129,0.18);
+    border-color: rgba(16,185,129,0.40);
+}
+.live-chat-inputbar button {
+    width: 44px;
+    border: 1px solid rgba(15,23,42,0.12);
+    border-radius: 14px;
+    background: rgba(12, 74, 110, 0.85);
+    color: #fff;
+    cursor: pointer;
+}
+.live-chat-inputbar button:hover { background: rgba(12, 74, 110, 0.95); }
+
+@media (max-width: 480px) {
+    .live-chat-panel {
+        right: 12px;
+        bottom: 76px;
+        width: calc(100vw - 24px);
+        height: min(520px, calc(100vh - 120px));
+    }
+    .live-chat-fab { right: 12px; bottom: 12px; }
 }

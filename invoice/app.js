@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "5.9.1";
+const APP_VERSION = "5.9.6";
 
 // --- Vacation Delegation Helpers (Super Admin Replacement) ---
 // When SUPER_ADMIN_NAME enables Vacation in Settings and sets ReplacementName,
@@ -316,6 +316,444 @@ let imDateTimeInterval = null;
 let activeTaskAutoRefreshInterval = null;
 let imNavigationList = [];
 let imNavigationIndex = -1;
+
+// ==========================================================================
+// LIVE CHAT (Realtime DB) — Global Chatroom + Online Users
+// - No Firebase Auth required (rules currently open). If you later enable Auth,
+//   lock down `system_chat` rules to authenticated users.
+// - Uses Main DB (ibainvoice-3ea51) via `db`
+// ==========================================================================
+
+const LIVE_CHAT_ROOT = 'system_chat';
+const LIVE_CHAT_ROOM = 'global';
+
+let liveChatState = {
+    initialized: false,
+    open: false,
+    unread: 0,
+    userKey: null,
+    userName: '',
+    presenceRef: null,
+    onlineQueryRef: null,
+    messagesQueryRef: null,
+    connectedRef: null,
+    heartbeatInterval: null,
+    // listeners
+    onConnected: null,
+    onOnlineValue: null,
+    onMsgAdded: null,
+};
+
+function escapeHtml(str) {
+    return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function sanitizeChatText(text) {
+    const t = String(text ?? '').replace(/\s+/g, ' ').trim();
+    return t.slice(0, 500);
+}
+
+function formatChatTime(ts) {
+    try {
+        if (!ts) return '';
+        const d = new Date(ts);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (_) {
+        return '';
+    }
+}
+
+
+function ensureLiveChatBaseStyles() {
+    // Fallback styles in case style.css/index.html weren't updated on the server.
+    // If the full styles exist, these are minimal and shouldn't break anything.
+    if (document.getElementById('live-chat-inline-style')) return;
+    const style = document.createElement('style');
+    style.id = 'live-chat-inline-style';
+    style.textContent = `
+        .live-chat-fab{position:fixed;right:18px;bottom:18px;z-index:9999;display:flex;align-items:center;justify-content:center;width:54px;height:54px;border-radius:18px;background:rgba(30,30,30,.85);color:#fff;cursor:pointer;box-shadow:0 16px 40px rgba(0,0,0,.35)}
+        .live-chat-fab i{font-size:20px}
+        .live-chat-unread-badge{position:absolute;top:-6px;right:-6px;background:#e53935;color:#fff;border-radius:999px;min-width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px;padding:0 6px}
+        .live-chat-panel{position:fixed;right:18px;bottom:84px;width:min(380px,calc(100vw - 36px));max-height:min(560px,calc(100vh - 120px));z-index:9999;border-radius:18px;overflow:hidden;background:rgba(20,20,20,.75);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 18px 60px rgba(0,0,0,.45);color:#fff}
+        .live-chat-header{display:flex;align-items:center;justify-content:space-between;padding:12px 12px;border-bottom:1px solid rgba(255,255,255,.12)}
+        .live-chat-icon-btn{background:transparent;border:0;color:#fff;font-size:18px;cursor:pointer}
+        .live-chat-messages{padding:10px 12px;overflow:auto;max-height:360px}
+        .live-chat-inputbar{display:flex;gap:8px;align-items:center;padding:10px 12px;border-top:1px solid rgba(255,255,255,.12)}
+        .live-chat-inputbar input{flex:1;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.10);color:#fff;padding:10px 12px;outline:none}
+        .live-chat-inputbar button{border-radius:12px;border:0;background:rgba(255,255,255,.18);color:#fff;padding:10px 12px;cursor:pointer}
+        .live-chat-online-list{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.10);max-height:180px;overflow:auto}
+        .live-chat-pill{border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff;border-radius:999px;padding:6px 10px;cursor:pointer;font-size:12px}
+        .live-chat-subheader{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.10)}
+        .hidden{display:none !important}
+    `;
+    document.head.appendChild(style);
+}
+
+function ensureLiveChatUI() {
+    // If the server wasn't updated with the new index.html, inject the chat UI dynamically.
+    if (document.getElementById('live-chat-fab') && document.getElementById('live-chat-panel')) return;
+
+    ensureLiveChatBaseStyles();
+
+    if (!document.getElementById('live-chat-fab')) {
+        const fab = document.createElement('div');
+        fab.id = 'live-chat-fab';
+        fab.className = 'live-chat-fab hidden';
+        fab.title = 'Live Chat';
+        fab.innerHTML = `
+            <i class="fa-solid fa-comments"></i>
+            <span id="live-chat-unread-badge" class="live-chat-unread-badge hidden">0</span>
+        `;
+        document.body.appendChild(fab);
+    }
+
+    if (!document.getElementById('live-chat-panel')) {
+        const panel = document.createElement('div');
+        panel.id = 'live-chat-panel';
+        panel.className = 'live-chat-panel hidden';
+        panel.setAttribute('aria-hidden', 'true');
+        panel.setAttribute('role', 'dialog');
+        panel.setAttribute('aria-label', 'Live Chat');
+        panel.innerHTML = `
+            <div class="live-chat-header">
+                <div class="live-chat-title">
+                    <span>Live Chat</span>
+                </div>
+                <div class="live-chat-header-actions">
+                    <button id="live-chat-min-btn" class="live-chat-icon-btn" type="button" title="Minimize">—</button>
+                    <button id="live-chat-close-btn" class="live-chat-icon-btn" type="button" title="Close">×</button>
+                </div>
+            </div>
+            <div class="live-chat-subheader">
+                <button id="live-chat-online-toggle" class="live-chat-pill" type="button">
+                    Online: <span id="live-chat-online-count">0</span>
+                </button>
+                <span id="live-chat-room-label" class="live-chat-room-label">Room: Global</span>
+            </div>
+            <div id="live-chat-online-list" class="live-chat-online-list hidden"></div>
+            <div id="live-chat-messages" class="live-chat-messages" aria-live="polite"></div>
+            <form id="live-chat-form" class="live-chat-inputbar" autocomplete="off">
+                <input id="live-chat-input" type="text" placeholder="Type a message…" maxlength="500" />
+                <button id="live-chat-send" type="submit" title="Send"><i class="fa-solid fa-paper-plane"></i></button>
+            </form>
+        `;
+        document.body.appendChild(panel);
+    }
+}
+
+function getChatEls() {
+    return {
+        fab: document.getElementById('live-chat-fab'),
+        panel: document.getElementById('live-chat-panel'),
+        closeBtn: document.getElementById('live-chat-close-btn'),
+        minBtn: document.getElementById('live-chat-min-btn'),
+        unreadBadge: document.getElementById('live-chat-unread-badge'),
+        onlineToggle: document.getElementById('live-chat-online-toggle'),
+        onlineCount: document.getElementById('live-chat-online-count'),
+        onlineList: document.getElementById('live-chat-online-list'),
+        msgWrap: document.getElementById('live-chat-messages'),
+        form: document.getElementById('live-chat-form'),
+        input: document.getElementById('live-chat-input'),
+        sendBtn: document.getElementById('live-chat-send'),
+        roomLabel: document.getElementById('live-chat-room-label'),
+    };
+}
+
+function updateChatUnreadBadge() {
+    const { unreadBadge, fab } = getChatEls();
+    if (!unreadBadge || !fab) return;
+    const n = Number(liveChatState.unread || 0);
+    if (n > 0) {
+        unreadBadge.textContent = String(n);
+        unreadBadge.classList.remove('hidden');
+        fab.classList.add('has-unread');
+    } else {
+        unreadBadge.textContent = '';
+        unreadBadge.classList.add('hidden');
+        fab.classList.remove('has-unread');
+    }
+}
+
+function openLiveChat() {
+    const { panel } = getChatEls();
+    liveChatState.open = true;
+    if (panel) {
+        panel.classList.remove('hidden');
+        panel.setAttribute('aria-hidden', 'false');
+    }
+    liveChatState.unread = 0;
+    updateChatUnreadBadge();
+    // scroll to bottom
+    setTimeout(() => {
+        const { msgWrap } = getChatEls();
+        if (msgWrap) msgWrap.scrollTop = msgWrap.scrollHeight;
+        const { input } = getChatEls();
+        if (input) input.focus();
+    }, 0);
+}
+
+function closeLiveChat() {
+    const { panel } = getChatEls();
+    liveChatState.open = false;
+    if (panel) {
+        panel.classList.add('hidden');
+        panel.setAttribute('aria-hidden', 'true');
+    }
+}
+
+function toggleOnlineList() {
+    const { onlineList } = getChatEls();
+    if (!onlineList) return;
+    onlineList.classList.toggle('hidden');
+}
+
+function renderOnlineUsers(usersObj) {
+    const { onlineList, onlineCount } = getChatEls();
+    if (!onlineList || !onlineCount) return;
+
+    const entries = Object.entries(usersObj || {})
+        .map(([k, v]) => ({ key: k, ...(v || {}) }))
+        .filter(u => (u.status || '') === 'online')
+        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+
+    onlineCount.textContent = String(entries.length);
+
+    if (entries.length === 0) {
+        onlineList.innerHTML = `<div class="live-chat-empty">No one is online.</div>`;
+        return;
+    }
+
+    onlineList.innerHTML = entries.map(u => {
+        const name = escapeHtml(u.name || 'Unknown');
+        const site = escapeHtml(u.site || '');
+        const pos = escapeHtml(u.position || '');
+        const badge = (u.key === liveChatState.userKey) ? `<span class="live-chat-me">You</span>` : '';
+        const meta = [site, pos].filter(Boolean).join(' • ');
+        return `
+            <div class="live-chat-user">
+                <div class="live-chat-user-avatar"><i class="fa-solid fa-user"></i></div>
+                <div class="live-chat-user-info">
+                    <div class="live-chat-user-name">${name} ${badge}</div>
+                    <div class="live-chat-user-meta">${meta}</div>
+                </div>
+                <div class="live-chat-dot"></div>
+            </div>
+        `;
+    }).join('');
+}
+
+function appendChatMessage(msg) {
+    const { msgWrap } = getChatEls();
+    if (!msgWrap) return;
+
+    const isMe = (msg.fromKey && liveChatState.userKey && msg.fromKey === liveChatState.userKey);
+    const who = escapeHtml(msg.from || 'Unknown');
+    const text = escapeHtml(msg.text || '');
+    const time = formatChatTime(msg.ts);
+
+    const bubble = document.createElement('div');
+    bubble.className = `live-chat-msg ${isMe ? 'me' : 'them'}`;
+    bubble.innerHTML = `
+        <div class="live-chat-msg-meta">
+            <span class="live-chat-msg-who">${who}</span>
+            <span class="live-chat-msg-time">${time}</span>
+        </div>
+        <div class="live-chat-msg-bubble">${text}</div>
+    `;
+    msgWrap.appendChild(bubble);
+
+    // keep DOM light
+    const maxNodes = 240;
+    while (msgWrap.children.length > maxNodes) {
+        msgWrap.removeChild(msgWrap.firstChild);
+    }
+
+    // auto-scroll only when open or when message is mine
+    if (liveChatState.open || isMe) {
+        msgWrap.scrollTop = msgWrap.scrollHeight;
+    }
+}
+
+function startLiveChatPresence() {
+    if (!db || !currentApprover || !currentApprover.key) return;
+
+    const key = String(currentApprover.key);
+    liveChatState.userKey = key;
+    liveChatState.userName = String(currentApprover.Name || currentApprover.Identifier || 'User');
+
+    const presenceRef = db.ref(`${LIVE_CHAT_ROOT}/presence/${key}`);
+    liveChatState.presenceRef = presenceRef;
+
+    const basePresence = {
+        key,
+        name: liveChatState.userName,
+        identifier: String(currentApprover.Identifier || ''),
+        role: String(currentApprover.Role || ''),
+        position: String(currentApprover.Position || ''),
+        site: String(currentApprover.Site || ''),
+    };
+
+    liveChatState.connectedRef = db.ref('.info/connected');
+    liveChatState.onConnected = (snap) => {
+        if (snap.val() === true) {
+            // Set up onDisconnect to mark offline
+            presenceRef.onDisconnect().set({
+                ...basePresence,
+                status: 'offline',
+                lastSeen: firebase.database.ServerValue.TIMESTAMP
+            });
+            // Mark online now
+            presenceRef.set({
+                ...basePresence,
+                status: 'online',
+                lastActive: firebase.database.ServerValue.TIMESTAMP
+            });
+        }
+    };
+
+    liveChatState.connectedRef.on('value', liveChatState.onConnected);
+
+    // Heartbeat: update lastActive every 30s while logged in
+    if (liveChatState.heartbeatInterval) clearInterval(liveChatState.heartbeatInterval);
+    liveChatState.heartbeatInterval = setInterval(() => {
+        try {
+            if (liveChatState.presenceRef) {
+                liveChatState.presenceRef.update({ lastActive: firebase.database.ServerValue.TIMESTAMP, status: 'online' });
+            }
+        } catch (_) {}
+    }, 30000);
+}
+
+function subscribeLiveChatOnlineUsers() {
+    if (!db) return;
+    liveChatState.onlineQueryRef = db.ref(`${LIVE_CHAT_ROOT}/presence`);
+
+    liveChatState.onOnlineValue = (snap) => {
+        renderOnlineUsers(snap.val() || {});
+    };
+    liveChatState.onlineQueryRef.on('value', liveChatState.onOnlineValue);
+}
+
+function subscribeLiveChatMessages() {
+    if (!db) return;
+
+    const { roomLabel, msgWrap } = getChatEls();
+    if (roomLabel) roomLabel.textContent = 'Room: Global';
+
+    if (msgWrap) msgWrap.innerHTML = '';
+
+    liveChatState.messagesQueryRef = db.ref(`${LIVE_CHAT_ROOT}/rooms/${LIVE_CHAT_ROOM}/messages`).limitToLast(200);
+
+    liveChatState.onMsgAdded = (snap) => {
+        const v = snap.val() || {};
+        const msg = {
+            key: snap.key,
+            from: v.from || '',
+            fromKey: v.fromKey || '',
+            text: v.text || '',
+            ts: v.ts || 0,
+        };
+
+        appendChatMessage(msg);
+
+        // unread counter when panel is closed and message is not from me
+        const isMe = (msg.fromKey && liveChatState.userKey && msg.fromKey === liveChatState.userKey);
+        if (!liveChatState.open && !isMe) {
+            liveChatState.unread = Number(liveChatState.unread || 0) + 1;
+            updateChatUnreadBadge();
+        }
+    };
+
+    liveChatState.messagesQueryRef.on('child_added', liveChatState.onMsgAdded);
+}
+
+function wireLiveChatUIOnce() {
+    const els = getChatEls();
+    if (!els.fab || !els.panel) return;
+
+    // prevent double-wire
+    if (els.fab.dataset.wired === '1') return;
+    els.fab.dataset.wired = '1';
+
+    els.fab.addEventListener('click', () => {
+        if (liveChatState.open) closeLiveChat();
+        else openLiveChat();
+    });
+
+    if (els.closeBtn) els.closeBtn.addEventListener('click', closeLiveChat);
+    if (els.minBtn) els.minBtn.addEventListener('click', closeLiveChat);
+    if (els.onlineToggle) els.onlineToggle.addEventListener('click', toggleOnlineList);
+
+    if (els.form) {
+        els.form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const text = sanitizeChatText(els.input ? els.input.value : '');
+            if (!text) return;
+
+            if (!db || !currentApprover || !currentApprover.key) return;
+
+            // push message
+            db.ref(`${LIVE_CHAT_ROOT}/rooms/${LIVE_CHAT_ROOM}/messages`).push({
+                from: liveChatState.userName,
+                fromKey: liveChatState.userKey,
+                site: String(currentApprover.Site || ''),
+                text,
+                ts: firebase.database.ServerValue.TIMESTAMP
+            });
+
+            if (els.input) els.input.value = '';
+        });
+    }
+}
+
+function initLiveChat() {
+    try { ensureLiveChatUI(); } catch (e) { /* ignore */ }
+    const { fab } = getChatEls();
+    if (!fab) return; // UI not present
+
+    // Show only after login
+    fab.classList.remove('hidden');
+
+    wireLiveChatUIOnce();
+
+    if (liveChatState.initialized) return;
+    liveChatState.initialized = true;
+
+    try { startLiveChatPresence(); } catch (e) { console.warn('Chat presence init failed:', e); }
+    try { subscribeLiveChatOnlineUsers(); } catch (e) { console.warn('Chat online list init failed:', e); }
+    try { subscribeLiveChatMessages(); } catch (e) { console.warn('Chat messages init failed:', e); }
+}
+
+function shutdownLiveChat() {
+    try {
+        if (liveChatState.heartbeatInterval) {
+            clearInterval(liveChatState.heartbeatInterval);
+            liveChatState.heartbeatInterval = null;
+        }
+        // Presence offline now
+        if (liveChatState.presenceRef) {
+            liveChatState.presenceRef.update({ status: 'offline', lastSeen: firebase.database.ServerValue.TIMESTAMP });
+        }
+        // Remove listeners
+        if (liveChatState.connectedRef && liveChatState.onConnected) {
+            liveChatState.connectedRef.off('value', liveChatState.onConnected);
+        }
+        if (liveChatState.onlineQueryRef && liveChatState.onOnlineValue) {
+            liveChatState.onlineQueryRef.off('value', liveChatState.onOnlineValue);
+        }
+        if (liveChatState.messagesQueryRef && liveChatState.onMsgAdded) {
+            liveChatState.messagesQueryRef.off('child_added', liveChatState.onMsgAdded);
+        }
+    } catch (e) {
+        console.warn('Live chat shutdown warning:', e);
+    }
+}
+
 
 // -- Dropdown Choices Instances --
 let siteSelectChoices = null;
@@ -2226,6 +2664,13 @@ function handleSuccessfulLogin() {
         console.log('Celebration banner failed:', e);
     }
 
+    // --- Live Chat (Global) ---
+    try {
+        initLiveChat();
+    } catch (e) {
+        console.warn('Live chat init failed:', e);
+    }
+
 }
 
 // ================================
@@ -2589,6 +3034,9 @@ async function showCelebrationBannerIfNeeded() {
 
 
 function handleLogout() {
+    // Live chat cleanup
+    try { shutdownLiveChat(); } catch (e) { /* ignore */ }
+
     // Stop background listeners to prevent leaks
     if (typeof window.stopInvoiceSmartLiveSync === 'function') {
         window.stopInvoiceSmartLiveSync();

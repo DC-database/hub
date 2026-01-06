@@ -600,7 +600,7 @@ if(isEditor) {
     // Delete remains Irwin-only (button + backend guard).
     if (isIrwin || isVacationDelegate) {
         actionButtons += `<button type="button" class="secondary-btn ms-edit-stock-btn" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem; background-color: #00748C; color: white; margin-right: 5px;" title="Edit Details & Add Stock"><i class="fa-solid fa-pen-to-square"></i> Edit</button>`;
-        actionButtons += `<button type="button" class="secondary-btn ms-add-stock-btn" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem; background-color: #28a745; color: white; margin-right: 5px;" title="Add Stock"><i class="fa-solid fa-plus"></i></button>`;
+        // Removed redundant green "+" (Add Stock) action button; stock adjustments are handled via Edit.
 
         if (isIrwin) {
             actionButtons += `<button type="button" class="delete-btn ms-delete-btn" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem;" title="Delete Item"><i class="fa-solid fa-trash"></i></button>`;
@@ -612,8 +612,8 @@ if(isEditor) {
             `;
         }
     } else {
-        // Normal admins (non-Irwin) can add stock only.
-        actionButtons += `<button type="button" class="secondary-btn ms-add-stock-btn" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem; background-color: #28a745; color: white; margin-right: 5px;" title="Add Stock"><i class="fa-solid fa-plus"></i></button>`;
+	    // Normal admins (non-Irwin) can add stock only.
+	    actionButtons += `<button type="button" class="secondary-btn ms-add-stock-text-btn" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem; background-color: #28a745; color: white; margin-right: 5px;" title="Add Stock">Add Stock</button>`;
     }
 } else {
     actionButtons = `<small style="color:#999;">View Only</small>`;
@@ -683,7 +683,7 @@ if(isEditor) {
         });
     });
 
-    document.querySelectorAll('.ms-add-stock-btn').forEach(btn => {
+    document.querySelectorAll('.ms-add-stock-text-btn').forEach(btn => {
         if (btn.dataset.bound === '1') return;
         btn.dataset.bound = '1';
         btn.addEventListener('click', function(e) {
