@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "5.9.6";
+const APP_VERSION = "5.9.8";
 
 // --- Vacation Delegation Helpers (Super Admin Replacement) ---
 // When SUPER_ADMIN_NAME enables Vacation in Settings and sets ReplacementName,
@@ -395,10 +395,23 @@ function ensureLiveChatBaseStyles() {
 }
 
 function ensureLiveChatUI() {
-    // If the server wasn't updated with the new index.html, inject the chat UI dynamically.
+    // Ensure base styles exist even if the HTML already contains the widget.
+    ensureLiveChatBaseStyles();
+
+    // IMPORTANT: In this app, #app-container is hidden on WorkDesk / Invoice Management views.
+    // If the chat widget is inside #app-container (older index.html), it will disappear after login.
+    // Move it to <body> so it stays visible across all views.
+    try {
+        const existingFab = document.getElementById('live-chat-fab');
+        const existingPanel = document.getElementById('live-chat-panel');
+        if (existingFab && existingFab.closest('#app-container')) document.body.appendChild(existingFab);
+        if (existingPanel && existingPanel.closest('#app-container')) document.body.appendChild(existingPanel);
+    } catch (e) { /* ignore */ }
+
+    // If both exist now, nothing else to do.
     if (document.getElementById('live-chat-fab') && document.getElementById('live-chat-panel')) return;
 
-    ensureLiveChatBaseStyles();
+    // If the server wasn't updated with the new index.html, inject the chat UI dynamically.
 
     if (!document.getElementById('live-chat-fab')) {
         const fab = document.createElement('div');
@@ -753,6 +766,123 @@ function shutdownLiveChat() {
         console.warn('Live chat shutdown warning:', e);
     }
 }
+
+// ================================
+// Live Chat Enable/Disable Toggle
+// - Adds a "Live Chat" item in the left sidebar footer.
+// - Clicking it toggles the floating chat bubble ON/OFF.
+// - State is stored in localStorage so it persists after refresh.
+// ================================
+
+function getLiveChatEnabled() {
+    // default ON
+    const v = localStorage.getItem('liveChatEnabled');
+    if (v === null) return true;
+    return v === '1' || v === 'true' || v === 'on';
+}
+
+function setLiveChatEnabled(enabled, opts = {}) {
+    const { openPanel = false, persist = true } = opts;
+    try {
+        if (persist) localStorage.setItem('liveChatEnabled', enabled ? '1' : '0');
+    } catch (_) { /* ignore */ }
+
+    // Ensure UI exists regardless of which view is active
+    try { ensureLiveChatUI(); } catch (_) { /* ignore */ }
+
+    const els = getChatEls();
+
+    // Only show chat once the user is logged in (currentApprover set).
+    // This prevents the chat bubble from showing on the login page.
+    if (!currentApprover || !currentApprover.key) {
+        try { closeLiveChat(); } catch (_) { /* ignore */ }
+        if (els.fab) {
+            els.fab.classList.add('hidden');
+            els.fab.style.display = 'none';
+        }
+        refreshLiveChatToggleBadges();
+        return;
+    }
+    if (enabled) {
+        if (els.fab) {
+            els.fab.classList.remove('hidden');
+            // extra safety in case CSS is overridden
+            els.fab.style.display = 'flex';
+            els.fab.style.visibility = 'visible';
+            els.fab.style.pointerEvents = 'auto';
+            els.fab.style.zIndex = '999999';
+        }
+
+        // Initialize listeners (safe if called multiple times)
+        try { initLiveChat(); } catch (_) { /* ignore */ }
+
+        if (openPanel) {
+            try { openLiveChat(); } catch (_) { /* ignore */ }
+        }
+    } else {
+        try { closeLiveChat(); } catch (_) { /* ignore */ }
+        if (els.fab) {
+            els.fab.classList.add('hidden');
+            els.fab.style.display = 'none';
+        }
+    }
+
+    refreshLiveChatToggleBadges();
+}
+
+function toggleLiveChatEnabled() {
+    const next = !getLiveChatEnabled();
+    setLiveChatEnabled(next, { openPanel: next });
+}
+
+function refreshLiveChatToggleBadges() {
+    const enabled = getLiveChatEnabled();
+    document.querySelectorAll('.live-chat-toggle-badge').forEach((el) => {
+        el.textContent = enabled ? 'ON' : 'OFF';
+        el.style.opacity = enabled ? '1' : '0.7';
+    });
+}
+
+function installLiveChatToggleLinks() {
+    // Insert a footer link into each left sidebar (WorkDesk, Inventory, Invoice Management).
+    const footers = document.querySelectorAll('.workdesk-footer-nav ul');
+    footers.forEach((ul) => {
+        if (!ul || ul.querySelector('.live-chat-toggle-link')) return;
+
+        const li = document.createElement('li');
+        li.innerHTML = `
+            <a href="#" class="live-chat-toggle-link" title="Toggle Live Chat">
+                <i class="fa-solid fa-comments"></i> Live Chat
+                <span class="live-chat-toggle-badge" style="float:right; font-weight:800;">ON</span>
+            </a>
+        `;
+
+        // place before Logout when possible
+        const logoutLi = Array.from(ul.querySelectorAll('li')).find((x) => {
+            const a = x.querySelector('a');
+            return a && /logout/i.test(a.textContent || '');
+        });
+        if (logoutLi) ul.insertBefore(li, logoutLi);
+        else ul.appendChild(li);
+    });
+
+    // Wire click handler once (event delegation)
+    if (!document.body.dataset.liveChatToggleWired) {
+        document.body.dataset.liveChatToggleWired = '1';
+        document.addEventListener('click', (e) => {
+            const a = e.target.closest('.live-chat-toggle-link');
+            if (!a) return;
+            e.preventDefault();
+            toggleLiveChatEnabled();
+        });
+    }
+
+    refreshLiveChatToggleBadges();
+}
+
+// expose for debugging
+window.initLiveChat = initLiveChat;
+window.toggleLiveChatEnabled = toggleLiveChatEnabled;
 
 
 // -- Dropdown Choices Instances --
@@ -2502,6 +2632,11 @@ function showView(viewName) {
     } else if (viewName === 'invoice-management' && invoiceManagementView) {
         invoiceManagementView.classList.remove('hidden');
     }
+
+    // Keep Live Chat toggle link available on all sidebars and apply saved state.
+    // Safe: chat remains hidden until after login.
+    try { installLiveChatToggleLinks(); } catch (_) { /* ignore */ }
+    try { setLiveChatEnabled(getLiveChatEnabled(), { openPanel: false, persist: false }); } catch (_) { /* ignore */ }
 }
 
 // --- Authentication Helpers ---
@@ -2665,8 +2800,11 @@ function handleSuccessfulLogin() {
     }
 
     // --- Live Chat (Global) ---
+    // The chat bubble can be toggled ON/OFF from the left sidebar.
+    try { installLiveChatToggleLinks(); } catch (e) { /* ignore */ }
     try {
-        initLiveChat();
+        // Apply saved state (default ON). Do NOT force-open the panel on login.
+        setLiveChatEnabled(getLiveChatEnabled(), { openPanel: false, persist: false });
     } catch (e) {
         console.warn('Live chat init failed:', e);
     }
