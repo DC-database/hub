@@ -16096,9 +16096,9 @@ async function handleDownloadDailyReport() {
                 let eventTime = inv.updatedAt || inv.enteredAt || inv.createdAt || inv.timestamp || 0;
                 if (typeof eventTime === 'string') eventTime = new Date(eventTime).getTime();
 
-                // Only include invoices that are Under Process in the last 2 hours
+                // Only include invoices that are Under Review in the last 2 hours
                 const statusStr = (inv.status || '').toString().trim().toLowerCase();
-                if (statusStr === 'under process' && (eventTime > twoHoursAgo)) {
+                if (statusStr === 'under review' && (eventTime > twoHoursAgo)) {
                     recentEntries.push({
                         po: poNumber,
                         site: allPOs[poNumber]?.['Project ID'] || 'N/A',
@@ -16110,7 +16110,7 @@ async function handleDownloadDailyReport() {
         }
 
         if (recentEntries.length === 0) {
-            alert("No 'Under Process' invoices found in the last 2 hours.");
+            alert("No 'Under Review' invoices found in the last 2 hours.");
             return;
         }
 
