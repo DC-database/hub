@@ -416,6 +416,9 @@ function renderMaterialStockTable(data) {
     // [FIX] Use strict null check (currentApprover && ...)
     const isAdmin = (currentApprover && (currentApprover.Role || '').toLowerCase() === 'admin');
     const isIrwin = (currentApprover && currentApprover.Name === 'Irwin');
+    const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
+    // Super Admin replacement: allow edit actions in Inventory (no delete)
+    const isEditor = (isAdmin || isVacationDelegate);
 
     const bulkBtn = document.getElementById('ms-bulk-delete-btn');
     if (bulkBtn) {
@@ -592,24 +595,29 @@ function renderMaterialStockTable(data) {
         let actionButtons = '';
         let firstColContent = `<button class="ms-expand-btn" onclick="toggleStockDetail('${uniqueId}', this)">+</button>`;
 
-        if(isAdmin) {
-            if (isIrwin) {
-                actionButtons += `<button class="secondary-btn" onclick="openSuperAdminEdit('${item.key}')" style="padding: 5px 10px; font-size: 0.8rem; background-color: #00748C; color: white; margin-right: 5px;" title="Edit Details & Add Stock"><i class="fa-solid fa-pen-to-square"></i> Edit</button>`;
-                actionButtons += `<button class="delete-btn ms-delete-btn" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem;" title="Delete Item"><i class="fa-solid fa-trash"></i></button>`;
-                firstColContent = `
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <input type="checkbox" class="ms-row-checkbox" data-key="${item.key}" data-name="${item.productName}">
-                        <button class="ms-expand-btn" onclick="toggleStockDetail('${uniqueId}', this)">+</button>
-                    </div>
-                `;
-            } else {
-                actionButtons += `<button class="secondary-btn" onclick="openAddStockModal('${item.key}')" style="padding: 5px 10px; font-size: 0.8rem; background-color: #28a745; color: white; margin-right: 5px;" title="Add Stock"><i class="fa-solid fa-plus"></i></button>`;
-            }
-        } else {
-            actionButtons = `<small style="color:#999;">View Only</small>`;
-        }
+if(isEditor) {
+    // Super Admin (Irwin) AND Irwin's active Vacation Delegate can edit materials.
+    // Delete remains Irwin-only (button + backend guard).
+    if (isIrwin || isVacationDelegate) {
+        actionButtons += `<button type="button" class="secondary-btn ms-edit-stock-btn" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem; background-color: #00748C; color: white; margin-right: 5px;" title="Edit Details & Add Stock"><i class="fa-solid fa-pen-to-square"></i> Edit</button>`;
+        actionButtons += `<button type="button" class="secondary-btn ms-add-stock-btn" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem; background-color: #28a745; color: white; margin-right: 5px;" title="Add Stock"><i class="fa-solid fa-plus"></i></button>`;
 
-        const familyDisplay = item.family || item.category || 'Unclassified';
+        if (isIrwin) {
+            actionButtons += `<button type="button" class="delete-btn ms-delete-btn" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem;" title="Delete Item"><i class="fa-solid fa-trash"></i></button>`;
+            firstColContent = `
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <input type="checkbox" class="ms-row-checkbox" data-key="${item.key}" data-name="${item.productName}">
+                    <button class="ms-expand-btn" onclick="toggleStockDetail('${uniqueId}', this)">+</button>
+                </div>
+            `;
+        }
+    } else {
+        // Normal admins (non-Irwin) can add stock only.
+        actionButtons += `<button type="button" class="secondary-btn ms-add-stock-btn" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem; background-color: #28a745; color: white; margin-right: 5px;" title="Add Stock"><i class="fa-solid fa-plus"></i></button>`;
+    }
+} else {
+    actionButtons = `<small style="color:#999;">View Only</small>`;
+}const familyDisplay = item.family || item.category || 'Unclassified';
         const relationshipDisplay = item.relationship || item.details || '';
 
         const parentRow = document.createElement('tr');
@@ -661,7 +669,32 @@ function renderMaterialStockTable(data) {
         tableBody.appendChild(childRow);
     });
 
-    document.querySelectorAll('.ms-delete-btn').forEach(btn => {
+
+
+    // Bind action buttons (works for both admins and vacation delegates)
+    document.querySelectorAll('.ms-edit-stock-btn').forEach(btn => {
+        if (btn.dataset.bound === '1') return;
+        btn.dataset.bound = '1';
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const key = this.getAttribute('data-key');
+            if (typeof openSuperAdminEdit === 'function') openSuperAdminEdit(key);
+        });
+    });
+
+    document.querySelectorAll('.ms-add-stock-btn').forEach(btn => {
+        if (btn.dataset.bound === '1') return;
+        btn.dataset.bound = '1';
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const key = this.getAttribute('data-key');
+            if (typeof openAddStockModal === 'function') openAddStockModal(key);
+        });
+    });
+
+document.querySelectorAll('.ms-delete-btn').forEach(btn => {
         btn.addEventListener('click', function(e) {
             e.preventDefault();
             handleDeleteMaterial(this.getAttribute('data-key'));
@@ -720,6 +753,15 @@ window.deleteStock = window.handleDeleteMaterial;
 // 5. MODAL LOGIC: OPEN & AUTO-POPULATION
 // ==========================================================================
 window.openNewMaterialModal = async function() {
+    // Permission: Admins can edit. Super Admin's Vacation Delegate can edit while delegation is active.
+    const role = (typeof currentApprover !== 'undefined' && currentApprover) ? (currentApprover.Role || '') : '';
+    const isAdminUser = String(role).toLowerCase() === 'admin';
+    const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
+    if (!isAdminUser && !isVacationDelegate) {
+        alert("View Only: You do not have permission to register new materials.");
+        return;
+    }
+
     if (!allMaterialStockData || allMaterialStockData.length === 0) {
         const btn = document.getElementById('ms-add-new-btn');
         if(btn) btn.textContent = "Loading Data...";
@@ -843,6 +885,15 @@ function generatePreviewID() {
 // 6. SAVE LOGIC
 // ==========================================================================
 async function handleSaveNewMaterial() {
+    // Permission guard (same as modal): Admins OR Super Admin Vacation Delegate.
+    const role = (typeof currentApprover !== 'undefined' && currentApprover) ? (currentApprover.Role || '') : '';
+    const isAdminUser = String(role).toLowerCase() === 'admin';
+    const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
+    if (!isAdminUser && !isVacationDelegate) {
+        alert("Access Denied: You do not have permission to save material changes.");
+        return;
+    }
+
     const btn = document.getElementById('ms-save-new-btn');
     btn.disabled = true; 
 
@@ -958,6 +1009,15 @@ function handleGetTemplate() {
 }
 
 function handleUploadCSV(event) {
+    const role = (typeof currentApprover !== 'undefined' && currentApprover) ? (currentApprover.Role || '') : '';
+    const isAdminUser = String(role).toLowerCase() === 'admin';
+    const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
+    if (!isAdminUser && !isVacationDelegate) {
+        alert("Access Denied: You do not have permission to upload stock CSV.");
+        event.target.value = '';
+        return;
+    }
+
     const file = event.target.files[0];
     if (!file) return;
     const reader = new FileReader();

@@ -6432,3 +6432,40 @@ body.inventory-mode .wd-nav-material {
 .inventory-child-row td:first-child {
     padding-left: 28px;
 }
+
+
+/* ============================
+   Inventory Active Tasks: Control ID grouping (accordion)
+   ============================ */
+.controlid-group-header {
+  cursor: pointer;
+}
+.controlid-group-header:hover {
+  filter: brightness(0.98);
+}
+.controlid-group-header .group-toggle-icon {
+  display: inline-block;
+  margin-right: 6px;
+  transition: transform 0.15s ease;
+}
+.controlid-group-header.open .group-toggle-icon {
+  transform: rotate(90deg);
+}
+.controlid-group-count {
+  color: #666;
+  font-weight: 600;
+  margin-left: 6px;
+}
+.controlid-group-hint,
+.controlid-group-total-label {
+  color: #777;
+  font-size: 0.85em;
+}
+.controlid-group-child .controlid-child-marker {
+  display: inline-block;
+  margin-right: 8px;
+  color: #999;
+}
+.controlid-group-child td {
+  border-top: none;
+}

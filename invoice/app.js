@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "5.8.3";
+const APP_VERSION = "5.9.1";
 
 // --- Vacation Delegation Helpers (Super Admin Replacement) ---
 // When SUPER_ADMIN_NAME enables Vacation in Settings and sets ReplacementName,
@@ -295,6 +295,18 @@ const PDF_BASE_PATH = "https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa
 const SRV_BASE_PATH = "https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/DC%20Files/SRV/";
 const REPORT_BASE_PATH = "https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/DC%20Files/Report/";
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours cache
+
+// SharePoint PDF filenames in this system may intentionally contain spaces right before ".pdf"
+// (e.g. "... Services & .pdf"). Do NOT trim end spaces when generating links.
+function getSharePointPdfBaseName(name) {
+    const raw = String(name ?? '');
+    const rawTrimLower = raw.trim().toLowerCase();
+    if (!rawTrimLower || rawTrimLower === 'nil') return '';
+
+    // Remove a trailing ".pdf" (case-insensitive) and any spaces AFTER it, while preserving spaces BEFORE it.
+    // Also remove leading whitespace (harmless) but keep trailing whitespace (can be significant).
+    return raw.replace(/\.pdf\s*$/i, '').replace(/^\s+/, '');
+}
 
 // -- State Variables --
 let currentApprover = null;
@@ -1203,11 +1215,33 @@ async function ensureAllEntriesFetched(forceRefresh = false) {
     console.log(`Loaded ${allSystemEntries.length} entries.`);
 }
 
-async function ensureApproverDataCached() {
-    if (allApproverDataCache) return;
-    const snapshot = await db.ref('approvers').once('value');
-    allApproverDataCache = snapshot.val() || {};
-    console.log("Approver data cached for position-matching.");
+async function ensureApproverDataCached(force = false) {
+    // Keep this cache reasonably fresh because Vacation Delegation depends on it.
+    // We re-fetch when:
+    //  - force == true, OR
+    //  - cache is empty, OR
+    //  - cache is older than MAX_AGE_MS.
+    const MAX_AGE_MS = 60 * 1000; // 1 minute (safe + light)
+    const now = Date.now();
+
+    try {
+        if (!force && allApproverDataCache && cacheTimestamps && cacheTimestamps.approverData && (now - cacheTimestamps.approverData) < MAX_AGE_MS) {
+            return;
+        }
+        if (!force && allApproverDataCache && (!cacheTimestamps || !cacheTimestamps.approverData)) {
+            // Backward compatibility: if old builds never set the timestamp, keep current cache.
+            return;
+        }
+
+        const snapshot = await db.ref('approvers').once('value');
+        allApproverDataCache = snapshot.val() || {};
+        allApproverData = allApproverDataCache; // keep in sync for older logic paths
+        if (cacheTimestamps) cacheTimestamps.approverData = now;
+        console.log("Approver data cached/refreshed for position-matching.");
+    } catch (e) {
+        // Never hard-fail the UI if caching fails.
+        console.warn("ensureApproverDataCached failed:", e);
+    }
 }
 
 function updateLocalInvoiceCache(poNumber, invoiceKey, updatedData) {
@@ -2836,14 +2870,16 @@ try {
         }
         populateSiteFilterDropdown();
         // Visibility rules (V5.5.3 update):
-        // - CSV/Excel downloads: Only Super Admin (Irwin)
+        // - CSV/Excel downloads: Only Super Admin (Irwin) OR the active Super Admin Vacation Delegate
         // - Print Preview/List: All Admins (and Accounting)
-        const isSuperAdmin = (currentApprover?.Name || '') === 'Irwin';
+        const isSuperAdmin = ((currentApprover?.Name || '').trim().toLowerCase() === SUPER_ADMIN_NAME.toLowerCase());
+        const isSuperAdminDelegate = isVacationDelegateUser();
+
         const isAdminRole = (currentApprover?.Role || '').toLowerCase() === 'admin';
         const posLower = (currentApprover?.Position || '').toLowerCase();
         const isAccountingPos = posLower.includes('accounting') || posLower.includes('accounts') || posLower.includes('finance');
 
-        const showReportBtns = isSuperAdmin && (window.innerWidth > 768);
+        const showReportBtns = (isSuperAdmin || isSuperAdminDelegate) && (window.innerWidth > 768);
         if (imReportingDownloadCSVButton) imReportingDownloadCSVButton.style.display = showReportBtns ? 'inline-block' : 'none';
         if (imDownloadDailyReportButton) imDownloadDailyReportButton.style.display = showReportBtns ? 'inline-block' : 'none';
         if (imDownloadWithAccountsReportButton) imDownloadWithAccountsReportButton.style.display = showReportBtns ? 'inline-block' : 'none';
@@ -4121,7 +4157,177 @@ function renderActiveTaskTable(tasks) {
                     userPos.indexOf('ceo') !== -1 || 
                     userRole === 'admin'; 
 
-    filteredTasks.forEach(function(task) {
+    // --- Inventory Active Tasks: group by Control ID (accordion) ---
+if (isTransferView) {
+    const getControlKey = (t) => String(t.ref || t.controlId || t.controlNumber || '').trim() || 'N/A';
+
+    const getMovementText = (t) => {
+        const fromLoc = t.fromSite || t.fromLocation || 'N/A';
+        const toLoc = t.toSite || t.toLocation || 'N/A';
+        let movement = `${fromLoc} ➔ ${toLoc}`;
+        if (t.for === 'Usage') movement = `Consumed at ${fromLoc}`;
+        return movement;
+    };
+
+    const getDisplayQty = (t) => {
+        let displayQty = parseFloat(t.orderedQty ?? t.requiredQty ?? 0) || 0;
+        if (t.approvedQty !== undefined && t.approvedQty !== null) {
+            displayQty = parseFloat(t.approvedQty) || displayQty;
+        }
+        if (t.receivedQty !== undefined && t.receivedQty !== null) {
+            displayQty = parseFloat(t.receivedQty) || displayQty;
+        }
+        return displayQty;
+    };
+
+    const getStatusColor = (status) => {
+        if (status === 'Pending' || status === 'Pending Admin') return '#dc3545';
+        if (status === 'Approved') return '#28a745';
+        if (status === 'Completed') return '#003A5C';
+        return '#333';
+    };
+
+    const inInventoryContext = (typeof isInventoryContext === 'function' && isInventoryContext());
+
+    const renderTransferRow = (task, { isChild = false } = {}) => {
+        const row = document.createElement('tr');
+        row.setAttribute('data-key', task.key);
+        row.classList.toggle('controlid-group-child', isChild);
+
+        if (task.isUrgent === false) {
+            row.style.opacity = '0.7';
+            row.style.backgroundColor = '#f9f9f9';
+        }
+
+        let actionButtons = '<button class="transfer-action-btn" data-key="' + task.key + '" style="background-color: #17a2b8; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 600;">Action</button>';
+
+        // Keep existing delete rule (admin-only and not in inventory clone)
+        if (userRole === 'admin' && !inInventoryContext) {
+            actionButtons += '<button type="button" class="delete-btn transfer-delete-btn" data-key="' + task.key + '" style="margin-left: 5px; padding: 6px 12px;">Delete</button>';
+        }
+
+        const movement = getMovementText(task);
+
+        let displayQty = task.orderedQty || task.requiredQty || 0;
+        let qtyLabel = "";
+        if (task.approvedQty !== undefined && task.approvedQty !== null) {
+            displayQty = task.approvedQty;
+            if (displayQty != task.orderedQty) qtyLabel = " (Adj)";
+        }
+        if (task.receivedQty !== undefined && task.receivedQty !== null) {
+            displayQty = task.receivedQty;
+            qtyLabel = "";
+        }
+
+        const statusColor = getStatusColor(task.remarks);
+
+        const controlCell = isChild
+            ? '<td class="desktop-only controlid-child-cell"><span class="controlid-child-marker">↳</span> ' + (getControlKey(task)) + '</td>'
+            : '<td class="desktop-only"><strong>' + (getControlKey(task)) + '</strong></td>';
+
+        // Render with the same column order as before
+        row.innerHTML =
+            controlCell +
+            '<td class="desktop-only">' + (task.vendorName || task.productName) + '</td>' +
+            '<td class="desktop-only">' + (task.details || '') + '</td>' +
+            '<td class="desktop-only">' + movement + '</td>' +
+            '<td class="desktop-only" style="font-weight: bold; color: #003A5C;">' + displayQty + qtyLabel + '</td>' +
+            '<td class="desktop-only">' + (task.contactName || task.requestor || '') + '</td>' +
+            '<td class="desktop-only"><span style="color: ' + statusColor + '; font-weight: bold;">' + task.remarks + '</span></td>' +
+            '<td class="desktop-only">' + actionButtons + '</td>';
+
+        return row;
+    };
+
+    // Group tasks by Control ID (ref)
+    const groups = new Map();
+    filteredTasks.forEach(t => {
+        const k = getControlKey(t);
+        if (!groups.has(k)) groups.set(k, []);
+        groups.get(k).push(t);
+    });
+
+    // Helpers for accordion (only one open at a time)
+    const closeAllGroups = () => {
+        document.querySelectorAll('#active-task-table-body tr.controlid-group-child').forEach(r => { r.style.display = 'none'; });
+        document.querySelectorAll('#active-task-table-body tr.controlid-group-header').forEach(r => { r.classList.remove('open'); });
+    };
+
+    const openGroup = (groupId) => {
+        document.querySelectorAll('#active-task-table-body tr.controlid-group-child[data-parent-group="' + groupId.replace(/"/g, '') + '"]').forEach(r => { r.style.display = 'table-row'; });
+        const header = document.querySelector('#active-task-table-body tr.controlid-group-header[data-group-id="' + groupId.replace(/"/g, '') + '"]');
+        if (header) header.classList.add('open');
+    };
+
+    // Render groups (sorted)
+    const groupIds = Array.from(groups.keys()).sort((a, b) => String(a).localeCompare(String(b)));
+    groupIds.forEach(groupId => {
+        const items = groups.get(groupId) || [];
+        if (items.length <= 1) {
+            activeTaskTableBody.appendChild(renderTransferRow(items[0]));
+            return;
+        }
+
+        // Summary line
+        const first = items[0] || {};
+        const productName = first.vendorName || first.productName || '';
+        const uniqueDetails = Array.from(new Set(items.map(i => String(i.details || '').trim()).filter(Boolean)));
+        const detailsSummary = uniqueDetails.length === 0 ? '' : (uniqueDetails.length === 1 ? uniqueDetails[0] : 'Multiple records');
+
+        const uniqueMov = Array.from(new Set(items.map(getMovementText)));
+        const movementSummary = uniqueMov.length === 1 ? uniqueMov[0] : 'Multiple';
+
+        const totalQty = items.reduce((sum, t) => sum + getDisplayQty(t), 0);
+        const uniqueContacts = Array.from(new Set(items.map(i => String(i.contactName || i.requestor || '').trim()).filter(Boolean)));
+        const contactSummary = uniqueContacts.length === 0 ? '' : (uniqueContacts.length === 1 ? uniqueContacts[0] : 'Multiple');
+
+        const uniqueStatuses = Array.from(new Set(items.map(i => String(i.remarks || '').trim()).filter(Boolean)));
+        const statusSummary = uniqueStatuses.length === 0 ? '' : (uniqueStatuses.length === 1 ? uniqueStatuses[0] : 'Multiple');
+        const statusColor = uniqueStatuses.length === 1 ? getStatusColor(statusSummary) : '#333';
+
+        const groupIsUrgent = items.some(t => t.isUrgent === true);
+
+        const headerRow = document.createElement('tr');
+        headerRow.className = 'controlid-group-header';
+        headerRow.setAttribute('data-group-id', groupId);
+
+        if (!groupIsUrgent) {
+            headerRow.style.opacity = '0.7';
+            headerRow.style.backgroundColor = '#f9f9f9';
+        }
+
+        headerRow.innerHTML =
+            '<td class="desktop-only"><span class="group-toggle-icon">▸</span> <strong>' + groupId + '</strong> <span class="controlid-group-count">(' + items.length + ')</span></td>' +
+            '<td class="desktop-only">' + productName + '</td>' +
+            '<td class="desktop-only">' + detailsSummary + '</td>' +
+            '<td class="desktop-only">' + movementSummary + '</td>' +
+            '<td class="desktop-only" style="font-weight: bold; color: #003A5C;">' + (Number.isFinite(totalQty) ? totalQty : '') + ' <span class="controlid-group-total-label">(Total)</span></td>' +
+            '<td class="desktop-only">' + contactSummary + '</td>' +
+            '<td class="desktop-only"><span style="color: ' + statusColor + '; font-weight: bold;">' + statusSummary + '</span></td>' +
+            '<td class="desktop-only"><span class="controlid-group-hint">Click to expand</span></td>';
+
+        // Accordion click behavior
+        headerRow.addEventListener('click', () => {
+            const isOpen = headerRow.classList.contains('open');
+            closeAllGroups();
+            if (!isOpen) openGroup(groupId);
+        });
+
+        activeTaskTableBody.appendChild(headerRow);
+
+        // Child rows (hidden by default)
+        items.forEach(item => {
+            const childRow = renderTransferRow(item, { isChild: true });
+            childRow.setAttribute('data-parent-group', groupId);
+            childRow.style.display = 'none';
+            activeTaskTableBody.appendChild(childRow);
+        });
+    });
+
+    return; // prevent standard renderer
+}
+
+filteredTasks.forEach(function(task) {
         var row = document.createElement('tr');
         row.setAttribute('data-key', task.key);
 
@@ -4130,51 +4336,6 @@ function renderActiveTaskTable(tasks) {
             row.style.backgroundColor = '#f9f9f9';
         }
 
-        if (isTransferView) {
-            // --- TRANSFER ROW (Standard) ---
-            var actionButtons = '<button class="transfer-action-btn" data-key="' + task.key + '" style="background-color: #17a2b8; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 600;">Action</button>';
-
-            // Inventory clone: Delete is handled in Job Records (Reporting) to avoid duplicate/confusing delete actions.
-            var inInventoryContext = (typeof isInventoryContext === 'function' && isInventoryContext());
-            if (userRole === 'admin' && !inInventoryContext) {
-                actionButtons += '<button type="button" class="delete-btn transfer-delete-btn" data-key="' + task.key + '" style="margin-left: 5px; padding: 6px 12px;">Delete</button>';
-            }
-
-            var fromLoc = task.fromSite || task.fromLocation || 'N/A';
-            var toLoc = task.toSite || task.toLocation || 'N/A';
-            var movement = fromLoc + ' <i class="fa-solid fa-arrow-right" style="color: #888; font-size: 0.8rem;"></i> ' + toLoc;
-            if (task.for === 'Usage') {
-                movement = '<span style="color: #6f42c1;">Consumed at ' + fromLoc + '</span>';
-            }
-
-            var displayQty = task.orderedQty || task.requiredQty || 0;
-            var qtyLabel = ""; 
-            if (task.approvedQty !== undefined && task.approvedQty !== null) {
-                displayQty = task.approvedQty;
-                if (displayQty != task.orderedQty) qtyLabel = " (Adj)";
-            }
-            if (task.receivedQty !== undefined && task.receivedQty !== null) {
-                displayQty = task.receivedQty;
-                qtyLabel = "";
-            }
-
-            var statusColor = '#333';
-            if (task.remarks === 'Pending') statusColor = '#dc3545';
-            if (task.remarks === 'Pending Admin') statusColor = '#dc3545';
-            if (task.remarks === 'Approved') statusColor = '#28a745';
-            if (task.remarks === 'Completed') statusColor = '#003A5C';
-
-            row.innerHTML = 
-                '<td class="desktop-only"><strong>' + (task.ref || task.controlId || task.controlNumber) + '</strong></td>' +
-                '<td class="desktop-only">' + (task.vendorName || task.productName) + '</td>' +
-                '<td class="desktop-only">' + (task.details || '') + '</td>' +
-                '<td class="desktop-only">' + movement + '</td>' +
-                '<td class="desktop-only" style="font-weight: bold; color: #003A5C;">' + displayQty + qtyLabel + '</td>' +
-                '<td class="desktop-only">' + (task.contactName || task.requestor || '') + '</td>' +
-                '<td class="desktop-only"><span style="color: ' + statusColor + '; font-weight: bold;">' + task.remarks + '</span></td>' +
-                '<td class="desktop-only">' + actionButtons + '</td>';
-
-        } else {
             // --- STANDARD ROW ---
             var isInvoiceFromIrwin = task.source === 'invoice' && task.enteredBy === 'Irwin';
             var invName = task.invName || '';
@@ -4240,7 +4401,6 @@ function renderActiveTaskTable(tasks) {
                 actionsCell.innerHTML = actionsHTML;
             }
             row.appendChild(actionsCell);
-        }
         activeTaskTableBody.appendChild(row);
     });
 }
@@ -4343,7 +4503,7 @@ const getTaskSiteForMatch = (t) =>
         let pulledInvoiceKeys = new Set(); 
 
         await ensureAllEntriesFetched();
-        await ensureApproverDataCached();
+        await ensureApproverDataCached(true);
         
         if (!isInventoryPage) {
             await ensureInvoiceDataFetched(false);
@@ -5955,8 +6115,20 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
 
                 // Check Site (For SRV & IPC)
                 if (checkSite && filterSite) {
-                    if (!user.site.includes(filterSite)) return false;
-                }
+            // Match site by ID token (supports values like "181", "181 - Camp", etc.)
+            const _siteId = (s) => String(s || '').trim().split(' ')[0].toLowerCase();
+            const _siteMatch = (userSite, targetSite) => {
+                const u = String(userSite || '').trim();
+                const t = String(targetSite || '').trim();
+                if (!u || !t) return false;
+                const uId = _siteId(u);
+                const tId = _siteId(t);
+                if (uId && tId && uId === tId) return true;
+                // Fallback: substring match either direction
+                return u.toLowerCase().includes(t.toLowerCase()) || t.toLowerCase().includes(u.toLowerCase());
+            };
+            if (!_siteMatch(user.site, filterSite)) return false;
+        }
                 return true;
             });
 
@@ -6003,6 +6175,10 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
             // so you can select a temporary replacement without editing approver-site mappings.
             if (allowOverrideSearch && choicesInstance.passedElement && choicesInstance.passedElement.element) {
                 const element = choicesInstance.passedElement.element;
+                const outerEl = (choicesInstance.containerOuter && choicesInstance.containerOuter.element) ? choicesInstance.containerOuter.element : null;
+                const _safeAddEvt = (t, evt, fn) => { try { if (t && typeof t.addEventListener === 'function') t.addEventListener(evt, fn); } catch (e) {} };
+                const _safeRmEvt  = (t, evt, fn) => { try { if (t && typeof t.removeEventListener === 'function' && fn) t.removeEventListener(evt, fn); } catch (e) {} };
+
 
                 // Helper: apply query safely without spamming re-renders
                 const applySmartQuery = (rawQuery) => {
@@ -6021,10 +6197,13 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
                 };
 
                 // Cleanup any old listeners (avoid duplicates on repeated calls)
-                if (element._smartSearchHandler) element.removeEventListener('search', element._smartSearchHandler);
-                if (element._smartHideHandler) element.removeEventListener('hideDropdown', element._smartHideHandler);
-                if (element._smartShowHandler) element.removeEventListener('showDropdown', element._smartShowHandler);
-                if (element._smartSearchInputEl && element._smartSearchInputHandler) {
+                _safeRmEvt(element,  'search',       element._smartSearchHandler);
+                _safeRmEvt(outerEl,  'search',       element._smartSearchHandler);
+                _safeRmEvt(element,  'hideDropdown', element._smartHideHandler);
+                _safeRmEvt(outerEl,  'hideDropdown', element._smartHideHandler);
+                _safeRmEvt(element,  'showDropdown', element._smartShowHandler);
+                _safeRmEvt(outerEl,  'showDropdown', element._smartShowHandler);
+if (element._smartSearchInputEl && element._smartSearchInputHandler) {
                     try { element._smartSearchInputEl.removeEventListener('input', element._smartSearchInputHandler); } catch (e) {}
                 }
 
@@ -6033,7 +6212,8 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
                     const q = (event && event.detail && typeof event.detail.value !== 'undefined') ? event.detail.value : '';
                     applySmartQuery(q);
                 };
-                element.addEventListener('search', element._smartSearchHandler);
+                _safeAddEvt(element, 'search', element._smartSearchHandler);
+                _safeAddEvt(outerEl, 'search', element._smartSearchHandler);
 
                 // 2) Direct input listener (more reliable across versions)
                 element._smartSearchInputHandler = function (e) {
@@ -6057,7 +6237,8 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
 
                 // Attach now + whenever dropdown opens
                 element._smartShowHandler = function () { attachInputListener(); };
-                element.addEventListener('showDropdown', element._smartShowHandler);
+                _safeAddEvt(element, 'showDropdown', element._smartShowHandler);
+                _safeAddEvt(outerEl, 'showDropdown', element._smartShowHandler);
                 attachInputListener();
 
                 // Reset list when dropdown closes (keeps system "default strict suggestions" next time)
@@ -6069,7 +6250,8 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
                     element._lastSmartQuery = '';
                     applySmartQuery('');
                 };
-                element.addEventListener('hideDropdown', element._smartHideHandler);
+                _safeAddEvt(element, 'hideDropdown', element._smartHideHandler);
+                _safeAddEvt(outerEl, 'hideDropdown', element._smartHideHandler);
             }
 
         } else {
@@ -6381,6 +6563,9 @@ async function handleAddJobEntry(e) {
     }
 
     try {
+        // 2.a Ensure Approver/Vacation data is fresh (so new entries route to the correct replacement)
+        await ensureApproverDataCached(true);
+
         // 2. Ensure we have reference data (PO & Vendors)
         await ensureAllEntriesFetched(); 
 
@@ -6596,6 +6781,8 @@ async function handleUpdateJobEntry(e) {
         if(btn) { btn.disabled = false; btn.textContent = 'Update'; }
         return; 
     }
+
+    try { await ensureApproverDataCached(true); } catch (e) { /* ignore */ }
 
     // --- YOUR CUSTOM INVOICE LOGIC (Preserved) ---
     if (jobData.for === 'Invoice') {
@@ -7309,6 +7496,8 @@ async function handleSaveModifiedTask() {
         note: modifyTaskNote.value.trim()
     };
 
+    try { await ensureApproverDataCached(true); } catch (e) { /* ignore */ }
+
     // Safety: do not assign tasks to vacationing users. If selected attention is on vacation,
     // automatically resolve to the replacement (if configured and active).
     if (updates.attention && updates.attention !== 'All' && updates.attention !== 'None') {
@@ -7347,7 +7536,8 @@ async function handleSaveModifiedTask() {
                             u.Position && (u.Position.toLowerCase().includes('accounting') || u.Position.toLowerCase().includes('accounts'))
                         );
                     }
-                    updates.attention = accountingUser ? accountingUser.Name : 'Accounting';
+                    const accName = (typeof getAccountingUser === 'function') ? getAccountingUser() : (accountingUser ? accountingUser.Name : 'Accounting');
+                    updates.attention = (typeof resolveVacationAssignee === 'function') ? resolveVacationAssignee(accName) : accName;
                     
                     alert("Finance Approval Confirmed. Routing back to Accounting for printing.");
                 }
@@ -7844,7 +8034,10 @@ async function proceedWithPOLoading(poNumber, poData) {
     const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
     const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
 
-    const poValueText = (isAdmin || isAccounting) ? (poData.Amount ? `QAR ${formatCurrency(poData.Amount)}` : 'N/A') : '---';
+    const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
+    const canViewAmounts = (isAdmin || isAccounting || isVacationDelegate);
+
+    const poValueText = canViewAmounts ? (poData.Amount ? `QAR ${formatCurrency(poData.Amount)}` : 'N/A') : '---';
     const siteText = poData['Project ID'] || 'N/A';
     const vendorText = poData['Supplier Name'] || 'N/A';
 
@@ -7918,6 +8111,8 @@ function fetchAndDisplayInvoices(poNumber) {
 
     const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
     const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
+    const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
+    const canViewAmounts = (isAdmin || isAccounting || isVacationDelegate);
 
     let invoiceCount = 0;
 
@@ -7971,23 +8166,23 @@ function fetchAndDisplayInvoices(poNumber) {
             const releaseDateDisplay = inv.releaseDate ? new Date(normalizeDateForInput(inv.releaseDate) + 'T00:00:00').toLocaleDateString('en-GB') : 'N/A';
             const invoiceDateDisplay = inv.invoiceDate ? new Date(normalizeDateForInput(inv.invoiceDate) + 'T00:00:00').toLocaleDateString('en-GB') : 'N/A';
 
-            const invValueDisplay = (isAdmin || isAccounting) ? formatCurrency(inv.invValue) : '---';
-            const amountPaidDisplay = (isAdmin || isAccounting) ? formatCurrency(inv.amountPaid) : '---';
+            const invValueDisplay = canViewAmounts ? formatCurrency(inv.invValue) : '---';
+            const amountPaidDisplay = canViewAmounts ? formatCurrency(inv.amountPaid) : '---';
 
-            // --- Standard Invoice/SRV Links (Using Base Paths) ---
-            const invPDFName = inv.invName || '';
-            const invPDFLink = (invPDFName.trim() && invPDFName.toLowerCase() !== 'nil') ?
+            // --- Standard Invoice/SRV/Report Links (Using Base Paths) ---
+            // IMPORTANT: Do not trim end spaces (they can be part of the actual SharePoint filename).
+            const invPDFName = getSharePointPdfBaseName(inv.invName);
+            const invPDFLink = invPDFName ?
                 `<a href="${PDF_BASE_PATH}${encodeURIComponent(invPDFName)}.pdf" target="_blank" class="action-btn invoice-pdf-btn">Invoice</a>` :
                 '';
 
-            const srvPDFName = inv.srvName || '';
-            const srvPDFLink = (srvPDFName.trim() && srvPDFName.toLowerCase() !== 'nil') ?
+            const srvPDFName = getSharePointPdfBaseName(inv.srvName);
+            const srvPDFLink = srvPDFName ?
                 `<a href="${SRV_BASE_PATH}${encodeURIComponent(srvPDFName)}.pdf" target="_blank" class="action-btn srv-pdf-btn">SRV</a>` :
                 '';
 
-            // +++ NEW: REPORT BUTTON LOGIC +++
-            const reportPDFName = inv.reportName || '';
-            const reportPDFLink = (reportPDFName.trim() && reportPDFName.toLowerCase() !== 'nil') ?
+            const reportPDFName = getSharePointPdfBaseName(inv.reportName);
+            const reportPDFLink = reportPDFName ?
                 `<a href="${REPORT_BASE_PATH}${encodeURIComponent(reportPDFName)}.pdf" target="_blank" class="action-btn report-pdf-btn" style="background-color: #6f42c1; color: white;" title="View Report">Report</a>` :
                 '';
 
@@ -8039,7 +8234,7 @@ function fetchAndDisplayInvoices(poNumber) {
 
     const footer = document.getElementById('im-invoices-table-footer');
     if (footer) {
-        const isAdminOrAccounting = isAdmin || isAccounting;
+        const isAdminOrAccounting = isAdmin || isAccounting || isVacationDelegate;
 
         let finalTotalPaid = totalPaidWithoutRetention;
 
@@ -8908,8 +9103,9 @@ function buildMobileReportView(reportData) {
     // --- PERMISSION CHECK ---
     const userRole = (currentApprover?.Role || '').toLowerCase();
     const userPos = (currentApprover?.Position || '').trim().toLowerCase();
+    const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
     const canPrintSticker = (userRole === 'admin' && userPos === 'accounting');
-    const canViewAmounts = (userRole === 'admin' || userPos === 'accounting');
+    const canViewAmounts = (userRole === 'admin' || userPos === 'accounting' || isVacationDelegate);
 
     if (reportData.length === 0) {
         container.innerHTML = `<div class="im-mobile-empty-state"><i class="fa-solid fa-file-circle-question"></i><h3>No Results Found</h3><p>Try a different search.</p></div>`;
@@ -8974,23 +9170,20 @@ function buildMobileReportView(reportData) {
                 let actionsHTML = '';
                 
                 // 1. Invoice PDF
-                if (inv.invName && inv.invName.toLowerCase() !== 'nil') {
-                    let cleanInv = inv.invName.trim();
-                    if(cleanInv.toLowerCase().endsWith('.pdf')) cleanInv = cleanInv.slice(0, -4);
+                const cleanInv = getSharePointPdfBaseName(inv.invName);
+                if (cleanInv) {
                     actionsHTML += `<a href="${PDF_BASE_PATH}${encodeURIComponent(cleanInv)}.pdf" target="_blank" class="im-tx-action-btn invoice-pdf-btn">INV</a>`;
                 }
                 
                 // 2. SRV PDF
-                if (inv.srvName && inv.srvName.toLowerCase() !== 'nil') {
-                    let cleanSrv = inv.srvName.trim();
-                    if(cleanSrv.toLowerCase().endsWith('.pdf')) cleanSrv = cleanSrv.slice(0, -4);
+                const cleanSrv = getSharePointPdfBaseName(inv.srvName);
+                if (cleanSrv) {
                     actionsHTML += `<a href="${SRV_BASE_PATH}${encodeURIComponent(cleanSrv)}.pdf" target="_blank" class="im-tx-action-btn srv-pdf-btn">SRV</a>`;
                 }
 
                 // 3. REPORT PDF (Mobile)
-                if (inv.reportName && inv.reportName.toLowerCase() !== 'nil') {
-                    let cleanRpt = inv.reportName.trim();
-                    if(cleanRpt.toLowerCase().endsWith('.pdf')) cleanRpt = cleanRpt.slice(0, -4);
+                const cleanRpt = getSharePointPdfBaseName(inv.reportName);
+                if (cleanRpt) {
                     actionsHTML += `<a href="${REPORT_BASE_PATH}${encodeURIComponent(cleanRpt)}.pdf" target="_blank" class="im-tx-action-btn" style="background-color: #6f42c1; color: white;">RPT</a>`;
                 }
 
@@ -9026,7 +9219,12 @@ function buildDesktopReportView(reportData) {
     // 1. Calculate Permissions
     const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
     const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
-    const isAllowedUser = (isAdmin || isAccounting);
+    const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
+
+    // Replacement (Vacation Delegate for Super Admin) should be able to view amounts + manage invoices
+    // without gaining delete permissions.
+    const canViewAmounts = (isAdmin || isAccounting || isVacationDelegate);
+    const isAllowedUser = (isAdmin || isAccounting || isVacationDelegate);
 
     // --- Check if user can print stickers ---
     const canPrintSticker = (isAdmin && isAccounting); 
@@ -9068,8 +9266,8 @@ function buildDesktopReportView(reportData) {
 
                 const releaseDateDisplay = inv.releaseDate ? new Date(normalizeDateForInput(inv.releaseDate) + 'T00:00:00').toLocaleDateString('en-GB') : '';
                 const invoiceDateDisplay = inv.invoiceDate ? new Date(normalizeDateForInput(inv.invoiceDate) + 'T00:00:00').toLocaleDateString('en-GB') : '';
-                const invValueDisplay = (isAdmin || isAccounting) ? formatCurrency(invValue) : '---';
-                const amountPaidDisplay = (isAdmin || isAccounting) ? formatCurrency(amountPaid) : '---';
+                const invValueDisplay = canViewAmounts ? formatCurrency(invValue) : '---';
+                const amountPaidDisplay = canViewAmounts ? formatCurrency(amountPaid) : '---';
 
                 // ============================================================
                 // 1. GENERATE ACTION BUTTONS
@@ -9079,15 +9277,10 @@ function buildDesktopReportView(reportData) {
 
                 if (inv.source !== 'ecommit' && isAllowedUser) {
                     
-                    // --- A. Sanitize Names ---
-                    let finalInvName = (inv.invName || '').trim();
-                    if (finalInvName.toLowerCase().endsWith('.pdf')) finalInvName = finalInvName.slice(0, -4);
-
-                    let finalSrvName = (inv.srvName || '').trim();
-                    if (finalSrvName.toLowerCase().endsWith('.pdf')) finalSrvName = finalSrvName.slice(0, -4);
-
-                    let finalReportName = (inv.reportName || '').trim();
-                    if (finalReportName.toLowerCase().endsWith('.pdf')) finalReportName = finalReportName.slice(0, -4);
+                    // --- A. Sanitize Names (Preserve end-spaces; they can be significant in SharePoint filenames) ---
+                    const finalInvName = getSharePointPdfBaseName(inv.invName);
+                    const finalSrvName = getSharePointPdfBaseName(inv.srvName);
+                    const finalReportName = getSharePointPdfBaseName(inv.reportName);
 
                     // --- B. Create PDF Links ---
                     const invPDFLink = (finalInvName && finalInvName.toLowerCase() !== 'nil') ? 
@@ -9152,18 +9345,18 @@ function buildDesktopReportView(reportData) {
         // ============================================================
         const diffValue = totalInvValue - finalTotalPaid;
         const diffColor = (diffValue > 0.05) ? '#dc3545' : '#28a745'; // Red if Owed, Green if Paid
-        const diffDisplay = (isAdmin || isAccounting) ? `<strong>QAR ${formatCurrency(diffValue)}</strong>` : '---';
+        const diffDisplay = canViewAmounts ? `<strong>QAR ${formatCurrency(diffValue)}</strong>` : '---';
         // ============================================================
 
-        const totalInvValueDisplay = (isAdmin || isAccounting) ? `<strong>QAR ${formatCurrency(totalInvValue)}</strong>` : '---';
-        const totalAmountPaidDisplay = (isAdmin || isAccounting) ? `<strong>QAR ${formatCurrency(finalTotalPaid)}</strong>` : '---';
-        const poValueDisplay = (isAdmin || isAccounting) ? (poData.poDetails.Amount ? `QAR ${formatCurrency(poData.poDetails.Amount)}` : 'N/A') : '---';
+        const totalInvValueDisplay = canViewAmounts ? `<strong>QAR ${formatCurrency(totalInvValue)}</strong>` : '---';
+        const totalAmountPaidDisplay = canViewAmounts ? `<strong>QAR ${formatCurrency(finalTotalPaid)}</strong>` : '---';
+        const poValueDisplay = canViewAmounts ? (poData.poDetails.Amount ? `QAR ${formatCurrency(poData.poDetails.Amount)}` : 'N/A') : '---';
 
         const balanceNum = poData.balance !== undefined ? poData.balance : ((parseFloat(poData.poDetails.Amount) || 0) - totalInvValue);
-        const balanceDisplay = (isAdmin || isAccounting) ? `QAR ${formatCurrency(balanceNum)}` : '---';
+        const balanceDisplay = canViewAmounts ? `QAR ${formatCurrency(balanceNum)}` : '---';
 
         let highlightClass = '';
-        if (isAdmin || isAccounting) {
+        if (canViewAmounts) {
             if (balanceNum < -0.01) {
                 highlightClass = 'highlight-negative-balance';
             } else if (Math.abs(balanceNum) < 0.01) {
@@ -9361,8 +9554,9 @@ function handleGeneratePrintReport() {
 
 
 async function handleDownloadCSV() {
-    const isAccountingPosition = (currentApprover?.Position || '').toLowerCase() === 'accounting';
-    if (!isAccountingPosition) {
+    const isSuperAdmin = ((currentApprover?.Name || '').trim().toLowerCase() === SUPER_ADMIN_NAME.toLowerCase());
+    const isSuperAdminDelegate = isVacationDelegateUser();
+    if (!(isSuperAdmin || isSuperAdminDelegate)) {
         alert("You do not have permission to download this report.");
         return;
     }
@@ -10564,12 +10758,21 @@ async function handleUpdateSummaryChanges() {
             const newDetails = row.querySelector('input[name="details"]').value,
                 newInvoiceDate = row.querySelector('input[name="invoiceDate"]').value;
             if (poNumber && invoiceKey) {
+                const originalInvoice = (allInvoiceData && allInvoiceData[poNumber]) ? (allInvoiceData[poNumber][invoiceKey] || {}) : {};
+                const originalStatus = (originalInvoice.status || '').toString().trim();
+
                 const updates = {
                     details: newDetails,
                     invoiceDate: newInvoiceDate,
                     releaseDate: today
                 };
-                if (newGlobalStatus) updates.status = newGlobalStatus;
+                if (newGlobalStatus) {
+                    updates.status = newGlobalStatus;
+                    // Record a real timestamp when status changes (needed for "last 2 hours" reports)
+                    if (newGlobalStatus !== originalStatus) {
+                        updates.updatedAt = Date.now();
+                    }
+                }
 
                 if (newGlobalSRV) {
                     updates.srvName = newGlobalSRV;
@@ -10584,7 +10787,6 @@ async function handleUpdateSummaryChanges() {
                     data: updates
                 });
 
-                const originalInvoice = (allInvoiceData && allInvoiceData[poNumber]) ? allInvoiceData[poNumber][invoiceKey] : {};
                 const updatedInvoiceData = {
                     ...originalInvoice,
                     ...updates
@@ -15866,8 +16068,9 @@ function printFinanceReport() {
 
 // 1. DAILY ENTRY REPORT (Last 2 Hours)
 async function handleDownloadDailyReport() {
-    const isAccountingPosition = (currentApprover?.Position || '').toLowerCase() === 'accounting';
-    if (!isAccountingPosition) {
+    const isSuperAdmin = ((currentApprover?.Name || '').trim().toLowerCase() === SUPER_ADMIN_NAME.toLowerCase());
+    const isSuperAdminDelegate = isVacationDelegateUser();
+    if (!(isSuperAdmin || isSuperAdminDelegate)) {
         alert("You do not have permission to download this report.");
         return;
     }
@@ -15959,11 +16162,13 @@ async function handleDownloadDailyReport() {
 
 // 2. WITH ACCOUNTS REPORT (Last 2 Hours)
 async function handleDownloadWithAccountsReport() {
-    const isAccountingPosition = (currentApprover?.Position || '').toLowerCase() === 'accounting';
-    if (!isAccountingPosition) {
+    const isSuperAdmin = ((currentApprover?.Name || '').trim().toLowerCase() === SUPER_ADMIN_NAME.toLowerCase());
+    const isSuperAdminDelegate = isVacationDelegateUser();
+    if (!(isSuperAdmin || isSuperAdminDelegate)) {
         alert("You do not have permission to download this report.");
         return;
     }
+
 
     // Setup Time Checker (Last 2 Hours)
     const twoHoursAgo = Date.now() - (2 * 60 * 60 * 1000);
@@ -16064,6 +16269,14 @@ window.downloadReportingTableToExcel = async function() {
     }
 
     try {
+        const isSuperAdmin = ((currentApprover?.Name || '').trim().toLowerCase() === SUPER_ADMIN_NAME.toLowerCase());
+        const isSuperAdminDelegate = isVacationDelegateUser();
+        if (!(isSuperAdmin || isSuperAdminDelegate)) {
+            alert("You do not have permission to download this report.");
+            if (btn) { btn.innerHTML = originalText; btn.disabled = false; }
+            return;
+        }
+
         // 1. Time Filter: Last 2 Hours
         const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
         const cutoffTime = Date.now() - TWO_HOURS_MS;
