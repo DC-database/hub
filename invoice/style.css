@@ -4260,26 +4260,34 @@ body.is-ceo .desktop-only.col-group {
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
+        justify-content: flex-start;
+        /* Use dynamic viewport units on mobile to avoid address-bar cropping */
+        min-height: 100vh;
+        min-height: 100dvh;
         height: 100vh;
         width: 100vw;
         background: linear-gradient(135deg, #003A5C 0%, #00748C 100%);
-        padding: 30px;
+        /* Reduce padding so content fits on smaller screens */
+        padding: calc(18px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom));
         box-sizing: border-box;
         position: fixed;
         top: 0;
         left: 0;
+        right: 0;
+        bottom: 0;
         z-index: 2000;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
     }
 
     /* Mobile Login Logo */
 .iba-logo-anim {
     font-family: "Bookman Old Style", serif; /* CHANGED */
-    font-size: 4rem;
+    font-size: 3.2rem;
     font-weight: 900;
     color: white;
-    margin-bottom: 50px;
-    letter-spacing: 5px;
+    margin-bottom: 28px;
+    letter-spacing: 4.5px;
     display: flex;
     gap: 10px;
 }
@@ -4350,11 +4358,19 @@ body.is-ceo .desktop-only.col-group {
 
     .iba-web-link {
         display: block;
-        margin-top: 40px;
+        margin-top: 24px;
         color: rgba(255,255,255,0.7);
         text-decoration: none;
         font-size: 0.9rem;
     }
+}
+
+
+@media (max-width: 768px) and (max-height: 740px) {
+    .iba-logo-anim { font-size: 2.8rem; margin-bottom: 18px; }
+    .mobile-login-form-wrapper { padding: 20px 18px; border-radius: 22px; }
+    .input-icon-wrap { margin-bottom: 14px; }
+    .iba-web-link { margin-top: 16px; }
 }
 
 /* ========================================= */

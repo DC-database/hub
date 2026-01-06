@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "5.9.9";
+const APP_VERSION = "5.9.10";
 
 // --- Vacation Delegation Helpers (Super Admin Replacement) ---
 // When SUPER_ADMIN_NAME enables Vacation in Settings and sets ReplacementName,
