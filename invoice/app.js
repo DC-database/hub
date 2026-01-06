@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "5.9.8";
+const APP_VERSION = "5.9.9";
 
 // --- Vacation Delegation Helpers (Super Admin Replacement) ---
 // When SUPER_ADMIN_NAME enables Vacation in Settings and sets ReplacementName,
@@ -333,6 +333,7 @@ let liveChatState = {
     unread: 0,
     userKey: null,
     userName: '',
+    ready: false,
     presenceRef: null,
     onlineQueryRef: null,
     messagesQueryRef: null,
@@ -395,28 +396,15 @@ function ensureLiveChatBaseStyles() {
 }
 
 function ensureLiveChatUI() {
-    // Ensure base styles exist even if the HTML already contains the widget.
-    ensureLiveChatBaseStyles();
-
-    // IMPORTANT: In this app, #app-container is hidden on WorkDesk / Invoice Management views.
-    // If the chat widget is inside #app-container (older index.html), it will disappear after login.
-    // Move it to <body> so it stays visible across all views.
-    try {
-        const existingFab = document.getElementById('live-chat-fab');
-        const existingPanel = document.getElementById('live-chat-panel');
-        if (existingFab && existingFab.closest('#app-container')) document.body.appendChild(existingFab);
-        if (existingPanel && existingPanel.closest('#app-container')) document.body.appendChild(existingPanel);
-    } catch (e) { /* ignore */ }
-
-    // If both exist now, nothing else to do.
+    // If the server wasn't updated with the new index.html, inject the chat UI dynamically.
     if (document.getElementById('live-chat-fab') && document.getElementById('live-chat-panel')) return;
 
-    // If the server wasn't updated with the new index.html, inject the chat UI dynamically.
+    ensureLiveChatBaseStyles();
 
     if (!document.getElementById('live-chat-fab')) {
         const fab = document.createElement('div');
         fab.id = 'live-chat-fab';
-        fab.className = 'live-chat-fab hidden';
+        fab.className = 'live-chat-fab';
         fab.title = 'Live Chat';
         fab.innerHTML = `
             <i class="fa-solid fa-comments"></i>
@@ -459,6 +447,75 @@ function ensureLiveChatUI() {
     }
 }
 
+
+function ensureLiveChatTogglePill() {
+    // Always-available toggle (fixed, bottom-left) so chat can be enabled even if views change.
+    if (document.getElementById('live-chat-toggle-pill')) return;
+    const pill = document.createElement('button');
+    pill.id = 'live-chat-toggle-pill';
+    pill.type = 'button';
+    pill.textContent = 'Live Chat';
+    pill.style.cssText = [
+        'position:fixed',
+        'left:14px',
+        'bottom:14px',
+        'z-index:999999',
+        'padding:8px 12px',
+        'border-radius:999px',
+        'border:1px solid rgba(255,255,255,.18)',
+        'background:rgba(20,20,20,.55)',
+        'backdrop-filter: blur(10px)',
+        '-webkit-backdrop-filter: blur(10px)',
+        'color:#fff',
+        'font-weight:600',
+        'cursor:pointer',
+        'box-shadow:0 10px 30px rgba(0,0,0,.25)'
+    ].join(';');
+    pill.addEventListener('click', () => {
+        try { toggleLiveChatEnabled(); } catch (e) { console.warn('Chat toggle failed:', e); }
+    });
+    document.body.appendChild(pill);
+}
+
+function isLiveChatEnabled() {
+    // default ON
+    return localStorage.getItem('live_chat_enabled') !== '0';
+}
+
+function setLiveChatEnabled(enabled) {
+    localStorage.setItem('live_chat_enabled', enabled ? '1' : '0');
+    const { fab, panel } = getChatEls();
+    if (fab) {
+        fab.style.display = enabled ? 'flex' : 'none';
+    }
+    if (!enabled && panel) {
+        panel.classList.add('hidden');
+        panel.style.display = 'none';
+    }
+}
+
+function toggleLiveChatEnabled() {
+    const next = !isLiveChatEnabled();
+    setLiveChatEnabled(next);
+    if (next) {
+        // initialize + open once
+        try { initLiveChat(); } catch (e) {}
+        try { openLiveChatPanel(); } catch (e) {}
+    }
+}
+
+// Ensure the UI exists and is visible (independent of login flow)
+function bootstrapLiveChatUI() {
+    try { ensureLiveChatUI(); } catch (e) {}
+    try { ensureLiveChatTogglePill(); } catch (e) {}
+    const { fab } = getChatEls();
+    if (fab) {
+        // Make sure it's clickable and on top
+        fab.style.zIndex = '999999';
+        fab.style.display = isLiveChatEnabled() ? 'flex' : 'none';
+    }
+}
+
 function getChatEls() {
     return {
         fab: document.getElementById('live-chat-fab'),
@@ -495,6 +552,8 @@ function updateChatUnreadBadge() {
 function openLiveChat() {
     const { panel } = getChatEls();
     liveChatState.open = true;
+    // Ensure chat is initialized and user/presence is set up
+    try { ensureLiveChatReady(); } catch (e) {}
     if (panel) {
         panel.classList.remove('hidden');
         panel.setAttribute('aria-hidden', 'false');
@@ -592,6 +651,63 @@ function appendChatMessage(msg) {
     }
 }
 
+
+async function ensureLiveChatReady() {
+    try {
+        // Ensure firebase db exists
+        if (typeof firebase === 'undefined' || !firebase.database) {
+            appendSystemChatMessage("Chat: Firebase not ready. Refresh the page.");
+            return false;
+        }
+
+        // Ensure user info
+        if (!currentApprover || !currentApprover.key) {
+            const k = localStorage.getItem('approverKey');
+            if (k) {
+                try {
+                    if (typeof fetchApproverByKey === 'function') {
+                        const ap = await fetchApproverByKey(k);
+                        if (ap && ap.key) currentApprover = ap;
+                    } else if (db) {
+                        const snap = await db.ref('approvers/' + k).once('value');
+                        if (snap.exists()) currentApprover = { key: k, ...snap.val() };
+                    }
+                } catch (e) {
+                    console.warn('Chat: failed to fetch approver for session key', e);
+                }
+            }
+        }
+
+        if (!currentApprover || !currentApprover.key) {
+            appendSystemChatMessage("Chat: please login to start chatting.");
+            return false;
+        }
+
+        liveChatState.userKey = currentApprover.key;
+        liveChatState.userName = String(currentApprover.Name || currentApprover.name || currentApprover.UserName || 'User');
+        liveChatState.ready = true;
+
+        // Start firebase listeners once
+        if (!liveChatState.initialized) {
+            initLiveChat();
+        }
+        return true;
+    } catch (e) {
+        console.warn('Chat: ensure ready failed', e);
+        return false;
+    }
+}
+
+function appendSystemChatMessage(text) {
+    const { msgWrap } = getChatEls();
+    if (!msgWrap) return;
+    const d = document.createElement('div');
+    d.className = 'live-chat-msg system';
+    d.innerHTML = `<div class="live-chat-bubble system">${escapeHTML(String(text || ''))}</div>`;
+    msgWrap.appendChild(d);
+    msgWrap.scrollTop = msgWrap.scrollHeight;
+}
+
 function startLiveChatPresence() {
     if (!db || !currentApprover || !currentApprover.key) return;
 
@@ -685,6 +801,19 @@ function subscribeLiveChatMessages() {
     liveChatState.messagesQueryRef.on('child_added', liveChatState.onMsgAdded);
 }
 
+
+function openLiveChatPanel() {
+    const { panel, fab } = getChatEls();
+    if (!panel) return;
+    panel.classList.remove('hidden');
+    panel.style.display = 'flex';
+    // reset unread
+    liveChatState.unread = 0;
+    updateChatUnreadBadge();
+    // Try init data
+    try { ensureLiveChatReady(); } catch (e) {}
+}
+
 function wireLiveChatUIOnce() {
     const els = getChatEls();
     if (!els.fab || !els.panel) return;
@@ -725,12 +854,9 @@ function wireLiveChatUIOnce() {
 }
 
 function initLiveChat() {
-    try { ensureLiveChatUI(); } catch (e) { /* ignore */ }
+    try { bootstrapLiveChatUI(); } catch (e) { /* ignore */ }
     const { fab } = getChatEls();
     if (!fab) return; // UI not present
-
-    // Show only after login
-    fab.classList.remove('hidden');
 
     wireLiveChatUIOnce();
 
@@ -766,123 +892,6 @@ function shutdownLiveChat() {
         console.warn('Live chat shutdown warning:', e);
     }
 }
-
-// ================================
-// Live Chat Enable/Disable Toggle
-// - Adds a "Live Chat" item in the left sidebar footer.
-// - Clicking it toggles the floating chat bubble ON/OFF.
-// - State is stored in localStorage so it persists after refresh.
-// ================================
-
-function getLiveChatEnabled() {
-    // default ON
-    const v = localStorage.getItem('liveChatEnabled');
-    if (v === null) return true;
-    return v === '1' || v === 'true' || v === 'on';
-}
-
-function setLiveChatEnabled(enabled, opts = {}) {
-    const { openPanel = false, persist = true } = opts;
-    try {
-        if (persist) localStorage.setItem('liveChatEnabled', enabled ? '1' : '0');
-    } catch (_) { /* ignore */ }
-
-    // Ensure UI exists regardless of which view is active
-    try { ensureLiveChatUI(); } catch (_) { /* ignore */ }
-
-    const els = getChatEls();
-
-    // Only show chat once the user is logged in (currentApprover set).
-    // This prevents the chat bubble from showing on the login page.
-    if (!currentApprover || !currentApprover.key) {
-        try { closeLiveChat(); } catch (_) { /* ignore */ }
-        if (els.fab) {
-            els.fab.classList.add('hidden');
-            els.fab.style.display = 'none';
-        }
-        refreshLiveChatToggleBadges();
-        return;
-    }
-    if (enabled) {
-        if (els.fab) {
-            els.fab.classList.remove('hidden');
-            // extra safety in case CSS is overridden
-            els.fab.style.display = 'flex';
-            els.fab.style.visibility = 'visible';
-            els.fab.style.pointerEvents = 'auto';
-            els.fab.style.zIndex = '999999';
-        }
-
-        // Initialize listeners (safe if called multiple times)
-        try { initLiveChat(); } catch (_) { /* ignore */ }
-
-        if (openPanel) {
-            try { openLiveChat(); } catch (_) { /* ignore */ }
-        }
-    } else {
-        try { closeLiveChat(); } catch (_) { /* ignore */ }
-        if (els.fab) {
-            els.fab.classList.add('hidden');
-            els.fab.style.display = 'none';
-        }
-    }
-
-    refreshLiveChatToggleBadges();
-}
-
-function toggleLiveChatEnabled() {
-    const next = !getLiveChatEnabled();
-    setLiveChatEnabled(next, { openPanel: next });
-}
-
-function refreshLiveChatToggleBadges() {
-    const enabled = getLiveChatEnabled();
-    document.querySelectorAll('.live-chat-toggle-badge').forEach((el) => {
-        el.textContent = enabled ? 'ON' : 'OFF';
-        el.style.opacity = enabled ? '1' : '0.7';
-    });
-}
-
-function installLiveChatToggleLinks() {
-    // Insert a footer link into each left sidebar (WorkDesk, Inventory, Invoice Management).
-    const footers = document.querySelectorAll('.workdesk-footer-nav ul');
-    footers.forEach((ul) => {
-        if (!ul || ul.querySelector('.live-chat-toggle-link')) return;
-
-        const li = document.createElement('li');
-        li.innerHTML = `
-            <a href="#" class="live-chat-toggle-link" title="Toggle Live Chat">
-                <i class="fa-solid fa-comments"></i> Live Chat
-                <span class="live-chat-toggle-badge" style="float:right; font-weight:800;">ON</span>
-            </a>
-        `;
-
-        // place before Logout when possible
-        const logoutLi = Array.from(ul.querySelectorAll('li')).find((x) => {
-            const a = x.querySelector('a');
-            return a && /logout/i.test(a.textContent || '');
-        });
-        if (logoutLi) ul.insertBefore(li, logoutLi);
-        else ul.appendChild(li);
-    });
-
-    // Wire click handler once (event delegation)
-    if (!document.body.dataset.liveChatToggleWired) {
-        document.body.dataset.liveChatToggleWired = '1';
-        document.addEventListener('click', (e) => {
-            const a = e.target.closest('.live-chat-toggle-link');
-            if (!a) return;
-            e.preventDefault();
-            toggleLiveChatEnabled();
-        });
-    }
-
-    refreshLiveChatToggleBadges();
-}
-
-// expose for debugging
-window.initLiveChat = initLiveChat;
-window.toggleLiveChatEnabled = toggleLiveChatEnabled;
 
 
 // -- Dropdown Choices Instances --
@@ -2632,11 +2641,6 @@ function showView(viewName) {
     } else if (viewName === 'invoice-management' && invoiceManagementView) {
         invoiceManagementView.classList.remove('hidden');
     }
-
-    // Keep Live Chat toggle link available on all sidebars and apply saved state.
-    // Safe: chat remains hidden until after login.
-    try { installLiveChatToggleLinks(); } catch (_) { /* ignore */ }
-    try { setLiveChatEnabled(getLiveChatEnabled(), { openPanel: false, persist: false }); } catch (_) { /* ignore */ }
 }
 
 // --- Authentication Helpers ---
@@ -2800,11 +2804,8 @@ function handleSuccessfulLogin() {
     }
 
     // --- Live Chat (Global) ---
-    // The chat bubble can be toggled ON/OFF from the left sidebar.
-    try { installLiveChatToggleLinks(); } catch (e) { /* ignore */ }
     try {
-        // Apply saved state (default ON). Do NOT force-open the panel on login.
-        setLiveChatEnabled(getLiveChatEnabled(), { openPanel: false, persist: false });
+        initLiveChat();
     } catch (e) {
         console.warn('Live chat init failed:', e);
     }
@@ -7500,6 +7501,11 @@ function updateJobEntryNavControls() {
 
 document.addEventListener('DOMContentLoaded', () => {
     const db = firebase.database();
+
+    // Live Chat bootstrap (always inject UI so it can't disappear across views)
+    try { bootstrapLiveChatUI(); } catch (e) {}
+    // If user already has a saved session, initialize chat UI immediately
+    setTimeout(() => { try { if (isLiveChatEnabled()) initLiveChat(); } catch (e) {} }, 200);
 
     // DOM Elements
     const navMaterialStock = document.getElementById('nav-material-stock');
@@ -16682,9 +16688,9 @@ async function handleDownloadDailyReport() {
                 let eventTime = inv.updatedAt || inv.enteredAt || inv.createdAt || inv.timestamp || 0;
                 if (typeof eventTime === 'string') eventTime = new Date(eventTime).getTime();
 
-                // Only include invoices that are Under Review in the last 2 hours
+                // Only include invoices that are Under Process in the last 2 hours
                 const statusStr = (inv.status || '').toString().trim().toLowerCase();
-                if (statusStr === 'under review' && (eventTime > twoHoursAgo)) {
+                if (statusStr === 'under process' && (eventTime > twoHoursAgo)) {
                     recentEntries.push({
                         po: poNumber,
                         site: allPOs[poNumber]?.['Project ID'] || 'N/A',
@@ -16696,7 +16702,7 @@ async function handleDownloadDailyReport() {
         }
 
         if (recentEntries.length === 0) {
-            alert("No 'Under Review' invoices found in the last 2 hours.");
+            alert("No 'Under Process' invoices found in the last 2 hours.");
             return;
         }
 
@@ -17893,4 +17899,17 @@ window.imPrintInvoiceList = function() {
 
 
 }); // END OF DOMCONTENTLOADED
+
+
+
+// Live Chat safety: if session exists but chat not initialized, initialize periodically
+setInterval(() => {
+    try {
+        if (!isLiveChatEnabled()) return;
+        const k = localStorage.getItem('approverKey');
+        if (!k) return;
+        if (!liveChatState || liveChatState.initialized) return;
+        initLiveChat();
+    } catch (e) {}
+}, 1500);
 
