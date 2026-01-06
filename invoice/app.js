@@ -485,14 +485,24 @@ function isLiveChatEnabled() {
 function setLiveChatEnabled(enabled) {
     localStorage.setItem('live_chat_enabled', enabled ? '1' : '0');
     const { fab, panel } = getChatEls();
+
     if (fab) {
+        // Some templates shipped the FAB with `.hidden` which uses `display:none !important`.
+        // Remove it when enabled so inline display can take effect.
+        if (enabled) fab.classList.remove('hidden');
+        else fab.classList.add('hidden');
+
         fab.style.display = enabled ? 'flex' : 'none';
     }
+
     if (!enabled && panel) {
         panel.classList.add('hidden');
         panel.style.display = 'none';
+        panel.setAttribute('aria-hidden', 'true');
+        liveChatState.open = false;
     }
 }
+
 
 function toggleLiveChatEnabled() {
     const next = !isLiveChatEnabled();
@@ -506,15 +516,22 @@ function toggleLiveChatEnabled() {
 
 // Ensure the UI exists and is visible (independent of login flow)
 function bootstrapLiveChatUI() {
+    // Always ensure UI exists, regardless of which view is visible.
     try { ensureLiveChatUI(); } catch (e) {}
     try { ensureLiveChatTogglePill(); } catch (e) {}
+    // Apply enabled/disabled state (also removes any leftover `.hidden` class).
+    try { setLiveChatEnabled(isLiveChatEnabled()); } catch (e) {}
+
     const { fab } = getChatEls();
     if (fab) {
-        // Make sure it's clickable and on top
+        // Make sure it's on top and clickable
         fab.style.zIndex = '999999';
-        fab.style.display = isLiveChatEnabled() ? 'flex' : 'none';
+        fab.style.pointerEvents = 'auto';
     }
 }
+
+
+try { bootstrapLiveChatUI(); } catch (e) {}
 
 function getChatEls() {
     return {
