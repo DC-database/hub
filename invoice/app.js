@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "5.9.11";
+const APP_VERSION = "6.0.1";
 
 // --- Vacation Delegation Helpers (Super Admin Replacement) ---
 // When SUPER_ADMIN_NAME enables Vacation in Settings and sets ReplacementName,
@@ -318,32 +318,8 @@ let imNavigationList = [];
 let imNavigationIndex = -1;
 
 // ==========================================================================
-// LIVE CHAT (Realtime DB) — Global Chatroom + Online Users
-// - No Firebase Auth required (rules currently open). If you later enable Auth,
-//   lock down `system_chat` rules to authenticated users.
-// - Uses Main DB (ibainvoice-3ea51) via `db`
+// UTILITIES (shared)
 // ==========================================================================
-
-const LIVE_CHAT_ROOT = 'system_chat';
-const LIVE_CHAT_ROOM = 'global';
-
-let liveChatState = {
-    initialized: false,
-    open: false,
-    unread: 0,
-    userKey: null,
-    userName: '',
-    ready: false,
-    presenceRef: null,
-    onlineQueryRef: null,
-    messagesQueryRef: null,
-    connectedRef: null,
-    heartbeatInterval: null,
-    // listeners
-    onConnected: null,
-    onOnlineValue: null,
-    onMsgAdded: null,
-};
 
 function escapeHtml(str) {
     return String(str ?? '')
@@ -352,11 +328,6 @@ function escapeHtml(str) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
-}
-
-function sanitizeChatText(text) {
-    const t = String(text ?? '').replace(/\s+/g, ' ').trim();
-    return t.slice(0, 500);
 }
 
 function formatChatTime(ts) {
@@ -369,544 +340,577 @@ function formatChatTime(ts) {
     }
 }
 
+// ============================================================================
+// DIRECT MESSAGES (DM) — SIMPLE 1:1 IN-APP CHAT + ONLINE STATUS + OFFLINE INBOX
+// - Works without Firebase Auth (your rules currently allow reads/writes).
+// - If recipient is online (system open) → instant pop-up.
+// - If recipient is offline → delivered from inbox once they login.
+// - UI entry points added to: WorkDesk + Invoice Management + Inventory.
+// ============================================================================
 
-function ensureLiveChatBaseStyles() {
-    // Fallback styles in case style.css/index.html weren't updated on the server.
-    // If the full styles exist, these are minimal and shouldn't break anything.
-    if (document.getElementById('live-chat-inline-style')) return;
+const DM_PRESENCE_ROOT = 'presence';
+const DM_INBOX_ROOT = 'dm_inbox';
+const DM_THREADS_ROOT = 'dm_threads';
+const DM_UNREAD_ROOT = 'dm_unread';
+
+let dmState = {
+    initialized: false,
+    userKey: null,
+    userName: '',
+    open: false,
+    // current thread
+    threadId: null,
+    toKey: null,
+    toName: '',
+    // refs/listeners
+    presenceRef: null,
+    connectedRef: null,
+    onConnected: null,
+    heartbeatInterval: null,
+    inboxRef: null,
+    onInbox: null,
+    unreadRef: null,
+    onUnread: null,
+    presenceListRef: null,
+    onPresenceList: null,
+    threadMessagesRef: null,
+    onThreadMsg: null,
+    // caches
+    presenceCache: {},
+    unreadCache: {},
+};
+
+function dmGetThreadId(aKey, bKey) {
+    const a = String(aKey || '').trim();
+    const b = String(bKey || '').trim();
+    if (!a || !b) return '';
+    return (a < b) ? `${a}__${b}` : `${b}__${a}`;
+}
+
+function dmSafeText(t) {
+    return String(t ?? '').replace(/\s+/g, ' ').trim().slice(0, 800);
+}
+
+function dmEnsureInlineStyles() {
+    // Minimal fallback styles (full styles also exist in style.css).
+    if (document.getElementById('dm-inline-style')) return;
     const style = document.createElement('style');
-    style.id = 'live-chat-inline-style';
+    style.id = 'dm-inline-style';
     style.textContent = `
-        .live-chat-fab{position:fixed;right:18px;bottom:18px;z-index:9999;display:flex;align-items:center;justify-content:center;width:54px;height:54px;border-radius:18px;background:rgba(30,30,30,.85);color:#fff;cursor:pointer;box-shadow:0 16px 40px rgba(0,0,0,.35)}
-        .live-chat-fab i{font-size:20px}
-        .live-chat-unread-badge{position:absolute;top:-6px;right:-6px;background:#e53935;color:#fff;border-radius:999px;min-width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px;padding:0 6px}
-        .live-chat-panel{position:fixed;right:18px;bottom:84px;width:min(380px,calc(100vw - 36px));max-height:min(560px,calc(100vh - 120px));z-index:9999;border-radius:18px;overflow:hidden;background:rgba(20,20,20,.75);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 18px 60px rgba(0,0,0,.45);color:#fff}
-        .live-chat-header{display:flex;align-items:center;justify-content:space-between;padding:12px 12px;border-bottom:1px solid rgba(255,255,255,.12)}
-        .live-chat-icon-btn{background:transparent;border:0;color:#fff;font-size:18px;cursor:pointer}
-        .live-chat-messages{padding:10px 12px;overflow:auto;max-height:360px}
-        .live-chat-inputbar{display:flex;gap:8px;align-items:center;padding:10px 12px;border-top:1px solid rgba(255,255,255,.12)}
-        .live-chat-inputbar input{flex:1;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.10);color:#fff;padding:10px 12px;outline:none}
-        .live-chat-inputbar button{border-radius:12px;border:0;background:rgba(255,255,255,.18);color:#fff;padding:10px 12px;cursor:pointer}
-        .live-chat-online-list{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.10);max-height:180px;overflow:auto}
-        .live-chat-pill{border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff;border-radius:999px;padding:6px 10px;cursor:pointer;font-size:12px}
-        .live-chat-subheader{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.10)}
-        .hidden{display:none !important}
+      .dm-hidden{display:none !important}
+      .dm-toast-wrap{position:fixed;right:18px;top:18px;z-index:999999;display:flex;flex-direction:column;gap:10px;max-width:min(420px,calc(100vw - 36px))}
+      .dm-toast{background:rgba(20,20,20,.85);color:#fff;border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-radius:16px;padding:12px 14px;box-shadow:0 18px 60px rgba(0,0,0,.35)}
+      .dm-toast b{display:block;margin-bottom:4px}
+      /* Keep background readable (no heavy blur behind modal) */
+      .dm-modal{position:fixed;inset:0;z-index:999998;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.28)}
+      .dm-card{width:min(980px,calc(100vw - 28px));height:min(640px,calc(100vh - 28px));border-radius:20px;overflow:hidden;background:rgba(20,20,20,.68);border:1px solid rgba(255,255,255,.14);box-shadow:0 24px 90px rgba(0,0,0,.45);color:#fff}
+      .dm-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.12)}
+      .dm-header .dm-title{font-weight:700}
+      .dm-close{background:transparent;border:0;color:#fff;font-size:20px;cursor:pointer}
+      .dm-body{display:grid;grid-template-columns:340px 1fr;height:calc(100% - 52px)}
+      .dm-users{border-right:1px solid rgba(255,255,255,.12);display:flex;flex-direction:column}
+      .dm-users input{margin:12px 12px 8px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff;padding:10px 12px;outline:none}
+      .dm-user-list{flex:1;overflow:auto;padding:6px 6px 10px 6px}
+      .dm-user{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 10px;border-radius:14px;cursor:pointer}
+      .dm-user:hover{background:rgba(255,255,255,.08)}
+      .dm-user .dm-left{display:flex;align-items:center;gap:10px;min-width:0}
+      .dm-dot{width:10px;height:10px;border-radius:999px;background:rgba(255,255,255,.30);flex:0 0 auto}
+      .dm-dot.online{background:#27c46b}
+      .dm-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .dm-meta{font-size:12px;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .dm-badge{background:#e53935;color:#fff;border-radius:999px;min-width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px;padding:0 6px}
+      .dm-chat{display:flex;flex-direction:column}
+      .dm-chat-top{padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:space-between;gap:12px}
+      .dm-chat-top .dm-chat-title{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .dm-message-list{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+      .dm-msg{max-width:min(520px,90%);padding:10px 12px;border-radius:16px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.08)}
+      .dm-msg.me{align-self:flex-end;background:rgba(90,160,255,.18)}
+      .dm-msg .dm-ts{font-size:11px;opacity:.75;margin-top:6px;text-align:right}
+      .dm-compose{display:flex;gap:10px;align-items:center;padding:12px 14px;border-top:1px solid rgba(255,255,255,.12)}
+      .dm-compose input{flex:1;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff;padding:10px 12px;outline:none}
+      .dm-compose button{border-radius:12px;border:0;background:rgba(255,255,255,.18);color:#fff;padding:10px 14px;cursor:pointer}
+      @media (max-width: 820px){
+        .dm-body{grid-template-columns:1fr}
+        .dm-users{display:none}
+      }
     `;
     document.head.appendChild(style);
 }
 
-function ensureLiveChatUI() {
-    // If the server wasn't updated with the new index.html, inject the chat UI dynamically.
-    if (document.getElementById('live-chat-fab') && document.getElementById('live-chat-panel')) return;
+function dmEnsureUI() {
+    dmEnsureInlineStyles();
 
-    ensureLiveChatBaseStyles();
-
-    if (!document.getElementById('live-chat-fab')) {
-        const fab = document.createElement('div');
-        fab.id = 'live-chat-fab';
-        fab.className = 'live-chat-fab';
-        fab.title = 'Live Chat';
-        fab.innerHTML = `
-            <i class="fa-solid fa-comments"></i>
-            <span id="live-chat-unread-badge" class="live-chat-unread-badge hidden">0</span>
-        `;
-        document.body.appendChild(fab);
+    if (!document.getElementById('dm-toast-wrap')) {
+        const toastWrap = document.createElement('div');
+        toastWrap.id = 'dm-toast-wrap';
+        toastWrap.className = 'dm-toast-wrap';
+        document.body.appendChild(toastWrap);
     }
 
-    if (!document.getElementById('live-chat-panel')) {
-        const panel = document.createElement('div');
-        panel.id = 'live-chat-panel';
-        panel.className = 'live-chat-panel hidden';
-        panel.setAttribute('aria-hidden', 'true');
-        panel.setAttribute('role', 'dialog');
-        panel.setAttribute('aria-label', 'Live Chat');
-        panel.innerHTML = `
-            <div class="live-chat-header">
-                <div class="live-chat-title">
-                    <span>Live Chat</span>
-                </div>
-                <div class="live-chat-header-actions">
-                    <button id="live-chat-min-btn" class="live-chat-icon-btn" type="button" title="Minimize">—</button>
-                    <button id="live-chat-close-btn" class="live-chat-icon-btn" type="button" title="Close">×</button>
-                </div>
-            </div>
-            <div class="live-chat-subheader">
-                <button id="live-chat-online-toggle" class="live-chat-pill" type="button">
-                    Online: <span id="live-chat-online-count">0</span>
-                </button>
-                <span id="live-chat-room-label" class="live-chat-room-label">Room: Global</span>
-            </div>
-            <div id="live-chat-online-list" class="live-chat-online-list hidden"></div>
-            <div id="live-chat-messages" class="live-chat-messages" aria-live="polite"></div>
-            <form id="live-chat-form" class="live-chat-inputbar" autocomplete="off">
-                <input id="live-chat-input" type="text" placeholder="Type a message…" maxlength="500" />
-                <button id="live-chat-send" type="submit" title="Send"><i class="fa-solid fa-paper-plane"></i></button>
-            </form>
-        `;
-        document.body.appendChild(panel);
-    }
-}
+    if (document.getElementById('dm-modal')) return;
 
+    const modal = document.createElement('div');
+    modal.id = 'dm-modal';
+    modal.className = 'dm-modal dm-hidden';
+    modal.innerHTML = `
+      <div class="dm-card" role="dialog" aria-modal="true">
+        <div class="dm-header">
+          <div class="dm-title"><i class="fa-solid fa-comments"></i> Messages</div>
+          <button class="dm-close" id="dm-close" title="Close">&times;</button>
+        </div>
+        <div class="dm-body">
+          <div class="dm-users">
+            <input id="dm-user-search" type="text" placeholder="Search user..." />
+            <div class="dm-user-list" id="dm-user-list"></div>
+          </div>
+          <div class="dm-chat">
+            <div class="dm-chat-top">
+              <div>
+                <div class="dm-chat-title" id="dm-chat-title">Select a user</div>
+                <div class="dm-meta" id="dm-chat-status"> </div>
+              </div>
+              <button id="dm-back-users" class="dm-close" style="font-size:14px;display:none;"><i class="fa-solid fa-arrow-left"></i></button>
+            </div>
+            <div class="dm-message-list" id="dm-message-list"></div>
+            <div class="dm-compose">
+              <input id="dm-input" type="text" placeholder="Type a message..." autocomplete="off" />
+              <button id="dm-send" type="button">Send</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
 
-function ensureLiveChatTogglePill() {
-    // Always-available toggle (fixed, bottom-left) so chat can be enabled even if views change.
-    if (document.getElementById('live-chat-toggle-pill')) return;
-    const pill = document.createElement('button');
-    pill.id = 'live-chat-toggle-pill';
-    pill.type = 'button';
-    pill.textContent = 'Live Chat';
-    pill.style.cssText = [
-        'position:fixed',
-        'left:14px',
-        'bottom:14px',
-        'z-index:999999',
-        'padding:8px 12px',
-        'border-radius:999px',
-        'border:1px solid rgba(255,255,255,.18)',
-        'background:rgba(20,20,20,.55)',
-        'backdrop-filter: blur(10px)',
-        '-webkit-backdrop-filter: blur(10px)',
-        'color:#fff',
-        'font-weight:600',
-        'cursor:pointer',
-        'box-shadow:0 10px 30px rgba(0,0,0,.25)'
-    ].join(';');
-    pill.addEventListener('click', () => {
-        try { toggleLiveChatEnabled(); } catch (e) { console.warn('Chat toggle failed:', e); }
+    document.body.appendChild(modal);
+
+    // Close actions
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) dmClose();
     });
-    document.body.appendChild(pill);
+    document.getElementById('dm-close')?.addEventListener('click', dmClose);
+    document.addEventListener('keydown', (e) => {
+        if (dmState.open && e.key === 'Escape') dmClose();
+    });
+
+    // Send
+    const input = document.getElementById('dm-input');
+    const sendBtn = document.getElementById('dm-send');
+    sendBtn?.addEventListener('click', () => dmSendCurrent());
+    input?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            dmSendCurrent();
+        }
+    });
+
+    // Search
+    const search = document.getElementById('dm-user-search');
+    search?.addEventListener('input', () => dmRenderUserList());
+
+    // Mobile back (shows users panel via full list modal in a later enhancement; for now just close)
+    document.getElementById('dm-back-users')?.addEventListener('click', () => {
+        // On mobile we keep it simple: close the modal.
+        dmClose();
+    });
 }
 
-function isLiveChatEnabled() {
-    // default ON
-    return localStorage.getItem('live_chat_enabled') !== '0';
-}
-
-function setLiveChatEnabled(enabled) {
-    localStorage.setItem('live_chat_enabled', enabled ? '1' : '0');
-    const { fab, panel } = getChatEls();
-
-    if (fab) {
-        // Some templates shipped the FAB with `.hidden` which uses `display:none !important`.
-        // Remove it when enabled so inline display can take effect.
-        if (enabled) fab.classList.remove('hidden');
-        else fab.classList.add('hidden');
-
-        fab.style.display = enabled ? 'flex' : 'none';
-    }
-
-    if (!enabled && panel) {
-        panel.classList.add('hidden');
-        panel.style.display = 'none';
-        panel.setAttribute('aria-hidden', 'true');
-        liveChatState.open = false;
-    }
-}
-
-
-function toggleLiveChatEnabled() {
-    const next = !isLiveChatEnabled();
-    setLiveChatEnabled(next);
-    if (next) {
-        // initialize + open once
-        try { initLiveChat(); } catch (e) {}
-        try { openLiveChatPanel(); } catch (e) {}
-    }
-}
-
-// Ensure the UI exists and is visible (independent of login flow)
-function bootstrapLiveChatUI() {
-    // Always ensure UI exists, regardless of which view is visible.
-    try { ensureLiveChatUI(); } catch (e) {}
-    try { ensureLiveChatTogglePill(); } catch (e) {}
-    // Apply enabled/disabled state (also removes any leftover `.hidden` class).
-    try { setLiveChatEnabled(isLiveChatEnabled()); } catch (e) {}
-
-    const { fab } = getChatEls();
-    if (fab) {
-        // Make sure it's on top and clickable
-        fab.style.zIndex = '999999';
-        fab.style.pointerEvents = 'auto';
-    }
-}
-
-
-try { bootstrapLiveChatUI(); } catch (e) {}
-
-function getChatEls() {
-    return {
-        fab: document.getElementById('live-chat-fab'),
-        panel: document.getElementById('live-chat-panel'),
-        closeBtn: document.getElementById('live-chat-close-btn'),
-        minBtn: document.getElementById('live-chat-min-btn'),
-        unreadBadge: document.getElementById('live-chat-unread-badge'),
-        onlineToggle: document.getElementById('live-chat-online-toggle'),
-        onlineCount: document.getElementById('live-chat-online-count'),
-        onlineList: document.getElementById('live-chat-online-list'),
-        msgWrap: document.getElementById('live-chat-messages'),
-        form: document.getElementById('live-chat-form'),
-        input: document.getElementById('live-chat-input'),
-        sendBtn: document.getElementById('live-chat-send'),
-        roomLabel: document.getElementById('live-chat-room-label'),
-    };
-}
-
-function updateChatUnreadBadge() {
-    const { unreadBadge, fab } = getChatEls();
-    if (!unreadBadge || !fab) return;
-    const n = Number(liveChatState.unread || 0);
-    if (n > 0) {
-        unreadBadge.textContent = String(n);
-        unreadBadge.classList.remove('hidden');
-        fab.classList.add('has-unread');
-    } else {
-        unreadBadge.textContent = '';
-        unreadBadge.classList.add('hidden');
-        fab.classList.remove('has-unread');
-    }
-}
-
-function openLiveChat() {
-    const { panel } = getChatEls();
-    liveChatState.open = true;
-    // Ensure chat is initialized and user/presence is set up
-    try { ensureLiveChatReady(); } catch (e) {}
-    if (panel) {
-        panel.classList.remove('hidden');
-        panel.setAttribute('aria-hidden', 'false');
-    }
-    liveChatState.unread = 0;
-    updateChatUnreadBadge();
-    // scroll to bottom
+function dmToast(fromName, text) {
+    dmEnsureUI();
+    const wrap = document.getElementById('dm-toast-wrap');
+    if (!wrap) return;
+    const el = document.createElement('div');
+    el.className = 'dm-toast';
+    el.innerHTML = `<b>${escapeHtml(fromName || 'Message')}</b><div>${escapeHtml(text || '')}</div>`;
+    wrap.appendChild(el);
     setTimeout(() => {
-        const { msgWrap } = getChatEls();
-        if (msgWrap) msgWrap.scrollTop = msgWrap.scrollHeight;
-        const { input } = getChatEls();
-        if (input) input.focus();
-    }, 0);
+        el.style.opacity = '0';
+        el.style.transition = 'opacity 260ms ease';
+        setTimeout(() => el.remove(), 280);
+    }, 3800);
 }
 
-function closeLiveChat() {
-    const { panel } = getChatEls();
-    liveChatState.open = false;
-    if (panel) {
-        panel.classList.add('hidden');
-        panel.setAttribute('aria-hidden', 'true');
+function dmOpen() {
+    dmEnsureUI();
+    const modal = document.getElementById('dm-modal');
+    if (!modal) return;
+    modal.classList.remove('dm-hidden');
+    dmState.open = true;
+    dmRenderUserList();
+}
+
+function dmClose() {
+    const modal = document.getElementById('dm-modal');
+    if (modal) modal.classList.add('dm-hidden');
+    dmState.open = false;
+}
+
+function dmGetApproversList() {
+    const data = getApproversDataSafe();
+    if (!data) return [];
+    const list = [];
+    for (const key of Object.keys(data)) {
+        const a = data[key];
+        if (!a) continue;
+        const name = String(a.Name || '').trim();
+        if (!name) continue;
+        // Hide self
+        if (dmState.userKey && key === dmState.userKey) continue;
+        list.push({
+            key,
+            name,
+            position: String(a.Position || ''),
+            role: String(a.Role || ''),
+            site: String(a.Site || '')
+        });
     }
+    // Sort by online first then name
+    list.sort((x, y) => {
+        const xOn = !!(dmState.presenceCache?.[x.key]?.status === 'online');
+        const yOn = !!(dmState.presenceCache?.[y.key]?.status === 'online');
+        if (xOn !== yOn) return xOn ? -1 : 1;
+        return x.name.localeCompare(y.name);
+    });
+    return list;
 }
 
-function toggleOnlineList() {
-    const { onlineList } = getChatEls();
-    if (!onlineList) return;
-    onlineList.classList.toggle('hidden');
+function dmTotalUnreadCount() {
+    let total = 0;
+    const u = dmState.unreadCache || {};
+    for (const tid of Object.keys(u)) {
+        const c = Number(u[tid]?.count || 0);
+        if (c > 0) total += c;
+    }
+    return total;
 }
 
-function renderOnlineUsers(usersObj) {
-    const { onlineList, onlineCount } = getChatEls();
-    if (!onlineList || !onlineCount) return;
+function dmUpdateBadges() {
+    const total = dmTotalUnreadCount();
+    document.querySelectorAll('.dm-unread-badge').forEach(b => {
+        if (!b) return;
+        b.textContent = String(total);
+        b.style.display = total > 0 ? 'inline-flex' : 'none';
+    });
+}
 
-    const entries = Object.entries(usersObj || {})
-        .map(([k, v]) => ({ key: k, ...(v || {}) }))
-        .filter(u => (u.status || '') === 'online')
-        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+function dmRenderUserList() {
+    const listEl = document.getElementById('dm-user-list');
+    if (!listEl) return;
 
-    onlineCount.textContent = String(entries.length);
+    const q = String(document.getElementById('dm-user-search')?.value || '').trim().toLowerCase();
+    const users = dmGetApproversList().filter(u => {
+        if (!q) return true;
+        return u.name.toLowerCase().includes(q) || (u.position || '').toLowerCase().includes(q);
+    });
 
-    if (entries.length === 0) {
-        onlineList.innerHTML = `<div class="live-chat-empty">No one is online.</div>`;
+    listEl.innerHTML = '';
+    if (!users.length) {
+        listEl.innerHTML = `<div style="padding:14px;opacity:.8;">No users found.</div>`;
         return;
     }
 
-    onlineList.innerHTML = entries.map(u => {
-        const name = escapeHtml(u.name || 'Unknown');
-        const site = escapeHtml(u.site || '');
-        const pos = escapeHtml(u.position || '');
-        const badge = (u.key === liveChatState.userKey) ? `<span class="live-chat-me">You</span>` : '';
-        const meta = [site, pos].filter(Boolean).join(' • ');
-        return `
-            <div class="live-chat-user">
-                <div class="live-chat-user-avatar"><i class="fa-solid fa-user"></i></div>
-                <div class="live-chat-user-info">
-                    <div class="live-chat-user-name">${name} ${badge}</div>
-                    <div class="live-chat-user-meta">${meta}</div>
-                </div>
-                <div class="live-chat-dot"></div>
+    for (const u of users) {
+        const pres = dmState.presenceCache?.[u.key] || {};
+        const isOnline = pres.status === 'online';
+        const threadId = dmGetThreadId(dmState.userKey, u.key);
+        const unread = Number(dmState.unreadCache?.[threadId]?.count || 0);
+
+        const row = document.createElement('div');
+        row.className = 'dm-user';
+        row.innerHTML = `
+          <div class="dm-left">
+            <span class="dm-dot ${isOnline ? 'online' : ''}"></span>
+            <div style="min-width:0;">
+              <div class="dm-name">${escapeHtml(u.name)}</div>
+              <div class="dm-meta">${escapeHtml((u.position || '').trim() || (u.site ? ('Site ' + u.site) : ''))}</div>
             </div>
+          </div>
+          ${unread > 0 ? `<div class="dm-badge">${unread}</div>` : ``}
         `;
-    }).join('');
-}
-
-function appendChatMessage(msg) {
-    const { msgWrap } = getChatEls();
-    if (!msgWrap) return;
-
-    const isMe = (msg.fromKey && liveChatState.userKey && msg.fromKey === liveChatState.userKey);
-    const who = escapeHtml(msg.from || 'Unknown');
-    const text = escapeHtml(msg.text || '');
-    const time = formatChatTime(msg.ts);
-
-    const bubble = document.createElement('div');
-    bubble.className = `live-chat-msg ${isMe ? 'me' : 'them'}`;
-    bubble.innerHTML = `
-        <div class="live-chat-msg-meta">
-            <span class="live-chat-msg-who">${who}</span>
-            <span class="live-chat-msg-time">${time}</span>
-        </div>
-        <div class="live-chat-msg-bubble">${text}</div>
-    `;
-    msgWrap.appendChild(bubble);
-
-    // keep DOM light
-    const maxNodes = 240;
-    while (msgWrap.children.length > maxNodes) {
-        msgWrap.removeChild(msgWrap.firstChild);
+        row.addEventListener('click', () => dmOpenThread(u.key, u.name));
+        listEl.appendChild(row);
     }
 
-    // auto-scroll only when open or when message is mine
-    if (liveChatState.open || isMe) {
-        msgWrap.scrollTop = msgWrap.scrollHeight;
-    }
+    dmUpdateBadges();
 }
 
+function dmSetChatHeader() {
+    const titleEl = document.getElementById('dm-chat-title');
+    const statusEl = document.getElementById('dm-chat-status');
+    if (!titleEl || !statusEl) return;
 
-async function ensureLiveChatReady() {
+    if (!dmState.toKey) {
+        titleEl.textContent = 'Select a user';
+        statusEl.textContent = '';
+        return;
+    }
+    titleEl.textContent = dmState.toName || 'Chat';
+    const pres = dmState.presenceCache?.[dmState.toKey];
+    const isOnline = pres && pres.status === 'online';
+    statusEl.textContent = isOnline ? 'Online' : 'Offline';
+}
+
+function dmClearThreadListener() {
     try {
-        // Ensure firebase db exists
-        if (typeof firebase === 'undefined' || !firebase.database) {
-            appendSystemChatMessage("Chat: Firebase not ready. Refresh the page.");
-            return false;
+        if (dmState.threadMessagesRef && dmState.onThreadMsg) {
+            dmState.threadMessagesRef.off('child_added', dmState.onThreadMsg);
         }
+    } catch (_) { /* ignore */ }
+    dmState.threadMessagesRef = null;
+    dmState.onThreadMsg = null;
+}
 
-        // Ensure user info
-        if (!currentApprover || !currentApprover.key) {
-            const k = localStorage.getItem('approverKey');
-            if (k) {
-                try {
-                    if (typeof fetchApproverByKey === 'function') {
-                        const ap = await fetchApproverByKey(k);
-                        if (ap && ap.key) currentApprover = ap;
-                    } else if (db) {
-                        const snap = await db.ref('approvers/' + k).once('value');
-                        if (snap.exists()) currentApprover = { key: k, ...snap.val() };
-                    }
-                } catch (e) {
-                    console.warn('Chat: failed to fetch approver for session key', e);
-                }
-            }
-        }
+function dmOpenThread(toKey, toName) {
+    dmEnsureUI();
+    dmOpen();
 
-        if (!currentApprover || !currentApprover.key) {
-            appendSystemChatMessage("Chat: please login to start chatting.");
-            return false;
-        }
+    dmState.toKey = String(toKey || '').trim();
+    dmState.toName = String(toName || '').trim();
+    dmState.threadId = dmGetThreadId(dmState.userKey, dmState.toKey);
+    dmSetChatHeader();
 
-        liveChatState.userKey = currentApprover.key;
-        liveChatState.userName = String(currentApprover.Name || currentApprover.name || currentApprover.UserName || 'User');
-        liveChatState.ready = true;
+    // mark read
+    if (dmState.threadId) {
+        db.ref(`${DM_UNREAD_ROOT}/${dmState.userKey}/${dmState.threadId}`).remove().catch(() => {});
+    }
 
-        // Start firebase listeners once
-        if (!liveChatState.initialized) {
-            initLiveChat();
-        }
-        return true;
+    // clear list and subscribe
+    const msgList = document.getElementById('dm-message-list');
+    if (msgList) {
+        msgList.innerHTML = '';
+        msgList.scrollTop = msgList.scrollHeight;
+    }
+
+    dmClearThreadListener();
+    if (!dmState.threadId) return;
+
+    dmState.threadMessagesRef = db.ref(`${DM_THREADS_ROOT}/${dmState.threadId}/messages`).limitToLast(200);
+    dmState.onThreadMsg = (snap) => {
+        const m = snap.val();
+        if (!m) return;
+        dmRenderMessage(m);
+    };
+    dmState.threadMessagesRef.on('child_added', dmState.onThreadMsg);
+}
+
+function dmRenderMessage(m) {
+    const msgList = document.getElementById('dm-message-list');
+    if (!msgList) return;
+
+    const fromKey = String(m.fromKey || '');
+    const isMe = (fromKey === dmState.userKey);
+    const text = dmSafeText(m.text || '');
+    if (!text) return;
+
+    const el = document.createElement('div');
+    el.className = `dm-msg ${isMe ? 'me' : ''}`;
+    const ts = m.ts && typeof m.ts === 'number' ? m.ts : null;
+    el.innerHTML = `
+      <div>${escapeHtml(text)}</div>
+      <div class="dm-ts">${escapeHtml(formatChatTime(ts))}</div>
+    `;
+    msgList.appendChild(el);
+
+    // Auto scroll if near bottom
+    const nearBottom = (msgList.scrollHeight - msgList.scrollTop - msgList.clientHeight) < 120;
+    if (nearBottom) msgList.scrollTop = msgList.scrollHeight;
+}
+
+function dmSendCurrent() {
+    if (!dmState.toKey || !dmState.threadId) {
+        dmToast('Messages', 'Select a user first.');
+        return;
+    }
+    const input = document.getElementById('dm-input');
+    const text = dmSafeText(input?.value || '');
+    if (!text) return;
+    if (input) input.value = '';
+    dmSendMessage(dmState.toKey, dmState.toName, text);
+}
+
+async function dmSendMessage(toKey, toName, text) {
+    const fromKey = dmState.userKey;
+    const fromName = dmState.userName;
+    const threadId = dmGetThreadId(fromKey, toKey);
+    if (!fromKey || !toKey || !threadId) return;
+
+    const msgId = db.ref(`${DM_THREADS_ROOT}/${threadId}/messages`).push().key;
+    const msg = {
+        fromKey,
+        fromName,
+        toKey,
+        toName: String(toName || '').trim(),
+        text: dmSafeText(text),
+        ts: firebase.database.ServerValue.TIMESTAMP
+    };
+
+    const updates = {};
+    updates[`${DM_THREADS_ROOT}/${threadId}/participants/${fromKey}`] = true;
+    updates[`${DM_THREADS_ROOT}/${threadId}/participants/${toKey}`] = true;
+    updates[`${DM_THREADS_ROOT}/${threadId}/names/${fromKey}`] = fromName;
+    updates[`${DM_THREADS_ROOT}/${threadId}/names/${toKey}`] = String(toName || '').trim();
+    updates[`${DM_THREADS_ROOT}/${threadId}/messages/${msgId}`] = msg;
+    updates[`${DM_INBOX_ROOT}/${toKey}/${msgId}`] = msg;
+
+    try {
+        await db.ref().update(updates);
+        // Unread counters for recipient
+        const base = db.ref(`${DM_UNREAD_ROOT}/${toKey}/${threadId}`);
+        base.child('count').transaction(c => (Number(c) || 0) + 1);
+        base.child('lastText').set(msg.text);
+        base.child('lastTs').set(firebase.database.ServerValue.TIMESTAMP);
+        base.child('fromName').set(fromName);
+        base.child('fromKey').set(fromKey);
     } catch (e) {
-        console.warn('Chat: ensure ready failed', e);
-        return false;
+        console.warn('DM send failed:', e);
+        dmToast('Messages', 'Message failed to send (check rules / connection).');
     }
 }
 
-function appendSystemChatMessage(text) {
-    const { msgWrap } = getChatEls();
-    if (!msgWrap) return;
-    const d = document.createElement('div');
-    d.className = 'live-chat-msg system';
-    d.innerHTML = `<div class="live-chat-bubble system">${escapeHTML(String(text || ''))}</div>`;
-    msgWrap.appendChild(d);
-    msgWrap.scrollTop = msgWrap.scrollHeight;
-}
+function dmInjectMessagesButtons() {
+    // Insert "Messages" into footer navs (WorkDesk + Invoice Mgmt + Inventory)
+    const targets = [
+        { ul: document.querySelector('#workdesk-view .workdesk-footer-nav ul'), id: 'dm-wd-link' },
+        { ul: document.querySelector('#invoice-management-view .workdesk-footer-nav ul'), id: 'dm-im-link' },
+        { ul: document.querySelector('#inventory-view .workdesk-footer-nav ul'), id: 'dm-inv-link' },
+    ];
 
-function startLiveChatPresence() {
-    if (!db || !currentApprover || !currentApprover.key) return;
+    for (const t of targets) {
+        if (!t.ul) continue;
+        if (t.ul.querySelector(`#${t.id}`)) continue;
 
-    const key = String(currentApprover.key);
-    liveChatState.userKey = key;
-    liveChatState.userName = String(currentApprover.Name || currentApprover.Identifier || 'User');
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <a href="#" id="${t.id}" class="dm-messages-link">
+            <i class="fa-solid fa-comments"></i> Messages
+            <span class="notification-badge dm-unread-badge" style="display:none; margin-left:8px;">0</span>
+          </a>
+        `;
 
-    const presenceRef = db.ref(`${LIVE_CHAT_ROOT}/presence/${key}`);
-    liveChatState.presenceRef = presenceRef;
-
-    const basePresence = {
-        key,
-        name: liveChatState.userName,
-        identifier: String(currentApprover.Identifier || ''),
-        role: String(currentApprover.Role || ''),
-        position: String(currentApprover.Position || ''),
-        site: String(currentApprover.Site || ''),
-    };
-
-    liveChatState.connectedRef = db.ref('.info/connected');
-    liveChatState.onConnected = (snap) => {
-        if (snap.val() === true) {
-            // Set up onDisconnect to mark offline
-            presenceRef.onDisconnect().set({
-                ...basePresence,
-                status: 'offline',
-                lastSeen: firebase.database.ServerValue.TIMESTAMP
-            });
-            // Mark online now
-            presenceRef.set({
-                ...basePresence,
-                status: 'online',
-                lastActive: firebase.database.ServerValue.TIMESTAMP
-            });
+        // Insert before logout if possible
+        const logoutLi = Array.from(t.ul.children).find(x => (x.textContent || '').toLowerCase().includes('logout'));
+        if (logoutLi) {
+            t.ul.insertBefore(li, logoutLi);
+        } else {
+            t.ul.appendChild(li);
         }
-    };
 
-    liveChatState.connectedRef.on('value', liveChatState.onConnected);
-
-    // Heartbeat: update lastActive every 30s while logged in
-    if (liveChatState.heartbeatInterval) clearInterval(liveChatState.heartbeatInterval);
-    liveChatState.heartbeatInterval = setInterval(() => {
-        try {
-            if (liveChatState.presenceRef) {
-                liveChatState.presenceRef.update({ lastActive: firebase.database.ServerValue.TIMESTAMP, status: 'online' });
-            }
-        } catch (_) {}
-    }, 30000);
-}
-
-function subscribeLiveChatOnlineUsers() {
-    if (!db) return;
-    liveChatState.onlineQueryRef = db.ref(`${LIVE_CHAT_ROOT}/presence`);
-
-    liveChatState.onOnlineValue = (snap) => {
-        renderOnlineUsers(snap.val() || {});
-    };
-    liveChatState.onlineQueryRef.on('value', liveChatState.onOnlineValue);
-}
-
-function subscribeLiveChatMessages() {
-    if (!db) return;
-
-    const { roomLabel, msgWrap } = getChatEls();
-    if (roomLabel) roomLabel.textContent = 'Room: Global';
-
-    if (msgWrap) msgWrap.innerHTML = '';
-
-    liveChatState.messagesQueryRef = db.ref(`${LIVE_CHAT_ROOT}/rooms/${LIVE_CHAT_ROOM}/messages`).limitToLast(200);
-
-    liveChatState.onMsgAdded = (snap) => {
-        const v = snap.val() || {};
-        const msg = {
-            key: snap.key,
-            from: v.from || '',
-            fromKey: v.fromKey || '',
-            text: v.text || '',
-            ts: v.ts || 0,
-        };
-
-        appendChatMessage(msg);
-
-        // unread counter when panel is closed and message is not from me
-        const isMe = (msg.fromKey && liveChatState.userKey && msg.fromKey === liveChatState.userKey);
-        if (!liveChatState.open && !isMe) {
-            liveChatState.unread = Number(liveChatState.unread || 0) + 1;
-            updateChatUnreadBadge();
-        }
-    };
-
-    liveChatState.messagesQueryRef.on('child_added', liveChatState.onMsgAdded);
-}
-
-
-function openLiveChatPanel() {
-    const { panel, fab } = getChatEls();
-    if (!panel) return;
-    panel.classList.remove('hidden');
-    panel.style.display = 'flex';
-    // reset unread
-    liveChatState.unread = 0;
-    updateChatUnreadBadge();
-    // Try init data
-    try { ensureLiveChatReady(); } catch (e) {}
-}
-
-function wireLiveChatUIOnce() {
-    const els = getChatEls();
-    if (!els.fab || !els.panel) return;
-
-    // prevent double-wire
-    if (els.fab.dataset.wired === '1') return;
-    els.fab.dataset.wired = '1';
-
-    els.fab.addEventListener('click', () => {
-        if (liveChatState.open) closeLiveChat();
-        else openLiveChat();
-    });
-
-    if (els.closeBtn) els.closeBtn.addEventListener('click', closeLiveChat);
-    if (els.minBtn) els.minBtn.addEventListener('click', closeLiveChat);
-    if (els.onlineToggle) els.onlineToggle.addEventListener('click', toggleOnlineList);
-
-    if (els.form) {
-        els.form.addEventListener('submit', (e) => {
+        li.querySelector('a')?.addEventListener('click', (e) => {
             e.preventDefault();
-            const text = sanitizeChatText(els.input ? els.input.value : '');
-            if (!text) return;
-
-            if (!db || !currentApprover || !currentApprover.key) return;
-
-            // push message
-            db.ref(`${LIVE_CHAT_ROOT}/rooms/${LIVE_CHAT_ROOM}/messages`).push({
-                from: liveChatState.userName,
-                fromKey: liveChatState.userKey,
-                site: String(currentApprover.Site || ''),
-                text,
-                ts: firebase.database.ServerValue.TIMESTAMP
-            });
-
-            if (els.input) els.input.value = '';
+            dmOpen();
         });
     }
+
+    dmUpdateBadges();
 }
 
-function initLiveChat() {
-    try { bootstrapLiveChatUI(); } catch (e) { /* ignore */ }
-    const { fab } = getChatEls();
-    if (!fab) return; // UI not present
+function dmStartPresence() {
+    if (!dmState.userKey) return;
+    dmState.connectedRef = db.ref('.info/connected');
+    dmState.onConnected = (snap) => {
+        if (snap.val() !== true) return;
+        dmState.presenceRef = db.ref(`${DM_PRESENCE_ROOT}/${dmState.userKey}`);
+        const offlinePayload = {
+            name: dmState.userName,
+            status: 'offline',
+            lastSeen: firebase.database.ServerValue.TIMESTAMP
+        };
+        dmState.presenceRef.onDisconnect().set(offlinePayload);
+        dmState.presenceRef.set({
+            name: dmState.userName,
+            status: 'online',
+            lastSeen: firebase.database.ServerValue.TIMESTAMP
+        });
+    };
+    dmState.connectedRef.on('value', dmState.onConnected);
 
-    wireLiveChatUIOnce();
+    if (dmState.heartbeatInterval) clearInterval(dmState.heartbeatInterval);
+    dmState.heartbeatInterval = setInterval(() => {
+        if (dmState.presenceRef) {
+            dmState.presenceRef.update({ status: 'online', lastSeen: firebase.database.ServerValue.TIMESTAMP });
+        }
+    }, 60_000);
 
-    if (liveChatState.initialized) return;
-    liveChatState.initialized = true;
+    window.addEventListener('beforeunload', () => {
+        try {
+            dmState.presenceRef?.update({ status: 'offline', lastSeen: firebase.database.ServerValue.TIMESTAMP });
+        } catch (_) { /* ignore */ }
+    });
 
-    try { startLiveChatPresence(); } catch (e) { console.warn('Chat presence init failed:', e); }
-    try { subscribeLiveChatOnlineUsers(); } catch (e) { console.warn('Chat online list init failed:', e); }
-    try { subscribeLiveChatMessages(); } catch (e) { console.warn('Chat messages init failed:', e); }
+    // Presence list subscription (online dots)
+    dmState.presenceListRef = db.ref(DM_PRESENCE_ROOT);
+    dmState.onPresenceList = (snap) => {
+        dmState.presenceCache = snap.val() || {};
+        if (dmState.open) dmRenderUserList();
+        dmSetChatHeader();
+    };
+    dmState.presenceListRef.on('value', dmState.onPresenceList);
 }
 
-function shutdownLiveChat() {
+function dmSubscribeInbox() {
+    if (!dmState.userKey) return;
+    dmState.inboxRef = db.ref(`${DM_INBOX_ROOT}/${dmState.userKey}`).limitToLast(50);
+    dmState.onInbox = (snap) => {
+        const m = snap.val();
+        if (!m) return;
+        const fromName = String(m.fromName || m.from || 'Message');
+        const text = dmSafeText(m.text || '');
+        if (text) dmToast(fromName, text);
+
+        // remove from inbox to avoid duplicates
+        snap.ref.remove().catch(() => {});
+    };
+    dmState.inboxRef.on('child_added', dmState.onInbox);
+}
+
+function dmSubscribeUnread() {
+    if (!dmState.userKey) return;
+    dmState.unreadRef = db.ref(`${DM_UNREAD_ROOT}/${dmState.userKey}`);
+    dmState.onUnread = (snap) => {
+        dmState.unreadCache = snap.val() || {};
+        dmUpdateBadges();
+        if (dmState.open) dmRenderUserList();
+    };
+    dmState.unreadRef.on('value', dmState.onUnread);
+}
+
+function initDirectMessages() {
+    if (dmState.initialized) return;
+    if (!currentApprover || !currentApprover.key) return;
+
+    dmState.userKey = String(currentApprover.key);
+    dmState.userName = String(currentApprover.Name || currentApprover.Username || currentApprover.Email || 'User').trim();
+    dmState.initialized = true;
+
+    // If an older "Live Chat" bubble exists in the DOM from previous versions,
+    // hide it to avoid confusion (DM is the supported chat feature).
     try {
-        if (liveChatState.heartbeatInterval) {
-            clearInterval(liveChatState.heartbeatInterval);
-            liveChatState.heartbeatInterval = null;
+        document.getElementById('live-chat-fab')?.classList.add('hidden');
+        document.getElementById('live-chat-panel')?.classList.add('hidden');
+    } catch (_) { /* ignore */ }
+
+    try { dmEnsureUI(); } catch (_) {}
+    try { dmInjectMessagesButtons(); } catch (_) {}
+    try { dmStartPresence(); } catch (e) { console.warn('DM presence init failed:', e); }
+    try { dmSubscribeUnread(); } catch (e) { console.warn('DM unread init failed:', e); }
+    try { dmSubscribeInbox(); } catch (e) { console.warn('DM inbox init failed:', e); }
+}
+
+function shutdownDirectMessages() {
+    try {
+        dmClearThreadListener();
+        if (dmState.heartbeatInterval) {
+            clearInterval(dmState.heartbeatInterval);
+            dmState.heartbeatInterval = null;
         }
-        // Presence offline now
-        if (liveChatState.presenceRef) {
-            liveChatState.presenceRef.update({ status: 'offline', lastSeen: firebase.database.ServerValue.TIMESTAMP });
+        if (dmState.presenceRef) {
+            dmState.presenceRef.update({ status: 'offline', lastSeen: firebase.database.ServerValue.TIMESTAMP });
         }
-        // Remove listeners
-        if (liveChatState.connectedRef && liveChatState.onConnected) {
-            liveChatState.connectedRef.off('value', liveChatState.onConnected);
-        }
-        if (liveChatState.onlineQueryRef && liveChatState.onOnlineValue) {
-            liveChatState.onlineQueryRef.off('value', liveChatState.onOnlineValue);
-        }
-        if (liveChatState.messagesQueryRef && liveChatState.onMsgAdded) {
-            liveChatState.messagesQueryRef.off('child_added', liveChatState.onMsgAdded);
-        }
+        if (dmState.connectedRef && dmState.onConnected) dmState.connectedRef.off('value', dmState.onConnected);
+        if (dmState.inboxRef && dmState.onInbox) dmState.inboxRef.off('child_added', dmState.onInbox);
+        if (dmState.unreadRef && dmState.onUnread) dmState.unreadRef.off('value', dmState.onUnread);
+        if (dmState.presenceListRef && dmState.onPresenceList) dmState.presenceListRef.off('value', dmState.onPresenceList);
     } catch (e) {
-        console.warn('Live chat shutdown warning:', e);
+        console.warn('DM shutdown warning:', e);
     }
 }
 
@@ -2820,11 +2824,12 @@ function handleSuccessfulLogin() {
         console.log('Celebration banner failed:', e);
     }
 
-    // --- Live Chat (Global) ---
+    // --- Direct Messages (1:1) ---
+    // Works across WorkDesk + Invoice Management + Inventory.
     try {
-        initLiveChat();
+        initDirectMessages();
     } catch (e) {
-        console.warn('Live chat init failed:', e);
+        console.warn('Direct messages init failed:', e);
     }
 
 }
@@ -3191,7 +3196,9 @@ async function showCelebrationBannerIfNeeded() {
 
 function handleLogout() {
     // Live chat cleanup
-    try { shutdownLiveChat(); } catch (e) { /* ignore */ }
+
+    // Direct messages cleanup
+    try { shutdownDirectMessages(); } catch (e) { /* ignore */ }
 
     // Stop background listeners to prevent leaks
     if (typeof window.stopInvoiceSmartLiveSync === 'function') {
@@ -7518,11 +7525,6 @@ function updateJobEntryNavControls() {
 
 document.addEventListener('DOMContentLoaded', () => {
     const db = firebase.database();
-
-    // Live Chat bootstrap (always inject UI so it can't disappear across views)
-    try { bootstrapLiveChatUI(); } catch (e) {}
-    // If user already has a saved session, initialize chat UI immediately
-    setTimeout(() => { try { if (isLiveChatEnabled()) initLiveChat(); } catch (e) {} }, 200);
 
     // DOM Elements
     const navMaterialStock = document.getElementById('nav-material-stock');
@@ -17919,14 +17921,4 @@ window.imPrintInvoiceList = function() {
 
 
 
-// Live Chat safety: if session exists but chat not initialized, initialize periodically
-setInterval(() => {
-    try {
-        if (!isLiveChatEnabled()) return;
-        const k = localStorage.getItem('approverKey');
-        if (!k) return;
-        if (!liveChatState || liveChatState.initialized) return;
-        initLiveChat();
-    } catch (e) {}
-}, 1500);
 
