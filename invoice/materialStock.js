@@ -140,7 +140,7 @@ const STOCK_LEGENDS = {
     "9": {
         "name": "Other / Unclassified",
         "relations": {
-			"901": "Miscellaneous",
+            "901": "Miscellaneous",
         	"902": "Client-supplied / Unknown",
 	    	"903": "Scrap / Returns",
 	    	"904": "HO Vehicle",

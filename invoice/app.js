@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.0.1";
+const APP_VERSION = "6.0.2";
 
 // --- Vacation Delegation Helpers (Super Admin Replacement) ---
 // When SUPER_ADMIN_NAME enables Vacation in Settings and sets ReplacementName,
@@ -15,6 +15,16 @@ const SUPER_ADMIN_NAME = "Irwin";
 
 function getCachedApproversData() {
     return (typeof allApproverDataCache !== 'undefined' && allApproverDataCache) ? allApproverDataCache : allApproverData;
+}
+
+// Safe accessor used by Direct Messages.
+// Some packages missed this helper which caused the DM user list to be empty.
+function getApproversDataSafe() {
+    try {
+        const d = getCachedApproversData();
+        if (d && typeof d === 'object') return d;
+    } catch (_) { /* ignore */ }
+    return {};
 }
 
 function getActiveVacationConfig() {
@@ -535,6 +545,15 @@ function dmOpen() {
     if (!modal) return;
     modal.classList.remove('dm-hidden');
     dmState.open = true;
+    // Ensure approver list is loaded so the user picker isn't empty.
+    try {
+        const cached = getCachedApproversData();
+        if (!cached || (typeof cached === 'object' && Object.keys(cached).length === 0)) {
+            ensureApproverDataCached(true).then(() => {
+                if (dmState.open) dmRenderUserList();
+            });
+        }
+    } catch (_) { /* ignore */ }
     dmRenderUserList();
 }
 
@@ -880,6 +899,13 @@ function initDirectMessages() {
     dmState.userKey = String(currentApprover.key);
     dmState.userName = String(currentApprover.Name || currentApprover.Username || currentApprover.Email || 'User').trim();
     dmState.initialized = true;
+
+    // Preload approvers so the user list can render immediately.
+    try {
+        ensureApproverDataCached(false).then(() => {
+            if (dmState.open) dmRenderUserList();
+        });
+    } catch (_) { /* ignore */ }
 
     // If an older "Live Chat" bubble exists in the DOM from previous versions,
     // hide it to avoid confusion (DM is the supported chat feature).
