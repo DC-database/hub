@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>IBA Messages</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css?v=1.0.1" />
+
+  <!-- Firebase v8 (same as your main system) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+</head>
+<body>
+  <!-- Inline icons (no external dependency, so buttons never appear "missing") -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true" focusable="false">
+    <symbol id="ico-chat" viewBox="0 0 24 24">
+      <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M8 9h8M8 13h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="ico-login" viewBox="0 0 24 24">
+      <path d="M10 17l5-5-5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M15 12H3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <path d="M21 21V3a2 2 0 0 0-2-2h-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="ico-logout" viewBox="0 0 24 24">
+      <path d="M14 7l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M19 12H7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <path d="M3 21V3a2 2 0 0 1 2-2h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="ico-search" viewBox="0 0 24 24">
+      <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/>
+      <path d="M20 20l-3.5-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="ico-back" viewBox="0 0 24 24">
+      <path d="M15 18l-6-6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="ico-users" viewBox="0 0 24 24">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="9" cy="7" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <path d="M16 3.13a3 3 0 0 1 0 5.74" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="ico-send" viewBox="0 0 24 24">
+      <path d="M22 2L11 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <path d="M22 2l-7 20-4-9-9-4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+    </symbol>
+  </svg>
+  <div class="app">
+
+    <!-- LOGIN -->
+    <main id="login-screen" class="screen">
+      <div class="card">
+        <div class="brand">
+          <div class="logo"><svg class="icon" aria-hidden="true"><use href="#ico-chat"></use></svg></div>
+          <div>
+            <div class="brand-title">IBA Messages</div>
+            <div class="brand-sub">Private 1:1 messaging</div>
+          </div>
+        </div>
+
+        <form id="login-form" class="form">
+          <label class="label">Email or Mobile</label>
+          <input id="login-identifier" class="input" type="text" placeholder="e.g. name@iba.com.qa or 55xxxxxx" autocomplete="username" />
+
+          <label class="label">Password</label>
+          <input id="login-password" class="input" type="password" placeholder="Password" autocomplete="current-password" />
+
+          <button class="btn primary" type="submit">
+            <svg class="icon" aria-hidden="true"><use href="#ico-login"></use></svg>
+            <span>Login</span>
+          </button>
+
+          <p id="login-error" class="msg error"></p>
+        </form>
+
+        <div class="hint">
+          If your password is not set yet, open the main system once and complete setup (or ask Admin to set it for you).
+        </div>
+      </div>
+    </main>
+
+    <!-- CHAT -->
+    <main id="chat-screen" class="screen hidden">
+      <header class="topbar">
+        <div class="topbar-left">
+          <div class="topbar-title"><svg class="icon" aria-hidden="true"><use href="#ico-chat"></use></svg> Messages</div>
+          <div class="topbar-me" id="me-pill"></div>
+        </div>
+        <div class="topbar-right">
+          <button id="logout-btn" class="btn ghost" type="button" title="Logout">
+            <svg class="icon" aria-hidden="true"><use href="#ico-logout"></use></svg>
+            <span>Logout</span>
+          </button>
+        </div>
+      </header>
+
+      <section class="dm-card dm-mobile-list" id="dm-root">
+        <aside class="dm-users" aria-label="Users">
+          <div class="dm-search-wrap">
+            <svg class="icon" aria-hidden="true"><use href="#ico-search"></use></svg>
+            <input id="dm-user-search" type="text" placeholder="Search..." />
+          </div>
+          <div class="dm-user-list" id="dm-user-list"></div>
+        </aside>
+
+        <section class="dm-chat" aria-label="Chat">
+          <div class="dm-chat-top">
+            <div class="dm-chat-top-left">
+              <button id="dm-back-users" class="dm-back" type="button" aria-label="Back">
+                <svg class="icon" aria-hidden="true"><use href="#ico-back"></use></svg>
+                <span class="dm-back-text">Back</span>
+              </button>
+
+              <div class="dm-chat-ident">
+                <div class="dm-chat-avatar" id="dm-chat-avatar">?</div>
+                <div class="dm-chat-text">
+                  <div class="dm-chat-title" id="dm-chat-title">Select a user</div>
+                  <div class="dm-meta" id="dm-chat-status"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="dm-chat-actions">
+              <button id="dm-users-btn" class="btn chip" type="button" title="Users">
+                <svg class="icon" aria-hidden="true"><use href="#ico-users"></use></svg><span>Users</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="dm-message-list" id="dm-message-list">
+            <div class="dm-empty" id="dm-empty-state">
+              <div class="dm-empty-title">No conversation selected</div>
+              <div class="dm-empty-sub">Pick a user from the list to start chatting.</div>
+            </div>
+          </div>
+
+          <div class="dm-compose">
+            <input id="dm-input" type="text" placeholder="Message..." autocomplete="off" />
+            <button id="dm-send" type="button" title="Send">
+              <svg class="icon" aria-hidden="true"><use href="#ico-send"></use></svg>
+              <span class="dm-send-text">Send</span>
+            </button>
+          </div>
+        </section>
+      </section>
+
+      <div id="toast-wrap" class="toast-wrap"></div>
+    </main>
+  </div>
+
+  <script src="app.js?v=1.0.1"></script>
+</body>
+</html>
