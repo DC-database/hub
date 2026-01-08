@@ -1,4 +1,4 @@
-// IBA Messages - standalone (1.0.2)
+// IBA Messages - standalone (1.0.3)
 // NOTE: This uses your existing RTDB approvers + dm_* nodes (same as the main system).
 // For true privacy, lock down Firebase rules (recommended: Firebase Auth).
 
@@ -39,7 +39,16 @@ function formatChatTime(ts) {
 }
 
 function normalizeMobile(v) {
-  return String(v || '').replace(/\D/g, '');
+  // Qatar default: users often store/enter numbers with country code 974.
+  // Normalize so login/search works whether user types 55xxxxxx or 97455xxxxxx.
+  let s = String(v || '').replace(/\D/g, '');
+  // Handle cases like 00974XXXXXXXX (after stripping non-digits it becomes '00974...')
+  if (s.startsWith('00974')) s = s.slice(5);
+  // Strip Qatar country code when present
+  if (s.startsWith('974') && s.length > 8) s = s.slice(3);
+  // Optional: strip a single leading 0 if someone typed 0XXXXXXXX
+  if (s.startsWith('0') && s.length === 9) s = s.slice(1);
+  return s;
 }
 
 function safeText(t) {
