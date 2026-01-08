@@ -443,8 +443,7 @@ body {
     .nav-link { justify-content: center; padding: 15px; }
 }
 
-
-/* Fix: Preserve line breaks in the generated report notes */
+/* Show line breaks in Notes */
 #reportNotesContent {
-    white-space: pre-wrap;
+  white-space: pre-line;
 }

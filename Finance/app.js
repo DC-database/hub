@@ -1,7 +1,7 @@
 // ======================
 // Application Version
 // ======================
-const APP_VERSION = "v5.3.1 (Fix login + Vendor ID/Name auto-link)";
+const APP_VERSION = "v5.4 (Vendor CSV Auto-Fill + Notes New Lines)";
 
 // ======================
 // Firebase Configuration
@@ -72,6 +72,7 @@ const elements = {
   
   // Vendors & Import
   vendorList: document.getElementById('vendorList'),
+  vendorIdList: document.getElementById('vendorIdList'),
   vendorUploadForm: document.getElementById('vendorUploadForm'),
   importBtn: document.getElementById('importBtn'),
   paymentCsv: document.getElementById('paymentCsv'),
@@ -97,7 +98,6 @@ const fields = [
 let editId = null;
 let isEditing = false;
 let vendorSearchTimeout = null;
-let vendorIdSearchTimeout = null;
 let allPaymentsData = {}; 
 
 // ======================
@@ -157,6 +157,7 @@ function handleLogout(e) {
 
 function initializeApplication() {
   setupEventListeners();
+  loadVendorsIfNeeded();
   resetForm();
   resetSearch();
 }
@@ -189,10 +190,12 @@ function setupEventListeners() {
   elements.searchResultsBody.addEventListener('click', handleActionClick);
 
   // Inputs - Logic for auto-calculations
-  document.getElementById('vendor').addEventListener('input', handleVendorInput);
-  document.getElementById('vendor').addEventListener('change', handleVendorSelection);
+  document.getElementById('vendor').addEventListener('input', handleVendorNameInput);
+  document.getElementById('vendor').addEventListener('change', handleVendorNameChange);
+  document.getElementById('vendor').addEventListener('blur', handleVendorNameBlur);
   document.getElementById('vendorId').addEventListener('input', handleVendorIdInput);
-  document.getElementById('vendorId').addEventListener('change', handleVendorIdSelection);
+  document.getElementById('vendorId').addEventListener('change', handleVendorIdChange);
+  document.getElementById('vendorId').addEventListener('blur', handleVendorIdBlur);
   document.getElementById('certifiedAmount').addEventListener('input', calculatePayment);
   document.getElementById('retention').addEventListener('input', calculatePayment);
   document.getElementById('retentionPercentage').addEventListener('input', calculateRetentionFromPercentage);
@@ -437,28 +440,13 @@ function showAddNewForm() {
 }
 
 // Opens the Modal in "Edit Mode"
-async function editPayment(id, payment) {
+function editPayment(id, payment) {
   editId = id;
   isEditing = true;
 
   fields.forEach(field => {
     document.getElementById(field).value = formatFieldValue(field, payment[field]) || '';
   });
-
-  // Keep Vendor Name and Vendor ID in sync (ID ↔ Name)
-  try {
-    const paymentData = {
-      vendor: document.getElementById('vendor').value,
-      vendorId: document.getElementById('vendorId').value
-    };
-
-    await normalizeVendorFields(paymentData);
-
-    document.getElementById('vendor').value = paymentData.vendor || '';
-    document.getElementById('vendorId').value = paymentData.vendorId || '';
-  } catch (err) {
-    console.error('Error normalizing vendor fields in edit:', err);
-  }
 
   // Logic for Retention Base
   document.getElementById('retentionBaseAmount').value = formatNumber(payment.certifiedAmount) || '';
@@ -507,9 +495,6 @@ async function savePayment() {
   // accurately track when this specific record was touched
   paymentData.dateEntered = `${year}-${month}-${day}`;
 
-  // Keep Vendor Name and Vendor ID in sync (ID ↔ Name)
-  await normalizeVendorFields(paymentData);
-
   try {
     if (isEditing) {
       // Update existing
@@ -549,9 +534,6 @@ async function addNewPaymentFromEdit() {
       ? value.replace(/,/g, '')
       : value;
   });
-
-  // Keep Vendor Name and Vendor ID in sync (ID ↔ Name)
-  await normalizeVendorFields(paymentData);
 
   try {
     // Set Date Ent. to today (System Audit)
@@ -610,211 +592,300 @@ function cancelEdit() {
 // ======================
 // Vendor Functions
 // ======================
-function handleVendorInput() {
-  clearTimeout(vendorSearchTimeout);
-  vendorSearchTimeout = setTimeout(searchVendors, 300);
+
+// Primary source: GitHub Vendors.csv (fallback to Firebase /vendors node if fetch fails)
+const VENDORS_CSV_URL = 'https://raw.githubusercontent.com/DC-database/Hub/main/Vendors.csv';
+const VENDOR_SUGGESTION_LIMIT = 50;
+
+let vendorsCache = [];
+let vendorsByName = new Map(); // lower(name) -> { name, id }
+let vendorsById = new Map();   // lower(id)   -> { name, id }
+let vendorsLoaded = false;
+let vendorsLoadPromise = null;
+
+function loadVendorsIfNeeded() {
+  if (vendorsLoaded) return Promise.resolve();
+  if (vendorsLoadPromise) return vendorsLoadPromise;
+
+  vendorsLoadPromise = (async () => {
+    try {
+      const csvVendors = await fetchVendorsFromCsvUrl(VENDORS_CSV_URL);
+      if (!Array.isArray(csvVendors) || csvVendors.length === 0) throw new Error('CSV vendor list is empty');
+      vendorsCache = csvVendors;
+      buildVendorIndexes(vendorsCache);
+      vendorsLoaded = true;
+    } catch (err) {
+      console.warn('Vendors.csv load failed; falling back to Firebase vendors list.', err);
+      try {
+        const snapshot = await vendorsRef.once('value');
+        const list = [];
+        if (snapshot.exists()) {
+          snapshot.forEach(childSnapshot => {
+            const v = childSnapshot.val();
+            if (v && v.name && v.id) {
+              list.push({ name: String(v.name).trim(), id: String(v.id).trim() });
+            }
+          });
+        }
+        vendorsCache = list;
+        buildVendorIndexes(vendorsCache);
+        vendorsLoaded = true;
+      } catch (err2) {
+        console.error('Failed to load vendors from Firebase as well.', err2);
+        vendorsCache = [];
+        buildVendorIndexes(vendorsCache);
+        vendorsLoaded = true;
+      }
+    }
+  })().finally(() => { vendorsLoadPromise = null; });
+
+  return vendorsLoadPromise;
 }
 
-async function handleVendorSelection() {
-  const vendorInput = document.getElementById('vendor');
-  const vendorIdInput = document.getElementById('vendorId');
+function buildVendorIndexes(list) {
+  vendorsByName = new Map();
+  vendorsById = new Map();
+  (list || []).forEach(v => {
+    const name = String(v?.name || '').trim();
+    const id = String(v?.id || '').trim();
+    if (!name || !id) return;
+    vendorsByName.set(name.toLowerCase(), { name, id });
+    vendorsById.set(id.toLowerCase(), { name, id });
+  });
+}
 
-  const selectedValue = vendorInput.value.trim();
-  if (!selectedValue) {
-    vendorIdInput.value = '';
-    return;
+async function fetchVendorsFromCsvUrl(url) {
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const text = await res.text();
+  return parseVendorCsv(text);
+}
+
+function parseVendorCsv(text) {
+  const rows = parseCsvRows(text);
+  if (!rows || rows.length < 2) return [];
+  const headers = rows[0].map(h => String(h || '').trim());
+
+  const nameIndex = headers.findIndex(h => h.toLowerCase() === 'name');
+  const idIndex = headers.findIndex(h => {
+    const k = h.toLowerCase();
+    return k === 'supplier id' || k === 'supplierid' || k === 'supplier_id';
+  });
+
+  if (nameIndex === -1 || idIndex === -1) {
+    throw new Error('Invalid Vendors.csv headers. Expected: "Name" and "Supplier ID".');
   }
 
-  // 1) Fast path: match from current datalist options
-  const selectedOption = Array.from(elements.vendorList.options)
-    .find(o => o.value.toLowerCase() === selectedValue.toLowerCase());
+  const out = [];
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.length === 0) continue;
+    const name = String(row[nameIndex] ?? '').trim();
+    const id = String(row[idIndex] ?? '').trim();
+    if (name && id) out.push({ name, id });
+  }
+  return out;
+}
 
-  if (selectedOption && selectedOption.dataset.vendorId) {
-    vendorIdInput.value = selectedOption.dataset.vendorId;
-    return;
+// Minimal CSV parser supporting quoted fields and escaped quotes ("")
+function parseCsvRows(text) {
+  const rows = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+
+  // Normalize line endings without using escape sequences that can get mangled by regex replacements
+  const s = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+
+    if (inQuotes) {
+      if (c === '"') {
+        const next = s[i + 1];
+        if (next === '"') {
+          field += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += c;
+      }
+      continue;
+    }
+
+    if (c === '"') {
+      inQuotes = true;
+      continue;
+    }
+
+    if (c === ',') {
+      row.push(field);
+      field = '';
+      continue;
+    }
+
+    if (c === '\n') {
+      row.push(field);
+      const isEmptyRow = row.every(v => String(v || '').trim() === '');
+      if (!isEmptyRow) rows.push(row);
+      row = [];
+      field = '';
+      continue;
+    }
+
+    field += c;
   }
 
-  // 2) Fallback: exact match in DB (case-insensitive)
-  const found = await resolveVendorByName(selectedValue);
-  if (found) {
-    vendorInput.value = found.name; // normalize spelling/case
-    vendorIdInput.value = found.id;
-  } else {
-    vendorIdInput.value = '';
-  }
+  row.push(field);
+  const isEmptyRow = row.every(v => String(v || '').trim() === '');
+  if (!isEmptyRow) rows.push(row);
+
+  return rows;
+}
+
+function updateVendorNameDatalist(query) {
+  const dl = elements.vendorList;
+  if (!dl) return;
+  dl.innerHTML = '';
+  const q = String(query || '').trim().toLowerCase();
+  if (!q) return;
+
+  const matches = (vendorsCache || [])
+    .filter(v => String(v.name || '').toLowerCase().includes(q))
+    .slice(0, VENDOR_SUGGESTION_LIMIT);
+
+  matches.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v.name;
+    opt.dataset.vendorId = v.id;
+    dl.appendChild(opt);
+  });
+}
+
+function updateVendorIdDatalist(query) {
+  const dl = elements.vendorIdList;
+  if (!dl) return;
+  dl.innerHTML = '';
+  const q = String(query || '').trim().toLowerCase();
+  if (!q) return;
+
+  const matches = (vendorsCache || [])
+    .filter(v => String(v.id || '').toLowerCase().includes(q))
+    .slice(0, VENDOR_SUGGESTION_LIMIT);
+
+  matches.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v.id;
+    opt.dataset.vendorName = v.name;
+    dl.appendChild(opt);
+  });
+}
+
+function handleVendorNameInput() {
+  clearTimeout(vendorSearchTimeout);
+  vendorSearchTimeout = setTimeout(() => {
+    loadVendorsIfNeeded().then(() => {
+      const vendorInput = document.getElementById('vendor');
+      const vendorIdInput = document.getElementById('vendorId');
+      const value = String(vendorInput.value || '');
+
+      updateVendorNameDatalist(value);
+
+      const exact = vendorsByName.get(value.trim().toLowerCase());
+      if (exact) {
+        vendorIdInput.value = exact.id;
+      } else if (value.trim() === '') {
+        vendorIdInput.value = '';
+      }
+    });
+  }, 150);
+}
+
+function handleVendorNameChange() {
+  loadVendorsIfNeeded().then(() => {
+    const vendorInput = document.getElementById('vendor');
+    const vendorIdInput = document.getElementById('vendorId');
+    const value = String(vendorInput.value || '').trim();
+
+    const exact = vendorsByName.get(value.toLowerCase());
+    if (exact) vendorIdInput.value = exact.id;
+  });
+}
+
+function handleVendorNameBlur() {
+  // Don't clear user input; only clear the suggestion list
+  if (elements.vendorList) elements.vendorList.innerHTML = '';
 }
 
 function handleVendorIdInput() {
-  clearTimeout(vendorIdSearchTimeout);
-  vendorIdSearchTimeout = setTimeout(() => lookupVendorByIdAndFill(false), 250);
-}
+  clearTimeout(vendorSearchTimeout);
+  vendorSearchTimeout = setTimeout(() => {
+    loadVendorsIfNeeded().then(() => {
+      const vendorInput = document.getElementById('vendor');
+      const vendorIdInput = document.getElementById('vendorId');
+      const value = String(vendorIdInput.value || '');
 
-function handleVendorIdSelection() {
-  lookupVendorByIdAndFill(true);
-}
+      updateVendorIdDatalist(value);
 
-async function lookupVendorByIdAndFill(isFinal) {
-  const vendorIdInput = document.getElementById('vendorId');
-  const vendorInput = document.getElementById('vendor');
-
-  const id = vendorIdInput.value.trim();
-  if (!id) {
-    vendorInput.value = '';
-    return;
-  }
-
-  // While typing, clear vendor name to prevent mismatch until we resolve.
-  if (!isFinal) vendorInput.value = '';
-
-  const found = await resolveVendorById(id);
-  if (found) {
-    vendorIdInput.value = found.id;
-    vendorInput.value = found.name;
-  } else if (isFinal) {
-    vendorInput.value = '';
-  }
-}
-
-function searchVendors() {
-  const vendorName = document.getElementById('vendor').value.trim().toLowerCase();
-  if (vendorName.length < 1) {
-    elements.vendorList.innerHTML = '';
-    return;
-  }
-
-  vendorsRef.orderByChild('name').once('value', snapshot => {
-    elements.vendorList.innerHTML = '';
-    if (snapshot.exists()) {
-      snapshot.forEach(childSnapshot => {
-        const vendor = childSnapshot.val();
-        if (vendor && vendor.name && vendor.name.toLowerCase().includes(vendorName)) {
-          const option = document.createElement('option');
-          option.value = vendor.name;
-          option.dataset.vendorId = vendor.id;
-          elements.vendorList.appendChild(option);
-        }
-      });
-    }
-  }).catch(error => console.error('Error fetching vendors:', error));
-}
-
-// Resolve Vendor by ID (exact match, fast Firebase query)
-async function resolveVendorById(id) {
-  const cleanId = String(id || '').trim();
-  if (!cleanId) return null;
-
-  try {
-    const snapshot = await vendorsRef
-      .orderByChild('id')
-      .equalTo(cleanId)
-      .limitToFirst(1)
-      .once('value');
-
-    if (!snapshot.exists()) return null;
-
-    let vendor = null;
-    snapshot.forEach(child => { vendor = child.val(); });
-
-    if (!vendor) return null;
-    return { id: vendor.id, name: vendor.name };
-  } catch (error) {
-    console.error('Error resolving vendor by ID:', error);
-    return null;
-  }
-}
-
-// Resolve Vendor by Name (exact match, case-insensitive fallback)
-async function resolveVendorByName(name) {
-  const cleanName = String(name || '').trim();
-  if (!cleanName) return null;
-
-  const target = cleanName.toLowerCase();
-  try {
-    const snapshot = await vendorsRef.once('value');
-    if (!snapshot.exists()) return null;
-
-    let found = null;
-    snapshot.forEach(childSnapshot => {
-      if (found) return;
-      const v = childSnapshot.val() || {};
-      const vName = String(v.name || '').trim().toLowerCase();
-      if (vName === target) {
-        found = { id: v.id, name: v.name };
+      const exact = vendorsById.get(value.trim().toLowerCase());
+      if (exact) {
+        vendorInput.value = exact.name;
       }
     });
-
-    return found;
-  } catch (error) {
-    console.error('Error resolving vendor by name:', error);
-    return null;
-  }
+  }, 150);
 }
 
-// Make sure Vendor ID and Vendor Name stay consistent before saving
-async function normalizeVendorFields(paymentData) {
-  if (!paymentData) return;
+function handleVendorIdChange() {
+  loadVendorsIfNeeded().then(() => {
+    const vendorInput = document.getElementById('vendor');
+    const vendorIdInput = document.getElementById('vendorId');
+    const value = String(vendorIdInput.value || '').trim();
 
-  const name = String(paymentData.vendor || '').trim();
-  const id = String(paymentData.vendorId || '').trim();
-
-  const hasName = name !== '';
-  const hasId = id !== '';
-
-  // Prefer Vendor ID as the source of truth if both are present
-  if (hasId) {
-    const found = await resolveVendorById(id);
-    if (found) {
-      paymentData.vendorId = found.id;
-      paymentData.vendor = found.name;
-    } else if (!hasName) {
-      // Can't resolve ID and no name given
-      paymentData.vendor = '';
-    }
-    return;
-  }
-
-  // If only name is present, try to resolve ID
-  if (hasName && !hasId) {
-    const found = await resolveVendorByName(name);
-    if (found) {
-      paymentData.vendorId = found.id;
-      paymentData.vendor = found.name;
-    }
-  }
+    const exact = vendorsById.get(value.toLowerCase());
+    if (exact) vendorInput.value = exact.name;
+  });
 }
+
+function handleVendorIdBlur() {
+  if (elements.vendorIdList) elements.vendorIdList.innerHTML = '';
+}
+
+
 
 async function uploadVendorCSV(e) {
   e.preventDefault();
-  const file = document.getElementById('vendorCsv').files[0];
+  const file = document.getElementById('vendorCsv')?.files?.[0];
   if (!file) return;
+
   try {
     const content = await readFileAsText(file);
-    const lines = content.split('\n');
-    const headers = lines[0].split(',').map(h => h.trim());
-    if (headers.length < 2 || !headers.includes('Name') || !headers.includes('Supplier ID')) {
-      alert('Invalid CSV format. Please ensure it has "Name" and "Supplier ID" columns.');
+    const parsed = parseVendorCsv(content);
+
+    if (!parsed || parsed.length === 0) {
+      alert('No vendors found in the CSV file.');
       return;
     }
-    const nameIndex = headers.indexOf('Name');
-    const idIndex = headers.indexOf('Supplier ID');
+
+    // Keep Firebase vendors node in sync (used as a fallback source if CSV URL is not reachable)
     await vendorsRef.remove();
-    const uploadPromises = [];
-    for (let i = 1; i < lines.length; i++) {
-      if (lines[i].trim() === '') continue;
-      const values = lines[i].split(',');
-      const name = values[nameIndex].trim();
-      const id = values[idIndex].trim();
-      if (name && id) {
-        uploadPromises.push(vendorsRef.push({ name: name, id: id }));
-      }
-    }
+    const uploadPromises = parsed.map(v => vendorsRef.push({ name: v.name, id: v.id }));
     await Promise.all(uploadPromises);
+
+    // Refresh in-memory cache immediately so suggestions work without reloading the page
+    vendorsCache = parsed;
+    buildVendorIndexes(vendorsCache);
+    vendorsLoaded = true;
+
     alert('Vendors uploaded successfully!');
     elements.vendorUploadForm.reset();
   } catch (error) {
     console.error('Error uploading vendors:', error);
+    alert('Invalid CSV format. Please ensure it has "Name" and "Supplier ID" columns.');
   }
 }
+
 
 // ======================
 // Calculation Functions
