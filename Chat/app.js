@@ -1,4 +1,4 @@
-// IBA Messages - standalone (1.0.3)
+// IBA Messages - standalone (1.0.4)
 // NOTE: This uses your existing RTDB approvers + dm_* nodes (same as the main system).
 // For true privacy, lock down Firebase rules (recommended: Firebase Auth).
 
@@ -53,6 +53,10 @@ function normalizeMobile(v) {
 
 function safeText(t) {
   return String(t ?? '').replace(/\s+/g, ' ').trim().slice(0, 800);
+}
+
+function msgElId(msgId) {
+  return `dm-msg-${String(msgId || '').replace(/[^a-zA-Z0-9_-]/g, '_')}`;
 }
 
 function getThreadId(aKey, bKey) {
@@ -268,30 +272,100 @@ function clearThreadListener() {
     if (dm.threadMessagesRef && dm.onThreadMsg) {
       dm.threadMessagesRef.off('child_added', dm.onThreadMsg);
     }
+    if (dm.threadMessagesRef && dm.onThreadMsgChanged) {
+      dm.threadMessagesRef.off('child_changed', dm.onThreadMsgChanged);
+    }
   } catch {}
   dm.threadMessagesRef = null;
   dm.onThreadMsg = null;
+  dm.onThreadMsgChanged = null;
 }
 
-function renderMessage(m) {
+function attachDeleteHandlers(el, threadId, msgId) {
+  if (!el) return;
+  // Desktop: right-click
+  el.addEventListener('contextmenu', async (e) => {
+    e.preventDefault();
+    await promptDelete(threadId, msgId);
+  });
+
+  // Mobile: long-press
+  let pressTimer = null;
+  const clear = () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } };
+
+  el.addEventListener('pointerdown', () => {
+    clear();
+    pressTimer = setTimeout(() => { promptDelete(threadId, msgId); }, 520);
+  });
+  el.addEventListener('pointerup', clear);
+  el.addEventListener('pointercancel', clear);
+  el.addEventListener('pointerleave', clear);
+}
+
+async function promptDelete(threadId, msgId) {
+  // Only allow delete for the sender (UI guard). Actual privacy requires RTDB rules.
+  const el = document.getElementById(msgElId(msgId));
+  if (!el || !el.classList.contains('me')) return;
+  if (!threadId || !msgId) return;
+  if (!confirm('Delete this message?')) return;
+
+  try {
+    const ref = db.ref(`${DM_THREADS_ROOT}/${threadId}/messages/${msgId}`);
+    const snap = await ref.once('value');
+    const v = snap.val();
+    if (!v) return;
+    if (String(v.fromKey || '') !== String(dm.userKey || '')) {
+      toast('Messages', 'You can only delete your own messages.');
+      return;
+    }
+    await ref.update({
+      text: '',
+      deleted: true,
+      deletedBy: dm.userKey,
+      deletedAt: firebase.database.ServerValue.TIMESTAMP
+    });
+  } catch (e) {
+    console.warn(e);
+    toast('Messages', 'Failed to delete message.');
+  }
+}
+
+function renderMessage(msgId, m) {
   const msgList = document.getElementById('dm-message-list');
   if (!msgList) return;
 
-  const text = safeText(m?.text || '');
-  if (!text) return;
+  const isDeleted = !!m?.deleted;
+  const text = isDeleted ? '' : safeText(m?.text || '');
+  if (!isDeleted && !text) return;
 
   // remove empty state
   document.getElementById('dm-empty-state')?.remove();
 
-  const isMe = String(m.fromKey || '') === dm.userKey;
 
-  const el = document.createElement('div');
-  el.className = `dm-msg ${isMe ? 'me' : ''}`;
+  const isMe = String(m.fromKey || '') === dm.userKey;
+  const id = msgElId(msgId);
+
+  let el = document.getElementById(id);
+  const firstTime = !el;
+  if (!el) {
+    el = document.createElement('div');
+    el.id = id;
+    el.className = `dm-msg ${isMe ? 'me' : ''}`;
+    // Hint: right click / long press to delete (own messages only)
+    if (isMe) el.title = 'Right click (desktop) or long press (mobile) to delete';
+    msgList.appendChild(el);
+  }
+
+  const bodyHtml = isDeleted
+    ? `<div class="dm-deleted">This message was deleted</div>`
+    : `<div>${escapeHtml(text)}</div>`;
+
   el.innerHTML = `
-    <div>${escapeHtml(text)}</div>
+    ${bodyHtml}
     <div class="dm-ts">${escapeHtml(formatChatTime(m.ts))}</div>
   `;
-  msgList.appendChild(el);
+
+  if (firstTime && isMe) attachDeleteHandlers(el, dm.threadId, msgId);
 
   const nearBottom = (msgList.scrollHeight - msgList.scrollTop - msgList.clientHeight) < 120;
   if (nearBottom) msgList.scrollTop = msgList.scrollHeight;
@@ -311,7 +385,15 @@ function openThread(toKey, toName) {
 
   // clear messages container
   const msgList = document.getElementById('dm-message-list');
-  if (msgList) msgList.innerHTML = '';
+  if (msgList) {
+    msgList.innerHTML = '';
+    msgList.innerHTML = `
+      <div class="dm-empty" id="dm-empty-state">
+        <div class="dm-empty-title">No messages yet</div>
+        <div class="dm-empty-sub">Say hello 👋</div>
+      </div>
+    `;
+  }
 
   clearThreadListener();
   if (!dm.threadId) return;
@@ -319,9 +401,14 @@ function openThread(toKey, toName) {
   dm.threadMessagesRef = db.ref(`${DM_THREADS_ROOT}/${dm.threadId}/messages`).limitToLast(200);
   dm.onThreadMsg = (snap) => {
     const v = snap.val();
-    if (v) renderMessage(v);
+    if (v) renderMessage(snap.key, v);
+  };
+  dm.onThreadMsgChanged = (snap) => {
+    const v = snap.val();
+    if (v) renderMessage(snap.key, v);
   };
   dm.threadMessagesRef.on('child_added', dm.onThreadMsg);
+  dm.threadMessagesRef.on('child_changed', dm.onThreadMsgChanged);
 
   try { document.getElementById('dm-input')?.focus(); } catch {}
 }
