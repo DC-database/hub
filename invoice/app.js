@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.0.2";
+const APP_VERSION = "6.0.7";
 
 // --- Vacation Delegation Helpers (Super Admin Replacement) ---
 // When SUPER_ADMIN_NAME enables Vacation in Settings and sets ReplacementName,
@@ -383,12 +383,56 @@ let dmState = {
     onUnread: null,
     presenceListRef: null,
     onPresenceList: null,
+    onPresenceChild: null,
+    onPresenceRemoved: null,
     threadMessagesRef: null,
     onThreadMsg: null,
     // caches
     presenceCache: {},
     unreadCache: {},
+    // ui
+    mobileScreen: 'list',
 };
+
+function dmIsMobile() {
+    // Mobile mode should activate when the viewport is too small for split-view,
+    // and on tablets/phones (even when "Request Desktop Site" is enabled).
+    try {
+        const w = window.innerWidth || document.documentElement.clientWidth || 1024;
+        const mq = window.matchMedia ? window.matchMedia.bind(window) : null;
+
+        const isVeryNarrow = mq ? mq('(max-width: 760px)').matches : (w <= 760);
+        if (isVeryNarrow) return true;
+
+        const isTabletWidth = mq ? mq('(max-width: 1024px)').matches : (w <= 1024);
+        const isCoarse = mq ? mq('(pointer: coarse)').matches : false;
+        const maxTouch = (typeof navigator !== 'undefined' && navigator && typeof navigator.maxTouchPoints === 'number')
+            ? navigator.maxTouchPoints
+            : 0;
+        const ua = (typeof navigator !== 'undefined' && navigator && navigator.userAgent) ? navigator.userAgent : '';
+        const isMobileUA = /Mobi|Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(ua);
+
+        return isTabletWidth && (isCoarse || maxTouch > 0 || isMobileUA);
+    } catch (_) {
+        return (window.innerWidth || 1024) <= 760;
+    }
+}
+
+function dmSetMobileScreen(screen) {
+    dmState.mobileScreen = (screen === 'chat') ? 'chat' : 'list';
+    const card = document.querySelector('#dm-modal .dm-card');
+    if (!card) return;
+
+    const isMob = dmIsMobile();
+    card.classList.toggle('dm-mobile', isMob);
+    card.classList.toggle('dm-mobile-list', isMob && dmState.mobileScreen === 'list');
+    card.classList.toggle('dm-mobile-chat', isMob && dmState.mobileScreen === 'chat');
+
+    const backBtn = document.getElementById('dm-back-users');
+    if (backBtn) {
+        backBtn.style.display = (isMob && dmState.mobileScreen === 'chat') ? 'inline-flex' : 'none';
+    }
+}
 
 function dmGetThreadId(aKey, bKey) {
     const a = String(aKey || '').trim();
@@ -407,43 +451,83 @@ function dmEnsureInlineStyles() {
     const style = document.createElement('style');
     style.id = 'dm-inline-style';
     style.textContent = `
-      .dm-hidden{display:none !important}
-      .dm-toast-wrap{position:fixed;right:18px;top:18px;z-index:999999;display:flex;flex-direction:column;gap:10px;max-width:min(420px,calc(100vw - 36px))}
-      .dm-toast{background:rgba(20,20,20,.85);color:#fff;border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-radius:16px;padding:12px 14px;box-shadow:0 18px 60px rgba(0,0,0,.35)}
-      .dm-toast b{display:block;margin-bottom:4px}
-      /* Keep background readable (no heavy blur behind modal) */
-      .dm-modal{position:fixed;inset:0;z-index:999998;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.28)}
-      .dm-card{width:min(980px,calc(100vw - 28px));height:min(640px,calc(100vh - 28px));border-radius:20px;overflow:hidden;background:rgba(20,20,20,.68);border:1px solid rgba(255,255,255,.14);box-shadow:0 24px 90px rgba(0,0,0,.45);color:#fff}
-      .dm-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.12)}
-      .dm-header .dm-title{font-weight:700}
-      .dm-close{background:transparent;border:0;color:#fff;font-size:20px;cursor:pointer}
-      .dm-body{display:grid;grid-template-columns:340px 1fr;height:calc(100% - 52px)}
-      .dm-users{border-right:1px solid rgba(255,255,255,.12);display:flex;flex-direction:column}
-      .dm-users input{margin:12px 12px 8px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff;padding:10px 12px;outline:none}
-      .dm-user-list{flex:1;overflow:auto;padding:6px 6px 10px 6px}
-      .dm-user{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 10px;border-radius:14px;cursor:pointer}
-      .dm-user:hover{background:rgba(255,255,255,.08)}
-      .dm-user .dm-left{display:flex;align-items:center;gap:10px;min-width:0}
-      .dm-dot{width:10px;height:10px;border-radius:999px;background:rgba(255,255,255,.30);flex:0 0 auto}
-      .dm-dot.online{background:#27c46b}
-      .dm-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-      .dm-meta{font-size:12px;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-      .dm-badge{background:#e53935;color:#fff;border-radius:999px;min-width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px;padding:0 6px}
-      .dm-chat{display:flex;flex-direction:column}
-      .dm-chat-top{padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:space-between;gap:12px}
-      .dm-chat-top .dm-chat-title{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-      .dm-message-list{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
-      .dm-msg{max-width:min(520px,90%);padding:10px 12px;border-radius:16px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.08)}
-      .dm-msg.me{align-self:flex-end;background:rgba(90,160,255,.18)}
-      .dm-msg .dm-ts{font-size:11px;opacity:.75;margin-top:6px;text-align:right}
-      .dm-compose{display:flex;gap:10px;align-items:center;padding:12px 14px;border-top:1px solid rgba(255,255,255,.12)}
-      .dm-compose input{flex:1;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff;padding:10px 12px;outline:none}
-      .dm-compose button{border-radius:12px;border:0;background:rgba(255,255,255,.18);color:#fff;padding:10px 14px;cursor:pointer}
-      @media (max-width: 820px){
-        .dm-body{grid-template-columns:1fr}
-        .dm-users{display:none}
-      }
-    `;
+.dm-hidden{display:none !important}
+
+/* Toast */
+.dm-toast-wrap{position:fixed;right:18px;top:18px;z-index:999999;display:flex;flex-direction:column;gap:10px;max-width:min(420px,calc(100vw - 36px))}
+.dm-toast{background:rgba(20,20,24,.88);color:#fff;border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-radius:16px;padding:12px 14px;box-shadow:0 18px 60px rgba(0,0,0,.35)}
+.dm-toast b{display:block;margin-bottom:4px}
+
+/* Modal */
+.dm-modal{position:fixed;inset:0;z-index:999998;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.34);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.dm-card{width:min(1040px,calc(100vw - 28px));height:min(720px,calc(100vh - 28px));border-radius:22px;overflow:hidden;
+  background:linear-gradient(180deg,rgba(28,28,34,.92),rgba(16,16,18,.82));
+  border:1px solid rgba(255,255,255,.14);box-shadow:0 26px 110px rgba(0,0,0,.55);color:#fff;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif}
+.dm-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.10)}
+.dm-header .dm-title{font-weight:850;letter-spacing:.2px;display:flex;align-items:center;gap:10px}
+.dm-close{background:transparent;border:0;color:#fff;font-size:22px;cursor:pointer;opacity:.9}
+.dm-close:hover{opacity:1}
+
+.dm-body{display:grid;grid-template-columns:360px 1fr;height:calc(100% - 58px);min-height:0}
+
+/* Users */
+.dm-users{border-right:1px solid rgba(255,255,255,.10);display:flex;flex-direction:column;min-height:0}
+.dm-search-wrap{display:flex;align-items:center;gap:10px;margin:12px;border-radius:16px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);padding:10px 12px}
+.dm-search-wrap i{opacity:.8}
+.dm-users input{flex:1;border:0;background:transparent;color:#fff;outline:none;padding:0;margin:0}
+.dm-user-list{flex:1;overflow:auto;padding:6px 8px 12px 8px}
+.dm-user{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 10px;border-radius:16px;cursor:pointer;user-select:none}
+.dm-user:hover{background:rgba(255,255,255,.08)}
+.dm-user.active{background:rgba(255,255,255,.12)}
+.dm-user .dm-left{display:flex;align-items:center;gap:12px;min-width:0}
+.dm-avatar{width:38px;height:38px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.12);font-weight:800;letter-spacing:.4px;flex:0 0 auto;position:relative}
+.dm-dot{position:absolute;right:-2px;bottom:-2px;width:12px;height:12px;border-radius:999px;background:rgba(255,255,255,.30);border:2px solid rgba(18,18,20,.95)}
+.dm-dot.online{background:#27c46b}
+.dm-name{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dm-meta{font-size:12px;opacity:.80;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dm-badge{background:#e53935;color:#fff;border-radius:999px;min-width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;padding:0 7px}
+
+/* Chat */
+.dm-chat{display:flex;flex-direction:column;min-width:0;min-height:0}
+.dm-chat-top{padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.10);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.dm-chat-top-left{display:flex;align-items:center;gap:10px;min-width:0}
+.dm-chat-ident{display:flex;align-items:center;gap:10px;min-width:0}
+.dm-chat-avatar{width:36px;height:36px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.12);font-weight:850;flex:0 0 auto}
+.dm-back{display:none;align-items:center;justify-content:center;width:36px;height:36px;border-radius:14px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#fff;cursor:pointer}
+.dm-chat-top .dm-chat-title{font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dm-chat-actions{display:flex;align-items:center;gap:8px}
+.dm-action{display:inline-flex;align-items:center;gap:8px;border-radius:14px;border:1px solid rgba(255,255,255,.14);
+  background:rgba(255,255,255,.06);color:#fff;padding:9px 12px;cursor:pointer;font-weight:750}
+.dm-action span{font-size:13px;opacity:.92}
+.dm-action:hover{background:rgba(255,255,255,.09)}
+
+.dm-message-list{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:10px;min-height:0}
+.dm-empty{margin:auto;max-width:440px;text-align:center;opacity:.86;padding:18px 16px;border-radius:18px;border:1px dashed rgba(255,255,255,.18);background:rgba(255,255,255,.04)}
+.dm-empty-title{font-weight:900;margin-bottom:6px}
+.dm-empty-sub{font-size:13px;opacity:.85}
+
+.dm-msg{max-width:min(620px,92%);padding:10px 12px;border-radius:18px 18px 18px 8px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.07);line-height:1.35}
+.dm-msg.me{align-self:flex-end;border-radius:18px 18px 8px 18px;background:rgba(90,160,255,.20)}
+.dm-msg .dm-ts{font-size:11px;opacity:.72;margin-top:6px;text-align:right}
+
+.dm-compose{display:flex;gap:10px;align-items:center;padding:12px 14px;border-top:1px solid rgba(255,255,255,.10)}
+.dm-compose input{flex:1;border-radius:16px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#fff;padding:12px 12px;outline:none}
+.dm-compose button{width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:16px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.14);color:#fff;cursor:pointer}
+.dm-compose button:hover{background:rgba(255,255,255,.18)}
+
+/* Mobile: WhatsApp-style list <-> chat with Back (touch devices only; controlled by dm-mobile class) */
+@media (max-width: 820px){
+  .dm-toast-wrap{left:14px;right:14px;top:14px;max-width:none}
+  .dm-card.dm-mobile{width:100vw;height:100vh;border-radius:0}
+  .dm-card.dm-mobile .dm-body{grid-template-columns:1fr}
+  .dm-card.dm-mobile.dm-mobile-list .dm-chat{display:none}
+  .dm-card.dm-mobile.dm-mobile-chat .dm-users{display:none}
+  .dm-card.dm-mobile .dm-back{display:inline-flex}
+}
+`;
     document.head.appendChild(style);
 }
 
@@ -463,33 +547,55 @@ function dmEnsureUI() {
     modal.id = 'dm-modal';
     modal.className = 'dm-modal dm-hidden';
     modal.innerHTML = `
-      <div class="dm-card" role="dialog" aria-modal="true">
-        <div class="dm-header">
-          <div class="dm-title"><i class="fa-solid fa-comments"></i> Messages</div>
-          <button class="dm-close" id="dm-close" title="Close">&times;</button>
+<div class="dm-card" role="dialog" aria-modal="true">
+  <div class="dm-header">
+    <div class="dm-title"><i class="fa-solid fa-comments"></i> Messages</div>
+    <button class="dm-close" id="dm-close" title="Close">&times;</button>
+  </div>
+  <div class="dm-body">
+    <aside class="dm-users" aria-label="Users">
+      <div class="dm-search-wrap">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input id="dm-user-search" type="text" placeholder="Search..." />
+      </div>
+      <div class="dm-user-list" id="dm-user-list"></div>
+    </aside>
+    <section class="dm-chat" aria-label="Chat">
+      <div class="dm-chat-top">
+        <div class="dm-chat-top-left">
+          <button id="dm-back-users" class="dm-back" type="button" aria-label="Back">
+            <i class="fa-solid fa-arrow-left"></i>
+          </button>
+          <div class="dm-chat-ident">
+            <div class="dm-chat-avatar" id="dm-chat-avatar">?</div>
+            <div style="min-width:0;">
+              <div class="dm-chat-title" id="dm-chat-title">Select a user</div>
+              <div class="dm-meta" id="dm-chat-status"></div>
+            </div>
+          </div>
         </div>
-        <div class="dm-body">
-          <div class="dm-users">
-            <input id="dm-user-search" type="text" placeholder="Search user..." />
-            <div class="dm-user-list" id="dm-user-list"></div>
-          </div>
-          <div class="dm-chat">
-            <div class="dm-chat-top">
-              <div>
-                <div class="dm-chat-title" id="dm-chat-title">Select a user</div>
-                <div class="dm-meta" id="dm-chat-status"> </div>
-              </div>
-              <button id="dm-back-users" class="dm-close" style="font-size:14px;display:none;"><i class="fa-solid fa-arrow-left"></i></button>
-            </div>
-            <div class="dm-message-list" id="dm-message-list"></div>
-            <div class="dm-compose">
-              <input id="dm-input" type="text" placeholder="Type a message..." autocomplete="off" />
-              <button id="dm-send" type="button">Send</button>
-            </div>
-          </div>
+        <div class="dm-chat-actions">
+          <button id="dm-users-btn" class="dm-action" type="button" title="Users">
+            <i class="fa-solid fa-users"></i><span>Users</span>
+          </button>
         </div>
       </div>
-    `;
+      <div class="dm-message-list" id="dm-message-list">
+        <div class="dm-empty" id="dm-empty-state">
+          <div class="dm-empty-title">No conversation selected</div>
+          <div class="dm-empty-sub">Pick a user from the list to start chatting.</div>
+        </div>
+      </div>
+      <div class="dm-compose">
+        <input id="dm-input" type="text" placeholder="Message..." autocomplete="off" />
+        <button id="dm-send" type="button" title="Send">
+          <i class="fa-solid fa-paper-plane"></i>
+        </button>
+      </div>
+    </section>
+  </div>
+</div>
+`;
 
     document.body.appendChild(modal);
 
@@ -517,10 +623,23 @@ function dmEnsureUI() {
     const search = document.getElementById('dm-user-search');
     search?.addEventListener('input', () => dmRenderUserList());
 
-    // Mobile back (shows users panel via full list modal in a later enhancement; for now just close)
+    // Mobile back (WhatsApp-like: Users list ↔ Chat)
     document.getElementById('dm-back-users')?.addEventListener('click', () => {
-        // On mobile we keep it simple: close the modal.
-        dmClose();
+        dmSetMobileScreen('list');
+        try { document.getElementById('dm-user-search')?.focus(); } catch (_) { /* ignore */ }
+    });
+
+// Users button (desktop + mobile): always brings you back to the user list.
+document.getElementById('dm-users-btn')?.addEventListener('click', () => {
+    dmSetMobileScreen('list');
+    try { document.getElementById('dm-user-search')?.focus(); } catch (_) { /* ignore */ }
+});
+
+
+    // Keep layout correct on rotate / resize
+    window.addEventListener('resize', () => {
+        if (!dmState.open) return;
+        dmSetMobileScreen(dmState.mobileScreen);
     });
 }
 
@@ -545,6 +664,8 @@ function dmOpen() {
     if (!modal) return;
     modal.classList.remove('dm-hidden');
     dmState.open = true;
+    dmSetMobileScreen('list');
+    try { dmSubscribePresenceList(); } catch (_) { /* ignore */ }
     // Ensure approver list is loaded so the user picker isn't empty.
     try {
         const cached = getCachedApproversData();
@@ -555,12 +676,22 @@ function dmOpen() {
         }
     } catch (_) { /* ignore */ }
     dmRenderUserList();
+    setTimeout(() => {
+        try {
+            if (!dmState.open) return;
+            if (dmIsMobile() && dmState.mobileScreen === 'list') {
+                document.getElementById('dm-user-search')?.focus();
+            }
+        } catch (_) { /* ignore */ }
+    }, 0);
 }
 
 function dmClose() {
     const modal = document.getElementById('dm-modal');
     if (modal) modal.classList.add('dm-hidden');
     dmState.open = false;
+    try { dmUnsubscribePresenceList(); } catch (_) { /* ignore */ }
+    dmSetMobileScreen('list');
 }
 
 function dmGetApproversList() {
@@ -611,6 +742,16 @@ function dmUpdateBadges() {
     });
 }
 
+function dmInitials(name) {
+    const s = String(name || '').trim();
+    if (!s) return '?';
+    const parts = s.split(/\s+/).filter(Boolean);
+    const a = (parts[0] || '').charAt(0);
+    const b = (parts[1] || '').charAt(0);
+    const out = (a + b).toUpperCase();
+    return out || s.charAt(0).toUpperCase();
+}
+
 function dmRenderUserList() {
     const listEl = document.getElementById('dm-user-list');
     if (!listEl) return;
@@ -631,21 +772,45 @@ function dmRenderUserList() {
         const pres = dmState.presenceCache?.[u.key] || {};
         const isOnline = pres.status === 'online';
         const threadId = dmGetThreadId(dmState.userKey, u.key);
-        const unread = Number(dmState.unreadCache?.[threadId]?.count || 0);
+        const unreadObj = dmState.unreadCache?.[threadId] || {};
+        const unread = Number(unreadObj?.count || 0);
+        const lastText = dmSafeText(unreadObj?.lastText || '');
+        const lastTs = Number(unreadObj?.lastTs || 0);
+
+        const metaText = lastText ? lastText : String((u.position || '').trim() || (u.site ? ('Site ' + u.site) : ''));
+        const metaTime = lastTs ? formatChatTime(lastTs) : '';
+        const active = dmState.toKey && dmState.toKey === u.key;
 
         const row = document.createElement('div');
-        row.className = 'dm-user';
+        row.className = `dm-user${active ? ' active' : ''}`;
+        row.setAttribute('role', 'button');
+        row.setAttribute('tabindex', '0');
+
+        const initials = dmInitials(u.name);
+
         row.innerHTML = `
           <div class="dm-left">
-            <span class="dm-dot ${isOnline ? 'online' : ''}"></span>
+            <div class="dm-avatar" aria-hidden="true">
+              ${escapeHtml(initials)}
+              <span class="dm-dot ${isOnline ? 'online' : ''}"></span>
+            </div>
             <div style="min-width:0;">
               <div class="dm-name">${escapeHtml(u.name)}</div>
-              <div class="dm-meta">${escapeHtml((u.position || '').trim() || (u.site ? ('Site ' + u.site) : ''))}</div>
+              <div class="dm-meta">${escapeHtml(metaText)}</div>
             </div>
           </div>
-          ${unread > 0 ? `<div class="dm-badge">${unread}</div>` : ``}
+          ${unread > 0 ? `<div class="dm-badge">${unread}</div>` : (metaTime ? `<div class="dm-meta">${escapeHtml(metaTime)}</div>` : ``)}
         `;
-        row.addEventListener('click', () => dmOpenThread(u.key, u.name));
+
+        const open = () => dmOpenThread(u.key, u.name);
+        row.addEventListener('click', open);
+        row.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                open();
+            }
+        });
+
         listEl.appendChild(row);
     }
 
@@ -655,17 +820,27 @@ function dmRenderUserList() {
 function dmSetChatHeader() {
     const titleEl = document.getElementById('dm-chat-title');
     const statusEl = document.getElementById('dm-chat-status');
+    const avatarEl = document.getElementById('dm-chat-avatar');
     if (!titleEl || !statusEl) return;
 
     if (!dmState.toKey) {
         titleEl.textContent = 'Select a user';
         statusEl.textContent = '';
+        if (avatarEl) avatarEl.textContent = '?';
         return;
     }
+
     titleEl.textContent = dmState.toName || 'Chat';
+    if (avatarEl) avatarEl.textContent = dmInitials(dmState.toName || '');
+
     const pres = dmState.presenceCache?.[dmState.toKey];
     const isOnline = pres && pres.status === 'online';
-    statusEl.textContent = isOnline ? 'Online' : 'Offline';
+    if (isOnline) {
+        statusEl.textContent = 'Online';
+    } else {
+        const lastSeen = Number(pres?.lastSeen || 0);
+        statusEl.textContent = lastSeen ? (`Offline • last seen ${formatChatTime(lastSeen)}`) : 'Offline';
+    }
 }
 
 function dmClearThreadListener() {
@@ -680,12 +855,20 @@ function dmClearThreadListener() {
 
 function dmOpenThread(toKey, toName) {
     dmEnsureUI();
-    dmOpen();
+
+    // If the modal is already open, do NOT re-run dmOpen() (it can reset layout & feel "stuck" on desktop).
+    if (!dmState.open) dmOpen();
 
     dmState.toKey = String(toKey || '').trim();
     dmState.toName = String(toName || '').trim();
     dmState.threadId = dmGetThreadId(dmState.userKey, dmState.toKey);
+
     dmSetChatHeader();
+    dmRenderUserList(); // update active highlight
+
+    // Mobile (touch) mode: switch to chat view immediately (WhatsApp-like)
+    dmSetMobileScreen('chat');
+    try { document.getElementById('dm-input')?.focus(); } catch (_) { /* ignore */ }
 
     // mark read
     if (dmState.threadId) {
@@ -786,37 +969,72 @@ async function dmSendMessage(toKey, toName, text) {
 }
 
 function dmInjectMessagesButtons() {
-    // Insert "Messages" into footer navs (WorkDesk + Invoice Mgmt + Inventory)
+    // We place Messages next to Logout (desktop footer), and also in the mobile bottom bar.
     const targets = [
-        { ul: document.querySelector('#workdesk-view .workdesk-footer-nav ul'), id: 'dm-wd-link' },
-        { ul: document.querySelector('#invoice-management-view .workdesk-footer-nav ul'), id: 'dm-im-link' },
-        { ul: document.querySelector('#inventory-view .workdesk-footer-nav ul'), id: 'dm-inv-link' },
+        // Mobile bottom bars (main nav lists)
+        { ul: document.querySelector('#workdesk-nav ul'), id: 'dm-wd-link', liClass: 'wd-nav-messages-mobile' },
+        { ul: document.querySelector('#im-nav ul'),       id: 'dm-im-link', liClass: 'im-nav-messages-mobile' },
+        { ul: document.querySelector('#inv-nav ul'),      id: 'dm-inv-link', liClass: 'inv-nav-messages-mobile' },
+
+        // Desktop: footer nav next to Logout
+        { ul: document.querySelector('#workdesk-view .workdesk-footer-nav ul'),            id: 'dm-wd-link-footer',  liClass: 'dm-footer-link' },
+        { ul: document.querySelector('#invoice-management-view .workdesk-footer-nav ul'), id: 'dm-im-link-footer',  liClass: 'dm-footer-link' },
+        { ul: document.querySelector('#inventory-view .workdesk-footer-nav ul'),          id: 'dm-inv-link-footer', liClass: 'dm-footer-link' },
     ];
 
     for (const t of targets) {
         if (!t.ul) continue;
-        if (t.ul.querySelector(`#${t.id}`)) continue;
 
-        const li = document.createElement('li');
-        li.innerHTML = `
-          <a href="#" id="${t.id}" class="dm-messages-link">
-            <i class="fa-solid fa-comments"></i> Messages
-            <span class="notification-badge dm-unread-badge" style="display:none; margin-left:8px;">0</span>
-          </a>
-        `;
+        // --- Cleanup: remove any legacy/duplicate "Messages" entries inside this list ---
+        const allMsgAnchors = Array.from(t.ul.querySelectorAll('a')).filter(a => {
+            const txt = (a.textContent || '').trim().toLowerCase();
+            return a.classList.contains('dm-messages-link') || txt === 'messages';
+        });
 
-        // Insert before logout if possible
-        const logoutLi = Array.from(t.ul.children).find(x => (x.textContent || '').toLowerCase().includes('logout'));
-        if (logoutLi) {
-            t.ul.insertBefore(li, logoutLi);
-        } else {
-            t.ul.appendChild(li);
+        const preferred = t.ul.querySelector(`#${t.id}`);
+        if (preferred) {
+            allMsgAnchors.forEach(a => {
+                if (a !== preferred) a.closest('li')?.remove();
+            });
+        } else if (allMsgAnchors.length > 0) {
+            // Re-use the first legacy "Messages" anchor (upgrade-in-place), remove the rest.
+            const keep = allMsgAnchors[0];
+            allMsgAnchors.slice(1).forEach(a => a.closest('li')?.remove());
+
+            keep.id = t.id;
+            keep.classList.add('dm-messages-link');
+            keep.innerHTML = `
+                <i class="fa-solid fa-comments"></i> Messages
+                <span class="notification-badge dm-unread-badge" style="display:none; margin-left:8px;">0</span>
+            `;
         }
 
-        li.querySelector('a')?.addEventListener('click', (e) => {
-            e.preventDefault();
-            dmOpen();
-        });
+        // If still missing, inject it
+        if (!t.ul.querySelector(`#${t.id}`)) {
+            const li = document.createElement('li');
+            if (t.liClass) li.className = t.liClass;
+            li.innerHTML = `
+              <a href="#" id="${t.id}" class="dm-messages-link">
+                <i class="fa-solid fa-comments"></i> Messages
+                <span class="notification-badge dm-unread-badge" style="display:none; margin-left:8px;">0</span>
+              </a>
+            `;
+
+            // Insert before logout if possible
+            const logoutLi = Array.from(t.ul.children).find(x => (x.textContent || '').toLowerCase().includes('logout'));
+            if (logoutLi) t.ul.insertBefore(li, logoutLi);
+            else t.ul.appendChild(li);
+        }
+
+        // Bind click (ensure it is bound exactly once)
+        const a = t.ul.querySelector(`#${t.id}`);
+        if (a && !a.dataset.dmBound) {
+            a.dataset.dmBound = '1';
+            a.addEventListener('click', (e) => {
+                e.preventDefault();
+                dmOpen();
+            });
+        }
     }
 
     dmUpdateBadges();
@@ -843,11 +1061,12 @@ function dmStartPresence() {
     dmState.connectedRef.on('value', dmState.onConnected);
 
     if (dmState.heartbeatInterval) clearInterval(dmState.heartbeatInterval);
+    // Heartbeat keeps your "online" status fresh. Slower interval = less mobile data.
     dmState.heartbeatInterval = setInterval(() => {
         if (dmState.presenceRef) {
             dmState.presenceRef.update({ status: 'online', lastSeen: firebase.database.ServerValue.TIMESTAMP });
         }
-    }, 60_000);
+    }, 120_000);
 
     window.addEventListener('beforeunload', () => {
         try {
@@ -855,14 +1074,48 @@ function dmStartPresence() {
         } catch (_) { /* ignore */ }
     });
 
-    // Presence list subscription (online dots)
+    // NOTE: We subscribe to the presence list only while the Messages window is open.
+    // This reduces background downloads on mobile.
+}
+
+function dmSubscribePresenceList() {
+    if (dmState.presenceListRef) return;
+    dmState.presenceCache = dmState.presenceCache || {};
     dmState.presenceListRef = db.ref(DM_PRESENCE_ROOT);
-    dmState.onPresenceList = (snap) => {
-        dmState.presenceCache = snap.val() || {};
+
+    const onChild = (snap) => {
+        dmState.presenceCache[snap.key] = snap.val() || {};
         if (dmState.open) dmRenderUserList();
         dmSetChatHeader();
     };
-    dmState.presenceListRef.on('value', dmState.onPresenceList);
+    const onRemoved = (snap) => {
+        try { delete dmState.presenceCache[snap.key]; } catch (_) { /* ignore */ }
+        if (dmState.open) dmRenderUserList();
+        dmSetChatHeader();
+    };
+
+    dmState.onPresenceChild = onChild;
+    dmState.onPresenceRemoved = onRemoved;
+
+    dmState.presenceListRef.on('child_added', onChild);
+    dmState.presenceListRef.on('child_changed', onChild);
+    dmState.presenceListRef.on('child_removed', onRemoved);
+}
+
+function dmUnsubscribePresenceList() {
+    try {
+        if (!dmState.presenceListRef) return;
+        if (dmState.onPresenceChild) {
+            dmState.presenceListRef.off('child_added', dmState.onPresenceChild);
+            dmState.presenceListRef.off('child_changed', dmState.onPresenceChild);
+        }
+        if (dmState.onPresenceRemoved) {
+            dmState.presenceListRef.off('child_removed', dmState.onPresenceRemoved);
+        }
+    } catch (_) { /* ignore */ }
+    dmState.presenceListRef = null;
+    dmState.onPresenceChild = null;
+    dmState.onPresenceRemoved = null;
 }
 
 function dmSubscribeInbox() {
@@ -934,7 +1187,7 @@ function shutdownDirectMessages() {
         if (dmState.connectedRef && dmState.onConnected) dmState.connectedRef.off('value', dmState.onConnected);
         if (dmState.inboxRef && dmState.onInbox) dmState.inboxRef.off('child_added', dmState.onInbox);
         if (dmState.unreadRef && dmState.onUnread) dmState.unreadRef.off('value', dmState.onUnread);
-        if (dmState.presenceListRef && dmState.onPresenceList) dmState.presenceListRef.off('value', dmState.onPresenceList);
+        dmUnsubscribePresenceList();
     } catch (e) {
         console.warn('DM shutdown warning:', e);
     }
@@ -8528,7 +8781,7 @@ function resetInvoiceForm() {
         if (typeof currentPO !== 'undefined' && currentPO && typeof allPOData !== 'undefined' && allPOData && allPOData[currentPO]) {
             currentSite = allPOData[currentPO]['Project ID'];
         }
-        populateAttentionDropdown(imAttentionSelectChoices, defaultStatus, currentSite);
+        populateAttentionDropdown(imAttentionSelectChoices, defaultStatus, currentSite, true);
     }
 
     // 5. Navigation Logic (Show "New")
@@ -9136,7 +9389,7 @@ function populateInvoiceFormForEditing(invoiceKey) {
         if (currentPO && allPOData && allPOData[currentPO]) {
             currentSite = allPOData[currentPO]['Project ID'];
         }
-        populateAttentionDropdown(imAttentionSelectChoices, invData.status, currentSite).then(() => {
+        populateAttentionDropdown(imAttentionSelectChoices, invData.status, currentSite, true).then(() => {
             if (invData.attention) {
                 imAttentionSelectChoices.setChoiceByValue(invData.attention);
             }
@@ -13946,7 +14199,7 @@ if (masterRowClick) {
                 // Save current selection to try and keep it if valid
                 const currentSelection = imAttentionSelectChoices.getValue(true);
                 
-                await populateAttentionDropdown(imAttentionSelectChoices, statusValue, currentSite);
+                await populateAttentionDropdown(imAttentionSelectChoices, statusValue, currentSite, true);
                 
                 // If previous selection is still in the new list, re-select it
                 if(currentSelection) {
@@ -14980,66 +15233,91 @@ if (saveManualPOBtn) {
 }
 
     window.showTransferHistory = async function (key) {
-        const modal = document.getElementById('history-modal');
-        const loader = document.getElementById('history-modal-loader');
-        const tbody = document.getElementById('history-table-body');
+    const modal = document.getElementById('history-modal');
+    const loader = document.getElementById('history-modal-loader');
+    const tbody = document.getElementById('history-table-body');
 
-        if (modal) modal.classList.remove('hidden');
-        if (loader) loader.classList.remove('hidden');
-        if (tbody) tbody.innerHTML = '';
+    if (modal) modal.classList.remove('hidden');
+    if (loader) loader.classList.remove('hidden');
+    if (tbody) tbody.innerHTML = '';
 
-        try {
-            // 1. Get the entry
-            const snapshot = await db.ref(`transfer_entries/${key}`).once('value');
-            const entry = snapshot.val();
+    try {
+        // 1. Get the entry
+        const snapshot = await db.ref(`transfer_entries/${key}`).once('value');
+        const entry = snapshot.val();
 
-            if (!entry) throw new Error("Entry not found");
+        if (!entry) throw new Error("Entry not found");
 
-            const historyData = [];
+        const historyData = [];
 
-            // 2. Parse History (It might be an array or an object depending on how it was saved)
-            if (entry.history) {
-                if (Array.isArray(entry.history)) {
-                    historyData.push(...entry.history);
-                } else {
-                    Object.values(entry.history).forEach(h => historyData.push(h));
-                }
+        // 2. Parse History (array or object)
+        if (entry.history) {
+            if (Array.isArray(entry.history)) {
+                historyData.push(...entry.history);
+            } else {
+                Object.values(entry.history).forEach(h => historyData.push(h));
             }
+        }
 
+        if (historyData.length === 0) {
             if (loader) loader.classList.add('hidden');
+            tbody.innerHTML = '<tr><td colspan="4">No history recorded.</td></tr>';
+            return;
+        }
 
-            if (historyData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4">No history recorded.</td></tr>';
-                return;
+        // 3. Sort ASC (oldest -> newest) to calculate duration
+        historyData.sort((a, b) => (Number(a.timestamp) || 0) - (Number(b.timestamp) || 0));
+
+        // 4. Duration calculation (same style as Invoice history)
+        historyData.forEach((h, index) => {
+            if (index === 0) {
+                h.durationDisplay = '-';
+            } else {
+                const prevTs = Number(historyData[index - 1].timestamp) || 0;
+                const currTs = Number(h.timestamp) || 0;
+                const diffMs = Math.max(0, currTs - prevTs);
+
+                const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                const diffHrs = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+                if (diffDays > 0) h.durationDisplay = `${diffDays}d ${diffHrs}h`;
+                else if (diffHrs > 0) h.durationDisplay = `${diffHrs}h ${diffMins}m`;
+                else h.durationDisplay = `${diffMins}m`;
             }
+        });
 
-            // Sort by timestamp
-            historyData.sort((a, b) => a.timestamp - b.timestamp);
+        // 5. Reverse to DESC for display
+        historyData.reverse();
 
-            historyData.forEach((h) => {
-                const dateObj = new Date(h.timestamp);
-                const dateStr = dateObj.toLocaleDateString('en-GB') + ' ' + dateObj.toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
+        if (loader) loader.classList.add('hidden');
 
-                const row = `
-                <tr>
-                    <td><strong>${h.action || h.status}</strong><br><small>${h.note || ''}</small></td>
-                    <td>${dateStr}</td>
-                    <td>${h.by || 'System'}</td>
-                    <td>-</td>
-                </tr>
-            `;
-                tbody.innerHTML += row;
+        historyData.forEach((h) => {
+            const dateObj = new Date(Number(h.timestamp) || Date.now());
+            const dateStr = dateObj.toLocaleDateString('en-GB') + ' ' + dateObj.toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit'
             });
 
-        } catch (error) {
-            console.error(error);
-            if (loader) loader.classList.add('hidden');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="4">Error loading history.</td></tr>';
-        }
-    };
+            const who = h.by || h.updatedBy || 'System';
+
+            const row = `
+                <tr>
+                    <td><strong>${h.action || h.status || ''}</strong><br><small>${h.note || ''}</small></td>
+                    <td>${dateStr}</td>
+                    <td>${who}</td>
+                    <td style="font-weight: bold; color: #00748C;">${h.durationDisplay || '-'}</td>
+                </tr>
+            `;
+            tbody.innerHTML += row;
+        });
+
+    } catch (error) {
+        console.error(error);
+        if (loader) loader.classList.add('hidden');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="4">Error loading history.</td></tr>';
+    }
+};
 
     // ==========================================================================
     // FIXED HELPER: Reverse Stock (Undo a transaction)
@@ -15392,66 +15670,91 @@ if (saveManualPOBtn) {
     // NEW: SHOW JOB HISTORY (IPC, PR, etc.)
     // ==========================================================================
     window.showJobHistory = async function (key) {
-        const modal = document.getElementById('history-modal');
-        const loader = document.getElementById('history-modal-loader');
-        const tbody = document.getElementById('history-table-body');
+    const modal = document.getElementById('history-modal');
+    const loader = document.getElementById('history-modal-loader');
+    const tbody = document.getElementById('history-table-body');
 
-        if (modal) modal.classList.remove('hidden');
-        if (loader) loader.classList.remove('hidden');
-        if (tbody) tbody.innerHTML = '';
+    if (modal) modal.classList.remove('hidden');
+    if (loader) loader.classList.remove('hidden');
+    if (tbody) tbody.innerHTML = '';
 
-        try {
-            // 1. Get the entry
-            const snapshot = await db.ref(`job_entries/${key}`).once('value');
-            const entry = snapshot.val();
+    try {
+        // 1. Get the entry
+        const snapshot = await db.ref(`job_entries/${key}`).once('value');
+        const entry = snapshot.val();
 
-            if (!entry) throw new Error("Entry not found");
+        if (!entry) throw new Error("Entry not found");
 
-            const historyData = [];
+        const historyData = [];
 
-            // 2. Parse History
-            if (entry.history) {
-                if (Array.isArray(entry.history)) {
-                    historyData.push(...entry.history);
-                } else {
-                    Object.values(entry.history).forEach(h => historyData.push(h));
-                }
+        // 2. Parse History (array or object)
+        if (entry.history) {
+            if (Array.isArray(entry.history)) {
+                historyData.push(...entry.history);
+            } else {
+                Object.values(entry.history).forEach(h => historyData.push(h));
             }
+        }
 
+        if (historyData.length === 0) {
             if (loader) loader.classList.add('hidden');
+            tbody.innerHTML = '<tr><td colspan="4">No history recorded.</td></tr>';
+            return;
+        }
 
-            if (historyData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4">No history recorded.</td></tr>';
-                return;
+        // 3. Sort ASC (oldest -> newest) to calculate duration between changes
+        historyData.sort((a, b) => (Number(a.timestamp) || 0) - (Number(b.timestamp) || 0));
+
+        // 4. Calculate Duration Display (same as Invoice history)
+        historyData.forEach((h, index) => {
+            if (index === 0) {
+                h.durationDisplay = '-';
+            } else {
+                const prevTs = Number(historyData[index - 1].timestamp) || 0;
+                const currTs = Number(h.timestamp) || 0;
+                const diffMs = Math.max(0, currTs - prevTs);
+
+                const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                const diffHrs = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+                if (diffDays > 0) h.durationDisplay = `${diffDays}d ${diffHrs}h`;
+                else if (diffHrs > 0) h.durationDisplay = `${diffHrs}h ${diffMins}m`;
+                else h.durationDisplay = `${diffMins}m`;
             }
+        });
 
-            // Sort by timestamp
-            historyData.sort((a, b) => a.timestamp - b.timestamp);
+        // 5. Reverse back to DESC for display (newest first)
+        historyData.reverse();
 
-            historyData.forEach((h) => {
-                const dateObj = new Date(h.timestamp);
-                const dateStr = dateObj.toLocaleDateString('en-GB') + ' ' + dateObj.toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
+        if (loader) loader.classList.add('hidden');
 
-                const row = `
-                <tr>
-                    <td><strong>${h.action || h.status}</strong><br><small>${h.note || ''}</small></td>
-                    <td>${dateStr}</td>
-                    <td>${h.by || 'System'}</td>
-                    <td>-</td>
-                </tr>
-            `;
-                tbody.innerHTML += row;
+        historyData.forEach((h) => {
+            const dateObj = new Date(Number(h.timestamp) || Date.now());
+            const dateStr = dateObj.toLocaleDateString('en-GB') + ' ' + dateObj.toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit'
             });
 
-        } catch (error) {
-            console.error(error);
-            if (loader) loader.classList.add('hidden');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="4">Error loading history.</td></tr>';
-        }
-    };
+            const who = h.by || h.updatedBy || h.updatedByName || 'System';
+
+            const row = `
+                <tr>
+                    <td><strong>${h.action || h.status || ''}</strong><br><small>${h.note || ''}</small></td>
+                    <td>${dateStr}</td>
+                    <td>${who}</td>
+                    <td style="font-weight: bold; color: #00748C;">${h.durationDisplay || '-'}</td>
+                </tr>
+            `;
+            tbody.innerHTML += row;
+        });
+
+    } catch (error) {
+        console.error(error);
+        if (loader) loader.classList.add('hidden');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="4">Error loading history.</td></tr>';
+    }
+};
 
 // =========================================================
 // 3. SMART STICKER POSITIONING (SAFE STRINGS FIX)
@@ -16733,9 +17036,9 @@ async function handleDownloadDailyReport() {
                 let eventTime = inv.updatedAt || inv.enteredAt || inv.createdAt || inv.timestamp || 0;
                 if (typeof eventTime === 'string') eventTime = new Date(eventTime).getTime();
 
-                // Only include invoices that are Under Review in the last 2 hours
+                // Only include invoices that are Under Process in the last 2 hours
                 const statusStr = (inv.status || '').toString().trim().toLowerCase();
-                if (statusStr === 'under review' && (eventTime > twoHoursAgo)) {
+                if (statusStr === 'under process' && (eventTime > twoHoursAgo)) {
                     recentEntries.push({
                         po: poNumber,
                         site: allPOs[poNumber]?.['Project ID'] || 'N/A',
@@ -16747,7 +17050,7 @@ async function handleDownloadDailyReport() {
         }
 
         if (recentEntries.length === 0) {
-            alert("No 'Under Review' invoices found in the last 2 hours.");
+            alert("No 'Under Process' invoices found in the last 2 hours.");
             return;
         }
 

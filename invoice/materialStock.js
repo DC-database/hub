@@ -6,6 +6,7 @@ let lastFilteredStockData = [];
 let msProductChoices = null;
 let lastTypedProductID = "";
 let currentCategoryFilter = 'All';
+let editingItemKey = null; // NEW: explicit modal state (prevents stuck edit mode)
 
 // Constants
 const STOCK_CACHE_KEY = "cached_MATERIAL_STOCK";
@@ -141,11 +142,8 @@ const STOCK_LEGENDS = {
         "name": "Other / Unclassified",
         "relations": {
             "901": "Miscellaneous",
-        	"902": "Client-supplied / Unknown",
-	    	"903": "Scrap / Returns",
-	    	"904": "HO Vehicle",
-	    	"905": "Site Vehicle",
-            "906": "Plant & Machinery (Heavy Equipment)"
+            "902": "Client-supplied / Unknown",
+            "903": "Scrap / Returns"
         }
     }
 };
@@ -758,13 +756,17 @@ window.deleteStock = window.handleDeleteMaterial;
 window.openNewMaterialModal = async function() {
     // Permission: Admins can edit. Super Admin's Vacation Delegate can edit while delegation is active.
     const role = (typeof currentApprover !== 'undefined' && currentApprover) ? (currentApprover.Role || '') : '';
-    const isAdminUser = String(role).toLowerCase() === 'admin';
+    const isAdminUser = String(role).trim().toLowerCase() === 'admin';
     const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
     if (!isAdminUser && !isVacationDelegate) {
         alert("View Only: You do not have permission to register new materials.");
         return;
     }
 
+    // Always start in CREATE mode
+    editingItemKey = null;
+    const saveBtn = document.getElementById('ms-save-new-btn');
+    if (saveBtn) saveBtn.textContent = 'Save';
     if (!allMaterialStockData || allMaterialStockData.length === 0) {
         const btn = document.getElementById('ms-add-new-btn');
         if(btn) btn.textContent = "Loading Data...";
@@ -809,7 +811,14 @@ window.openNewMaterialModal = async function() {
     };
 
     relationSelect.onchange = generatePreviewID;
-    document.getElementById('ms-new-id-display').value = "Auto-Generated";
+    const idDisp = document.getElementById('ms-new-id-display');
+    if (idDisp) {
+        idDisp.value = "Auto-Generated";
+        delete idDisp.dataset.series;
+    }
+
+    const stockInput = document.getElementById('ms-new-stock-qty');
+    if (stockInput) stockInput.placeholder = 'Initial Stock (Optional)';
 
     populateModalSiteDropdown();
 };
@@ -860,6 +869,14 @@ window.openSuperAdminEdit = function(key) {
     populateModalSiteDropdown();
 };
 
+function msParseSeriesFromProductId(pid) {
+    const s = String(pid || '').trim();
+    const m = s.match(/^(\d+)\.(\d+)\.(\d{1,})$/);
+    if (!m) return null;
+    const n = parseInt(m[3], 10);
+    return Number.isFinite(n) ? n : null;
+}
+
 function generatePreviewID() {
     if (typeof editingItemKey !== 'undefined' && editingItemKey) return; 
 
@@ -870,10 +887,10 @@ function generatePreviewID() {
     if(ff && rr) {
         let maxSeries = 0;
         allMaterialStockData.forEach(item => {
-            if(item.series) {
-                const s = parseInt(item.series);
-                if(!isNaN(s) && s > maxSeries) maxSeries = s;
-            }
+            const s1 = (item.series !== undefined && item.series !== null && item.series !== '') ? parseInt(item.series, 10) : null;
+            const s2 = (s1 === null || !Number.isFinite(s1)) ? msParseSeriesFromProductId(item.productID || item.productId) : null;
+            const s = Number.isFinite(s1) ? s1 : (Number.isFinite(s2) ? s2 : null);
+            if (Number.isFinite(s) && s > maxSeries) maxSeries = s;
         });
         const nextSeries = maxSeries + 1;
         const sssss = String(nextSeries).padStart(5, '0');
@@ -884,13 +901,42 @@ function generatePreviewID() {
     }
 }
 
+
+window.msCloseNewMaterialModal = function() {
+    const modal = document.getElementById('ms-new-material-modal');
+    if (modal) modal.classList.add('hidden');
+
+    // Reset state so Auto-ID works next time.
+    editingItemKey = null;
+
+    try {
+        const form = document.getElementById('ms-new-material-form');
+        form?.reset();
+        const idInput = document.getElementById('ms-new-id-display');
+        if (idInput) {
+            idInput.value = 'Auto-Generated';
+            delete idInput.dataset.series;
+        }
+        const saveBtn = document.getElementById('ms-save-new-btn');
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save';
+        }
+        const stockInput = document.getElementById('ms-new-stock-qty');
+        if (stockInput) {
+            stockInput.value = '';
+            stockInput.placeholder = 'Initial Stock (Optional)';
+        }
+    } catch (_) { /* ignore */ }
+};
+
 // ==========================================================================
 // 6. SAVE LOGIC
 // ==========================================================================
 async function handleSaveNewMaterial() {
     // Permission guard (same as modal): Admins OR Super Admin Vacation Delegate.
     const role = (typeof currentApprover !== 'undefined' && currentApprover) ? (currentApprover.Role || '') : '';
-    const isAdminUser = String(role).toLowerCase() === 'admin';
+    const isAdminUser = String(role).trim().toLowerCase() === 'admin';
     const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
     if (!isAdminUser && !isVacationDelegate) {
         alert("Access Denied: You do not have permission to save material changes.");
@@ -902,7 +948,18 @@ async function handleSaveNewMaterial() {
 
     const familyCode = document.getElementById('ms-new-family').value;
     const relationCode = document.getElementById('ms-new-relation').value;
-    const productDetail = document.getElementById('ms-new-name').value.trim(); 
+    const productDetail = document.getElementById('ms-new-name').value.trim();
+
+    if (!familyCode || !relationCode) {
+        alert('Please select Family and Relationship.');
+        btn.disabled = false;
+        return;
+    }
+    if (!productDetail) {
+        alert('Please enter Item Name.');
+        btn.disabled = false;
+        return;
+    }
     
     const stockInputVal = parseFloat(document.getElementById('ms-new-stock-qty').value) || 0;
     const selectedSite = document.getElementById('ms-new-site-select').value;
@@ -946,8 +1003,18 @@ async function handleSaveNewMaterial() {
             const productID = document.getElementById('ms-new-id-display').value;
             const series = parseInt(document.getElementById('ms-new-id-display').dataset.series);
             
-            if (!productID || productID.includes("Auto")) { 
-                alert("ID Generation Error"); btn.disabled = false; return; 
+            if (!productID || productID.includes("Auto")) {
+                alert("ID Generation Error. Please select Family + Relationship again.");
+                btn.disabled = false;
+                return;
+            }
+
+            // Prevent duplicate Product ID (can happen if old items did not have series stored)
+            const existing = allMaterialStockData.find(i => (i.productID || i.productId) === productID);
+            if (existing) {
+                alert(`This Product ID already exists: ${productID}\n\nPlease change Family/Relationship and try again.`);
+                btn.disabled = false;
+                return;
             }
 
             const sitesInit = {};
@@ -979,8 +1046,13 @@ async function handleSaveNewMaterial() {
             alert(`Success! Created: ${productID}`);
         }
 
-        document.getElementById('ms-new-material-modal').classList.add('hidden');
-        editingItemKey = null; 
+        if (typeof window.msCloseNewMaterialModal === 'function') {
+            window.msCloseNewMaterialModal();
+        } else {
+            document.getElementById('ms-new-material-modal').classList.add('hidden');
+            editingItemKey = null;
+        }
+
         localStorage.removeItem(STOCK_CACHE_KEY);
         populateMaterialStock(true);
 
@@ -1013,7 +1085,7 @@ function handleGetTemplate() {
 
 function handleUploadCSV(event) {
     const role = (typeof currentApprover !== 'undefined' && currentApprover) ? (currentApprover.Role || '') : '';
-    const isAdminUser = String(role).toLowerCase() === 'admin';
+    const isAdminUser = String(role).trim().toLowerCase() === 'admin';
     const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
     if (!isAdminUser && !isVacationDelegate) {
         alert("Access Denied: You do not have permission to upload stock CSV.");

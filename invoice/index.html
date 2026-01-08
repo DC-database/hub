@@ -7,8 +7,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
 
-    <link rel="stylesheet" href="style.css?v=6.0.1">
-    <link rel="stylesheet" href="transfer_stock.css?v=6.0.1">
+    <link rel="stylesheet" href="style.css?v=6.0.7">
+    <link rel="stylesheet" href="transfer_stock.css?v=6.0.7">
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -1785,7 +1785,7 @@
     <div class="modal-container">
         <div class="modal-header">
             <h2 id="ms-modal-title">Register New Product</h2>
-            <button class="modal-close-btn" onclick="document.getElementById('ms-new-material-modal').classList.add('hidden')">&times;</button>
+            <button class="modal-close-btn" onclick="window.msCloseNewMaterialModal ? window.msCloseNewMaterialModal() : document.getElementById('ms-new-material-modal').classList.add('hidden')">&times;</button>
         </div>
         <div class="modal-content">
             <form id="ms-new-material-form">
@@ -1842,7 +1842,7 @@
         <div class="modal-footer" style="justify-content: space-between;">
             <button type="button" id="ms-clear-form-btn" class="secondary-btn" style="background-color: #ffc107; color: #212529; border: none;">Clear</button>
             <div style="display: flex; gap: 10px;">
-                <button class="secondary-btn modal-close-btn" onclick="document.getElementById('ms-new-material-modal').classList.add('hidden')">Cancel</button>
+                <button class="secondary-btn modal-close-btn" onclick="window.msCloseNewMaterialModal ? window.msCloseNewMaterialModal() : document.getElementById('ms-new-material-modal').classList.add('hidden')">Cancel</button>
                 <button id="ms-save-new-btn" type="button" class="download-btn">Save</button>
             </div>
         </div>
@@ -2333,9 +2333,9 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
 
-    <script src="materialStock.js?v=6.0.1"></script>
-    <script src="transferLogic.js?v=6.0.1"></script>
-    <script src="app.js?v=6.0.2"></script>
+    <script src="materialStock.js?v=6.0.7"></script>
+    <script src="transferLogic.js?v=6.0.7"></script>
+    <script src="app.js?v=6.0.7"></script>
 
     </body>
 </html>

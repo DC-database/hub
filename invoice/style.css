@@ -2992,6 +2992,16 @@ body.is-admin .legend-admin-only {
         display: list-item !important;
     }
 
+    /* 2.5. Messages - Visible for EVERYONE */
+    #workdesk-view .workdesk-navigation li.wd-nav-messages-mobile {
+        display: list-item !important;
+    }
+
+    /* Inventory: Messages (mobile bottom bar) */
+    #inventory-view .workdesk-navigation li.inv-nav-messages-mobile {
+        display: list-item !important;
+    }
+
     /* 3. Reporting - HIDDEN by default (for Regular Users) */
     #workdesk-view .workdesk-navigation li.wd-nav-im-reporting-mobile {
         display: none !important;
@@ -4604,6 +4614,11 @@ body.is-ceo .desktop-only.col-group {
         display: list-item !important;
     }
 
+    /* Messages (mobile bottom bar) */
+    #invoice-management-view .workdesk-navigation li.im-nav-messages-mobile {
+        display: list-item !important;
+    }
+
     /* Ensure the 3 icons fit nicely */
     .workdesk-navigation ul {
         justify-content: space-between;
@@ -4675,6 +4690,12 @@ body.is-ceo .desktop-only.col-group {
 }
 /* Hide Mobile Logout on Desktop */
 .mobile-only-nav-item {
+    display: none;
+}
+/* Hide Mobile Messages on Desktop */
+.wd-nav-messages-mobile,
+.im-nav-messages-mobile,
+.inv-nav-messages-mobile {
     display: none;
 }
 /* Dashboard Double-Click Tooltip */
