@@ -1,4 +1,4 @@
-// IBA Messages - standalone (1.0.0)
+// IBA Messages - standalone (1.0.2)
 // NOTE: This uses your existing RTDB approvers + dm_* nodes (same as the main system).
 // For true privacy, lock down Firebase rules (recommended: Firebase Auth).
 
@@ -211,6 +211,16 @@ function renderUserList() {
   const users = dm.users
     .filter(u => u.key !== dm.userKey)
     .filter(u => !q || String(u.Name || '').toLowerCase().includes(q) || String(u.Email || '').toLowerCase().includes(q) || normalizeMobile(u.Mobile).includes(normalizeMobile(q)));
+
+  // Sort with online users always at the top (then by name)
+  users.sort((a, b) => {
+    const ao = (dm.presenceCache?.[a.key]?.status === 'online') ? 1 : 0;
+    const bo = (dm.presenceCache?.[b.key]?.status === 'online') ? 1 : 0;
+    if (bo !== ao) return bo - ao;
+    const an = String(a.Name || '').toLowerCase();
+    const bn = String(b.Name || '').toLowerCase();
+    return an.localeCompare(bn);
+  });
 
   list.innerHTML = '';
 
