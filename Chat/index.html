@@ -9,11 +9,13 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="style.css?v=1.0.4" />
+  <link rel="stylesheet" href="style.css?v=1.0.7" />
 
   <!-- Firebase v8 (same as your main system) -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
 </head>
 <body>
   <!-- Inline icons (no external dependency, so buttons never appear "missing") -->
@@ -45,9 +47,22 @@
       <path d="M22 21v-2a4 4 0 0 0-3-3.87" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
       <path d="M16 3.13a3 3 0 0 1 0 5.74" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
     </symbol>
-    <symbol id="ico-send" viewBox="0 0 24 24">
+<symbol id="ico-photo" viewBox="0 0 24 24">
+  <path d="M4 7h4l2-2h4l2 2h4a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+  <circle cx="12" cy="13" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/>
+</symbol>
+<symbol id="ico-send" viewBox="0 0 24 24">
       <path d="M22 2L11 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
       <path d="M22 2l-7 20-4-9-9-4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+    </symbol>
+<symbol id="ico-mic" viewBox="0 0 24 24">
+      <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3z" fill="none" stroke="currentColor" stroke-width="2"/>
+      <path d="M19 11a7 7 0 0 1-14 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <path d="M12 19v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <path d="M8 22h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+<symbol id="ico-stop" viewBox="0 0 24 24">
+      <rect x="7" y="7" width="10" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
     </symbol>
   </svg>
   <div class="app">
@@ -140,6 +155,16 @@
           </div>
 
           <div class="dm-compose">
+                        <button id="dm-attach" type="button" title="Photo">
+              <svg class="icon" aria-hidden="true"><use href="#ico-photo"></use></svg>
+              <span class="dm-attach-text">Photo</span>
+            </button>
+            <input id="dm-photo" type="file" accept="image/*" style="display:none" />
+<button id="dm-mic" type="button" title="Voice">
+              <svg class="icon" aria-hidden="true"><use href="#ico-mic"></use></svg>
+              <span class="dm-mic-text">Voice</span>
+            </button>
+            <div id="dm-rec-ind" class="dm-rec-ind hidden" aria-live="polite">Recording… <span id="dm-rec-timer">0:00</span></div>
             <input id="dm-input" type="text" placeholder="Message..." autocomplete="off" />
             <button id="dm-send" type="button" title="Send">
               <svg class="icon" aria-hidden="true"><use href="#ico-send"></use></svg>
@@ -153,6 +178,6 @@
     </main>
   </div>
 
-  <script src="app.js?v=1.0.4"></script>
+  <script src="app.js?v=1.0.7"></script>
 </body>
 </html>
