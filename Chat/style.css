@@ -1,5 +1,7 @@
-/* IBA Messages - standalone (1.0.7) */
-/* Light theme by default (easier to read on mobile + desktop). */
+/* IBA Messages - standalone (1.0.8) */
+/* Theme system: light/dark toggle (stored in localStorage). */
+
+/* Light (default) */
 :root{
   --bg:#f3f6fb;
   --card:#ffffff;
@@ -10,6 +12,29 @@
   --muted:rgba(15,23,42,.65);
   --danger:#b42318;
   --accent:#2563eb;
+
+  --shadow:0 26px 110px rgba(15,23,42,.18);
+  --glass:rgba(255,255,255,.72);
+  --bubble-me:rgba(37,99,235,.12);
+  --bubble-other:rgba(15,23,42,.06);
+}
+
+/* Dark */
+html[data-theme="dark"]{
+  --bg:#070b14;
+  --card:#0b1222;
+  --line:rgba(148,163,184,.14);
+  --soft:rgba(148,163,184,.08);
+  --soft2:rgba(148,163,184,.12);
+  --text:#e5e7eb;
+  --muted:rgba(226,232,240,.70);
+  --danger:#ff6b6b;
+  --accent:#60a5fa;
+
+  --shadow:0 26px 120px rgba(0,0,0,.55);
+  --glass:rgba(11,18,34,.62);
+  --bubble-me:rgba(96,165,250,.16);
+  --bubble-other:rgba(148,163,184,.10);
 }
 
 *{box-sizing:border-box}
@@ -17,9 +42,11 @@ html,body{height:100%}
 body{
   margin:0;
   font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;
-  background:radial-gradient(1200px 800px at 20% 0%, rgba(37,99,235,.12), transparent 60%),
-             radial-gradient(900px 700px at 80% 10%, rgba(249,115,22,.10), transparent 55%),
-             var(--bg);
+  background:
+    radial-gradient(1200px 800px at 20% 0%, rgba(37,99,235,.14), transparent 60%),
+    radial-gradient(900px 700px at 80% 10%, rgba(249,115,22,.10), transparent 55%),
+    radial-gradient(1100px 700px at 65% 90%, rgba(16,185,129,.08), transparent 55%),
+    var(--bg);
   color:var(--text);
 }
 
@@ -41,8 +68,12 @@ body{
   border:1px solid var(--line);
   background:linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,255,255,.90));
   border-radius:22px;
-  box-shadow:0 26px 110px rgba(15,23,42,.18);
+  box-shadow:var(--shadow);
   padding:18px;
+}
+
+html[data-theme="dark"] .card{
+  background:linear-gradient(180deg, rgba(11,18,34,.90), rgba(11,18,34,.78));
 }
 
 .brand{display:flex; gap:14px; align-items:center; margin-bottom:14px}
@@ -95,7 +126,7 @@ body{
   padding:12px 14px;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  background:rgba(255,255,255,.72);
+  background:var(--glass);
   border-bottom:1px solid var(--line);
   z-index:10;
 }
@@ -122,10 +153,14 @@ body{
   overflow:hidden;
   border:1px solid var(--line);
   background:linear-gradient(180deg, rgba(255,255,255,.96), rgba(255,255,255,.90));
-  box-shadow:0 26px 110px rgba(15,23,42,.18);
+  box-shadow:var(--shadow);
   display:grid;
   grid-template-columns:360px 1fr;
   min-height:0;
+}
+
+html[data-theme="dark"] .dm-card{
+  background:linear-gradient(180deg, rgba(11,18,34,.92), rgba(11,18,34,.78));
 }
 
 .dm-users{border-right:1px solid var(--line); display:flex; flex-direction:column; min-height:0}
@@ -146,7 +181,7 @@ body{
   border-radius:16px; cursor:pointer; user-select:none;
 }
 .dm-user:hover{background:var(--soft2)}
-.dm-user.active{background:rgba(255,255,255,.12)}
+.dm-user.active{background:rgba(37,99,235,.10)}
 .dm-left{display:flex; align-items:center; gap:12px; min-width:0}
 .dm-avatar{
   width:38px; height:38px;
@@ -161,7 +196,7 @@ body{
 .dm-dot{
   position:absolute; right:-2px; bottom:-2px;
   width:12px; height:12px; border-radius:999px;
-  background:rgba(255,255,255,.30);
+  background:var(--soft2);
   border:2px solid var(--card);
 }
 .dm-dot.online{background:#27c46b}
@@ -217,6 +252,16 @@ body{
   padding:16px;
   display:flex; flex-direction:column; gap:10px;
   min-height:0;
+  /* subtle wallpaper feel */
+  background:
+    radial-gradient(700px 500px at 30% 0%, rgba(37,99,235,.10), transparent 55%),
+    radial-gradient(700px 500px at 70% 100%, rgba(249,115,22,.08), transparent 60%);
+}
+
+html[data-theme="dark"] .dm-message-list{
+  background:
+    radial-gradient(700px 500px at 30% 0%, rgba(96,165,250,.16), transparent 55%),
+    radial-gradient(700px 500px at 70% 100%, rgba(249,115,22,.10), transparent 60%);
 }
 .dm-empty{
   margin:auto;
@@ -225,8 +270,8 @@ body{
   opacity:.86;
   padding:18px 16px;
   border-radius:18px;
-  border:1px dashed rgba(15,23,42,.22);
-  background:rgba(255,255,255,.70);
+  border:1px dashed var(--line);
+  background:var(--glass);
 }
 .dm-empty-title{font-weight:950; margin-bottom:6px}
 .dm-empty-sub{font-size:13px; opacity:.85}
@@ -236,13 +281,13 @@ body{
   padding:10px 12px;
   border-radius:18px 18px 18px 8px;
   border:1px solid var(--line);
-  background:var(--soft2);
+  background:var(--bubble-other);
   line-height:1.35;
 }
 .dm-msg.me{
   align-self:flex-end;
   border-radius:18px 18px 8px 18px;
-  background:rgba(37,99,235,.12);
+  background:var(--bubble-me);
 }
 .dm-deleted{
   font-style:italic;
@@ -325,14 +370,47 @@ body{
   max-width:min(420px,calc(100vw - 36px));
 }
 .toast{
-  background:rgba(255,255,255,.92);
+  background:var(--glass);
   color:var(--text);
-  border:1px solid rgba(15,23,42,.12);
+  border:1px solid var(--line);
   backdrop-filter:blur(14px);
   -webkit-backdrop-filter:blur(14px);
   border-radius:16px;
   padding:12px 14px;
-  box-shadow:0 18px 60px rgba(15,23,42,.18);
+  box-shadow:0 18px 60px rgba(0,0,0,.14);
+}
+
+html[data-theme="dark"] .toast{
+  background:rgba(11,18,34,.88);
+  border:1px solid var(--line);
+}
+
+/* Floating theme toggle (works on login + chat) */
+.theme-float{
+  position:fixed;
+  right:14px;
+  bottom:14px;
+  z-index:9998;
+  height:42px;
+  padding:0 12px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  background:var(--glass);
+  color:var(--text);
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  cursor:pointer;
+  box-shadow:0 18px 70px rgba(0,0,0,.14);
+}
+.theme-float:hover{background:var(--soft2)}
+.theme-text{font-weight:900; font-size:13px}
+@media (max-width: 420px){
+  .theme-text{display:none}
+  .theme-float{padding:0; width:42px}
 }
 .toast b{display:block; margin-bottom:4px}
 @media (max-width: 820px){

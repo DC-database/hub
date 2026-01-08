@@ -1,4 +1,4 @@
-// IBA Messages - standalone (1.0.7)
+// IBA Messages - standalone (1.0.8)
 // NOTE: This uses your existing RTDB approvers + dm_* nodes (same as the main system).
 // For true privacy, lock down Firebase rules (recommended: Firebase Auth).
 
@@ -24,6 +24,55 @@ const DM_PRESENCE_ROOT = 'presence';
 const DM_INBOX_ROOT    = 'dm_inbox';
 const DM_THREADS_ROOT  = 'dm_threads';
 const DM_UNREAD_ROOT   = 'dm_unread';
+
+// Upload limits (keeps it fast + reduces mobile data usage)
+const MAX_IMAGE_UPLOAD_BYTES = 4 * 1024 * 1024;   // final upload limit (after compression): 4MB
+const MAX_IMAGE_PICK_BYTES   = 20 * 1024 * 1024;  // refuse huge images to avoid memory issues: 20MB
+const MAX_IMAGE_DIM          = 1600;              // px (largest side)
+const MIN_JPEG_QUALITY       = 0.55;
+
+// ========================
+// THEME (light / dark)
+// ========================
+const THEME_KEY = 'iba_msg_theme';
+
+function getInitialTheme() {
+  try {
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved === 'dark' || saved === 'light') return saved;
+  } catch {}
+  try {
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  } catch {}
+  return 'light';
+}
+
+function applyTheme(theme) {
+  const t = (theme === 'dark') ? 'dark' : 'light';
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem(THEME_KEY, t); } catch {}
+  updateThemeButtons();
+}
+
+function updateThemeButtons() {
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  const nextIcon = isDark ? '#ico-sun' : '#ico-moon';
+  const nextLabel = isDark ? 'Light' : 'Dark';
+  const btnIds = ['theme-toggle', 'theme-toggle-float'];
+  for (const id of btnIds) {
+    const btn = document.getElementById(id);
+    if (!btn) continue;
+    const use = btn.querySelector('use');
+    if (use) use.setAttribute('href', nextIcon);
+    const span = btn.querySelector('span');
+    if (span) span.textContent = nextLabel;
+  }
+}
+
+function toggleTheme() {
+  const cur = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+  applyTheme(cur === 'dark' ? 'light' : 'dark');
+}
 
 function escapeHtml(str) {
   return String(str ?? '')
@@ -116,6 +165,104 @@ async function maybeResizeImage(file, maxDim = 1280, quality = 0.86) {
     console.warn('Resize skipped:', e);
     return file;
   }
+}
+
+async function optimizeImageForUpload(file, maxBytes = MAX_IMAGE_UPLOAD_BYTES) {
+  // Goal: keep uploads small, especially for mobile, while still accepting normal photos.
+  // Strategy: convert to JPEG, resize if needed, then reduce JPEG quality until <= maxBytes.
+  if (!file) return file;
+
+  if (file.size > MAX_IMAGE_PICK_BYTES) {
+    throw new Error('IMAGE_TOO_BIG_PICK');
+  }
+
+  // If already within size, still consider resizing huge dimensions (mobile camera photos)
+  let workingFile = file;
+
+  // Force a resize step if dimensions are large, OR if file is fairly big
+  try {
+    // Resize down to MAX_IMAGE_DIM (also converts to JPEG)
+    workingFile = await (async () => {
+      try {
+        const bmp = await fileToImageBitmap(workingFile);
+        const w = bmp.width || bmp.naturalWidth || 0;
+        const h = bmp.height || bmp.naturalHeight || 0;
+        if (!w || !h) return workingFile;
+
+        const maxSide = Math.max(w, h);
+        const targetMax = Math.min(MAX_IMAGE_DIM, maxSide);
+        const scale = targetMax / maxSide;
+        const nw = Math.max(1, Math.round(w * scale));
+        const nh = Math.max(1, Math.round(h * scale));
+
+        // If image is small and already under the limit, don't touch it (keep original)
+        if (maxSide <= targetMax && workingFile.size <= maxBytes) return workingFile;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = nw;
+        canvas.height = nh;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(bmp, 0, 0, nw, nh);
+
+        // Start with decent quality then tune down if needed
+        let q = 0.86;
+        let outBlob = null;
+
+        for (let i = 0; i < 10; i++) {
+          outBlob = await new Promise((resolve) => {
+            canvas.toBlob((b) => resolve(b), 'image/jpeg', q);
+          });
+          if (!outBlob) break;
+          if (outBlob.size <= maxBytes) break;
+          q = Math.max(MIN_JPEG_QUALITY, q - 0.07);
+          if (q === MIN_JPEG_QUALITY) break;
+        }
+
+        if (!outBlob) return workingFile;
+
+        // If still too large, scale down a bit more and re-encode (a couple tries)
+        let attempts = 0;
+        let curBlob = outBlob;
+        let curW = nw;
+        let curH = nh;
+        while (curBlob.size > maxBytes && attempts < 3) {
+          attempts++;
+          const shrink = 0.85;
+          curW = Math.max(1, Math.round(curW * shrink));
+          curH = Math.max(1, Math.round(curH * shrink));
+          const c2 = document.createElement('canvas');
+          c2.width = curW;
+          c2.height = curH;
+          c2.getContext('2d')?.drawImage(canvas, 0, 0, curW, curH);
+          const b2 = await new Promise((resolve) => {
+            c2.toBlob((b) => resolve(b), 'image/jpeg', MIN_JPEG_QUALITY);
+          });
+          if (!b2) break;
+          curBlob = b2;
+        }
+
+        if (curBlob.size > maxBytes) {
+          // We tried; let caller decide (we'll reject)
+          throw new Error('IMAGE_TOO_BIG_FINAL');
+        }
+
+        const baseName = sanitizeFileName(workingFile.name).replace(/\.[^.]+$/, '') || 'photo';
+        return new File([curBlob], `${baseName}.jpg`, { type: 'image/jpeg' });
+      } catch (e) {
+        // If we can't process, fallback to original (caller may still reject by size)
+        if (String(e?.message || '').includes('IMAGE_TOO_BIG')) throw e;
+        return workingFile;
+      }
+    })();
+  } catch (e) {
+    throw e;
+  }
+
+  // Final guard
+  if (workingFile.size > maxBytes) {
+    throw new Error('IMAGE_TOO_BIG_FINAL');
+  }
+  return workingFile;
 }
 
 function setComposeBusy(busy, labelText) {
@@ -225,6 +372,9 @@ async function findApprover(identifier) {
 function showScreen(which) {
   document.getElementById('login-screen').classList.toggle('hidden', which !== 'login');
   document.getElementById('chat-screen').classList.toggle('hidden', which !== 'chat');
+
+  // Only show the floating theme button on the login screen (chat already has a topbar toggle)
+  document.getElementById('theme-toggle-float')?.classList.toggle('hidden', which !== 'login');
 }
 
 async function doLogin(identifier, password) {
@@ -581,7 +731,11 @@ async function sendImage(file, captionText) {
   if (!String(file.type || '').startsWith('image/')) { toast('Messages', 'Please select an image file.'); return; }
 
   // Hard limits to keep it fast + protect data usage
-  if (file.size > 8 * 1024 * 1024) { toast('Messages', 'Image is too large (max 8MB).'); return; }
+  // We will try to compress/rescale, but we also refuse extremely huge files to avoid browser memory issues.
+  if (file.size > MAX_IMAGE_PICK_BYTES) {
+    toast('Messages', `Image is too large (max ${Math.round(MAX_IMAGE_PICK_BYTES/1024/1024)}MB). Please choose a smaller photo.`);
+    return;
+  }
 
   if (!storage) {
     toast('Messages', 'Photo upload is not enabled (Firebase Storage missing / blocked).');
@@ -603,7 +757,7 @@ async function sendImage(file, captionText) {
   }
 
   try {
-    const uploadFile = await maybeResizeImage(file);
+    const uploadFile = await optimizeImageForUpload(file, MAX_IMAGE_UPLOAD_BYTES);
     const filename = sanitizeFileName(uploadFile.name || file.name || 'photo.jpg');
     const path = `dm_uploads/${threadId}/${msgId}_${Date.now()}_${filename}`;
 
@@ -652,7 +806,11 @@ async function sendImage(file, captionText) {
     base.child('fromKey').set(dm.userKey);
   } catch (e) {
     console.warn(e);
-    toast('Messages', 'Photo failed to upload. Enable Firebase Storage + (recommended) enable Anonymous Auth, and ensure Storage rules allow upload/read.');
+    if (String(e?.message || '') === 'IMAGE_TOO_BIG_FINAL') {
+      toast('Messages', `Could not shrink the image enough. Max upload size is ${Math.round(MAX_IMAGE_UPLOAD_BYTES/1024/1024)}MB.`);
+    } else {
+      toast('Messages', 'Photo failed to upload. Enable Firebase Storage + (recommended) enable Anonymous Auth, and ensure Storage rules allow upload/read.');
+    }
   } finally {
     setComposeBusy(false);
   }
@@ -848,6 +1006,12 @@ function shutdownDM() {
 // ========================
 // INIT UI
 // ========================
+
+// Theme init + toggle buttons
+applyTheme(getInitialTheme());
+document.getElementById('theme-toggle')?.addEventListener('click', toggleTheme);
+document.getElementById('theme-toggle-float')?.addEventListener('click', toggleTheme);
+
 document.getElementById('login-form')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const err = document.getElementById('login-error');

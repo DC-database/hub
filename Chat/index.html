@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="style.css?v=1.0.7" />
+  <link rel="stylesheet" href="style.css?v=1.0.8" />
 
   <!-- Firebase v8 (same as your main system) -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -61,10 +61,23 @@
       <path d="M12 19v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
       <path d="M8 22h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
     </symbol>
-<symbol id="ico-stop" viewBox="0 0 24 24">
+    <symbol id="ico-stop" viewBox="0 0 24 24">
       <rect x="7" y="7" width="10" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
     </symbol>
+
+    <symbol id="ico-sun" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/>
+      <path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="ico-moon" viewBox="0 0 24 24">
+      <path d="M21 13.5A8.5 8.5 0 0 1 10.5 3 7 7 0 1 0 21 13.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+    </symbol>
   </svg>
+
+  <button id="theme-toggle-float" class="theme-float" type="button" aria-label="Toggle theme" title="Toggle theme">
+    <svg class="icon" aria-hidden="true"><use href="#ico-moon"></use></svg>
+    <span class="theme-text">Theme</span>
+  </button>
   <div class="app">
 
     <!-- LOGIN -->
@@ -107,6 +120,10 @@
           <div class="topbar-me" id="me-pill"></div>
         </div>
         <div class="topbar-right">
+          <button id="theme-toggle" class="btn ghost" type="button" title="Toggle theme">
+            <svg class="icon" aria-hidden="true"><use href="#ico-moon"></use></svg>
+            <span>Theme</span>
+          </button>
           <button id="logout-btn" class="btn ghost" type="button" title="Logout">
             <svg class="icon" aria-hidden="true"><use href="#ico-logout"></use></svg>
             <span>Logout</span>
@@ -178,6 +195,6 @@
     </main>
   </div>
 
-  <script src="app.js?v=1.0.7"></script>
+  <script src="app.js?v=1.0.8"></script>
 </body>
 </html>
