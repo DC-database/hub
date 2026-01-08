@@ -442,3 +442,9 @@ body {
     .main-content { margin-left: 70px; padding: 15px; }
     .nav-link { justify-content: center; padding: 15px; }
 }
+
+
+/* Fix: Preserve line breaks in the generated report notes */
+#reportNotesContent {
+    white-space: pre-wrap;
+}

@@ -1,7 +1,7 @@
 // ======================
 // Application Version
 // ======================
-const APP_VERSION = "v5.1 (Final Complete)";
+const APP_VERSION = "v5.3.1 (Fix login + Vendor ID/Name auto-link)";
 
 // ======================
 // Firebase Configuration
@@ -97,6 +97,7 @@ const fields = [
 let editId = null;
 let isEditing = false;
 let vendorSearchTimeout = null;
+let vendorIdSearchTimeout = null;
 let allPaymentsData = {}; 
 
 // ======================
@@ -190,6 +191,8 @@ function setupEventListeners() {
   // Inputs - Logic for auto-calculations
   document.getElementById('vendor').addEventListener('input', handleVendorInput);
   document.getElementById('vendor').addEventListener('change', handleVendorSelection);
+  document.getElementById('vendorId').addEventListener('input', handleVendorIdInput);
+  document.getElementById('vendorId').addEventListener('change', handleVendorIdSelection);
   document.getElementById('certifiedAmount').addEventListener('input', calculatePayment);
   document.getElementById('retention').addEventListener('input', calculatePayment);
   document.getElementById('retentionPercentage').addEventListener('input', calculateRetentionFromPercentage);
@@ -434,13 +437,28 @@ function showAddNewForm() {
 }
 
 // Opens the Modal in "Edit Mode"
-function editPayment(id, payment) {
+async function editPayment(id, payment) {
   editId = id;
   isEditing = true;
 
   fields.forEach(field => {
     document.getElementById(field).value = formatFieldValue(field, payment[field]) || '';
   });
+
+  // Keep Vendor Name and Vendor ID in sync (ID ↔ Name)
+  try {
+    const paymentData = {
+      vendor: document.getElementById('vendor').value,
+      vendorId: document.getElementById('vendorId').value
+    };
+
+    await normalizeVendorFields(paymentData);
+
+    document.getElementById('vendor').value = paymentData.vendor || '';
+    document.getElementById('vendorId').value = paymentData.vendorId || '';
+  } catch (err) {
+    console.error('Error normalizing vendor fields in edit:', err);
+  }
 
   // Logic for Retention Base
   document.getElementById('retentionBaseAmount').value = formatNumber(payment.certifiedAmount) || '';
@@ -489,6 +507,9 @@ async function savePayment() {
   // accurately track when this specific record was touched
   paymentData.dateEntered = `${year}-${month}-${day}`;
 
+  // Keep Vendor Name and Vendor ID in sync (ID ↔ Name)
+  await normalizeVendorFields(paymentData);
+
   try {
     if (isEditing) {
       // Update existing
@@ -528,6 +549,9 @@ async function addNewPaymentFromEdit() {
       ? value.replace(/,/g, '')
       : value;
   });
+
+  // Keep Vendor Name and Vendor ID in sync (ID ↔ Name)
+  await normalizeVendorFields(paymentData);
 
   try {
     // Set Date Ent. to today (System Audit)
@@ -591,13 +615,63 @@ function handleVendorInput() {
   vendorSearchTimeout = setTimeout(searchVendors, 300);
 }
 
-function handleVendorSelection() {
-  const selectedValue = this.value;
-  const selectedOption = Array.from(elements.vendorList.options).find(o => o.value.toLowerCase() === selectedValue.toLowerCase());
-  if (selectedOption) {
-    document.getElementById('vendorId').value = selectedOption.dataset.vendorId;
+async function handleVendorSelection() {
+  const vendorInput = document.getElementById('vendor');
+  const vendorIdInput = document.getElementById('vendorId');
+
+  const selectedValue = vendorInput.value.trim();
+  if (!selectedValue) {
+    vendorIdInput.value = '';
+    return;
+  }
+
+  // 1) Fast path: match from current datalist options
+  const selectedOption = Array.from(elements.vendorList.options)
+    .find(o => o.value.toLowerCase() === selectedValue.toLowerCase());
+
+  if (selectedOption && selectedOption.dataset.vendorId) {
+    vendorIdInput.value = selectedOption.dataset.vendorId;
+    return;
+  }
+
+  // 2) Fallback: exact match in DB (case-insensitive)
+  const found = await resolveVendorByName(selectedValue);
+  if (found) {
+    vendorInput.value = found.name; // normalize spelling/case
+    vendorIdInput.value = found.id;
   } else {
-    document.getElementById('vendorId').value = '';
+    vendorIdInput.value = '';
+  }
+}
+
+function handleVendorIdInput() {
+  clearTimeout(vendorIdSearchTimeout);
+  vendorIdSearchTimeout = setTimeout(() => lookupVendorByIdAndFill(false), 250);
+}
+
+function handleVendorIdSelection() {
+  lookupVendorByIdAndFill(true);
+}
+
+async function lookupVendorByIdAndFill(isFinal) {
+  const vendorIdInput = document.getElementById('vendorId');
+  const vendorInput = document.getElementById('vendor');
+
+  const id = vendorIdInput.value.trim();
+  if (!id) {
+    vendorInput.value = '';
+    return;
+  }
+
+  // While typing, clear vendor name to prevent mismatch until we resolve.
+  if (!isFinal) vendorInput.value = '';
+
+  const found = await resolveVendorById(id);
+  if (found) {
+    vendorIdInput.value = found.id;
+    vendorInput.value = found.name;
+  } else if (isFinal) {
+    vendorInput.value = '';
   }
 }
 
@@ -607,12 +681,13 @@ function searchVendors() {
     elements.vendorList.innerHTML = '';
     return;
   }
+
   vendorsRef.orderByChild('name').once('value', snapshot => {
     elements.vendorList.innerHTML = '';
     if (snapshot.exists()) {
       snapshot.forEach(childSnapshot => {
         const vendor = childSnapshot.val();
-        if (vendor.name.toLowerCase().includes(vendorName)) {
+        if (vendor && vendor.name && vendor.name.toLowerCase().includes(vendorName)) {
           const option = document.createElement('option');
           option.value = vendor.name;
           option.dataset.vendorId = vendor.id;
@@ -621,6 +696,91 @@ function searchVendors() {
       });
     }
   }).catch(error => console.error('Error fetching vendors:', error));
+}
+
+// Resolve Vendor by ID (exact match, fast Firebase query)
+async function resolveVendorById(id) {
+  const cleanId = String(id || '').trim();
+  if (!cleanId) return null;
+
+  try {
+    const snapshot = await vendorsRef
+      .orderByChild('id')
+      .equalTo(cleanId)
+      .limitToFirst(1)
+      .once('value');
+
+    if (!snapshot.exists()) return null;
+
+    let vendor = null;
+    snapshot.forEach(child => { vendor = child.val(); });
+
+    if (!vendor) return null;
+    return { id: vendor.id, name: vendor.name };
+  } catch (error) {
+    console.error('Error resolving vendor by ID:', error);
+    return null;
+  }
+}
+
+// Resolve Vendor by Name (exact match, case-insensitive fallback)
+async function resolveVendorByName(name) {
+  const cleanName = String(name || '').trim();
+  if (!cleanName) return null;
+
+  const target = cleanName.toLowerCase();
+  try {
+    const snapshot = await vendorsRef.once('value');
+    if (!snapshot.exists()) return null;
+
+    let found = null;
+    snapshot.forEach(childSnapshot => {
+      if (found) return;
+      const v = childSnapshot.val() || {};
+      const vName = String(v.name || '').trim().toLowerCase();
+      if (vName === target) {
+        found = { id: v.id, name: v.name };
+      }
+    });
+
+    return found;
+  } catch (error) {
+    console.error('Error resolving vendor by name:', error);
+    return null;
+  }
+}
+
+// Make sure Vendor ID and Vendor Name stay consistent before saving
+async function normalizeVendorFields(paymentData) {
+  if (!paymentData) return;
+
+  const name = String(paymentData.vendor || '').trim();
+  const id = String(paymentData.vendorId || '').trim();
+
+  const hasName = name !== '';
+  const hasId = id !== '';
+
+  // Prefer Vendor ID as the source of truth if both are present
+  if (hasId) {
+    const found = await resolveVendorById(id);
+    if (found) {
+      paymentData.vendorId = found.id;
+      paymentData.vendor = found.name;
+    } else if (!hasName) {
+      // Can't resolve ID and no name given
+      paymentData.vendor = '';
+    }
+    return;
+  }
+
+  // If only name is present, try to resolve ID
+  if (hasName && !hasId) {
+    const found = await resolveVendorByName(name);
+    if (found) {
+      paymentData.vendorId = found.id;
+      paymentData.vendor = found.name;
+    }
+  }
 }
 
 async function uploadVendorCSV(e) {
