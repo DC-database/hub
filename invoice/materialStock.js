@@ -28,7 +28,8 @@ const STOCK_LEGENDS = {
             "109": "Aggregates & Sand",
             "110": "Fasteners & Anchors",
             "111": "Chemicals & Admixtures",
-            "112": "Geotextiles & Drainage"
+            "112": "Geotextiles & Drainage",
+            "113": "Scaffolding"
         }
     },
     "2": {
@@ -72,7 +73,6 @@ const STOCK_LEGENDS = {
             "404": "Valves & Controls",
             "405": "Insulation & Cladding",
             "406": "Diffusers, Grilles & Louvers",
-            "407": "Scaffolding",
             "408": "Refrigerant & Copper Pipe",
             "409": "Filters & Spares",
             "410": "HVAC Consumables"

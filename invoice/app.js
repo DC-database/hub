@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.0.7";
+const APP_VERSION = "6.0.8";
 
 // --- Vacation Delegation Helpers (Super Admin Replacement) ---
 // When SUPER_ADMIN_NAME enables Vacation in Settings and sets ReplacementName,
@@ -3169,7 +3169,7 @@ function normalizeCelebrationConfig(raw) {
         showMode: 'every_login', // 'every_login' | 'once_per_device'
         soundEnabled: true,
         // Optional external sound (e.g., Firebase Storage mp3). If empty, a built-in sound plays.
-        soundUrl: 'https://firebasestorage.googleapis.com/v0/b/ibainvoice-3ea51.firebasestorage.app/o/fireworks.mp3?alt=media&token=5b62a226-19ee-4907-baa2-97cb7ae207cc',
+        soundUrl: 'https://firebasestorage.googleapis.com/v0/b/invoiceentry-b15a8.firebasestorage.app/o/Files%2Ffireworks.mp3?alt=media&token=b2c11d84-182c-43d9-be3c-f2b32250116c',
         soundVolume: 0.75,
         durationMs: 5200,
         version: 'default-ny2026'
@@ -10296,7 +10296,7 @@ function handleGeneratePrintReport() {
     // --- NEW: INJECT LOGO ---
     const logoContainer = document.querySelector('.print-logo');
     if (logoContainer) {
-        logoContainer.innerHTML = '<img src="https://firebasestorage.googleapis.com/v0/b/ibainvoice-3ea51.firebasestorage.app/o/iba_logo.png?alt=media&token=ccc85b7b-d41e-4242-9e27-08942efb3012" style="height: 80px; width: auto;">';
+        logoContainer.innerHTML = '<img src="https://firebasestorage.googleapis.com/v0/b/invoiceentry-b15a8.firebasestorage.app/o/Files%2Fiba_logo.jpg?alt=media&token=d7376281-75e0-4f8b-b9c5-9911e4522f68" style="height: 80px; width: auto;">';
     }
     // ------------------------
    
