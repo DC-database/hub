@@ -143,7 +143,10 @@ const STOCK_LEGENDS = {
         "relations": {
             "901": "Miscellaneous",
             "902": "Client-supplied / Unknown",
-            "903": "Scrap / Returns"
+            "903": "Scrap / Returns",
+			"904": "HO Vehicle",
+            "905": "Site Vehicle",
+            "906": "Plant & Machinery (Heavy Equipment)"
         }
     }
 };
