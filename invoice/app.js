@@ -6,7 +6,60 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.0.8";
+const APP_VERSION = "6.2.0";
+
+// ======================================================================
+// NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)
+// ======================================================================
+function refreshNotePickers(latestNote) {
+    try {
+        const note = (latestNote == null) ? '' : String(latestNote);
+        const trimmed = note.replace(/\u00A0/g, ' ').trim(); // normalize NBSP
+        if (trimmed) {
+            if (typeof allUniqueNotes === 'undefined' || !allUniqueNotes) allUniqueNotes = new Set();
+            allUniqueNotes.add(trimmed);
+        }
+    } catch (e) {
+        // ignore
+    }
+
+    // 1) Summary Note datalist suggestions
+    try {
+        if (typeof noteSuggestionsDatalist !== 'undefined' && noteSuggestionsDatalist) {
+            noteSuggestionsDatalist.innerHTML = '';
+            const sorted = Array.from(allUniqueNotes || []).sort((a, b) => String(a).localeCompare(String(b)));
+            for (const n of sorted) {
+                const opt = document.createElement('option');
+                opt.value = n;
+                noteSuggestionsDatalist.appendChild(opt);
+            }
+        }
+    } catch (e) {
+        // ignore
+    }
+
+    // 2) Batch Entry "Search by Note" dropdown (Choices)
+    try {
+        if (typeof imBatchNoteSearchChoices !== 'undefined' && imBatchNoteSearchChoices) {
+            let current = '';
+            try {
+                current = imBatchNoteSearchChoices.getValue(true);
+            } catch (_) { /* ignore */ }
+
+            Promise.resolve(populateNoteDropdown(imBatchNoteSearchChoices)).then(() => {
+                try {
+                    if (Array.isArray(current)) {
+                        current.forEach(v => imBatchNoteSearchChoices.setChoiceByValue(v));
+                    } else if (current) {
+                        imBatchNoteSearchChoices.setChoiceByValue(current);
+                    }
+                } catch (_) { /* ignore */ }
+            });
+        }
+    } catch (e) {
+        // ignore
+    }
+}
 
 // --- Vacation Delegation Helpers (Super Admin Replacement) ---
 // When SUPER_ADMIN_NAME enables Vacation in Settings and sets ReplacementName,
@@ -306,17 +359,43 @@ const SRV_BASE_PATH = "https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa
 const REPORT_BASE_PATH = "https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/DC%20Files/Report/";
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours cache
 
-// SharePoint PDF filenames in this system may intentionally contain spaces right before ".pdf"
-// (e.g. "... Services & .pdf"). Do NOT trim end spaces when generating links.
-function getSharePointPdfBaseName(name) {
-    const raw = String(name ?? '');
-    const rawTrimLower = raw.trim().toLowerCase();
-    if (!rawTrimLower || rawTrimLower === 'nil') return '';
-
-    // Remove a trailing ".pdf" (case-insensitive) and any spaces AFTER it, while preserving spaces BEFORE it.
-    // Also remove leading whitespace (harmless) but keep trailing whitespace (can be significant).
-    return raw.replace(/\.pdf\s*$/i, '').replace(/^\s+/, '');
+// SharePoint PDF filename handling
+// Goal: always build links without any whitespace before ".pdf" and never end up with trailing spaces in the base name.
+// Examples:
+//   "12345-in-01-sample .pdf"  -> "12345-in-01-sample.pdf"
+//   "....DISTRICT "            -> "....DISTRICT.pdf"
+function normalizeNameText(value) {
+    // Convert common non-breaking / special spaces to a normal space, then trim.
+    return String(value ?? '')
+        .replace(/[\u00A0\u1680\u180E\u2000-\u200B\u202F\u205F\u3000]/g, ' ')
+        .trim();
 }
+
+function truncateNameText(value, maxLen) {
+    const s = normalizeNameText(value);
+    if (!maxLen || maxLen <= 0) return s;
+    // IMPORTANT: do NOT pad. Only truncate, then trim again to remove a trailing space at the cut point.
+    return (s.length > maxLen) ? s.substring(0, maxLen).trim() : s;
+}
+
+function getSharePointPdfBaseName(name) {
+    const raw = normalizeNameText(name);
+    const lower = raw.toLowerCase();
+    if (!lower || lower === 'nil') return '';
+
+    // Remove a trailing ".pdf" (case-insensitive), allowing accidental spaces before/after it.
+    // Then normalize again so we never end up with "... .pdf" when we later append ".pdf".
+    const noExt = raw.replace(/\s*\.pdf\s*$/i, '');
+    return normalizeNameText(noExt);
+}
+
+// Build a safe SharePoint PDF URL or return null if name is blank/"nil".
+function buildSharePointPdfUrl(basePath, name) {
+    const baseName = getSharePointPdfBaseName(name);
+    if (!baseName) return null;
+    return `${basePath}${encodeURIComponent(baseName)}.pdf`;
+}
+
 
 // -- State Variables --
 let currentApprover = null;
@@ -6231,8 +6310,8 @@ function renderMobileActiveTasks(tasks) {
         } else {
             // --- B. STANDARD INVOICE CARD (Unchanged) ---
             const invName = task.invName || '';
-            const pdfLink = (task.source === 'invoice' && invName.trim() && invName.toLowerCase() !== 'nil')
-                ? `${PDF_BASE_PATH}${encodeURIComponent(invName)}.pdf` : null;
+            const pdfLink = (task.source === 'invoice')
+                ? buildSharePointPdfUrl(PDF_BASE_PATH, invName) : null;
             const isManagerTask = isAdmin && task.remarks === 'For Approval';
             const displayAmount = task.amountPaid || task.amount || '';
 
@@ -9492,14 +9571,17 @@ async function handleAddInvoice(e) {
     // -----------------------------
 
     // Auto-generate Invoice Name if blank
-    if (!invoiceData.invName || invoiceData.invName.trim() === "") {
+    if (!invoiceData.invName || normalizeNameText(invoiceData.invName) === "") {
         const poDetails = allPOData[currentPO] || {};
-        const site = poDetails['Project ID'] || 'N/A';
-        let vendor = poDetails['Supplier Name'] || 'N/A';
-        if (vendor.length > 21) vendor = vendor.substring(0, 21);
-        const invEntryID = invoiceData.invEntryID || 'INV-XX';
-        invoiceData.invName = `${site}-${currentPO}-${invEntryID}-${vendor}`;
+        const site = normalizeNameText(poDetails['Project ID'] || 'N/A');
+        const vendor = truncateNameText(poDetails['Supplier Name'] || 'N/A', 21);
+        const invEntryID = normalizeNameText(invoiceData.invEntryID || 'INV-XX');
+        invoiceData.invName = normalizeNameText(`${site}-${currentPO}-${invEntryID}-${vendor}`);
+    } else {
+        // Even if the user typed it manually, never save trailing spaces.
+        invoiceData.invName = normalizeNameText(invoiceData.invName);
     }
+
 
     invoiceData.dateAdded = getTodayDateString();
     invoiceData.createdAt = firebase.database.ServerValue.TIMESTAMP;
@@ -9563,6 +9645,7 @@ async function handleAddInvoice(e) {
 
         if (invoiceData.note && invoiceData.note.trim() !== '') {
             allUniqueNotes.add(invoiceData.note.trim());
+            refreshNotePickers(invoiceData.note);
         }
 
         // Update Origin Job Entry
@@ -9629,11 +9712,15 @@ async function handleUpdateInvoice(e) {
                 const mm = String(today.getMonth() + 1).padStart(2, '0');
                 const dd = String(today.getDate()).padStart(2, '0');
                 const formattedDate = `${yyyy}${mm}${dd}`;
-                let vendor = poDetails['Supplier Name'] || '';
-                if (vendor.length > 21) vendor = vendor.substring(0, 21);
-                const site = poDetails['Project ID'] || 'N/A';
-                const invEntryID = invoiceData.invEntryID || 'INV-XX';
-                invoiceData.srvName = `${formattedDate}-${currentPO}-${invEntryID}-${site}-${vendor}`;
+
+                const site = normalizeNameText(poDetails['Project ID'] || 'N/A');
+                const invEntryID = normalizeNameText(invoiceData.invEntryID || 'INV-XX');
+
+                const vendorCandidate = truncateNameText(poDetails['Supplier Name'] || '', 21);
+                const vendor = vendorCandidate || 'Vendor';
+
+                // IMPORTANT: never end the generated name with a space (even if vendor was shorter than the limit)
+                invoiceData.srvName = normalizeNameText(`${formattedDate}-${currentPO}-${invEntryID}-${site}-${vendor}`);
                 document.getElementById('im-srv-name').value = invoiceData.srvName;
             }
         } catch (error) {
@@ -9724,6 +9811,7 @@ if (typeof ensurePORecordInInvoiceDb === 'function') {
 
         if (invoiceData.note && invoiceData.note.trim() !== '') {
             allUniqueNotes.add(invoiceData.note.trim());
+            refreshNotePickers(invoiceData.note);
         }
 
         allSystemEntries = [];
@@ -10711,8 +10799,8 @@ async function handleAddPOToBatch() {
         }
         const nextInvId = `INV-${String(maxInvIdNum + 1).padStart(2, '0')}`;
 
-        const site = poData['Project ID'] || 'N/A';
-        const vendor = poData['Supplier Name'] || 'N/A';
+        const site = normalizeNameText(poData['Project ID'] || 'N/A');
+        const vendor = normalizeNameText(poData['Supplier Name'] || 'N/A');
         const row = document.createElement('tr');
         row.setAttribute('data-po', poNumber);
         row.setAttribute('data-site', site);
@@ -10725,6 +10813,7 @@ async function handleAddPOToBatch() {
             <td>${vendor}</td>
             <td><input type="text" name="invNumber" class="batch-input"></td>
             <td><input type="text" name="invName" class="batch-input"></td>
+            <td><input type="text" name="details" class="batch-input"></td>
             <td><input type="text" name="srvName" class="batch-input"></td>
             <td><input type="date" name="invoiceDate" class="batch-input" value="${getTodayDateString()}"></td>
             <td><input type="number" name="invValue" class="batch-input" step="0.01"></td>
@@ -10800,15 +10889,16 @@ async function addInvoiceToBatchTable(invData) {
     const row = document.createElement('tr');
     row.setAttribute('data-po', invData.po);
     row.setAttribute('data-key', invData.key);
-    row.setAttribute('data-site', invData.site);
-    row.setAttribute('data-vendor', invData.vendor);
+    row.setAttribute('data-site', normalizeNameText(invData.site));
+    row.setAttribute('data-vendor', normalizeNameText(invData.vendor));
 
     row.innerHTML = `
         <td>${invData.po} <span class="existing-indicator">(Existing: ${invData.invEntryID})</span></td>
-        <td>${invData.site}</td>
-        <td>${invData.vendor}</td>
+        <td>${normalizeNameText(invData.site)}</td>
+        <td>${normalizeNameText(invData.vendor)}</td>
         <td><input type="text" name="invNumber" class="batch-input" value="${invData.invNumber || ''}"></td>
         <td><input type="text" name="invName" class="batch-input" value="${invData.invName || ''}"></td>
+        <td><input type="text" name="details" class="batch-input" value="${invData.details || ''}"></td>
         <td><input type="text" name="srvName" class="batch-input" value="${invData.srvName || ''}"></td>
         <td><input type="date" name="invoiceDate" class="batch-input" value="${normalizeDateForInput(invData.invoiceDate) || ''}"></td>
         <td><input type="number" name="invValue" class="batch-input" step="0.01" value="${invData.invValue || ''}"></td>
@@ -10996,6 +11086,7 @@ async function handleSaveBatchInvoices() {
     const savePromises = [];
     let newInvoicesCount = 0;
     let updatedInvoicesCount = 0;
+    const notesTouchedThisBatch = new Set();
 
     // Helper: Generate SRV Name
     const getSrvName = (poNumber, site, vendor, invEntryID) => {
@@ -11003,19 +11094,23 @@ async function handleSaveBatchInvoices() {
             yyyy = today.getFullYear(),
             mm = String(today.getMonth() + 1).padStart(2, '0'),
             dd = String(today.getDate()).padStart(2, '0');
-        
-        let safeVendor = vendor || 'Vendor';
-        if (safeVendor.length > 21) safeVendor = safeVendor.substring(0, 21);
-        
-        const invID = invEntryID || 'INV-XX';
-        return `${yyyy}${mm}${dd}-${poNumber}-${invID}-${site}-${safeVendor}`;
+
+        const safeSite = normalizeNameText(site || 'N/A');
+        const safeVendorCandidate = truncateNameText(vendor || 'Vendor', 21);
+        const safeVendor = safeVendorCandidate || 'Vendor';
+
+        const invID = normalizeNameText(invEntryID || 'INV-XX');
+
+        // IMPORTANT: never end the generated name with a space (no padding, only truncation + trim)
+        return normalizeNameText(`${yyyy}${mm}${dd}-${poNumber}-${invID}-${safeSite}-${safeVendor}`);
     };
 
     // Helper: Generate Report Name
     const generateReportName = (po, id, vendor) => {
-        const shortVendor = (vendor || 'Vendor').substring(0, 15).trim().replace(/[^a-zA-Z0-9 ]/g, "");
-        return `${po}-${id}-${shortVendor}-Report`;
+        const shortVendor = truncateNameText(vendor || 'Vendor', 15).replace(/[^a-zA-Z0-9 ]/g, "");
+        return normalizeNameText(`${po}-${id}-${shortVendor}-Report`);
     };
+
 
     // Ensure we have base data before starting (prevents cache errors)
     if (typeof ensureInvoiceDataFetched === 'function') await ensureInvoiceDataFetched();
@@ -11044,6 +11139,7 @@ async function handleSaveBatchInvoices() {
         const invoiceData = {
             invNumber: row.querySelector('[name="invNumber"]').value,
             invName: row.querySelector('[name="invName"]').value,
+            details: row.querySelector('[name="details"]') ? row.querySelector('[name="details"]').value : (row.querySelector('[name="description"]') ? row.querySelector('[name="description"]').value : ''),
             srvName: row.querySelector('[name="srvName"]').value,
             invoiceDate: row.querySelector('[name="invoiceDate"]').value,
             invValue: row.querySelector('[name="invValue"]').value,
@@ -11052,6 +11148,16 @@ async function handleSaveBatchInvoices() {
             note: row.querySelector('[name="note"]').value,
             releaseDate: (typeof getTodayDateString === 'function') ? getTodayDateString() : new Date().toISOString().split('T')[0]
         };
+
+        // Keep the Note cache updated so dropdowns can show new notes immediately
+        try {
+            const n = (invoiceData.note || '').replace(/\u00A0/g, ' ').trim();
+            if (n) {
+                if (typeof allUniqueNotes === 'undefined' || !allUniqueNotes) allUniqueNotes = new Set();
+                allUniqueNotes.add(n);
+                notesTouchedThisBatch.add(n);
+            }
+        } catch (_) { /* ignore */ }
 
         // 2. Handle Attention Field
         invoiceData.attention = row.choicesInstance ? row.choicesInstance.getValue(true) : row.querySelector('select[name="attention"]').value;
@@ -11065,7 +11171,7 @@ async function handleSaveBatchInvoices() {
         }
 
         // 4. Auto-Generate Names if needed
-        if (vendor.length > 21) vendor = vendor.substring(0, 21);
+        vendor = truncateNameText(vendor || '', 21) || 'Vendor';
         const srvNameLower = (invoiceData.srvName || '').toLowerCase();
         
         // Auto SRV Name
@@ -11139,6 +11245,11 @@ async function handleSaveBatchInvoices() {
     // === FINALIZE ===
     try {
         await Promise.all(savePromises);
+
+        // Refresh note dropdowns/suggestions once after the batch commit
+        if (notesTouchedThisBatch.size > 0) {
+            refreshNotePickers(Array.from(notesTouchedThisBatch)[notesTouchedThisBatch.size - 1]);
+        }
         
         alert(`Batch Process Complete!\n\nNew Invoices: ${newInvoicesCount}\nUpdated Invoices: ${updatedInvoicesCount}`);
         
@@ -11528,16 +11639,18 @@ async function handleGenerateSummary() {
             qrElement.innerHTML = '';
             if (srvNameForQR) {
                 try {
-                    const pdfUrl = SRV_BASE_PATH + encodeURIComponent(srvNameForQR) + ".pdf";
-                    new QRCode(qrElement, {
+                    const pdfUrl = buildSharePointPdfUrl(SRV_BASE_PATH, srvNameForQR);
+                    if (pdfUrl) {
+                        new QRCode(qrElement, {
                         text: pdfUrl,
                         width: 60,
                         height: 60,
                         colorDark: "#000000",
                         colorLight: "#ffffff",
                         correctLevel: QRCode.CorrectLevel.L
-                    });
-                } catch (e) {
+                        });
+                    }
+} catch (e) {
                     console.error("QR generation failed:", e);
                 }
             }
@@ -11623,18 +11736,34 @@ snPreviousPayment.textContent = `${formatCurrency(previousPaymentTotal)} Qatari 
     }
 }
 
-async function handleUpdateSummaryChanges() {
+async function handleUpdateSummaryChanges(sendToAccounts = false) {
     const rows = snTableBody.querySelectorAll('tr');
     if (rows.length === 0) {
         alert("No data to update.");
         return;
     }
-    if (!confirm("Are you sure you want to save the changes for all visible entries?")) return;
+    const confirmMsg = sendToAccounts
+        ? "This will UPDATE all visible entries and SEND them to ACCOUNTS (Status: With Accounts). Continue?"
+        : "This will save changes for all visible entries. Continue?";
+    if (!confirm(confirmMsg)) return;
     summaryNoteUpdateBtn.textContent = "Updating...";
     summaryNoteUpdateBtn.disabled = true;
-    const newGlobalStatus = document.getElementById('summary-note-status-input').value,
-        newGlobalSRV = document.getElementById('summary-note-srv-input').value.trim(),
-        today = getTodayDateString();
+    let newGlobalStatus = document.getElementById('summary-note-status-input').value;
+    let newGlobalSRV = document.getElementById('summary-note-srv-input').value.trim();
+    const today = getTodayDateString();
+
+    // Mode: Send to Accounts
+    // - forces Status = With Accounts
+    // - copies SRV Name from the SRV field, else from Current Note
+    if (sendToAccounts) {
+        newGlobalStatus = 'With Accounts';
+        if (!newGlobalSRV) {
+            const currentNote = (summaryNoteCurrentInput && summaryNoteCurrentInput.value)
+                ? summaryNoteCurrentInput.value.trim()
+                : '';
+            if (currentNote) newGlobalSRV = currentNote;
+        }
+    }
 
     const updatePromises = [];
     const localCacheUpdates = [];
@@ -12274,9 +12403,11 @@ function openCEOApprovalModal(taskData) {
 
     const invName = taskData.invName || '';
     let pdfLinkHTML = '';
-    if (taskData.source === 'invoice' && invName.trim() && invName.toLowerCase() !== 'nil') {
-        const pdfUrl = `${PDF_BASE_PATH}${encodeURIComponent(invName)}.pdf`;
-        pdfLinkHTML = `<a href="${pdfUrl}" target="_blank" class="action-btn invoice-pdf-btn" style="display: inline-block; margin-top: 10px; text-decoration: none;">View Invoice PDF</a>`;
+if (taskData.source === 'invoice') {
+        const pdfUrl = buildSharePointPdfUrl(PDF_BASE_PATH, invName);
+        if (pdfUrl) {
+            pdfLinkHTML = `<a href="${pdfUrl}" target="_blank" class="action-btn invoice-pdf-btn" style="display: inline-block; margin-top: 10px; text-decoration: none;">View Invoice PDF</a>`;
+        }
     }
 
     ceoModalDetails.innerHTML = `
@@ -13578,7 +13709,8 @@ try {
             // C. Invoice PDF Open (Only if not clicking a button)
             if (taskData.source === 'invoice' && taskData.invName && taskData.invName.trim() && taskData.invName.toLowerCase() !== 'nil') {
                 if (!e.target.closest('button') && !e.target.closest('a')) {
-                    window.open(PDF_BASE_PATH + encodeURIComponent(taskData.invName) + ".pdf", '_blank');
+                    const pdfUrl = buildSharePointPdfUrl(PDF_BASE_PATH, taskData.invName);
+                    if (pdfUrl) window.open(pdfUrl, '_blank');
                 }
             }
         });
@@ -14605,31 +14737,25 @@ const refreshReportingBtn = document.getElementById('im-refresh-reporting-button
         });
     }
 
+// NOTE: We no longer auto-force "With Accounts" or auto-copy SRV Name on Generate.
+// Use the Update button prompt instead when you want to "Send to Accounts".
 if (summaryNoteGenerateBtn) {
-    summaryNoteGenerateBtn.addEventListener('click', function() {
-        // --- NEW LOGIC START ---
-        // 1. Copy Current Note to SRV Name
-        const currentNote = document.getElementById('summary-note-current-input');
-        const srvInput = document.getElementById('summary-note-srv-input');
-        if (currentNote && srvInput && currentNote.value.trim() !== "") {
-            srvInput.value = currentNote.value.trim();
-        }
-
-        // 2. Set Status to "With Accounts"
-        const statusInput = document.getElementById('summary-note-status-input');
-        if (statusInput) {
-            statusInput.value = "With Accounts";
-        }
-        // --- NEW LOGIC END ---
-
-        // 3. Now run the original summary function
-        handleGenerateSummary();
-    });
+    summaryNoteGenerateBtn.addEventListener('click', handleGenerateSummary);
 }
 
-
-
-    if (summaryNoteUpdateBtn) summaryNoteUpdateBtn.addEventListener('click', handleUpdateSummaryChanges);
+if (summaryNoteUpdateBtn) {
+    summaryNoteUpdateBtn.addEventListener('click', async () => {
+        // Two-mode update:
+        // - Cancel = Normal Update only
+        // - OK = Update & Send to Accounts (forces Status=With Accounts and copies SRV name)
+        const sendToAccounts = confirm(
+            "Update & Send to Accounts?\n\n" +
+            "OK = Yes (Status: With Accounts + copy SRV Name)\n" +
+            "Cancel = No (Normal Update only)"
+        );
+        await handleUpdateSummaryChanges(sendToAccounts);
+    });
+}
 
     if (summaryClearBtn) {
         summaryClearBtn.addEventListener('click', () => {
@@ -14717,8 +14843,8 @@ if (summaryNoteGenerateBtn) {
                     }
 
                 if (foundSrvName) {
-                    const pdfUrl = `${SRV_BASE_PATH}${encodeURIComponent(foundSrvName)}.pdf`;
-                    window.open(pdfUrl, '_blank');
+                    const pdfUrl = buildSharePointPdfUrl(SRV_BASE_PATH, foundSrvName);
+                    if (pdfUrl) window.open(pdfUrl, '_blank');
                 } else {
                     alert(`No SRV document found for Previous Note: "${prevNote}"`);
                 }
@@ -16531,7 +16657,7 @@ if (reportAutoSelect) {
             if (poText === "---" || poText === "" || entryId === "") return;
 
             // 4. Truncate Vendor Name (Max 17 Chars)
-            const shortVendor = vendorText.substring(0, 17).trim();
+            const shortVendor = truncateNameText(vendorText, 17);
 
             // 5. Construct the String: PO-EntryID-Vendor-Report
             const generatedName = `${poText}-${entryId}-${shortVendor}-Report`;
