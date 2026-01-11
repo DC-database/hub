@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.2.0";
+const APP_VERSION = "6.2.2";
 
 // ======================================================================
 // NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)
@@ -274,6 +274,28 @@ function isInventoryContext() {
 const isInventoryPage = isInventoryContext();
 // Define what counts as an "Inventory Task"
 const INVENTORY_TYPES = ['Transfer', 'Restock', 'Return', 'Usage'];
+
+
+
+// ======================================================================
+// WORKDESK (DESKTOP) FILTERING: Hide Inventory Tasks/Jobs (Mobile unchanged)
+// ======================================================================
+function isMobileViewport() {
+    return (window.innerWidth || 0) <= 768;
+}
+function isWorkdeskViewVisible() {
+    const wdView = document.getElementById('workdesk-view');
+    return !!(wdView && !wdView.classList.contains('hidden'));
+}
+/**
+ * When we're on the NORMAL Workdesk (desktop viewport) we hide inventory-related
+ * tasks/jobs (Transfer/Restock/Return/Usage). Inventory mode pages/clones keep them.
+ * Mobile view is intentionally unchanged.
+ */
+function shouldExcludeInventoryFromWorkdeskDesktop() {
+    const invCtx = (typeof isInventoryContext === 'function' && isInventoryContext());
+    return isWorkdeskViewVisible() && !isMobileViewport() && !invCtx;
+}
 
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -2669,6 +2691,8 @@ const reportingSearchInput = document.getElementById('reporting-search');
 const reportTabsContainer = document.getElementById('report-tabs');
 const printReportButton = document.getElementById('print-report-button');
 const downloadWdReportButton = document.getElementById('download-wd-report-csv-button');
+const wdInTransitReportBtn = document.getElementById('wd-inventory-intransit-report-btn');
+const wdInTransitContactFilterSelect = document.getElementById('wd-inventory-intransit-contact-filter');
 const dbCompletedTasksCount = document.getElementById('db-completed-tasks-count');
 const dbSiteStatsContainer = document.getElementById('dashboard-site-stats');
 const dbRecentTasksBody = document.getElementById('db-recent-tasks-body');
@@ -3589,6 +3613,12 @@ async function showWorkdeskSection(sectionId, newSearchTerm = null) {
         targetSection.classList.remove('hidden');
     }
 
+
+    // Inventory In-Transit report button is only relevant in Inventory context (desktop)
+    if (typeof updateInTransitReportButtonVisibility === 'function') {
+        updateInTransitReportButtonVisibility();
+    }
+
     // 3. Section-Specific Logic
     if (sectionId === 'wd-dashboard') {
         await populateWorkdeskDashboard();
@@ -4298,6 +4328,11 @@ async function populateCalendarTasks() {
         tasks = userActiveTasks;
     }
 
+    // Desktop Workdesk should hide inventory tasks from the calendar (mobile unchanged)
+    if (typeof shouldExcludeInventoryFromWorkdeskDesktop === 'function' && shouldExcludeInventoryFromWorkdeskDesktop()) {
+        tasks = tasks.filter(t => !INVENTORY_TYPES.includes(t.for));
+    }
+
     const tasksByDate = new Map();
     tasks.forEach(task => {
         let taskDateStr = task.calendarDate || task.date;
@@ -4352,7 +4387,10 @@ function renderYearView() {
 
     const isAdmin = (currentApprover.Role || '').toLowerCase() === 'admin';
     const year = wdCurrentCalendarDate.getFullYear();
-    const taskSource = isAdmin ? allAdminCalendarTasks : userActiveTasks;
+    const baseTaskSource = isAdmin ? allAdminCalendarTasks : userActiveTasks;
+    const taskSource = (typeof shouldExcludeInventoryFromWorkdeskDesktop === 'function' && shouldExcludeInventoryFromWorkdeskDesktop())
+        ? baseTaskSource.filter(t => !INVENTORY_TYPES.includes(t.for))
+        : baseTaskSource;
     const myTaskKeys = new Set(userActiveTasks.map(task => task.key));
 
     const tasksByMonth = new Map();
@@ -4443,7 +4481,10 @@ function displayCalendarTasksForDay(date) {
     }
 
     const isAdmin = (currentApprover.Role || '').toLowerCase() === 'admin';
-    const taskSource = isAdmin ? allAdminCalendarTasks : userActiveTasks;
+    const baseTaskSource = isAdmin ? allAdminCalendarTasks : userActiveTasks;
+    const taskSource = (typeof shouldExcludeInventoryFromWorkdeskDesktop === 'function' && shouldExcludeInventoryFromWorkdeskDesktop())
+        ? baseTaskSource.filter(t => !INVENTORY_TYPES.includes(t.for))
+        : baseTaskSource;
 
     const tasks = taskSource.filter(task => {
         const taskDate = convertDisplayDateToInput(task.calendarDate || task.date);
@@ -4537,7 +4578,10 @@ function showDayView(date) {
 
     const isAdmin = (currentApprover.Role || '').toLowerCase() === 'admin';
     const isCEO = document.body.classList.contains('is-ceo');
-    const taskSource = isAdmin ? allAdminCalendarTasks : userActiveTasks;
+    const baseTaskSource = isAdmin ? allAdminCalendarTasks : userActiveTasks;
+    const taskSource = (typeof shouldExcludeInventoryFromWorkdeskDesktop === 'function' && shouldExcludeInventoryFromWorkdeskDesktop())
+        ? baseTaskSource.filter(t => !INVENTORY_TYPES.includes(t.for))
+        : baseTaskSource;
 
     const tasks = taskSource.filter(task => {
         const taskDate = convertDisplayDateToInput(task.calendarDate || task.date);
@@ -4696,6 +4740,242 @@ function handleDownloadWorkdeskCSV() {
     link.click();
     document.body.removeChild(link);
 }
+
+
+// ==========================================================================
+// Inventory "In Transit" printable PDF (opens print dialog; user can Save as PDF)
+// - Only shown in Inventory context (desktop) to share pending in-transit items
+// ==========================================================================
+function updateInTransitReportButtonVisibility() {
+    try {
+        if (!wdInTransitReportBtn) return;
+        const invCtx = (typeof isInventoryContext === 'function' && isInventoryContext());
+        // Keep mobile UI unchanged (hide on small screens)
+        const show = invCtx && !isMobileViewport();
+        wdInTransitReportBtn.style.display = show ? 'inline-flex' : 'none';
+
+        if (wdInTransitContactFilterSelect) {
+            wdInTransitContactFilterSelect.style.display = show ? 'inline-flex' : 'none';
+            if (show) {
+                // Populate options when the control becomes visible.
+                populateInTransitContactFilterOptions();
+            }
+        }
+    } catch (e) {
+        // fail silently
+    }
+}
+
+function _normalizeContactLabel(val) {
+    return String(val || '').replace(/\s+/g, ' ').trim();
+}
+
+function getInTransitTransferEntries() {
+    return (allSystemEntries || [])
+        .filter(e => (e && e.source === 'transfer_entry'))
+        .filter(e => {
+            const status = String(e.remarks || e.status || '').trim().toLowerCase();
+            return status === 'in transit';
+        })
+        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+}
+
+async function populateInTransitContactFilterOptions() {
+    try {
+        if (!wdInTransitContactFilterSelect) return;
+        await ensureAllEntriesFetched(false);
+
+        const inTransit = getInTransitTransferEntries();
+
+        // Build a unique, cleaned list of contacts.
+        const map = new Map(); // key(lower) -> display
+        for (const e of inTransit) {
+            const label = _normalizeContactLabel(e.contactName || e.receiver || e.attention || e.contact || '');
+            if (!label) continue;
+            const key = label.toLowerCase();
+            if (!map.has(key)) map.set(key, label);
+        }
+
+        const stored = (localStorage && localStorage.getItem('wd_intransit_contact')) || '';
+        const current = _normalizeContactLabel(wdInTransitContactFilterSelect.value) || stored;
+
+        const contacts = Array.from(map.values()).sort((a, b) => a.localeCompare(b));
+
+        wdInTransitContactFilterSelect.innerHTML = [
+            `<option value="">All Contacts</option>`,
+            ...contacts.map(c => `<option value="${_escapeHtml(c)}">${_escapeHtml(c)}</option>`)
+        ].join('');
+
+        if (current && Array.from(wdInTransitContactFilterSelect.options).some(o => o.value === current)) {
+            wdInTransitContactFilterSelect.value = current;
+        }
+    } catch (e) {
+        // Silent failure to avoid breaking workdesk.
+    }
+}
+
+function _escapeHtml(val) {
+    const s = (val === null || val === undefined) ? '' : String(val);
+    return s
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+async function printInventoryInTransitReport() {
+    try {
+        await ensureAllEntriesFetched(false);
+
+        // Keep the dropdown options fresh (no refresh needed)
+        if (typeof populateInTransitContactFilterOptions === 'function') {
+            populateInTransitContactFilterOptions();
+        }
+
+        const inTransitAll = getInTransitTransferEntries();
+
+        // Optional filter: Contact
+        const selectedContact = wdInTransitContactFilterSelect ? _normalizeContactLabel(wdInTransitContactFilterSelect.value) : '';
+        const selectedKey = selectedContact ? selectedContact.toLowerCase() : '';
+        const inTransit = selectedKey
+            ? inTransitAll.filter(e => _normalizeContactLabel(e.contactName || e.receiver || e.attention || e.contact || '').toLowerCase() === selectedKey)
+            : inTransitAll;
+
+        if (!inTransitAll.length) {
+            alert('No "In Transit" inventory records found.');
+            return;
+        }
+
+        if (!inTransit.length) {
+            alert(selectedContact
+                ? `No "In Transit" inventory records found for contact: ${selectedContact}`
+                : 'No "In Transit" inventory records found.');
+            return;
+        }
+
+        const now = new Date();
+        const printDate = now.toLocaleString('en-GB', { hour12: false });
+
+        const logoUrl = "https://firebasestorage.googleapis.com/v0/b/invoiceentry-b15a8.firebasestorage.app/o/Files%2Fiba_logo.jpg?alt=media&token=d7376281-75e0-4f8b-b9c5-9911e4522f68";
+
+        const rowsHtml = inTransit.map((e, idx) => {
+            const controlId = e.controlId || e.ref || e.controlNumber || '';
+            const product = e.productName || e.vendorName || '';
+            const route = e.site || '';
+            const ordered = (e.orderedQty ?? e.requiredQty ?? 0);
+            const delivered = (e.deliveredQty ?? e.receivedQty ?? 0);
+            const ship = e.shippingDate || '';
+            const arr = e.arrivalDate || '';
+            const contact = e.contactName || e.receiver || '';
+            const jobType = e.for || e.jobType || 'Transfer';
+            const status = e.remarks || e.status || 'In Transit';
+
+            return `
+                <tr>
+                    <td>${idx + 1}</td>
+                    <td>${_escapeHtml(controlId)}</td>
+                    <td>${_escapeHtml(jobType)}</td>
+                    <td>${_escapeHtml(product)}</td>
+                    <td>${_escapeHtml(route)}</td>
+                    <td style="text-align:right;">${_escapeHtml(ordered)}</td>
+                    <td style="text-align:right;">${_escapeHtml(delivered)}</td>
+                    <td>${_escapeHtml(ship)}</td>
+                    <td>${_escapeHtml(arr)}</td>
+                    <td>${_escapeHtml(contact)}</td>
+                    <td><strong>${_escapeHtml(status)}</strong></td>
+                </tr>
+            `;
+        }).join('');
+
+        const html = `
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Inventory In Transit Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 25px; color: #111; }
+        .header { display:flex; align-items:center; gap:15px; border-bottom: 2px solid #003A5C; padding-bottom: 10px; margin-bottom: 15px; }
+        .header img { height: 55px; width: auto; }
+        .header .company { font-weight: 900; font-size: 16px; color:#003A5C; }
+        .meta { margin: 10px 0 15px; color:#444; font-size: 12px; display:flex; justify-content: space-between; gap:20px; flex-wrap:wrap;}
+        h2 { margin: 8px 0 0; font-size: 18px; color:#003A5C; }
+        table { width:100%; border-collapse: collapse; font-size: 12px; }
+        th, td { border: 1px solid #ddd; padding: 6px 8px; vertical-align: top; }
+        th { background: #f2f5f7; color:#003A5C; text-align: left; }
+        .summary { margin-top: 10px; font-size: 12px; color:#003A5C; font-weight: 700; }
+        @media print {
+            body { margin: 10mm; }
+            .no-print { display:none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="${logoUrl}" alt="IBA" crossorigin="anonymous"
+             onerror="this.style.display='none'; document.getElementById('fallbackLogo').style.display='block';" />
+        <div id="fallbackLogo" style="display:none; background:#003A5C; color:white; font-weight:900; font-size:26px; padding:6px 12px; letter-spacing:1px;">IBA</div>
+        <div>
+            <div class="company">ISMAIL BIN ALI TRADING &amp; CONT. CO. W.L.L</div>
+            <h2>Inventory – In Transit Report</h2>
+        </div>
+    </div>
+
+    <div class="meta">
+        <div><strong>Generated:</strong> ${_escapeHtml(printDate)}</div>
+        <div><strong>Contact:</strong> ${selectedContact ? _escapeHtml(selectedContact) : 'All'}</div>
+        <div><strong>Total In Transit:</strong> ${inTransit.length}</div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width:35px;">#</th>
+                <th style="width:110px;">Control ID</th>
+                <th style="width:80px;">Job</th>
+                <th>Product Name</th>
+                <th>Site Route</th>
+                <th style="width:80px;">Ordered</th>
+                <th style="width:80px;">Delivered</th>
+                <th style="width:95px;">Shipping</th>
+                <th style="width:95px;">Arrival</th>
+                <th style="width:120px;">Contact</th>
+                <th style="width:90px;">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${rowsHtml}
+        </tbody>
+    </table>
+
+    <div class="summary">Tip: Use your browser Print → “Save as PDF” to share with site teams.</div>
+
+    <script>
+        // Auto-open print dialog (user can Save as PDF)
+        window.onload = function () {
+            try { window.focus(); window.print(); } catch (e) {}
+        };
+    </script>
+</body>
+</html>`;
+
+        const printWin = window.open('', '_blank');
+        if (!printWin) {
+            alert('Popup blocked. Please allow popups to print the report.');
+            return;
+        }
+        printWin.document.open();
+        printWin.document.write(html);
+        printWin.document.close();
+
+    } catch (error) {
+        console.error("printInventoryInTransitReport error:", error);
+        alert('Failed to generate the In Transit report.');
+    }
+}
+
+
 
 // ==========================================================================
 // UPDATED FUNCTION: renderReportingTable (Includes 'Usage' & Strict Sticker Logic)
@@ -4954,9 +5234,12 @@ function renderReportingTable(entries) {
 function filterAndRenderReport(baseEntries = []) {
     let filteredEntries = [...baseEntries];
 
-    // 0. Inventory Mode: show ONLY material-stock (inventory) records in inventory clone
+    // 0. Inventory Mode: show ONLY inventory records in the Inventory clone.
+//    Normal Workdesk (DESKTOP) hides inventory-related jobs. Mobile is unchanged.
     if (typeof isInventoryContext === 'function' && isInventoryContext()) {
         filteredEntries = filteredEntries.filter(entry => INVENTORY_TYPES.includes(entry.for));
+    } else if (typeof shouldExcludeInventoryFromWorkdeskDesktop === 'function' && shouldExcludeInventoryFromWorkdeskDesktop()) {
+        filteredEntries = filteredEntries.filter(entry => !INVENTORY_TYPES.includes(entry.for));
     }
 
     // 1. Filter by Tab (Job Type)
@@ -5008,14 +5291,23 @@ async function handleReportingSearch() {
         await reconcilePendingPRs();
 
         // 2. Build Tabs
-        const baseEntries = (typeof isInventoryContext === 'function' && isInventoryContext())
-            ? allSystemEntries.filter(entry => INVENTORY_TYPES.includes(entry.for))
-            : allSystemEntries;
+        let baseEntries = allSystemEntries;
+        if (typeof isInventoryContext === 'function' && isInventoryContext()) {
+            baseEntries = allSystemEntries.filter(entry => INVENTORY_TYPES.includes(entry.for));
+        } else if (typeof shouldExcludeInventoryFromWorkdeskDesktop === 'function' && shouldExcludeInventoryFromWorkdeskDesktop()) {
+            // Desktop Workdesk should hide inventory job records (mobile unchanged)
+            baseEntries = allSystemEntries.filter(entry => !INVENTORY_TYPES.includes(entry.for));
+        }
 
         const uniqueJobTypes = [...new Set(baseEntries.map(entry => entry.for || 'Other'))];
         uniqueJobTypes.sort();
 
-        let tabsHTML = '';
+        
+        // Safety: if the previously-selected tab isn't available (e.g., desktop hides inventory tabs), reset.
+        if (currentReportFilter && !uniqueJobTypes.includes(currentReportFilter)) {
+            currentReportFilter = null;
+        }
+let tabsHTML = '';
 
         // --- CHANGE: Do NOT auto-select the first tab ---
         uniqueJobTypes.forEach(jobType => {
@@ -5782,6 +6074,10 @@ else if (isDirectAttentionForUser(inv.attention)) {
                     }
                 }
             }
+        }
+        // Desktop Workdesk: hide inventory tasks/jobs (Mobile unchanged)
+        if (typeof shouldExcludeInventoryFromWorkdeskDesktop === 'function' && shouldExcludeInventoryFromWorkdeskDesktop()) {
+            userTasks = userTasks.filter(t => !INVENTORY_TYPES.includes(t.for));
         }
 
         userActiveTasks = userTasks.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
@@ -13742,6 +14038,33 @@ try {
     // Safeguard: Only add listener if button exists
     if (downloadWdReportButton) {
         downloadWdReportButton.addEventListener('click', handleDownloadWorkdeskCSV);
+    }
+
+    if (wdInTransitReportBtn) {
+        wdInTransitReportBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            printInventoryInTransitReport();
+        });
+    }
+
+    // Persist contact filter selection (used for printing filtered In-Transit report)
+    if (wdInTransitContactFilterSelect && !window.__wdInTransitContactFilterBound) {
+        window.__wdInTransitContactFilterBound = true;
+        wdInTransitContactFilterSelect.addEventListener('change', () => {
+            try {
+                if (localStorage) localStorage.setItem('wd_intransit_contact', wdInTransitContactFilterSelect.value || '');
+            } catch (e) {}
+        });
+    }
+
+    // Keep visibility in-sync when resizing
+    if (!window.__wdInTransitResizeBound) {
+        window.__wdInTransitResizeBound = true;
+        window.addEventListener('resize', () => {
+            if (typeof updateInTransitReportButtonVisibility === 'function') {
+                updateInTransitReportButtonVisibility();
+            }
+        });
     }
 
     // FIX: Tab Listener (Safe for Clean Start)

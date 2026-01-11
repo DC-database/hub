@@ -20,8 +20,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
 
-    <link rel="stylesheet" href="style.css?v=6.2.0">
-    <link rel="stylesheet" href="transfer_stock.css?v=6.2.0">
+    <link rel="stylesheet" href="style.css?v=6.2.2">
+    <link rel="stylesheet" href="transfer_stock.css?v=6.2.2">
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -405,8 +405,11 @@
         </div>
 
         <div style="display: flex; gap: 5px;">
-            <!-- Removed: "Add New Job" button from Job Records header (requested) -->
-            
+            <!-- Inventory context only (desktop): Print In-Transit inventory report -->
+            <select id="wd-inventory-intransit-contact-filter" style="display:none; height:45px; padding:0 10px; border-radius:8px; border:1px solid #cfcfcf; background:white; min-width:180px;"></select>
+            <button id="wd-inventory-intransit-report-btn" class="download-btn" type="button" style="display:none; background-color:#003A5C; color:white; height:45px; align-items:center; gap:8px;">
+                <i class="fa-solid fa-file-pdf"></i> In Transit PDF
+            </button>
         </div>
     </div>
 
@@ -2346,9 +2349,9 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
 
-    <script src="materialStock.js?v=6.2.0"></script>
-    <script src="transferLogic.js?v=6.2.0"></script>
-    <script src="app.js?v=6.2.0"></script>
+    <script src="materialStock.js?v=6.2.2"></script>
+    <script src="transferLogic.js?v=6.2.2"></script>
+    <script src="app.js?v=6.2.2"></script>
 
     </body>
 </html>
