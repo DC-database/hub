@@ -1,4 +1,4 @@
-// IBA Messages - standalone (1.0.8)
+// IBA Messages - standalone (1.0.10)
 // NOTE: This uses your existing RTDB approvers + dm_* nodes (same as the main system).
 // For true privacy, lock down Firebase rules (recommended: Firebase Auth).
 
@@ -329,6 +329,34 @@ function toast(title, body) {
 }
 
 // ========================
+// FIXED TOPBAR HEIGHT (mobile)
+// ========================
+// On some mobile widths the topbar can wrap (user pill + buttons), which can hide the search bar.
+// We measure the real height and store it in CSS var --topbar-h.
+function syncTopbarHeight() {
+  const tb = document.querySelector('.topbar');
+  if (!tb) return;
+  // If the topbar is hidden (login screen), offsetHeight may be 0.
+  // Don't overwrite the CSS default in that case.
+  const rect = tb.getBoundingClientRect?.();
+  const rawH = (rect && rect.height) ? rect.height : (tb.offsetHeight || 0);
+  if (!rawH || rawH < 1) return;
+  const h = Math.max(48, Math.round(rawH));
+  document.documentElement.style.setProperty('--topbar-h', `${h}px`);
+}
+
+window.addEventListener('resize', () => {
+  requestAnimationFrame(() => {
+    syncTopbarHeight();
+  });
+});
+
+// Run a couple times to catch first layout + font load.
+requestAnimationFrame(syncTopbarHeight);
+setTimeout(syncTopbarHeight, 50);
+setTimeout(syncTopbarHeight, 250);
+
+// ========================
 // AUTH (same approach as main system)
 // ========================
 let approversCache = null; // { key: record }
@@ -375,6 +403,14 @@ function showScreen(which) {
 
   // Only show the floating theme button on the login screen (chat already has a topbar toggle)
   document.getElementById('theme-toggle-float')?.classList.toggle('hidden', which !== 'login');
+
+  // IMPORTANT: after revealing the chat screen, re-measure the topbar height.
+  // This prevents the search bar from being hidden behind the fixed header on mobile.
+  if (which === 'chat') {
+    requestAnimationFrame(syncTopbarHeight);
+    setTimeout(syncTopbarHeight, 50);
+    setTimeout(syncTopbarHeight, 250);
+  }
 }
 
 async function doLogin(identifier, password) {
@@ -451,15 +487,93 @@ function setChatHeader() {
   }
 }
 
+function renderOnlineStrip() {
+  const wrap = document.getElementById('dm-online-strip');
+  const sep = document.getElementById('dm-online-sep');
+  if (!wrap) return;
+
+  const qRaw = (document.getElementById('dm-user-search')?.value || '').trim().toLowerCase();
+  const qTerms = qRaw.split(/\s+/).filter(Boolean);
+  const qMob = normalizeMobile(qRaw);
+
+  const matchesQ = (u) => {
+    if (!qTerms.length) return true;
+    const name = String(u.Name || '').toLowerCase();
+    const email = String(u.Email || '').toLowerCase();
+    const mob = normalizeMobile(u.Mobile || '');
+    const hay = `${name} ${email}`;
+    // Require all typed terms to appear in name/email; also allow mobile numeric search.
+    const termsOk = qTerms.every(t => hay.includes(t));
+    const mobOk = qMob ? mob.includes(qMob) : false;
+    return termsOk || mobOk;
+  };
+
+  const onlineUsers = dm.users
+    .filter(u => u && u.key && u.key !== dm.userKey)
+    .filter(u => dm.presenceCache?.[u.key]?.status === 'online')
+    .filter(matchesQ);
+
+  onlineUsers.sort((a, b) => String(a.Name || '').toLowerCase().localeCompare(String(b.Name || '').toLowerCase()));
+
+  wrap.innerHTML = '';
+
+  // If no one is online (after search filtering), hide the strip + separator.
+  if (onlineUsers.length === 0) {
+    wrap.style.display = 'none';
+    if (sep) sep.style.display = 'none';
+    return;
+  }
+
+  // Ensure the strip is visible when we have online users.
+  wrap.style.display = 'flex';
+
+  // Render up to 20 online users to keep the strip fast on mobile.
+  for (const u of onlineUsers.slice(0, 20)) {
+    const item = document.createElement('div');
+    item.className = `dm-online-item ${u.key === dm.toKey ? 'active' : ''}`;
+
+    const name = String(u.Name || 'User');
+    const initials = name.split(' ').filter(Boolean).slice(0, 2).map(s => s[0].toUpperCase()).join('') || 'U';
+
+    item.innerHTML = `
+      <div class="dm-online-avatar">${escapeHtml(initials)}
+        <span class="dm-dot online"></span>
+      </div>
+      <div class="dm-online-name">${escapeHtml(name)}</div>
+    `;
+
+    item.addEventListener('click', () => openThread(u.key, u.Name || 'User'));
+    wrap.appendChild(item);
+  }
+
+  if (sep) sep.style.display = '';
+}
+
 function renderUserList() {
   const list = document.getElementById('dm-user-list');
   if (!list) return;
 
-  const q = (document.getElementById('dm-user-search')?.value || '').trim().toLowerCase();
+  // Keep the online strip in sync with search / presence changes.
+  renderOnlineStrip();
+
+  const qRaw = (document.getElementById('dm-user-search')?.value || '').trim().toLowerCase();
+  const qTerms = qRaw.split(/\s+/).filter(Boolean);
+  const qMob = normalizeMobile(qRaw);
+
+  const matchesQ = (u) => {
+    if (!qTerms.length) return true;
+    const name = String(u.Name || '').toLowerCase();
+    const email = String(u.Email || '').toLowerCase();
+    const mob = normalizeMobile(u.Mobile || '');
+    const hay = `${name} ${email}`;
+    const termsOk = qTerms.every(t => hay.includes(t));
+    const mobOk = qMob ? mob.includes(qMob) : false;
+    return termsOk || mobOk;
+  };
 
   const users = dm.users
     .filter(u => u.key !== dm.userKey)
-    .filter(u => !q || String(u.Name || '').toLowerCase().includes(q) || String(u.Email || '').toLowerCase().includes(q) || normalizeMobile(u.Mobile).includes(normalizeMobile(q)));
+    .filter(matchesQ);
 
   // Sort with online users always at the top (then by name)
   users.sort((a, b) => {
@@ -472,6 +586,14 @@ function renderUserList() {
   });
 
   list.innerHTML = '';
+
+  if (users.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'dm-no-results';
+    empty.textContent = 'No matching users';
+    list.appendChild(empty);
+    return;
+  }
 
   users.forEach(u => {
     const active = (u.key === dm.toKey);
@@ -517,25 +639,245 @@ function clearThreadListener() {
   dm.onThreadMsgChanged = null;
 }
 
-function attachDeleteHandlers(el, threadId, msgId) {
+// ========================
+// MESSAGE ACTIONS (Edit / Delete)
+// ========================
+let activeSheet = null;
+let activeSheetOnKey = null;
+
+function closeSheet() {
+  try { if (activeSheetOnKey) window.removeEventListener('keydown', activeSheetOnKey); } catch {}
+  activeSheetOnKey = null;
+  if (activeSheet) {
+    try { activeSheet.remove(); } catch {}
+  }
+  activeSheet = null;
+}
+
+function openSheet(titleText, bodyNode, actionsNode) {
+  closeSheet();
+
+  const back = document.createElement('div');
+  back.className = 'dm-sheet-backdrop';
+  back.addEventListener('click', (e) => {
+    if (e.target === back) closeSheet();
+  });
+
+  const sheet = document.createElement('div');
+  sheet.className = 'dm-sheet';
+
+  const head = document.createElement('div');
+  head.className = 'dm-sheet-head';
+  head.textContent = titleText || '';
+
+  const body = document.createElement('div');
+  body.className = 'dm-sheet-body';
+  if (bodyNode) body.appendChild(bodyNode);
+
+  sheet.appendChild(head);
+  sheet.appendChild(body);
+  if (actionsNode) sheet.appendChild(actionsNode);
+  back.appendChild(sheet);
+  document.body.appendChild(back);
+
+  activeSheet = back;
+  activeSheetOnKey = (e) => {
+    if (e.key === 'Escape') closeSheet();
+  };
+  window.addEventListener('keydown', activeSheetOnKey);
+
+  // focus first button/textarea
+  setTimeout(() => {
+    try {
+      const focusEl = sheet.querySelector('textarea, button');
+      focusEl?.focus?.();
+    } catch {}
+  }, 0);
+}
+
+function makeSheetButton(label, { danger = false, onClick } = {}) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = `dm-sheet-btn${danger ? ' danger' : ''}`;
+  b.textContent = label;
+  b.addEventListener('click', () => {
+    try { onClick?.(); } catch (_) {}
+  });
+  return b;
+}
+
+async function openEditModal(threadId, msgId, msgObj) {
+  const m = msgObj;
+  if (!m || m.deleted) return;
+  const type = String(m.type || (m.imageUrl ? 'image' : (m.audioUrl ? 'audio' : 'text')));
+  const isText = (type === 'text');
+  // Requirement: edit for TEXT messages only (images are delete-only).
+  if (!isText) return;
+
+  const oldText = String(m.text ?? '');
+
+  const wrap = document.createElement('div');
+  wrap.style.display = 'flex';
+  wrap.style.flexDirection = 'column';
+  wrap.style.gap = '10px';
+
+  const ta = document.createElement('textarea');
+  ta.className = 'dm-edit-area';
+  ta.value = oldText;
+  ta.placeholder = 'Edit message...';
+  wrap.appendChild(ta);
+
+  const hint = document.createElement('div');
+  hint.className = 'dm-edit-hint';
+  hint.textContent = 'Update your message.';
+  wrap.appendChild(hint);
+
+  const actions = document.createElement('div');
+  actions.className = 'dm-sheet-actions';
+
+  const cancel = makeSheetButton('Cancel', { onClick: closeSheet });
+  const save = makeSheetButton('Save', {
+    onClick: async () => {
+      const next = safeText(ta.value);
+      if (!next) { toast('Messages', 'Message cannot be empty.'); return; }
+      try {
+        await updateMessageContent(threadId, msgId, m, next);
+        closeSheet();
+      } catch (e) {
+        console.warn(e);
+        toast('Messages', 'Failed to edit message.');
+      }
+    }
+  });
+  actions.appendChild(cancel);
+  actions.appendChild(save);
+
+  openSheet('Edit message', wrap, actions);
+}
+
+async function updateMessageContent(threadId, msgId, m, nextText) {
+  if (!threadId || !msgId || !m) return;
+  if (String(m.fromKey || '') !== String(dm.userKey || '')) {
+    toast('Messages', 'You can only edit your own messages.');
+    return;
+  }
+
+  const type = String(m.type || (m.imageUrl ? 'image' : (m.audioUrl ? 'audio' : 'text')));
+  const isText = (type === 'text');
+  if (!isText) return;
+
+  const threadRef = db.ref(`${DM_THREADS_ROOT}/${threadId}/messages/${msgId}`);
+  const toKey = String(m.toKey || dm.toKey || '');
+  const inboxRef = toKey ? db.ref(`${DM_INBOX_ROOT}/${toKey}/${msgId}`) : null;
+
+  const patch = {
+    edited: true,
+    editedAt: firebase.database.ServerValue.TIMESTAMP,
+  };
+  patch.text = safeText(nextText);
+
+  await threadRef.update(patch);
+  try {
+    if (inboxRef) {
+      await inboxRef.update({ text: patch.text, edited: true, editedAt: patch.editedAt });
+    }
+  } catch (_) {}
+
+  // Best-effort: keep unread preview in sync if it matches the previous text
+  try {
+    if (toKey) {
+      const unreadRef = db.ref(`${DM_UNREAD_ROOT}/${toKey}/${threadId}`);
+      const us = await unreadRef.once('value');
+      const u = us.val();
+      if (u && typeof u.lastText === 'string') {
+        const oldPreview = String(u.lastText || '');
+        const newPreview = patch.text;
+        const prevWas = String(m.text || '');
+        if (oldPreview === prevWas) {
+          await unreadRef.child('lastText').set(newPreview);
+        }
+      }
+    }
+  } catch (_) {}
+}
+
+async function openMessageActions(threadId, msgId) {
+  if (!threadId || !msgId) return;
+  try {
+    const ref = db.ref(`${DM_THREADS_ROOT}/${threadId}/messages/${msgId}`);
+    const snap = await ref.once('value');
+    const m = snap.val();
+    if (!m) return;
+    if (String(m.fromKey || '') !== String(dm.userKey || '')) return;
+
+    const type = String(m.type || (m.imageUrl ? 'image' : (m.audioUrl ? 'audio' : 'text')));
+    // Requirement: edit is allowed for TEXT messages only. Images can be deleted (not edited).
+    const canEdit = !m.deleted && (type === 'text');
+
+    const body = document.createElement('div');
+    body.style.display = 'flex';
+    body.style.flexDirection = 'column';
+    body.style.gap = '10px';
+
+    if (canEdit) {
+      body.appendChild(makeSheetButton('Edit', {
+        onClick: () => {
+          closeSheet();
+          openEditModal(threadId, msgId, m);
+        }
+      }));
+    }
+
+    body.appendChild(makeSheetButton('Delete', {
+      danger: true,
+      onClick: async () => {
+        closeSheet();
+        await promptDelete(threadId, msgId);
+      }
+    }));
+
+    body.appendChild(makeSheetButton('Cancel', { onClick: closeSheet }));
+
+    openSheet('Message', body, null);
+  } catch (e) {
+    console.warn(e);
+  }
+}
+
+function attachMessageActions(el, threadId, msgId) {
   if (!el) return;
+
   // Desktop: right-click
   el.addEventListener('contextmenu', async (e) => {
     e.preventDefault();
-    await promptDelete(threadId, msgId);
+    await openMessageActions(threadId, msgId);
   });
 
   // Mobile: long-press
   let pressTimer = null;
   const clear = () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } };
-
   el.addEventListener('pointerdown', () => {
     clear();
-    pressTimer = setTimeout(() => { promptDelete(threadId, msgId); }, 520);
+    pressTimer = setTimeout(() => { openMessageActions(threadId, msgId); }, 520);
   });
   el.addEventListener('pointerup', clear);
   el.addEventListener('pointercancel', clear);
   el.addEventListener('pointerleave', clear);
+
+  // Quick desktop edit: double click
+  el.addEventListener('dblclick', async () => {
+    try {
+      const ref = db.ref(`${DM_THREADS_ROOT}/${threadId}/messages/${msgId}`);
+      const snap = await ref.once('value');
+      const m = snap.val();
+      if (!m || m.deleted) return;
+      const type = String(m.type || 'text');
+      // Double-click edit: text only
+      if (String(m.fromKey || '') === String(dm.userKey || '') && type === 'text') {
+        await openEditModal(threadId, msgId, m);
+      }
+    } catch (_) {}
+  });
 }
 
 async function promptDelete(threadId, msgId) {
@@ -608,7 +950,7 @@ function renderMessage(msgId, m) {
     el = document.createElement('div');
     el.id = id;
     el.className = `dm-msg ${isMe ? 'me' : ''}`;
-    if (isMe) el.title = 'Right click (desktop) or long press (mobile) to delete';
+    if (isMe) el.title = 'Right click (desktop) or long press (mobile) to edit / delete';
     msgList.appendChild(el);
   }
 
@@ -635,12 +977,15 @@ function renderMessage(msgId, m) {
     bodyHtml = `<div>${escapeHtml(caption)}</div>`;
   }
 
+  const edited = !!(m?.edited || m?.editedAt);
+  const tsLabel = `${formatChatTime(m.ts)}${edited ? ' · edited' : ''}`;
+
   el.innerHTML = `
     ${bodyHtml}
-    <div class="dm-ts">${escapeHtml(formatChatTime(m.ts))}</div>
+    <div class="dm-ts">${escapeHtml(tsLabel)}</div>
   `;
 
-  if (firstTime && isMe) attachDeleteHandlers(el, dm.threadId, msgId);
+  if (firstTime && isMe) attachMessageActions(el, dm.threadId, msgId);
 
   const nearBottom = (msgList.scrollHeight - msgList.scrollTop - msgList.clientHeight) < 120;
   if (nearBottom) msgList.scrollTop = msgList.scrollHeight;
@@ -1179,7 +1524,20 @@ document.getElementById('dm-input')?.addEventListener('keydown', async (e) => {
   }
 });
 
-document.getElementById('dm-user-search')?.addEventListener('input', renderUserList);
+// Some mobile browsers can be finicky with input events depending on keyboard / autofill.
+// Listen to a few related events to ensure the user list always filters as you type.
+(() => {
+  const el = document.getElementById('dm-user-search');
+  if (!el) return;
+  const handler = () => {
+    try {
+      // Keep results visible from the top when filtering.
+      document.getElementById('dm-user-list')?.scrollTo?.({ top: 0, behavior: 'auto' });
+    } catch {}
+    renderUserList();
+  };
+  ['input', 'keyup', 'change', 'search'].forEach(evt => el.addEventListener(evt, handler));
+})();
 
 document.getElementById('dm-back-users')?.addEventListener('click', () => setMobileScreen('list'));
 document.getElementById('dm-users-btn')?.addEventListener('click', () => setMobileScreen('list'));

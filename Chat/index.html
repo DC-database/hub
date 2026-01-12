@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="style.css?v=1.0.8" />
+  <link rel="stylesheet" href="style.css?v=1.1.3" />
 
   <!-- Firebase v8 (same as your main system) -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -135,8 +135,11 @@
         <aside class="dm-users" aria-label="Users">
           <div class="dm-search-wrap">
             <svg class="icon" aria-hidden="true"><use href="#ico-search"></use></svg>
-            <input id="dm-user-search" type="text" placeholder="Search..." />
+            <input id="dm-user-search" type="text" placeholder="Search..." autocapitalize="none" autocomplete="off" />
           </div>
+          <!-- Messenger-style horizontal online strip (especially useful on mobile) -->
+          <div class="dm-online-strip" id="dm-online-strip" aria-label="Online users"></div>
+          <div class="dm-online-sep" id="dm-online-sep" aria-hidden="true"></div>
           <div class="dm-user-list" id="dm-user-list"></div>
         </aside>
 
@@ -195,6 +198,6 @@
     </main>
   </div>
 
-  <script src="app.js?v=1.0.8"></script>
+  <script src="app.js?v=1.1.3"></script>
 </body>
 </html>
