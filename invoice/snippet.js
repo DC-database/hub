@@ -231,8 +231,7 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
                     applySmartQuery('');
                 };
                 element.addEventListener('hideDropdown', element._smartHideHandler);
-            }
-}
+	        }
 
         } else {
             choicesInstance.setChoices([{ value: '', label: 'No approvers found', disabled: true }]);

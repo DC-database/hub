@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.3.0";
+const APP_VERSION = "6.3.1";
 
 // ======================================================================
 // NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)
@@ -3326,12 +3326,20 @@ function isConfigActiveNow(cfg) {
 function buildCelebrationParticles(container) {
     if (!container) return;
 
+    // Clear previous effects
     container.innerHTML = '';
-    const colors = ['#ff4d4d', '#ffd24d', '#4dd2ff', '#7dff4d', '#c44dff', '#ffffff'];
-    const count = 70;
 
-    for (let i = 0; i < count; i++) {
+    const colors = ['#ff4d4d', '#ffd24d', '#4dd2ff', '#7dff4d', '#c44dff', '#ffffff'];
+
+    // -----------------------------
+    // 1) Confetti (falling pieces)
+    // -----------------------------
+    const confettiCount = 70;
+
+    for (let i = 0; i < confettiCount; i++) {
         const s = document.createElement('span');
+        s.className = 'confetti';
+
         const left = Math.random() * 100;
         const delay = Math.random() * 0.7;
         const duration = 3.5 + Math.random() * 1.7;
@@ -3348,6 +3356,57 @@ function buildCelebrationParticles(container) {
         s.style.transform = `translateY(-10vh) rotate(${Math.random() * 180}deg)`;
 
         container.appendChild(s);
+    }
+
+    // -----------------------------
+    // 2) Fireworks (spark bursts)
+    // -----------------------------
+    // Lightweight CSS-based bursts (no canvas) that appear behind the banner.
+    const burstCount = 10;          // number of firework bursts
+    const sparksPerBurst = 14;      // sparks in each burst
+
+    for (let b = 0; b < burstCount; b++) {
+        const fw = document.createElement('div');
+        fw.className = 'firework';
+
+        // Keep fireworks mostly in the upper/middle area so they don't distract from buttons.
+        const x = 10 + Math.random() * 80;      // vw
+        const y = 12 + Math.random() * 50;      // vh
+
+        fw.style.left = x + 'vw';
+        fw.style.top = y + 'vh';
+
+        // Spread bursts across the banner duration (default ~5.2s)
+        const baseDelay = Math.random() * 2.8;  // seconds
+        const dur = 0.75 + Math.random() * 0.55;
+
+        for (let i = 0; i < sparksPerBurst; i++) {
+            const sp = document.createElement('span');
+            sp.className = 'spark';
+
+            const angle = (Math.PI * 2 * i / sparksPerBurst) + (Math.random() * 0.35);
+            const dist = 36 + Math.random() * 80;
+
+            const dx = Math.cos(angle) * dist;
+            const dy = Math.sin(angle) * dist;
+
+            const c = colors[Math.floor(Math.random() * colors.length)];
+
+            sp.style.setProperty('--dx', dx.toFixed(1) + 'px');
+            sp.style.setProperty('--dy', dy.toFixed(1) + 'px');
+            sp.style.setProperty('--c', c);
+            sp.style.setProperty('--dur', dur.toFixed(2) + 's');
+            sp.style.setProperty('--d', (baseDelay + Math.random() * 0.18).toFixed(2) + 's');
+
+            // Slight size variation
+            const size = 2.5 + Math.random() * 2.5;
+            sp.style.width = size.toFixed(1) + 'px';
+            sp.style.height = size.toFixed(1) + 'px';
+
+            fw.appendChild(sp);
+        }
+
+        container.appendChild(fw);
     }
 }
 
