@@ -3159,11 +3159,13 @@ function handleSuccessfulLogin() {
     document.body.classList.toggle('is-vacation-delegate', isVacationDelegate);
 
 
-    // --- Hide Finance Report Button for non-Accounts ---
-    const financeReportButton = document.querySelector('a[href="https://ibaport.site/Finance/"]');
+    // --- Financial Report: Super Admin (Irwin) + active Super Admin Replacement only ---
+    // This keeps financial data restricted to the Super Admin workflow.
+    const financeReportButton = document.getElementById('finance-report-button') || document.querySelector('a[href="https://ibaport.site/Finance/"]');
     if (financeReportButton) {
-        const isAccountsOrAccounting = isAccounts || isAccounting;
-        financeReportButton.classList.toggle('hidden', !isAccountsOrAccounting);
+        const isSuperAdmin = ((currentApprover?.Name || '').trim().toLowerCase() === SUPER_ADMIN_NAME.toLowerCase());
+        const canSeeFinancialReport = isSuperAdmin || isVacationDelegate;
+        financeReportButton.classList.toggle('hidden', !canSeeFinancialReport);
     }
 
     // --- NEW FIX: Hide Invoice Management Button for Unauthorized Users ---
@@ -3193,10 +3195,7 @@ function handleSuccessfulLogin() {
     }
     // [END] Auto-Open Inventory Mode
 
-    // --- Smart Live Sync: keep Invoice Records accurate without hard refresh ---
-    if (typeof window.startInvoiceSmartLiveSync === 'function') {
-        window.startInvoiceSmartLiveSync();
-    }
+    // Smart Sync / Smart Refresh removed (no background auto-sync).
 
     // --- Celebration Banner (configurable; optional) ---
     // Safe to call on both mobile + desktop.
@@ -3582,10 +3581,7 @@ function handleLogout() {
     // Direct messages cleanup
     try { shutdownDirectMessages(); } catch (e) { /* ignore */ }
 
-    // Stop background listeners to prevent leaks
-    if (typeof window.stopInvoiceSmartLiveSync === 'function') {
-        window.stopInvoiceSmartLiveSync();
-    }
+    // Smart Sync / Smart Refresh removed (no background listeners).
 
     localStorage.removeItem('approverKey');
 
@@ -3709,9 +3705,11 @@ function showIMSection(sectionId) {
 
     // Vacation delegate (replacement for Irwin) gets temporary Invoice Management access
     const isVacationDelegate = isVacationDelegateUser();
+    const isSuperAdmin = ((currentApprover?.Name || '').trim().toLowerCase() === SUPER_ADMIN_NAME.toLowerCase());
     const canAccessFullIM = isAccountingAdmin || isVacationDelegate;
     const canAccessPayments = isAccountsAdmin; // Vacation delegate does NOT get Payments access
-    const canAccessFinanceReport = isAdmin; // Vacation delegate does NOT get Finance Report access
+    // Finance/Financial report is read-only and restricted to Super Admin (Irwin) and the active Super Admin replacement.
+    const canAccessFinanceReport = isSuperAdmin || isVacationDelegate;
 
 
     // 3. Strict Access Control Checks
@@ -3734,7 +3732,7 @@ function showIMSection(sectionId) {
     }
 
     if (sectionId === 'im-finance-report' && !canAccessFinanceReport) {
-        alert('Access Denied: Restricted to Admins.');
+        alert('Access Denied: Restricted to Super Admin / Super Admin Replacement.');
         return;
     }
 
@@ -5649,10 +5647,10 @@ filteredTasks.forEach(function(task) {
             } else {
                 var actionsHTML = '';
                 
-                // --- UPDATE: Wired up handleSRVDone ---
-                if (task.remarks === 'For SRV' || task.remarks === 'Waiting Signature' || task.remarks === 'Waiting Approval') {
-                    // 1. The Finish Button (Uses New Dynamic Function)
-                    actionsHTML += `<button class="srv-done-btn" onclick="handleSRVDone(this, '${task.key}')" style="margin-right: 5px;">SRV Done</button>`;
+		        // SRV Done is handled via the unified Active Task click listener (single source of truth).
+		        if (task.remarks === 'For SRV' || task.remarks === 'Waiting Signature' || task.remarks === 'Waiting Approval') {
+		            // 1. The Finish Button
+		            actionsHTML += `<button class="srv-done-btn" data-key="${task.key}" style="margin-right: 5px;">SRV Done</button>`;
                     
                     // 2. The Edit Button (Process)
                     actionsHTML += `<button class="modify-btn" data-key="${task.key}">Process</button>`;
@@ -5956,6 +5954,11 @@ let isUrgent = isDirectAttentionForUser(finalAttention) &&
                             ? task.amount
                             : (poDetails['Amount'] || poDetails.Amount || '');
 
+	                        // Pull live invoice metadata (helps dedupe & debugging if duplicate keys exist)
+	                        const invMeta = (allInvoiceData && allInvoiceData[task.po] && allInvoiceData[task.po][invoiceKey])
+	                            ? allInvoiceData[task.po][invoiceKey]
+	                            : {};
+
                         userTasks.push({
                             key: `${task.po}_${invoiceKey}`,
                             originalKey: invoiceKey,
@@ -5963,16 +5966,18 @@ let isUrgent = isDirectAttentionForUser(finalAttention) &&
                             source: 'invoice',
                             for: 'Invoice',
                             ref: task.ref,
+	                            invEntryID: invMeta.invEntryID || task.invEntryID || '',
                             po: task.po,
                             amount: task.amount || resolvedPOAmount,
                             amountPaid: realAmountPaid || task.amount || resolvedPOAmount,
                             site: resolvedSite,
                             group: 'N/A',
                             attention: finalAttention, 
-                            enteredBy: task.enteredBy || ((allInvoiceData && allInvoiceData[task.po] && allInvoiceData[task.po][invoiceKey]) ? (allInvoiceData[task.po][invoiceKey].enteredBy || '') : '') || 'Accounting',
+	                            enteredBy: task.enteredBy || (invMeta.enteredBy || '') || 'Accounting',
                             date: formatYYYYMMDD(task.date),
                             remarks: task.status,
-                            timestamp: Date.now(),
+	                            timestamp: Date.now(),
+	                            invoiceLastUpdated: invMeta.lastUpdated || invMeta.updatedAt || invMeta.enteredAt || 0,
                             invName: task.invName,
                             vendorName: resolvedVendor,
                             note: task.note,
@@ -6056,6 +6061,7 @@ else if (isDirectAttentionForUser(inv.attention)) {
                             source: 'invoice',
                             for: 'Invoice',
                             ref: inv.invNumber || '',
+	                            invEntryID: inv.invEntryID || '',
                             po: poNumber,
                             amount: inv.invValue || '',
                             amountPaid: inv.amountPaid || inv.invValue || '',
@@ -6065,7 +6071,8 @@ else if (isDirectAttentionForUser(inv.attention)) {
                             enteredBy: inv.enteredBy || inv.originEnteredBy || inv.updatedBy || 'Accounting',
                             date: formatYYYYMMDD(inv.invoiceDate),
                             remarks: inv.status,
-                            timestamp: Date.now(),
+	                            timestamp: Date.now(),
+	                            invoiceLastUpdated: inv.lastUpdated || inv.updatedAt || inv.enteredAt || 0,
                             invName: inv.invName || '',
                             vendorName: poDetails['Supplier Name'] || poDetails['Supplier Name:'] || poDetails['Supplier'] || poDetails['Supplier:'] || inv.vendorName || inv.vendor_name || 'N/A',
                             note: inv.note || '',
@@ -6080,7 +6087,55 @@ else if (isDirectAttentionForUser(inv.attention)) {
             userTasks = userTasks.filter(t => !INVENTORY_TYPES.includes(t.for));
         }
 
-        userActiveTasks = userTasks.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+	        // ------------------------------------------------------------------
+	        // DEFENSIVE DEDUPE
+	        // If a task is reverted (e.g. SRV Done -> For SRV) and the database ends up with
+	        // duplicate invoice entries or stale inbox rows, the UI can show the same task twice.
+	        // We de-duplicate by:
+	        //  1) Exact task.key (should never repeat)
+	        //  2) Invoice logical id: PO + invEntryID (fallback: PO + ref), keeping the newest
+	        // ------------------------------------------------------------------
+	        try {
+	            // 1) Exact key dedupe
+	            const _seenKeys = new Set();
+	            userTasks = userTasks.filter(t => {
+	                if (!t || !t.key) return false;
+	                if (_seenKeys.has(t.key)) return false;
+	                _seenKeys.add(t.key);
+	                return true;
+	            });
+
+	            // 2) Invoice logical dedupe
+	            const _bestByLogicalId = new Map();
+	            const _dropKeys = new Set();
+	            for (const t of userTasks) {
+	                if (!t || t.source !== 'invoice') continue;
+	                const po = String(t.po || t.originalPO || '').trim();
+	                const logicalPart = String(t.invEntryID || t.ref || '').trim();
+	                if (!po || !logicalPart) continue;
+	                const logicalId = `${po}|${logicalPart}`;
+	                const existing = _bestByLogicalId.get(logicalId);
+	                if (!existing) {
+	                    _bestByLogicalId.set(logicalId, t);
+	                    continue;
+	                }
+	                const a = Number(existing.invoiceLastUpdated || 0);
+	                const b = Number(t.invoiceLastUpdated || 0);
+	                if (b > a) {
+	                    _dropKeys.add(existing.key);
+	                    _bestByLogicalId.set(logicalId, t);
+	                } else {
+	                    _dropKeys.add(t.key);
+	                }
+	            }
+	            if (_dropKeys.size > 0) {
+	                userTasks = userTasks.filter(t => !(_dropKeys.has(t.key)));
+	            }
+	        } catch (e) {
+	            // Never block task loading due to dedupe logic
+	        }
+
+	        userActiveTasks = userTasks.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
         const totalTaskCount = userActiveTasks.length;
         const urgentCount = userActiveTasks.filter(t => t.isUrgent === true).length;
 
@@ -13249,6 +13304,7 @@ try {
         const userPos = (currentApprover?.Position || '').trim();
         const userRole = (currentApprover?.Role || '').toLowerCase();
         const isAdmin = userRole === 'admin';
+        const isSuperAdmin = ((currentApprover?.Name || '').trim().toLowerCase() === SUPER_ADMIN_NAME.toLowerCase());
         const isAccounting = userPos === 'Accounting';
         const isAccounts = userPos === 'Accounts';
 
@@ -13932,35 +13988,15 @@ try {
                 return;
             }
 
-            // 5. SRV DONE BUTTON
-            if (e.target.classList.contains('srv-done-btn')) {
-                e.stopPropagation();
-                e.target.disabled = true;
-                e.target.textContent = 'Updating...';
-                try {
-                    if (taskData.source === 'invoice') {
-                        const updates = { releaseDate: getTodayDateString(), status: 'SRV Done' };
-                        await invoiceDb.ref('invoice_entries/' + taskData.originalPO + '/' + taskData.originalKey).update(updates);
-                        
-                        if (!allInvoiceData) await ensureInvoiceDataFetched();
-                        const originalInv = (allInvoiceData[taskData.originalPO] || {})[taskData.originalKey] || {};
-                        const mergedInv = { ...originalInv, ...updates };
-                        await updateInvoiceTaskLookup(taskData.originalPO, taskData.originalKey, mergedInv, taskData.attention);
-
-                        if (window.logInvoiceHistory) await window.logInvoiceHistory(taskData.originalPO, taskData.originalKey, 'SRV Done', 'Marked SRV Done via Active Task');
-
-                    } else if (taskData.source === 'job_entry') {
-                        await db.ref('job_entries/' + taskData.key).update({ dateResponded: formatDate(new Date()), remarks: 'SRV Done' });
-                    }
-                    alert('Task marked as SRV Done.');
-                    await populateActiveTasks();
-                } catch (err) {
-                    console.error(err);
-                    alert("Error updating task.");
-                    e.target.disabled = false;
-                }
-                return;
-            }
+	            // 5. SRV DONE BUTTON
+	            // IMPORTANT: Single source of truth.
+	            // We route ALL SRV Done clicks through handleSRVDone() to avoid double-processing
+	            // (previously inline onclick + this listener ran together, which could create duplicates).
+	            if (e.target.classList.contains('srv-done-btn')) {
+	                e.stopPropagation();
+	                await handleSRVDone(e.target, key);
+	                return;
+	            }
 
             // 6. EDIT BUTTON
             if (e.target.classList.contains('modify-btn')) {
@@ -14120,6 +14156,7 @@ try {
         const userPos = (currentApprover?.Position || '').trim();
         const userRole = (currentApprover?.Role || '').toLowerCase();
         const isAdmin = userRole === 'admin';
+        const isSuperAdmin = ((currentApprover?.Name || '').trim().toLowerCase() === SUPER_ADMIN_NAME.toLowerCase());
         const isAccountingPos = userPos === 'Accounting';
         const isAccountsPos = userPos === 'Accounts';
 
@@ -14159,9 +14196,8 @@ try {
                 else link.classList.remove('hidden');
             }
 
-            // 3. Finance/Dashboard: Any Admin
-            if (section === 'im-finance-report' && !isAdmin) {
-                // Vacation delegate does NOT get Finance Report access
+            // 3. Finance Report: Only Super Admin (Irwin) and the active Super Admin Replacement
+            if (section === 'im-finance-report' && !(isSuperAdmin || isVacationDelegate)) {
                 li.style.display = 'none';
             }
 
@@ -17886,336 +17922,23 @@ if (imDeleteInvoiceBtn) {
 }
 
 // ==========================================================================
-// SMART REFRESH SYSTEM (Syncs "Batch" & "Summary" efficiently)
+// SMART SYNC / SMART REFRESH REMOVED
+// - Buttons removed from UI.
+// - Background listeners removed.
+// - These stubs remain only to avoid runtime errors in older flows.
 // ==========================================================================
 
-// 1. HELPER: Write to the Log
-// Call this whenever you Add, Update, or Delete an invoice
-async function logRecentUpdate(poNumber) {
-    if (!poNumber) return;
-    try {
-        const logRef = invoiceDb.ref('recent_updates');
-        await logRef.push({
-            poNumber: poNumber,
-            timestamp: firebase.database.ServerValue.TIMESTAMP
-        });
-        console.log(`Log: Marked PO ${poNumber} as updated.`);
-    } catch (e) {
-        console.error("Failed to write update log:", e);
-    }
-}
+// No-op: older code paths may still call this.
+async function logRecentUpdate(_poNumber) { return; }
 
-// 2. THE SMART REFRESH FUNCTION
-// This is what the new button will click
-
-window.refreshRecentData = async function(hoursBack = 4, options = {}) { // Defaults to 4 hours to be safe
-    const {
-        showAlerts = true,
-        refreshUI = true,
-        silentUI = false
-    } = options || {};
-
-    const btn = document.getElementById('smart-refresh-btn');
-    const originalText = btn ? btn.innerHTML : '';
-
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Syncing...';
-    }
-
-    try {
-        const now = Date.now();
-        const startTime = now - (hoursBack * 60 * 60 * 1000);
-
-        console.log(`Smart Refresh: Checking changes since ${new Date(startTime).toLocaleTimeString()}...`);
-
-        // A. Fetch the Log
-        const logSnapshot = await invoiceDb.ref('recent_updates')
-            .orderByChild('timestamp')
-            .startAt(startTime)
-            .once('value');
-
-        const updates = logSnapshot.val();
-
-        if (!updates) {
-            if (showAlerts) {
-                alert("System is up to date. No changes found in the last " + hoursBack + " hours.");
-            }
-            return { changed: false, updatedPOs: [] };
-        }
-
-        // B. Identify Unique POs that changed
-        const affectedPOs = new Set();
-        Object.values(updates).forEach(item => {
-            if (item && item.poNumber) affectedPOs.add(item.poNumber);
-        });
-
-        if (affectedPOs.size === 0) {
-            if (showAlerts) {
-                alert("System is up to date. No changes found in the last " + hoursBack + " hours.");
-            }
-            return { changed: false, updatedPOs: [] };
-        }
-
-        console.log(`Found changes in ${affectedPOs.size} POs:`, Array.from(affectedPOs));
-
-        // Store the latest server timestamp from the log (safer than client clock)
-        try {
-            let maxTs = 0;
-            Object.values(updates).forEach(item => {
-                const ts = item && typeof item.timestamp === 'number' ? item.timestamp : 0;
-                if (ts > maxTs) maxTs = ts;
-            });
-            if (maxTs > 0) localStorage.setItem('imSmartSyncLastTs', String(maxTs));
-        } catch (_) {}
-
-        // C. Download ONLY those POs (and patch in-memory cache)
-        await imApplySmartSync(Array.from(affectedPOs));
-
-        // D. Refresh the Current View (Reporting / Entry / Summary) WITHOUT requiring a hard refresh
-        if (refreshUI) {
-            await imSmartSyncRefreshVisibleViews(Array.from(affectedPOs), { silent: !!silentUI || !showAlerts });
-        }
-
-        if (showAlerts) {
-            alert(`Sync Complete! Updated ${affectedPOs.size} PO records.`);
-        }
-
-        return { changed: true, updatedPOs: Array.from(affectedPOs) };
-
-    } catch (error) {
-        console.error("Smart Refresh Failed:", error);
-        if (showAlerts) {
-            alert("Refresh failed. Please reload the page.");
-        }
-        return { changed: false, updatedPOs: [], error: String(error) };
-    } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = originalText;
-        }
-    }
+// No-op: kept for backward compatibility (UI button removed).
+window.refreshRecentData = async function(_hoursBack = 4, _options = {}) {
+    return { changed: false, updatedPOs: [], removed: true };
 };
 
-
-// ==========================================================================
-// SMART LIVE SYNC (Auto fetch newly added/updated invoices without hard refresh)
-// - Uses the existing "recent_updates" log
-// - Patches allInvoiceData in memory
-// - If IM Reporting is open with criteria, it silently refreshes the table
-// ==========================================================================
-
-let imSmartLiveSyncStarted = false;
-let imSmartLiveSyncQuery = null;
-let imSmartLiveSyncTimer = null;
-let imSmartLiveSyncPendingPOs = new Set();
-let imSmartLiveSyncNeedsUiRefresh = false;
-
-window.startInvoiceSmartLiveSync = function startInvoiceSmartLiveSync() {
-    if (imSmartLiveSyncStarted) return;
-    imSmartLiveSyncStarted = true;
-
-    // Start from the last known sync time (or a small buffer window)
-    const lastTsRaw = localStorage.getItem('imSmartSyncLastTs');
-    const lastTs = parseInt(lastTsRaw || '0', 10);
-    const startAtTs = Number.isFinite(lastTs) && lastTs > 0 ? lastTs : (Date.now() - (10 * 60 * 1000)); // 10 min buffer
-
-    try {
-        imSmartLiveSyncQuery = invoiceDb.ref('recent_updates')
-            .orderByChild('timestamp')
-            .startAt(startAtTs);
-
-        imSmartLiveSyncQuery.on('child_added', (snap) => {
-            const v = snap.val();
-            if (!v || !v.poNumber) return;
-
-            const ts = typeof v.timestamp === 'number' ? v.timestamp : Date.now();
-            if (Number.isFinite(ts)) localStorage.setItem('imSmartSyncLastTs', String(ts));
-
-            imSmartLiveSyncPendingPOs.add(v.poNumber);
-            scheduleInvoiceSmartLiveSyncProcess();
-        }, (err) => {
-            console.error("Smart Live Sync listener error:", err);
-        });
-
-        // Catch-up when tab becomes visible again (missed background events)
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') {
-                scheduleInvoiceSmartLiveSyncProcess();
-            }
-        });
-
-        // Extra catch-up when the browser regains focus
-        window.addEventListener('focus', () => {
-            scheduleInvoiceSmartLiveSyncProcess();
-        });
-
-        // If user stops interacting with the reporting filters, apply any deferred refresh
-        document.addEventListener('focusout', () => {
-            setTimeout(async () => {
-                if (!imSmartLiveSyncNeedsUiRefresh) return;
-                if (isIMReportingInteracting()) return;
-                imSmartLiveSyncNeedsUiRefresh = false;
-                await imSmartSyncRefreshVisibleViews([], { silent: true, force: true });
-            }, 0);
-        }, true);
-
-        console.log("Smart Live Sync started.");
-    } catch (e) {
-        console.error("Failed to start Smart Live Sync:", e);
-    }
-}
-
-window.stopInvoiceSmartLiveSync = function stopInvoiceSmartLiveSync() {
-    if (!imSmartLiveSyncStarted) return;
-    try {
-        if (imSmartLiveSyncQuery) imSmartLiveSyncQuery.off();
-    } catch (e) {
-        console.warn("Smart Live Sync off() failed:", e);
-    }
-    imSmartLiveSyncQuery = null;
-    imSmartLiveSyncPendingPOs = new Set();
-    if (imSmartLiveSyncTimer) clearTimeout(imSmartLiveSyncTimer);
-    imSmartLiveSyncTimer = null;
-    imSmartLiveSyncStarted = false;
-}
-
-function scheduleInvoiceSmartLiveSyncProcess() {
-    if (!imSmartLiveSyncStarted) return;
-    if (imSmartLiveSyncTimer) clearTimeout(imSmartLiveSyncTimer);
-    imSmartLiveSyncTimer = setTimeout(processInvoiceSmartLiveSyncPending, 1500);
-}
-
-async function processInvoiceSmartLiveSyncPending() {
-    if (!imSmartLiveSyncStarted) return;
-
-    const pending = Array.from(imSmartLiveSyncPendingPOs);
-    imSmartLiveSyncPendingPOs.clear();
-
-    // Nothing to process (but we may still need to apply a deferred UI refresh)
-    if (pending.length === 0) {
-        if (imSmartLiveSyncNeedsUiRefresh && !isIMReportingInteracting()) {
-            imSmartLiveSyncNeedsUiRefresh = false;
-            await imSmartSyncRefreshVisibleViews([], { silent: true, force: true });
-        }
-        return;
-    }
-
-    try {
-        await imApplySmartSync(pending);
-
-        // If user is actively changing report filters/search, avoid "jumping" the UI
-        if (isIMReportingInteracting()) {
-            imSmartLiveSyncNeedsUiRefresh = true;
-            return;
-        }
-
-        await imSmartSyncRefreshVisibleViews(pending, { silent: true });
-
-    } catch (e) {
-        console.error("Smart Live Sync processing failed:", e);
-    }
-}
-
-/**
- * Pulls invoices for specific POs and patches the in-memory cache.
- * (No heavy full refresh needed)
- */
-async function imApplySmartSync(poList = []) {
-    if (!poList || poList.length === 0) return;
-
-    // Ensure container exists even if the full invoice dataset hasn't been loaded yet
-    if (!allInvoiceData) allInvoiceData = {};
-    if (!allPOData) allPOData = allPOData || {};
-
-    const fetches = poList.map(async (po) => {
-        try {
-            const snap = await invoiceDb.ref(`invoice_entries/${po}`).once('value');
-            const data = snap.val();
-
-            if (data) {
-                allInvoiceData[po] = data;
-
-                // Keep notes suggestions broadly up to date (additive, safe)
-                Object.values(data).forEach(inv => {
-                    if (inv && inv.note && String(inv.note).trim()) {
-                        allUniqueNotes.add(String(inv.note).trim());
-                    }
-                });
-            } else {
-                // If PO has no invoices anymore
-                delete allInvoiceData[po];
-            }
-
-            // If this is a manual PO not present in CSV memory, pull it from purchase_orders
-            if (!allPOData || !allPOData[po]) {
-                const poSnap = await invoiceDb.ref(`purchase_orders/${po}`).once('value');
-                const poData = poSnap.val();
-                if (poData) {
-                    if (!allPOData) allPOData = {};
-                    allPOData[po] = poData;
-                }
-            }
-        } catch (e) {
-            console.warn(`Smart Sync: Failed to fetch PO ${po}`, e);
-        }
-    });
-
-    await Promise.all(fetches);
-
-    // Keep invoice cache marker fresh
-    cacheTimestamps.invoiceData = Date.now();
-}
-
-/**
- * Refresh visible IM screens (only where it matters).
- */
-async function imSmartSyncRefreshVisibleViews(updatedPOs = [], options = {}) {
-    const { silent = true, force = false } = options || {};
-
-    // A) Summary Note: re-run generator if a PO is loaded in the input
-    const summaryInput = document.getElementById('summary-note-current-input');
-    if (summaryInput && summaryInput.value) {
-        try { handleGenerateSummary(); } catch (_) {}
-    }
-
-    // B) Invoice Entry screen: if you're currently on a PO that changed, refresh its list
-    const imEntrySection = document.getElementById('im-invoice-entry');
-    if (imEntrySection && !imEntrySection.classList.contains('hidden') && currentPO) {
-        if (force || updatedPOs.includes(currentPO)) {
-            try { fetchAndDisplayInvoices(currentPO); } catch (_) {}
-        }
-    }
-
-    // C) IM Reporting: if open and user has any criteria, refresh the table
-    const imReportingSection = document.getElementById('im-reporting');
-    if (imReportingSection && !imReportingSection.classList.contains('hidden')) {
-
-        const searchTerm = (document.getElementById('im-reporting-search')?.value || '').trim();
-        const siteFilter = document.getElementById('im-reporting-site-filter')?.value || '';
-        const monthFilter = document.getElementById('im-reporting-date-filter')?.value || '';
-        const statusFilter = document.getElementById('im-reporting-status-filter')?.value || '';
-
-        const hasCriteria = !!(searchTerm || siteFilter || monthFilter || statusFilter);
-
-        if (hasCriteria) {
-            try {
-                await populateInvoiceReporting(searchTerm, { silent: !!silent });
-            } catch (e) {
-                console.error("Smart Sync: Failed to refresh reporting view", e);
-            }
-        }
-    }
-}
-
-function isIMReportingInteracting() {
-    const imReportingSection = document.getElementById('im-reporting');
-    if (!imReportingSection || imReportingSection.classList.contains('hidden')) return false;
-
-    const form = document.getElementById('im-reporting-form');
-    const active = document.activeElement;
-    return !!(form && active && form.contains(active));
-}
+// No-op: background smart sync removed.
+window.startInvoiceSmartLiveSync = function startInvoiceSmartLiveSync() { return; };
+window.stopInvoiceSmartLiveSync = function stopInvoiceSmartLiveSync() { return; };
 
 
 

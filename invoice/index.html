@@ -105,7 +105,7 @@
                         <button id="workdesk-button" class="circle-button">WorkDesk</button>
                         <button id="invoice-mgmt-button" class="circle-button">Invoice Management</button>
 			<button id="inventory-button" class="circle-button">Inventory</button>
-                        <a href="https://ibaport.site/Finance/" target="_blank" class="circle-button hidden" id="finance-report-button">Finance Report</a>
+                        <a href="https://ibaport.site/Finance/" target="_blank" class="circle-button hidden" id="finance-report-button">Financial Report</a>
                     </div>
                 </main>
             </div>
@@ -741,7 +741,7 @@
                     <li class="im-nav-summary-note desktop-only-li"><a href="#" id="summary-note-nav-link" data-section="im-summary-note"><i class="fa-solid fa-receipt"></i> Summary Note</a></li>
 
                     <li class="nav-section-divider im-nav-payments desktop-only-li" style="border-top: 1px solid rgba(255,255,255,0.3) !important;"><a href="#" id="payments-nav-link" data-section="im-payments" class="hidden"><i class="fa-solid fa-money-check-dollar"></i> Payments</a></li>
-                    <li class="im-nav-finance-report desktop-only-li"><a href="#" id="im-finance-report-nav-link" data-section="im-finance-report"><i class="fa-solid fa-building-columns"></i> Finance Report</a></li>
+                    <li class="im-nav-finance-report desktop-only-li"><a href="#" id="im-finance-report-nav-link" data-section="im-finance-report"><i class="fa-solid fa-building-columns"></i> Financial Report</a></li>
 
                     <li class="mobile-only-nav-item">
                         <a href="#" id="im-mobile-nav-logout">
@@ -1007,7 +1007,7 @@
             <div style="display: flex; gap: 10px; align-items: center;">
                 <div id="im-invoice-print-report-container" class="hidden">
                     <button type="button" id="btn-invoice-entry-print-report" class="action-btn" style="background-color: #17a2b8; color: white; padding: 8px 20px; border-radius: 4px; font-weight: bold; font-size: 0.9rem;">
-                        <i class="fa-solid fa-print"></i> Print Finance Report (One-Time)
+                        <i class="fa-solid fa-print"></i> Print Financial Report (One-Time)
                     </button>
                 </div>
 
@@ -1100,10 +1100,6 @@
                     </div>
                     <div class="form-buttons-container" style="justify-content: flex-end; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
     
-    <button type="button" onclick="refreshRecentData(4)" class="secondary-btn" style="background-color: #6f42c1; color: white; margin-right: 10px;">
-        <i class="fa-solid fa-bolt"></i> Smart Refresh
-    </button>
-
     <button id="im-refresh-batch-button" class="secondary-btn" type="button" title="Refresh data from Firebase">
         <i class="fa-solid fa-sync"></i> Refresh Data
     </button>
@@ -1211,9 +1207,6 @@
 
 
                 <div style="display: flex; gap: 5px; margin-top: 5px;">
-                     <button type="button" onclick="refreshRecentData(4)" class="secondary-btn" style="flex: 1; font-size: 0.8rem; padding: 8px; background: #f0f0f0; border: 1px solid #ddd; color: #555; border-radius: 4px; cursor: pointer;">
-                        <i class="fa-solid fa-bolt"></i> Smart Refresh
-                     </button>
                      <button type="button" id="im-refresh-summary-button" class="secondary-btn" style="flex: 1; font-size: 0.8rem; padding: 8px; background: #f0f0f0; border: 1px solid #ddd; color: #555; border-radius: 4px; cursor: pointer;">
                         <i class="fa-solid fa-sync"></i> Full Refresh
                      </button>
@@ -1422,12 +1415,6 @@
 
     <div style="width: 1px; background: #e1e5ea; margin: 0 5px;"></div> 
 
-    <button id="smart-refresh-btn" type="button" onclick="refreshRecentData(4)" class="modern-btn" 
-            style="background: linear-gradient(135deg, #6f42c1, #5a32a3); color: white; border: none; box-shadow: 0 4px 10px rgba(111, 66, 193, 0.3);" 
-            title="Smart Refresh (4h)">
-        <i class="fa-solid fa-bolt"></i> Smart Sync
-    </button>
-
     <button id="im-refresh-reporting-button" type="button" class="modern-btn btn-secondary-modern" title="Force Full Refresh">
         <i class="fa-solid fa-sync"></i> Refresh
     </button>
@@ -1470,7 +1457,7 @@
                 </section>
 
                 <section id="im-finance-report" class="workdesk-section hidden">
-                    <h1>Finance Report (Read-Only) <span id="finance-report-count-display" class="table-count-display"></span></h1>
+                    <h1>Financial Report (Read-Only) <span id="finance-report-count-display" class="table-count-display"></span></h1>
                     <p>Search for payments from the finance database. This is a read-only view.</p>
                     <div class="search-and-filter-group" style="max-width: 600px; margin-bottom: 20px;">
                         <div class="search-bar-local" style="margin-bottom: 0;">
@@ -1549,7 +1536,7 @@
 
 <div id="modify-task-report-actions" class="hidden" style="margin: 15px 0 10px 0; text-align: center;">
     <button type="button" id="btn-view-finance-report-modal" class="action-btn" style="background-color: #17a2b8; color: white; width: 100%; padding: 8px; border-radius: 4px; font-weight: bold;">
-        <i class="fa-solid fa-file-invoice-dollar"></i> View Finance Report
+        <i class="fa-solid fa-file-invoice-dollar"></i> View Financial Report
     </button>
 </div>
 
@@ -1562,7 +1549,7 @@
             <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
     
     <button id="btn-admin-print-finance" onclick="printFinanceReport()" class="secondary-btn" style="display: none; background: transparent; color: #888; border: 1px solid #ccc; font-size: 0.8rem;">
-        <i class="fas fa-print"></i> Print Finance Report
+        <i class="fas fa-print"></i> Print Financial Report
     </button>
 
     <div style="display: flex; gap: 10px;">
