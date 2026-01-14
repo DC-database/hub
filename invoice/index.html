@@ -20,8 +20,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
 
-    <link rel="stylesheet" href="style.css?v=6.2.2">
-    <link rel="stylesheet" href="transfer_stock.css?v=6.2.2">
+    <link rel="stylesheet" href="style.css?v=6.3.5">
+    <link rel="stylesheet" href="transfer_stock.css?v=6.3.5">
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -1293,10 +1293,10 @@
                         <h1>Invoice Records <span id="reporting-count-display" class="table-count-display"></span></h1>
                         <button id="im-mobile-search-btn" class="im-mobile-search-btn" type="button"><i class="fa-solid fa-magnifying-glass"></i></button>
                         <div class="daily-report-section">
-                           <input type="date" id="im-daily-report-date" title="Select a date for the daily report">
-                           <button id="im-download-daily-report-button" class="download-btn" type="button"><i class="fa-solid fa-calendar-day"></i> Daily Entry Report</button>
-                           <button id="im-download-with-accounts-report-button" class="download-btn" type="button"><i class="fa-solid fa-file-invoice-dollar"></i> With Accounts Report</button>
-			   <button id="im-reporting-download-btn" class="download-btn" type="button" onclick="downloadReportingTableToExcel()"><i class="fa-solid fa-file-excel"></i> Invoice Records Report</button>
+                           <!-- Date picker removed (not used by the export logic). -->
+	                           <button id="im-download-daily-report-button" class="download-btn download-btn--periwinkle" type="button"><i class="fa-solid fa-file-invoice"></i> 1. Under Review</button>
+	                           <button id="im-download-with-accounts-report-button" class="download-btn download-btn--gold" type="button"><i class="fa-solid fa-credit-card"></i> 2. With Accounts</button>
+				   <button id="im-reporting-download-btn" class="download-btn download-btn--teal" type="button" onclick="downloadReportingTableToExcel()"><i class="fa-solid fa-file-lines"></i> Finance Report (Optional)</button>
                         </div>
                     </div>
 
@@ -2336,9 +2336,9 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
 
-    <script src="materialStock.js?v=6.2.2"></script>
-    <script src="transferLogic.js?v=6.2.2"></script>
-    <script src="app.js?v=6.2.2"></script>
+    <script src="materialStock.js?v=6.3.5"></script>
+    <script src="transferLogic.js?v=6.3.5"></script>
+    <script src="app.js?v=6.3.5"></script>
 
     </body>
 </html>

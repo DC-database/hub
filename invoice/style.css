@@ -524,6 +524,16 @@ tbody tr:hover { background-color: #f1f1f1; }
 .download-btn i {
     margin-right: 8px;
 }
+
+/* Download button color variants (used in Invoice Mgmt → Invoice Records reporting header) */
+.download-btn--periwinkle { background-color: var(--iba-secondary-periwinkle); }
+.download-btn--periwinkle:hover { background-color: #3f6fc8; }
+
+.download-btn--gold { background-color: var(--iba-secondary-gold); color: #212529; }
+.download-btn--gold:hover { background-color: #9a8100; }
+
+.download-btn--teal { background-color: var(--iba-secondary-teal); }
+.download-btn--teal:hover { background-color: #005a6e; }
 /* New style for clickable rows */
 .clickable-pdf {
     cursor: pointer;

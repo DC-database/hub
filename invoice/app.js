@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.3.4";
+const APP_VERSION = "6.3.5";
 
 // ======================================================================
 // NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)
@@ -3996,7 +3996,9 @@ try {
     }
 
     if (sectionId === 'im-reporting') {
-        imDailyReportDateInput.value = getTodayDateString();
+        // Date picker was removed from UI (it was not used by report logic),
+        // so guard against null to avoid runtime errors.
+        if (imDailyReportDateInput) imDailyReportDateInput.value = getTodayDateString();
         const savedSearch = sessionStorage.getItem('imReportingSearch');
         if (savedSearch) {
             imReportingSearchInput.value = savedSearch;
