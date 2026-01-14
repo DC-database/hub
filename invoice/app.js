@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.3.1";
+const APP_VERSION = "6.2.2";
 
 // ======================================================================
 // NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)
@@ -6355,7 +6355,13 @@ async function handleSRVDone(btn, key) {
             await ensureAllEntriesFetched(false);
         }
 
-        const isInvoiceDB = String(key || '').includes('_');
+        const keyStr = String(key || '').trim();
+        const taskFromList = (Array.isArray(userActiveTasks)
+            ? (userActiveTasks.find(t => t && String(t.key || '').trim() === keyStr) || {})
+            : {});
+
+        // Some invoice tasks come from invoice_tasks_by_user and should still be treated as invoice even if the key parsing fails.
+        const isInvoiceDB = keyStr.includes('_') || (taskFromList && taskFromList.source === 'invoice');
 
         let sender = 'Accounting';
         let oldAttention = '';
@@ -6363,30 +6369,117 @@ async function handleSRVDone(btn, key) {
         let invoiceKey = '';
 
         if (isInvoiceDB) {
-            [poNumber, invoiceKey] = String(key).split('_');
+            // Prefer explicit fields if available (avoids parsing edge cases)
+            if (taskFromList && taskFromList.originalPO) poNumber = taskFromList.originalPO;
+            if (taskFromList && taskFromList.originalKey) invoiceKey = taskFromList.originalKey;
 
-            // Normalize PO
-            poNumber = String(poNumber || '').trim().toUpperCase();
-
-            if (allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][invoiceKey]) {
-                const invData = allInvoiceData[poNumber][invoiceKey];
-                sender = invData.enteredBy || invData.originEnteredBy || 'Accounting';
-                oldAttention = invData.attention || '';
-            } else {
-                // Fallback: fetch directly if cache is missing
-                const invSnap = await invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}`).once('value');
-                const invData = invSnap.val() || {};
-                sender = invData.enteredBy || invData.originEnteredBy || 'Accounting';
-                oldAttention = invData.attention || '';
+            // Fallback: parse composite key
+            if ((!poNumber || !invoiceKey) && keyStr.includes('_')) {
+                const idx = keyStr.indexOf('_');
+                poNumber = poNumber || keyStr.slice(0, idx);
+                invoiceKey = invoiceKey || keyStr.slice(idx + 1);
             }
+
+            poNumber = String(poNumber || '').trim().toUpperCase();
+            const candidateInvoiceKey = String(invoiceKey || '').trim();
+
+            // ------------------------------------------------------------------
+            // IMPORTANT: Prevent "re-entering" / duplicating invoice entries.
+            // If we update a non-existing path in Firebase, it CREATES a new record.
+            // So we first resolve the REAL invoice entry key before updating.
+            // ------------------------------------------------------------------
+            const resolveInvoiceEntry = async () => {
+                if (!poNumber) return { resolvedKey: null, invData: null };
+
+                // 1) Direct key lookup
+                if (candidateInvoiceKey) {
+                    const directSnap = await invoiceDb.ref(`invoice_entries/${poNumber}/${candidateInvoiceKey}`).once('value');
+                    if (directSnap.exists()) {
+                        return { resolvedKey: candidateInvoiceKey, invData: directSnap.val() || {} };
+                    }
+                }
+
+                // 2) Try cache / PO scan (match by invEntryID or invNumber)
+                const targetInvEntryID = String(taskFromList.invEntryID || '').trim();
+                const targetInvNumber = String(taskFromList.ref || taskFromList.invNumber || '').trim();
+
+                const pickBestMatch = (bucket) => {
+                    const matches = [];
+                    if (!bucket) return null;
+
+                    for (const [k, v] of Object.entries(bucket)) {
+                        if (!v) continue;
+                        const vEntry = String(v.invEntryID || '').trim();
+                        const vNo = String(v.invNumber || '').trim();
+
+                        const entryMatch = targetInvEntryID && vEntry && vEntry === targetInvEntryID;
+                        const numberMatch = !entryMatch && targetInvNumber && vNo && vNo === targetInvNumber;
+
+                        if (entryMatch || numberMatch) {
+                            const score = Number(v.lastUpdated || v.updatedAt || v.enteredAt || 0);
+                            matches.push({ k, v, score });
+                        }
+                    }
+
+                    if (matches.length === 0) return null;
+                    matches.sort((a, b) => (b.score || 0) - (a.score || 0));
+                    return matches[0];
+                };
+
+                // Cache first
+                const cacheBucket = (allInvoiceData && allInvoiceData[poNumber]) ? allInvoiceData[poNumber] : null;
+                let best = pickBestMatch(cacheBucket);
+
+                // If not found in cache, fetch PO branch and scan
+                if (!best) {
+                    const poSnap = await invoiceDb.ref(`invoice_entries/${poNumber}`).once('value');
+                    const poBucket = poSnap.val() || {};
+                    best = pickBestMatch(poBucket);
+                    if (best) return { resolvedKey: best.k, invData: best.v || {} };
+                }
+
+                if (best) return { resolvedKey: best.k, invData: best.v || {} };
+                return { resolvedKey: null, invData: null };
+            };
+
+            const { resolvedKey, invData } = await resolveInvoiceEntry();
+
+            if (!resolvedKey) {
+                throw new Error(`Invoice entry not found for PO ${poNumber}. (Prevented duplicate creation)`);
+            }
+
+            // Use the resolved key (this is what exists in invoice_entries)
+            invoiceKey = resolvedKey;
+
+            sender = (invData && (invData.enteredBy || invData.originEnteredBy)) || 'Accounting';
+            oldAttention = (taskFromList.attention || (invData ? invData.attention : '') || '');
 
             // Update Invoice Entry (correct path)
             const updates = { status: 'SRV Done', attention: '', lastUpdated: firebase.database.ServerValue.TIMESTAMP };
             await invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}`).update(updates);
 
-            // Move task from current user -> sender (keeps inbox clean)
-            const originalInvoice = (allInvoiceData && allInvoiceData[poNumber]) ? allInvoiceData[poNumber][invoiceKey] : {};
+            // Defensive cleanup: remove any lingering inbox copies for this invoice.
+            // Remove both the candidate key and the resolved key (if different) to cover legacy inbox formats.
+            try {
+                const sanitizeFirebaseKey = (k) => String(k || '').replace(/[.#$[\]]/g, '_');
+                const safeMe = sanitizeFirebaseKey(currentApprover?.Name || '');
+                const removals = [];
+
+                const keysToRemove = new Set([invoiceKey, candidateInvoiceKey].filter(Boolean));
+                for (const k of keysToRemove) {
+                    if (safeMe) removals.push(invoiceDb.ref(`invoice_tasks_by_user/${safeMe}/${k}`).remove());
+                    removals.push(invoiceDb.ref(`invoice_tasks_by_user/All/${k}`).remove());
+                }
+
+                await Promise.allSettled(removals);
+            } catch (_) { /* never block SRV Done */ }
+
+            // Keep task lookup in sync (so tasks move/clear correctly)
+            const originalInvoice = (allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][invoiceKey])
+                ? allInvoiceData[poNumber][invoiceKey]
+                : (invData || {});
             const updatedInvoiceData = { ...originalInvoice, ...updates };
+
             if (typeof updateInvoiceTaskLookup === 'function') {
                 await updateInvoiceTaskLookup(poNumber, invoiceKey, updatedInvoiceData, oldAttention);
             }
@@ -6399,14 +6492,14 @@ async function handleSRVDone(btn, key) {
         } else {
             // Job Entry
             if (typeof ensureAllEntriesFetched === 'function') await ensureAllEntriesFetched(false);
-            const jobEntry = (allSystemEntries || []).find(e => e.key === key);
+            const jobEntry = (allSystemEntries || []).find(e => e.key === keyStr);
 
             if (jobEntry) {
                 sender = jobEntry.enteredBy || 'Accounting';
                 oldAttention = jobEntry.attention || '';
             }
 
-            await db.ref(`job_entries/${key}`).update({
+            await db.ref(`job_entries/${keyStr}`).update({
                 remarks: 'SRV Done',
                 attention: '',
                 dateResponded: formatDate(new Date())
@@ -6427,6 +6520,7 @@ async function handleSRVDone(btn, key) {
         }
     }
 }
+
 
 // ==========================================================================
 // AUTO-RECONCILE PR JOBS (Universal Date Fixer)
@@ -14052,10 +14146,12 @@ try {
 	            // We route ALL SRV Done clicks through handleSRVDone() to avoid double-processing
 	            // (previously inline onclick + this listener ran together, which could create duplicates).
 	            if (e.target.classList.contains('srv-done-btn')) {
-	                e.stopPropagation();
-	                await handleSRVDone(e.target, key);
-	                return;
-	            }
+                e.stopPropagation();
+                const btnKey = e.target.getAttribute('data-key');
+                const effectiveKey = btnKey || key;
+                await handleSRVDone(e.target, effectiveKey);
+                return;
+            }
 
             // 6. EDIT BUTTON
             if (e.target.classList.contains('modify-btn')) {
