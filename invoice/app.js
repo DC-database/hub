@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.3.3";
+const APP_VERSION = "6.3.4";
 
 // ======================================================================
 // NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)
@@ -18146,7 +18146,7 @@ function handlePrintReportingTable() {
 }
 
 // ==========================================
-// [NEW] DELETE INVOICE HANDLER
+// [NEW] DELETE INVOICE HANDLER (UI-INSTANT + SAFE CACHE CLEANUP)
 // ==========================================
 const imDeleteInvoiceBtn = document.getElementById('im-delete-invoice-btn');
 if (imDeleteInvoiceBtn) {
@@ -18156,35 +18156,63 @@ if (imDeleteInvoiceBtn) {
             return;
         }
 
+        // --- SECURITY UPDATE: Strict check for "Irwin" ---
+        if (currentApprover?.Name !== 'Irwin') {
+            alert("Access Denied: Only the original Administrator (Irwin) can delete invoices.");
+            return;
+        }
+        // ------------------------------------------------
+
         if (!confirm("⚠️ ARE YOU SURE?\n\nThis will permanently delete this invoice entry.\nThis action cannot be undone.")) {
             return;
         }
 
-        try {
-            // 1. Delete from Main Invoice Entries
-            await invoiceDb.ref(`invoice_entries/${currentPO}/${currentlyEditingInvoiceKey}`).remove();
+        const keyToDelete = currentlyEditingInvoiceKey;
+        const invoiceToDelete =
+            (currentPOInvoices && currentPOInvoices[keyToDelete]) ||
+            (allInvoiceData && allInvoiceData[currentPO] && allInvoiceData[currentPO][keyToDelete]) ||
+            null;
 
-            // 2. Delete from Task Lookup (Clean up active tasks if assigned)
-            const lookupKey = `${currentPO}_${currentlyEditingInvoiceKey}`;
-            // We need to find who it was assigned to, to remove it from their specific list.
-            // Since we might not know, we can try removing it from the global/common paths or just rely on the main DB delete.
-            // (The system usually cleans up on load, but let's be safe if you have a specific helper)
-            
-            // 3. UI Cleanup
+        try {
+            // 1) Delete from main invoice entries
+            await invoiceDb.ref(`invoice_entries/${currentPO}/${keyToDelete}`).remove();
+
+            // 2) Remove from task lookups (if it was assigned anywhere)
+            try {
+                if (typeof removeInvoiceTaskFromUser === 'function' && invoiceToDelete) {
+                    await removeInvoiceTaskFromUser(keyToDelete, invoiceToDelete);
+                }
+            } catch (taskErr) {
+                console.warn("Invoice deleted but task lookup cleanup failed:", taskErr);
+            }
+
+            // 3) Local cache + UI cleanup so it disappears immediately (no manual refresh needed)
+            removeFromLocalInvoiceCache(currentPO, keyToDelete);
+            try { if (currentPOInvoices && currentPOInvoices[keyToDelete]) delete currentPOInvoices[keyToDelete]; } catch (_) { /* ignore */ }
+
+            // Keep navigation list consistent
+            try {
+                if (Array.isArray(imNavigationList)) {
+                    imNavigationList = imNavigationList.filter(k => k !== keyToDelete);
+                    if (imNavigationIndex >= imNavigationList.length) imNavigationIndex = imNavigationList.length - 1;
+                }
+            } catch (_) { /* ignore */ }
+
             alert("Invoice deleted successfully.");
-            
-            // Close Modal
-            document.getElementById('im-new-invoice-modal').classList.add('hidden'); // Or .classList.remove('active') depending on your CSS
-            
-            // Refresh List
+
+            // Close modal
+            const modal = document.getElementById('im-new-invoice-modal');
+            if (modal) modal.classList.add('hidden');
+
+            // Refresh table from memory (already updated)
             fetchAndDisplayInvoices(currentPO);
-            
-            // Reset Global Variable
+
+            // Reset global variable
             currentlyEditingInvoiceKey = null;
 
         } catch (error) {
             console.error("Delete failed:", error);
-            alert("Failed to delete invoice. Check console for details.");
+            alert("Failed to delete invoice. Please try again.");
         }
     });
 }
