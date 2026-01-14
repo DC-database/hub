@@ -1226,5 +1226,13 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('transfer-modal-approve-btn')?.addEventListener('click', () => handleTransferAction('Approved'));
     document.getElementById('transfer-modal-reject-btn')?.addEventListener('click', () => handleTransferAction('Rejected'));
     document.getElementById('tf-add-to-list-btn')?.addEventListener('click', addItemToBatch);
-    document.getElementById('tf-refresh-stock-btn')?.addEventListener('click', manualRefreshStockData);
+    const tfRefreshBtn = document.getElementById('tf-refresh-stock-btn');
+    if (tfRefreshBtn) {
+        const run = async () => { await manualRefreshStockData(); };
+        if (window.__attachRefreshCooldown) {
+            window.__attachRefreshCooldown(tfRefreshBtn, 'tf-refresh-stock', run, 30);
+        } else {
+            tfRefreshBtn.addEventListener('click', run);
+        }
+    }
 });

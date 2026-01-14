@@ -12,6 +12,102 @@ let editingItemKey = null; // NEW: explicit modal state (prevents stuck edit mod
 const STOCK_CACHE_KEY = "cached_MATERIAL_STOCK";
 const STOCK_CACHE_DURATION = 24 * 60 * 60 * 1000;
 
+
+
+// ==========================================================================
+// GLOBAL REFRESH COOLDOWN (30-min limit per user, per device)
+// This prevents accidental repeated full re-downloads from Firebase.
+// ==========================================================================
+(function initRefreshCooldownHelper(){
+    if (window.__attachRefreshCooldown) return;
+
+    const DEFAULT_MINUTES = 30;
+    const _inProgress = new Map();
+
+    function _safeStr(v){ return String(v == null ? '' : v); }
+
+    function _getUserName(){
+        try {
+            if (window.currentApprover && window.currentApprover.Name) return window.currentApprover.Name;
+            if (window.currentUser && window.currentUser.username) return window.currentUser.username;
+            if (window.currentUser && window.currentUser.Name) return window.currentUser.Name;
+        } catch (_) {}
+        return 'UnknownUser';
+    }
+
+    function _sanitizeKey(s){
+        // LocalStorage-safe (and aligns with Firebase key restrictions)
+        return _safeStr(s).trim().replace(/[.#$\[\]\/\\]/g, '_').replace(/\s+/g, '_') || 'UnknownUser';
+    }
+
+    function _cooldownStorageKey(actionKey){
+        const userKey = _sanitizeKey(_getUserName());
+        return `refreshCooldown:${userKey}:${actionKey}`;
+    }
+
+    function _formatRemaining(ms){
+        const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+        const m = Math.floor(totalSeconds / 60);
+        const s = totalSeconds % 60;
+        return `${m}m ${s}s`;
+    }
+
+    window.__attachRefreshCooldown = function(buttonEl, actionKey, handler, minutes = DEFAULT_MINUTES, opts = {}){
+        if (!buttonEl || typeof handler !== 'function') return;
+
+        const cooldownMinutes = (typeof minutes === 'number' && minutes > 0) ? minutes : DEFAULT_MINUTES;
+        const cooldownMs = cooldownMinutes * 60 * 1000;
+
+        const showMessage = (typeof opts.showMessage === 'function')
+            ? opts.showMessage
+            : (msg) => alert(msg);
+
+        const progressKey = _cooldownStorageKey(actionKey) + ':inProgress';
+
+        // Prevent double-binding if called more than once
+        if (buttonEl.dataset && buttonEl.dataset.cooldownBound === '1') return;
+        if (buttonEl.dataset) buttonEl.dataset.cooldownBound = '1';
+
+        buttonEl.addEventListener('click', async (e) => {
+            // Block repeated clicks while an async refresh is running
+            if (_inProgress.get(progressKey)) {
+                e?.preventDefault?.();
+                showMessage('Refresh is already running. Please wait.');
+                return;
+            }
+
+            const key = _cooldownStorageKey(actionKey);
+            const last = parseInt(localStorage.getItem(key) || '0', 10);
+            const now = Date.now();
+
+            if (last && (now - last) < cooldownMs) {
+                const remaining = cooldownMs - (now - last);
+                const nextTime = new Date(last + cooldownMs);
+                e?.preventDefault?.();
+                showMessage(
+                    `Refresh is limited to once every ${cooldownMinutes} minutes.\n\n` +
+                    `Please wait ${_formatRemaining(remaining)}.\n` +
+                    `Next available: ${nextTime.toLocaleString()}`
+                );
+                return;
+            }
+
+            // Record immediately to prevent spamming heavy downloads
+            localStorage.setItem(key, String(now));
+
+            _inProgress.set(progressKey, true);
+            try {
+                await handler(e);
+            } catch (err) {
+                console.error('Refresh action failed:', err);
+                showMessage('Refresh failed. If this keeps happening, please contact Admin.');
+            } finally {
+                _inProgress.delete(progressKey);
+            }
+        }, { passive: false });
+    };
+})();
+
 // --- 1. STOCK LEGENDS (F / RRR Structure) ---
 const STOCK_LEGENDS = {
     "1": {
@@ -1536,13 +1632,19 @@ document.addEventListener('DOMContentLoaded', () => {
     initMaterialStockSystem();
     populateMaterialStock(false); // <--- ENSURE AUTO-LOAD IS ACTIVE
 
-    const refreshBtn = document.getElementById('ms-refresh-btn');
-    if(refreshBtn) refreshBtn.addEventListener('click', () => {
-        localStorage.removeItem(STOCK_CACHE_KEY);
-        populateMaterialStock(true);
-    });
-
-    const addNewBtn = document.getElementById('ms-add-new-btn');
+        const refreshBtn = document.getElementById('ms-refresh-btn');
+    if (refreshBtn) {
+        const run = async () => {
+            localStorage.removeItem(STOCK_CACHE_KEY);
+            populateMaterialStock(true);
+        };
+        if (window.__attachRefreshCooldown) {
+            window.__attachRefreshCooldown(refreshBtn, 'ms-refresh', run, 30);
+        } else {
+            refreshBtn.addEventListener('click', run);
+        }
+    }
+const addNewBtn = document.getElementById('ms-add-new-btn');
     if (addNewBtn) addNewBtn.addEventListener('click', openNewMaterialModal);
 
     const saveNewBtn = document.getElementById('ms-save-new-btn');

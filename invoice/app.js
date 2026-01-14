@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.3.2";
+const APP_VERSION = "6.3.3";
 
 // ======================================================================
 // NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)
@@ -2591,6 +2591,89 @@ function debounce(func, wait) {
         timeout = setTimeout(later, wait);
     };
 }
+
+// --------------------------------------------------------------------------
+// Refresh cooldown helper fallback (materialStock.js normally defines this first)
+// --------------------------------------------------------------------------
+if (!window.__attachRefreshCooldown) {
+    (function initRefreshCooldownHelperFallback(){
+        const DEFAULT_MINUTES = 30;
+        const _inProgress = new Map();
+
+        function _safeStr(v){ return String(v == null ? '' : v); }
+        function _getUserName(){
+            try {
+                if (window.currentApprover && window.currentApprover.Name) return window.currentApprover.Name;
+                if (window.currentUser && window.currentUser.username) return window.currentUser.username;
+                if (window.currentUser && window.currentUser.Name) return window.currentUser.Name;
+            } catch (_) {}
+            return 'UnknownUser';
+        }
+        function _sanitizeKey(s){
+            return _safeStr(s).trim().replace(/[.#$\[\]\/\\]/g, '_').replace(/\s+/g, '_') || 'UnknownUser';
+        }
+        function _cooldownStorageKey(actionKey){
+            const userKey = _sanitizeKey(_getUserName());
+            return `refreshCooldown:${userKey}:${actionKey}`;
+        }
+        function _formatRemaining(ms){
+            const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+            const m = Math.floor(totalSeconds / 60);
+            const s = totalSeconds % 60;
+            return `${m}m ${s}s`;
+        }
+
+        window.__attachRefreshCooldown = function(buttonEl, actionKey, handler, minutes = DEFAULT_MINUTES, opts = {}){
+            if (!buttonEl || typeof handler !== 'function') return;
+
+            const cooldownMinutes = (typeof minutes === 'number' && minutes > 0) ? minutes : DEFAULT_MINUTES;
+            const cooldownMs = cooldownMinutes * 60 * 1000;
+
+            const showMessage = (typeof opts.showMessage === 'function')
+                ? opts.showMessage
+                : (msg) => alert(msg);
+
+            const progressKey = _cooldownStorageKey(actionKey) + ':inProgress';
+
+            if (buttonEl.dataset && buttonEl.dataset.cooldownBound === '1') return;
+            if (buttonEl.dataset) buttonEl.dataset.cooldownBound = '1';
+
+            buttonEl.addEventListener('click', async (e) => {
+                if (_inProgress.get(progressKey)) {
+                    e?.preventDefault?.();
+                    showMessage('Refresh is already running. Please wait.');
+                    return;
+                }
+
+                const key = _cooldownStorageKey(actionKey);
+                const last = parseInt(localStorage.getItem(key) || '0', 10);
+                const now = Date.now();
+
+                if (last && (now - last) < cooldownMs) {
+                    const remaining = cooldownMs - (now - last);
+                    const nextTime = new Date(last + cooldownMs);
+                    e?.preventDefault?.();
+                    showMessage(
+                        `Refresh is limited to once every ${cooldownMinutes} minutes.\n\n` +
+                        `Please wait ${_formatRemaining(remaining)}.\n` +
+                        `Next available: ${nextTime.toLocaleString()}`
+                    );
+                    return;
+                }
+
+                localStorage.setItem(key, String(now));
+                _inProgress.set(progressKey, true);
+                try { await handler(e); }
+                catch (err) {
+                    console.error('Refresh action failed:', err);
+                    showMessage('Refresh failed. If this keeps happening, please contact Admin.');
+                }
+                finally { _inProgress.delete(progressKey); }
+            }, { passive: false });
+        };
+    })();
+}
+
 function updateDashboardDateTime() {}
 function updateWorkdeskDateTime() {}
 function updateIMDateTime() {}
@@ -12582,14 +12665,17 @@ async function populateInvoiceDashboard(forceRefresh = false) {
             const selectedYear = parseInt(e.target.value);
             renderYearlyChart(selectedYear);
             updateTop5Lists(selectedYear);
-        });
-
-        const refreshBtn = document.getElementById('im-dashboard-refresh-btn');
+        });        const refreshBtn = document.getElementById('im-dashboard-refresh-btn');
         if (refreshBtn) {
-            refreshBtn.addEventListener('click', () => {
+            const run = async () => {
                 alert('Forcing dashboard refresh... This may take a moment.');
-                populateInvoiceDashboard(true);
-            });
+                await populateInvoiceDashboard(true);
+            };
+            if (window.__attachRefreshCooldown) {
+                window.__attachRefreshCooldown(refreshBtn, 'im-dashboard-refresh', run, 30);
+            } else {
+                refreshBtn.addEventListener('click', run);
+            }
         }
 
     } catch (error) {
@@ -13699,12 +13785,10 @@ try {
             sessionStorage.removeItem('activeTaskSearch');
             handleActiveTaskSearch('');
         });
-    }
-
-    // Mobile Refresh Button
+    }    // Mobile Refresh Button (cooldown: 1 refresh per 30 minutes per user/device)
     if (mobileActiveTaskRefreshBtn) {
-        mobileActiveTaskRefreshBtn.addEventListener('click', async (e) => {
-            e.preventDefault();
+        const run = async (e) => {
+            e?.preventDefault?.();
             const icon = mobileActiveTaskRefreshBtn.querySelector('i');
             if (icon) icon.classList.add('fa-spin');
 
@@ -13713,7 +13797,13 @@ try {
             await populateActiveTasks();
 
             if (icon) icon.classList.remove('fa-spin');
-        });
+        };
+
+        if (window.__attachRefreshCooldown) {
+            window.__attachRefreshCooldown(mobileActiveTaskRefreshBtn, 'mobile-active-tasks-refresh', run, 30);
+        } else {
+            mobileActiveTaskRefreshBtn.addEventListener('click', run);
+        }
     }
 
     // --- 7. Workdesk: Calendar Listeners ---
@@ -15182,74 +15272,97 @@ if (imBatchGlobalStatus) {
         imBatchGlobalNote.addEventListener('blur', (e) => {
             updateNotes(e.target.value);
         });
+    }    const refreshEntryBtn = document.getElementById('im-refresh-entry-button');
+    if (refreshEntryBtn) {
+        const run = async () => {
+            alert("Refreshing all data from sources...");
+            await ensureInvoiceDataFetched(true);
+            await populateActiveTasks();
+            alert("Data refreshed.");
+            if (currentPO) handlePOSearch(currentPO);
+        };
+        if (window.__attachRefreshCooldown) {
+            window.__attachRefreshCooldown(refreshEntryBtn, 'im-refresh-entry', run, 30);
+        } else {
+            refreshEntryBtn.addEventListener('click', run);
+        }
+    }    const refreshBatchBtn = document.getElementById('im-refresh-batch-button');
+    if (refreshBatchBtn) {
+        const run = async () => {
+            alert("Refreshing all data... Your current batch list will be cleared.");
+            await ensureInvoiceDataFetched(true);
+            document.getElementById('im-batch-table-body').innerHTML = '';
+            updateBatchCount();
+            alert("Data refreshed. Please add POs again.");
+        };
+        if (window.__attachRefreshCooldown) {
+            window.__attachRefreshCooldown(refreshBatchBtn, 'im-refresh-batch', run, 30);
+        } else {
+            refreshBatchBtn.addEventListener('click', run);
+        }
+    }    const refreshSummaryBtn = document.getElementById('im-refresh-summary-button');
+    if (refreshSummaryBtn) {
+        const run = async () => {
+            alert("Refreshing all data...");
+            await ensureInvoiceDataFetched(true);
+            initializeNoteSuggestions();
+            alert("Data refreshed.");
+        };
+        if (window.__attachRefreshCooldown) {
+            window.__attachRefreshCooldown(refreshSummaryBtn, 'im-refresh-summary', run, 30);
+        } else {
+            refreshSummaryBtn.addEventListener('click', run);
+        }
     }
-
-    const refreshEntryBtn = document.getElementById('im-refresh-entry-button');
-    if (refreshEntryBtn) refreshEntryBtn.addEventListener('click', async () => {
-        alert("Refreshing all data from sources...");
-        await ensureInvoiceDataFetched(true);
-        await populateActiveTasks();
-        alert("Data refreshed.");
-        if (currentPO) handlePOSearch(currentPO);
-    });
-    const refreshBatchBtn = document.getElementById('im-refresh-batch-button');
-    if (refreshBatchBtn) refreshBatchBtn.addEventListener('click', async () => {
-        alert("Refreshing all data... Your current batch list will be cleared.");
-        await ensureInvoiceDataFetched(true);
-        document.getElementById('im-batch-table-body').innerHTML = '';
-        updateBatchCount();
-        alert("Data refreshed. Please add POs again.");
-    });
-    const refreshSummaryBtn = document.getElementById('im-refresh-summary-button');
-    if (refreshSummaryBtn) refreshSummaryBtn.addEventListener('click', async () => {
-        alert("Refreshing all data...");
-        await ensureInvoiceDataFetched(true);
-        initializeNoteSuggestions();
-        alert("Data refreshed.");
-    });
-    
 const refreshReportingBtn = document.getElementById('im-refresh-reporting-button');
     if (refreshReportingBtn) {
-        refreshReportingBtn.addEventListener('click', async () => {
+        const run = async () => {
             const originalText = refreshReportingBtn.innerHTML;
-            refreshReportingBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Refreshing...';
-            refreshReportingBtn.disabled = true;
+                        refreshReportingBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Refreshing...';
+                        refreshReportingBtn.disabled = true;
 
-            try {
-                console.log("Force refreshing Invoice Records data...");
+                        try {
+                            console.log("Force refreshing Invoice Records data...");
 
-                // Force a full network fetch of the invoice datasets
-                await ensureInvoiceDataFetched(true);
+                            // Force a full network fetch of the invoice datasets
+                            await ensureInvoiceDataFetched(true);
 
-                // Re-populate Site dropdown in case new sites/manual POs were added
-                try { await populateSiteFilterDropdown(); } catch (_) {}
+                            // Re-populate Site dropdown in case new sites/manual POs were added
+                            try { await populateSiteFilterDropdown(); } catch (_) {}
 
-                // Reload the current Invoice Records view (keeps your filters/search)
-                const searchTerm = (document.getElementById('im-reporting-search')?.value || '').trim();
-                const siteFilter = document.getElementById('im-reporting-site-filter')?.value || '';
-                const monthFilter = document.getElementById('im-reporting-date-filter')?.value || '';
-                const statusFilter = document.getElementById('im-reporting-status-filter')?.value || '';
-                const hasCriteria = !!(searchTerm || siteFilter || monthFilter || statusFilter);
+                            // Reload the current Invoice Records view (keeps your filters/search)
+                            const searchTerm = (document.getElementById('im-reporting-search')?.value || '').trim();
+                            const siteFilter = document.getElementById('im-reporting-site-filter')?.value || '';
+                            const monthFilter = document.getElementById('im-reporting-date-filter')?.value || '';
+                            const statusFilter = document.getElementById('im-reporting-status-filter')?.value || '';
+                            const hasCriteria = !!(searchTerm || siteFilter || monthFilter || statusFilter);
 
-                if (hasCriteria) {
-                    await populateInvoiceReporting(searchTerm);
-                } else {
-                    document.getElementById('im-reporting-content').innerHTML = '<p>Please enter a search term and click Search.</p>';
-                    currentReportData = [];
-                    if (reportingCountDisplay) reportingCountDisplay.textContent = '';
-                }
+                            if (hasCriteria) {
+                                await populateInvoiceReporting(searchTerm);
+                            } else {
+                                document.getElementById('im-reporting-content').innerHTML = '<p>Please enter a search term and click Search.</p>';
+                                currentReportData = [];
+                                if (reportingCountDisplay) reportingCountDisplay.textContent = '';
+                            }
 
-                alert("Invoice Records refreshed successfully.");
+                            alert("Invoice Records refreshed successfully.");
 
-            } catch (e) {
-                console.error(e);
-                alert("Error refreshing data.");
-            } finally {
-                refreshReportingBtn.innerHTML = originalText;
-                refreshReportingBtn.disabled = false;
-            }
-        });
+                        } catch (e) {
+                            console.error(e);
+                            alert("Error refreshing data.");
+                        } finally {
+                            refreshReportingBtn.innerHTML = originalText;
+                            refreshReportingBtn.disabled = false;
+                        }
+        };
+
+        if (window.__attachRefreshCooldown) {
+            window.__attachRefreshCooldown(refreshReportingBtn, 'im-refresh-reporting', run, 30);
+        } else {
+            refreshReportingBtn.addEventListener('click', run);
+        }
     }
+
 
 // NOTE: We no longer auto-force "With Accounts" or auto-copy SRV Name on Generate.
 // Use the Update button prompt instead when you want to "Send to Accounts".
