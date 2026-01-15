@@ -7027,3 +7027,68 @@ body.inventory-mode .wd-nav-material {
 #login-view .desktop-only-login.cyber-login-card button:hover {
     filter: brightness(1.05);
 }
+
+/* --- v6.3.10: Cyberpunk theme for DASHBOARD welcome card (desktop & mobile) --- */
+#dashboard-view .cyber-dashboard-card {
+    position: relative;
+    z-index: 0;
+    isolation: isolate;
+    overflow: visible; /* allow neon aura */
+
+    background:
+        radial-gradient(circle at 22% 18%, rgba(255,255,255,0.16), rgba(255,255,255,0) 48%),
+        radial-gradient(circle at 78% 72%, rgba(0,255,220,0.10), rgba(0,0,0,0) 56%),
+        linear-gradient(135deg, rgba(10, 12, 18, 0.55), rgba(10, 12, 18, 0.22));
+
+    border: 1px solid rgba(255,255,255,0.14);
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,0.05) inset,
+        0 26px 70px rgba(0,0,0,0.45);
+}
+
+#dashboard-view .cyber-dashboard-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    padding: 3px;
+    border-radius: inherit;
+    background: linear-gradient(
+        90deg,
+        rgba(0, 255, 180, 0.92),
+        rgba(0, 210, 255, 0.88),
+        rgba(120, 70, 255, 0.88),
+        rgba(0, 255, 180, 0.92)
+    );
+    background-size: 320% 100%;
+    animation: ibaEdgeFlow 7s linear infinite;
+    opacity: 0.78;
+    pointer-events: none;
+
+    /* Border-only mask */
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+}
+
+#dashboard-view .cyber-dashboard-card::after {
+    content: "";
+    position: absolute;
+    inset: -18px;
+    border-radius: inherit;
+    background: linear-gradient(
+        90deg,
+        rgba(0, 255, 180, 0.55),
+        rgba(0, 210, 255, 0.52),
+        rgba(120, 70, 255, 0.52),
+        rgba(0, 255, 180, 0.55)
+    );
+    background-size: 320% 100%;
+    animation: ibaEdgeFlow 7s linear infinite;
+    filter: blur(20px);
+    opacity: 0.32;
+    z-index: -1;
+    pointer-events: none;
+}
