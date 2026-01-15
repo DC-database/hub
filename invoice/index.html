@@ -20,8 +20,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
 
-    <link rel="stylesheet" href="style.css?v=6.3.5">
-    <link rel="stylesheet" href="transfer_stock.css?v=6.3.5">
+    <link rel="stylesheet" href="style.css?v=6.3.9">
+    <link rel="stylesheet" href="transfer_stock.css?v=6.3.9">
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -52,12 +52,13 @@
 <div id="app-container">
 
         <div id="login-view">
-            <div class="form-container animated-card desktop-only-login">
+            <div class="form-container animated-card cyber-login-card desktop-only-login">
                 <h2>System Login</h2>
-                <p>Please enter your IBA mobile number to continue.</p>
+                <p>Please enter your IBA mobile number and password to login.</p>
                 <form id="login-form">
                     <input type="text" id="login-identifier" placeholder="IBA Mobile Number" required>
-                    <button type="submit">Continue</button>
+                    <input type="password" id="login-password-desktop" placeholder="Password">
+                    <button type="submit">Login</button>
                 </form>
                 <p id="login-error" class="error-message"></p>
                 <p id="app-version-display" class="version-display"></p>
@@ -69,7 +70,7 @@
                 </div>
                 <audio id="login-sound" src="https://firebasestorage.googleapis.com/v0/b/invoiceentry-b15a8.firebasestorage.app/o/Files%2FOpen.mp3?alt=media&token=2eed2fdd-8f0b-43a6-a349-9a0fd2462a21"></audio>
 
-                <div class="mobile-login-form-wrapper">
+                <div class="mobile-login-form-wrapper cyber-login-card">
                     <h2 style="color: white; margin-bottom: 20px;">Welcome</h2>
                     <form id="mobile-login-form">
                         <div class="input-icon-wrap">
@@ -83,6 +84,7 @@
                         <button type="submit" class="mobile-login-btn">Login</button>
                     </form>
                     <p id="mobile-login-error" class="error-message" style="color: #ffcccc;"></p>
+                    <p id="mobile-version-display" class="version-display"></p>
                     <a href="https://www.iba.com.qa" target="_blank" class="iba-web-link">www.iba.com.qa</a>
                 </div>
             </div>
@@ -97,7 +99,8 @@
                 <header class="dashboard-header">
                     <div id="user-info">
                         <span id="dashboard-username"></span>
-                    </div>
+                        <span id="dashboard-version-display" class="dashboard-version-display"></span>
+                        </div>
                     <button id="logout-button">Logout</button>
                 </header>
                 <main class="dashboard-main">
@@ -2336,9 +2339,9 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
 
-    <script src="materialStock.js?v=6.3.5"></script>
-    <script src="transferLogic.js?v=6.3.5"></script>
-    <script src="app.js?v=6.3.5"></script>
+    <script src="materialStock.js?v=6.3.8"></script>
+    <script src="transferLogic.js?v=6.3.8"></script>
+    <script src="app.js?v=6.3.8"></script>
 
     </body>
 </html>

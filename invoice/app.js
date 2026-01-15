@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.3.5";
+const APP_VERSION = "6.3.9";
 
 // ======================================================================
 // NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)
@@ -2694,6 +2694,7 @@ const views = {
 // --- Login & Setup Forms ---
 const loginForm = document.getElementById('login-form');
 const loginIdentifierInput = document.getElementById('login-identifier');
+const desktopLoginPasswordInput = document.getElementById('login-password-desktop');
 const loginError = document.getElementById('login-error');
 const passwordForm = document.getElementById('password-form');
 const passwordInput = document.getElementById('login-password');
@@ -6327,7 +6328,19 @@ userActiveTasks.forEach(task => {
     }
 });
 
-const uniqueTabs = Object.keys(tabCountsAll).sort();
+// Order tabs so "direct attention" (urgent) tabs appear first.
+// Within urgent tabs: highest urgent count first, then alphabetical.
+// Remaining tabs: alphabetical.
+const uniqueTabs = Object.keys(tabCountsAll).sort((a, b) => {
+    const da = (directTabCounts[a] || 0);
+    const db = (directTabCounts[b] || 0);
+    const ha = da > 0;
+    const hb = db > 0;
+    if (ha && !hb) return -1;
+    if (!ha && hb) return 1;
+    if (ha && hb && db !== da) return db - da;
+    return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
+});
         let tabsHTML = '';
         const getTabColor = (statusRaw) => {
             const status = (statusRaw || '').toLowerCase();
@@ -7603,8 +7616,8 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
                         break;
                         
                     case 'Report':
-                        // Report should suggest Admin users only
-                        validPositions = ['Admin'];
+                        // Report should suggest Accounts users (GIO first)
+                        validPositions = ['Accounts', 'Account'];
                         break;
                         
                     default:
@@ -7612,6 +7625,8 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
                         break;
                 }
             }
+
+            const isReportStatus = (String(filterStatus || '').trim().toLowerCase() === 'report');
 
             // --- B. PROCESS ALL USERS (Background Data) ---
             const allProcessedUsers = Object.values(approvers).map(approver => {
@@ -7658,6 +7673,8 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
 
             // --- C. CREATE SUGGESTED LIST (Default View) ---
             const suggestedList = allProcessedUsers.filter(user => {
+                const _nameUpper = String(user.value || '').trim().toUpperCase();
+                if (isReportStatus && _nameUpper === 'GIO') return true;
                 if (!validPositions) return true; 
 
                 // Check Position
@@ -7665,6 +7682,7 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
                 const isPosMatch = validPositions.some(role => {
                     const r = (role || '').toLowerCase();
                     if (r === 'admin') return userPos.includes('admin');
+                    if (r === 'accounts' || r === 'account') return userPos.includes('account');
                     if (r === 'camp boss') return userPos.includes('camp') && userPos.includes('boss');
                     if (r === 'site dc') return userPos.includes('site') && userPos.includes('dc');
                     return userPos === r;
@@ -7691,7 +7709,15 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
             });
 
             // Sort lists
-            suggestedList.sort((a, b) => a.label.localeCompare(b.label));
+            suggestedList.sort((a, b) => {
+                const aIsGIO = String(a.value || '').trim().toUpperCase() === 'GIO';
+                const bIsGIO = String(b.value || '').trim().toUpperCase() === 'GIO';
+                if (isReportStatus) {
+                    if (aIsGIO && !bIsGIO) return -1;
+                    if (!aIsGIO && bIsGIO) return 1;
+                }
+                return a.label.localeCompare(b.label);
+            });
             allProcessedUsers.sort((a, b) => a.label.localeCompare(b.label));
 
             // Base Options
@@ -13299,10 +13325,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   
     // --- 1. Version Display ---
-    if (document.getElementById('app-version-display')) {
-        document.getElementById('app-version-display').textContent = `Version ${APP_VERSION}`;
-    }
-    document.querySelectorAll('.sidebar-version-display').forEach(el => {
+    const __versionText = `Version ${APP_VERSION}`;
+
+    const __loginVersionEl = document.getElementById('app-version-display');
+    if (__loginVersionEl) { __loginVersionEl.textContent = __versionText; }
+
+    const __dashVersionEl = document.getElementById('dashboard-version-display');
+    if (__dashVersionEl) { __dashVersionEl.textContent = __versionText; }
+
+    const __mobileVersionEl = document.getElementById('mobile-version-display');
+    if (__mobileVersionEl) { __mobileVersionEl.textContent = __versionText; }
+
+document.querySelectorAll('.sidebar-version-display').forEach(el => {
         el.textContent = `Version ${APP_VERSION}`;
     });
 
@@ -13340,6 +13374,7 @@ try {
         e.preventDefault();
         loginError.textContent = '';
         const identifier = loginIdentifierInput.value.trim();
+        const enteredPassword = (desktopLoginPasswordInput ? desktopLoginPasswordInput.value : '').trim();
         try {
             const approver = await findApprover(identifier);
             if (!approver) {
@@ -13360,9 +13395,26 @@ try {
                 showView('setup');
                 setupPasswordInput.focus();
             } else {
-                passwordUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile;
-                showView('password');
-                passwordInput.focus();
+                if (!enteredPassword) {
+                    loginError.textContent = 'Please enter your password.';
+                    if (desktopLoginPasswordInput) desktopLoginPasswordInput.focus();
+                    return;
+                }
+
+                if (enteredPassword === currentApprover.Password) {
+                    // Play login sound (same as mobile / old desktop flow)
+                    const sound = document.getElementById('login-sound');
+                    if (sound) {
+                        sound.play().catch(err => console.log('Audio play failed:', err));
+                    }
+                    handleSuccessfulLogin();
+                } else {
+                    loginError.textContent = 'Incorrect password. Please try again.';
+                    if (desktopLoginPasswordInput) {
+                        desktopLoginPasswordInput.value = '';
+                        desktopLoginPasswordInput.focus();
+                    }
+                }
             }
         } catch (error) {
             console.error("Error checking approver:", error);
