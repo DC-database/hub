@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.3.10";
+const APP_VERSION = "6.3.11";
 
 // ======================================================================
 // NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)
@@ -3243,12 +3243,12 @@ function handleSuccessfulLogin() {
     document.body.classList.toggle('is-vacation-delegate', isVacationDelegate);
 
 
-    // --- Financial Report: Super Admin (Irwin) + active Super Admin Replacement only ---
-    // This keeps financial data restricted to the Super Admin workflow.
+    // --- Financial Report (Welcome Button): Super Admin (Irwin) + Admin with Accounts position only ---
+    // This keeps the welcome-screen Financial Report restricted to Super Admin and Accounts Admin only.
     const financeReportButton = document.getElementById('finance-report-button') || document.querySelector('a[href="https://ibaport.site/Finance/"]');
     if (financeReportButton) {
         const isSuperAdmin = ((currentApprover?.Name || '').trim().toLowerCase() === SUPER_ADMIN_NAME.toLowerCase());
-        const canSeeFinancialReport = isSuperAdmin || isVacationDelegate;
+        const canSeeFinancialReport = isSuperAdmin || (isAdmin && isAccounts);
         financeReportButton.classList.toggle('hidden', !canSeeFinancialReport);
     }
 
@@ -3852,7 +3852,7 @@ function showIMSection(sectionId) {
     const canAccessFullIM = isAccountingAdmin || isVacationDelegate;
     const canAccessPayments = isAccountsAdmin; // Vacation delegate does NOT get Payments access
     // Finance/Financial report is read-only and restricted to Super Admin (Irwin) and the active Super Admin replacement.
-    const canAccessFinanceReport = isSuperAdmin || isVacationDelegate;
+    const canAccessFinanceReport = isAdmin || isVacationDelegate;
 
 
     // 3. Strict Access Control Checks
@@ -3875,7 +3875,7 @@ function showIMSection(sectionId) {
     }
 
     if (sectionId === 'im-finance-report' && !canAccessFinanceReport) {
-        alert('Access Denied: Restricted to Super Admin / Super Admin Replacement.');
+        alert('Access Denied: Restricted to Admin users.');
         return;
     }
 
@@ -14496,7 +14496,7 @@ try {
             }
 
             // 3. Finance Report: Only Super Admin (Irwin) and the active Super Admin Replacement
-            if (section === 'im-finance-report' && !(isSuperAdmin || isVacationDelegate)) {
+            if (section === 'im-finance-report' && !(isAdmin || isVacationDelegate)) {
                 li.style.display = 'none';
             }
 
