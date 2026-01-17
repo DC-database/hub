@@ -18768,6 +18768,341 @@ window.imPrintInvoiceList = function() {
 
 
 
+// =============================================================
+// IM HELP CENTER (Vacation Replacement Guide)
+// =============================================================
+
+// Help Center DOM
+const imHelpSearchInput = document.getElementById('im-help-search-input');
+const imHelpSearchBtn = document.getElementById('im-help-search-btn');
+const imHelpClearBtn = document.getElementById('im-help-clear-btn');
+const imHelpMeta = document.getElementById('im-help-meta');
+const imHelpResults = document.getElementById('im-help-results');
+const imHelpAdmin = document.getElementById('im-help-admin');
+const imHelpUploadInput = document.getElementById('im-help-upload');
+const imHelpUploadBtn = document.getElementById('im-help-upload-btn');
+const imHelpUploadStatus = document.getElementById('im-help-upload-status');
+const imHelpRefreshBtn = document.getElementById('im-help-refresh-btn');
+const imHelpGuideLink = document.getElementById('im-help-guide-link');
+
+// Help Center state (client-side search)
+let imHelpCurrent = null;      // { version, guideUrl, updatedAt, updatedBy }
+let imHelpPages = [];          // [{ page, text }]
+let imHelpFuse = null;
+
+function imHelpIsSuperAdminUser() {
+    try {
+        return ((currentApprover?.Name || '').trim().toLowerCase() === SUPER_ADMIN_NAME.toLowerCase());
+    } catch (_) {
+        return false;
+    }
+}
+
+function imHelpSetStatus(html) {
+    if (!imHelpUploadStatus) return;
+    imHelpUploadStatus.innerHTML = html || '';
+}
+
+function imHelpEscapeHtml(str) {
+    return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function imHelpBuildExcerpt(text, query, maxLen = 520) {
+    const t = String(text || '').replace(/\s+/g, ' ').trim();
+    if (!t) return '';
+    const q = String(query || '').trim();
+    if (!q) return t.slice(0, maxLen) + (t.length > maxLen ? '…' : '');
+
+    // Use the first meaningful word from the query as an anchor.
+    const words = q.split(/\s+/).filter(w => w.length >= 3).slice(0, 4);
+    let idx = -1;
+    for (const w of words) {
+        idx = t.toLowerCase().indexOf(w.toLowerCase());
+        if (idx !== -1) break;
+    }
+    if (idx === -1) idx = 0;
+
+    const start = Math.max(0, idx - Math.floor(maxLen * 0.25));
+    const end = Math.min(t.length, start + maxLen);
+    const prefix = start > 0 ? '…' : '';
+    const suffix = end < t.length ? '…' : '';
+    return prefix + t.slice(start, end) + suffix;
+}
+
+function imHelpRenderMeta() {
+    if (!imHelpMeta) return;
+    if (!imHelpCurrent || !imHelpCurrent.version) {
+        imHelpMeta.style.display = 'none';
+        return;
+    }
+    const parts = [];
+    parts.push(`<i class="fa-solid fa-book"></i> <strong>Guide:</strong> ${imHelpEscapeHtml(imHelpCurrent.version)}`);
+    if (imHelpCurrent.updatedBy) {
+        parts.push(`&nbsp;•&nbsp; <strong>Published by:</strong> ${imHelpEscapeHtml(imHelpCurrent.updatedBy)}`);
+    }
+    if (imHelpCurrent.updatedAt) {
+        const d = new Date(imHelpCurrent.updatedAt);
+        if (!isNaN(d.getTime())) parts.push(`&nbsp;•&nbsp; <strong>Updated:</strong> ${d.toLocaleString()}`);
+    }
+    imHelpMeta.innerHTML = parts.join('');
+    imHelpMeta.style.display = 'block';
+
+    if (imHelpGuideLink) {
+        if (imHelpCurrent.guideUrl) {
+            imHelpGuideLink.href = imHelpCurrent.guideUrl;
+            imHelpGuideLink.style.display = 'inline-block';
+        } else {
+            imHelpGuideLink.style.display = 'none';
+        }
+    }
+}
+
+function imHelpRenderResults(query, results) {
+    if (!imHelpResults) return;
+    const q = String(query || '').trim();
+
+    if (!imHelpFuse) {
+        imHelpResults.innerHTML = '<div class="im-help-card"><p class="im-help-snippet">No help guide is published yet. Ask Super Admin to upload the guide PDF.</p></div>';
+        return;
+    }
+
+    if (!results || results.length === 0) {
+        imHelpResults.innerHTML = `<div class="im-help-card"><div class="im-help-title"><h3>No match found</h3><span class="im-help-badge">Try different keywords</span></div><p class="im-help-snippet">Tip: search with words like “Under Review”, “For SRV”, “Report”, “Advance payment”, “Mass Receipt”, “SRV Done”, “CEO Approval”.</p></div>`;
+        return;
+    }
+
+    const cards = results.map((r, i) => {
+        const item = r.item || r;
+        const page = item.page;
+        const snippet = imHelpBuildExcerpt(item.text, q);
+        const score = typeof r.score === 'number' ? Math.round((1 - r.score) * 100) : null;
+
+        return `
+          <div class="im-help-card">
+            <div class="im-help-title">
+              <h3>Match ${i + 1}</h3>
+              <span class="im-help-badge">Page ${page}${score !== null ? ` • Relevance ${score}%` : ''}</span>
+            </div>
+            <p class="im-help-snippet">${imHelpEscapeHtml(snippet)}</p>
+            <div class="im-help-actions">
+              ${imHelpCurrent && imHelpCurrent.guideUrl ? `<a class="secondary-btn" href="${imHelpEscapeHtml(imHelpCurrent.guideUrl)}#page=${page}" target="_blank" rel="noopener"><i class="fa-solid fa-file-pdf"></i> Open page ${page}</a>` : ''}
+            </div>
+          </div>
+        `;
+    });
+
+    imHelpResults.innerHTML = cards.join('');
+}
+
+async function imHelpLoadIndex(force = false) {
+    if (imHelpFuse && !force) return;
+    imHelpFuse = null;
+    imHelpPages = [];
+    imHelpCurrent = null;
+
+    try {
+        // Help Center content is stored alongside the Invoice DB so rules/ownership match Invoice Management.
+        const currentSnap = await invoiceDb.ref('helpCenter/current').once('value');
+        imHelpCurrent = currentSnap.val();
+
+        if (!imHelpCurrent || !imHelpCurrent.version) {
+            imHelpRenderMeta();
+            imHelpRenderResults('', []);
+            return;
+        }
+
+        const ver = imHelpCurrent.version;
+        const pagesSnap = await invoiceDb.ref(`helpCenter/versions/${ver}/pages`).once('value');
+        const pagesObj = pagesSnap.val() || {};
+        imHelpPages = Object.keys(pagesObj)
+            .map(k => ({ page: Number(k), text: pagesObj[k]?.text || '' }))
+            .filter(p => p.page > 0 && p.text)
+            .sort((a, b) => a.page - b.page);
+
+        if (window.Fuse && imHelpPages.length > 0) {
+            imHelpFuse = new Fuse(imHelpPages, {
+                keys: ['text'],
+                includeScore: true,
+                threshold: 0.35,
+                ignoreLocation: true,
+                minMatchCharLength: 2,
+            });
+        }
+
+        imHelpRenderMeta();
+        imHelpRenderResults('', []);
+    } catch (err) {
+        console.error('Help Center: load index error', err);
+        if (imHelpResults) {
+            imHelpResults.innerHTML = '<div class="im-help-card"><p class="im-help-snippet">Error loading help guide index. Please try again.</p></div>';
+        }
+    }
+}
+
+async function imHelpSearch(query) {
+    const q = String(query || '').trim();
+    if (!q) return;
+    if (imHelpResults) {
+        imHelpResults.innerHTML = '<div class="im-help-card"><p class="im-help-snippet">Searching…</p></div>';
+    }
+
+    // Save a lightweight question log (optional, non-blocking)
+    try {
+        invoiceDb.ref('helpCenter/questions').push({
+            q: q,
+            askedAt: Date.now(),
+            askedBy: (currentApprover?.Name || '').trim() || 'Unknown',
+        });
+    } catch (_) {}
+
+    await imHelpLoadIndex(false);
+    if (!imHelpFuse) {
+        imHelpRenderResults(q, []);
+        return;
+    }
+    const results = imHelpFuse.search(q).slice(0, 3);
+    imHelpRenderResults(q, results);
+}
+
+function imHelpClear() {
+    if (imHelpSearchInput) imHelpSearchInput.value = '';
+    if (imHelpResults) imHelpResults.innerHTML = '';
+}
+
+async function imHelpPublishPdf(file) {
+    if (!file) return;
+    if (!window.pdfjsLib) {
+        throw new Error('PDF parser not loaded (pdf.js).');
+    }
+    if (file.type !== 'application/pdf') {
+        throw new Error('Please upload a PDF file.');
+    }
+
+    // Version label: YYYY-MM-DD + timestamp
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const version = `${yyyy}-${mm}-${dd}-${Date.now()}`;
+
+    // 1) Upload PDF to Firebase Storage
+    imHelpSetStatus('<i class="fa-solid fa-spinner fa-spin"></i> Uploading PDF…');
+    // NOTE: This project stores uploads under the "Files/" prefix in Storage.
+    // If your Storage rules are scoped to that folder (common setup), uploads outside it will fail.
+    const storagePath = `Files/HelpCenter/guides/${version}.pdf`;
+    // Store the PDF in the Invoice project's Storage bucket.
+    const guideRef = storage.ref().child(storagePath);
+    await guideRef.put(file, { contentType: 'application/pdf' });
+    const guideUrl = await guideRef.getDownloadURL();
+
+    // 2) Extract text per page using pdf.js
+    imHelpSetStatus('<i class="fa-solid fa-spinner fa-spin"></i> Extracting text…');
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    const numPages = pdf.numPages || 0;
+    if (!numPages) throw new Error('Could not read PDF pages.');
+
+    const updates = {};
+    for (let p = 1; p <= numPages; p++) {
+        const page = await pdf.getPage(p);
+        const tc = await page.getTextContent();
+        const pageText = (tc.items || []).map(it => it.str).join(' ').replace(/\s+/g, ' ').trim();
+        updates[`helpCenter/versions/${version}/pages/${p}`] = {
+            text: pageText,
+            updatedAt: Date.now(),
+        };
+    }
+
+    // 3) Publish "current" pointer
+    updates['helpCenter/current'] = {
+        version,
+        guideUrl,
+        updatedAt: Date.now(),
+        updatedBy: (currentApprover?.Name || '').trim() || 'Super Admin',
+        pages: numPages,
+    };
+
+    imHelpSetStatus('<i class="fa-solid fa-spinner fa-spin"></i> Publishing…');
+    await invoiceDb.ref().update(updates);
+    imHelpSetStatus(`<span style="color:#1e7e34;"><i class="fa-solid fa-circle-check"></i> Published version ${imHelpEscapeHtml(version)} (${numPages} pages)</span>`);
+
+    // Refresh client index
+    await imHelpLoadIndex(true);
+}
+
+function imHelpUpdateAdminUI() {
+    if (!imHelpAdmin) return;
+    const canPublish = imHelpIsSuperAdminUser();
+    imHelpAdmin.classList.toggle('hidden', !canPublish);
+}
+
+// Wire up UI events
+if (imHelpSearchBtn && imHelpSearchInput) {
+    imHelpSearchBtn.addEventListener('click', () => imHelpSearch(imHelpSearchInput.value));
+    imHelpSearchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            imHelpSearch(imHelpSearchInput.value);
+        }
+    });
+}
+if (imHelpClearBtn) imHelpClearBtn.addEventListener('click', imHelpClear);
+
+if (imHelpUploadBtn) {
+    imHelpUploadBtn.addEventListener('click', async () => {
+        try {
+            if (!imHelpIsSuperAdminUser()) {
+                alert('Access Denied: Super Admin only.');
+                return;
+            }
+            const file = imHelpUploadInput?.files?.[0];
+            if (!file) {
+                alert('Please choose a PDF file first.');
+                return;
+            }
+            imHelpUploadBtn.disabled = true;
+            await imHelpPublishPdf(file);
+        } catch (err) {
+            console.error('Help Center publish error', err);
+            imHelpSetStatus(`<span style="color:#C3502F;"><i class="fa-solid fa-triangle-exclamation"></i> ${imHelpEscapeHtml(err?.message || String(err))}</span>`);
+        } finally {
+            if (imHelpUploadBtn) imHelpUploadBtn.disabled = false;
+        }
+    });
+}
+
+if (imHelpRefreshBtn) {
+    imHelpRefreshBtn.addEventListener('click', async () => {
+        await imHelpLoadIndex(true);
+        if (imHelpSearchInput?.value) {
+            imHelpSearch(imHelpSearchInput.value);
+        }
+    });
+}
+
+// Load help meta/index when user opens Help in IM nav
+if (imNav) {
+    imNav.addEventListener('click', (e) => {
+        const link = e.target.closest('a[data-section]');
+        if (!link) return;
+        if (link.getAttribute('data-section') === 'im-help') {
+            setTimeout(() => {
+                imHelpUpdateAdminUI();
+                imHelpLoadIndex(false);
+            }, 0);
+        }
+    });
+}
+
+// Initial (silent) load so Help is ready on first open
+imHelpUpdateAdminUI();
+imHelpLoadIndex(false);
+
 }); // END OF DOMCONTENTLOADED
 
 

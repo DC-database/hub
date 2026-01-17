@@ -746,6 +746,9 @@
                     <li class="nav-section-divider im-nav-payments desktop-only-li" style="border-top: 1px solid rgba(255,255,255,0.3) !important;"><a href="#" id="payments-nav-link" data-section="im-payments" class="hidden"><i class="fa-solid fa-money-check-dollar"></i> Payments</a></li>
                     <li class="im-nav-finance-report desktop-only-li"><a href="#" id="im-finance-report-nav-link" data-section="im-finance-report"><i class="fa-solid fa-building-columns"></i> Financial Report</a></li>
 
+                    <!-- Help Center (Vacation Replacement Guide) -->
+                    <li class="im-nav-help"><a href="#" data-section="im-help"><i class="fa-solid fa-circle-question"></i> Help</a></li>
+
                     <li class="mobile-only-nav-item">
                         <a href="#" id="im-mobile-nav-logout">
                             <i class="fa-solid fa-power-off" style="color: #C3502F;"></i>
@@ -1477,6 +1480,40 @@
                         </div>
                     </div>
                 </section>
+
+                <section id="im-help" class="workdesk-section hidden">
+                    <h1>Help Center</h1>
+                    <p>Ask a question about invoice processing, SRV, scanning, naming, and routing. The answer will be pulled from the published “Vacation Replacement - Invoice &amp; SRV Procedure” guide.</p>
+
+                    <div class="search-and-filter-group" style="max-width: 760px; margin-bottom: 12px;">
+                        <div class="search-bar-local" style="margin-bottom: 0;">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="im-help-search-input" placeholder="Type your question… (example: How do I route an IPC invoice?)">
+                        </div>
+                        <button id="im-help-search-btn" type="button">Search</button>
+                        <button id="im-help-clear-btn" class="secondary-btn" type="button">Clear</button>
+                    </div>
+
+                    <div id="im-help-meta" class="im-help-meta" style="display:none; max-width: 760px; margin-bottom: 12px;"></div>
+                    <div id="im-help-results" class="im-help-results" style="max-width: 980px;"></div>
+
+                    <!-- Super Admin: publish/update guide (upload PDF, auto-index) -->
+                    <div id="im-help-admin" class="form-container hidden" style="max-width: 980px; margin-top: 18px;">
+                        <h3 style="margin-top:0;">Publish / Update Guide (Super Admin)</h3>
+                        <p style="margin-top: 6px;">Upload a new PDF guide to replace the current help content. The system will extract text per page and publish it immediately.</p>
+                        <div class="form-group">
+                            <label for="im-help-upload">Guide PDF</label>
+                            <input id="im-help-upload" type="file" accept="application/pdf" />
+                        </div>
+                        <div class="form-buttons-container" style="justify-content: flex-start; gap: 10px;">
+                            <button id="im-help-upload-btn" type="button" class="download-btn"><i class="fa-solid fa-upload"></i> Upload &amp; Publish</button>
+                            <button id="im-help-refresh-btn" type="button" class="secondary-btn"><i class="fa-solid fa-rotate"></i> Reload Index</button>
+                            <a id="im-help-guide-link" href="#" target="_blank" rel="noopener" class="secondary-btn" style="text-decoration:none; display:none;"><i class="fa-solid fa-file-pdf"></i> Open Current Guide</a>
+                        </div>
+                        <div id="im-help-upload-status" style="margin-top: 10px;"></div>
+                    </div>
+                </section>
+
             </div>
         </div>
     </div>
@@ -2338,6 +2375,16 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+
+    <!-- Help Center dependencies (client-side PDF indexing + fuzzy search) -->
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script>
+      // Configure PDF.js worker (must be set before parsing PDFs)
+      if (window.pdfjsLib) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+      }
+    </script>
 
     <script src="materialStock.js?v=6.3.11"></script>
     <script src="transferLogic.js?v=6.3.11"></script>
