@@ -20,8 +20,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
 
-    <link rel="stylesheet" href="style.css?v=6.3.13">
-    <link rel="stylesheet" href="transfer_stock.css?v=6.3.13">
+    <link rel="stylesheet" href="style.css?v=6.3.14">
+    <link rel="stylesheet" href="transfer_stock.css?v=6.3.14">
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -1584,6 +1584,28 @@
                             <hr style="margin: 18px 0; border: none; border-top: 1px solid #eee;" />
 
                             <h4 style="margin: 0 0 8px 0;"><i class="fa-solid fa-map"></i> System Guides</h4>
+
+                            <div class="im-help-card" style="margin: 10px 0 14px 0; background:#f8fafc;">
+                                <div class="im-help-title" style="margin-bottom:6px;">
+                                    <h3 style="margin:0; font-size: 15px;"><i class="fa-solid fa-file-import"></i> Import System Guide Pack</h3>
+                                    <span class="im-help-badge">Upload once</span>
+                                </div>
+                                <p class="im-help-snippet" style="margin-bottom:10px;">Upload a guide pack file (.md / .txt) and the system will automatically create all guides for you (no copy/paste).</p>
+                                <div class="form-group" style="margin-bottom:10px;">
+                                    <label for="im-help-guides-import">Guide Pack File</label>
+                                    <input id="im-help-guides-import" type="file" accept=".md,.txt,text/markdown,text/plain" />
+                                </div>
+                                <div class="form-group" style="margin-bottom:10px;"> 
+                                    <label style="display:flex; align-items:center; gap:8px; font-weight: 500;">
+                                        <input id="im-help-guides-replace" type="checkbox" />
+                                        Replace existing System Guides (dangerous)
+                                    </label>
+                                </div>
+                                <div class="form-buttons-container" style="justify-content:flex-start; gap:10px;">
+                                    <button id="im-help-guides-import-btn" type="button" class="download-btn"><i class="fa-solid fa-upload"></i> Import Guides</button>
+                                </div>
+                            </div>
+
                             <div class="form-group">
                                 <label for="im-help-guide-title">New guide title</label>
                                 <input id="im-help-guide-title" type="text" placeholder="Example: Invoice Entry – Step by Step" />
@@ -2529,9 +2551,9 @@
       }
     </script>
 
-    <script src="materialStock.js?v=6.3.13"></script>
-    <script src="transferLogic.js?v=6.3.13"></script>
-    <script src="app.js?v=6.3.13"></script>
+    <script src="materialStock.js?v=6.3.14"></script>
+    <script src="transferLogic.js?v=6.3.14"></script>
+    <script src="app.js?v=6.3.14"></script>
 
     </body>
 </html>

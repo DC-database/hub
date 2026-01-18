@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.3.13";
+const APP_VERSION = "6.3.14";
 
 // ======================================================================
 // NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)
@@ -18822,6 +18822,12 @@ const imHelpGuideSaveBtn = document.getElementById('im-help-guide-save-btn');
 const imHelpGuideClearBtn = document.getElementById('im-help-guide-clear-btn');
 const imHelpAdminGuides = document.getElementById('im-help-admin-guides');
 
+// Guides bulk import
+const imHelpGuidesImportInput = document.getElementById('im-help-guides-import');
+const imHelpGuidesImportBtn = document.getElementById('im-help-guides-import-btn');
+const imHelpGuidesReplaceChk = document.getElementById('im-help-guides-replace');
+
+
 // Buttons admin
 const imHelpBtnLabel = document.getElementById('im-help-btn-label');
 const imHelpBtnModule = document.getElementById('im-help-btn-module');
@@ -19592,6 +19598,120 @@ async function imHelpAdminSaveGuide() {
     await imHelpAdminRefreshAll(true);
 }
 
+
+function imHelpParseGuidePackMd(fileText) {
+    const raw = String(fileText || '');
+    const guides = [];
+
+    // Match each section that starts with '## <title>' and continues until the next '##'
+    const re = /##\s+([^\n\r]+)\n([\s\S]*?)(?=\n##\s+|$)/g;
+    let m;
+    while ((m = re.exec(raw)) !== null) {
+        const heading = String(m[1] || '').trim();
+        const block = String(m[2] || '');
+
+        // Title: remove leading numbering like '1) '
+        const title = heading.replace(/^\s*\d+\s*[).:-]\s*/, '').trim();
+        if (!title) continue;
+
+        // Module
+        let module = 'General';
+        const modMatch = block.match(/\*\*Module:\*\*\s*([^\n\r]+)/i);
+        if (modMatch && modMatch[1]) {
+            module = String(modMatch[1]).trim() || 'General';
+        }
+
+        // Body + Keywords
+        const bodyMarker = '**Body:**';
+        const bodyIdx = block.indexOf(bodyMarker);
+        if (bodyIdx === -1) continue;
+
+        let bodyPart = block.slice(bodyIdx + bodyMarker.length).trim();
+        let body = '';
+        let keywords = '';
+
+        const kwBoldMarker = '**Keywords:**';
+        const kwIdx = bodyPart.indexOf(kwBoldMarker);
+        if (kwIdx !== -1) {
+            body = bodyPart.slice(0, kwIdx).trim();
+            keywords = bodyPart.slice(kwIdx + kwBoldMarker.length).trim();
+        } else {
+            // fallback: a plain 'Keywords:' line
+            const kwMatch = bodyPart.match(/(?:^|\n)\s*Keywords:\s*([^\n\r]+)/i);
+            if (kwMatch && kwMatch[1]) {
+                keywords = String(kwMatch[1]).trim();
+                body = bodyPart.replace(/(?:^|\n)\s*Keywords:\s*[^\n\r]+/i, '').trim();
+            } else {
+                body = bodyPart.trim();
+            }
+        }
+
+        keywords = String(keywords || '').replace(/\s+/g, ' ').trim();
+        if (keywords) {
+            body = (body ? body + '\n\n' : '') + 'Keywords: ' + keywords;
+        }
+
+        if (!body) continue;
+        guides.push({ title, module, body });
+    }
+
+    return guides;
+}
+
+async function imHelpAdminImportGuidePack() {
+    if (!imHelpIsSuperAdminUser()) {
+        alert('Access Denied: Super Admin only.');
+        return;
+    }
+
+    const file = imHelpGuidesImportInput?.files?.[0];
+    if (!file) {
+        alert('Please choose a .md or .txt guide pack file first.');
+        return;
+    }
+
+    const replaceExisting = !!imHelpGuidesReplaceChk?.checked;
+
+    try {
+        imHelpAdminSetStatus('<i class="fa-solid fa-spinner fa-spin"></i> Reading guide pack…');
+        const text = await file.text();
+        const guides = imHelpParseGuidePackMd(text);
+
+        if (!guides.length) {
+            throw new Error('No guides found in this file. Make sure it contains sections starting with "##" plus "**Module:**" and "**Body:**".');
+        }
+
+        const now = Date.now();
+        const by = (currentApprover?.Name || '').trim() || SUPER_ADMIN_NAME;
+
+        if (replaceExisting) {
+            imHelpAdminSetStatus('<i class="fa-solid fa-spinner fa-spin"></i> Replacing existing guides…');
+            await invoiceDb.ref('helpCenter/systemGuides').remove();
+        }
+
+        imHelpAdminSetStatus(`<i class="fa-solid fa-spinner fa-spin"></i> Importing ${guides.length} guides…`);
+
+        const updates = {};
+        for (const g of guides) {
+            const key = invoiceDb.ref('helpCenter/systemGuides').push().key;
+            updates[`helpCenter/systemGuides/${key}`] = { ...g, updatedAt: now, updatedBy: by };
+        }
+
+        await invoiceDb.ref().update(updates);
+
+        imHelpAdminSetStatus(`<span style="color:#1e7e34;"><i class="fa-solid fa-circle-check"></i> Imported ${guides.length} guides</span>`);
+
+        if (imHelpGuidesImportInput) imHelpGuidesImportInput.value = '';
+        if (imHelpGuidesReplaceChk) imHelpGuidesReplaceChk.checked = false;
+
+        await imHelpAdminRefreshAll(true);
+
+    } catch (err) {
+        console.error('Help Center guide pack import error', err);
+        imHelpAdminSetStatus(`<span style="color:#C3502F;"><i class="fa-solid fa-triangle-exclamation"></i> ${imHelpEscapeHtml(err?.message || String(err))}</span>`);
+    }
+}
+
 async function imHelpAdminSaveButtonHelp() {
     if (!imHelpIsSuperAdminUser()) {
         alert('Access Denied: Super Admin only.');
@@ -20010,6 +20130,7 @@ if (imHelpAdminPublishBtn) imHelpAdminPublishBtn.addEventListener('click', () =>
 if (imHelpAdminClearFormBtn) imHelpAdminClearFormBtn.addEventListener('click', imHelpAdminClearForm);
 
 if (imHelpGuideSaveBtn) imHelpGuideSaveBtn.addEventListener('click', () => imHelpAdminSaveGuide());
+if (imHelpGuidesImportBtn) imHelpGuidesImportBtn.addEventListener('click', () => imHelpAdminImportGuidePack());
 if (imHelpGuideClearBtn) imHelpGuideClearBtn.addEventListener('click', () => {
     if (imHelpGuideTitle) imHelpGuideTitle.value = '';
     if (imHelpGuideBody) imHelpGuideBody.value = '';
