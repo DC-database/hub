@@ -7147,3 +7147,46 @@ body.inventory-mode .wd-nav-material {
   border: 1px solid #e6e8ee;
   border-radius: 10px;
 }
+
+
+/* Help Center tabs */
+.im-help-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.im-help-tab-btn {
+  border: 1px solid #e6e8ee;
+  background: #ffffff;
+  color: #0f172a;
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.im-help-tab-btn.active {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #ffffff;
+}
+
+.im-help-tab-panel.hidden {
+  display: none;
+}
+
+.im-help-inline-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.im-help-muted {
+  color: #64748b;
+  font-size: 13px;
+}
