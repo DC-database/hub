@@ -20,8 +20,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
 
-    <link rel="stylesheet" href="style.css?v=6.3.14">
-    <link rel="stylesheet" href="transfer_stock.css?v=6.3.14">
+    <link rel="stylesheet" href="style.css?v=6.3.15">
+    <link rel="stylesheet" href="transfer_stock.css?v=6.3.15">
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -150,6 +150,7 @@
                     <li id="workdesk-im-link-container" class="hidden" style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 10px;">
                         <a href="#" id="workdesk-im-link"><i class="fa-solid fa-file-invoice-dollar"></i> Invoice Management</a>
                     </li>
+                    <li><a href="#" id="wd-help-link"><i class="fa-solid fa-circle-question"></i> Help</a></li>
                     <li><a href="#" data-section="wd-settings"><i class="fa-solid fa-gear"></i> Settings</a></li>
                     <li><a href="#" id="wd-logout-button"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</a></li>
                 </ul>
@@ -696,6 +697,7 @@
 
         <div class="workdesk-footer-nav">
             <ul>
+                <li><a href="#" id="inv-help-link"><i class="fa-solid fa-circle-question"></i> Help</a></li>
                 <li><a href="#" id="inv-logout-button"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</a></li>
             </ul>
         </div>
@@ -1483,6 +1485,9 @@
 
                 <section id="im-help" class="workdesk-section hidden">
                     <h1>Help Center</h1>
+                    <div id="im-help-backbar" class="hidden" style="margin: 8px 0 12px 0;">
+                        <button id="im-help-back-btn" type="button" class="secondary-btn"><i class="fa-solid fa-arrow-left"></i> Back</button>
+                    </div>
                     <p>Ask anything about using the system (Invoice Entry, Invoice Records, WorkDesk, Inventory, Financial). If we can’t find an answer, we’ll log your question so Super Admin can add it for next time.</p>
 
                     <div class="im-help-tabs" style="max-width: 980px; margin-bottom: 12px;">
@@ -1511,7 +1516,7 @@
                     <div id="im-help-tab-guides" class="im-help-tab-panel hidden" style="max-width: 980px;">
                         <div class="form-container" style="padding: 14px 16px; margin-bottom: 12px;">
                             <h3 style="margin: 0 0 6px 0;">System Guides</h3>
-                            <p style="margin: 0;">Browse short guides for the main modules. Super Admin can edit these from the Admin tab.</p>
+                            <p style="margin: 0;">Browse short guides for the main modules. Super Admin can edit these from Invoice Management → Help → Admin.</p>
                         </div>
                         <div id="im-help-guides-list" class="im-help-results"></div>
                     </div>
@@ -2551,9 +2556,9 @@
       }
     </script>
 
-    <script src="materialStock.js?v=6.3.14"></script>
-    <script src="transferLogic.js?v=6.3.14"></script>
-    <script src="app.js?v=6.3.14"></script>
+    <script src="materialStock.js?v=6.3.15"></script>
+    <script src="transferLogic.js?v=6.3.15"></script>
+    <script src="app.js?v=6.3.15"></script>
 
     </body>
 </html>

@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.3.14";
+const APP_VERSION = "6.3.15";
 
 // ======================================================================
 // NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)
@@ -2723,6 +2723,8 @@ const wdLogoutButton = document.getElementById('wd-logout-button');
 const workdeskDatetimeElement = document.getElementById('workdesk-datetime');
 const workdeskIMLinkContainer = document.getElementById('workdesk-im-link-container');
 const workdeskIMLink = document.getElementById('workdesk-im-link');
+const wdHelpLink = document.getElementById('wd-help-link');
+const invHelpLink = document.getElementById('inv-help-link');
 
 // --- Workdesk: Job Entry ---
 const jobEntryForm = document.getElementById('jobentry-form');
@@ -14433,6 +14435,11 @@ try {
             handleLogout();
             return;
         }
+        // If Help was opened standalone from WorkDesk/Inventory, restore normal IM navigation
+        window.__imHelpStandalone = false;
+        if (imNav) imNav.classList.remove('hidden');
+        // Ensure Help context defaults back to Invoice Management when entering IM normally
+        imHelpSetContext('invoice', null, null);
         imUsername.textContent = currentApprover.Name || 'User';
         imUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile;
 
@@ -18782,6 +18789,8 @@ const imHelpTabPanels = {
     admin: document.getElementById('im-help-tab-admin'),
 };
 const imHelpAdminTabBtn = document.getElementById('im-help-admin-tab-btn');
+const imHelpBackbar = document.getElementById('im-help-backbar');
+const imHelpBackBtn = document.getElementById('im-help-back-btn');
 
 // Ask tab
 const imHelpSearchInput = document.getElementById('im-help-search-input');
@@ -18862,6 +18871,80 @@ let imHelpLastQuery = '';
 let imHelpLastBest = null;
 let imHelpSelectedUnansweredId = null;
 
+// Help Center context control:
+// - Origin "invoice" shows Admin tab for Super Admin.
+// - Origin "workdesk" / "inventory" hides Admin tab and shows a Back button.
+window.__imHelpOrigin = window.__imHelpOrigin || 'invoice';
+window.__imHelpReturnTo = window.__imHelpReturnTo || null; // 'workdesk' | 'inventory' | null
+window.__imHelpReturnSection = window.__imHelpReturnSection || null;
+
+function imHelpGetWorkdeskActiveSectionId() {
+    try {
+        const active = document.querySelector('#workdesk-view a.active[data-section]');
+        return active ? active.getAttribute('data-section') : null;
+    } catch (_) {
+        return null;
+    }
+}
+
+function imHelpApplyContextUI() {
+    const origin = (window.__imHelpOrigin || 'invoice');
+    const returnTo = window.__imHelpReturnTo || null;
+
+    // Back button visibility
+    if (imHelpBackbar) {
+        imHelpBackbar.classList.toggle('hidden', !returnTo);
+    }
+    if (imHelpBackBtn) {
+        let label = 'Back';
+        if (returnTo === 'workdesk') label = 'Back to WorkDesk';
+        if (returnTo === 'inventory') label = 'Back to Inventory';
+        imHelpBackBtn.innerHTML = `<i class="fa-solid fa-arrow-left"></i> ${label}`;
+    }
+
+    // Admin visibility is handled in imHelpUpdateAdminUI()
+    imHelpUpdateAdminUI();
+}
+
+function imHelpSetContext(origin, returnTo, returnSection) {
+    window.__imHelpOrigin = origin || 'invoice';
+    window.__imHelpReturnTo = returnTo || null;
+    window.__imHelpReturnSection = returnSection || null;
+    imHelpApplyContextUI();
+}
+
+async function imHelpOnOpen() {
+    // Ensure UI reflects current context (back button + admin visibility)
+    imHelpApplyContextUI();
+    await imHelpLoadKnowledgeBase(false);
+    imHelpRenderGuidesList(imHelpGuides);
+    imHelpRenderFaqsList(imHelpFaqs);
+    imHelpSelectTab('ask');
+}
+
+async function imHelpOpenStandalone() {
+    // Open Help without requiring Invoice Management access.
+    // This is used from WorkDesk / Inventory.
+    if (!currentApprover) {
+        alert('Please login first.');
+        return;
+    }
+
+    // Mark as standalone and hide IM nav to avoid confusion.
+    window.__imHelpStandalone = true;
+    if (imNav) imNav.classList.add('hidden');
+
+    // Populate the IM header user fields (so Help still shows who is logged in)
+    if (imUsername) imUsername.textContent = currentApprover.Name || 'User';
+    if (imUserIdentifier) imUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile;
+
+    // Show Help section directly
+    showView('invoice-management');
+    showIMSection('im-help');
+
+    setTimeout(() => { imHelpOnOpen(); }, 0);
+}
+
 function imHelpIsSuperAdminUser() {
     try {
         return ((currentApprover?.Name || '').trim().toLowerCase() === SUPER_ADMIN_NAME.toLowerCase());
@@ -18939,11 +19022,25 @@ function imHelpSelectTab(tabName) {
 }
 
 function imHelpUpdateAdminUI() {
+    const origin = (window.__imHelpOrigin || 'invoice');
+    const allowAdmin = imHelpIsSuperAdminUser() && origin === 'invoice';
+
     if (imHelpAdminTabBtn) {
-        imHelpAdminTabBtn.classList.toggle('hidden', !imHelpIsSuperAdminUser());
+        imHelpAdminTabBtn.classList.toggle('hidden', !allowAdmin);
     }
-    if (!imHelpAdmin) return;
-    imHelpAdmin.classList.toggle('hidden', !imHelpIsSuperAdminUser());
+    if (imHelpAdmin) {
+        imHelpAdmin.classList.toggle('hidden', !allowAdmin);
+    }
+
+    // If user landed on Help from WorkDesk/Inventory, force away from Admin tab.
+    if (!allowAdmin) {
+        try {
+            const activeBtn = document.querySelector('#im-help .im-help-tab-btn.active');
+            if (activeBtn && activeBtn.getAttribute('data-im-help-tab') === 'admin') {
+                imHelpSelectTab('ask');
+            }
+        } catch (_) {}
+    }
 }
 
 function imHelpOpenImSection(sectionId) {
@@ -20030,6 +20127,63 @@ if (imHelpTabButtons.length) {
     });
 }
 
+// Back button (shown when Help is opened from WorkDesk/Inventory)
+if (imHelpBackBtn) {
+    imHelpBackBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const returnTo = window.__imHelpReturnTo || null;
+        const returnSection = window.__imHelpReturnSection || null;
+
+        // Restore normal IM state
+        window.__imHelpStandalone = false;
+        if (imNav) imNav.classList.remove('hidden');
+
+        if (returnTo === 'inventory') {
+            // Prefer the official Inventory button flow (it sets inventory-mode + loads stock)
+            if (typeof inventoryButton !== 'undefined' && inventoryButton) {
+                inventoryButton.click();
+                return;
+            }
+            // Fallback: show WorkDesk material stock
+            showView('workdesk');
+            if (typeof showWorkdeskSection === 'function') {
+                await showWorkdeskSection('wd-material-stock');
+            }
+            return;
+        }
+
+        // Default: WorkDesk
+        showView('workdesk');
+        if (typeof showWorkdeskSection === 'function') {
+            const sec = returnSection || 'wd-activetask';
+            // Keep nav highlight in sync
+            try {
+                document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a').forEach(a => a.classList.remove('active'));
+                const activeLink = document.querySelector(`#workdesk-view a[data-section="${sec}"]`);
+                if (activeLink) activeLink.classList.add('active');
+            } catch (_) {}
+            await showWorkdeskSection(sec);
+        }
+    });
+}
+
+// Open Help from WorkDesk / Inventory
+if (wdHelpLink) {
+    wdHelpLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        const sec = imHelpGetWorkdeskActiveSectionId() || 'wd-activetask';
+        imHelpSetContext('workdesk', 'workdesk', sec);
+        imHelpOpenStandalone();
+    });
+}
+if (invHelpLink) {
+    invHelpLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        imHelpSetContext('inventory', 'inventory', 'wd-material-stock');
+        imHelpOpenStandalone();
+    });
+}
+
 // Ask
 if (imHelpSearchBtn && imHelpSearchInput) {
     imHelpSearchBtn.addEventListener('click', () => imHelpAsk(imHelpSearchInput.value));
@@ -20184,19 +20338,17 @@ if (imNav) {
         const link = e.target.closest('a[data-section]');
         if (!link) return;
         if (link.getAttribute('data-section') === 'im-help') {
-            setTimeout(async () => {
-                imHelpUpdateAdminUI();
-                await imHelpLoadKnowledgeBase(false);
-                imHelpRenderGuidesList(imHelpGuides);
-                imHelpRenderFaqsList(imHelpFaqs);
-                imHelpSelectTab('ask');
-            }, 0);
+            // Normal Invoice Management Help (Admin tab allowed for Super Admin)
+            window.__imHelpStandalone = false;
+            imNav.classList.remove('hidden');
+            imHelpSetContext('invoice', null, null);
+            setTimeout(() => { imHelpOnOpen(); }, 0);
         }
     });
 }
 
 // Initial silent load
-imHelpUpdateAdminUI();
+imHelpSetContext('invoice', null, null);
 imHelpLoadKnowledgeBase(false);
 
 }); // END OF DOMCONTENTLOADED
