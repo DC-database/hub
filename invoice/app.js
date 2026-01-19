@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.3.26";
+const APP_VERSION = "6.3.28";
 
 // ======================================================================
 // NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)
@@ -493,6 +493,11 @@ let dmState = {
     unreadCache: {},
     // ui
     mobileScreen: 'list',
+
+    // inbox auto-open safeguards
+    inboxBootstrapped: false,
+    inboxBootTimer: null,
+    lastAutoOpenAt: 0,
 };
 
 function dmIsMobile() {
@@ -1221,13 +1226,49 @@ function dmUnsubscribePresenceList() {
 
 function dmSubscribeInbox() {
     if (!dmState.userKey) return;
+
+    // Bootstrap guard:
+    // When attaching a child_added listener, Firebase will immediately emit existing
+    // pending inbox items (undelivered while offline). We still toast those, but we
+    // only auto-open the DM modal for *new* incoming messages while the user is
+    // actively using the system.
+    try {
+        dmState.inboxBootstrapped = false;
+        if (dmState.inboxBootTimer) clearTimeout(dmState.inboxBootTimer);
+        dmState.inboxBootTimer = setTimeout(() => {
+            dmState.inboxBootstrapped = true;
+        }, 1200);
+    } catch (_) { /* ignore */ }
+
     dmState.inboxRef = db.ref(`${DM_INBOX_ROOT}/${dmState.userKey}`).limitToLast(50);
     dmState.onInbox = (snap) => {
         const m = snap.val();
         if (!m) return;
+        const fromKey = String(m.fromKey || '');
         const fromName = String(m.fromName || m.from || 'Message');
         const text = dmSafeText(m.text || '');
         if (text) dmToast(fromName, text);
+
+        // Auto-open the chat (modal + sender thread) only when:
+        // - user is actively using the system (tab is visible)
+        // - message arrived after bootstrap
+        // - DM isn't already open (avoid yanking focus repeatedly)
+        // - basic throttle to prevent spam-opening
+        try {
+            const now = Date.now();
+            const canAutoOpen =
+                !!fromKey &&
+                fromKey !== dmState.userKey &&
+                !dmState.open &&
+                (document.visibilityState === 'visible') &&
+                (dmState.inboxBootstrapped === true) &&
+                (now - (Number(dmState.lastAutoOpenAt || 0)) > 6000);
+
+            if (canAutoOpen) {
+                dmState.lastAutoOpenAt = now;
+                dmOpenThread(fromKey, fromName);
+            }
+        } catch (_) { /* ignore */ }
 
         // remove from inbox to avoid duplicates
         snap.ref.remove().catch(() => {});
