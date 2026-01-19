@@ -3334,6 +3334,21 @@ function handleSuccessfulLogin() {
         console.log('Deep link parse failed:', e);
     }
 
+
+
+    // --- Deep Link: open Workdesk Active Task for a specific invoice task ---
+    // URL: ?open=wdtask&po=...&invKey=...
+    try {
+        const wdl = wdParseActiveTaskDeepLinkFromUrl();
+        if (wdl && wdl.po && wdl.invKey) {
+            wdClearActiveTaskDeepLinkFromUrl();
+            setTimeout(() => {
+                wdOpenActiveTaskFromDeepLink(wdl.po, wdl.invKey);
+            }, 700);
+        }
+    } catch (e) {
+        console.log('Workdesk deep link parse failed:', e);
+    }
 }
 
 // ================================
@@ -11742,6 +11757,93 @@ function imBuildInvoiceDeepLink(poNumber, invoiceKey) {
     return u.toString();
 }
 
+// --- Deep Link (Workdesk Active Task) ---
+// Shared via WhatsApp: opens Workdesk -> Active Task and focuses the invoice task.
+function wdBuildActiveTaskDeepLink(poNumber, invoiceKey) {
+    const base = imGetAppBaseUrl();
+    const u = new URL(base);
+    u.searchParams.set('open', 'wdtask');
+    u.searchParams.set('po', String(poNumber || '').trim());
+    u.searchParams.set('invKey', String(invoiceKey || '').trim());
+    return u.toString();
+}
+
+
+function wdParseActiveTaskDeepLinkFromUrl() {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const open = (params.get('open') || '').toLowerCase();
+        if (open !== 'wdtask') return null;
+        const po = (params.get('po') || '').trim();
+        const invKey = (params.get('invKey') || params.get('invoiceKey') || '').trim();
+        if (!po || !invKey) return null;
+        return { po, invKey };
+    } catch (e) {
+        return null;
+    }
+}
+
+function wdClearActiveTaskDeepLinkFromUrl() {
+    try {
+        const u = new URL(window.location.href);
+        u.searchParams.delete('open');
+        u.searchParams.delete('po');
+        u.searchParams.delete('invKey');
+        u.searchParams.delete('invoiceKey');
+        window.history.replaceState({}, document.title, u.toString());
+    } catch (e) { /* ignore */ }
+}
+
+async function wdOpenActiveTaskFromDeepLink(po, invKey) {
+    // Must be logged in
+    if (!currentApprover) return;
+
+    // Navigate to Workdesk
+    try { workdeskButton.click(); } catch (e) { /* ignore */ }
+
+    // Wait for Workdesk view + nav to render
+    setTimeout(async () => {
+        try {
+            const activeTaskLink = (typeof workdeskNav !== 'undefined' && workdeskNav) ? workdeskNav.querySelector('a[data-section="wd-activetask"]') : null;
+            if (activeTaskLink) activeTaskLink.click();
+
+            // Ensure data is loaded and tasks are populated
+            if (typeof ensureAllEntriesFetched === 'function') await ensureAllEntriesFetched();
+            if (typeof ensureInvoiceDataFetched === 'function') await ensureInvoiceDataFetched(false);
+            if (typeof populateActiveTasks === 'function') await populateActiveTasks();
+
+            // Filter by PO for quick find
+            const poStr = String(po || '').trim();
+            if (typeof activeTaskSearchInput !== 'undefined' && activeTaskSearchInput) {
+                activeTaskSearchInput.value = poStr;
+                try { sessionStorage.setItem('activeTaskSearch', poStr); } catch (e) {}
+            }
+            if (typeof handleActiveTaskSearch === 'function') {
+                handleActiveTaskSearch(poStr);
+            }
+
+            // Focus the exact row (invoice tasks use key: <PO>_<invKey>)
+            setTimeout(() => {
+                try {
+                    const rowKey = `${poStr}_${String(invKey || '').trim()}`;
+                    if (!rowKey) return;
+                    const tbody = (typeof activeTaskTableBody !== 'undefined') ? activeTaskTableBody : null;
+                    if (!tbody) return;
+                    const esc = (window.CSS && CSS.escape) ? CSS.escape(rowKey) : rowKey.replace(/"/g, '\\"');
+                    const row = tbody.querySelector(`tr[data-key="${esc}"]`);
+                    if (row && row.scrollIntoView) {
+                        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                } catch (e) { /* ignore */ }
+            }, 250);
+
+        } catch (e) {
+            console.log('Workdesk deep link open failed:', e);
+        }
+    }, 450);
+}
+
+
 function imParseInvoiceDeepLinkFromUrl() {
     try {
         const params = new URLSearchParams(window.location.search);
@@ -11783,7 +11885,7 @@ window.imShareInvoiceForApprovalWhatsApp = function (poNumber, invoiceKey) {
         const invValueNum = inv ? (parseFloat(String(inv.invValue || '').replace(/,/g, '')) || 0) : 0;
         const invValueDisplay = inv ? `QAR ${formatCurrency(invValueNum)}` : 'N/A';
 
-        const link = imBuildInvoiceDeepLink(po, key);
+        const link = wdBuildActiveTaskDeepLink(po, key);
         const invNo = (inv && inv.invNumber) ? inv.invNumber : '';
 
         const msgLines = [
