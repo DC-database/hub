@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.3.23";
+const APP_VERSION = "6.3.26";
 
 // ======================================================================
 // NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)
@@ -1341,6 +1341,8 @@ let allEcostData = null;
 let ecostDataTimestamp = 0;
 let allPOData = null;
 let allPODataByRef = null;
+let manualPOsMergedIntoAllPOData = false; // Tracks whether invoiceDb/purchase_orders has been merged into allPOData
+
 let allInvoiceData = null;
 let ensuredPOInInvoiceDb = new Set(); // Auto-sync used POs into invoiceDb/purchase_orders
 let allApproverData = null;
@@ -1982,7 +1984,6 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
 
     try {
         const promisesToRun = [];
-
         // URLs
         const poUrl = (!allPOData || forceRefresh) ? await getFirebaseCSVUrl('POVALUE2.csv') : null;
         const ecostUrl = (!allEpicoreData || forceRefresh) ? await getFirebaseCSVUrl('Ecost.csv') : null;
@@ -1990,15 +1991,21 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
         const ecommitUrl = (!allEcommitDataProcessed || forceRefresh) ? await getFirebaseCSVUrl('ECommit.csv') : null;
         const vendorUrl = (!allVendorsData || forceRefresh) ? await getFirebaseCSVUrl('Vendors.csv') : null;
 
+        // IMPORTANT: Manual POs live in invoiceDb/purchase_orders and must be merged even if allPOData
+        // was already populated earlier (e.g., from Workdesk).
+        const needManualPOs = forceRefresh || !manualPOsMergedIntoAllPOData;
+
         if (poUrl) {
             console.log("Fetching POVALUE2.csv...");
             promisesToRun.push(fetchAndParseCSV(poUrl));
+        }
 
-            // --- CORRECTED FETCH: Get Manual POs from Invoice DB ---
+        if (needManualPOs) {
             console.log("Fetching Manual POs from purchase_orders...");
             // Use invoiceDb (invoiceentry-b15a8) instead of db
             promisesToRun.push(invoiceDb.ref('purchase_orders').once('value'));
         }
+
         if (ecostUrl) promisesToRun.push(fetchAndParseEpicoreCSV(ecostUrl));
         if (siteUrl) promisesToRun.push(fetchAndParseSitesCSV(siteUrl));
         if (ecommitUrl) promisesToRun.push(fetchAndParseEcommitCSV(ecommitUrl));
@@ -2010,22 +2017,24 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
 
         const results = await Promise.all(promisesToRun);
         let resultIndex = 0;
+        let manualPOSnapshot = null;
 
         if (poUrl) {
-            // 1. CSV Result
+            // 1) CSV Result
             const csvData = results[resultIndex++];
-            
-            // 2. Manual PO Result (from purchase_orders)
-            const manualPOSnapshot = results[resultIndex++];
-            const manualPOData = manualPOSnapshot.val();
-
             if (csvData === null) throw new Error("Failed to load POVALUE2.csv");
 
             allPOData = csvData.poDataByPO;
             allPODataByRef = csvData.poDataByRef;
+            cacheTimestamps.poData = now;
+        }
 
-            // --- MERGE LOGIC ---
-            if (manualPOData) {
+        // Manual POs (from purchase_orders) may be fetched even if poUrl is null
+        if (needManualPOs) {
+            manualPOSnapshot = results[resultIndex++];
+            const manualPOData = (manualPOSnapshot && typeof manualPOSnapshot.val === 'function') ? (manualPOSnapshot.val() || {}) : {};
+
+            if (manualPOData && Object.keys(manualPOData).length) {
                 console.log("Merging Manual POs into memory...");
                 if (!allPOData) allPOData = {};
                 Object.keys(manualPOData).forEach(poKey => {
@@ -2042,7 +2051,8 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
                     allPOData[normalizedKey || poKey] = poObj; // Add/Overwrite
                 });
             }
-            cacheTimestamps.poData = now;
+
+            manualPOsMergedIntoAllPOData = true;
         }
 
         if (ecostUrl) {
@@ -3306,6 +3316,22 @@ function handleSuccessfulLogin() {
         initDirectMessages();
     } catch (e) {
         console.warn('Direct messages init failed:', e);
+    }
+
+    // --- Deep Link: open a specific invoice (shared via WhatsApp / URL) ---
+    // Safe: no-op unless URL contains ?open=invoice&po=...&invKey=...
+    try {
+        const dl = imParseInvoiceDeepLinkFromUrl();
+        if (dl && dl.po && dl.invKey) {
+            // Prevent repeated opens on refresh/back
+            imClearInvoiceDeepLinkFromUrl();
+            // Give UI a moment to finish view rendering
+            setTimeout(() => {
+                imOpenInvoiceFromDeepLink(dl.po, dl.invKey);
+            }, 700);
+        }
+    } catch (e) {
+        console.log('Deep link parse failed:', e);
     }
 
 }
@@ -8835,14 +8861,52 @@ async function handleDeleteJobEntry(e) {
         return;
     }
 
-    const userPositionLower = (currentApprover?.Position || '').toLowerCase();
+    // =========================================================
+    // DELETE PERMISSIONS (SAFE, MINIMAL)
+    // - Irwin (Accounting) can delete any job entry (existing behavior)
+    // - Hafiz can ONLY delete Invoice job entries that he created AND
+    //   that are still "New Entry" (no dateResponded yet)
+    // =========================================================
+    const canDeleteJobEntryForUser = (entry, user) => {
+        const userName = (user?.Name || '').trim();
+        const userPos = (user?.Position || '').trim().toLowerCase();
 
-    // --- SECURITY UPDATE: Strict check for "Irwin" ---
-    if (userPositionLower !== 'accounting' || currentApprover.Name !== 'Irwin') {
-        alert("Access Denied: Only the original Administrator (Irwin) can permanently delete entries.");
+        const isIrwinAdmin = (userName === 'Irwin' && userPos === 'accounting');
+        if (isIrwinAdmin) return true;
+
+        // Hafiz limited permission
+        if (userName !== 'Hafiz') return false;
+
+        const jobType = String(entry?.for || entry?.jobType || '').trim().toLowerCase();
+        if (jobType !== 'invoice') return false;
+
+        const creator = String(entry?.createdBy || entry?.enteredBy || entry?.requestor || '').trim().toLowerCase();
+        if (creator !== 'hafiz') return false;
+
+        // Only allow deleting duplicates that are still in the initial stage
+        const remarks = String(entry?.remarks || '').trim().toLowerCase();
+        const allowedRemarks = ['new entry', 'pending', ''];
+        if (!allowedRemarks.includes(remarks)) return false;
+        if (entry?.dateResponded) return false;
+
+        return true;
+    };
+
+    // Get the entry data for permission checks (prefer local cache, fallback to DB)
+    let entry = Array.isArray(allSystemEntries) ? allSystemEntries.find(en => en.key === currentlyEditingKey) : null;
+    if (!entry) {
+        try {
+            const snap = await db.ref(`job_entries/${currentlyEditingKey}`).once('value');
+            if (snap.exists()) entry = { ...(snap.val() || {}), key: currentlyEditingKey };
+        } catch (err) {
+            console.warn('Could not fetch entry for delete permission check:', err);
+        }
+    }
+
+    if (!canDeleteJobEntryForUser(entry, currentApprover)) {
+        alert("Access Denied: Only Irwin can permanently delete entries. Hafiz can delete only his own Invoice entries that are still 'New Entry'.");
         return;
     }
-    // ------------------------------------------------
 
     if (!confirm("Are you sure you want to permanently delete this job entry? This action cannot be undone.")) {
         return;
@@ -11583,8 +11647,15 @@ function buildDesktopReportView(reportData) {
                          stickerBtn = `<button type="button" class="action-btn" style="background-color: #28a745; color: white; padding: 4px 8px; border-radius: 4px;" title="Print Sticker" onclick="event.stopPropagation(); handlePrintSticker('${inv.key}', 'Invoice', '${currentPO}')"><i class="fa-solid fa-qrcode"></i></button>`;
                     }
 
-                    // --- F. FINAL COMBINATION ---
-                    actionButtonsHTML = `<div class="action-btn-group">${editBtn} ${invPDFLink} ${srvPDFLink} ${reportViewLink} ${printReportBtn} ${historyBtn} ${stickerBtn}</div>`;
+                    // --- F. WHATSAPP SHARE (For Approval) ---
+                    // Visible only in Invoice Records; does not change any workflow logic.
+                    let waBtn = '';
+                    if ((inv.status || '') === 'For Approval') {
+                        waBtn = `<button type="button" class="action-btn" style="background-color:#25D366; color:#fff;" title="Send WhatsApp for Approval" onclick="event.stopPropagation(); window.imShareInvoiceForApprovalWhatsApp('${currentPO}', '${inv.key}')"><i class="fa-brands fa-whatsapp"></i></button>`;
+                    }
+
+                    // --- G. FINAL COMBINATION ---
+                    actionButtonsHTML = `<div class="action-btn-group">${editBtn} ${invPDFLink} ${srvPDFLink} ${reportViewLink} ${printReportBtn} ${historyBtn} ${stickerBtn} ${waBtn}</div>`;
                 
                 } else if (inv.source === 'ecommit' && isAllowedUser) {
                     actionButtonsHTML = `<span style="font-size:0.8rem; color:#6f42c1; font-weight:bold; cursor:pointer;"><i class="fa-solid fa-file-import"></i> Click to Import</span>`;
@@ -11643,6 +11714,156 @@ function buildDesktopReportView(reportData) {
     tableHTML += `</tbody></table>`;
     container.innerHTML = tableHTML;
 }
+
+// ========================================================================== 
+// IM: WhatsApp Share + Deep Link Helpers
+// - Adds an optional "Send WhatsApp" action in Invoice Records (no workflow changes)
+// - Deep link can open a specific invoice after login (if user has access)
+// ==========================================================================
+
+function imGetAppBaseUrl() {
+    try {
+        const u = new URL(window.location.href);
+        // keep pathname, remove query/hash
+        u.search = '';
+        u.hash = '';
+        return u.toString();
+    } catch (e) {
+        return (window.location.origin || '') + (window.location.pathname || '/');
+    }
+}
+
+function imBuildInvoiceDeepLink(poNumber, invoiceKey) {
+    const base = imGetAppBaseUrl();
+    const u = new URL(base);
+    u.searchParams.set('open', 'invoice');
+    u.searchParams.set('po', String(poNumber || '').trim());
+    u.searchParams.set('invKey', String(invoiceKey || '').trim());
+    return u.toString();
+}
+
+function imParseInvoiceDeepLinkFromUrl() {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const open = (params.get('open') || '').toLowerCase();
+        if (open !== 'invoice') return null;
+        const po = (params.get('po') || '').trim();
+        const invKey = (params.get('invKey') || params.get('invoiceKey') || '').trim();
+        if (!po || !invKey) return null;
+        return { po, invKey };
+    } catch (e) {
+        return null;
+    }
+}
+
+function imClearInvoiceDeepLinkFromUrl() {
+    try {
+        const u = new URL(window.location.href);
+        u.searchParams.delete('open');
+        u.searchParams.delete('po');
+        u.searchParams.delete('invKey');
+        u.searchParams.delete('invoiceKey');
+        window.history.replaceState({}, document.title, u.toString());
+    } catch (e) { /* ignore */ }
+}
+
+// Exposed for button onclick
+window.imShareInvoiceForApprovalWhatsApp = function (poNumber, invoiceKey) {
+    try {
+        const po = String(poNumber || '').trim();
+        const key = String(invoiceKey || '').trim();
+        if (!po || !key) { alert('Missing invoice reference.'); return; }
+
+        const inv = (allInvoiceData && allInvoiceData[po] && allInvoiceData[po][key]) ? allInvoiceData[po][key] : null;
+        const poRec = (allPOData && allPOData[po]) ? allPOData[po] : null;
+
+        const vendor = (poRec && (poRec['Supplier Name'] || poRec.vendor)) || (inv && (inv.vendorName || inv.vendor)) || 'N/A';
+        const site = (poRec && (poRec['Project ID'] || poRec.site)) || (inv && (inv.site || inv.project)) || 'N/A';
+
+        const invValueNum = inv ? (parseFloat(String(inv.invValue || '').replace(/,/g, '')) || 0) : 0;
+        const invValueDisplay = inv ? `QAR ${formatCurrency(invValueNum)}` : 'N/A';
+
+        const link = imBuildInvoiceDeepLink(po, key);
+        const invNo = (inv && inv.invNumber) ? inv.invNumber : '';
+
+        const msgLines = [
+            'Dear Boss, need your approval for the below detail:',
+            `PO: ${po}`,
+            `Vendor: ${vendor}`,
+            (invNo ? `Invoice No: ${invNo}` : null),
+            `Invoice Value: ${invValueDisplay}`,
+            `Site: ${site}`,
+            '',
+            `Link: ${link}`
+        ].filter(Boolean);
+
+        const waUrl = 'https://wa.me/?text=' + encodeURIComponent(msgLines.join('\n'));
+        window.open(waUrl, '_blank', 'noopener');
+    } catch (e) {
+        console.error('WhatsApp share failed:', e);
+        alert('Unable to create WhatsApp message.');
+    }
+};
+
+async function imOpenInvoiceFromDeepLink(po, invKey) {
+    // Safety: only proceed if we have a logged in user
+    if (!currentApprover) return;
+
+    const userPosLower = (currentApprover?.Position || '').toLowerCase();
+    const userRoleLower = (currentApprover?.Role || '').toLowerCase();
+    const isAdmin = userRoleLower === 'admin';
+    const isAccounting = userPosLower === 'accounting';
+    const isAccounts = userPosLower === 'accounts';
+    const isVacationDelegate = isVacationDelegateUser();
+
+    // Only users who can access IM at all
+    const canOpenIM = isAdmin || isAccounting || isAccounts || isVacationDelegate;
+    if (!canOpenIM) return;
+
+    // Navigate into Invoice Management
+    try { invoiceManagementButton.click(); } catch (e) { /* ignore */ }
+
+    // Give IM nav/time to render
+    setTimeout(async () => {
+        try {
+            // If user is Accounting, open Invoice Entry (edit modal)
+            if (isAccounting) {
+                const entryLink = imNav ? imNav.querySelector('a[data-section="im-invoice-entry"]') : null;
+                if (entryLink) entryLink.click();
+
+                // Ensure invoice data exists
+                const fetchPromise = (typeof ensureInvoiceDataFetched === 'function') ? ensureInvoiceDataFetched() : Promise.resolve();
+                await fetchPromise;
+
+                currentPO = po;
+                // Load PO (from memory if possible)
+                if (allPOData && allPOData[po]) {
+                    await proceedWithPOLoading(po, allPOData[po]);
+                } else {
+                    // Fallback search
+                    imPOSearchInput.value = po;
+                    await handlePOSearch(po);
+                }
+
+                // Populate invoice and open modal
+                populateInvoiceFormForEditing(invKey);
+                imBackToActiveTaskButton.classList.remove('hidden');
+            } else {
+                // Fallback for non-accounting: open Invoice Records and run a quick search by PO
+                const reportingLink = imNav ? imNav.querySelector('a[data-section="im-reporting"]') : null;
+                if (reportingLink) reportingLink.click();
+                if (imReportingSearchInput) {
+                    imReportingSearchInput.value = po;
+                    await populateInvoiceReporting(po);
+                }
+                alert('Opened Invoice Records for this PO. (Editing/approval requires Accounting access.)');
+            }
+        } catch (e) {
+            console.error('Deep link open failed:', e);
+        }
+    }, 650);
+}
+
 
 // ==========================================================================
 // 17. INVOICE MANAGEMENT: REPORTING ACTIONS
@@ -17190,12 +17411,27 @@ if (saveManualPOBtn) {
             updateBtn.classList.remove('hidden');
 
             // Check permission for Delete button
+            // - Irwin (Accounting) can delete any job entry (existing behavior)
+            // - Hafiz can ONLY delete Invoice job entries he created that are still "New Entry"
+            const userName = (currentApprover?.Name || '').trim();
             const userPositionLower = (currentApprover?.Position || '').toLowerCase();
-            if (userPositionLower === 'accounting' && currentApprover.Name === 'Irwin') {
-                deleteBtn.classList.remove('hidden');
-            } else {
-                deleteBtn.classList.add('hidden');
+
+            let canShowDelete = false;
+            if (userName === 'Irwin' && userPositionLower === 'accounting') {
+                canShowDelete = true;
+            } else if (userName === 'Hafiz') {
+                const jobType = String(entryData.for || entryData.jobType || '').trim().toLowerCase();
+                const creator = String(entryData.createdBy || entryData.enteredBy || entryData.requestor || '').trim().toLowerCase();
+                const remarks = String(entryData.remarks || '').trim().toLowerCase();
+                const allowedRemarks = ['new entry', 'pending', ''];
+                const hasResponded = !!entryData.dateResponded;
+                if (jobType === 'invoice' && creator === 'hafiz' && allowedRemarks.includes(remarks) && !hasResponded) {
+                    canShowDelete = true;
+                }
             }
+
+            if (canShowDelete) deleteBtn.classList.remove('hidden');
+            else deleteBtn.classList.add('hidden');
 
             // Populate Form Data
             document.getElementById('job-for').value = entryData.for || 'Other';
