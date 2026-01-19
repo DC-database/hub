@@ -7190,3 +7190,51 @@ body.inventory-mode .wd-nav-material {
   color: #64748b;
   font-size: 13px;
 }
+
+/* =========================================================
+   Workdesk: Invoice Job Vendor Autocomplete (Fallback)
+   - Keeps existing logic intact
+   - Provides a visible suggestion dropdown even on browsers
+     where <datalist> is unreliable.
+   ========================================================= */
+
+.vendor-suggest-box {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 2px);
+  background: #ffffff;
+  border: 1px solid #cfcfcf;
+  border-radius: 8px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 9999;
+}
+
+/* Render vendor suggestions into <body> to avoid clipping inside modals */
+.vendor-suggest-portal {
+  position: fixed;
+  z-index: 10000;
+}
+
+.vendor-suggest-box.hidden {
+  display: none;
+}
+
+.vendor-suggest-item {
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+.vendor-suggest-item:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.vendor-suggest-muted {
+  padding: 8px 10px;
+  color: #666;
+  font-size: 0.85rem;
+}

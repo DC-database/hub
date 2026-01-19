@@ -20,8 +20,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
 
-    <link rel="stylesheet" href="style.css?v=6.3.15">
-    <link rel="stylesheet" href="transfer_stock.css?v=6.3.15">
+    <link rel="stylesheet" href="style.css?v=6.3.21">
+    <link rel="stylesheet" href="transfer_stock.css?v=6.3.21">
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -1844,9 +1844,11 @@
                         <label>Supplier ID</label>
                         <input type="text" id="manual-supplier-id" placeholder="Enter ID to search vendor...">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" style="position: relative;">
                         <label>Vendor Name</label>
-                        <input type="text" id="manual-vendor-name" readonly placeholder="Vendor will appear here..." style="background-color: #f9f9f9;">
+                        <input type="text" id="manual-vendor-name" list="manual-vendor-name-list" placeholder="Start typing vendor name..." style="background-color: #f9f9f9;">
+                        <datalist id="manual-vendor-name-list"></datalist>
+                        <div id="manual-vendor-suggest-box" class="vendor-suggest-box hidden"></div>
                     </div>
                     <div class="form-group">
                         <label>Site / Project</label>
@@ -2327,6 +2329,30 @@
                 </datalist>
             </div>
 
+            <!-- Invoice-only fields (does not affect other job types) -->
+            <div id="job-invoice-fields" class="hidden" style="background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px dashed #ccc;">
+                <div class="form-group" style="margin-bottom: 10px;">
+                    <label>Invoice Date</label>
+                    <input type="date" id="job-invoice-date" name="invoiceDate">
+                </div>
+
+                <div class="form-group" style="margin-bottom: 10px; position: relative;">
+                    <label>Vendor Name</label>
+                    <input type="text" id="job-vendor-name" name="vendorName" list="job-vendor-name-list" placeholder="Type vendor name...">
+                    <datalist id="job-vendor-name-list"></datalist>
+                    <div id="job-vendor-suggest-box" class="vendor-suggest-box hidden"></div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Vendor ID</label>
+                    <input type="text" id="job-vendor-id" name="vendorId" placeholder="Type vendor ID...">
+                </div>
+
+                <div style="margin-top: 6px; font-size: 0.75rem; color: #666;">
+                    Tip: type either Vendor Name or Vendor ID, then select from suggestions — the other field will fill automatically.
+                </div>
+            </div>
+
             <input type="hidden" id="job-date" name="date">
         </div>
 
@@ -2556,9 +2582,9 @@
       }
     </script>
 
-    <script src="materialStock.js?v=6.3.15"></script>
-    <script src="transferLogic.js?v=6.3.15"></script>
-    <script src="app.js?v=6.3.15"></script>
+    <script src="materialStock.js?v=6.3.21"></script>
+    <script src="transferLogic.js?v=6.3.21"></script>
+    <script src="app.js?v=6.3.23"></script>
 
     </body>
 </html>

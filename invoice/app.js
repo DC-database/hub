@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.3.15";
+const APP_VERSION = "6.3.23";
 
 // ======================================================================
 // NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)
@@ -2730,6 +2730,15 @@ const invHelpLink = document.getElementById('inv-help-link');
 const jobEntryForm = document.getElementById('jobentry-form');
 const jobForSelect = document.getElementById('job-for');
 const jobDateInput = document.getElementById('job-date');
+// Invoice-only fields inside the standard job modal
+const jobInvoiceFieldsContainer = document.getElementById('job-invoice-fields');
+const jobInvoiceDateInput = document.getElementById('job-invoice-date');
+const jobVendorNameInput = document.getElementById('job-vendor-name');
+const jobVendorIdInput = document.getElementById('job-vendor-id');
+const jobVendorNameList = document.getElementById('job-vendor-name-list');
+const jobVendorSuggestBox = document.getElementById('job-vendor-suggest-box');
+// Invoice Management: Manual PO vendor autocomplete box
+const manualVendorSuggestBox = document.getElementById('manual-vendor-suggest-box');
 const jobEntrySearchInput = document.getElementById('job-entry-search');
 const jobEntryTableWrapper = document.getElementById('job-entry-table-wrapper');
 const jobEntryTableBody = document.getElementById('job-entry-table-body');
@@ -7441,6 +7450,12 @@ function resetJobEntryForm(keepJobType = false) {
     const searchInput = document.getElementById('job-entry-search');
     if (searchInput) searchInput.value = '';
     sessionStorage.removeItem('jobEntrySearch');
+
+    // Keep Invoice-only fields consistent with current Job Type
+    if (typeof toggleJobInvoiceFields === 'function') {
+        // fire and forget
+        toggleJobInvoiceFields();
+    }
 }
 
 // --- Helper: Toggle "Other" Input ---
@@ -7457,6 +7472,495 @@ function toggleJobOtherInput() {
 }
 // Expose to global scope for HTML onchange
 window.toggleJobOtherInput = toggleJobOtherInput;
+
+// --------------------------------------------------------------------------
+// Invoice Job: Vendor + Invoice Date fields (Smart lookup from Vendors.csv)
+// - Does NOT affect WorkDesk vs Inventory task separation logic.
+// - Only shows for Job Type = Invoice.
+// --------------------------------------------------------------------------
+
+let __jobVendorNameToId = null;     // { normalizedName: id }
+let __jobVendorDatalistBuilt = false;
+let __jobVendorNamesSorted = null; // [displayName, ...] for suggestions
+
+// Shared vendor search index (built once after Vendors.csv is loaded)
+let __vendorSearchIndex = null; // [{ id, name, nameLower }]
+
+// Floating suggestion portal (prevents clipping inside modals where overflow is hidden)
+let __vendorSuggestPortalEl = null;
+let __vendorSuggestPortalAnchor = null; // input element
+let __vendorSuggestPortalOnPick = null; // function(name)
+let __vendorSuggestPortalHideTimer = null;
+let __vendorSuggestPortalDebounceTimer = null;
+
+
+function __normVendorName(v) {
+    return String(v || '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+async function ensureVendorsDataFetchedForJobEntry(forceRefresh = false) {
+    try {
+        if (!forceRefresh && allVendorsData && Object.keys(allVendorsData).length) return allVendorsData;
+
+        let url = null;
+
+        // Preferred: same mechanism used by Invoice Management
+        if (typeof getFirebaseCSVUrl === 'function') {
+            try {
+                url = await getFirebaseCSVUrl('Vendors.csv');
+            } catch (_) {
+                url = null;
+            }
+        }
+
+        // Fallback: public GitHub raw file (matches POVALUE2 pattern)
+        if (!url) {
+            url = 'https://raw.githubusercontent.com/DC-database/Hub/main/Vendors.csv';
+        }
+
+        const map = await fetchAndParseVendorsCSV(url);
+        allVendorsData = map || {};
+        __jobVendorDatalistBuilt = false;
+        __jobVendorNameToId = null;
+        __manualVendorDatalistBuilt = false;
+        __vendorSearchIndex = null;
+        return allVendorsData;
+    } catch (e) {
+        console.warn('ensureVendorsDataFetchedForJobEntry failed:', e);
+        if (!allVendorsData) allVendorsData = {};
+        return allVendorsData;
+    }
+}
+
+function buildJobVendorDatalistIfNeeded() {
+    if (__jobVendorDatalistBuilt) return;
+    if (!allVendorsData || !Object.keys(allVendorsData).length) return;
+
+    const nameToId = {};
+    const uniqueNames = new Map(); // normalized -> display name
+
+    for (const [id, name] of Object.entries(allVendorsData)) {
+        const disp = String(name || '').trim();
+        const norm = __normVendorName(disp);
+        if (!id || !disp || !norm) continue;
+        if (!nameToId[norm]) nameToId[norm] = String(id).trim();
+        if (!uniqueNames.has(norm)) uniqueNames.set(norm, disp);
+    }
+
+    const sorted = Array.from(uniqueNames.values()).sort((a, b) => a.localeCompare(b));
+    __jobVendorNamesSorted = sorted;
+    // IMPORTANT: Do NOT inject thousands of <option> elements into <datalist>.
+    // On some browsers this makes the whole system feel slow and can still fail
+    // to show suggestions reliably. We keep the datalist empty and use the custom
+    // suggestion dropdown instead.
+    if (jobVendorNameList) jobVendorNameList.innerHTML = '';
+    __jobVendorNameToId = nameToId;
+    // Build a lightweight search index for fast suggestions
+    __vendorSearchIndex = sorted.map(n => ({ name: n, nameLower: String(n).toLowerCase() }));
+    __jobVendorDatalistBuilt = true;
+}
+
+
+let __manualVendorDatalistBuilt = false;
+
+function buildManualVendorDatalistIfNeeded() {
+    if (__manualVendorDatalistBuilt) return;
+    const listEl = document.getElementById('manual-vendor-name-list');
+    if (!listEl) return;
+    if (!allVendorsData || !Object.keys(allVendorsData).length) return;
+
+    // Prefer the same sorted vendor list we already build for Job Entry
+    let sorted = __jobVendorNamesSorted;
+    if (!sorted || !sorted.length) {
+        const uniqueNames = new Map(); // normalized -> display name
+        for (const [id, name] of Object.entries(allVendorsData)) {
+            const disp = String(name || '').trim();
+            const norm = __normVendorName(disp);
+            if (!id || !disp || !norm) continue;
+            if (!uniqueNames.has(norm)) uniqueNames.set(norm, disp);
+        }
+        sorted = Array.from(uniqueNames.values()).sort((a, b) => a.localeCompare(b));
+    }
+
+    // Keep datalist empty for performance/reliability; we use the custom dropdown.
+    listEl.innerHTML = '';
+    __manualVendorDatalistBuilt = true;
+}
+
+// --------------------------------------------------------------------------
+// Vendor suggestion dropdown (Portal)
+// - Renders into <body> so it is NOT clipped by modal containers.
+// - Used by BOTH: Workdesk Job Entry (Invoice) and Invoice Management Manual PO.
+// --------------------------------------------------------------------------
+
+function __ensureVendorSuggestPortal() {
+    if (__vendorSuggestPortalEl) return __vendorSuggestPortalEl;
+
+    const el = document.createElement('div');
+    el.className = 'vendor-suggest-box vendor-suggest-portal hidden';
+    el.setAttribute('role', 'listbox');
+    document.body.appendChild(el);
+    __vendorSuggestPortalEl = el;
+
+    // Prevent blur->hide from blocking click selection
+    el.addEventListener('mousedown', (e) => {
+        const item = e.target && e.target.closest ? e.target.closest('.vendor-suggest-item') : null;
+        if (!item) return;
+        e.preventDefault();
+        const name = (item.getAttribute('data-vendor-name') || item.textContent || '').trim();
+        if (name && typeof __vendorSuggestPortalOnPick === 'function') {
+            __vendorSuggestPortalOnPick(name);
+        }
+        __hideVendorSuggestPortal();
+    });
+
+    // Hide when clicking outside
+    document.addEventListener('mousedown', (e) => {
+        if (!__vendorSuggestPortalEl || __vendorSuggestPortalEl.classList.contains('hidden')) return;
+        const t = e.target;
+        if (__vendorSuggestPortalEl.contains(t)) return;
+        if (__vendorSuggestPortalAnchor && (__vendorSuggestPortalAnchor === t || __vendorSuggestPortalAnchor.contains(t))) return;
+        __hideVendorSuggestPortal();
+    });
+
+    // Keep position correct on resize/scroll
+    window.addEventListener('resize', () => {
+        if (__vendorSuggestPortalAnchor && __vendorSuggestPortalEl && !__vendorSuggestPortalEl.classList.contains('hidden')) {
+            __positionVendorSuggestPortal(__vendorSuggestPortalAnchor);
+        }
+    });
+    window.addEventListener('scroll', () => {
+        if (__vendorSuggestPortalAnchor && __vendorSuggestPortalEl && !__vendorSuggestPortalEl.classList.contains('hidden')) {
+            __positionVendorSuggestPortal(__vendorSuggestPortalAnchor);
+        }
+    }, true);
+
+    return el;
+}
+
+function __positionVendorSuggestPortal(anchorInput) {
+    try {
+        if (!anchorInput || !__vendorSuggestPortalEl) return;
+        const r = anchorInput.getBoundingClientRect();
+        const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+        const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+
+        // Prefer opening downward; if not enough space, open upward.
+        const spaceBelow = vh - r.bottom;
+        const spaceAbove = r.top;
+        const openUp = (spaceBelow < 180 && spaceAbove > spaceBelow);
+
+        const width = Math.min(Math.max(r.width, 220), vw - 16);
+        const left = Math.min(Math.max(r.left, 8), vw - width - 8);
+
+        __vendorSuggestPortalEl.style.width = `${width}px`;
+        __vendorSuggestPortalEl.style.left = `${left}px`;
+        __vendorSuggestPortalEl.style.right = 'auto';
+        __vendorSuggestPortalEl.style.position = 'fixed';
+
+        if (openUp) {
+            const bottom = Math.max(8, vh - r.top + 2);
+            __vendorSuggestPortalEl.style.bottom = `${bottom}px`;
+            __vendorSuggestPortalEl.style.top = 'auto';
+        } else {
+            const top = Math.min(vh - 8, r.bottom + 2);
+            __vendorSuggestPortalEl.style.top = `${top}px`;
+            __vendorSuggestPortalEl.style.bottom = 'auto';
+        }
+    } catch (_) {
+        // best effort
+    }
+}
+
+function __hideVendorSuggestPortal() {
+    if (!__vendorSuggestPortalEl) return;
+    __vendorSuggestPortalEl.classList.add('hidden');
+    __vendorSuggestPortalEl.innerHTML = '';
+    __vendorSuggestPortalAnchor = null;
+    __vendorSuggestPortalOnPick = null;
+    if (__vendorSuggestPortalHideTimer) {
+        clearTimeout(__vendorSuggestPortalHideTimer);
+        __vendorSuggestPortalHideTimer = null;
+    }
+}
+
+function __scheduleHideVendorSuggestPortal(delayMs = 120) {
+    if (__vendorSuggestPortalHideTimer) clearTimeout(__vendorSuggestPortalHideTimer);
+    __vendorSuggestPortalHideTimer = setTimeout(() => {
+        __hideVendorSuggestPortal();
+    }, delayMs);
+}
+
+function __renderVendorSuggestPortal(anchorInput, query, onPickFn) {
+    const el = __ensureVendorSuggestPortal();
+
+    const esc = (typeof imHelpEscapeHtml === 'function')
+        ? imHelpEscapeHtml
+        : (s) => String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+
+    const q = String(query || '').toLowerCase().trim();
+    if (!q) {
+        __hideVendorSuggestPortal();
+        return;
+    }
+
+    // Ensure search index exists
+    if (!__vendorSearchIndex || !__vendorSearchIndex.length) {
+        // Try building from current vendors cache
+        try {
+            if (typeof buildJobVendorDatalistIfNeeded === 'function') buildJobVendorDatalistIfNeeded();
+        } catch (_) {}
+    }
+    const index = __vendorSearchIndex || [];
+    if (!index.length) {
+        __hideVendorSuggestPortal();
+        return;
+    }
+
+    // Match anywhere, but prioritize startsWith.
+    const starts = [];
+    const contains = [];
+    for (const row of index) {
+        const nl = row.nameLower || '';
+        const pos = nl.indexOf(q);
+        if (pos === -1) continue;
+        if (pos === 0) starts.push(row.name);
+        else contains.push(row.name);
+        // Keep work light
+        if ((starts.length + contains.length) >= 80) break;
+    }
+
+    if (!starts.length && !contains.length) {
+        __hideVendorSuggestPortal();
+        return;
+    }
+
+    starts.sort((a, b) => a.localeCompare(b));
+    contains.sort((a, b) => a.localeCompare(b));
+    const top = starts.concat(contains).slice(0, 10);
+
+    el.innerHTML = top.map(n => (
+        `<div class="vendor-suggest-item" role="option" data-vendor-name="${esc(n)}">${esc(n)}</div>`
+    )).join('');
+
+    __vendorSuggestPortalAnchor = anchorInput;
+    __vendorSuggestPortalOnPick = onPickFn;
+    __positionVendorSuggestPortal(anchorInput);
+    el.classList.remove('hidden');
+}
+
+function __debouncedVendorSuggestPortal(anchorInput, query, onPickFn) {
+    if (__vendorSuggestPortalDebounceTimer) clearTimeout(__vendorSuggestPortalDebounceTimer);
+    __vendorSuggestPortalDebounceTimer = setTimeout(() => {
+        __renderVendorSuggestPortal(anchorInput, query, onPickFn);
+    }, 90);
+}
+
+function getVendorIdByName(name) {
+    const norm = __normVendorName(name);
+    if (!norm) return '';
+    if (__jobVendorNameToId && __jobVendorNameToId[norm]) return __jobVendorNameToId[norm];
+    // Fallback: scan map once if needed
+    if (allVendorsData && Object.keys(allVendorsData).length) {
+        for (const [id, n] of Object.entries(allVendorsData)) {
+            if (__normVendorName(n) === norm) return String(id).trim();
+        }
+    }
+    return '';
+}
+
+function syncJobVendorFromName() {
+    if (!jobVendorNameInput || !jobVendorIdInput) return;
+    const name = String(jobVendorNameInput.value || '').trim();
+    if (!name) return;
+    const id = getVendorIdByName(name);
+    if (id) jobVendorIdInput.value = id;
+}
+
+function syncJobVendorFromId() {
+    if (!jobVendorNameInput || !jobVendorIdInput) return;
+    const id = String(jobVendorIdInput.value || '').trim();
+    if (!id) return;
+    if (allVendorsData && allVendorsData[id]) {
+        jobVendorNameInput.value = allVendorsData[id];
+    }
+}
+
+function hideJobVendorSuggest() {
+    // Hide both the legacy in-modal box (if present) and the portal dropdown.
+    try { __hideVendorSuggestPortal(); } catch (_) {}
+    if (jobVendorSuggestBox) {
+        jobVendorSuggestBox.classList.add('hidden');
+        jobVendorSuggestBox.innerHTML = '';
+    }
+}
+
+function showJobVendorSuggest(query) {
+    if (!jobVendorNameInput) return;
+    if (!jobForSelect || jobForSelect.value !== 'Invoice') {
+        hideJobVendorSuggest();
+        return;
+    }
+
+    // Ensure vendor index exists (best-effort, does not block typing)
+    try { buildJobVendorDatalistIfNeeded(); } catch (_) {}
+
+    __debouncedVendorSuggestPortal(jobVendorNameInput, query, (pickedName) => {
+        if (!pickedName) return;
+        jobVendorNameInput.value = pickedName;
+        syncJobVendorFromName();
+    });
+}
+
+// --------------------------------------------------------------------------
+// Manual PO: Vendor Name visible suggestions (Fallback dropdown)
+// - Supports contains-match (e.g., typing 'NAY' suggests all vendors with NAY)
+// - Keeps existing Manual PO save & sync logic intact.
+// --------------------------------------------------------------------------
+
+function hideManualVendorSuggest() {
+    try { __hideVendorSuggestPortal(); } catch (_) {}
+    if (manualVendorSuggestBox) {
+        manualVendorSuggestBox.classList.add('hidden');
+        manualVendorSuggestBox.innerHTML = '';
+    }
+}
+
+function showManualVendorSuggest(query) {
+    const modal = document.getElementById('im-manual-po-modal');
+    if (modal && modal.classList.contains('hidden')) {
+        hideManualVendorSuggest();
+        return;
+    }
+    const nameInput = document.getElementById('manual-vendor-name');
+    const idInput = document.getElementById('manual-supplier-id');
+    if (!nameInput) return;
+
+    // Ensure vendor index exists (best-effort)
+    try { buildJobVendorDatalistIfNeeded(); } catch (_) {}
+
+    __debouncedVendorSuggestPortal(nameInput, query, (pickedName) => {
+        if (!pickedName) return;
+        nameInput.value = pickedName;
+        try {
+            const id = (typeof getVendorIdByName === 'function') ? getVendorIdByName(pickedName) : '';
+            if (id && idInput) idInput.value = id;
+        } catch (_) {}
+    });
+}
+
+
+
+async function toggleJobInvoiceFields() {
+    const isInvoice = (jobForSelect && jobForSelect.value === 'Invoice');
+
+    if (jobInvoiceFieldsContainer) {
+        jobInvoiceFieldsContainer.classList.toggle('hidden', !isInvoice);
+    }
+
+    if (!isInvoice) {
+        if (jobInvoiceDateInput) jobInvoiceDateInput.value = '';
+        if (jobVendorNameInput) jobVendorNameInput.value = '';
+        if (jobVendorIdInput) jobVendorIdInput.value = '';
+        if (typeof hideJobVendorSuggest === 'function') hideJobVendorSuggest();
+        return;
+    }
+
+    // Ensure vendors list is available for suggestions
+    await ensureVendorsDataFetchedForJobEntry(false);
+    buildJobVendorDatalistIfNeeded();
+}
+
+// Expose so HTML onchange can call it if needed
+window.toggleJobInvoiceFields = toggleJobInvoiceFields;
+
+// Click selection for Vendor suggestions (fallback dropdown)
+if (jobVendorSuggestBox) {
+    jobVendorSuggestBox.addEventListener('mousedown', (e) => {
+        const item = e.target && e.target.closest ? e.target.closest('.vendor-suggest-item') : null;
+        if (!item) return;
+        e.preventDefault();
+        const name = (item.getAttribute('data-vendor-name') || item.textContent || '').trim();
+        if (name && jobVendorNameInput) {
+            jobVendorNameInput.value = name;
+            syncJobVendorFromName();
+        }
+        hideJobVendorSuggest();
+    });
+}
+
+// Click selection for Manual PO Vendor suggestions (fallback dropdown)
+if (manualVendorSuggestBox) {
+    manualVendorSuggestBox.addEventListener('mousedown', (e) => {
+        const item = e.target && e.target.closest ? e.target.closest('.vendor-suggest-item') : null;
+        if (!item) return;
+        e.preventDefault();
+        const name = (item.getAttribute('data-vendor-name') || item.textContent || '').trim();
+        const nameInput = document.getElementById('manual-vendor-name');
+        const idInput = document.getElementById('manual-supplier-id');
+        if (name && nameInput) {
+            nameInput.value = name;
+            try {
+                const id = (typeof getVendorIdByName === 'function') ? getVendorIdByName(name) : '';
+                if (id && idInput) idInput.value = id;
+            } catch (_) {}
+        }
+        if (typeof hideManualVendorSuggest === 'function') hideManualVendorSuggest();
+    });
+}
+
+// Hook vendor fields to keep Name <-> ID in sync (Invoice only)
+if (jobVendorNameInput) {
+    jobVendorNameInput.addEventListener('focus', async () => {
+        await ensureVendorsDataFetchedForJobEntry(false);
+        buildJobVendorDatalistIfNeeded();
+        // Show suggestions immediately if user already typed something
+        if (typeof showJobVendorSuggest === 'function') showJobVendorSuggest(jobVendorNameInput.value);
+    });
+
+    jobVendorNameInput.addEventListener('change', () => {
+        // change fires after picking from datalist
+        syncJobVendorFromName();
+        if (typeof hideJobVendorSuggest === 'function') hideJobVendorSuggest();
+    });
+
+    jobVendorNameInput.addEventListener('input', () => {
+        // if user types exact match, sync immediately
+        syncJobVendorFromName();
+        if (typeof showJobVendorSuggest === 'function') showJobVendorSuggest(jobVendorNameInput.value);
+    });
+
+    jobVendorNameInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && typeof hideJobVendorSuggest === 'function') {
+            hideJobVendorSuggest();
+        }
+    });
+
+    jobVendorNameInput.addEventListener('blur', () => {
+        // Delay hide so click selection works
+        setTimeout(() => {
+            if (typeof hideJobVendorSuggest === 'function') hideJobVendorSuggest();
+        }, 120);
+    });
+}
+
+if (jobVendorIdInput) {
+    jobVendorIdInput.addEventListener('focus', async () => {
+        await ensureVendorsDataFetchedForJobEntry(false);
+        buildJobVendorDatalistIfNeeded();
+    });
+    jobVendorIdInput.addEventListener('input', () => {
+        syncJobVendorFromId();
+    });
+    jobVendorIdInput.addEventListener('change', () => {
+        syncJobVendorFromId();
+    });
+}
 
 
 // =========================================================
@@ -8128,6 +8632,13 @@ function getJobDataFromForm() {
         attachmentName: (document.getElementById('job-attachment').value || '').trim()
     };
 
+    // 5. Invoice-only fields (safe: does not affect other job types)
+    if (jobType === 'Invoice') {
+        data.invoiceDate = String(jobInvoiceDateInput?.value || '').trim();
+        data.vendorName = String(jobVendorNameInput?.value || '').trim();
+        data.vendorId = String(jobVendorIdInput?.value || '').trim();
+    }
+
     return data;
 }
 
@@ -8156,43 +8667,70 @@ async function handleAddJobEntry(e) {
         await ensureAllEntriesFetched(); 
 
         // =========================================================
-        // LOGIC A: VENDOR RESOLUTION (System PO vs Manual Dropdown)
+        // LOGIC A: VENDOR RESOLUTION (Invoice-only manual fields + PO match fallback)
         // =========================================================
+        const isInvoiceJob = (jobData.for === 'Invoice');
+
+        // If Invoice: try to load Vendors.csv so we can sync Name <-> ID
+        if (isInvoiceJob) {
+            try {
+                await ensureVendorsDataFetchedForJobEntry(false);
+                buildJobVendorDatalistIfNeeded();
+            } catch (_) {
+                // non-blocking
+            }
+
+            // If user typed one field only, fill the other
+            if (jobData.vendorId && !jobData.vendorName && allVendorsData && allVendorsData[jobData.vendorId]) {
+                jobData.vendorName = allVendorsData[jobData.vendorId];
+            }
+            if (jobData.vendorName && !jobData.vendorId) {
+                const idByName = getVendorIdByName(jobData.vendorName);
+                if (idByName) jobData.vendorId = idByName;
+            }
+        }
+
+        const hasManualVendor = isInvoiceJob && (
+            (String(jobData.vendorName || '').trim() !== '') ||
+            (String(jobData.vendorId || '').trim() !== '')
+        );
+
         let poMatch = null;
-        if (jobData.po && allPOData && allPOData[jobData.po]) {
+        if (!hasManualVendor && jobData.po && allPOData && allPOData[jobData.po]) {
             poMatch = allPOData[jobData.po];
         }
 
-        if (poMatch) {
+        if (!hasManualVendor && poMatch) {
             // SCENARIO 1: PO Found in System -> Use CSV Data
             jobData.vendorName = poMatch['Supplier Name'] || 'N/A';
-            // Optional: If you track Vendor IDs in POVALUE2, add: jobData.vendorId = poMatch['Vendor ID'];
-        } else {
-            // SCENARIO 2: PO Not Found -> Use Manual Dropdown Data
+            // Best-effort: fill Vendor ID from Vendors.csv by name
+            if (isInvoiceJob && !jobData.vendorId && jobData.vendorName && jobData.vendorName !== 'N/A') {
+                const idByName = getVendorIdByName(jobData.vendorName);
+                if (idByName) jobData.vendorId = idByName;
+            }
+        } else if (!hasManualVendor) {
+            // SCENARIO 2: PO Not Found -> Use legacy Manual Dropdown (if present)
             if (typeof jobManualVendorChoices !== 'undefined' && jobManualVendorChoices) {
                 const manualValue = jobManualVendorChoices.getValue(true); // Expecting "ID|Name"
-                
                 if (manualValue && manualValue.includes('|')) {
                     const [vId, vName] = manualValue.split('|');
                     jobData.vendorName = vName;
-                    jobData.vendorId = vId; // Save ID for future reference
-                    jobData.isManualVendor = true; 
+                    jobData.vendorId = vId;
+                    jobData.isManualVendor = true;
                 } else if (manualValue) {
-                    // Fallback if value isn't split correctly
                     jobData.vendorName = manualValue;
                 }
             }
 
             // Final check: If it's an Invoice and still no vendor, warn user (Optional)
-            if (jobData.for === 'Invoice' && (!jobData.vendorName || jobData.vendorName === 'N/A')) {
-                console.warn("Saving Invoice without Vendor Name (PO not found and no manual selection).");
+            if (isInvoiceJob && (!jobData.vendorName || jobData.vendorName === 'N/A') && !jobData.vendorId) {
+                console.warn("Saving Invoice without Vendor (PO not found and no manual vendor entered).");
             }
         }
 
         // =========================================================
         // LOGIC B: STATUS & SMART ASSIGNMENT
         // =========================================================
-        const isInvoiceJob = (jobData.for === 'Invoice');
 
         if (isInvoiceJob) {
             // 1. Force Status to "New Entry"
@@ -8664,6 +9202,11 @@ document.addEventListener('DOMContentLoaded', () => {
             // Handle "Other" Input Visibility
             if (typeof toggleJobOtherInput === 'function') {
                 toggleJobOtherInput();
+            }
+
+            // Invoice-only vendor/date fields
+            if (typeof toggleJobInvoiceFields === 'function') {
+                await toggleJobInvoiceFields();
             }
         });
     }
@@ -9237,10 +9780,15 @@ function __normalizePODetails(raw) {
     const amount =
         d['Amount'] || d['amount'] || d.Amount || d.AMOUNT || '';
 
+    const supplierId =
+        d['Supplier ID'] || d['Supplier ID:'] || d['SupplierID'] || d['Supplier Id'] ||
+        d['supplier id'] || d['SUPPLIER ID'] || d['Vendor ID'] || d['vendorId'] || d['vendor_id'] || '';
+
     // Return a merged object but ensure canonical keys exist
     return {
         ...d,
         'Supplier Name': supplier || d['Supplier Name'] || d['Supplier'] || '',
+        'Supplier ID': supplierId || d['Supplier ID'] || d['Vendor ID'] || '',
         'Project ID': projectId || d['Project ID'] || '',
         'Amount': amount || d['Amount'] || ''
     };
@@ -9326,6 +9874,7 @@ async function ensurePORecordInInvoiceDb(poNumber) {
         const supplier = mem['Supplier Name'] || mem['Supplier Name:'] || mem['Supplier'] || mem['Supplier:'] || '';
         const projectId = mem['Project ID'] || mem['Project ID:'] || '';
         const amount = mem.Amount || mem['Amount'] || '';
+        const supplierId = mem['Supplier ID'] || mem['Supplier ID:'] || mem['SupplierID'] || mem['Vendor ID'] || mem.vendorId || mem.vendor_id || '';
 
         const ref = invoiceDb.ref(`purchase_orders/${po}`);
         const snap = await ref.once('value');
@@ -9336,6 +9885,7 @@ async function ensurePORecordInInvoiceDb(poNumber) {
         if (!existing) upsert['PO'] = po;
         if (supplier) { upsert['Supplier Name'] = supplier; upsert['Supplier'] = supplier; }
         if (projectId) upsert['Project ID'] = projectId;
+        if (supplierId) upsert['Supplier ID'] = supplierId;
         if (amount && (!existing || !existing.Amount)) upsert['Amount'] = amount;
         if (!existing) upsert['IsManual'] = false;
 
@@ -9576,15 +10126,80 @@ async function handlePOSearch(poNumberFromInput) {
                 allPOData[poNumber] = poData; // Save to memory
             }
         }
-
         // If STILL not found, show Manual Entry Modal
         if (!poData) {
-            document.getElementById('manual-po-number').value = poNumber;
-            document.getElementById('manual-supplier-id').value = '';
-            document.getElementById('manual-vendor-name').value = '';
-            document.getElementById('manual-po-amount').value = '';
+            const manualPONoEl = document.getElementById('manual-po-number');
+            const manualSupplierIdEl = document.getElementById('manual-supplier-id');
+            const manualVendorNameEl = document.getElementById('manual-vendor-name');
+            const manualPOAmountEl = document.getElementById('manual-po-amount');
+
+            if (manualPONoEl) manualPONoEl.value = poNumber;
+            if (manualSupplierIdEl) manualSupplierIdEl.value = '';
+            if (manualVendorNameEl) manualVendorNameEl.value = '';
+            if (manualPOAmountEl) manualPOAmountEl.value = '';
+
+            // Ensure vendor list is available for name suggestions (Manual PO)
+            try {
+                if (typeof ensureVendorsDataFetchedForJobEntry === 'function') {
+                    const emptyVendors = (typeof allVendorsData === 'undefined' || !allVendorsData || !Object.keys(allVendorsData).length);
+                    if (emptyVendors) {
+                        try { await ensureVendorsDataFetchedForJobEntry(false); } catch (_) {}
+                    }
+                }
+                if (typeof buildJobVendorDatalistIfNeeded === 'function') {
+                    try { buildJobVendorDatalistIfNeeded(); } catch (_) {}
+                }
+                if (typeof buildManualVendorDatalistIfNeeded === 'function') {
+                    try { buildManualVendorDatalistIfNeeded(); } catch (_) {}
+                }
+            } catch (_) {}
+
+            // -------------------------------------------------------------
+            // SMART PREFILL (from WorkDesk -> Invoice Job Entry)
+            // If this PO search is coming from a Job Entry (Invoice), reuse
+            // the Vendor + Vendor ID + Site that were already captured there.
+            // This reduces Manual PO to mainly entering the PO Value.
+            // -------------------------------------------------------------
+            let __prefillSite = '';
+            try {
+                const pending = (typeof pendingJobEntryDataForInvoice !== 'undefined') ? pendingJobEntryDataForInvoice : null;
+                const pendingPO = pending ? String(pending.po || '').trim().toUpperCase() : '';
+                if (pending && pendingPO && pendingPO === String(poNumber || '').trim().toUpperCase()) {
+                    // Ensure vendor map is available so we can resolve Name <-> ID
+                    if (typeof ensureVendorsDataFetchedForJobEntry === 'function') {
+                        try { await ensureVendorsDataFetchedForJobEntry(false); } catch(_){}
+                    }
+                    if (typeof buildJobVendorDatalistIfNeeded === 'function') {
+                        try { buildJobVendorDatalistIfNeeded(); } catch(_){}
+                    }
+
+                    let vName = String(pending.vendorName || '').trim();
+                    let vId = String(pending.vendorId || '').trim();
+
+                    // Fill missing side if possible
+                    if (vId && (!vName || vName === 'N/A') && typeof allVendorsData !== 'undefined' && allVendorsData && allVendorsData[vId]) {
+                        vName = String(allVendorsData[vId] || '').trim();
+                    }
+                    if (vName && !vId && typeof getVendorIdByName === 'function') {
+                        const idByName = getVendorIdByName(vName);
+                        if (idByName) vId = String(idByName).trim();
+                    }
+
+                    if (manualSupplierIdEl && vId) manualSupplierIdEl.value = vId;
+                    if (manualVendorNameEl && vName) manualVendorNameEl.value = vName;
+
+                    __prefillSite = String(pending.site || '').trim();
+                }
+            } catch (e) {
+                // Best-effort only
+            }
 
             const modalSiteSelect = document.getElementById('manual-site-select');
+            if (modalSiteSelect) {
+                // store prefill on dataset so it survives option building
+                modalSiteSelect.dataset.prefillSite = __prefillSite || '';
+            }
+
             if (modalSiteSelect.options.length <= 1 && allSitesCSVData) {
                 allSitesCSVData.forEach(s => {
                     const opt = document.createElement('option');
@@ -9594,7 +10209,22 @@ async function handlePOSearch(poNumberFromInput) {
                 });
             }
 
-            document.getElementById('im-manual-po-modal').classList.remove('hidden');
+            // Apply site prefill after options exist
+            try {
+                const pre = modalSiteSelect?.dataset?.prefillSite;
+                if (pre) {
+                    modalSiteSelect.value = pre;
+                }
+            } catch(_){}
+
+            const manualModal = document.getElementById('im-manual-po-modal');
+            if (manualModal) manualModal.classList.remove('hidden');
+
+            // Focus PO value (most common missing piece when coming from Job Entry)
+            setTimeout(() => {
+                if (manualPOAmountEl) manualPOAmountEl.focus();
+            }, 0);
+
             return; 
         }
 
@@ -9843,8 +10473,16 @@ function fetchAndDisplayInvoices(poNumber) {
         if (pendingJobEntryDataForInvoice.ref) {
             document.getElementById('im-inv-no').value = pendingJobEntryDataForInvoice.ref;
         }
-        if (pendingJobEntryDataForInvoice.date) {
-            imInvoiceDateInput.value = convertDisplayDateToInput(pendingJobEntryDataForInvoice.date);
+        // Prefer the explicit Invoice Date captured in Job Entry (Invoice job)
+        const __jobInvDateRaw = pendingJobEntryDataForInvoice.invoiceDate || pendingJobEntryDataForInvoice.date;
+        if (__jobInvDateRaw) {
+            const __s = String(__jobInvDateRaw).trim();
+            // Job Entry uses <input type="date"> so it is already YYYY-MM-DD
+            if (/^\d{4}-\d{2}-\d{2}$/.test(__s)) {
+                imInvoiceDateInput.value = __s;
+            } else {
+                imInvoiceDateInput.value = convertDisplayDateToInput(__s);
+            }
         }
 
         // --- ADD THESE LINES TO FIX THE STATUS ---
@@ -9922,6 +10560,14 @@ async function populateActiveJobsSidebar() {
         li.dataset.originalKey = job.originalKey || '';
         li.dataset.originalPO = job.originalPO || '';
 
+        // Pass-through Invoice Job Entry details so Invoice Entry side-panel clicks
+        // can reuse captured Vendor/Supplier/Site/Invoice Date (for Manual PO prefill).
+        // These datasets are best-effort and do not change existing task rules.
+        li.dataset.vendorName = job.vendorName || '';
+        li.dataset.vendorId = job.vendorId || '';
+        li.dataset.site = job.site || '';
+        li.dataset.invoiceDate = job.invoiceDate || '';
+
         // Truncate Vendor Name if too long
         var vendorDisplay = (job.vendorName || 'No Vendor');
         if (vendorDisplay.length > 20) vendorDisplay = vendorDisplay.substring(0, 18) + '...';
@@ -9974,7 +10620,11 @@ async function handleActiveJobClick(e) {
         source,
         key,
         originalKey,
-        originalPO
+        originalPO,
+        vendorName,
+        vendorId,
+        site,
+        invoiceDate
     } = item.dataset;
 
     if (!po) {
@@ -9987,7 +10637,11 @@ async function handleActiveJobClick(e) {
         po,
         ref,
         amount,
-        date
+        date,
+        vendorName,
+        vendorId,
+        site,
+        invoiceDate
     };
 
     // SCENARIO 1: It is an EXISTING INVOICE (This part was already working)
@@ -10212,10 +10866,12 @@ async function handleAddInvoice(e) {
     // Persist vendor/site on the invoice record as a fallback (prevents N/A if PO lookup fails)
     const _poDetailsForInv = (allPOData && allPOData[currentPO]) ? allPOData[currentPO] : {};
     invoiceData.vendor_name = invoiceData.vendor_name || _poDetailsForInv['Supplier Name'] || _poDetailsForInv['Supplier Name:'] || '';
+    invoiceData.vendor_id = invoiceData.vendor_id || _poDetailsForInv['Supplier ID'] || _poDetailsForInv['Supplier ID:'] || _poDetailsForInv['Vendor ID'] || '';
     invoiceData.site_name = invoiceData.site_name || _poDetailsForInv['Project ID'] || _poDetailsForInv['Project ID:'] || '';
 
     // Also keep a simple alias for older screens
     invoiceData.vendorName = invoiceData.vendorName || invoiceData.vendor_name;
+    invoiceData.vendorId = invoiceData.vendorId || invoiceData.vendor_id;
     invoiceData.site = invoiceData.site || invoiceData.site_name;
 
     // Ensure this PO exists in invoiceDb/purchase_orders so tasks always have Vendor + Site
@@ -10272,7 +10928,22 @@ async function handleAddInvoice(e) {
                     remarks: invoiceData.status,
                     dateResponded: formatDate(new Date())
                 };
+                const completedKey = jobEntryToUpdateAfterInvoice;
                 await db.ref(`job_entries/${jobEntryToUpdateAfterInvoice}`).update(updates);
+
+                // Local cache sync: mark the originating Invoice Job Entry as completed immediately
+                // so Invoice Entry side-panel Active Jobs updates without requiring a refresh.
+                try {
+                    const local = (Array.isArray(allSystemEntries)
+                        ? allSystemEntries.find(e => e && e.key === completedKey)
+                        : null);
+                    if (local) {
+                        local.remarks = updates.remarks;
+                        local.status = updates.remarks;
+                        local.dateResponded = updates.dateResponded;
+                    }
+                } catch (_) {}
+
                 jobEntryToUpdateAfterInvoice = null;
                 await populateActiveJobsSidebar();
 
@@ -15997,7 +16668,74 @@ window.printHistorySticker = function(esn, link) {
                 nameInput.style.backgroundColor = "#f9f9f9";
             }
         });
+
+
+    // 1b. Auto-lookup Supplier ID when Vendor Name is typed/selected
+    const manualVendorNameInput = document.getElementById('manual-vendor-name');
+    if (manualVendorNameInput) {
+        manualVendorNameInput.addEventListener('input', (e) => {
+            const name = String(e.target.value || '').trim();
+            if (!name) {
+                // If user clears name, don't force-clear ID (they might be typing ID instead)
+                return;
+            }
+            try {
+                if (typeof buildManualVendorDatalistIfNeeded === 'function') {
+                    buildManualVendorDatalistIfNeeded();
+                }
+                if (typeof buildJobVendorDatalistIfNeeded === 'function') {
+                    buildJobVendorDatalistIfNeeded();
+                }
+                const id = (typeof getVendorIdByName === 'function') ? getVendorIdByName(name) : '';
+                if (id && manualSupplierIdInput) {
+                    manualSupplierIdInput.value = id;
+                }
+            } catch (_) {
+                // Best-effort
+            }
+            try {
+                if (typeof showManualVendorSuggest === 'function') showManualVendorSuggest(manualVendorNameInput.value);
+            } catch (_) {}
+        });
+
+
+        manualVendorNameInput.addEventListener('focus', async () => {
+            try {
+                if (typeof ensureVendorsDataFetchedForJobEntry === 'function') await ensureVendorsDataFetchedForJobEntry(false);
+                if (typeof buildManualVendorDatalistIfNeeded === 'function') buildManualVendorDatalistIfNeeded();
+                if (typeof buildJobVendorDatalistIfNeeded === 'function') buildJobVendorDatalistIfNeeded();
+                if (typeof showManualVendorSuggest === 'function') showManualVendorSuggest(manualVendorNameInput.value);
+            } catch (_) {}
+        });
+
+        manualVendorNameInput.addEventListener('change', () => {
+            try {
+                const name = String(manualVendorNameInput.value || '').trim();
+                const id = (typeof getVendorIdByName === 'function') ? getVendorIdByName(name) : '';
+                if (id && manualSupplierIdInput) manualSupplierIdInput.value = id;
+            } catch (_) {}
+            try {
+                if (typeof hideManualVendorSuggest === 'function') hideManualVendorSuggest();
+            } catch (_) {}
+        });
+
+        manualVendorNameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                try {
+                    if (typeof hideManualVendorSuggest === 'function') hideManualVendorSuggest();
+                } catch (_) {}
+            }
+        });
+
+        manualVendorNameInput.addEventListener('blur', () => {
+            setTimeout(() => {
+                try {
+                    if (typeof hideManualVendorSuggest === 'function') hideManualVendorSuggest();
+                } catch (_) {}
+            }, 120);
+        });
     }
+}
 
    // =========================================================
 // MANUAL PO SAVE (Corrected: Saves to 'invoiceDb' > 'purchase_orders')
@@ -16006,12 +16744,13 @@ const saveManualPOBtn = document.getElementById('im-save-manual-po-btn');
 if (saveManualPOBtn) {
     saveManualPOBtn.addEventListener('click', async () => {
         const po = document.getElementById('manual-po-number').value.trim().toUpperCase();
-        const vendor = document.getElementById('manual-vendor-name').value;
-        const site = document.getElementById('manual-site-select').value;
-        const amount = document.getElementById('manual-po-amount').value;
+        const supplierId = String(document.getElementById('manual-supplier-id')?.value || '').trim();
+        const vendor = String(document.getElementById('manual-vendor-name')?.value || '').trim();
+        const site = String(document.getElementById('manual-site-select')?.value || '').trim();
+        const amount = String(document.getElementById('manual-po-amount')?.value || '').trim();
 
         if (!vendor || !site || !amount) {
-            alert("Please fill in all fields (Supplier ID, Site, Amount).");
+            alert("Please fill in Vendor Name, Site, and Total PO Value.");
             return;
         }
 
@@ -16022,6 +16761,11 @@ if (saveManualPOBtn) {
             'Amount': amount,
             'IsManual': true
         };
+
+        // Store Supplier ID if provided (helps Finance report + vendor traceability)
+        if (supplierId) {
+            manualPOData['Supplier ID'] = supplierId;
+        }
 
         // 1. UPDATE MEMORY IMMEDIATELY
         if (!allPOData) allPOData = {};
@@ -16430,6 +17174,11 @@ if (saveManualPOBtn) {
             addBtn.classList.remove('hidden');
             updateBtn.classList.add('hidden');
             deleteBtn.classList.add('hidden');
+
+            // Ensure Invoice-only fields are hidden by default
+            if (typeof toggleJobInvoiceFields === 'function') {
+                toggleJobInvoiceFields();
+            }
         }
         // 2. EDIT MODE
         else if (mode === 'Edit' && entryData) {
@@ -16465,6 +17214,15 @@ if (saveManualPOBtn) {
             document.getElementById('job-attachment').value = entryData.attachmentName || '';
             document.getElementById('job-group').value = entryData.group || '';
             document.getElementById('job-status').value = (entryData.remarks === 'Pending') ? '' : entryData.remarks || '';
+
+            // Invoice-only: vendor + invoice date
+            if (jobInvoiceDateInput) jobInvoiceDateInput.value = entryData.invoiceDate || '';
+            if (jobVendorNameInput) jobVendorNameInput.value = entryData.vendorName || '';
+            if (jobVendorIdInput) jobVendorIdInput.value = entryData.vendorId || '';
+
+            if (typeof toggleJobInvoiceFields === 'function') {
+                toggleJobInvoiceFields();
+            }
 
             if (siteSelectChoices) siteSelectChoices.setChoiceByValue(entryData.site || '');
             if (attentionSelectChoices) attentionSelectChoices.setChoiceByValue(entryData.attention || '');
@@ -18870,6 +19628,7 @@ let imHelpKbLoaded = false;
 let imHelpLastQuery = '';
 let imHelpLastBest = null;
 let imHelpSelectedUnansweredId = null;
+let imHelpEditingFaqId = null; // when Super Admin edits an existing FAQ
 
 // Help Center context control:
 // - Origin "invoice" shows Admin tab for Super Admin.
@@ -19609,10 +20368,16 @@ function imHelpRenderUnanswered(items) {
 
 function imHelpAdminClearForm() {
     imHelpSelectedUnansweredId = null;
+    imHelpEditingFaqId = null;
     if (imHelpAdminQ) imHelpAdminQ.value = '';
     if (imHelpAdminA) imHelpAdminA.value = '';
     if (imHelpAdminModule) imHelpAdminModule.value = 'Invoice Management';
     if (imHelpAdminPageRefs) imHelpAdminPageRefs.value = '';
+
+    // Reset publish button label
+    if (imHelpAdminPublishBtn) {
+        imHelpAdminPublishBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Publish FAQ';
+    }
 }
 
 async function imHelpAdminPublishFaq() {
@@ -19644,21 +20409,30 @@ async function imHelpAdminPublishFaq() {
         updatedBy: (currentApprover?.Name || '').trim() || SUPER_ADMIN_NAME,
     };
 
-    imHelpAdminSetStatus('<i class="fa-solid fa-spinner fa-spin"></i> Publishing FAQ…');
+    const isEditing = !!imHelpEditingFaqId;
+    imHelpAdminSetStatus(`<i class="fa-solid fa-spinner fa-spin"></i> ${isEditing ? 'Updating' : 'Publishing'} FAQ…`);
 
-    const newRef = invoiceDb.ref('helpCenter/faqs').push();
-    await newRef.set(payload);
+    let faqKey = null;
 
-    if (imHelpSelectedUnansweredId) {
-        await invoiceDb.ref(`helpCenter/unanswered/${imHelpSelectedUnansweredId}`).update({
-            status: 'answered',
-            answeredAt: now,
-            answeredBy: payload.updatedBy,
-            faqId: newRef.key,
-        });
+    if (isEditing) {
+        faqKey = imHelpEditingFaqId;
+        await invoiceDb.ref(`helpCenter/faqs/${faqKey}`).update(payload);
+    } else {
+        const newRef = invoiceDb.ref('helpCenter/faqs').push();
+        await newRef.set(payload);
+        faqKey = newRef.key;
+
+        if (imHelpSelectedUnansweredId) {
+            await invoiceDb.ref(`helpCenter/unanswered/${imHelpSelectedUnansweredId}`).update({
+                status: 'answered',
+                answeredAt: now,
+                answeredBy: payload.updatedBy,
+                faqId: faqKey,
+            });
+        }
     }
 
-    imHelpAdminSetStatus(`<span style="color:#1e7e34;"><i class="fa-solid fa-circle-check"></i> FAQ published</span>`);
+    imHelpAdminSetStatus(`<span style="color:#1e7e34;"><i class="fa-solid fa-circle-check"></i> FAQ ${isEditing ? 'updated' : 'published'}</span>`);
     imHelpAdminClearForm();
     await imHelpAdminRefreshAll(true);
 }
@@ -19865,6 +20639,7 @@ function imHelpRenderAdminFaqs() {
             <p class="im-help-snippet">${imHelpEscapeHtml(imHelpBuildExcerpt(f.answer || '', '', 300))}</p>
             <div class="im-help-actions">
               <button type="button" class="secondary-btn" data-im-help-open-faq="${imHelpEscapeHtml(f.id)}"><i class="fa-solid fa-eye"></i> View</button>
+              <button type="button" class="secondary-btn" data-im-help-edit-faq="${imHelpEscapeHtml(f.id)}"><i class="fa-solid fa-pen"></i> Edit</button>
             </div>
           </div>
         `;
@@ -20258,6 +21033,40 @@ if (document.getElementById('im-help')) {
             return;
         }
 
+        // Super Admin: Edit FAQ
+        const editFaq = e.target.closest('[data-im-help-edit-faq]');
+        if (editFaq) {
+            if (!imHelpIsSuperAdminUser()) {
+                alert('Access Denied: Super Admin only.');
+                return;
+            }
+            const id = editFaq.getAttribute('data-im-help-edit-faq');
+            if (!id) return;
+            // Find in loaded list
+            const faq = (Array.isArray(imHelpFaqs) ? imHelpFaqs : []).find(x => String(x.id) === String(id));
+            if (!faq) {
+                alert('FAQ not found (please Refresh).');
+                return;
+            }
+
+            imHelpEditingFaqId = String(id);
+            imHelpSelectedUnansweredId = null; // editing existing, not answering queue
+
+            if (imHelpAdminQ) imHelpAdminQ.value = String(faq.question || '');
+            if (imHelpAdminA) imHelpAdminA.value = String(faq.answer || '');
+            if (imHelpAdminModule) imHelpAdminModule.value = String(faq.module || 'Invoice Management');
+            if (imHelpAdminPageRefs) imHelpAdminPageRefs.value = Array.isArray(faq.pageRefs) ? faq.pageRefs.join(', ') : '';
+
+            if (imHelpAdminPublishBtn) {
+                imHelpAdminPublishBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Update FAQ';
+            }
+
+            imHelpSelectTab('admin');
+            imHelpAdminQ?.focus();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+        }
+
         const ansBtn = e.target.closest('[data-im-help-answer-unanswered]');
         if (ansBtn) {
             const id = ansBtn.getAttribute('data-im-help-answer-unanswered');
@@ -20265,8 +21074,12 @@ if (document.getElementById('im-help')) {
             const snap = await invoiceDb.ref(`helpCenter/unanswered/${id}`).once('value');
             const it = snap.val();
             if (it && imHelpAdminQ) {
+                imHelpEditingFaqId = null;
                 imHelpSelectedUnansweredId = id;
                 imHelpAdminQ.value = String(it.q || '').trim();
+                if (imHelpAdminPublishBtn) {
+                    imHelpAdminPublishBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Publish FAQ';
+                }
                 imHelpSelectTab('admin');
                 imHelpAdminQ.focus();
                 window.scrollTo({ top: 0, behavior: 'smooth' });
