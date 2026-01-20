@@ -4876,6 +4876,14 @@ body.is-ceo .desktop-only.col-group {
     }
 }
 /* --- STOCK TABLE ACCORDION STYLES --- */
+.ms-parent-row {
+    cursor: pointer;
+}
+
+.ms-parent-row:hover {
+    background-color: #f5f7fa;
+}
+
 .ms-expand-btn {
     background-color: #003A5C;
     color: white;

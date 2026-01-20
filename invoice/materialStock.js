@@ -5,7 +5,9 @@ let allTransferData = [];
 let lastFilteredStockData = []; 
 let msProductChoices = null;
 let lastTypedProductID = "";
-let currentCategoryFilter = 'All';
+// By default, keep the list empty until the user selects a Family tab or types a search.
+// (This improves perceived performance on large datasets and matches the requested UX.)
+let currentCategoryFilter = null;
 let editingItemKey = null; // NEW: explicit modal state (prevents stuck edit mode)
 
 // Constants
@@ -430,6 +432,8 @@ async function populateMaterialStock(forceRefresh = false) {
                     }
 
                     renderCategoryTabs();
+                    // Show empty state by default (no heavy rendering) until user selects a tab or searches.
+                    renderMaterialStockTable(allMaterialStockData);
                     return;
                 }
             } catch (e) { console.error("Cache parse error", e); }
@@ -470,6 +474,8 @@ async function populateMaterialStock(forceRefresh = false) {
         }
 
         renderCategoryTabs();
+        // Show empty state by default (no heavy rendering) until user selects a tab or searches.
+        renderMaterialStockTable(allMaterialStockData);
 
     } catch (error) {
         console.error("Error loading material stock:", error);
@@ -504,8 +510,9 @@ function renderCategoryTabs() {
         if (item.familyCode) activeFamilyCodes.add(item.familyCode);
     });
 
-    // If the selected tab no longer exists in data, fall back to "All"
-    if (currentCategoryFilter !== 'All' && !activeFamilyCodes.has(currentCategoryFilter)) {
+    // If the selected tab no longer exists in data, fall back to "All".
+    // (Only do this when a tab is actually selected.)
+    if (currentCategoryFilter && currentCategoryFilter !== 'All' && !activeFamilyCodes.has(currentCategoryFilter)) {
         currentCategoryFilter = 'All';
     }
 
@@ -531,7 +538,8 @@ function renderCategoryTabs() {
         activeTab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
     }
 
-    renderMaterialStockTable(allMaterialStockData);
+    // Do NOT auto-render the full table here.
+    // Rendering is triggered by user action (tab click / search input).
 }
 
 window.filterStockByCategory = function(category) {
@@ -551,6 +559,17 @@ function renderMaterialStockTable(data) {
     
     // --- READ SITE FILTER ---
     const siteFilterVal = document.getElementById('ms-site-filter')?.value || 'All';
+
+    // Default state: keep list cleared until user selects a Family tab or types a search term.
+    // (Site filter alone does not trigger listing to avoid heavy initial rendering.)
+    if (!searchTerm && !currentCategoryFilter) {
+        if (tableBody) {
+            tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:#777;">List cleared. Please select a Family tab above or type in the search box.</td></tr>';
+        }
+        if (countDisplay) countDisplay.textContent = '';
+        lastFilteredStockData = [];
+        return;
+    }
 
     // [FIX] Use strict null check (currentApprover && ...)
     const isAdmin = (currentApprover && (currentApprover.Role || '').toLowerCase() === 'admin');
@@ -760,6 +779,7 @@ if(isEditor) {
         const relationshipDisplay = item.relationship || item.details || '';
 
         const parentRow = document.createElement('tr');
+        parentRow.classList.add('ms-parent-row');
         parentRow.innerHTML = `
             <td>${firstColContent}</td>
             <td style="font-family:monospace; font-weight:bold; color:#00748C;">${item.productID || item.productId}</td>
@@ -769,6 +789,18 @@ if(isEditor) {
             <td style="font-size: 1.1em; font-weight: bold; color: #003A5C;">${totalStock}</td>
             <td style="text-align: center;">${actionButtons}</td>
         `;
+
+        // UX: allow expanding/collapsing by clicking anywhere on the parent row
+        // (except interactive elements like buttons/checkboxes).
+        parentRow.addEventListener('click', (e) => {
+            if (e.target.closest('button') || e.target.closest('input') || e.target.closest('a') || e.target.closest('select') || e.target.closest('textarea')) {
+                return;
+            }
+            const expandBtn = parentRow.querySelector('.ms-expand-btn');
+            if (expandBtn) {
+                window.toggleStockDetail(uniqueId, expandBtn);
+            }
+        });
 
         const childRow = document.createElement('tr');
         childRow.id = uniqueId;
@@ -1574,7 +1606,7 @@ function openStockReportModal() {
         headerContainer.innerHTML = `
             <div style="margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 15px;">
                 
-                <img src="https://firebasestorage.googleapis.com/v0/b/ibainvoice-3ea51.firebasestorage.app/o/iba_logo.png?alt=media&token=ccc85b7b-d41e-4242-9e27-08942efb3012" 
+                <img src="https://firebasestorage.googleapis.com/v0/b/invoiceentry-b15a8.firebasestorage.app/o/Files%2Fiba_logo.jpg?alt=media&token=d7376281-75e0-4f8b-b9c5-9911e4522f68" 
                      style="width: 550px; max-width: 100%; height: auto;" 
                      alt="IBA Logo">
                 
@@ -1743,6 +1775,7 @@ const addNewBtn = document.getElementById('ms-add-new-btn');
                 });
             }
             currentCategoryFilter = null; 
+            lastFilteredStockData = [];
             
             // 5. NEW: Reset Site Filter to "All"
             const siteFilter = document.getElementById('ms-site-filter');
