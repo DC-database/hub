@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.3.31";
+const APP_VERSION = "6.3.33";
 
 // ======================================================================
 // NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)
@@ -3254,6 +3254,18 @@ async function getApproverByKey(key) {
 function handleSuccessfulLogin() {
     if (currentApprover && currentApprover.key) {
         localStorage.setItem('approverKey', currentApprover.key);
+
+        // Keep a lightweight global user object for modules that rely on window.currentUser
+        try {
+            window.currentUser = {
+                username: (currentApprover?.Name || '').trim(),
+                Name: (currentApprover?.Name || '').trim(),
+                Position: currentApprover?.Position || '',
+                Role: currentApprover?.Role || '',
+                Mobile: currentApprover?.Mobile || '',
+                Email: currentApprover?.Email || ''
+            };
+        } catch (e) { /* ignore */ }
     } else {
         console.error("Attempted to save login state but currentApprover or key is missing.");
         handleLogout();
@@ -3820,6 +3832,8 @@ function handleLogout() {
     // Smart Sync / Smart Refresh removed (no background listeners).
 
     localStorage.removeItem('approverKey');
+
+    try { window.currentUser = null; } catch (e) { /* ignore */ }
 
     if (dateTimeInterval) clearInterval(dateTimeInterval);
     if (workdeskDateTimeInterval) clearInterval(workdeskDateTimeInterval);
@@ -8831,14 +8845,18 @@ async function handleAddJobEntry(e) {
         // 3. Add Timestamps & User Info
         jobData.timestamp = firebase.database.ServerValue.TIMESTAMP;
         
-        let currentUserName = 'Admin';
+        // Prefer logged-in approver name (Workdesk user)
+        let currentUserName = (currentApprover && currentApprover.Name) ? String(currentApprover.Name).trim() : 'Admin';
+        // Backward compatible: some modules set window.currentUser.username
         if (typeof currentUser !== 'undefined' && currentUser && currentUser.username) {
-            currentUserName = currentUser.username;
+            currentUserName = String(currentUser.username).trim() || currentUserName;
+        } else if (window.currentUser && window.currentUser.username) {
+            currentUserName = String(window.currentUser.username).trim() || currentUserName;
         }
         jobData.createdBy = currentUserName;
+        // Explicitly track who entered it (used for Workdesk ownership / delete permission)
+        jobData.enteredBy = (currentApprover && currentApprover.Name) ? String(currentApprover.Name).trim() : currentUserName;
 
-
-        
         // =========================================================
         // LOGIC C: VACATION DELEGATION (All Users)
         // If the selected "attention" user is on vacation and has a replacement,
@@ -8930,14 +8948,18 @@ async function handleDeleteJobEntry(e) {
         const isIrwinAdmin = (userName === 'Irwin' && userPos === 'accounting');
         if (isIrwinAdmin) return true;
 
-        // Hafiz limited permission
-        if (userName !== 'Hafiz') return false;
+        // Hafiz limited permission (Invoice only, initial stage only)
+        const userNameLower = String(userName || '').trim().toLowerCase();
+        const isHafizUser = userNameLower.includes('hafiz');
+        if (!isHafizUser) return false;
 
         const jobType = String(entry?.for || entry?.jobType || '').trim().toLowerCase();
         if (jobType !== 'invoice') return false;
 
         const creator = String(entry?.createdBy || entry?.enteredBy || entry?.requestor || '').trim().toLowerCase();
-        if (creator !== 'hafiz') return false;
+
+        // If the record has an explicit creator and it is not Hafiz (and not legacy/admin/system), block.
+        if (creator && !creator.includes('hafiz') && !['admin','system'].includes(creator)) return false;
 
         // Only allow deleting duplicates that are still in the initial stage
         const remarks = String(entry?.remarks || '').trim().toLowerCase();
@@ -17562,14 +17584,23 @@ if (saveManualPOBtn) {
             let canShowDelete = false;
             if (userName === 'Irwin' && userPositionLower === 'accounting') {
                 canShowDelete = true;
-            } else if (userName === 'Hafiz') {
-                const jobType = String(entryData.for || entryData.jobType || '').trim().toLowerCase();
-                const creator = String(entryData.createdBy || entryData.enteredBy || entryData.requestor || '').trim().toLowerCase();
-                const remarks = String(entryData.remarks || '').trim().toLowerCase();
-                const allowedRemarks = ['new entry', 'pending', ''];
-                const hasResponded = !!entryData.dateResponded;
-                if (jobType === 'invoice' && creator === 'hafiz' && allowedRemarks.includes(remarks) && !hasResponded) {
-                    canShowDelete = true;
+            } else {
+                const userNameLower = String(userName || '').trim().toLowerCase();
+                const isHafizUser = userNameLower.includes('hafiz');
+                if (isHafizUser) {
+                    const jobType = String(entryData.for || entryData.jobType || '').trim().toLowerCase();
+                    const creator = String(entryData.createdBy || entryData.enteredBy || entryData.requestor || '').trim().toLowerCase();
+                    const remarks = String(entryData.remarks || '').trim().toLowerCase();
+                    const allowedRemarks = ['new entry', 'pending', ''];
+                    const hasResponded = !!entryData.dateResponded;
+
+                    // Allow Hafiz to delete ONLY Invoice job entries in the initial stage.
+                    // Creator may be blank/"admin" in some legacy records, so we accept those too
+                    // but still require the entry to be an Invoice + New Entry + not responded.
+                    const creatorOk = (!creator) || creator.includes('hafiz') || ['admin','system'].includes(creator);
+                    if (jobType === 'invoice' && creatorOk && allowedRemarks.includes(remarks) && !hasResponded) {
+                        canShowDelete = true;
+                    }
                 }
             }
 

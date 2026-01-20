@@ -10,6 +10,9 @@ let lastTypedProductID = "";
 let currentCategoryFilter = null;
 let editingItemKey = null; // NEW: explicit modal state (prevents stuck edit mode)
 
+// "Notepad" / Required Materials list (local-only, safe, non-destructive)
+let msRequiredList = [];
+
 // Constants
 const STOCK_CACHE_KEY = "cached_MATERIAL_STOCK";
 const STOCK_CACHE_DURATION = 24 * 60 * 60 * 1000;
@@ -753,29 +756,37 @@ function renderMaterialStockTable(data) {
         let actionButtons = '';
         let firstColContent = `<button class="ms-expand-btn" onclick="toggleStockDetail('${uniqueId}', this)">+</button>`;
 
-if(isEditor) {
-    // Super Admin (Irwin) AND Irwin's active Vacation Delegate can edit materials.
-    // Delete remains Irwin-only (button + backend guard).
-    if (isIrwin || isVacationDelegate) {
-        actionButtons += `<button type="button" class="secondary-btn ms-edit-stock-btn" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem; background-color: #00748C; color: white; margin-right: 5px;" title="Edit Details & Add Stock"><i class="fa-solid fa-pen-to-square"></i> Edit</button>`;
-        // Removed redundant green "+" (Add Stock) action button; stock adjustments are handled via Edit.
+        // Required Materials (Notepad) - always available (local-only; does not modify stock)
+        const _pid = item.productID || item.productId || '';
+        const _pname = item.productName || '';
+        const addToRequiredBtn = `<button type="button" class="secondary-btn ms-add-to-required-btn" data-productid="${encodeURIComponent(String(_pid))}" data-productname="${encodeURIComponent(String(_pname))}" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem; background-color: #0d6efd; color: white; margin-right: 5px;" title="Add to Required List"><i class="fa-solid fa-cart-plus"></i> Add</button>`;
 
-        if (isIrwin) {
-            actionButtons += `<button type="button" class="delete-btn ms-delete-btn" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem;" title="Delete Item"><i class="fa-solid fa-trash"></i></button>`;
-            firstColContent = `
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <input type="checkbox" class="ms-row-checkbox" data-key="${item.key}" data-name="${item.productName}">
-                    <button class="ms-expand-btn" onclick="toggleStockDetail('${uniqueId}', this)">+</button>
-                </div>
-            `;
+        if (isEditor) {
+            // Super Admin (Irwin) AND Irwin's active Vacation Delegate can edit materials.
+            // Delete remains Irwin-only (button + backend guard).
+            if (isIrwin || isVacationDelegate) {
+                actionButtons += addToRequiredBtn;
+                actionButtons += `<button type="button" class="secondary-btn ms-edit-stock-btn" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem; background-color: #00748C; color: white; margin-right: 5px;" title="Edit Details & Add Stock"><i class="fa-solid fa-pen-to-square"></i> Edit</button>`;
+
+                if (isIrwin) {
+                    actionButtons += `<button type="button" class="delete-btn ms-delete-btn" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem;" title="Delete Item"><i class="fa-solid fa-trash"></i></button>`;
+                    firstColContent = `
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <input type="checkbox" class="ms-row-checkbox" data-key="${item.key}" data-name="${item.productName}">
+                            <button class="ms-expand-btn" onclick="toggleStockDetail('${uniqueId}', this)">+</button>
+                        </div>
+                    `;
+                }
+            } else {
+                // Normal admins (non-Irwin) can add stock only.
+                actionButtons += addToRequiredBtn;
+                actionButtons += `<button type="button" class="secondary-btn ms-add-stock-text-btn" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem; background-color: #28a745; color: white; margin-right: 5px;" title="Add Stock">Add Stock</button>`;
+            }
+        } else {
+            actionButtons = addToRequiredBtn + `<small style="color:#999;">View Only</small>`;
         }
-    } else {
-	    // Normal admins (non-Irwin) can add stock only.
-	    actionButtons += `<button type="button" class="secondary-btn ms-add-stock-text-btn" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem; background-color: #28a745; color: white; margin-right: 5px;" title="Add Stock">Add Stock</button>`;
-    }
-} else {
-    actionButtons = `<small style="color:#999;">View Only</small>`;
-}const familyDisplay = item.family || item.category || 'Unclassified';
+
+        const familyDisplay = item.family || item.category || 'Unclassified';
         const relationshipDisplay = item.relationship || item.details || '';
 
         const parentRow = document.createElement('tr');
@@ -866,9 +877,30 @@ if(isEditor) {
     });
 
 document.querySelectorAll('.ms-delete-btn').forEach(btn => {
+        if (btn.dataset.bound === '1') return;
+        btn.dataset.bound = '1';
         btn.addEventListener('click', function(e) {
             e.preventDefault();
+            e.stopPropagation();
             handleDeleteMaterial(this.getAttribute('data-key'));
+        });
+    });
+
+    // Required Materials list (local-only)
+    document.querySelectorAll('.ms-add-to-required-btn').forEach(btn => {
+        if (btn.dataset.bound === '1') return;
+        btn.dataset.bound = '1';
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const productID = decodeURIComponent(this.getAttribute('data-productid') || '');
+            const productName = decodeURIComponent(this.getAttribute('data-productname') || '');
+            const key = this.getAttribute('data-key');
+
+            const item = allMaterialStockData.find(i => i.key === key) || { key, productID, productName };
+            msAddToRequiredList(item);
+            // Quick feedback: update the Required List button count
+            msUpdateRequiredListButton();
         });
     });
 }
@@ -1697,10 +1729,312 @@ function downloadFixedStockCSV() {
 }
 
 // ==========================================================================
+// REQUIRED MATERIALS LIST (Notepad / Grocery List)
+// - Local-only (stored in browser localStorage)
+// - Safe: does NOT modify any stock or transfer logic
+// ==========================================================================
+const MS_REQUIRED_LIST_LOGO_URL = "https://firebasestorage.googleapis.com/v0/b/invoiceentry-b15a8.firebasestorage.app/o/Files%2Fiba_logo.jpg?alt=media&token=d7376281-75e0-4f8b-b9c5-9911e4522f68";
+
+function msRequiredListStorageKey() {
+    let name = 'UnknownUser';
+    try {
+        name = (window.currentApprover && window.currentApprover.Name) ? window.currentApprover.Name : name;
+        name = (window.currentUser && (window.currentUser.username || window.currentUser.Name)) ? (window.currentUser.username || window.currentUser.Name) : name;
+    } catch (_) { /* ignore */ }
+    const safe = String(name || 'UnknownUser').trim().replace(/[.#$\[\]\/\\]/g, '_').replace(/\s+/g, '_');
+    return `ms_required_list:${safe || 'UnknownUser'}`;
+}
+
+function msLoadRequiredList() {
+    try {
+        const raw = localStorage.getItem(msRequiredListStorageKey());
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+        return [];
+    }
+}
+
+function msSaveRequiredList() {
+    try {
+        localStorage.setItem(msRequiredListStorageKey(), JSON.stringify(msRequiredList || []));
+    } catch (_) { /* ignore */ }
+}
+
+function msUpdateRequiredListButton() {
+    const btn = document.getElementById('ms-open-requestlist-btn');
+    if (!btn) return;
+    const count = Array.isArray(msRequiredList) ? msRequiredList.length : 0;
+    btn.innerHTML = `<i class="fa-solid fa-clipboard-list"></i> Required List${count ? ` (${count})` : ''}`;
+}
+
+function msRenderRequiredListTable() {
+    const tbody = document.getElementById('ms-requestlist-body');
+    if (!tbody) return;
+
+    if (!Array.isArray(msRequiredList) || msRequiredList.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 24px; color:#777;">No items added yet.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = msRequiredList.map(row => {
+        const pid = row.productID || '';
+        const name = row.productName || '';
+        const qty = (row.qty == null || row.qty === '') ? 1 : row.qty;
+
+        return `
+            <tr style="border-bottom:1px solid #eee;">
+                <td style="padding:10px; font-family:monospace; font-weight:bold; color:#00748C;">${pid}</td>
+                <td style="padding:10px;">
+                    <div style="font-weight:700; color:#222;">${name}</div>
+                    ${row.family ? `<div style="font-size:0.85rem; color:#777;">${row.family}</div>` : ''}
+                </td>
+                <td style="padding:10px; text-align:center;">
+                    <input class="ms-required-qty" data-productid="${encodeURIComponent(String(pid))}" type="number" min="1" value="${qty}" style="width: 90px; text-align:center; padding:6px 8px; border:1px solid #ddd; border-radius: 6px;" />
+                </td>
+                <td style="padding:10px; text-align:center;">
+                    <button type="button" class="delete-btn ms-required-remove" data-productid="${encodeURIComponent(String(pid))}" style="padding: 6px 10px; border-radius: 6px;" title="Remove">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function msAddToRequiredList(item) {
+    if (!item) return;
+    const pid = item.productID || item.productId || '';
+    if (!pid) return;
+
+    if (!Array.isArray(msRequiredList)) msRequiredList = [];
+
+    const existing = msRequiredList.find(r => String(r.productID) === String(pid));
+    if (existing) {
+        const currentQty = parseFloat(existing.qty) || 1;
+        existing.qty = currentQty + 1;
+        // Keep name updated if needed
+        if (!existing.productName && item.productName) existing.productName = item.productName;
+        if (!existing.family && (item.family || item.category)) existing.family = item.family || item.category;
+    } else {
+        msRequiredList.push({
+            productID: pid,
+            productName: item.productName || '',
+            family: item.family || item.category || '',
+            qty: 1
+        });
+    }
+
+    msSaveRequiredList();
+    msUpdateRequiredListButton();
+    // If modal is open, re-render
+    const modal = document.getElementById('ms-requestlist-modal');
+    if (modal && !modal.classList.contains('hidden')) {
+        msRenderRequiredListTable();
+    }
+}
+
+function msRemoveFromRequiredList(productID) {
+    if (!Array.isArray(msRequiredList)) msRequiredList = [];
+    msRequiredList = msRequiredList.filter(r => String(r.productID) !== String(productID));
+    msSaveRequiredList();
+    msUpdateRequiredListButton();
+    msRenderRequiredListTable();
+}
+
+function msClearRequiredList() {
+    if (!confirm('Clear the Required Materials list?')) return;
+    msRequiredList = [];
+    msSaveRequiredList();
+    msUpdateRequiredListButton();
+    msRenderRequiredListTable();
+}
+
+function msOpenRequiredListModal() {
+    const modal = document.getElementById('ms-requestlist-modal');
+    if (!modal) return;
+
+    // Ensure latest from localStorage (in case another tab updated)
+    msRequiredList = msLoadRequiredList();
+    msUpdateRequiredListButton();
+
+    const logo = document.getElementById('ms-requestlist-logo');
+    if (logo && !logo.src) logo.src = MS_REQUIRED_LIST_LOGO_URL;
+    if (logo && logo.src !== MS_REQUIRED_LIST_LOGO_URL) logo.src = MS_REQUIRED_LIST_LOGO_URL;
+
+    const dateEl = document.getElementById('ms-requestlist-date');
+    if (dateEl) dateEl.textContent = new Date().toLocaleString();
+
+    msRenderRequiredListTable();
+    modal.classList.remove('hidden');
+}
+
+function msPrintRequiredList() {
+    if (!Array.isArray(msRequiredList) || msRequiredList.length === 0) {
+        alert('No items to print. Add items first.');
+        return;
+    }
+
+    const rowsHtml = msRequiredList.map((r, idx) => {
+        const pid = r.productID || '';
+        const name = r.productName || '';
+        const qty = (parseFloat(r.qty) || 1);
+        return `
+            <tr>
+                <td>${idx + 1}</td>
+                <td style="font-family:monospace; font-weight:700;">${pid}</td>
+                <td>${name}</td>
+                <td style="text-align:center; font-weight:700;">${qty}</td>
+            </tr>
+        `;
+    }).join('');
+
+    const html = `
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Required Materials to Transfer</title>
+  <style>
+    *{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
+    body{margin:20px;color:#111}
+    .hdr{border-bottom:2px solid #003A5C;padding-bottom:12px;margin-bottom:14px}
+    .hdr-top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+    .brand{display:flex;align-items:center;gap:12px}
+    .brand img{height:54px;width:auto}
+    .brand .t1{font-weight:800;color:#003A5C}
+    .brand .t2{font-weight:800;color:#003A5C;margin-top:2px;font-size:18px}
+    .meta{font-size:12px;color:#555}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{border:1px solid #ddd;padding:8px;font-size:13px}
+    th{background:#003A5C;color:#fff;text-align:left}
+    .foot{margin-top:18px;font-size:12px;color:#555;display:flex;justify-content:space-between}
+    @media print{body{margin:10mm}}
+  </style>
+</head>
+<body>
+  <div class="hdr">
+    <div class="hdr-top">
+      <div class="brand">
+        <img src="${MS_REQUIRED_LIST_LOGO_URL}" alt="IBA" />
+        <div>
+                    <div class="t2">Required Materials to Transfer</div>
+        </div>
+      </div>
+      <div class="meta">Generated: ${new Date().toLocaleString()}</div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:55px;">#</th>
+        <th style="width:160px;">Stock Code</th>
+        <th>Item</th>
+        <th style="width:120px; text-align:center;">Qty Needed</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rowsHtml}
+    </tbody>
+  </table>
+
+  <div class="foot">
+    <span>System Generated</span>
+    <span>Signature: _______________________</span>
+  </div>
+
+  <script>
+    window.onload = function(){
+      try { window.print(); } catch(e) {}
+    };
+  </script>
+</body>
+</html>`;
+
+    const w = window.open('', '_blank');
+    if (!w) {
+        alert('Popup blocked. Please allow popups to print.');
+        return;
+    }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+}
+
+function msInitRequiredListUI() {
+    // Load + badge
+    msRequiredList = msLoadRequiredList();
+    msUpdateRequiredListButton();
+
+    // Wire buttons
+    const openBtn = document.getElementById('ms-open-requestlist-btn');
+    if (openBtn && !openBtn.dataset.bound) {
+        openBtn.dataset.bound = '1';
+        openBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            msOpenRequiredListModal();
+        });
+    }
+
+    const printBtn = document.getElementById('ms-requestlist-print-btn');
+    if (printBtn && !printBtn.dataset.bound) {
+        printBtn.dataset.bound = '1';
+        printBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            msPrintRequiredList();
+        });
+    }
+
+    const clearBtn = document.getElementById('ms-requestlist-clear-btn');
+    if (clearBtn && !clearBtn.dataset.bound) {
+        clearBtn.dataset.bound = '1';
+        clearBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            msClearRequiredList();
+        });
+    }
+
+    // Delegated events for qty changes + remove
+    const tbody = document.getElementById('ms-requestlist-body');
+    if (tbody && !tbody.dataset.bound) {
+        tbody.dataset.bound = '1';
+
+        tbody.addEventListener('input', (e) => {
+            const input = e.target;
+            if (!(input && input.classList && input.classList.contains('ms-required-qty'))) return;
+            const pid = decodeURIComponent(input.getAttribute('data-productid') || '');
+            const v = Math.max(1, parseFloat(input.value) || 1);
+            input.value = String(v);
+            const row = msRequiredList.find(r => String(r.productID) === String(pid));
+            if (row) {
+                row.qty = v;
+                msSaveRequiredList();
+            }
+        });
+
+        tbody.addEventListener('click', (e) => {
+            const btn = e.target.closest('.ms-required-remove');
+            if (!btn) return;
+            e.preventDefault();
+            const pid = decodeURIComponent(btn.getAttribute('data-productid') || '');
+            msRemoveFromRequiredList(pid);
+        });
+    }
+
+    // Ensure modal logo is set once (best effort)
+    const logo = document.getElementById('ms-requestlist-logo');
+    if (logo && !logo.src) logo.src = MS_REQUIRED_LIST_LOGO_URL;
+}
+
+// ==========================================================================
 // 10. EVENTS
 // ==========================================================================
 document.addEventListener('DOMContentLoaded', () => {
     initMaterialStockSystem();
+    // Required Materials list (notepad) - safe, local-only
+    msInitRequiredListUI();
     populateMaterialStock(false); // <--- ENSURE AUTO-LOAD IS ACTIVE
 
         const refreshBtn = document.getElementById('ms-refresh-btn');
