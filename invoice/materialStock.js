@@ -12,6 +12,7 @@ let editingItemKey = null; // NEW: explicit modal state (prevents stuck edit mod
 
 // "Notepad" / Required Materials list (local-only, safe, non-destructive)
 let msRequiredList = [];
+let msRequiredListToSite = ""; // optional destination site note for the required list
 
 // Constants
 const STOCK_CACHE_KEY = "cached_MATERIAL_STOCK";
@@ -1745,15 +1746,70 @@ function msRequiredListStorageKey() {
     return `ms_required_list:${safe || 'UnknownUser'}`;
 }
 
+
 function msLoadRequiredList() {
     try {
         const raw = localStorage.getItem(msRequiredListStorageKey());
         if (!raw) return [];
         const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed : [];
+        if (!Array.isArray(parsed)) return [];
+
+        // Backward compatible normalization:
+        // - Ensure every row has a stable rowId (used for editing/removal)
+        // - Keep legacy rows working (older versions stored only productID)
+        const out = [];
+        parsed.forEach((r, idx) => {
+            if (!r || typeof r !== 'object') return;
+            const obj = Object.assign({}, r);
+
+            // Normalize productID key
+            if (obj.productID == null && obj.productId != null) obj.productID = obj.productId;
+            const pid = String(obj.productID || '').trim();
+
+            // Stable rowId (pid for stock items, generated for manual items)
+            let rowId = obj.rowId || obj.rowID || obj.id;
+            if (!rowId) {
+                rowId = pid ? pid : `manual-${Date.now()}-${idx}`;
+            }
+            obj.rowId = String(rowId);
+
+            // Manual rows: allow blank stock code + blank actual qty
+            if (!pid) {
+                obj.productID = '';
+                obj.isManual = true;
+                if (obj.actualQty == null) obj.actualQty = '';
+            } else {
+                obj.isManual = !!obj.isManual;
+            }
+
+            // Defaults
+            if (obj.qty == null || obj.qty === '') obj.qty = 1;
+            out.push(obj);
+        });
+
+        return out;
     } catch (_) {
         return [];
     }
+}
+
+function msRequiredListToSiteStorageKey() {
+    return `${msRequiredListStorageKey()}:toSite`;
+}
+
+function msLoadRequiredListToSite() {
+    try {
+        const raw = localStorage.getItem(msRequiredListToSiteStorageKey());
+        return (raw == null) ? "" : String(raw);
+    } catch (_) {
+        return "";
+    }
+}
+
+function msSaveRequiredListToSite() {
+    try {
+        localStorage.setItem(msRequiredListToSiteStorageKey(), String(msRequiredListToSite || ""));
+    } catch (_) { /* ignore */ }
 }
 
 function msSaveRequiredList() {
@@ -1769,32 +1825,67 @@ function msUpdateRequiredListButton() {
     btn.innerHTML = `<i class="fa-solid fa-clipboard-list"></i> Required List${count ? ` (${count})` : ''}`;
 }
 
+
 function msRenderRequiredListTable() {
     const tbody = document.getElementById('ms-requestlist-body');
     if (!tbody) return;
 
     if (!Array.isArray(msRequiredList) || msRequiredList.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 24px; color:#777;">No items added yet.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 24px; color:#777;">No items added yet.</td></tr>';
         return;
     }
 
-    tbody.innerHTML = msRequiredList.map(row => {
-        const pid = row.productID || '';
+    const esc = (s) => String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+    tbody.innerHTML = msRequiredList.map((row) => {
+        const pid = String(row.productID || '').trim();
+        const rowId = String(row.rowId || pid || '').trim();
         const name = row.productName || '';
         const qty = (row.qty == null || row.qty === '') ? 1 : row.qty;
+        const isManual = !!row.isManual || !pid;
+
+        // For manual items, current qty is unknown (empty)
+        const actualQty = isManual ? '' : ((row.actualQty == null || row.actualQty === '') ? 0 : row.actualQty);
+
+        if (isManual) {
+            return `
+                <tr style="border-bottom:1px solid #eee;">
+                    <td style="padding:10px; font-family:monospace; font-weight:bold; color:#00748C;"></td>
+                    <td style="padding:10px;">
+                        <input class="ms-required-item" data-rowid="${encodeURIComponent(rowId)}" type="text" value="${esc(name)}" placeholder="Enter item name" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius: 6px;" />
+                        <div style="font-size:0.8rem; color:#999; margin-top:4px;">Manual item (not in stock records)</div>
+                    </td>
+                    <td style="padding:10px; text-align:center; font-weight:700;"></td>
+                    <td style="padding:10px; text-align:center;">
+                        <input class="ms-required-qty" data-rowid="${encodeURIComponent(rowId)}" type="number" min="1" value="${qty}" style="width: 90px; text-align:center; padding:6px 8px; border:1px solid #ddd; border-radius: 6px;" />
+                    </td>
+                    <td style="padding:10px; text-align:center;">
+                        <button type="button" class="delete-btn ms-required-remove" data-rowid="${encodeURIComponent(rowId)}" style="padding: 6px 10px; border-radius: 6px;" title="Remove">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }
 
         return `
             <tr style="border-bottom:1px solid #eee;">
-                <td style="padding:10px; font-family:monospace; font-weight:bold; color:#00748C;">${pid}</td>
+                <td style="padding:10px; font-family:monospace; font-weight:bold; color:#00748C;">${esc(pid)}</td>
                 <td style="padding:10px;">
-                    <div style="font-weight:700; color:#222;">${name}</div>
-                    ${row.family ? `<div style="font-size:0.85rem; color:#777;">${row.family}</div>` : ''}
+                    <div style="font-weight:700; color:#222;">${esc(name)}</div>
+                    ${row.family ? `<div style="font-size:0.85rem; color:#777;">${esc(row.family)}</div>` : ''}
+                </td>
+                <td style="padding:10px; text-align:center; font-weight:700;">${esc(actualQty)}</td>
+                <td style="padding:10px; text-align:center;">
+                    <input class="ms-required-qty" data-rowid="${encodeURIComponent(rowId)}" type="number" min="1" value="${qty}" style="width: 90px; text-align:center; padding:6px 8px; border:1px solid #ddd; border-radius: 6px;" />
                 </td>
                 <td style="padding:10px; text-align:center;">
-                    <input class="ms-required-qty" data-productid="${encodeURIComponent(String(pid))}" type="number" min="1" value="${qty}" style="width: 90px; text-align:center; padding:6px 8px; border:1px solid #ddd; border-radius: 6px;" />
-                </td>
-                <td style="padding:10px; text-align:center;">
-                    <button type="button" class="delete-btn ms-required-remove" data-productid="${encodeURIComponent(String(pid))}" style="padding: 6px 10px; border-radius: 6px;" title="Remove">
+                    <button type="button" class="delete-btn ms-required-remove" data-rowid="${encodeURIComponent(rowId)}" style="padding: 6px 10px; border-radius: 6px;" title="Remove">
                         <i class="fa-solid fa-trash"></i>
                     </button>
                 </td>
@@ -1803,41 +1894,87 @@ function msRenderRequiredListTable() {
     }).join('');
 }
 
+
 function msAddToRequiredList(item) {
     if (!item) return;
-    const pid = item.productID || item.productId || '';
+    const pid = String(item.productID || item.productId || '').trim();
     if (!pid) return;
 
     if (!Array.isArray(msRequiredList)) msRequiredList = [];
 
-    const existing = msRequiredList.find(r => String(r.productID) === String(pid));
+    // Normalize existing rows (rowId)
+    msRequiredList = (msRequiredList || []).map((r, idx) => {
+        if (!r || typeof r !== 'object') return r;
+        if (r.productID == null && r.productId != null) r.productID = r.productId;
+        const _pid = String(r.productID || '').trim();
+        if (!r.rowId) r.rowId = _pid ? _pid : `manual-${Date.now()}-${idx}`;
+        r.isManual = !!r.isManual || !_pid;
+        return r;
+    });
+
+    const existing = msRequiredList.find(r => String(r.productID || '').trim() === pid);
     if (existing) {
         const currentQty = parseFloat(existing.qty) || 1;
         existing.qty = currentQty + 1;
-        // Keep name updated if needed
         if (!existing.productName && item.productName) existing.productName = item.productName;
         if (!existing.family && (item.family || item.category)) existing.family = item.family || item.category;
+        const latestActual = parseFloat(item.stockQty ?? item.balanceQty ?? existing.actualQty ?? 0);
+        existing.actualQty = Number.isFinite(latestActual) ? latestActual : (existing.actualQty ?? 0);
+        existing.rowId = existing.rowId || pid;
+        existing.isManual = false;
     } else {
         msRequiredList.push({
+            rowId: pid,
             productID: pid,
             productName: item.productName || '',
             family: item.family || item.category || '',
-            qty: 1
+            actualQty: (parseFloat(item.stockQty ?? item.balanceQty ?? 0) || 0),
+            qty: 1,
+            isManual: false
         });
     }
 
     msSaveRequiredList();
     msUpdateRequiredListButton();
-    // If modal is open, re-render
+
     const modal = document.getElementById('ms-requestlist-modal');
     if (modal && !modal.classList.contains('hidden')) {
         msRenderRequiredListTable();
     }
 }
 
-function msRemoveFromRequiredList(productID) {
+function msAddManualRequiredItem() {
     if (!Array.isArray(msRequiredList)) msRequiredList = [];
-    msRequiredList = msRequiredList.filter(r => String(r.productID) !== String(productID));
+
+    const rowId = `manual-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    msRequiredList.push({
+        rowId,
+        productID: '',
+        productName: '',
+        family: '',
+        actualQty: '',
+        qty: 1,
+        isManual: true
+    });
+
+    msSaveRequiredList();
+    msUpdateRequiredListButton();
+
+    const modal = document.getElementById('ms-requestlist-modal');
+    if (modal && !modal.classList.contains('hidden')) {
+        msRenderRequiredListTable();
+        // Focus the newest manual row item input
+        setTimeout(() => {
+            const inputs = modal.querySelectorAll('input.ms-required-item');
+            if (inputs && inputs.length) inputs[inputs.length - 1].focus();
+        }, 0);
+    }
+}
+
+
+function msRemoveFromRequiredList(rowId) {
+    if (!Array.isArray(msRequiredList)) msRequiredList = [];
+    msRequiredList = msRequiredList.filter(r => String(r.rowId || '') !== String(rowId));
     msSaveRequiredList();
     msUpdateRequiredListButton();
     msRenderRequiredListTable();
@@ -1846,7 +1983,9 @@ function msRemoveFromRequiredList(productID) {
 function msClearRequiredList() {
     if (!confirm('Clear the Required Materials list?')) return;
     msRequiredList = [];
+    msRequiredListToSite = "";
     msSaveRequiredList();
+    msSaveRequiredListToSite();
     msUpdateRequiredListButton();
     msRenderRequiredListTable();
 }
@@ -1857,6 +1996,31 @@ function msOpenRequiredListModal() {
 
     // Ensure latest from localStorage (in case another tab updated)
     msRequiredList = msLoadRequiredList();
+    msRequiredListToSite = msLoadRequiredListToSite();
+
+    // Best-effort refresh of "Actual Qty" from the latest in-memory stock snapshot.
+    // (Does NOT fetch from Firebase; keeps this feature safe and non-destructive.)
+    try {
+        if (Array.isArray(msRequiredList) && msRequiredList.length && Array.isArray(allMaterialStockData) && allMaterialStockData.length) {
+            const byPid = new Map();
+            allMaterialStockData.forEach(i => {
+                const pid = i.productID || i.productId || '';
+                if (!pid) return;
+                byPid.set(String(pid), (parseFloat(i.stockQty ?? i.balanceQty ?? 0) || 0));
+            });
+            let changed = false;
+            msRequiredList.forEach(r => {
+                const pid = String(r.productID || '');
+                if (!pid || !byPid.has(pid)) return;
+                const latest = byPid.get(pid);
+                if (r.actualQty !== latest) {
+                    r.actualQty = latest;
+                    changed = true;
+                }
+            });
+            if (changed) msSaveRequiredList();
+        }
+    } catch (_) { /* ignore */ }
     msUpdateRequiredListButton();
 
     const logo = document.getElementById('ms-requestlist-logo');
@@ -1866,9 +2030,13 @@ function msOpenRequiredListModal() {
     const dateEl = document.getElementById('ms-requestlist-date');
     if (dateEl) dateEl.textContent = new Date().toLocaleString();
 
+    const toSiteInput = document.getElementById('ms-requestlist-to-site');
+    if (toSiteInput) toSiteInput.value = String(msRequiredListToSite || "");
+
     msRenderRequiredListTable();
     modal.classList.remove('hidden');
 }
+
 
 function msPrintRequiredList() {
     if (!Array.isArray(msRequiredList) || msRequiredList.length === 0) {
@@ -1876,16 +2044,60 @@ function msPrintRequiredList() {
         return;
     }
 
+    // Best-effort refresh of "Actual Qty" from the latest in-memory stock snapshot
+    // before printing (no extra fetching).
+    try {
+        if (Array.isArray(allMaterialStockData) && allMaterialStockData.length) {
+            const byPid = new Map();
+            allMaterialStockData.forEach(i => {
+                const pid = i.productID || i.productId || '';
+                if (!pid) return;
+                byPid.set(String(pid), (parseFloat(i.stockQty ?? i.balanceQty ?? 0) || 0));
+            });
+            let changed = false;
+            msRequiredList.forEach(r => {
+                const pid = String(r.productID || '').trim();
+                if (!pid || !byPid.has(pid)) return;
+                const latest = byPid.get(pid);
+                if (r.actualQty !== latest) {
+                    r.actualQty = latest;
+                    changed = true;
+                }
+            });
+            if (changed) msSaveRequiredList();
+        }
+    } catch (_) { /* ignore */ }
+
+    // Pull latest "To site" value from UI (if available)
+    const toSiteInput = document.getElementById('ms-requestlist-to-site');
+    if (toSiteInput) {
+        msRequiredListToSite = String(toSiteInput.value || "").trim();
+        msSaveRequiredListToSite();
+    }
+
+    const escapeHtml = (s) => String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+    const toSiteText = (msRequiredListToSite || '').trim();
+
     const rowsHtml = msRequiredList.map((r, idx) => {
-        const pid = r.productID || '';
+        const pid = String(r.productID || '').trim();
         const name = r.productName || '';
-        const qty = (parseFloat(r.qty) || 1);
+        const isManual = !!r.isManual || !pid;
+        const actual = isManual ? '' : String((parseFloat(r.actualQty) || 0));
+        const qty = String((parseFloat(r.qty) || 1));
+
         return `
             <tr>
                 <td>${idx + 1}</td>
-                <td style="font-family:monospace; font-weight:700;">${pid}</td>
-                <td>${name}</td>
-                <td style="text-align:center; font-weight:700;">${qty}</td>
+                <td style="font-family:monospace; font-weight:700;">${escapeHtml(pid)}</td>
+                <td>${escapeHtml(name)}</td>
+                <td style="text-align:center; font-weight:700;">${escapeHtml(actual)}</td>
+                <td style="text-align:center; font-weight:700;">${escapeHtml(qty)}</td>
             </tr>
         `;
     }).join('');
@@ -1900,12 +2112,10 @@ function msPrintRequiredList() {
     *{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
     body{margin:20px;color:#111}
     .hdr{border-bottom:2px solid #003A5C;padding-bottom:12px;margin-bottom:14px}
-    .hdr-top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
-    .brand{display:flex;align-items:center;gap:12px}
-    .brand img{height:54px;width:auto}
-    .brand .t1{font-weight:800;color:#003A5C}
-    .brand .t2{font-weight:800;color:#003A5C;margin-top:2px;font-size:18px}
-    .meta{font-size:12px;color:#555}
+    .logo{display:flex;justify-content:center}
+    .logo img{height:54px;width:auto;display:block}
+    .title{margin-top:8px;text-align:center;font-weight:900;color:#003A5C;font-size:20px}
+    .meta{margin-top:6px;font-size:12px;color:#555;text-align:right}
     table{width:100%;border-collapse:collapse;margin-top:10px}
     th,td{border:1px solid #ddd;padding:8px;font-size:13px}
     th{background:#003A5C;color:#fff;text-align:left}
@@ -1915,15 +2125,14 @@ function msPrintRequiredList() {
 </head>
 <body>
   <div class="hdr">
-    <div class="hdr-top">
-      <div class="brand">
-        <img src="${MS_REQUIRED_LIST_LOGO_URL}" alt="IBA" />
-        <div>
-                    <div class="t2">Required Materials to Transfer</div>
-        </div>
-      </div>
-      <div class="meta">Generated: ${new Date().toLocaleString()}</div>
-    </div>
+    <div class="logo"><img src="${MS_REQUIRED_LIST_LOGO_URL}" alt="IBA" /></div>
+    <div class="title">Required Materials to Transfer</div>
+    <div class="meta">Generated: ${new Date().toLocaleString()}</div>
+  </div>
+
+  <div class="meta" style="margin-top:6px; font-size:13px; text-align:left;">
+    <span style="font-weight:800; color:#003A5C;">To site:</span>
+    <span style="font-weight:800;">${escapeHtml(toSiteText || '________')}</span>
   </div>
 
   <table>
@@ -1932,6 +2141,7 @@ function msPrintRequiredList() {
         <th style="width:55px;">#</th>
         <th style="width:160px;">Stock Code</th>
         <th>Item</th>
+        <th style="width:120px; text-align:center;">Actual Qty</th>
         <th style="width:120px; text-align:center;">Qty Needed</th>
       </tr>
     </thead>
@@ -1966,6 +2176,7 @@ function msPrintRequiredList() {
 function msInitRequiredListUI() {
     // Load + badge
     msRequiredList = msLoadRequiredList();
+    msRequiredListToSite = msLoadRequiredListToSite();
     msUpdateRequiredListButton();
 
     // Wire buttons
@@ -1995,6 +2206,17 @@ function msInitRequiredListUI() {
             msClearRequiredList();
         });
     }
+    const addManualBtn = document.getElementById('ms-requestlist-add-manual-btn');
+    if (addManualBtn && !addManualBtn.dataset.bound) {
+        addManualBtn.dataset.bound = '1';
+        addManualBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            msRequiredList = msLoadRequiredList();
+            msAddManualRequiredItem();
+        });
+    }
+
+
 
     // Delegated events for qty changes + remove
     const tbody = document.getElementById('ms-requestlist-body');
@@ -2003,11 +2225,23 @@ function msInitRequiredListUI() {
 
         tbody.addEventListener('input', (e) => {
             const input = e.target;
+
+            // Manual item name edits
+            if (input && input.classList && input.classList.contains('ms-required-item')) {
+                const rid = decodeURIComponent(input.getAttribute('data-rowid') || '');
+                const row = msRequiredList.find(r => String(r.rowId || '') === String(rid));
+                if (row) {
+                    row.productName = String(input.value || '').trim();
+                    msSaveRequiredList();
+                }
+                return;
+            }
+
             if (!(input && input.classList && input.classList.contains('ms-required-qty'))) return;
-            const pid = decodeURIComponent(input.getAttribute('data-productid') || '');
+            const rid = decodeURIComponent(input.getAttribute('data-rowid') || '');
             const v = Math.max(1, parseFloat(input.value) || 1);
             input.value = String(v);
-            const row = msRequiredList.find(r => String(r.productID) === String(pid));
+            const row = msRequiredList.find(r => String(r.rowId || '') === String(rid));
             if (row) {
                 row.qty = v;
                 msSaveRequiredList();
@@ -2018,8 +2252,19 @@ function msInitRequiredListUI() {
             const btn = e.target.closest('.ms-required-remove');
             if (!btn) return;
             e.preventDefault();
-            const pid = decodeURIComponent(btn.getAttribute('data-productid') || '');
-            msRemoveFromRequiredList(pid);
+            const rid = decodeURIComponent(btn.getAttribute('data-rowid') || '');
+            msRemoveFromRequiredList(rid);
+        });
+    }
+
+    // To site input (persist per user/device)
+    const toSiteInput = document.getElementById('ms-requestlist-to-site');
+    if (toSiteInput && !toSiteInput.dataset.bound) {
+        toSiteInput.dataset.bound = '1';
+        toSiteInput.value = String(msRequiredListToSite || "");
+        toSiteInput.addEventListener('input', () => {
+            msRequiredListToSite = String(toSiteInput.value || "");
+            msSaveRequiredListToSite();
         });
     }
 
