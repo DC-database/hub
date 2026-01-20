@@ -2112,7 +2112,8 @@ function msPrintRequiredList() {
     *{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
     body{margin:20px;color:#111}
     .hdr{border-bottom:2px solid #003A5C;padding-bottom:12px;margin-bottom:14px}
-    .logo{display:flex;justify-content:center}
+    /* Logo should be left-aligned (title remains centered on its own line) */
+    .logo{display:flex;justify-content:flex-start}
     .logo img{height:54px;width:auto;display:block}
     .title{margin-top:8px;text-align:center;font-weight:900;color:#003A5C;font-size:20px}
     .meta{margin-top:6px;font-size:12px;color:#555;text-align:right}
