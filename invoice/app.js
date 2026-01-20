@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.3.28";
+const APP_VERSION = "6.3.30";
 
 // ======================================================================
 // NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)

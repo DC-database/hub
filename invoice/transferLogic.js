@@ -500,6 +500,9 @@ window.handleTransferAction = async (status) => {
 // ==========================================================================
 async function commitUpdate(db, key, updates, note) {
     const historyEntry = { action: (updates.remarks || updates.status), by: (typeof currentApprover !== 'undefined' ? currentApprover.Name : 'Unknown'), timestamp: Date.now(), note: note || '' };
+    // Track last activity so other modules (e.g., Material Stock cache) can detect fresh changes
+    // even when the original `timestamp` (created-at) remains unchanged.
+    updates.lastUpdated = firebase.database.ServerValue.TIMESTAMP;
     await db.ref(`transfer_entries/${key}`).update(updates);
     await db.ref(`transfer_entries/${key}/history`).push(historyEntry);
     document.getElementById('transfer-approval-modal').classList.add('hidden');
@@ -510,17 +513,27 @@ async function commitUpdate(db, key, updates, note) {
 // *** RENAMED FUNCTION TO AVOID CONFLICT WITH APP.JS ***
 // This uses Firebase Transactions to ensure 100% accurate math even with concurrent updates.
 async function runStockTransaction(id, qty, action, siteName) {
-    if (!id || !qty || !siteName) { console.error("Missing params for stock update"); return; }
-    
-    // 1. Sanitize Site Name exactly as stored in DB (retain spaces, remove illegal chars only)
-    // Firebase keys cannot contain . # $ [ ]
-    const safeSiteName = String(siteName).trim().replace(/[.#$[\]]/g, ""); 
+    if (id === undefined || id === null || qty === undefined || qty === null || !siteName) {
+        console.error("Missing params for stock update", { id, qty, siteName });
+        return;
+    }
+
+    // Normalize inputs to avoid mismatches (e.g., trailing spaces in product IDs)
+    const cleanId = String(id).trim();
+    const amount = parseFloat(qty);
+    if (!cleanId || !isFinite(amount) || amount <= 0) {
+        console.error("Invalid params for stock update", { cleanId, qty });
+        return;
+    }
+
+    // Sanitize Site Name for Firebase keys (cannot contain . # $ [ ] /)
+    const safeSiteName = String(siteName).trim().replace(/[.#$[\]\/]/g, "");
     const database = (typeof db !== 'undefined') ? db : firebase.database();
     
     try {
         // 2. Find the Item Key
-        let snapshot = await database.ref('material_stock').orderByChild('productID').equalTo(id).once('value');
-        if (!snapshot.exists()) snapshot = await database.ref('material_stock').orderByChild('productId').equalTo(id).once('value');
+        let snapshot = await database.ref('material_stock').orderByChild('productID').equalTo(cleanId).once('value');
+        if (!snapshot.exists()) snapshot = await database.ref('material_stock').orderByChild('productId').equalTo(cleanId).once('value');
         
         if (snapshot.exists()) {
             const key = Object.keys(snapshot.val())[0];
@@ -531,9 +544,8 @@ async function runStockTransaction(id, qty, action, siteName) {
                 if (currentData) {
                     if (!currentData.sites) currentData.sites = {};
                     
-                    // Note: We use the exact string match for the key
-                    let currentVal = parseFloat(currentData.sites[siteName] || 0);
-                    const amount = parseFloat(qty);
+                    // Use the sanitized site key consistently
+                    let currentVal = parseFloat(currentData.sites[safeSiteName] || 0);
 
                     if (action === 'Deduct') {
                         currentVal -= amount;
@@ -542,8 +554,8 @@ async function runStockTransaction(id, qty, action, siteName) {
                         currentVal += amount;
                     }
 
-                    // Save back using the original siteName to match other systems
-                    currentData.sites[siteName] = currentVal;
+                    // Save back using the sanitized site key
+                    currentData.sites[safeSiteName] = currentVal;
 
                     // Recalc Global Total
                     let newTotal = 0;
@@ -553,10 +565,10 @@ async function runStockTransaction(id, qty, action, siteName) {
                 }
                 return currentData;
             });
-            console.log(`Stock ${action}ed: ${qty} at ${siteName}`);
+            console.log(`Stock ${action}ed: ${amount} at ${safeSiteName}`);
         } else {
-            console.warn(`Stock Item ${id} not found. Update skipped.`);
-            alert(`Warning: Item ${id} not found in stock. Balance not updated.`);
+            console.warn(`Stock Item ${cleanId} not found. Update skipped.`);
+            alert(`Warning: Item ${cleanId} not found in stock. Balance not updated.`);
         }
     } catch (error) { console.error("Stock update failed:", error); }
 }
@@ -715,7 +727,8 @@ async function saveTransferEntry(e) {
                 remarks: startRemarks, 
                 attention: startAttention,
                 
-                timestamp: firebase.database.ServerValue.TIMESTAMP, 
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                lastUpdated: firebase.database.ServerValue.TIMESTAMP,
                 enteredBy: currentUser,
                 history: [{ action: "Created", by: currentUser, timestamp: Date.now(), status: startStatus, remarks: startRemarks }]
             };

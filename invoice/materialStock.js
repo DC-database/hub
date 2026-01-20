@@ -380,6 +380,10 @@ async function populateMaterialStock(forceRefresh = false) {
 
     if (!tableBody) return;
 
+    // NOTE: We cache the stock list for speed, but stock can change due to
+    // Transfer/Restock/Usage/Return actions happening in other sessions.
+    // To avoid showing outdated totals (e.g., Movement History updated but Stock Breakdown still old),
+    // we treat the cache as stale when there are newer transfer entries than the cache timestamp.
     if (!forceRefresh) {
         const cached = localStorage.getItem(STOCK_CACHE_KEY);
         if (cached) {
@@ -389,7 +393,42 @@ async function populateMaterialStock(forceRefresh = false) {
                 if (age < STOCK_CACHE_DURATION) {
                     console.log("Loading Stock from Cache...");
                     allMaterialStockData = parsed.data || [];
+
+                    // Always refresh transfers (movement history)
                     await fetchTransfersOnly();
+
+                    // If any transfer entry is newer than the cache timestamp, refresh stock from DB.
+                    // This keeps the UI accurate without requiring a manual page refresh.
+                    // Transfer entries keep the original `timestamp` (created-at). When a transfer is
+                    // approved/received, we update `lastUpdated`. Use the latest activity time so the
+                    // stock cache refreshes correctly after completions.
+                    let latestActivityTs = 0;
+                    if (Array.isArray(allTransferData) && allTransferData.length) {
+                        for (const t of allTransferData) {
+                            const ts = parseFloat(t.lastUpdated || t.timestamp || 0) || 0;
+                            if (ts > latestActivityTs) latestActivityTs = ts;
+                        }
+                    }
+
+                    if (latestActivityTs && parsed.timestamp && latestActivityTs > parsed.timestamp) {
+                        console.log("Stock cache is stale (newer transfers detected). Refreshing stock from DB...");
+                        const database = (typeof db !== 'undefined') ? db : firebase.database();
+                        const stockSnap = await database.ref('material_stock').once('value');
+                        const stockData = stockSnap.val();
+                        allMaterialStockData = [];
+                        if (stockData) {
+                            Object.keys(stockData).forEach(key => {
+                                allMaterialStockData.push({ key: key, ...stockData[key] });
+                            });
+                        }
+
+                        // Update cache timestamp after refresh
+                        localStorage.setItem(STOCK_CACHE_KEY, JSON.stringify({
+                            data: allMaterialStockData,
+                            timestamp: Date.now()
+                        }));
+                    }
+
                     renderCategoryTabs();
                     return;
                 }

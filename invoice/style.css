@@ -4311,11 +4311,13 @@ body.is-ceo .desktop-only.col-group {
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: flex-start;
+        /* Center the card when there is space, but still allow scroll on smaller screens */
+        justify-content: center;
         /* Use dynamic viewport units on mobile to avoid address-bar cropping */
         min-height: 100vh;
         min-height: 100dvh;
         height: 100vh;
+        height: 100dvh;
         width: 100vw;
         background: linear-gradient(135deg, #003A5C 0%, #00748C 100%);
         /* Reduce padding so content fits on smaller screens */
@@ -4334,10 +4336,11 @@ body.is-ceo .desktop-only.col-group {
     /* Mobile Login Logo */
 .iba-logo-anim {
     font-family: "Bookman Old Style", serif; /* CHANGED */
-    font-size: 3.2rem;
+    /* Slightly smaller so it fits comfortably on most phones */
+    font-size: 2.8rem;
     font-weight: 900;
     color: white;
-    margin-bottom: 28px;
+    margin-bottom: 18px;
     letter-spacing: 4.5px;
     display: flex;
     gap: 10px;
@@ -4359,12 +4362,14 @@ body.is-ceo .desktop-only.col-group {
     .mobile-login-form-wrapper {
         width: 100%;
         max-width: 420px;
+        /* Prevent edge-to-edge on very small devices */
+        box-sizing: border-box;
         margin: 0 auto;
         text-align: center;
 
         /* Glass card (mobile login) */
-        padding: 26px 22px;
-        border-radius: 26px;
+        padding: 22px 18px;
+        border-radius: 22px;
         background: linear-gradient(135deg, rgba(255,255,255,0.16), rgba(255,255,255,0.06));
         border: 1px solid rgba(255,255,255,0.28);
         backdrop-filter: blur(16px) saturate(140%);
@@ -4374,7 +4379,7 @@ body.is-ceo .desktop-only.col-group {
 
     .input-icon-wrap {
         position: relative;
-        margin-bottom: 20px;
+        margin-bottom: 16px;
     }
 
     .input-icon-wrap i {
@@ -4387,20 +4392,20 @@ body.is-ceo .desktop-only.col-group {
 
     .mobile-login-form-wrapper input {
         width: 100%;
-        padding: 15px 15px 15px 45px; /* Space for icon */
+        padding: 13px 14px 13px 44px; /* Space for icon */
         border-radius: 30px;
         border: none;
         box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        font-size: 1.1rem;
+        font-size: 1.02rem;
     }
 
     .mobile-login-btn {
         width: 100%;
-        padding: 15px;
+        padding: 13px;
         border-radius: 30px;
         background: #C3502F; /* Terracotta */
         color: white;
-        font-size: 1.2rem;
+        font-size: 1.1rem;
         font-weight: bold;
         border: none;
         box-shadow: 0 4px 15px rgba(0,0,0,0.3);
@@ -4414,6 +4419,17 @@ body.is-ceo .desktop-only.col-group {
         text-decoration: none;
         font-size: 0.9rem;
     }
+}
+
+
+/* Extra-tight tuning for narrow phones */
+@media (max-width: 420px) {
+    .mobile-login-container {
+        padding: calc(14px + env(safe-area-inset-top)) 12px calc(18px + env(safe-area-inset-bottom));
+    }
+    .iba-logo-anim { font-size: 2.5rem; margin-bottom: 14px; letter-spacing: 3.8px; }
+    .mobile-login-form-wrapper { padding: 20px 16px; border-radius: 20px; }
+    .input-icon-wrap { margin-bottom: 14px; }
 }
 
 
