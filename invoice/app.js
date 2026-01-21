@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.3.36";
+const APP_VERSION = "6.3.37";
 
 // ======================================================================
 // NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)
@@ -12453,8 +12453,20 @@ async function handleAddPOToBatch() {
 
     try {
         await ensureInvoiceDataFetched();
-        const poData = allPOData[poNumber];
-        if (!poData) {
+
+        // Resolve PO details using the same smart resolver used by Invoice Entry/Records
+        // (POVALUE2.csv + invoiceDb/purchase_orders fallback). This prevents "N/A" vendor/site
+        // when a PO exists only as a manual PO.
+        let poData = null;
+        try {
+            poData = (typeof getInvoicePurchaseOrderDetails === 'function')
+                ? await getInvoicePurchaseOrderDetails(poNumber)
+                : ((allPOData && allPOData[poNumber]) ? allPOData[poNumber] : null);
+        } catch (_) {
+            poData = (allPOData && allPOData[poNumber]) ? allPOData[poNumber] : null;
+        }
+
+        if (!poData || Object.keys(poData).length === 0) {
             alert(`PO Number ${poNumber} not found.`);
             return;
         }
@@ -12473,8 +12485,8 @@ async function handleAddPOToBatch() {
         }
         const nextInvId = `INV-${String(maxInvIdNum + 1).padStart(2, '0')}`;
 
-        const site = normalizeNameText(poData['Project ID'] || 'N/A');
-        const vendor = normalizeNameText(poData['Supplier Name'] || 'N/A');
+        const site = normalizeNameText(poData['Project ID'] || poData['Project ID:'] || 'N/A');
+        const vendor = normalizeNameText(poData['Supplier Name'] || poData['Supplier Name:'] || poData['Supplier'] || poData['Supplier:'] || 'N/A');
         const row = document.createElement('tr');
         row.setAttribute('data-po', poNumber);
         row.setAttribute('data-site', site);
@@ -12560,16 +12572,45 @@ async function addInvoiceToBatchTable(invData) {
     const batchTableBody = document.getElementById('im-batch-table-body');
     if (batchTableBody.querySelector(`tr[data-key="${invData.key}"]`)) return;
 
+    // Resolve best-available PO details for Site/Vendor so Batch Entry doesn't show/generate "N/A"
+    // when the PO exists only as a Manual PO (invoiceDb/purchase_orders) or the invoice record already
+    // carries vendor/site fields.
+    let resolvedSite = normalizeNameText(invData.site || invData.site_name || invData.siteName || invData.site_name || '');
+    let resolvedVendor = normalizeNameText(invData.vendor || invData.vendor_name || invData.vendorName || invData.vendor_name || '');
+    const isNA = (v) => {
+        const s = String(v || '').trim().toLowerCase();
+        return (!s || s === 'n/a' || s === 'na' || s === 'null' || s === 'undefined');
+    };
+
+    if ((isNA(resolvedSite) || isNA(resolvedVendor)) && typeof getInvoicePurchaseOrderDetails === 'function') {
+        try {
+            const poDetails = await getInvoicePurchaseOrderDetails(invData.po);
+            if (isNA(resolvedSite)) {
+                resolvedSite = normalizeNameText(poDetails['Project ID'] || poDetails['Project ID:'] || resolvedSite || 'N/A');
+            }
+            if (isNA(resolvedVendor)) {
+                resolvedVendor = normalizeNameText(
+                    poDetails['Supplier Name'] || poDetails['Supplier Name:'] || poDetails['Supplier'] || poDetails['Supplier:'] || resolvedVendor || 'N/A'
+                );
+            }
+        } catch (_) {
+            // Ignore resolver errors; fall back to whatever we already have
+        }
+    }
+
+    if (isNA(resolvedSite)) resolvedSite = 'N/A';
+    if (isNA(resolvedVendor)) resolvedVendor = 'N/A';
+
     const row = document.createElement('tr');
     row.setAttribute('data-po', invData.po);
     row.setAttribute('data-key', invData.key);
-    row.setAttribute('data-site', normalizeNameText(invData.site));
-    row.setAttribute('data-vendor', normalizeNameText(invData.vendor));
+    row.setAttribute('data-site', resolvedSite);
+    row.setAttribute('data-vendor', resolvedVendor);
 
     row.innerHTML = `
         <td>${invData.po} <span class="existing-indicator">(Existing: ${invData.invEntryID})</span></td>
-        <td>${normalizeNameText(invData.site)}</td>
-        <td>${normalizeNameText(invData.vendor)}</td>
+        <td>${resolvedSite}</td>
+        <td>${resolvedVendor}</td>
         <td><input type="text" name="invNumber" class="batch-input" value="${invData.invNumber || ''}"></td>
         <td><input type="text" name="invName" class="batch-input" value="${invData.invName || ''}"></td>
         <td><input type="text" name="details" class="batch-input" value="${invData.details || ''}"></td>
@@ -12625,7 +12666,7 @@ row.choicesInstance = choices;
 
 // 2. Apply Smart Filter immediately
 // uses invData.site which comes from the invoice/PO data
-await populateAttentionDropdown(choices, statusSelect.value, invData.site, true);
+await populateAttentionDropdown(choices, statusSelect.value, resolvedSite, true);
 
     // --- FIX STARTS HERE ---
     const globalAttentionVal = imBatchGlobalAttentionChoices ? imBatchGlobalAttentionChoices.getValue(true) : null;
@@ -12694,11 +12735,23 @@ async function handleBatchGlobalSearch(searchType) {
         const promises = [];
         for (const poNumber in allInvoicesByPO) {
             const invoices = allInvoicesByPO[poNumber],
-                poData = allPOs[poNumber] || {},
-                site = poData['Project ID'] || 'N/A',
-                vendor = poData['Supplier Name'] || 'N/A';
+                poData = allPOs[poNumber] || {};
             for (const key in invoices) {
                 const inv = invoices[key];
+
+                // Prefer values already stored on the invoice (e.g., from Job Entry / Manual PO),
+                // then fall back to CSV/memory. This prevents "N/A" in Batch Entry when POVALUE2.csv
+                // doesn't contain the PO.
+                const site = normalizeNameText(
+                    inv.site || inv.site_name || inv.siteName ||
+                    poData['Project ID'] || poData['Project ID:'] ||
+                    'N/A'
+                );
+                const vendor = normalizeNameText(
+                    inv.vendor || inv.vendor_name || inv.vendorName ||
+                    poData['Supplier Name'] || poData['Supplier Name:'] || poData['Supplier'] || poData['Supplier:'] ||
+                    'N/A'
+                );
                 let isMatch = false;
 
                 if (searchType === 'status' && inv.status && inv.status.toLowerCase() === finalSearchTerm.toLowerCase()) isMatch = true;
@@ -12792,7 +12845,7 @@ async function handleSaveBatchInvoices() {
     // === START LOOP ===
     for (const row of rows) {
         const poNumber = row.dataset.po;
-        const site = row.dataset.site;
+        let site = row.dataset.site;
         const existingKey = row.dataset.key;
         
         let vendor = row.dataset.vendor;
@@ -12844,18 +12897,63 @@ async function handleSaveBatchInvoices() {
             return;
         }
 
-        // 4. Auto-Generate Names if needed
-        vendor = truncateNameText(vendor || '', 21) || 'Vendor';
+        // 4. Resolve PO Site/Vendor (prevents "N/A" names in Batch Entry when PO is missing in POVALUE2.csv)
+        const isNA = (v) => {
+            const s = String(v || '').trim().toLowerCase();
+            return (!s || s === 'n/a' || s === 'na' || s === 'null' || s === 'undefined');
+        };
+
+        let poDetails = null;
+        if ((isNA(site) || isNA(vendor)) && typeof getInvoicePurchaseOrderDetails === 'function') {
+            try {
+                poDetails = await getInvoicePurchaseOrderDetails(poNumber);
+            } catch (_) {
+                poDetails = null;
+            }
+        }
+
+        if (poDetails) {
+            if (isNA(site)) {
+                site = normalizeNameText(poDetails['Project ID'] || poDetails['Project ID:'] || site || 'N/A');
+            }
+            if (isNA(vendor)) {
+                vendor = normalizeNameText(
+                    poDetails['Supplier Name'] || poDetails['Supplier Name:'] || poDetails['Supplier'] || poDetails['Supplier:'] || vendor || 'N/A'
+                );
+            }
+        }
+
+        // Update the row UI/dataset so what the user sees matches what will be saved
+        try {
+            row.dataset.site = site || 'N/A';
+            row.dataset.vendor = vendor || 'N/A';
+            const tds = row.querySelectorAll('td');
+            if (tds && tds[1]) tds[1].textContent = site || 'N/A';
+            if (tds && tds[2]) tds[2].textContent = vendor || 'N/A';
+        } catch (_) {}
+
+        // 5. Auto-Generate Names if needed (Invoice + SRV)
+        const siteForName = normalizeNameText(site || 'N/A');
+        const vendorFull = normalizeNameText(vendor || 'N/A');
+        const vendorForName = truncateNameText(vendorFull || '', 21) || 'Vendor';
+
+        // Auto-generate Invoice Name if blank (same behavior as Invoice Entry)
+        if (!invoiceData.invName || normalizeNameText(invoiceData.invName) === "") {
+            const safeInvID = normalizeNameText(invEntryID || invoiceData.invEntryID || 'INV-XX');
+            invoiceData.invName = normalizeNameText(`${siteForName}-${poNumber}-${safeInvID}-${vendorForName}`);
+        } else {
+            invoiceData.invName = normalizeNameText(invoiceData.invName);
+        }
+
         const srvNameLower = (invoiceData.srvName || '').toLowerCase();
-        
         // Auto SRV Name
         if (invoiceData.status === 'With Accounts' && srvNameLower !== 'nil' && srvNameLower.trim() === '') {
-            invoiceData.srvName = getSrvName(poNumber, site, vendor, invEntryID);
+            invoiceData.srvName = getSrvName(poNumber, siteForName, vendorFull, invEntryID);
         }
 
         // Auto Report Name
         if (invoiceData.status === 'Report Approved') {
-            invoiceData.reportName = generateReportName(poNumber, invEntryID, vendor);
+            invoiceData.reportName = generateReportName(poNumber, invEntryID, vendorForName);
         }
 
         // [SMART REFRESH] 1. Add Timestamp to record
@@ -12864,12 +12962,33 @@ async function handleSaveBatchInvoices() {
         // 5. SAVE & CACHE LOGIC
         if (existingKey) {
             // === UPDATE EXISTING ===
+            // Backfill vendor/site on old invoices if they are missing (prevents "N/A" later)
+            const originalInvoice = (allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][existingKey])
+                ? allInvoiceData[poNumber][existingKey]
+                : {};
+
+            try {
+                const origVendor = originalInvoice.vendor_name || originalInvoice.vendorName || originalInvoice.vendor || '';
+                const origSite = originalInvoice.site_name || originalInvoice.site || originalInvoice.siteName || '';
+                if (isNA(origVendor)) {
+                    invoiceData.vendor_name = vendorFull;
+                    invoiceData.vendorName = vendorFull;
+                    if (poDetails) {
+                        invoiceData.vendor_id = invoiceData.vendor_id || poDetails['Supplier ID'] || poDetails['Supplier ID:'] || poDetails['Vendor ID'] || poDetails.vendorId || poDetails.vendor_id || '';
+                        invoiceData.vendorId = invoiceData.vendorId || invoiceData.vendor_id;
+                    }
+                }
+                if (isNA(origSite)) {
+                    invoiceData.site_name = siteForName;
+                    invoiceData.site = siteForName;
+                }
+            } catch (_) {}
+
             invoiceData.updatedAt = firebase.database.ServerValue.TIMESTAMP;
             invoiceData.updatedBy = currentUserName;
             const p = invoiceDb.ref(`invoice_entries/${poNumber}/${existingKey}`).update(invoiceData);
             savePromises.push(p);
             // Keep invoice_tasks_by_user in sync (prevents stale 'For Approval' tasks)
-            const originalInvoice = (allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][existingKey]) ? allInvoiceData[poNumber][existingKey] : {};
             const updatedFullData = { ...originalInvoice, ...invoiceData };
             savePromises.push(p.then(() => updateInvoiceTaskLookup(poNumber, existingKey, updatedFullData, originalInvoice.attention)));
             updatedInvoicesCount++;
@@ -12881,9 +13000,12 @@ async function handleSaveBatchInvoices() {
         } else {
             // === CREATE NEW ===
             invoiceData.invEntryID = invEntryID;
-            invoiceData.vendor_name = vendor;
+            invoiceData.vendor_name = vendorFull;
+            if (poDetails) {
+                invoiceData.vendor_id = invoiceData.vendor_id || poDetails['Supplier ID'] || poDetails['Supplier ID:'] || poDetails['Vendor ID'] || poDetails.vendorId || poDetails.vendor_id || '';
+            }
             invoiceData.po_number = poNumber;
-            invoiceData.site_name = site;
+            invoiceData.site_name = siteForName;
             invoiceData.enteredAt = firebase.database.ServerValue.TIMESTAMP;
             invoiceData.enteredBy = currentUserName;
 
@@ -12905,8 +13027,8 @@ async function handleSaveBatchInvoices() {
             allInvoiceData[poNumber][newKey] = {
                 ...invoiceData,
                 key: newKey, // Important: Add the key to the object
-                vendor_name: vendor,
-                site_name: site
+                vendor_name: vendorFull,
+                site_name: siteForName
             };
         }
 
