@@ -1098,47 +1098,55 @@ window.closeTransferModal = function() {
 };
 
 async function generateSequentialTransferId(type) {
-    // 1. Determine prefix
-    const prefix = (type === 'Transfer' ? 'TRF' : (type === 'Restock' ? 'STK' : (type === 'Usage' ? 'USE' : 'RET')));
-    
-    const input = document.getElementById('tf-control-no');
-    if(input) input.value = "Generating...";
+    // Concurrency-safe sequential Control ID generation.
+    // Old behavior scanned all transfer_entries (not safe: two users can generate the same ID).
+    // New behavior uses a DB counter with a transaction (safe) and bootstraps from existing max.
 
-    // 2. DEFINE DATABASE (This was missing before!)
+    const prefix = (type === 'Transfer' ? 'TRF' : (type === 'Restock' ? 'STK' : (type === 'Usage' ? 'USE' : 'RET')));
+    const input = document.getElementById('tf-control-no');
+    if (input) input.value = 'Generating...';
+
     const database = (typeof db !== 'undefined') ? db : firebase.database();
 
     try {
-        // 3. Fetch data
-        const snap = await database.ref('transfer_entries').once('value');
-        const data = snap.val();
-        
-        let max = 0;
-        if (data) {
-            Object.values(data).forEach(i => {
-                // Check all possible ID fields
-                const idToCheck = i.controlNumber || i.controlId || i.ref || '';
-                
-                // If it starts with our prefix (e.g., "TRF-")
-                if(idToCheck && idToCheck.startsWith(prefix)) {
-                    const parts = idToCheck.split('-');
-                    // Parse the number part
-                    if (parts.length > 1) {
-                        const n = parseInt(parts[1], 10);
-                        if (!isNaN(n) && n > max) {
-                            max = n;
+        const counterRef = database.ref(`transfer_id_counters/${prefix}`);
+
+        // Bootstrap counter if missing by scanning current max once.
+        let baseMax = null;
+        const counterSnap = await counterRef.once('value');
+        if (!counterSnap.exists()) {
+            const snap = await database.ref('transfer_entries').once('value');
+            const data = snap.val();
+            let max = 0;
+            if (data) {
+                Object.values(data).forEach(i => {
+                    const idToCheck = (i && (i.controlNumber || i.controlId || i.ref)) ? String(i.controlNumber || i.controlId || i.ref).trim() : '';
+                    if (idToCheck && idToCheck.startsWith(`${prefix}-`)) {
+                        const parts = idToCheck.split('-');
+                        if (parts.length > 1) {
+                            const n = parseInt(parts[1], 10);
+                            if (!isNaN(n) && n > max) max = n;
                         }
                     }
-                }
-            });
+                });
+            }
+            baseMax = max;
         }
 
-        // 4. Set the new ID (Max + 1)
-        if(input) input.value = `${prefix}-${String(max + 1).padStart(4, '0')}`;
+        const tx = await counterRef.transaction(current => {
+            if (current === null || typeof current === 'undefined') {
+                return (baseMax !== null ? baseMax + 1 : 1);
+            }
+            const n = parseInt(current, 10);
+            if (isNaN(n)) return (baseMax !== null ? baseMax + 1 : 1);
+            return n + 1;
+        }, { applyLocally: false });
 
-    } catch (e) { 
-        console.error("ID Generation Error:", e);
-        // Fallback only if error
-        if(input) input.value = `${prefix}-0001`; 
+        const seq = tx && tx.snapshot ? tx.snapshot.val() : null;
+        if (input) input.value = `${prefix}-${String(seq || 1).padStart(4, '0')}`;
+    } catch (e) {
+        console.error('ID Generation Error:', e);
+        if (input) input.value = `${prefix}-0001`;
     }
 }
 
