@@ -225,6 +225,9 @@ function dmEnsureUI() {
           <button id="dm-users-btn" class="dm-action" type="button" title="Users">
             <i class="fa-solid fa-users"></i><span>Users</span>
           </button>
+          <button id="dm-full-chat" class="dm-action" type="button" title="Open full messaging">
+            <i class="fa-solid fa-up-right-from-square"></i><span>Full</span>
+          </button>
         </div>
       </div>
       <div class="dm-message-list" id="dm-message-list">
@@ -280,6 +283,18 @@ function dmEnsureUI() {
 document.getElementById('dm-users-btn')?.addEventListener('click', () => {
     dmSetMobileScreen('list');
     try { document.getElementById('dm-user-search')?.focus(); } catch (_) { /* ignore */ }
+});
+
+// Full messaging (opens the dedicated full chat page in a new tab)
+document.getElementById('dm-full-chat')?.addEventListener('click', () => {
+    try {
+        const origin = (window.location && typeof window.location.origin === 'string') ? window.location.origin : '';
+        const safeOrigin = (origin && origin !== 'null' && !origin.startsWith('file:')) ? origin : 'https://ibaport.site';
+        const url = safeOrigin.replace(/\/$/, '') + '/Chat';
+        window.open(url, '_blank', 'noopener');
+    } catch (_) {
+        window.open('https://ibaport.site/Chat', '_blank', 'noopener');
+    }
 });
 
 

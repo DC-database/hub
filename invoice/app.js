@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.3.37";
+const APP_VERSION = "6.3.39";
 
 // ======================================================================
 // NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)
@@ -684,6 +684,9 @@ function dmEnsureUI() {
           <button id="dm-users-btn" class="dm-action" type="button" title="Users">
             <i class="fa-solid fa-users"></i><span>Users</span>
           </button>
+          <button id="dm-full-chat" class="dm-action" type="button" title="Open full messaging">
+            <i class="fa-solid fa-up-right-from-square"></i><span>Full</span>
+          </button>
         </div>
       </div>
       <div class="dm-message-list" id="dm-message-list">
@@ -739,6 +742,16 @@ function dmEnsureUI() {
 document.getElementById('dm-users-btn')?.addEventListener('click', () => {
     dmSetMobileScreen('list');
     try { document.getElementById('dm-user-search')?.focus(); } catch (_) { /* ignore */ }
+});
+
+// Full messaging (opens the dedicated full chat page in a new tab)
+document.getElementById('dm-full-chat')?.addEventListener('click', () => {
+    try {
+        window.open('https://ibaport.site/Chat', '_blank', 'noopener');
+    } catch (_) {
+        // Fallback: navigate in the same tab if popups are blocked
+        window.location.href = 'https://ibaport.site/Chat';
+    }
 });
 
 
