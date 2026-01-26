@@ -590,7 +590,34 @@ async function saveTransferEntry(e) {
     const receiver = (tfReceiverChoices ? tfReceiverChoices.getValue(true) : document.getElementById('tf-receiver').value) || '';
     const shippingDate = document.getElementById('tf-shipping-date').value;
     const type = document.getElementById('tf-job-type').value;
-    const controlNo = document.getElementById('tf-control-no').value;
+    let controlNo = document.getElementById('tf-control-no').value;
+    const database = (typeof db !== 'undefined') ? db : firebase.database();
+
+    // If the Control ID failed to generate (or is still generating), regenerate.
+    if (!controlNo || String(controlNo).toLowerCase().includes('generating')) {
+        try { await generateSequentialTransferId(type); } catch(_) {}
+        controlNo = document.getElementById('tf-control-no').value;
+    }
+
+    // Extra safety: if an existing transaction already uses this Control ID,
+    // generate a fresh one so we never accidentally merge unrelated transfers.
+    // (Multi-mode uses the same Control ID intentionally within a single save.)
+    try {
+        if (controlNo) {
+            const existsSnap = await database
+                .ref('transfer_entries')
+                .orderByChild('controlNumber')
+                .equalTo(controlNo)
+                .limitToFirst(1)
+                .once('value');
+            if (existsSnap.exists()) {
+                await generateSequentialTransferId(type);
+                controlNo = document.getElementById('tf-control-no').value;
+            }
+        }
+    } catch (err) {
+        console.warn('Control ID collision check failed:', err);
+    }
 
     // 2. Validate Generals (depends on Job Type)
     // NOTE:
@@ -696,8 +723,6 @@ async function saveTransferEntry(e) {
     // For simplicity, let's stick to standard flow:
     let startRemarks = (type === 'Transfer') ? 'Pending Source' : 'Pending Admin';
     let startAttention = (type === 'Transfer') ? sourceContact : approver;
-
-    const database = (typeof db !== 'undefined') ? db : firebase.database();
 
     try {
         const promises = itemsToSave.map(item => {
@@ -1133,6 +1158,9 @@ async function generateSequentialTransferId(type) {
             baseMax = max;
         }
 
+        // NOTE (Firebase v8): ref.transaction signature is
+        //   transaction(updateFn, onComplete?, applyLocally?)
+        // Do NOT pass an options object here.
         const tx = await counterRef.transaction(current => {
             if (current === null || typeof current === 'undefined') {
                 return (baseMax !== null ? baseMax + 1 : 1);
@@ -1140,13 +1168,39 @@ async function generateSequentialTransferId(type) {
             const n = parseInt(current, 10);
             if (isNaN(n)) return (baseMax !== null ? baseMax + 1 : 1);
             return n + 1;
-        }, { applyLocally: false });
+        }, null, false);
 
         const seq = tx && tx.snapshot ? tx.snapshot.val() : null;
         if (input) input.value = `${prefix}-${String(seq || 1).padStart(4, '0')}`;
     } catch (e) {
         console.error('ID Generation Error:', e);
-        if (input) input.value = `${prefix}-0001`;
+
+        // Fallback: try to derive next ID by scanning existing entries.
+        // This is NOT concurrency-safe, but it's far better than hard-resetting to 0001
+        // (which causes unrelated transactions to merge in the UI).
+        try {
+            const snap = await database.ref('transfer_entries').once('value');
+            const data = snap.val();
+            let max = 0;
+            if (data) {
+                Object.values(data).forEach(i => {
+                    const idToCheck = (i && (i.controlNumber || i.controlId || i.ref)) ? String(i.controlNumber || i.controlId || i.ref).trim() : '';
+                    if (idToCheck && idToCheck.startsWith(`${prefix}-`)) {
+                        const parts = idToCheck.split('-');
+                        if (parts.length > 1) {
+                            const n = parseInt(parts[1], 10);
+                            if (!isNaN(n) && n > max) max = n;
+                        }
+                    }
+                });
+            }
+            const next = max + 1;
+            if (input) input.value = `${prefix}-${String(next).padStart(4, '0')}`;
+        } catch (e2) {
+            // Last-resort unique ID to prevent merges.
+            const uniq = String(Date.now()).slice(-6);
+            if (input) input.value = `${prefix}-X${uniq}`;
+        }
     }
 }
 

@@ -19,6 +19,15 @@ if (!firebase.apps.length) {
 }
 const storage = firebase.storage();
 
+// Auth is required because Storage rules allow write only when request.auth != null.
+const auth = firebase.auth();
+
+async function ensureSignedIn() {
+    if (auth.currentUser) return auth.currentUser;
+    const cred = await auth.signInAnonymously();
+    return cred.user;
+}
+
 // 2. HELPERS
 function formatCurrency(value) {
     const number = parseFloat(String(value).replace(/,/g, ''));
@@ -133,6 +142,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
             const storagePath = `receipts/${safeFilename}.pdf`; 
             const storageRef = storage.ref(storagePath);
+            await ensureSignedIn();
             await storageRef.put(pdfBlob);
             savedDownloadURL = await storageRef.getDownloadURL();
 
