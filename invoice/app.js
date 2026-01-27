@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.4.0";
+const APP_VERSION = "6.4.2";
 
 // ======================================================================
 // NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)
@@ -4125,7 +4125,7 @@ try {
             imReportingSearchInput.value = savedSearch;
             populateInvoiceReporting(savedSearch);
         } else {
-            imReportingContent.innerHTML = '<p>Please enter a search term and click Search.</p>';
+            imReportingContent.innerHTML = '<p>Please enter a PO, Vendor, or Invoice No. and click Search.</p>';
             if (reportingCountDisplay) reportingCountDisplay.textContent = '';
             imReportingSearchInput.value = '';
             currentReportData = [];
@@ -11416,7 +11416,29 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
                 hasNoteMatch = Object.values(allInvoicesByPO[poNumber]).some(inv => inv.note && inv.note.toLowerCase().includes(searchText));
             }
 
-            const searchMatch = !searchText || poNumber.toLowerCase().includes(searchText) || vendor.toLowerCase().includes(searchText) || hasNoteMatch;
+            let hasInvoiceNumberMatch = false;
+            if (searchText) {
+                // Match invoice number from Firebase invoices
+                if (allInvoicesByPO[poNumber]) {
+                    hasInvoiceNumberMatch = Object.values(allInvoicesByPO[poNumber]).some(inv => {
+                        const v = (inv && inv.invNumber != null) ? String(inv.invNumber) : '';
+                        return v.toLowerCase().includes(searchText);
+                    });
+                }
+                // Match invoice number from Ecommit/CSV invoices
+                if (!hasInvoiceNumberMatch && allEcommit[poNumber]) {
+                    hasInvoiceNumberMatch = (allEcommit[poNumber] || []).some(inv => {
+                        const v = (inv && inv.invNumber != null) ? String(inv.invNumber) : '';
+                        return v.toLowerCase().includes(searchText);
+                    });
+                }
+            }
+
+            const searchMatch = !searchText
+                || poNumber.toLowerCase().includes(searchText)
+                || vendor.toLowerCase().includes(searchText)
+                || hasNoteMatch
+                || hasInvoiceNumberMatch;
             const siteMatch = !siteFilter || site === siteFilter;
             return searchMatch && siteMatch;
         });
@@ -11475,12 +11497,32 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
                 }
             }
 
+            const poMatchBySearch = !!searchText && poNumber.toLowerCase().includes(searchText);
+            const vendorMatchBySearch = !!searchText && vendor.toLowerCase().includes(searchText);
+            const noteMatchBySearch = !!searchText && invoices.some(i => (i.note || '').toLowerCase().includes(searchText));
+            const invNumberMatchBySearch = !!searchText && invoices.some(i => String(i.invNumber || '').toLowerCase().includes(searchText));
+
+            // If the search term only matches invoice numbers (and not PO/Vendor/Notes),
+            // show only the invoice(s) that match that invoice number.
+            const restrictToInvoiceNumberMatches = !!searchText
+                && !poMatchBySearch
+                && !vendorMatchBySearch
+                && !noteMatchBySearch
+                && invNumberMatchBySearch;
+
             const filteredInvoices = invoices.filter(inv => {
-                if (statusFilter === 'Negative Balance') return true;
+                if (statusFilter === 'Negative Balance') {
+                    if (restrictToInvoiceNumberMatches) {
+                        const invNum = String(inv.invNumber || '').toLowerCase();
+                        return invNum.includes(searchText);
+                    }
+                    return true;
+                }
                 const normRelease = normalizeDateForInput(inv.releaseDate);
                 const dateMatch = !monthFilter || (normRelease && normRelease.startsWith(monthFilter));
                 const statusMatch = !statusFilter || inv.status === statusFilter;
-                return dateMatch && statusMatch;
+                const invNumMatch = !restrictToInvoiceNumberMatches || String(inv.invNumber || '').toLowerCase().includes(searchText);
+                return dateMatch && statusMatch && invNumMatch;
             });
 
             if (filteredInvoices.length > 0) {
@@ -11511,9 +11553,12 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
             buildDesktopReportView(currentReportData);
         }
 
+        // Update totals footer (display-only)
+        imUpdateInvoiceRecordsTotals(currentReportData);
     } catch (error) {
         console.error("Error generating report:", error);
         if (desktopContainer) desktopContainer.innerHTML = '<p>Error loading report.</p>';
+        imUpdateInvoiceRecordsTotals([]);
     }
 }
 
@@ -11804,6 +11849,87 @@ function buildDesktopReportView(reportData) {
     });
     tableHTML += `</tbody></table>`;
     container.innerHTML = tableHTML;
+}
+
+
+// ==========================================================================
+// IM: Invoice Records Totals Footer (Desktop & Mobile)
+// - Shows Total Invoice Value, Total Amount Paid, and Total Balance
+// - Not part of the table (separate footer card)
+// - No workflow/rules changes; display-only
+// ==========================================================================
+function imUpdateInvoiceRecordsTotals(reportData) {
+    const card = document.getElementById('im-reporting-totals-card');
+    const elInv = document.getElementById('im-reporting-total-inv-value');
+    const elPaid = document.getElementById('im-reporting-total-paid-value');
+    const elBal = document.getElementById('im-reporting-total-balance-value');
+
+    if (!card || !elInv || !elPaid || !elBal) return;
+
+    // Reset styles
+    elBal.classList.remove('im-total-owed', 'im-total-ok');
+
+    if (!Array.isArray(reportData) || reportData.length === 0) {
+        card.classList.add('hidden');
+        elInv.textContent = '---';
+        elPaid.textContent = '---';
+        elBal.textContent = '---';
+        return;
+    }
+
+    // Permission logic: keep consistent with existing Invoice Records amounts visibility
+    const userRole = (currentApprover?.Role || '').toLowerCase();
+    const userPos = (currentApprover?.Position || '').trim().toLowerCase();
+    const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
+    const canViewAmounts = (userRole === 'admin' || userPos === 'accounting' || isVacationDelegate);
+
+    let totalInv = 0;
+    let totalPaid = 0;
+
+    // Match the same paid-calculation rule used in the per-PO nested footer:
+    // exclude 'retention' unless the paid total equals invoice total.
+    reportData.forEach(poData => {
+        const list = Array.isArray(poData?.filteredInvoices) ? poData.filteredInvoices : [];
+        let poInv = 0;
+        let paidWithRetention = 0;
+        let paidWithoutRetention = 0;
+
+        list.forEach(inv => {
+            const invValue = parseFloat(inv?.invValue) || 0;
+            const amountPaid = parseFloat(inv?.amountPaid) || 0;
+            const noteText = String(inv?.note || '').toLowerCase();
+
+            poInv += invValue;
+            paidWithRetention += amountPaid;
+            if (!noteText.includes('retention')) {
+                paidWithoutRetention += amountPaid;
+            }
+        });
+
+        let finalPaid = paidWithoutRetention;
+        if (Math.abs(paidWithRetention - poInv) < 0.01) finalPaid = paidWithRetention;
+
+        totalInv += poInv;
+        totalPaid += finalPaid;
+    });
+
+    const totalBalance = totalInv - totalPaid;
+
+    if (canViewAmounts) {
+        elInv.textContent = `QAR ${formatCurrency(totalInv)}`;
+        elPaid.textContent = `QAR ${formatCurrency(totalPaid)}`;
+        elBal.textContent = `QAR ${formatCurrency(totalBalance)}`;
+
+        // Red if still owed, Green if settled/overpaid (tolerance)
+        if (totalBalance > 0.05) elBal.classList.add('im-total-owed');
+        else elBal.classList.add('im-total-ok');
+    } else {
+        elInv.textContent = '---';
+        elPaid.textContent = '---';
+        elBal.textContent = '---';
+    }
+
+    card.classList.remove('hidden');
 }
 
 // ========================================================================== 
@@ -16131,6 +16257,7 @@ if (masterRowClick) {
             const searchTerm = imReportingSearchInput.value.trim();
             if (!searchTerm && !document.getElementById('im-reporting-site-filter').value && !document.getElementById('im-reporting-date-filter').value && !document.getElementById('im-reporting-status-filter').value) {
                 document.getElementById('im-reporting-content').innerHTML = '<p style="color: red; font-weight: bold;">Please specify at least one search criteria.</p>';
+                imUpdateInvoiceRecordsTotals([]);
                 return;
             }
             populateInvoiceReporting(searchTerm);
@@ -16141,9 +16268,10 @@ if (masterRowClick) {
         imReportingClearButton.addEventListener('click', () => {
             imReportingForm.reset();
             sessionStorage.removeItem('imReportingSearch');
-            document.getElementById('im-reporting-content').innerHTML = '<p>Please enter a search term and click Search.</p>';
+            document.getElementById('im-reporting-content').innerHTML = '<p>Please enter a PO, Vendor, or Invoice No. and click Search.</p>';
             currentReportData = [];
             if (reportingCountDisplay) reportingCountDisplay.textContent = '';
+            imUpdateInvoiceRecordsTotals([]);
         });
     }
 
@@ -16593,7 +16721,7 @@ const refreshReportingBtn = document.getElementById('im-refresh-reporting-button
                             if (hasCriteria) {
                                 await populateInvoiceReporting(searchTerm);
                             } else {
-                                document.getElementById('im-reporting-content').innerHTML = '<p>Please enter a search term and click Search.</p>';
+                                document.getElementById('im-reporting-content').innerHTML = '<p>Please enter a PO, Vendor, or Invoice No. and click Search.</p>';
                                 currentReportData = [];
                                 if (reportingCountDisplay) reportingCountDisplay.textContent = '';
                             }
@@ -16859,13 +16987,13 @@ if (summaryNoteUpdateBtn) {
             const desktopContainer = document.getElementById('im-reporting-content');
             const mobileContainer = document.getElementById('im-reporting-mobile-view');
 
-            if (desktopContainer) desktopContainer.innerHTML = '<p>Please enter a search term and click Search.</p>';
+            if (desktopContainer) desktopContainer.innerHTML = '<p>Please enter a PO, Vendor, or Invoice No. and click Search.</p>';
             if (mobileContainer) {
                 mobileContainer.innerHTML = `
                     <div class="im-mobile-empty-state">
                         <i class="fa-solid fa-file-circle-question"></i>
                         <h3>No Results Found</h3>
-                        <p>Use the search button to find a PO or Vendor.</p>
+                        <p>Use the search button to find a PO, Vendor, or Invoice No.</p>
                     </div>`;
             }
             if (reportingCountDisplay) reportingCountDisplay.textContent = '(Found: 0)';

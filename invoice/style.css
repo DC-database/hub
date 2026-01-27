@@ -6377,6 +6377,60 @@ body.inventory-mode .wd-nav-material {
 }
 /* --- MODERN INVOICE PAGE STYLES --- */
 
+
+/* ------------------------------------------------------------------ */
+/* Invoice Management → Invoice Records: Totals Footer Card (v6.4.2)    */
+/* ------------------------------------------------------------------ */
+.im-reporting-totals-card {
+    background: #ffffff;
+    padding: 14px 16px;
+    border-radius: 12px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+    border: 1px solid #f0f0f0;
+    margin-top: 14px;
+}
+
+.im-reporting-totals-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.im-reporting-total-item {
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #f9fbfd;
+    border: 1px solid #e1e5ea;
+}
+
+.im-reporting-total-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #8898aa;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+}
+
+.im-reporting-total-value {
+    font-size: 18px;
+    font-weight: 800;
+    color: #111;
+}
+
+.im-reporting-total-value.im-total-owed {
+    color: #dc3545;
+}
+
+.im-reporting-total-value.im-total-ok {
+    color: #28a745;
+}
+
+@media (max-width: 768px) {
+    .im-reporting-totals-grid {
+        grid-template-columns: 1fr;
+    }
+}
 /* 1. The Container for Filters (The White Card) */
 .invoice-controls-card {
     background: #ffffff;
