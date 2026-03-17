@@ -762,30 +762,28 @@ function renderMaterialStockTable(data) {
         const _pname = item.productName || '';
         const addToRequiredBtn = `<button type="button" class="secondary-btn ms-add-to-required-btn" data-productid="${encodeURIComponent(String(_pid))}" data-productname="${encodeURIComponent(String(_pname))}" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem; background-color: #0d6efd; color: white; margin-right: 5px;" title="Add to Required List"><i class="fa-solid fa-cart-plus"></i> Add</button>`;
 
-        if (isEditor) {
-            // Super Admin (Irwin) AND Irwin's active Vacation Delegate can edit materials.
-            // Delete remains Irwin-only (button + backend guard).
-            if (isIrwin || isVacationDelegate) {
-                actionButtons += addToRequiredBtn;
-                actionButtons += `<button type="button" class="secondary-btn ms-edit-stock-btn" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem; background-color: #00748C; color: white; margin-right: 5px;" title="Edit Details & Add Stock"><i class="fa-solid fa-pen-to-square"></i> Edit</button>`;
+       if (isEditor) {
+            // All Admins and Vacation Delegates can Edit
+            actionButtons += addToRequiredBtn;
+            actionButtons += `<button type="button" class="secondary-btn ms-edit-stock-btn" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem; background-color: #00748C; color: white; margin-right: 5px;" title="Edit Details & Add Stock"><i class="fa-solid fa-pen-to-square"></i> Edit</button>`;
 
-                if (isIrwin) {
-                    actionButtons += `<button type="button" class="delete-btn ms-delete-btn" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem;" title="Delete Item"><i class="fa-solid fa-trash"></i></button>`;
-                    firstColContent = `
-                        <div style="display:flex; align-items:center; gap:10px;">
-                            <input type="checkbox" class="ms-row-checkbox" data-key="${item.key}" data-name="${item.productName}">
-                            <button class="ms-expand-btn" onclick="toggleStockDetail('${uniqueId}', this)">+</button>
-                        </div>
-                    `;
-                }
-            } else {
-                // Normal admins (non-Irwin) can add stock only.
-                actionButtons += addToRequiredBtn;
-                actionButtons += `<button type="button" class="secondary-btn ms-add-stock-text-btn" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem; background-color: #28a745; color: white; margin-right: 5px;" title="Add Stock">Add Stock</button>`;
+            // Delete remains Irwin-only
+            if (isIrwin) {
+                actionButtons += `<button type="button" class="delete-btn ms-delete-btn" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem;" title="Delete Item"><i class="fa-solid fa-trash"></i></button>`;
+                firstColContent = `
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <input type="checkbox" class="ms-row-checkbox" data-key="${item.key}" data-name="${item.productName}">
+                        <button class="ms-expand-btn" onclick="toggleStockDetail('${uniqueId}', this)">+</button>
+                    </div>
+                `;
             }
         } else {
             actionButtons = addToRequiredBtn + `<small style="color:#999;">View Only</small>`;
         }
+
+
+
+
 
         const familyDisplay = item.family || item.category || 'Unclassified';
         const relationshipDisplay = item.relationship || item.details || '';
