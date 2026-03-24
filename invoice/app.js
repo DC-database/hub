@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.4.3";
+const APP_VERSION = "6.4.4";
 
 // ======================================================================
 // NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)
@@ -1477,10 +1477,13 @@ function loadDataFromLocalStorage() {
 async function getFirebaseCSVUrl(filename) {
     // This Base URL points to your specific GitHub repository via a fast CDN
     const baseUrl = "https://cdn.jsdelivr.net/gh/DC-database/Hub@main/";
+    
+    // Add a unique timestamp to force the CDN/browser to fetch the newest version
+    const cacheBuster = "?v=" + new Date().getTime();
 
     // This automatically combines the base URL with whatever filename is requested
-    // Example: baseUrl + 'POVALUE2.csv'
-    return `${baseUrl}${filename}`;
+    // Example: baseUrl + 'POVALUE2.csv?v=170948302000'
+    return `${baseUrl}${filename}${cacheBuster}`;
 }
 
 async function silentlyRefreshStaleCaches() {
@@ -2162,7 +2165,8 @@ async function ensureAllEntriesFetched(forceRefresh = false) {
 
     console.log("Loading Data for Workdesk...");
 
-    const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
+    // Added cache-buster to the raw github content link
+    const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv?v=" + new Date().getTime();
     const { poDataByPO, poDataByRef } = await fetchAndParseCSV(PO_DATA_URL) || {};
 
     allPOData = poDataByPO || {};
