@@ -29,9 +29,20 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
 
+// ---------- Audio Helpers ----------
+function playErrorSound() {
+  // Replace 'error.mp3' with the actual name of your sound file
+  const errorAudio = new Audio('error.mp3');
+  
+  // The catch block prevents the app from crashing if the browser blocks autoplay
+  errorAudio.play().catch(err => console.log("Audio play prevented by browser:", err));
+}
+
 // Show/hide admin section + login button state
 auth.onAuthStateChanged(user => {
   document.getElementById('adminSection')?.classList.toggle('hidden', !user);
+  document.getElementById('deleteSelectedBtn')?.classList.toggle('hidden', !user); // This line toggles the new delete button
+  
   const btn = document.getElementById('loginBtn');
   if (btn) {
     btn.textContent = user ? "Logout" : "Login";
@@ -100,6 +111,8 @@ function generateAZFilter(){
 function renderRow(childKey, data){
   lastRenderedRows[childKey]=data;
   const checked = selectedPOs[childKey] ? 'checked' : '';
+  const dateAdded = data.DateAdded || "-"; // Fallback for old records without dates
+  
   const tr=document.createElement('tr');
   tr.innerHTML =
     `<td><input type="checkbox" class="rowSelect" data-key="${childKey}" ${checked}></td>
@@ -108,6 +121,7 @@ function renderRow(childKey, data){
      <td>${data.IDNo||""}</td>
      <td>${data.Vendor||""}</td>
      <td>${formatNumber(data.Value)}</td>
+     <td>${dateAdded}</td>
      <td><button onclick="showDeleteConfirm('${childKey}')">Delete</button></td>`;
   return tr;
 }
@@ -158,11 +172,18 @@ function searchRecords(){
   currentSearchTerm=(searchInput.value||"").toLowerCase();
   lastSearchPO = searchInput.value || "";
   currentVendorFilter=null;
+  const selectedDate = document.getElementById('dateFilter').value; // Get selected date
 
   db.ref('records').once('value', snapshot=>{
     const tbody=document.querySelector('#poTable tbody'); tbody.innerHTML='';
+    let matchCount = 0; 
+
     snapshot.forEach(child=>{
       const d=child.val();
+      
+      // If a date is selected, skip rows that don't match
+      if (selectedDate && d.DateAdded !== selectedDate) return;
+
       if(
         (d.PO||"").toLowerCase().includes(currentSearchTerm) ||
         (d.Site||"").toLowerCase().includes(currentSearchTerm) ||
@@ -170,8 +191,14 @@ function searchRecords(){
         (d.IDNo||"").toLowerCase().includes(currentSearchTerm)
       ){
         tbody.appendChild(renderRow(child.key,d));
+        matchCount++;
       }
     });
+
+    if (matchCount === 0 && (currentSearchTerm !== "" || selectedDate !== "")) {
+      playErrorSound(); 
+    }
+
     updateResultCount();
   });
 }
@@ -179,6 +206,7 @@ function searchRecords(){
 function clearSearch(){
   currentSearchTerm=""; currentVendorFilter=null;
   document.getElementById('searchBox').value='';
+  document.getElementById('datePicker').value=''; // <-- This clears the calendar
   document.querySelector('#poTable tbody').innerHTML='';
   updateResultCount();
 }
@@ -226,11 +254,17 @@ function addPOFromModal(){
   const inp = document.getElementById('addPOInput');
   const stat = document.getElementById('addPOStatus');
   const po = (inp?.value || "").trim();
-  if (!po) { if (stat) stat.textContent = "Please enter a PO number."; return; }
+  
+  if (!po) { 
+    if (stat) stat.textContent = "Please enter a PO number."; 
+    playErrorSound(); // <-- Trigger sound
+    return; 
+  }
 
   const masterData = masterPOCache[po];
   if (!masterData) {
     if (stat) stat.textContent = `PO ${po} not found in GitHub list.`;
+    playErrorSound(); // <-- Trigger sound
     return;
   }
 
@@ -238,17 +272,23 @@ function addPOFromModal(){
   recRef.orderByChild("PO").equalTo(po).once('value').then(existsSnap => {
     if (existsSnap.exists()) { 
       if (stat) stat.textContent = `PO ${po} already exists in records.`; 
+      playErrorSound(); // <-- Trigger sound
       return; 
     }
     const newRef = recRef.push();
+    masterData.DateAdded = getFormattedDate(); // Attach date before saving
     newRef.set(masterData).then(() => {
       const tbody = document.querySelector('#poTable tbody');
       if (tbody) { tbody.appendChild(renderRow(newRef.key, masterData)); updateResultCount(); }
       if (stat) stat.textContent = `Added PO ${po} ✔`;
       if (inp) { inp.value = ""; inp.focus(); }
     });
-  }).catch(e => { if (stat) stat.textContent = "Error: " + e.message; });
+  }).catch(e => { 
+    if (stat) stat.textContent = "Error: " + e.message; 
+    playErrorSound(); // <-- Trigger sound
+  });
 }
+
 
 // ---------- WhatsApp request ----------
 function normalizeWhatsAppNumber(num){
@@ -270,15 +310,37 @@ function uploadCSV(){
   const file=document.getElementById('csvUpload').files[0];
   if(!file) return alert("Select a file");
   const reader=new FileReader();
+  
   reader.onload=e=>{
     const rows=parseCSV(e.target.result);
-    const body=rows.slice(1); const updates={};
+    const body=rows.slice(1); 
+    const updates={};
+    
+    // Get the formatted date for this entire batch upload
+    const uploadDate = getFormattedDate(); 
+    
     body.forEach(cols=>{
       const [Site,PO,IDNo,Vendor,Value]=cols;
-      if(Site && PO){ const ref=db.ref('records').push(); updates[ref.key]={Site,PO,IDNo,Vendor,Value:toNumberOrRaw(Value)}; }
+      if(Site && PO){ 
+        const ref=db.ref('records').push(); 
+        
+        // Attach the DateAdded property to each new record
+        updates[ref.key]={
+          Site,
+          PO,
+          IDNo,
+          Vendor,
+          Value:toNumberOrRaw(Value), 
+          DateAdded: uploadDate
+        }; 
+      }
     });
-    db.ref('records').update(updates).then(()=>alert("Upload complete")).catch(err=>alert(err.message));
+    
+    db.ref('records').update(updates)
+      .then(()=>alert("Upload complete"))
+      .catch(err=>alert(err.message));
   };
+  
   reader.readAsText(file);
 }
 
@@ -305,6 +367,7 @@ window.onload = () => {
     generateAZFilter(); 
     updateSelectedCount(); 
     loadGitHubMasterData(); 
+    loadAvailableDates();
 
     // Existing: Enter key for main search box
     const searchBox = document.getElementById('searchBox');
@@ -338,6 +401,141 @@ window.onload = () => {
     }
 };
 
+// ---------- Select All / Batch Delete ----------
+function toggleSelectAll() {
+  const isChecked = document.getElementById('selectAllCheckbox').checked;
+  const checkboxes = document.querySelectorAll('#poTable tbody input.rowSelect');
+  checkboxes.forEach(chk => {
+    chk.checked = isChecked;
+  });
+}
+
+function deleteSelectedRecords() {
+  if (!auth.currentUser) { 
+    alert("Only admin can delete records."); 
+    return; 
+  }
+
+  const checks = document.querySelectorAll('#poTable tbody input.rowSelect:checked');
+  if (!checks.length) { 
+    alert("No records selected to delete."); 
+    return; 
+  }
+
+  if (!confirm(`Are you sure you want to delete these ${checks.length} records? This cannot be undone.`)) {
+    return;
+  }
+
+  // Prepare a batch update object for Firebase
+  const updates = {};
+  checks.forEach(chk => {
+    const key = chk.getAttribute('data-key');
+    if (key) {
+      updates[key] = null; // Setting a key to null in Firebase deletes the node
+    }
+  });
+
+  // Execute batch delete
+  db.ref('records').update(updates).then(() => {
+    // Clean up UI and local arrays
+    checks.forEach(chk => {
+      const key = chk.getAttribute('data-key');
+      if (selectedPOs[key]) { delete selectedPOs[key]; }
+      if (lastRenderedRows[key]) { delete lastRenderedRows[key]; }
+      
+      const row = chk.closest('tr');
+      if (row) row.remove();
+    });
+
+    persistSelected();
+    updateResultCount();
+    document.getElementById('selectAllCheckbox').checked = false;
+  }).catch(err => alert("Error deleting records: " + err.message));
+}
+
+// ---------- Date Generator ----------
+function getFormattedDate() {
+  const d = new Date();
+  const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+  let day = d.getDate().toString().padStart(2, '0');
+  let month = months[d.getMonth()];
+  let year = d.getFullYear();
+  return `${day}-${month}-${year}`; // Outputs exactly like "24-MAR-2026"
+}
+
+// ---------- Date Dropdown Manager ----------
+function loadAvailableDates() {
+  db.ref('records').on('value', snap => {
+    const dates = new Set();
+    snap.forEach(child => {
+      const val = child.val();
+      if (val.DateAdded) dates.add(val.DateAdded);
+    });
+    
+    const dropdown = document.getElementById('dateFilter');
+    if (dropdown) {
+      const currentSelection = dropdown.value; // Remember what user has selected
+      dropdown.innerHTML = '<option value="">All Dates</option>';
+      
+      // Sort dates so newest is at the top
+      Array.from(dates).sort((a,b) => new Date(b) - new Date(a)).forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d; 
+        opt.textContent = d;
+        dropdown.appendChild(opt);
+      });
+      dropdown.value = currentSelection; 
+    }
+  });
+}
+
+function filterByDateSelection() {
+  searchRecords(); // Triggers the search which respects the date dropdown
+}
+
+// ---------- Filter by Calendar Date ----------
+function filterBySpecificDate() {
+  const pickerVal = document.getElementById('datePicker').value; 
+  if (!pickerVal) return; // Do nothing if date is cleared
+  
+  // Convert standard calendar output (YYYY-MM-DD) to our format (DD-MMM-YYYY)
+  const d = new Date(pickerVal);
+  const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+  const day = d.getDate().toString().padStart(2, '0');
+  const month = months[d.getMonth()];
+  const year = d.getFullYear();
+  
+  const targetDate = `${day}-${month}-${year}`; // e.g., "24-MAR-2026"
+
+  // Pull only records that match this exact date
+  db.ref('records').once('value', snapshot => {
+    const tbody = document.querySelector('#poTable tbody'); 
+    tbody.innerHTML = ''; // Clear the table first
+    let matchCount = 0;
+
+    snapshot.forEach(child => {
+      const data = child.val();
+      // If the record's DateAdded matches the calendar date, add it to the table
+      if (data.DateAdded === targetDate) {
+        tbody.appendChild(renderRow(child.key, data));
+        matchCount++;
+      }
+    });
+
+    if (matchCount === 0) {
+      playErrorSound(); // Play sound if nothing was added on that date
+    }
+
+    updateResultCount();
+  });
+}
+
+// Ensure the function is available globally
+window.filterBySpecificDate = filterBySpecificDate;
+
+// Make sure filterByDateSelection is accessible globally
+window.filterByDateSelection = filterByDateSelection;
+
 // Global Expose
 window.login=login; window.logout=logout;
 window.toggleLoginModal=toggleLoginModal; window.popupLogin=popupLogin;
@@ -354,3 +552,5 @@ window.uploadCSV=uploadCSV;
 window.downloadMainTemplate=()=>downloadCSV("progress_po_template.csv","Site,PO,ID No,Vendor,Value");
 window.addCheckedToCollection=addCheckedToCollection; window.viewCollection=viewCollection; window.clearCollection=clearCollection;
 window.sendWhatsAppRequestAuto=sendWhatsAppRequestAuto;
+window.toggleSelectAll = toggleSelectAll;
+window.deleteSelectedRecords = deleteSelectedRecords;

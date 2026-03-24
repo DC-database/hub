@@ -29,12 +29,17 @@
         <div class="actions-bar">
           <div class="group-left">
             <input type="text" id="searchBox" placeholder="Search by PO" />
+            
+            <!-- NEW CALENDAR PICKER -->
+            <input type="date" id="datePicker" onchange="filterBySpecificDate()" style="padding: 10px; margin: 5px; border: 1px solid #003A5C; border-radius: 4px;" title="Filter by Date Added" />
+            
             <button onclick="searchRecords()">Search</button>
             <button onclick="clearSearch()">Clear</button>
             <button onclick="openAddPOModal()">Add PO</button>
           </div>
 
           <div class="group-right">
+            <button id="deleteSelectedBtn" class="hidden" style="background-color: #c0392b; border-color: #c0392b;" onclick="deleteSelectedRecords()">Delete Selected</button>
             <button id="addToCollectionBtn" class="btn-collect" title="Add selected to collection" onclick="addCheckedToCollection()">+</button>
             <button id="viewCollectionBtn" class="btn-view" onclick="viewCollection()">View (0)</button>
             <button id="clearCollectionBtn" onclick="clearCollection()">Clear</button>
@@ -51,12 +56,14 @@
         </div>
 
         <table id="poTable">
-          <thead>
+         
+<thead>
             <tr>
-              <th>Select</th>
-              <th>Site</th><th>PO</th><th>ID No</th><th>Vendor</th><th>Value</th><th>Action</th>
+              <th><input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll()"> Select All</th>
+              <th>Site</th><th>PO</th><th>ID No</th><th>Vendor</th><th>Value</th><th>Date Added</th><th>Action</th>
             </tr>
           </thead>
+
           <tbody></tbody>
         </table>
       </div>
