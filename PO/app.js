@@ -542,6 +542,53 @@ function filterBySpecificDate() {
   });
 }
 
+// ============================================================
+// AUTO-SEARCH & ADD TO COLLECTION (From Invoice Redirect)
+// ============================================================
+window.addEventListener('load', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const poToSearch = urlParams.get('search');
+    const action = urlParams.get('action');
+
+    if (poToSearch) {
+        const searchInput = document.getElementById('searchBox');
+        if (searchInput) {
+            // 1. Fill the search box
+            searchInput.value = poToSearch;
+            
+            // 2. Execute the Search
+            if (typeof searchRecords === 'function') {
+                searchRecords();
+            }
+
+            // 3. If action is autoAdd, wait for Firebase then Add to Collection
+            if (action === 'autoAdd') {
+                // We wait 2 seconds to ensure the table has rendered
+                setTimeout(() => {
+                    // Find the checkbox for this PO in the results table
+                    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+                    
+                    if (checkboxes.length > 0) {
+                        // Check all found results (usually just the one searched)
+                        checkboxes.forEach(cb => cb.checked = true);
+                        
+                        // Execute the Add to Collection function
+                        if (typeof addCheckedToCollection === 'function') {
+                            addCheckedToCollection();
+                            console.log(`PO ${poToSearch} automatically added to collection.`);
+                            
+                            // Optional: Alert the user it's ready
+                            alert(`PO ${poToSearch} has been added to your collection for deletion.`);
+                        }
+                    } else {
+                        console.warn("Search finished but no checkboxes found to add.");
+                    }
+                }, 2000); 
+            }
+        }
+    }
+});
+
 // Ensure the function is available globally
 window.filterBySpecificDate = filterBySpecificDate;
 
