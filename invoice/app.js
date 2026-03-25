@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.4.4";
+const APP_VERSION = "6.4.5";
 
 // ======================================================================
 // NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)
@@ -21763,6 +21763,46 @@ if (document.getElementById('im-help')) {
             }
             return;
         }
+    });
+}
+
+// Add this listener in your app.js file
+const imPoClearBtn = document.getElementById('im-po-clear-button');
+const imPoInputTop = document.getElementById('im-po-search-input');
+const imPoInputBottom = document.getElementById('im-po-search-input-bottom');
+const imInvoicesBody = document.getElementById('im-invoices-table-body');
+const imPoDetails = document.getElementById('im-po-details-container');
+
+if (imPoClearBtn) {
+    imPoClearBtn.addEventListener('click', () => {
+        // 1. Clear Search Inputs
+        if (imPoInputTop) imPoInputTop.value = '';
+        if (imPoInputBottom) imPoInputBottom.value = '';
+
+        // 2. Clear Session Storage
+        sessionStorage.removeItem('imPOSearch');
+
+        // 3. Clear the Invoices Table
+        if (imInvoicesBody) {
+            imInvoicesBody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:#888;">Table cleared. Search for a PO to view invoices.</td></tr>';
+        }
+
+        // 4. Hide or Reset PO Details Header
+        document.querySelectorAll('.im-po-no, .im-po-site, .im-po-value, .im-po-vendor').forEach(el => {
+            el.textContent = '---';
+        });
+
+        // 5. Hide the Invoice Form and other UI triggers
+        const trigger = document.getElementById('im-invoice-form-trigger');
+        if (trigger) trigger.classList.add('hidden');
+        
+        const existingContainer = document.getElementById('im-existing-invoices-container');
+        if (existingContainer) existingContainer.classList.add('hidden');
+
+        // 6. Reset Internal State
+        window.currentPO = null;
+        
+        console.log("Invoice Entry Page Cleared.");
     });
 }
 

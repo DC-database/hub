@@ -857,16 +857,22 @@
                             <i class="fa-solid fa-list-check"></i> Active Jobs
                         </button>
                     </h1>
-                    <div id="im-po-search-container">
-                        <div class="search-bar-local">
-                            <i class="fa-solid fa-magnifying-glass"></i>
-                            <input type="text" id="im-po-search-input" placeholder="Enter PO Number...">
-                        </div>
-                        <button id="im-po-search-button">Search PO</button>
-                        <button id="im-refresh-entry-button" class="secondary-btn" type="button" title="Refresh data from Firebase"><i class="fa-solid fa-sync"></i></button>
-                    </div>
+                   <div id="im-po-search-container">
+    <div class="search-bar-local">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="im-po-search-input" placeholder="Enter PO Number...">
+    </div>
+    <button id="im-po-search-button">Search PO</button>
+    <button id="im-refresh-entry-button" class="secondary-btn" type="button" title="Refresh data from Firebase">
+        <i class="fa-solid fa-sync"></i>
+    </button>
+    
+    <button id="im-po-clear-button" class="secondary-btn" type="button" style="background: #64748b; color: white; border: none; margin-left: 5px;" title="Clear Search">
+        <i class="fa-solid fa-eraser"></i> Clear
+    </button>
+</div>
 
-                    <div id="im-modal-po-details" class="im-po-details-compact hidden">
+<div id="im-modal-po-details" class="im-po-details-compact hidden">
     <div class="po-compact-grid">
        <div><label>PO:</label> <span class="im-po-no">---</span></div>
        <div><label>Site:</label> <span class="im-po-site">---</span></div>
@@ -2659,7 +2665,7 @@
 
     <script src="materialStock.js?v=6.3.21"></script>
     <script src="transferLogic.js?v=6.3.21"></script>
-    <script src="app.js?v=6.4.4"></script>
+    <script src="app.js?v=6.4.5"></script>
 
     </body>
 </html>
