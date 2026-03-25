@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.4.5";
+const APP_VERSION = "6.4.8";
 
 // ======================================================================
 // NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)
@@ -10398,84 +10398,80 @@ async function handlePOSearch(poNumberFromInput) {
 
 // REPLACE THE EXISTING FUNCTION WITH THIS "QUERY" VERSION
 async function proceedWithPOLoading(poNumber, poData) {
-    // 1. Fetch Invoices for this PO (Standard Logic)
+    // Standard Loading Logic
     const invoicesSnapshot = await invoiceDb.ref(`invoice_entries/${poNumber}`).once('value');
     const invoicesData = invoicesSnapshot.val();
-
     if (!allInvoiceData) allInvoiceData = {};
     allInvoiceData[poNumber] = invoicesData || {};
 
     currentPO = poNumber;
     const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
     const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
-
     const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
     const canViewAmounts = (isAdmin || isAccounting || isVacationDelegate);
 
-    const poValueText = canViewAmounts ? (poData.Amount ? `QAR ${formatCurrency(poData.Amount)}` : 'N/A') : '---';
-    const siteText = poData['Project ID'] || 'N/A';
-    const vendorText = poData['Supplier Name'] || 'N/A';
-
-    // Update UI text
+    // Update UI Labels
     document.querySelectorAll('.im-po-no').forEach(el => el.textContent = poNumber);
-    document.querySelectorAll('.im-po-site').forEach(el => el.textContent = siteText);
-    document.querySelectorAll('.im-po-value').forEach(el => el.textContent = poValueText);
-    document.querySelectorAll('.im-po-vendor').forEach(el => el.textContent = vendorText);
+    document.querySelectorAll('.im-po-site').forEach(el => el.textContent = poData['Project ID'] || 'N/A');
+    document.querySelectorAll('.im-po-value').forEach(el => el.textContent = canViewAmounts ? `QAR ${formatCurrency(poData.Amount)}` : '---');
+    document.querySelectorAll('.im-po-vendor').forEach(el => el.textContent = poData['Supplier Name'] || 'N/A');
 
-    // ============================================================
-    // [FIX] SEARCH BY COLUMN "PO" (Query)
+
+
+// ============================================================
+    // PO RECORDS SEARCH & BUTTON LOGIC
     // ============================================================
     const poRecordEl = document.querySelector('.im-po-record');
     if (poRecordEl) {
         poRecordEl.textContent = "Searching...";
-        poRecordEl.style.color = "#ffeb3b"; // Yellow
+        poRecordEl.style.color = "#ffeb3b"; 
+
+        // CRITICAL: Remove the button immediately when starting a new search
+        document.getElementById('im-po-collect-btn')?.remove();
 
         try {
-            // 1. Prepare the search term (Remove 'PO-' to get just the digits, e.g. "62032")
             const searchVal = poNumber.replace(/[^0-9]/g, ''); 
-            
-            // 2. Perform the Query: "Look in 'records' where column 'PO' equals searchVal"
-            // We check both String ("62032") and Number (62032) to be safe.
             const ref = progressDb.ref('records');
             
-            console.log(`🔎 QUERYING: records.orderByChild('PO').equalTo("${searchVal}")`);
-
+            // Perform the indexed search
             let snapshot = await ref.orderByChild('PO').equalTo(searchVal).once('value');
-
-            // If not found as a string, try as a number
             if (!snapshot.exists()) {
-                console.log(`⚠️ String match failed. Trying Number: ${parseInt(searchVal)}`);
                 snapshot = await ref.orderByChild('PO').equalTo(parseInt(searchVal)).once('value');
             }
 
             if (snapshot.exists()) {
-                console.log("✅ MATCH FOUND!");
+                // SUCCESS: Record Found
                 poRecordEl.textContent = "Original in File";
-                poRecordEl.style.color = "#90EE90"; // Green
-            } else {
-                console.warn(`❌ NO MATCH for PO column value: ${searchVal}`);
-                poRecordEl.textContent = "None";
-                poRecordEl.style.color = "#ffcccb"; // Red
-            }
+                poRecordEl.style.color = "#90EE90"; 
 
+                // Add the button only because record was found
+                const collectBtn = document.createElement('button');
+                collectBtn.id = 'im-po-collect-btn';
+                collectBtn.innerHTML = `<i class="fa-solid fa-plus"></i> Add to Deletion List`;
+                collectBtn.style.cssText = "background: #0369a1; color: white; border: none; padding: 2px 10px; border-radius: 4px; margin-left: 10px; cursor: pointer; font-size: 11px;";
+                
+                collectBtn.onclick = () => window.imAddToDeletionCollection(poNumber);
+                poRecordEl.parentElement.appendChild(collectBtn);
+            } else {
+                // FAIL: No Record
+                poRecordEl.textContent = "None";
+                poRecordEl.style.color = "#ffcccb";
+                // The button remains removed because of the cleanup line above
+            }
         } catch (error) {
             console.error("Query Error:", error);
-            // If the error says "Index not defined", it means we need to add an index in Firebase Rules
-            if (error.message.includes("index")) {
-                 console.warn("⚠️ PERMISSION/INDEX ERROR: You might need to add '.indexOn': ['PO'] to your Firebase Rules for 'records'.");
-            }
             poRecordEl.textContent = "Error";
             poRecordEl.style.color = "orange";
         }
     }
-    // ============================================================
 
-    const modalDetails = document.getElementById('im-modal-po-details');
-    if(modalDetails) modalDetails.classList.remove('hidden');
-
+    // Final UI Display
+    document.getElementById('im-modal-po-details')?.classList.remove('hidden');
     fetchAndDisplayInvoices(poNumber);
-    if (imInvoiceFormTrigger) imInvoiceFormTrigger.classList.remove('hidden');
+    document.getElementById('im-invoice-form-trigger')?.classList.remove('hidden');
 }
+
+
 
 function fetchAndDisplayInvoices(poNumber) {
     const invoicesData = allInvoiceData[poNumber];
@@ -15964,13 +15960,33 @@ try {
         });
     }
 
-    imPOSearchInputBottom.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            handlePOSearch(imPOSearchInputBottom.value);
-        }
-    });
+    // --- Updated listeners for Batch Search Modal ---
 
+// 1. Top Search Input
+imPOSearchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        handlePOSearch(imPOSearchInput.value);
+    } else if (e.code === 'Space' || e.key === ' ') {
+        // Space bar now adds the selected items to the batch
+        e.preventDefault();
+        handleAddSelectedToBatch();
+    }
+});
+
+// REPLACE WITH THIS UPDATED BLOCK:
+imPOSearchInputBottom.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        // Still allows Enter to search
+        e.preventDefault();
+        handlePOSearch(imPOSearchInputBottom.value);
+    } 
+    else if (e.code === 'Space' || e.key === ' ') {
+        // This makes the Spacebar run the "Add to Batch" function
+        e.preventDefault(); // This stops a "space" from being typed in the box
+        handleAddSelectedToBatch();
+    }
+});
     if (imShowActiveJobsBtn) imShowActiveJobsBtn.addEventListener('click', () => {
         imEntrySidebar.classList.toggle('visible');
     });
@@ -20208,8 +20224,63 @@ window.imPrintInvoiceList = function() {
     }, 150);
 };
 
+// --- GLOBAL SHORTCUT FOR BATCH ENTRY ---
+document.addEventListener('keydown', (e) => {
+    // 1. Check if the "Batch Search Modal" is currently open
+    const batchModal = document.getElementById('im-batch-search-modal');
+    if (batchModal && !batchModal.classList.contains('hidden')) {
+        
+        // 2. If Space bar is pressed
+        if (e.code === 'Space' || e.key === ' ') {
+            
+            // 3. Safety: If the user is actually TYPING in the search box, 
+            // let them type a space. If not typing, then "Add to Batch".
+            if (document.activeElement.id !== 'im-batch-modal-po-input') {
+                e.preventDefault();
+                handleAddSelectedToBatch();
+            }
+        }
+    }
+});
 
 
+
+window.imAddToDeletionCollection = async function(poNumber) {
+    try {
+        const searchVal = poNumber.replace(/[^0-9]/g, '');
+        // Note: ensure progressDb is initialized in this file
+        const ref = progressDb.ref('records');
+        
+        let snapshot = await ref.orderByChild('PO').equalTo(searchVal).once('value');
+        if (!snapshot.exists()) {
+            snapshot = await ref.orderByChild('PO').equalTo(parseInt(searchVal)).once('value');
+        }
+
+        if (snapshot.exists()) {
+            const key = Object.keys(snapshot.val())[0];
+            const recordData = snapshot.val()[key];
+
+            // Add to localStorage so the PO Site can see it later
+            let selectedPOs = {};
+            try {
+                selectedPOs = JSON.parse(localStorage.getItem('selectedPOs') || '{}');
+            } catch (e) { selectedPOs = {}; }
+
+            selectedPOs[key] = recordData;
+            localStorage.setItem('selectedPOs', JSON.stringify(selectedPOs));
+
+            // Update Button UI
+            const btn = document.getElementById('im-po-collect-btn');
+            if (btn) {
+                btn.innerHTML = `<i class="fa-solid fa-check"></i> Added to List`;
+                btn.style.background = "#059669";
+                btn.disabled = true;
+            }
+        }
+    } catch (error) {
+        console.error("Collection Error:", error);
+    }
+};
 
 // =============================================================
 // IM HELP CENTER (Intelligent Assistant + Growing Knowledge Base)
