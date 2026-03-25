@@ -1,3 +1,24 @@
+// Add this at the top of app.js in the PO Site folder
+function syncCollectionFromStorage() {
+    try {
+        const stored = localStorage.getItem('selectedPOs');
+        if (stored) {
+            // This updates the local variable 'selectedPOs' used by your PO site
+            selectedPOs = JSON.parse(stored);
+            // If your PO site has a 'renderCollection' function, call it here
+            if (typeof renderCollection === 'function') renderCollection();
+        }
+    } catch (e) {
+        console.error("Sync error", e);
+    }
+}
+
+// Run the sync every time the PO site is opened
+window.addEventListener('load', syncCollectionFromStorage);
+
+
+
+
 let currentVendorFilter = null;
 let currentSearchTerm = "";
 let lastSearchPO = "";
