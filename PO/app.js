@@ -16,9 +16,6 @@ function syncCollectionFromStorage() {
 // Run the sync every time the PO site is opened
 window.addEventListener('load', syncCollectionFromStorage);
 
-
-
-
 let currentVendorFilter = null;
 let currentSearchTerm = "";
 let lastSearchPO = "";
