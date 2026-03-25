@@ -172,7 +172,19 @@ function searchRecords(){
   currentSearchTerm=(searchInput.value||"").toLowerCase();
   lastSearchPO = searchInput.value || "";
   currentVendorFilter=null;
-  const selectedDate = document.getElementById('dateFilter').value; // Get selected date
+
+  // NEW: Get the calendar date and format it to match our database (DD-MMM-YYYY)
+  const dateElement = document.getElementById('datePicker');
+  let targetDate = "";
+  
+  if (dateElement && dateElement.value) {
+    const d = new Date(dateElement.value);
+    const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+    const day = d.getDate().toString().padStart(2, '0');
+    const month = months[d.getMonth()];
+    const year = d.getFullYear();
+    targetDate = `${day}-${month}-${year}`;
+  }
 
   db.ref('records').once('value', snapshot=>{
     const tbody=document.querySelector('#poTable tbody'); tbody.innerHTML='';
@@ -181,8 +193,8 @@ function searchRecords(){
     snapshot.forEach(child=>{
       const d=child.val();
       
-      // If a date is selected, skip rows that don't match
-      if (selectedDate && d.DateAdded !== selectedDate) return;
+      // If a date is selected on the calendar, ignore records from other dates
+      if (targetDate !== "" && d.DateAdded !== targetDate) return;
 
       if(
         (d.PO||"").toLowerCase().includes(currentSearchTerm) ||
@@ -195,7 +207,7 @@ function searchRecords(){
       }
     });
 
-    if (matchCount === 0 && (currentSearchTerm !== "" || selectedDate !== "")) {
+    if (matchCount === 0 && (currentSearchTerm !== "" || targetDate !== "")) {
       playErrorSound(); 
     }
 
