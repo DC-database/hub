@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.4.9";
+const APP_VERSION = "6.5.1";
 
 // ======================================================================
 // NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)
@@ -2093,7 +2093,7 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
             if (manualPOData && Object.keys(manualPOData).length) {
                 console.log("Merging Manual POs into memory...");
                 if (!allPOData) allPOData = {};
-                Object.keys(manualPOData).forEach(poKey => {
+              Object.keys(manualPOData).forEach(poKey => {
                     const normalizedKey = String(poKey || '').trim().toUpperCase();
                     const poObj = manualPOData[poKey] || {};
                     // Backward-compat: some older records used colon in keys (e.g. 'Project ID:')
@@ -2104,7 +2104,13 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
                     if (poObj['Supplier:'] && !poObj['Supplier Name']) poObj['Supplier Name'] = poObj['Supplier:'];
                     if (poObj['Po'] && !poObj['PO']) poObj['PO'] = poObj['Po'];
                     if (poObj['PO'] && !poObj['Po']) poObj['Po'] = poObj['PO'];
-                    allPOData[normalizedKey || poKey] = poObj; // Add/Overwrite
+                    
+                    const finalKey = normalizedKey || poKey;
+                    
+                    // NEW: Only use Firebase PO if it does NOT exist in the GitHub CSV
+                    if (!allPOData[finalKey]) {
+                        allPOData[finalKey] = poObj; 
+                    }
                 });
             }
 
@@ -11461,12 +11467,17 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
 
             let invoices = [...firebaseInvoices, ...filteredEcommitInvoices];
 
-            // --- CALCULATE BALANCE FOR SORTING ---
-            let totalInvSum = 0;
-            invoices.forEach(inv => totalInvSum += parseFloat(inv.invValue) || 0);
-            const poVal = parseFloat(poDetails.Amount) || 0;
-            const balance = poVal - totalInvSum;
+// --- CALCULATE BALANCE FOR SORTING ---
+    let totalInvSum = 0;
+    invoices.forEach(inv => totalInvSum += parseFloat(inv.invValue) || 0);
 
+    const poVal = parseFloat(poDetails.Amount) || 0;
+    let balance = poVal - totalInvSum;
+    
+    // NEW: If PO Value is 0, force SRV Balance to 0
+    if (poVal === 0) {
+        balance = 0;
+    }
             // Filter Check: Negative Balance
             if (statusFilter === 'Negative Balance') {
                 if (balance >= -0.01) continue;
@@ -11581,8 +11592,15 @@ function buildMobileReportView(reportData) {
 
     reportData.forEach((poData, poIndex) => {
         const { poNumber, site, vendor, poDetails, filteredInvoices, balance } = poData;
-        const toggleId = `mobile-invoice-list-${poIndex}`;
-        const balanceNum = balance !== undefined ? balance : ((parseFloat(poDetails.Amount) || 0) - filteredInvoices.reduce((sum, inv) => sum + (parseFloat(inv.invValue) || 0), 0));
+const toggleId = `mobile-invoice-list-${poIndex}`;
+
+    const parsedPoAmount = parseFloat(poDetails.Amount) || 0;
+    let balanceNum = balance !== undefined ? balance : (parsedPoAmount - filteredInvoices.reduce((sum, inv) => sum + (parseFloat(inv.invValue) || 0), 0));
+    
+    // NEW: If PO Value is 0, force SRV Balance to 0
+    if (parsedPoAmount === 0) {
+        balanceNum = 0;
+    }
 
         let statusClass = 'status-progress';
         let balanceStyle = "";
@@ -11822,10 +11840,19 @@ function buildDesktopReportView(reportData) {
 
         const totalInvValueDisplay = canViewAmounts ? `<strong>QAR ${formatCurrency(totalInvValue)}</strong>` : '---';
         const totalAmountPaidDisplay = canViewAmounts ? `<strong>QAR ${formatCurrency(finalTotalPaid)}</strong>` : '---';
-        const poValueDisplay = canViewAmounts ? (poData.poDetails.Amount ? `QAR ${formatCurrency(poData.poDetails.Amount)}` : 'N/A') : '---';
+const poValueDisplay = canViewAmounts ? (poData.poDetails.Amount ? `QAR ${formatCurrency(poData.poDetails.Amount)}` : 'N/A') : '---';
 
-        const balanceNum = poData.balance !== undefined ? poData.balance : ((parseFloat(poData.poDetails.Amount) || 0) - totalInvValue);
-        const balanceDisplay = canViewAmounts ? `QAR ${formatCurrency(balanceNum)}` : '---';
+    const parsedPoAmount = parseFloat(poData.poDetails.Amount) || 0;
+    let balanceNum = poData.balance !== undefined ? poData.balance : (parsedPoAmount - totalInvValue);
+    
+    // NEW: If PO Value is 0, force SRV Balance to 0
+    if (parsedPoAmount === 0) {
+        balanceNum = 0;
+    }
+
+    const balanceDisplay = canViewAmounts ? `QAR ${formatCurrency(balanceNum)}` : '---';
+
+
 
         let highlightClass = '';
         if (canViewAmounts) {
@@ -12245,8 +12272,11 @@ function handleGeneratePrintReport() {
             totalAmountPaid += parseFloat(inv.amountPaid) || 0;
         });
 
-        const poValueNum = parseFloat(po.poDetails.Amount) || 0;
-        const balanceNum = poValueNum - totalInvValue;
+const poValueNum = parseFloat(po.poDetails.Amount) || 0;
+        let balanceNum = poValueNum - totalInvValue;
+        if (poValueNum === 0) {
+            balanceNum = 0;
+        }
 
         const poHeader = document.createElement('div');
         poHeader.className = 'print-po-header';
@@ -20056,12 +20086,18 @@ function imBuildInvoiceRecordsReportMarkup(reportData, { title, generatedOn } = 
                 <td class="note">${note}</td>
               </tr>
             `;
-        });
+});
 
-        const balanceNum = poValueNum - poInvTotal;
+        let balanceNum = poValueNum - poInvTotal;
+        if (poValueNum === 0) {
+            balanceNum = 0;
+        }
 
         poBlocks += `
-          <div class="im-invoice-po">
+            <div class="im-invoice-po">
+
+
+
             <div class="im-invoice-po-header">
               <div class="poNumber"><strong>PO:</strong> ${poNumber}</div>
               <div class="site"><strong>Site:</strong> ${site}</div>
