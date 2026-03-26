@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.4.8";
+const APP_VERSION = "6.4.9";
 
 // ======================================================================
 // NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)
@@ -1492,8 +1492,8 @@ async function silentlyRefreshStaleCaches() {
 
     try {
         if (cacheTimestamps.epicoreData === 0) {
-            console.log("Silently refreshing Ecost.csv...");
-            const url = await getFirebaseCSVUrl('Ecost.csv');
+            console.log("Silently refreshing POdetails.csv...");
+            const url = await getFirebaseCSVUrl('POdetails.csv');
             if (url) {
                 const epicoreCsvData = await fetchAndParseEpicoreCSV(url);
                 if (epicoreCsvData) {
@@ -1622,9 +1622,7 @@ async function fetchAndParseCSV(url) {
 
 async function fetchAndParseEpicoreCSV(url) {
     try {
-        const response = await fetch(url, {
-            cache: 'no-store'
-        });
+        const response = await fetch(url, { cache: 'no-store' });
         if (!response.ok) {
             throw new Error(`Failed to fetch CSV: ${response.statusText}`);
         }
@@ -1652,30 +1650,31 @@ async function fetchAndParseEpicoreCSV(url) {
 
         const lines = csvText.replace(/^\uFEFF/, '').split('\n').filter(line => line.trim() !== '');
         if (lines.length < 1) {
-            throw new Error("Epicore CSV is empty.");
+            throw new Error("POdetails CSV is empty.");
         }
 
         const epicoreMap = {};
-        for (let i = 0; i < lines.length; i++) {
+        
+        // Start loop from 1 to skip the header row
+        for (let i = 1; i < lines.length; i++) {
             const values = parseCsvRow(lines[i]);
 
-            // Column Mapping (0-based index):
-            // A[0], B[1], C[2]=PO, D[3]=Project#, E[4]=Description
-
-            if (values.length > 4) {
-                const poKey = values[2] ? values[2].toUpperCase().trim() : null;
-                const description = values[4] || ''; // Grab Column E
+            // Column Mapping for POdetails.csv (0-based index):
+            // A[0] = PO. No, B[1] = Bill Description
+            if (values.length >= 2) {
+                const poKey = values[0] ? values[0].toUpperCase().trim() : null;
+                const description = values[1] || ''; 
 
                 if (poKey) {
                     epicoreMap[poKey] = description;
                 }
             }
         }
-        console.log(`Successfully fetched and parsed ${Object.keys(epicoreMap).length} entries from Epicore CSV.`);
+        console.log(`Successfully fetched and parsed ${Object.keys(epicoreMap).length} entries from POdetails CSV.`);
         return epicoreMap;
     } catch (error) {
-        console.error("Error fetching or parsing Epicore CSV:", error);
-        alert("CRITICAL ERROR: Could not load Epicore data.");
+        console.error("Error fetching or parsing POdetails CSV:", error);
+        alert("CRITICAL ERROR: Could not load POdetails data.");
         return null;
     }
 }
@@ -2026,7 +2025,7 @@ async function ensureEcostDataFetched(forceRefresh = false) {
 }
 
 // =========================================================
-// DATA FETCHER (CORRECTED: Reads from 'purchase_orders' in Invoice DB)
+// DATA FETCHER (Reads from 'purchase_orders' in Invoice DB)
 // =========================================================
 async function ensureInvoiceDataFetched(forceRefresh = false) {
     const now = Date.now();
@@ -2043,7 +2042,7 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
         const promisesToRun = [];
         // URLs
         const poUrl = (!allPOData || forceRefresh) ? await getFirebaseCSVUrl('POVALUE2.csv') : null;
-        const ecostUrl = (!allEpicoreData || forceRefresh) ? await getFirebaseCSVUrl('Ecost.csv') : null;
+        const poDetailsUrl = (!allEpicoreData || forceRefresh) ? await getFirebaseCSVUrl('POdetails.csv') : null;
         const siteUrl = (!allSitesCSVData || forceRefresh) ? await getFirebaseCSVUrl('Site.csv') : null;
         const ecommitUrl = (!allEcommitDataProcessed || forceRefresh) ? await getFirebaseCSVUrl('ECommit.csv') : null;
         const vendorUrl = (!allVendorsData || forceRefresh) ? await getFirebaseCSVUrl('Vendors.csv') : null;
@@ -2063,7 +2062,7 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
             promisesToRun.push(invoiceDb.ref('purchase_orders').once('value'));
         }
 
-        if (ecostUrl) promisesToRun.push(fetchAndParseEpicoreCSV(ecostUrl));
+        if (poDetailsUrl) promisesToRun.push(fetchAndParseEpicoreCSV(poDetailsUrl));
         if (siteUrl) promisesToRun.push(fetchAndParseSitesCSV(siteUrl));
         if (ecommitUrl) promisesToRun.push(fetchAndParseEcommitCSV(ecommitUrl));
         if (vendorUrl) promisesToRun.push(fetchAndParseVendorsCSV(vendorUrl));
@@ -2112,7 +2111,7 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
             manualPOsMergedIntoAllPOData = true;
         }
 
-        if (ecostUrl) {
+        if (poDetailsUrl) {
             allEpicoreData = results[resultIndex++];
             setCache('cached_EPICORE', allEpicoreData);
             cacheTimestamps.epicoreData = now;
@@ -21953,6 +21952,3 @@ imHelpSetContext('invoice', null, null);
 imHelpLoadKnowledgeBase(false);
 
 }); // END OF DOMCONTENTLOADED
-
-
-
