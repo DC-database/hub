@@ -6,13 +6,14 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.5.7";
+const APP_VERSION = "6.5.8";
 
 // ======================================================================
-// ULTRA-FAST AUDIO ENGINE (WITH MASTER KILL SWITCH & CHAT SOUNDS)
+// ULTRA-FAST AUDIO ENGINE (ORIGINAL SMOOTH VERSION + DELETE)
 // ======================================================================
 const soundClick = new Audio('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Click.mp3');
 const soundClear = new Audio('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Clear.mp3');
+const soundDelete = new Audio('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Delete.mp3'); // <-- Added Delete
 const soundSuccess = new Audio('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Success.mp3');
 const soundError = new Audio('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Error.mp3');
 const soundPop = new Audio('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Pop.mp3');
@@ -20,17 +21,20 @@ const soundSent = new Audio('https://raw.githubusercontent.com/DC-database/hub/r
 
 soundClick.preload = 'auto';
 soundClear.preload = 'auto';
+soundDelete.preload = 'auto'; // <-- Added Delete
 soundSuccess.preload = 'auto';
 soundError.preload = 'auto';
 soundPop.preload = 'auto';
 soundSent.preload = 'auto';
 
+// Keeping your exact preferred volumes!
 soundClick.volume = 1.0;   
-soundClear.volume = 0.6;   
+soundClear.volume = 1.0; 
+soundDelete.volume = 1.0; // <-- Matches Clear  
 soundSuccess.volume = 0.2; 
 soundError.volume = 0.2;   
-soundPop.volume = 0.6;
-soundSent.volume = 0.4;
+soundPop.volume = 1.0;
+soundSent.volume = 1.0;
 
 // --- THE MASTER KILL SWITCH ---
 window.isAudioMuted = localStorage.getItem('iba_audio_muted') === 'true';
@@ -67,7 +71,7 @@ window.playSystemError = function() {
     soundError.play().catch(e=>{}); 
 };
 
-// GLOBAL CHAT SOUND OVERRIDES
+// GLOBAL CHAT & DELETE SOUND OVERRIDES
 window.playMessagePop = function() { 
     if (window.isAudioMuted) return;
     soundPop.currentTime = 0; 
@@ -78,6 +82,12 @@ window.playMessageSent = function() {
     if (window.isAudioMuted) return;
     soundSent.currentTime = 0; 
     soundSent.play().catch(e=>{}); 
+};
+
+window.playSystemDelete = function() {  // <-- In case you need to trigger it manually in pop-ups!
+    if (window.isAudioMuted) return;
+    soundDelete.currentTime = 0; 
+    soundDelete.play().catch(e=>{}); 
 };
 
 let soundsActive = false;
@@ -94,7 +104,7 @@ document.addEventListener('click', function(event) {
     if (tag === 'input' && event.target.type !== 'button' && event.target.type !== 'submit' && event.target.type !== 'checkbox') return;
 
     const clickedItem = event.target.closest(
-        'button, a, select, [data-section], [role="button"], .btn, .primary-btn, .secondary-btn, .action-btn, .im-help-tab-btn, .close, i.fa-solid, i.fas, i.fa-regular'
+        'button, a, select, [data-section], [role="button"], .btn, .primary-btn, .secondary-btn, .action-btn, .danger-btn, .im-help-tab-btn, .close, i.fa-solid, i.fas, i.fa-regular'
     );
 
     if (clickedItem) {
@@ -102,13 +112,26 @@ document.addEventListener('click', function(event) {
         const itemId = (clickedItem.id || '').toLowerCase();
         
         const isSearchBtn = itemText.includes('search') || itemText.includes('filter') || itemText.includes('apply') || itemText.includes('find') || itemId.includes('search') || itemId.includes('filter') || itemId.includes('find') || clickedItem.querySelector('.fa-magnifying-glass') || clickedItem.querySelector('.fa-search');
+        
+        // Strict Delete Check (Removed "remove" to fix the conflict)
+        const isDeleteBtn = itemText.includes('delete') || itemId.includes('delete') || clickedItem.querySelector('.fa-trash') || clickedItem.querySelector('.fa-trash-can');
 
+        // Check Clear FIRST, so it never gets confused
         if (itemText.includes('clear') || itemId.includes('clear')) {
             if (!window.isAudioMuted) {
                 soundClear.currentTime = 0;
                 soundClear.play().catch(e => {});
             }
-        } else {
+        } 
+        // Check Delete SECOND
+        else if (isDeleteBtn) {
+            if (!window.isAudioMuted) {
+                soundDelete.currentTime = 0;
+                soundDelete.play().catch(e => {});
+            }
+        } 
+        // Play regular Click for everything else
+        else {
             if (!itemId.includes('audio-toggle')) {
                 if (!window.isAudioMuted) {
                     soundClick.currentTime = 0;
@@ -163,6 +186,7 @@ observeTables.forEach(tableId => {
         observer.observe(targetNode, { childList: true, subtree: true });
     }
 });
+
 
 // ======================================================================
 // NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)
