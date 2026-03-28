@@ -6,33 +6,52 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.5.5";
-
+const APP_VERSION = "6.5.7";
 
 // ======================================================================
-// ULTRA-FAST AUDIO ENGINE (VOLUME BALANCED & 2.5s COOLDOWN)
+// ULTRA-FAST AUDIO ENGINE (WITH MASTER KILL SWITCH & CHAT SOUNDS)
 // ======================================================================
 const soundClick = new Audio('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Click.mp3');
 const soundClear = new Audio('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Clear.mp3');
 const soundSuccess = new Audio('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Success.mp3');
 const soundError = new Audio('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Error.mp3');
+const soundPop = new Audio('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Pop.mp3');
+const soundSent = new Audio('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Sent.mp3');
 
 soundClick.preload = 'auto';
 soundClear.preload = 'auto';
 soundSuccess.preload = 'auto';
 soundError.preload = 'auto';
+soundPop.preload = 'auto';
+soundSent.preload = 'auto';
 
-// BALANCED VOLUMES (1.0 is max, 0.0 is mute)
-soundClick.volume = 1.0;   // Cranked to max
-soundClear.volume = 0.6;   // Medium-high
-soundSuccess.volume = 0.2; // Lowered significantly
-soundError.volume = 0.2;   // Lowered significantly
+soundClick.volume = 1.0;   
+soundClear.volume = 0.6;   
+soundSuccess.volume = 0.2; 
+soundError.volume = 0.2;   
+soundPop.volume = 0.6;
+soundSent.volume = 0.4;
 
-// GLOBAL OVERRIDES WITH A 2.5-SECOND COOLDOWN!
+// --- THE MASTER KILL SWITCH ---
+window.isAudioMuted = localStorage.getItem('iba_audio_muted') === 'true';
+
+window.toggleSystemAudio = function() {
+    window.isAudioMuted = !window.isAudioMuted;
+    localStorage.setItem('iba_audio_muted', window.isAudioMuted);
+    
+    if (!window.isAudioMuted) {
+        soundSuccess.currentTime = 0;
+        soundSuccess.play().catch(e=>{});
+    }
+    return window.isAudioMuted;
+};
+
+// GLOBAL OVERRIDES WITH 2.5s COOLDOWN & MUTE CHECK
 let lastSuccessTime = 0;
 window.playSystemSuccess = function() { 
+    if (window.isAudioMuted) return; 
     const now = Date.now();
-    if (now - lastSuccessTime < 2500) return; // Wait 2.5 seconds before allowing another play
+    if (now - lastSuccessTime < 2500) return; 
     lastSuccessTime = now;
     soundSuccess.currentTime = 0; 
     soundSuccess.play().catch(e=>{}); 
@@ -40,11 +59,25 @@ window.playSystemSuccess = function() {
 
 let lastErrorTime = 0;
 window.playSystemError = function() { 
+    if (window.isAudioMuted) return; 
     const now = Date.now();
-    if (now - lastErrorTime < 2500) return; // Wait 2.5 seconds before allowing another play
+    if (now - lastErrorTime < 2500) return; 
     lastErrorTime = now;
     soundError.currentTime = 0; 
     soundError.play().catch(e=>{}); 
+};
+
+// GLOBAL CHAT SOUND OVERRIDES
+window.playMessagePop = function() { 
+    if (window.isAudioMuted) return;
+    soundPop.currentTime = 0; 
+    soundPop.play().catch(e=>{}); 
+};
+
+window.playMessageSent = function() { 
+    if (window.isAudioMuted) return;
+    soundSent.currentTime = 0; 
+    soundSent.play().catch(e=>{}); 
 };
 
 let soundsActive = false;
@@ -71,11 +104,17 @@ document.addEventListener('click', function(event) {
         const isSearchBtn = itemText.includes('search') || itemText.includes('filter') || itemText.includes('apply') || itemText.includes('find') || itemId.includes('search') || itemId.includes('filter') || itemId.includes('find') || clickedItem.querySelector('.fa-magnifying-glass') || clickedItem.querySelector('.fa-search');
 
         if (itemText.includes('clear') || itemId.includes('clear')) {
-            soundClear.currentTime = 0;
-            soundClear.play().catch(e => {});
+            if (!window.isAudioMuted) {
+                soundClear.currentTime = 0;
+                soundClear.play().catch(e => {});
+            }
         } else {
-            soundClick.currentTime = 0;
-            soundClick.play().catch(e => {});
+            if (!itemId.includes('audio-toggle')) {
+                if (!window.isAudioMuted) {
+                    soundClick.currentTime = 0;
+                    soundClick.play().catch(e => {});
+                }
+            }
             
             if (isSearchBtn) {
                 isSearching = true;
@@ -118,15 +157,12 @@ observeTables.forEach(tableId => {
                 }
                 else if (targetNode.children.length > 0) {
                     window.playSystemSuccess();
-                    // We DO NOT set isSearching to false here anymore, 
-                    // relying entirely on the 2.5s cooldown to prevent double plays on complex pages.
                 }
             }
         });
         observer.observe(targetNode, { childList: true, subtree: true });
     }
 });
-
 
 // ======================================================================
 // NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)
@@ -1194,6 +1230,11 @@ async function dmSendMessage(toKey, toName, text) {
 
     try {
         await db.ref().update(updates);
+        
+        // --- ADDED: PLAY SENT SOUND ---
+        window.playMessageSent();
+        // ------------------------------
+
         // Unread counters for recipient
         const base = db.ref(`${DM_UNREAD_ROOT}/${toKey}/${threadId}`);
         base.child('count').transaction(c => (Number(c) || 0) + 1);
@@ -1380,7 +1421,16 @@ function dmSubscribeInbox() {
         const fromKey = String(m.fromKey || '');
         const fromName = String(m.fromName || m.from || 'Message');
         const text = dmSafeText(m.text || '');
-        if (text) dmToast(fromName, text);
+        
+        if (text) {
+            dmToast(fromName, text);
+            
+            // --- ADDED: PLAY POP SOUND (Only for new messages, not old ones loading in) ---
+            if (dmState.inboxBootstrapped) {
+                window.playMessagePop();
+            }
+            // ------------------------------------------------------------------------------
+        }
 
         // Auto-open the chat (modal + sender thread) only when:
         // - user is actively using the system (tab is visible)
@@ -20446,6 +20496,43 @@ window.imAddToDeletionCollection = async function(poNumber) {
     }
 };
 
+// ======================================================================
+// SETTINGS PAGE: AUDIO TOGGLE UI UPDATER
+// ======================================================================
+// Attached to 'window' so the HTML file can always find it!
+window.handleAudioUIUpdate = function() {
+    // 1. Trigger the master switch
+    window.toggleSystemAudio(); 
+    
+    // 2. Update the button visuals
+    const btn = document.getElementById('audio-toggle-btn');
+    if (btn) {
+        if (window.isAudioMuted) {
+            btn.innerHTML = '<i class="fa-solid fa-volume-xmark"></i> Muted';
+            btn.style.backgroundColor = '#f44336'; // Turns red when muted
+            btn.style.color = 'white';
+            btn.style.borderColor = '#f44336';
+        } else {
+            btn.innerHTML = '<i class="fa-solid fa-volume-high"></i> Enabled';
+            btn.style.backgroundColor = ''; // Resets to your default
+            btn.style.color = '';
+            btn.style.borderColor = '';
+        }
+    }
+};
+
+// 3. Make sure the button shows the correct state when you first open the Settings page
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.isAudioMuted) {
+        const btn = document.getElementById('audio-toggle-btn');
+        if (btn) {
+            btn.innerHTML = '<i class="fa-solid fa-volume-xmark"></i> Muted';
+            btn.style.backgroundColor = '#f44336';
+            btn.style.color = 'white';
+            btn.style.borderColor = '#f44336';
+        }
+    }
+});
 
 // =============================================================
 // IM HELP CENTER (Intelligent Assistant + Growing Knowledge Base)
