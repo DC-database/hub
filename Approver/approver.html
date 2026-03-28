@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Approver Management System</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-color: #4A69FF;
+            --primary-hover: #3c54cc;
+            --danger-color: #E53E3E;
+            --danger-hover: #C53030;
+            --danger-light-bg: #FFF5F5;
+            --danger-light-text: #C53030;
+            --success-color: #38A169;
+            --success-hover: #2F855A;
+            --success-light-bg: #F0FFF4;
+            --success-light-text: #2F855A;
+            --background-color: #F7F8FC;
+            --card-background: #FFFFFF;
+            --text-color: #2D3748;
+            --muted-text-color: #A0AEC0;
+            --border-color: #E2E8F0;
+            --input-bg-color: #FDFDFD;
+            --font-family: 'Inter', sans-serif;
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+            --card-radius: 16px;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 2.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            transition: max-width 0.4s ease-in-out;
+        }
+
+        .container.wide-view {
+            max-width: 1600px;
+        }
+
+        .main-header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .main-header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--text-color);
+        }
+
+        .main-header p {
+            font-size: 1.1rem;
+            color: #718096;
+            max-width: 550px;
+            margin: 0 auto;
+        }
+
+        #auth-status {
+            background-color: var(--card-background);
+            border: 1px solid var(--border-color);
+            padding: 0.75rem 1.25rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            font-size: 0.95rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--card-shadow);
+        }
+        #auth-status strong {
+            font-weight: 600;
+        }
+        #auth-status button {
+            font-size: 0.85rem;
+            font-weight: 600;
+            padding: 0.5rem 1rem;
+            background-color: #EDF2F7;
+            color: var(--text-color);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        #auth-status button:hover {
+            background-color: #E2E8F0;
+        }
+
+        .tab-container {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 2rem;
+        }
+
+        .tab-btn {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            border: none;
+            background-color: var(--card-background);
+            border: 1px solid var(--border-color);
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-color);
+            border-radius: 10px;
+            transition: all 0.2s ease-in-out;
+        }
+
+        .tab-btn:hover {
+            background-color: #F7FAFC;
+            border-color: #CBD5E0;
+        }
+
+        .tab-btn.active {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            color: white;
+        }
+
+        .card {
+            background-color: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: var(--card-radius);
+            margin-bottom: 2rem;
+            box-shadow: var(--card-shadow);
+        }
+
+        .card-header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .card-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        .card-header .headers {
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: #718096;
+            margin: 0.5rem 0 0;
+            background-color: #F7FAFC;
+            padding: 0.75rem;
+            border-radius: 8px;
+            word-wrap: break-word;
+        }
+        .card-body {
+            padding: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+        .card-footer {
+            padding: 0 2rem 1.5rem;
+            min-height: 25px;
+        }
+
+        .login-form-grid, .form-grid {
+            display: grid;
+            gap: 1.5rem;
+        }
+        .login-form-grid { padding: 2rem; }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .form-group.button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        .form-group.button-group .btn {
+            grid-column: span 2; 
+        }
+        .form-grid label, .login-form-grid label {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-color);
+        }
+        input[type="text"], input[type="email"], input[type="password"], input[type="tel"], input[type="search"], input[type="date"], select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-color);
+            background-color: var(--input-bg-color);
+            border-radius: 10px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            transition: all 0.2s ease;
+            font-family: var(--font-family); 
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(74, 105, 255, 0.2);
+        }
+
+        .input-group { display: flex; align-items: center; width: 100%; }
+        .input-group-text {
+            background-color: #F7FAFC;
+            border: 1px solid var(--border-color);
+            padding: 0.75rem 1rem;
+            border-right: none;
+            border-radius: 10px 0 0 10px;
+            color: #718096;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+        .input-group input { border-radius: 0 10px 10px 0 !important; }
+
+        .btn {
+            background-color: var(--primary-color);
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 10px;
+            padding: 0.85rem 1.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        .btn:hover { background-color: var(--primary-hover); }
+
+        .btn.btn-danger { background-color: var(--danger-color); }
+        .btn.btn-danger:hover { background-color: var(--danger-hover); }
+
+        .btn.btn-success { background-color: var(--success-color); }
+        .btn.btn-success:hover { background-color: var(--success-hover); }
+
+        .btn.btn-secondary { background-color: #EDF2F7; color: var(--text-color); }
+        .btn.btn-secondary:hover { background-color: #E2E8F0; }
+
+        .file-input { width: 0.1px; height: 0.1px; opacity: 0; overflow: hidden; position: absolute; z-index: -1; }
+        .file-label {
+            flex-grow: 1; border: 2px dashed var(--border-color); border-radius: 10px;
+            padding: 1rem; cursor: pointer; transition: all 0.2s;
+            text-align: center; color: #718096; font-weight: 500;
+        }
+        .file-label:hover { border-color: var(--primary-color); background-color: #F7FAFC; }
+        .file-input.has-file + .file-label {
+            border-style: solid; color: var(--primary-color);
+            border-color: var(--primary-color); background-color: #eff2ff;
+        }
+        .upload-group { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; }
+
+        .approver-management-container {
+            padding: 2rem; display: grid;
+            grid-template-columns: 370px 1fr;
+            gap: 2.5rem;
+        }
+        .add-approver-section h3 {
+            font-size: 1.35rem; font-weight: 600;
+            margin-top: 0; margin-bottom: 2rem;
+        }
+        
+        /* --- [FIX] Table Layout Fix --- */
+        .approver-list-section {
+             min-width: 0; /* Prevents grid item from overflowing */
+        }
+        .table-responsive-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .approver-list-header {
+            display: flex; justify-content: space-between;
+            align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;
+        }
+        .approver-list-header h3 { margin: 0; font-size: 1.35rem; font-weight: 600; }
+        .list-actions { display: flex; gap: 1rem; align-items: center; }
+        #approver-search-input { min-width: 280px; }
+
+        .approver-table {
+            width: 100%; border-collapse: collapse; font-size: 0.95rem;
+        }
+        .approver-table th, .approver-table td {
+            padding: 1rem 1.25rem; text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .approver-table th {
+            font-weight: 600; color: #718096;
+            background-color: #F9FAFB;
+            text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.05em;
+        }
+        .approver-table tr:last-child td { border-bottom: none; }
+        .approver-table tr:hover { background-color: #F9FAFB; }
+        .approver-table .col-nowrap { white-space: nowrap; }
+
+        .table-actions { display: flex; justify-content: flex-end; gap: 0.75rem; }
+        .table-actions button {
+            font-size: 0.85rem; font-weight: 600;
+            padding: 0.4rem 0.8rem; border-radius: 8px;
+            cursor: pointer; border: none; transition: all 0.2s;
+        }
+        .table-actions .edit-btn { background-color: var(--success-light-bg); color: var(--success-light-text); }
+        .table-actions .edit-btn:hover { background-color: #d1fae5; }
+        .table-actions .delete-btn-table { background-color: var(--danger-light-bg); color: var(--danger-light-text); }
+        .table-actions .delete-btn-table:hover { background-color: #fed7d7; }
+        
+        .status-footer { min-height: 50px; }
+        #login-error-message, .status-message-local { padding: 1rem; border-radius: 10px; font-weight: 500; }
+        #login-error-message { display: none; }
+        #login-error-message.error { display: block; }
+        .status-message-local { display: none; text-align: center; }
+        .status-message-local.visible { display: block; }
+        .success { background-color: var(--success-light-bg); color: var(--success-light-text); }
+        .error { background-color: var(--danger-light-bg); color: var(--danger-light-text); }
+        .processing { background-color: #EBF8FF; color: #2B6CB0; }
+
+        @media (max-width: 1200px) {
+            .container.wide-view { max-width: 1100px; }
+            .approver-management-container { grid-template-columns: 1fr; }
+            .add-approver-section { margin-bottom: 2rem; }
+        }
+        @media (max-width: 992px) {
+             .approver-list-header { flex-direction: column; align-items: stretch; }
+             .list-actions { flex-direction: column; align-items: stretch; }
+             #approver-search-input { min-width: 100%; }
+        }
+        @media (max-width: 600px) {
+            body { padding: 1rem; }
+            .card-body { flex-direction: column; align-items: stretch; }
+            .file-label { width: 100%; box-sizing: border-box; }
+            .upload-group { width: 100%; flex-direction: column; align-items: stretch; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="login-container" class="container">
+        <header class="main-header">
+            <h1>Admin Login</h1>
+            <p>Please log in to the `ibainvoice` system.</p>
+        </header>
+        <section class="card">
+            <form id="login-form" class="login-form-grid">
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" placeholder="you@example.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn">Login</button>
+            </form>
+             <footer class="card-footer">
+                <div id="login-error-message"></div>
+            </footer>
+        </section>
+    </div>
+
+    <main id="app-container" class="container" style="display: none;">
+        <header class="main-header">
+            <div id="auth-status"></div>
+            <h1>Approver Management System</h1>
+            <p>Manage your approver database with ease, using the interface or bulk CSV uploads.</p>
+        </header>
+        
+        <div class="tab-container">
+            <button class="tab-btn active" data-target="#data-uploads-content">Data Uploads</button>
+            <button class="tab-btn" data-target="#approver-management-content">Approver Management</button>
+        </div>
+        <div id="data-uploads-content" class="tab-content">
+            <section class="card">
+                <div class="card-header">
+                    <h2>Purchase Orders (CSV)</h2>
+                    <p class="headers">Headers: ReqNum, PO, Supplier ID, Supplier Name, Project ID, Amount, Order Date</p>
+                </div>
+                <div class="card-body">
+                    <input type="file" id="po-csv-file" class="file-input" accept=".csv">
+                    <label for="po-csv-file" class="file-label"><span>Click to choose a file or drag and drop</span></label>
+                    <div class="upload-group">
+                        <button id="upload-po-btn" class="btn btn-success">Upload POs</button>
+                        <button id="delete-po-btn" class="btn btn-danger" title="Delete ALL Purchase Orders">Delete All</button>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="status-message-local"></div>
+                </div>
+            </section>
+
+            <section class="card">
+                <div class="card-header">
+                    <h2>Approvers (CSV)</h2>
+                    <p class="headers">Headers: Name, Email, Mobile, Position, Site, Password, Vacation, DateReturn, ReplacementName, ReplacementContact, ReplacementEmail</p>
+                </div>
+                <div class="card-body">
+                    <input type="file" id="approver-csv-file" class="file-input" accept=".csv">
+                    <label for="approver-csv-file" class="file-label"><span>Click to choose a file or drag and drop</span></label>
+                    <div class="upload-group">
+                        <button id="upload-approver-btn" class="btn btn-success">Upload Approvers</button>
+                        <button id="delete-approver-btn" class="btn btn-danger" title="Delete ALL Approvers">Delete All</button>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="status-message-local"></div>
+                </div>
+            </section>
+
+            <section class="card">
+                <div class="card-header">
+                    <h2>Cost Data (CSV)</h2>
+                    <p class="headers">Headers: PO, Project, Description</p>
+                </div>
+                <div class="card-body">
+                    <input type="file" id="cost-csv-file" class="file-input" accept=".csv">
+                    <label for="cost-csv-file" class="file-label"><span>Click to choose a file or drag and drop</span></label>
+                    <div class="upload-group">
+                        <button id="upload-cost-btn" class="btn btn-success">Upload Cost</button>
+                        <button id="delete-cost-btn" class="btn btn-danger" title="Delete ALL Cost Data">Delete All</button>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="status-message-local"></div>
+                </div>
+            </section>
+
+            <section class="card">
+                <div class="card-header">
+                    <h2>Project Site (CSV)</h2>
+                    <p class="headers">Headers: Warehouse, Description</p>
+                </div>
+                <div class="card-body">
+                    <input type="file" id="project-site-csv-file" class="file-input" accept=".csv">
+                    <label for="project-site-csv-file" class="file-label"><span>Click to choose a file or drag and drop</span></label>
+                    <div class="upload-group">
+                        <button id="upload-project-site-btn" class="btn btn-success">Upload Sites</button>
+                        <button id="delete-project-site-btn" class="btn btn-danger" title="Delete ALL Project Sites">Delete All</button>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="status-message-local"></div>
+                </div>
+            </section>
+
+            <section class="card">
+                <div class="card-header">
+                    <h2>Invoice Entries (CSV)</h2>
+                    <p class="headers">Headers: firebaseID, PO, Site, Vendor, PO_Value, invEntryID, invNumber, invoiceDate, invValue, amountPaid, invName, srvName, attention, releaseDate, status, note</p>
+                </div>
+                <div class="card-body">
+                    <input type="file" id="invoice-entries-csv-file" class="file-input" accept=".csv">
+                    <label for="invoice-entries-csv-file" class="file-label"><span>Click to choose a file or drag and drop</span></label>
+                    <div class="upload-group">
+                        <button id="upload-invoice-entries-btn" class="btn btn-success">Upload Entries</button>
+                        <button id="download-invoice-template-btn" class="btn btn-secondary">Download Template</button>
+                        <button id="download-all-invoices-btn" class="btn btn-secondary">Download All Entries</button>
+                        <button id="delete-invoice-entries-btn" class="btn btn-danger" title="Delete ALL Invoice Entries">Delete All</button>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="status-message-local"></div>
+                </div>
+            </section>
+        </div>
+
+        <div id="approver-management-content" class="tab-content" style="display: none;">
+            <section class="card">
+                <div class="approver-management-container">
+                    <aside class="add-approver-section">
+                        <h3 id="approver-form-title">Add New Approver</h3>
+                        <form id="add-approver-form" class="form-grid">
+                            <div class="form-group">
+                                <label for="approver-name">Full Name</label>
+                                <input type="text" id="approver-name" placeholder="e.g., John Doe" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="approver-email">Email Address</label>
+                                <input type="email" id="approver-email" placeholder="e.g., john.doe@example.com">
+                            </div>
+                            <div class="form-group">
+                                <label for="approver-mobile">Mobile Number</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">+974</span>
+                                    <input type="tel" id="approver-mobile" placeholder="55123456" required maxlength="8" pattern="\d{8}" title="Please enter an 8-digit number.">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="approver-position">Position / Title</label>
+                                <input type="text" id="approver-position" placeholder="e.g., Project Manager">
+                            </div>
+                             <div class="form-group">
+                                <label for="approver-site">Site / Location</label>
+                                <input type="text" id="approver-site" placeholder="e.g., Main Office">
+                            </div>
+                            <div class="form-group">
+                                <label for="approver-role">Role</label>
+                                <input type="text" id="approver-role" placeholder="e.g., Approver, Finance">
+                            </div>
+                            <div class="form-group">
+                                <label for="approver-vacation">Vacation Status</label>
+                                <select id="approver-vacation">
+                                    <option value="No">No</option>
+                                    <option value="Yes">Yes</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="approver-return-date">Return Date</label>
+                                <input type="date" id="approver-return-date">
+                            </div>
+                            <div class="form-group">
+                                <label for="approver-password">Password</label>
+                                <input type="password" id="approver-password" placeholder="Leave blank to keep unchanged">
+                            </div>
+                            <div class="form-group">
+                                <label for="approver-replacement-name">Replacement Approver</label>
+                                <select id="approver-replacement-name">
+                                    <option value="">None</option>
+                                    <!-- Options populated by JS -->
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="approver-replacement-contact">Replacement Contact</label>
+                                <input type="tel" id="approver-replacement-contact" placeholder="e.g., 55123456">
+                            </div>
+                             <div class="form-group">
+                                <label for="approver-replacement-email">Replacement Email</label>
+                                <input type="email" id="approver-replacement-email" placeholder="e.g., replacement@example.com">
+                            </div>
+                            <div class="form-group button-group">
+                                <button type="submit" id="approver-submit-btn" class="btn">Add Approver</button>
+                                <button type="button" id="approver-cancel-btn" class="btn btn-secondary" style="display: none;">Cancel Edit</button>
+                                <button type="button" id="approver-delete-password-btn" class="btn btn-danger" style="display: none; grid-column: 1 / -1;">Delete Password</button>
+                            </div>
+                        </form>
+                    </aside>
+                    <div class="approver-list-section">
+                        <div class="approver-list-header">
+                           <h3>Current Approvers</h3>
+                           <div class="list-actions">
+                               <input type="search" id="approver-search-input" placeholder="Search by name, email, mobile...">
+                               <button id="download-csv-btn" class="btn">
+                                   <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 13.125L10 3.125M10 13.125L13.125 10M10 13.125L6.875 10M5 16.875L15 16.875" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                   <span>Download CSV</span>
+                                </button>
+                           </div>
+                        </div>
+                        <div class="table-responsive-wrapper">
+                            <table class="approver-table">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th class="col-nowrap">Mobile</th>
+                                        <th>Position</th>
+                                        <th>Site</th>
+                                        <th>Role</th>
+                                        <th>Vacation</th>
+                                        <th>Return Date</th>
+                                        <th>Replacement</th>
+                                        <th>Rep. Contact</th>
+                                        <th>Rep. Email</th>
+                                        <th style="text-align: right;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="approver-table-body">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js" type="module"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js" type="module"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js" type="module"></script>
+    
+    <script type="module">
+        // Import Firebase functions
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getDatabase, ref, set, remove, get, onValue, push, update, child } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js"; 
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+        // --- FIREBASE CONFIGURATION (MAIN) ---
+        // Used for Auth, Approvers, POs, Cost Data, Project Sites
+        const firebaseConfigMain = {
+            apiKey: "AIzaSyBCHiQsjqhEUVZN9KhhckSqkw8vVT9LcXc",
+            authDomain: "ibainvoice-3ea51.firebaseapp.com",
+            databaseURL: "https://ibainvoice-3ea51-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "ibainvoice-3ea51",
+            storageBucket: "ibainvoice-3ea51.firebasestorage.app",
+            messagingSenderId: "152429622957",
+            appId: "1:152429622957:web:f79a80df75ce662e97b824",
+            measurementId: "G-KR3KDQ3NRC"
+        };
+        
+        // --- FIREBASE CONFIGURATION (INVOICES) ---
+        // Used ONLY for Invoice Entries
+        const firebaseConfigInvoices = {
+            apiKey: "AIzaSyB5_CCTk-dvr_Lsv0K2ScPwHJkkCY7VoAM",
+            authDomain: "invoiceentry-b15a8.firebaseapp.com",
+            databaseURL: "https://invoiceentry-b15a8-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "invoiceentry-b15a8",
+            storageBucket: "invoiceentry-b15a8.firebasestorage.app",
+            messagingSenderId: "916998429537",
+            appId: "1:916998429537:web:6f4635d6d6e1cb98bb0320",
+            measurementId: "G-R409J22B97"
+        };
+        
+        // --- Firebase Initialization ---
+        const firebaseAppMain = initializeApp(firebaseConfigMain, "mainApp");
+        const firebaseAppInvoices = initializeApp(firebaseConfigInvoices, "invoicesApp");
+
+        // --- Firebase Services ---
+        const databaseMain = getDatabase(firebaseAppMain);
+        const authMain = getAuth(firebaseAppMain);
+        const databaseInvoices = getDatabase(firebaseAppInvoices);
+        
+        // --- ADMIN UID ---
+        const ADMIN_UID = "NY8g0P9rVFc5GN9UKdP3Fkuh1ju2";
+
+        // --- DOM Elements ---
+        const loginContainer = document.getElementById('login-container');
+        const appContainer = document.getElementById('app-container');
+        const loginForm = document.getElementById('login-form');
+        const loginErrorMessage = document.getElementById('login-error-message');
+        const authStatus = document.getElementById('auth-status');
+
+        const poFileInput = document.getElementById('po-csv-file');
+        const poUploadBtn = document.getElementById('upload-po-btn');
+        const poDeleteBtn = document.getElementById('delete-po-btn'); 
+
+        const approverFileInput = document.getElementById('approver-csv-file');
+        const approverUploadBtn = document.getElementById('upload-approver-btn');
+        const approverDeleteBtn = document.getElementById('delete-approver-btn');
+
+        const costFileInput = document.getElementById('cost-csv-file');
+        const costUploadBtn = document.getElementById('upload-cost-btn');
+        const costDeleteBtn = document.getElementById('delete-cost-btn'); 
+
+        const projectSiteFileInput = document.getElementById('project-site-csv-file');
+        const projectSiteUploadBtn = document.getElementById('upload-project-site-btn');
+        const projectSiteDeleteBtn = document.getElementById('delete-project-site-btn');
+        
+        const invoiceEntriesFileInput = document.getElementById('invoice-entries-csv-file');
+        const invoiceEntriesUploadBtn = document.getElementById('upload-invoice-entries-btn');
+        const invoiceEntriesDeleteBtn = document.getElementById('delete-invoice-entries-btn');
+        const downloadInvoiceTemplateBtn = document.getElementById('download-invoice-template-btn');
+        const downloadAllInvoicesBtn = document.getElementById('download-all-invoices-btn');
+
+        const addApproverForm = document.getElementById('add-approver-form');
+        const approverTableBody = document.getElementById('approver-table-body');
+        const approverFormTitle = document.getElementById('approver-form-title');
+        const approverSubmitBtn = document.getElementById('approver-submit-btn');
+        const approverCancelBtn = document.getElementById('approver-cancel-btn');
+        const searchInput = document.getElementById('approver-search-input');
+        const downloadCsvBtn = document.getElementById('download-csv-btn');
+        const approverDeletePasswordBtn = document.getElementById('approver-delete-password-btn');
+        
+        let currentEditingId = null;
+        let originalPassword = '';
+        let allApprovers = {};
+
+        // Tab Switching Logic
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                tabContents.forEach(content => content.style.display = 'none');
+                const targetId = button.dataset.target;
+                const targetContent = document.querySelector(targetId);
+                if (targetContent) {
+                    targetContent.style.display = 'block';
+                }
+                if (targetId === '#approver-management-content') {
+                    appContainer.classList.add('wide-view');
+                } else {
+                    appContainer.classList.remove('wide-view');
+                }
+            });
+        });
+
+        // --- Authentication Logic (Uses MAIN Auth) ---
+        onAuthStateChanged(authMain, user => {
+            if (user && user.uid === ADMIN_UID) {
+                loginContainer.style.display = 'none';
+                appContainer.style.display = 'block';
+                authStatus.innerHTML = `Logged in as <strong>${user.email}</strong> <button id="logout-btn">Logout</button>`;
+                document.getElementById('logout-btn').addEventListener('click', () => signOut(authMain));
+                listenForApprovers();
+            } else {
+                loginContainer.style.display = 'block';
+                appContainer.style.display = 'none';
+                if (user) { signOut(authMain); }
+            }
+        });
+
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            loginErrorMessage.textContent = '';
+            loginErrorMessage.classList.remove("error", "success");
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            signInWithEmailAndPassword(authMain, email, password)
+                .catch((error) => {
+                    console.error("Login Error:", error.code, error.message);
+                    loginErrorMessage.textContent = "Error: Invalid credentials. Please try again.";
+                    loginErrorMessage.classList.add("error");
+                });
+        });
+
+        // --- Helper Function for Unique Key Generation ---
+        const getUniqueKey = (dbPath, record) => {
+            let uniqueKey;
+            if (dbPath === 'approvers') {
+                const mobile = String(record['Mobile']).replace(/\D/g, '');
+                uniqueKey = mobile;
+            } else if (dbPath === 'purchase_orders') {
+                uniqueKey = String(record['PO']).replace(/[.#$[\]/]/g, '_');
+            } else if (dbPath === 'cost_data') {
+                const po = String(record['PO']).replace(/[.#$[\]/]/g, '_');
+                const project = String(record['Project']).replace(/[.#$[\]/]/g, '_');
+                uniqueKey = `${po}_${project}`;
+            } else if (dbPath === 'project_sites') {
+                uniqueKey = String(record['Warehouse']).replace(/[.#$[\]/]/g, '_');
+            } else {
+                uniqueKey = 'error_invalid_path';
+            }
+            return uniqueKey;
+        };
+        
+        // --- Approver Management CRUD, Search & Download Logic (Uses MAIN Database) ---
+        function populateReplacementDropdown(approvers, currentApproverId = null) {
+            const replacementSelect = document.getElementById('approver-replacement-name');
+            if (!replacementSelect) return;
+            const currentValue = replacementSelect.value;
+            replacementSelect.innerHTML = '<option value="">None</option>'; 
+
+            Object.keys(approvers).sort((a,b) => approvers[a].Name.localeCompare(approvers[b].Name)).forEach(key => {
+                if (key === currentApproverId) return;
+                const approver = approvers[key];
+                const option = document.createElement('option');
+                option.value = approver.Name;
+                option.textContent = approver.Name;
+                replacementSelect.appendChild(option);
+            });
+            replacementSelect.value = currentValue;
+        }
+        
+        function renderApprovers(approversToRender) {
+            approverTableBody.innerHTML = '';
+            const sortedKeys = Object.keys(approversToRender).sort((a, b) => {
+                const nameA = (approversToRender[a].Name || '').toLowerCase();
+                const nameB = (approversToRender[b].Name || '').toLowerCase();
+                if (nameA < nameB) return -1;
+                if (nameA > nameB) return 1;
+                return 0;
+            });
+
+            if (sortedKeys.length > 0) {
+                for (const key of sortedKeys) {
+                    const approver = approversToRender[key];
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${approver.Name || 'N/A'}</td>
+                        <td>${approver.Email || 'N/A'}</td>
+                        <td class="col-nowrap">${approver.Mobile || 'N/A'}</td>
+                        <td>${approver.Position || 'N/A'}</td>
+                        <td>${approver.Site || 'N/A'}</td>
+                        <td>${approver.Role || 'N/A'}</td>
+                        <td>${approver.Vacation || 'No'}</td>
+                        <td>${approver.DateReturn || 'N/A'}</td>
+                        <td>${approver.ReplacementName || 'N/A'}</td>
+                        <td>${approver.ReplacementContact || 'N/A'}</td>
+                        <td>${approver.ReplacementEmail || 'N/A'}</td>
+                        <td style="text-align: right;">
+                            <div class="table-actions">
+                                <button class="edit-btn" data-id="${key}">Edit</button>
+                                <button class="delete-btn-table" data-id="${key}">Delete</button>
+                            </div>
+                        </td>
+                    `;
+                    approverTableBody.appendChild(row);
+                }
+            } else {
+                approverTableBody.innerHTML = `<tr><td colspan="12" style="text-align:center; padding: 2rem;">No approvers match your search.</td></tr>`;
+            }
+        }
+
+        function getFilteredApprovers() {
+            const searchTerm = searchInput.value.toLowerCase().trim();
+            if (!searchTerm) return allApprovers;
+            const filtered = {};
+            for (const key in allApprovers) {
+                const a = allApprovers[key];
+                if (Object.values(a).some(val => String(val).toLowerCase().includes(searchTerm))) {
+                    filtered[key] = a;
+                }
+            }
+            return filtered;
+        }
+
+        function filterAndRenderApprovers() {
+            renderApprovers(getFilteredApprovers());
+        }
+
+        function listenForApprovers() {
+            const approversRef = ref(databaseMain, 'approvers');
+            onValue(approversRef, (snapshot) => {
+                allApprovers = snapshot.exists() ? snapshot.val() : {};
+                filterAndRenderApprovers();
+                populateReplacementDropdown(allApprovers, currentEditingId);
+            });
+        }
+        
+        function downloadApproversAsCsv() {
+            const approvers = getFilteredApprovers();
+            if (Object.keys(approvers).length === 0) {
+                alert("There is no data to download.");
+                return;
+            }
+            const headers = ["Name", "Email", "Mobile", "Position", "Site", "Role", "Password", "Vacation", "DateReturn", "ReplacementName", "ReplacementContact", "ReplacementEmail"];
+            const csv = Papa.unparse({ fields: headers, data: Object.values(approvers) });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            const date = new Date().toISOString().slice(0, 10);
+            link.setAttribute('download', `approvers_${date}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        approverTableBody.addEventListener('click', (e) => {
+            const target = e.target.closest('button');
+            if (!target) return;
+            const id = target.dataset.id;
+            if (target.classList.contains('edit-btn')) handleEdit(id);
+            if (target.classList.contains('delete-btn-table')) handleDelete(id);
+        });
+
+        addApproverForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const mobileNumber = document.getElementById('approver-mobile').value;
+            const passwordInput = document.getElementById('approver-password').value;
+
+            const record = {
+                Name: document.getElementById('approver-name').value,
+                Email: document.getElementById('approver-email').value,
+                Mobile: `+974 ${mobileNumber}`,
+                Position: document.getElementById('approver-position').value,
+                Site: document.getElementById('approver-site').value,
+                Role: document.getElementById('approver-role').value,
+                Password: passwordInput ? passwordInput : originalPassword,
+                Vacation: document.getElementById('approver-vacation').value,
+                DateReturn: document.getElementById('approver-return-date').value,
+                ReplacementName: document.getElementById('approver-replacement-name').value,
+                ReplacementContact: document.getElementById('approver-replacement-contact').value,
+                ReplacementEmail: document.getElementById('approver-replacement-email').value,
+            };
+
+            const newKey = getUniqueKey('approvers', { Mobile: mobileNumber });
+            if (!newKey) {
+                alert("Could not generate a unique ID. Please check the Mobile field.");
+                return;
+            }
+
+            try {
+                await set(ref(databaseMain, `approvers/${newKey}`), record);
+                if (currentEditingId && currentEditingId !== newKey) {
+                    await remove(ref(databaseMain, `approvers/${currentEditingId}`));
+                }
+                resetApproverForm();
+            } catch (error) {
+                console.error("Error saving approver:", error);
+                alert("Failed to save approver.");
+            }
+        });
+
+        async function handleEdit(id) {
+            const snapshot = await get(ref(databaseMain, `approvers/${id}`));
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                document.getElementById('approver-name').value = data.Name || '';
+                document.getElementById('approver-email').value = data.Email || '';
+                document.getElementById('approver-mobile').value = (data.Mobile || '').replace(/\D/g, '').replace('974','');
+                document.getElementById('approver-position').value = data.Position || '';
+                document.getElementById('approver-site').value = data.Site || '';
+                document.getElementById('approver-role').value = data.Role || '';
+                document.getElementById('approver-password').value = '';
+                originalPassword = data.Password || '';
+                
+                document.getElementById('approver-vacation').value = data.Vacation || 'No';
+                document.getElementById('approver-return-date').value = data.DateReturn || '';
+                
+                currentEditingId = id;
+
+                populateReplacementDropdown(allApprovers, currentEditingId);
+                
+                document.getElementById('approver-replacement-name').value = data.ReplacementName || '';
+                document.getElementById('approver-replacement-contact').value = data.ReplacementContact || '';
+                document.getElementById('approver-replacement-email').value = data.ReplacementEmail || '';
+                
+                approverFormTitle.textContent = 'Edit Approver';
+                approverSubmitBtn.textContent = 'Update Approver';
+                approverCancelBtn.style.display = 'block';
+                approverDeletePasswordBtn.style.display = 'block';
+                document.querySelector('.add-approver-section').scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+        
+        function handleDelete(id) {
+            if (confirm('Are you sure you want to delete this approver?')) {
+                remove(ref(databaseMain, `approvers/${id}`)).catch(err => console.error("Error deleting:", err));
+            }
+        }
+
+        function resetApproverForm() {
+            addApproverForm.reset();
+            currentEditingId = null;
+            originalPassword = '';
+            approverFormTitle.textContent = 'Add New Approver';
+            approverSubmitBtn.textContent = 'Add Approver';
+            approverCancelBtn.style.display = 'none';
+            approverDeletePasswordBtn.style.display = 'none';
+            populateReplacementDropdown(allApprovers);
+        }
+        
+        searchInput.addEventListener('input', filterAndRenderApprovers);
+        approverCancelBtn.addEventListener('click', resetApproverForm);
+        downloadCsvBtn.addEventListener('click', downloadApproversAsCsv);
+        
+        approverDeletePasswordBtn.addEventListener('click', async () => {
+            if (!currentEditingId) return;
+
+            if (confirm('Are you sure you want to PERMANENTLY delete the password for this approver? This cannot be undone.')) {
+                try {
+                    await update(ref(databaseMain, `approvers/${currentEditingId}`), {
+                        Password: ''
+                    });
+                    alert('Password deleted successfully.');
+                    resetApproverForm();
+                } catch (error) {
+                    console.error("Error deleting password:", error);
+                    alert('Failed to delete password. See console for details.');
+                }
+            }
+        });
+
+        // --- CSV Uploader Logic ---
+        const displayMessage = (el, msg, type) => {
+            if (!el) return;
+            el.innerHTML = msg;
+            el.className = `status-message-local visible ${type}`;
+        };
+
+        const uploadCsv = async (file, dbPath, headers, statusEl, dbInstance) => {
+            if (!file) {
+                displayMessage(statusEl, "Please select a file first.", "error");
+                return;
+            }
+            displayMessage(statusEl, `Parsing ${file.name}...`, "processing");
+
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: async (results) => {
+                    const csvHeaders = results.meta.fields;
+                    if (!headers.every(h => csvHeaders.includes(h))) {
+                        displayMessage(statusEl, `Error: Headers mismatch. Expected at least: ${headers.join(', ')}`, "error");
+                        return;
+                    }
+
+                    let data = results.data;
+                    const total = data.length;
+                    if (total === 0) {
+                        displayMessage(statusEl, "CSV file is empty or contains no data.", "error");
+                        return;
+                    }
+                    
+                    displayMessage(statusEl, `Preparing ${data.length} records for upload...`, "processing");
+
+                    const updates = {};
+                    let uploadedCount = 0;
+
+                    if (dbPath === 'invoice_entries') {
+                        displayMessage(statusEl, 'Fetching existing data for comparison...', 'processing');
+                        
+                        const existingEntriesSnapshot = await get(ref(dbInstance, 'invoice_entries'));
+                        const existingData = existingEntriesSnapshot.exists() ? existingEntriesSnapshot.val() : {};
+                        
+                        const poInvIdToFirebaseIdMap = new Map();
+                        const poMaxInvIdMap = new Map();
+
+                        for (const poNumber in existingData) {
+                            let maxId = 0;
+                            for (const firebaseId in existingData[poNumber]) {
+                                const entry = existingData[poNumber][firebaseId];
+                                if (entry.invEntryID) {
+                                    const uniqueKey = `${poNumber}_${entry.invEntryID}`;
+                                    poInvIdToFirebaseIdMap.set(uniqueKey, firebaseId);
+                                    
+                                    const idNum = parseInt(entry.invEntryID.replace(/[^0-9]/g, ''), 10);
+                                    if (!isNaN(idNum) && idNum > maxId) {
+                                        maxId = idNum;
+                                    }
+                                }
+                            }
+                            poMaxInvIdMap.set(poNumber, maxId);
+                        }
+
+                        displayMessage(statusEl, `Processing ${data.length} CSV rows...`, 'processing');
+
+                        for (const record of data) {
+                             const po = record.PO;
+                            if (!po) continue;
+
+                            let entryKey;
+                            let invEntryID = record.invEntryID;
+                            const firebaseID = record.firebaseID;
+                            
+                            if (firebaseID) {
+                                entryKey = firebaseID;
+                            } else if (invEntryID) {
+                                const lookupKey = `${po}_${invEntryID}`;
+                                entryKey = poInvIdToFirebaseIdMap.get(lookupKey);
+                            } else {
+                                let currentMax = poMaxInvIdMap.get(po) || 0;
+                                currentMax++;
+                                invEntryID = `INV-${currentMax}`;
+                                record.invEntryID = invEntryID;
+                                poMaxInvIdMap.set(po, currentMax);
+                            }
+
+                            if (!entryKey) {
+                                entryKey = push(child(ref(dbInstance), `${dbPath}/${po}`)).key;
+                            }
+
+                            const entryData = { ...record };
+                            delete entryData.PO;
+                            delete entryData.firebaseID;
+
+                            updates[`${dbPath}/${po}/${entryKey}`] = entryData;
+                            uploadedCount++;
+                        }
+                    } else {
+                        for (const record of data) {
+                            try {
+                                const key = getUniqueKey(dbPath, record);
+                                if (!key || key === 'error_invalid_path') continue;
+                                updates[`${dbPath}/${key}`] = record;
+                                uploadedCount++;
+                            } catch (err) {
+                                console.error(`Error processing record:`, record, err);
+                            }
+                        }
+                    }
+
+
+                    if (Object.keys(updates).length === 0) {
+                        displayMessage(statusEl, "No valid records found to upload.", "error");
+                        return;
+                    }
+
+                    try {
+                        displayMessage(statusEl, `Uploading/updating ${uploadedCount} records...`, "processing");
+                        await update(ref(dbInstance), updates);
+                        displayMessage(statusEl, `Successfully processed ${uploadedCount}/${data.length} records.`, "success");
+                    } catch (err) {
+                        console.error("Firebase update failed:", err);
+                        displayMessage(statusEl, `Error uploading data: ${err.message}`, "error");
+                    }
+                },
+                error: (err) => displayMessage(statusEl, `Error parsing CSV: ${err.message}`, "error")
+            });
+        };
+
+        const deletePath = async (dbPath, statusEl, name, dbInstance) => {
+            if (!confirm(`WARNING! This will PERMANENTLY delete ALL ${name}. Are you sure?`)) return;
+            displayMessage(statusEl, `Deleting all ${name}...`, "processing");
+            try {
+                await remove(ref(dbInstance, dbPath));
+                displayMessage(statusEl, `Successfully deleted all ${name}.`, "success");
+            } catch (err) {
+                displayMessage(statusEl, `Error deleting: ${err.message}`, "error");
+            }
+        };
+
+        const downloadTemplateCsv = (headers, data, filename) => {
+            const csv = Papa.unparse({ fields: headers, data: data });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+        
+        const downloadAllInvoiceEntries = async () => {
+            const statusEl = downloadAllInvoicesBtn.closest('.card').querySelector('.status-message-local');
+            displayMessage(statusEl, 'Fetching all invoice data from Firebase...', 'processing');
+
+            try {
+                const snapshot = await get(ref(databaseInvoices, 'invoice_entries'));
+                if (!snapshot.exists()) {
+                    displayMessage(statusEl, 'No invoice entries found to download.', 'success');
+                    alert('No invoice entries found in the database.');
+                    return;
+                }
+
+                const allPOs = snapshot.val();
+                const flattenedData = [];
+                const headers = ["firebaseID", "PO", "Site", "Vendor", "PO_Value", "invEntryID", "invNumber", "invoiceDate", "invValue", "amountPaid", "invName", "srvName", "attention", "releaseDate", "status", "note"];
+
+                for (const poNumber in allPOs) {
+                    const entries = allPOs[poNumber];
+                    for (const entryId in entries) {
+                        flattenedData.push({
+                            firebaseID: entryId,
+                            PO: poNumber,
+                            ...entries[entryId]
+                        });
+                    }
+                }
+
+                if (flattenedData.length === 0) {
+                     displayMessage(statusEl, 'No invoice entries found to download.', 'success');
+                    return;
+                }
+
+                downloadTemplateCsv(headers, flattenedData, `all_invoice_entries_${new Date().toISOString().slice(0, 10)}.csv`);
+                displayMessage(statusEl, `Successfully prepared ${flattenedData.length} entries for download.`, 'success');
+
+            } catch (error) {
+                console.error("Error downloading all invoice entries:", error);
+                displayMessage(statusEl, `Error fetching data: ${error.message}`, 'error');
+            }
+        };
+
+
+        // Event Listeners for Upload Buttons
+        poUploadBtn.addEventListener('click', () => uploadCsv(poFileInput.files[0], 'purchase_orders', ["ReqNum", "PO", "Supplier ID", "Supplier Name", "Project ID", "Amount", "Order Date"], poUploadBtn.closest('.card').querySelector('.status-message-local'), databaseMain));
+        approverUploadBtn.addEventListener('click', () => uploadCsv(approverFileInput.files[0], 'approvers', ["Name", "Email", "Mobile", "Position", "Site", "Password", "Vacation", "DateReturn", "ReplacementName", "ReplacementContact", "ReplacementEmail"], approverUploadBtn.closest('.card').querySelector('.status-message-local'), databaseMain));
+        costUploadBtn.addEventListener('click', () => uploadCsv(costFileInput.files[0], 'cost_data', ["PO", "Project", "Description"], costUploadBtn.closest('.card').querySelector('.status-message-local'), databaseMain));
+        projectSiteUploadBtn.addEventListener('click', () => uploadCsv(projectSiteFileInput.files[0], 'project_sites', ["Warehouse", "Description"], projectSiteUploadBtn.closest('.card').querySelector('.status-message-local'), databaseMain));
+        invoiceEntriesUploadBtn.addEventListener('click', () => uploadCsv(invoiceEntriesFileInput.files[0], 'invoice_entries', ["PO", "Site", "Vendor", "PO_Value", "invEntryID", "invNumber", "invoiceDate", "invValue", "amountPaid", "invName", "srvName", "attention", "releaseDate", "status", "note"], invoiceEntriesUploadBtn.closest('.card').querySelector('.status-message-local'), databaseInvoices));
+        
+        // Event Listeners for Delete Buttons
+        poDeleteBtn.addEventListener('click', () => deletePath('purchase_orders', poDeleteBtn.closest('.card').querySelector('.status-message-local'), 'Purchase Orders', databaseMain));
+        approverDeleteBtn.addEventListener('click', () => deletePath('approvers', approverDeleteBtn.closest('.card').querySelector('.status-message-local'), 'Approvers', databaseMain));
+        costDeleteBtn.addEventListener('click', () => deletePath('cost_data', costDeleteBtn.closest('.card').querySelector('.status-message-local'), 'Cost Data', databaseMain));
+        projectSiteDeleteBtn.addEventListener('click', () => deletePath('project_sites', projectSiteDeleteBtn.closest('.card').querySelector('.status-message-local'), 'Project Sites', databaseMain));
+        invoiceEntriesDeleteBtn.addEventListener('click', () => deletePath('invoice_entries', invoiceEntriesDeleteBtn.closest('.card').querySelector('.status-message-local'), 'Invoice Entries', databaseInvoices));
+
+        // Event Listener for Template Download
+        downloadInvoiceTemplateBtn.addEventListener('click', () => {
+            const headers = ["firebaseID", "PO", "Site", "Vendor", "PO_Value", "invEntryID", "invNumber", "invoiceDate", "invValue", "amountPaid", "invName", "srvName", "attention", "releaseDate", "status", "note"];
+            const sampleData = [
+            {
+                firebaseID: "",
+                PO: "52740",
+                Site: "Main Site",
+                Vendor: "Sample Vendor Inc.",
+                PO_Value: "50000.00",
+                invEntryID: "INV-01",
+                invNumber: "12345",
+                invValue: "3500.75",
+                invoiceDate: "2025-10-13",
+                amountPaid: "0",
+                invName: "sample_invoice.pdf",
+                srvName: "service_report_123.pdf",
+                attention: "Finance Dept",
+                releaseDate: "",
+                status: "Pending",
+                note: "This row will UPDATE INV-01 for PO 52740."
+            },
+            {
+                firebaseID: "",
+                PO: "52740",
+                Site: "Main Site",
+                Vendor: "Sample Vendor Inc.",
+                PO_Value: "50000.00",
+                invEntryID: "",
+                invNumber: "67890",
+                invValue: "1200.00",
+                invoiceDate: "2025-10-14",
+                amountPaid: "0",
+                invName: "new_invoice.pdf",
+                srvName: "new_report.pdf",
+                attention: "Manager",
+                releaseDate: "",
+                status: "Pending",
+                note: "This row will CREATE a new entry for PO 52740 with the next available number."
+            }
+        ];
+            downloadTemplateCsv(headers, sampleData, 'invoice_entries_template.csv');
+        });
+
+        downloadAllInvoicesBtn.addEventListener('click', downloadAllInvoiceEntries);
+
+        document.querySelectorAll('.file-input').forEach(input => {
+            input.addEventListener('change', function() {
+                const label = this.nextElementSibling.querySelector('span');
+                if (this.files && this.files.length > 0) {
+                    label.textContent = this.files[0].name;
+                    this.classList.add('has-file');
+                } else {
+                    label.textContent = 'Click to choose a file or drag and drop';
+                    this.classList.remove('has-file');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+
