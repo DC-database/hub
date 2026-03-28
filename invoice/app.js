@@ -6,7 +6,127 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.5.1";
+const APP_VERSION = "6.5.5";
+
+
+// ======================================================================
+// ULTRA-FAST AUDIO ENGINE (VOLUME BALANCED & 2.5s COOLDOWN)
+// ======================================================================
+const soundClick = new Audio('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Click.mp3');
+const soundClear = new Audio('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Clear.mp3');
+const soundSuccess = new Audio('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Success.mp3');
+const soundError = new Audio('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Error.mp3');
+
+soundClick.preload = 'auto';
+soundClear.preload = 'auto';
+soundSuccess.preload = 'auto';
+soundError.preload = 'auto';
+
+// BALANCED VOLUMES (1.0 is max, 0.0 is mute)
+soundClick.volume = 1.0;   // Cranked to max
+soundClear.volume = 0.6;   // Medium-high
+soundSuccess.volume = 0.2; // Lowered significantly
+soundError.volume = 0.2;   // Lowered significantly
+
+// GLOBAL OVERRIDES WITH A 2.5-SECOND COOLDOWN!
+let lastSuccessTime = 0;
+window.playSystemSuccess = function() { 
+    const now = Date.now();
+    if (now - lastSuccessTime < 2500) return; // Wait 2.5 seconds before allowing another play
+    lastSuccessTime = now;
+    soundSuccess.currentTime = 0; 
+    soundSuccess.play().catch(e=>{}); 
+};
+
+let lastErrorTime = 0;
+window.playSystemError = function() { 
+    const now = Date.now();
+    if (now - lastErrorTime < 2500) return; // Wait 2.5 seconds before allowing another play
+    lastErrorTime = now;
+    soundError.currentTime = 0; 
+    soundError.play().catch(e=>{}); 
+};
+
+let soundsActive = false;
+setTimeout(() => { soundsActive = true; }, 2500); 
+
+let isSearching = false; 
+
+// 1. INSTANT CLICKS & ARMING THE SEARCH LOCK
+document.addEventListener('click', function(event) {
+    if (!soundsActive) return;
+
+    const tag = event.target.tagName.toLowerCase();
+    if (tag === 'textarea') return;
+    if (tag === 'input' && event.target.type !== 'button' && event.target.type !== 'submit' && event.target.type !== 'checkbox') return;
+
+    const clickedItem = event.target.closest(
+        'button, a, select, [data-section], [role="button"], .btn, .primary-btn, .secondary-btn, .action-btn, .im-help-tab-btn, .close, i.fa-solid, i.fas, i.fa-regular'
+    );
+
+    if (clickedItem) {
+        const itemText = (clickedItem.innerText || '').toLowerCase();
+        const itemId = (clickedItem.id || '').toLowerCase();
+        
+        const isSearchBtn = itemText.includes('search') || itemText.includes('filter') || itemText.includes('apply') || itemText.includes('find') || itemId.includes('search') || itemId.includes('filter') || itemId.includes('find') || clickedItem.querySelector('.fa-magnifying-glass') || clickedItem.querySelector('.fa-search');
+
+        if (itemText.includes('clear') || itemId.includes('clear')) {
+            soundClear.currentTime = 0;
+            soundClear.play().catch(e => {});
+        } else {
+            soundClick.currentTime = 0;
+            soundClick.play().catch(e => {});
+            
+            if (isSearchBtn) {
+                isSearching = true;
+                setTimeout(() => { isSearching = false; }, 3000); 
+            }
+        }
+    }
+});
+
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Enter' && event.target.tagName.toLowerCase() === 'input') {
+        isSearching = true;
+        setTimeout(() => { isSearching = false; }, 3000);
+    }
+});
+
+// 2. WATCH TABLES 
+const observeTables = [
+    'reporting-table-body', 'active-task-table-body', 'im-invoices-table-body', 
+    'im-batch-table-body', 'im-payment-modal-results', 'im-finance-results-body',
+    'invoice-table-body', 'records-table-body', 'invoice-records-table-body'
+];
+
+observeTables.forEach(tableId => {
+    const targetNode = document.getElementById(tableId);
+    if (targetNode) {
+        const observer = new MutationObserver((mutationsList) => {
+            if (!soundsActive) return;
+            const contentChanged = mutationsList.some(m => m.addedNodes.length > 0 || m.removedNodes.length > 0);
+            
+            if (contentChanged && isSearching) {
+                const htmlContent = targetNode.innerHTML.toLowerCase();
+                
+                if (htmlContent.includes('no entries') || htmlContent.includes('no tasks') || htmlContent.includes('no records') || htmlContent.includes('no invoices') || htmlContent.includes('no results')) {
+                    window.playSystemError();
+                    isSearching = false; 
+                } 
+                else if (htmlContent.includes('loading') || htmlContent.includes('searching') || htmlContent.includes('cleared')) {
+                    // Ignore
+                }
+                else if (targetNode.children.length > 0) {
+                    window.playSystemSuccess();
+                    // We DO NOT set isSearching to false here anymore, 
+                    // relying entirely on the 2.5s cooldown to prevent double plays on complex pages.
+                }
+            }
+        });
+        observer.observe(targetNode, { childList: true, subtree: true });
+    }
+});
+
 
 // ======================================================================
 // NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)
@@ -3482,7 +3602,7 @@ function normalizeCelebrationConfig(raw) {
         showMode: 'every_login', // 'every_login' | 'once_per_device'
         soundEnabled: true,
         // Optional external sound (e.g., Firebase Storage mp3). If empty, a built-in sound plays.
-        soundUrl: 'https://firebasestorage.googleapis.com/v0/b/invoiceentry-b15a8.firebasestorage.app/o/Files%2Ffireworks.mp3?alt=media&token=b2c11d84-182c-43d9-be3c-f2b32250116c',
+        soundUrl: 'https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/fireworks.mp3',
         soundVolume: 0.75,
         durationMs: 5200,
         version: 'default-ny2026'
@@ -5129,7 +5249,7 @@ async function printInventoryInTransitReport() {
         const now = new Date();
         const printDate = now.toLocaleString('en-GB', { hour12: false });
 
-        const logoUrl = "https://firebasestorage.googleapis.com/v0/b/invoiceentry-b15a8.firebasestorage.app/o/Files%2Fiba_logo.jpg?alt=media&token=d7376281-75e0-4f8b-b9c5-9911e4522f68";
+        const logoUrl = "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/logo%20(1).png";
 
         const rowsHtml = inTransit.map((e, idx) => {
             const controlId = e.controlId || e.ref || e.controlNumber || '';
@@ -10284,12 +10404,17 @@ async function handlePOSearch(poNumberFromInput) {
         // Fallback: If not found in memory, force a DB check for this specific PO
         // (Just in case the list is huge and didn't load completely)
         if (!poData) {
-            const snap = await invoiceDb.ref(`purchase_orders/${poNumber}`).once('value');
-            if (snap.exists()) {
-                poData = snap.val();
-                allPOData[poNumber] = poData; // Save to memory
-            }
+        const snap = await invoiceDb.ref(`purchase_orders/${poNumber}`).once('value');
+        if (snap.exists()) {
+            poData = snap.val();
+            allPOData[poNumber] = poData; // Save to memory
+            window.playSystemSuccess();   // <--- FOUND IN FIREBASE (SUCCESS)
+        } else {
+            window.playSystemError();     // <--- NOT FOUND IN FIREBASE (ERROR)
         }
+    } else {
+        window.playSystemSuccess();       // <--- ALREADY FOUND IN CACHE (SUCCESS)
+    }
         // If STILL not found, show Manual Entry Modal
         if (!poData) {
             const manualPONoEl = document.getElementById('manual-po-number');
@@ -11713,9 +11838,13 @@ function buildDesktopReportView(reportData) {
     const canPrintSticker = (isAdmin && isAccounting); 
 
     if (reportData.length === 0) {
+        window.playSystemError(); // <--- PLAYS ERROR IF EMPTY
         container.innerHTML = '<p>No results found for your search criteria.</p>';
         return;
     }
+    
+    // If the code makes it down here, it means data was found!
+    window.playSystemSuccess();   // <--- PLAYS SUCCESS
 
     let tableHTML = `<table><thead><tr><th></th><th>PO</th><th>Site</th><th>Vendor</th><th>PO Value</th><th>SRV Balance</th></tr></thead><tbody>`;
 
@@ -12223,7 +12352,7 @@ function handleGeneratePrintReport() {
     // --- NEW: INJECT LOGO ---
     const logoContainer = document.querySelector('.print-logo');
     if (logoContainer) {
-        logoContainer.innerHTML = '<img src="https://firebasestorage.googleapis.com/v0/b/invoiceentry-b15a8.firebasestorage.app/o/Files%2Fiba_logo.jpg?alt=media&token=d7376281-75e0-4f8b-b9c5-9911e4522f68" style="height: 80px; width: auto;">';
+        logoContainer.innerHTML = '<img src="https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/logo%20(1).png style="height: 80px; width: auto;">';
     }
     // ------------------------
    
@@ -20316,6 +20445,7 @@ window.imAddToDeletionCollection = async function(poNumber) {
         console.error("Collection Error:", error);
     }
 };
+
 
 // =============================================================
 // IM HELP CENTER (Intelligent Assistant + Growing Knowledge Base)
