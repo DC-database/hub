@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.6.4";
+const APP_VERSION = "6.6.5";
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -12072,38 +12072,45 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
 
         contentArea.innerHTML = html;
 
-        // POPULATE THE DEDICATED GRAND TOTAL CONTAINER 
+       // POPULATE THE DEDICATED GRAND TOTAL CONTAINER (RESPONSIVE VERSION)
         const grandTotalContainer = document.getElementById('im-reporting-grand-total-container');
         if (grandTotalContainer) {
             if (canViewAmounts && currentReportData.length > 0) {
-                // FIXED: Clearing any external HTML padding/margin rules that force it out of bounds
                 grandTotalContainer.style.display = 'block';
-                grandTotalContainer.style.paddingRight = '0';
-                grandTotalContainer.style.boxSizing = 'border-box';
                 grandTotalContainer.style.width = '100%';
+                grandTotalContainer.style.boxSizing = 'border-box';
                 
-                // FIXED: Added box-sizing: border-box to the gradient div itself
                 grandTotalContainer.innerHTML = `
-                    <div style="background: linear-gradient(to right, #003A5C, #00748C); border-radius: 12px; box-shadow: 0 8px 20px rgba(0, 58, 92, 0.15); display: flex; justify-content: space-between; align-items: center; padding: 22px 30px; margin-top: 25px; margin-bottom: 30px; width: 100%; box-sizing: border-box; color: white;">
+                    <style>
+                        /* Only applies on screens smaller than 768px (Mobile) */
+                        @media (max-width: 768px) {
+                            .summary-wrapper { flex-direction: column !important; align-items: flex-start !important; gap: 15px !important; padding: 15px !important; }
+                            .summary-title-group { width: 100%; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 10px; }
+                            .summary-stats-group { flex-direction: column !important; width: 100%; gap: 12px !important; align-items: flex-start !important; }
+                            .summary-stat-item { text-align: left !important; width: 100%; }
+                        }
+                    </style>
+
+                    <div class="summary-wrapper" style="background: linear-gradient(to right, #003A5C, #00748C); border-radius: 12px; box-shadow: 0 8px 20px rgba(0, 58, 92, 0.15); display: flex; justify-content: space-between; align-items: center; padding: 22px 30px; margin-top: 25px; margin-bottom: 30px; width: 100%; box-sizing: border-box; color: white;">
                         
-                        <div style="display: flex; align-items: center; gap: 15px;">
+                        <div class="summary-title-group" style="display: flex; align-items: center; gap: 15px;">
                             <i class="fa-solid fa-calculator" style="font-size: 26px; color: #bae6fd;"></i>
                             <span style="font-size: 18px; font-weight: 800; letter-spacing: 0.5px;">Search Results Summary</span>
                         </div>
                         
-                        <div style="display: flex; gap: 40px; align-items: center;">
+                        <div class="summary-stats-group" style="display: flex; gap: 40px; align-items: center;">
                             
-                            <div style="display: flex; flex-direction: column; text-align: right; gap: 5px;">
+                            <div class="summary-stat-item" style="display: flex; flex-direction: column; text-align: right; gap: 5px;">
                                 <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #e0f2fe; letter-spacing: 0.5px;">Total PO Value</span>
                                 <span style="font-size: 16px; font-weight: 800; font-family: monospace;">QAR ${formatCurrency(grandTotalPO)}</span>
                             </div>
                             
-                            <div style="display: flex; flex-direction: column; text-align: right; gap: 5px;">
+                            <div class="summary-stat-item" style="display: flex; flex-direction: column; text-align: right; gap: 5px;">
                                 <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #e0f2fe; letter-spacing: 0.5px;">Total SRV</span>
                                 <span style="font-size: 16px; font-weight: 800; font-family: monospace;">QAR ${formatCurrency(grandTotalInv)}</span>
                             </div>
                             
-                            <div style="display: flex; flex-direction: column; text-align: right; gap: 5px;">
+                            <div class="summary-stat-item" style="display: flex; flex-direction: column; text-align: right; gap: 5px;">
                                 <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #ffffff; letter-spacing: 0.5px;">Total Outstanding Balance</span>
                                 <span style="font-size: 18px; font-weight: 900; font-family: monospace; color: #fde047;">QAR ${formatCurrency(grandTotalBalance)}</span>
                             </div>
@@ -12116,7 +12123,7 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
                 grandTotalContainer.innerHTML = '';
             }
         }
-        
+
     } catch (error) {
         console.error("Error generating report:", error);
         contentArea.innerHTML = '<div class="loading-state">Error loading report. Please try again.</div>';
@@ -13115,7 +13122,15 @@ async function handleAddPOToBatch() {
             <td>${poNumber} <span class="new-indicator">(New)</span></td>
             <td>${site}</td>
             <td>${vendor}</td>
-            <td><input type="text" name="invNumber" class="batch-input"></td>
+            
+            <td style="min-width: 130px;">
+                <div style="display: flex; gap: 4px; margin-bottom: 4px;">
+                    <button type="button" class="btn-quick-ipc" data-po="${poNumber}" style="flex: 1; padding: 2px 0; font-size: 9px; font-weight: bold; background: #003A5C; color: white; border: none; border-radius: 3px; cursor: pointer;">IPC</button>
+                    <button type="button" class="btn-quick-five" data-po="${poNumber}" style="flex: 1; padding: 2px 0; font-size: 9px; font-weight: bold; background: #00748C; color: white; border: none; border-radius: 3px; cursor: pointer;">FIVE</button>
+                </div>
+                <input type="text" name="invNumber" class="batch-input">
+            </td>
+            
             <td><input type="text" name="invName" class="batch-input"></td>
             <td><input type="text" name="details" class="batch-input"></td>
             <td><input type="text" name="srvName" class="batch-input"></td>
@@ -13128,14 +13143,14 @@ async function handleAddPOToBatch() {
             </td>
             <td><select name="status" class="batch-input">
                 <option value="For SRV">For SRV</option>
-		<option value="No Need SRV">No Need SRV</option>
+                <option value="No Need SRV">No Need SRV</option>
                 <option value="Pending">Pending</option>
                 <option value="For IPC">For IPC</option>
                 <option value="Under Review">Under Review</option>
                 <option value="CEO Approval">CEO Approval</option>
                 <option value="Report">Report</option>
-		<option value="Report Approval">Report Approval</option>
-		<option value="Report Approved">Report Approved</option>
+                <option value="Report Approval">Report Approval</option>
+                <option value="Report Approved">Report Approved</option>
                 <option value="With Accounts">With Accounts</option>
             </select></td>
             <td><input type="text" name="note" class="batch-input"></td>
@@ -20803,6 +20818,108 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.style.borderColor = '#f44336';
         }
     }
+});
+
+// --- SMART INJECTOR: IPC & FIVE BUTTONS FOR SINGLE INVOICE MODAL (V4 - SMART COUNT) ---
+document.addEventListener('click', function(e) {
+    // Short delay to let the modal fully open
+    setTimeout(() => {
+        // Find the specific invoice number input for this modal
+        const invInput = document.getElementById('im-inv-no');
+
+        if (invInput && invInput.closest('#im-invoice-entry-modal')) {
+            // Check if buttons are already there to prevent duplicates
+            if (!document.getElementById('smart-quick-fill-group')) {
+                
+                // 1. Create a "Row" wrapper so the input and buttons sit on the same line
+                const wrapper = document.createElement('div');
+                wrapper.style.cssText = 'display: flex; gap: 5px; width: 100%; align-items: stretch;';
+                
+                // 2. Move the text box inside our new wrapper
+                invInput.parentNode.insertBefore(wrapper, invInput);
+                wrapper.appendChild(invInput);
+                
+                // 3. Create the tiny buttons
+                const btnGroup = document.createElement('div');
+                btnGroup.id = 'smart-quick-fill-group';
+                btnGroup.style.cssText = 'display: flex; gap: 4px; flex-shrink: 0;';
+                
+                btnGroup.innerHTML = `
+                    <button type="button" id="btn-smart-ipc" tabindex="-1" title="Generate IPC" style="padding: 0 8px; font-size: 10px; font-weight: 800; background: #003A5C; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        IPC
+                    </button>
+                    <button type="button" id="btn-smart-five" tabindex="-1" title="Append to PO" style="padding: 0 8px; font-size: 10px; font-weight: 800; background: #00748C; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        FIVE
+                    </button>
+                `;
+
+                // 4. Put the buttons right next to the text box
+                wrapper.appendChild(btnGroup);
+
+                // --- HELPER FUNCTION: RELIABLY FIND THE PO NUMBER ---
+                const getActivePo = () => {
+                    const poSpan = document.querySelector('#im-invoice-entry-modal .im-po-no');
+                    if (poSpan && poSpan.textContent && poSpan.textContent !== '---') {
+                        return poSpan.textContent.trim();
+                    }
+                    return null;
+                };
+
+                // --- 1. IPC BUTTON LOGIC (WITH DEEP SEARCH COUNTER) ---
+                document.getElementById('btn-smart-ipc').addEventListener('click', (ev) => {
+                    ev.preventDefault();
+                    const activePo = getActivePo();
+                    if (!activePo) return alert("Could not detect PO Number from the modal.");
+
+                    let count = 0;
+                    let foundData = false;
+                    
+                    // DEEP SEARCH: Look through your system's data arrays to find the real count
+                    if (typeof allInvoicesByPO !== 'undefined' && allInvoicesByPO[activePo]) {
+                        count = Object.keys(allInvoicesByPO[activePo]).length;
+                        foundData = true;
+                    } else if (typeof allInvoices !== 'undefined' && Array.isArray(allInvoices)) {
+                        count = allInvoices.filter(inv => String(inv.poNumber) === String(activePo) || String(inv.PONumber) === String(activePo)).length;
+                        foundData = true;
+                    } else if (typeof invoiceRecords !== 'undefined' && Array.isArray(invoiceRecords)) {
+                        count = invoiceRecords.filter(inv => String(inv.poNumber) === String(activePo)).length;
+                        foundData = true;
+                    } else if (typeof currentReportData !== 'undefined' && Array.isArray(currentReportData)) {
+                        count = currentReportData.filter(inv => String(inv.poNumber) === String(activePo)).length;
+                        foundData = true;
+                    }
+                    
+                    // FALLBACK: If we can't find the array, just ask you so it never fails!
+                    if (!foundData) {
+                        const manualCount = prompt(`Could not auto-count existing invoices for PO ${activePo}.\nHow many invoices currently exist for this PO?`, "0");
+                        if (manualCount !== null) {
+                            count = parseInt(manualCount, 10) || 0;
+                        } else {
+                            return; // You clicked cancel
+                        }
+                    }
+                    
+                    // Add 1 to the count and format it (e.g. 03)
+                    const nextNum = String(count + 1).padStart(2, '0');
+                    invInput.value = `${activePo}.IPC/${nextNum}`;
+                    invInput.focus();
+                });
+
+                // --- 2. FIVE BUTTON LOGIC ---
+                document.getElementById('btn-smart-five').addEventListener('click', (ev) => {
+                    ev.preventDefault();
+                    const activePo = getActivePo();
+                    if (!activePo) return alert("Could not detect PO Number from the modal.");
+
+                    const currentVal = invInput.value.trim();
+                    if (currentVal.startsWith(activePo + '.')) return; 
+                    
+                    invInput.value = `${activePo}.${currentVal}`;
+                    invInput.focus();
+                });
+            }
+        }
+    }, 150); 
 });
 
 // =============================================================

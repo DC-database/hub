@@ -7394,3 +7394,172 @@ body.inventory-mode .wd-nav-material {
 .modern-action-group .invoice-pdf-btn { background-color: #dbeafe; color: #1d4ed8; border-color: #bfdbfe; }
 .modern-action-group .srv-pdf-btn { background-color: #dcfce7; color: #15803d; border-color: #bbf7d0; }
 .modern-action-group .history-btn { background-color: #f1f5f9; color: #64748b; }
+
+/* ============================================================
+   INVOICE RECORDS - FINAL FIX (DESKTOP & MOBILE)
+   ============================================================ */
+
+/* --- 1. DESKTOP VIEW STYLES --- */
+.im-reporting-container {
+    background: #ffffff;
+    border: 1px solid #d0d7de;
+    border-radius: 8px;
+    margin-top: 20px;
+    overflow-x: auto; /* Allows scrolling if it gets too wide */
+}
+
+.im-reporting-grid {
+    display: flex;
+    flex-direction: column;
+    min-width: 1000px; /* Keeps it looking like a table on Desktop */
+}
+
+/* This creates the 8 columns for Desktop */
+.im-reporting-grid-header, 
+.im-reporting-grid-row {
+    display: grid !important;
+    grid-template-columns: 80px 140px 110px 120px 120px 110px 140px 1fr !important;
+    border-bottom: 1px solid #d0d7de;
+}
+
+.im-reporting-grid-cell {
+    padding: 12px 10px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    border-right: 1px solid #f1f5f9;
+}
+
+/* Master PO Header (The dark blue one) */
+.im-reporting-po-master {
+    background-color: #f1f5f9 !important;
+    font-weight: 800 !important;
+    color: #003A5C !important;
+}
+
+/* Grand Total Box (Desktop) */
+.summary-wrapper {
+    background: linear-gradient(135deg, #003A5C 0%, #00748C 100%) !important;
+    border-radius: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 25px 35px;
+    margin: 30px 0;
+    color: white !important;
+    box-shadow: 0 10px 25px rgba(0, 58, 92, 0.2);
+}
+
+.summary-stats-group {
+    display: flex;
+    gap: 40px;
+}
+
+/* --- 2. MOBILE VIEW OVERRIDE (For Screens smaller than 768px) --- */
+@media (max-width: 768px) {
+    
+    .im-reporting-grid {
+        min-width: 100% !important; /* Stop the horizontal scrolling on phone */
+    }
+
+    .im-reporting-grid-header {
+        display: none !important; /* Hide headers on phone */
+    }
+
+    /* Turn each row into a vertical "Card" */
+    .im-reporting-grid-row {
+        display: block !important;
+        height: auto !important;
+        margin: 10px !important;
+        border: 1px solid #d0d7de !important;
+        border-radius: 8px !important;
+        padding: 10px !important;
+        background: white !important;
+    }
+
+    /* Make PO Header look like a title on phone */
+    .im-reporting-po-master {
+        background: #eef2f7 !important;
+        border-left: 6px solid #003A5C !important;
+    }
+
+    /* Make cells take full width and stack labels */
+    .im-reporting-grid-cell {
+        display: flex !important;
+        justify-content: space-between !important;
+        width: 100% !important;
+        border: none !important;
+        padding: 8px 5px !important;
+        border-bottom: 1px solid #f1f5f9 !important;
+        text-align: right !important;
+    }
+
+    /* Force the labels to show on the left in mobile */
+    .im-reporting-grid-row:not(.im-reporting-po-master) .im-reporting-grid-cell::before {
+        font-weight: 800;
+        color: #64748b;
+        font-size: 10px;
+        text-transform: uppercase;
+        content: "Data:"; /* Fallback label */
+    }
+
+    /* Summary Box Mobile Fix (Stack them) */
+    .summary-wrapper {
+        flex-direction: column !important;
+        padding: 20px !important;
+        gap: 20px !important;
+        align-items: flex-start !important;
+    }
+
+    .summary-stats-group {
+        flex-direction: column !important;
+        width: 100% !important;
+        gap: 15px !important;
+    }
+
+    .summary-stat-item {
+        text-align: left !important;
+        width: 100% !important;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        padding-bottom: 8px;
+    }
+}
+
+/* --- FORCE SEARCH BAR VISIBILITY ON MOBILE --- */
+@media (max-width: 768px) {
+    /* 1. Ensure the main container and filter area are visible */
+    #im-reporting-section, 
+    .im-reporting-filters, 
+    .im-reporting-search-container {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: 100% !important;
+    }
+
+    /* 2. Stack the search inputs so they fit on the screen */
+    .im-reporting-filters {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 10px !important;
+        padding: 15px !important;
+        background: #fff !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+    }
+
+    /* 3. Make the search boxes and buttons full width */
+    .im-reporting-filters input, 
+    .im-reporting-filters select, 
+    .im-reporting-filters button {
+        width: 100% !important;
+        height: 45px !important; /* Makes them easier to tap with fingers */
+        margin: 5px 0 !important;
+        font-size: 16px !important; /* Prevents iPhone from auto-zooming */
+    }
+
+    /* 4. Fix the search icon positioning if it shifted */
+    .im-reporting-search-wrapper {
+        position: relative !important;
+        width: 100% !important;
+    }
+}
