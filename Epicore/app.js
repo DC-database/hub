@@ -1,6 +1,7 @@
 // GitHub Raw URLs
 const PO_CSV_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
-const ECOMMIT_CSV_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/ECommit.csv";
+const ECOMMIT_CSV_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/ECommit2.csv";
+const SITE_CSV_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/Site.csv"; // NEW: Site Master List
 
 // FIREBASE CONFIGURATION
 const firebaseConfig = {
@@ -21,16 +22,19 @@ const database = firebase.database();
 // Cache Keys & Settings
 const CACHE_PO_KEY = "invoice_app_po_data";
 const CACHE_COMMIT_KEY = "invoice_app_commit_data";
+const CACHE_SITE_KEY = "invoice_app_site_data"; // NEW
 const CACHE_TIME_KEY = "invoice_app_last_updated";
 const CACHE_MS_KEY = "invoice_app_last_ms";
 const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 Hours
 
 let allInvoiceData = [];
 let allCommitData = [];
+let allSiteData = []; // NEW
 let allFirebaseData = []; 
 let commitSearchMap = {}; 
 let commitsByPO = {}; 
 let retentionByPO = {}; 
+let siteNameMap = {}; 
 let isDataLoaded = false;
 let currentFilteredData = [];
 
@@ -119,14 +123,16 @@ document.addEventListener("DOMContentLoaded", () => {
 async function initializeData() {
     const cachedPO = localStorage.getItem(CACHE_PO_KEY);
     const cachedCommit = localStorage.getItem(CACHE_COMMIT_KEY);
+    const cachedSite = localStorage.getItem(CACHE_SITE_KEY); // NEW
     const lastUpdatedString = localStorage.getItem(CACHE_TIME_KEY);
     const lastUpdatedMs = localStorage.getItem(CACHE_MS_KEY);
 
     const isCacheValid = lastUpdatedMs && (Date.now() - parseInt(lastUpdatedMs)) < CACHE_EXPIRY_MS;
 
-    if (cachedPO && cachedCommit && isCacheValid) {
+    if (cachedPO && cachedCommit && cachedSite && isCacheValid) {
         allInvoiceData = JSON.parse(cachedPO);
         allCommitData = JSON.parse(cachedCommit);
+        allSiteData = JSON.parse(cachedSite); // NEW
         await fetchFirebaseRetentionData(); 
         setupDataDependents();
         isDataLoaded = true;
@@ -165,19 +171,26 @@ async function fetchFirebaseRetentionData() {
 async function fetchDataFromGitHub() {
     try {
         const cacheBuster = "?v=" + new Date().getTime();
-        const [poResponse, commitResponse] = await Promise.all([
-            fetch(PO_CSV_URL + cacheBuster), fetch(ECOMMIT_CSV_URL + cacheBuster)
+        // UPDATED: Now downloading all 3 files simultaneously
+        const [poResponse, commitResponse, siteResponse] = await Promise.all([
+            fetch(PO_CSV_URL + cacheBuster), 
+            fetch(ECOMMIT_CSV_URL + cacheBuster),
+            fetch(SITE_CSV_URL + cacheBuster)
         ]);
-        if (!poResponse.ok || !commitResponse.ok) throw new Error("Failed to download from GitHub. (You may be rate-limited).");
+        if (!poResponse.ok || !commitResponse.ok || !siteResponse.ok) throw new Error("Failed to download one or more files from GitHub.");
         
         const poCsvText = await poResponse.text();
         const commitCsvText = await commitResponse.text();
+        const siteCsvText = await siteResponse.text(); // NEW
+        
         allInvoiceData = parseCSV(poCsvText);
         allCommitData = parseCSV(commitCsvText);
+        allSiteData = parseCSV(siteCsvText); // NEW
         
         try {
             localStorage.setItem(CACHE_PO_KEY, JSON.stringify(allInvoiceData));
             localStorage.setItem(CACHE_COMMIT_KEY, JSON.stringify(allCommitData));
+            localStorage.setItem(CACHE_SITE_KEY, JSON.stringify(allSiteData)); // NEW
             const now = new Date();
             localStorage.setItem(CACHE_TIME_KEY, now.toLocaleString());
             localStorage.setItem(CACHE_MS_KEY, now.getTime().toString());
@@ -195,9 +208,25 @@ async function fetchDataFromGitHub() {
 function setupDataDependents() {
     commitSearchMap = {};
     commitsByPO = {};
+    siteNameMap = {}; 
     const sites = new Set();
     const years = new Set();
 
+    // 1. Build the Site Dictionary from Site.csv
+    allSiteData.forEach(row => {
+        const wsheKey = Object.keys(row).find(k => k.trim().toLowerCase() === 'warehouse');
+        const descKey = Object.keys(row).find(k => k.trim().toLowerCase() === 'description');
+        
+        if (wsheKey && descKey) {
+            const wshe = (row[wsheKey] || '').toString().trim().toUpperCase();
+            const desc = (row[descKey] || '').toString().trim();
+            if (wshe && desc && desc.toUpperCase() !== 'N/A') {
+                siteNameMap[wshe] = desc;
+            }
+        }
+    });
+
+    // 2. Build Commit Maps
     allCommitData.forEach(commit => {
         const po = commit['PO Number'] || commit['PO'] || commit['ReqNum'];
         if (!po || po === 'N/A') return;
@@ -222,6 +251,7 @@ function setupDataDependents() {
         commitsByPO[po].sort((a, b) => new Date(a['Date']) - new Date(b['Date']));
     });
 
+    // 3. Build Invoice Maps & Filters
     allInvoiceData.forEach(row => {
         const site = row['Project ID'] || row['Site'];
         if (site && site.trim() !== "") sites.add(site.trim());
@@ -541,7 +571,11 @@ function getActiveFiltersHtml() {
 // ---------------------------------------------------------
 
 function generateSummaryPrintout() {
-    let totalInvoiceAmount = 0; let totalSrvAmount = 0; let rowsHtml = '';
+    let totalInvoiceAmount = 0; 
+    let totalSrvAmount = 0; 
+    let totalRetentionAmount = 0;
+    let rowsHtml = '';
+    
     currentFilteredData.forEach(row => {
         const poNumber = row._cleanPO;
         const site = row['Project ID'] || row['Site'] || 'N/A';
@@ -556,11 +590,27 @@ function generateSummaryPrintout() {
         relatedCommits.forEach(commit => { poSrvAmt += commit._rawCost; });
         totalSrvAmount += poSrvAmt;
 
+        const poRetention = retentionByPO[poNumber] || 0;
+        totalRetentionAmount += poRetention;
+
         let rowBalance = invAmt - poSrvAmt;
-        rowsHtml += `<tr><td><strong>${poNumber}</strong></td><td>${site}</td><td>${vendor}</td><td>${orderDate}</td><td class="num">${invAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</td><td class="num">${poSrvAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</td><td class="num" style="font-weight:bold; color:#ef4444;">${rowBalance.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>`;
+        
+        rowsHtml += `
+            <tr>
+                <td><strong>${poNumber}</strong></td>
+                <td>${site}</td>
+                <td>${vendor}</td>
+                <td>${orderDate}</td>
+                <td class="num">${invAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="num">${poSrvAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="num" style="color:#ea580c; font-weight:bold;">${poRetention.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="num" style="font-weight:bold; color:#ef4444;">${rowBalance.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+            </tr>
+        `;
     });
 
     let totalBalance = totalInvoiceAmount - totalSrvAmount;
+    
     const printHtml = `
         <div class="print-header">
             <h2>Summary Report: POs & SRVs</h2>
@@ -568,13 +618,25 @@ function generateSummaryPrintout() {
             ${getActiveFiltersHtml()}
         </div>
         <table class="print-table">
-            <thead><tr><th>Ref / PO</th><th>Site</th><th>Vendor Name</th><th>Order Date</th><th class="num">PO Value (QAR)</th><th class="num">SRV Total (QAR)</th><th class="num">Outstanding Balance (QAR)</th></tr></thead>
+            <thead>
+                <tr>
+                    <th>Ref / PO</th>
+                    <th>Site</th>
+                    <th>Vendor Name</th>
+                    <th>Order Date</th>
+                    <th class="num">PO Value (QAR)</th>
+                    <th class="num">SRV Total (QAR)</th>
+                    <th class="num" style="color:#ea580c;">Retention (QAR)</th>
+                    <th class="num">Outstanding Balance (QAR)</th>
+                </tr>
+            </thead>
             <tbody>${rowsHtml}</tbody>
         </table>
         <div class="print-summary-box">
             <table class="print-summary-table">
                 <tr><td>Grand Total PO Value</td><td>QAR ${totalInvoiceAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
                 <tr><td>Grand Total SRV</td><td>QAR ${totalSrvAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
+                <tr><td style="color:#ea580c;">Grand Total Retention</td><td style="color:#ea580c;">QAR ${totalRetentionAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
                 <tr class="balance-row"><td>TOTAL OUTSTANDING BALANCE</td><td>QAR ${totalBalance.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
             </table>
         </div>
@@ -584,7 +646,11 @@ function generateSummaryPrintout() {
 }
 
 function generateDetailedPrintout() {
-    let totalInvoiceAmount = 0; let totalSrvAmount = 0; let htmlContent = '';
+    let totalInvoiceAmount = 0; 
+    let totalSrvAmount = 0; 
+    let totalRetentionAmount = 0;
+    let htmlContent = '';
+    
     currentFilteredData.forEach(row => {
         const poNumber = row._cleanPO;
         const site = row['Project ID'] || row['Site'] || 'N/A';
@@ -615,6 +681,9 @@ function generateDetailedPrintout() {
             srvRowsHtml = `<div class="print-no-srv">No Service Receipts (SRV) mapped to this record.</div>`;
         }
 
+        const poRetention = retentionByPO[poNumber] || 0;
+        totalRetentionAmount += poRetention;
+
         let rowBalance = invAmt - poSrvAmt;
         
         htmlContent += `
@@ -626,6 +695,7 @@ function generateDetailedPrintout() {
                 ${srvRowsHtml}
                 <div class="print-po-footer">
                     <div>Total SRV: QAR ${poSrvAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+                    <div style="color:#ea580c;">Total Retention: QAR ${poRetention.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
                     <div class="highlight" style="color:#ef4444;">Outstanding Balance: QAR ${rowBalance.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
                 </div>
             </div>
@@ -633,6 +703,7 @@ function generateDetailedPrintout() {
     });
 
     let totalBalance = totalInvoiceAmount - totalSrvAmount;
+    
     const printHtml = `
         <div class="print-header">
             <h2>Detailed Report: POs & SRVs</h2>
@@ -644,6 +715,7 @@ function generateDetailedPrintout() {
             <table class="print-summary-table">
                 <tr><td>Grand Total PO Value</td><td>QAR ${totalInvoiceAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
                 <tr><td>Grand Total SRV</td><td>QAR ${totalSrvAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
+                <tr><td style="color:#ea580c;">Grand Total Retention</td><td style="color:#ea580c;">QAR ${totalRetentionAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
                 <tr class="balance-row"><td>TOTAL OUTSTANDING BALANCE</td><td>QAR ${totalBalance.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
             </table>
         </div>
@@ -670,6 +742,10 @@ function generateProjectPrintout() {
         const site = row['Project ID'] || row['Site'] || 'Unassigned Site';
         const poNumber = row._cleanPO;
         const invAmt = row._rawAmount;
+        
+        // PULL SITE NAME FROM THE NEW DICTIONARY
+        const cleanSiteId = site.toString().trim().toUpperCase();
+        let siteName = siteNameMap[cleanSiteId] || 'N/A';
 
         let poSrvAmt = 0;
         const relatedCommits = commitsByPO[poNumber] || [];
@@ -678,9 +754,11 @@ function generateProjectPrintout() {
         const poRetention = retentionByPO[poNumber] || 0;
 
         if (!projectTotals[site]) {
-            projectTotals[site] = { poValue: 0, srvTotal: 0, retentionTotal: 0, poCount: 0 };
+            projectTotals[site] = { poValue: 0, srvTotal: 0, retentionTotal: 0, poCount: 0, siteNames: new Set() };
         }
 
+        projectTotals[site].siteNames.add(siteName);
+        
         projectTotals[site].poValue += invAmt;
         projectTotals[site].srvTotal += poSrvAmt;
         projectTotals[site].retentionTotal += poRetention;
@@ -699,9 +777,15 @@ function generateProjectPrintout() {
         const sitePayable = data.srvTotal - data.retentionTotal;
         const siteOutstanding = data.poValue - data.srvTotal;
         
+        let siteNameStr = Array.from(data.siteNames).join(', ');
+        if (siteNameStr.length > 30) {
+            siteNameStr = siteNameStr.substring(0, 30) + '...';
+        }
+
         rowsHtml += `
             <tr>
                 <td><strong>${site}</strong></td>
+                <td>${siteNameStr}</td>
                 <td class="num" style="text-align:center;">${data.poCount}</td>
                 <td class="num">${data.poValue.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
                 <td class="num">${data.srvTotal.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
@@ -730,6 +814,7 @@ function generateProjectPrintout() {
             <thead>
                 <tr>
                     <th>Site / Project ID</th>
+                    <th>Site Name</th>
                     <th style="text-align:center;">Open POs</th>
                     <th class="num">Total PO Value</th>
                     <th class="num">Total SRV</th>
@@ -755,9 +840,6 @@ function generateProjectPrintout() {
     window.print();
 }
 
-// ---------------------------------------------------------
-// NEW FIREBASE INDIVIDUAL RETENTION REPORT (DETACHED SUMMARY)
-// ---------------------------------------------------------
 function generateRetentionPrintout() {
     let htmlContent = '';
     let validRecordsCount = 0;
@@ -815,7 +897,6 @@ function generateRetentionPrintout() {
             </tr>`;
         });
         
-        // Sum Row at the bottom of the table
         rowsHtml += `<tr style="background-color: #f1f5f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
             <td colspan="3" style="text-align: right; font-weight: 800; font-size: 10px; color: #0f172a;">TOTALS:</td>
             <td class="num" style="font-weight: 800; font-size: 11px; color: #0f172a;">${poTotalCertified.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
@@ -825,11 +906,9 @@ function generateRetentionPrintout() {
         
         rowsHtml += `</tbody></table>`;
 
-        // Exact Math requested
         let poCommittedCost = invAmt - poTotalCertified;
         let poRetentionToDate = poTotalCertified - poTotalPayment;
 
-        // Structured 5-Point Summary Card (Completely detached from the table)
         let summaryCardHtml = `
             <div style="border: 3px solid #003A5C !important; border-radius: 8px; display: flex; background-color: #fff; overflow: hidden; page-break-inside: avoid; align-items: center;">
                 <div style="flex: 1; padding: 10px 12px; border-right: 1px solid #cbd5e1;">
@@ -863,7 +942,8 @@ function generateRetentionPrintout() {
                 ${rowsHtml}
             </div>
             ${summaryCardHtml}
-            <div style="height: 30px;"></div> `;
+            <div style="height: 30px;"></div>
+        `;
     });
 
     if (validRecordsCount === 0) {

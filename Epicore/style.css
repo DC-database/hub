@@ -49,7 +49,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helve
 .detailed-btn:hover { background-color: #fae8ff; border-color: #e879f9; }
 .project-btn { background-color: #eff6ff; color: #0284c7; border: 1px solid #bae6fd; }
 .project-btn:hover { background-color: #e0f2fe; border-color: #7dd3fc; }
-/* NEW RETENTION BUTTON STYLE */
 .retention-btn { background-color: #fff7ed; color: #ea580c; border: 1px solid #fed7aa; }
 .retention-btn:hover { background-color: #ffedd5; border-color: #fdba74; }
 
@@ -90,9 +89,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helve
 .sub-table-footer { display: flex; justify-content: flex-end; gap: 24px; padding: 12px 20px; background: #f8fafc; border-top: 1px solid var(--border-color); align-items: center; flex-wrap: wrap;}
 .sub-stat { display: flex; gap: 8px; align-items: center; color: var(--text-muted); font-size: 13px;}
 .sub-stat strong { color: var(--text-main); font-size: 14px; font-weight: 700; }
-
-/* In-App Highlight overrides */
-.sub-stat.highlight strong { color: #ef4444; font-size: 15px; } /* RED Balance */
+.sub-stat.highlight strong { color: #ef4444; font-size: 15px; } 
 
 .grand-summary-card { background: linear-gradient(135deg, var(--primary-blue), var(--secondary-teal)); border-radius: 14px; padding: 20px 25px; color: white; display: flex; justify-content: space-between; align-items: center; margin-top: 15px; box-shadow: 0 10px 25px rgba(0, 58, 92, 0.15); flex-wrap: wrap; gap: 20px;}
 .grand-summary-title { display: flex; align-items: center; gap: 12px; font-size: 16px; font-weight: 800; letter-spacing: 0.5px; }
@@ -101,7 +98,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helve
 .g-stat { display: flex; flex-direction: column; text-align: right; gap: 4px; }
 .g-stat span { font-size: 12px; font-weight: 600; color: #e0f2fe; text-transform: uppercase; }
 .g-stat strong { font-size: 18px; font-weight: 800; }
-.g-stat.highlight strong { color: #fca5a5; font-size: 20px; } /* Lighter red for dark background */
+.g-stat.highlight strong { color: #fca5a5; font-size: 20px; } 
 
 .no-commits-msg { color: var(--text-muted); font-style: italic; font-size: 13px; padding: 20px; }
 .loading-state, .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); font-size: 16px; background: #fff; border: 1px dashed #cbd5e1; border-radius: 14px; }
@@ -139,9 +136,18 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helve
     .print-table tr:nth-child(even) td { background-color: #f8fafc !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .print-table tr:last-child td { border-bottom: none; }
     .print-table td.num { text-align: right; word-break: break-all; font-family: monospace; font-size: 10px; font-weight: 600;}
-    .print-table th:nth-child(1) { width: 13%; } .print-table th:nth-child(2) { width: 11%; } .print-table th:nth-child(3) { width: 22%; } .print-table th:nth-child(4) { width: 10%; } .print-table th:nth-child(5) { width: 14%; } .print-table th:nth-child(6) { width: 15%; } .print-table th:nth-child(7) { width: 15%; } 
     
-    /* PROJECT SUMMARY TABLE */
+    .print-table th:nth-child(1) { width: 12%; } 
+    .print-table th:nth-child(2) { width: 10%; } 
+    .print-table th:nth-child(3) { width: 18%; } 
+    .print-table th:nth-child(4) { width: 9%; } 
+    .print-table th:nth-child(5) { width: 12%; } 
+    .print-table th:nth-child(6) { width: 12%; } 
+    .print-table th:nth-child(7) { width: 12%; color:#ea580c; } 
+    .print-table td:nth-child(7) { color:#ea580c; font-weight: bold; }
+    .print-table th:nth-child(8) { width: 15%; } 
+    
+    /* PROJECT SUMMARY TABLE (UPDATED FOR 8 COLUMNS INCL. VENDOR) */
     .print-project-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 30px; font-size: 9px; table-layout: fixed; border: 3px solid #003A5C !important; border-radius: 8px; overflow: hidden; }
     .print-project-table th, .print-project-table td { padding: 8px 6px; text-align: left; word-wrap: break-word; overflow-wrap: break-word; }
     .print-project-table th { background-color: #f8fafc !important; color: #003A5C; font-weight: 800; text-transform: uppercase; -webkit-print-color-adjust: exact; print-color-adjust: exact; border-bottom: 2px solid #003A5C; }
@@ -150,15 +156,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helve
     .print-project-table tr:last-child td { border-bottom: none; }
     .print-project-table td.num { text-align: right; font-family: monospace; font-size: 10px; font-weight: 700;}
     
-    .print-project-table th:nth-child(1) { width: 20%; } 
-    .print-project-table th:nth-child(2) { width: 8%; text-align: center;} 
-    .print-project-table td:nth-child(2) { text-align: center; font-weight: bold;} 
-    .print-project-table th:nth-child(3) { width: 15%; text-align: right;} 
-    .print-project-table th:nth-child(4) { width: 14%; text-align: right;} 
-    .print-project-table th:nth-child(5) { width: 13%; text-align: right; color: #ea580c;} 
-    .print-project-table td:nth-child(5) { color: #ea580c;} 
-    .print-project-table th:nth-child(6) { width: 15%; text-align: right;}
-    .print-project-table th:nth-child(7) { width: 15%; text-align: right;}
+    .print-project-table th:nth-child(1) { width: 15%; } /* Site */
+    .print-project-table th:nth-child(2) { width: 15%; } /* Vendor Name */
+    .print-project-table th:nth-child(3) { width: 7%; text-align: center;} /* Open POs */
+    .print-project-table td:nth-child(3) { text-align: center; font-weight: bold;} 
+    .print-project-table th:nth-child(4) { width: 13%; text-align: right;} /* PO Value */
+    .print-project-table th:nth-child(5) { width: 13%; text-align: right;} /* SRV */
+    .print-project-table th:nth-child(6) { width: 11%; text-align: right; color: #ea580c;} /* Retention */
+    .print-project-table td:nth-child(6) { color: #ea580c;} 
+    .print-project-table th:nth-child(7) { width: 13%; text-align: right;} /* Net Payable */
+    .print-project-table th:nth-child(8) { width: 13%; text-align: right;} /* Balance */
 
     /* DETAILED / RETENTION REPORT BLOCKS */
     .print-detailed-po-block { border: 3px solid #003A5C !important; border-radius: 8px; margin-bottom: 18px; page-break-inside: avoid; overflow: hidden; }
@@ -173,7 +180,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helve
     .print-sub-table tr:last-child td { border-bottom: none; }
     .print-sub-table .num { text-align: right; font-family: monospace; font-size: 11px; font-weight: 600;}
     .print-po-footer { background-color: #f8fafc !important; color: #0f172a; -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 8px 12px; display: flex; justify-content: flex-end; gap: 25px; border-top: 2px solid #003A5C; font-weight: 600; font-size: 11px; align-items: center;}
-    .print-po-footer .highlight { color: #ef4444; font-weight: 800; font-size: 12px;} /* RED balance in sub-footer */
+    .print-po-footer .highlight { color: #ef4444; font-weight: 800; font-size: 12px;} 
     .print-no-srv { padding: 12px; font-style: italic; color: #94a3b8; font-size: 10px; text-align: center; }
 
     /* GRAND SUMMARY BOX */
@@ -186,7 +193,5 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helve
     .balance-row { background-color: #003A5C !important; color: #ffffff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; align-items: center; }
     .balance-row td { font-weight: 800 !important; color: #ffffff !important; border-bottom: none !important;}
     .balance-row td:first-child { font-size: 10px !important; border-top: none; }
-    
-    /* BALANCE RED OVERRIDE FOR PRINT BOX */
     .balance-row td:last-child { font-size: 15px !important; color: #ef4444 !important; font-weight: 900 !important; border-top: none; }
 }
