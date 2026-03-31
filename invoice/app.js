@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.5.9";
+const APP_VERSION = "6.6.4";
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -2111,8 +2111,8 @@ async function fetchAndParseEcommitCSV(url) {
                     invValue: record.invValue.toFixed(2),
                     amountPaid: record.invValue.toFixed(2),
                     status: 'Epicore Value',
-                    source: 'ecommit',
-                    key: `ecommit_${record.packingSlip}`
+                    source: 'ECommit',
+                    key: `ECommit_${record.packingSlip}`
                 });
             });
             finalEcommitData[po] = formattedRecords;
@@ -11550,96 +11550,204 @@ async function handleDeleteInvoice(key) {
     }
 }
 
+
 // ==========================================================================
-// 16. INVOICE MANAGEMENT: REPORTING ENGINE
+// 16. INVOICE MANAGEMENT: REPORTING ENGINE (MERGED WITH NEW UI)
 // ==========================================================================
 
+// --- GUARANTEED SITE FILTER POPULATOR ---
 async function populateSiteFilterDropdown() {
-    const siteFilterSelect = document.getElementById('im-reporting-site-filter');
-    if (siteFilterSelect.options.length > 1) return;
     try {
-        await ensureInvoiceDataFetched();
-        const allSites = allSitesCSVData;
-        if (!allSites) return;
-
-        const sites = new Set();
-        allSites.forEach(item => {
-            if (item.site) {
-                sites.add(item.site);
-            }
-        });
-
-        const sortedSites = Array.from(sites).sort((a, b) => {
-            const numA = parseInt(a, 10);
-            const numB = parseInt(b, 10);
-            if (!isNaN(numA) && !isNaN(numB)) {
-                return numA - numB;
-            }
-            return a.localeCompare(b);
-        });
-
-        while (siteFilterSelect.options.length > 1) {
-            siteFilterSelect.remove(1);
+        // 1. Ensure databases are loaded first
+        if (typeof ensureInvoiceDataFetched === 'function') {
+            await ensureInvoiceDataFetched();
         }
-        sortedSites.forEach(site => {
-            const option = document.createElement('option');
-            option.value = site;
-            option.textContent = site;
-            siteFilterSelect.appendChild(option);
+        
+        const siteFilter = document.getElementById('im-reporting-site-filter');
+        if (!siteFilter) return;
+
+        // 2. Remember what the user currently has selected
+        const currentSelection = siteFilter.value;
+        const uniqueSites = new Set();
+        
+        // 3. Extract unique sites from all POs in the database
+        if (typeof allPOData !== 'undefined' && allPOData) {
+            Object.values(allPOData).forEach(po => {
+                if (po['Project ID'] && po['Project ID'].trim() !== '') {
+                    uniqueSites.add(po['Project ID'].trim());
+                }
+            });
+        }
+        
+        // 4. Build the HTML dropdown options
+        siteFilter.innerHTML = '<option value="">All Sites & Projects</option>';
+        Array.from(uniqueSites).sort().forEach(site => {
+            const opt = document.createElement('option');
+            opt.value = site;
+            opt.textContent = site;
+            if (site === currentSelection) opt.selected = true;
+            siteFilter.appendChild(opt);
         });
-    } catch (error) {
-        console.error("Error populating site filter:", error);
+    } catch (e) {
+        console.error("Error loading sites:", e);
     }
 }
-
-// ==========================================================================
-// 16. INVOICE MANAGEMENT: REPORTING ENGINE (SORTED BY BALANCE)
-// ==========================================================================
 
 // --- STATE TRACKING VARIABLE ---
 let imLastExpandedRowId = null;
 
+// --- NEW UI EVENT LISTENERS & SETUP ---
+document.addEventListener('DOMContentLoaded', () => {
+
+    // --- PASTE IT RIGHT HERE ---
+    // Reload the Site Filters
+    if (typeof populateSiteFilterDropdown === 'function') {
+        populateSiteFilterDropdown();
+    }
+    // ---------------------------
+
+    // 1. Populate Year Filter dynamically
+    const yearFilter = document.getElementById('im-reporting-year-filter');
+    if (yearFilter) {
+        yearFilter.innerHTML = '<option value="">All Years</option>';
+        const currentYear = new Date().getFullYear();
+        for (let i = 0; i < 5; i++) {
+            const year = currentYear - i;
+            const option = document.createElement('option');
+            option.value = year;
+            option.textContent = year;
+            yearFilter.appendChild(option);
+        }
+    }
+
+    // 2. Search Form Submit (Allows pressing 'Enter' to search)
+    const reportForm = document.getElementById('im-reporting-form');
+    if (reportForm) {
+        reportForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const searchTerm = document.getElementById('im-reporting-search').value;
+            populateInvoiceReporting(searchTerm);
+        });
+    }
+
+    // 3. Clear Button Logic
+    const imReportingClearBtn = document.getElementById('im-reporting-clear-button');
+    if (imReportingClearBtn) {
+        imReportingClearBtn.addEventListener('click', () => {
+            // 1. Clear all input fields
+            if (imReportingSearchInput) imReportingSearchInput.value = '';
+            const siteFilter = document.getElementById('im-reporting-site-filter');
+            const monthFilter = document.getElementById('im-reporting-month-filter');
+            const yearFilter = document.getElementById('im-reporting-year-filter');
+            const statusFilter = document.getElementById('im-reporting-status-filter');
+
+            if (siteFilter) siteFilter.value = '';
+            if (monthFilter) monthFilter.value = '';
+            if (yearFilter) yearFilter.value = '';
+            if (statusFilter) statusFilter.value = '';
+
+            // 2. Play clear sound
+            if (typeof window.playSystemClear === 'function') window.playSystemClear();
+
+            // 3. --- NEW: HIDE THE SEARCH RESULTS SUMMARY BOX ---
+            const grandTotalContainer = document.getElementById('im-reporting-grand-total-container');
+            if (grandTotalContainer) {
+                grandTotalContainer.style.display = 'none';
+                grandTotalContainer.innerHTML = '';
+            }
+
+            // 4. Reset the table to default empty state
+            const contentArea = document.getElementById('im-reporting-content');
+            if (contentArea) {
+                contentArea.innerHTML = '<div class="loading-state"><i class="fa-solid fa-magnifying-glass"></i> <span style="margin-left: 8px;">Enter a search term and click Search to load data.</span></div>';
+            }
+
+            // 5. Reset record count and global data
+            const countDisplay = document.getElementById('reporting-count-display');
+            if (countDisplay) countDisplay.textContent = '(Found: 0)';
+            currentReportData = [];
+        });
+    }
+
+    // 4. Print Summary Button
+    const printSummaryBtn = document.getElementById('printSummaryBtn');
+    if (printSummaryBtn) {
+        printSummaryBtn.addEventListener('click', () => {
+            if (!currentReportData || currentReportData.length === 0) return alert("No records to print. Search first.");
+            generateGithubStylePrintout(false);
+        });
+    }
+
+   // 5. Print Detailed Button
+    const printDetailedBtn = document.getElementById('printDetailedBtn');
+    if (printDetailedBtn) {
+        printDetailedBtn.addEventListener('click', () => {
+            if (!currentReportData || currentReportData.length === 0) return alert("No records to print. Search first.");
+            generateGithubStylePrintout(true);
+        });
+    }
+
+    // --- PASTE IT HERE ---
+    // 6. Interactive Master/Detail Expand Toggle
+    const contentArea = document.getElementById('im-reporting-content');
+    if (contentArea) {
+        contentArea.addEventListener('click', (e) => {
+            const row = e.target.closest('.master-grid-row');
+            if (row && !e.target.closest('button')) {
+                const card = row.closest('.invoice-card');
+                if (card) {
+                    card.classList.toggle('expanded');
+                    if (card.classList.contains('expanded')) {
+                        imLastExpandedRowId = card.getAttribute('data-po-id');
+                    } else if (imLastExpandedRowId === card.getAttribute('data-po-id')) {
+                        imLastExpandedRowId = null;
+                    }
+                }
+            }
+        });
+    }
+
+}); // <-- This is the end of the DOMContentLoaded block
+
+// --- DATE FORMATTER ---
+function formatToDDMMMYY(dateStr) {
+    if (!dateStr) return '---';
+    const d = new Date(normalizeDateForInput(dateStr) + 'T00:00:00');
+    if (isNaN(d)) return dateStr;
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${String(d.getDate()).padStart(2, '0')}-${months[d.getMonth()]}-${String(d.getFullYear()).slice(-2)}`;
+}
+
+// --- CORE REPORTING LOGIC ---
 async function populateInvoiceReporting(searchTerm = '', options = {}) {
-    const openRow = document.querySelector('#im-reporting-content .detail-row:not(.hidden)');
-    if (openRow) {
-        imLastExpandedRowId = openRow.id;
+    const openCard = document.querySelector('#im-reporting-content .invoice-card.expanded');
+    if (openCard) {
+        imLastExpandedRowId = openCard.getAttribute('data-po-id');
     } else {
         imLastExpandedRowId = null;
     }
 
     sessionStorage.setItem('imReportingSearch', searchTerm);
-
     const silent = options && options.silent;
+    const contentArea = document.getElementById('im-reporting-content');
 
     const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
     const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
+    const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
+    
+    const canViewAmounts = isAdmin || isAccounting || isVacationDelegate;
+    const isAllowedUser = isAdmin || isAccounting || isVacationDelegate;
+    const canPrintSticker = isAdmin && isAccounting;
 
     currentReportData = [];
 
-    const isMobile = window.innerWidth <= 768;
-    const desktopContainer = document.getElementById('im-reporting-content');
-    const mobileContainer = document.getElementById('im-reporting-mobile-view');
-
     if (!silent) {
-        if (isMobile) {
-            if (mobileContainer) mobileContainer.innerHTML = `
-            <div class="im-mobile-empty-state">
-                <i class="fa-solid fa-spinner fa-spin"></i>
-                <h3>Searching...</h3>
-                <p>Please wait a moment.</p>
-            </div>`;
-            if (desktopContainer) desktopContainer.innerHTML = '';
-        } else {
-            if (desktopContainer) desktopContainer.innerHTML = '<p>Searching... Please wait.</p>';
-            if (mobileContainer) mobileContainer.innerHTML = '';
-        }
-    } else {
-        // Silent refresh: avoid blanking the UI while we rebuild results
-        if (reportingCountDisplay) reportingCountDisplay.textContent = '(Updating...)';
+        contentArea.innerHTML = '<div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Searching...</div>';
     }
 
     const siteFilter = document.getElementById('im-reporting-site-filter').value;
-    const monthFilter = document.getElementById('im-reporting-date-filter').value;
+    const monthFilter = document.getElementById('im-reporting-month-filter').value;
+    const yearFilter = document.getElementById('im-reporting-year-filter').value;
     const statusFilter = document.getElementById('im-reporting-status-filter').value;
 
     try {
@@ -11667,14 +11775,12 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
 
             let hasInvoiceNumberMatch = false;
             if (searchText) {
-                // Match invoice number from Firebase invoices
                 if (allInvoicesByPO[poNumber]) {
                     hasInvoiceNumberMatch = Object.values(allInvoicesByPO[poNumber]).some(inv => {
                         const v = (inv && inv.invNumber != null) ? String(inv.invNumber) : '';
                         return v.toLowerCase().includes(searchText);
                     });
                 }
-                // Match invoice number from Ecommit/CSV invoices
                 if (!hasInvoiceNumberMatch && allEcommit[poNumber]) {
                     hasInvoiceNumberMatch = (allEcommit[poNumber] || []).some(inv => {
                         const v = (inv && inv.invNumber != null) ? String(inv.invNumber) : '';
@@ -11683,12 +11789,8 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
                 }
             }
 
-            const searchMatch = !searchText
-                || poNumber.toLowerCase().includes(searchText)
-                || vendor.toLowerCase().includes(searchText)
-                || hasNoteMatch
-                || hasInvoiceNumberMatch;
-            const siteMatch = !siteFilter || site === siteFilter;
+            const searchMatch = !searchText || poNumber.toLowerCase().includes(searchText) || vendor.toLowerCase().includes(searchText) || hasNoteMatch || hasInvoiceNumberMatch;
+            const siteMatch = !siteFilter || (site.toLowerCase() === siteFilter.toLowerCase());
             return searchMatch && siteMatch;
         });
 
@@ -11697,289 +11799,127 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
             const site = poDetails['Project ID'] || 'N/A';
             const vendor = poDetails['Supplier Name'] || 'N/A';
 
-            const firebaseInvoices = allInvoicesByPO[poNumber] ? Object.entries(allInvoicesByPO[poNumber]).map(([key, value]) => ({
-                key,
-                ...value,
-                source: 'firebase'
-            })) : [];
+            const firebaseInvoices = allInvoicesByPO[poNumber] ? Object.entries(allInvoicesByPO[poNumber]).map(([key, value]) => ({ key, ...value, source: 'firebase' })) : [];
             const firebasePackingSlips = new Set(firebaseInvoices.map(inv => String(inv.invNumber || '').trim().toLowerCase()).filter(Boolean));
+            
             const ecommitInvoices = allEcommit[poNumber] || [];
             const filteredEcommitInvoices = ecommitInvoices.filter(inv => {
                 const csvInvNum = String(inv.invNumber || '').trim().toLowerCase();
                 return !csvInvNum || !firebasePackingSlips.has(csvInvNum);
             });
 
+            // NEW: Check if PO is closed in POVALUE2.csv and update Ecommit status
+            const isPoClosed = String(poDetails['Open']).trim().toLowerCase() === 'false';
+            filteredEcommitInvoices.forEach(inv => {
+                if (isPoClosed) {
+                    inv.status = 'Epicor Closed';
+                }
+            });
+
             let invoices = [...firebaseInvoices, ...filteredEcommitInvoices];
 
-// --- CALCULATE BALANCE FOR SORTING ---
-    let totalInvSum = 0;
-    invoices.forEach(inv => totalInvSum += parseFloat(inv.invValue) || 0);
+            let totalInvSum = 0;
+            invoices.forEach(inv => totalInvSum += parseFloat(inv.invValue) || 0);
 
-    const poVal = parseFloat(poDetails.Amount) || 0;
-    let balance = poVal - totalInvSum;
-    
-    // NEW: If PO Value is 0, force SRV Balance to 0
-    if (poVal === 0) {
-        balance = 0;
-    }
-            // Filter Check: Negative Balance
-            if (statusFilter === 'Negative Balance') {
-                if (balance >= -0.01) continue;
-            }
+            const poVal = parseFloat(poDetails.Amount) || 0;
+            let balance = poVal - totalInvSum;
+            if (poVal === 0) balance = 0;
 
-            // Invoice Sorting (Inner)
+            if (statusFilter === 'Negative Balance' && balance >= -0.01) continue;
+
             invoices.sort((a, b) => {
                 const dateA = new Date(a.invoiceDate || '2099-01-01');
                 const dateB = new Date(b.invoiceDate || '2099-01-01');
                 return (dateA - dateB) || (a.invNumber || '').localeCompare(b.invNumber || '');
             });
 
-            invoices.forEach((inv, index) => {
-                inv.invEntryID = `INV-${String(index + 1).padStart(2, '0')}`;
-            });
-
-            let calculatedTotalPaid = 0;
-            let latestPaidDateObj = null;
-
-            for (const inv of invoices) {
-                if (inv.status === 'Paid') {
-                    calculatedTotalPaid += parseFloat(inv.amountPaid) || 0;
-                    if (inv.releaseDate) {
-                        const d = new Date(normalizeDateForInput(inv.releaseDate));
-                        if (!isNaN(d) && (!latestPaidDateObj || d > latestPaidDateObj)) latestPaidDateObj = d;
-                    }
-                }
-            }
+            invoices.forEach((inv, index) => { inv.invEntryID = `INV-${String(index + 1).padStart(2, '0')}`; });
 
             const poMatchBySearch = !!searchText && poNumber.toLowerCase().includes(searchText);
             const vendorMatchBySearch = !!searchText && vendor.toLowerCase().includes(searchText);
             const noteMatchBySearch = !!searchText && invoices.some(i => (i.note || '').toLowerCase().includes(searchText));
             const invNumberMatchBySearch = !!searchText && invoices.some(i => String(i.invNumber || '').toLowerCase().includes(searchText));
-
-            // If the search term only matches invoice numbers (and not PO/Vendor/Notes),
-            // show only the invoice(s) that match that invoice number.
-            const restrictToInvoiceNumberMatches = !!searchText
-                && !poMatchBySearch
-                && !vendorMatchBySearch
-                && !noteMatchBySearch
-                && invNumberMatchBySearch;
+            const restrictToInvoiceNumberMatches = !!searchText && !poMatchBySearch && !vendorMatchBySearch && !noteMatchBySearch && invNumberMatchBySearch;
 
             const filteredInvoices = invoices.filter(inv => {
                 if (statusFilter === 'Negative Balance') {
-                    if (restrictToInvoiceNumberMatches) {
-                        const invNum = String(inv.invNumber || '').toLowerCase();
-                        return invNum.includes(searchText);
-                    }
+                    if (restrictToInvoiceNumberMatches) return String(inv.invNumber || '').toLowerCase().includes(searchText);
                     return true;
                 }
-                const normRelease = normalizeDateForInput(inv.releaseDate);
-                const dateMatch = !monthFilter || (normRelease && normRelease.startsWith(monthFilter));
+                
+                let dateMatch = true;
+                const rDate = inv.releaseDate || inv.invoiceDate || '';
+                if (monthFilter || yearFilter) {
+                    if (!rDate) { dateMatch = false; } 
+                    else {
+                        const [rYear, rMonth] = rDate.split('-');
+                        if (monthFilter && rMonth !== monthFilter) dateMatch = false;
+                        if (yearFilter && rYear !== yearFilter) dateMatch = false;
+                    }
+                }
+
                 const statusMatch = !statusFilter || inv.status === statusFilter;
                 const invNumMatch = !restrictToInvoiceNumberMatches || String(inv.invNumber || '').toLowerCase().includes(searchText);
                 return dateMatch && statusMatch && invNumMatch;
             });
 
             if (filteredInvoices.length > 0) {
-                processedPOData.push({
-                    poNumber,
-                    poDetails,
-                    site,
-                    vendor,
-                    filteredInvoices,
-                    balance, // Store balance here
-                    paymentData: {
-                        totalPaidAmount: calculatedTotalPaid || 'N/A',
-                        datePaid: latestPaidDateObj ? formatDate(latestPaidDateObj) : 'N/A'
-                    }
-                });
+                processedPOData.push({ poNumber, poDetails, site, vendor, filteredInvoices, balance });
             }
         }
 
-        // --- SORT BY BALANCE (ASCENDING: Most Negative First) ---
         processedPOData.sort((a, b) => a.balance - b.balance);
-
         currentReportData = processedPOData;
-        if (reportingCountDisplay) reportingCountDisplay.textContent = `(Found: ${currentReportData.length})`;
 
-        if (isMobile) {
-            buildMobileReportView(currentReportData);
-        } else {
-            buildDesktopReportView(currentReportData);
+        if (document.getElementById('reporting-count-display')) {
+            document.getElementById('reporting-count-display').textContent = `(Found: ${currentReportData.length})`;
         }
 
-        // Update totals footer (display-only)
-        imUpdateInvoiceRecordsTotals(currentReportData);
-    } catch (error) {
-        console.error("Error generating report:", error);
-        if (desktopContainer) desktopContainer.innerHTML = '<p>Error loading report.</p>';
-        imUpdateInvoiceRecordsTotals([]);
-    }
-}
-
-function buildMobileReportView(reportData) {
-    const container = document.getElementById('im-reporting-mobile-view');
-    if (!container) return;
-
-    // --- PERMISSION CHECK ---
-    const userRole = (currentApprover?.Role || '').toLowerCase();
-    const userPos = (currentApprover?.Position || '').trim().toLowerCase();
-    const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
-    const canPrintSticker = (userRole === 'admin' && userPos === 'accounting');
-    const canViewAmounts = (userRole === 'admin' || userPos === 'accounting' || isVacationDelegate);
-
-    if (reportData.length === 0) {
-        container.innerHTML = `<div class="im-mobile-empty-state"><i class="fa-solid fa-file-circle-question"></i><h3>No Results Found</h3><p>Try a different search.</p></div>`;
-        return;
-    }
-
-    let mobileHTML = '';
-
-    reportData.forEach((poData, poIndex) => {
-        const { poNumber, site, vendor, poDetails, filteredInvoices, balance } = poData;
-const toggleId = `mobile-invoice-list-${poIndex}`;
-
-    const parsedPoAmount = parseFloat(poDetails.Amount) || 0;
-    let balanceNum = balance !== undefined ? balance : (parsedPoAmount - filteredInvoices.reduce((sum, inv) => sum + (parseFloat(inv.invValue) || 0), 0));
-    
-    // NEW: If PO Value is 0, force SRV Balance to 0
-    if (parsedPoAmount === 0) {
-        balanceNum = 0;
-    }
-
-        let statusClass = 'status-progress';
-        let balanceStyle = "";
-
-        if (balanceNum < -0.01) {
-            statusClass = 'status-pending'; balanceStyle = "color: #ff4d4d;";
-        } else if (balanceNum > 0.01) {
-            statusClass = 'status-open';
-        } else {
-            let allClose = filteredInvoices.length > 0;
-            const closeStatuses = ['With Accounts', 'Paid', 'Epicore Value'];
-            for (const inv of filteredInvoices) { if (!closeStatuses.includes(inv.status)) allClose = false; }
-            if (allClose) statusClass = 'status-close';
+       if (currentReportData.length === 0) {
+            if (typeof window.playSystemError === 'function') window.playSystemError();
+            contentArea.innerHTML = '<div class="loading-state">No records found for your search criteria.</div>';
+            const sleekBar = document.getElementById('im-sleek-totals-bar');
+            if (sleekBar) sleekBar.innerHTML = '<span>No records found.</span>';
+            
+            // NEW: Hide the Grand Total box when the table clears out!
+            const grandTotalContainer = document.getElementById('im-reporting-grand-total-container');
+            if (grandTotalContainer) {
+                grandTotalContainer.style.display = 'none';
+                grandTotalContainer.innerHTML = '';
+            }
+            
+            return;
         }
 
-        const poValueDisplay = canViewAmounts ? `QAR ${formatCurrency(parseFloat(poDetails.Amount))}` : '---';
-        const balanceDisplay = canViewAmounts ? `QAR ${formatCurrency(balanceNum)}` : '---';
+        // GENERATE GRAND TOTALS
+        let grandTotalPO = 0;
+        let grandTotalInv = 0;
+        currentReportData.forEach(poData => {
+            grandTotalPO += (parseFloat(poData.poDetails?.Amount) || 0);
+            poData.filteredInvoices.forEach(i => grandTotalInv += parseFloat(i.invValue) || 0);
+        });
+        let grandTotalBalance = grandTotalPO - grandTotalInv;
 
-        mobileHTML += `
-            <div class="im-mobile-report-container">
-                <div class="im-po-balance-card ${statusClass}" data-toggle-target="#${toggleId}" style="cursor: pointer;">
-                    <div class="po-card-header">
-                        <div><span class="po-card-vendor">${vendor}</span><h3 class="po-card-ponum">PO: ${poNumber}</h3></div>
-                        <i class="fa-solid fa-chevron-down po-card-chevron"></i>
-                    </div>
-                    <div class="po-card-body">
-                        <div class="po-card-grid">
-                            <div><span class="po-card-label">Total PO Value</span><span class="po-card-value">${poValueDisplay}</span></div>
-                            <div><span class="po-card-label">Balance</span><span class="po-card-value po-card-balance" style="${balanceStyle}">${balanceDisplay}</span></div>
-                        </div>
-                        <span class="po-card-site">Site: ${site}</span>
-                    </div>
-                </div>
-                <div id="${toggleId}" class="hidden-invoice-list">
-                    <div class="im-invoice-list-header"><h2>Transactions (${filteredInvoices.length})</h2></div>
-                    <ul class="im-invoice-list">`;
-
-        if (filteredInvoices.length === 0) {
-            mobileHTML += `<li class="im-invoice-item-empty">No invoices recorded.</li>`;
-        } else {
-            filteredInvoices.forEach(inv => {
-                const invValueDisplay = canViewAmounts ? `QAR ${formatCurrency(inv.invValue)}` : '---';
-                const invDateDisplay = inv.invoiceDate ? formatYYYYMMDD(inv.invoiceDate) : '';
-                const status = inv.status || 'Pending';
-
-                let iconClass = 'pending';
-                let iconChar = '<i class="fa-solid fa-clock"></i>';
-                if (status === 'Paid' || status === 'With Accounts') { iconClass = 'paid'; iconChar = '<i class="fa-solid fa-check"></i>'; }
-
-                let actionsHTML = '';
-                
-                // 1. Invoice PDF
-                const cleanInv = getSharePointPdfBaseName(inv.invName);
-                if (cleanInv) {
-                    actionsHTML += `<a href="${PDF_BASE_PATH}${encodeURIComponent(cleanInv)}.pdf" target="_blank" class="im-tx-action-btn invoice-pdf-btn">INV</a>`;
-                }
-                
-                // 2. SRV PDF
-                const cleanSrv = getSharePointPdfBaseName(inv.srvName);
-                if (cleanSrv) {
-                    actionsHTML += `<a href="${SRV_BASE_PATH}${encodeURIComponent(cleanSrv)}.pdf" target="_blank" class="im-tx-action-btn srv-pdf-btn">SRV</a>`;
-                }
-
-                // 3. REPORT PDF (Mobile)
-                const cleanRpt = getSharePointPdfBaseName(inv.reportName);
-                if (cleanRpt) {
-                    actionsHTML += `<a href="${REPORT_BASE_PATH}${encodeURIComponent(cleanRpt)}.pdf" target="_blank" class="im-tx-action-btn" style="background-color: #6f42c1; color: white;">RPT</a>`;
-                }
-
-                // 4. Sticker (Only if ESN exists)
-                if (canPrintSticker && inv.esn) {
-                    actionsHTML += `<button class="im-tx-action-btn" onclick="event.stopPropagation(); handlePrintSticker('${inv.key}', 'Invoice', '${poNumber}')" style="background-color: #28a745; border: none; cursor: pointer; color: white; margin-left: 4px; padding: 3px 8px; border-radius: 6px;" title="Print Sticker"><i class="fa-solid fa-qrcode"></i></button>`;
-                }
-
-                mobileHTML += `
-                    <li class="im-invoice-item">
-                        <div class="im-tx-icon ${iconClass}">${iconChar}</div>
-                        <div class="im-tx-details">
-                            <span class="im-tx-title">${inv.invNumber || 'No Inv#'}</span>
-                            <span class="im-tx-subtitle">${inv.status}</span>
-                            <span class="im-tx-date">Date: ${invDateDisplay}</span>
-                        </div>
-                        <div class="im-tx-amount">
-                            <span class="im-tx-value ${iconClass}">${invValueDisplay}</span>
-                            <div class="im-tx-actions">${actionsHTML}</div>
-                        </div>
-                    </li>`;
-            });
+        const sleekBar = document.getElementById('im-sleek-totals-bar');
+        if (sleekBar) {
+            sleekBar.innerHTML = `
+                <div><strong>${currentReportData.length}</strong> Records Found</div>
+                <div>Total PO Value: <span class="highlight-val">QAR ${formatCurrency(grandTotalPO)}</span></div>
+                <div>Total SRV: <span class="highlight-val">QAR ${formatCurrency(grandTotalInv)}</span></div>
+                <div>Total Outstanding: <span class="outstanding-val" style="color: ${grandTotalBalance < 0 ? '#dc3545' : '#1e293b'}">QAR ${formatCurrency(grandTotalBalance)}</span></div>
+            `;
         }
-        mobileHTML += `</ul></div></div>`;
-    });
-    container.innerHTML = mobileHTML;
-}
 
-function buildDesktopReportView(reportData) {
-    const container = document.getElementById('im-reporting-content');
-    if (!container) return;
+        // RENDER UI
+        let html = '';
+        currentReportData.forEach(poData => {
+            let totalInvValue = 0;
+            let totalPaidWithRetention = 0;
+            let totalPaidWithoutRetention = 0;
+            let allWithAccounts = poData.filteredInvoices.length > 0;
 
-    // 1. Calculate Permissions
-    const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
-    const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
-    const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
-
-    // Replacement (Vacation Delegate for Super Admin) should be able to view amounts + manage invoices
-    // without gaining delete permissions.
-    const canViewAmounts = (isAdmin || isAccounting || isVacationDelegate);
-    const isAllowedUser = (isAdmin || isAccounting || isVacationDelegate);
-
-    // --- Check if user can print stickers ---
-    const canPrintSticker = (isAdmin && isAccounting); 
-
-    if (reportData.length === 0) {
-        window.playSystemError(); // <--- PLAYS ERROR IF EMPTY
-        container.innerHTML = '<p>No results found for your search criteria.</p>';
-        return;
-    }
-    
-    // If the code makes it down here, it means data was found!
-    window.playSystemSuccess();   // <--- PLAYS SUCCESS
-
-    let tableHTML = `<table><thead><tr><th></th><th>PO</th><th>Site</th><th>Vendor</th><th>PO Value</th><th>SRV Balance</th></tr></thead><tbody>`;
-
-    reportData.forEach(poData => {
-        let totalInvValue = 0;
-        let totalPaidWithRetention = 0;
-        let totalPaidWithoutRetention = 0;
-        let allWithAccounts = poData.filteredInvoices.length > 0;
-
-        const detailRowId = `detail-${poData.poNumber}`;
-        const isExpanded = (detailRowId === imLastExpandedRowId);
-        const detailClass = isExpanded ? 'detail-row' : 'detail-row hidden';
-        const buttonText = isExpanded ? '-' : '+';
-
-        let nestedTableRows = '';
-
+            let innerRows = '';
+            
             poData.filteredInvoices.forEach(inv => {
                 if (inv.status !== 'With Accounts') allWithAccounts = false;
 
@@ -11989,142 +11929,402 @@ function buildDesktopReportView(reportData) {
 
                 totalInvValue += invValue;
                 totalPaidWithRetention += amountPaid;
-                
-                // EXCLUDE 'retention' AND 'delivery confirmed'
-                if (!noteText.includes('retention')) {
-                    totalPaidWithoutRetention += amountPaid;
-                }
+                if (!noteText.includes('retention')) totalPaidWithoutRetention += amountPaid;
 
-                const releaseDateDisplay = inv.releaseDate ? new Date(normalizeDateForInput(inv.releaseDate) + 'T00:00:00').toLocaleDateString('en-GB') : '';
-                const invoiceDateDisplay = inv.invoiceDate ? new Date(normalizeDateForInput(inv.invoiceDate) + 'T00:00:00').toLocaleDateString('en-GB') : '';
+                const releaseDateDisplay = formatToDDMMMYY(inv.releaseDate);
+                const invoiceDateDisplay = formatToDDMMMYY(inv.invoiceDate);
+                
                 const invValueDisplay = canViewAmounts ? formatCurrency(invValue) : '---';
                 const amountPaidDisplay = canViewAmounts ? formatCurrency(amountPaid) : '---';
 
-                // ============================================================
-                // 1. GENERATE ACTION BUTTONS
-                // ============================================================
-                
                 let actionButtonsHTML = '';
-
                 if (inv.source !== 'ecommit' && isAllowedUser) {
-                    
-                    // --- A. Sanitize Names (Preserve end-spaces; they can be significant in SharePoint filenames) ---
                     const finalInvName = getSharePointPdfBaseName(inv.invName);
                     const finalSrvName = getSharePointPdfBaseName(inv.srvName);
                     const finalReportName = getSharePointPdfBaseName(inv.reportName);
 
-                    // --- B. Create PDF Links ---
-                    const invPDFLink = (finalInvName && finalInvName.toLowerCase() !== 'nil') ? 
-                        `<a href="${PDF_BASE_PATH}${encodeURIComponent(finalInvName)}.pdf" target="_blank" class="action-btn invoice-pdf-btn" onclick="event.stopPropagation();" title="View Invoice">Inv</a>` : '';
-                    
-                    const srvPDFLink = (finalSrvName && finalSrvName.toLowerCase() !== 'nil') ? 
-                        `<a href="${SRV_BASE_PATH}${encodeURIComponent(finalSrvName)}.pdf" target="_blank" class="action-btn srv-pdf-btn" onclick="event.stopPropagation();" title="View SRV">SRV</a>` : '';
-                    
-                    const reportViewLink = (finalReportName && finalReportName.toLowerCase() !== 'nil') ? 
-                        `<a href="${REPORT_BASE_PATH}${encodeURIComponent(finalReportName)}.pdf" target="_blank" class="action-btn" style="background-color: #6f42c1; color: white;" onclick="event.stopPropagation();" title="View Report PDF">Rpt</a>` : '';
+                    const invPDFLink = (finalInvName && finalInvName.toLowerCase() !== 'nil') ? `<a href="${PDF_BASE_PATH}${encodeURIComponent(finalInvName)}.pdf" target="_blank" class="action-btn invoice-pdf-btn" onclick="event.stopPropagation();" title="View Invoice">Inv</a>` : '';
+                    const srvPDFLink = (finalSrvName && finalSrvName.toLowerCase() !== 'nil') ? `<a href="${SRV_BASE_PATH}${encodeURIComponent(finalSrvName)}.pdf" target="_blank" class="action-btn srv-pdf-btn" onclick="event.stopPropagation();" title="View SRV">SRV</a>` : '';
+                    const reportViewLink = (finalReportName && finalReportName.toLowerCase() !== 'nil') ? `<a href="${REPORT_BASE_PATH}${encodeURIComponent(finalReportName)}.pdf" target="_blank" class="action-btn" style="background-color: #6f42c1; color: white;" onclick="event.stopPropagation();" title="View Report PDF">Rpt</a>` : '';
 
-                    // --- C. Create Tool Buttons (FIXED LINE IS HERE) ---
-                    // We simply use the PO Number from the parent loop
-                    let currentPO = poData.poNumber;
-
-                    let historyBtn = (inv.history || inv.createdAt || inv.originTimestamp) ? 
-                        `<button type="button" class="history-btn action-btn" onclick="event.stopPropagation(); showInvoiceHistory('${currentPO}', '${inv.key}')"><i class="fa-solid fa-clock-rotate-left"></i></button>` : '';
+                    let historyBtn = (inv.history || inv.createdAt || inv.originTimestamp) ? `<button type="button" class="history-btn action-btn" onclick="event.stopPropagation(); showInvoiceHistory('${poData.poNumber}', '${inv.key}')"><i class="fa-solid fa-clock-rotate-left"></i></button>` : '';
+                    let editBtn = `<button type="button" class="edit-inv-no-btn action-btn" data-po="${poData.poNumber}" data-key="${inv.key}" data-current="${inv.invNumber || ''}"><i class="fa-solid fa-pen-to-square"></i></button>`;
                     
-                    let editBtn = `<button type="button" class="edit-inv-no-btn action-btn" data-po="${currentPO}" data-key="${inv.key}" data-current="${inv.invNumber || ''}"><i class="fa-solid fa-pen-to-square"></i></button>`;
-                    
-                    // --- D. Create Print Report Button ---
                     let printReportBtn = '';
                     if (inv.status === 'Report Approved') {
                         if (inv.reportPrinted) {
                             printReportBtn = `<button type="button" class="action-btn" style="background-color: #6c757d; color: white; cursor: not-allowed;" title="Locked"><i class="fa-solid fa-lock"></i> Locked</button>`;
                         } else {
-                            printReportBtn = `<button type="button" class="action-btn" style="background-color: #00748C; color: white;" onclick="event.stopPropagation(); printFinalFinanceReport('${currentPO}', '${inv.key}')" title="Print Report"><i class="fa-solid fa-print"></i> Report</button>`;
+                            printReportBtn = `<button type="button" class="action-btn" style="background-color: #00748C; color: white;" onclick="event.stopPropagation(); printFinalFinanceReport('${poData.poNumber}', '${inv.key}')" title="Print Report"><i class="fa-solid fa-print"></i> Report</button>`;
                         }
                     }
 
-                    // --- E. STICKER BUTTON ---
                     let stickerBtn = '';
-                    if (typeof canPrintSticker !== 'undefined' && canPrintSticker && inv.esn) {
-                         stickerBtn = `<button type="button" class="action-btn" style="background-color: #28a745; color: white; padding: 4px 8px; border-radius: 4px;" title="Print Sticker" onclick="event.stopPropagation(); handlePrintSticker('${inv.key}', 'Invoice', '${currentPO}')"><i class="fa-solid fa-qrcode"></i></button>`;
+                    if (canPrintSticker && inv.esn) {
+                        stickerBtn = `<button type="button" class="action-btn" style="background-color: #28a745; color: white; padding: 4px 8px; border-radius: 4px;" title="Print Sticker" onclick="event.stopPropagation(); handlePrintSticker('${inv.key}', 'Invoice', '${poData.poNumber}')"><i class="fa-solid fa-qrcode"></i></button>`;
                     }
 
-                    // --- F. WHATSAPP SHARE (For Approval) ---
-                    // Visible only in Invoice Records; does not change any workflow logic.
                     let waBtn = '';
                     if ((inv.status || '') === 'For Approval') {
-                        waBtn = `<button type="button" class="action-btn" style="background-color:#25D366; color:#fff;" title="Send WhatsApp for Approval" onclick="event.stopPropagation(); window.imShareInvoiceForApprovalWhatsApp('${currentPO}', '${inv.key}')"><i class="fa-brands fa-whatsapp"></i></button>`;
+                        waBtn = `<button type="button" class="action-btn" style="background-color:#25D366; color:#fff;" title="Send WhatsApp for Approval" onclick="event.stopPropagation(); window.imShareInvoiceForApprovalWhatsApp('${poData.poNumber}', '${inv.key}')"><i class="fa-brands fa-whatsapp"></i></button>`;
                     }
 
-                    // --- G. FINAL COMBINATION ---
-                    actionButtonsHTML = `<div class="action-btn-group">${editBtn} ${invPDFLink} ${srvPDFLink} ${reportViewLink} ${printReportBtn} ${historyBtn} ${stickerBtn} ${waBtn}</div>`;
-                
+                    actionButtonsHTML = `<div class="modern-action-group" style="display:flex; gap:3px;">${editBtn} ${invPDFLink} ${srvPDFLink} ${reportViewLink} ${printReportBtn} ${historyBtn} ${stickerBtn} ${waBtn}</div>`;
                 } else if (inv.source === 'ecommit' && isAllowedUser) {
-                    actionButtonsHTML = `<span style="font-size:0.8rem; color:#6f42c1; font-weight:bold; cursor:pointer;"><i class="fa-solid fa-file-import"></i> Click to Import</span>`;
+                    actionButtonsHTML = `<span style="font-size:0.8rem; color:#6f42c1; font-weight:bold; cursor:pointer;" onclick="event.stopPropagation();"><i class="fa-solid fa-file-import"></i> Click to Import</span>`;
                 }
 
-                nestedTableRows += `<tr class="nested-invoice-row"
-                                        data-po-number="${poData.poNumber}" data-invoice-key="${inv.key}" data-source="${inv.source}"
-                                        data-inv-number="${inv.invNumber || ''}" data-inv-date="${inv.invoiceDate || ''}"
-                                        data-release-date="${inv.releaseDate || ''}" data-inv-value="${inv.invValue || ''}"
-                                        title="${inv.source === 'ecommit' ? 'Click to Import' : 'Click to Edit'}">
-                    <td>${inv.invEntryID || ''}</td>
-                    <td style="font-weight: bold; color: #00748C;">${inv.invNumber || ''}</td>
-                    <td>${invoiceDateDisplay}</td> <td>${invValueDisplay}</td> <td>${amountPaidDisplay}</td>
-                    <td>${releaseDateDisplay}</td> <td>${inv.status || ''}</td> <td>${inv.note || ''}</td>
-                    <td>${actionButtonsHTML}</td>
-                </tr>`;
+                innerRows += `
+                    <tr class="nested-invoice-row" 
+                        data-po-number="${poData.poNumber}" 
+                        data-invoice-key="${inv.key}" 
+                        data-source="${inv.source}"
+                        data-inv-number="${inv.invNumber || ''}" 
+                        data-inv-date="${inv.invoiceDate || ''}"
+                        data-release-date="${inv.releaseDate || ''}" 
+                        data-inv-value="${inv.invValue || ''}"
+                        title="${inv.source === 'ecommit' ? 'Click to Import' : 'Click to Edit'}"
+                        style="cursor: pointer; border-bottom: 1px solid #f1f5f9; transition: 0.2s;">
+                        <td style="padding: 10px 5px; color: #64748b;">${inv.invEntryID || ''}</td>
+                        <td style="padding: 10px 5px; font-weight: 700; color: #00748C;">${inv.invNumber || 'N/A'}</td>
+                        <td style="padding: 10px 5px;">${invoiceDateDisplay}</td>
+                        <td style="padding: 10px 5px; text-align: right; font-family: monospace; font-weight: 600; color: #334155;">${invValueDisplay}</td>
+                        <td style="padding: 10px 5px; text-align: right; font-family: monospace; font-weight: 600; color: #334155;">${amountPaidDisplay}</td>
+                        <td style="padding: 10px 5px;">${releaseDateDisplay}</td>
+                        <td style="padding: 10px 5px;"><span class="status-badge" style="background: #e2e8f0; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; color: #334155;">${inv.status || 'N/A'}</span></td>
+                        <td style="padding: 10px 5px; color: #64748b; font-size: 12px;">${inv.note || ''}</td>
+                        <td style="padding: 10px 5px;" class="actions">${actionButtonsHTML}</td>
+                    </tr>
+                `;
             });
 
-        let finalTotalPaid = totalPaidWithoutRetention;
-        if (Math.abs(totalPaidWithRetention - totalInvValue) < 0.01) finalTotalPaid = totalPaidWithRetention;
+            let finalTotalPaid = totalPaidWithoutRetention;
+            if (Math.abs(totalPaidWithRetention - totalInvValue) < 0.01) finalTotalPaid = totalPaidWithRetention;
 
-        // ============================================================
-        // [NEW] CALCULATE DIFFERENCE (Inv Value - Paid)
-        // ============================================================
-        const diffValue = totalInvValue - finalTotalPaid;
-        const diffColor = (diffValue > 0.05) ? '#dc3545' : '#28a745'; // Red if Owed, Green if Paid
-        const diffDisplay = canViewAmounts ? `<strong>QAR ${formatCurrency(diffValue)}</strong>` : '---';
-        // ============================================================
+            const diffValue = totalInvValue - finalTotalPaid;
+            const diffColor = (diffValue > 0.05) ? '#dc3545' : '#28a745'; 
+            
+            const diffDisplay = canViewAmounts ? `<strong>${formatCurrency(diffValue)}</strong>` : '---';
+            const totalInvValueDisplay = canViewAmounts ? `<strong>${formatCurrency(totalInvValue)}</strong>` : '---';
+            const totalAmountPaidDisplay = canViewAmounts ? `<strong>${formatCurrency(finalTotalPaid)}</strong>` : '---';
+            
+            const poValueDisplay = canViewAmounts ? (poData.poDetails.Amount ? `QAR ${formatCurrency(poData.poDetails.Amount)}` : 'N/A') : '---';
+            const balanceDisplay = canViewAmounts ? `QAR ${formatCurrency(poData.balance)}` : '---';
 
-        const totalInvValueDisplay = canViewAmounts ? `<strong>QAR ${formatCurrency(totalInvValue)}</strong>` : '---';
-        const totalAmountPaidDisplay = canViewAmounts ? `<strong>QAR ${formatCurrency(finalTotalPaid)}</strong>` : '---';
-const poValueDisplay = canViewAmounts ? (poData.poDetails.Amount ? `QAR ${formatCurrency(poData.poDetails.Amount)}` : 'N/A') : '---';
+            let highlightClass = '';
+            if (canViewAmounts) {
+                if (poData.balance < -0.01) highlightClass = 'highlight-negative-balance';
+                else if (Math.abs(poData.balance) < 0.01) {
+                    if (allWithAccounts && Math.abs(finalTotalPaid - parseFloat(poData.poDetails.Amount)) < 0.01) highlightClass = 'highlight-fully-paid';
+                    else if (allWithAccounts) highlightClass = 'highlight-partial';
+                } 
+                else if (poData.balance > 0.01) highlightClass = 'highlight-open-balance';
+            }
 
-    const parsedPoAmount = parseFloat(poData.poDetails.Amount) || 0;
-    let balanceNum = poData.balance !== undefined ? poData.balance : (parsedPoAmount - totalInvValue);
-    
-    // NEW: If PO Value is 0, force SRV Balance to 0
-    if (parsedPoAmount === 0) {
-        balanceNum = 0;
-    }
+            const isExpanded = imLastExpandedRowId === poData.poNumber ? 'expanded' : '';
 
-    const balanceDisplay = canViewAmounts ? `QAR ${formatCurrency(balanceNum)}` : '---';
+            // FIXED: Added box-sizing: border-box and width: 100% to keep cards inside container
+            html += `
+                <div class="invoice-card ${highlightClass} ${isExpanded}" data-po-id="${poData.poNumber}" style="box-sizing: border-box; width: 100%; overflow: hidden;">
+                    <div class="master-grid-row">
+                        <div class="grid-cell" style="width: 40px; color:#00748C;"><i class="fa-solid fa-chevron-down"></i></div>
+                        <div class="grid-cell" style="font-weight: 800;">${poData.poNumber}</div>
+                        <div class="grid-cell">${poData.site}</div>
+                        <div class="grid-cell">${poData.vendor}</div>
+                        <div class="grid-cell" style="font-family: monospace;">${poValueDisplay}</div>
+                        <div class="grid-cell" style="font-family: monospace;">${canViewAmounts ? 'QAR ' + formatCurrency(totalInvValue) : '---'}</div>
+                        <div class="grid-cell" style="font-weight: 800; font-family: monospace; color: ${poData.balance < 0 ? '#ef4444' : '#1e293b'}">${balanceDisplay}</div>
+                    </div>
+                    
+                    <div class="detail-grid-row" style="padding: 15px 20px 25px 20px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; box-sizing: border-box; width: 100%;">
+                        <div style="background: #fff; padding: 15px 20px; border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: 0 4px 6px rgba(0,0,0,0.02); box-sizing: border-box; width: 100%;">
+                            <h4 style="margin: 0 0 15px 0; color: #0f172a; font-size: 15px;">Invoice Entries for PO ${poData.poNumber}</h4>
+                            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+                                <thead>
+                                    <tr style="border-bottom: 2px solid #cbd5e1; color: #475569; font-size: 11px; text-transform: uppercase;">
+                                        <th style="padding-bottom: 10px; padding-left: 5px;">Inv. Entry</th>
+                                        <th style="padding-bottom: 10px; padding-left: 5px;">Inv. No.</th>
+                                        <th style="padding-bottom: 10px; padding-left: 5px;">Inv. Date</th>
+                                        <th style="padding-bottom: 10px; padding-left: 5px; text-align: right;">Inv. Value</th>
+                                        <th style="padding-bottom: 10px; padding-left: 5px; text-align: right;">Amt. Paid</th>
+                                        <th style="padding-bottom: 10px; padding-left: 5px;">Release Date</th>
+                                        <th style="padding-bottom: 10px; padding-left: 5px;">Status</th>
+                                        <th style="padding-bottom: 10px; padding-left: 5px;">Note</th>
+                                        <th style="padding-bottom: 10px; padding-left: 5px;">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${innerRows}</tbody>
+                                <tfoot>
+                                    <tr style="border-top: 2px solid #cbd5e1; background-color: #f8fafc;">
+                                        <td colspan="3" style="text-align: right; padding: 12px 5px; font-weight: 700; color: #475569;">TOTAL</td>
+                                        <td style="text-align: right; font-family: monospace; padding: 12px 5px; font-weight: 800; color: #0f172a; font-size: 14px;">${totalInvValueDisplay}</td>
+                                        <td style="text-align: right; font-family: monospace; padding: 12px 5px; font-weight: 800; color: #0f172a; font-size: 14px;">${totalAmountPaidDisplay}</td>
+                                        <td style="color: ${diffColor}; font-family: monospace; padding: 12px 5px; font-weight: 800; font-size: 14px;">${diffDisplay}</td>
+                                        <td colspan="3"></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
 
+        contentArea.innerHTML = html;
 
-
-        let highlightClass = '';
-        if (canViewAmounts) {
-            if (balanceNum < -0.01) {
-                highlightClass = 'highlight-negative-balance';
-            } else if (Math.abs(balanceNum) < 0.01) {
-                if (allWithAccounts && Math.abs(finalTotalPaid - parseFloat(poData.poDetails.Amount)) < 0.01) highlightClass = 'highlight-fully-paid';
-                else if (allWithAccounts) highlightClass = 'highlight-partial';
-            } else if (balanceNum > 0.01) highlightClass = 'highlight-open-balance';
+        // POPULATE THE DEDICATED GRAND TOTAL CONTAINER 
+        const grandTotalContainer = document.getElementById('im-reporting-grand-total-container');
+        if (grandTotalContainer) {
+            if (canViewAmounts && currentReportData.length > 0) {
+                // FIXED: Clearing any external HTML padding/margin rules that force it out of bounds
+                grandTotalContainer.style.display = 'block';
+                grandTotalContainer.style.paddingRight = '0';
+                grandTotalContainer.style.boxSizing = 'border-box';
+                grandTotalContainer.style.width = '100%';
+                
+                // FIXED: Added box-sizing: border-box to the gradient div itself
+                grandTotalContainer.innerHTML = `
+                    <div style="background: linear-gradient(to right, #003A5C, #00748C); border-radius: 12px; box-shadow: 0 8px 20px rgba(0, 58, 92, 0.15); display: flex; justify-content: space-between; align-items: center; padding: 22px 30px; margin-top: 25px; margin-bottom: 30px; width: 100%; box-sizing: border-box; color: white;">
+                        
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <i class="fa-solid fa-calculator" style="font-size: 26px; color: #bae6fd;"></i>
+                            <span style="font-size: 18px; font-weight: 800; letter-spacing: 0.5px;">Search Results Summary</span>
+                        </div>
+                        
+                        <div style="display: flex; gap: 40px; align-items: center;">
+                            
+                            <div style="display: flex; flex-direction: column; text-align: right; gap: 5px;">
+                                <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #e0f2fe; letter-spacing: 0.5px;">Total PO Value</span>
+                                <span style="font-size: 16px; font-weight: 800; font-family: monospace;">QAR ${formatCurrency(grandTotalPO)}</span>
+                            </div>
+                            
+                            <div style="display: flex; flex-direction: column; text-align: right; gap: 5px;">
+                                <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #e0f2fe; letter-spacing: 0.5px;">Total SRV</span>
+                                <span style="font-size: 16px; font-weight: 800; font-family: monospace;">QAR ${formatCurrency(grandTotalInv)}</span>
+                            </div>
+                            
+                            <div style="display: flex; flex-direction: column; text-align: right; gap: 5px;">
+                                <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #ffffff; letter-spacing: 0.5px;">Total Outstanding Balance</span>
+                                <span style="font-size: 18px; font-weight: 900; font-family: monospace; color: #fde047;">QAR ${formatCurrency(grandTotalBalance)}</span>
+                            </div>
+                            
+                        </div>
+                    </div>
+                `;
+            } else {
+                grandTotalContainer.style.display = 'none';
+                grandTotalContainer.innerHTML = '';
+            }
         }
-
-        tableHTML += `<tr class="master-row ${highlightClass}" data-target="#${detailRowId}">
-            <td><button class="expand-btn">${buttonText}</button></td>
-            <td>${poData.poNumber}</td><td>${poData.site}</td><td>${poData.vendor}</td><td>${poValueDisplay}</td>
-            <td style="${balanceNum < -0.01 ? 'color: red; font-weight: bold;' : ''}">${balanceDisplay}</td>
-        </tr>`;
-
-        // [UPDATED FOOTER] Added the Difference Column below
-        tableHTML += `<tr id="${detailRowId}" class="${detailClass}"><td colspan="6"><div class="detail-content"><h4>Invoice Entries for PO ${poData.poNumber}</h4><table class="nested-invoice-table"><thead><tr><th>Inv. Entry</th><th>Inv. No.</th><th>Inv. Date</th><th>Inv. Value</th><th>Amt. Paid</th><th>Release Date</th><th>Status</th><th>Note</th><th>Action</th></tr></thead><tbody>${nestedTableRows}</tbody><tfoot><tr><td colspan="3" style="text-align: right;"><strong>TOTAL</strong></td><td>${totalInvValueDisplay}</td><td>${totalAmountPaidDisplay}</td><td style="color: ${diffColor};">${diffDisplay}</td><td colspan="3"></td></tr></tfoot></table></div></td></tr>`;
-    });
-    tableHTML += `</tbody></table>`;
-    container.innerHTML = tableHTML;
+        
+    } catch (error) {
+        console.error("Error generating report:", error);
+        contentArea.innerHTML = '<div class="loading-state">Error loading report. Please try again.</div>';
+    }
 }
 
+// --- FORCE EXTERNAL LINK FOR FINANCIAL REPORT ---
+document.addEventListener('click', function(e) {
+    // Check if the clicked element is our Financial Report link
+    const financeLink = e.target.closest('#im-finance-report-nav-link');
+    
+    if (financeLink) {
+        // Stop the app's internal navigation from blocking this click
+        e.stopPropagation(); 
+        
+        // The browser will now follow the href="https://ibaport.site/Epicore/" naturally
+        console.log("Navigating to Epicore external site...");
+    }
+}, true); // The 'true' here makes this run BEFORE the app's other scripts
+
+
+
+// --- PRINTING LOGIC (PROFESSIONAL GITHUB STYLE WITH FORCED COLORS & CORRECT LABELS) ---
+window.generateGithubStylePrintout = function(isDetailed) {
+    const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
+    const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
+    if (!isAdmin && !isAccounting) {
+        if (typeof window.playSystemError === 'function') window.playSystemError();
+        return alert("Permission denied to print financial data.");
+    }
+
+    if (!currentReportData || currentReportData.length === 0) {
+        if (typeof window.playSystemError === 'function') window.playSystemError();
+        return alert("No records to print. Please search first.");
+    }
+
+    const formatForPrint = (dateStr) => {
+        if (!dateStr) return '---';
+        const d = new Date(normalizeDateForInput(dateStr) + 'T00:00:00');
+        if (isNaN(d)) return dateStr;
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return `${String(d.getDate()).padStart(2, '0')}-${months[d.getMonth()]}-${String(d.getFullYear()).slice(-2)}`;
+    };
+
+    let totalPOAmt = 0;
+    let totalInvAmt = 0;
+
+    let rowsHtml = '';
+    currentReportData.forEach(poData => {
+        const poVal = poData.poAmount || parseFloat(poData.poDetails?.Amount) || 0;
+        totalPOAmt += poVal;
+        
+        let invVal = 0;
+        let poTotalPaid = 0;
+        poData.filteredInvoices.forEach(i => {
+            invVal += parseFloat(i.invValue) || 0;
+            poTotalPaid += parseFloat(i.amountPaid) || 0;
+        });
+        totalInvAmt += invVal;
+
+        let balance = poVal - invVal;
+
+        if (isDetailed) {
+            let invRows = poData.filteredInvoices.map(inv => `
+                <tr class="detail-row">
+                    <td style="color: #64748b;">${inv.invEntryID || '---'}</td>
+                    <td><span style="color: #00748C; font-weight: 600;">${inv.invNumber || 'N/A'}</span></td>
+                    <td>${formatForPrint(inv.invoiceDate)}</td>
+                    <td class="right-align" style="font-family: monospace; font-weight: 600;">${formatCurrency(inv.invValue)}</td>
+                    <td class="right-align" style="font-family: monospace; font-weight: 600;">${formatCurrency(inv.amountPaid)}</td>
+                    <td>${formatForPrint(inv.releaseDate)}</td>
+                    <td><span class="status-badge" style="background-color: #e2e8f0; color: #334155;">${inv.status || 'Pending'}</span></td>
+                    <td style="color: #64748b; font-size: 11px;">${inv.note || '---'}</td>
+                </tr>
+            `).join('');
+
+            // HERE ARE THE UPDATED LABELS YOU REQUESTED:
+            let poSubtotalRow = `
+                <tr class="detail-row" style="background-color: #f1f5f9;">
+                    <td colspan="3" style="text-align: right; font-weight: 800; color: #475569; font-size: 11px; text-transform: uppercase;">Total Invoice Value:</td>
+                    <td class="right-align" style="font-family: monospace; font-weight: 800; color: #0f172a;">${formatCurrency(invVal)}</td>
+                    <td class="right-align" style="font-family: monospace; font-weight: 800; color: #0f172a;">${formatCurrency(poTotalPaid)}</td>
+                    <td colspan="2" style="text-align: right; font-weight: 800; color: #475569; font-size: 11px; text-transform: uppercase;">Balance Payment:</td>
+                    <td class="right-align" style="font-family: monospace; font-weight: 800; color: ${balance < 0 ? '#dc3545' : '#0f172a'};">${formatCurrency(balance)}</td>
+                </tr>
+            `;
+
+            rowsHtml += `
+                <tr class="master-row">
+                    <td colspan="7">
+                        <strong style="color: #003A5C; font-size: 13px;">PO: ${poData.poNumber}</strong> &nbsp;|&nbsp; 
+                        Vendor: ${poData.vendor} &nbsp;|&nbsp; 
+                        Site: ${poData.site}
+                    </td>
+                    <td class="right-align" style="font-family: monospace; color: #003A5C; font-size: 13px; font-weight: bold;">${formatCurrency(poVal)}</td>
+                </tr>
+                ${invRows}
+                ${poSubtotalRow}
+            `;
+        } else {
+            rowsHtml += `
+                <tr class="master-row">
+                    <td>${poData.poNumber}</td>
+                    <td>${poData.vendor}</td>
+                    <td>${poData.site}</td>
+                    <td class="right-align" style="font-family: monospace;">${formatCurrency(poVal)}</td>
+                    <td class="right-align" style="font-family: monospace;">${formatCurrency(invVal)}</td>
+                    <td class="right-align" style="font-family: monospace; color: ${balance < 0 ? '#dc3545' : 'inherit'}">${formatCurrency(balance)}</td>
+                </tr>
+            `;
+        }
+    });
+
+    const headerHTML = isDetailed 
+        ? `<tr><th>Inv. Entry</th><th>Inv. No.</th><th>Inv. Date</th><th class="right-align">Inv. Value</th><th class="right-align">Amt. Paid</th><th>Release Date</th><th>Status</th><th>Note</th></tr>`
+        : `<tr><th>PO Number</th><th>Vendor</th><th>Site</th><th class="right-align">PO Value (QAR)</th><th class="right-align">Total Inv (QAR)</th><th class="right-align">Balance (QAR)</th></tr>`;
+
+    let totalBalance = totalPOAmt - totalInvAmt;
+
+    const printHtml = `
+        <!DOCTYPE html>
+        <html><head><title>Invoice Records Report</title>
+        <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 40px; color: #1e293b; margin: 0; background: #fff;}
+            .print-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #003A5C; padding-bottom: 12px; margin-bottom: 25px; }
+            .print-header h2 { margin: 0; color: #003A5C; font-size: 24px; text-transform: uppercase; letter-spacing: 1px; }
+            .print-header p { margin: 0; color: #64748b; font-size: 13px; font-weight: 600; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+            th { background: #f8fafc; color: #475569; padding: 12px; font-size: 11px; text-transform: uppercase; border-bottom: 2px solid #cbd5e1; text-align: left; }
+            td { border-bottom: 1px solid #e2e8f0; padding: 10px 12px; font-size: 12px; }
+            .master-row td { background-color: #f1f5f9; font-weight: 700; color: #0f172a; border-top: 2px solid #cbd5e1; }
+            .detail-row td { color: #334155; }
+            .status-badge { font-size: 10px; padding: 3px 6px; border-radius: 12px; font-weight: 600; white-space: nowrap; }
+            .right-align { text-align: right; }
+            
+            @media print { 
+                body { padding: 0; } 
+                * { 
+                    -webkit-print-color-adjust: exact !important; 
+                    print-color-adjust: exact !important; 
+                    color-adjust: exact !important; 
+                }
+            }
+        </style>
+        </head><body>
+            <div class="print-header">
+                <h2>${isDetailed ? 'Detailed Report: POs & Invoices' : 'Summary Report: POs & Invoices'}</h2>
+                <p>Generated on: ${new Date().toLocaleString()} &nbsp; | &nbsp; Records: ${currentReportData.length}</p>
+            </div>
+            <table>
+                <thead>${headerHTML}</thead>
+                <tbody>${rowsHtml}</tbody>
+            </table>
+            
+            <div class="print-summary-box" style="display: flex; justify-content: flex-end; margin-top: 25px; page-break-inside: avoid;">
+                <div style="display: flex; gap: 20px; align-items: center; border: 2px solid #003A5C; border-radius: 8px; padding: 10px 20px; background-color: #ffffff;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 11px; color: #475569; font-weight: 800; text-transform: uppercase;">Grand Total PO Value:</span>
+                        <span style="font-size: 14px; color: #0f172a; font-family: monospace; font-weight: 800;">QAR ${formatCurrency(totalPOAmt)}</span>
+                    </div>
+                    <div style="width: 2px; background: #cbd5e1; height: 16px;"></div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 11px; color: #475569; font-weight: 800; text-transform: uppercase;">Grand Total SRV:</span>
+                        <span style="font-size: 14px; color: #0f172a; font-family: monospace; font-weight: 800;">QAR ${formatCurrency(totalInvAmt)}</span>
+                    </div>
+                    <div style="width: 2px; background: #cbd5e1; height: 16px;"></div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 11px; color: #003A5C; font-weight: 800; text-transform: uppercase;">Total Outstanding:</span>
+                        <span style="font-size: 15px; color: #003A5C; font-family: monospace; font-weight: 800;">QAR ${formatCurrency(totalBalance)}</span>
+                    </div>
+                </div>
+            </div>
+
+        </body></html>
+    `;
+
+    const modal = document.getElementById('im-print-preview-modal');
+    const iframe = document.getElementById('im-print-preview-iframe');
+    
+    if (modal && iframe) {
+        modal.classList.remove('hidden');
+        const doc = iframe.contentWindow.document;
+        doc.open();
+        doc.write(printHtml);
+        doc.close();
+    } else {
+        const win = window.open('', '_blank');
+        win.document.write(printHtml);
+        win.document.close();
+        win.focus();
+        setTimeout(() => { win.print(); }, 500);
+    }
+};
+
+// --- FORCE GRAND TOTAL BOX TO HIDE ON CLEAR ---
+document.addEventListener("DOMContentLoaded", () => {
+    const myClearBtn = document.getElementById("clearAllBtn");
+    
+    if (myClearBtn) {
+        myClearBtn.addEventListener("click", () => {
+            const grandTotalContainer = document.getElementById('im-reporting-grand-total-container');
+            if (grandTotalContainer) {
+                grandTotalContainer.style.display = 'none';
+                grandTotalContainer.innerHTML = '';
+            }
+        });
+    }
+});
 
 // ==========================================================================
 // IM: Invoice Records Totals Footer (Desktop & Mobile)
@@ -12441,6 +12641,8 @@ async function imOpenInvoiceFromDeepLink(po, invKey) {
         }
     }, 650);
 }
+
+
 
 
 // ==========================================================================

@@ -7316,3 +7316,81 @@ body.inventory-mode .wd-nav-material {
   color: #666;
   font-size: 0.85rem;
 }
+
+/* --- GITHUB INVOICE RECORDS UI --- */
+.header-top { display: flex; justify-content: space-between; align-items: center; }
+.header-title { display: flex; align-items: center; gap: 15px; }
+.icon-wrapper { background: linear-gradient(135deg, #003A5C, #00748C); width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: white; font-size: 22px; box-shadow: 0 4px 10px rgba(0, 116, 140, 0.2); }
+
+.search-box { position: relative; margin-bottom: 15px; width: 100%; }
+.search-box i.search-icon { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 18px; }
+.search-box input { width: 100%; padding: 18px 20px 18px 55px; border: 2px solid #e2e8f0; border-radius: 14px; font-size: 16px; box-sizing: border-box; transition: all 0.3s ease; background-color: #f8fafc; color: #1e293b; }
+.search-box input:focus { outline: none; border-color: #00748C; background-color: #fff; box-shadow: 0 0 0 4px rgba(0, 116, 140, 0.1); }
+
+.controls-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; background: #f8fafc; padding: 15px; border-radius: 14px; border: 1px solid #e2e8f0; }
+.filter-group { display: flex; gap: 10px; flex: 1; min-width: 300px; flex-wrap: wrap; }
+.filter-group select { flex: 1; min-width: 130px; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; outline: none; height: 45px; }
+
+.action-buttons { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.primary-btn, .secondary-btn, .print-btn { height: 45px; padding: 0 20px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; border: none; transition: 0.2s; }
+.primary-btn { background-color: #00748C; color: white; }
+.primary-btn:hover { background-color: #005a6e; }
+.secondary-btn { background-color: #e2e8f0; color: #475569; }
+.secondary-btn:hover { background-color: #cbd5e1; }
+
+.print-actions { display: flex; gap: 8px; border-left: 2px solid #cbd5e1; padding-left: 10px; margin-left: 5px; }
+.print-btn { background-color: #fff; border: 1px solid #cbd5e1; color: #334155; }
+.print-btn:hover { background-color: #f1f5f9; border-color: #94a3b8; }
+.detailed-btn { color: #00748C; border-color: #00748C; }
+.detailed-btn:hover { background-color: #f0f9ff; }
+
+/* Grid Table */
+.grid-header { display: flex; padding: 0 20px 12px 20px; border-bottom: 2px solid #e2e8f0; color: #64748b; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+.grid-cell { flex: 1; padding-right: 10px; overflow: hidden; }
+.grid-body { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+
+.invoice-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; transition: all 0.2s ease; overflow: hidden; }
+.invoice-card:hover { border-color: #cbd5e1; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+.master-grid-row { display: flex; align-items: center; padding: 16px 20px; cursor: pointer; background: transparent; }
+.master-grid-row .grid-cell { font-size: 14px; font-weight: 500; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 15px; }
+.detail-grid-row { display: none; padding: 20px 20px 20px 70px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; box-shadow: inset 0 3px 6px -3px rgba(0,0,0,0.05); }
+.invoice-card.expanded .detail-grid-row { display: block; }
+.invoice-card.expanded { border-color: #00748C; box-shadow: 0 4px 15px rgba(0, 116, 140, 0.1); margin: 5px 0; }
+
+.status-badge { display: inline-flex; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+.status-badge.Epicore { background: #dbeafe; color: #0284c7; }
+
+/* Highlight Classes */
+.highlight-open-balance { border-left: 4px solid #f59e0b !important; }
+.highlight-partial { background-color: #d9eef2 !important; }
+.highlight-fully-paid { background-color: #f7f3d9 !important; border-left: 4px solid #10b981 !important; }
+.highlight-negative-balance { border-left: 4px solid #ef4444 !important; background-color: #fef2f2 !important; }
+
+/* Grand Summary Output for Print */
+.print-summary-box { display: flex; justify-content: flex-end; margin-top: 30px; page-break-inside: avoid; }
+.print-summary-table { border-collapse: separate; border-spacing: 0; width: 340px; border: 1px solid #003A5C !important; border-radius: 8px; overflow: hidden; }
+.print-summary-table td { padding: 10px 12px; font-size: 10px; color: #334155; border-bottom: 1px solid #e2e8f0; }
+.print-summary-table td:first-child { font-weight: 800; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px;}
+.print-summary-table td:last-child { text-align: right; font-family: monospace; font-size: 13px; font-weight: 800; }
+.balance-row { background-color: #003A5C !important; color: #ffffff !important; }
+.balance-row td { border-bottom: none; }
+
+/* --- MODERN INNER TABLE STYLING --- */
+.modern-inner-table { width: 100%; border-collapse: separate; border-spacing: 0; background: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; margin-top: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+.modern-inner-table thead { background-color: #f8fafc; }
+.modern-inner-table th { padding: 12px 15px; text-align: left; color: #475569; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0; }
+.modern-inner-table th.right-align { text-align: right; }
+.modern-inner-table td { padding: 12px 15px; font-size: 13px; color: #334155; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.modern-inner-table tbody tr:hover td { background-color: #f8fafc; }
+.modern-inner-table tbody tr:last-child td { border-bottom: none; }
+.modern-inner-table tfoot td { background-color: #f8fafc; border-top: 2px solid #e2e8f0; font-size: 12px; }
+
+/* Modernize Action Buttons Inside the Table */
+.modern-action-group { display: flex; gap: 6px; align-items: center; }
+.modern-action-group .action-btn { padding: 5px 10px; font-size: 11px; font-weight: 600; border-radius: 6px; border: 1px solid transparent; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); text-decoration: none; cursor: pointer;}
+.modern-action-group .action-btn:hover { transform: translateY(-1px); box-shadow: 0 3px 6px rgba(0,0,0,0.1); }
+.modern-action-group .edit-inv-no-btn { background-color: #e2e8f0; color: #475569; }
+.modern-action-group .edit-inv-no-btn:hover { background-color: #cbd5e1; color: #1e293b; }
+.modern-action-group .invoice-pdf-btn { background-color: #dbeafe; color: #1d4ed8; border-color: #bfdbfe; }
+.modern-action-group .srv-pdf-btn { background-color: #dcfce7; color: #15803d; border-color: #bbf7d0; }
+.modern-action-group .history-btn { background-color: #f1f5f9; color: #64748b; }
