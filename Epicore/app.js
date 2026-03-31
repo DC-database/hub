@@ -2,6 +2,22 @@
 const PO_CSV_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
 const ECOMMIT_CSV_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/ECommit.csv";
 
+// FIREBASE CONFIGURATION
+const firebaseConfig = {
+  apiKey: "AIzaSyAt0fLWcfgGAWV4yiu4mfhc3xQ5ycolgnU",
+  authDomain: "payment-report-23bda.firebaseapp.com",
+  projectId: "payment-report-23bda",
+  storageBucket: "payment-report-23bda.appspot.com",
+  messagingSenderId: "575646169000",
+  appId: "1:575646169000:web:e7c4a9222ffe7753138f9d",
+  measurementId: "G-X4WBLDGLHQ"
+};
+
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+const database = firebase.database();
+
 // Cache Keys & Settings
 const CACHE_PO_KEY = "invoice_app_po_data";
 const CACHE_COMMIT_KEY = "invoice_app_commit_data";
@@ -11,8 +27,10 @@ const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 Hours
 
 let allInvoiceData = [];
 let allCommitData = [];
+let allFirebaseData = []; 
 let commitSearchMap = {}; 
 let commitsByPO = {}; 
+let retentionByPO = {}; 
 let isDataLoaded = false;
 let currentFilteredData = [];
 
@@ -25,6 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const printSummaryBtn = document.getElementById("printSummaryBtn");
     const printDetailedBtn = document.getElementById("printDetailedBtn");
     const printProjectBtn = document.getElementById("printProjectBtn"); 
+    const printRetentionBtn = document.getElementById("printRetentionBtn"); 
 
     const filterSite = document.getElementById("filterSite");
     const filterMonth = document.getElementById("filterMonth");
@@ -33,6 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const filterStatus = document.getElementById("filterStatus"); 
     const filterBalance = document.getElementById("filterBalance");
     const filterSrv = document.getElementById("filterSrv"); 
+    const filterRetention = document.getElementById("filterRetention"); 
 
     initializeData();
 
@@ -50,6 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
         filterStatus.value = ""; 
         filterBalance.value = ""; 
         filterSrv.value = ""; 
+        filterRetention.value = ""; 
         resetToEmptyState();
         searchInput.focus();
     });
@@ -58,7 +79,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const icon = refreshBtn.querySelector('i');
         icon.classList.add('fa-spin');
         document.getElementById("tableBody").innerHTML = `
-            <div class="loading-state"><i class="fa-solid fa-cloud-arrow-down fa-bounce" style="font-size:24px; color:#00748C; margin-bottom:15px; display:block;"></i> Downloading fresh data from GitHub...</div>
+            <div class="loading-state"><i class="fa-solid fa-cloud-arrow-down fa-bounce" style="font-size:24px; color:#00748C; margin-bottom:15px; display:block;"></i> Downloading fresh data...</div>
         `;
         fetchDataFromGitHub().then(() => {
             icon.classList.remove('fa-spin');
@@ -81,6 +102,11 @@ document.addEventListener("DOMContentLoaded", () => {
         generateProjectPrintout();
     });
 
+    printRetentionBtn.addEventListener("click", () => {
+        if (!isDataLoaded || currentFilteredData.length === 0) { alert("No records currently visible to print. Please search first."); return; }
+        generateRetentionPrintout();
+    });
+
     document.getElementById("tableBody").addEventListener("click", (e) => {
         const cardRow = e.target.closest('.master-grid-row');
         if (cardRow) {
@@ -101,6 +127,7 @@ async function initializeData() {
     if (cachedPO && cachedCommit && isCacheValid) {
         allInvoiceData = JSON.parse(cachedPO);
         allCommitData = JSON.parse(cachedCommit);
+        await fetchFirebaseRetentionData(); 
         setupDataDependents();
         isDataLoaded = true;
         updateUIReadyState(lastUpdatedString);
@@ -108,6 +135,30 @@ async function initializeData() {
     } else {
         await fetchDataFromGitHub();
         resetToEmptyState();
+    }
+}
+
+async function fetchFirebaseRetentionData() {
+    retentionByPO = {};
+    allFirebaseData = []; 
+    try {
+        const snapshot = await database.ref('payments').once('value'); 
+        const data = snapshot.val();
+        
+        if (data) {
+            Object.values(data).forEach(record => {
+                allFirebaseData.push(record); 
+                
+                const poNo = (record.poNo || record.poNumber || "").toString().trim();
+                if (poNo) {
+                    const retVal = parseFloat(record.retention) || 0;
+                    if (!retentionByPO[poNo]) retentionByPO[poNo] = 0;
+                    retentionByPO[poNo] += retVal; 
+                }
+            });
+        }
+    } catch (error) {
+        console.error("Failed to fetch Firebase Retention Data:", error);
     }
 }
 
@@ -131,9 +182,9 @@ async function fetchDataFromGitHub() {
             localStorage.setItem(CACHE_TIME_KEY, now.toLocaleString());
             localStorage.setItem(CACHE_MS_KEY, now.getTime().toString());
             updateUIReadyState(now.toLocaleString());
-        } catch (e) {
-            updateUIReadyState("Just now (Not Cached)");
-        }
+        } catch (e) {}
+
+        await fetchFirebaseRetentionData(); 
         setupDataDependents();
         isDataLoaded = true;
     } catch (error) {
@@ -258,6 +309,7 @@ function applyFilters() {
     const selectedStatus = document.getElementById("filterStatus").value; 
     const selectedBalance = document.getElementById("filterBalance").value; 
     const selectedSrv = document.getElementById("filterSrv").value; 
+    const selectedRetention = document.getElementById("filterRetention").value; 
 
     const filtered = allInvoiceData.filter(row => {
         const poNumber = row._cleanPO;
@@ -275,20 +327,18 @@ function applyFilters() {
         if (selectedStatus === 'open' && isClosed) return false;
         if (selectedStatus === 'closed' && !isClosed) return false;
 
-        // Balance & SRV Filter Math
-        if (selectedBalance !== "" || selectedSrv !== "") {
+        // Balance & SRV & Retention Filter Math
+        if (selectedBalance !== "" || selectedSrv !== "" || selectedRetention !== "") {
             let poSrvAmt = 0;
             const relatedCommits = commitsByPO[poNumber] || [];
             relatedCommits.forEach(commit => { poSrvAmt += commit._rawCost; });
             
-            // SRV Math
             if (selectedSrv !== "") {
                 const hasSrvValue = poSrvAmt > 0.001;
                 if (selectedSrv === 'has_srv' && !hasSrvValue) return false; 
                 if (selectedSrv === 'no_srv' && hasSrvValue) return false;
             }
 
-            // Balance Math
             if (selectedBalance !== "") {
                 const invAmt = row._rawAmount;
                 const rowBalance = invAmt - poSrvAmt;
@@ -296,6 +346,13 @@ function applyFilters() {
 
                 if (selectedBalance === 'zero' && !isZeroBalance) return false; 
                 if (selectedBalance === 'value' && isZeroBalance) return false; 
+            }
+
+            if (selectedRetention !== "") {
+                const poRetAmt = retentionByPO[poNumber] || 0;
+                const hasRetention = poRetAmt > 0.01;
+                if (selectedRetention === 'value' && !hasRetention) return false;
+                if (selectedRetention === 'zero' && hasRetention) return false;
             }
         }
 
@@ -434,9 +491,6 @@ function renderGrid(dataToRender) {
     tbody.innerHTML = gridHTML + summaryCardHTML;
 }
 
-// ---------------------------------------------------------
-// PRINT TEXT GENERATOR (UPDATED TO EXACT REQUEST)
-// ---------------------------------------------------------
 function getActiveFiltersHtml() {
     const site = document.getElementById("filterSite").value;
     const monthIdx = document.getElementById("filterMonth").value;
@@ -445,6 +499,7 @@ function getActiveFiltersHtml() {
     const status = document.getElementById("filterStatus").value; 
     const balance = document.getElementById("filterBalance").value; 
     const srv = document.getElementById("filterSrv").value; 
+    const retention = document.getElementById("filterRetention").value; 
     const query = document.getElementById("searchInput").value.trim();
 
     const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -466,13 +521,14 @@ function getActiveFiltersHtml() {
     if (status === "open") activeFilters.push(`Status: Open POs`); 
     if (status === "closed") activeFilters.push(`Status: Closed POs`); 
     
-    // UPDATED EXACT WORDING FOR PRINT
     if (balance === "value") activeFilters.push(`BALANCE: HAS VALUE`);
     if (balance === "zero") activeFilters.push(`BALANCE: ZERO`);
 
-    // UPDATED EXACT WORDING FOR PRINT
     if (srv === "has_srv") activeFilters.push(`SRV: HAS VALUE`);
     if (srv === "no_srv") activeFilters.push(`SRV: NO RECORD`);
+
+    if (retention === "value") activeFilters.push(`RETENTION: HAS VALUE`);
+    if (retention === "zero") activeFilters.push(`RETENTION: ZERO`);
 
     if (activeFilters.length > 0) {
         return `<p class="print-filters">FILTERED BY &rarr; &nbsp; ${activeFilters.join(' &nbsp;|&nbsp; ')}</p>`;
@@ -501,7 +557,7 @@ function generateSummaryPrintout() {
         totalSrvAmount += poSrvAmt;
 
         let rowBalance = invAmt - poSrvAmt;
-        rowsHtml += `<tr><td><strong>${poNumber}</strong></td><td>${site}</td><td>${vendor}</td><td>${orderDate}</td><td class="num">${invAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</td><td class="num">${poSrvAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</td><td class="num" style="font-weight:bold;">${rowBalance.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>`;
+        rowsHtml += `<tr><td><strong>${poNumber}</strong></td><td>${site}</td><td>${vendor}</td><td>${orderDate}</td><td class="num">${invAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</td><td class="num">${poSrvAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</td><td class="num" style="font-weight:bold; color:#ef4444;">${rowBalance.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>`;
     });
 
     let totalBalance = totalInvoiceAmount - totalSrvAmount;
@@ -570,7 +626,7 @@ function generateDetailedPrintout() {
                 ${srvRowsHtml}
                 <div class="print-po-footer">
                     <div>Total SRV: QAR ${poSrvAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
-                    <div class="highlight">Outstanding Balance: QAR ${rowBalance.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+                    <div class="highlight" style="color:#ef4444;">Outstanding Balance: QAR ${rowBalance.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
                 </div>
             </div>
         `;
@@ -600,37 +656,39 @@ function generateProjectPrintout() {
     let projectTotals = {};
     let grandTotalInvoice = 0;
     let grandTotalSrv = 0;
+    let grandTotalRetention = 0;
     let validRecordsCount = 0;
 
     currentFilteredData.forEach(row => {
         const openColumnVal = (row['Open'] || '').toString().toLowerCase().trim();
         const isClosed = openColumnVal === 'false';
         
-        if (isClosed) {
-            return; // Skip closed records in the Project Report
-        }
+        if (isClosed) return;
 
         validRecordsCount++; 
 
         const site = row['Project ID'] || row['Site'] || 'Unassigned Site';
         const poNumber = row._cleanPO;
-
         const invAmt = row._rawAmount;
 
         let poSrvAmt = 0;
         const relatedCommits = commitsByPO[poNumber] || [];
         relatedCommits.forEach(commit => { poSrvAmt += commit._rawCost; });
 
+        const poRetention = retentionByPO[poNumber] || 0;
+
         if (!projectTotals[site]) {
-            projectTotals[site] = { poValue: 0, srvTotal: 0, poCount: 0 };
+            projectTotals[site] = { poValue: 0, srvTotal: 0, retentionTotal: 0, poCount: 0 };
         }
 
         projectTotals[site].poValue += invAmt;
         projectTotals[site].srvTotal += poSrvAmt;
+        projectTotals[site].retentionTotal += poRetention;
         projectTotals[site].poCount += 1;
 
         grandTotalInvoice += invAmt;
         grandTotalSrv += poSrvAmt;
+        grandTotalRetention += poRetention;
     });
 
     let rowsHtml = '';
@@ -638,7 +696,8 @@ function generateProjectPrintout() {
 
     sortedSites.forEach(site => {
         const data = projectTotals[site];
-        const siteBalance = data.poValue - data.srvTotal;
+        const sitePayable = data.srvTotal - data.retentionTotal;
+        const siteOutstanding = data.poValue - data.srvTotal;
         
         rowsHtml += `
             <tr>
@@ -646,12 +705,15 @@ function generateProjectPrintout() {
                 <td class="num" style="text-align:center;">${data.poCount}</td>
                 <td class="num">${data.poValue.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
                 <td class="num">${data.srvTotal.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-                <td class="num" style="font-weight:bold;">${siteBalance.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="num" style="color:#ea580c;">${data.retentionTotal.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="num" style="font-weight:bold; color:#0369a1;">${sitePayable.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="num" style="font-weight:bold; color:#ef4444;">${siteOutstanding.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
             </tr>
         `;
     });
 
-    let totalBalance = grandTotalInvoice - grandTotalSrv;
+    let grandPayable = grandTotalSrv - grandTotalRetention;
+    let grandBalance = grandTotalInvoice - grandTotalSrv;
     
     if (validRecordsCount === 0) {
         alert("There are no valid Open records based on your current filters to display for the Project Report.");
@@ -669,9 +731,11 @@ function generateProjectPrintout() {
                 <tr>
                     <th>Site / Project ID</th>
                     <th style="text-align:center;">Open POs</th>
-                    <th class="num">Total PO Value (QAR)</th>
-                    <th class="num">Total SRV (QAR)</th>
-                    <th class="num">Outstanding Balance (QAR)</th>
+                    <th class="num">Total PO Value</th>
+                    <th class="num">Total SRV</th>
+                    <th class="num" style="color:#ea580c;">Retention</th>
+                    <th class="num" style="color:#0369a1;">Net Payable</th>
+                    <th class="num">Outstanding Balance</th>
                 </tr>
             </thead>
             <tbody>${rowsHtml}</tbody>
@@ -680,9 +744,140 @@ function generateProjectPrintout() {
             <table class="print-summary-table">
                 <tr><td>Grand Total PO Value</td><td>QAR ${grandTotalInvoice.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
                 <tr><td>Grand Total SRV</td><td>QAR ${grandTotalSrv.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
-                <tr class="balance-row"><td>TOTAL OUTSTANDING BALANCE</td><td>QAR ${totalBalance.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
+                <tr><td style="color:#ea580c;">Grand Total Retention</td><td style="color:#ea580c;">QAR ${grandTotalRetention.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
+                <tr><td style="color:#0369a1; font-weight:800;">TOTAL NET PAYABLE</td><td style="color:#0369a1; font-weight:800;">QAR ${grandPayable.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
+                <tr class="balance-row"><td>TOTAL OUTSTANDING BALANCE</td><td>QAR ${grandBalance.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
             </table>
         </div>
+    `;
+    
+    document.getElementById("printArea").innerHTML = printHtml;
+    window.print();
+}
+
+// ---------------------------------------------------------
+// NEW FIREBASE INDIVIDUAL RETENTION REPORT (DETACHED SUMMARY)
+// ---------------------------------------------------------
+function generateRetentionPrintout() {
+    let htmlContent = '';
+    let validRecordsCount = 0;
+
+    currentFilteredData.forEach(row => {
+        const poNumber = row._cleanPO;
+        const site = row['Project ID'] || row['Site'] || 'N/A';
+        const vendor = row['Supplier Name'] || row['Supplier'] || 'N/A';
+        const invAmt = row._rawAmount;
+
+        const fbRecords = allFirebaseData.filter(r => {
+            return (r.poNo || r.poNumber || "").toString().trim() === poNumber;
+        });
+
+        if (fbRecords.length === 0) return; 
+
+        validRecordsCount++;
+        
+        let poTotalCertified = 0;
+        let poTotalPayment = 0;
+        let poTotalRetention = 0; 
+        
+        let rowsHtml = `<table class="print-sub-table">
+            <thead>
+                <tr>
+                    <th>Payment No</th>
+                    <th>Date Paid</th>
+                    <th>Cheque No</th>
+                    <th class="num">Certified Amount (QAR)</th>
+                    <th class="num" style="color:#ea580c;">Retention (QAR)</th>
+                    <th class="num">Payment (QAR)</th>
+                </tr>
+            </thead>
+            <tbody>`;
+        
+        fbRecords.forEach(rec => {
+            const payNo = rec.paymentNo || '-';
+            const dPaid = rec.datePaid || '-';
+            const chq = rec.chequeNo || '-';
+            const certAmt = parseFloat(rec.certifiedAmount || 0);
+            const payAmt = parseFloat(rec.payment || 0);
+            const retAmt = parseFloat(rec.retention || 0); 
+            
+            poTotalCertified += certAmt;
+            poTotalPayment += payAmt;
+            poTotalRetention += retAmt;
+            
+            rowsHtml += `<tr>
+                <td><strong>${payNo}</strong></td>
+                <td>${dPaid}</td>
+                <td>${chq}</td>
+                <td class="num">${certAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="num" style="color:#ea580c; font-weight:bold;">${retAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="num">${payAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+            </tr>`;
+        });
+        
+        // Sum Row at the bottom of the table
+        rowsHtml += `<tr style="background-color: #f1f5f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+            <td colspan="3" style="text-align: right; font-weight: 800; font-size: 10px; color: #0f172a;">TOTALS:</td>
+            <td class="num" style="font-weight: 800; font-size: 11px; color: #0f172a;">${poTotalCertified.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+            <td class="num" style="color:#ea580c; font-weight: 800; font-size: 11px;">${poTotalRetention.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+            <td class="num" style="font-weight: 800; font-size: 11px; color: #0f172a;">${poTotalPayment.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+        </tr>`;
+        
+        rowsHtml += `</tbody></table>`;
+
+        // Exact Math requested
+        let poCommittedCost = invAmt - poTotalCertified;
+        let poRetentionToDate = poTotalCertified - poTotalPayment;
+
+        // Structured 5-Point Summary Card (Completely detached from the table)
+        let summaryCardHtml = `
+            <div style="border: 3px solid #003A5C !important; border-radius: 8px; display: flex; background-color: #fff; overflow: hidden; page-break-inside: avoid; align-items: center;">
+                <div style="flex: 1; padding: 10px 12px; border-right: 1px solid #cbd5e1;">
+                    <div style="color: #475569; font-size: 9px; font-weight: 800; text-transform: uppercase; margin-bottom: 4px;">PO Value</div>
+                    <div style="font-weight: 900; font-size: 13px; color: #0f172a;">QAR ${invAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+                </div>
+                <div style="flex: 1; padding: 10px 12px; border-right: 1px solid #cbd5e1;">
+                    <div style="color: #475569; font-size: 9px; font-weight: 800; text-transform: uppercase; margin-bottom: 4px;">Total Certified Cost</div>
+                    <div style="font-weight: 900; font-size: 13px; color: #0f172a;">QAR ${poTotalCertified.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+                </div>
+                <div style="flex: 1; padding: 10px 12px; border-right: 1px solid #cbd5e1;">
+                    <div style="color: #475569; font-size: 9px; font-weight: 800; text-transform: uppercase; margin-bottom: 4px;">Total Prev. Payment</div>
+                    <div style="font-weight: 900; font-size: 13px; color: #0f172a;">QAR ${poTotalPayment.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+                </div>
+                <div style="flex: 1; padding: 10px 12px; border-right: 1px solid #cbd5e1;">
+                    <div style="color: #475569; font-size: 9px; font-weight: 800; text-transform: uppercase; margin-bottom: 4px;">Total Committed Cost</div>
+                    <div style="font-weight: 900; font-size: 13px; color: #0369a1;">QAR ${poCommittedCost.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+                </div>
+                <div style="flex: 1; padding: 10px 12px;">
+                    <div style="color: #475569; font-size: 9px; font-weight: 800; text-transform: uppercase; margin-bottom: 4px;">Total Retention To Date</div>
+                    <div style="font-weight: 900; font-size: 13px; color: #ea580c;">QAR ${poRetentionToDate.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+                </div>
+            </div>
+        `;
+
+        htmlContent += `
+            <div class="print-detailed-po-block" style="margin-bottom: 12px;">
+                <div class="print-po-header">
+                    <div class="po-title">PO: ${poNumber} <span>| Site: ${site} | Vendor: ${vendor}</span></div>
+                </div>
+                ${rowsHtml}
+            </div>
+            ${summaryCardHtml}
+            <div style="height: 30px;"></div> `;
+    });
+
+    if (validRecordsCount === 0) {
+        alert("There are no Firebase Payment/Retention records found for the POs in your current search results.");
+        return;
+    }
+
+    const printHtml = `
+        <div class="print-header">
+            <h2>Detailed Retention Report</h2>
+            <p>Generated on: ${new Date().toLocaleString()} &nbsp; | &nbsp; POs with Records: ${validRecordsCount}</p>
+            ${getActiveFiltersHtml()}
+        </div>
+        <div>${htmlContent}</div>
     `;
     
     document.getElementById("printArea").innerHTML = printHtml;

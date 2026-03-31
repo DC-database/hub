@@ -6,6 +6,9 @@
     <title>Invoice Records - Pure Search</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="style.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 <body>
     <div class="search-container">
@@ -13,9 +16,9 @@
             <div class="header-top">
                 <div class="header-title">
                     <div class="icon-wrapper"><i class="fa-solid fa-file-invoice-dollar"></i></div>
-                    <h1>Invoice Records <span class="version-tag">v4.3</span></h1>
+                    <h1>Invoice Records <span class="version-tag">v4.6</span></h1>
                 </div>
-                <button id="refreshBtn" class="refresh-btn" title="Force download latest data from GitHub">
+                <button id="refreshBtn" class="refresh-btn" title="Force download latest data">
                     <i class="fa-solid fa-cloud-arrow-down"></i> Refresh Data
                 </button>
             </div>
@@ -73,7 +76,7 @@
                 </select>
             </div>
             <div class="filter-group">
-                <label for="filterBalance"><i class="fa-solid fa-scale-unbalanced"></i> Outstanding</label>
+                <label for="filterBalance"><i class="fa-solid fa-scale-unbalanced"></i> Balance</label>
                 <select id="filterBalance">
                     <option value="">All Balances</option>
                     <option value="value">Has Value</option>
@@ -81,11 +84,19 @@
                 </select>
             </div>
             <div class="filter-group">
-                <label for="filterSrv"><i class="fa-solid fa-file-signature"></i> SRV Status</label>
+                <label for="filterSrv"><i class="fa-solid fa-file-signature"></i> SRV</label>
                 <select id="filterSrv">
-                    <option value="">All SRV Statuses</option>
+                    <option value="">All SRV</option>
                     <option value="has_srv">Has Value</option>
                     <option value="no_srv">No Record</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="filterRetention"><i class="fa-solid fa-hand-holding-dollar"></i> Retention</label>
+                <select id="filterRetention">
+                    <option value="">All Retention</option>
+                    <option value="value">Has Value</option>
+                    <option value="zero">Zero Balance</option>
                 </select>
             </div>
             
@@ -98,6 +109,7 @@
                     <button id="printSummaryBtn" class="print-btn"><i class="fa-solid fa-table"></i> Summary Report</button>
                     <button id="printDetailedBtn" class="print-btn detailed-btn"><i class="fa-solid fa-list-check"></i> Detailed Report</button>
                     <button id="printProjectBtn" class="print-btn project-btn"><i class="fa-solid fa-building"></i> Project Report</button>
+                    <button id="printRetentionBtn" class="print-btn retention-btn"><i class="fa-solid fa-piggy-bank"></i> Retention Report</button>
                 </div>
             </div>
         </div>
