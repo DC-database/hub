@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice Records - Pure Search</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="search-container">
+        <div class="header">
+            <div class="header-top">
+                <div class="header-title">
+                    <div class="icon-wrapper"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+                    <h1>Invoice Records <span class="version-tag">v4.3</span></h1>
+                </div>
+                <button id="refreshBtn" class="refresh-btn" title="Force download latest data from GitHub">
+                    <i class="fa-solid fa-cloud-arrow-down"></i> Refresh Data
+                </button>
+            </div>
+            <p>Read-only system. Enter your criteria and click <strong>Search</strong> to find records.</p>
+        </div>
+        
+        <div class="search-box">
+            <i class="fa-solid fa-keyboard search-icon"></i>
+            <input type="text" id="searchInput" placeholder="Type PO, Vendor, Packing Slip, or Value..." autocomplete="off">
+        </div>
+
+        <div class="filters-row hidden" id="filtersRow">
+            <div class="filter-group">
+                <label for="filterSite"><i class="fa-solid fa-location-dot"></i> Site</label>
+                <select id="filterSite">
+                    <option value="">All Sites</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="filterMonth"><i class="fa-regular fa-calendar-days"></i> Month</label>
+                <select id="filterMonth">
+                    <option value="">All Months</option>
+                    <option value="0">January</option>
+                    <option value="1">February</option>
+                    <option value="2">March</option>
+                    <option value="3">April</option>
+                    <option value="4">May</option>
+                    <option value="5">June</option>
+                    <option value="6">July</option>
+                    <option value="7">August</option>
+                    <option value="8">September</option>
+                    <option value="9">October</option>
+                    <option value="10">November</option>
+                    <option value="11">December</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="filterYearFrom"><i class="fa-regular fa-calendar"></i> From Year</label>
+                <select id="filterYearFrom">
+                    <option value="">Any</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="filterYearTo"><i class="fa-solid fa-calendar-check"></i> To Year</label>
+                <select id="filterYearTo">
+                    <option value="">Any</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="filterStatus"><i class="fa-solid fa-folder-open"></i> PO Status</label>
+                <select id="filterStatus">
+                    <option value="">All Statuses</option>
+                    <option value="open">Open POs</option>
+                    <option value="closed">Closed POs</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="filterBalance"><i class="fa-solid fa-scale-unbalanced"></i> Outstanding</label>
+                <select id="filterBalance">
+                    <option value="">All Balances</option>
+                    <option value="value">Has Value</option>
+                    <option value="zero">Zero Balance</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="filterSrv"><i class="fa-solid fa-file-signature"></i> SRV Status</label>
+                <select id="filterSrv">
+                    <option value="">All SRV Statuses</option>
+                    <option value="has_srv">Has Value</option>
+                    <option value="no_srv">No Record</option>
+                </select>
+            </div>
+            
+            <div class="action-buttons-container" style="width: 100%; display: flex; justify-content: space-between; margin-top: 10px;">
+                <div class="action-buttons">
+                    <button id="executeSearchBtn" class="primary-btn"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+                    <button id="clearAllBtn" class="secondary-btn"><i class="fa-solid fa-eraser"></i> Clear</button>
+                </div>
+                <div class="print-actions">
+                    <button id="printSummaryBtn" class="print-btn"><i class="fa-solid fa-table"></i> Summary Report</button>
+                    <button id="printDetailedBtn" class="print-btn detailed-btn"><i class="fa-solid fa-list-check"></i> Detailed Report</button>
+                    <button id="printProjectBtn" class="print-btn project-btn"><i class="fa-solid fa-building"></i> Project Report</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-info">
+            <span id="recordCount">Checking cache...</span>
+            <span id="lastUpdated" class="last-updated"></span>
+        </div>
+
+        <div class="grid-header">
+            <div class="grid-cell" style="width: 40px;"></div>
+            <div class="grid-cell">Job Type</div>
+            <div class="grid-cell">Ref / PO</div>
+            <div class="grid-cell">Site / Project ID</div>
+            <div class="grid-cell">Vendor Name</div>
+            <div class="grid-cell">PO Value</div>
+            <div class="grid-cell">Order Date</div>
+            <div class="grid-cell">Status</div>
+        </div>
+
+        <div class="grid-body" id="tableBody">
+            <div class="loading-state" id="initialMessage">
+                <i class="fa-solid fa-circle-notch fa-spin" id="loadingSpinner"></i> 
+                <span id="loadingText">Connecting...</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="printArea"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
