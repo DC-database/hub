@@ -8,21 +8,57 @@
 
 body { 
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-    background: url('https://raw.githubusercontent.com/DC-database/Hub/main/Image1.png') no-repeat center center fixed;
-    background-size: cover;
+    background-color: #0f172a; /* Deep dark fallback color */
     color: var(--text-main); 
     margin: 0; 
     padding: 40px 20px; 
     display: flex; 
     justify-content: center; 
     min-height: 100vh; 
+    position: relative; 
 }
 
-/* --- ADDED SUBTLE BLUR BACK TO MAIN CONTAINER --- */
+/* --- DYNAMIC CROSSFADING BACKGROUND IMAGES --- */
+body::before, body::after {
+    content: "";
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: -10; 
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    will-change: opacity; 
+}
+
+/* Image 1 Layer */
+body::before {
+    background-image: url('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Image1.png');
+    animation: fadeOutIn 24s infinite;
+}
+
+/* Image 2 Layer */
+body::after {
+    background-image: url('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Image2.png');
+    animation: fadeInOut 24s infinite;
+}
+
+/* Animation Timing */
+@keyframes fadeOutIn {
+    0%, 42% { opacity: 1; }
+    50%, 92% { opacity: 0; }
+    100% { opacity: 1; }
+}
+@keyframes fadeInOut {
+    0%, 42% { opacity: 0; }
+    50%, 92% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+/* --- HIGHLY TRANSPARENT MAIN CONTAINER --- */
 .search-container { 
-    background: rgba(15, 23, 42, 0.25); /* Slightly darker tint */
-    backdrop-filter: blur(6px); /* Soft blur to separate from background */
-    -webkit-backdrop-filter: blur(6px);
+    background: rgba(15, 23, 42, 0.15); /* Very transparent */
+    backdrop-filter: blur(2px); /* Barely any blur so background is visible */
+    -webkit-backdrop-filter: blur(2px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     width: 100%; 
     max-width: 1350px; 
@@ -149,42 +185,66 @@ body {
 .retention-btn { --neon-color: #f97316; }          
 
 /* ========================================================= */
-/* INVOICE RECORDS WITH SOFT BLUR                            */
+/* --- NEW "CLEAR GLASS" INVOICE RECORDS ---                 */
 /* ========================================================= */
 .grid-body { display: flex; flex-direction: column; gap: 8px; }
 
 .invoice-card { 
-    background: rgba(15, 23, 42, 0.3); /* Slightly darker tint */
-    backdrop-filter: blur(4px); /* Added a soft blur back */
-    -webkit-backdrop-filter: blur(4px);
+    /* Increased Transparency for Glass effect */
+    background: rgba(15, 23, 42, 0.15); 
+    
+    /* REMOVED ALL BLUR for Clear Glass, not Frosted */
+    backdrop-filter: blur(0px) !important; 
+    -webkit-backdrop-filter: blur(0px) !important;
+    
     border-radius: 14px; 
-    border: 1px solid rgba(255, 255, 255, 0.15); 
-    transition: transform 0.2s, border-color 0.2s, background 0.2s; 
+    
+    /* Slightly more defined border for glass definition */
+    border: 1px solid rgba(255, 255, 255, 0.25); 
+    
+    transition: transform 0.2s, border-color 0.2s, background 0.2s, box-shadow 0.2s; 
     overflow: hidden; 
     position: relative; 
+    
+    /* Added subtle "glass glint" highlights */
+    box-shadow: 
+        0 4px 10px rgba(0, 0, 0, 0.2),
+        inset 0 1px 1px rgba(255, 255, 255, 0.1), /* Refractive top edge */
+        inset 0 -1px 1px rgba(0,0,0,0.3);        /* Subtle shadow edge */
 }
 .invoice-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #38bdf8; opacity: 0; transition: opacity 0.2s; }
-.invoice-card:hover { transform: translateY(-1px); border-color: rgba(56, 189, 248, 0.6); background: rgba(30, 41, 59, 0.5); }
+
+/* Hover effect retains the clarity but sharpens definition */
+.invoice-card:hover { 
+    transform: translateY(-2px); 
+    border-color: rgba(56, 189, 248, 0.6); 
+    background: rgba(30, 41, 59, 0.4); /* Solidifies slightly to pop */
+    box-shadow: 
+        0 8px 20px rgba(0, 0, 0, 0.4),
+        0 0 10px rgba(56, 189, 248, 0.15),
+        inset 0 1px 1px rgba(255, 255, 255, 0.2);
+}
 .invoice-card:hover::before { opacity: 1; }
 
 .master-grid-row { display: grid; grid-template-columns: 50px 100px 1.5fr 1.5fr 2fr 1.2fr 110px 120px; align-items: center; padding: 16px 20px; cursor: pointer; }
 .master-grid-row .grid-cell { font-size: 14px; font-weight: 500; color: #ffffff; text-shadow: 0 1px 3px rgba(0,0,0,0.8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 15px; }
 .master-grid-row .grid-cell:last-child { padding-right: 0; }
-.master-grid-row .grid-cell:nth-child(2) { color: #38bdf8 !important; }
+.master-grid-row .grid-cell:nth-child(2) { color: #38bdf8 !important; text-shadow: 0 0 5px rgba(56,189,248,0.5); }
 
+/* Expanded State maintains clarity but darkens for sub-table containment */
 .detail-grid-row { display: none; padding: 20px 20px 20px 70px; background-color: rgba(0, 0, 0, 0.3); border-top: 1px solid rgba(255, 255, 255, 0.1); }
 .invoice-card.expanded .detail-grid-row { display: block; }
-.invoice-card.expanded { border-color: #38bdf8; background: rgba(15, 23, 42, 0.5); }
+.invoice-card.expanded { border-color: #38bdf8; background: rgba(15, 23, 42, 0.5); /* No blur here either */ box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.1); }
 .invoice-card.expanded::before { opacity: 1; }
 
 .expand-btn { cursor: pointer; color: #ffffff; transition: transform 0.2s, background 0.2s; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; background: rgba(255,255,255,0.2); }
 .invoice-card:hover .expand-btn { background-color: rgba(56, 189, 248, 0.4); color: #ffffff; }
-.invoice-card.expanded .expand-btn { transform: rotate(90deg); background: #38bdf8; color: #0f172a; }
+.invoice-card.expanded .expand-btn { transform: rotate(90deg); background: #38bdf8; color: #0f172a; box-shadow: 0 0 10px #38bdf8; }
 
 .status-badge { padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; color: #38bdf8; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); }
 .status-badge.verified { color: #4ade80; background: rgba(74, 222, 128, 0.15); border: 1px solid rgba(74, 222, 128, 0.3); }
 .closed-badge { color: #f87171; background: rgba(248, 113, 113, 0.15); border: 1px solid rgba(248, 113, 113, 0.3); }
-.epicor-badge { padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; color: #cbd5e1; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); }
+.epicor-badge { padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; color: #cbd5e1; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); display: inline-block; }
 
 .sub-table-header { font-weight: 800; font-size: 13px; color: #38bdf8; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
 .sub-table-wrapper { background: rgba(15, 23, 42, 0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; }
@@ -198,7 +258,7 @@ body {
 .sub-table-footer { display: flex; justify-content: flex-end; gap: 24px; padding: 12px 20px; background: rgba(0, 0, 0, 0.4); border-top: 1px solid rgba(255,255,255,0.1); align-items: center; flex-wrap: wrap;}
 .sub-stat { display: flex; gap: 8px; align-items: center; color: #cbd5e1; font-size: 13px;}
 .sub-stat strong { color: #ffffff; font-size: 14px; font-weight: 700; }
-.sub-stat.highlight strong { color: #f87171; font-size: 15px; } 
+.sub-stat.highlight strong { color: #f87171; font-size: 15px; text-shadow: 0 0 5px rgba(248,113,113,0.5); } 
 
 /* --- SOLID FROSTED GLASS SUMMARY CARD --- */
 .grand-summary-card { 
@@ -224,11 +284,11 @@ body {
 .g-stat strong { font-size: 18px; font-weight: 800; color: #4ade80; } 
 .g-stat:nth-child(2) strong { color: #d946ef; } 
 .g-stat:nth-child(3) strong { color: #0ea5e9; } 
-.g-stat.highlight strong { color: #f87171; font-size: 20px; } 
+.g-stat.highlight strong { color: #f87171; font-size: 20px; text-shadow: 0 0 10px rgba(248,113,113,0.6); } 
 
 .no-commits-msg { color: #94a3b8; font-style: italic; font-size: 13px; padding: 20px; }
-.loading-state, .empty-state { text-align: center; padding: 60px 20px; color: #cbd5e1; font-size: 16px; background: rgba(15, 23, 42, 0.85); border: 1px dashed rgba(255,255,255,0.2); border-radius: 14px; backdrop-filter: blur(8px); }
-.error-state { color: #fca5a5; background: rgba(153, 27, 27, 0.8); border: 1px solid rgba(248, 113, 113, 0.5); padding: 40px; text-align: center; border-radius: 14px; backdrop-filter: blur(8px); }
+.loading-state, .empty-state { text-align: center; padding: 60px 20px; color: #cbd5e1; font-size: 16px; background: rgba(15, 23, 42, 0.8); border: 1px dashed rgba(255,255,255,0.2); border-radius: 14px; }
+.error-state { color: #fca5a5; background: rgba(153, 27, 27, 0.4); border: 1px solid rgba(248, 113, 113, 0.5); padding: 40px; text-align: center; border-radius: 14px;}
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
@@ -242,7 +302,11 @@ body {
 
 @media print {
     @page { margin: 10mm 8mm; }
-    body { display: block !important; min-height: auto !important; background: #fff !important; background-image: none !important; padding: 0 !important; margin: 0 !important; color: #1e293b !important; text-shadow: none !important;}
+    
+    body { display: block !important; min-height: auto !important; background: #fff !important; padding: 0 !important; margin: 0 !important; color: #1e293b !important; text-shadow: none !important;}
+    
+    body::before, body::after { display: none !important; }
+    
     .search-container { display: none !important; }
     #printArea { display: block !important; width: 100%; max-width: none !important; overflow: visible !important; }
     .print-header { text-align: center; margin-bottom: 25px; padding-bottom: 15px; position: relative; }
