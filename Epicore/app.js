@@ -1,10 +1,51 @@
 // GitHub Raw URLs
 const PO_CSV_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
-const ECOMMIT_CSV_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/ECommit2.csv";
-const SITE_CSV_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/Site.csv"; // NEW: Site Master List
+const ECOMMIT_CSV_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/ECommit2.csv"; 
+const SITE_CSV_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/Site.csv";
 
-// FIREBASE CONFIGURATION
-const firebaseConfig = {
+// DATE FORMATTER: DD-MMM-YYYY
+function formatToDDMMMYYYY(dateStr) {
+    if (!dateStr || dateStr === '-' || dateStr === 'N/A') return dateStr || '-';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr; // Fallback if invalid date
+    const day = String(d.getDate()).padStart(2, '0');
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const month = months[d.getMonth()]; 
+    const year = d.getFullYear();
+    return `${day}-${month}-${year}`;
+}
+
+// SOUNDS
+const soundClick = new Audio('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Click.mp3');
+const soundClear = new Audio('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Clear.mp3');
+const soundDelete = new Audio('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Delete.mp3'); 
+const soundConfirm = new Audio('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Confirm.mp3'); 
+const soundSuccess = new Audio('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Success.mp3');
+const soundError = new Audio('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Error.mp3');
+const soundPop = new Audio('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Pop.mp3');
+const soundSent = new Audio('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Sent.mp3');
+
+
+soundClick.volume   = 1.0;  // Keep UI clicks soft
+soundPop.volume     = 1.0;  // Keep expanding rows very soft
+soundClear.volume   = 1.0;
+soundDelete.volume  = 0.5;
+soundError.volume   = 0.5;
+soundSuccess.volume = 0.2;
+soundConfirm.volume = 1.0;  // Make print confirmations a bit louder
+soundSent.volume    = 1.0;
+
+function playAudio(audioObj) {
+    if (audioObj) {
+        audioObj.currentTime = 0; 
+        audioObj.play().catch(e => console.log("Audio play prevented by browser:", e));
+    }
+}
+
+// ==========================================
+// FIREBASE CONFIG 1: RETENTION (PAYMENTS)
+// ==========================================
+const firebaseConfig1 = {
   apiKey: "AIzaSyAt0fLWcfgGAWV4yiu4mfhc3xQ5ycolgnU",
   authDomain: "payment-report-23bda.firebaseapp.com",
   projectId: "payment-report-23bda",
@@ -13,26 +54,45 @@ const firebaseConfig = {
   appId: "1:575646169000:web:e7c4a9222ffe7753138f9d",
   measurementId: "G-X4WBLDGLHQ"
 };
-
 if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
+    firebase.initializeApp(firebaseConfig1);
 }
-const database = firebase.database();
+const dbRetention = firebase.database();
+
+// ==========================================
+// FIREBASE CONFIG 2: FALLBACK SRV (INVOICES)
+// ==========================================
+const firebaseConfig2 = {
+  apiKey: "AIzaSyB5_CCTk-dvr_Lsv0K2ScPwHJkkCY7VoAM",
+  authDomain: "invoiceentry-b15a8.firebaseapp.com",
+  databaseURL: "https://invoiceentry-b15a8-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "invoiceentry-b15a8",
+  storageBucket: "invoiceentry-b15a8.firebasestorage.app",
+  messagingSenderId: "916998429537",
+  appId: "1:916998429537:web:6f4635d6d6e1cb98bb0320",
+  measurementId: "G-R409J22B97"
+};
+const fallbackApp = firebase.initializeApp(firebaseConfig2, "FallbackApp");
+const dbFallback = fallbackApp.database();
 
 // Cache Keys & Settings
 const CACHE_PO_KEY = "invoice_app_po_data";
 const CACHE_COMMIT_KEY = "invoice_app_commit_data";
-const CACHE_SITE_KEY = "invoice_app_site_data"; // NEW
+const CACHE_SITE_KEY = "invoice_app_site_data"; 
+const CACHE_FB_RETENTION = "invoice_app_fb_retention";
+const CACHE_FB_FALLBACK = "invoice_app_fb_fallback";
+const CACHE_FB_RAW = "invoice_app_fb_raw";
+
 const CACHE_TIME_KEY = "invoice_app_last_updated";
 const CACHE_MS_KEY = "invoice_app_last_ms";
 const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 Hours
 
 let allInvoiceData = [];
 let allCommitData = [];
-let allSiteData = []; // NEW
+let allSiteData = []; 
 let allFirebaseData = []; 
-let commitSearchMap = {}; 
 let commitsByPO = {}; 
+let fallbackSrvByPO = {}; 
 let retentionByPO = {}; 
 let siteNameMap = {}; 
 let isDataLoaded = false;
@@ -60,60 +120,58 @@ document.addEventListener("DOMContentLoaded", () => {
 
     initializeData();
 
-    executeSearchBtn.addEventListener("click", () => { if (isDataLoaded) applyFilters(); });
+    executeSearchBtn.addEventListener("click", () => { 
+        if (isDataLoaded) { playAudio(soundClick); applyFilters(); }
+    });
+
     searchInput.addEventListener("keypress", (e) => {
         if (e.key === "Enter") { e.preventDefault(); if (isDataLoaded) applyFilters(); }
     });
 
     clearAllBtn.addEventListener("click", () => {
+        playAudio(soundClear);
         searchInput.value = "";
-        filterSite.value = ""; 
-        filterMonth.value = ""; 
-        filterYearFrom.value = ""; 
-        filterYearTo.value = "";   
-        filterStatus.value = ""; 
-        filterBalance.value = ""; 
-        filterSrv.value = ""; 
-        filterRetention.value = ""; 
+        filterSite.value = ""; filterMonth.value = ""; filterYearFrom.value = ""; filterYearTo.value = "";   
+        filterStatus.value = ""; filterBalance.value = ""; filterSrv.value = ""; filterRetention.value = ""; 
         resetToEmptyState();
         searchInput.focus();
     });
 
     refreshBtn.addEventListener("click", () => {
+        playAudio(soundClick);
         const icon = refreshBtn.querySelector('i');
         icon.classList.add('fa-spin');
-        document.getElementById("tableBody").innerHTML = `
-            <div class="loading-state"><i class="fa-solid fa-cloud-arrow-down fa-bounce" style="font-size:24px; color:#00748C; margin-bottom:15px; display:block;"></i> Downloading fresh data...</div>
-        `;
-        fetchDataFromGitHub().then(() => {
+        document.getElementById("tableBody").innerHTML = `<div class="loading-state"><i class="fa-solid fa-cloud-arrow-down fa-bounce" style="font-size:24px; color:#00748C; margin-bottom:15px; display:block;"></i> Downloading fresh data...</div>`;
+        fetchAllData(true).then(() => {
             icon.classList.remove('fa-spin');
             resetToEmptyState(); 
         });
     });
 
     printSummaryBtn.addEventListener("click", () => {
-        if (!isDataLoaded || currentFilteredData.length === 0) { alert("No records currently visible to print. Please search first."); return; }
-        generateSummaryPrintout();
+        if (!isDataLoaded || currentFilteredData.length === 0) { playAudio(soundError); alert("No records currently visible to print."); return; }
+        playAudio(soundConfirm); generateSummaryPrintout();
     });
 
     printDetailedBtn.addEventListener("click", () => {
-        if (!isDataLoaded || currentFilteredData.length === 0) { alert("No records currently visible to print. Please search first."); return; }
-        generateDetailedPrintout();
+        if (!isDataLoaded || currentFilteredData.length === 0) { playAudio(soundError); alert("No records currently visible to print."); return; }
+        playAudio(soundConfirm); generateDetailedPrintout();
     });
 
     printProjectBtn.addEventListener("click", () => {
-        if (!isDataLoaded || currentFilteredData.length === 0) { alert("No records currently visible to print. Please search first."); return; }
-        generateProjectPrintout();
+        if (!isDataLoaded || currentFilteredData.length === 0) { playAudio(soundError); alert("No records currently visible to print."); return; }
+        playAudio(soundConfirm); generateProjectPrintout();
     });
 
     printRetentionBtn.addEventListener("click", () => {
-        if (!isDataLoaded || currentFilteredData.length === 0) { alert("No records currently visible to print. Please search first."); return; }
-        generateRetentionPrintout();
+        if (!isDataLoaded || currentFilteredData.length === 0) { playAudio(soundError); alert("No records currently visible to print."); return; }
+        playAudio(soundConfirm); generateRetentionPrintout();
     });
 
     document.getElementById("tableBody").addEventListener("click", (e) => {
         const cardRow = e.target.closest('.master-grid-row');
         if (cardRow) {
+            playAudio(soundPop);
             const invoiceCard = cardRow.closest('.invoice-card');
             invoiceCard.classList.toggle('expanded');
         }
@@ -123,24 +181,68 @@ document.addEventListener("DOMContentLoaded", () => {
 async function initializeData() {
     const cachedPO = localStorage.getItem(CACHE_PO_KEY);
     const cachedCommit = localStorage.getItem(CACHE_COMMIT_KEY);
-    const cachedSite = localStorage.getItem(CACHE_SITE_KEY); // NEW
+    const cachedSite = localStorage.getItem(CACHE_SITE_KEY); 
+    const cachedFbRet = localStorage.getItem(CACHE_FB_RETENTION);
+    const cachedFbFall = localStorage.getItem(CACHE_FB_FALLBACK);
+    const cachedFbRaw = localStorage.getItem(CACHE_FB_RAW);
     const lastUpdatedString = localStorage.getItem(CACHE_TIME_KEY);
     const lastUpdatedMs = localStorage.getItem(CACHE_MS_KEY);
 
     const isCacheValid = lastUpdatedMs && (Date.now() - parseInt(lastUpdatedMs)) < CACHE_EXPIRY_MS;
 
-    if (cachedPO && cachedCommit && cachedSite && isCacheValid) {
+    if (cachedPO && cachedCommit && cachedSite && cachedFbRet && cachedFbFall && cachedFbRaw && isCacheValid) {
         allInvoiceData = JSON.parse(cachedPO);
         allCommitData = JSON.parse(cachedCommit);
-        allSiteData = JSON.parse(cachedSite); // NEW
-        await fetchFirebaseRetentionData(); 
+        allSiteData = JSON.parse(cachedSite); 
+        retentionByPO = JSON.parse(cachedFbRet);
+        fallbackSrvByPO = JSON.parse(cachedFbFall);
+        allFirebaseData = JSON.parse(cachedFbRaw);
+
         setupDataDependents();
         isDataLoaded = true;
         updateUIReadyState(lastUpdatedString);
         resetToEmptyState();
     } else {
-        await fetchDataFromGitHub();
+        await fetchAllData(false);
         resetToEmptyState();
+    }
+}
+
+async function fetchAllData(isManualRefresh) {
+    try {
+        const cacheBuster = "?v=" + new Date().getTime();
+        const [poResponse, commitResponse, siteResponse] = await Promise.all([
+            fetch(PO_CSV_URL + cacheBuster), fetch(ECOMMIT_CSV_URL + cacheBuster), fetch(SITE_CSV_URL + cacheBuster)
+        ]);
+        
+        if (!poResponse.ok || !commitResponse.ok || !siteResponse.ok) throw new Error("Failed to download CSV files from GitHub.");
+        
+        allInvoiceData = parseCSV(await poResponse.text());
+        allCommitData = parseCSV(await commitResponse.text());
+        allSiteData = parseCSV(await siteResponse.text()); 
+        
+        await Promise.all([fetchFirebaseRetentionData(), fetchFallbackSrvData()]); 
+
+        try {
+            localStorage.setItem(CACHE_PO_KEY, JSON.stringify(allInvoiceData));
+            localStorage.setItem(CACHE_COMMIT_KEY, JSON.stringify(allCommitData));
+            localStorage.setItem(CACHE_SITE_KEY, JSON.stringify(allSiteData)); 
+            localStorage.setItem(CACHE_FB_RETENTION, JSON.stringify(retentionByPO));
+            localStorage.setItem(CACHE_FB_FALLBACK, JSON.stringify(fallbackSrvByPO));
+            localStorage.setItem(CACHE_FB_RAW, JSON.stringify(allFirebaseData));
+
+            const now = new Date();
+            localStorage.setItem(CACHE_TIME_KEY, now.toLocaleString());
+            localStorage.setItem(CACHE_MS_KEY, now.getTime().toString());
+            updateUIReadyState(now.toLocaleString());
+        } catch (e) {}
+
+        setupDataDependents();
+        isDataLoaded = true;
+        if (isManualRefresh) playAudio(soundSuccess);
+    } catch (error) {
+        if (isManualRefresh) playAudio(soundError);
+        document.getElementById("tableBody").innerHTML = `<div class="error-state"><i class="fa-solid fa-triangle-exclamation" style="font-size:24px; margin-bottom:10px; display:block;"></i> Error: ${error.message}</div>`;
     }
 }
 
@@ -148,13 +250,11 @@ async function fetchFirebaseRetentionData() {
     retentionByPO = {};
     allFirebaseData = []; 
     try {
-        const snapshot = await database.ref('payments').once('value'); 
+        const snapshot = await dbRetention.ref('payments').once('value'); 
         const data = snapshot.val();
-        
         if (data) {
             Object.values(data).forEach(record => {
                 allFirebaseData.push(record); 
-                
                 const poNo = (record.poNo || record.poNumber || "").toString().trim();
                 if (poNo) {
                     const retVal = parseFloat(record.retention) || 0;
@@ -163,75 +263,69 @@ async function fetchFirebaseRetentionData() {
                 }
             });
         }
-    } catch (error) {
-        console.error("Failed to fetch Firebase Retention Data:", error);
-    }
+    } catch (error) { console.error("Failed DB1 Retention:", error); }
 }
 
-async function fetchDataFromGitHub() {
+async function fetchFallbackSrvData() {
+    fallbackSrvByPO = {};
     try {
-        const cacheBuster = "?v=" + new Date().getTime();
-        // UPDATED: Now downloading all 3 files simultaneously
-        const [poResponse, commitResponse, siteResponse] = await Promise.all([
-            fetch(PO_CSV_URL + cacheBuster), 
-            fetch(ECOMMIT_CSV_URL + cacheBuster),
-            fetch(SITE_CSV_URL + cacheBuster)
-        ]);
-        if (!poResponse.ok || !commitResponse.ok || !siteResponse.ok) throw new Error("Failed to download one or more files from GitHub.");
+        const snapshot = await dbFallback.ref('invoice_entries').once('value'); 
+        const data = snapshot.val();
         
-        const poCsvText = await poResponse.text();
-        const commitCsvText = await commitResponse.text();
-        const siteCsvText = await siteResponse.text(); // NEW
-        
-        allInvoiceData = parseCSV(poCsvText);
-        allCommitData = parseCSV(commitCsvText);
-        allSiteData = parseCSV(siteCsvText); // NEW
-        
-        try {
-            localStorage.setItem(CACHE_PO_KEY, JSON.stringify(allInvoiceData));
-            localStorage.setItem(CACHE_COMMIT_KEY, JSON.stringify(allCommitData));
-            localStorage.setItem(CACHE_SITE_KEY, JSON.stringify(allSiteData)); // NEW
-            const now = new Date();
-            localStorage.setItem(CACHE_TIME_KEY, now.toLocaleString());
-            localStorage.setItem(CACHE_MS_KEY, now.getTime().toString());
-            updateUIReadyState(now.toLocaleString());
-        } catch (e) {}
+        if (data) {
+            Object.keys(data).forEach(poKey => {
+                const poNo = poKey.toString().trim();
+                const entriesForPO = data[poKey];
+                
+                if (entriesForPO && typeof entriesForPO === 'object') {
+                    Object.values(entriesForPO).forEach(record => {
+                        const fallbackCommit = {
+                            'PO Number': poNo,
+                            'Packing Slip': record.invNumber || '-',       
+                            'Date': record.releaseDate || '-',              
+                            '_rawCost': parseFloat(String(record.invValue || '0').replace(/,/g, '')), 
+                            '_status': record.status || 'System Portal',    
+                            '_isFallback': true
+                        };
+                        
+                        if (!fallbackSrvByPO[poNo]) fallbackSrvByPO[poNo] = [];
+                        fallbackSrvByPO[poNo].push(fallbackCommit);
+                    });
+                }
+            });
+        }
+    } catch (error) { console.error("Failed DB2 Fallback SRV:", error); }
+}
 
-        await fetchFirebaseRetentionData(); 
-        setupDataDependents();
-        isDataLoaded = true;
-    } catch (error) {
-        document.getElementById("tableBody").innerHTML = `<div class="error-state"><i class="fa-solid fa-triangle-exclamation" style="font-size:24px; margin-bottom:10px; display:block;"></i> Error: ${error.message}</div>`;
+function getSrvRecordsForPO(poNumber) {
+    if (commitsByPO[poNumber] && commitsByPO[poNumber].length > 0) {
+        return commitsByPO[poNumber]; 
     }
+    if (fallbackSrvByPO[poNumber] && fallbackSrvByPO[poNumber].length > 0) {
+        return fallbackSrvByPO[poNumber]; 
+    }
+    return []; 
 }
 
 function setupDataDependents() {
-    commitSearchMap = {};
     commitsByPO = {};
     siteNameMap = {}; 
     const sites = new Set();
     const years = new Set();
 
-    // 1. Build the Site Dictionary from Site.csv
     allSiteData.forEach(row => {
         const wsheKey = Object.keys(row).find(k => k.trim().toLowerCase() === 'warehouse');
         const descKey = Object.keys(row).find(k => k.trim().toLowerCase() === 'description');
-        
         if (wsheKey && descKey) {
             const wshe = (row[wsheKey] || '').toString().trim().toUpperCase();
             const desc = (row[descKey] || '').toString().trim();
-            if (wshe && desc && desc.toUpperCase() !== 'N/A') {
-                siteNameMap[wshe] = desc;
-            }
+            if (wshe && desc && desc.toUpperCase() !== 'N/A') siteNameMap[wshe] = desc;
         }
     });
 
-    // 2. Build Commit Maps
     allCommitData.forEach(commit => {
         const po = commit['PO Number'] || commit['PO'] || commit['ReqNum'];
         if (!po || po === 'N/A') return;
-        
-        const ps = commit['Packing Slip'] || "";
         
         let cost = 0;
         if (commit['Extended Cost'] && commit['Extended Cost'] !== '-') {
@@ -239,9 +333,7 @@ function setupDataDependents() {
             if (!isNaN(parsed)) cost = parsed;
         }
         commit._rawCost = cost;
-        
-        if (!commitSearchMap[po]) commitSearchMap[po] = "";
-        commitSearchMap[po] += ` ${ps} ${commit['Extended Cost']} `;
+        commit._isFallback = false;
 
         if (!commitsByPO[po]) commitsByPO[po] = [];
         commitsByPO[po].push(commit);
@@ -251,14 +343,12 @@ function setupDataDependents() {
         commitsByPO[po].sort((a, b) => new Date(a['Date']) - new Date(b['Date']));
     });
 
-    // 3. Build Invoice Maps & Filters
     allInvoiceData.forEach(row => {
         const site = row['Project ID'] || row['Site'];
         if (site && site.trim() !== "") sites.add(site.trim());
         
         const dateRaw = row['Order Date'] || row['Date'];
-        row._month = "";
-        row._year = "";
+        row._month = ""; row._year = "";
         if (dateRaw) {
             const dateObj = new Date(dateRaw);
             if (!isNaN(dateObj)) {
@@ -357,10 +447,10 @@ function applyFilters() {
         if (selectedStatus === 'open' && isClosed) return false;
         if (selectedStatus === 'closed' && !isClosed) return false;
 
-        // Balance & SRV & Retention Filter Math
+        const relatedCommits = getSrvRecordsForPO(poNumber);
+
         if (selectedBalance !== "" || selectedSrv !== "" || selectedRetention !== "") {
             let poSrvAmt = 0;
-            const relatedCommits = commitsByPO[poNumber] || [];
             relatedCommits.forEach(commit => { poSrvAmt += commit._rawCost; });
             
             if (selectedSrv !== "") {
@@ -388,7 +478,7 @@ function applyFilters() {
 
         // Search Box Text Filter
         if (query) {
-            const commitDataStr = commitSearchMap[poNumber] || "";
+            let commitDataStr = relatedCommits.map(c => `${c['Packing Slip']} ${c._rawCost}`).join(" ");
             const searchableText = `${poNumber} ${site} ${row['Supplier Name'] || row['Supplier'] || ''} ${row['Order Date'] || row['Date'] || ''} ${commitDataStr}`.toLowerCase();
             if (!searchableText.includes(query)) return false;
         }
@@ -397,6 +487,13 @@ function applyFilters() {
     });
     
     currentFilteredData = filtered;
+    
+    if (filtered.length > 0) {
+        playAudio(soundSuccess);
+    } else {
+        playAudio(soundError);
+    }
+    
     renderGrid(filtered);
 }
 
@@ -421,51 +518,80 @@ function renderGrid(dataToRender) {
         const poNumber = row._cleanPO;
         const site = row['Project ID'] || row['Site'] || 'N/A';
         const vendor = row['Supplier Name'] || row['Supplier'] || 'N/A';
-        const orderDate = row['Order Date'] || row['Date'] || 'N/A';
         
-        let mainStatus = row['Status'] || 'Verified';
+        // FORMATTED DATE
+        const orderDate = formatToDDMMMYYYY(row['Order Date'] || row['Date'] || 'N/A');
+        
+        let mainStatus = row['Status'] || 'Open';
         const openColumnVal = (row['Open'] || '').toString().toLowerCase().trim();
-        if (openColumnVal === 'false') {
-            mainStatus = 'Closed';
-        }
+        if (openColumnVal === 'false') mainStatus = 'Closed';
 
         const invAmt = row._rawAmount;
         grandTotalInvoice += invAmt;
-
-        const verifiedClass = mainStatus.toLowerCase() === 'verified' ? 'verified' : (mainStatus.toLowerCase() === 'closed' ? 'closed-badge' : '');
+        const verifiedClass = mainStatus.toLowerCase() === 'open' ? 'verified' : (mainStatus.toLowerCase() === 'closed' ? 'closed-badge' : '');
 
         let masterHTML = `
             <div class="invoice-card">
                 <div class="master-grid-row">
-                    <div class="grid-cell"><div class="expand-btn" title="View Details"><i class="fa-solid fa-chevron-right"></i></div></div>
-                    <div class="grid-cell" style="color:#00748C;"><i class="fa-solid fa-file-invoice" style="margin-right:5px;"></i> Invoice</div>
+                    <div class="grid-cell">
+                        <div class="expand-btn" title="View Details">
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </div>
+                    </div>
+                    <div class="grid-cell" style="color:#00748C;">
+                        <i class="fa-solid fa-file-invoice" style="margin-right:5px;"></i> Invoice
+                    </div>
                     <div class="grid-cell"><strong>${poNumber}</strong></div>
                     <div class="grid-cell" title="${site}">${site}</div>
                     <div class="grid-cell" title="${vendor}">${vendor}</div>
-                    <div class="grid-cell"><strong>QAR ${invAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong></div>
+                    <div class="grid-cell">
+                        <strong>QAR ${invAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>
+                    </div>
                     <div class="grid-cell">${orderDate}</div>
-                    <div class="grid-cell"><span class="status-badge ${verifiedClass}">${mainStatus}</span></div>
+                    <div class="grid-cell">
+                        <span class="status-badge ${verifiedClass}">${mainStatus}</span>
+                    </div>
                 </div>
         `;
 
-        const relatedCommits = commitsByPO[poNumber] || [];
+        const relatedCommits = getSrvRecordsForPO(poNumber);
         let subTableHTML = '';
         let poSrvAmt = 0;
 
         if (relatedCommits.length > 0) {
-            const theadHTML = `<th>Inv.Entry</th><th>Packing Slip</th><th>SRV Date</th><th>SRV Value</th><th>REMARKS</th>`;
+            const theadHTML = `
+                <th>Inv.Entry</th>
+                <th>Packing Slip</th>
+                <th>SRV Date</th>
+                <th>SRV Value</th>
+                <th>REMARKS</th>
+            `;
             
             let tbodyHTML = relatedCommits.map((commit, i) => {
                 const invEntry = `Inv-${String(i + 1).padStart(2, '0')}`;
                 const packingSlip = commit['Packing Slip'] || '-';
-                const srvDate = commit['Date'] || '-';
+                
+                // FORMATTED DATE
+                const srvDate = formatToDDMMMYYYY(commit['Date'] || '-');
+                
                 const srvVal = commit._rawCost;
                 
                 poSrvAmt += srvVal;
                 const srvValueFormatted = srvVal.toLocaleString('en-US', {minimumFractionDigits: 2});
-                const epicorStatus = `<span class="epicor-badge">Epicor Record</span>`;
                 
-                return `<tr><td><strong>${invEntry}</strong></td><td>${packingSlip}</td><td>${srvDate}</td><td>${srvValueFormatted}</td><td>${epicorStatus}</td></tr>`;
+                const remarkBadge = commit._isFallback 
+                    ? `<span class="epicor-badge" style="background:#eff6ff; border-color:#bae6fd; color:#0369a1;">${commit._status}</span>` 
+                    : `<span class="epicor-badge">Epicor Record</span>`;
+                
+                return `
+                    <tr>
+                        <td><strong>${invEntry}</strong></td>
+                        <td>${packingSlip}</td>
+                        <td>${srvDate}</td>
+                        <td>${srvValueFormatted}</td>
+                        <td>${remarkBadge}</td>
+                    </tr>
+                `;
             }).join('');
 
             let rowBalance = invAmt - poSrvAmt;
@@ -473,16 +599,27 @@ function renderGrid(dataToRender) {
 
             subTableHTML = `
                 <div class="detail-grid-row">
-                    <div class="sub-table-header"><i class="fa-solid fa-list-check"></i> Service Receipts (SRV)</div>
+                    <div class="sub-table-header">
+                        <i class="fa-solid fa-list-check"></i> Service Receipts (SRV)
+                    </div>
                     <div class="sub-table-wrapper">
                         <table class="sub-table">
                             <thead><tr>${theadHTML}</tr></thead>
                             <tbody>${tbodyHTML}</tbody>
                         </table>
                         <div class="sub-table-footer">
-                            <div class="sub-stat"><span>PO Value:</span> <strong>QAR ${invAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong></div>
-                            <div class="sub-stat"><span>Total SRV:</span> <strong>QAR ${poSrvAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong></div>
-                            <div class="sub-stat highlight"><span>Outstanding Balance:</span> <strong>QAR ${rowBalance.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong></div>
+                            <div class="sub-stat">
+                                <span>PO Value:</span> 
+                                <strong>QAR ${invAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>
+                            </div>
+                            <div class="sub-stat">
+                                <span>Total SRV:</span> 
+                                <strong>QAR ${poSrvAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>
+                            </div>
+                            <div class="sub-stat highlight">
+                                <span>Outstanding Balance:</span> 
+                                <strong style="color:#ef4444;">QAR ${rowBalance.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -490,13 +627,26 @@ function renderGrid(dataToRender) {
         } else {
             subTableHTML = `
                 <div class="detail-grid-row">
-                    <div class="sub-table-header"><i class="fa-solid fa-list-check"></i> Service Receipts (SRV)</div>
+                    <div class="sub-table-header">
+                        <i class="fa-solid fa-list-check"></i> Service Receipts (SRV)
+                    </div>
                     <div class="sub-table-wrapper">
-                        <div class="no-commits-msg"><i class="fa-solid fa-circle-info"></i> No Epicor records found for this PO.</div>
+                        <div class="no-commits-msg">
+                            <i class="fa-solid fa-circle-info"></i> No delivery or payment records found for this PO.
+                        </div>
                         <div class="sub-table-footer">
-                            <div class="sub-stat"><span>PO Value:</span> <strong>QAR ${invAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong></div>
-                            <div class="sub-stat"><span>Total SRV:</span> <strong>QAR 0.00</strong></div>
-                            <div class="sub-stat highlight"><span>Outstanding Balance:</span> <strong>QAR ${invAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong></div>
+                            <div class="sub-stat">
+                                <span>PO Value:</span> 
+                                <strong>QAR ${invAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>
+                            </div>
+                            <div class="sub-stat">
+                                <span>Total SRV:</span> 
+                                <strong>QAR 0.00</strong>
+                            </div>
+                            <div class="sub-stat highlight">
+                                <span>Outstanding Balance:</span> 
+                                <strong style="color:#ef4444;">QAR ${invAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -509,11 +659,23 @@ function renderGrid(dataToRender) {
     let grandBalance = grandTotalInvoice - grandTotalSrv;
     const summaryCardHTML = `
         <div class="grand-summary-card">
-            <div class="grand-summary-title"><i class="fa-solid fa-calculator"></i><div>Search Results Summary</div></div>
+            <div class="grand-summary-title">
+                <i class="fa-solid fa-calculator"></i>
+                <div>Search Results Summary</div>
+            </div>
             <div class="grand-summary-stats">
-                <div class="g-stat"><span>Total PO Value</span><strong>QAR ${grandTotalInvoice.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong></div>
-                <div class="g-stat"><span>Total SRV</span><strong>QAR ${grandTotalSrv.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong></div>
-                <div class="g-stat highlight"><span>Total Outstanding Balance</span><strong>QAR ${grandBalance.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong></div>
+                <div class="g-stat">
+                    <span>Total PO Value</span>
+                    <strong>QAR ${grandTotalInvoice.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>
+                </div>
+                <div class="g-stat">
+                    <span>Total SRV</span>
+                    <strong>QAR ${grandTotalSrv.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>
+                </div>
+                <div class="g-stat highlight">
+                    <span>Total Outstanding Balance</span>
+                    <strong style="color:#fca5a5;">QAR ${grandBalance.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>
+                </div>
             </div>
         </div>
     `;
@@ -571,22 +733,21 @@ function getActiveFiltersHtml() {
 // ---------------------------------------------------------
 
 function generateSummaryPrintout() {
-    let totalInvoiceAmount = 0; 
-    let totalSrvAmount = 0; 
-    let totalRetentionAmount = 0;
-    let rowsHtml = '';
+    let totalInvoiceAmount = 0; let totalSrvAmount = 0; let totalRetentionAmount = 0; let rowsHtml = '';
     
     currentFilteredData.forEach(row => {
         const poNumber = row._cleanPO;
         const site = row['Project ID'] || row['Site'] || 'N/A';
         const vendor = row['Supplier Name'] || row['Supplier'] || 'N/A';
-        const orderDate = row['Order Date'] || row['Date'] || 'N/A';
+        
+        // FORMATTED DATE
+        const orderDate = formatToDDMMMYYYY(row['Order Date'] || row['Date'] || 'N/A');
 
         const invAmt = row._rawAmount;
         totalInvoiceAmount += invAmt;
 
         let poSrvAmt = 0;
-        const relatedCommits = commitsByPO[poNumber] || [];
+        const relatedCommits = getSrvRecordsForPO(poNumber);
         relatedCommits.forEach(commit => { poSrvAmt += commit._rawCost; });
         totalSrvAmount += poSrvAmt;
 
@@ -610,11 +771,12 @@ function generateSummaryPrintout() {
     });
 
     let totalBalance = totalInvoiceAmount - totalSrvAmount;
+    const printTime = `${formatToDDMMMYYYY(new Date())} ${new Date().toLocaleTimeString()}`;
     
     const printHtml = `
         <div class="print-header">
             <h2>Summary Report: POs & SRVs</h2>
-            <p>Generated on: ${new Date().toLocaleString()} &nbsp; | &nbsp; Records: ${currentFilteredData.length}</p>
+            <p>Generated on: ${printTime} &nbsp; | &nbsp; Records: ${currentFilteredData.length}</p>
             ${getActiveFiltersHtml()}
         </div>
         <table class="print-table">
@@ -646,44 +808,63 @@ function generateSummaryPrintout() {
 }
 
 function generateDetailedPrintout() {
-    let totalInvoiceAmount = 0; 
-    let totalSrvAmount = 0; 
-    let totalRetentionAmount = 0;
-    let htmlContent = '';
+    let totalInvoiceAmount = 0; let totalSrvAmount = 0; let totalRetentionAmount = 0; let htmlContent = '';
     
     currentFilteredData.forEach(row => {
         const poNumber = row._cleanPO;
         const site = row['Project ID'] || row['Site'] || 'N/A';
         const vendor = row['Supplier Name'] || row['Supplier'] || 'N/A';
-        const orderDate = row['Order Date'] || row['Date'] || 'N/A';
+        
+        // FORMATTED DATE
+        const orderDate = formatToDDMMMYYYY(row['Order Date'] || row['Date'] || 'N/A');
 
         const invAmt = row._rawAmount;
         totalInvoiceAmount += invAmt;
 
         let poSrvAmt = 0;
-        const relatedCommits = commitsByPO[poNumber] || [];
+        const relatedCommits = getSrvRecordsForPO(poNumber);
 
         let srvRowsHtml = '';
         if (relatedCommits.length > 0) {
-            srvRowsHtml += `<table class="print-sub-table"><thead><tr><th>Inv.Entry</th><th>Packing Slip</th><th>SRV Date</th><th class="num">SRV Value (QAR)</th></tr></thead><tbody>`;
+            srvRowsHtml += `
+                <table class="print-sub-table">
+                    <thead>
+                        <tr>
+                            <th>Inv.Entry</th>
+                            <th>Packing Slip</th>
+                            <th>SRV Date</th>
+                            <th class="num">SRV Value (QAR)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
             relatedCommits.forEach((commit, i) => {
                 const invEntry = `Inv-${String(i + 1).padStart(2, '0')}`;
                 const packingSlip = commit['Packing Slip'] || '-';
-                const srvDate = commit['Date'] || '-';
+                
+                // FORMATTED DATE
+                const srvDate = formatToDDMMMYYYY(commit['Date'] || '-');
+                
                 const srvVal = commit._rawCost;
                 
-                poSrvAmt += srvVal; 
-                totalSrvAmount += srvVal;
-                srvRowsHtml += `<tr><td><strong>${invEntry}</strong></td><td>${packingSlip}</td><td>${srvDate}</td><td class="num">${srvVal.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>`;
+                poSrvAmt += srvVal; totalSrvAmount += srvVal;
+                
+                srvRowsHtml += `
+                    <tr>
+                        <td><strong>${invEntry}</strong></td>
+                        <td>${packingSlip}</td>
+                        <td>${srvDate}</td>
+                        <td class="num">${srvVal.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                    </tr>
+                `;
             });
             srvRowsHtml += `</tbody></table>`;
         } else {
-            srvRowsHtml = `<div class="print-no-srv">No Service Receipts (SRV) mapped to this record.</div>`;
+            srvRowsHtml = `<div class="print-no-srv">No delivery or payment records found for this PO.</div>`;
         }
 
         const poRetention = retentionByPO[poNumber] || 0;
         totalRetentionAmount += poRetention;
-
         let rowBalance = invAmt - poSrvAmt;
         
         htmlContent += `
@@ -703,11 +884,12 @@ function generateDetailedPrintout() {
     });
 
     let totalBalance = totalInvoiceAmount - totalSrvAmount;
+    const printTime = `${formatToDDMMMYYYY(new Date())} ${new Date().toLocaleTimeString()}`;
     
     const printHtml = `
         <div class="print-header">
             <h2>Detailed Report: POs & SRVs</h2>
-            <p>Generated on: ${new Date().toLocaleString()} &nbsp; | &nbsp; Records: ${currentFilteredData.length}</p>
+            <p>Generated on: ${printTime} &nbsp; | &nbsp; Records: ${currentFilteredData.length}</p>
             ${getActiveFiltersHtml()}
         </div>
         <div>${htmlContent}</div>
@@ -725,48 +907,34 @@ function generateDetailedPrintout() {
 }
 
 function generateProjectPrintout() {
-    let projectTotals = {};
-    let grandTotalInvoice = 0;
-    let grandTotalSrv = 0;
-    let grandTotalRetention = 0;
-    let validRecordsCount = 0;
+    let projectTotals = {}; let grandTotalInvoice = 0; let grandTotalSrv = 0; let grandTotalRetention = 0; let validRecordsCount = 0;
 
     currentFilteredData.forEach(row => {
         const openColumnVal = (row['Open'] || '').toString().toLowerCase().trim();
-        const isClosed = openColumnVal === 'false';
-        
-        if (isClosed) return;
+        if (openColumnVal === 'false') return;
 
         validRecordsCount++; 
-
         const site = row['Project ID'] || row['Site'] || 'Unassigned Site';
         const poNumber = row._cleanPO;
         const invAmt = row._rawAmount;
         
-        // PULL SITE NAME FROM THE NEW DICTIONARY
         const cleanSiteId = site.toString().trim().toUpperCase();
         let siteName = siteNameMap[cleanSiteId] || 'N/A';
 
         let poSrvAmt = 0;
-        const relatedCommits = commitsByPO[poNumber] || [];
+        const relatedCommits = getSrvRecordsForPO(poNumber);
         relatedCommits.forEach(commit => { poSrvAmt += commit._rawCost; });
-
         const poRetention = retentionByPO[poNumber] || 0;
 
-        if (!projectTotals[site]) {
-            projectTotals[site] = { poValue: 0, srvTotal: 0, retentionTotal: 0, poCount: 0, siteNames: new Set() };
-        }
-
-        projectTotals[site].siteNames.add(siteName);
+        if (!projectTotals[site]) projectTotals[site] = { poValue: 0, srvTotal: 0, retentionTotal: 0, poCount: 0, siteNames: new Set() };
         
+        projectTotals[site].siteNames.add(siteName);
         projectTotals[site].poValue += invAmt;
         projectTotals[site].srvTotal += poSrvAmt;
         projectTotals[site].retentionTotal += poRetention;
         projectTotals[site].poCount += 1;
 
-        grandTotalInvoice += invAmt;
-        grandTotalSrv += poSrvAmt;
-        grandTotalRetention += poRetention;
+        grandTotalInvoice += invAmt; grandTotalSrv += poSrvAmt; grandTotalRetention += poRetention;
     });
 
     let rowsHtml = '';
@@ -778,9 +946,7 @@ function generateProjectPrintout() {
         const siteOutstanding = data.poValue - data.srvTotal;
         
         let siteNameStr = Array.from(data.siteNames).join(', ');
-        if (siteNameStr.length > 30) {
-            siteNameStr = siteNameStr.substring(0, 30) + '...';
-        }
+        if (siteNameStr.length > 30) siteNameStr = siteNameStr.substring(0, 30) + '...';
 
         rowsHtml += `
             <tr>
@@ -799,15 +965,13 @@ function generateProjectPrintout() {
     let grandPayable = grandTotalSrv - grandTotalRetention;
     let grandBalance = grandTotalInvoice - grandTotalSrv;
     
-    if (validRecordsCount === 0) {
-        alert("There are no valid Open records based on your current filters to display for the Project Report.");
-        return;
-    }
+    if (validRecordsCount === 0) { playAudio(soundError); alert("No valid Open records found for Project Report."); return; }
+    const printTime = `${formatToDDMMMYYYY(new Date())} ${new Date().toLocaleTimeString()}`;
     
     const printHtml = `
         <div class="print-header">
             <h2>Project Closeout Summary <span style="font-size:12px; color:#ef4444; font-style:italic; font-weight:bold;">(Excludes Closed POs)</span></h2>
-            <p>Generated on: ${new Date().toLocaleString()} &nbsp; | &nbsp; Sites/Projects: ${sortedSites.length}</p>
+            <p>Generated on: ${printTime} &nbsp; | &nbsp; Sites/Projects: ${sortedSites.length}</p>
             ${getActiveFiltersHtml()}
         </div>
         <table class="print-project-table">
@@ -835,14 +999,12 @@ function generateProjectPrintout() {
             </table>
         </div>
     `;
-    
     document.getElementById("printArea").innerHTML = printHtml;
     window.print();
 }
 
 function generateRetentionPrintout() {
-    let htmlContent = '';
-    let validRecordsCount = 0;
+    let htmlContent = ''; let validRecordsCount = 0;
 
     currentFilteredData.forEach(row => {
         const poNumber = row._cleanPO;
@@ -850,61 +1012,60 @@ function generateRetentionPrintout() {
         const vendor = row['Supplier Name'] || row['Supplier'] || 'N/A';
         const invAmt = row._rawAmount;
 
-        const fbRecords = allFirebaseData.filter(r => {
-            return (r.poNo || r.poNumber || "").toString().trim() === poNumber;
-        });
-
+        const fbRecords = allFirebaseData.filter(r => (r.poNo || r.poNumber || "").toString().trim() === poNumber);
         if (fbRecords.length === 0) return; 
 
         validRecordsCount++;
+        let poTotalCertified = 0; let poTotalPayment = 0; let poTotalRetention = 0; 
         
-        let poTotalCertified = 0;
-        let poTotalPayment = 0;
-        let poTotalRetention = 0; 
-        
-        let rowsHtml = `<table class="print-sub-table">
-            <thead>
-                <tr>
-                    <th>Payment No</th>
-                    <th>Date Paid</th>
-                    <th>Cheque No</th>
-                    <th class="num">Certified Amount (QAR)</th>
-                    <th class="num" style="color:#ea580c;">Retention (QAR)</th>
-                    <th class="num">Payment (QAR)</th>
-                </tr>
-            </thead>
-            <tbody>`;
+        let rowsHtml = `
+            <table class="print-sub-table">
+                <thead>
+                    <tr>
+                        <th>Payment No</th>
+                        <th>Date Paid</th>
+                        <th>Cheque No</th>
+                        <th class="num">Certified Amount (QAR)</th>
+                        <th class="num" style="color:#ea580c;">Retention (QAR)</th>
+                        <th class="num">Payment (QAR)</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
         
         fbRecords.forEach(rec => {
             const payNo = rec.paymentNo || '-';
-            const dPaid = rec.datePaid || '-';
+            
+            // FORMATTED DATE
+            const dPaid = formatToDDMMMYYYY(rec.datePaid || '-');
+            
             const chq = rec.chequeNo || '-';
             const certAmt = parseFloat(rec.certifiedAmount || 0);
             const payAmt = parseFloat(rec.payment || 0);
             const retAmt = parseFloat(rec.retention || 0); 
             
-            poTotalCertified += certAmt;
-            poTotalPayment += payAmt;
-            poTotalRetention += retAmt;
+            poTotalCertified += certAmt; poTotalPayment += payAmt; poTotalRetention += retAmt;
             
-            rowsHtml += `<tr>
-                <td><strong>${payNo}</strong></td>
-                <td>${dPaid}</td>
-                <td>${chq}</td>
-                <td class="num">${certAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-                <td class="num" style="color:#ea580c; font-weight:bold;">${retAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-                <td class="num">${payAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-            </tr>`;
+            rowsHtml += `
+                <tr>
+                    <td><strong>${payNo}</strong></td>
+                    <td>${dPaid}</td>
+                    <td>${chq}</td>
+                    <td class="num">${certAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                    <td class="num" style="color:#ea580c; font-weight:bold;">${retAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                    <td class="num">${payAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                </tr>
+            `;
         });
         
-        rowsHtml += `<tr style="background-color: #f1f5f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
-            <td colspan="3" style="text-align: right; font-weight: 800; font-size: 10px; color: #0f172a;">TOTALS:</td>
-            <td class="num" style="font-weight: 800; font-size: 11px; color: #0f172a;">${poTotalCertified.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-            <td class="num" style="color:#ea580c; font-weight: 800; font-size: 11px;">${poTotalRetention.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-            <td class="num" style="font-weight: 800; font-size: 11px; color: #0f172a;">${poTotalPayment.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-        </tr>`;
-        
-        rowsHtml += `</tbody></table>`;
+        rowsHtml += `
+            <tr style="background-color: #f1f5f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+                <td colspan="3" style="text-align: right; font-weight: 800; font-size: 10px; color: #0f172a;">TOTALS:</td>
+                <td class="num" style="font-weight: 800; font-size: 11px; color: #0f172a;">${poTotalCertified.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="num" style="color:#ea580c; font-weight: 800; font-size: 11px;">${poTotalRetention.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="num" style="font-weight: 800; font-size: 11px; color: #0f172a;">${poTotalPayment.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+            </tr>
+        </tbody></table>`;
 
         let poCommittedCost = invAmt - poTotalCertified;
         let poRetentionToDate = poTotalCertified - poTotalPayment;
@@ -946,15 +1107,14 @@ function generateRetentionPrintout() {
         `;
     });
 
-    if (validRecordsCount === 0) {
-        alert("There are no Firebase Payment/Retention records found for the POs in your current search results.");
-        return;
-    }
+    if (validRecordsCount === 0) { playAudio(soundError); alert("No Firebase Payment records found for POs in this search."); return; }
+    
+    const printTime = `${formatToDDMMMYYYY(new Date())} ${new Date().toLocaleTimeString()}`;
 
     const printHtml = `
         <div class="print-header">
             <h2>Detailed Retention Report</h2>
-            <p>Generated on: ${new Date().toLocaleString()} &nbsp; | &nbsp; POs with Records: ${validRecordsCount}</p>
+            <p>Generated on: ${printTime} &nbsp; | &nbsp; POs with Records: ${validRecordsCount}</p>
             ${getActiveFiltersHtml()}
         </div>
         <div>${htmlContent}</div>
