@@ -1123,3 +1123,4 @@ function generateRetentionPrintout() {
     document.getElementById("printArea").innerHTML = printHtml;
     window.print();
 }
+
