@@ -1,6 +1,7 @@
 :root {
     --primary-blue: #38bdf8;
     --secondary-teal: #818cf8;
+    --card-bg: rgba(15, 23, 42, 0.85); 
     --text-main: #f8fafc;
     --text-muted: #cbd5e1;
     --border-color: rgba(255, 255, 255, 0.15);
@@ -18,7 +19,9 @@ body {
     position: relative; 
 }
 
-/* --- DYNAMIC CROSSFADING BACKGROUND IMAGES --- */
+/* ========================================================= */
+/* --- 4-STATE DYNAMIC BACKGROUND IMAGES ---                 */
+/* ========================================================= */
 body::before, body::after {
     content: "";
     position: fixed;
@@ -28,36 +31,67 @@ body::before, body::after {
     background-position: center center;
     background-repeat: no-repeat;
     will-change: opacity; 
+    transition: opacity 1.5s ease-in-out; /* Smooth fade when clicking toggle */
 }
 
-/* Image 1 Layer */
-body::before {
-    background-image: url('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Image1.png');
-    animation: fadeOutIn 24s infinite;
-}
+/* Image 1 Layer (NIGHT) */
+body::before { background-image: url('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Image1.png'); opacity: 1; }
+/* Image 2 Layer (DAY) */
+body::after { background-image: url('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Image2.png'); opacity: 0; }
 
-/* Image 2 Layer */
-body::after {
-    background-image: url('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Image2.png');
-    animation: fadeInOut 24s infinite;
-}
+/* STATE 1: AUTO (Crossfading) */
+body.theme-auto::before { animation: fadeOutIn 24s infinite; }
+body.theme-auto::after { animation: fadeInOut 24s infinite; }
 
-/* Animation Timing */
-@keyframes fadeOutIn {
-    0%, 42% { opacity: 1; }
-    50%, 92% { opacity: 0; }
-    100% { opacity: 1; }
-}
-@keyframes fadeInOut {
-    0%, 42% { opacity: 0; }
-    50%, 92% { opacity: 1; }
-    100% { opacity: 0; }
-}
+/* STATE 2: DAY MODE */
+body.theme-day::before { opacity: 0 !important; animation: none !important; }
+body.theme-day::after { opacity: 1 !important; animation: none !important; }
 
-/* --- HIGHLY TRANSPARENT MAIN CONTAINER --- */
+/* STATE 3: NIGHT MODE */
+body.theme-night::before { opacity: 1 !important; animation: none !important; }
+body.theme-night::after { opacity: 0 !important; animation: none !important; }
+
+/* STATE 4: BACKGROUND OFF */
+body.theme-off::before, body.theme-off::after { opacity: 0 !important; animation: none !important; }
+
+@keyframes fadeOutIn { 0%, 42% { opacity: 1; } 50%, 92% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes fadeInOut { 0%, 42% { opacity: 0; } 50%, 92% { opacity: 1; } 100% { opacity: 0; } }
+
+/* ========================================================= */
+/* --- NEW TOGGLE BUTTON STYLES ---                          */
+/* ========================================================= */
+.bg-toggle-btn {
+    background: rgba(15, 23, 42, 0.6);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 15px;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(4px);
+    vertical-align: middle;
+}
+.bg-toggle-btn:hover {
+    background: rgba(56, 189, 248, 0.2);
+    color: #ffffff;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+    transform: translateY(-1px);
+}
+.bg-toggle-btn i { font-size: 12px; }
+
+
+/* ========================================================= */
+/* --- MAIN CRYSTAL GLASS CONTAINER ---                      */
+/* ========================================================= */
 .search-container { 
-    background: rgba(15, 23, 42, 0.15); /* Very transparent */
-    backdrop-filter: blur(2px); /* Barely any blur so background is visible */
+    background: rgba(15, 23, 42, 0.15); 
+    backdrop-filter: blur(2px); 
     -webkit-backdrop-filter: blur(2px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     width: 100%; 
@@ -71,7 +105,6 @@ body::after {
     gap: 15px; 
 }
 
-/* --- SOLID FROSTED GLASS BLOCKS (Controls & Headers) --- */
 .header { 
     background: rgba(15, 23, 42, 0.85); 
     backdrop-filter: blur(10px);
@@ -185,45 +218,23 @@ body::after {
 .retention-btn { --neon-color: #f97316; }          
 
 /* ========================================================= */
-/* --- NEW "CLEAR GLASS" INVOICE RECORDS ---                 */
+/* INVOICE RECORDS                                           */
 /* ========================================================= */
 .grid-body { display: flex; flex-direction: column; gap: 8px; }
 
 .invoice-card { 
-    /* Increased Transparency for Glass effect */
     background: rgba(15, 23, 42, 0.15); 
-    
-    /* REMOVED ALL BLUR for Clear Glass, not Frosted */
     backdrop-filter: blur(0px) !important; 
     -webkit-backdrop-filter: blur(0px) !important;
-    
     border-radius: 14px; 
-    
-    /* Slightly more defined border for glass definition */
     border: 1px solid rgba(255, 255, 255, 0.25); 
-    
     transition: transform 0.2s, border-color 0.2s, background 0.2s, box-shadow 0.2s; 
     overflow: hidden; 
     position: relative; 
-    
-    /* Added subtle "glass glint" highlights */
-    box-shadow: 
-        0 4px 10px rgba(0, 0, 0, 0.2),
-        inset 0 1px 1px rgba(255, 255, 255, 0.1), /* Refractive top edge */
-        inset 0 -1px 1px rgba(0,0,0,0.3);        /* Subtle shadow edge */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.1), inset 0 -1px 1px rgba(0,0,0,0.3);
 }
 .invoice-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #38bdf8; opacity: 0; transition: opacity 0.2s; }
-
-/* Hover effect retains the clarity but sharpens definition */
-.invoice-card:hover { 
-    transform: translateY(-2px); 
-    border-color: rgba(56, 189, 248, 0.6); 
-    background: rgba(30, 41, 59, 0.4); /* Solidifies slightly to pop */
-    box-shadow: 
-        0 8px 20px rgba(0, 0, 0, 0.4),
-        0 0 10px rgba(56, 189, 248, 0.15),
-        inset 0 1px 1px rgba(255, 255, 255, 0.2);
-}
+.invoice-card:hover { transform: translateY(-2px); border-color: rgba(56, 189, 248, 0.6); background: rgba(30, 41, 59, 0.4); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4), 0 0 10px rgba(56, 189, 248, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.2); }
 .invoice-card:hover::before { opacity: 1; }
 
 .master-grid-row { display: grid; grid-template-columns: 50px 100px 1.5fr 1.5fr 2fr 1.2fr 110px 120px; align-items: center; padding: 16px 20px; cursor: pointer; }
@@ -231,10 +242,9 @@ body::after {
 .master-grid-row .grid-cell:last-child { padding-right: 0; }
 .master-grid-row .grid-cell:nth-child(2) { color: #38bdf8 !important; text-shadow: 0 0 5px rgba(56,189,248,0.5); }
 
-/* Expanded State maintains clarity but darkens for sub-table containment */
 .detail-grid-row { display: none; padding: 20px 20px 20px 70px; background-color: rgba(0, 0, 0, 0.3); border-top: 1px solid rgba(255, 255, 255, 0.1); }
 .invoice-card.expanded .detail-grid-row { display: block; }
-.invoice-card.expanded { border-color: #38bdf8; background: rgba(15, 23, 42, 0.5); /* No blur here either */ box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.1); }
+.invoice-card.expanded { border-color: #38bdf8; background: rgba(15, 23, 42, 0.5); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.1); }
 .invoice-card.expanded::before { opacity: 1; }
 
 .expand-btn { cursor: pointer; color: #ffffff; transition: transform 0.2s, background 0.2s; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; background: rgba(255,255,255,0.2); }
@@ -260,22 +270,7 @@ body::after {
 .sub-stat strong { color: #ffffff; font-size: 14px; font-weight: 700; }
 .sub-stat.highlight strong { color: #f87171; font-size: 15px; text-shadow: 0 0 5px rgba(248,113,113,0.5); } 
 
-/* --- SOLID FROSTED GLASS SUMMARY CARD --- */
-.grand-summary-card { 
-    background: rgba(15, 23, 42, 0.9); 
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255,255,255,0.15); 
-    border-radius: 14px; 
-    padding: 20px 25px; 
-    color: white; 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center; 
-    margin-top: 5px; 
-    flex-wrap: wrap; 
-    gap: 20px;
-}
+.grand-summary-card { background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.15); border-radius: 14px; padding: 20px 25px; color: white; display: flex; justify-content: space-between; align-items: center; margin-top: 5px; flex-wrap: wrap; gap: 20px;}
 .grand-summary-title { display: flex; align-items: center; gap: 12px; font-size: 16px; font-weight: 800; }
 .grand-summary-title i { font-size: 24px; color: #38bdf8; }
 .grand-summary-stats { display: flex; gap: 30px; flex-wrap: wrap; }
@@ -287,8 +282,8 @@ body::after {
 .g-stat.highlight strong { color: #f87171; font-size: 20px; text-shadow: 0 0 10px rgba(248,113,113,0.6); } 
 
 .no-commits-msg { color: #94a3b8; font-style: italic; font-size: 13px; padding: 20px; }
-.loading-state, .empty-state { text-align: center; padding: 60px 20px; color: #cbd5e1; font-size: 16px; background: rgba(15, 23, 42, 0.8); border: 1px dashed rgba(255,255,255,0.2); border-radius: 14px; }
-.error-state { color: #fca5a5; background: rgba(153, 27, 27, 0.4); border: 1px solid rgba(248, 113, 113, 0.5); padding: 40px; text-align: center; border-radius: 14px;}
+.loading-state, .empty-state { text-align: center; padding: 60px 20px; color: #cbd5e1; font-size: 16px; background: rgba(15, 23, 42, 0.85); border: 1px dashed rgba(255,255,255,0.2); border-radius: 14px; backdrop-filter: blur(8px); }
+.error-state { color: #fca5a5; background: rgba(153, 27, 27, 0.8); border: 1px solid rgba(248, 113, 113, 0.5); padding: 40px; text-align: center; border-radius: 14px; backdrop-filter: blur(8px); }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
@@ -302,11 +297,8 @@ body::after {
 
 @media print {
     @page { margin: 10mm 8mm; }
-    
     body { display: block !important; min-height: auto !important; background: #fff !important; padding: 0 !important; margin: 0 !important; color: #1e293b !important; text-shadow: none !important;}
-    
     body::before, body::after { display: none !important; }
-    
     .search-container { display: none !important; }
     #printArea { display: block !important; width: 100%; max-width: none !important; overflow: visible !important; }
     .print-header { text-align: center; margin-bottom: 25px; padding-bottom: 15px; position: relative; }

@@ -118,6 +118,32 @@ document.addEventListener("DOMContentLoaded", () => {
     const filterSrv = document.getElementById("filterSrv"); 
     const filterRetention = document.getElementById("filterRetention"); 
 
+    // 👇 PASTE THE NEW CODE RIGHT HERE 👇
+    // --- BACKGROUND THEME TOGGLE LOGIC ---
+    const bgToggleBtn = document.getElementById("bgToggleBtn");
+    if(bgToggleBtn) {
+        const themes = ['theme-auto', 'theme-day', 'theme-night', 'theme-off'];
+        const themeLabels = [
+            '<i class="fa-solid fa-wand-magic-sparkles"></i> Auto Theme', 
+            '<i class="fa-solid fa-sun"></i> Day Mode', 
+            '<i class="fa-solid fa-moon"></i> Night Mode', 
+            '<i class="fa-solid fa-ban"></i> Bg Off'
+        ];
+        let currentThemeIndex = 0;
+        
+        // Set default state
+        document.body.classList.add(themes[0]);
+        
+        bgToggleBtn.addEventListener("click", () => {
+            if (typeof soundClick !== 'undefined') playAudio(soundClick); // Play click sound
+            document.body.classList.remove(themes[currentThemeIndex]);
+            currentThemeIndex = (currentThemeIndex + 1) % themes.length;
+            document.body.classList.add(themes[currentThemeIndex]);
+            bgToggleBtn.innerHTML = themeLabels[currentThemeIndex];
+        });
+    }
+    // 👆 END OF NEW CODE 👆
+
     initializeData();
 
     executeSearchBtn.addEventListener("click", () => { 
