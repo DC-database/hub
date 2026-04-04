@@ -7563,3 +7563,23 @@ body.inventory-mode .wd-nav-material {
         width: 100% !important;
     }
 }
+
+/* 1. Hide the mobile view when on a large screen */
+@media (min-width: 769px) {
+    .hidden-desktop {
+        display: none !important;
+    }
+}
+
+/* 2. Hide the desktop table and show mobile view on small screens */
+@media (max-width: 768px) {
+    .hidden-mobile {
+        display: none !important;
+    }
+    
+    #im-reporting-mobile-view {
+        display: block !important;
+    }
+    
+    /* Add your Version 1 mobile card styling here (colors, padding, border-radius) */
+}
