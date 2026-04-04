@@ -1,7 +1,7 @@
 // ======================
 // Application Version
 // ======================
-const APP_VERSION = "v5.4 (Vendor CSV Auto-Fill + Notes New Lines)";
+const APP_VERSION = "v5.5 (Vendor CSV Auto-Fill + Notes New Lines)";
 
 // ======================
 // Firebase Configuration
@@ -1061,7 +1061,8 @@ async function generateReport(selectedPayment) {
     let totalCertified = 0, totalRetention = 0, totalPayment = 0, totalPrevPayment = 0;
     let allNotes = [];
 
-    payments.forEach(payment => {
+    // We add 'index' here to track our position in the array
+    payments.forEach((payment, index) => {
       const certified = parseFloat(payment.certifiedAmount || 0);
       const retention = parseFloat(payment.retention || 0);
       const paymentAmount = parseFloat(payment.payment || 0);
@@ -1070,7 +1071,8 @@ async function generateReport(selectedPayment) {
       totalRetention += retention;
       totalPayment += paymentAmount;
 
-      if (payment.datePaid && String(payment.datePaid).trim() !== '') {
+      // FIX: Add to 'Previous Payment' only if it is NOT the last item (the current certificate)
+      if (index < payments.length - 1) {
         totalPrevPayment += paymentAmount;
       }
 
