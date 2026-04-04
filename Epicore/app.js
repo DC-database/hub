@@ -25,15 +25,14 @@ const soundError = new Audio('https://raw.githubusercontent.com/DC-database/hub/
 const soundPop = new Audio('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Pop.mp3');
 const soundSent = new Audio('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Sent.mp3');
 
-
-soundClick.volume   = 1.0;  // Keep UI clicks soft
-soundPop.volume     = 1.0;  // Keep expanding rows very soft
-soundClear.volume   = 1.0;
+soundClick.volume   = 0.3;  
+soundPop.volume     = 0.2;  
+soundClear.volume   = 0.4;
 soundDelete.volume  = 0.5;
-soundError.volume   = 0.5;
-soundSuccess.volume = 0.2;
-soundConfirm.volume = 1.0;  // Make print confirmations a bit louder
-soundSent.volume    = 1.0;
+soundError.volume   = 0.4;
+soundSuccess.volume = 0.5;
+soundConfirm.volume = 0.6;  
+soundSent.volume    = 0.5;
 
 function playAudio(audioObj) {
     if (audioObj) {
@@ -97,6 +96,7 @@ let retentionByPO = {};
 let siteNameMap = {}; 
 let isDataLoaded = false;
 let currentFilteredData = [];
+let years = new Set(); // Global years set
 
 document.addEventListener("DOMContentLoaded", () => {
     const searchInput = document.getElementById("searchInput");
@@ -118,7 +118,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const filterSrv = document.getElementById("filterSrv"); 
     const filterRetention = document.getElementById("filterRetention"); 
 
-    // 👇 PASTE THE NEW CODE RIGHT HERE 👇
     // --- BACKGROUND THEME TOGGLE LOGIC ---
     const bgToggleBtn = document.getElementById("bgToggleBtn");
     if(bgToggleBtn) {
@@ -131,18 +130,16 @@ document.addEventListener("DOMContentLoaded", () => {
         ];
         let currentThemeIndex = 0;
         
-        // Set default state
-        document.body.classList.add(themes[0]);
+        document.body.classList.add(themes[0]); // Default state
         
         bgToggleBtn.addEventListener("click", () => {
-            if (typeof soundClick !== 'undefined') playAudio(soundClick); // Play click sound
+            if (typeof soundClick !== 'undefined') playAudio(soundClick);
             document.body.classList.remove(themes[currentThemeIndex]);
             currentThemeIndex = (currentThemeIndex + 1) % themes.length;
             document.body.classList.add(themes[currentThemeIndex]);
             bgToggleBtn.innerHTML = themeLabels[currentThemeIndex];
         });
     }
-    // 👆 END OF NEW CODE 👆
 
     initializeData();
 
@@ -167,7 +164,7 @@ document.addEventListener("DOMContentLoaded", () => {
         playAudio(soundClick);
         const icon = refreshBtn.querySelector('i');
         icon.classList.add('fa-spin');
-        document.getElementById("tableBody").innerHTML = `<div class="loading-state"><i class="fa-solid fa-cloud-arrow-down fa-bounce" style="font-size:24px; color:#00748C; margin-bottom:15px; display:block;"></i> Downloading fresh data...</div>`;
+        document.getElementById("tableBody").innerHTML = `<div class="loading-state"><i class="fa-solid fa-cloud-arrow-down fa-bounce" style="font-size:24px; color:#38bdf8; margin-bottom:15px; display:block;"></i> Downloading fresh data...</div>`;
         fetchAllData(true).then(() => {
             icon.classList.remove('fa-spin');
             resetToEmptyState(); 
@@ -336,8 +333,8 @@ function getSrvRecordsForPO(poNumber) {
 function setupDataDependents() {
     commitsByPO = {};
     siteNameMap = {}; 
+    years = new Set(); 
     const sites = new Set();
-    const years = new Set();
 
     allSiteData.forEach(row => {
         const wsheKey = Object.keys(row).find(k => k.trim().toLowerCase() === 'warehouse');
@@ -360,6 +357,14 @@ function setupDataDependents() {
         }
         commit._rawCost = cost;
         commit._isFallback = false;
+
+        // Populate Years dropdown using SRV dates too!
+        if (commit['Date'] && commit['Date'] !== '-') {
+            const d = new Date(commit['Date']);
+            if (!isNaN(d)) {
+                years.add(d.getFullYear().toString());
+            }
+        }
 
         if (!commitsByPO[po]) commitsByPO[po] = [];
         commitsByPO[po].push(commit);
@@ -446,6 +451,9 @@ function resetToEmptyState() {
     countDisplay.textContent = `Awaiting search...`;
 }
 
+// =========================================================
+// THE NEW "ACTIVITY PERIOD" DATE FILTERING LOGIC
+// =========================================================
 function applyFilters() {
     const query = document.getElementById("searchInput").value.toLowerCase().trim();
     const selectedSite = document.getElementById("filterSite").value;
@@ -457,15 +465,54 @@ function applyFilters() {
     const selectedSrv = document.getElementById("filterSrv").value; 
     const selectedRetention = document.getElementById("filterRetention").value; 
 
+    const isDateFilterActive = (selectedMonth !== "" || selectedYearFrom !== "" || selectedYearTo !== "");
+
     const filtered = allInvoiceData.filter(row => {
         const poNumber = row._cleanPO;
         const site = row['Project ID'] || row['Site'] || '';
 
-        // Site & Date Filters
+        // Site Filter
         if (selectedSite && site.trim() !== selectedSite) return false;
-        if (selectedMonth !== "" && row._month !== selectedMonth) return false;
-        if (selectedYearFrom !== "" && (!row._year || parseInt(row._year) < parseInt(selectedYearFrom))) return false;
-        if (selectedYearTo !== "" && (!row._year || parseInt(row._year) > parseInt(selectedYearTo))) return false;
+
+        const relatedCommits = getSrvRecordsForPO(poNumber);
+        let validCommits = [];
+
+        // 1. Check if the Master PO Date passes
+        let poDatePasses = true;
+        if (selectedMonth !== "" && row._month !== selectedMonth) poDatePasses = false;
+        if (selectedYearFrom !== "" && (!row._year || parseInt(row._year) < parseInt(selectedYearFrom))) poDatePasses = false;
+        if (selectedYearTo !== "" && (!row._year || parseInt(row._year) > parseInt(selectedYearTo))) poDatePasses = false;
+
+        // 2. Check if the SRV Dates pass
+        let hasMatchingSrvDate = false;
+        relatedCommits.forEach(commit => {
+            let srvDatePasses = true;
+            let srvMonth = ""; let srvYear = "";
+            if (commit['Date'] && commit['Date'] !== '-') {
+                const d = new Date(commit['Date']);
+                if (!isNaN(d)) {
+                    srvMonth = d.getMonth().toString();
+                    srvYear = d.getFullYear().toString();
+                }
+            }
+
+            if (selectedMonth !== "" && srvMonth !== selectedMonth) srvDatePasses = false;
+            if (selectedYearFrom !== "" && (srvYear === "" || parseInt(srvYear) < parseInt(selectedYearFrom))) srvDatePasses = false;
+            if (selectedYearTo !== "" && (srvYear === "" || parseInt(srvYear) > parseInt(selectedYearTo))) srvDatePasses = false;
+
+            if (srvDatePasses) {
+                hasMatchingSrvDate = true;
+                validCommits.push(commit); // Keep this specific SRV because it matches the date!
+            }
+        });
+
+        // 3. DECISION: Hide the whole row ONLY if both the PO AND all its SRVs fall outside the date filter
+        if (isDateFilterActive && !poDatePasses && !hasMatchingSrvDate) {
+            return false;
+        }
+
+        // 4. ATTACH THE SMART COMMITS: We save the filtered SRVs to the row to be used by the Grid and Calculations
+        row._filteredCommits = isDateFilterActive ? validCommits : relatedCommits;
 
         // Status Filter
         const openColumnVal = (row['Open'] || '').toString().toLowerCase().trim();
@@ -473,11 +520,10 @@ function applyFilters() {
         if (selectedStatus === 'open' && isClosed) return false;
         if (selectedStatus === 'closed' && !isClosed) return false;
 
-        const relatedCommits = getSrvRecordsForPO(poNumber);
-
+        // Balance & SRV logic (Now using the SMART filtered commits!)
         if (selectedBalance !== "" || selectedSrv !== "" || selectedRetention !== "") {
             let poSrvAmt = 0;
-            relatedCommits.forEach(commit => { poSrvAmt += commit._rawCost; });
+            row._filteredCommits.forEach(commit => { poSrvAmt += commit._rawCost; });
             
             if (selectedSrv !== "") {
                 const hasSrvValue = poSrvAmt > 0.001;
@@ -504,7 +550,7 @@ function applyFilters() {
 
         // Search Box Text Filter
         if (query) {
-            let commitDataStr = relatedCommits.map(c => `${c['Packing Slip']} ${c._rawCost}`).join(" ");
+            let commitDataStr = row._filteredCommits.map(c => `${c['Packing Slip']} ${c._rawCost}`).join(" ");
             const searchableText = `${poNumber} ${site} ${row['Supplier Name'] || row['Supplier'] || ''} ${row['Order Date'] || row['Date'] || ''} ${commitDataStr}`.toLowerCase();
             if (!searchableText.includes(query)) return false;
         }
@@ -544,8 +590,6 @@ function renderGrid(dataToRender) {
         const poNumber = row._cleanPO;
         const site = row['Project ID'] || row['Site'] || 'N/A';
         const vendor = row['Supplier Name'] || row['Supplier'] || 'N/A';
-        
-        // FORMATTED DATE
         const orderDate = formatToDDMMMYYYY(row['Order Date'] || row['Date'] || 'N/A');
         
         let mainStatus = row['Status'] || 'Open';
@@ -564,7 +608,7 @@ function renderGrid(dataToRender) {
                             <i class="fa-solid fa-chevron-right"></i>
                         </div>
                     </div>
-                    <div class="grid-cell" style="color:#00748C;">
+                    <div class="grid-cell" style="color:#38bdf8;">
                         <i class="fa-solid fa-file-invoice" style="margin-right:5px;"></i> Invoice
                     </div>
                     <div class="grid-cell"><strong>${poNumber}</strong></div>
@@ -580,7 +624,8 @@ function renderGrid(dataToRender) {
                 </div>
         `;
 
-        const relatedCommits = getSrvRecordsForPO(poNumber);
+        // GRID NOW USES THE SMART FILTERED COMMITS
+        const relatedCommits = row._filteredCommits || getSrvRecordsForPO(poNumber);
         let subTableHTML = '';
         let poSrvAmt = 0;
 
@@ -596,17 +641,14 @@ function renderGrid(dataToRender) {
             let tbodyHTML = relatedCommits.map((commit, i) => {
                 const invEntry = `Inv-${String(i + 1).padStart(2, '0')}`;
                 const packingSlip = commit['Packing Slip'] || '-';
-                
-                // FORMATTED DATE
                 const srvDate = formatToDDMMMYYYY(commit['Date'] || '-');
-                
                 const srvVal = commit._rawCost;
                 
                 poSrvAmt += srvVal;
                 const srvValueFormatted = srvVal.toLocaleString('en-US', {minimumFractionDigits: 2});
                 
                 const remarkBadge = commit._isFallback 
-                    ? `<span class="epicor-badge" style="background:#eff6ff; border-color:#bae6fd; color:#0369a1;">${commit._status}</span>` 
+                    ? `<span class="epicor-badge" style="color:#38bdf8;">${commit._status}</span>` 
                     : `<span class="epicor-badge">Epicor Record</span>`;
                 
                 return `
@@ -644,7 +686,7 @@ function renderGrid(dataToRender) {
                             </div>
                             <div class="sub-stat highlight">
                                 <span>Outstanding Balance:</span> 
-                                <strong style="color:#ef4444;">QAR ${rowBalance.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>
+                                <strong>QAR ${rowBalance.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>
                             </div>
                         </div>
                     </div>
@@ -658,7 +700,7 @@ function renderGrid(dataToRender) {
                     </div>
                     <div class="sub-table-wrapper">
                         <div class="no-commits-msg">
-                            <i class="fa-solid fa-circle-info"></i> No delivery or payment records found for this PO.
+                            <i class="fa-solid fa-circle-info"></i> No delivery or payment records found for this PO in the selected period.
                         </div>
                         <div class="sub-table-footer">
                             <div class="sub-stat">
@@ -671,7 +713,7 @@ function renderGrid(dataToRender) {
                             </div>
                             <div class="sub-stat highlight">
                                 <span>Outstanding Balance:</span> 
-                                <strong style="color:#ef4444;">QAR ${invAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>
+                                <strong>QAR ${invAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>
                             </div>
                         </div>
                     </div>
@@ -700,7 +742,7 @@ function renderGrid(dataToRender) {
                 </div>
                 <div class="g-stat highlight">
                     <span>Total Outstanding Balance</span>
-                    <strong style="color:#fca5a5;">QAR ${grandBalance.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>
+                    <strong>QAR ${grandBalance.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>
                 </div>
             </div>
         </div>
@@ -755,7 +797,7 @@ function getActiveFiltersHtml() {
 }
 
 // ---------------------------------------------------------
-// PRINT FUNCTIONS
+// PRINT FUNCTIONS (NOW USING SMART FILTERED COMMITS)
 // ---------------------------------------------------------
 
 function generateSummaryPrintout() {
@@ -765,15 +807,13 @@ function generateSummaryPrintout() {
         const poNumber = row._cleanPO;
         const site = row['Project ID'] || row['Site'] || 'N/A';
         const vendor = row['Supplier Name'] || row['Supplier'] || 'N/A';
-        
-        // FORMATTED DATE
         const orderDate = formatToDDMMMYYYY(row['Order Date'] || row['Date'] || 'N/A');
 
         const invAmt = row._rawAmount;
         totalInvoiceAmount += invAmt;
 
         let poSrvAmt = 0;
-        const relatedCommits = getSrvRecordsForPO(poNumber);
+        const relatedCommits = row._filteredCommits || getSrvRecordsForPO(poNumber);
         relatedCommits.forEach(commit => { poSrvAmt += commit._rawCost; });
         totalSrvAmount += poSrvAmt;
 
@@ -840,15 +880,13 @@ function generateDetailedPrintout() {
         const poNumber = row._cleanPO;
         const site = row['Project ID'] || row['Site'] || 'N/A';
         const vendor = row['Supplier Name'] || row['Supplier'] || 'N/A';
-        
-        // FORMATTED DATE
         const orderDate = formatToDDMMMYYYY(row['Order Date'] || row['Date'] || 'N/A');
 
         const invAmt = row._rawAmount;
         totalInvoiceAmount += invAmt;
 
         let poSrvAmt = 0;
-        const relatedCommits = getSrvRecordsForPO(poNumber);
+        const relatedCommits = row._filteredCommits || getSrvRecordsForPO(poNumber);
 
         let srvRowsHtml = '';
         if (relatedCommits.length > 0) {
@@ -867,10 +905,7 @@ function generateDetailedPrintout() {
             relatedCommits.forEach((commit, i) => {
                 const invEntry = `Inv-${String(i + 1).padStart(2, '0')}`;
                 const packingSlip = commit['Packing Slip'] || '-';
-                
-                // FORMATTED DATE
                 const srvDate = formatToDDMMMYYYY(commit['Date'] || '-');
-                
                 const srvVal = commit._rawCost;
                 
                 poSrvAmt += srvVal; totalSrvAmount += srvVal;
@@ -886,7 +921,7 @@ function generateDetailedPrintout() {
             });
             srvRowsHtml += `</tbody></table>`;
         } else {
-            srvRowsHtml = `<div class="print-no-srv">No delivery or payment records found for this PO.</div>`;
+            srvRowsHtml = `<div class="print-no-srv">No delivery or payment records found for this PO in the selected period.</div>`;
         }
 
         const poRetention = retentionByPO[poNumber] || 0;
@@ -948,7 +983,7 @@ function generateProjectPrintout() {
         let siteName = siteNameMap[cleanSiteId] || 'N/A';
 
         let poSrvAmt = 0;
-        const relatedCommits = getSrvRecordsForPO(poNumber);
+        const relatedCommits = row._filteredCommits || getSrvRecordsForPO(poNumber);
         relatedCommits.forEach(commit => { poSrvAmt += commit._rawCost; });
         const poRetention = retentionByPO[poNumber] || 0;
 
@@ -1061,10 +1096,7 @@ function generateRetentionPrintout() {
         
         fbRecords.forEach(rec => {
             const payNo = rec.paymentNo || '-';
-            
-            // FORMATTED DATE
             const dPaid = formatToDDMMMYYYY(rec.datePaid || '-');
-            
             const chq = rec.chequeNo || '-';
             const certAmt = parseFloat(rec.certifiedAmount || 0);
             const payAmt = parseFloat(rec.payment || 0);
@@ -1149,4 +1181,3 @@ function generateRetentionPrintout() {
     document.getElementById("printArea").innerHTML = printHtml;
     window.print();
 }
-
