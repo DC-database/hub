@@ -607,6 +607,23 @@ window.addEventListener('load', () => {
     }
 });
 
+// --- ADD THIS AT THE BOTTOM ---
+// Listener for Cross-Tab Automation from Invoice Management
+window.addEventListener('message', (event) => {
+    // Security check: only allow messages from your own domain
+    if (event.origin !== 'https://ibaport.site') return; 
+    
+    if (event.data && event.data.action === 'triggerDeleteBtn') {
+        const btn = document.getElementById('deleteselectedbtn');
+        if (btn) {
+            console.log("Remote trigger: Clicking Delete Button");
+            btn.click();
+        } else {
+            console.warn("Remote trigger failed: Button 'deleteselectedbtn' not found.");
+        }
+    }
+});
+
 // Ensure the function is available globally
 window.filterBySpecificDate = filterBySpecificDate;
 
