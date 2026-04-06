@@ -102,10 +102,17 @@ searchInput.addEventListener('input', (e) => {
 
     if (query.length < 2) return; 
 
+    // BULLETPROOF FIX: We wrap everything in String() so numbers never crash the search
     const matches = allSearchableItems.filter(item => {
-        const partCode = (item["Part Code"] || item["Part code"] || "").toLowerCase();
-        const desc = (item["Description"] || item["description"] || "").toLowerCase();
-        return partCode.includes(query) || desc.includes(query);
+        const partCode = String(item["Part Code"] || item["Part code"] || "").toLowerCase();
+        const desc = String(item["Description"] || item["description"] || "").toLowerCase();
+        const groupName = String(item["Group Name"] || item["Group name"] || "").toLowerCase();
+        const actName = String(item["Activity Name"] || item["Activity name"] || item["Activity"] || "").toLowerCase();
+
+        return partCode.includes(query) || 
+               desc.includes(query) || 
+               groupName.includes(query) || 
+               actName.includes(query);
     }).slice(0, 15); 
 
     if (matches.length === 0) {
@@ -117,14 +124,26 @@ searchInput.addEventListener('input', (e) => {
         const partNo = item["Part Code"] || item["Part code"] || "N/A";
         const desc = item["Description"] || "N/A";
         const uom = item["UOM"] || "EA";
-        // Grab the Group Name from the CSV
         const groupName = item["Group Name"] || item["Group name"] || "N/A"; 
+        const actName = item["Activity Name"] || item["Activity name"] || item["Activity"] || "N/A";
+
+        // BULLETPROOF FIX 2: Protect against descriptions with inches or quotes (like 8")
+        const safeDesc = String(desc).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const safeGroup = String(groupName).replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
         const div = document.createElement('div');
         div.className = 'result-item';
+        
         div.innerHTML = `
-            <div class="result-info"><strong>${partNo}</strong> - ${desc} <em>(${uom})</em></div>
-            <button class="add-btn" onclick="addToCart('${partNo}', '${desc.replace(/'/g, "\\'")}', '${uom}', '${groupName.replace(/'/g, "\\'")}')"><i class="fa-solid fa-plus"></i> Add</button>
+            <div class="result-info">
+                <strong>${partNo}</strong> - ${desc} <em>(${uom})</em>
+                <br>
+                <span style="font-size: 12px; color: #64748b; margin-top: 4px; display: inline-block;">
+                    <i class="fa-solid fa-folder-tree"></i> ${groupName} &nbsp;|&nbsp; 
+                    <i class="fa-solid fa-clipboard-check"></i> ${actName}
+                </span>
+            </div>
+            <button class="add-btn" onclick="addToCart('${partNo}', '${safeDesc}', '${uom}', '${safeGroup}')"><i class="fa-solid fa-plus"></i> Add</button>
         `;
         searchResults.appendChild(div);
     });
