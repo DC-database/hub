@@ -1,0 +1,175 @@
+Group Code,Group Name,Class Code,Class Name,Activity,Activity Code
+11201,Paint Material,39,Paint Material,Finishing,5
+11301,External Works Sundries,42,External Works Sundries,Finishing,5
+11302,Hardscape,43,Hardscape,Finishing,5
+11303,Signage,44,Signage,Finishing,5
+11501,Finishing Sundries,48,Finishing Sundries,Finishing,5
+11503,Moziac,50,Moziac,Finishing,5
+11504,Granite & Marble,51,Granite & Marble,Finishing,5
+11506,Epoxy,53,Epoxy,Finishing,5
+11602,Tools & Parts,57,Tools & Parts,Finishing,5
+11701,Fire Fighting Materials,143,MEP Material,Finishing,5
+11703,Diesel & Petrol Tanks,152,Diesel & Petrol Tanks,Finishing,5
+20310,Miscellaneous,76,Miscellaneous,Preliminaries,1
+205,HSE,90,HSE,Preliminaries,1
+20602,Office Consumables,93,Office Consumables,Preliminaries,1
+20603,Refreshments,94,Refreshments,Preliminaries,1
+317,Gypsum,118,Gypsum,Finishing,5
+318,Joinery,119,Joinery,Finishing,5
+320,Metal Works,121,Metal Works,Finishing,5
+321,Façade,122,Façade,Finishing,5
+322,Furniture / Equipments,123,Furniture / Equipments,Finishing,5
+323,Appliances,124,Appliances,Finishing,5
+324,Blinds,125,Blinds,Finishing,5
+326,Mirrors & Glazing,127,Mirrors & Glazing,Finishing,5
+327,Screed Finishing,327,Screed Finishing,Finishing,5
+333,Painting Works,333,Painting Works,Finishing,5
+334,Flooring,145,Flooring,Finishing,5
+335,Electrical Works,146,Electrical Works,Finishing,5
+336,Signages,149,Signages,Finishing,5
+337,Fuel Tank Works,150,Fuel Tank Works,Finishing,5
+404,Plaster Work,131,Plaster Work,Structure,3
+405,Painting Work,132,Painting Work,Structure,3
+406,Tiling Work,133,Tiling Work,Structure,3
+408,Cluster Block Work,135,Cluster Block Work,Structure,3
+409,Interlock Work,136,Interlock Work,Structure,3
+410,Kerbstone Work,137,Kerbstone Work,Structure,3
+411,Cladding Work,138,Cladding Work,Structure,3
+413,Gypsum Work,140,Gypsum Work,Structure,3
+10901,LPG Sundries,20,LPG Sundries,MEP,4
+11001,Electrical Sundries,22,Electrical Sundries,MEP,4
+11002,Switchgear,23,Switchgear,MEP,4
+11003,Transformer,24,Transformer,MEP,4
+11004,Cables & Wires,25,Cables & Wires,MEP,4
+11005,Light Fittings,26,Light Fittings,MEP,4
+11008,Generators,29,Generators,MEP,4
+11102,Sanitary Ware,32,Sanitary Ware,MEP,4
+11103,Heaters,33,Heaters,MEP,4
+11104,Pumps,34,Pumps,MEP,4
+11105,Meters,35,Meters,MEP,4
+11106,Tanks,36,Tanks,MEP,4
+11107,Pipes,37,Pipes,MEP,4
+11502,Ceramic & Porcelain,49,Ceramic & Porcelain,Finishing,5
+11507,Carpet,54,Carpet,Finishing,5
+11702,Air Condition Material,148,Air Condition Material,Finishing,5
+20307,Parts,73,Parts,Preliminaries,1
+20601,Office Expenses,92,Office Expenses,Preliminaries,1
+20604,Other Expenses,95,Other Expenses,Preliminaries,1
+306,MEP,107,MEP,MEP,4
+307,HVAC,108,HVAC,MEP,4
+308,Fire Fighting,109,Fire Fighting,MEP,4
+309,Fire Alarm,110,Fire Alarm,MEP,4
+310,ELV,111,ELV,MEP,4
+311,LPG,112,LPG,MEP,4
+312,Plumbing,113,Plumbing,MEP,4
+313,Drainage,114,Drainage,MEP,4
+315,Elevators,116,Elevator EscalatorConveyorBelt,MEP,4
+316,Softscape (Landscape),117,Softscape (Landscape),MEP,4
+319,Swimming Pool,120,Swimming Pool,MEP,4
+101,Waterproofing,1,Waterproofing,Structure,3
+10101,Waterproofing Sundries,2,Waterproofing Sundries,Structure,3
+10201,Rebar,4,Rebar,Structure,3
+10202,Reinforcement Sundries,5,Reinforcement Sundries,Structure,3
+10301,Concrete,7,Concrete,Structure,3
+10302,Precast Concrete,8,Precast Concrete,Structure,3
+10303,Shuttering Carpentry Sundries,9,Shuttering Carpentry Sundries,Structure,3
+10304,Formwork,10,Formwork,Structure,3
+10401,Block,12,Block,Structure,3
+10402,Block Work Sundries,13,Block Work Sundries,Structure,3
+10501,Plaster Work Sundries,15,Plaster Work Sundries,Structure,3
+107,Cement,17,Cement,Structure,3
+108,Sand,18,Sand,Structure,3
+11101,Plumbing & Drainage Sundries,31,Plumbing & Drainage Sundries,MEP,4
+11202,Painting Sundries,40,Painting Sundries,Finishing,5
+11304,Manholes/Gratings,144,Manholes/Gratings,Finishing,5
+11401,Metal Works Sundries,46,Metal Works Sundries,Finishing,5
+11601,Site Consumables,56,Site Consumables,Finishing,5
+304,Waterproofing.,105,Waterproofing.,Earthworks,2
+305,PEB,106,PEB,Structure,3
+325,Internal Work,126,Internal Work,Finishing,5
+329,Coring Works,329,Coring Works Subcon,Finishing,5
+330,Anti termite control,330,Anti termite control,Finishing,5
+331,Precast,331,Precast,Finishing,5
+332,External Manpower,332,External Manpower,Finishing,5
+338,Structural Works,151,Structural Works,Structure,3
+401,Shuttering Carpentry,128,Shuttering Carpentry,Structure,3
+402,Reinforcement,129,Reinforcement,Structure,3
+403,Block Work,130,Block Work,Structure,3
+412,Steel Fabrication Work,139,Steel Fabrication Work,Structure,3
+414,Waterproofing work,141,Waterproofing work,Structure,3
+415,SCREED WORK,147,SCREED WORK,Structure,3
+314,Roadworks,115,Roadworks,Earthworks,2
+116,Miscellaneous.,55,Miscellaneous Items,Finishing,5
+201,Fees,58,Fees,Preliminaries,1
+20101,Bank Charges,59,Bank Charges,Preliminaries,1
+20102,Insurance Fees,60,Insurance Fees,Preliminaries,1
+20103,Legal Fees,61,Legal Fees,Preliminaries,1
+20104,Consulting Fees,62,Consulting Fees,Preliminaries,1
+20105,Incentives,76,Miscellaneous,Preliminaries,1
+202,Miscellaneous..,63,Site Miscellaneous items,Preliminaries,1
+20201,Geotechnical Report,64,Geotechnical Report,Preliminaries,1
+20202,Water Supply,65,Water Supply,Preliminaries,1
+20203,Garbage removal,142,Garbage Removal,Preliminaries,1
+20301,Charge,67,Charge,Preliminaries,1
+20302,Consumables,68,Consumables,Preliminaries,1
+20303,Diesel & Petrol,69,Diesel & Petrol,Preliminaries,1
+20305,Inspection,71,Inspection,Preliminaries,1
+20306,Insurance,72,Insurance,Preliminaries,1
+20308,Tyres,74,Tyres,Preliminaries,1
+20309,Vehicle & Equipment,75,Vehicle & Equipment,Preliminaries,1
+20401,Engineer,78,Engineer,Preliminaries,1
+20402,Foremen,79,Foremen,Preliminaries,1
+20404,Driver,81,Driver,Preliminaries,1
+20406,Unskilled Labour,83,Unskilled Labour,Preliminaries,1
+20407,Skilled Labour,84,Skilled Labour,Preliminaries,1
+20408,Nurse,85,Nurse,Preliminaries,1
+20409,Office Assistant,86,Office Assistant,Preliminaries,1
+20412,Watchman,89,Watchman,Preliminaries,1
+20413,Administration,86,Office Assistant,Preliminaries,1
+20417,Plant HO,66,Plant,Preliminaries,1
+20422,Electrician,27,Electrical Manpower,Preliminaries,1
+20701,Immigration Fees,97,Immigration Fees,Preliminaries,1
+20702,Administrative Fees,98,Administrative Fees,Preliminaries,1
+20703,Medical Fees,99,Medical Fees,Preliminaries,1
+20704,Site Related Fees,100,Site Related Fees,Preliminaries,1
+20705,Vehicle Related Fees,101,Vehicle Related Fees,Preliminaries,1
+301,Excavation,102,Excavation,Earthworks,2
+302,Backfilling,103,Backfilling,Earthworks,2
+303,Dewatering,104,Dewatering,Earthworks,2
+328,Shuttering Carpentry Subcon,328,Shuttering Carpentry Subcon,Finishing,5
+102,Reinforcement.,3,Reinforcement.,Structure,3
+103,Shuttering Carpentry.,6,Shuttering Carpentry.,Structure,3
+104,Block Work.,11,Block Work.,Structure,3
+105,Plaster Work.,14,Plaster Work.,Finishing,5
+106,Infrastructure,16,Infrastructure,Earthworks,2
+109,LPG.,19,LPG.,MEP,4
+110,Electrical,21,Electrical,MEP,4
+11006,Electrical Manpower,27,Electrical Manpower,MEP,4
+11007,Electrical Meters,28,Electrical Meters,MEP,4
+111,Plumbing & Drainage,30,Plumbing & Drainage,MEP,4
+112,Painting,38,Painting,Finishing,5
+113,External Works,41,External Works,Earthworks,2
+114,Metal Works.,45,Metal Works.,Structure,3
+11402,Ironmongry,208,Ironmongry,Finishing,5
+115,Finishing,47,Finishing,Finishing,5
+11505,Rubber,52,Rubber,Finishing,5
+117,MEP Materials,,,MEP,4
+20204,Sewage Removal,,,Preliminaries,1
+203,Plant,66,Plant,Preliminaries,1
+20304,Erection,70,Erection,Preliminaries,1
+204,Manpower,77,Manpower,Preliminaries,1
+20403,Draftsmen,80,Draftsmen,Preliminaries,1
+20405,Health & Safety,82,Health & Safety,Preliminaries,1
+20410,Purchaser,87,Purchaser,Preliminaries,1
+20411,Surveyor,88,Surveyor,Preliminaries,1
+20414,HR,,,Preliminaries,1
+20415,Finance,,,Preliminaries,1
+20416,Procurement,,,Preliminaries,1
+20418,Driver HO,,,Preliminaries,1
+20419,Electrical Engineer,,,Preliminaries,1
+20420,Electrical Foreman,,,Preliminaries,1
+20421,Store Keeper,,,Preliminaries,1
+206,Overheads,91,Overheads,Preliminaries,1
+207,Government Fees,96,Government Fees,Preliminaries,1
+407,Fire Stoppage Work,134,Fire Stoppage Work,MEP,4
+500,Maintenance,,,Preliminaries,1
