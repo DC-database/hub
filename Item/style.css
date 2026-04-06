@@ -1,0 +1,144 @@
+:root {
+    --primary: #0284c7;
+    --primary-hover: #0369a1;
+    --success: #10b981;
+    --success-hover: #059669;
+    --danger: #ef4444;
+    --bg-color: #f1f5f9;
+    --card-bg: #ffffff;
+    --border: #e2e8f0;
+    --text-main: #0f172a;
+    --text-light: #64748b;
+}
+
+* { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
+body { background-color: var(--bg-color); color: var(--text-main); padding: 30px; }
+
+/* Dashboard Container */
+.app-container { max-width: 1100px; margin: 0 auto; background: var(--card-bg); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); padding: 30px; }
+.header { border-bottom: 2px solid var(--border); padding-bottom: 15px; margin-bottom: 25px; }
+.header h2 { color: var(--primary); font-size: 24px; margin-bottom: 5px; }
+.header p { color: var(--text-light); font-size: 14px; }
+
+/* Search Area */
+.search-section { display: flex; gap: 15px; margin-bottom: 5px; align-items: stretch; }
+.search-bar { position: relative; flex: 1; }
+.search-bar .search-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
+.search-bar input { width: 100%; height: 100%; padding: 14px 14px 14px 45px; border: 2px solid var(--border); border-radius: 8px; font-size: 16px; outline: none; transition: border 0.2s; }
+.search-bar input:focus { border-color: var(--primary); }
+
+.create-new-btn { background-color: var(--success); color: white; border: none; padding: 0 20px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 8px; font-size: 15px;}
+.create-new-btn:hover { background-color: var(--success-hover); }
+
+/* Results Dropdown */
+.results-container { background: white; border-radius: 8px; max-height: 250px; overflow-y: auto; margin-bottom: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid var(--border); }
+.results-container:empty { display: none; }
+.result-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid var(--border); }
+.result-item:last-child { border-bottom: none; }
+.result-info { font-size: 14px; }
+.result-info strong { color: var(--primary); font-size: 15px;}
+.add-btn { background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px;}
+.add-btn:hover { background: var(--primary-hover); }
+.no-results { padding: 20px; text-align: center; color: var(--text-light); font-weight: bold; font-style: italic;}
+
+/* Cart Area */
+.cart-section h3 { color: #334155; margin-bottom: 15px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 14px; }
+th { background-color: #f8fafc; color: var(--text-light); font-weight: bold; }
+.calc-input { width: 80px; padding: 8px; border: 1px solid var(--border); border-radius: 4px; outline: none; }
+.calc-input:focus { border-color: var(--primary); }
+.row-total { font-weight: bold; color: var(--primary); }
+.remove-btn { background: var(--danger); color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; }
+.empty-row td { text-align: center; color: #94a3b8; font-style: italic; padding: 40px; }
+
+.cart-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding-top: 20px; border-top: 2px solid var(--border); }
+.grand-total { font-size: 20px; font-weight: bold; color: var(--text-main); }
+.grand-total span { color: var(--primary); }
+.print-btn { background: var(--text-main); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 16px;}
+.print-btn:hover:not(:disabled) { background: #1e293b; }
+.print-btn:disabled { background: #cbd5e1; cursor: not-allowed; }
+
+/* ========================================== */
+/* MODAL (POP-UP) STYLES                      */
+/* ========================================== */
+.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+.modal-overlay.active { opacity: 1; pointer-events: auto; }
+
+.modal-content { background: white; width: 100%; max-width: 800px; border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); transform: translateY(-20px); transition: transform 0.3s; overflow: hidden; display: flex; flex-direction: column; max-height: 90vh;}
+.modal-overlay.active .modal-content { transform: translateY(0); }
+
+.modal-header { background: var(--primary); padding: 20px; display: flex; justify-content: space-between; align-items: center; color: white; }
+.modal-header h2 { font-size: 18px; font-weight: 600; }
+.close-btn { background: transparent; border: none; color: white; font-size: 24px; cursor: pointer; transition: transform 0.2s; }
+.close-btn:hover { transform: scale(1.1); color: #f1f5f9; }
+
+.modal-body { padding: 25px; overflow-y: auto; }
+
+/* Generator Form Grid inside Modal */
+.section { background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+.section h3 { font-size: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 15px; color: var(--primary); }
+.form-group { display: flex; flex-direction: column; margin-bottom: 15px; }
+.form-group label { font-size: 12px; font-weight: bold; margin-bottom: 5px; color: var(--text-light); text-transform: uppercase; }
+.form-group input, .form-group select { padding: 10px; border: 1px solid var(--border); border-radius: 6px; outline: none; }
+.form-group input:focus, .form-group select:focus { border-color: var(--primary); }
+.form-group input[readonly] { background-color: #e2e8f0; color: var(--text-light); }
+
+.read-only-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+.input-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 15px; }
+
+.preview-section { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.preview-text h3 { color: #166534; margin-bottom: 5px; }
+.preview-text p { font-size: 12px; color: #15803d; }
+.preview-code { text-align: right; }
+#previewPartCode { font-size: 24px; font-weight: bold; font-family: monospace; color: #14532d; letter-spacing: 2px; }
+.series-text { font-size: 14px; color: #16a34a; }
+
+.submit-section { display: flex; justify-content: flex-end; }
+.save-btn { background-color: var(--success); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: background 0.2s; font-size: 16px;}
+.save-btn:hover:not(:disabled) { background-color: var(--success-hover); }
+.save-btn:disabled { background-color: #cbd5e1; cursor: not-allowed; }
+
+/* ========================================== */
+/* PRINT STYLES                               */
+/* ========================================== */
+.print-only { display: none; }
+
+@media print {
+    body { background: white; padding: 0; }
+    .no-print { display: none !important; }
+    .print-only { display: block; width: 100%; }
+    
+    .print-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #0f172a; padding-bottom: 10px;}
+    .print-header h2 { margin: 0 0 5px 0; font-size: 24px; color: #0f172a; text-transform: uppercase;}
+    .print-header p { margin: 0; color: #64748b; font-size: 12px; }
+    
+    .print-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    .print-table th, .print-table td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; font-size: 12px; }
+    .print-table th { background-color: #f1f5f9 !important; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact;}
+    
+    .print-grand-total { text-align: right; font-size: 18px; font-weight: bold; margin-top: 20px; }
+}
+
+/* New Cart Styles for Groups and Comments */
+.cart-group-name {
+    font-size: 12px;
+    color: #64748b;
+    display: inline-block;
+    margin-top: 4px;
+}
+
+.cart-comment-input {
+    width: 100% !important; /* Forces it to fill the description cell */
+    margin-top: 8px;
+    font-style: italic;
+    font-size: 12px;
+    color: #334155;
+    background-color: #f8fafc;
+    border: 1px dashed var(--border) !important;
+}
+
+.cart-comment-input:focus {
+    border-color: var(--primary) !important;
+    background-color: #ffffff;
+}

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procurement Hub</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+</head>
+<body>
+
+    <div class="app-container no-print">
+        <div class="header">
+            <h2><i class="fa-solid fa-cart-flatbed"></i> Material Requisition List</h2>
+            <p>Search for items to add to your list. If an item doesn't exist, create a new one.</p>
+        </div>
+
+        <div class="search-section">
+            <div class="search-bar">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" id="searchInput" placeholder="Search by Part No or Description..." autocomplete="off">
+            </div>
+            
+            <button id="openGeneratorBtn" class="create-new-btn">
+                <i class="fa-solid fa-plus"></i> Item Not Found? Create New
+            </button>
+        </div>
+
+        <div id="searchResults" class="results-container"></div>
+
+        <div class="cart-section">
+            <h3><i class="fa-solid fa-clipboard-list"></i> Selected Items</h3>
+            <div class="table-responsive">
+                <table id="cartTable">
+                    <thead>
+                        <tr>
+                            <th width="5%">SN</th>
+                            <th width="15%">Part No</th>
+                            <th width="35%">Description</th>
+                            <th width="10%">Qty</th>
+                            <th width="10%">Unit</th>
+                            <th width="10%">Price</th>
+                            <th width="10%">Total</th>
+                            <th width="5%" class="action-col">Remove</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cartBody">
+                        <tr class="empty-row"><td colspan="8">No items added to the list yet.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="cart-footer">
+                <div class="grand-total">Grand Total: <span id="grandTotalVal">0.00</span></div>
+                <button id="printBtn" class="print-btn" disabled><i class="fa-solid fa-print"></i> Print Request</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="generatorModal" class="modal-overlay no-print">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Generate New Item Record</h2>
+                <button id="closeModalBtn" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="modal-body">
+                <form id="itemForm">
+                    <div class="section">
+                        <h3>1. Item Classification</h3>
+                        <div class="form-group full-width">
+                            <label>Select Category / Activity</label>
+                            <select id="activitySelector" required>
+                                <option value="">-- Loading Categories... --</option>
+                            </select>
+                        </div>
+                        <div class="read-only-grid">
+                            <div class="form-group"><label>Group Code</label><input type="text" id="dispGroup" readonly></div>
+                            <div class="form-group"><label>Class Code</label><input type="text" id="dispClass" readonly></div>
+                            <div class="form-group"><label>Activity</label><input type="text" id="dispActivity" readonly></div>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <h3>2. Item Details</h3>
+                        <div class="input-grid">
+                            <div class="form-group span-2">
+                                <label>Item Description</label>
+                                <input type="text" id="description" placeholder="e.g., Drill Bit 8mm Masonry" required autocomplete="off">
+                            </div>
+                            <div class="form-group">
+                                <label>UOM</label>
+                                <select id="uom" required>
+                                    <option value="">-- Select --</option>
+                                    <option value="EA">EA</option><option value="KG">KG</option><option value="MTR">MTR</option>
+                                    <option value="BOX">BOX</option><option value="ROLL">ROLL</option><option value="PKT">PKT</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="preview-section">
+                        <div class="preview-text">
+                            <h3>Generated Part Code</h3>
+                            <p id="seriesStatusText">Checked against GitHub & Firebase</p>
+                        </div>
+                        <div class="preview-code">
+                            <div id="previewPartCode">XXXXX.XXXXXX</div>
+                            <div id="previewSeries" class="series-text">Series: ------</div>
+                        </div>
+                    </div>
+
+                    <div class="submit-section">
+                        <button type="submit" id="saveBtn" class="save-btn" disabled>Select Group First</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="printArea" class="print-only">
+        <div class="print-header">
+            <h2>Material Requisition Request</h2>
+            <p id="printDate"></p>
+        </div>
+        <table class="print-table" id="printTable"></table>
+        <div class="print-grand-total">Grand Total: <span id="printGrandTotalVal">0.00</span></div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
