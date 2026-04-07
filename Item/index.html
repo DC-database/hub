@@ -19,13 +19,43 @@
             <p>Search for items to add to your list. If an item doesn't exist, create a new one.</p>
         </div>
 
+        <div class="requisition-details">
+            <div class="req-input-group">
+                <label><i class="fa-solid fa-truck-fast"></i> Vendor (Search Name/ID)</label>
+                <div class="autocomplete-wrapper">
+                    <input type="text" id="vendorSearch" placeholder="Type vendor name or ID..." autocomplete="off">
+                    <div id="vendorSuggestions" class="suggestions-box"></div>
+                </div>
+                <div id="selectedVendorDisplay" class="selected-display">No Vendor Selected</div>
+            </div>
+
+            <div class="req-input-group">
+                <label><i class="fa-solid fa-location-dot"></i> Ship To / Site (Search Name/Code)</label>
+                <div class="autocomplete-wrapper">
+                    <input type="text" id="siteSearch" placeholder="Type project name or warehouse..." autocomplete="off">
+                    <div id="siteSuggestions" class="suggestions-box"></div>
+                </div>
+                <div id="selectedSiteDisplay" class="selected-display">No Site Selected</div>
+            </div>
+
+            <div class="req-input-group">
+                <label><i class="fa-solid fa-user-pen"></i> Created By <span class="required-asterisk">*</span></label>
+                <input type="text" id="createdBy" placeholder="Enter your full name..." autocomplete="off" required>
+            </div>
+            
+            <div class="req-input-group">
+                <label><i class="fa-solid fa-phone"></i> Mobile Number <span class="required-asterisk">*</span></label>
+                <input type="text" id="mobileNumber" placeholder="Enter mobile number..." autocomplete="off" required>
+            </div>
+        </div>
+
         <div class="search-section">
             <div class="search-bar">
                 <i class="fa-solid fa-magnifying-glass search-icon"></i>
-                <input type="text" id="searchInput" placeholder="Search by Part No or Description..." autocomplete="off">
+                <input type="text" id="searchInput" placeholder="Search by Part No, Description, Group, or Activity..." autocomplete="off">
             </div>
             
-            <button id="openGeneratorBtn" class="create-new-btn">
+            <button type="button" id="openGeneratorBtn" class="create-new-btn">
                 <i class="fa-solid fa-plus"></i> Item Not Found? Create New
             </button>
         </div>
@@ -33,7 +63,10 @@
         <div id="searchResults" class="results-container"></div>
 
         <div class="cart-section">
-            <h3><i class="fa-solid fa-clipboard-list"></i> Selected Items</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0;"><i class="fa-solid fa-clipboard-list"></i> Selected Items</h3>
+                <button type="button" id="clearSessionBtn" class="clear-session-btn"><i class="fa-solid fa-eraser"></i> Clear Entire Cart</button>
+            </div>
             <div class="table-responsive">
                 <table id="cartTable">
                     <thead>
@@ -55,7 +88,11 @@
             </div>
             <div class="cart-footer">
                 <div class="grand-total">Grand Total: <span id="grandTotalVal">0.00</span></div>
-                <button id="printBtn" class="print-btn" disabled><i class="fa-solid fa-print"></i> Print Request</button>
+                
+                <div class="footer-actions">
+                    <button type="button" id="previewBtn" class="preview-btn" disabled><i class="fa-solid fa-eye"></i> Preview Draft</button>
+                    <button type="button" id="saveBtnAction" class="print-btn" disabled><i class="fa-solid fa-cloud-arrow-up"></i> Save Requisition</button>
+                </div>
             </div>
         </div>
     </div>
@@ -95,8 +132,12 @@
                                 <label>UOM</label>
                                 <select id="uom" required>
                                     <option value="">-- Select --</option>
-                                    <option value="EA">EA</option><option value="KG">KG</option><option value="MTR">MTR</option>
-                                    <option value="BOX">BOX</option><option value="ROLL">ROLL</option><option value="PKT">PKT</option>
+                                    <option value="Bag">Bag</option><option value="Box">Box</option><option value="Bun">Bun</option>
+                                    <option value="Day">Day</option><option value="Doz">Doz</option><option value="Dr">Dr</option>
+                                    <option value="Gal">Gal</option><option value="Hrs">Hrs</option><option value="Kg">Kg</option>
+                                    <option value="Litre">Litre</option><option value="Lm">Lm</option><option value="m2">m2</option>
+                                    <option value="m3">m3</option><option value="Mon">Mon</option><option value="Pcs">Pcs</option>
+                                    <option value="Annual">Annual</option>
                                 </select>
                             </div>
                         </div>
@@ -122,12 +163,50 @@
     </div>
 
     <div id="printArea" class="print-only">
-        <div class="print-header">
-            <h2>Material Requisition Request</h2>
-            <p id="printDate"></p>
+        
+        <div class="print-top-header">
+            <div class="print-logo-container">
+                <img src="https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/logo%20(1).png" alt="Company Logo">
+            </div>
+            <div class="print-title-container">
+                <h1 class="pr-title">Purchase Requisition</h1>
+                <table class="pr-meta-table">
+                    <tr>
+                        <td class="pr-label">Requisition Number</td>
+                        <td class="pr-value" id="printReqNumber"></td>
+                    </tr>
+                    <tr>
+                        <td class="pr-label">Requisition Date</td>
+                        <td class="pr-value" id="printReqDate"></td>
+                    </tr>
+                </table>
+            </div>
         </div>
+        
+        <div class="print-meta-grid">
+            <div class="print-box">
+                <div class="print-box-title">Vendor</div>
+                <div class="meta-row"><span>ID:</span> <strong id="printVendorId"></strong></div>
+                <div class="meta-row"><span>Name:</span> <strong id="printVendorName"></strong></div>
+            </div>
+            <div class="print-box">
+                <div class="print-box-title">Ship To</div>
+                <div class="meta-row"><span>Project no:</span> <strong id="printSiteId"></strong></div>
+                <div class="meta-row"><span>Project Name:</span> <strong id="printSiteName"></strong></div>
+            </div>
+        </div>
+        
         <table class="print-table" id="printTable"></table>
         <div class="print-grand-total">Grand Total: <span id="printGrandTotalVal">0.00</span></div>
+
+        <div class="print-footer">
+            <div class="footer-info" id="printFooterInfo"></div>
+
+            <div class="signature-box">
+                <div class="signature-line"></div>
+                <p>Authorized Signature / Company Seal</p>
+            </div>
+        </div>
     </div>
 
     <script src="app.js"></script>
