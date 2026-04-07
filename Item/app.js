@@ -281,10 +281,13 @@ function populatePrintLayout(reqNum, dateStr, createdBy, mobile) {
 
     let grandTotal = 0;
     let html = `<thead><tr><th>SN</th><th>Part No</th><th>Description</th><th>Qty</th><th>Unit</th><th>Price</th><th>Total</th></tr></thead><tbody>`;
+    
     cart.forEach((item, i) => {
         const total = item.qty * item.price; grandTotal += total;
-        const commentHTML = item.comment ? `<br><em style="font-size: 10px; color: #64748b; font-style: italic;">Note: ${item.comment}</em>` : '';
-        // Added the (Activity Name) here!
+        
+        // THE FIX: Removed the "Note: " text right here!
+        const commentHTML = item.comment ? `<br><em style="font-size: 10px; color: #64748b; font-style: italic;">${item.comment}</em>` : '';
+        
         html += `<tr><td>${i + 1}</td><td><strong>${item.partNo}</strong><br><em style="font-size: 10px; color: #64748b;">${item.groupName} (${item.actName || ''})</em></td><td>${item.description} ${commentHTML}</td><td>${item.qty}</td><td>${item.unit}</td><td>${item.price.toLocaleString('en-US', {minimumFractionDigits: 2})}</td><td>${total.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>`;
     });
     
