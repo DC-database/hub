@@ -103,8 +103,6 @@ async function initializeApp() {
                 
                 if(groupCode && groupName) { 
                     dynamicActivityData[groupCode] = { groupName: groupName, classCode: classCode, className: className, activityCode: activityCode, activityName: activityName }; 
-                    
-                    // THE FIX: We now strictly use the Activity Name as the Main Category 
                     const mainCat = activityName; 
                     
                     if (!activitiesMap[mainCat]) { 
@@ -113,8 +111,6 @@ async function initializeApp() {
                         option.value = mainCat; option.textContent = mainCat; 
                         mainFilter.appendChild(option); 
                     } 
-                    
-                    // Prevent duplicate groups from appearing in the second dropdown
                     if (!activitiesMap[mainCat].some(g => g.groupCode === groupCode)) {
                         activitiesMap[mainCat].push({ groupCode: groupCode, groupName: groupName }); 
                     }
@@ -154,7 +150,16 @@ siteSearch.addEventListener('input', (e) => {
     });
 });
 
-document.addEventListener('click', (e) => { if (!e.target.closest('.autocomplete-wrapper')) { vendorSuggestions.innerHTML = ''; siteSuggestions.innerHTML = ''; } });
+// Hide all autocomplete dropdowns if clicked outside
+document.addEventListener('click', (e) => { 
+    if (!e.target.closest('.autocomplete-wrapper')) { 
+        vendorSuggestions.innerHTML = ''; 
+        siteSuggestions.innerHTML = ''; 
+        if (document.getElementById('activitySuggestions')) {
+            document.getElementById('activitySuggestions').innerHTML = '';
+        }
+    } 
+});
 
 // ==========================================
 // 3. SHOPPING CART & SEARCH LOGIC
@@ -246,20 +251,28 @@ function renderCart() {
 window.removeFromCart = function(index) { cart.splice(index, 1); renderCart(); saveSession(); };
 
 // ==========================================
-// 4. MODAL (POP-UP) LOGIC
+// 4. MODAL (POP-UP) LOGIC & SMART SEARCH
 // ==========================================
-const modal = document.getElementById('generatorModal'); const openBtn = document.getElementById('openGeneratorBtn'); const closeBtn = document.getElementById('closeModalBtn');
+const modal = document.getElementById('generatorModal'); 
+const openBtn = document.getElementById('openGeneratorBtn'); 
+const closeBtn = document.getElementById('closeModalBtn');
 if (openBtn && modal) openBtn.addEventListener('click', (e) => { e.preventDefault(); modal.classList.add('active'); });
 if (closeBtn && modal) closeBtn.addEventListener('click', (e) => { e.preventDefault(); modal.classList.remove('active'); });
 
 const mainCategoryFilter = document.getElementById('mainCategoryFilter');
-const activitySelector = document.getElementById('activitySelector'); 
+const activitySearch = document.getElementById('activitySearch'); 
+const activitySuggestions = document.getElementById('activitySuggestions');
 const saveBtn = document.getElementById('saveBtn');
 
+let currentCategoryGroups = []; // Holds the filtered groups for the search box
+
+// STEP 1: Selecting a Main Category
 mainCategoryFilter.addEventListener('change', (e) => {
     const selectedCat = e.target.value;
-    activitySelector.innerHTML = '<option value="">-- Select Specific Group --</option>';
     
+    // Clear the second box
+    activitySearch.value = '';
+    activitySuggestions.innerHTML = '';
     document.getElementById('dispGroup').value = '';
     document.getElementById('dispClass').value = '';
     document.getElementById('dispActivity').value = '';
@@ -267,25 +280,69 @@ mainCategoryFilter.addEventListener('change', (e) => {
     currentGroupCode = null;
 
     if (!selectedCat) {
-        activitySelector.disabled = true;
+        activitySearch.disabled = true;
+        activitySearch.placeholder = "-- Select Main Category First --";
+        currentCategoryGroups = [];
         return;
     }
 
-    activitySelector.disabled = false;
-    activitiesMap[selectedCat].forEach(g => {
-        const opt = document.createElement('option');
-        opt.value = g.groupCode;
-        opt.textContent = `${g.groupName} (Group: ${g.groupCode})`;
-        activitySelector.appendChild(opt);
+    // Unlock the smart search box
+    activitySearch.disabled = false;
+    activitySearch.placeholder = "Click to see all, or type to search...";
+    currentCategoryGroups = activitiesMap[selectedCat] || [];
+});
+
+// STEP 2: The Smart Search Engine for Specific Groups
+function showActivitySuggestions(query = "") {
+    activitySuggestions.innerHTML = '';
+    if (currentCategoryGroups.length === 0) return;
+
+    const q = query.toLowerCase().trim();
+    
+    // Filter by name or group code
+    const matches = currentCategoryGroups.filter(g => {
+        return g.groupName.toLowerCase().includes(q) || g.groupCode.toLowerCase().includes(q);
     });
+
+    matches.forEach(g => {
+        const div = document.createElement('div');
+        div.className = 'suggestion-item';
+        div.innerHTML = `<strong>${g.groupCode}</strong> - ${g.groupName}`;
+        
+        // When they click a suggestion, it locks it in
+        div.onclick = async () => {
+            activitySearch.value = `${g.groupName} (Group: ${g.groupCode})`;
+            activitySuggestions.innerHTML = '';
+            
+            currentGroupCode = g.groupCode; 
+            const data = dynamicActivityData[currentGroupCode]; 
+            document.getElementById('dispGroup').value = `${currentGroupCode} - ${data.groupName}`; 
+            document.getElementById('dispClass').value = `${data.classCode} - ${data.className}`; 
+            document.getElementById('dispActivity').value = `${data.activityCode} - ${data.activityName}`;
+            
+            await calculateNextSeries(currentGroupCode);
+        };
+        activitySuggestions.appendChild(div);
+    });
+}
+
+// Show all options when they click the box
+activitySearch.addEventListener('focus', () => { showActivitySuggestions(''); });
+activitySearch.addEventListener('click', () => { showActivitySuggestions(''); });
+
+// Filter options instantly when they type
+activitySearch.addEventListener('input', (e) => {
+    showActivitySuggestions(e.target.value);
+    
+    // If they change the text, clear the active selection until they click a valid suggestion
+    currentGroupCode = null;
+    document.getElementById('dispGroup').value = '';
+    document.getElementById('dispClass').value = '';
+    document.getElementById('dispActivity').value = '';
+    saveBtn.disabled = true; saveBtn.textContent = "Select Group First";
 });
 
-activitySelector.addEventListener('change', async (e) => {
-    currentGroupCode = e.target.value; if (!currentGroupCode) { saveBtn.disabled = true; saveBtn.textContent = "Select Group First"; return; }
-    const data = dynamicActivityData[currentGroupCode]; document.getElementById('dispGroup').value = `${currentGroupCode} - ${data.groupName}`; document.getElementById('dispClass').value = `${data.classCode} - ${data.className}`; document.getElementById('dispActivity').value = `${data.activityCode} - ${data.activityName}`;
-    await calculateNextSeries(currentGroupCode);
-});
-
+// Series Calculator
 async function calculateNextSeries(groupCode) {
     saveBtn.disabled = true; saveBtn.textContent = "Calculating..."; let highestSeries = 100000; 
     try {
@@ -298,6 +355,7 @@ async function calculateNextSeries(groupCode) {
     } catch (err) { console.error(err); alert("Error calculating series."); }
 }
 
+// Save the New Item
 document.getElementById('itemForm').addEventListener('submit', async (e) => {
     e.preventDefault(); if(!currentGroupCode || !generatedSeries) return;
     const data = dynamicActivityData[currentGroupCode]; const itemDesc = document.getElementById('description').value; const itemUOM = document.getElementById('uom').value;
@@ -308,6 +366,11 @@ document.getElementById('itemForm').addEventListener('submit', async (e) => {
         addToCart(generatedPartCode, itemDesc, itemUOM, data.groupName, data.activityName);
         document.getElementById('itemForm').reset(); document.getElementById('previewPartCode').textContent = 'XXXXX.XXXXXX'; document.getElementById('previewSeries').textContent = 'Series: ------';
         saveBtn.disabled = true; saveBtn.textContent = "Select Group First"; modal.classList.remove('active'); 
+        
+        // Reset the smart search box
+        activitySearch.value = '';
+        activitySearch.disabled = true;
+        activitySearch.placeholder = "-- Select Main Category First --";
     } catch (error) { console.error("Error adding document: ", error); alert("Failed to save to Firebase."); saveBtn.disabled = false; saveBtn.textContent = "Save Item & Add to Cart"; }
 });
 

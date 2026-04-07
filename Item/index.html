@@ -116,11 +116,13 @@
                                     <option value="">-- Loading Categories... --</option>
                                 </select>
                             </div>
+                            
                             <div class="form-group">
                                 <label>2. Specific Group</label>
-                                <select id="activitySelector" required disabled>
-                                    <option value="">-- Select Main Category First --</option>
-                                </select>
+                                <div class="autocomplete-wrapper">
+                                    <input type="text" id="activitySearch" placeholder="-- Select Main Category First --" autocomplete="off" disabled required>
+                                    <div id="activitySuggestions" class="suggestions-box"></div>
+                                </div>
                             </div>
                         </div>
                         
