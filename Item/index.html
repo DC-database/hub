@@ -108,12 +108,22 @@
                 <form id="itemForm">
                     <div class="section">
                         <h3>1. Item Classification</h3>
-                        <div class="form-group full-width">
-                            <label>Select Category / Activity</label>
-                            <select id="activitySelector" required>
-                                <option value="">-- Loading Categories... --</option>
-                            </select>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                            <div class="form-group">
+                                <label>1. Main Category</label>
+                                <select id="mainCategoryFilter" required>
+                                    <option value="">-- Loading Categories... --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>2. Specific Group</label>
+                                <select id="activitySelector" required disabled>
+                                    <option value="">-- Select Main Category First --</option>
+                                </select>
+                            </div>
                         </div>
+                        
                         <div class="read-only-grid">
                             <div class="form-group"><label>Group Code</label><input type="text" id="dispGroup" readonly></div>
                             <div class="form-group"><label>Class Code</label><input type="text" id="dispClass" readonly></div>

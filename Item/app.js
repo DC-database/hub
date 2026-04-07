@@ -41,6 +41,7 @@ const SITE_CSV_URL = "https://raw.githubusercontent.com/DC-database/hub/main/Sit
 
 let allSearchableItems = []; let allVendors = []; let allSites = [];
 let cart = []; let legacyItems = []; let dynamicActivityData = {};
+let activitiesMap = {}; 
 let currentGroupCode = null; let generatedSeries = null; let generatedPartCode = null;
 let selectedVendor = { id: '', name: '' }; let selectedSite = { code: '', name: '' };
 
@@ -89,7 +90,39 @@ document.getElementById('clearSessionBtn').addEventListener('click', () => {
 async function initializeApp() {
     const cacheBuster = "?v=" + new Date().getTime();
     fetch(ITEMS_CSV_URL + cacheBuster).then(res => res.text()).then(csvText => { Papa.parse(csvText, { header: true, skipEmptyLines: true, complete: function(results) { allSearchableItems = results.data; legacyItems = results.data; }}); });
-    fetch(ACTIVITY_CSV_URL + cacheBuster).then(res => res.text()).then(csvText => { Papa.parse(csvText, { header: true, skipEmptyLines: true, complete: function(results) { const selector = document.getElementById('activitySelector'); selector.innerHTML = '<option value="">-- Select Classification --</option>'; results.data.forEach(row => { const groupCode = row["Group Code"]; const groupName = row["Group Name"]; if(groupCode && groupName) { dynamicActivityData[groupCode] = { groupName: groupName, classCode: row["Class Code"] || "N/A", className: row["Class Name"] || "N/A", activityCode: row["Activity Code"] || "N/A", activityName: row["Activity Name"] || row["Activity"] || "N/A" }; const option = document.createElement('option'); option.value = groupCode; option.textContent = `${groupName} (Group: ${groupCode})`; selector.appendChild(option); } }); }}); });
+    
+    fetch(ACTIVITY_CSV_URL + cacheBuster).then(res => res.text()).then(csvText => { 
+        Papa.parse(csvText, { header: true, skipEmptyLines: true, complete: function(results) { 
+            const mainFilter = document.getElementById('mainCategoryFilter'); 
+            mainFilter.innerHTML = '<option value="">-- Select Main Category --</option>'; 
+            
+            results.data.forEach(row => { 
+                const groupCode = row["Group Code"]; const groupName = row["Group Name"]; 
+                const classCode = row["Class Code"] || "N/A"; const className = row["Class Name"] || "N/A"; 
+                const activityCode = row["Activity Code"] || "N/A"; const activityName = row["Activity Name"] || row["Activity"] || "Uncategorized"; 
+                
+                if(groupCode && groupName) { 
+                    dynamicActivityData[groupCode] = { groupName: groupName, classCode: classCode, className: className, activityCode: activityCode, activityName: activityName }; 
+                    
+                    // THE FIX: We now strictly use the Activity Name as the Main Category 
+                    const mainCat = activityName; 
+                    
+                    if (!activitiesMap[mainCat]) { 
+                        activitiesMap[mainCat] = []; 
+                        const option = document.createElement('option'); 
+                        option.value = mainCat; option.textContent = mainCat; 
+                        mainFilter.appendChild(option); 
+                    } 
+                    
+                    // Prevent duplicate groups from appearing in the second dropdown
+                    if (!activitiesMap[mainCat].some(g => g.groupCode === groupCode)) {
+                        activitiesMap[mainCat].push({ groupCode: groupCode, groupName: groupName }); 
+                    }
+                } 
+            }); 
+        }}); 
+    });
+    
     fetch(VENDORS_CSV_URL + cacheBuster).then(res => res.text()).then(csvText => { Papa.parse(csvText, { header: true, skipEmptyLines: true, complete: function(results) { allVendors = results.data; }}); });
     fetch(SITE_CSV_URL + cacheBuster).then(res => res.text()).then(csvText => { Papa.parse(csvText, { header: true, skipEmptyLines: true, complete: function(results) { allSites = results.data; }}); });
     loadSession(); 
@@ -172,7 +205,6 @@ function renderCart() {
         if (!found) { unitOptions += `<option value="${item.unit || 'EA'}" selected>${item.unit || 'EA'}</option>`; }
 
         const tr = document.createElement('tr');
-        // Added the (Activity Name) here!
         tr.innerHTML = `
             <td>${index + 1}</td>
             <td><strong>${item.partNo}</strong><br><em class="cart-group-name">${item.groupName} (${item.actName || ''})</em></td>
@@ -220,7 +252,34 @@ const modal = document.getElementById('generatorModal'); const openBtn = documen
 if (openBtn && modal) openBtn.addEventListener('click', (e) => { e.preventDefault(); modal.classList.add('active'); });
 if (closeBtn && modal) closeBtn.addEventListener('click', (e) => { e.preventDefault(); modal.classList.remove('active'); });
 
-const activitySelector = document.getElementById('activitySelector'); const saveBtn = document.getElementById('saveBtn');
+const mainCategoryFilter = document.getElementById('mainCategoryFilter');
+const activitySelector = document.getElementById('activitySelector'); 
+const saveBtn = document.getElementById('saveBtn');
+
+mainCategoryFilter.addEventListener('change', (e) => {
+    const selectedCat = e.target.value;
+    activitySelector.innerHTML = '<option value="">-- Select Specific Group --</option>';
+    
+    document.getElementById('dispGroup').value = '';
+    document.getElementById('dispClass').value = '';
+    document.getElementById('dispActivity').value = '';
+    saveBtn.disabled = true; saveBtn.textContent = "Select Group First";
+    currentGroupCode = null;
+
+    if (!selectedCat) {
+        activitySelector.disabled = true;
+        return;
+    }
+
+    activitySelector.disabled = false;
+    activitiesMap[selectedCat].forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g.groupCode;
+        opt.textContent = `${g.groupName} (Group: ${g.groupCode})`;
+        activitySelector.appendChild(opt);
+    });
+});
+
 activitySelector.addEventListener('change', async (e) => {
     currentGroupCode = e.target.value; if (!currentGroupCode) { saveBtn.disabled = true; saveBtn.textContent = "Select Group First"; return; }
     const data = dynamicActivityData[currentGroupCode]; document.getElementById('dispGroup').value = `${currentGroupCode} - ${data.groupName}`; document.getElementById('dispClass').value = `${data.classCode} - ${data.className}`; document.getElementById('dispActivity').value = `${data.activityCode} - ${data.activityName}`;
@@ -246,7 +305,6 @@ document.getElementById('itemForm').addEventListener('submit', async (e) => {
     try {
         saveBtn.disabled = true; saveBtn.textContent = "Saving...";
         await db.collection("items").add(newItemRecord); allSearchableItems.push(newItemRecord);
-        // Added the activity name parameter here too
         addToCart(generatedPartCode, itemDesc, itemUOM, data.groupName, data.activityName);
         document.getElementById('itemForm').reset(); document.getElementById('previewPartCode').textContent = 'XXXXX.XXXXXX'; document.getElementById('previewSeries').textContent = 'Series: ------';
         saveBtn.disabled = true; saveBtn.textContent = "Select Group First"; modal.classList.remove('active'); 
@@ -264,7 +322,6 @@ function populatePrintLayout(reqNum, dateStr, createdBy, mobile) {
     document.getElementById('printSiteId').textContent = selectedSite.code || '_________________';
     document.getElementById('printSiteName').textContent = selectedSite.name || '_________________';
     
-    // FORMATTING THE SINGLE LINE "CREATED BY" STRING
     const d = new Date();
     const dd = String(d.getDate()).padStart(2, '0');
     const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -281,13 +338,9 @@ function populatePrintLayout(reqNum, dateStr, createdBy, mobile) {
 
     let grandTotal = 0;
     let html = `<thead><tr><th>SN</th><th>Part No</th><th>Description</th><th>Qty</th><th>Unit</th><th>Price</th><th>Total</th></tr></thead><tbody>`;
-    
     cart.forEach((item, i) => {
         const total = item.qty * item.price; grandTotal += total;
-        
-        // THE FIX: Removed the "Note: " text right here!
         const commentHTML = item.comment ? `<br><em style="font-size: 10px; color: #64748b; font-style: italic;">${item.comment}</em>` : '';
-        
         html += `<tr><td>${i + 1}</td><td><strong>${item.partNo}</strong><br><em style="font-size: 10px; color: #64748b;">${item.groupName} (${item.actName || ''})</em></td><td>${item.description} ${commentHTML}</td><td>${item.qty}</td><td>${item.unit}</td><td>${item.price.toLocaleString('en-US', {minimumFractionDigits: 2})}</td><td>${total.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>`;
     });
     
@@ -295,7 +348,6 @@ function populatePrintLayout(reqNum, dateStr, createdBy, mobile) {
     document.getElementById('printGrandTotalVal').textContent = grandTotal.toLocaleString('en-US', {minimumFractionDigits: 2});
 }
 
-// ACTION 1: PREVIEW ONLY
 document.getElementById('previewBtn').addEventListener('click', () => {
     const d = new Date();
     const formattedDate = `${String(d.getDate()).padStart(2, '0')} ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getMonth()]} ${d.getFullYear()}`;
@@ -306,7 +358,6 @@ document.getElementById('previewBtn').addEventListener('click', () => {
     window.print();
 });
 
-// ACTION 2: SAVE TO FIREBASE AND PRINT
 document.getElementById('saveBtnAction').addEventListener('click', async () => {
     const createdBy = document.getElementById('createdBy').value.trim();
     const mobile = document.getElementById('mobileNumber').value.trim();
