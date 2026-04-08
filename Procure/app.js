@@ -42,6 +42,8 @@ const SITE_CSV_URL = "https://raw.githubusercontent.com/DC-database/hub/main/Sit
 let allSearchableItems = []; let allVendors = []; let allSites = [];
 let cart = []; let legacyItems = []; let dynamicActivityData = {};
 let activitiesMap = {}; 
+let sessionNewlyCreatedItems = []; // NEW: Memory array for freshly made items
+
 let currentGroupCode = null; let generatedSeries = null; let generatedPartCode = null;
 let selectedVendor = { id: '', name: '' }; let selectedSite = { code: '', name: '' };
 
@@ -52,7 +54,8 @@ function saveSession() {
     const data = {
         cart: cart, vendor: selectedVendor, site: selectedSite,
         createdBy: document.getElementById('createdBy').value,
-        mobileNumber: document.getElementById('mobileNumber').value
+        mobileNumber: document.getElementById('mobileNumber').value,
+        newItems: sessionNewlyCreatedItems // Save newly created items memory
     };
     sessionStorage.setItem('pr_session_data', JSON.stringify(data));
 }
@@ -62,6 +65,7 @@ function loadSession() {
     if (stored) {
         const data = JSON.parse(stored);
         cart = data.cart || [];
+        sessionNewlyCreatedItems = data.newItems || [];
         selectedVendor = data.vendor || { id: '', name: '' };
         selectedSite = data.site || { code: '', name: '' };
         document.getElementById('createdBy').value = data.createdBy || '';
@@ -107,13 +111,9 @@ async function initializeApp() {
                     
                     if (!activitiesMap[mainCat]) { 
                         activitiesMap[mainCat] = []; 
-                        const option = document.createElement('option'); 
-                        option.value = mainCat; option.textContent = mainCat; 
-                        mainFilter.appendChild(option); 
+                        const option = document.createElement('option'); option.value = mainCat; option.textContent = mainCat; mainFilter.appendChild(option); 
                     } 
-                    if (!activitiesMap[mainCat].some(g => g.groupCode === groupCode)) {
-                        activitiesMap[mainCat].push({ groupCode: groupCode, groupName: groupName }); 
-                    }
+                    if (!activitiesMap[mainCat].some(g => g.groupCode === groupCode)) { activitiesMap[mainCat].push({ groupCode: groupCode, groupName: groupName }); }
                 } 
             }); 
         }}); 
@@ -150,16 +150,7 @@ siteSearch.addEventListener('input', (e) => {
     });
 });
 
-// Hide all autocomplete dropdowns if clicked outside
-document.addEventListener('click', (e) => { 
-    if (!e.target.closest('.autocomplete-wrapper')) { 
-        vendorSuggestions.innerHTML = ''; 
-        siteSuggestions.innerHTML = ''; 
-        if (document.getElementById('activitySuggestions')) {
-            document.getElementById('activitySuggestions').innerHTML = '';
-        }
-    } 
-});
+document.addEventListener('click', (e) => { if (!e.target.closest('.autocomplete-wrapper')) { vendorSuggestions.innerHTML = ''; siteSuggestions.innerHTML = ''; } });
 
 // ==========================================
 // 3. SHOPPING CART & SEARCH LOGIC
@@ -173,12 +164,7 @@ searchInput.addEventListener('input', (e) => {
         const partNo = item["Part Code"] || item["Part code"] || "N/A"; const desc = item["Description"] || "N/A"; const uom = item["UOM"] || "EA"; const groupName = item["Group Name"] || item["Group name"] || "N/A"; const actName = item["Activity Name"] || item["Activity name"] || item["Activity"] || "N/A";
         const safeDesc = String(desc).replace(/'/g, "\\'").replace(/"/g, '&quot;'); const safeGroup = String(groupName).replace(/'/g, "\\'").replace(/"/g, '&quot;'); const safeAct = String(actName).replace(/'/g, "\\'").replace(/"/g, '&quot;');
         const div = document.createElement('div'); div.className = 'result-item';
-        div.innerHTML = `
-            <div class="result-info"><strong>${partNo}</strong> - ${desc} <em>(${uom})</em><br>
-            <span style="font-size: 12px; color: #64748b; margin-top: 4px; display: inline-block;">
-            <i class="fa-solid fa-folder-tree"></i> ${groupName} &nbsp;|&nbsp; <i class="fa-solid fa-clipboard-check"></i> ${actName}</span></div>
-            <button class="add-btn" onclick="addToCart('${partNo}', '${safeDesc}', '${uom}', '${safeGroup}', '${safeAct}')"><i class="fa-solid fa-plus"></i> Add</button>
-        `;
+        div.innerHTML = `<div class="result-info"><strong>${partNo}</strong> - ${desc} <em>(${uom})</em><br><span style="font-size: 12px; color: #64748b; margin-top: 4px; display: inline-block;"><i class="fa-solid fa-folder-tree"></i> ${groupName} &nbsp;|&nbsp; <i class="fa-solid fa-clipboard-check"></i> ${actName}</span></div><button class="add-btn" onclick="addToCart('${partNo}', '${safeDesc}', '${uom}', '${safeGroup}', '${safeAct}')"><i class="fa-solid fa-plus"></i> Add</button>`;
         searchResults.appendChild(div);
     });
 });
@@ -196,8 +182,7 @@ function renderCart() {
 
     if (cart.length === 0) {
         cartBody.innerHTML = '<tr class="empty-row"><td colspan="8">No items added to the list yet.</td></tr>';
-        previewBtn.disabled = true; saveBtnAction.disabled = true;
-        document.getElementById('grandTotalVal').textContent = "0.00"; return;
+        previewBtn.disabled = true; saveBtnAction.disabled = true; document.getElementById('grandTotalVal').textContent = "0.00"; return;
     }
 
     previewBtn.disabled = false; saveBtnAction.disabled = false;
@@ -228,14 +213,9 @@ function renderCart() {
     document.querySelectorAll('.qty-input, .price-input').forEach(input => {
         input.addEventListener('input', (e) => {
             const idx = e.target.dataset.index; const field = e.target.dataset.field;
-            cart[idx][field] = parseFloat(e.target.value) || 0;
-            saveSession();
-
-            const rowNode = e.target.closest('tr');
-            const totalNode = rowNode.querySelector('.row-total');
-            const newTotal = cart[idx].qty * cart[idx].price;
+            cart[idx][field] = parseFloat(e.target.value) || 0; saveSession();
+            const rowNode = e.target.closest('tr'); const totalNode = rowNode.querySelector('.row-total'); const newTotal = cart[idx].qty * cart[idx].price;
             totalNode.textContent = newTotal.toLocaleString('en-US', {minimumFractionDigits: 2});
-
             let newGrand = 0; cart.forEach(i => newGrand += (i.qty * i.price));
             document.getElementById('grandTotalVal').textContent = newGrand.toLocaleString('en-US', {minimumFractionDigits: 2});
         });
@@ -251,7 +231,65 @@ function renderCart() {
 window.removeFromCart = function(index) { cart.splice(index, 1); renderCart(); saveSession(); };
 
 // ==========================================
-// 4. MODAL (POP-UP) LOGIC & SMART SEARCH
+// 4. NEW ITEMS MODAL (SESSION VIEW)
+// ==========================================
+const newItemsModal = document.getElementById('newItemsModal');
+const viewNewItemsBtn = document.getElementById('viewNewItemsBtn');
+const closeNewItemsModalBtn = document.getElementById('closeNewItemsModalBtn');
+
+if(viewNewItemsBtn && newItemsModal) {
+    viewNewItemsBtn.addEventListener('click', () => {
+        const tbody = document.getElementById('newItemsTableBody');
+        tbody.innerHTML = '';
+        if(sessionNewlyCreatedItems.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 30px; color: #64748b; font-style: italic;">No new items were generated during this session.</td></tr>';
+            document.getElementById('printNewItemsBtn').disabled = true;
+        } else {
+            sessionNewlyCreatedItems.forEach(item => {
+                tbody.innerHTML += `<tr>
+                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;"><strong>${item["Part Code"]}</strong></td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${item["Description"]}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${item["UOM"]}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color:#64748b;">${item["Group Name"]}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color:#64748b;">${item["Activity Name"]}</td>
+                </tr>`;
+            });
+            document.getElementById('printNewItemsBtn').disabled = false;
+        }
+        newItemsModal.classList.add('active');
+    });
+}
+
+if(closeNewItemsModalBtn) {
+    closeNewItemsModalBtn.addEventListener('click', () => newItemsModal.classList.remove('active'));
+}
+
+// Print logic for New Items specifically
+document.getElementById('printNewItemsBtn').addEventListener('click', () => {
+    const d = new Date();
+    document.getElementById('printNewItemsDate').textContent = d.toLocaleString();
+    
+    const tbody = document.getElementById('printNewItemsTableBody');
+    tbody.innerHTML = '';
+    sessionNewlyCreatedItems.forEach(item => {
+        tbody.innerHTML += `<tr>
+            <td style="border: 1px solid #000; padding: 8px; font-weight: bold;">${item["Part Code"]}</td>
+            <td style="border: 1px solid #000; padding: 8px;">${item["Description"]}</td>
+            <td style="border: 1px solid #000; padding: 8px;">${item["UOM"]}</td>
+            <td style="border: 1px solid #000; padding: 8px; font-size: 11px;">${item["Group Name"]}</td>
+            <td style="border: 1px solid #000; padding: 8px; font-size: 11px;">${item["Activity Name"]}</td>
+        </tr>`;
+    });
+    
+    document.body.classList.add('printing-new-items'); // Tells CSS which layout to show
+    window.print();
+    
+    // Remove the class right after the print screen closes
+    setTimeout(() => { document.body.classList.remove('printing-new-items'); }, 1000);
+});
+
+// ==========================================
+// 5. MODAL (POP-UP) LOGIC & SMART SEARCH
 // ==========================================
 const modal = document.getElementById('generatorModal'); 
 const openBtn = document.getElementById('openGeneratorBtn'); 
@@ -264,85 +302,38 @@ const activitySearch = document.getElementById('activitySearch');
 const activitySuggestions = document.getElementById('activitySuggestions');
 const saveBtn = document.getElementById('saveBtn');
 
-let currentCategoryGroups = []; // Holds the filtered groups for the search box
-
-// STEP 1: Selecting a Main Category
+let currentCategoryGroups = []; 
 mainCategoryFilter.addEventListener('change', (e) => {
-    const selectedCat = e.target.value;
-    
-    // Clear the second box
-    activitySearch.value = '';
-    activitySuggestions.innerHTML = '';
-    document.getElementById('dispGroup').value = '';
-    document.getElementById('dispClass').value = '';
-    document.getElementById('dispActivity').value = '';
-    saveBtn.disabled = true; saveBtn.textContent = "Select Group First";
-    currentGroupCode = null;
-
-    if (!selectedCat) {
-        activitySearch.disabled = true;
-        activitySearch.placeholder = "-- Select Main Category First --";
-        currentCategoryGroups = [];
-        return;
-    }
-
-    // Unlock the smart search box
-    activitySearch.disabled = false;
-    activitySearch.placeholder = "Click to see all, or type to search...";
-    currentCategoryGroups = activitiesMap[selectedCat] || [];
+    const selectedCat = e.target.value; activitySearch.value = ''; activitySuggestions.innerHTML = '';
+    document.getElementById('dispGroup').value = ''; document.getElementById('dispClass').value = ''; document.getElementById('dispActivity').value = '';
+    saveBtn.disabled = true; saveBtn.textContent = "Select Group First"; currentGroupCode = null;
+    if (!selectedCat) { activitySearch.disabled = true; activitySearch.placeholder = "-- Select Main Category First --"; currentCategoryGroups = []; return; }
+    activitySearch.disabled = false; activitySearch.placeholder = "Click to see all, or type to search..."; currentCategoryGroups = activitiesMap[selectedCat] || [];
 });
 
-// STEP 2: The Smart Search Engine for Specific Groups
 function showActivitySuggestions(query = "") {
-    activitySuggestions.innerHTML = '';
-    if (currentCategoryGroups.length === 0) return;
-
+    activitySuggestions.innerHTML = ''; if (currentCategoryGroups.length === 0) return;
     const q = query.toLowerCase().trim();
-    
-    // Filter by name or group code
-    const matches = currentCategoryGroups.filter(g => {
-        return g.groupName.toLowerCase().includes(q) || g.groupCode.toLowerCase().includes(q);
-    });
-
+    const matches = currentCategoryGroups.filter(g => { return g.groupName.toLowerCase().includes(q) || g.groupCode.toLowerCase().includes(q); });
     matches.forEach(g => {
-        const div = document.createElement('div');
-        div.className = 'suggestion-item';
-        div.innerHTML = `<strong>${g.groupCode}</strong> - ${g.groupName}`;
-        
-        // When they click a suggestion, it locks it in
+        const div = document.createElement('div'); div.className = 'suggestion-item'; div.innerHTML = `<strong>${g.groupCode}</strong> - ${g.groupName}`;
         div.onclick = async () => {
-            activitySearch.value = `${g.groupName} (Group: ${g.groupCode})`;
-            activitySuggestions.innerHTML = '';
-            
-            currentGroupCode = g.groupCode; 
+            activitySearch.value = `${g.groupName} (Group: ${g.groupCode})`; activitySuggestions.innerHTML = ''; currentGroupCode = g.groupCode; 
             const data = dynamicActivityData[currentGroupCode]; 
-            document.getElementById('dispGroup').value = `${currentGroupCode} - ${data.groupName}`; 
-            document.getElementById('dispClass').value = `${data.classCode} - ${data.className}`; 
-            document.getElementById('dispActivity').value = `${data.activityCode} - ${data.activityName}`;
-            
+            document.getElementById('dispGroup').value = `${currentGroupCode} - ${data.groupName}`; document.getElementById('dispClass').value = `${data.classCode} - ${data.className}`; document.getElementById('dispActivity').value = `${data.activityCode} - ${data.activityName}`;
             await calculateNextSeries(currentGroupCode);
         };
         activitySuggestions.appendChild(div);
     });
 }
-
-// Show all options when they click the box
 activitySearch.addEventListener('focus', () => { showActivitySuggestions(''); });
 activitySearch.addEventListener('click', () => { showActivitySuggestions(''); });
-
-// Filter options instantly when they type
 activitySearch.addEventListener('input', (e) => {
-    showActivitySuggestions(e.target.value);
-    
-    // If they change the text, clear the active selection until they click a valid suggestion
-    currentGroupCode = null;
-    document.getElementById('dispGroup').value = '';
-    document.getElementById('dispClass').value = '';
-    document.getElementById('dispActivity').value = '';
+    showActivitySuggestions(e.target.value); currentGroupCode = null;
+    document.getElementById('dispGroup').value = ''; document.getElementById('dispClass').value = ''; document.getElementById('dispActivity').value = '';
     saveBtn.disabled = true; saveBtn.textContent = "Select Group First";
 });
 
-// Series Calculator
 async function calculateNextSeries(groupCode) {
     saveBtn.disabled = true; saveBtn.textContent = "Calculating..."; let highestSeries = 100000; 
     try {
@@ -355,22 +346,22 @@ async function calculateNextSeries(groupCode) {
     } catch (err) { console.error(err); alert("Error calculating series."); }
 }
 
-// Save the New Item
 document.getElementById('itemForm').addEventListener('submit', async (e) => {
     e.preventDefault(); if(!currentGroupCode || !generatedSeries) return;
     const data = dynamicActivityData[currentGroupCode]; const itemDesc = document.getElementById('description').value; const itemUOM = document.getElementById('uom').value;
     const newItemRecord = { "Part Code": generatedPartCode, "Series": generatedSeries, "Description": itemDesc, "UOM": itemUOM, "Group Code": currentGroupCode, "Group Name": data.groupName, "Class Code": data.classCode, "Class Name": data.className, "Activity Code": data.activityCode, "Activity Name": data.activityName, "CreatedAt": new Date().toISOString() };
     try {
         saveBtn.disabled = true; saveBtn.textContent = "Saving...";
-        await db.collection("items").add(newItemRecord); allSearchableItems.push(newItemRecord);
-        addToCart(generatedPartCode, itemDesc, itemUOM, data.groupName, data.activityName);
+        await db.collection("items").add(newItemRecord); 
+        
+        allSearchableItems.push(newItemRecord); // Add to local search pool
+        sessionNewlyCreatedItems.push(newItemRecord); // ADD TO NEW ITEMS TRACKER
+        
+        addToCart(generatedPartCode, itemDesc, itemUOM, data.groupName, data.activityName); // Automatically add to cart and calls saveSession()
+        
         document.getElementById('itemForm').reset(); document.getElementById('previewPartCode').textContent = 'XXXXX.XXXXXX'; document.getElementById('previewSeries').textContent = 'Series: ------';
         saveBtn.disabled = true; saveBtn.textContent = "Select Group First"; modal.classList.remove('active'); 
-        
-        // Reset the smart search box
-        activitySearch.value = '';
-        activitySearch.disabled = true;
-        activitySearch.placeholder = "-- Select Main Category First --";
+        activitySearch.value = ''; activitySearch.disabled = true; activitySearch.placeholder = "-- Select Main Category First --";
     } catch (error) { console.error("Error adding document: ", error); alert("Failed to save to Firebase."); saveBtn.disabled = false; saveBtn.textContent = "Save Item & Add to Cart"; }
 });
 
@@ -378,29 +369,17 @@ document.getElementById('itemForm').addEventListener('submit', async (e) => {
 // 6. PREVIEW & SAVE LOGIC
 // ==========================================
 function populatePrintLayout(reqNum, dateStr, createdBy, mobile) {
-    document.getElementById('printReqNumber').textContent = reqNum;
-    document.getElementById('printReqDate').textContent = dateStr;
-    document.getElementById('printVendorId').textContent = selectedVendor.id || '_________________';
-    document.getElementById('printVendorName').textContent = selectedVendor.name || '_________________';
-    document.getElementById('printSiteId').textContent = selectedSite.code || '_________________';
-    document.getElementById('printSiteName').textContent = selectedSite.name || '_________________';
+    document.getElementById('printReqNumber').textContent = reqNum; document.getElementById('printReqDate').textContent = dateStr;
+    document.getElementById('printVendorId').textContent = selectedVendor.id || '_________________'; document.getElementById('printVendorName').textContent = selectedVendor.name || '_________________';
+    document.getElementById('printSiteId').textContent = selectedSite.code || '_________________'; document.getElementById('printSiteName').textContent = selectedSite.name || '_________________';
     
-    const d = new Date();
-    const dd = String(d.getDate()).padStart(2, '0');
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const yyyy = d.getFullYear();
-    const hh = String(d.getHours()).padStart(2, '0');
-    const min = String(d.getMinutes()).padStart(2, '0');
-    const ss = String(d.getSeconds()).padStart(2, '0');
-    
+    const d = new Date(); const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); const yyyy = d.getFullYear();
+    const hh = String(d.getHours()).padStart(2, '0'); const min = String(d.getMinutes()).padStart(2, '0'); const ss = String(d.getSeconds()).padStart(2, '0');
     const exactTimeStr = `${dd}/${mm}/${yyyy} ${hh}:${min}:${ss}`;
-    const cleanCreatedBy = createdBy || "N/A";
-    const cleanMobile = mobile || "N/A";
-    
+    const cleanCreatedBy = createdBy || "N/A"; const cleanMobile = mobile || "N/A";
     document.getElementById('printFooterInfo').textContent = `${cleanCreatedBy}:${cleanMobile}: ${exactTimeStr}`;
 
-    let grandTotal = 0;
-    let html = `<thead><tr><th>SN</th><th>Part No</th><th>Description</th><th>Qty</th><th>Unit</th><th>Price</th><th>Total</th></tr></thead><tbody>`;
+    let grandTotal = 0; let html = `<thead><tr><th>SN</th><th>Part No</th><th>Description</th><th>Qty</th><th>Unit</th><th>Price</th><th>Total</th></tr></thead><tbody>`;
     cart.forEach((item, i) => {
         const total = item.qty * item.price; grandTotal += total;
         const commentHTML = item.comment ? `<br><em style="font-size: 10px; color: #64748b; font-style: italic;">${item.comment}</em>` : '';
@@ -412,67 +391,45 @@ function populatePrintLayout(reqNum, dateStr, createdBy, mobile) {
 }
 
 document.getElementById('previewBtn').addEventListener('click', () => {
-    const d = new Date();
-    const formattedDate = `${String(d.getDate()).padStart(2, '0')} ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getMonth()]} ${d.getFullYear()}`;
-    const createdBy = document.getElementById('createdBy').value.trim();
-    const mobile = document.getElementById('mobileNumber').value.trim();
-
+    const d = new Date(); const formattedDate = `${String(d.getDate()).padStart(2, '0')} ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getMonth()]} ${d.getFullYear()}`;
+    const createdBy = document.getElementById('createdBy').value.trim(); const mobile = document.getElementById('mobileNumber').value.trim();
     populatePrintLayout("DRAFT", formattedDate, createdBy, mobile);
+    
+    document.body.classList.add('printing-pr'); // Switch to PR print view
     window.print();
+    setTimeout(() => { document.body.classList.remove('printing-pr'); }, 1000);
 });
 
 document.getElementById('saveBtnAction').addEventListener('click', async () => {
-    const createdBy = document.getElementById('createdBy').value.trim();
-    const mobile = document.getElementById('mobileNumber').value.trim();
-    
-    if (!createdBy || !mobile) {
-        alert("Wait! Please fill in your 'Created By' Name and 'Mobile Number' at the top before saving.");
-        return;
-    }
+    const createdBy = document.getElementById('createdBy').value.trim(); const mobile = document.getElementById('mobileNumber').value.trim();
+    if (!createdBy || !mobile) { alert("Wait! Please fill in your 'Created By' Name and 'Mobile Number' at the top before saving."); return; }
 
-    const saveBtnAction = document.getElementById('saveBtnAction');
-    saveBtnAction.disabled = true;
-    saveBtnAction.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+    const saveBtnAction = document.getElementById('saveBtnAction'); saveBtnAction.disabled = true; saveBtnAction.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
 
     try {
-        let nextReqNum = 100001;
-        const prRef = dbReq.collection("requisitions");
+        let nextReqNum = 100001; const prRef = dbReq.collection("requisitions");
         const snapshot = await prRef.orderBy("reqNumber", "desc").limit(1).get();
-        if (!snapshot.empty) {
-            const lastNum = snapshot.docs[0].data().reqNumber;
-            nextReqNum = parseInt(lastNum) + 1;
-        }
+        if (!snapshot.empty) { const lastNum = snapshot.docs[0].data().reqNumber; nextReqNum = parseInt(lastNum) + 1; }
 
-        const d = new Date();
-        const formattedDate = `${String(d.getDate()).padStart(2, '0')} ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getMonth()]} ${d.getFullYear()}`;
-
+        const d = new Date(); const formattedDate = `${String(d.getDate()).padStart(2, '0')} ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getMonth()]} ${d.getFullYear()}`;
         let grandTotal = 0; cart.forEach(item => grandTotal += (item.qty * item.price));
 
         await prRef.doc(nextReqNum.toString()).set({
-            reqNumber: nextReqNum,
-            createdAt: d.toISOString(),
-            dateFormatted: formattedDate,
-            vendor: selectedVendor,
-            site: selectedSite,
-            createdBy: createdBy,
-            mobileNumber: mobile,
-            items: cart,
-            totalValue: grandTotal
+            reqNumber: nextReqNum, createdAt: d.toISOString(), dateFormatted: formattedDate,
+            vendor: selectedVendor, site: selectedSite, createdBy: createdBy, mobileNumber: mobile, items: cart, totalValue: grandTotal
         });
 
         populatePrintLayout(nextReqNum, formattedDate, createdBy, mobile);
+        
+        document.body.classList.add('printing-pr');
         window.print();
         
         setTimeout(() => {
+            document.body.classList.remove('printing-pr');
             alert(`Success! Requisition Number ${nextReqNum} has been saved.`);
-            sessionStorage.removeItem('pr_session_data');
+            sessionStorage.removeItem('pr_session_data'); // This wipes the cart AND the new items log!
             location.reload(); 
         }, 1000);
         
-    } catch (error) {
-        console.error(error); alert("Database Error. Check connection.");
-    } finally {
-        saveBtnAction.disabled = false;
-        saveBtnAction.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Save Requisition';
-    }
+    } catch (error) { console.error(error); alert("Database Error. Check connection."); } finally { saveBtnAction.disabled = false; saveBtnAction.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Save Requisition'; }
 });

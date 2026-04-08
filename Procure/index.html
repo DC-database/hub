@@ -55,9 +55,14 @@
                 <input type="text" id="searchInput" placeholder="Search by Part No, Description, Group, or Activity..." autocomplete="off">
             </div>
             
-            <button type="button" id="openGeneratorBtn" class="create-new-btn">
-                <i class="fa-solid fa-plus"></i> Item Not Found? Create New
-            </button>
+            <div style="display: flex; gap: 10px;">
+                <button type="button" id="viewNewItemsBtn" class="create-new-btn" style="background-color: #f59e0b;">
+                    <i class="fa-solid fa-list-check"></i> Session's New Items
+                </button>
+                <button type="button" id="openGeneratorBtn" class="create-new-btn">
+                    <i class="fa-solid fa-plus"></i> Item Not Found? Create New
+                </button>
+            </div>
         </div>
 
         <div id="searchResults" class="results-container"></div>
@@ -92,6 +97,33 @@
                 <div class="footer-actions">
                     <button type="button" id="previewBtn" class="preview-btn" disabled><i class="fa-solid fa-eye"></i> Preview Draft</button>
                     <button type="button" id="saveBtnAction" class="print-btn" disabled><i class="fa-solid fa-cloud-arrow-up"></i> Save Requisition</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="newItemsModal" class="modal-overlay no-print">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header" style="background-color: #f59e0b;">
+                <h2>Newly Created Items (Current Session)</h2>
+                <button id="closeNewItemsModalBtn" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                    <thead>
+                        <tr style="background-color: #f1f5f9;">
+                            <th style="padding: 10px; border-bottom: 2px solid #cbd5e1; text-align: left;">Part Code</th>
+                            <th style="padding: 10px; border-bottom: 2px solid #cbd5e1; text-align: left;">Description</th>
+                            <th style="padding: 10px; border-bottom: 2px solid #cbd5e1; text-align: left;">UOM</th>
+                            <th style="padding: 10px; border-bottom: 2px solid #cbd5e1; text-align: left;">Group</th>
+                            <th style="padding: 10px; border-bottom: 2px solid #cbd5e1; text-align: left;">Activity</th>
+                        </tr>
+                    </thead>
+                    <tbody id="newItemsTableBody">
+                        </tbody>
+                </table>
+                <div style="text-align: right;">
+                    <button type="button" id="printNewItemsBtn" class="print-btn" style="background-color: #f59e0b; color: white;"><i class="fa-solid fa-print"></i> Print New Items Report</button>
                 </div>
             </div>
         </div>
@@ -175,7 +207,6 @@
     </div>
 
     <div id="printArea" class="print-only">
-        
         <div class="print-top-header">
             <div class="print-logo-container">
                 <img src="https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/logo%20(1).png" alt="Company Logo">
@@ -183,14 +214,8 @@
             <div class="print-title-container">
                 <h1 class="pr-title">Purchase Requisition</h1>
                 <table class="pr-meta-table">
-                    <tr>
-                        <td class="pr-label">Requisition Number</td>
-                        <td class="pr-value" id="printReqNumber"></td>
-                    </tr>
-                    <tr>
-                        <td class="pr-label">Requisition Date</td>
-                        <td class="pr-value" id="printReqDate"></td>
-                    </tr>
+                    <tr><td class="pr-label">Requisition Number</td><td class="pr-value" id="printReqNumber"></td></tr>
+                    <tr><td class="pr-label">Requisition Date</td><td class="pr-value" id="printReqDate"></td></tr>
                 </table>
             </div>
         </div>
@@ -213,12 +238,30 @@
 
         <div class="print-footer">
             <div class="footer-info" id="printFooterInfo"></div>
-
             <div class="signature-box">
                 <div class="signature-line"></div>
                 <p>Authorized Signature / Company Seal</p>
             </div>
         </div>
+    </div>
+
+    <div id="printNewItemsArea" class="print-only-new-items">
+        <div style="text-align: center; margin-bottom: 25px; border-bottom: 2px solid #0f172a; padding-bottom: 10px;">
+            <h2 style="margin: 0 0 5px 0; font-size: 24px; color: #0f172a; font-family: 'Times New Roman', Times, serif;">Newly Created Items Report</h2>
+            <p style="margin: 0; color: #64748b; font-size: 14px;">Session Date: <span id="printNewItemsDate"></span></p>
+        </div>
+        <table class="print-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="background-color: #f1f5f9; padding: 10px; border: 1px solid #000;">Part Code</th>
+                    <th style="background-color: #f1f5f9; padding: 10px; border: 1px solid #000;">Description</th>
+                    <th style="background-color: #f1f5f9; padding: 10px; border: 1px solid #000;">UOM</th>
+                    <th style="background-color: #f1f5f9; padding: 10px; border: 1px solid #000;">Group Name</th>
+                    <th style="background-color: #f1f5f9; padding: 10px; border: 1px solid #000;">Activity Name</th>
+                </tr>
+            </thead>
+            <tbody id="printNewItemsTableBody"></tbody>
+        </table>
     </div>
 
     <script src="app.js"></script>
