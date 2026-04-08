@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procurement Hub</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+</head>
+<body>
+
+    <div class="app-container no-print">
+        <div class="header">
+            <h2><i class="fa-solid fa-cart-flatbed"></i> Material Requisition List</h2>
+            <p>Search for items to add to your list. If an item doesn't exist, create a new one.</p>
+        </div>
+
+        <div class="requisition-details">
+            <div class="req-input-group">
+                <label><i class="fa-solid fa-truck-fast"></i> Vendor (Search Name/ID)</label>
+                <div class="autocomplete-wrapper">
+                    <input type="text" id="vendorSearch" placeholder="Type vendor name or ID..." autocomplete="off">
+                    <div id="vendorSuggestions" class="suggestions-box"></div>
+                </div>
+                <div id="selectedVendorDisplay" class="selected-display">No Vendor Selected</div>
+            </div>
+
+            <div class="req-input-group">
+                <label><i class="fa-solid fa-location-dot"></i> Ship To / Site (Search Name/Code)</label>
+                <div class="autocomplete-wrapper">
+                    <input type="text" id="siteSearch" placeholder="Type project name or warehouse..." autocomplete="off">
+                    <div id="siteSuggestions" class="suggestions-box"></div>
+                </div>
+                <div id="selectedSiteDisplay" class="selected-display">No Site Selected</div>
+            </div>
+
+            <div class="req-input-group">
+                <label><i class="fa-solid fa-user-pen"></i> Created By <span class="required-asterisk">*</span></label>
+                <input type="text" id="createdBy" placeholder="Enter your full name..." autocomplete="off" required>
+            </div>
+            
+            <div class="req-input-group">
+                <label><i class="fa-solid fa-phone"></i> Mobile Number <span class="required-asterisk">*</span></label>
+                <input type="text" id="mobileNumber" placeholder="Enter mobile number..." autocomplete="off" required>
+            </div>
+        </div>
+
+        <div class="search-section">
+            <div class="search-bar">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" id="searchInput" placeholder="Search by Part No, Description, Group, or Activity..." autocomplete="off">
+            </div>
+            
+            <button type="button" id="openGeneratorBtn" class="create-new-btn">
+                <i class="fa-solid fa-plus"></i> Item Not Found? Create New
+            </button>
+        </div>
+
+        <div id="searchResults" class="results-container"></div>
+
+        <div class="cart-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0;"><i class="fa-solid fa-clipboard-list"></i> Selected Items</h3>
+                <button type="button" id="clearSessionBtn" class="clear-session-btn"><i class="fa-solid fa-eraser"></i> Clear Entire Cart</button>
+            </div>
+            <div class="table-responsive">
+                <table id="cartTable">
+                    <thead>
+                        <tr>
+                            <th width="5%">SN</th>
+                            <th width="15%">Part No</th>
+                            <th width="35%">Description</th>
+                            <th width="10%">Qty</th>
+                            <th width="10%">Unit</th>
+                            <th width="10%">Price</th>
+                            <th width="10%">Total</th>
+                            <th width="5%" class="action-col">Remove</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cartBody">
+                        <tr class="empty-row"><td colspan="8">No items added to the list yet.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="cart-footer">
+                <div class="grand-total">Grand Total: <span id="grandTotalVal">0.00</span></div>
+                
+                <div class="footer-actions">
+                    <button type="button" id="previewBtn" class="preview-btn" disabled><i class="fa-solid fa-eye"></i> Preview Draft</button>
+                    <button type="button" id="saveBtnAction" class="print-btn" disabled><i class="fa-solid fa-cloud-arrow-up"></i> Save Requisition</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="generatorModal" class="modal-overlay no-print">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Generate New Item Record</h2>
+                <button id="closeModalBtn" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="modal-body">
+                <form id="itemForm">
+                    <div class="section">
+                        <h3>1. Item Classification</h3>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                            <div class="form-group">
+                                <label>1. Main Category</label>
+                                <select id="mainCategoryFilter" required>
+                                    <option value="">-- Loading Categories... --</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>2. Specific Group</label>
+                                <div class="autocomplete-wrapper">
+                                    <input type="text" id="activitySearch" placeholder="-- Select Main Category First --" autocomplete="off" disabled required>
+                                    <div id="activitySuggestions" class="suggestions-box"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="read-only-grid">
+                            <div class="form-group"><label>Group Code</label><input type="text" id="dispGroup" readonly></div>
+                            <div class="form-group"><label>Class Code</label><input type="text" id="dispClass" readonly></div>
+                            <div class="form-group"><label>Activity</label><input type="text" id="dispActivity" readonly></div>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <h3>2. Item Details</h3>
+                        <div class="input-grid">
+                            <div class="form-group span-2">
+                                <label>Item Description</label>
+                                <input type="text" id="description" placeholder="e.g., Drill Bit 8mm Masonry" required autocomplete="off">
+                            </div>
+                            <div class="form-group">
+                                <label>UOM</label>
+                                <select id="uom" required>
+                                    <option value="">-- Select --</option>
+                                    <option value="Bag">Bag</option><option value="Box">Box</option><option value="Bun">Bun</option>
+                                    <option value="Day">Day</option><option value="Doz">Doz</option><option value="Dr">Dr</option>
+                                    <option value="Gal">Gal</option><option value="Hrs">Hrs</option><option value="Kg">Kg</option>
+                                    <option value="Litre">Litre</option><option value="Lm">Lm</option><option value="m2">m2</option>
+                                    <option value="m3">m3</option><option value="Mon">Mon</option><option value="Pcs">Pcs</option>
+                                    <option value="Annual">Annual</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="preview-section">
+                        <div class="preview-text">
+                            <h3>Generated Part Code</h3>
+                            <p id="seriesStatusText">Checked against GitHub & Firebase</p>
+                        </div>
+                        <div class="preview-code">
+                            <div id="previewPartCode">XXXXX.XXXXXX</div>
+                            <div id="previewSeries" class="series-text">Series: ------</div>
+                        </div>
+                    </div>
+
+                    <div class="submit-section">
+                        <button type="submit" id="saveBtn" class="save-btn" disabled>Select Group First</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="printArea" class="print-only">
+        
+        <div class="print-top-header">
+            <div class="print-logo-container">
+                <img src="https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/logo%20(1).png" alt="Company Logo">
+            </div>
+            <div class="print-title-container">
+                <h1 class="pr-title">Purchase Requisition</h1>
+                <table class="pr-meta-table">
+                    <tr>
+                        <td class="pr-label">Requisition Number</td>
+                        <td class="pr-value" id="printReqNumber"></td>
+                    </tr>
+                    <tr>
+                        <td class="pr-label">Requisition Date</td>
+                        <td class="pr-value" id="printReqDate"></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        
+        <div class="print-meta-grid">
+            <div class="print-box">
+                <div class="print-box-title">Vendor</div>
+                <div class="meta-row"><span>ID:</span> <strong id="printVendorId"></strong></div>
+                <div class="meta-row"><span>Name:</span> <strong id="printVendorName"></strong></div>
+            </div>
+            <div class="print-box">
+                <div class="print-box-title">Ship To</div>
+                <div class="meta-row"><span>Project no:</span> <strong id="printSiteId"></strong></div>
+                <div class="meta-row"><span>Project Name:</span> <strong id="printSiteName"></strong></div>
+            </div>
+        </div>
+        
+        <table class="print-table" id="printTable"></table>
+        <div class="print-grand-total">Grand Total: <span id="printGrandTotalVal">0.00</span></div>
+
+        <div class="print-footer">
+            <div class="footer-info" id="printFooterInfo"></div>
+
+            <div class="signature-box">
+                <div class="signature-line"></div>
+                <p>Authorized Signature / Company Seal</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
