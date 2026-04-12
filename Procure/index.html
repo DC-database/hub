@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="style.css">
     
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 <body>
@@ -175,14 +175,15 @@
                             <div class="form-group">
                                 <label>UOM</label>
                                 <select id="uom" required>
-                                    <option value="">-- Select --</option>
-                                    <option value="Bag">Bag</option><option value="Box">Box</option><option value="Bun">Bun</option>
-                                    <option value="Day">Day</option><option value="Doz">Doz</option><option value="Dr">Dr</option>
-                                    <option value="Gal">Gal</option><option value="Hrs">Hrs</option><option value="Kg">Kg</option>
-                                    <option value="Litre">Litre</option><option value="Lm">Lm</option><option value="m2">m2</option>
-                                    <option value="m3">m3</option><option value="Mon">Mon</option><option value="Pcs">Pcs</option>
-                                    <option value="Annual">Annual</option>
-                                </select>
+    <option value="">-- Select --</option>
+    <option value="Bag">Bag</option><option value="Box">Box</option><option value="Bun">Bun</option>
+    <option value="Day">Day</option><option value="Doz">Doz</option><option value="Dr">Dr</option>
+    <option value="Gal">Gal</option><option value="Hrs">Hrs</option><option value="Kg">Kg</option>
+    <option value="Litre">Litre</option><option value="Lm">Lm</option><option value="m2">m2</option>
+    <option value="m3">m3</option><option value="Mon">Mon</option><option value="Pcs">Pcs</option>
+    <option value="Annual">Annual</option>
+    <option value="Sum">Sum</option> 
+</select>
                             </div>
                         </div>
                     </div>

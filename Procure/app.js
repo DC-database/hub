@@ -13,7 +13,7 @@ const firebaseConfig = {
 };
 
 if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
-const db = firebase.firestore();
+const db = firebase.database(); // Switched to Realtime Database
 
 // ==========================================
 // FIREBASE CONFIG 2: REQUISITIONS DATABASE (NEW)
@@ -21,6 +21,7 @@ const db = firebase.firestore();
 const firebaseConfigReq = {
     apiKey: "AIzaSyCxQKz3MOzyyKsJQhB54ZO1EKH_9QPkI44",
     authDomain: "requisition-bf146.firebaseapp.com",
+    databaseURL: "https://requisition-bf146-default-rtdb.firebaseio.com", // Added Realtime DB URL
     projectId: "requisition-bf146",
     storageBucket: "requisition-bf146.firebasestorage.app",
     messagingSenderId: "419583502521",
@@ -29,7 +30,7 @@ const firebaseConfigReq = {
 };
 
 const reqApp = firebase.initializeApp(firebaseConfigReq, "RequisitionApp");
-const dbReq = reqApp.firestore();
+const dbReq = reqApp.database(); // Switched to Realtime Database
 
 // ==========================================
 // URLs & GLOBALS
@@ -42,7 +43,7 @@ const SITE_CSV_URL = "https://raw.githubusercontent.com/DC-database/hub/main/Sit
 let allSearchableItems = []; let allVendors = []; let allSites = [];
 let cart = []; let legacyItems = []; let dynamicActivityData = {};
 let activitiesMap = {}; 
-let sessionNewlyCreatedItems = []; // NEW: Memory array for freshly made items
+let sessionNewlyCreatedItems = []; 
 
 let currentGroupCode = null; let generatedSeries = null; let generatedPartCode = null;
 let selectedVendor = { id: '', name: '' }; let selectedSite = { code: '', name: '' };
@@ -55,7 +56,7 @@ function saveSession() {
         cart: cart, vendor: selectedVendor, site: selectedSite,
         createdBy: document.getElementById('createdBy').value,
         mobileNumber: document.getElementById('mobileNumber').value,
-        newItems: sessionNewlyCreatedItems // Save newly created items memory
+        newItems: sessionNewlyCreatedItems
     };
     sessionStorage.setItem('pr_session_data', JSON.stringify(data));
 }
@@ -189,7 +190,7 @@ function renderCart() {
     
     cart.forEach((item, index) => {
         const total = item.qty * item.price; grandTotal += total;
-        const units = ['Bag', 'Box', 'Bun', 'Day', 'Doz', 'Dr', 'Gal', 'Hrs', 'Kg', 'Litre', 'Lm', 'm2', 'm3', 'Mon', 'Pcs', 'Annual'];
+        const units = ['Bag', 'Box', 'Bun', 'Day', 'Doz', 'Dr', 'Gal', 'Hrs', 'Kg', 'Litre', 'Lm', 'm2', 'm3', 'Mon', 'Pcs', 'Annual', 'Sum'];
         let unitOptions = ''; let found = false;
         units.forEach(u => { if (item.unit && u.toLowerCase() === item.unit.toLowerCase()) { unitOptions += `<option value="${u}" selected>${u}</option>`; found = true; } else { unitOptions += `<option value="${u}">${u}</option>`; } });
         if (!found) { unitOptions += `<option value="${item.unit || 'EA'}" selected>${item.unit || 'EA'}</option>`; }
@@ -264,7 +265,6 @@ if(closeNewItemsModalBtn) {
     closeNewItemsModalBtn.addEventListener('click', () => newItemsModal.classList.remove('active'));
 }
 
-// Print logic for New Items specifically
 document.getElementById('printNewItemsBtn').addEventListener('click', () => {
     const d = new Date();
     document.getElementById('printNewItemsDate').textContent = d.toLocaleString();
@@ -281,10 +281,9 @@ document.getElementById('printNewItemsBtn').addEventListener('click', () => {
         </tr>`;
     });
     
-    document.body.classList.add('printing-new-items'); // Tells CSS which layout to show
+    document.body.classList.add('printing-new-items'); 
     window.print();
     
-    // Remove the class right after the print screen closes
     setTimeout(() => { document.body.classList.remove('printing-new-items'); }, 1000);
 });
 
@@ -337,9 +336,18 @@ activitySearch.addEventListener('input', (e) => {
 async function calculateNextSeries(groupCode) {
     saveBtn.disabled = true; saveBtn.textContent = "Calculating..."; let highestSeries = 100000; 
     try {
+        // Step 1: Check legacy items (CSV)
         legacyItems.forEach(item => { if (item["Group Code"] === groupCode || item["Group code"] === groupCode) { const sNum = parseInt(item["Series"], 10); if (sNum > highestSeries) highestSeries = sNum; } });
-        const snap = await db.collection("items").where("Group Code", "==", groupCode).get();
-        snap.forEach((doc) => { const sNum = parseInt(doc.data().Series, 10); if (sNum > highestSeries) highestSeries = sNum; });
+        
+        // Step 2: Check Firebase Realtime DB
+        const snap = await db.ref("items").orderByChild("Group Code").equalTo(groupCode).once("value");
+        if (snap.exists()) {
+            snap.forEach((childSnap) => { 
+                const sNum = parseInt(childSnap.val().Series, 10); 
+                if (sNum > highestSeries) highestSeries = sNum; 
+            });
+        }
+        
         generatedSeries = (highestSeries + 1).toString(); generatedPartCode = `${groupCode}.${generatedSeries}`;
         document.getElementById('previewPartCode').textContent = generatedPartCode; document.getElementById('previewSeries').textContent = `Series: ${generatedSeries}`;
         saveBtn.disabled = false; saveBtn.textContent = "Save Item & Add to Cart";
@@ -352,17 +360,19 @@ document.getElementById('itemForm').addEventListener('submit', async (e) => {
     const newItemRecord = { "Part Code": generatedPartCode, "Series": generatedSeries, "Description": itemDesc, "UOM": itemUOM, "Group Code": currentGroupCode, "Group Name": data.groupName, "Class Code": data.classCode, "Class Name": data.className, "Activity Code": data.activityCode, "Activity Name": data.activityName, "CreatedAt": new Date().toISOString() };
     try {
         saveBtn.disabled = true; saveBtn.textContent = "Saving...";
-        await db.collection("items").add(newItemRecord); 
         
-        allSearchableItems.push(newItemRecord); // Add to local search pool
-        sessionNewlyCreatedItems.push(newItemRecord); // ADD TO NEW ITEMS TRACKER
+        // Push new record to Firebase Realtime DB
+        await db.ref("items").push(newItemRecord); 
         
-        addToCart(generatedPartCode, itemDesc, itemUOM, data.groupName, data.activityName); // Automatically add to cart and calls saveSession()
+        allSearchableItems.push(newItemRecord); 
+        sessionNewlyCreatedItems.push(newItemRecord); 
+        
+        addToCart(generatedPartCode, itemDesc, itemUOM, data.groupName, data.activityName); 
         
         document.getElementById('itemForm').reset(); document.getElementById('previewPartCode').textContent = 'XXXXX.XXXXXX'; document.getElementById('previewSeries').textContent = 'Series: ------';
         saveBtn.disabled = true; saveBtn.textContent = "Select Group First"; modal.classList.remove('active'); 
         activitySearch.value = ''; activitySearch.disabled = true; activitySearch.placeholder = "-- Select Main Category First --";
-    } catch (error) { console.error("Error adding document: ", error); alert("Failed to save to Firebase."); saveBtn.disabled = false; saveBtn.textContent = "Save Item & Add to Cart"; }
+    } catch (error) { console.error("Error adding item: ", error); alert("Failed to save to Firebase."); saveBtn.disabled = false; saveBtn.textContent = "Save Item & Add to Cart"; }
 });
 
 // ==========================================
@@ -395,7 +405,7 @@ document.getElementById('previewBtn').addEventListener('click', () => {
     const createdBy = document.getElementById('createdBy').value.trim(); const mobile = document.getElementById('mobileNumber').value.trim();
     populatePrintLayout("DRAFT", formattedDate, createdBy, mobile);
     
-    document.body.classList.add('printing-pr'); // Switch to PR print view
+    document.body.classList.add('printing-pr'); 
     window.print();
     setTimeout(() => { document.body.classList.remove('printing-pr'); }, 1000);
 });
@@ -407,14 +417,23 @@ document.getElementById('saveBtnAction').addEventListener('click', async () => {
     const saveBtnAction = document.getElementById('saveBtnAction'); saveBtnAction.disabled = true; saveBtnAction.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
 
     try {
-        let nextReqNum = 100001; const prRef = dbReq.collection("requisitions");
-        const snapshot = await prRef.orderBy("reqNumber", "desc").limit(1).get();
-        if (!snapshot.empty) { const lastNum = snapshot.docs[0].data().reqNumber; nextReqNum = parseInt(lastNum) + 1; }
+        let nextReqNum = 100001; 
+        const prRef = dbReq.ref("requisitions");
+        
+        // Find last Requisition Number in Realtime DB
+        const snapshot = await prRef.orderByChild("reqNumber").limitToLast(1).once("value");
+        if (snapshot.exists()) {
+            snapshot.forEach(child => {
+                const lastNum = child.val().reqNumber;
+                nextReqNum = parseInt(lastNum) + 1;
+            });
+        }
 
         const d = new Date(); const formattedDate = `${String(d.getDate()).padStart(2, '0')} ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getMonth()]} ${d.getFullYear()}`;
         let grandTotal = 0; cart.forEach(item => grandTotal += (item.qty * item.price));
 
-        await prRef.doc(nextReqNum.toString()).set({
+        // Save to Realtime DB
+        await prRef.child(nextReqNum.toString()).set({
             reqNumber: nextReqNum, createdAt: d.toISOString(), dateFormatted: formattedDate,
             vendor: selectedVendor, site: selectedSite, createdBy: createdBy, mobileNumber: mobile, items: cart, totalValue: grandTotal
         });
@@ -427,7 +446,7 @@ document.getElementById('saveBtnAction').addEventListener('click', async () => {
         setTimeout(() => {
             document.body.classList.remove('printing-pr');
             alert(`Success! Requisition Number ${nextReqNum} has been saved.`);
-            sessionStorage.removeItem('pr_session_data'); // This wipes the cart AND the new items log!
+            sessionStorage.removeItem('pr_session_data'); 
             location.reload(); 
         }, 1000);
         
