@@ -7455,132 +7455,115 @@ body.inventory-mode .wd-nav-material {
     gap: 40px;
 }
 
-/* --- 2. MOBILE VIEW OVERRIDE (For Screens smaller than 768px) --- */
+/* ==========================================================================
+   THE EXACT SCREENSHOT MATCH (Ultra-Minimalist 4-Corner Cards)
+   ========================================================================== */
 @media (max-width: 768px) {
-    
-    .im-reporting-grid {
-        min-width: 100% !important; /* Stop the horizontal scrolling on phone */
-    }
-
-    .im-reporting-grid-header {
-        display: none !important; /* Hide headers on phone */
-    }
-
-    /* Turn each row into a vertical "Card" */
-    .im-reporting-grid-row {
-        display: block !important;
-        height: auto !important;
-        margin: 10px !important;
-        border: 1px solid #d0d7de !important;
-        border-radius: 8px !important;
-        padding: 10px !important;
-        background: white !important;
-    }
-
-    /* Make PO Header look like a title on phone */
-    .im-reporting-po-master {
-        background: #eef2f7 !important;
-        border-left: 6px solid #003A5C !important;
-    }
-
-    /* Make cells take full width and stack labels */
-    .im-reporting-grid-cell {
-        display: flex !important;
-        justify-content: space-between !important;
-        width: 100% !important;
-        border: none !important;
-        padding: 8px 5px !important;
-        border-bottom: 1px solid #f1f5f9 !important;
-        text-align: right !important;
-    }
-
-    /* Force the labels to show on the left in mobile */
-    .im-reporting-grid-row:not(.im-reporting-po-master) .im-reporting-grid-cell::before {
-        font-weight: 800;
-        color: #64748b;
-        font-size: 10px;
-        text-transform: uppercase;
-        content: "Data:"; /* Fallback label */
-    }
-
-    /* Summary Box Mobile Fix (Stack them) */
-    .summary-wrapper {
-        flex-direction: column !important;
-        padding: 20px !important;
-        gap: 20px !important;
-        align-items: flex-start !important;
-    }
-
-    .summary-stats-group {
-        flex-direction: column !important;
-        width: 100% !important;
-        gap: 15px !important;
-    }
-
-    .summary-stat-item {
-        text-align: left !important;
-        width: 100% !important;
-        border-bottom: 1px solid rgba(255,255,255,0.1);
-        padding-bottom: 8px;
-    }
-}
-
-/* --- FORCE SEARCH BAR VISIBILITY ON MOBILE --- */
-@media (max-width: 768px) {
-    /* 1. Ensure the main container and filter area are visible */
-    #im-reporting-section, 
-    .im-reporting-filters, 
-    .im-reporting-search-container {
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        width: 100% !important;
-    }
-
-    /* 2. Stack the search inputs so they fit on the screen */
-    .im-reporting-filters {
+    /* 1. STACK THE SEARCH BAR PROPERLY */
+    .im-reporting-filters, #im-reporting-filters {
         display: flex !important;
         flex-direction: column !important;
-        gap: 10px !important;
-        padding: 15px !important;
-        background: #fff !important;
-        border-bottom: 1px solid #e2e8f0 !important;
+        gap: 12px !important;
     }
-
-    /* 3. Make the search boxes and buttons full width */
     .im-reporting-filters input, 
     .im-reporting-filters select, 
     .im-reporting-filters button {
         width: 100% !important;
-        height: 45px !important; /* Makes them easier to tap with fingers */
-        margin: 5px 0 !important;
-        font-size: 16px !important; /* Prevents iPhone from auto-zooming */
+        height: 48px !important;
+        box-sizing: border-box !important;
+    }
+    
+    /* Hide the junk buttons completely */
+    button:has(i.fa-cloud-arrow-down), .fa-cloud-arrow-down,
+    button[onclick*="efresh"], button[onclick*="ummary"], button[onclick*="etailed"] {
+        display: none !important;
     }
 
-    /* 4. Fix the search icon positioning if it shifted */
-    .im-reporting-search-wrapper {
+    /* 2. HIDE DESKTOP HEADERS */
+    html body div[id*="report"] table thead,
+    html body div[id*="record"] table thead {
+        display: none !important;
+    }
+
+    /* 3. BUILD THE EXACT 4-CORNER CARD FROM YOUR SCREENSHOT */
+    html body div[id*="report"] table > tbody > tr:not(.detail-row),
+    html body div[id*="record"] table > tbody > tr:not(.detail-row) {
+        display: grid !important;
+        grid-template-columns: 1fr auto !important;
+        grid-template-areas:
+            "po amount"
+            "date status" !important;
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 10px !important;
+        padding: 16px !important;
+        margin-bottom: 12px !important;
+        align-items: center !important;
+        row-gap: 6px !important;
         position: relative !important;
-        width: 100% !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important;
     }
-}
 
-/* 1. Hide the mobile view when on a large screen */
-@media (min-width: 769px) {
-    .hidden-desktop {
+    /* HIDE EVERY CELL BY DEFAULT SO NO JUNK SHOWS UP */
+    html body div[id*="report"] table > tbody > tr:not(.detail-row) > td,
+    html body div[id*="record"] table > tbody > tr:not(.detail-row) > td {
         display: none !important;
-    }
-}
-
-/* 2. Hide the desktop table and show mobile view on small screens */
-@media (max-width: 768px) {
-    .hidden-mobile {
-        display: none !important;
+        border: none !important;
+        padding: 0 !important;
     }
     
-    #im-reporting-mobile-view {
+    /* Strip all text labels (no "Status:", "Date:", etc.) */
+    html body div[id*="report"] table > tbody > tr:not(.detail-row) > td::before,
+    html body div[id*="record"] table > tbody > tr:not(.detail-row) > td::before {
+        display: none !important; 
+    }
+
+    /* Top Left: PO Number */
+    html body div[id*="report"] table > tbody > tr:not(.detail-row) > td:nth-child(4),
+    html body div[id*="record"] table > tbody > tr:not(.detail-row) > td:nth-child(4) {
         display: block !important;
+        grid-area: po;
+        font-weight: 700 !important;
+        font-size: 15px !important;
+        color: #0f172a !important;
     }
-    
-    /* Add your Version 1 mobile card styling here (colors, padding, border-radius) */
-}
 
+    /* Bottom Left: Date */
+    html body div[id*="report"] table > tbody > tr:not(.detail-row) > td:nth-child(2),
+    html body div[id*="record"] table > tbody > tr:not(.detail-row) > td:nth-child(2) {
+        display: block !important;
+        grid-area: date;
+        font-size: 13px !important;
+        color: #64748b !important;
+    }
+
+    /* Top Right: Amount */
+    html body div[id*="report"] table > tbody > tr:not(.detail-row) > td:nth-child(5),
+    html body div[id*="record"] table > tbody > tr:not(.detail-row) > td:nth-child(5) {
+        display: block !important;
+        grid-area: amount;
+        font-weight: 700 !important;
+        font-size: 15px !important;
+        color: #0f172a !important;
+        text-align: right !important;
+    }
+
+    /* Bottom Right: Status Pill */
+    html body div[id*="report"] table > tbody > tr:not(.detail-row) > td:nth-child(1),
+    html body div[id*="record"] table > tbody > tr:not(.detail-row) > td:nth-child(1) {
+        display: flex !important;
+        grid-area: status;
+        justify-content: flex-end !important;
+        align-items: center !important;
+        padding-right: 24px !important; /* Leaves room for the arrow */
+    }
+
+    /* The Expand Arrow (Chevron > ) */
+    html body div[id*="report"] table > tbody > tr:not(.detail-row) > td:last-child,
+    html body div[id*="record"] table > tbody > tr:not(.detail-row) > td:last-child {
+        display: flex !important;
+        position: absolute !important;
+        right: 16px !important;
+        bottom: 16px !important; /* Aligns perfectly next to the status pill */
+    }
+}

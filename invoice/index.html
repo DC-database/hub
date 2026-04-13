@@ -1386,6 +1386,11 @@
             
             <div class="daily-report-section" style="display: flex; gap: 8px; align-items: center;">
                 <button id="im-download-daily-report-button" class="download-btn download-btn--periwinkle" type="button"><i class="fa-solid fa-file-invoice"></i> 1. Under Review</button>
+                
+                <button id="im-download-excel-custom-btn" class="download-btn" type="button" style="background-color: #28a745; color: white;" onclick="exportCurrentTableToExcel()">
+                    <i class="fa-solid fa-file-excel"></i> Export to Excel
+                </button>
+
                 <button id="im-download-with-accounts-report-button" class="download-btn download-btn--gold" type="button"><i class="fa-solid fa-credit-card"></i> 2. With Accounts</button>
                 <button id="im-reporting-download-btn" class="download-btn download-btn--teal" type="button" onclick="downloadReportingTableToExcel()"><i class="fa-solid fa-file-lines"></i> Finance Report</button>
                 <button id="im-refresh-reporting-button" class="refresh-btn" title="Force Full Refresh" style="margin-left: 10px;">
@@ -2629,7 +2634,7 @@
 
     <script src="materialStock.js?v=6.3.21"></script>
     <script src="transferLogic.js?v=6.3.21"></script>
-    <script src="app.js?v=6.6.8"></script>
+    <script src="app.js?v=6.7.1"></script>
 
     </body>
 </html>

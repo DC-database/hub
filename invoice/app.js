@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.6.8";
+const APP_VERSION = "6.7.1";
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -4395,6 +4395,10 @@ try {
         if (imDownloadWithAccountsReportButton) imDownloadWithAccountsReportButton.style.display = showReportBtns ? 'inline-block' : 'none';
         if (imDailyReportDateInput) imDailyReportDateInput.style.display = showReportBtns ? 'inline-block' : 'none';
         if (imReportingDownloadExcelButton) imReportingDownloadExcelButton.style.display = showReportBtns ? 'inline-block' : 'none';
+        
+        // --- ADD THIS NEW LINE HERE ---
+        const customExcelBtn = document.getElementById('im-download-excel-custom-btn');
+        if (customExcelBtn) customExcelBtn.style.display = showReportBtns ? 'inline-block' : 'none';
 
         const canPrintInvoiceReport = isAdminRole || isAccountingPos;
         if (imReportingPrintBtn) imReportingPrintBtn.disabled = !canPrintInvoiceReport;
@@ -13196,6 +13200,9 @@ await populateAttentionDropdown(choices, statusSelect.value, site, true);
         batchPOInput.value = '';
         batchPOInput.focus();
     } catch (error) {
+
+
+
         console.error("Error adding PO to batch:", error);
         alert('An error occurred while adding the PO.');
     }
@@ -13720,7 +13727,7 @@ async function handleBatchModalPOSearch() {
         const vendor = poData ? poData['Supplier Name'] || 'N/A' : 'N/A';
         
         // 1. Create Table Structure
-        modalResultsContainer.innerHTML = ''; // Clear loading message
+        modalResultsContainer.innerHTML = ''; 
         const table = document.createElement('table');
         table.innerHTML = `
             <thead>
@@ -13739,10 +13746,13 @@ async function handleBatchModalPOSearch() {
         const tbody = table.querySelector('tbody');
         const sortedInvoices = Object.entries(invoicesData).sort(([, a], [, b]) => (a.invEntryID || '').localeCompare(b.invEntryID || ''));
         
-        // 2. Loop and Create Rows with Click Logic
+        // 2. Loop and Create Rows with Click & Keyboard Logic
         for (const [key, inv] of sortedInvoices) {
             const tr = document.createElement('tr');
-            tr.style.cursor = 'pointer'; // Visual cue
+            tr.style.cursor = 'pointer'; 
+            
+            // MAKE ROW FOCUSABLE FOR KEYBOARD
+            tr.setAttribute('tabindex', '0'); 
             
             const invDataString = encodeURIComponent(JSON.stringify({
                 key,
@@ -13754,7 +13764,7 @@ async function handleBatchModalPOSearch() {
             
             tr.innerHTML = `
                 <td style="text-align:center;">
-                    <input type="checkbox" class="modal-inv-checkbox" data-invoice='${invDataString}'>
+                    <input type="checkbox" class="modal-inv-checkbox" data-invoice='${invDataString}' tabindex="-1">
                 </td>
                 <td>${inv.invEntryID || ''}</td>
                 <td>${inv.invNumber || ''}</td>
@@ -13762,28 +13772,74 @@ async function handleBatchModalPOSearch() {
                 <td>${inv.status || ''}</td>
             `;
             
-            // 3. Add Click Event to the Row
+            // Mouse Click Event
             tr.addEventListener('click', (e) => {
-                // If user clicked the checkbox directly, do nothing (let default behavior handle it)
                 if (e.target.type === 'checkbox') return;
-                
-                // Otherwise, toggle the checkbox manually
                 const checkbox = tr.querySelector('.modal-inv-checkbox');
-                if (checkbox) {
-                    checkbox.checked = !checkbox.checked;
+                if (checkbox) checkbox.checked = !checkbox.checked;
+            });
+
+            // ==========================================
+            // KEYBOARD NAVIGATION LOGIC
+            // ==========================================
+            tr.addEventListener('keydown', (e) => {
+                // SPACEBAR: Toggle Checkbox
+                if (e.key === ' ' || e.key === 'Spacebar') {
+                    e.preventDefault(); // Stop page from scrolling down
+                    const checkbox = tr.querySelector('.modal-inv-checkbox');
+                    if (checkbox) checkbox.checked = !checkbox.checked;
                 }
+                // ARROW DOWN: Move to next row
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (tr.nextElementSibling) tr.nextElementSibling.focus();
+                }
+                // ARROW UP: Move to previous row (or back to search box)
+                if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (tr.previousElementSibling) {
+                        tr.previousElementSibling.focus();
+                    } else {
+                        modalPOSearchInput.focus(); // Jump back to search box
+                    }
+                }
+                // ENTER: Add selected to batch list
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.getElementById('im-batch-modal-add-selected-btn').click();
+                }
+            });
+
+            // VISUAL HIGHLIGHT: Show which row is currently selected by the keyboard
+            tr.addEventListener('focus', () => {
+                tr.style.backgroundColor = '#e6f2ff'; // Light blue background
+                tr.style.outline = '2px solid #003A5C'; // Dark blue border
+            });
+            tr.addEventListener('blur', () => {
+                tr.style.backgroundColor = '';
+                tr.style.outline = 'none';
             });
             
             tbody.appendChild(tr);
         }
         
-        // 4. "Select All" Logic
+        // "Select All" Logic
         const selectAll = document.getElementById('modal-select-all');
         if (selectAll) {
             selectAll.addEventListener('change', (e) => {
                 modalResultsContainer.querySelectorAll('.modal-inv-checkbox').forEach(chk => chk.checked = e.target.checked);
             });
         }
+
+        // ==========================================
+        // AUTO-FOCUS ON FIRST ROW AFTER SEARCH
+        // ==========================================
+        setTimeout(() => {
+            const firstRow = tbody.querySelector('tr');
+            if (firstRow) {
+                firstRow.focus();
+            }
+        }, 100);
         
     } catch (error) {
         console.error("Error searching in batch modal:", error);
@@ -16974,27 +17030,84 @@ if (settingsVacationCheckbox) {
             }
         });
 
-        // 2. SMART FILTER LISTENER (Kept)
+        // 2. SMART FILTER & AUTO-ATTENTION LISTENER
         batchTableBody.addEventListener('change', async (e) => {
             if (e.target.name === 'status') {
                 const row = e.target.closest('tr');
                 const newStatus = e.target.value;
-                const site = row.dataset.site; 
-                
+                const site = row.dataset.site;
+
                 // Find the Choices instance for this row
                 if (row.choicesInstance) {
                     const currentSelection = row.choicesInstance.getValue(true);
                     
-                    // Apply Smart Filter
+                    // Apply Smart Filter to update the dropdown options normally
                     await populateAttentionDropdown(row.choicesInstance, newStatus, site, true);
                     
-                    // Restore selection if valid
-                    if(currentSelection) {
+                    // ==========================================
+                    // --- NEW AUTO-ATTENTION LOGIC START ---
+                    // ==========================================
+                    let autoAttention = null;
+                    const statusLower = (newStatus || '').toLowerCase();
+                    
+                    // Helper to safely find the exact formatted name from your database
+                    const findName = (keyword) => {
+                        if (!allApproverData) return keyword; // fallback
+                        for (let user of Object.values(allApproverData)) {
+                            let n = user.Name || '';
+                            if (n.toLowerCase().includes(keyword.toLowerCase())) return n;
+                        }
+                        return keyword; 
+                    };
+
+                    if (statusLower === 'report') {
+                        autoAttention = findName('gio');
+                    } 
+                    else if (statusLower === 'ceo approval') {
+                        autoAttention = findName('hamad');
+                    } 
+                    // Checks for "In process" (or "For IPC" depending on what your dropdown says)
+                    else if (statusLower === 'in process' || statusLower === 'for ipc') {
+                        autoAttention = findName('ali');
+                    } 
+                    else if (statusLower === 'for srv') {
+                        let siteDcName = null;
+                        
+                        // Look for the specific Site DC in the approvers database
+                        if (allApproverData) {
+                            // Extract just the site number/code (e.g., "175" from "175 - Plaza")
+                            const rowSiteMatch = (site || '').split('-')[0].trim().toLowerCase(); 
+                            
+                            for (let user of Object.values(allApproverData)) {
+                                let userPos = (user.Position || '').toLowerCase();
+                                let userSite = (user.Site || '').toLowerCase();
+                                
+                                // Check if position contains "Site DC" or just "DC"
+                                if (userPos.includes('site dc') || userPos.includes('dc')) {
+                                    // Check if their assigned site covers this row's site
+                                    if (rowSiteMatch && (userSite === 'all' || userSite.includes(rowSiteMatch))) {
+                                        siteDcName = user.Name;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        // If a matching Site DC is found, use it. Otherwise, fallback to Irwin.
+                        autoAttention = siteDcName || findName('irwin');
+                    }
+
+                    // Apply the Auto-Attention if a rule matched, otherwise restore previous selection
+                    if (autoAttention) {
+                        setBatchRowAttentionValue(row, autoAttention);
+                    } else if (currentSelection) {
                         row.choicesInstance.setChoiceByValue(currentSelection);
                     }
+                    // ==========================================
+                    // --- NEW AUTO-ATTENTION LOGIC END ---
+                    // ==========================================
                 }
-
-                // Keep the button label updated
+                
+                // Keep the UI button label updated
                 updateBatchRowAttentionButton(row);
             }
         });
@@ -20065,6 +20178,155 @@ window.downloadReportingTableToExcel = async function() {
             btn.disabled = false;
         }
     }
+};
+
+
+
+// ==========================================================================
+// CUSTOM EXCEL EXPORT (Filtered Full Data + Invoice Name + SRV Name)
+// ==========================================================================
+window.exportCurrentTableToExcel = function() {
+    // 1. Strict Super Admin Check (using standard system check)
+    let isSuperAdmin = false;
+    try {
+        if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'Super Admin') {
+            isSuperAdmin = true;
+        } else if (typeof currentApprover !== 'undefined' && currentApprover && (currentApprover.Name || '').toLowerCase() === 'super admin') {
+            isSuperAdmin = true;
+        } else if (typeof isVacationDelegateUser === 'function' && isVacationDelegateUser()) {
+            isSuperAdmin = true;
+        }
+    } catch(e) {}
+    
+    // Fallback allowing it to run if the button was rendered, but checking is best practice
+    if (!isSuperAdmin && !document.getElementById('im-download-excel-custom-btn')) {
+        alert("Access Denied: Only Super Admin can export this report.");
+        return;
+    }
+
+    if (typeof allInvoiceData === 'undefined' || !allInvoiceData) {
+        alert("No invoice data available. Please wait for the system to load.");
+        return;
+    }
+
+    // 2. Get active filter values exactly as they are in the UI
+    const searchTerm = (document.getElementById('im-reporting-search')?.value || '').toLowerCase().trim();
+    const siteFilter = document.getElementById('im-reporting-site-filter')?.value || '';
+    const statusFilter = document.getElementById('im-reporting-status-filter')?.value || '';
+    const monthFilter = document.getElementById('im-reporting-month-filter')?.value || '';
+    const yearFilter = document.getElementById('im-reporting-year-filter')?.value || '';
+
+    // 3. Build CSV Header (with UTF-8 BOM so Excel opens it cleanly)
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+    const headers = [
+        "PO Number", "Site", "Vendor", "PO Value", 
+        "Inv Entry ID", "Invoice No", "Invoice Name", "SRV Name", 
+        "Invoice Date", "Invoice Value", "Amount Paid", "Status", "Note"
+    ];
+    csvContent += headers.join(",") + "\n";
+
+    let resultCount = 0;
+
+    // 4. Loop through the FULL dataset to ensure we miss nothing (bypasses UI pagination)
+    for (const poNumber in allInvoiceData) {
+        const invoices = allInvoiceData[poNumber];
+        
+        // Grab parent PO details safely
+        let poSite = '';
+        let poVendor = '';
+        let poValue = 0;
+        
+        if (typeof allPOData !== 'undefined' && allPOData[poNumber]) {
+            poSite = allPOData[poNumber]['Project ID'] || allPOData[poNumber]['Project ID:'] || '';
+            poVendor = allPOData[poNumber]['Supplier Name'] || allPOData[poNumber]['Supplier Name:'] || allPOData[poNumber]['Supplier'] || '';
+            poValue = parseFloat(allPOData[poNumber]['PO Amount'] || allPOData[poNumber]['PO Amount:'] || allPOData[poNumber]['Total Amount'] || 0) || 0;
+        }
+
+        for (const key in invoices) {
+            const inv = invoices[key];
+            const invStatus = inv.status || '';
+
+            // --- HARD RULE: EXCLUDE EPICORE CLOSE ---
+            if (invStatus.toLowerCase() === 'epicore close') continue;
+
+            // Resolve Site & Vendor (Invoice level overrides PO level)
+            const actualSite = inv.site || inv.site_name || poSite || 'N/A';
+            const actualVendor = inv.vendor || inv.vendor_name || poVendor || 'N/A';
+
+            // --- APPLY UI FILTERS ---
+            // 1. Site Filter
+            if (siteFilter && actualSite !== siteFilter) continue;
+
+            // 2. Status Filter
+            if (statusFilter && statusFilter !== 'Negative Balance') {
+                if (invStatus !== statusFilter) continue;
+            }
+
+            // 3. Month & Year Filter
+            if (monthFilter || yearFilter) {
+                const dateStr = inv.invoiceDate || '';
+                if (!dateStr) continue;
+                const parts = dateStr.split('-'); // format: YYYY-MM-DD
+                if (parts.length === 3) {
+                    if (yearFilter && parts[0] !== yearFilter) continue;
+                    if (monthFilter && parts[1] !== monthFilter) continue;
+                } else {
+                    continue; // invalid date formatting
+                }
+            }
+
+            // 4. Search Bar Filter
+            if (searchTerm) {
+                const searchString = `${poNumber} ${actualVendor} ${inv.invNumber || ''} ${inv.invValue || ''} ${invStatus} ${inv.invName || ''} ${inv.srvName || ''}`.toLowerCase();
+                if (!searchString.includes(searchTerm)) continue;
+            }
+
+            // --- IF IT PASSES ALL FILTERS, ADD TO EXCEL ---
+            const invEntry = `"${(inv.invEntryID || '').replace(/"/g, '""')}"`;
+            const invNo = `"${(inv.invNumber || '').replace(/"/g, '""')}"`;
+            const invName = `"${(inv.invName || '').replace(/"/g, '""')}"`; // INVOICE NAME INCLUDED
+            const srvName = `"${(inv.srvName || '').replace(/"/g, '""')}"`; // SRV NAME INCLUDED
+            
+            // Format dates neatly for Excel
+            let invDate = '';
+            if (inv.invoiceDate) {
+                const d = new Date(inv.invoiceDate);
+                if (!isNaN(d.getTime())) invDate = d.toLocaleDateString('en-GB'); 
+            }
+
+            const invValue = inv.invValue || 0;
+            const amtPaid = inv.amountPaid || 0;
+            const safeStatus = `"${invStatus.replace(/"/g, '""')}"`;
+            const safeNote = `"${(inv.note || '').replace(/"/g, '""')}"`;
+            const poNoClean = `"${poNumber.replace(/"/g, '""')}"`;
+            const vendorClean = `"${actualVendor.replace(/"/g, '""')}"`;
+            const siteClean = `"${actualSite.replace(/"/g, '""')}"`;
+
+            const row = [
+                poNoClean, siteClean, vendorClean, poValue,
+                invEntry, invNo, invName, srvName, invDate, invValue, amtPaid, safeStatus, safeNote
+            ];
+            
+            csvContent += row.join(",") + "\n";
+            resultCount++;
+        }
+    }
+
+    if (resultCount === 0) {
+        alert("No results match the current filters (or all matching items are 'Epicore Close').");
+        return;
+    }
+
+    // 5. Trigger File Download
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    const dateStr = new Date().toISOString().split('T')[0];
+    link.setAttribute("download", `Invoice_Records_Filtered_${dateStr}.csv`);
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 };
     
 // ==========================================================================
