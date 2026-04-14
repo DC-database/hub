@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.7.1";
+const APP_VERSION = "6.7.2";
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -20183,7 +20183,7 @@ window.downloadReportingTableToExcel = async function() {
 
 
 // ==========================================================================
-// CUSTOM EXCEL EXPORT (Filtered Full Data + Invoice Name + SRV Name)
+// CUSTOM EXCEL EXPORT (Filtered Full Data + Invoice, SRV Name, Release Date)
 // ==========================================================================
 window.exportCurrentTableToExcel = function() {
     // 1. Strict Super Admin Check (using standard system check)
@@ -20221,7 +20221,7 @@ window.exportCurrentTableToExcel = function() {
     const headers = [
         "PO Number", "Site", "Vendor", "PO Value", 
         "Inv Entry ID", "Invoice No", "Invoice Name", "SRV Name", 
-        "Invoice Date", "Invoice Value", "Amount Paid", "Status", "Note"
+        "Invoice Date", "Invoice Value", "Amount Paid", "Release Date", "Status", "Note"
     ];
     csvContent += headers.join(",") + "\n";
 
@@ -20284,14 +20284,20 @@ window.exportCurrentTableToExcel = function() {
             // --- IF IT PASSES ALL FILTERS, ADD TO EXCEL ---
             const invEntry = `"${(inv.invEntryID || '').replace(/"/g, '""')}"`;
             const invNo = `"${(inv.invNumber || '').replace(/"/g, '""')}"`;
-            const invName = `"${(inv.invName || '').replace(/"/g, '""')}"`; // INVOICE NAME INCLUDED
-            const srvName = `"${(inv.srvName || '').replace(/"/g, '""')}"`; // SRV NAME INCLUDED
+            const invName = `"${(inv.invName || '').replace(/"/g, '""')}"`; 
+            const srvName = `"${(inv.srvName || '').replace(/"/g, '""')}"`; 
             
             // Format dates neatly for Excel
             let invDate = '';
             if (inv.invoiceDate) {
                 const d = new Date(inv.invoiceDate);
                 if (!isNaN(d.getTime())) invDate = d.toLocaleDateString('en-GB'); 
+            }
+            
+            let relDate = '';
+            if (inv.releaseDate) {
+                const rd = new Date(inv.releaseDate);
+                if (!isNaN(rd.getTime())) relDate = rd.toLocaleDateString('en-GB'); 
             }
 
             const invValue = inv.invValue || 0;
@@ -20304,7 +20310,7 @@ window.exportCurrentTableToExcel = function() {
 
             const row = [
                 poNoClean, siteClean, vendorClean, poValue,
-                invEntry, invNo, invName, srvName, invDate, invValue, amtPaid, safeStatus, safeNote
+                invEntry, invNo, invName, srvName, invDate, invValue, amtPaid, relDate, safeStatus, safeNote
             ];
             
             csvContent += row.join(",") + "\n";
@@ -20328,6 +20334,7 @@ window.exportCurrentTableToExcel = function() {
     link.click();
     document.body.removeChild(link);
 };
+
     
 // ==========================================================================
 // MISSING FUNCTION: Handle Print for Job Records
