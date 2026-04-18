@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.7.2";
+const APP_VERSION = "6.7.3";
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -11693,23 +11693,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- PASTE IT HERE ---
     // 6. Interactive Master/Detail Expand Toggle
-    const contentArea = document.getElementById('im-reporting-content');
-    if (contentArea) {
-        contentArea.addEventListener('click', (e) => {
-            const row = e.target.closest('.master-grid-row');
-            if (row && !e.target.closest('button')) {
-                const card = row.closest('.invoice-card');
-                if (card) {
-                    card.classList.toggle('expanded');
-                    if (card.classList.contains('expanded')) {
-                        imLastExpandedRowId = card.getAttribute('data-po-id');
-                    } else if (imLastExpandedRowId === card.getAttribute('data-po-id')) {
-                        imLastExpandedRowId = null;
-                    }
+const contentArea = document.getElementById('im-reporting-content');
+if (contentArea) {
+    contentArea.addEventListener('click', (e) => {
+        const row = e.target.closest('.master-grid-row');
+        if (row && !e.target.closest('button')) {
+            const card = row.closest('.invoice-card');
+            if (card) {
+                const isCurrentlyExpanded = card.classList.contains('expanded');
+                const poId = card.getAttribute('data-po-id');
+                
+                // ACCORDION LOGIC: Close all other cards first
+                const allCards = document.querySelectorAll('.invoice-card');
+                allCards.forEach(c => {
+                    if (c !== card) c.classList.remove('expanded');
+                });
+
+                // Toggle clicked PO
+                if (isCurrentlyExpanded) {
+                    card.classList.remove('expanded');
+                    imLastExpandedRowId = null;
+                } else {
+                    card.classList.add('expanded');
+                    imLastExpandedRowId = poId;
                 }
             }
-        });
-    }
+        }
+    });
+}
 
 }); // <-- This is the end of the DOMContentLoaded block
 
@@ -11974,9 +11985,9 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
                     }
 
                     actionButtonsHTML = `<div class="modern-action-group" style="display:flex; gap:3px;">${editBtn} ${invPDFLink} ${srvPDFLink} ${reportViewLink} ${printReportBtn} ${historyBtn} ${stickerBtn} ${waBtn}</div>`;
-                } else if (inv.source === 'ecommit' && isAllowedUser) {
-                    actionButtonsHTML = `<span style="font-size:0.8rem; color:#6f42c1; font-weight:bold; cursor:pointer;" onclick="event.stopPropagation();"><i class="fa-solid fa-file-import"></i> Click to Import</span>`;
-                }
+} else if ((inv.source || '').toLowerCase() === 'ecommit' && isAllowedUser) {
+    actionButtonsHTML = `<span style="font-size:0.8rem; color:#6f42c1; font-weight:bold; cursor:pointer;"><i class="fa-solid fa-file-import"></i> Click to Import</span>`;
+}
 
                 innerRows += `
                     <tr class="nested-invoice-row" 
@@ -16677,20 +16688,34 @@ if (masterRowClick) {
             const po = editInvBtn.dataset.po;
             const key = editInvBtn.dataset.key;
             const currentVal = editInvBtn.dataset.current;
-
             const newVal = prompt("Enter new Invoice Number:", currentVal);
-
             if (newVal !== null && newVal.trim() !== currentVal) {
                 try {
-                    await invoiceDb.ref(`invoice_entries/${po}/${key}`).update({
-                        invNumber: newVal.trim()
-                    });
+                    await invoiceDb.ref(`invoice_entries/${po}/${key}`).update({ invNumber: newVal.trim() });
                     if (allInvoiceData && allInvoiceData[po] && allInvoiceData[po][key]) {
                         allInvoiceData[po][key].invNumber = newVal.trim();
                     }
                     alert("Invoice Number updated!");
                     const currentSearch = sessionStorage.getItem('imReportingSearch') || '';
-                    populateInvoiceReporting(currentSearch);
+                    
+                    // Await the table re-render
+                    await populateInvoiceReporting(currentSearch);
+                    
+                    // AUTO-SCROLL LOGIC: Find the newly sorted row and scroll to it
+                    setTimeout(() => {
+                        const editedRow = document.querySelector(`.nested-invoice-row[data-invoice-key="${key}"]`);
+                        if (editedRow) {
+                            editedRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            
+                            // Optional: Flash the row green to indicate the active edit
+                            const originalBg = editedRow.style.backgroundColor;
+                            editedRow.style.backgroundColor = '#d4edda';
+                            setTimeout(() => {
+                                editedRow.style.backgroundColor = originalBg;
+                            }, 2000);
+                        }
+                    }, 400);
+
                 } catch (err) {
                     console.error(err);
                     alert("Error updating invoice number.");
@@ -16699,14 +16724,18 @@ if (masterRowClick) {
             return;
         }
 
+
         // 3. Handle Row Click (Import or Edit)
         // ---------------------------------------------------------
-        const invoiceRow = e.target.closest('.nested-invoice-row');
+const invoiceRow = e.target.closest('.nested-invoice-row');
         if (invoiceRow) {
-
             // A. Permission Check
+            const userRoleLower = (currentApprover?.Role || '').toLowerCase();
             const userPositionLower = (currentApprover?.Position || '').toLowerCase();
-            if (userPositionLower !== 'accounting') return;
+            const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
+            const canEdit = userRoleLower === 'admin' || userPositionLower === 'accounting' || userPositionLower === 'accounts' || isVacationDelegate;
+            
+            if (!canEdit) return;
 
             // [NEW] B. Handle "Inv. No." Column (Index 1) Logic
             // ---------------------------------------------------
@@ -16745,49 +16774,70 @@ if (masterRowClick) {
 
             if (!poNumber || !invoiceKey) return;
 
-            // --- SCENARIO A: IMPORT FROM EPICORE (CSV) ---
-            if (source === 'ecommit') {
-                if (confirm(`Import this Epicore record to Invoice Entry?\n\nPO: ${poNumber}\nInv: ${invoiceRow.dataset.invNumber || 'N/A'}`)) {
+           // --- SCENARIO A: IMPORT FROM EPICORE (CSV) ---
+    if ((source || '').toLowerCase() === 'ecommit') {
+        
+        // 1. Grab the glued data (checking multiple possible attribute names)
+        const invNo = invoiceRow.dataset.invNumber || invoiceRow.dataset.packingSlip || '';
+        let invValue = invoiceRow.dataset.invValue || invoiceRow.dataset.extendedCost || '';
+        
+        // Strip out any currency letters or commas from the CSV value just in case
+        if (invValue) invValue = invValue.replace(/[^0-9.-]+/g, ""); 
 
-                    imNav.querySelector('a[data-section="im-invoice-entry"]').click();
-                    imPOSearchInput.value = poNumber;
-
-                    handlePOSearch(poNumber).then(() => {
-                        setTimeout(() => {
-                            const invNo = invoiceRow.dataset.invNumber;
-                            const invDate = invoiceRow.dataset.invDate;
-                            const releaseDate = invoiceRow.dataset.releaseDate;
-                            const invValue = invoiceRow.dataset.invValue;
-
-                            if (invNo) document.getElementById('im-inv-no').value = invNo;
-                            if (invDate) document.getElementById('im-invoice-date').value = normalizeDateForInput(invDate);
-                            if (releaseDate) document.getElementById('im-release-date').value = normalizeDateForInput(releaseDate);
-
-                            if (invValue) {
-                                document.getElementById('im-inv-value').value = invValue;
-                                document.getElementById('im-amount-paid').value = invValue;
-                            }
-
-                            // Import Defaults
-                            document.getElementById('im-status').value = 'Under Review';
-                            document.getElementById('im-inv-name').value = 'Nil';
-                            if (imAttentionSelectChoices) imAttentionSelectChoices.removeActiveItems();
-
-                            currentlyEditingInvoiceKey = null;
-                            imAddInvoiceButton.classList.remove('hidden');
-                            imUpdateInvoiceButton.classList.add('hidden');
-                            imFormTitle.textContent = `Importing Invoice: ${invNo || 'New'}`;
-
-                            openIMInvoiceEntryModal();
-                            setTimeout(() => {
-                                const invNoInput = document.getElementById('im-inv-no');
-                                if (invNoInput) invNoInput.focus();
-                            }, 50); 
-                        }, 500); 
-                    });
+        if (confirm(`Import this Epicore record to Invoice Entry?\n\nPO: ${poNumber}\nInv: ${invNo || 'N/A'}`)) {
+            
+            // 2. Navigate to Invoice Entry
+            const invEntryNav = document.querySelector('#im-nav a[data-section="im-invoice-entry"]');
+            if (invEntryNav) invEntryNav.click();
+            
+            // 3. Set the input and trigger the PO Search
+            const poInput = document.getElementById('im-po-search-input');
+            if (poInput) poInput.value = poNumber;
+            if (typeof handlePOSearch === 'function') handlePOSearch(poNumber);
+            
+            // 4. THE BULLDOZER: Force data into inputs repeatedly to beat the form reset
+            let attempts = 0;
+            const forceInject = setInterval(() => {
+                const invNoInput = document.getElementById('im-inv-no');
+                const invValueInput = document.getElementById('im-inv-value');
+                const amountPaidInput = document.getElementById('im-amount-paid');
+                const statusSelect = document.getElementById('im-status');
+                
+                // Inject the values
+                if (invNoInput) invNoInput.value = invNo;
+                if (invValueInput) invValueInput.value = invValue;
+                if (amountPaidInput) amountPaidInput.value = invValue;
+                if (statusSelect) statusSelect.value = 'Under Review';
+                
+                // Open the Modal UI
+                currentlyEditingInvoiceKey = null;
+                const addBtn = document.getElementById('im-add-invoice-button');
+                const updateBtn = document.getElementById('im-update-invoice-button');
+                if (addBtn) addBtn.classList.remove('hidden');
+                if (updateBtn) updateBtn.classList.add('hidden');
+                
+                const formTitle = document.getElementById('im-form-title');
+                if (formTitle) formTitle.textContent = `Importing Invoice: ${invNo || 'New'}`;
+                
+                const modal = document.getElementById('im-invoice-entry-modal');
+                if (modal) modal.classList.remove('hidden');
+                
+                attempts++;
+                // Stop fighting after 1.5 seconds and format the numbers nicely
+                if (attempts > 15) {
+                    clearInterval(forceInject);
+                    if (typeof formatCurrencyField === 'function') {
+                        if (invValueInput) formatCurrencyField(invValueInput);
+                        if (amountPaidInput) formatCurrencyField(amountPaidInput);
+                    }
+                    if (invNoInput) invNoInput.focus();
                 }
-                return;
-            }
+            }, 100);
+        }
+        return;
+    }
+
+			
 
             // --- SCENARIO B: EDIT EXISTING FIREBASE ENTRY ---
             if (confirm(`Do you want to edit this specific invoice entry?\n\nPO: ${poNumber}\nInvoice Key: ${invoiceKey}`)) {
