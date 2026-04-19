@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.7.3";
+const APP_VERSION = "6.7.5";
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -232,6 +232,20 @@ observeTables.forEach(tableId => {
     }
 });
 
+
+// Helper function to format numbers into financial format (e.g., 64,862.50)
+function formatTableCurrency(val) {
+    if (!val || val === '') return '';
+    
+    // Remove any existing commas just in case, then parse to float
+    const num = parseFloat(String(val).replace(/,/g, ''));
+    if (isNaN(num)) return val; // If it's pure text somehow, just return the text
+    
+    return num.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
 
 // ======================================================================
 // NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)
@@ -11052,6 +11066,20 @@ async function handleActiveJobClick(e) {
         invoiceDate
     };
 
+    // --- STEP 1: MEMORIZE THE RECEPTION HISTORY ---
+    if (source === 'job_entry') {
+        window.importedJobHistory = [
+            { 
+                status: "Job Created (WorkDesk)", 
+                date: date || new Date().toISOString(), 
+                updatedBy: "Reception" 
+            }
+        ];
+    } else {
+        window.importedJobHistory = null; // Clear if it's not a new job
+    }
+    // ----------------------------------------------
+
     // SCENARIO 1: It is an EXISTING INVOICE (This part was already working)
     if (source === 'invoice' && originalPO && originalKey) {
         jobEntryToUpdateAfterInvoice = null;
@@ -11078,7 +11106,12 @@ async function handleActiveJobClick(e) {
 
         // --- NEW CODE: Force the modal to open ---
         setTimeout(() => {
-            openIMInvoiceEntryModal(); 
+            if (typeof openIMInvoiceEntryModal === 'function') {
+                openIMInvoiceEntryModal(); 
+            } else {
+                const modal = document.getElementById('im-invoice-entry-modal');
+                if (modal) modal.classList.remove('hidden');
+            }
         }, 150); // Small delay to allow data to populate first
         // ----------------------------------------
 
@@ -11261,7 +11294,6 @@ async function handleAddInvoice(e) {
         invoiceData.invName = normalizeNameText(invoiceData.invName);
     }
 
-
     invoiceData.dateAdded = getTodayDateString();
     invoiceData.createdAt = firebase.database.ServerValue.TIMESTAMP;
     
@@ -11301,6 +11333,27 @@ async function handleAddInvoice(e) {
         if (invoiceData[key] === null || invoiceData[key] === undefined) delete invoiceData[key];
     });
 
+    // =========================================================
+    // 👉 PASTE STEP 2 RIGHT HERE:
+    // --- INJECT IMPORTED RECEPTION HISTORY ---
+    if (window.importedJobHistory && window.importedJobHistory.length > 0) {
+        invoiceData.history = {};
+        window.importedJobHistory.forEach((histItem, index) => {
+            
+            // USE EXACT TIME: Grab the original millisecond timestamp if available
+            const exactTime = invoiceData.originTimestamp || new Date(histItem.date).getTime() || (Date.now() - 2000);
+
+            // We give it a special key so it sits at the top of the history list
+            invoiceData.history['imported_' + index] = {
+                status: histItem.status,
+                updatedBy: histItem.updatedBy,
+                timestamp: exactTime,
+                note: "Carried over from WorkDesk"
+            };
+        });
+    }
+      // =========================================================
+
     try {
         const newRef = await invoiceDb.ref(`invoice_entries/${currentPO}`).push(invoiceData);
         const newKey = newRef.key;
@@ -11339,8 +11392,6 @@ async function handleAddInvoice(e) {
                 const completedKey = jobEntryToUpdateAfterInvoice;
                 await db.ref(`job_entries/${jobEntryToUpdateAfterInvoice}`).update(updates);
 
-                // Local cache sync: mark the originating Invoice Job Entry as completed immediately
-                // so Invoice Entry side-panel Active Jobs updates without requiring a refresh.
                 try {
                     const local = (Array.isArray(allSystemEntries)
                         ? allSystemEntries.find(e => e && e.key === completedKey)
@@ -11362,6 +11413,11 @@ async function handleAddInvoice(e) {
 
         allSystemEntries = [];
         fetchAndDisplayInvoices(currentPO);
+        
+        // =========================================================
+        // WIPE MEMORY TO PREVENT LEAKS
+        window.importedJobHistory = null;
+        // =========================================================
 
     } catch (error) {
         console.error("Error adding invoice:", error);
