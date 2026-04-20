@@ -915,11 +915,11 @@
                 <h2 id="im-form-title" style="margin: 0;">Invoice Entry</h2>
                 
                 <div id="im-nav-controls" class="hidden" style="display: flex; align-items: center; gap: 5px;">
-                    <button type="button" id="im-nav-prev" class="secondary-btn" title="Previous Invoice" style="padding: 2px 8px; height: 30px; min-width: 30px; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);">&larr;</button>
+                    <button type="button" id="im-nav-prev" class="secondary-btn" title="Previous Invoice" style="padding: 2px 8px; height: 30px; min-width: 30px; background: #f8fafc; color: #003A5C; border: 1px solid #cbd5e1; font-weight: bold;">&larr;</button>
                     
-                    <span id="im-nav-counter" style="color: white; font-weight: bold; font-size: 0.9rem; min-width: 50px; text-align: center;"></span>
+                    <span id="im-nav-counter" style="color: #00748C; font-weight: bold; font-size: 0.95rem; min-width: 50px; text-align: center; background: #e0f2fe; padding: 2px 8px; border-radius: 4px;"></span>
                     
-                    <button type="button" id="im-nav-next" class="secondary-btn" title="Next Invoice" style="padding: 2px 8px; height: 30px; min-width: 30px; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);">&rarr;</button>
+                    <button type="button" id="im-nav-next" class="secondary-btn" title="Next Invoice" style="padding: 2px 8px; height: 30px; min-width: 30px; background: #f8fafc; color: #003A5C; border: 1px solid #cbd5e1; font-weight: bold;">&rarr;</button>
                 </div>
             </div>
             <button type="button" class="modal-close-btn">&times;</button>
@@ -963,26 +963,29 @@
         </div>
 
         <div class="form-group is-required">
-            <label>Status</label>
-            <select id="im-status" name="status">
-                <option value="For SRV">For SRV</option>
-		<option value="No Need SRV">No Need SRV</option>
-                <option value="Pending">Pending</option>
-                <option value="For IPC">For IPC</option>
-                <option value="Under Review" selected>Under Review</option>
-		<option value="In Process">In Process</option>
- 		<option value="Unresolved">Unresolved</option>
-		<option value="On Hold">On Hold</option>
-                <option value="For Approval">For Approval</option>
-                <option value="CEO Approval">CEO Approval</option>
-                <option value="Report">Report</option>
-		<option value="Report Approval">Report Approval</option>
-		<option value="Report Approved">Report Approved</option>
-		<option value="With Accounts">With Accounts</option>
-                <option value="Original PO">Original PO</option>
-		<option value="Cancelled">Cancelled</option>
-            </select>
-        </div>
+    <label>Status</label>
+    <select id="im-status" name="status">
+        <option value="For SRV">For SRV</option>
+        <option value="No Need SRV">No Need SRV</option>
+        <option value="Pending">Pending</option>
+        <option value="For IPC">For IPC</option>
+        <option value="Under Review" selected>Under Review</option>
+        <option value="In Process">In Process</option>
+        <option value="Unresolved">Unresolved</option>
+        <option value="On Hold">On Hold</option>
+        <option value="For Approval">For Approval</option>
+        
+        <option value="For Inquiry">For Inquiry</option>
+        
+        <option value="CEO Approval">CEO Approval</option>
+        <option value="Report">Report</option>
+        <option value="Report Approval">Report Approval</option>
+        <option value="Report Approved">Report Approved</option>
+        <option value="With Accounts">With Accounts</option>
+        <option value="Original PO">Original PO</option>
+        <option value="Cancelled">Cancelled</option>
+    </select>
+</div>
         <div class="form-group is-required" id="im-attention-group">
             <label>Attention</label>
             <select id="im-attention" name="attention"></select>
@@ -1048,7 +1051,7 @@
         </button>
     </div>
 
-    <div class="im-toolbar-buttons">
+<div class="im-toolbar-buttons">
         <button type="submit" id="im-add-invoice-button" class="secondary-btn" style="background-color: #00748C; color: white;">
             <i class="fa-solid fa-plus"></i> Add
         </button>
@@ -1057,9 +1060,14 @@
             <i class="fa-solid fa-floppy-disk"></i> Update
         </button>
 
+        <button type="button" id="im-modal-deletion-list-btn" class="secondary-btn hidden" title="Add to Deletion List" style="background-color: #16a34a; color: white; padding: 6px 12px; border: none;">
+            <i class="fa-solid fa-folder-minus"></i>
+        </button>
+
         <button type="button" id="im-delete-invoice-btn" class="secondary-btn hidden" style="background-color: #dc3545; color: white;">
             <i class="fa-solid fa-trash"></i> Delete
         </button>
+        
         <button type="button" id="im-clear-form-button" class="secondary-btn" style="background-color: #6c757d; color: white;">
             <i class="fa-solid fa-eraser"></i> Clear
         </button>
@@ -1131,69 +1139,116 @@
                     </div>
                 </section>
 
-                <section id="im-batch-entry" class="workdesk-section hidden">
-                    <h1>Batch Invoice Entry <span id="batch-count-display" class="table-count-display">(Total in Batch: 0)</span></h1>
-                    <p>Add a new PO for a new invoice, or search for a PO to add existing invoices for bulk editing.</p>
-
-                    <div id="im-batch-po-add-container" class="search-and-filter-group" style="margin-bottom: 20px;">
-                        <input type="text" id="im-batch-po-input" placeholder="Enter PO or Status..." style="flex-grow: 1; margin-bottom: 0;">
-                        <button id="im-batch-add-po-button" type="button">Add New PO</button>
-                        <button id="im-batch-search-existing-button" type="button" class="secondary-btn">Search by PO</button>
-                        <button id="im-batch-search-by-status-button" type="button" class="secondary-btn" style="background-color: #17a2b8;">Search by Status</button>
-                        <div class="batch-note-search-wrapper"><select id="im-batch-note-search-select" placeholder="Search by Note..."></select></div>
-                        <button id="im-batch-search-by-note-button" type="button" class="secondary-btn" style="background-color: #ffc107; color: #212529;">Search by Note</button>
-                        <button id="im-batch-clear-button" type="button" class="secondary-btn" style="background-color: #dc3545;">Clear</button>
-                    </div>
-                    <div id="im-batch-global-controls" class="search-and-filter-group" style="margin-bottom: 20px; background-color: #d6a6a3; padding: 15px; border-radius: 6px;">
-                        <div class="form-group" style="flex: 1; min-width: 200px; margin: 0;"><label for="im-batch-global-attention">Global Attention</label><select id="im-batch-global-attention"></select></div>
-                        <div class="form-group" style="flex: 1; min-width: 150px; margin: 0;">
-				<label for="im-batch-global-status">Global Status</label>
-			<select id="im-batch-global-status" class="batch-input" style="width: 100%; padding: 11px;">
-				<option value="">(No Change)</option>
-				<option value="For SRV">For SRV</option>
-				<option value="No Need SRV">No Need SRV</option>
-				<option value="Pending">Pending</option>
-				<option value="For IPC">For IPC</option>
-				<option value="Under Review">Under Review</option>
-                                <option value="In Process">In Process</option>
- 				<option value="Unresolved">Unresolved</option>
-				<option value="For Approval">For Approval</option>
-				<option value="CEO Approval">CEO Approval</option>
-				<option value="Report">Report</option>
-				<option value="Report Approval">Report Approval</option>
-				<option value="Report Approved">Report Approved</option>
-				<option value="With Accounts">With Accounts</option>
-				<option value="On Hold">On Hold</option>
-				<option value="CLOSED">CLOSED</option>
-				<option value="Cancelled">Cancelled</option>
-			</select></div>
-                        <div class="form-group" style="flex: 1; min-width: 200px; margin: 0;">
-				<label for="im-batch-global-note">Global Note</label>
-				<input type="text" id="im-batch-global-note" placeholder="Type note and press Enter..." class="batch-input" style="width: 100%;"></div>
-                    </div>
-
-                    <div class="table-wrapper" style="max-height: 50vh; overflow-y: auto;">
-                        <table id="im-batch-entry-table">
-                            <thead><tr><th>PO</th>
-				<th>Site</th><th>Vendor</th>
-				<th>Inv. No.</th><th>Inv. Name</th><th>Description</th>
-				<th>SRV Name</th><th>Inv. Date</th>
-				<th>Inv. Value</th><th>Amount To Paid</th>
-				<th>Attention</th><th>Status</th>
-				<th>Note</th>
-				<th></th></tr></thead>
-                            <tbody id="im-batch-table-body"></tbody>
-                        </table>
-                    </div>
-                    <div class="form-buttons-container" style="justify-content: flex-end; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
+               
+<section id="im-batch-entry" class="workdesk-section hidden" style="display: flex; flex-direction: column; height: 100%;">
     
-    <button id="im-refresh-batch-button" class="secondary-btn" type="button" title="Refresh data from Firebase">
-        <i class="fa-solid fa-sync"></i> Refresh Data
-    </button>
-    
-    <button id="im-batch-save-button" type="button" class="download-btn">Save All Invoices</button>
-</div>
-                </section>
+    <div class="header-top" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <div class="header-title" style="display: flex; align-items: center; gap: 15px;">
+            <div class="icon-wrapper" style="background-color: #e0f2fe; color: #00748C; padding: 12px; border-radius: 10px; font-size: 1.4rem;">
+                <i class="fa-solid fa-layer-group"></i>
+            </div>
+            <div>
+                <h1 style="border: none; margin: 0; color: #003A5C; font-size: 1.6rem;">Batch Invoice Entry</h1>
+                <p style="margin: 2px 0 0 0; color: #64748b; font-size: 0.85rem;">Add a new PO or search existing invoices for bulk editing.</p>
+            </div>
+            <span id="batch-count-display" style="background: #f1f5f9; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 12px; font-size: 0.85rem; color: #475569; font-weight: bold; margin-left: 10px;">(Total in Batch: 0)</span>
+        </div>
+        
+        <div style="display: flex; gap: 10px;">
+            <button id="im-refresh-batch-button" type="button" class="secondary-btn" title="Refresh data from Firebase" style="background-color: #f8fafc; color: #475569; border: 1px solid #cbd5e1;">
+                <i class="fa-solid fa-sync"></i> Refresh Data
+            </button>
+            <button id="im-batch-save-button" type="button" class="download-btn" style="background-color: #00748C; font-weight: bold; font-size: 1rem; padding: 10px 20px; box-shadow: 0 4px 6px rgba(0, 116, 140, 0.2);">
+                <i class="fa-solid fa-floppy-disk"></i> Save All Invoices
+            </button>
+        </div>
+    </div>
+
+    <div style="position: relative; z-index: 50; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center;">
+        
+        <div class="search-bar-local" style="margin-bottom: 0; flex-grow: 1; min-width: 250px;">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="im-batch-po-input" placeholder="Enter PO Number or Status..." style="margin-bottom: 0; border: 1px solid #cbd5e1; background: white;">
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+            <button id="im-batch-add-po-button" type="button" style="background-color: #28a745; color: white;"><i class="fa-solid fa-plus"></i> New PO</button>
+            <button id="im-batch-search-existing-button" type="button" class="secondary-btn"><i class="fa-solid fa-file-invoice"></i> Search PO</button>
+            <button id="im-batch-search-by-status-button" type="button" class="secondary-btn" style="background-color: #17a2b8; color: white;"><i class="fa-solid fa-tags"></i> By Status</button>
+        </div>
+
+        <div style="display: flex; gap: 8px; align-items: center; border-left: 2px solid #cbd5e1; padding-left: 15px;">
+            <div class="batch-note-search-wrapper" style="min-width: 200px;">
+                <select id="im-batch-note-search-select" placeholder="Search by Note..."></select>
+            </div>
+            <button id="im-batch-search-by-note-button" type="button" class="secondary-btn" style="background-color: #ffc107; color: #212529; font-weight: bold;"><i class="fa-solid fa-note-sticky"></i> Search Note</button>
+            <button id="im-batch-clear-button" type="button" class="secondary-btn" style="background-color: #dc3545; color: white;" title="Clear Search"><i class="fa-solid fa-eraser"></i></button>
+        </div>
+
+    </div>
+
+    <div id="im-batch-global-controls" style="background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 12px 15px; border-radius: 8px; margin-bottom: 15px; display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+        <div style="font-weight: 800; color: #1d4ed8; display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 0.9rem; text-transform: uppercase;">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Global Overrides:
+        </div>
+        <div class="form-group" style="flex: 1; min-width: 200px; margin: 0;">
+            <label for="im-batch-global-attention" style="font-size: 0.8rem; color: #475569; margin-bottom: 4px;">Set All Attention To</label>
+            <select id="im-batch-global-attention" style="background: white;"></select>
+        </div>
+        <div class="form-group" style="flex: 1; min-width: 150px; margin: 0;">
+            <label for="im-batch-global-status" style="font-size: 0.8rem; color: #475569; margin-bottom: 4px;">Set All Statuses To</label>
+            <select id="im-batch-global-status" class="batch-input" style="width: 100%; padding: 10px; background: white; border: 1px solid #cbd5e1;">
+                <option value="">(No Change)</option>
+                <option value="For SRV">For SRV</option>
+                <option value="No Need SRV">No Need SRV</option>
+                <option value="Pending">Pending</option>
+                <option value="For IPC">For IPC</option>
+                <option value="Under Review">Under Review</option>
+                <option value="In Process">In Process</option>
+                <option value="Unresolved">Unresolved</option>
+                <option value="For Approval">For Approval</option>
+                <option value="CEO Approval">CEO Approval</option>
+                <option value="Report">Report</option>
+                <option value="Report Approval">Report Approval</option>
+                <option value="Report Approved">Report Approved</option>
+                <option value="With Accounts">With Accounts</option>
+                <option value="On Hold">On Hold</option>
+                <option value="CLOSED">CLOSED</option>
+                <option value="Cancelled">Cancelled</option>
+            </select>
+        </div>
+        <div class="form-group" style="flex: 1; min-width: 200px; margin: 0;">
+            <label for="im-batch-global-note" style="font-size: 0.8rem; color: #475569; margin-bottom: 4px;">Set All Notes To</label>
+            <input type="text" id="im-batch-global-note" placeholder="Type note and press Enter..." class="batch-input" style="width: 100%; padding: 10px; background: white; border: 1px solid #cbd5e1;">
+        </div>
+    </div>
+
+    <div class="table-wrapper" style="flex-grow: 1; overflow-y: auto; border: 1px solid #cbd5e1; border-radius: 8px; background: white; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+        <table id="im-batch-entry-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+            <thead style="position: sticky; top: 0; background: #003A5C; color: white; z-index: 10;">
+                <tr>
+                    <th style="padding: 10px; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.1);">PO</th>
+                    <th style="padding: 10px; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.1);">Site</th>
+                    <th style="padding: 10px; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.1);">Vendor</th>
+                    <th style="padding: 10px; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.1); min-width: 140px;">Inv. No.</th>
+                    <th style="padding: 10px; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.1);">Inv. Name</th>
+                    <th style="padding: 10px; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.1);">Description</th>
+                    <th style="padding: 10px; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.1);">SRV Name</th>
+                    <th style="padding: 10px; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.1);">Inv. Date</th>
+                    <th style="padding: 10px; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.1);">Inv. Value</th>
+                    <th style="padding: 10px; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.1);">Amount To Paid</th>
+                    <th style="padding: 10px; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.1); min-width: 160px;">Attention</th>
+                    <th style="padding: 10px; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.1);">Status</th>
+                    <th style="padding: 10px; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.1);">Note</th>
+                    <th style="padding: 10px; font-weight: 600; text-align: center;"><i class="fa-solid fa-trash"></i></th>
+                </tr>
+            </thead>
+            <tbody id="im-batch-table-body"></tbody>
+        </table>
+    </div>
+
+</section>
+
 
 
 
@@ -1822,15 +1877,15 @@
     </div>
 
     <div id="im-batch-search-modal" class="modal-overlay hidden">
-        <div class="modal-container">
-            <div class="modal-header"><h2>Search and Add Existing Invoices</h2><button class="modal-close-btn">&times;</button></div>
-            <div class="modal-content">
-                <div class="search-and-filter-group" style="margin-bottom: 15px;"><input type="text" id="im-batch-modal-po-input" placeholder="Enter PO to Search..." style="flex-grow: 1;"><button id="im-batch-modal-search-btn">Search</button></div>
-                <div id="im-batch-modal-results" class="table-wrapper" style="max-height: 40vh; overflow-y: auto;"><p>Enter a PO number to see existing invoices.</p></div>
-            </div>
-            <div class="modal-footer"><button id="im-batch-modal-add-selected-btn" class="download-btn">Add Selected to Batch</button><button class="secondary-btn modal-close-btn">Cancel</button></div>
+    <div class="modal-container" style="max-width: 1100px; width: 95%;">
+        <div class="modal-header"><h2>Search and Add Existing Invoices</h2><button class="modal-close-btn">&times;</button></div>
+        <div class="modal-content">
+            <div class="search-and-filter-group" style="margin-bottom: 15px;"><input type="text" id="im-batch-modal-po-input" placeholder="Enter PO to Search..." style="flex-grow: 1;"><button id="im-batch-modal-search-btn">Search</button></div>
+            <div id="im-batch-modal-results" class="table-wrapper" style="max-height: 40vh; overflow-y: auto;"><p>Enter a PO number to see existing invoices.</p></div>
         </div>
+        <div class="modal-footer"><button id="im-batch-modal-add-selected-btn" class="download-btn">Add Selected to Batch</button><button class="secondary-btn modal-close-btn">Cancel</button></div>
     </div>
+</div>
 
     <!-- Invoice Management: Batch Entry - Attention Picker Modal (Per Row) -->
     <div id="im-attention-picker-modal" class="modal-overlay hidden">
@@ -2634,7 +2689,7 @@
 
     <script src="materialStock.js?v=6.3.21"></script>
     <script src="transferLogic.js?v=6.3.21"></script>
-    <script src="app.js?v=6.7.5"></script>
+    <script src="app.js?v=6.7.8"></script>
 
     </body>
 </html>

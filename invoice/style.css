@@ -7455,6 +7455,21 @@ body.inventory-mode .wd-nav-material {
     gap: 40px;
 }
 
+/* Add to style.css */
+button[title="Inquire / Request Update via WhatsApp"] {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    padding: 5px;
+}
+
+button[title="Inquire / Request Update via WhatsApp"]:hover {
+    transform: scale(1.1);
+    /* Subtle glow matching your secondary teal */
+    filter: drop-shadow(0 0 3px var(--iba-secondary-teal)); 
+}
+
 /* ==========================================================================
    THE EXACT SCREENSHOT MATCH (Ultra-Minimalist 4-Corner Cards)
    ========================================================================== */
@@ -7566,4 +7581,100 @@ body.inventory-mode .wd-nav-material {
         right: 16px !important;
         bottom: 16px !important; /* Aligns perfectly next to the status pill */
     }
+}
+
+/* Fix for Choices.js shrinking the search input area */
+.choices[data-type*="select-one"] .choices__input {
+    width: 100% !important;
+    min-width: 150px !important;
+    max-width: 100% !important;
+    font-size: 14px !important; /* Keeps the text a readable size */
+}
+
+/* Ensures the container doesn't collapse */
+.choices__inner {
+    width: 100% !important;
+    overflow: hidden !important;
+}
+
+/* =========================================================
+   CLEAN BATCH INVOICE TABLE STYLING
+   ========================================================= */
+#im-batch-entry-table {
+    border-collapse: collapse;
+    width: 100%;
+    background-color: #ffffff;
+}
+
+#im-batch-entry-table th {
+    background-color: #003A5C !important;
+    color: #ffffff !important;
+    padding: 12px 15px !important;
+    font-weight: 600;
+    text-align: left;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    white-space: nowrap; /* Stops header text from stacking weirdly */
+}
+
+#im-batch-entry-table td {
+    padding: 10px 15px !important;
+    border-bottom: 1px solid #e2e8f0;
+    color: #334155;
+    vertical-align: middle;
+}
+
+/* Subtle row background colors (zebra striping) for easy reading */
+#im-batch-entry-table tbody tr:nth-child(even) {
+    background-color: #f8fafc;
+}
+#im-batch-entry-table tbody tr:hover {
+    background-color: #f1f5f9; /* Highlights the row you hover over */
+}
+
+/* Style the inputs inside the table so they are clean and uniform */
+#im-batch-entry-table input, 
+#im-batch-entry-table select {
+    border: 1px solid #cbd5e1;
+    padding: 8px 10px;
+    border-radius: 4px;
+    width: 100%;
+    box-sizing: border-box;
+    background-color: #fff;
+    font-size: 13px;
+    transition: all 0.2s ease;
+}
+
+#im-batch-entry-table input:focus, 
+#im-batch-entry-table select:focus {
+    border-color: #00748C;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0, 116, 140, 0.2);
+}
+
+/* Center the trash can icon */
+#im-batch-entry-table td:last-child {
+    text-align: center;
+}
+
+/* =========================================================
+   FIX SQUISHED MODAL TABLE
+   ========================================================= */
+#im-batch-modal-results table {
+    width: 100%;
+    min-width: 900px; /* Forces table to stay wide and creates a scrollbar */
+    border-collapse: collapse;
+}
+
+#im-batch-modal-results th,
+#im-batch-modal-results td {
+    padding: 12px 15px;
+    white-space: nowrap; /* Stops text from wrapping and squishing vertically */
+    border-bottom: 1px solid #eee;
+}
+
+/* Safely expand the Add Job and Invoice Entry modals */
+#standard-job-modal .modal-container,
+#im-invoice-entry-modal .modal-container {
+    max-width: 800px !important;
+    width: 50% !important;
 }

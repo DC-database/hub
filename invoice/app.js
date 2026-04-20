@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.7.5";
+const APP_VERSION = "6.7.8";
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -10689,12 +10689,15 @@ async function proceedWithPOLoading(poNumber, poData) {
     // PO RECORDS SEARCH & BUTTON LOGIC
     // ============================================================
     const poRecordEl = document.querySelector('.im-po-record');
+    const modalDeletionBtn = document.getElementById('im-modal-deletion-list-btn'); // 💡 Grabs your new modal button
+
     if (poRecordEl) {
         poRecordEl.textContent = "Searching...";
         poRecordEl.style.color = "#ffeb3b"; 
 
-        // CRITICAL: Remove the button immediately when starting a new search
+        // CRITICAL: Remove/Hide buttons immediately when starting a new search
         document.getElementById('im-po-collect-btn')?.remove();
+        if (modalDeletionBtn) modalDeletionBtn.classList.add('hidden'); // 💡 Hide modal button on new search
 
         try {
             const searchVal = poNumber.replace(/[^0-9]/g, ''); 
@@ -10711,7 +10714,7 @@ async function proceedWithPOLoading(poNumber, poData) {
                 poRecordEl.textContent = "Original in File";
                 poRecordEl.style.color = "#90EE90"; 
 
-                // Add the button only because record was found
+                // 1. Add the small inline button (your existing logic)
                 const collectBtn = document.createElement('button');
                 collectBtn.id = 'im-po-collect-btn';
                 collectBtn.innerHTML = `<i class="fa-solid fa-plus"></i> Add to Deletion List`;
@@ -10719,11 +10722,20 @@ async function proceedWithPOLoading(poNumber, poData) {
                 
                 collectBtn.onclick = () => window.imAddToDeletionCollection(poNumber);
                 poRecordEl.parentElement.appendChild(collectBtn);
+
+                // 2. 💡 SHOW THE MODAL BUTTON (Our new logic)
+                if (modalDeletionBtn) {
+                    modalDeletionBtn.classList.remove('hidden');
+                    modalDeletionBtn.onclick = () => {
+                        window.imAddToDeletionCollection(poNumber); // Runs your exact same deletion logic
+                    };
+                }
+
             } else {
                 // FAIL: No Record
                 poRecordEl.textContent = "None";
                 poRecordEl.style.color = "#ffcccb";
-                // The button remains removed because of the cleanup line above
+                // Both buttons remain removed/hidden because of the cleanup lines above
             }
         } catch (error) {
             console.error("Query Error:", error);
@@ -11981,167 +11993,181 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
             `;
         }
 
-        // RENDER UI
-        let html = '';
-        currentReportData.forEach(poData => {
-            let totalInvValue = 0;
-            let totalPaidWithRetention = 0;
-            let totalPaidWithoutRetention = 0;
-            let allWithAccounts = poData.filteredInvoices.length > 0;
+        
 
-            let innerRows = '';
+// RENDER UI
+let html = '';
+currentReportData.forEach(poData => {
+    let totalInvValue = 0;
+    let totalPaidWithRetention = 0;
+    let totalPaidWithoutRetention = 0;
+    let allWithAccounts = poData.filteredInvoices.length > 0;
+
+    let innerRows = '';
+    
+    poData.filteredInvoices.forEach(inv => {
+        if (inv.status !== 'With Accounts') allWithAccounts = false;
+
+        const invValue = parseFloat(inv.invValue) || 0;
+        const amountPaid = parseFloat(inv.amountPaid) || 0;
+        const noteText = (inv.note || '').toLowerCase();
+
+        totalInvValue += invValue;
+        totalPaidWithRetention += amountPaid;
+        if (!noteText.includes('retention')) totalPaidWithoutRetention += amountPaid;
+
+        const releaseDateDisplay = formatToDDMMMYY(inv.releaseDate);
+        const invoiceDateDisplay = formatToDDMMMYY(inv.invoiceDate);
+        
+        const invValueDisplay = canViewAmounts ? formatCurrency(invValue) : '---';
+        const amountPaidDisplay = canViewAmounts ? formatCurrency(amountPaid) : '---';
+
+        let actionButtonsHTML = '';
+        if (inv.source !== 'ecommit' && isAllowedUser) {
+            const finalInvName = getSharePointPdfBaseName(inv.invName);
+            const finalSrvName = getSharePointPdfBaseName(inv.srvName);
+            const finalReportName = getSharePointPdfBaseName(inv.reportName);
+
+            // Constructing the exact PDF URL to pass to the WhatsApp Inquiry
+            const exactPdfUrl = (finalInvName && finalInvName.toLowerCase() !== 'nil') ? `${PDF_BASE_PATH}${encodeURIComponent(finalInvName)}.pdf` : '';
+
+            const invPDFLink = (finalInvName && finalInvName.toLowerCase() !== 'nil') ? `<a href="${exactPdfUrl}" target="_blank" class="action-btn invoice-pdf-btn" onclick="event.stopPropagation();" title="View Invoice">Inv</a>` : '';
+            const srvPDFLink = (finalSrvName && finalSrvName.toLowerCase() !== 'nil') ? `<a href="${SRV_BASE_PATH}${encodeURIComponent(finalSrvName)}.pdf" target="_blank" class="action-btn srv-pdf-btn" onclick="event.stopPropagation();" title="View SRV">SRV</a>` : '';
+            const reportViewLink = (finalReportName && finalReportName.toLowerCase() !== 'nil') ? `<a href="${REPORT_BASE_PATH}${encodeURIComponent(finalReportName)}.pdf" target="_blank" class="action-btn" style="background-color: #6f42c1; color: white;" onclick="event.stopPropagation();" title="View Report PDF">Rpt</a>` : '';
+
+            let historyBtn = (inv.history || inv.createdAt || inv.originTimestamp) ? `<button type="button" class="history-btn action-btn" onclick="event.stopPropagation(); showInvoiceHistory('${poData.poNumber}', '${inv.key}')"><i class="fa-solid fa-clock-rotate-left"></i></button>` : '';
+            let editBtn = `<button type="button" class="edit-inv-no-btn action-btn" data-po="${poData.poNumber}" data-key="${inv.key}" data-current="${inv.invNumber || ''}"><i class="fa-solid fa-pen-to-square"></i></button>`;
             
-            poData.filteredInvoices.forEach(inv => {
-                if (inv.status !== 'With Accounts') allWithAccounts = false;
-
-                const invValue = parseFloat(inv.invValue) || 0;
-                const amountPaid = parseFloat(inv.amountPaid) || 0;
-                const noteText = (inv.note || '').toLowerCase();
-
-                totalInvValue += invValue;
-                totalPaidWithRetention += amountPaid;
-                if (!noteText.includes('retention')) totalPaidWithoutRetention += amountPaid;
-
-                const releaseDateDisplay = formatToDDMMMYY(inv.releaseDate);
-                const invoiceDateDisplay = formatToDDMMMYY(inv.invoiceDate);
-                
-                const invValueDisplay = canViewAmounts ? formatCurrency(invValue) : '---';
-                const amountPaidDisplay = canViewAmounts ? formatCurrency(amountPaid) : '---';
-
-                let actionButtonsHTML = '';
-                if (inv.source !== 'ecommit' && isAllowedUser) {
-                    const finalInvName = getSharePointPdfBaseName(inv.invName);
-                    const finalSrvName = getSharePointPdfBaseName(inv.srvName);
-                    const finalReportName = getSharePointPdfBaseName(inv.reportName);
-
-                    const invPDFLink = (finalInvName && finalInvName.toLowerCase() !== 'nil') ? `<a href="${PDF_BASE_PATH}${encodeURIComponent(finalInvName)}.pdf" target="_blank" class="action-btn invoice-pdf-btn" onclick="event.stopPropagation();" title="View Invoice">Inv</a>` : '';
-                    const srvPDFLink = (finalSrvName && finalSrvName.toLowerCase() !== 'nil') ? `<a href="${SRV_BASE_PATH}${encodeURIComponent(finalSrvName)}.pdf" target="_blank" class="action-btn srv-pdf-btn" onclick="event.stopPropagation();" title="View SRV">SRV</a>` : '';
-                    const reportViewLink = (finalReportName && finalReportName.toLowerCase() !== 'nil') ? `<a href="${REPORT_BASE_PATH}${encodeURIComponent(finalReportName)}.pdf" target="_blank" class="action-btn" style="background-color: #6f42c1; color: white;" onclick="event.stopPropagation();" title="View Report PDF">Rpt</a>` : '';
-
-                    let historyBtn = (inv.history || inv.createdAt || inv.originTimestamp) ? `<button type="button" class="history-btn action-btn" onclick="event.stopPropagation(); showInvoiceHistory('${poData.poNumber}', '${inv.key}')"><i class="fa-solid fa-clock-rotate-left"></i></button>` : '';
-                    let editBtn = `<button type="button" class="edit-inv-no-btn action-btn" data-po="${poData.poNumber}" data-key="${inv.key}" data-current="${inv.invNumber || ''}"><i class="fa-solid fa-pen-to-square"></i></button>`;
-                    
-                    let printReportBtn = '';
-                    if (inv.status === 'Report Approved') {
-                        if (inv.reportPrinted) {
-                            printReportBtn = `<button type="button" class="action-btn" style="background-color: #6c757d; color: white; cursor: not-allowed;" title="Locked"><i class="fa-solid fa-lock"></i> Locked</button>`;
-                        } else {
-                            printReportBtn = `<button type="button" class="action-btn" style="background-color: #00748C; color: white;" onclick="event.stopPropagation(); printFinalFinanceReport('${poData.poNumber}', '${inv.key}')" title="Print Report"><i class="fa-solid fa-print"></i> Report</button>`;
-                        }
-                    }
-
-                    let stickerBtn = '';
-                    if (canPrintSticker && inv.esn) {
-                        stickerBtn = `<button type="button" class="action-btn" style="background-color: #28a745; color: white; padding: 4px 8px; border-radius: 4px;" title="Print Sticker" onclick="event.stopPropagation(); handlePrintSticker('${inv.key}', 'Invoice', '${poData.poNumber}')"><i class="fa-solid fa-qrcode"></i></button>`;
-                    }
-
-                    let waBtn = '';
-                    if ((inv.status || '') === 'For Approval') {
-                        waBtn = `<button type="button" class="action-btn" style="background-color:#25D366; color:#fff;" title="Send WhatsApp for Approval" onclick="event.stopPropagation(); window.imShareInvoiceForApprovalWhatsApp('${poData.poNumber}', '${inv.key}')"><i class="fa-brands fa-whatsapp"></i></button>`;
-                    }
-
-                    actionButtonsHTML = `<div class="modern-action-group" style="display:flex; gap:3px;">${editBtn} ${invPDFLink} ${srvPDFLink} ${reportViewLink} ${printReportBtn} ${historyBtn} ${stickerBtn} ${waBtn}</div>`;
-} else if ((inv.source || '').toLowerCase() === 'ecommit' && isAllowedUser) {
-    actionButtonsHTML = `<span style="font-size:0.8rem; color:#6f42c1; font-weight:bold; cursor:pointer;"><i class="fa-solid fa-file-import"></i> Click to Import</span>`;
-}
-
-                innerRows += `
-                    <tr class="nested-invoice-row" 
-                        data-po-number="${poData.poNumber}" 
-                        data-invoice-key="${inv.key}" 
-                        data-source="${inv.source}"
-                        data-inv-number="${inv.invNumber || ''}" 
-                        data-inv-date="${inv.invoiceDate || ''}"
-                        data-release-date="${inv.releaseDate || ''}" 
-                        data-inv-value="${inv.invValue || ''}"
-                        title="${inv.source === 'ecommit' ? 'Click to Import' : 'Click to Edit'}"
-                        style="cursor: pointer; border-bottom: 1px solid #f1f5f9; transition: 0.2s;">
-                        <td style="padding: 10px 5px; color: #64748b;">${inv.invEntryID || ''}</td>
-                        <td style="padding: 10px 5px; font-weight: 700; color: #00748C;">${inv.invNumber || 'N/A'}</td>
-                        <td style="padding: 10px 5px;">${invoiceDateDisplay}</td>
-                        <td style="padding: 10px 5px; text-align: right; font-family: monospace; font-weight: 600; color: #334155;">${invValueDisplay}</td>
-                        <td style="padding: 10px 5px; text-align: right; font-family: monospace; font-weight: 600; color: #334155;">${amountPaidDisplay}</td>
-                        <td style="padding: 10px 5px;">${releaseDateDisplay}</td>
-                        <td style="padding: 10px 5px;"><span class="status-badge" style="background: #e2e8f0; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; color: #334155;">${inv.status || 'N/A'}</span></td>
-                        <td style="padding: 10px 5px; color: #64748b; font-size: 12px;">${inv.note || ''}</td>
-                        <td style="padding: 10px 5px;" class="actions">${actionButtonsHTML}</td>
-                    </tr>
-                `;
-            });
-
-            let finalTotalPaid = totalPaidWithoutRetention;
-            if (Math.abs(totalPaidWithRetention - totalInvValue) < 0.01) finalTotalPaid = totalPaidWithRetention;
-
-            const diffValue = totalInvValue - finalTotalPaid;
-            const diffColor = (diffValue > 0.05) ? '#dc3545' : '#28a745'; 
-            
-            const diffDisplay = canViewAmounts ? `<strong>${formatCurrency(diffValue)}</strong>` : '---';
-            const totalInvValueDisplay = canViewAmounts ? `<strong>${formatCurrency(totalInvValue)}</strong>` : '---';
-            const totalAmountPaidDisplay = canViewAmounts ? `<strong>${formatCurrency(finalTotalPaid)}</strong>` : '---';
-            
-            const poValueDisplay = canViewAmounts ? (poData.poDetails.Amount ? `QAR ${formatCurrency(poData.poDetails.Amount)}` : 'N/A') : '---';
-            const balanceDisplay = canViewAmounts ? `QAR ${formatCurrency(poData.balance)}` : '---';
-
-            let highlightClass = '';
-            if (canViewAmounts) {
-                if (poData.balance < -0.01) highlightClass = 'highlight-negative-balance';
-                else if (Math.abs(poData.balance) < 0.01) {
-                    if (allWithAccounts && Math.abs(finalTotalPaid - parseFloat(poData.poDetails.Amount)) < 0.01) highlightClass = 'highlight-fully-paid';
-                    else if (allWithAccounts) highlightClass = 'highlight-partial';
-                } 
-                else if (poData.balance > 0.01) highlightClass = 'highlight-open-balance';
+            let printReportBtn = '';
+            if (inv.status === 'Report Approved') {
+                if (inv.reportPrinted) {
+                    printReportBtn = `<button type="button" class="action-btn" style="background-color: #6c757d; color: white; cursor: not-allowed;" title="Locked"><i class="fa-solid fa-lock"></i> Locked</button>`;
+                } else {
+                    printReportBtn = `<button type="button" class="action-btn" style="background-color: #00748C; color: white;" onclick="event.stopPropagation(); printFinalFinanceReport('${poData.poNumber}', '${inv.key}')" title="Print Report"><i class="fa-solid fa-print"></i> Report</button>`;
+                }
             }
 
-            const isExpanded = imLastExpandedRowId === poData.poNumber ? 'expanded' : '';
+            let stickerBtn = '';
+            if (canPrintSticker && inv.esn) {
+                stickerBtn = `<button type="button" class="action-btn" style="background-color: #28a745; color: white; padding: 4px 8px; border-radius: 4px;" title="Print Sticker" onclick="event.stopPropagation(); handlePrintSticker('${inv.key}', 'Invoice', '${poData.poNumber}')"><i class="fa-solid fa-qrcode"></i></button>`;
+            }
 
-            // FIXED: Added box-sizing: border-box and width: 100% to keep cards inside container
-            html += `
-                <div class="invoice-card ${highlightClass} ${isExpanded}" data-po-id="${poData.poNumber}" style="box-sizing: border-box; width: 100%; overflow: hidden;">
-                    <div class="master-grid-row">
-                        <div class="grid-cell" style="width: 40px; color:#00748C;"><i class="fa-solid fa-chevron-down"></i></div>
-                        <div class="grid-cell" style="font-weight: 800;">${poData.poNumber}</div>
-                        <div class="grid-cell">${poData.site}</div>
-                        <div class="grid-cell">${poData.vendor}</div>
-                        <div class="grid-cell" style="font-family: monospace;">${poValueDisplay}</div>
-                        <div class="grid-cell" style="font-family: monospace;">${canViewAmounts ? 'QAR ' + formatCurrency(totalInvValue) : '---'}</div>
-                        <div class="grid-cell" style="font-weight: 800; font-family: monospace; color: ${poData.balance < 0 ? '#ef4444' : '#1e293b'}">${balanceDisplay}</div>
-                    </div>
-                    
-                    <div class="detail-grid-row" style="padding: 15px 20px 25px 20px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; box-sizing: border-box; width: 100%;">
-                        <div style="background: #fff; padding: 15px 20px; border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: 0 4px 6px rgba(0,0,0,0.02); box-sizing: border-box; width: 100%;">
-                            <h4 style="margin: 0 0 15px 0; color: #0f172a; font-size: 15px;">Invoice Entries for PO ${poData.poNumber}</h4>
-                            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
-                                <thead>
-                                    <tr style="border-bottom: 2px solid #cbd5e1; color: #475569; font-size: 11px; text-transform: uppercase;">
-                                        <th style="padding-bottom: 10px; padding-left: 5px;">Inv. Entry</th>
-                                        <th style="padding-bottom: 10px; padding-left: 5px;">Inv. No.</th>
-                                        <th style="padding-bottom: 10px; padding-left: 5px;">Inv. Date</th>
-                                        <th style="padding-bottom: 10px; padding-left: 5px; text-align: right;">Inv. Value</th>
-                                        <th style="padding-bottom: 10px; padding-left: 5px; text-align: right;">Amt. Paid</th>
-                                        <th style="padding-bottom: 10px; padding-left: 5px;">Release Date</th>
-                                        <th style="padding-bottom: 10px; padding-left: 5px;">Status</th>
-                                        <th style="padding-bottom: 10px; padding-left: 5px;">Note</th>
-                                        <th style="padding-bottom: 10px; padding-left: 5px;">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>${innerRows}</tbody>
-                                <tfoot>
-                                    <tr style="border-top: 2px solid #cbd5e1; background-color: #f8fafc;">
-                                        <td colspan="3" style="text-align: right; padding: 12px 5px; font-weight: 700; color: #475569;">TOTAL</td>
-                                        <td style="text-align: right; font-family: monospace; padding: 12px 5px; font-weight: 800; color: #0f172a; font-size: 14px;">${totalInvValueDisplay}</td>
-                                        <td style="text-align: right; font-family: monospace; padding: 12px 5px; font-weight: 800; color: #0f172a; font-size: 14px;">${totalAmountPaidDisplay}</td>
-                                        <td style="color: ${diffColor}; font-family: monospace; padding: 12px 5px; font-weight: 800; font-size: 14px;">${diffDisplay}</td>
-                                        <td colspan="3"></td>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-                    </div>
+            let waBtn = '';
+            
+            // Show Approval button ONLY if status is "For Approval"
+            if ((inv.status || '') === 'For Approval') {
+                waBtn = `<button type="button" class="action-btn" style="background-color:#25D366; color:#fff;" title="Send WhatsApp for Approval" onclick="event.stopPropagation(); window.imShareInvoiceForApprovalWhatsApp('${poData.poNumber}', '${inv.key}')"><i class="fa-brands fa-whatsapp"></i></button>`;
+            } 
+            // Show Inquiry button ONLY if status is "For Inquiry"
+            else if ((inv.status || '') === 'For Inquiry') {
+                waBtn = `<button type="button" class="action-btn" style="background-color:#e2e8f0; color:#0f172a;" title="Inquire / Request Update via WhatsApp" onclick="event.stopPropagation(); window.imSendWhatsAppInquiry('${inv.invNumber || 'N/A'}', '${exactPdfUrl}')">
+                    <i class="fa-brands fa-whatsapp" style="color: #25D366;"></i><i class="fa-solid fa-question" style="font-size: 0.7em; margin-left: 2px; color: #00748C;"></i>
+                </button>`;
+            }
+
+            actionButtonsHTML = `<div class="modern-action-group" style="display:flex; gap:3px;">${editBtn} ${invPDFLink} ${srvPDFLink} ${reportViewLink} ${printReportBtn} ${historyBtn} ${stickerBtn} ${waBtn}</div>`;
+        } else if ((inv.source || '').toLowerCase() === 'ecommit' && isAllowedUser) {
+            actionButtonsHTML = `<span style="font-size:0.8rem; color:#6f42c1; font-weight:bold; cursor:pointer;"><i class="fa-solid fa-file-import"></i> Click to Import</span>`;
+        }
+
+        innerRows += `
+            <tr class="nested-invoice-row" 
+                data-po-number="${poData.poNumber}" 
+                data-invoice-key="${inv.key}" 
+                data-source="${inv.source}"
+                data-inv-number="${inv.invNumber || ''}" 
+                data-inv-date="${inv.invoiceDate || ''}"
+                data-release-date="${inv.releaseDate || ''}" 
+                data-inv-value="${inv.invValue || ''}"
+                title="${inv.source === 'ecommit' ? 'Click to Import' : 'Click to Edit'}"
+                style="cursor: pointer; border-bottom: 1px solid #f1f5f9; transition: 0.2s;">
+                <td style="padding: 10px 5px; color: #64748b;">${inv.invEntryID || ''}</td>
+                <td style="padding: 10px 5px; font-weight: 700; color: #00748C;">${inv.invNumber || 'N/A'}</td>
+                <td style="padding: 10px 5px;">${invoiceDateDisplay}</td>
+                <td style="padding: 10px 5px; text-align: right; font-family: monospace; font-weight: 600; color: #334155;">${invValueDisplay}</td>
+                <td style="padding: 10px 5px; text-align: right; font-family: monospace; font-weight: 600; color: #334155;">${amountPaidDisplay}</td>
+                <td style="padding: 10px 5px;">${releaseDateDisplay}</td>
+                <td style="padding: 10px 5px;"><span class="status-badge" style="background: #e2e8f0; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; color: #334155;">${inv.status || 'N/A'}</span></td>
+                <td style="padding: 10px 5px; color: #64748b; font-size: 12px;">${inv.note || ''}</td>
+                <td style="padding: 10px 5px;" class="actions">${actionButtonsHTML}</td>
+            </tr>
+        `;
+    });
+
+    let finalTotalPaid = totalPaidWithoutRetention;
+    if (Math.abs(totalPaidWithRetention - totalInvValue) < 0.01) finalTotalPaid = totalPaidWithRetention;
+
+    const diffValue = totalInvValue - finalTotalPaid;
+    const diffColor = (diffValue > 0.05) ? '#dc3545' : '#28a745'; 
+    
+    const diffDisplay = canViewAmounts ? `<strong>${formatCurrency(diffValue)}</strong>` : '---';
+    const totalInvValueDisplay = canViewAmounts ? `<strong>${formatCurrency(totalInvValue)}</strong>` : '---';
+    const totalAmountPaidDisplay = canViewAmounts ? `<strong>${formatCurrency(finalTotalPaid)}</strong>` : '---';
+    
+    const poValueDisplay = canViewAmounts ? (poData.poDetails.Amount ? `QAR ${formatCurrency(poData.poDetails.Amount)}` : 'N/A') : '---';
+    const balanceDisplay = canViewAmounts ? `QAR ${formatCurrency(poData.balance)}` : '---';
+
+    let highlightClass = '';
+    if (canViewAmounts) {
+        if (poData.balance < -0.01) highlightClass = 'highlight-negative-balance';
+        else if (Math.abs(poData.balance) < 0.01) {
+            if (allWithAccounts && Math.abs(finalTotalPaid - parseFloat(poData.poDetails.Amount)) < 0.01) highlightClass = 'highlight-fully-paid';
+            else if (allWithAccounts) highlightClass = 'highlight-partial';
+        } 
+        else if (poData.balance > 0.01) highlightClass = 'highlight-open-balance';
+    }
+
+    const isExpanded = imLastExpandedRowId === poData.poNumber ? 'expanded' : '';
+
+    html += `
+        <div class="invoice-card ${highlightClass} ${isExpanded}" data-po-id="${poData.poNumber}" style="box-sizing: border-box; width: 100%; overflow: hidden;">
+            <div class="master-grid-row">
+                <div class="grid-cell" style="width: 40px; color:#00748C;"><i class="fa-solid fa-chevron-down"></i></div>
+                <div class="grid-cell" style="font-weight: 800;">${poData.poNumber}</div>
+                <div class="grid-cell">${poData.site}</div>
+                <div class="grid-cell">${poData.vendor}</div>
+                <div class="grid-cell" style="font-family: monospace;">${poValueDisplay}</div>
+                <div class="grid-cell" style="font-family: monospace;">${canViewAmounts ? 'QAR ' + formatCurrency(totalInvValue) : '---'}</div>
+                <div class="grid-cell" style="font-weight: 800; font-family: monospace; color: ${poData.balance < 0 ? '#ef4444' : '#1e293b'}">${balanceDisplay}</div>
+            </div>
+            
+            <div class="detail-grid-row" style="padding: 15px 20px 25px 20px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; box-sizing: border-box; width: 100%;">
+                <div style="background: #fff; padding: 15px 20px; border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: 0 4px 6px rgba(0,0,0,0.02); box-sizing: border-box; width: 100%;">
+                    <h4 style="margin: 0 0 15px 0; color: #0f172a; font-size: 15px;">Invoice Entries for PO ${poData.poNumber}</h4>
+                    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #cbd5e1; color: #475569; font-size: 11px; text-transform: uppercase;">
+                                <th style="padding-bottom: 10px; padding-left: 5px;">Inv. Entry</th>
+                                <th style="padding-bottom: 10px; padding-left: 5px;">Inv. No.</th>
+                                <th style="padding-bottom: 10px; padding-left: 5px;">Inv. Date</th>
+                                <th style="padding-bottom: 10px; padding-left: 5px; text-align: right;">Inv. Value</th>
+                                <th style="padding-bottom: 10px; padding-left: 5px; text-align: right;">Amt. Paid</th>
+                                <th style="padding-bottom: 10px; padding-left: 5px;">Release Date</th>
+                                <th style="padding-bottom: 10px; padding-left: 5px;">Status</th>
+                                <th style="padding-bottom: 10px; padding-left: 5px;">Note</th>
+                                <th style="padding-bottom: 10px; padding-left: 5px;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>${innerRows}</tbody>
+                        <tfoot>
+                            <tr style="border-top: 2px solid #cbd5e1; background-color: #f8fafc;">
+                                <td colspan="3" style="text-align: right; padding: 12px 5px; font-weight: 700; color: #475569;">TOTAL</td>
+                                <td style="text-align: right; font-family: monospace; padding: 12px 5px; font-weight: 800; color: #0f172a; font-size: 14px;">${totalInvValueDisplay}</td>
+                                <td style="text-align: right; font-family: monospace; padding: 12px 5px; font-weight: 800; color: #0f172a; font-size: 14px;">${totalAmountPaidDisplay}</td>
+                                <td style="color: ${diffColor}; font-family: monospace; padding: 12px 5px; font-weight: 800; font-size: 14px;">${diffDisplay}</td>
+                                <td colspan="3"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
                 </div>
-            `;
-        });
+            </div>
+        </div>
+    `;
+});
 
-        contentArea.innerHTML = html;
+contentArea.innerHTML = html;
+
+
 
        // POPULATE THE DEDICATED GRAND TOTAL CONTAINER (RESPONSIVE VERSION)
         const grandTotalContainer = document.getElementById('im-reporting-grand-total-container');
@@ -21249,20 +21275,32 @@ document.addEventListener('click', function(e) {
                     let count = 0;
                     let foundData = false;
                     
-                    // DEEP SEARCH: Look through your system's data arrays to find the real count
-                    if (typeof allInvoicesByPO !== 'undefined' && allInvoicesByPO[activePo]) {
-                        count = Object.keys(allInvoicesByPO[activePo]).length;
-                        foundData = true;
-                    } else if (typeof allInvoices !== 'undefined' && Array.isArray(allInvoices)) {
-                        count = allInvoices.filter(inv => String(inv.poNumber) === String(activePo) || String(inv.PONumber) === String(activePo)).length;
-                        foundData = true;
-                    } else if (typeof invoiceRecords !== 'undefined' && Array.isArray(invoiceRecords)) {
-                        count = invoiceRecords.filter(inv => String(inv.poNumber) === String(activePo)).length;
-                        foundData = true;
-                    } else if (typeof currentReportData !== 'undefined' && Array.isArray(currentReportData)) {
-                        count = currentReportData.filter(inv => String(inv.poNumber) === String(activePo)).length;
-                        foundData = true;
-                    }
+// DEEP SEARCH: Look through your system's data arrays to find the real count
+    if (typeof allInvoiceData !== 'undefined' && allInvoiceData[activePo]) {
+        // This is the main database array where invoices are actually stored!
+        count = Object.keys(allInvoiceData[activePo]).length;
+        foundData = true;
+    }
+    else if (typeof allInvoicesByPO !== 'undefined' && allInvoicesByPO[activePo]) {
+        count = Object.keys(allInvoicesByPO[activePo]).length;
+        foundData = true;
+    } 
+    else if (typeof allInvoices !== 'undefined' && Array.isArray(allInvoices)) {
+        count = allInvoices.filter(inv => String(inv.poNumber) === String(activePo) || String(inv.PONumber) === String(activePo)).length;
+        foundData = true;
+    }
+    else if (typeof invoiceRecords !== 'undefined' && Array.isArray(invoiceRecords)) {
+        count = invoiceRecords.filter(inv => String(inv.poNumber) === String(activePo)).length;
+        foundData = true;
+    }
+    else if (typeof currentReportData !== 'undefined' && Array.isArray(currentReportData)) {
+        // Wait, currentReportData is a structured array. We need to check inside filteredInvoices.
+        const poData = currentReportData.find(data => String(data.poNumber) === String(activePo));
+        if (poData && poData.filteredInvoices) {
+            count = poData.filteredInvoices.length;
+            foundData = true;
+        }
+    }
                     
                     // FALLBACK: If we can't find the array, just ask you so it never fails!
                     if (!foundData) {
@@ -21296,6 +21334,28 @@ document.addEventListener('click', function(e) {
         }
     }, 150); 
 });
+
+// Function to send a WhatsApp inquiry with the Invoice PDF link
+window.imSendWhatsAppInquiry = function(invoiceNo, pdfUrl) {
+    if (!pdfUrl || pdfUrl === 'undefined' || pdfUrl === '') {
+        alert("No PDF link found for this invoice. Please ensure the file was uploaded.");
+        if (typeof soundError !== 'undefined') soundError.play();
+        return;
+    }
+
+    // Defaulting to 974 for local numbers, adjust if needed
+    const phone = prompt("Enter the WhatsApp number to send this inquiry to (include country code):", "974");
+    if (!phone) return;
+
+    // Constructing the message with the PDF link instead of the approval page
+    const message = `Hello, I would like to inquire or request an update regarding Invoice #${invoiceNo}.\n\nYou can review the invoice document here:\n${pdfUrl}`;
+    
+    const encodedMessage = encodeURIComponent(message);
+    const waLink = `https://wa.me/${phone}?text=${encodedMessage}`;
+    
+    window.open(waLink, '_blank');
+}
+
 
 // =============================================================
 // IM HELP CENTER (Intelligent Assistant + Growing Knowledge Base)
