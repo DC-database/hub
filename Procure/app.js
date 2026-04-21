@@ -171,7 +171,9 @@ searchInput.addEventListener('input', (e) => {
 });
 
 window.addToCart = function(partCode, description, unit, groupName, actName) {
-    if (cart.find(i => i.partNo === partCode)) { alert("Item is already in your list!"); return; }
+    // The duplicate block has been removed so you can add the same item multiple times
+    // for different sites/comments.
+    
     cart.push({ partNo: partCode, description: description, unit: unit, groupName: groupName, actName: actName, comment: '', qty: 1, price: 0 });
     searchInput.value = ''; searchResults.innerHTML = ''; renderCart(); saveSession();
 };
@@ -336,15 +338,21 @@ activitySearch.addEventListener('input', (e) => {
 async function calculateNextSeries(groupCode) {
     saveBtn.disabled = true; saveBtn.textContent = "Calculating..."; let highestSeries = 100000; 
     try {
-        // Step 1: Check legacy items (CSV)
-        legacyItems.forEach(item => { if (item["Group Code"] === groupCode || item["Group code"] === groupCode) { const sNum = parseInt(item["Series"], 10); if (sNum > highestSeries) highestSeries = sNum; } });
+        // Step 1: Check ALL legacy items globally, ignoring the specific group code
+        legacyItems.forEach(item => { 
+            if (item["Series"]) {
+                const sNum = parseInt(item["Series"], 10); 
+                if (!isNaN(sNum) && sNum > highestSeries) highestSeries = sNum; 
+            }
+        });
         
-        // Step 2: Check Firebase Realtime DB
-        const snap = await db.ref("items").orderByChild("Group Code").equalTo(groupCode).once("value");
+        // Step 2: Check Firebase Realtime DB globally
+        // We order by "Series" and grab the last one to find the highest number across the whole database
+        const snap = await db.ref("items").orderByChild("Series").limitToLast(1).once("value");
         if (snap.exists()) {
             snap.forEach((childSnap) => { 
                 const sNum = parseInt(childSnap.val().Series, 10); 
-                if (sNum > highestSeries) highestSeries = sNum; 
+                if (!isNaN(sNum) && sNum > highestSeries) highestSeries = sNum; 
             });
         }
         
