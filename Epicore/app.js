@@ -104,19 +104,87 @@ document.addEventListener("DOMContentLoaded", () => {
     const clearAllBtn = document.getElementById("clearAllBtn");
     const refreshBtn = document.getElementById("refreshBtn");
     
+    const exportExcelBtn = document.getElementById("exportExcelBtn");
     const printSummaryBtn = document.getElementById("printSummaryBtn");
     const printDetailedBtn = document.getElementById("printDetailedBtn");
     const printProjectBtn = document.getElementById("printProjectBtn"); 
     const printRetentionBtn = document.getElementById("printRetentionBtn"); 
 
-    const filterSite = document.getElementById("filterSite");
     const filterMonth = document.getElementById("filterMonth");
     const filterYearFrom = document.getElementById("filterYearFrom"); 
     const filterYearTo = document.getElementById("filterYearTo");     
     const filterStatus = document.getElementById("filterStatus"); 
     const filterBalance = document.getElementById("filterBalance");
+    const filterMinBalance = document.getElementById("filterMinBalance"); // NEW
     const filterSrv = document.getElementById("filterSrv"); 
     const filterRetention = document.getElementById("filterRetention"); 
+
+    // --- CUSTOM MULTI-SELECT DROPDOWN LOGIC ---
+    const siteSelectBtn = document.getElementById("siteSelectBtn");
+    const siteDropdown = document.getElementById("siteDropdown");
+    const siteSearchInput = document.getElementById("siteSearchInput");
+    const selectAllSitesBtn = document.getElementById("selectAllSitesBtn");
+    const clearAllSitesBtn = document.getElementById("clearAllSitesBtn");
+    const siteCheckboxList = document.getElementById("siteCheckboxList");
+
+    if (siteSelectBtn) {
+        // Toggle dropdown
+        siteSelectBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            siteDropdown.classList.toggle("hidden");
+        });
+
+        // Close when clicking outside
+        document.addEventListener("click", (e) => {
+            if (!siteDropdown.contains(e.target) && !siteSelectBtn.contains(e.target)) {
+                siteDropdown.classList.add("hidden");
+            }
+        });
+
+        // Search inside dropdown
+        siteSearchInput.addEventListener("input", (e) => {
+            const term = e.target.value.toLowerCase();
+            const labels = siteCheckboxList.querySelectorAll(".checkbox-item");
+            labels.forEach(label => {
+                const text = label.innerText.toLowerCase();
+                label.style.display = text.includes(term) ? "flex" : "none";
+            });
+        });
+
+        // Select All
+        selectAllSitesBtn.addEventListener("click", () => {
+            siteCheckboxList.querySelectorAll(".site-checkbox").forEach(cb => cb.checked = true);
+            updateSiteButtonLabel();
+        });
+
+        // Clear All
+        clearAllSitesBtn.addEventListener("click", () => {
+            siteCheckboxList.querySelectorAll(".site-checkbox").forEach(cb => cb.checked = false);
+            updateSiteButtonLabel();
+        });
+
+        // Delegate click events for the dynamic checkboxes
+        siteCheckboxList.addEventListener("change", () => {
+            updateSiteButtonLabel();
+        });
+    }
+
+    // Utility to update the button text based on selection
+    window.updateSiteButtonLabel = function() {
+        const checkboxes = document.querySelectorAll(".site-checkbox");
+        const checked = document.querySelectorAll(".site-checkbox:checked");
+        const label = document.getElementById("siteSelectLabel");
+        
+        if (!label) return;
+
+        if (checked.length === checkboxes.length || checked.length === 0) {
+            label.textContent = "All Sites";
+        } else if (checked.length === 1) {
+            label.textContent = checked[0].value;
+        } else {
+            label.textContent = `${checked.length} Sites Selected`;
+        }
+    };
 
     // --- BACKGROUND THEME TOGGLE LOGIC ---
     const bgToggleBtn = document.getElementById("bgToggleBtn");
@@ -154,8 +222,15 @@ document.addEventListener("DOMContentLoaded", () => {
     clearAllBtn.addEventListener("click", () => {
         playAudio(soundClear);
         searchInput.value = "";
-        filterSite.value = ""; filterMonth.value = ""; filterYearFrom.value = ""; filterYearTo.value = "";   
+        
+        // Reset Custom Dropdown
+        document.querySelectorAll(".site-checkbox").forEach(cb => cb.checked = true);
+        if(window.updateSiteButtonLabel) window.updateSiteButtonLabel();
+        
+        filterMonth.value = ""; filterYearFrom.value = ""; filterYearTo.value = "";   
         filterStatus.value = ""; filterBalance.value = ""; filterSrv.value = ""; filterRetention.value = ""; 
+        if(filterMinBalance) filterMinBalance.value = ""; // NEW
+
         resetToEmptyState();
         searchInput.focus();
     });
@@ -169,6 +244,11 @@ document.addEventListener("DOMContentLoaded", () => {
             icon.classList.remove('fa-spin');
             resetToEmptyState(); 
         });
+    });
+
+    exportExcelBtn.addEventListener("click", () => {
+        if (!isDataLoaded || currentFilteredData.length === 0) { playAudio(soundError); alert("No records currently visible to export."); return; }
+        playAudio(soundConfirm); exportToExcel();
     });
 
     printSummaryBtn.addEventListener("click", () => {
@@ -358,7 +438,6 @@ function setupDataDependents() {
         commit._rawCost = cost;
         commit._isFallback = false;
 
-        // Populate Years dropdown using SRV dates too!
         if (commit['Date'] && commit['Date'] !== '-') {
             const d = new Date(commit['Date']);
             if (!isNaN(d)) {
@@ -398,9 +477,20 @@ function setupDataDependents() {
         row._cleanPO = row['PO Number'] || row['PO'] || row['ReqNum'] || 'N/A';
     });
 
-    const siteSelect = document.getElementById("filterSite");
-    siteSelect.innerHTML = '<option value="">All Sites</option>';
-    Array.from(sites).sort().forEach(site => { siteSelect.innerHTML += `<option value="${site}">${site}</option>`; });
+    // POPULATE THE CUSTOM EXCEL-STYLE DROPDOWN
+    const siteListContainer = document.getElementById("siteCheckboxList");
+    if (siteListContainer) {
+        siteListContainer.innerHTML = '';
+        Array.from(sites).sort().forEach(site => { 
+            siteListContainer.innerHTML += `
+                <label class="checkbox-item">
+                    <input type="checkbox" class="site-checkbox" value="${site}" checked>
+                    <span>${site}</span>
+                </label>
+            `; 
+        });
+        if(window.updateSiteButtonLabel) window.updateSiteButtonLabel();
+    }
 
     const yearFromSelect = document.getElementById("filterYearFrom");
     const yearToSelect = document.getElementById("filterYearTo");
@@ -452,27 +542,37 @@ function resetToEmptyState() {
 }
 
 // =========================================================
-// THE NEW "ACTIVITY PERIOD" DATE FILTERING LOGIC
+// THE NEW FILTERING LOGIC
 // =========================================================
 function applyFilters() {
     const query = document.getElementById("searchInput").value.toLowerCase().trim();
-    const selectedSite = document.getElementById("filterSite").value;
     const selectedMonth = document.getElementById("filterMonth").value;
     const selectedYearFrom = document.getElementById("filterYearFrom").value; 
     const selectedYearTo = document.getElementById("filterYearTo").value;     
     const selectedStatus = document.getElementById("filterStatus").value; 
     const selectedBalance = document.getElementById("filterBalance").value; 
+    
+    // NEW MIN BALANCE FILTER
+    const minBalanceInput = document.getElementById("filterMinBalance");
+    const selectedMinBalance = minBalanceInput ? minBalanceInput.value : ""; 
+    
     const selectedSrv = document.getElementById("filterSrv").value; 
     const selectedRetention = document.getElementById("filterRetention").value; 
 
+    // Get array of selected sites from the custom dropdown
+    const selectedSiteCheckboxes = Array.from(document.querySelectorAll(".site-checkbox:checked")).map(cb => cb.value);
+    const totalSitesAvailable = document.querySelectorAll(".site-checkbox").length;
+    
+    // If all are selected or none are selected, treat as "All Sites"
+    const isSiteFilterActive = selectedSiteCheckboxes.length > 0 && selectedSiteCheckboxes.length < totalSitesAvailable;
     const isDateFilterActive = (selectedMonth !== "" || selectedYearFrom !== "" || selectedYearTo !== "");
 
     const filtered = allInvoiceData.filter(row => {
         const poNumber = row._cleanPO;
         const site = row['Project ID'] || row['Site'] || '';
 
-        // Site Filter
-        if (selectedSite && site.trim() !== selectedSite) return false;
+        // Excel-Style Site Filter
+        if (isSiteFilterActive && !selectedSiteCheckboxes.includes(site.trim())) return false;
 
         const relatedCommits = getSrvRecordsForPO(poNumber);
         let validCommits = [];
@@ -502,16 +602,16 @@ function applyFilters() {
 
             if (srvDatePasses) {
                 hasMatchingSrvDate = true;
-                validCommits.push(commit); // Keep this specific SRV because it matches the date!
+                validCommits.push(commit); 
             }
         });
 
-        // 3. DECISION: Hide the whole row ONLY if both the PO AND all its SRVs fall outside the date filter
+        // 3. DECISION
         if (isDateFilterActive && !poDatePasses && !hasMatchingSrvDate) {
             return false;
         }
 
-        // 4. ATTACH THE SMART COMMITS: We save the filtered SRVs to the row to be used by the Grid and Calculations
+        // 4. ATTACH THE SMART COMMITS
         row._filteredCommits = isDateFilterActive ? validCommits : relatedCommits;
 
         // Status Filter
@@ -520,26 +620,34 @@ function applyFilters() {
         if (selectedStatus === 'open' && isClosed) return false;
         if (selectedStatus === 'closed' && !isClosed) return false;
 
-        // Balance & SRV logic (Now using the SMART filtered commits!)
-        if (selectedBalance !== "" || selectedSrv !== "" || selectedRetention !== "") {
+        // Balance & SRV logic (Including the NEW Min Balance filter)
+        if (selectedBalance !== "" || selectedSrv !== "" || selectedRetention !== "" || selectedMinBalance !== "") {
             let poSrvAmt = 0;
             row._filteredCommits.forEach(commit => { poSrvAmt += commit._rawCost; });
+            const invAmt = row._rawAmount;
+            const rowBalance = invAmt - poSrvAmt;
             
+            // NEW MIN BALANCE CHECK
+            if (selectedMinBalance !== "") {
+                const minAllowed = parseFloat(selectedMinBalance);
+                if (!isNaN(minAllowed) && rowBalance < minAllowed) return false;
+            }
+            
+            // SRV CHECK
             if (selectedSrv !== "") {
                 const hasSrvValue = poSrvAmt > 0.001;
                 if (selectedSrv === 'has_srv' && !hasSrvValue) return false; 
                 if (selectedSrv === 'no_srv' && hasSrvValue) return false;
             }
 
+            // EXACT BALANCE CHECK
             if (selectedBalance !== "") {
-                const invAmt = row._rawAmount;
-                const rowBalance = invAmt - poSrvAmt;
                 const isZeroBalance = Math.abs(rowBalance) < 0.01;
-
                 if (selectedBalance === 'zero' && !isZeroBalance) return false; 
                 if (selectedBalance === 'value' && isZeroBalance) return false; 
             }
 
+            // RETENTION CHECK
             if (selectedRetention !== "") {
                 const poRetAmt = retentionByPO[poNumber] || 0;
                 const hasRetention = poRetAmt > 0.01;
@@ -624,7 +732,6 @@ function renderGrid(dataToRender) {
                 </div>
         `;
 
-        // GRID NOW USES THE SMART FILTERED COMMITS
         const relatedCommits = row._filteredCommits || getSrvRecordsForPO(poNumber);
         let subTableHTML = '';
         let poSrvAmt = 0;
@@ -752,7 +859,6 @@ function renderGrid(dataToRender) {
 }
 
 function getActiveFiltersHtml() {
-    const site = document.getElementById("filterSite").value;
     const monthIdx = document.getElementById("filterMonth").value;
     const yearFrom = document.getElementById("filterYearFrom").value; 
     const yearTo = document.getElementById("filterYearTo").value;     
@@ -762,11 +868,26 @@ function getActiveFiltersHtml() {
     const retention = document.getElementById("filterRetention").value; 
     const query = document.getElementById("searchInput").value.trim();
 
+    const minBalanceInput = document.getElementById("filterMinBalance");
+    const minBalanceVal = minBalanceInput ? minBalanceInput.value : "";
+
     const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     
     let activeFilters = [];
     if (query) activeFilters.push(`Search: "${query}"`);
-    if (site) activeFilters.push(`Site: ${site}`);
+    
+    // MULTI-SELECT PRINT LOGIC
+    const selectedSiteCheckboxes = Array.from(document.querySelectorAll(".site-checkbox:checked")).map(cb => cb.value);
+    const totalSitesAvailable = document.querySelectorAll(".site-checkbox").length;
+    
+    if (selectedSiteCheckboxes.length > 0 && selectedSiteCheckboxes.length < totalSitesAvailable) {
+        if (selectedSiteCheckboxes.length <= 3) {
+            activeFilters.push(`Sites: ${selectedSiteCheckboxes.join(', ')}`);
+        } else {
+            activeFilters.push(`Sites: ${selectedSiteCheckboxes.length} Selected`);
+        }
+    }
+
     if (monthIdx !== "") activeFilters.push(`Month: ${months[parseInt(monthIdx)]}`);
     
     if (yearFrom && yearTo) {
@@ -781,6 +902,11 @@ function getActiveFiltersHtml() {
     if (status === "open") activeFilters.push(`Status: Open POs`); 
     if (status === "closed") activeFilters.push(`Status: Closed POs`); 
     
+    // PRINT MIN BALANCE
+    if (minBalanceVal !== "" && !isNaN(parseFloat(minBalanceVal))) {
+        activeFilters.push(`Min Balance: &ge; QAR ${parseFloat(minBalanceVal).toLocaleString('en-US')}`);
+    }
+
     if (balance === "value") activeFilters.push(`BALANCE: HAS VALUE`);
     if (balance === "zero") activeFilters.push(`BALANCE: ZERO`);
 
@@ -797,7 +923,44 @@ function getActiveFiltersHtml() {
 }
 
 // ---------------------------------------------------------
-// PRINT FUNCTIONS (NOW USING SMART FILTERED COMMITS)
+// EXPORT TO EXCEL FUNCTION
+// ---------------------------------------------------------
+function exportToExcel() {
+    const excelData = currentFilteredData.map(row => {
+        const poNumber = row._cleanPO;
+        const relatedCommits = row._filteredCommits || getSrvRecordsForPO(poNumber);
+        
+        const totalSrv = relatedCommits.reduce((sum, c) => sum + c._rawCost, 0);
+        const retention = retentionByPO[poNumber] || 0;
+        const balance = row._rawAmount - totalSrv;
+
+        return {
+            "Ref / PO": poNumber,
+            "Site / Project ID": row['Project ID'] || row['Site'] || 'N/A',
+            "Vendor Name": row['Supplier Name'] || row['Supplier'] || 'N/A',
+            "Order Date": formatToDDMMMYYYY(row['Order Date'] || row['Date']),
+            "PO Value (QAR)": row._rawAmount,
+            "Total SRV (QAR)": totalSrv,
+            "Retention (QAR)": retention,
+            "Outstanding Balance (QAR)": balance,
+            "Status": (row['Open'] || '').toLowerCase() === 'false' ? 'Closed' : 'Open'
+        };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Invoice Records");
+
+    const maxWidths = Object.keys(excelData[0]).map(key => ({ wch: key.length + 5 }));
+    worksheet["!cols"] = maxWidths;
+
+    const fileName = `Invoice_Report_${new Date().toISOString().slice(0,10)}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+}
+
+
+// ---------------------------------------------------------
+// PRINT FUNCTIONS
 // ---------------------------------------------------------
 
 function generateSummaryPrintout() {
