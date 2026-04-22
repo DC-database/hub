@@ -13541,6 +13541,7 @@ async function handleBatchGlobalSearch(searchType) {
     }
 }
 
+
 async function handleSaveBatchInvoices() {
     // 💡 UPDATED: Grabs the new Div Cards instead of <tr> rows
     const rows = document.getElementById('im-batch-table-body').querySelectorAll('.batch-invoice-card');
@@ -13596,15 +13597,15 @@ async function handleSaveBatchInvoices() {
             }
         }
 
-        // 1. Build Data Object (Now grabs Release Date)
+        // 1. Build Data Object (💡 FIX: COMMAS ARE NOW STRIPPED IN THE BACKGROUND!)
         const invoiceData = {
             invNumber: row.querySelector('[name="invNumber"]').value,
             invName: row.querySelector('[name="invName"]').value,
             details: row.querySelector('[name="details"]') ? row.querySelector('[name="details"]').value : '',
             srvName: row.querySelector('[name="srvName"]').value,
             invoiceDate: row.querySelector('[name="invoiceDate"]').value,
-            invValue: row.querySelector('[name="invValue"]').value,
-            amountPaid: row.querySelector('[name="amountPaid"]').value,
+            invValue: row.querySelector('[name="invValue"]').value.replace(/,/g, ''), // Commas stripped!
+            amountPaid: row.querySelector('[name="amountPaid"]').value.replace(/,/g, ''), // Commas stripped!
             status: row.querySelector('[name="status"]').value,
             note: row.querySelector('[name="note"]').value,
             releaseDate: row.querySelector('[name="releaseDate"]') ? row.querySelector('[name="releaseDate"]').value : (typeof getTodayDateString === 'function' ? getTodayDateString() : new Date().toISOString().split('T')[0])
