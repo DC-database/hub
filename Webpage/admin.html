@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IBA Admin - Project Management</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body style="background-color: var(--bg-base); background-image: none;">
+    <nav class="navbar" style="background: rgba(15, 22, 33, 0.98);">
+        <div class="logo">IBA <span>ADMIN</span></div>
+        <a href="index.html" class="btn-primary">← View Live Portfolio</a>
+    </nav>
+
+    <div class="admin-layout">
+        <div class="admin-left-col">
+            
+            <div class="admin-panel" style="margin-bottom: 30px;">
+                <h2>Global Site Settings</h2>
+                <div class="form-group">
+                    <label>Hero Background Image URL</label>
+                    <input type="text" id="site-hero-img" placeholder="Paste construction image URL here...">
+                </div>
+                <button class="btn-primary" onclick="saveSiteSettings()">Update Background</button>
+            </div>
+
+            <div class="admin-panel">
+                <h2 id="form-title">Log New Project</h2>
+                <div class="form-grid">
+                    <div class="form-group"><label>Project Title</label><input type="text" id="proj-title"></div>
+                    <div class="form-group"><label>Client Name</label><input type="text" id="proj-client"></div>
+                    <div class="form-group"><label>Description</label><input type="text" id="proj-desc"></div>
+                    <div class="form-group"><label>Image URL (Portrait or Landscape)</label><input type="text" id="proj-img"></div>
+                    
+                    <div class="form-row">
+                        <div><label>Budget</label><input type="text" id="proj-budget"></div>
+                        <div><label>Duration</label><input type="text" id="proj-duration"></div>
+                        <div><label>Total Area</label><input type="text" id="proj-area"></div>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 15px; margin-top: 20px;">
+                    <button id="submit-btn" class="btn-primary" onclick="saveProject()" style="flex: 1; padding: 14px;">Publish to Portfolio</button>
+                    <button id="cancel-edit-btn" class="btn-danger" onclick="cancelEdit()" style="display: none; padding: 14px; background: #94a3b8;">Cancel Edit</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="admin-inventory">
+            <h2>Current Projects</h2>
+            <div id="admin-list" class="inventory-list"></div>
+            <button class="btn-danger" onclick="clearDatabase()" style="margin-top: 30px; width: 100%; padding: 12px;">Reset Entire Database</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
