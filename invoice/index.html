@@ -27,8 +27,25 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-</head>
+    
+    <style>
+        @media screen {
+            #dynamic-print-footer { display: none !important; }
+        }
+        @media print {
+            #dynamic-print-footer {
+                display: block !important;
+                position: fixed;
+                bottom: 15px; 
+                right: 20px;
+                font-size: 12px;
+                font-weight: bold;
+                color: #000;
+                z-index: 9999;
+            }
+        }
+    </style>
+    </head>
 <body>
 
 <audio id="login-sound" src="https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Open.mp3"></audio>
@@ -103,15 +120,91 @@
                         </div>
                     <button id="logout-button">Logout</button>
                 </header>
-                <main class="dashboard-main">
-                    <div class="button-container">
-    <button id="workdesk-button" class="circle-button">WorkDesk</button>
-    <button id="invoice-mgmt-button" class="circle-button">Invoice Management</button>
-    <button id="inventory-button" class="circle-button">Inventory</button>
-    <a href="https://ibaport.site/Procure/" target="_blank" class="circle-button" id="requisition-button">Requisition</a>
-    <a href="https://ibaport.site/Finance/" target="_blank" class="circle-button" id="finance-report-button">Financial Report</a>
-</div>
+
+
+<main class="dashboard-main">
+                    
+<style>
+    /* 🎬 MAGIC PAGE ENTRANCE TRANSITION 🎬 */
+    
+    /* We add a comma-separated list of all your screen IDs here! */
+    #workdesk-view:not(.hidden),
+    #invoice-view:not(.hidden),
+    #im-view:not(.hidden),
+    #invoice-management-view:not(.hidden),
+    #im-invoice-entry:not(.hidden),
+    #inventory-view:not(.hidden) {
+        animation: smoothPageEntrance 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+        transform-origin: center top !important; 
+    }
+
+    @keyframes smoothPageEntrance {
+        0% {
+            opacity: 0;
+            transform: translateY(30px) scale(0.97); 
+            filter: blur(3px);
+        }
+        100% {
+            opacity: 1;
+            transform: translateY(0) scale(1); 
+            filter: blur(0);
+        }
+    }
+</style>
+                    <div class="welcome-screen-buttons" style="display: flex; flex-direction: column; gap: 20px; align-items: center; justify-content: center; padding: 15px 0;">
+                        
+                        <div style="display: flex; gap: 20px; flex-wrap: nowrap; justify-content: center;">
+                            
+                            <button id="workdesk-button" class="glass-btn"
+                                    style="box-sizing: border-box; width: 120px; height: 120px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 600; color: #f8fafc; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; transition: all 0.3s ease; box-shadow: 0 8px 20px rgba(0,0,0,0.3); text-align: center; padding: 10px; flex-shrink: 0;"
+                                    onmouseenter="this.style.transform='translateY(-5px) scale(1.05)'; this.style.background='rgba(30, 41, 59, 0.8)'; this.style.borderColor='rgba(56, 189, 248, 0.5)'; this.style.boxShadow='0 12px 25px rgba(0,0,0,0.5)';"
+                                    onmouseleave="this.style.transform='translateY(0) scale(1)'; this.style.background='rgba(15, 23, 42, 0.6)'; this.style.borderColor='rgba(255, 255, 255, 0.1)'; this.style.boxShadow='0 8px 20px rgba(0,0,0,0.3)';">
+                                <i class="fa-solid fa-desktop" style="font-size: 1.6rem; color: #38bdf8; margin-bottom: 8px; filter: drop-shadow(0 0 8px rgba(56,189,248,0.4));"></i>
+                                WorkDesk
+                            </button>
+                            
+                            <button id="invoice-mgmt-button" class="glass-btn"
+                                    style="box-sizing: border-box; width: 120px; height: 120px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 600; color: #f8fafc; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; transition: all 0.3s ease; box-shadow: 0 8px 20px rgba(0,0,0,0.3); text-align: center; padding: 10px; line-height: 1.2; flex-shrink: 0;"
+                                    onmouseenter="this.style.transform='translateY(-5px) scale(1.05)'; this.style.background='rgba(30, 41, 59, 0.8)'; this.style.borderColor='rgba(74, 222, 128, 0.5)'; this.style.boxShadow='0 12px 25px rgba(0,0,0,0.5)';"
+                                    onmouseleave="this.style.transform='translateY(0) scale(1)'; this.style.background='rgba(15, 23, 42, 0.6)'; this.style.borderColor='rgba(255, 255, 255, 0.1)'; this.style.boxShadow='0 8px 20px rgba(0,0,0,0.3)';">
+                                <i class="fa-solid fa-file-invoice-dollar" style="font-size: 1.6rem; color: #4ade80; margin-bottom: 8px; filter: drop-shadow(0 0 8px rgba(74,222,128,0.4));"></i>
+                                Invoice<br>Mgt
+                            </button>
+                            
+                        </div>
+
+                        <div style="display: flex; gap: 15px; flex-wrap: nowrap; justify-content: center; width: 100%;">
+                            
+                            <a href="https://ibaport.site/Procure/" target="_blank" id="requisition-button" class="glass-btn"
+                                    style="box-sizing: border-box; width: 120px; height: 120px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 600; color: #f8fafc; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; transition: all 0.3s ease; box-shadow: 0 8px 20px rgba(0,0,0,0.3); text-align: center; padding: 10px; text-decoration: none; flex-shrink: 0;"
+                                    onmouseenter="this.style.transform='translateY(-5px) scale(1.05)'; this.style.background='rgba(30, 41, 59, 0.8)'; this.style.borderColor='rgba(251, 191, 36, 0.5)'; this.style.boxShadow='0 12px 25px rgba(0,0,0,0.5)';"
+                                    onmouseleave="this.style.transform='translateY(0) scale(1)'; this.style.background='rgba(15, 23, 42, 0.6)'; this.style.borderColor='rgba(255, 255, 255, 0.1)'; this.style.boxShadow='0 8px 20px rgba(0,0,0,0.3)';">
+                                <i class="fa-solid fa-clipboard-list" style="font-size: 1.6rem; color: #fbbf24; margin-bottom: 8px; filter: drop-shadow(0 0 8px rgba(251,191,36,0.4));"></i>
+                                Requisition
+                            </a>
+
+                            <button id="inventory-button" class="glass-btn"
+                                    style="box-sizing: border-box; width: 120px; height: 120px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 600; color: #f8fafc; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; transition: all 0.3s ease; box-shadow: 0 8px 20px rgba(0,0,0,0.3); text-align: center; padding: 10px; flex-shrink: 0;"
+                                    onmouseenter="this.style.transform='translateY(-5px) scale(1.05)'; this.style.background='rgba(30, 41, 59, 0.8)'; this.style.borderColor='rgba(192, 132, 252, 0.5)'; this.style.boxShadow='0 12px 25px rgba(0,0,0,0.5)';"
+                                    onmouseleave="this.style.transform='translateY(0) scale(1)'; this.style.background='rgba(15, 23, 42, 0.6)'; this.style.borderColor='rgba(255, 255, 255, 0.1)'; this.style.boxShadow='0 8px 20px rgba(0,0,0,0.3)';">
+                                <i class="fa-solid fa-boxes-stacked" style="font-size: 1.6rem; color: #c084fc; margin-bottom: 8px; filter: drop-shadow(0 0 8px rgba(192,132,252,0.4));"></i>
+                                Inventory
+                            </button>
+                            
+                            <a href="https://ibaport.site/Finance/" target="_blank" id="finance-report-button" class="glass-btn"
+                                    style="box-sizing: border-box; width: 120px; height: 120px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 600; color: #f8fafc; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; transition: all 0.3s ease; box-shadow: 0 8px 20px rgba(0,0,0,0.3); text-align: center; padding: 10px; line-height: 1.2; text-decoration: none; flex-shrink: 0;"
+                                    onmouseenter="this.style.transform='translateY(-5px) scale(1.05)'; this.style.background='rgba(30, 41, 59, 0.8)'; this.style.borderColor='rgba(45, 212, 191, 0.5)'; this.style.boxShadow='0 12px 25px rgba(0,0,0,0.5)';"
+                                    onmouseleave="this.style.transform='translateY(0) scale(1)'; this.style.background='rgba(15, 23, 42, 0.6)'; this.style.borderColor='rgba(255, 255, 255, 0.1)'; this.style.boxShadow='0 8px 20px rgba(0,0,0,0.3)';">
+                                <i class="fa-solid fa-chart-line" style="font-size: 1.6rem; color: #2dd4bf; margin-bottom: 8px; filter: drop-shadow(0 0 8px rgba(45,212,191,0.4));"></i>
+                                Financial<br>Report
+                            </a>
+                            
+                        </div>
+
+                    </div>
                 </main>
+
+
             </div>
         </div>
     </div>
@@ -1177,14 +1270,13 @@
             <button id="im-batch-search-by-status-button" type="button" class="secondary-btn" style="background-color: #17a2b8; color: white;"><i class="fa-solid fa-tags"></i> By Status</button>
         </div>
 
-        <div style="display: flex; gap: 8px; align-items: center; border-left: 2px solid #cbd5e1; padding-left: 15px;">
-            <div class="batch-note-search-wrapper" style="min-width: 200px;">
+<div style="display: flex; gap: 8px; align-items: center; border-left: 2px solid #cbd5e1; padding-left: 15px;">
+            <div class="batch-note-search-wrapper" style="min-width: 300px; width: 600px;">
                 <select id="im-batch-note-search-select" placeholder="Search by Note..."></select>
             </div>
             <button id="im-batch-search-by-note-button" type="button" class="secondary-btn" style="background-color: #ffc107; color: #212529; font-weight: bold;"><i class="fa-solid fa-note-sticky"></i> Search Note</button>
             <button id="im-batch-clear-button" type="button" class="secondary-btn" style="background-color: #dc3545; color: white;" title="Clear Search"><i class="fa-solid fa-eraser"></i></button>
         </div>
-
     </div>
 
     <div id="im-batch-global-controls" style="background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 12px 15px; border-radius: 8px; margin-bottom: 15px; display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
@@ -1223,32 +1315,10 @@
         </div>
     </div>
 
-    <div class="table-wrapper" style="flex-grow: 1; overflow-y: auto; border: 1px solid #cbd5e1; border-radius: 8px; background: white; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
-        <table id="im-batch-entry-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
-            <thead style="position: sticky; top: 0; background: #003A5C; color: white; z-index: 10;">
-                <tr>
-                    <th style="padding: 10px; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.1);">PO</th>
-                    <th style="padding: 10px; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.1);">Site</th>
-                    <th style="padding: 10px; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.1);">Vendor</th>
-                    <th style="padding: 10px; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.1); min-width: 140px;">Inv. No.</th>
-                    <th style="padding: 10px; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.1);">Inv. Name</th>
-                    <th style="padding: 10px; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.1);">Description</th>
-                    <th style="padding: 10px; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.1);">SRV Name</th>
-                    <th style="padding: 10px; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.1);">Inv. Date</th>
-                    <th style="padding: 10px; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.1);">Inv. Value</th>
-                    <th style="padding: 10px; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.1);">Amount To Paid</th>
-                    <th style="padding: 10px; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.1); min-width: 160px;">Attention</th>
-                    <th style="padding: 10px; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.1);">Status</th>
-                    <th style="padding: 10px; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.1);">Note</th>
-                    <th style="padding: 10px; font-weight: 600; text-align: center;"><i class="fa-solid fa-trash"></i></th>
-                </tr>
-            </thead>
-            <tbody id="im-batch-table-body"></tbody>
-        </table>
-    </div>
+<div id="im-batch-table-body" class="batch-cards-container" style="flex-grow: 1; overflow-y: auto; padding-right: 10px; margin-top: 10px;">
+        </div>
 
 </section>
-
 
 
 
@@ -2689,7 +2759,7 @@
 
     <script src="materialStock.js?v=6.3.21"></script>
     <script src="transferLogic.js?v=6.3.21"></script>
-    <script src="app.js?v=6.7.8"></script>
+    <script src="app.js?v=6.8.2"></script>
 
     </body>
 </html>

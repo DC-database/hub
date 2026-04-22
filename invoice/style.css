@@ -7678,3 +7678,116 @@ button[title="Inquire / Request Update via WhatsApp"]:hover {
     max-width: 800px !important;
     width: 50% !important;
 }
+
+/* =========================================================
+   BATCH ENTRY CARD GRID LAYOUT
+   ========================================================= */
+.batch-cards-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* Space between each invoice card */
+}
+
+.batch-invoice-card {
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: white;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.04);
+    overflow: hidden;
+    transition: box-shadow 0.2s ease;
+}
+
+.batch-invoice-card:hover {
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+}
+
+/* MAIN HEADER (Top Row) */
+.batch-card-header {
+    background: #f1f5f9; /* Light gray background */
+    border-bottom: 1px solid #e2e8f0;
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.batch-card-header .header-info {
+    display: flex;
+    gap: 20px;
+    font-weight: 800;
+    color: #003A5C;
+    font-size: 1.05rem;
+}
+
+.batch-card-header .header-info span {
+    background: white;
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+}
+
+.batch-card-header .header-inputs {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.batch-card-header .compact-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.batch-card-header .compact-input label {
+    font-size: 0.85rem;
+    color: #0f172a;
+    font-weight: 700;
+    margin: 0;
+}
+
+.batch-card-header .compact-input input {
+    padding: 6px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+/* SUB ENTRY (Bottom Grid) */
+.batch-card-body {
+    padding: 20px;
+}
+
+.batch-input-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); /* Auto-arranges columns based on screen size */
+    gap: 15px 20px;
+}
+
+.batch-input-grid label {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-bottom: 5px;
+    font-weight: 600;
+    display: block;
+}
+
+.batch-input-grid input, 
+.batch-input-grid select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    background: #f8fafc;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.batch-input-grid input:focus, 
+.batch-input-grid select:focus {
+    background: #fff;
+    border-color: #00748C;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0, 116, 140, 0.2);
+}

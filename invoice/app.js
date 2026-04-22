@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.7.8";
+const APP_VERSION = "6.8.2";
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -12958,9 +12958,14 @@ async function handleDownloadCSV() {
     document.body.removeChild(link);
 }
 
+
 // ==========================================================================
-// 18. INVOICE MANAGEMENT: BATCH ENTRY
+// 18. INVOICE MANAGEMENT: BATCH ENTRY (Clean & Refactored Card Layout)
 // ==========================================================================
+
+// --------------------------------------------------------------------------
+// SECTION A: UI HELPER FUNCTIONS (Dropdowns & Counters)
+// --------------------------------------------------------------------------
 
 async function populateApproverSelect(selectElement) {
     if (approverListForSelect.length === 0) {
@@ -12977,36 +12982,25 @@ async function populateApproverSelect(selectElement) {
                         const name = approver.Name;
                         const position = approver.Position || 'No-Pos';
                         const site = approver.Site || 'No-Site';
-                        const newLabel = `${name} - ${position} - ${site}`;
                         return {
                             value: name,
-                            label: newLabel
+                            label: `${name} - ${position} - ${site}`
                         };
                     })
                     .filter(Boolean)
                     .sort((a, b) => a.label.localeCompare(b.label));
-                approverListForSelect = [{
-                    value: '',
-                    label: 'Select Attention',
-                    placeholder: true
-                }, {
-                    value: 'None',
-                    label: 'None (Clear)'
-                }, ...approverOptions];
+
+                approverListForSelect = [
+                    { value: '', label: 'Select Attention', placeholder: true },
+                    { value: 'None', label: 'None (Clear)' },
+                    ...approverOptions
+                ];
             } else {
-                approverListForSelect = [{
-                    value: '',
-                    label: 'No approvers found',
-                    placeholder: true
-                }];
+                approverListForSelect = [{ value: '', label: 'No approvers found', placeholder: true }];
             }
         } catch (error) {
             console.error("Error fetching approvers for select:", error);
-            approverListForSelect = [{
-                value: '',
-                label: 'Error loading',
-                placeholder: true
-            }];
+            approverListForSelect = [{ value: '', label: 'Error loading', placeholder: true }];
         }
     }
 
@@ -13023,7 +13017,6 @@ async function populateApproverSelect(selectElement) {
     });
 }
 
-// Batch Entry: Keep the per-row Attention button text in sync with the underlying Choices/select value.
 function updateBatchRowAttentionButton(row) {
     if (!row) return;
     const btn = row.querySelector('.batch-attention-btn');
@@ -13046,7 +13039,6 @@ function updateBatchRowAttentionButton(row) {
     btn.title = (!val ? 'Select Attention' : val);
 }
 
-// Batch Entry: Safely set the attention value on a row (supports Choices instance or plain select).
 function setBatchRowAttentionValue(row, value, label = null) {
     if (!row) return;
     const val = (value || '').trim();
@@ -13054,14 +13046,10 @@ function setBatchRowAttentionValue(row, value, label = null) {
 
     if (row.choicesInstance) {
         try {
-            if (typeof row.choicesInstance.removeActiveItems === 'function') {
-                row.choicesInstance.removeActiveItems();
-            }
+            if (typeof row.choicesInstance.removeActiveItems === 'function') row.choicesInstance.removeActiveItems();
             if (!val) {
-                // Clear
                 if (typeof row.choicesInstance.setValue === 'function') row.choicesInstance.setValue([]);
             } else {
-                // Ensure the choice exists before selecting (prevents "value not found" edge cases)
                 if (typeof row.choicesInstance.setChoices === 'function') {
                     row.choicesInstance.setChoices([{ value: val, label: displayLabel }], 'value', 'label', false);
                 }
@@ -13080,38 +13068,29 @@ function setBatchRowAttentionValue(row, value, label = null) {
         const sel = row.querySelector('select[name="attention"]');
         if (sel) sel.value = val;
     }
-
     updateBatchRowAttentionButton(row);
 }
 
-// Batch Entry: Open the full-width modal Attention picker for a specific row.
 async function openBatchAttentionPicker(row) {
     if (!imAttentionPickerModal || !imAttentionPickerSelect) return;
     imAttentionPickerActiveRow = row;
 
-    // Lazily init Choices for the modal selector
     if (!imAttentionPickerChoices) {
         imAttentionPickerChoices = new Choices(imAttentionPickerSelect, {
-            searchEnabled: true,
-            shouldSort: false,
-            itemSelectText: '',
-            removeItemButton: true
+            searchEnabled: true, shouldSort: false, itemSelectText: '', removeItemButton: true
         });
     }
 
-    // Clear prior selection
     try {
         if (typeof imAttentionPickerChoices.removeActiveItems === 'function') imAttentionPickerChoices.removeActiveItems();
         if (typeof imAttentionPickerChoices.setValue === 'function') imAttentionPickerChoices.setValue([]);
     } catch (e) {}
 
-    // Apply smart filter based on the row's status + site
     const statusEl = row ? row.querySelector('select[name="status"]') : null;
     const status = statusEl ? statusEl.value : null;
     const site = row ? (row.dataset.site || null) : null;
     await populateAttentionDropdown(imAttentionPickerChoices, status, site, true);
 
-    // Preselect current value
     let currentVal = '';
     try {
         if (row && row.choicesInstance && typeof row.choicesInstance.getValue === 'function') {
@@ -13123,15 +13102,10 @@ async function openBatchAttentionPicker(row) {
     } catch (e) {}
 
     if (currentVal) {
-        try {
-            if (typeof imAttentionPickerChoices.setValue === 'function') imAttentionPickerChoices.setValue([currentVal]);
-        } catch (e) {}
+        try { if (typeof imAttentionPickerChoices.setValue === 'function') imAttentionPickerChoices.setValue([currentVal]); } catch (e) {}
     }
 
-    // Show modal
     imAttentionPickerModal.classList.remove('hidden');
-
-    // Focus search input for quick typing
     setTimeout(() => {
         const input = imAttentionPickerModal.querySelector('.choices__input--cloned');
         if (input) input.focus();
@@ -13146,11 +13120,18 @@ function closeBatchAttentionPicker() {
 
 function updateBatchCount() {
     if (batchCountDisplay) {
-        const rows = batchTableBody.querySelectorAll('tr');
-        batchCountDisplay.textContent = `Total in Batch: ${rows.length}`;
+        // UPDATED: Now targets the new Card Divs instead of table rows
+        const cards = document.getElementById('im-batch-table-body').querySelectorAll('.batch-invoice-card');
+        batchCountDisplay.textContent = `Total in Batch: ${cards.length}`;
     }
 }
 
+
+// --------------------------------------------------------------------------
+// SECTION B: ROW / CARD GENERATION LOGIC
+// --------------------------------------------------------------------------
+
+// Generates a NEW Invoice Card
 async function handleAddPOToBatch() {
     const batchPOInput = document.getElementById('im-batch-po-input');
     const poNumber = batchPOInput.value.trim().toUpperCase();
@@ -13163,11 +13144,10 @@ async function handleAddPOToBatch() {
     sessionStorage.removeItem('imBatchNoteSearch');
 
     const batchTableBody = document.getElementById('im-batch-table-body');
-    const existingRows = batchTableBody.querySelectorAll(`tr[data-po="${poNumber}"]`);
+    const existingRows = batchTableBody.querySelectorAll(`.batch-invoice-card[data-po="${poNumber}"]`);
     let isExistingInvoice = false;
-    existingRows.forEach(row => {
-        if (!row.dataset.key) isExistingInvoice = true;
-    });
+    existingRows.forEach(row => { if (!row.dataset.key) isExistingInvoice = true; });
+    
     if (isExistingInvoice) {
         alert(`A new invoice for PO ${poNumber} is already in the batch list.`);
         return;
@@ -13176,9 +13156,6 @@ async function handleAddPOToBatch() {
     try {
         await ensureInvoiceDataFetched();
 
-        // Resolve PO details using the same smart resolver used by Invoice Entry/Records
-        // (POVALUE2.csv + invoiceDb/purchase_orders fallback). This prevents "N/A" vendor/site
-        // when a PO exists only as a manual PO.
         let poData = null;
         try {
             poData = (typeof getInvoicePurchaseOrderDetails === 'function')
@@ -13192,16 +13169,14 @@ async function handleAddPOToBatch() {
             alert(`PO Number ${poNumber} not found.`);
             return;
         }
+        
         const invoiceData = allInvoiceData[poNumber];
-
         let maxInvIdNum = 0;
         if (invoiceData) {
             Object.values(invoiceData).forEach(inv => {
                 if (inv.invEntryID) {
                     const idNum = parseInt(inv.invEntryID.replace('INV-', ''));
-                    if (!isNaN(idNum) && idNum > maxInvIdNum) {
-                        maxInvIdNum = idNum;
-                    }
+                    if (!isNaN(idNum) && idNum > maxInvIdNum) maxInvIdNum = idNum;
                 }
             });
         }
@@ -13209,51 +13184,104 @@ async function handleAddPOToBatch() {
 
         const site = normalizeNameText(poData['Project ID'] || poData['Project ID:'] || 'N/A');
         const vendor = normalizeNameText(poData['Supplier Name'] || poData['Supplier Name:'] || poData['Supplier'] || poData['Supplier:'] || 'N/A');
-        const row = document.createElement('tr');
+        
+        const row = document.createElement('div');
+        row.className = 'batch-invoice-card';
         row.setAttribute('data-po', poNumber);
         row.setAttribute('data-site', site);
         row.setAttribute('data-vendor', vendor);
         row.setAttribute('data-next-invid', nextInvId);
 
         row.innerHTML = `
-            <td>${poNumber} <span class="new-indicator">(New)</span></td>
-            <td>${site}</td>
-            <td>${vendor}</td>
-            
-            <td style="min-width: 130px;">
-                <div style="display: flex; gap: 4px; margin-bottom: 4px;">
-                    <button type="button" class="btn-quick-ipc" data-po="${poNumber}" style="flex: 1; padding: 2px 0; font-size: 9px; font-weight: bold; background: #003A5C; color: white; border: none; border-radius: 3px; cursor: pointer;">IPC</button>
-                    <button type="button" class="btn-quick-five" data-po="${poNumber}" style="flex: 1; padding: 2px 0; font-size: 9px; font-weight: bold; background: #00748C; color: white; border: none; border-radius: 3px; cursor: pointer;">FIVE</button>
+            <div class="batch-card-header" style="background-color: #023020 !important; border-bottom: 4px solid #16a34a !important; padding: 12px 15px !important; display: flex !important; flex-wrap: nowrap !important; gap: 15px !important; align-items: flex-end !important; overflow-x: auto !important; overflow-y: hidden !important;">
+                
+                <div title="PO Number" style="color: #FFD700 !important; font-weight: 800 !important; font-size: 1.05rem !important; white-space: nowrap !important; margin-bottom: 6px !important; flex: 0 0 auto !important;">
+                    <i class="fa-solid fa-hashtag"></i> ${poNumber} <span style="color: #4ade80 !important; font-size: 0.75rem !important;">(New)</span>
                 </div>
-                <input type="text" name="invNumber" class="batch-input">
-            </td>
+
+                <div title="Site" style="color: #FFD700 !important; font-weight: 800 !important; font-size: 1.05rem !important; white-space: nowrap !important; margin-bottom: 6px !important; flex: 0 0 auto !important;">
+                    <i class="fa-solid fa-location-dot"></i> ${site}
+                </div>
+
+                <div title="Vendor" style="color: #FFD700 !important; font-weight: 800 !important; font-size: 1.05rem !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; flex: 0 1 180px !important; max-width: 250px !important; margin-bottom: 6px !important;">
+                    <i class="fa-solid fa-building"></i> ${vendor}
+                </div>
+
+                <div style="display: flex !important; flex-direction: column !important; gap: 4px !important; flex: 1 1 195px !important; min-width: 130px !important;">
+                    <label style="color: white !important; font-weight: 600 !important; font-size: 0.75rem !important; display: flex !important; justify-content: space-between !important; align-items: center !important; margin: 0 !important; white-space: nowrap !important;">Inv No. 
+                        <div style="display: flex !important; gap: 3px !important;">
+                            <button type="button" class="btn-quick-ipc" data-po="${poNumber}" style="padding: 2px 4px !important; font-size: 8px !important; font-weight: bold !important; background: #003A5C !important; color: white !important; border: none !important; border-radius: 3px !important; cursor: pointer !important;">IPC</button>
+                            <button type="button" class="btn-quick-five" data-po="${poNumber}" style="padding: 2px 4px !important; font-size: 8px !important; font-weight: bold !important; background: #00748C !important; color: white !important; border: none !important; border-radius: 3px !important; cursor: pointer !important;">FIVE</button>
+                        </div>
+                    </label>
+                    <input type="text" name="invNumber" class="batch-input" style="padding: 0 8px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #023020 !important; width: 100% !important; box-sizing: border-box !important; margin: 0 !important; height: 32px !important;">
+                </div>
+
+                <div style="display: flex !important; flex-direction: column !important; gap: 4px !important; flex: 1 1 195px !important; min-width: 130px !important; position: relative !important;">
+                    <label style="color: white !important; font-weight: 600 !important; font-size: 0.75rem !important; margin: 0 !important; white-space: nowrap !important;">Attention</label>
+                    <div style="position: absolute !important; width: 0 !important; height: 0 !important; overflow: hidden !important; visibility: hidden !important;">
+                        <select name="attention" class="batch-input batch-attention-select"></select>
+                    </div>
+                    <button type="button" class="secondary-btn batch-attention-btn" title="Select Attention" style="width: 100% !important; height: 32px !important; padding: 0 8px !important; margin: 0 !important; color: #023020 !important; background: white !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; text-align: left !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; cursor: pointer !important; display: block !important;">Select Attention</button>
+                </div>
+
+                <div style="display: flex !important; flex-direction: column !important; gap: 4px !important; flex: 1 1 195px !important; min-width: 130px !important;">
+                    <label style="color: white !important; font-weight: 600 !important; font-size: 0.75rem !important; margin: 0 !important; white-space: nowrap !important;">Status</label>
+                    <select name="status" class="batch-input" style="padding: 0 6px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #023020 !important; width: 100% !important; margin: 0 !important; height: 32px !important; font-size: 0.85rem !important; cursor: pointer !important;">
+                        <option value="For SRV">For SRV</option>
+                        <option value="No Need SRV">No Need SRV</option>
+                        <option value="Pending">Pending</option>
+                        <option value="For IPC">For IPC</option>
+                        <option value="Under Review">Under Review</option>
+                        <option value="CEO Approval">CEO Approval</option>
+                        <option value="Report">Report</option>
+                        <option value="Report Approval">Report Approval</option>
+                        <option value="Report Approved">Report Approved</option>
+                        <option value="With Accounts">With Accounts</option>
+                    </select>
+                </div>
+
+                <div style="display: flex !important; flex-direction: column !important; gap: 4px !important; flex: 1 1 195px !important; min-width: 130px !important;">
+                    <label style="color: white !important; font-weight: 600 !important; font-size: 0.75rem !important; margin: 0 !important; white-space: nowrap !important;">Note</label>
+                    <input type="text" name="note" class="batch-input" style="padding: 0 8px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #023020 !important; width: 100% !important; box-sizing: border-box !important; margin: 0 !important; height: 32px !important;">
+                </div>
+
+                <div style="display: flex !important; align-items: flex-end !important; flex: 0 0 auto !important;">
+                    <button type="button" class="delete-btn batch-remove-btn" title="Remove from Batch" style="background-color: #dc3545 !important; color: white !important; border: none !important; padding: 0 12px !important; border-radius: 4px !important; height: 32px !important; display: flex !important; align-items: center !important; justify-content: center !important; cursor: pointer !important;"><i class="fa-solid fa-trash"></i></button>
+                </div>
+
+            </div>
+
+ <div class="batch-card-body" style="padding: 12px 15px !important;">
+            <div class="batch-input-grid" style="display: flex !important; flex-wrap: nowrap !important; gap: 8px !important; overflow-x: auto !important; align-items: flex-start !important;">
+                
+                <div style="flex: 0 0 18%; min-width: 130px;"><label style="font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Invoice Name</label><input type="text" name="invName" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;"></div>
+                
+                <div style="flex: 0 0 18%; min-width: 130px;"><label style="font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">SRV Name</label><input type="text" name="srvName" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;"></div>
+                
+                <div style="flex: 0 0 12%; min-width: 90px;"><label style="font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Description</label><input type="text" name="details" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;"></div>
+                
+                <div style="flex: 0 0 11%; min-width: 90px;"><label style="font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Invoice Date</label><input type="date" name="invoiceDate" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 4px !important;" value="${typeof getTodayDateString === 'function' ? getTodayDateString() : new Date().toISOString().split('T')[0]}"></div>
+                
+                <div style="flex: 0 0 11%; min-width: 80px;"><label style="font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Invoice Value</label><input type="text" name="invValue" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;"></div>
+                
+                <div style="flex: 0 0 11%; min-width: 80px;"><label style="font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Amount Paid</label><input type="text" name="amountPaid" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;" value="0.00"></div>
+                
+                <div style="flex: 0 0 11%; min-width: 90px;"><label style="color: #00748C; font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Release Date</label><input type="date" name="releaseDate" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 4px !important;" value="${typeof getTodayDateString === 'function' ? getTodayDateString() : new Date().toISOString().split('T')[0]}"></div>
             
-            <td><input type="text" name="invName" class="batch-input"></td>
-            <td><input type="text" name="details" class="batch-input"></td>
-            <td><input type="text" name="srvName" class="batch-input"></td>
-            <td><input type="date" name="invoiceDate" class="batch-input" value="${getTodayDateString()}"></td>
-            <td><input type="number" name="invValue" class="batch-input" step="0.01"></td>
-            <td><input type="number" name="amountPaid" class="batch-input" step="0.01" value="0"></td>
-            <td class="batch-attention-cell">
-                <select name="attention" class="batch-input batch-attention-select"></select>
-                <button type="button" class="secondary-btn batch-attention-btn" title="Select Attention">Select Attention</button>
-            </td>
-            <td><select name="status" class="batch-input">
-                <option value="For SRV">For SRV</option>
-                <option value="No Need SRV">No Need SRV</option>
-                <option value="Pending">Pending</option>
-                <option value="For IPC">For IPC</option>
-                <option value="Under Review">Under Review</option>
-                <option value="CEO Approval">CEO Approval</option>
-                <option value="Report">Report</option>
-                <option value="Report Approval">Report Approval</option>
-                <option value="Report Approved">Report Approved</option>
-                <option value="With Accounts">With Accounts</option>
-            </select></td>
-            <td><input type="text" name="note" class="batch-input"></td>
-            <td><button type="button" class="delete-btn batch-remove-btn">&times;</button></td>
+            </div>
+        </div>
         `;
+        
         batchTableBody.appendChild(row);
+
+        const attnBtn = row.querySelector('.batch-attention-btn');
+        if (attnBtn) {
+            attnBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (typeof openBatchAttentionPicker === 'function') openBatchAttentionPicker(row);
+            });
+        }
 
         const attentionSelect = row.querySelector('select[name="attention"]');
         const statusSelect = row.querySelector('select[name="status"]');
@@ -13261,55 +13289,37 @@ async function handleAddPOToBatch() {
 
         await populateApproverSelect(attentionSelect);
 
-       // 1. Initialize Choices Instance (Empty first)
-const choices = new Choices(attentionSelect, {
-    searchEnabled: true,
-    shouldSort: false,
-    itemSelectText: '',
-    removeItemButton: true
-});
-row.choicesInstance = choices;
+        const choices = new Choices(attentionSelect, {
+            searchEnabled: true, shouldSort: false, itemSelectText: '', removeItemButton: true
+        });
+        row.choicesInstance = choices;
+        await populateAttentionDropdown(choices, statusSelect.value, site, true);
 
-// 2. Apply Smart Filter immediately
-// This looks at the default status (e.g. "For SRV") and the PO's Site
-await populateAttentionDropdown(choices, statusSelect.value, site, true);
-
-        // --- THE FIX IS HERE ---
         const globalAttnValue = imBatchGlobalAttentionChoices ? imBatchGlobalAttentionChoices.getValue(true) : null;
-        if (globalAttnValue) {
-            // Must pass as an array [value] to prevent library errors
-            choices.setValue([globalAttnValue]);
-        }
-        // -----------------------
+        if (globalAttnValue) choices.setValue([globalAttnValue]);
 
         if (imBatchGlobalStatus.value) statusSelect.value = imBatchGlobalStatus.value;
         if (imBatchGlobalNote.value) noteInput.value = imBatchGlobalNote.value;
 
-        // Sync button label with current attention selection
         updateBatchRowAttentionButton(row);
-
         updateBatchCount();
 
         batchPOInput.value = '';
         batchPOInput.focus();
     } catch (error) {
-
-
-
         console.error("Error adding PO to batch:", error);
         alert('An error occurred while adding the PO.');
     }
 }
 
+// Generates an EXISTING Invoice Card
 async function addInvoiceToBatchTable(invData) {
     const batchTableBody = document.getElementById('im-batch-table-body');
-    if (batchTableBody.querySelector(`tr[data-key="${invData.key}"]`)) return;
+    if (batchTableBody.querySelector(`.batch-invoice-card[data-key="${invData.key}"]`)) return;
 
-    // Resolve best-available PO details for Site/Vendor so Batch Entry doesn't show/generate "N/A"
-    // when the PO exists only as a Manual PO (invoiceDb/purchase_orders) or the invoice record already
-    // carries vendor/site fields.
-    let resolvedSite = normalizeNameText(invData.site || invData.site_name || invData.siteName || invData.site_name || '');
-    let resolvedVendor = normalizeNameText(invData.vendor || invData.vendor_name || invData.vendorName || invData.vendor_name || '');
+    let resolvedSite = normalizeNameText(invData.site || invData.site_name || invData.siteName || '');
+    let resolvedVendor = normalizeNameText(invData.vendor || invData.vendor_name || invData.vendorName || '');
+    
     const isNA = (v) => {
         const s = String(v || '').trim().toLowerCase();
         return (!s || s === 'n/a' || s === 'na' || s === 'null' || s === 'undefined');
@@ -13318,109 +13328,151 @@ async function addInvoiceToBatchTable(invData) {
     if ((isNA(resolvedSite) || isNA(resolvedVendor)) && typeof getInvoicePurchaseOrderDetails === 'function') {
         try {
             const poDetails = await getInvoicePurchaseOrderDetails(invData.po);
-            if (isNA(resolvedSite)) {
-                resolvedSite = normalizeNameText(poDetails['Project ID'] || poDetails['Project ID:'] || resolvedSite || 'N/A');
-            }
-            if (isNA(resolvedVendor)) {
-                resolvedVendor = normalizeNameText(
-                    poDetails['Supplier Name'] || poDetails['Supplier Name:'] || poDetails['Supplier'] || poDetails['Supplier:'] || resolvedVendor || 'N/A'
-                );
-            }
-        } catch (_) {
-            // Ignore resolver errors; fall back to whatever we already have
-        }
+            if (isNA(resolvedSite)) resolvedSite = normalizeNameText(poDetails['Project ID'] || poDetails['Project ID:'] || resolvedSite || 'N/A');
+            if (isNA(resolvedVendor)) resolvedVendor = normalizeNameText(poDetails['Supplier Name'] || poDetails['Supplier Name:'] || poDetails['Supplier'] || resolvedVendor || 'N/A');
+        } catch (_) {}
     }
 
     if (isNA(resolvedSite)) resolvedSite = 'N/A';
     if (isNA(resolvedVendor)) resolvedVendor = 'N/A';
 
-    const row = document.createElement('tr');
+    const row = document.createElement('div');
+    row.className = 'batch-invoice-card';
     row.setAttribute('data-po', invData.po);
     row.setAttribute('data-key', invData.key);
     row.setAttribute('data-site', resolvedSite);
     row.setAttribute('data-vendor', resolvedVendor);
 
     row.innerHTML = `
-        <td>${invData.po} <span class="existing-indicator">(Existing: ${invData.invEntryID})</span></td>
-        <td>${resolvedSite}</td>
-        <td>${resolvedVendor}</td>
-        <td><input type="text" name="invNumber" class="batch-input" value="${invData.invNumber || ''}"></td>
-        <td><input type="text" name="invName" class="batch-input" value="${invData.invName || ''}"></td>
-        <td><input type="text" name="details" class="batch-input" value="${invData.details || ''}"></td>
-        <td><input type="text" name="srvName" class="batch-input" value="${invData.srvName || ''}"></td>
-        <td><input type="date" name="invoiceDate" class="batch-input" value="${normalizeDateForInput(invData.invoiceDate) || ''}"></td>
-        <td><input type="number" name="invValue" class="batch-input" step="0.01" value="${invData.invValue || ''}"></td>
-        <td><input type="number" name="amountPaid" class="batch-input" step="0.01" value="${invData.amountPaid || '0'}"></td>
-        <td class="batch-attention-cell">
-            <select name="attention" class="batch-input batch-attention-select"></select>
-            <button type="button" class="secondary-btn batch-attention-btn" title="Select Attention">Select Attention</button>
-        </td>
-        <td><select name="status" class="batch-input">
-            <option value="For SRV">For SRV</option>
-	    <option value="No Need SRV">No Need SRV</option>
-            <option value="Pending">Pending</option>
-            <option value="For IPC">For IPC</option>
-	    <option value="Under Review">Under Review</option>
-            <option value="For Approval">For Approval</option>
-	    <option value="In Process">In Process</option>
- 	    <option value="Unresolved">Unresolved</option>
-            <option value="CEO Approval">CEO Approval</option>
-            <option value="Report">Report</option>
-	    <option value="Report Approval">Report Approval</option>
-	    <option value="Report Approved">Report Approved</option>
-            <option value="With Accounts">With Accounts</option>
-            <option value="On Hold">On Hold</option>
-            <option value="CLOSED">CLOSED</option>
-            <option value="Cancelled">Cancelled</option>
-            <option value="Original PO">Original PO</option>
-        </select></td>
-        <td><input type="text" name="note" class="batch-input" value="${invData.note || ''}"></td>
-        <td><button type="button" class="delete-btn batch-remove-btn">&times;</button></td>
+        <div class="batch-card-header" style="background-color: #023020 !important; border-bottom: 4px solid #16a34a !important; padding: 12px 15px !important; display: flex !important; flex-wrap: nowrap !important; gap: 15px !important; align-items: flex-end !important; overflow-x: auto !important; overflow-y: hidden !important;">
+            
+            <div title="PO Number" style="color: #FFD700 !important; font-weight: 800 !important; font-size: 1.05rem !important; white-space: nowrap !important; margin-bottom: 6px !important; flex: 0 0 auto !important;">
+                <i class="fa-solid fa-hashtag"></i> ${invData.po} <span class="existing-indicator" style="color: #94a3b8 !important; font-size: 0.75rem !important;">(Existing: ${invData.invEntryID})</span>
+            </div>
+
+            <div title="Site" style="color: #FFD700 !important; font-weight: 800 !important; font-size: 1.05rem !important; white-space: nowrap !important; margin-bottom: 6px !important; flex: 0 0 auto !important;">
+                <i class="fa-solid fa-location-dot"></i> ${resolvedSite}
+            </div>
+
+            <div title="Vendor" style="color: #FFD700 !important; font-weight: 800 !important; font-size: 1.05rem !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; flex: 0 1 180px !important; max-width: 250px !important; margin-bottom: 6px !important;">
+                <i class="fa-solid fa-building"></i> ${resolvedVendor}
+            </div>
+            
+            <div style="display: flex !important; flex-direction: column !important; gap: 4px !important; flex: 1 1 195px !important; min-width: 130px !important;">
+                <label style="color: white !important; font-weight: 600 !important; font-size: 0.75rem !important; display: flex !important; justify-content: space-between !important; align-items: flex-end !important; margin: 0 !important; white-space: nowrap !important; height: 14px !important; line-height: 14px !important;">
+                    <span>Inv No.</span>
+                    <div style="display: flex !important; gap: 3px !important; height: 14px !important;">
+                        <button type="button" class="btn-quick-ipc" style="height: 14px !important; line-height: 14px !important; padding: 0 4px !important; font-size: 8px !important; font-weight: bold !important; background: #003A5C !important; color: white !important; border: none !important; border-radius: 2px !important; cursor: pointer !important; margin: 0 !important; box-sizing: border-box !important;">IPC</button>
+                        <button type="button" class="btn-quick-five" style="height: 14px !important; line-height: 14px !important; padding: 0 4px !important; font-size: 8px !important; font-weight: bold !important; background: #00748C !important; color: white !important; border: none !important; border-radius: 2px !important; cursor: pointer !important; margin: 0 !important; box-sizing: border-box !important;">FIVE</button>
+                    </div>
+                </label>
+                <input type="text" name="invNumber" class="batch-input" value="${invData.invNumber || ''}" style="padding: 0 8px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #023020 !important; width: 100% !important; box-sizing: border-box !important; margin: 0 !important; height: 32px !important;">
+            </div>
+
+            <div style="display: flex !important; flex-direction: column !important; gap: 4px !important; flex: 1 1 195px !important; min-width: 130px !important; position: relative !important;">
+                <label style="color: white !important; font-weight: 600 !important; font-size: 0.75rem !important; margin: 0 !important; white-space: nowrap !important;">Attention</label>
+                <div style="position: absolute !important; width: 0 !important; height: 0 !important; overflow: hidden !important; visibility: hidden !important;">
+                    <select name="attention" class="batch-input batch-attention-select"></select>
+                </div>
+                <button type="button" class="secondary-btn batch-attention-btn" title="Select Attention" style="width: 100% !important; height: 32px !important; padding: 0 8px !important; margin: 0 !important; color: #023020 !important; background: white !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; text-align: left !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; cursor: pointer !important; display: block !important;">Select Attention</button>
+            </div>
+
+            <div style="display: flex !important; flex-direction: column !important; gap: 4px !important; flex: 1 1 195px !important; min-width: 130px !important;">
+                <label style="color: white !important; font-weight: 600 !important; font-size: 0.75rem !important; margin: 0 !important; white-space: nowrap !important;">Status</label>
+                <select name="status" class="batch-input" style="padding: 0 6px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #023020 !important; width: 100% !important; margin: 0 !important; height: 32px !important; font-size: 0.85rem !important; cursor: pointer !important;">
+                    <option value="For SRV">For SRV</option>
+                    <option value="No Need SRV">No Need SRV</option>
+                    <option value="Pending">Pending</option>
+                    <option value="For IPC">For IPC</option>
+                    <option value="Under Review">Under Review</option>
+                    <option value="For Approval">For Approval</option>
+                    <option value="In Process">In Process</option>
+                    <option value="Unresolved">Unresolved</option>
+                    <option value="CEO Approval">CEO Approval</option>
+                    <option value="Report">Report</option>
+                    <option value="Report Approval">Report Approval</option>
+                    <option value="Report Approved">Report Approved</option>
+                    <option value="With Accounts">With Accounts</option>
+                    <option value="On Hold">On Hold</option>
+                    <option value="CLOSED">CLOSED</option>
+                    <option value="Cancelled">Cancelled</option>
+                    <option value="Original PO">Original PO</option>
+                </select>
+            </div>
+
+            <div style="display: flex !important; flex-direction: column !important; gap: 4px !important; flex: 1 1 195px !important; min-width: 130px !important;">
+                <label style="color: white !important; font-weight: 600 !important; font-size: 0.75rem !important; margin: 0 !important; white-space: nowrap !important;">Note</label>
+                <input type="text" name="note" class="batch-input" value="${invData.note || ''}" style="padding: 0 8px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #023020 !important; width: 100% !important; box-sizing: border-box !important; margin: 0 !important; height: 32px !important;">
+            </div>
+
+            <div style="display: flex !important; align-items: flex-end !important; flex: 0 0 auto !important;">
+                <button type="button" class="delete-btn batch-remove-btn" title="Remove from Batch" style="background-color: #dc3545 !important; color: white !important; border: none !important; padding: 0 12px !important; border-radius: 4px !important; height: 32px !important; display: flex !important; align-items: center !important; justify-content: center !important; cursor: pointer !important;"><i class="fa-solid fa-trash"></i></button>
+            </div>
+
+        </div>
+
+<div class="batch-card-body" style="padding: 12px 15px !important;">
+            <div class="batch-input-grid" style="display: flex !important; flex-wrap: nowrap !important; gap: 8px !important; overflow-x: auto !important; align-items: flex-start !important;">
+                
+                <div style="flex: 0 0 18%; min-width: 130px;"><label style="font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Invoice Name</label><input type="text" name="invName" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;" value="${invData.invName || ''}"></div>
+                
+                <div style="flex: 0 0 18%; min-width: 130px;"><label style="font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">SRV Name</label><input type="text" name="srvName" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;" value="${invData.srvName || ''}"></div>
+                
+                <div style="flex: 0 0 12%; min-width: 90px;"><label style="font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Description</label><input type="text" name="details" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;" value="${invData.details || ''}"></div>
+                
+                <div style="flex: 0 0 11%; min-width: 90px;"><label style="font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Invoice Date</label><input type="date" name="invoiceDate" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 4px !important;" value="${(typeof normalizeDateForInput === 'function' ? normalizeDateForInput(invData.invoiceDate) : invData.invoiceDate) || ''}"></div>
+                
+                <div style="flex: 0 0 11%; min-width: 80px;"><label style="font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Invoice Value</label><input type="text" name="invValue" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;" value="${invData.invValue ? parseFloat(String(invData.invValue).replace(/,/g, '')).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : ''}"></div>
+                
+                <div style="flex: 0 0 11%; min-width: 80px;"><label style="font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Amount Paid</label><input type="text" name="amountPaid" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;" value="${invData.amountPaid ? parseFloat(String(invData.amountPaid).replace(/,/g, '')).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00'}"></div>
+                
+                <div style="flex: 0 0 11%; min-width: 90px;"><label style="color: #00748C; font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Release Date</label><input type="date" name="releaseDate" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 4px !important;" value="${invData.releaseDate || (typeof getTodayDateString === 'function' ? getTodayDateString() : new Date().toISOString().split('T')[0])}"></div>
+            
+            </div>
+        </div>
     `;
 
-    batchTableBody.prepend(row); // Add to top of list
+    batchTableBody.prepend(row);
+
+    const attnBtn = row.querySelector('.batch-attention-btn');
+    if (attnBtn) {
+        attnBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (typeof openBatchAttentionPicker === 'function') openBatchAttentionPicker(row);
+        });
+    }
 
     const attentionSelect = row.querySelector('select[name="attention"]');
     const statusSelect = row.querySelector('select[name="status"]');
     const noteInput = row.querySelector('input[name="note"]');
 
     statusSelect.value = invData.status || 'For SRV';
-
     await populateApproverSelect(attentionSelect);
 
-    // 1. Initialize Choices Instance
-const choices = new Choices(attentionSelect, {
-    searchEnabled: true,
-    shouldSort: false,
-    itemSelectText: '',
-    removeItemButton: true
-});
-row.choicesInstance = choices;
+    const choices = new Choices(attentionSelect, {
+        searchEnabled: true, shouldSort: false, itemSelectText: '', removeItemButton: true
+    });
+    row.choicesInstance = choices;
+    await populateAttentionDropdown(choices, statusSelect.value, resolvedSite, true);
 
-// 2. Apply Smart Filter immediately
-// uses invData.site which comes from the invoice/PO data
-await populateAttentionDropdown(choices, statusSelect.value, resolvedSite, true);
-
-    // --- FIX STARTS HERE ---
     const globalAttentionVal = imBatchGlobalAttentionChoices ? imBatchGlobalAttentionChoices.getValue(true) : null;
-
     if (globalAttentionVal) {
-        // ERROR WAS HERE: It needs square brackets [] to be an array
         choices.setValue([globalAttentionVal]);
     } else if (invData.attention) {
-        // This method handles strings automatically, so it was fine
         choices.setChoiceByValue(invData.attention);
     }
-    // --- FIX ENDS HERE ---
 
     if (imBatchGlobalStatus.value) statusSelect.value = imBatchGlobalStatus.value;
     if (imBatchGlobalNote.value) noteInput.value = imBatchGlobalNote.value;
 
-    // Sync button label with current attention selection
     updateBatchRowAttentionButton(row);
-
     updateBatchCount();
 }
+
+
+// --------------------------------------------------------------------------
+// SECTION C: BATCH SEARCH & SAVE LOGIC
+// --------------------------------------------------------------------------
 
 async function handleBatchGlobalSearch(searchType) {
     const batchPOInput = document.getElementById('im-batch-po-input');
@@ -13432,15 +13484,9 @@ async function handleBatchGlobalSearch(searchType) {
 
     let noteSearchTerm = '';
     if (searchType === 'note') {
-        if (!imBatchNoteSearchChoices) {
-            alert("Note search is not ready.");
-            return;
-        }
+        if (!imBatchNoteSearchChoices) { alert("Note search is not ready."); return; }
         noteSearchTerm = imBatchNoteSearchChoices.getValue(true);
-        if (!noteSearchTerm) {
-            alert("Please select a note from the dropdown to search.");
-            return;
-        }
+        if (!noteSearchTerm) { alert("Please select a note from the dropdown to search."); return; }
     }
 
     const finalSearchTerm = (searchType === 'note') ? noteSearchTerm : searchTerm;
@@ -13462,52 +13508,29 @@ async function handleBatchGlobalSearch(searchType) {
 
     try {
         await ensureInvoiceDataFetched();
-        const allPOs = allPOData,
-            allInvoicesByPO = allInvoiceData;
+        const allPOs = allPOData, allInvoicesByPO = allInvoiceData;
         let invoicesFound = 0;
         const promises = [];
         for (const poNumber in allInvoicesByPO) {
-            const invoices = allInvoicesByPO[poNumber],
-                poData = allPOs[poNumber] || {};
+            const invoices = allInvoicesByPO[poNumber], poData = allPOs[poNumber] || {};
             for (const key in invoices) {
                 const inv = invoices[key];
-
-                // Prefer values already stored on the invoice (e.g., from Job Entry / Manual PO),
-                // then fall back to CSV/memory. This prevents "N/A" in Batch Entry when POVALUE2.csv
-                // doesn't contain the PO.
-                const site = normalizeNameText(
-                    inv.site || inv.site_name || inv.siteName ||
-                    poData['Project ID'] || poData['Project ID:'] ||
-                    'N/A'
-                );
-                const vendor = normalizeNameText(
-                    inv.vendor || inv.vendor_name || inv.vendorName ||
-                    poData['Supplier Name'] || poData['Supplier Name:'] || poData['Supplier'] || poData['Supplier:'] ||
-                    'N/A'
-                );
+                const site = normalizeNameText(inv.site || inv.site_name || inv.siteName || poData['Project ID'] || poData['Project ID:'] || 'N/A');
+                const vendor = normalizeNameText(inv.vendor || inv.vendor_name || inv.vendorName || poData['Supplier Name'] || poData['Supplier Name:'] || poData['Supplier'] || poData['Supplier:'] || 'N/A');
+                
                 let isMatch = false;
-
                 if (searchType === 'status' && inv.status && inv.status.toLowerCase() === finalSearchTerm.toLowerCase()) isMatch = true;
                 else if (searchType === 'note' && inv.note && inv.note === finalSearchTerm) isMatch = true;
 
                 if (isMatch) {
                     invoicesFound++;
-                    const invData = {
-                        key,
-                        po: poNumber,
-                        site,
-                        vendor,
-                        ...inv
-                    };
-                    promises.push(addInvoiceToBatchTable(invData));
+                    promises.push(addInvoiceToBatchTable({ key, po: poNumber, site, vendor, ...inv }));
                 }
             }
         }
         await Promise.all(promises);
         if (invoicesFound === 0) alert(`No invoices found with the ${searchType} "${finalSearchTerm}".`);
-        else {
-            alert(`Added ${invoicesFound} invoice(s) to the batch list.`);
-        }
+        else alert(`Added ${invoicesFound} invoice(s) to the batch list.`);
     } catch (error) {
         console.error("Error during global batch search:", error);
         alert(`An error occurred: ${error.message}`);
@@ -13518,11 +13541,9 @@ async function handleBatchGlobalSearch(searchType) {
     }
 }
 
-// =========================================================
-// FIX: BATCH SAVE (With Crash Protection, Report Name, Cache Sync & Smart Refresh)
-// =========================================================
 async function handleSaveBatchInvoices() {
-    const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
+    // 💡 UPDATED: Grabs the new Div Cards instead of <tr> rows
+    const rows = document.getElementById('im-batch-table-body').querySelectorAll('.batch-invoice-card');
     if (rows.length === 0) {
         alert("There are no invoices to save.");
         return;
@@ -13530,7 +13551,6 @@ async function handleSaveBatchInvoices() {
     
     if (!confirm(`You are about to save/update ${rows.length} invoice(s). Continue?`)) return;
 
-    // --- [CRITICAL] SAFE USER CHECK ---
     let currentUserName = 'Admin'; 
     try {
         if (typeof currentUser !== 'undefined' && currentUser && currentUser.username) {
@@ -13538,53 +13558,34 @@ async function handleSaveBatchInvoices() {
         } else if (window.currentUser && window.currentUser.username) {
             currentUserName = window.currentUser.username;
         }
-    } catch (e) {
-        console.warn("User not defined, saving as Admin.");
-    }
-    // --------------------------------------
+    } catch (e) { console.warn("User not defined, saving as Admin."); }
 
     const savePromises = [];
-    let newInvoicesCount = 0;
-    let updatedInvoicesCount = 0;
+    let newInvoicesCount = 0, updatedInvoicesCount = 0;
     const notesTouchedThisBatch = new Set();
 
-    // Helper: Generate SRV Name
     const getSrvName = (poNumber, site, vendor, invEntryID) => {
-        const today = new Date(),
-            yyyy = today.getFullYear(),
-            mm = String(today.getMonth() + 1).padStart(2, '0'),
-            dd = String(today.getDate()).padStart(2, '0');
-
+        const today = new Date(), yyyy = today.getFullYear(), mm = String(today.getMonth() + 1).padStart(2, '0'), dd = String(today.getDate()).padStart(2, '0');
         const safeSite = normalizeNameText(site || 'N/A');
-        const safeVendorCandidate = truncateNameText(vendor || 'Vendor', 21);
-        const safeVendor = safeVendorCandidate || 'Vendor';
-
+        const safeVendor = truncateNameText(vendor || 'Vendor', 21) || 'Vendor';
         const invID = normalizeNameText(invEntryID || 'INV-XX');
-
-        // IMPORTANT: never end the generated name with a space (no padding, only truncation + trim)
         return normalizeNameText(`${yyyy}${mm}${dd}-${poNumber}-${invID}-${safeSite}-${safeVendor}`);
     };
 
-    // Helper: Generate Report Name
     const generateReportName = (po, id, vendor) => {
         const shortVendor = truncateNameText(vendor || 'Vendor', 15).replace(/[^a-zA-Z0-9 ]/g, "");
         return normalizeNameText(`${po}-${id}-${shortVendor}-Report`);
     };
 
-
-    // Ensure we have base data before starting (prevents cache errors)
     if (typeof ensureInvoiceDataFetched === 'function') await ensureInvoiceDataFetched();
 
-    // === START LOOP ===
     for (const row of rows) {
         const poNumber = row.dataset.po;
         let site = row.dataset.site;
         const existingKey = row.dataset.key;
-        
         let vendor = row.dataset.vendor;
         let invEntryID = row.dataset.nextInvid;
 
-        // Recover ID for existing entries
         if (existingKey) {
             const existingIDSpan = row.querySelector('span.existing-indicator');
             if (existingIDSpan) {
@@ -13595,21 +13596,20 @@ async function handleSaveBatchInvoices() {
             }
         }
 
-        // 1. Build Data Object
+        // 1. Build Data Object (Now grabs Release Date)
         const invoiceData = {
             invNumber: row.querySelector('[name="invNumber"]').value,
             invName: row.querySelector('[name="invName"]').value,
-            details: row.querySelector('[name="details"]') ? row.querySelector('[name="details"]').value : (row.querySelector('[name="description"]') ? row.querySelector('[name="description"]').value : ''),
+            details: row.querySelector('[name="details"]') ? row.querySelector('[name="details"]').value : '',
             srvName: row.querySelector('[name="srvName"]').value,
             invoiceDate: row.querySelector('[name="invoiceDate"]').value,
             invValue: row.querySelector('[name="invValue"]').value,
             amountPaid: row.querySelector('[name="amountPaid"]').value,
             status: row.querySelector('[name="status"]').value,
             note: row.querySelector('[name="note"]').value,
-            releaseDate: (typeof getTodayDateString === 'function') ? getTodayDateString() : new Date().toISOString().split('T')[0]
+            releaseDate: row.querySelector('[name="releaseDate"]') ? row.querySelector('[name="releaseDate"]').value : (typeof getTodayDateString === 'function' ? getTodayDateString() : new Date().toISOString().split('T')[0])
         };
 
-        // Keep the Note cache updated so dropdowns can show new notes immediately
         try {
             const n = (invoiceData.note || '').replace(/\u00A0/g, ' ').trim();
             if (n) {
@@ -13617,20 +13617,17 @@ async function handleSaveBatchInvoices() {
                 allUniqueNotes.add(n);
                 notesTouchedThisBatch.add(n);
             }
-        } catch (_) { /* ignore */ }
+        } catch (_) {}
 
-        // 2. Handle Attention Field
         invoiceData.attention = row.choicesInstance ? row.choicesInstance.getValue(true) : row.querySelector('select[name="attention"]').value;
         if (invoiceData.attention === 'None') invoiceData.attention = '';
         if (invoiceData.status === 'Under Review' || invoiceData.status === 'With Accounts') invoiceData.attention = '';
 
-        // 3. Validation
         if (!invoiceData.invValue) {
             alert(`Invoice Value is required for PO ${poNumber}. Cannot proceed.`);
             return;
         }
 
-        // 4. Resolve PO Site/Vendor (prevents "N/A" names in Batch Entry when PO is missing in POVALUE2.csv)
         const isNA = (v) => {
             const s = String(v || '').trim().toLowerCase();
             return (!s || s === 'n/a' || s === 'na' || s === 'null' || s === 'undefined');
@@ -13638,39 +13635,23 @@ async function handleSaveBatchInvoices() {
 
         let poDetails = null;
         if ((isNA(site) || isNA(vendor)) && typeof getInvoicePurchaseOrderDetails === 'function') {
-            try {
-                poDetails = await getInvoicePurchaseOrderDetails(poNumber);
-            } catch (_) {
-                poDetails = null;
-            }
+            try { poDetails = await getInvoicePurchaseOrderDetails(poNumber); } catch (_) {}
         }
 
         if (poDetails) {
-            if (isNA(site)) {
-                site = normalizeNameText(poDetails['Project ID'] || poDetails['Project ID:'] || site || 'N/A');
-            }
-            if (isNA(vendor)) {
-                vendor = normalizeNameText(
-                    poDetails['Supplier Name'] || poDetails['Supplier Name:'] || poDetails['Supplier'] || poDetails['Supplier:'] || vendor || 'N/A'
-                );
-            }
+            if (isNA(site)) site = normalizeNameText(poDetails['Project ID'] || poDetails['Project ID:'] || site || 'N/A');
+            if (isNA(vendor)) vendor = normalizeNameText(poDetails['Supplier Name'] || poDetails['Supplier Name:'] || poDetails['Supplier'] || vendor || 'N/A');
         }
 
-        // Update the row UI/dataset so what the user sees matches what will be saved
         try {
             row.dataset.site = site || 'N/A';
             row.dataset.vendor = vendor || 'N/A';
-            const tds = row.querySelectorAll('td');
-            if (tds && tds[1]) tds[1].textContent = site || 'N/A';
-            if (tds && tds[2]) tds[2].textContent = vendor || 'N/A';
         } catch (_) {}
 
-        // 5. Auto-Generate Names if needed (Invoice + SRV)
         const siteForName = normalizeNameText(site || 'N/A');
         const vendorFull = normalizeNameText(vendor || 'N/A');
         const vendorForName = truncateNameText(vendorFull || '', 21) || 'Vendor';
 
-        // Auto-generate Invoice Name if blank (same behavior as Invoice Entry)
         if (!invoiceData.invName || normalizeNameText(invoiceData.invName) === "") {
             const safeInvID = normalizeNameText(invEntryID || invoiceData.invEntryID || 'INV-XX');
             invoiceData.invName = normalizeNameText(`${siteForName}-${poNumber}-${safeInvID}-${vendorForName}`);
@@ -13679,27 +13660,19 @@ async function handleSaveBatchInvoices() {
         }
 
         const srvNameLower = (invoiceData.srvName || '').toLowerCase();
-        // Auto SRV Name
         if (invoiceData.status === 'With Accounts' && srvNameLower !== 'nil' && srvNameLower.trim() === '') {
             invoiceData.srvName = getSrvName(poNumber, siteForName, vendorFull, invEntryID);
         }
 
-        // Auto Report Name
         if (invoiceData.status === 'Report Approved') {
             invoiceData.reportName = generateReportName(poNumber, invEntryID, vendorForName);
         }
 
-        // [SMART REFRESH] 1. Add Timestamp to record
         invoiceData.lastUpdated = firebase.database.ServerValue.TIMESTAMP;
 
         // 5. SAVE & CACHE LOGIC
         if (existingKey) {
-            // === UPDATE EXISTING ===
-            // Backfill vendor/site on old invoices if they are missing (prevents "N/A" later)
-            const originalInvoice = (allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][existingKey])
-                ? allInvoiceData[poNumber][existingKey]
-                : {};
-
+            const originalInvoice = (allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][existingKey]) ? allInvoiceData[poNumber][existingKey] : {};
             try {
                 const origVendor = originalInvoice.vendor_name || originalInvoice.vendorName || originalInvoice.vendor || '';
                 const origSite = originalInvoice.site_name || originalInvoice.site || originalInvoice.siteName || '';
@@ -13707,7 +13680,7 @@ async function handleSaveBatchInvoices() {
                     invoiceData.vendor_name = vendorFull;
                     invoiceData.vendorName = vendorFull;
                     if (poDetails) {
-                        invoiceData.vendor_id = invoiceData.vendor_id || poDetails['Supplier ID'] || poDetails['Supplier ID:'] || poDetails['Vendor ID'] || poDetails.vendorId || poDetails.vendor_id || '';
+                        invoiceData.vendor_id = invoiceData.vendor_id || poDetails['Supplier ID'] || poDetails['Vendor ID'] || '';
                         invoiceData.vendorId = invoiceData.vendorId || invoiceData.vendor_id;
                     }
                 }
@@ -13721,81 +13694,61 @@ async function handleSaveBatchInvoices() {
             invoiceData.updatedBy = currentUserName;
             const p = invoiceDb.ref(`invoice_entries/${poNumber}/${existingKey}`).update(invoiceData);
             savePromises.push(p);
-            // Keep invoice_tasks_by_user in sync (prevents stale 'For Approval' tasks)
+            
             const updatedFullData = { ...originalInvoice, ...invoiceData };
             savePromises.push(p.then(() => updateInvoiceTaskLookup(poNumber, existingKey, updatedFullData, originalInvoice.attention)));
             updatedInvoicesCount++;
             
-            // [FIX] Immediate Local Cache Update
             if (allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][existingKey]) {
                 Object.assign(allInvoiceData[poNumber][existingKey], invoiceData);
             }
         } else {
-            // === CREATE NEW ===
             invoiceData.invEntryID = invEntryID;
             invoiceData.vendor_name = vendorFull;
-            if (poDetails) {
-                invoiceData.vendor_id = invoiceData.vendor_id || poDetails['Supplier ID'] || poDetails['Supplier ID:'] || poDetails['Vendor ID'] || poDetails.vendorId || poDetails.vendor_id || '';
-            }
+            if (poDetails) invoiceData.vendor_id = invoiceData.vendor_id || poDetails['Supplier ID'] || poDetails['Vendor ID'] || '';
             invoiceData.po_number = poNumber;
             invoiceData.site_name = siteForName;
             invoiceData.enteredAt = firebase.database.ServerValue.TIMESTAMP;
             invoiceData.enteredBy = currentUserName;
 
-            // Push to Firebase
             const newRef = invoiceDb.ref(`invoice_entries/${poNumber}`).push();
-            const newKey = newRef.key; // Get the key synchronously
+            const newKey = newRef.key;
             const p = newRef.set(invoiceData);
             savePromises.push(p);
-            // Keep invoice_tasks_by_user in sync for new invoices
             savePromises.push(p.then(() => updateInvoiceTaskLookup(poNumber, newKey, invoiceData, null)));
             newInvoicesCount++;
 
-            // [FIX] Immediate Local Cache Creation
-            // Ensure the structure exists
             if (!allInvoiceData) allInvoiceData = {};
             if (!allInvoiceData[poNumber]) allInvoiceData[poNumber] = {};
-
-            // Insert into memory so Summary Note sees it immediately
             allInvoiceData[poNumber][newKey] = {
                 ...invoiceData,
-                key: newKey, // Important: Add the key to the object
+                key: newKey,
                 vendor_name: vendorFull,
                 site_name: siteForName
             };
         }
 
-        // [SMART REFRESH] 2. Log this update so "Smart Refresh" can find it
-        if (typeof logRecentUpdate === 'function') {
-            logRecentUpdate(poNumber);
-        }
+        if (typeof logRecentUpdate === 'function') logRecentUpdate(poNumber);
     }
 
-    // === FINALIZE ===
     try {
         await Promise.all(savePromises);
-
-        // Refresh note dropdowns/suggestions once after the batch commit
-        if (notesTouchedThisBatch.size > 0) {
-            refreshNotePickers(Array.from(notesTouchedThisBatch)[notesTouchedThisBatch.size - 1]);
-        }
+        if (notesTouchedThisBatch.size > 0) refreshNotePickers(Array.from(notesTouchedThisBatch)[notesTouchedThisBatch.size - 1]);
         
         alert(`Batch Process Complete!\n\nNew Invoices: ${newInvoicesCount}\nUpdated Invoices: ${updatedInvoicesCount}`);
         
-        // Clear UI
         document.getElementById('im-batch-table-body').innerHTML = '';
-        if (typeof imBatchSearchModal !== 'undefined' && imBatchSearchModal) {
-            imBatchSearchModal.classList.add('hidden');
-        }
-        
-        // Refresh Task List (Visuals only)
+        if (typeof imBatchSearchModal !== 'undefined' && imBatchSearchModal) imBatchSearchModal.classList.add('hidden');
         if (typeof loadActiveTasks === 'function') loadActiveTasks();
-
     } catch (error) {
         console.error("Batch Save Error:", error);
         alert("An error occurred while saving. Check console.");
     }
 }
+
+// --------------------------------------------------------------------------
+// SECTION D: MODAL POPUP LOGIC
+// --------------------------------------------------------------------------
 
 async function handleBatchModalPOSearch() {
     const modalPOSearchInput = document.getElementById('im-batch-modal-po-input');
@@ -13803,7 +13756,6 @@ async function handleBatchModalPOSearch() {
     const poNumber = modalPOSearchInput.value.trim().toUpperCase();
     
     if (!poNumber) return;
-    
     modalResultsContainer.innerHTML = '<p>Searching...</p>';
     
     try {
@@ -13819,7 +13771,6 @@ async function handleBatchModalPOSearch() {
         const site = poData ? poData['Project ID'] || 'N/A' : 'N/A';
         const vendor = poData ? poData['Supplier Name'] || 'N/A' : 'N/A';
         
-        // 1. Create Table Structure
         modalResultsContainer.innerHTML = ''; 
         const table = document.createElement('table');
         table.innerHTML = `
@@ -13839,21 +13790,12 @@ async function handleBatchModalPOSearch() {
         const tbody = table.querySelector('tbody');
         const sortedInvoices = Object.entries(invoicesData).sort(([, a], [, b]) => (a.invEntryID || '').localeCompare(b.invEntryID || ''));
         
-        // 2. Loop and Create Rows with Click & Keyboard Logic
         for (const [key, inv] of sortedInvoices) {
             const tr = document.createElement('tr');
             tr.style.cursor = 'pointer'; 
-            
-            // MAKE ROW FOCUSABLE FOR KEYBOARD
             tr.setAttribute('tabindex', '0'); 
             
-            const invDataString = encodeURIComponent(JSON.stringify({
-                key,
-                po: poNumber,
-                site,
-                vendor,
-                ...inv
-            }));
+            const invDataString = encodeURIComponent(JSON.stringify({ key, po: poNumber, site, vendor, ...inv }));
             
             tr.innerHTML = `
                 <td style="text-align:center;">
@@ -13865,58 +13807,33 @@ async function handleBatchModalPOSearch() {
                 <td>${inv.status || ''}</td>
             `;
             
-            // Mouse Click Event
             tr.addEventListener('click', (e) => {
                 if (e.target.type === 'checkbox') return;
                 const checkbox = tr.querySelector('.modal-inv-checkbox');
                 if (checkbox) checkbox.checked = !checkbox.checked;
             });
 
-            // ==========================================
-            // KEYBOARD NAVIGATION LOGIC
-            // ==========================================
             tr.addEventListener('keydown', (e) => {
-                // SPACEBAR: Toggle Checkbox
                 if (e.key === ' ' || e.key === 'Spacebar') {
-                    e.preventDefault(); // Stop page from scrolling down
+                    e.preventDefault(); 
                     const checkbox = tr.querySelector('.modal-inv-checkbox');
                     if (checkbox) checkbox.checked = !checkbox.checked;
                 }
-                // ARROW DOWN: Move to next row
-                if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    if (tr.nextElementSibling) tr.nextElementSibling.focus();
-                }
-                // ARROW UP: Move to previous row (or back to search box)
+                if (e.key === 'ArrowDown') { e.preventDefault(); if (tr.nextElementSibling) tr.nextElementSibling.focus(); }
                 if (e.key === 'ArrowUp') {
                     e.preventDefault();
-                    if (tr.previousElementSibling) {
-                        tr.previousElementSibling.focus();
-                    } else {
-                        modalPOSearchInput.focus(); // Jump back to search box
-                    }
+                    if (tr.previousElementSibling) tr.previousElementSibling.focus();
+                    else modalPOSearchInput.focus();
                 }
-                // ENTER: Add selected to batch list
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    document.getElementById('im-batch-modal-add-selected-btn').click();
-                }
+                if (e.key === 'Enter') { e.preventDefault(); document.getElementById('im-batch-modal-add-selected-btn').click(); }
             });
 
-            // VISUAL HIGHLIGHT: Show which row is currently selected by the keyboard
-            tr.addEventListener('focus', () => {
-                tr.style.backgroundColor = '#e6f2ff'; // Light blue background
-                tr.style.outline = '2px solid #003A5C'; // Dark blue border
-            });
-            tr.addEventListener('blur', () => {
-                tr.style.backgroundColor = '';
-                tr.style.outline = 'none';
-            });
+            tr.addEventListener('focus', () => { tr.style.backgroundColor = '#e6f2ff'; tr.style.outline = '2px solid #003A5C'; });
+            tr.addEventListener('blur', () => { tr.style.backgroundColor = ''; tr.style.outline = 'none'; });
             
             tbody.appendChild(tr);
         }
         
-        // "Select All" Logic
         const selectAll = document.getElementById('modal-select-all');
         if (selectAll) {
             selectAll.addEventListener('change', (e) => {
@@ -13924,21 +13841,14 @@ async function handleBatchModalPOSearch() {
             });
         }
 
-        // ==========================================
-        // AUTO-FOCUS ON FIRST ROW AFTER SEARCH
-        // ==========================================
-        setTimeout(() => {
-            const firstRow = tbody.querySelector('tr');
-            if (firstRow) {
-                firstRow.focus();
-            }
-        }, 100);
+        setTimeout(() => { const firstRow = tbody.querySelector('tr'); if (firstRow) firstRow.focus(); }, 100);
         
     } catch (error) {
         console.error("Error searching in batch modal:", error);
         modalResultsContainer.innerHTML = '<p>An error occurred.</p>';
     }
 }
+
 async function handleAddSelectedToBatch() {
     const selectedCheckboxes = document.getElementById('im-batch-modal-results').querySelectorAll('.modal-inv-checkbox:checked');
 
@@ -13947,7 +13857,6 @@ async function handleAddSelectedToBatch() {
         return;
     }
 
-    // Optional: Change button text briefly
     const addBtn = document.getElementById('im-batch-modal-add-selected-btn');
     if (addBtn) addBtn.textContent = "Adding...";
 
@@ -13957,24 +13866,15 @@ async function handleAddSelectedToBatch() {
             try {
                 const invData = JSON.parse(decodeURIComponent(checkbox.dataset.invoice));
                 promises.push(addInvoiceToBatchTable(invData));
-            } catch (err) {
-                console.error("Row error:", err);
-            }
+            } catch (err) { console.error("Row error:", err); }
         }
 
         await Promise.all(promises);
 
-        // --- SPEED WORKFLOW UPDATE ---
         const searchInput = document.getElementById('im-batch-modal-po-input');
         const resultsContainer = document.getElementById('im-batch-modal-results');
 
-        // 1. Instantly clear the input box
-        if (searchInput) {
-            searchInput.value = '';
-        }
-
-        // 2. Clear the table and show a small "Ready" indicator
-        // We keep this small so it doesn't distract you
+        if (searchInput) searchInput.value = '';
         if (resultsContainer) {
             resultsContainer.innerHTML = `
                 <div style="padding: 15px; text-align: center; color: #28a745;">
@@ -13984,19 +13884,12 @@ async function handleAddSelectedToBatch() {
             `;
         }
 
-        // 3. AUTO-FOCUS: This puts the cursor back in the box immediately
-        if (searchInput) {
-            // Small delay ensures the UI update finishes before we grab focus
-            setTimeout(() => {
-                searchInput.focus();
-            }, 50);
-        }
+        if (searchInput) setTimeout(() => { searchInput.focus(); }, 50);
 
     } catch (error) {
         console.error("Batch Error:", error);
         alert("Error adding batch.");
     } finally {
-        // Reset button text
         if (addBtn) addBtn.textContent = "Add Selected to Batch";
     }
 }
@@ -14093,6 +13986,34 @@ async function populateNoteDropdown(choicesInstance) {
     }
 }
 
+
+// --- SMART SRV AUTO-FILLER ---
+function autoFillSummarySrvIfWithAccounts() {
+    const statusInput = document.getElementById('summary-note-status-input');
+    const srvInput = document.getElementById('summary-note-srv-input');
+    const vendorEl = document.getElementById('sn-vendor-name');
+
+    if (statusInput && statusInput.value === 'With Accounts' && srvInput && vendorEl) {
+        const vendorName = vendorEl.textContent.trim();
+        
+        if (vendorName && vendorName !== 'N/A') {
+            const d = new Date();
+            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            const dateStr = `${String(d.getDate()).padStart(2, '0')}-${months[d.getMonth()]}-${d.getFullYear()}`;
+            
+            // Instantly fill the box!
+            srvInput.value = `${vendorName} ${dateStr}`; 
+        }
+    }
+}
+
+// Watch for manual dropdown changes
+document.addEventListener('change', (e) => {
+    if (e.target.id === 'summary-note-status-input') {
+        autoFillSummarySrvIfWithAccounts();
+    }
+});
+
 async function handleGenerateSummary() {
     const getOrdinal = (n) => {
         if (isNaN(n) || n <= 0) return '';
@@ -14119,14 +14040,11 @@ async function handleGenerateSummary() {
         await ensureInvoiceDataFetched();
         const allInvoicesByPO = allInvoiceData;
         const allPOs = allPOData;
-
-        // This variable holds the data from Ecost.csv
         const epicoreData = allEpicoreData;
 
         let previousPaymentTotal = 0;
         let currentPaymentTotal = 0;
 
-        // Track the completion date for the Previous Summary note (when it reached With Accounts / Paid)
         let prevSummaryDateObj = null;
         const maybeSetPrevSummaryDate = (inv) => {
             try {
@@ -14135,20 +14053,14 @@ async function handleGenerateSummary() {
                 if (!isCompleted) return;
 
                 let d = null;
-
-                // 1) Prefer releaseDate (used as the "moved to With Accounts / released" date in this system)
                 if (inv?.releaseDate) {
                     const norm = normalizeDateForInput(inv.releaseDate);
                     if (norm) d = new Date(norm + 'T00:00:00');
                 }
-
-                // 2) Fallback to event timestamps if present
                 if (!d && inv?.updatedAt) d = new Date(inv.updatedAt);
                 if (!d && inv?.enteredAt) d = new Date(inv.enteredAt);
                 if (!d && inv?.createdAt) d = new Date(inv.createdAt);
                 if (!d && inv?.timestamp) d = new Date(inv.timestamp);
-
-                // 3) Last fallback: invoiceDate
                 if (!d && inv?.invoiceDate) {
                     const norm2 = normalizeDateForInput(inv.invoiceDate);
                     if (norm2) d = new Date(norm2 + 'T00:00:00');
@@ -14163,7 +14075,6 @@ async function handleGenerateSummary() {
         };
 
         let allCurrentInvoices = [];
-
         let srvNameForQR = null;
         let foundSrv = false;
 
@@ -14172,8 +14083,6 @@ async function handleGenerateSummary() {
             for (const key in invoices) {
                 const inv = invoices[key];
 
-                // --- 1. Previous Payment Logic (FIXED) ---
-                // Only sum if prevNote is NOT empty AND matches the invoice note
                 if (prevNote !== "" && inv.note === prevNote) {
                     previousPaymentTotal += parseFloat(inv.invValue) || 0;
                     maybeSetPrevSummaryDate(inv);
@@ -14184,7 +14093,6 @@ async function handleGenerateSummary() {
                     }
                 }
 
-                // --- 2. Current Payment Logic ---
                 if (inv.note === currentNote) {
                     const vendorName = (allPOs[poNumber] && allPOs[poNumber]['Supplier Name']) ? allPOs[poNumber]['Supplier Name'] : 'N/A';
                     const site = (allPOs[poNumber] && allPOs[poNumber]['Project ID']) ? allPOs[poNumber]['Project ID'] : 'N/A';
@@ -14211,7 +14119,6 @@ async function handleGenerateSummary() {
             return;
         }
 
-        // QR Code Generation
         const qrElement = document.getElementById('sn-prev-summary-qr');
         if (qrElement) {
             qrElement.innerHTML = '';
@@ -14228,7 +14135,7 @@ async function handleGenerateSummary() {
                         correctLevel: QRCode.CorrectLevel.L
                         });
                     }
-} catch (e) {
+                } catch (e) {
                     console.error("QR generation failed:", e);
                 }
             }
@@ -14241,7 +14148,6 @@ async function handleGenerateSummary() {
         const today = new Date();
         snDate.textContent = `Date: ${today.toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' }).replace(/ /g, '-')}`;
 
-        // Show date next to "Prev Summary" under the QR code (use the actual Previous Summary completion date)
         if (snPrevSummaryDate) {
             if (prevSummaryDateObj) {
                 const dd = String(prevSummaryDateObj.getDate()).padStart(2, '0');
@@ -14252,7 +14158,7 @@ async function handleGenerateSummary() {
                 snPrevSummaryDate.textContent = '';
             }
         }
-snPreviousPayment.textContent = `${formatCurrency(previousPaymentTotal)} Qatari Riyals`;
+        snPreviousPayment.textContent = `${formatCurrency(previousPaymentTotal)} Qatari Riyals`;
         snCurrentPayment.textContent = `${formatCurrency(currentPaymentTotal)} Qatari Riyals`;
         snTableBody.innerHTML = '';
 
@@ -14262,23 +14168,13 @@ snPreviousPayment.textContent = `${formatCurrency(previousPaymentTotal)} Qatari 
             row.setAttribute('data-key', inv.key);
 
             const poKey = inv.po.toUpperCase();
-
-            // --- UPDATED DESCRIPTION FETCHING LOGIC ---
-            // 1. Try Ecost.csv (Epicore) using PO Key
-            // 2. If not found, use Invoice Details
-            // 3. Fallback to empty string
             let rawDescription = (epicoreData && epicoreData[poKey]) ? epicoreData[poKey] : (inv.details || '');
-
-            // Ensure it is a string
             rawDescription = String(rawDescription);
-
             let truncatedDescription = rawDescription;
 
-            // Cut to 20 characters as requested
             if (rawDescription.length > 20) {
                 truncatedDescription = rawDescription.substring(0, 20) + "...";
             }
-            // ------------------------------------------
 
             let invCountDisplay = '';
             if (inv.invEntryID) {
@@ -14304,6 +14200,9 @@ snPreviousPayment.textContent = `${formatCurrency(previousPaymentTotal)} Qatari 
         snTotalNumeric.textContent = formatCurrency(currentPaymentTotal);
         snTotalInWords.textContent = numberToWords(currentPaymentTotal);
         summaryNotePrintArea.classList.remove('hidden');
+        
+        // 💡 NEW ADDITION: Run the auto-filler right after the table builds, just in case!
+        autoFillSummarySrvIfWithAccounts();
 
     } catch (error) {
         console.error("Error generating summary:", error);
@@ -14313,6 +14212,7 @@ snPreviousPayment.textContent = `${formatCurrency(previousPaymentTotal)} Qatari 
         summaryNoteGenerateBtn.disabled = false;
     }
 }
+
 
 async function handleUpdateSummaryChanges(sendToAccounts = false) {
     const rows = snTableBody.querySelectorAll('tr');
@@ -14324,23 +14224,27 @@ async function handleUpdateSummaryChanges(sendToAccounts = false) {
         ? "This will UPDATE all visible entries and SEND them to ACCOUNTS (Status: With Accounts). Continue?"
         : "This will save changes for all visible entries. Continue?";
     if (!confirm(confirmMsg)) return;
+    
     summaryNoteUpdateBtn.textContent = "Updating...";
     summaryNoteUpdateBtn.disabled = true;
+    
     let newGlobalStatus = document.getElementById('summary-note-status-input').value;
     let newGlobalSRV = document.getElementById('summary-note-srv-input').value.trim();
     const today = getTodayDateString();
 
-    // Mode: Send to Accounts
-    // - forces Status = With Accounts
-    // - copies SRV Name from the SRV field, else from Current Note
     if (sendToAccounts) {
         newGlobalStatus = 'With Accounts';
-        if (!newGlobalSRV) {
-            const currentNote = (summaryNoteCurrentInput && summaryNoteCurrentInput.value)
-                ? summaryNoteCurrentInput.value.trim()
-                : '';
-            if (currentNote) newGlobalSRV = currentNote;
-        }
+    }
+
+    const d = new Date();
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const dateStr = `${String(d.getDate()).padStart(2, '0')}-${months[d.getMonth()]}-${d.getFullYear()}`;
+    const vendorName = snVendorName ? snVendorName.textContent.trim() : '';
+    const autoSrvName = `${vendorName} ${dateStr}`.trim();
+
+    // 💡 THE FIX: If going to Accounts and box is empty, FORCE Vendor+Date
+    if (newGlobalStatus === 'With Accounts' && !newGlobalSRV && vendorName && vendorName !== 'N/A') {
+        newGlobalSRV = autoSrvName;
     }
 
     const updatePromises = [];
@@ -14354,6 +14258,7 @@ async function handleUpdateSummaryChanges(sendToAccounts = false) {
                 invoiceKey = row.dataset.key;
             const newDetails = row.querySelector('input[name="details"]').value,
                 newInvoiceDate = row.querySelector('input[name="invoiceDate"]').value;
+                
             if (poNumber && invoiceKey) {
                 const originalInvoice = (allInvoiceData && allInvoiceData[poNumber]) ? (allInvoiceData[poNumber][invoiceKey] || {}) : {};
                 const originalStatus = (originalInvoice.status || '').toString().trim();
@@ -14363,9 +14268,9 @@ async function handleUpdateSummaryChanges(sendToAccounts = false) {
                     invoiceDate: newInvoiceDate,
                     releaseDate: today
                 };
+                
                 if (newGlobalStatus) {
                     updates.status = newGlobalStatus;
-                    // Record a real timestamp when status changes (needed for "last 2 hours" reports)
                     if (newGlobalStatus !== originalStatus) {
                         updates.updatedAt = Date.now();
                     }
@@ -14391,6 +14296,7 @@ async function handleUpdateSummaryChanges(sendToAccounts = false) {
                 updatePromises.push(updateInvoiceTaskLookup(poNumber, invoiceKey, updatedInvoiceData, originalInvoice.attention));
             }
         }
+        
         await Promise.all(updatePromises);
 
         if (allInvoiceData) {
@@ -14402,15 +14308,25 @@ async function handleUpdateSummaryChanges(sendToAccounts = false) {
                     };
                 }
             }
-            console.log("Local invoice cache updated surgically.");
         }
 
         alert("Changes saved successfully!");
+        
+        // Auto-Clear Fields
+        if (typeof summaryClearBtn !== 'undefined' && summaryClearBtn) {
+             summaryClearBtn.click(); 
+        } else {
+             if (summaryNotePreviousInput) summaryNotePreviousInput.value = '';
+             if (summaryNoteCurrentInput) summaryNoteCurrentInput.value = '';
+             snTableBody.innerHTML = '';
+             summaryNotePrintArea.classList.add('hidden');
+        }
+
     } catch (error) {
         console.error("Error updating summary changes:", error);
         alert("An error occurred while saving the changes.");
     } finally {
-        summaryNoteUpdateBtn.textContent = "Update Changes";
+        summaryNoteUpdateBtn.textContent = "UPDATE DATA";
         summaryNoteUpdateBtn.disabled = false;
         document.getElementById('summary-note-status-input').value = '';
         document.getElementById('summary-note-srv-input').value = '';
@@ -17143,10 +17059,11 @@ if (settingsVacationCheckbox) {
     }
 
    if (batchTableBody) {
-        // 1. DELETE BUTTON LISTENER (Fixed)
+        // 1. CLICK LISTENER (Delete, Attention, IPC, FIVE)
         batchTableBody.addEventListener('click', (e) => {
             if (e.target.classList.contains('batch-remove-btn')) {
-                const row = e.target.closest('tr');
+                // Looks for the new card container instead of a tr
+                const row = e.target.closest('.batch-invoice-card') || e.target.closest('tr');
                 if (row) {
                     row.remove();
                     updateBatchCount();
@@ -17154,10 +17071,34 @@ if (settingsVacationCheckbox) {
                 return;
             }
 
-            // Per-row Attention: open a full modal picker (avoids narrow dropdown in tight table)
+            // Per-row Attention: open a full modal picker
             if (e.target.classList.contains('batch-attention-btn')) {
-                const row = e.target.closest('tr');
+                // Looks for the new card container instead of a tr
+                const row = e.target.closest('.batch-invoice-card') || e.target.closest('tr');
                 if (row) openBatchAttentionPicker(row);
+                return;
+            }
+
+            // --- QUICK IPC BUTTON ---
+            if (e.target.classList.contains('btn-quick-ipc')) {
+                const card = e.target.closest('.batch-invoice-card');
+                const po = card ? (card.dataset.po || '') : '';
+                const invInput = card ? card.querySelector('input[name="invNumber"]') : null;
+                if (invInput) {
+                    invInput.value = po + '.IPC/';
+                    invInput.focus();
+                }
+                return;
+            }
+
+            // --- QUICK FIVE BUTTON ---
+            if (e.target.classList.contains('btn-quick-five')) {
+                const card = e.target.closest('.batch-invoice-card');
+                const invInput = card ? card.querySelector('input[name="invNumber"]') : null;
+                if (invInput) {
+                    invInput.value = 'FIVE-';
+                    invInput.focus();
+                }
                 return;
             }
         });
@@ -17165,7 +17106,8 @@ if (settingsVacationCheckbox) {
         // 2. SMART FILTER & AUTO-ATTENTION LISTENER
         batchTableBody.addEventListener('change', async (e) => {
             if (e.target.name === 'status') {
-                const row = e.target.closest('tr');
+                // Looks for the new card container instead of a tr
+                const row = e.target.closest('.batch-invoice-card') || e.target.closest('tr');
                 const newStatus = e.target.value;
                 const site = row.dataset.site;
 
@@ -17244,8 +17186,8 @@ if (settingsVacationCheckbox) {
             }
         });
     }
-
-    // Batch Entry: Attention picker modal (per row)
+   
+// Batch Entry: Attention picker modal (per row)
     if (imAttentionPickerModal) {
         // Close on background click
         imAttentionPickerModal.addEventListener('click', (e) => {
@@ -17353,54 +17295,64 @@ if (imBatchSearchModal) {
     });
 }
 
-    if (imBatchGlobalAttention) {
+if (imBatchGlobalAttention) {
         imBatchGlobalAttention.addEventListener('change', () => {
             if (!imBatchGlobalAttentionChoices) return;
             const selectedValue = imBatchGlobalAttentionChoices.getValue(true);
             const valueToSet = selectedValue ? [selectedValue] : [];
-            const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
-            rows.forEach(row => {
-                if (row.choicesInstance) {
-                    row.choicesInstance.setValue(valueToSet);
+            
+            // 💡 FIX: Now targets the new cards instead of old table rows
+            const cards = document.getElementById('im-batch-table-body').querySelectorAll('.batch-invoice-card');
+            cards.forEach(card => {
+                if (card.choicesInstance) {
+                    if (selectedValue === 'None') {
+                        card.choicesInstance.removeActiveItems(); // Clear if None
+                    } else {
+                        card.choicesInstance.setValue(valueToSet);
+                    }
                 }
-                updateBatchRowAttentionButton(row);
+                updateBatchRowAttentionButton(card);
             });
         });
     }
     
-if (imBatchGlobalStatus) {
-    imBatchGlobalStatus.addEventListener('change', (e) => {
-        const newValue = e.target.value;
-        const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
-        
-        rows.forEach(async (row) => {
-            // 1. Update the status dropdown value
-            row.querySelector('select[name="status"]').value = newValue;
+    if (imBatchGlobalStatus) {
+        imBatchGlobalStatus.addEventListener('change', (e) => {
+            const newValue = e.target.value;
+            // 💡 FIX: Now targets the new cards instead of old table rows
+            const cards = document.getElementById('im-batch-table-body').querySelectorAll('.batch-invoice-card');
+            
+            cards.forEach(async (card) => {
+                // 1. Update the status dropdown value
+                const statusSelect = card.querySelector('select[name="status"]');
+                if (statusSelect) statusSelect.value = newValue;
 
-            // 2. Re-run the filter logic for this row
-            if (row.choicesInstance) {
-                const site = row.dataset.site; // Get site from row data
-                const currentSelection = row.choicesInstance.getValue(true);
+                // 2. Re-run the filter logic for this card
+                if (card.choicesInstance) {
+                    const site = card.dataset.site; // Get site from card data
+                    const currentSelection = card.choicesInstance.getValue(true);
 
-                // Apply filter (e.g., if "For SRV", show only Site DCs for this site)
-                await populateAttentionDropdown(row.choicesInstance, newValue, site, true);
+                    // Apply filter (e.g., if "For SRV", show only Site DCs for this site)
+                    await populateAttentionDropdown(card.choicesInstance, newValue, site, true);
 
-                // Restore previous selection if they are still allowed
-                if (currentSelection) {
-                    row.choicesInstance.setChoiceByValue(currentSelection);
+                    // Restore previous selection if they are still allowed
+                    if (currentSelection) {
+                        card.choicesInstance.setChoiceByValue(currentSelection);
+                    }
                 }
-            }
 
-            updateBatchRowAttentionButton(row);
+                updateBatchRowAttentionButton(card);
+            });
         });
-    });
-}
+    }
 
     if (imBatchGlobalNote) {
         const updateNotes = (newValue) => {
-            const rows = document.getElementById('im-batch-table-body').querySelectorAll('tr');
-            rows.forEach(row => {
-                row.querySelector('input[name="note"]').value = newValue;
+            // 💡 FIX: Now targets the new cards instead of old table rows
+            const cards = document.getElementById('im-batch-table-body').querySelectorAll('.batch-invoice-card');
+            cards.forEach(card => {
+                const noteInput = card.querySelector('input[name="note"]');
+                if (noteInput) noteInput.value = newValue;
             });
         };
         imBatchGlobalNote.addEventListener('keypress', (e) => {
@@ -17412,7 +17364,9 @@ if (imBatchGlobalStatus) {
         imBatchGlobalNote.addEventListener('blur', (e) => {
             updateNotes(e.target.value);
         });
-    }    const refreshEntryBtn = document.getElementById('im-refresh-entry-button');
+    }
+
+    const refreshEntryBtn = document.getElementById('im-refresh-entry-button');
     if (refreshEntryBtn) {
         const run = async () => {
             alert("Refreshing all data from sources...");
@@ -17426,7 +17380,9 @@ if (imBatchGlobalStatus) {
         } else {
             refreshEntryBtn.addEventListener('click', run);
         }
-    }    const refreshBatchBtn = document.getElementById('im-refresh-batch-button');
+    }
+
+    const refreshBatchBtn = document.getElementById('im-refresh-batch-button');
     if (refreshBatchBtn) {
         const run = async () => {
             alert("Refreshing all data... Your current batch list will be cleared.");
@@ -17440,7 +17396,9 @@ if (imBatchGlobalStatus) {
         } else {
             refreshBatchBtn.addEventListener('click', run);
         }
-    }    const refreshSummaryBtn = document.getElementById('im-refresh-summary-button');
+    }
+
+    const refreshSummaryBtn = document.getElementById('im-refresh-summary-button');
     if (refreshSummaryBtn) {
         const run = async () => {
             alert("Refreshing all data...");
@@ -17454,55 +17412,6 @@ if (imBatchGlobalStatus) {
             refreshSummaryBtn.addEventListener('click', run);
         }
     }
-const refreshReportingBtn = document.getElementById('im-refresh-reporting-button');
-    if (refreshReportingBtn) {
-        const run = async () => {
-            const originalText = refreshReportingBtn.innerHTML;
-                        refreshReportingBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Refreshing...';
-                        refreshReportingBtn.disabled = true;
-
-                        try {
-                            console.log("Force refreshing Invoice Records data...");
-
-                            // Force a full network fetch of the invoice datasets
-                            await ensureInvoiceDataFetched(true);
-
-                            // Re-populate Site dropdown in case new sites/manual POs were added
-                            try { await populateSiteFilterDropdown(); } catch (_) {}
-
-                            // Reload the current Invoice Records view (keeps your filters/search)
-                            const searchTerm = (document.getElementById('im-reporting-search')?.value || '').trim();
-                            const siteFilter = document.getElementById('im-reporting-site-filter')?.value || '';
-                            const monthFilter = document.getElementById('im-reporting-date-filter')?.value || '';
-                            const statusFilter = document.getElementById('im-reporting-status-filter')?.value || '';
-                            const hasCriteria = !!(searchTerm || siteFilter || monthFilter || statusFilter);
-
-                            if (hasCriteria) {
-                                await populateInvoiceReporting(searchTerm);
-                            } else {
-                                document.getElementById('im-reporting-content').innerHTML = '<p>Please enter a PO, Vendor, or Invoice No. and click Search.</p>';
-                                currentReportData = [];
-                                if (reportingCountDisplay) reportingCountDisplay.textContent = '';
-                            }
-
-                            alert("Invoice Records refreshed successfully.");
-
-                        } catch (e) {
-                            console.error(e);
-                            alert("Error refreshing data.");
-                        } finally {
-                            refreshReportingBtn.innerHTML = originalText;
-                            refreshReportingBtn.disabled = false;
-                        }
-        };
-
-        if (window.__attachRefreshCooldown) {
-            window.__attachRefreshCooldown(refreshReportingBtn, 'im-refresh-reporting', run, 30);
-        } else {
-            refreshReportingBtn.addEventListener('click', run);
-        }
-    }
-
 
 // NOTE: We no longer auto-force "With Accounts" or auto-copy SRV Name on Generate.
 // Use the Update button prompt instead when you want to "Send to Accounts".
@@ -17545,36 +17454,30 @@ if (summaryNoteUpdateBtn) {
         }, 500));
     }
 
-    if (summaryNotePrintBtn) {
-        summaryNotePrintBtn.addEventListener('click', () => {
-            const customNotesInput = document.getElementById('summary-note-custom-notes-input');
-            const notesPrintContent = document.getElementById('sn-print-notes-content');
-            const notesPrintContainer = document.getElementById('sn-print-notes');
-
-            if (customNotesInput && notesPrintContent && notesPrintContainer) {
-                const notesText = customNotesInput.value.trim();
-                notesPrintContent.textContent = notesText;
-
-                if (notesText) {
-                    notesPrintContainer.style.display = 'block';
-                } else {
-                    notesPrintContainer.style.display = 'none';
-                }
-
-                                if (imReportingPrintableArea) imReportingPrintableArea.classList.add('hidden');
-                if (summaryNotePrintArea) summaryNotePrintArea.classList.remove('hidden');
-
-                const cleanupAfterPrint = () => {
-                    if (summaryNotePrintArea) summaryNotePrintArea.classList.add('hidden');
-                };
-
-                window.addEventListener('afterprint', cleanupAfterPrint, { once: true });
-                requestAnimationFrame(() => window.print());
-} else {
-                window.print();
-            }
-        });
-    }
+// --- 3. DYNAMIC PRINT FOOTER ---
+if (summaryNotePrintBtn) {
+    summaryNotePrintBtn.addEventListener('click', () => {
+        // 1. Create or find the print footer
+        let printFooter = document.getElementById('dynamic-print-footer');
+        if (!printFooter) {
+            printFooter = document.createElement('div');
+            printFooter.id = 'dynamic-print-footer';
+            document.body.appendChild(printFooter);
+        }
+        
+        // 2. Build the Footer Text
+        const vendorName = snVendorName ? snVendorName.textContent.trim() : '';
+        const d = new Date();
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const dateStr = `${String(d.getDate()).padStart(2, '0')}-${months[d.getMonth()]}-${d.getFullYear()}`; 
+        
+        // Example: "Capital Trading 22-Apr-2026"
+        printFooter.innerText = `${vendorName} ${dateStr}`;
+        
+        // 3. Open Print Window
+        window.print();
+    });
+}
 
     // --- NEW: Previous Summary PDF Button ---
     if (summaryNotePrevPdfBtn) {
@@ -21356,6 +21259,67 @@ window.imSendWhatsAppInquiry = function(invoiceNo, pdfUrl) {
     window.open(waLink, '_blank');
 }
 
+// --- SMART DOUBLE-CLICK TO COPY (INVOICE NAME & SRV NAME) ---
+document.addEventListener('dblclick', async (e) => {
+    // Check if the thing you double-clicked is an input box named 'invName' or 'srvName'
+    if (e.target.tagName === 'INPUT' && (e.target.name === 'invName' || e.target.name === 'srvName')) {
+        
+        const textToCopy = e.target.value.trim();
+        
+        if (textToCopy) {
+            try {
+                // 1. Copy the text to the computer's clipboard
+                await navigator.clipboard.writeText(textToCopy);
+                
+                // 2. Select the text visually so it looks "grabbed"
+                e.target.select();
+                
+                // 3. Flash the background green for half a second as visual proof!
+                const originalBg = e.target.style.backgroundColor;
+                const originalColor = e.target.style.color;
+                const originalTransition = e.target.style.transition;
+                
+                e.target.style.transition = 'background-color 0.2s ease, color 0.2s ease';
+                e.target.style.backgroundColor = '#4ade80'; // Bright Green
+                e.target.style.color = '#023020';           // Dark Green Text
+                
+                setTimeout(() => {
+                    e.target.style.backgroundColor = originalBg;
+                    e.target.style.color = originalColor;
+                    
+                    // Remove the transition style after it finishes so it doesn't mess with hover effects
+                    setTimeout(() => { e.target.style.transition = originalTransition; }, 200);
+                }, 400);
+                
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+            }
+        }
+    }
+});
+
+
+// --- SMART COMMA FORMATTER (INVOICE VALUE & AMOUNT PAID) ---
+
+// When you click OUTSIDE the box, format it beautifully (10,035.00)
+document.addEventListener('focusout', (e) => {
+    if (e.target.name === 'invValue' || e.target.name === 'amountPaid') {
+        let val = e.target.value.replace(/,/g, ''); // Temporarily strip existing commas
+        if (val && !isNaN(val)) {
+            e.target.value = parseFloat(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+    }
+});
+
+// When you click INSIDE the box to edit, remove the commas so typing is easy!
+document.addEventListener('focusin', (e) => {
+    if (e.target.name === 'invValue' || e.target.name === 'amountPaid') {
+        let val = e.target.value.replace(/,/g, ''); 
+        if (val) {
+            e.target.value = val;
+        }
+    }
+});
 
 // =============================================================
 // IM HELP CENTER (Intelligent Assistant + Growing Knowledge Base)
