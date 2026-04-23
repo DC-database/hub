@@ -5,34 +5,34 @@ const DB_KEY = 'iba_construction_db';
 const SETTINGS_KEY = 'iba_site_settings';
 let currentEditId = null;
 
+const BASE_URL = 'https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/';
+
 const defaultProjects = [
-    { id: 1, title: "Architectural Mastery", client: "Private Entity", desc: "Constructing modern living spaces with unparalleled design.", budget: "$120M", duration: "36 Months", area: "450k SQFT", img: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80" },
-    { id: 2, title: "Inspiring Infrastructure", client: "Ministry of Transport", desc: "Building the bridges and roads that connect the future.", budget: "$85M", duration: "18 Months", area: "2.4 Miles", img: "https://images.unsplash.com/photo-1545558014-8692077e9b5c?auto=format&fit=crop&w=800&q=80" },
-    { id: 3, title: "Artistry in Steel", client: "Apex Developments", desc: "Elevating commercial construction into a form of modern art.", budget: "$40M", duration: "24 Months", area: "120k SQFT", img: "https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=800&q=80" },
-    { id: 4, title: "Eco-Friendly Hub", client: "Green Future Corp", desc: "Sustainable building practices leading the way for tomorrow.", budget: "$65M", duration: "12 Months", area: "90k SQFT", img: "https://images.unsplash.com/photo-1517089152318-42ec560349c0?auto=format&fit=crop&w=800&q=80" }
+    { id: 1, title: "Modern High-Rise", client: "Apex Developments", desc: "Constructing modern living spaces with unparalleled design.", budget: "$120M", duration: "36 Months", area: "450k SQFT", img: BASE_URL + "Construction-1.jpg" },
+    { id: 2, title: "Metropolitan Bridge", client: "Ministry of Transport", desc: "Connecting the city with state-of-the-art infrastructure.", budget: "$85M", duration: "18 Months", area: "2.4 Miles", img: BASE_URL + "Construction-2.jpg" },
+    { id: 3, title: "Steel Frameworks", client: "Industrial Solutions Ltd.", desc: "Custom steel fabrication and erection for heavy industry.", budget: "$40M", duration: "24 Months", area: "120k SQFT", img: BASE_URL + "Construction-3.jpg" },
+    { id: 4, title: "Luxury Residences", client: "Private Entity", desc: "Exquisite residential complex with a focus on sustainable materials.", budget: "$65M", duration: "12 Months", area: "90k SQFT", img: BASE_URL + "Construction-4.jpg" },
+    { id: 5, title: "Airport Terminal Expansion", client: "Global Airports Corp", desc: "Phase II expansion increasing passenger capacity by 40%.", budget: "$210M", duration: "48 Months", area: "800k SQFT", img: BASE_URL + "Construction-5.jpg" },
+    { id: 6, title: "Civic Center Renovation", client: "City Council", desc: "Complete historical restoration and modernization of the central library.", budget: "$25M", duration: "18 Months", area: "60k SQFT", img: BASE_URL + "Construction-6.jpg" },
+    { id: 7, title: "Oceanfront Resort", client: "Azure Hotels", desc: "A world-class resort featuring a unique architectural design and sustainable water management.", budget: "$150M", duration: "36 Months", area: "350k SQFT", img: BASE_URL + "Construction-7.jpg" },
+    { id: 8, title: "Sustainable Office Tower", client: "Eco-Hub Real Estate", desc: "Leed-certified office space designed for energy efficiency and modern workstyles.", budget: "$95M", duration: "24 Months", area: "180k SQFT", img: BASE_URL + "Construction-8.jpg" },
+    { id: 9, title: "Intermodal Freight Terminal", client: "Logistics United", desc: "A critical logistics hub integrating rail, road, and sea transport.", budget: "$70M", duration: "30 Months", area: "1.2M SQFT", img: BASE_URL + "Construction-9.jpg" },
+    { id: 10, title: "Community Hospital Wing", client: "City Health Services", desc: "New state-of-the-art wing focused on outpatient care and medical research.", budget: "$110M", duration: "36 Months", area: "220k SQFT", img: BASE_URL + "Construction-10.jpg" }
 ];
 
-const defaultSettings = { heroImage: 'https://images.unsplash.com/photo-1541888086425-d81bb19240f5?auto=format&fit=crop&w=1920&q=80' };
+const defaultSettings = { heroImage: BASE_URL + 'Main.jpg' };
 
 function getDatabase() {
     let data = localStorage.getItem(DB_KEY);
     if (!data) { localStorage.setItem(DB_KEY, JSON.stringify(defaultProjects)); return defaultProjects; }
-    try {
-        return JSON.parse(data);
-    } catch (e) {
-        return defaultProjects; // Fallback if data is corrupted
-    }
+    try { return JSON.parse(data); } catch (e) { return defaultProjects; }
 }
 function saveDatabase(dataArray) { localStorage.setItem(DB_KEY, JSON.stringify(dataArray)); }
 
 function getSettings() {
     let data = localStorage.getItem(SETTINGS_KEY);
     if (!data) return defaultSettings;
-    try {
-        return JSON.parse(data);
-    } catch (e) {
-        return defaultSettings; // Fallback if data is corrupted
-    }
+    try { return JSON.parse(data); } catch (e) { return defaultSettings; }
 }
 function saveSettings(settings) { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }
 
@@ -175,45 +175,34 @@ function saveProject() {
     const duration = document.getElementById('proj-duration').value;
     const area = document.getElementById('proj-area').value;
 
-    if (!title || !desc || !img) {
-        alert("Please fill in at least the Title, Description, and Image URL.");
-        return;
-    }
+    if (!title || !desc || !img) { alert("Please fill in at least the Title, Description, and Image URL."); return; }
 
     const projects = getDatabase();
 
     if (currentEditId) {
         const index = projects.findIndex(p => p.id === currentEditId);
-        if (index !== -1) {
-            projects[index] = { id: currentEditId, title, client: client || "Private Entity", desc, img, budget: budget || "N/A", duration: duration || "N/A", area: area || "N/A" };
-        }
-        alert("Project Updates Saved!");
-        cancelEdit(); 
+        if (index !== -1) { projects[index] = { id: currentEditId, title, client: client || "Private Entity", desc, img, budget: budget || "N/A", duration: duration || "N/A", area: area || "N/A" }; }
+        alert("Project Updates Saved!"); cancelEdit(); 
     } else {
         const newProj = { id: Date.now(), title, client: client || "Private Entity", desc, img, budget: budget || "N/A", duration: duration || "N/A", area: area || "N/A" };
-        projects.push(newProj);
-        alert("New Project Published!");
+        projects.push(newProj); alert("New Project Published!");
         document.querySelectorAll('.form-grid input').forEach(input => input.value = '');
     }
-    saveDatabase(projects); 
-    renderAdminList();
+    saveDatabase(projects); renderAdminList();
 }
 
 function deleteProject(id) {
     if(confirm("Permanently delete this project?")) {
         let projects = getDatabase();
         projects = projects.filter(proj => proj.id !== id);
-        saveDatabase(projects);
-        renderAdminList(); 
+        saveDatabase(projects); renderAdminList(); 
         if (currentEditId === id) cancelEdit();
     }
 }
 
 function clearDatabase() {
     if(confirm("Are you sure? This will wipe everything and reset to default projects.")) {
-        localStorage.removeItem(DB_KEY);
-        cancelEdit();
-        renderAdminList();
+        localStorage.removeItem(DB_KEY); cancelEdit(); renderAdminList();
     }
 }
 
@@ -222,24 +211,18 @@ function clearDatabase() {
 // ==========================================
 window.onload = function() {
     const hero = document.getElementById('main-hero');
-    
     if (hero) {
         const settings = getSettings();
-        
-        // ONLY apply JavaScript background if it's different from the default.
-        // Otherwise, let the style.css file handle the image natively!
         if (settings && settings.heroImage && settings.heroImage !== defaultSettings.heroImage) {
             hero.style.setProperty('background-image', `linear-gradient(to right, rgba(27, 27, 27, 0.95) 0%, rgba(27, 27, 27, 0.7) 45%, transparent 100%), url('${settings.heroImage}')`, 'important');
+        } else {
+            hero.style.setProperty('background-image', `linear-gradient(to right, rgba(27, 27, 27, 0.95) 0%, rgba(27, 27, 27, 0.7) 45%, transparent 100%), url('${defaultSettings.heroImage}')`, 'important');
         }
     }
     
     if (document.getElementById('home-project-container')) renderHomeProjects();
     if (document.getElementById('portfolio-container')) renderPortfolioProjects();
-    
-    if (document.getElementById('admin-list')) {
-        renderAdminList();
-        loadAdminSettings();
-    }
+    if (document.getElementById('admin-list')) { renderAdminList(); loadAdminSettings(); }
 
     initScrollAnimations(); 
 };

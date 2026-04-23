@@ -19,14 +19,14 @@ body { background-color: var(--bg-base); color: var(--text-main); overflow-x: hi
 .btn-primary:hover { background: #b46000; transform: translateY(-2px); box-shadow: 0 8px 15px rgba(217, 119, 6, 0.4); }
 
 /* HERO SECTIONS */
-.hero { height: 100vh; display: flex; align-items: center; padding: 0 8%; background-image: linear-gradient(to right, rgba(27, 27, 27, 0.95) 0%, rgba(27, 27, 27, 0.7) 45%, transparent 100%), url('https://images.unsplash.com/photo-1541888086425-d81bb19240f5?auto=format&fit=crop&w=1920&q=80'); background-size: cover; background-position: center; background-attachment: fixed; }
+.hero { height: 100vh; display: flex; align-items: center; padding: 0 8%; background-image: linear-gradient(to right, rgba(27, 27, 27, 0.95) 0%, rgba(27, 27, 27, 0.7) 45%, transparent 100%), url('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Main.jpg'); background-size: cover; background-position: center; background-attachment: fixed; }
 .hero-content { animation: slideUpFade 1.2s forwards; opacity: 0; transform: translateY(40px); max-width: 650px; }
 @keyframes slideUpFade { to { opacity: 1; transform: translateY(0); } }
 .hero h1 { font-size: 5rem; font-weight: 800; line-height: 1.1; margin-bottom: 1.5rem; letter-spacing: -1px; color: #ffffff; }
 .hero h1 span { color: #ffffff; display: block; }
 .hero p { font-size: 1.2rem; color: #cbd5e1; line-height: 1.6; margin-bottom: 30px; }
 
-.page-hero { height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 5%; background-color: var(--dark-section); background-image: linear-gradient(rgba(27,27,27,0.8), rgba(27,27,27,0.9)), url('https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=1920&q=80'); background-size: cover; background-position: center; }
+.page-hero { height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 5%; background-color: var(--dark-section); background-image: linear-gradient(rgba(27,27,27,0.8), rgba(27,27,27,0.9)), url('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-6.jpg'); background-size: cover; background-position: center; }
 .page-hero h1 { font-size: 3.5rem; color: white; font-weight: 800; margin-bottom: 1rem; line-height: 1.2; }
 .page-hero p { color: #cbd5e1; font-size: 1.1rem; max-width: 600px; }
 
@@ -92,7 +92,7 @@ body { background-color: var(--bg-base); color: var(--text-main); overflow-x: hi
 .project-info p { font-size: 1.1rem; color: var(--text-muted); line-height: 1.7; }
 
 /* UNIVERSAL CONTACT BANNER & FOOTER */
-.contact-banner { background-image: linear-gradient(to right, rgba(27,27,27,0.9), rgba(27,27,27,0.8)), url('https://images.unsplash.com/photo-1541888086425-d81bb19240f5?auto=format&fit=crop&w=1920&q=80'); background-size: cover; background-position: center; background-attachment: fixed; padding: 8rem 5%; }
+.contact-banner { background-image: linear-gradient(to right, rgba(27,27,27,0.9), rgba(27,27,27,0.8)), url('https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-10.jpg'); background-size: cover; background-position: center; background-attachment: fixed; padding: 8rem 5%; }
 .contact-banner-content { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; max-width: 1200px; margin: 0 auto; align-items: center; }
 .contact-banner-text h2 { font-size: 4rem; color: white; font-weight: 800; line-height: 1.1; margin-bottom: 20px; }
 .contact-banner-text p { color: #cbd5e1; font-size: 1.2rem; line-height: 1.6; max-width: 90%; }
@@ -102,7 +102,6 @@ body { background-color: var(--bg-base); color: var(--text-main); overflow-x: hi
 
 .main-footer { 
     background-color: #1a1a1a; 
-    /* Reduced the top and bottom padding of the entire footer to slim it down */
     padding: 4rem 5% 1.5rem 5%; 
     border-top: 1px solid #333; 
 }
@@ -120,7 +119,6 @@ body { background-color: var(--bg-base); color: var(--text-main); overflow-x: hi
     justify-content: center; 
     flex-wrap: wrap; 
     gap: 4rem; 
-    /* Cut the massive spacing in half to make it tight and clean */
     padding-top: 1.5rem; 
     margin-top: 2rem; 
     border-top: 1px solid rgba(255,255,255,0.05); 
