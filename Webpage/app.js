@@ -215,7 +215,10 @@ window.onload = function() {
     const hero = document.getElementById('main-hero');
     if (hero) {
         const settings = getSettings();
-        hero.style.backgroundImage = `linear-gradient(to right, rgba(27, 27, 27, 0.95) 0%, rgba(27, 27, 27, 0.7) 45%, transparent 100%), url('${settings.heroImage}')`;
+        // Fallback: If settings.heroImage is missing, use the default hardcoded URL
+        const bgImage = (settings && settings.heroImage) ? settings.heroImage : 'https://images.unsplash.com/photo-1541888086425-d81bb19240f5?auto=format&fit=crop&w=1920&q=80';
+        
+        hero.style.backgroundImage = `linear-gradient(to right, rgba(27, 27, 27, 0.95) 0%, rgba(27, 27, 27, 0.7) 45%, transparent 100%), url('${bgImage}')`;
     }
     
     if (document.getElementById('home-project-container')) renderHomeProjects();
