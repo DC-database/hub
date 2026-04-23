@@ -7791,3 +7791,16 @@ button[title="Inquire / Request Update via WhatsApp"]:hover {
     outline: none;
     box-shadow: 0 0 0 2px rgba(0, 116, 140, 0.2);
 }
+
+/* ============================================================
+   KILL THE DARK BACKGROUND SHADOW / BACKDROP BEHIND THE MODAL
+   ============================================================ */
+
+/* Makes the outer wrapper invisible without hiding the popup inside */
+#im-invoice-entry-modal,
+#im-invoice-entry-modal.modal-overlay,
+.modal-backdrop {
+    background-color: transparent !important; 
+    background: transparent !important;
+    box-shadow: none !important;
+}
