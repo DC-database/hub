@@ -1,12 +1,11 @@
 // ==========================================
-// 1. DATABASE CONFIGURATION
+// 1. DATABASE CONFIGURATION (STATELESS SSG)
 // ==========================================
-const DB_KEY = 'iba_construction_db';
-const SETTINGS_KEY = 'iba_site_settings';
 let currentEditId = null;
 
 const BASE_URL = 'https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/';
 
+// THE ABSOLUTE SOURCE OF TRUTH
 const defaultProjects = [
     {
         "id": 1,
@@ -114,19 +113,16 @@ const defaultSettings = {
     "heroImage": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Main.jpg"
 };
 
-function getDatabase() {
-    let data = localStorage.getItem(DB_KEY);
-    if (!data) { localStorage.setItem(DB_KEY, JSON.stringify(defaultProjects)); return defaultProjects; }
-    try { return JSON.parse(data); } catch (e) { return defaultProjects; }
-}
-function saveDatabase(dataArray) { localStorage.setItem(DB_KEY, JSON.stringify(dataArray)); }
+// IN-MEMORY DATABASE: Completely bypasses Local Storage.
+// Every time the page loads, it exactly mirrors the hardcoded arrays above.
+let liveProjects = JSON.parse(JSON.stringify(defaultProjects));
+let liveSettings = JSON.parse(JSON.stringify(defaultSettings));
 
-function getSettings() {
-    let data = localStorage.getItem(SETTINGS_KEY);
-    if (!data) return defaultSettings;
-    try { return JSON.parse(data); } catch (e) { return defaultSettings; }
-}
-function saveSettings(settings) { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }
+function getDatabase() { return liveProjects; }
+function saveDatabase(dataArray) { liveProjects = dataArray; }
+
+function getSettings() { return liveSettings; }
+function saveSettings(settings) { liveSettings = settings; }
 
 // ==========================================
 // 2. PUBLIC PAGE RENDERING LOGIC (STATIC BYPASS)
@@ -194,7 +190,7 @@ function closeDetailView() {
 }
 
 // ==========================================
-// 3. ADMIN PANEL LOGIC (USES LOCAL STORAGE)
+// 3. ADMIN PANEL LOGIC (IN-MEMORY)
 // ==========================================
 function loadAdminSettings() {
     const settings = getSettings();
@@ -205,7 +201,7 @@ function loadAdminSettings() {
 function saveSiteSettings() {
     const heroInput = document.getElementById('site-hero-img').value;
     saveSettings({ heroImage: heroInput || defaultSettings.heroImage });
-    alert('Site background updated in Admin! Ready to Export.');
+    alert('Site background updated in Memory! Ready to Export.');
 }
 
 function renderAdminList() {
@@ -274,10 +270,10 @@ function saveProject() {
     if (currentEditId) {
         const index = projects.findIndex(p => p.id === currentEditId);
         if (index !== -1) { projects[index] = { id: currentEditId, title, client: client || "Private Entity", desc, img, budget: budget || "N/A", duration: duration || "N/A", area: area || "N/A" }; }
-        alert("Project Updates Saved to Admin! Ready to Export."); cancelEdit(); 
+        alert("Project Updates Saved to Memory! Ready to Export."); cancelEdit(); 
     } else {
         const newProj = { id: Date.now(), title, client: client || "Private Entity", desc, img, budget: budget || "N/A", duration: duration || "N/A", area: area || "N/A" };
-        projects.push(newProj); alert("New Project Published to Admin! Ready to Export.");
+        projects.push(newProj); alert("New Project Published to Memory! Ready to Export.");
         document.querySelectorAll('.form-grid input').forEach(input => input.value = '');
     }
     saveDatabase(projects); renderAdminList();
@@ -293,8 +289,9 @@ function deleteProject(id) {
 }
 
 function clearDatabase() {
-    if(confirm("Are you sure? This will wipe everything and reset to default projects.")) {
-        localStorage.removeItem(DB_KEY); cancelEdit(); renderAdminList();
+    if(confirm("Are you sure? This will wipe your current session edits and reload from the hardcoded file.")) {
+        liveProjects = JSON.parse(JSON.stringify(defaultProjects));
+        cancelEdit(); renderAdminList();
     }
 }
 
@@ -304,7 +301,6 @@ function clearDatabase() {
 window.onload = function() {
     const hero = document.getElementById('main-hero');
     if (hero) {
-        // BYPASS LOCAL STORAGE: Always use the hardcoded hero image setting for the public view
         hero.style.setProperty('background-image', `linear-gradient(to right, rgba(27, 27, 27, 0.95) 0%, rgba(27, 27, 27, 0.7) 45%, transparent 100%), url('${defaultSettings.heroImage}')`, 'important');
     }
     
