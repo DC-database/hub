@@ -13,7 +13,7 @@ const defaultProjects = [
         "title": "Architectural Mastery",
         "client": "Private Entity",
         "desc": "Constructing modern living spaces with unparalleled design.",
-        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-11.jpg",
+        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-1.jpg",
         "budget": "120M QR",
         "duration": "36 Months",
         "area": "450k SQFT"
@@ -23,7 +23,7 @@ const defaultProjects = [
         "title": "Inspiring Infrastructure",
         "client": "Ministry of Transport",
         "desc": "Building the bridges and roads that connect the future.",
-        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-5.jpg",
+        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-2.jpg",
         "budget": "85M QR",
         "duration": "18 Months",
         "area": "2.4 Miles"
@@ -33,7 +33,7 @@ const defaultProjects = [
         "title": "Artistry in Steel",
         "client": "Apex Developments",
         "desc": "Elevating commercial construction into a form of modern art.",
-        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-4.jpg",
+        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-3.jpg",
         "budget": "40M QR",
         "duration": "24 Months",
         "area": "120k SQFT"
@@ -43,10 +43,70 @@ const defaultProjects = [
         "title": "Eco-Friendly Hub",
         "client": "Green Future Corp",
         "desc": "Sustainable building practices leading the way for tomorrow.",
-        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-3.jpg",
+        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-4.jpg",
         "budget": "65M QR",
         "duration": "12 Months",
         "area": "90k SQFT"
+    },
+    {
+        "id": 5,
+        "title": "Airport Terminal Expansion",
+        "client": "Global Airports Corp",
+        "desc": "Phase II expansion increasing passenger capacity by 40%.",
+        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-5.jpg",
+        "budget": "210M QR",
+        "duration": "48 Months",
+        "area": "800k SQFT"
+    },
+    {
+        "id": 6,
+        "title": "Civic Center Renovation",
+        "client": "City Council",
+        "desc": "Complete historical restoration and modernization of the central library.",
+        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-6.jpg",
+        "budget": "25M QR",
+        "duration": "18 Months",
+        "area": "60k SQFT"
+    },
+    {
+        "id": 7,
+        "title": "Oceanfront Resort",
+        "client": "Azure Hotels",
+        "desc": "A world-class resort featuring a unique architectural design and sustainable water management.",
+        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-7.jpg",
+        "budget": "150M QR",
+        "duration": "36 Months",
+        "area": "350k SQFT"
+    },
+    {
+        "id": 8,
+        "title": "Sustainable Office Tower",
+        "client": "Eco-Hub Real Estate",
+        "desc": "Leed-certified office space designed for energy efficiency and modern workstyles.",
+        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-8.jpg",
+        "budget": "95M QR",
+        "duration": "24 Months",
+        "area": "180k SQFT"
+    },
+    {
+        "id": 9,
+        "title": "Intermodal Freight Terminal",
+        "client": "Logistics United",
+        "desc": "A critical logistics hub integrating rail, road, and sea transport.",
+        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-9.jpg",
+        "budget": "70M QR",
+        "duration": "30 Months",
+        "area": "1.2M SQFT"
+    },
+    {
+        "id": 10,
+        "title": "Community Hospital Wing",
+        "client": "City Health Services",
+        "desc": "New state-of-the-art wing focused on outpatient care and medical research.",
+        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-10.jpg",
+        "budget": "110M QR",
+        "duration": "36 Months",
+        "area": "220k SQFT"
     }
 ];
 
@@ -69,10 +129,10 @@ function getSettings() {
 function saveSettings(settings) { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }
 
 // ==========================================
-// 2. PUBLIC PAGE RENDERING LOGIC
+// 2. PUBLIC PAGE RENDERING LOGIC (STATIC BYPASS)
 // ==========================================
 function renderHomeProjects() {
-    const projects = getDatabase().slice(0, 3); 
+    const projects = defaultProjects.slice(0, 3); 
     const container = document.getElementById('home-project-container');
     if (!container) return; 
     container.innerHTML = ''; 
@@ -89,7 +149,7 @@ function renderHomeProjects() {
 }
 
 function renderPortfolioProjects() {
-    const projects = getDatabase();
+    const projects = defaultProjects;
     const container = document.getElementById('portfolio-container');
     if (!container) return; 
     container.innerHTML = ''; 
@@ -115,7 +175,7 @@ function initScrollAnimations() {
 }
 
 function openDetailView(projectId) {
-    const proj = getDatabase().find(p => p.id === projectId);
+    const proj = defaultProjects.find(p => p.id === projectId);
     if(!proj) return;
     document.getElementById('detail-img').style.background = `url('${proj.img}') no-repeat center center / cover`;
     document.getElementById('detail-client').innerText = `CLIENT // ${proj.client}`;
@@ -134,7 +194,7 @@ function closeDetailView() {
 }
 
 // ==========================================
-// 3. ADMIN PANEL LOGIC
+// 3. ADMIN PANEL LOGIC (USES LOCAL STORAGE)
 // ==========================================
 function loadAdminSettings() {
     const settings = getSettings();
@@ -145,7 +205,7 @@ function loadAdminSettings() {
 function saveSiteSettings() {
     const heroInput = document.getElementById('site-hero-img').value;
     saveSettings({ heroImage: heroInput || defaultSettings.heroImage });
-    alert('Site background updated! Check the live site.');
+    alert('Site background updated in Admin! Ready to Export.');
 }
 
 function renderAdminList() {
@@ -214,10 +274,10 @@ function saveProject() {
     if (currentEditId) {
         const index = projects.findIndex(p => p.id === currentEditId);
         if (index !== -1) { projects[index] = { id: currentEditId, title, client: client || "Private Entity", desc, img, budget: budget || "N/A", duration: duration || "N/A", area: area || "N/A" }; }
-        alert("Project Updates Saved!"); cancelEdit(); 
+        alert("Project Updates Saved to Admin! Ready to Export."); cancelEdit(); 
     } else {
         const newProj = { id: Date.now(), title, client: client || "Private Entity", desc, img, budget: budget || "N/A", duration: duration || "N/A", area: area || "N/A" };
-        projects.push(newProj); alert("New Project Published!");
+        projects.push(newProj); alert("New Project Published to Admin! Ready to Export.");
         document.querySelectorAll('.form-grid input').forEach(input => input.value = '');
     }
     saveDatabase(projects); renderAdminList();
@@ -244,12 +304,8 @@ function clearDatabase() {
 window.onload = function() {
     const hero = document.getElementById('main-hero');
     if (hero) {
-        const settings = getSettings();
-        if (settings && settings.heroImage && settings.heroImage !== defaultSettings.heroImage) {
-            hero.style.setProperty('background-image', `linear-gradient(to right, rgba(27, 27, 27, 0.95) 0%, rgba(27, 27, 27, 0.7) 45%, transparent 100%), url('${settings.heroImage}')`, 'important');
-        } else {
-            hero.style.setProperty('background-image', `linear-gradient(to right, rgba(27, 27, 27, 0.95) 0%, rgba(27, 27, 27, 0.7) 45%, transparent 100%), url('${defaultSettings.heroImage}')`, 'important');
-        }
+        // BYPASS LOCAL STORAGE: Always use the hardcoded hero image setting for the public view
+        hero.style.setProperty('background-image', `linear-gradient(to right, rgba(27, 27, 27, 0.95) 0%, rgba(27, 27, 27, 0.7) 45%, transparent 100%), url('${defaultSettings.heroImage}')`, 'important');
     }
     
     if (document.getElementById('home-project-container')) renderHomeProjects();
