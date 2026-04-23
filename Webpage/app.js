@@ -8,19 +8,51 @@ let currentEditId = null;
 const BASE_URL = 'https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/';
 
 const defaultProjects = [
-    { id: 1, title: "Modern High-Rise", client: "Apex Developments", desc: "Constructing modern living spaces with unparalleled design.", budget: "$120M", duration: "36 Months", area: "450k SQFT", img: BASE_URL + "Construction-1.jpg" },
-    { id: 2, title: "Metropolitan Bridge", client: "Ministry of Transport", desc: "Connecting the city with state-of-the-art infrastructure.", budget: "$85M", duration: "18 Months", area: "2.4 Miles", img: BASE_URL + "Construction-2.jpg" },
-    { id: 3, title: "Steel Frameworks", client: "Industrial Solutions Ltd.", desc: "Custom steel fabrication and erection for heavy industry.", budget: "$40M", duration: "24 Months", area: "120k SQFT", img: BASE_URL + "Construction-3.jpg" },
-    { id: 4, title: "Luxury Residences", client: "Private Entity", desc: "Exquisite residential complex with a focus on sustainable materials.", budget: "$65M", duration: "12 Months", area: "90k SQFT", img: BASE_URL + "Construction-4.jpg" },
-    { id: 5, title: "Airport Terminal Expansion", client: "Global Airports Corp", desc: "Phase II expansion increasing passenger capacity by 40%.", budget: "$210M", duration: "48 Months", area: "800k SQFT", img: BASE_URL + "Construction-5.jpg" },
-    { id: 6, title: "Civic Center Renovation", client: "City Council", desc: "Complete historical restoration and modernization of the central library.", budget: "$25M", duration: "18 Months", area: "60k SQFT", img: BASE_URL + "Construction-6.jpg" },
-    { id: 7, title: "Oceanfront Resort", client: "Azure Hotels", desc: "A world-class resort featuring a unique architectural design and sustainable water management.", budget: "$150M", duration: "36 Months", area: "350k SQFT", img: BASE_URL + "Construction-7.jpg" },
-    { id: 8, title: "Sustainable Office Tower", client: "Eco-Hub Real Estate", desc: "Leed-certified office space designed for energy efficiency and modern workstyles.", budget: "$95M", duration: "24 Months", area: "180k SQFT", img: BASE_URL + "Construction-8.jpg" },
-    { id: 9, title: "Intermodal Freight Terminal", client: "Logistics United", desc: "A critical logistics hub integrating rail, road, and sea transport.", budget: "$70M", duration: "30 Months", area: "1.2M SQFT", img: BASE_URL + "Construction-9.jpg" },
-    { id: 10, title: "Community Hospital Wing", client: "City Health Services", desc: "New state-of-the-art wing focused on outpatient care and medical research.", budget: "$110M", duration: "36 Months", area: "220k SQFT", img: BASE_URL + "Construction-10.jpg" }
+    {
+        "id": 1,
+        "title": "Architectural Mastery",
+        "client": "Private Entity",
+        "desc": "Constructing modern living spaces with unparalleled design.",
+        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-11.jpg",
+        "budget": "120M QR",
+        "duration": "36 Months",
+        "area": "450k SQFT"
+    },
+    {
+        "id": 2,
+        "title": "Inspiring Infrastructure",
+        "client": "Ministry of Transport",
+        "desc": "Building the bridges and roads that connect the future.",
+        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-5.jpg",
+        "budget": "85M QR",
+        "duration": "18 Months",
+        "area": "2.4 Miles"
+    },
+    {
+        "id": 3,
+        "title": "Artistry in Steel",
+        "client": "Apex Developments",
+        "desc": "Elevating commercial construction into a form of modern art.",
+        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-4.jpg",
+        "budget": "40M QR",
+        "duration": "24 Months",
+        "area": "120k SQFT"
+    },
+    {
+        "id": 4,
+        "title": "Eco-Friendly Hub",
+        "client": "Green Future Corp",
+        "desc": "Sustainable building practices leading the way for tomorrow.",
+        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-3.jpg",
+        "budget": "65M QR",
+        "duration": "12 Months",
+        "area": "90k SQFT"
+    }
 ];
 
-const defaultSettings = { heroImage: BASE_URL + 'Main.jpg' };
+const defaultSettings = {
+    "heroImage": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Main.jpg"
+};
 
 function getDatabase() {
     let data = localStorage.getItem(DB_KEY);
