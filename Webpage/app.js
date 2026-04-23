@@ -17,13 +17,22 @@ const defaultSettings = { heroImage: 'https://images.unsplash.com/photo-15418880
 function getDatabase() {
     let data = localStorage.getItem(DB_KEY);
     if (!data) { localStorage.setItem(DB_KEY, JSON.stringify(defaultProjects)); return defaultProjects; }
-    return JSON.parse(data);
+    try {
+        return JSON.parse(data);
+    } catch (e) {
+        return defaultProjects; // Fallback if data is corrupted
+    }
 }
 function saveDatabase(dataArray) { localStorage.setItem(DB_KEY, JSON.stringify(dataArray)); }
+
 function getSettings() {
     let data = localStorage.getItem(SETTINGS_KEY);
     if (!data) return defaultSettings;
-    return JSON.parse(data);
+    try {
+        return JSON.parse(data);
+    } catch (e) {
+        return defaultSettings; // Fallback if data is corrupted
+    }
 }
 function saveSettings(settings) { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }
 
@@ -212,27 +221,18 @@ function clearDatabase() {
 // 4. SMART MULTI-PAGE ROUTER
 // ==========================================
 window.onload = function() {
-    // 1. Identify the Hero Element
     const hero = document.getElementById('main-hero');
     
     if (hero) {
-        // 2. Get settings and define the fallback URL
         const settings = getSettings();
-        const fallbackUrl = 'https://images.unsplash.com/photo-1541888086425-d81bb19240f5?auto=format&fit=crop&w=1920&q=80';
         
-        // 3. Determine which image to use
-        const finalImg = (settings && settings.heroImage && settings.heroImage.trim() !== "") 
-                         ? settings.heroImage 
-                         : fallbackUrl;
-
-        // 4. Debug: This will show up in your browser console (F12)
-        console.log("Loading Hero Image:", finalImg);
-
-        // 5. Apply the style with !important to ensure it overrides the static CSS
-        hero.style.setProperty('background-image', `linear-gradient(to right, rgba(27, 27, 27, 0.95) 0%, rgba(27, 27, 27, 0.7) 45%, transparent 100%), url('${finalImg}')`, 'important');
+        // ONLY apply JavaScript background if it's different from the default.
+        // Otherwise, let the style.css file handle the image natively!
+        if (settings && settings.heroImage && settings.heroImage !== defaultSettings.heroImage) {
+            hero.style.setProperty('background-image', `linear-gradient(to right, rgba(27, 27, 27, 0.95) 0%, rgba(27, 27, 27, 0.7) 45%, transparent 100%), url('${settings.heroImage}')`, 'important');
+        }
     }
     
-    // 6. Render other dynamic components
     if (document.getElementById('home-project-container')) renderHomeProjects();
     if (document.getElementById('portfolio-container')) renderPortfolioProjects();
     
