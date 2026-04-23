@@ -226,3 +226,39 @@ window.onload = function() {
 
     initScrollAnimations(); 
 };
+
+// ==========================================
+// 5. STATIC SITE GENERATOR (GITHUB EXPORT)
+// ==========================================
+async function downloadUpdatedAppJs() {
+    try {
+        const response = await fetch('app.js');
+        let code = await response.text();
+
+        const currentProjects = getDatabase();
+        const currentSettings = getSettings();
+
+        const projectsString = 'const defaultProjects = ' + JSON.stringify(currentProjects, null, 4) + ';';
+        const settingsString = 'const defaultSettings = ' + JSON.stringify(currentSettings, null, 4) + ';';
+
+        code = code.replace(/const defaultProjects = \[[\s\S]*?\];/, projectsString);
+        code = code.replace(/const defaultSettings = \{[\s\S]*?\};/, settingsString);
+
+        const blob = new Blob([code], { type: 'application/javascript' });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'app.js';
+        document.body.appendChild(a);
+        a.click();
+        
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        alert("Success! Check your Downloads folder for the new app.js file. Upload it to GitHub to make changes permanent.");
+    } catch (error) {
+        console.error("Export failed:", error);
+        alert("Failed to export. This tool must be run on the live GitHub server or a local server to read the file.");
+    }
+}

@@ -49,7 +49,13 @@
         <div class="admin-inventory">
             <h2>Current Projects</h2>
             <div id="admin-list" class="inventory-list"></div>
-            <button class="btn-danger" onclick="clearDatabase()" style="margin-top: 30px; width: 100%; padding: 12px;">Reset Entire Database</button>
+            
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+                <h3 style="margin-bottom: 15px; font-size: 1rem; color: var(--text-main);">Export Permanent Updates</h3>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">Click below to download the updated code. Upload this file to GitHub to make changes visible to everyone.</p>
+                <button class="btn-primary" onclick="downloadUpdatedAppJs()" style="width: 100%; padding: 12px; background: #10b981; margin-bottom: 10px;">Download Updated app.js</button>
+                <button class="btn-danger" onclick="clearDatabase()" style="width: 100%; padding: 12px; background: #ef4444;">Reset Local Database</button>
+            </div>
         </div>
     </div>
 
