@@ -1,7 +1,7 @@
 // ==========================================
 // 1. DATABASE CONFIGURATION (STATELESS SSG)
 // ==========================================
-const APP_VERSION = "1.0.0"; // AUTO-UPDATES ON EXPORT
+const APP_VERSION = "1.0.9"; // AUTO-UPDATES ON EXPORT
 let currentEditId = null;
 
 const BASE_URL = 'https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/';
@@ -391,6 +391,7 @@ async function generatePresentationPDF() {
                         ${tocProjectsHTML}
                     </ul>
                 </li>
+                <li><strong>5. Contact & Footer</strong> <span style="color: var(--text-muted); font-size: 1.1rem;">(Global Elements)</span></li>
             </ul>
 
             <div style="margin-top: auto; padding-top: 30px; border-top: 2px solid #e2e8f0; color: var(--text-muted); font-size: 1.1rem;">
@@ -401,6 +402,10 @@ async function generatePresentationPDF() {
 
     alert("Compiling presentation with live data... Please wait a moment.");
 
+    // Variables to hold one single copy of the contact and footer sections
+    let sharedContactHTML = "";
+    let sharedFooterHTML = "";
+
     // 2. FETCH AND STITCH THE PAGES TOGETHER
     for (const page of pages) {
         try {
@@ -409,7 +414,17 @@ async function generatePresentationPDF() {
             const parser = new DOMParser();
             const virtualDoc = parser.parseFromString(htmlString, 'text/html');
 
-            // Strip out things we don't want repeated on paper
+            // Copy the Contact Banner and Footer from the first page we find them on
+            if (!sharedContactHTML) {
+                const contactSection = virtualDoc.querySelector('.contact-banner');
+                if (contactSection) sharedContactHTML = contactSection.outerHTML;
+            }
+            if (!sharedFooterHTML) {
+                const footerSection = virtualDoc.querySelector('.main-footer');
+                if (footerSection) sharedFooterHTML = footerSection.outerHTML;
+            }
+
+            // Strip out the duplicates so they don't print 4 times
             const nav = virtualDoc.querySelector('nav'); if (nav) nav.remove();
             const footer = virtualDoc.querySelector('footer'); if (footer) footer.remove();
             const modals = virtualDoc.querySelectorAll('.detail-overlay'); modals.forEach(m => m.remove());
@@ -432,7 +447,6 @@ async function generatePresentationPDF() {
             // 4. INJECT DATA INTO PROJECTS.HTML
             const portfolioContainer = virtualDoc.getElementById('portfolio-container');
             if (portfolioContainer) {
-                // Change grid from masonry to standard columns so it prints nicely on A4 paper
                 portfolioContainer.style.columnCount = '1';
                 portfolioContainer.style.display = 'grid';
                 portfolioContainer.style.gridTemplateColumns = '1fr 1fr';
@@ -465,6 +479,17 @@ async function generatePresentationPDF() {
             console.error("Error fetching " + page, error);
         }
     }
+
+    // 5. ATTACH THE CONTACT & FOOTER SECTION AT THE VERY END
+    combinedHTML += `
+        <div class="print-page-break">
+            <div style="background: #f8fafc; padding: 15px 30px; border-left: 6px solid var(--accent); margin: 40px 5%; font-size: 1.5rem; color: var(--text-main); font-weight: 800;">
+                SECTION // CONTACT & FOOTER
+            </div>
+            ${sharedContactHTML}
+            ${sharedFooterHTML}
+        </div>
+    `;
 
     // Attach to page and trigger print
     printContainer.innerHTML = combinedHTML;
