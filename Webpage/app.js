@@ -351,53 +351,99 @@ async function downloadUpdatedAppJs() {
 // 6. SMART PDF PRESENTATION GENERATOR
 // ==========================================
 async function generatePresentationPDF() {
-    // 1. Create a temporary container for the printed version
     const printContainer = document.createElement('div');
     printContainer.id = 'print-presentation';
-    
-    // 2. Define the pages we want to stitch together
     const pages = ['index.html', 'about.html', 'services.html', 'projects.html'];
-    
-    // 3. Create a cover page / title header
+
+    // 1. DYNAMICALLY BUILD THE TABLE OF CONTENTS (INDEX)
+    const allProjects = getDatabase();
+    let tocProjectsHTML = allProjects.map((p, index) =>
+        `<li style="margin-bottom: 8px;"><strong>4.${index + 1}</strong> ${p.title} <span style="color: var(--text-muted); font-size: 0.95rem;">— ${p.client}</span></li>`
+    ).join('');
+
     let combinedHTML = `
-        <div style="text-align:center; padding: 40px; margin-bottom: 20px; border-bottom: 4px solid var(--accent);">
-            <h1 style="font-size: 3rem; color: var(--text-main); font-weight: 800; text-transform: uppercase;">IBA Contracting</h1>
-            <p style="font-size: 1.2rem; color: var(--text-muted);">Website Content Review Document</p>
+        <div class="print-page-break" style="padding: 10% 8%; height: 100vh; display: flex; flex-direction: column; justify-content: center;">
+            <h1 style="font-size: 4.5rem; color: var(--text-main); font-weight: 800; text-transform: uppercase; margin-bottom: 10px; line-height: 1;">IBA Contracting</h1>
+            <h2 style="font-size: 1.8rem; color: var(--accent); margin-bottom: 40px;">Website Content Review Document</h2>
+            <hr style="border: 2px solid #e2e8f0; margin-bottom: 40px;">
+
+            <h3 style="font-size: 2.2rem; margin-bottom: 20px; font-weight: 800;">Table of Contents</h3>
+            <ul style="list-style: none; padding: 0; font-size: 1.4rem; line-height: 2;">
+                <li><strong>1. Home Page</strong> <span style="color: var(--text-muted); font-size: 1.1rem;">(Executive Summary)</span></li>
+                <li><strong>2. About Us</strong> <span style="color: var(--text-muted); font-size: 1.1rem;">(Company History & Pillars)</span></li>
+                <li><strong>3. Services</strong> <span style="color: var(--text-muted); font-size: 1.1rem;">(Core Competencies)</span></li>
+                <li><strong>4. Project Portfolio</strong>
+                    <ul style="list-style: none; padding-left: 40px; font-size: 1.2rem; line-height: 1.6; margin-top: 15px;">
+                        ${tocProjectsHTML}
+                    </ul>
+                </li>
+            </ul>
+
+            <div style="margin-top: auto; padding-top: 30px; border-top: 2px solid #e2e8f0; color: var(--text-muted); font-size: 1.1rem;">
+                <strong>IBA Contracting W.L.L.</strong> | 📍 Doha, Qatar | ✉️ info@ibacontracting.com | 📞 +974 4444 0000
+            </div>
         </div>
     `;
 
-    // Alert the user as this might take a second to load all images
-    alert("Compiling presentation... Please wait a moment for the print dialog to open. Remember to select 'Save as PDF' as your printer!");
+    alert("Compiling presentation with live data... Please wait a moment.");
 
-    // 4. Fetch each page and extract its content
+    // 2. FETCH AND STITCH THE PAGES TOGETHER
     for (const page of pages) {
         try {
             const response = await fetch(page);
             const htmlString = await response.text();
-            
-            // Turn the raw text into a virtual HTML document
             const parser = new DOMParser();
             const virtualDoc = parser.parseFromString(htmlString, 'text/html');
 
-            // SMARTS: Remove the repetitive elements from this virtual document
-            const nav = virtualDoc.querySelector('nav');
-            if (nav) nav.remove();
-            
-            const footer = virtualDoc.querySelector('footer');
-            if (footer) footer.remove();
-            
-            const modals = virtualDoc.querySelectorAll('.detail-overlay');
-            modals.forEach(m => m.remove());
+            // Strip out things we don't want repeated on paper
+            const nav = virtualDoc.querySelector('nav'); if (nav) nav.remove();
+            const footer = virtualDoc.querySelector('footer'); if (footer) footer.remove();
+            const modals = virtualDoc.querySelectorAll('.detail-overlay'); modals.forEach(m => m.remove());
+            const contactBanner = virtualDoc.querySelector('.contact-banner'); if (contactBanner) contactBanner.remove();
 
-            // Get the name of the page for the heading
+            // 3. INJECT DATA INTO INDEX.HTML
+            const homeContainer = virtualDoc.getElementById('home-project-container');
+            if (homeContainer) {
+                const topProjects = allProjects.slice(0, 3);
+                homeContainer.innerHTML = topProjects.map(proj => `
+                    <div style="background: url('${proj.img}') center/cover; position: relative; height: 350px; border-radius: 8px; break-inside: avoid; margin-bottom: 20px;">
+                        <div style="position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); padding: 30px 20px 20px 20px; border-radius: 0 0 8px 8px;">
+                            <p style="color: var(--accent); margin:0; font-weight: bold; font-size: 0.85rem; text-transform: uppercase;">${proj.client}</p>
+                            <h3 style="margin:0; font-size: 1.5rem; color: white;">${proj.title}</h3>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // 4. INJECT DATA INTO PROJECTS.HTML
+            const portfolioContainer = virtualDoc.getElementById('portfolio-container');
+            if (portfolioContainer) {
+                // Change grid from masonry to standard columns so it prints nicely on A4 paper
+                portfolioContainer.style.columnCount = '1';
+                portfolioContainer.style.display = 'grid';
+                portfolioContainer.style.gridTemplateColumns = '1fr 1fr';
+                portfolioContainer.style.gap = '40px';
+
+                portfolioContainer.innerHTML = allProjects.map(proj => `
+                    <div style="break-inside: avoid; padding-bottom: 20px;">
+                        <img src="${proj.img}" style="width: 100%; height: 250px; object-fit: cover; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.1);">
+                        <p style="color: var(--accent); font-weight: bold; font-size: 0.8rem; margin-bottom: 5px; text-transform: uppercase;">${proj.client}</p>
+                        <h3 style="font-size: 1.6rem; margin-bottom: 10px; color: var(--text-main); font-weight: 800; line-height: 1.1;">${proj.title}</h3>
+                        <p style="color: var(--text-muted); font-size: 1rem; line-height: 1.5;">${proj.desc}</p>
+                        <div style="margin-top: 15px; font-size: 0.9rem; color: #475569; background: #f8fafc; padding: 10px; border-radius: 4px; display: inline-block;">
+                            <strong>Budget:</strong> ${proj.budget} &nbsp;|&nbsp; <strong>Duration:</strong> ${proj.duration}
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // Add the section header ribbon
             const pageName = page.replace('.html', '').toUpperCase();
-
-            // Append the cleaned HTML into our master document
             combinedHTML += `
                 <div class="print-page-break">
-                    <h2 style="background: #f1f5f9; padding: 10px 20px; border-left: 5px solid var(--accent); margin-bottom: 30px; font-size: 1.5rem; color: var(--text-main);">
-                        SECTION // ${pageName} PAGE
-                    </h2>
+                    <div style="background: #f8fafc; padding: 15px 30px; border-left: 6px solid var(--accent); margin: 40px 5%; font-size: 1.5rem; color: var(--text-main); font-weight: 800;">
+                        SECTION // ${pageName}
+                    </div>
                     ${virtualDoc.body.innerHTML}
                 </div>
             `;
@@ -406,24 +452,13 @@ async function generatePresentationPDF() {
         }
     }
 
-    // 5. Add ONE single footer at the very end of the master document
-    combinedHTML += `
-        <div style="margin-top: 60px; padding-top: 30px; border-top: 2px solid #e2e8f0; text-align: center; color: var(--text-muted);">
-            <strong>IBA Contracting W.L.L.</strong> | 📍 Doha, Qatar | ✉️ info@ibacontracting.com | 📞 +974 4444 0000
-        </div>
-    `;
-
-    // 6. Inject the master document into the current page
+    // Attach to page and trigger print
     printContainer.innerHTML = combinedHTML;
     document.body.appendChild(printContainer);
 
-    // 7. Trigger the browser's native Print dialog
+    // Give images 1.5 seconds to load before opening Print Dialog
     setTimeout(() => {
         window.print();
-        
-        // 8. Clean up and delete the temporary document after printing
-        setTimeout(() => {
-            document.body.removeChild(printContainer);
-        }, 2000);
-    }, 1000); // 1 second delay ensures all background images have time to render
+        setTimeout(() => { document.body.removeChild(printContainer); }, 1000);
+    }, 1500);
 }
