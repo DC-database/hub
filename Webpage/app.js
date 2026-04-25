@@ -1,7 +1,7 @@
 // ==========================================
 // 1. DATABASE CONFIGURATION (STATELESS SSG)
 // ==========================================
-const APP_VERSION = "1.0.9"; // AUTO-UPDATES ON EXPORT
+const APP_VERSION = "1.1.0"; // AUTO-UPDATES ON EXPORT
 let currentEditId = null;
 
 const BASE_URL = 'https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/';
@@ -391,7 +391,12 @@ async function generatePresentationPDF() {
                         ${tocProjectsHTML}
                     </ul>
                 </li>
-                <li><strong>5. Contact & Footer</strong> <span style="color: var(--text-muted); font-size: 1.1rem;">(Global Elements)</span></li>
+                <li><strong>5. Global Design Elements</strong>
+                    <ul style="list-style: none; padding-left: 40px; font-size: 1.2rem; line-height: 1.6; margin-top: 15px;">
+                        <li><strong>A.</strong> Header / Navigation Area</li>
+                        <li><strong>B.</strong> Contact Us & Bottom Footer</li>
+                    </ul>
+                </li>
             </ul>
 
             <div style="margin-top: auto; padding-top: 30px; border-top: 2px solid #e2e8f0; color: var(--text-muted); font-size: 1.1rem;">
@@ -402,7 +407,8 @@ async function generatePresentationPDF() {
 
     alert("Compiling presentation with live data... Please wait a moment.");
 
-    // Variables to hold one single copy of the contact and footer sections
+    // Variables to hold one single copy of the global elements
+    let sharedNavHTML = "";
     let sharedContactHTML = "";
     let sharedFooterHTML = "";
 
@@ -414,7 +420,21 @@ async function generatePresentationPDF() {
             const parser = new DOMParser();
             const virtualDoc = parser.parseFromString(htmlString, 'text/html');
 
-            // Copy the Contact Banner and Footer from the first page we find them on
+            // Copy Global Elements from the very first page we process
+            if (!sharedNavHTML) {
+                const navElement = virtualDoc.querySelector('nav');
+                if (navElement) {
+                    // Smart Override: Make navbar visible for printing by giving it a dark background and stripping the hidden class
+                    navElement.className = ''; 
+                    navElement.style.position = 'relative';
+                    navElement.style.backgroundColor = '#1b1b1b';
+                    navElement.style.padding = '20px 5%';
+                    navElement.style.display = 'flex';
+                    navElement.style.justifyContent = 'space-between';
+                    navElement.style.alignItems = 'center';
+                    sharedNavHTML = navElement.outerHTML;
+                }
+            }
             if (!sharedContactHTML) {
                 const contactSection = virtualDoc.querySelector('.contact-banner');
                 if (contactSection) sharedContactHTML = contactSection.outerHTML;
@@ -480,14 +500,23 @@ async function generatePresentationPDF() {
         }
     }
 
-    // 5. ATTACH THE CONTACT & FOOTER SECTION AT THE VERY END
+    // 5. ATTACH GLOBAL ELEMENTS AT THE VERY END
     combinedHTML += `
         <div class="print-page-break">
             <div style="background: #f8fafc; padding: 15px 30px; border-left: 6px solid var(--accent); margin: 40px 5%; font-size: 1.5rem; color: var(--text-main); font-weight: 800;">
-                SECTION // CONTACT & FOOTER
+                SECTION // 5. GLOBAL DESIGN ELEMENTS
             </div>
-            ${sharedContactHTML}
-            ${sharedFooterHTML}
+            
+            <div style="margin: 0 5%; border: 2px dashed #cbd5e1; margin-bottom: 40px;">
+                <h4 style="background: #e2e8f0; margin: 0; padding: 10px 20px; font-size: 1.1rem; color: var(--text-main);">A. Header & Navigation Area</h4>
+                ${sharedNavHTML}
+            </div>
+
+            <div style="margin: 0 5%; border: 2px dashed #cbd5e1;">
+                <h4 style="background: #e2e8f0; margin: 0; padding: 10px 20px; font-size: 1.1rem; color: var(--text-main);">B. Contact Us & Bottom Footer</h4>
+                ${sharedContactHTML}
+                ${sharedFooterHTML}
+            </div>
         </div>
     `;
 
