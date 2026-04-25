@@ -346,3 +346,84 @@ async function downloadUpdatedAppJs() {
         alert("Failed to export. This tool must be run on the live GitHub server or a local server to read the file.");
     }
 }
+
+// ==========================================
+// 6. SMART PDF PRESENTATION GENERATOR
+// ==========================================
+async function generatePresentationPDF() {
+    // 1. Create a temporary container for the printed version
+    const printContainer = document.createElement('div');
+    printContainer.id = 'print-presentation';
+    
+    // 2. Define the pages we want to stitch together
+    const pages = ['index.html', 'about.html', 'services.html', 'projects.html'];
+    
+    // 3. Create a cover page / title header
+    let combinedHTML = `
+        <div style="text-align:center; padding: 40px; margin-bottom: 20px; border-bottom: 4px solid var(--accent);">
+            <h1 style="font-size: 3rem; color: var(--text-main); font-weight: 800; text-transform: uppercase;">IBA Contracting</h1>
+            <p style="font-size: 1.2rem; color: var(--text-muted);">Website Content Review Document</p>
+        </div>
+    `;
+
+    // Alert the user as this might take a second to load all images
+    alert("Compiling presentation... Please wait a moment for the print dialog to open. Remember to select 'Save as PDF' as your printer!");
+
+    // 4. Fetch each page and extract its content
+    for (const page of pages) {
+        try {
+            const response = await fetch(page);
+            const htmlString = await response.text();
+            
+            // Turn the raw text into a virtual HTML document
+            const parser = new DOMParser();
+            const virtualDoc = parser.parseFromString(htmlString, 'text/html');
+
+            // SMARTS: Remove the repetitive elements from this virtual document
+            const nav = virtualDoc.querySelector('nav');
+            if (nav) nav.remove();
+            
+            const footer = virtualDoc.querySelector('footer');
+            if (footer) footer.remove();
+            
+            const modals = virtualDoc.querySelectorAll('.detail-overlay');
+            modals.forEach(m => m.remove());
+
+            // Get the name of the page for the heading
+            const pageName = page.replace('.html', '').toUpperCase();
+
+            // Append the cleaned HTML into our master document
+            combinedHTML += `
+                <div class="print-page-break">
+                    <h2 style="background: #f1f5f9; padding: 10px 20px; border-left: 5px solid var(--accent); margin-bottom: 30px; font-size: 1.5rem; color: var(--text-main);">
+                        SECTION // ${pageName} PAGE
+                    </h2>
+                    ${virtualDoc.body.innerHTML}
+                </div>
+            `;
+        } catch (error) {
+            console.error("Error fetching " + page, error);
+        }
+    }
+
+    // 5. Add ONE single footer at the very end of the master document
+    combinedHTML += `
+        <div style="margin-top: 60px; padding-top: 30px; border-top: 2px solid #e2e8f0; text-align: center; color: var(--text-muted);">
+            <strong>IBA Contracting W.L.L.</strong> | 📍 Doha, Qatar | ✉️ info@ibacontracting.com | 📞 +974 4444 0000
+        </div>
+    `;
+
+    // 6. Inject the master document into the current page
+    printContainer.innerHTML = combinedHTML;
+    document.body.appendChild(printContainer);
+
+    // 7. Trigger the browser's native Print dialog
+    setTimeout(() => {
+        window.print();
+        
+        // 8. Clean up and delete the temporary document after printing
+        setTimeout(() => {
+            document.body.removeChild(printContainer);
+        }, 2000);
+    }, 1000); // 1 second delay ensures all background images have time to render
+}

@@ -172,3 +172,32 @@ body { background-color: var(--bg-base); color: var(--text-main); overflow-x: hi
 .inventory-actions { display: flex; gap: 10px; }
 .btn-edit { background: var(--text-main); color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: 800; font-size: 0.8rem; }
 .btn-danger { background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: 800; font-size: 0.8rem; }
+
+/* ==========================================
+   PRINT STYLES FOR PDF EXPORT
+   ========================================== */
+@media print {
+    /* Hide the normal admin screen when printing */
+    body * { visibility: hidden; }
+    
+    /* Only show the generated presentation */
+    #print-presentation, #print-presentation * { visibility: visible; }
+    #print-presentation { position: absolute; left: 0; top: 0; width: 100%; background: white; }
+    
+    /* Force the browser to print background images and colors! */
+    * { 
+        -webkit-print-color-adjust: exact !important; 
+        color-adjust: exact !important; 
+        print-color-adjust: exact !important; 
+    }
+    
+    /* Add a page break between different website pages */
+    .print-page-break { page-break-before: always; padding-top: 20px; }
+    .print-page-break:first-child { page-break-before: avoid; }
+    
+    /* Adjust heights so background images fit on a standard A4/Letter paper */
+    .hero, .page-hero { height: auto !important; min-height: 40vh !important; padding: 60px 5% !important; page-break-inside: avoid; }
+    
+    /* Hide interactive buttons on the printed paper */
+    .btn-primary, .detail-overlay, .navbar { display: none !important; }
+}
