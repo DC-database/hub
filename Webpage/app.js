@@ -1,6 +1,7 @@
 // ==========================================
 // 1. DATABASE CONFIGURATION (STATELESS SSG)
 // ==========================================
+const APP_VERSION = "1.0.0"; // AUTO-UPDATES ON EXPORT
 let currentEditId = null;
 
 const BASE_URL = 'https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/';
@@ -304,6 +305,10 @@ window.onload = function() {
         hero.style.setProperty('background-image', `linear-gradient(to right, rgba(27, 27, 27, 0.95) 0%, rgba(27, 27, 27, 0.7) 45%, transparent 100%), url('${defaultSettings.heroImage}')`, 'important');
     }
     
+    // --> NEW: Display Version in Admin <--
+    const versionDisplay = document.getElementById('app-version-display');
+    if (versionDisplay) versionDisplay.innerText = "Build v" + APP_VERSION;
+    
     if (document.getElementById('home-project-container')) renderHomeProjects();
     if (document.getElementById('portfolio-container')) renderPortfolioProjects();
     if (document.getElementById('admin-list')) { renderAdminList(); loadAdminSettings(); }
@@ -319,14 +324,23 @@ async function downloadUpdatedAppJs() {
         const response = await fetch('app.js');
         let code = await response.text();
 
+        // 1. Auto-increment the Version Build Number
+        const versionParts = APP_VERSION.split('.');
+        const newBuild = parseInt(versionParts[2]) + 1;
+        const newVersion = `${versionParts[0]}.${versionParts[1]}.${newBuild}`;
+
         const currentProjects = getDatabase();
         const currentSettings = getSettings();
 
         const projectsString = 'const defaultProjects = ' + JSON.stringify(currentProjects, null, 4) + ';';
         const settingsString = 'const defaultSettings = ' + JSON.stringify(currentSettings, null, 4) + ';';
 
+        // Replace old data with new data
         code = code.replace(/const defaultProjects = \[[\s\S]*?\];/, projectsString);
         code = code.replace(/const defaultSettings = \{[\s\S]*?\};/, settingsString);
+        
+        // Replace old version number with the new bumped version!
+        code = code.replace(/const APP_VERSION = "[\d\.]+";/, `const APP_VERSION = "${newVersion}";`);
 
         const blob = new Blob([code], { type: 'application/javascript' });
         const url = URL.createObjectURL(blob);
@@ -340,7 +354,7 @@ async function downloadUpdatedAppJs() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        alert("Success! Check your Downloads folder for the new app.js file. Upload it to GitHub to make changes permanent.");
+        alert(`Success! Version upgraded to v${newVersion}. Check your Downloads folder for the new app.js file.`);
     } catch (error) {
         console.error("Export failed:", error);
         alert("Failed to export. This tool must be run on the live GitHub server or a local server to read the file.");
