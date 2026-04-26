@@ -1,7 +1,7 @@
 // ==========================================
 // 1. DATABASE CONFIGURATION (STATELESS SSG)
 // ==========================================
-const APP_VERSION = "1.2.2"; // AUTO-UPDATES ON EXPORT
+const APP_VERSION = "1.2.3"; // AUTO-UPDATES ON EXPORT
 let currentEditId = null;
 
 const BASE_URL = 'https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/tawd/image/';
@@ -352,7 +352,9 @@ function editProject(id) {
     document.getElementById('proj-client').value = proj.client;
     document.getElementById('proj-img').value = proj.img;
     document.getElementById('proj-desc').value = proj.desc;
+    
     if(document.getElementById('proj-folder')) document.getElementById('proj-folder').value = proj.folder || "a";
+
     document.getElementById('proj-year').value = proj.year;
     document.getElementById('proj-location').value = proj.location;
     document.getElementById('proj-contractor').value = proj.contractor;
@@ -378,8 +380,10 @@ function saveProject() {
     const client = document.getElementById('proj-client').value;
     const img = document.getElementById('proj-img').value;
     const desc = document.getElementById('proj-desc').value;
+    
     const folderInput = document.getElementById('proj-folder');
     const folder = folderInput ? folderInput.value.toLowerCase().trim() : "a";
+
     const year = document.getElementById('proj-year').value;
     const location = document.getElementById('proj-location').value;
     const contractor = document.getElementById('proj-contractor').value;
@@ -491,21 +495,37 @@ async function generatePresentationPDF() {
 
     const allProjects = getDatabase();
     
-    // 1. RESTORED: This generates the exact list of projects for the Table of Contents!
     let tocProjectsHTML = allProjects.map((p, index) => `<li style="margin-bottom: 8px;"><strong>4.${index + 1}</strong> ${p.title}</li>`).join('');
 
+    // MASSIVE PDF FIX: Removed zoom completely and enforced strict page break avoidance
     let combinedHTML = `
         <style>
             @media print {
-                body { background: white !important; }
-                /* 2. PREVENT SPLITTING: break-inside: avoid ensures boxes don't split over pages */
-                .review-box { border: 2px dashed #FF5722; padding: 25px; margin-bottom: 40px; position: relative; border-radius: 8px; page-break-inside: avoid; break-inside: avoid; }
+                body { background: white !important; font-family: sans-serif; }
+                
+                /* FORCING NO SPLITS: Block display with break-inside avoid */
+                .review-box { 
+                    border: 2px dashed #FF5722; 
+                    padding: 20px; 
+                    margin-bottom: 30px; 
+                    position: relative; 
+                    border-radius: 8px; 
+                    page-break-inside: avoid !important; 
+                    break-inside: avoid !important; 
+                    display: block; 
+                    width: 100%; 
+                    box-sizing: border-box; 
+                }
+                
                 .review-tag { background: #FF5722; color: white; padding: 6px 14px; position: absolute; top: -16px; left: 20px; font-weight: bold; font-size: 14px; font-family: monospace; border-radius: 4px; text-transform: uppercase; }
-                .annotation { display: inline-flex; align-items: center; background: #FFECB3; color: #E65100; border: 1px solid #FF9800; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-bottom: 15px; }
-                .remarks-box { margin-top: 20px; background: #fafafa; border: 1px solid #ccc; padding: 15px; font-family: monospace; color: #666; min-height: 80px; }
+                .annotation { display: inline-flex; align-items: center; background: #FFECB3; color: #E65100; border: 1px solid #FF9800; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-bottom: 15px; page-break-inside: avoid; }
+                .remarks-box { margin-top: 20px; background: #fafafa; border: 1px solid #ccc; padding: 15px; font-family: monospace; color: #666; min-height: 80px; page-break-inside: avoid; break-inside: avoid; }
                 .remarks-line { border-bottom: 1px solid #ddd; height: 25px; margin-top: 5px; }
                 .pdf-cover { display: flex; flex-direction: column; justify-content: center; height: 100vh; padding: 10% 8%; }
-                .print-page-break { page-break-after: always; padding: 40px; }
+                .print-page-break { page-break-after: always; padding: 20px; }
+                
+                /* Force images to not split and size properly */
+                img { max-width: 100%; page-break-inside: avoid; break-inside: avoid; }
             }
         </style>
         <div class="print-page-break pdf-cover">
@@ -586,17 +606,23 @@ async function generatePresentationPDF() {
             if (!sharedNavHTML) {
                 const navElement = virtualDoc.querySelector('nav');
                 if (navElement) {
-                    navElement.className = ''; navElement.style.cssText = 'background:#1b1b1b; padding:20px 5%; display:flex; justify-content:space-between; align-items:center;';
+                    navElement.className = ''; navElement.style.cssText = 'background:#1b1b1b; padding:20px 5%; display:flex; justify-content:space-between; align-items:center; page-break-inside: avoid; break-inside: avoid;';
                     sharedNavHTML = navElement.outerHTML;
                 }
             }
             if (!sharedContactHTML) {
                 const contactSection = virtualDoc.querySelector('.contact-banner');
-                if (contactSection) sharedContactHTML = contactSection.outerHTML;
+                if (contactSection) {
+                    contactSection.style.pageBreakInside = 'avoid';
+                    sharedContactHTML = contactSection.outerHTML;
+                }
             }
             if (!sharedFooterHTML) {
                 const footerSection = virtualDoc.querySelector('.main-footer');
-                if (footerSection) sharedFooterHTML = footerSection.outerHTML;
+                if (footerSection) {
+                    footerSection.style.pageBreakInside = 'avoid';
+                    sharedFooterHTML = footerSection.outerHTML;
+                }
             }
 
             const nav = virtualDoc.querySelector('nav'); if (nav) nav.remove();
@@ -607,11 +633,14 @@ async function generatePresentationPDF() {
             const homeContainer = virtualDoc.getElementById('home-project-container');
             if (homeContainer) {
                 const topProjects = allProjects.slice(0, 3);
+                // INLINE-BLOCK fix for home projects to stop grid slicing
+                homeContainer.style.display = 'block';
+                homeContainer.style.width = '100%';
                 homeContainer.innerHTML = topProjects.map(proj => `
-                    <div style="background: url('${proj.img}') center/cover; position: relative; height: 350px; border-radius: 8px; break-inside: avoid; margin-bottom: 20px;">
-                        <div style="position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); padding: 30px 20px 20px 20px; border-radius: 0 0 8px 8px;">
-                            <p style="color: #FF9800; margin:0; font-weight: bold; font-size: 0.85rem; text-transform: uppercase;">${proj.client}</p>
-                            <h3 style="margin:0; font-size: 1.5rem; color: white;">${proj.title}</h3>
+                    <div style="display: inline-block; width: 31%; margin: 1%; background: url('${proj.img}') center/cover; position: relative; height: 200px; border-radius: 8px; page-break-inside: avoid; break-inside: avoid; box-sizing: border-box;">
+                        <div style="position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); padding: 15px; border-radius: 0 0 8px 8px;">
+                            <p style="color: #FF9800; margin:0; font-weight: bold; font-size: 0.7rem; text-transform: uppercase;">${proj.client}</p>
+                            <h3 style="margin:0; font-size: 1rem; color: white;">${proj.title}</h3>
                         </div>
                     </div>
                 `).join('');
@@ -619,26 +648,27 @@ async function generatePresentationPDF() {
 
             const portfolioContainer = virtualDoc.getElementById('portfolio-container');
             if (portfolioContainer) {
-                portfolioContainer.style.display = 'grid'; portfolioContainer.style.gridTemplateColumns = '1fr 1fr'; portfolioContainer.style.gap = '40px';
+                // INLINE-BLOCK fix for portfolio container to stop grid slicing
+                portfolioContainer.style.display = 'block';
+                portfolioContainer.style.width = '100%';
                 
-                // Add the specific "4.x" numbering to the project cards to match the Table of Contents
                 portfolioContainer.innerHTML = allProjects.map((proj, index) => {
                     const urls = getProjectImages(proj.folder);
-                    const thumbnailsHTML = urls.map(u => `<img src="${u}" onerror="this.remove()" style="width:60px; height:60px; object-fit:cover; border-radius:4px; margin-right:8px;">`).join('');
+                    const thumbnailsHTML = urls.map(u => `<img src="${u}" onerror="this.remove()" style="width:45px; height:45px; object-fit:cover; border-radius:4px; margin-right:5px;">`).join('');
 
                     return `
-                    <div class="review-box" style="break-inside: avoid; page-break-inside: avoid;">
+                    <div class="review-box" style="display: inline-block; width: 48%; margin: 1%; vertical-align: top;">
                         <div class="review-tag">4.${index + 1} - Project Card</div>
-                        <img src="${proj.img}" style="width: 100%; height: 250px; object-fit: cover; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.1);">
-                        <div style="margin-bottom: 15px; display: flex;">${thumbnailsHTML}</div>
-                        <p style="color: #FF9800; font-weight: bold; font-size: 0.8rem; margin-bottom: 5px; text-transform: uppercase;">${proj.client}</p>
-                        <h3 style="font-size: 1.6rem; margin-bottom: 10px; color: #111; font-weight: 800;">4.${index + 1} ${proj.title}</h3>
-                        <p style="color: #666; font-size: 1rem; line-height: 1.5;">${proj.desc}</p>
-                        <div style="margin-top: 15px; font-size: 0.9rem; background: #f8fafc; padding: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border-left: 4px solid #FF9800;">
-                            <div><strong>Year:</strong> ${proj.year}</div><div><strong>Status:</strong> ${proj.status}</div>
-                            <div><strong>Contractor:</strong> ${proj.contractor}</div><div><strong>Location:</strong> ${proj.location}</div>
+                        <img src="${proj.img}" style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 5px 10px rgba(0,0,0,0.1);">
+                        <div style="margin-bottom: 10px; display: flex;">${thumbnailsHTML}</div>
+                        <p style="color: #FF9800; font-weight: bold; font-size: 0.75rem; margin-bottom: 3px; text-transform: uppercase;">${proj.client}</p>
+                        <h3 style="font-size: 1.3rem; margin-bottom: 8px; color: #111; font-weight: 800;">4.${index + 1} ${proj.title}</h3>
+                        <p style="color: #666; font-size: 0.85rem; line-height: 1.4;">${proj.desc}</p>
+                        <div style="margin-top: 10px; font-size: 0.8rem; background: #f8fafc; padding: 10px; border-left: 3px solid #FF9800;">
+                            <strong>Year:</strong> ${proj.year} | <strong>Status:</strong> ${proj.status}<br>
+                            <strong>Contractor:</strong> ${proj.contractor} | <strong>Location:</strong> ${proj.location}
                         </div>
-                        <div class="remarks-box">Remarks: <div class="remarks-line"></div></div>
+                        <div class="remarks-box" style="min-height: 60px;">Remarks: <div class="remarks-line"></div></div>
                     </div>
                 `}).join('');
             }
@@ -646,12 +676,11 @@ async function generatePresentationPDF() {
             const pageName = page.replace('.html', '').toUpperCase();
             combinedHTML += `
                 <div class="print-page-break">
-                    <div class="review-box" style="background:#fdfdfd; margin-top:20px; page-break-inside: avoid; break-inside: avoid;">
+                    <div class="review-box" style="background:#fdfdfd; margin-top:20px;">
                         <div class="review-tag">Page Render: ${pageName}</div>
                         <div class="annotation">➔ Background Image: Set via Admin Control</div>
-                        <div class="annotation">➔ Scale: Shrunk to 55% to fit page layout perfectly</div>
                         
-                        <div style="zoom: 0.55; border: 2px solid #eee; padding: 20px; border-radius: 8px; background: var(--page-bg-color);">
+                        <div style="border: 2px solid #eee; padding: 15px; border-radius: 8px; background: var(--page-bg-color); display: block; overflow: hidden;">
                             ${virtualDoc.body.innerHTML}
                         </div>
 
@@ -680,7 +709,7 @@ async function generatePresentationPDF() {
                 <div class="remarks-box">Remarks:<div class="remarks-line"></div></div>
             </div>
 
-            <div class="review-box" style="break-inside: avoid;">
+            <div class="review-box">
                 <div class="review-tag">Component: Master Footer</div>
                 ${sharedFooterHTML}
                 <div class="remarks-box">Remarks:<div class="remarks-line"></div></div>
