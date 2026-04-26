@@ -1,133 +1,79 @@
 // ==========================================
 // 1. DATABASE CONFIGURATION (STATELESS SSG)
 // ==========================================
-const APP_VERSION = "1.1.0"; // AUTO-UPDATES ON EXPORT
+const APP_VERSION = "1.1.1"; // AUTO-UPDATES ON EXPORT
 let currentEditId = null;
 
 const BASE_URL = 'https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/';
 
-// THE ABSOLUTE SOURCE OF TRUTH
-const defaultProjects = [
-    {
-        "id": 1,
-        "title": "Architectural Mastery",
-        "client": "Private Entity",
-        "desc": "Constructing modern living spaces with unparalleled design.",
-        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-1.jpg",
-        "budget": "120M QR",
-        "duration": "36 Months",
-        "area": "450k SQFT"
-    },
-    {
-        "id": 2,
-        "title": "Inspiring Infrastructure",
-        "client": "Ministry of Transport",
-        "desc": "Building the bridges and roads that connect the future.",
-        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-2.jpg",
-        "budget": "85M QR",
-        "duration": "18 Months",
-        "area": "2.4 Miles"
-    },
-    {
-        "id": 3,
-        "title": "Artistry in Steel",
-        "client": "Apex Developments",
-        "desc": "Elevating commercial construction into a form of modern art.",
-        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-3.jpg",
-        "budget": "40M QR",
-        "duration": "24 Months",
-        "area": "120k SQFT"
-    },
-    {
-        "id": 4,
-        "title": "Eco-Friendly Hub",
-        "client": "Green Future Corp",
-        "desc": "Sustainable building practices leading the way for tomorrow.",
-        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-4.jpg",
-        "budget": "65M QR",
-        "duration": "12 Months",
-        "area": "90k SQFT"
-    },
-    {
-        "id": 5,
-        "title": "Airport Terminal Expansion",
-        "client": "Global Airports Corp",
-        "desc": "Phase II expansion increasing passenger capacity by 40%.",
-        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-5.jpg",
-        "budget": "210M QR",
-        "duration": "48 Months",
-        "area": "800k SQFT"
-    },
-    {
-        "id": 6,
-        "title": "Civic Center Renovation",
-        "client": "City Council",
-        "desc": "Complete historical restoration and modernization of the central library.",
-        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-6.jpg",
-        "budget": "25M QR",
-        "duration": "18 Months",
-        "area": "60k SQFT"
-    },
-    {
-        "id": 7,
-        "title": "Oceanfront Resort",
-        "client": "Azure Hotels",
-        "desc": "A world-class resort featuring a unique architectural design and sustainable water management.",
-        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-7.jpg",
-        "budget": "150M QR",
-        "duration": "36 Months",
-        "area": "350k SQFT"
-    },
-    {
-        "id": 8,
-        "title": "Sustainable Office Tower",
-        "client": "Eco-Hub Real Estate",
-        "desc": "Leed-certified office space designed for energy efficiency and modern workstyles.",
-        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-8.jpg",
-        "budget": "95M QR",
-        "duration": "24 Months",
-        "area": "180k SQFT"
-    },
-    {
-        "id": 9,
-        "title": "Intermodal Freight Terminal",
-        "client": "Logistics United",
-        "desc": "A critical logistics hub integrating rail, road, and sea transport.",
-        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-9.jpg",
-        "budget": "70M QR",
-        "duration": "30 Months",
-        "area": "1.2M SQFT"
-    },
-    {
-        "id": 10,
-        "title": "Community Hospital Wing",
-        "client": "City Health Services",
-        "desc": "New state-of-the-art wing focused on outpatient care and medical research.",
-        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-10.jpg",
-        "budget": "110M QR",
-        "duration": "36 Months",
-        "area": "220k SQFT"
-    }
-];
+// THE ABSOLUTE SOURCE OF TRUTH FOR TEXT
+const defaultSiteContent = {
+    "logoPart1": "IBA",
+    "logoPart2": "TRADING",
+    "copyright": "© 2026 IBA Trading W.L.L. All rights reserved.",
+    "address": "Doha, Qatar",
+    "email": "info@ibatrading.com",
+    "phone": "+974 4444 0000"
+};
 
 const defaultSettings = {
     "heroImage": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Main.jpg"
 };
 
-// IN-MEMORY DATABASE: Completely bypasses Local Storage.
-// Every time the page loads, it exactly mirrors the hardcoded arrays above.
+// THE ABSOLUTE SOURCE OF TRUTH FOR PROJECTS
+const defaultProjects = [
+    { "id": 1, "title": "Architectural Mastery", "client": "Private Entity", "desc": "Constructing modern living spaces with unparalleled design.", "img": BASE_URL + "Construction-1.jpg", "budget": "120M QR", "duration": "36 Months", "area": "450k SQFT" },
+    { "id": 2, "title": "Inspiring Infrastructure", "client": "Ministry of Transport", "desc": "Building the bridges and roads that connect the future.", "img": BASE_URL + "Construction-2.jpg", "budget": "85M QR", "duration": "18 Months", "area": "2.4 Miles" },
+    { "id": 3, "title": "Artistry in Steel", "client": "Apex Developments", "desc": "Elevating commercial construction into a form of modern art.", "img": BASE_URL + "Construction-3.jpg", "budget": "40M QR", "duration": "24 Months", "area": "120k SQFT" },
+    { "id": 4, "title": "Eco-Friendly Hub", "client": "Green Future Corp", "desc": "Sustainable building practices leading the way for tomorrow.", "img": BASE_URL + "Construction-4.jpg", "budget": "65M QR", "duration": "12 Months", "area": "90k SQFT" },
+    { "id": 5, "title": "Airport Terminal Expansion", "client": "Global Airports Corp", "desc": "Phase II expansion increasing passenger capacity by 40%.", "img": BASE_URL + "Construction-5.jpg", "budget": "210M QR", "duration": "48 Months", "area": "800k SQFT" },
+    { "id": 6, "title": "Civic Center Renovation", "client": "City Council", "desc": "Complete historical restoration and modernization of the central library.", "img": BASE_URL + "Construction-6.jpg", "budget": "25M QR", "duration": "18 Months", "area": "60k SQFT" },
+    { "id": 7, "title": "Oceanfront Resort", "client": "Azure Hotels", "desc": "A world-class resort featuring a unique architectural design and sustainable water management.", "img": BASE_URL + "Construction-7.jpg", "budget": "150M QR", "duration": "36 Months", "area": "350k SQFT" },
+    { "id": 8, "title": "Sustainable Office Tower", "client": "Eco-Hub Real Estate", "desc": "Leed-certified office space designed for energy efficiency and modern workstyles.", "img": BASE_URL + "Construction-8.jpg", "budget": "95M QR", "duration": "24 Months", "area": "180k SQFT" },
+    { "id": 9, "title": "Intermodal Freight Terminal", "client": "Logistics United", "desc": "A critical logistics hub integrating rail, road, and sea transport.", "img": BASE_URL + "Construction-9.jpg", "budget": "70M QR", "duration": "30 Months", "area": "1.2M SQFT" },
+    { "id": 10, "title": "Community Hospital Wing", "client": "City Health Services", "desc": "New state-of-the-art wing focused on outpatient care and medical research.", "img": BASE_URL + "Construction-10.jpg", "budget": "110M QR", "duration": "36 Months", "area": "220k SQFT" }
+];
+
+// IN-MEMORY DATABASE
 let liveProjects = JSON.parse(JSON.stringify(defaultProjects));
 let liveSettings = JSON.parse(JSON.stringify(defaultSettings));
+let liveTextContent = JSON.parse(JSON.stringify(defaultSiteContent));
 
 function getDatabase() { return liveProjects; }
 function saveDatabase(dataArray) { liveProjects = dataArray; }
-
 function getSettings() { return liveSettings; }
 function saveSettings(settings) { liveSettings = settings; }
+function getTextContent() { return liveTextContent; }
 
 // ==========================================
 // 2. PUBLIC PAGE RENDERING LOGIC (STATIC BYPASS)
 // ==========================================
+
+// NEW: Auto-Inject Text into HTML globally
+function renderGlobalText() {
+    const textData = getTextContent();
+    
+    // Update all Logos (Navbar and Footer)
+    document.querySelectorAll('.logo').forEach(logo => {
+        // Don't overwrite the admin logo
+        if(!logo.innerHTML.includes('ADMIN')) {
+            logo.innerHTML = `${textData.logoPart1} <span>${textData.logoPart2}</span>`;
+        }
+    });
+
+    // Update Footer Copyright
+    const copyEl = document.querySelector('.copyright');
+    if(copyEl) copyEl.innerText = textData.copyright;
+
+    // Update Footer Info Bar (Address, Email, Phone)
+    const infoItems = document.querySelectorAll('.footer-info-item');
+    if(infoItems.length >= 3) {
+        infoItems[0].innerHTML = `<span class="icon">📍</span> ${textData.address}`;
+        infoItems[1].innerHTML = `<span class="icon">✉️</span> ${textData.email}`;
+        infoItems[2].innerHTML = `<span class="icon">📞</span> ${textData.phone}`;
+    }
+}
+
 function renderHomeProjects() {
     const projects = defaultProjects.slice(0, 3); 
     const container = document.getElementById('home-project-container');
@@ -194,15 +140,37 @@ function closeDetailView() {
 // 3. ADMIN PANEL LOGIC (IN-MEMORY)
 // ==========================================
 function loadAdminSettings() {
+    // Load Hero Image
     const settings = getSettings();
     const heroInput = document.getElementById('site-hero-img');
     if (heroInput) heroInput.value = settings.heroImage;
+
+    // Load Text Content
+    const txt = getTextContent();
+    if(document.getElementById('text-logo-1')) document.getElementById('text-logo-1').value = txt.logoPart1;
+    if(document.getElementById('text-logo-2')) document.getElementById('text-logo-2').value = txt.logoPart2;
+    if(document.getElementById('text-copyright')) document.getElementById('text-copyright').value = txt.copyright;
+    if(document.getElementById('text-address')) document.getElementById('text-address').value = txt.address;
+    if(document.getElementById('text-email')) document.getElementById('text-email').value = txt.email;
+    if(document.getElementById('text-phone')) document.getElementById('text-phone').value = txt.phone;
 }
 
 function saveSiteSettings() {
     const heroInput = document.getElementById('site-hero-img').value;
     saveSettings({ heroImage: heroInput || defaultSettings.heroImage });
     alert('Site background updated in Memory! Ready to Export.');
+}
+
+function saveTextContent() {
+    liveTextContent = {
+        logoPart1: document.getElementById('text-logo-1').value,
+        logoPart2: document.getElementById('text-logo-2').value,
+        copyright: document.getElementById('text-copyright').value,
+        address: document.getElementById('text-address').value,
+        email: document.getElementById('text-email').value,
+        phone: document.getElementById('text-phone').value
+    };
+    alert('Global Text updated in Memory! Ready to Export.');
 }
 
 function renderAdminList() {
@@ -292,7 +260,8 @@ function deleteProject(id) {
 function clearDatabase() {
     if(confirm("Are you sure? This will wipe your current session edits and reload from the hardcoded file.")) {
         liveProjects = JSON.parse(JSON.stringify(defaultProjects));
-        cancelEdit(); renderAdminList();
+        liveTextContent = JSON.parse(JSON.stringify(defaultSiteContent));
+        cancelEdit(); renderAdminList(); loadAdminSettings();
     }
 }
 
@@ -300,12 +269,14 @@ function clearDatabase() {
 // 4. SMART MULTI-PAGE ROUTER
 // ==========================================
 window.onload = function() {
+    // 1. Instantly overwrite HTML text with Admin settings
+    renderGlobalText();
+
     const hero = document.getElementById('main-hero');
     if (hero) {
         hero.style.setProperty('background-image', `linear-gradient(to right, rgba(27, 27, 27, 0.95) 0%, rgba(27, 27, 27, 0.7) 45%, transparent 100%), url('${defaultSettings.heroImage}')`, 'important');
     }
     
-    // --> NEW: Display Version in Admin <--
     const versionDisplay = document.getElementById('app-version-display');
     if (versionDisplay) versionDisplay.innerText = "Build v" + APP_VERSION;
     
@@ -324,22 +295,21 @@ async function downloadUpdatedAppJs() {
         const response = await fetch('app.js');
         let code = await response.text();
 
-        // 1. Auto-increment the Version Build Number
         const versionParts = APP_VERSION.split('.');
         const newBuild = parseInt(versionParts[2]) + 1;
         const newVersion = `${versionParts[0]}.${versionParts[1]}.${newBuild}`;
 
         const currentProjects = getDatabase();
         const currentSettings = getSettings();
+        const currentText = getTextContent();
 
         const projectsString = 'const defaultProjects = ' + JSON.stringify(currentProjects, null, 4) + ';';
         const settingsString = 'const defaultSettings = ' + JSON.stringify(currentSettings, null, 4) + ';';
+        const textString = 'const defaultSiteContent = ' + JSON.stringify(currentText, null, 4) + ';';
 
-        // Replace old data with new data
         code = code.replace(/const defaultProjects = \[[\s\S]*?\];/, projectsString);
         code = code.replace(/const defaultSettings = \{[\s\S]*?\};/, settingsString);
-        
-        // Replace old version number with the new bumped version!
+        code = code.replace(/const defaultSiteContent = \{[\s\S]*?\};/, textString);
         code = code.replace(/const APP_VERSION = "[\d\.]+";/, `const APP_VERSION = "${newVersion}";`);
 
         const blob = new Blob([code], { type: 'application/javascript' });
@@ -369,7 +339,6 @@ async function generatePresentationPDF() {
     printContainer.id = 'print-presentation';
     const pages = ['index.html', 'about.html', 'services.html', 'projects.html'];
 
-    // 1. DYNAMICALLY BUILD THE TABLE OF CONTENTS (INDEX)
     const allProjects = getDatabase();
     let tocProjectsHTML = allProjects.map((p, index) =>
         `<li style="margin-bottom: 8px;"><strong>4.${index + 1}</strong> ${p.title} <span style="color: var(--text-muted); font-size: 0.95rem;">— ${p.client}</span></li>`
@@ -378,7 +347,7 @@ async function generatePresentationPDF() {
     let combinedHTML = `
         <div class="print-page-break" style="padding: 10% 8%; height: 100vh; display: flex; flex-direction: column; justify-content: center;">
             <h1 style="font-size: 4.5rem; color: var(--text-main); font-weight: 800; text-transform: uppercase; margin-bottom: 10px; line-height: 1;">IBA Contracting</h1>
-            <h2 style="font-size: 1.8rem; color: var(--accent); margin-bottom: 40px;">Website Content Review Document</h2>
+            <h2 style="font-size: 1.8rem; color: var(--accent-color); margin-bottom: 40px;">Website Content Review Document</h2>
             <hr style="border: 2px solid #e2e8f0; margin-bottom: 40px;">
 
             <h3 style="font-size: 2.2rem; margin-bottom: 20px; font-weight: 800;">Table of Contents</h3>
@@ -407,12 +376,10 @@ async function generatePresentationPDF() {
 
     alert("Compiling presentation with live data... Please wait a moment.");
 
-    // Variables to hold one single copy of the global elements
     let sharedNavHTML = "";
     let sharedContactHTML = "";
     let sharedFooterHTML = "";
 
-    // 2. FETCH AND STITCH THE PAGES TOGETHER
     for (const page of pages) {
         try {
             const response = await fetch(page);
@@ -420,11 +387,23 @@ async function generatePresentationPDF() {
             const parser = new DOMParser();
             const virtualDoc = parser.parseFromString(htmlString, 'text/html');
 
-            // Copy Global Elements from the very first page we process
+            // Apply global text to virtual document BEFORE printing
+            const textData = getTextContent();
+            virtualDoc.querySelectorAll('.logo').forEach(logo => {
+                if(!logo.innerHTML.includes('ADMIN')) logo.innerHTML = `${textData.logoPart1} <span>${textData.logoPart2}</span>`;
+            });
+            const copyEl = virtualDoc.querySelector('.copyright');
+            if(copyEl) copyEl.innerText = textData.copyright;
+            const infoItems = virtualDoc.querySelectorAll('.footer-info-item');
+            if(infoItems.length >= 3) {
+                infoItems[0].innerHTML = `<span class="icon">📍</span> ${textData.address}`;
+                infoItems[1].innerHTML = `<span class="icon">✉️</span> ${textData.email}`;
+                infoItems[2].innerHTML = `<span class="icon">📞</span> ${textData.phone}`;
+            }
+
             if (!sharedNavHTML) {
                 const navElement = virtualDoc.querySelector('nav');
                 if (navElement) {
-                    // Smart Override: Make navbar visible for printing by giving it a dark background and stripping the hidden class
                     navElement.className = ''; 
                     navElement.style.position = 'relative';
                     navElement.style.backgroundColor = '#1b1b1b';
@@ -444,27 +423,24 @@ async function generatePresentationPDF() {
                 if (footerSection) sharedFooterHTML = footerSection.outerHTML;
             }
 
-            // Strip out the duplicates so they don't print 4 times
             const nav = virtualDoc.querySelector('nav'); if (nav) nav.remove();
             const footer = virtualDoc.querySelector('footer'); if (footer) footer.remove();
             const modals = virtualDoc.querySelectorAll('.detail-overlay'); modals.forEach(m => m.remove());
             const contactBanner = virtualDoc.querySelector('.contact-banner'); if (contactBanner) contactBanner.remove();
 
-            // 3. INJECT DATA INTO INDEX.HTML
             const homeContainer = virtualDoc.getElementById('home-project-container');
             if (homeContainer) {
                 const topProjects = allProjects.slice(0, 3);
                 homeContainer.innerHTML = topProjects.map(proj => `
                     <div style="background: url('${proj.img}') center/cover; position: relative; height: 350px; border-radius: 8px; break-inside: avoid; margin-bottom: 20px;">
                         <div style="position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); padding: 30px 20px 20px 20px; border-radius: 0 0 8px 8px;">
-                            <p style="color: var(--accent); margin:0; font-weight: bold; font-size: 0.85rem; text-transform: uppercase;">${proj.client}</p>
+                            <p style="color: var(--accent-color); margin:0; font-weight: bold; font-size: 0.85rem; text-transform: uppercase;">${proj.client}</p>
                             <h3 style="margin:0; font-size: 1.5rem; color: white;">${proj.title}</h3>
                         </div>
                     </div>
                 `).join('');
             }
 
-            // 4. INJECT DATA INTO PROJECTS.HTML
             const portfolioContainer = virtualDoc.getElementById('portfolio-container');
             if (portfolioContainer) {
                 portfolioContainer.style.columnCount = '1';
@@ -475,7 +451,7 @@ async function generatePresentationPDF() {
                 portfolioContainer.innerHTML = allProjects.map(proj => `
                     <div style="break-inside: avoid; padding-bottom: 20px;">
                         <img src="${proj.img}" style="width: 100%; height: 250px; object-fit: cover; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.1);">
-                        <p style="color: var(--accent); font-weight: bold; font-size: 0.8rem; margin-bottom: 5px; text-transform: uppercase;">${proj.client}</p>
+                        <p style="color: var(--accent-color); font-weight: bold; font-size: 0.8rem; margin-bottom: 5px; text-transform: uppercase;">${proj.client}</p>
                         <h3 style="font-size: 1.6rem; margin-bottom: 10px; color: var(--text-main); font-weight: 800; line-height: 1.1;">${proj.title}</h3>
                         <p style="color: var(--text-muted); font-size: 1rem; line-height: 1.5;">${proj.desc}</p>
                         <div style="margin-top: 15px; font-size: 0.9rem; color: #475569; background: #f8fafc; padding: 10px; border-radius: 4px; display: inline-block;">
@@ -485,11 +461,10 @@ async function generatePresentationPDF() {
                 `).join('');
             }
 
-            // Add the section header ribbon
             const pageName = page.replace('.html', '').toUpperCase();
             combinedHTML += `
                 <div class="print-page-break">
-                    <div style="background: #f8fafc; padding: 15px 30px; border-left: 6px solid var(--accent); margin: 40px 5%; font-size: 1.5rem; color: var(--text-main); font-weight: 800;">
+                    <div style="background: #f8fafc; padding: 15px 30px; border-left: 6px solid var(--accent-color); margin: 40px 5%; font-size: 1.5rem; color: var(--text-main); font-weight: 800;">
                         SECTION // ${pageName}
                     </div>
                     ${virtualDoc.body.innerHTML}
@@ -500,10 +475,9 @@ async function generatePresentationPDF() {
         }
     }
 
-    // 5. ATTACH GLOBAL ELEMENTS AT THE VERY END
     combinedHTML += `
         <div class="print-page-break">
-            <div style="background: #f8fafc; padding: 15px 30px; border-left: 6px solid var(--accent); margin: 40px 5%; font-size: 1.5rem; color: var(--text-main); font-weight: 800;">
+            <div style="background: #f8fafc; padding: 15px 30px; border-left: 6px solid var(--accent-color); margin: 40px 5%; font-size: 1.5rem; color: var(--text-main); font-weight: 800;">
                 SECTION // 5. GLOBAL DESIGN ELEMENTS
             </div>
             
@@ -520,11 +494,9 @@ async function generatePresentationPDF() {
         </div>
     `;
 
-    // Attach to page and trigger print
     printContainer.innerHTML = combinedHTML;
     document.body.appendChild(printContainer);
 
-    // Give images 1.5 seconds to load before opening Print Dialog
     setTimeout(() => {
         window.print();
         setTimeout(() => { document.body.removeChild(printContainer); }, 1000);

@@ -6,11 +6,11 @@
     <title>IBA Admin - Project Management</title>
     <link rel="stylesheet" href="style.css">
 </head>
-<body style="background-color: var(--bg-base); background-image: none;">
+<body style="background-color: var(--page-bg-color); background-image: none;">
     <nav class="navbar" style="background: rgba(15, 22, 33, 0.98);">
         <div class="logo">
             IBA <span>ADMIN</span> 
-            <span id="app-version-display" style="font-size: 0.7rem; color: #94a3b8; vertical-align: middle; margin-left: 10px; border: 1px solid #334155; padding: 2px 6px; border-radius: 4px;">v1.1.0</span>
+            <span id="app-version-display" style="font-size: 0.7rem; color: #94a3b8; vertical-align: middle; margin-left: 10px; border: 1px solid #334155; padding: 2px 6px; border-radius: 4px;">v1.1.1</span>
         </div>
         <a href="index.html" class="btn-primary">← View Live Portfolio</a>
     </nav>
@@ -19,12 +19,28 @@
         <div class="admin-left-col">
             
             <div class="admin-panel" style="margin-bottom: 30px;">
-                <h2>Global Site Settings</h2>
+                <h2>Global Hero Background</h2>
                 <div class="form-group">
                     <label>Hero Background Image URL</label>
                     <input type="text" id="site-hero-img" placeholder="Paste construction image URL here...">
                 </div>
                 <button class="btn-primary" onclick="saveSiteSettings()">Update Background</button>
+            </div>
+
+            <div class="admin-panel" style="margin-bottom: 30px;">
+                <h2>Global Text Content</h2>
+                <div class="form-row" style="margin-bottom: 15px;">
+                    <div class="form-group"><label>Logo Part 1 (White)</label><input type="text" id="text-logo-1"></div>
+                    <div class="form-group"><label>Logo Part 2 (Color)</label><input type="text" id="text-logo-2"></div>
+                </div>
+                <div class="form-group"><label>Footer Copyright Text</label><input type="text" id="text-copyright"></div>
+                
+                <div class="form-row">
+                    <div class="form-group"><label>Address</label><input type="text" id="text-address"></div>
+                    <div class="form-group"><label>Email</label><input type="text" id="text-email"></div>
+                    <div class="form-group"><label>Phone</label><input type="text" id="text-phone"></div>
+                </div>
+                <button class="btn-primary" onclick="saveTextContent()">Update Website Text</button>
             </div>
 
             <div class="admin-panel">
@@ -56,11 +72,9 @@
             <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
                 <h3 style="margin-bottom: 15px; font-size: 1rem; color: var(--text-main);">Export Permanent Updates</h3>
                 <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">Click below to download the updated code or generate a PDF presentation.</p>
-                
                 <button class="btn-primary" onclick="generatePresentationPDF()" style="width: 100%; padding: 12px; background: #3b82f6; margin-bottom: 10px;">📄 Generate Presentation PDF</button>
-                
                 <button class="btn-primary" onclick="downloadUpdatedAppJs()" style="width: 100%; padding: 12px; background: #10b981; margin-bottom: 10px;">Download Updated app.js</button>
-                <button class="btn-danger" onclick="clearDatabase()" style="width: 100%; padding: 12px; background: #ef4444;">Reset Local Database</button>
+                <button class="btn-danger" onclick="clearDatabase()" style="width: 100%; padding: 12px; background: #ef4444;">Wipe Session Edits</button>
             </div>
         </div>
     </div>
