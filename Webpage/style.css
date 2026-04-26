@@ -191,37 +191,3 @@ body { background-color: var(--page-bg-color); color: var(--text-main); overflow
     .hero, .page-hero { height: auto !important; min-height: 40vh !important; padding: 60px 5% !important; page-break-inside: avoid; }
     .btn-primary, .detail-overlay, .navbar { display: none !important; }
 }
-
-/* ==========================================
-   MODERN PAGE TRANSITION EFFECT
-   ========================================== */
-.page-transition-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: var(--dark-section-bg); /* Uses your sleek dark gray */
-    z-index: 99999;
-    pointer-events: none;
-    
-    /* Default state: Covering the screen */
-    transform: translateY(0); 
-    transition: transform 0.6s cubic-bezier(0.77, 0, 0.175, 1);
-}
-
-/* Action 1: When page loads, slide UP to reveal the site */
-.page-transition-overlay.reveal-page {
-    transform: translateY(-100%);
-}
-
-/* Action 2: When a link is clicked, snap to bottom instantly */
-.page-transition-overlay.prepare-cover {
-    transition: none; 
-    transform: translateY(100%); 
-}
-
-/* Action 3: Slide UP from the bottom to cover the screen */
-.page-transition-overlay.cover-page {
-    transform: translateY(0); 
-}
