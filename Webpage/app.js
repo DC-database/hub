@@ -1,7 +1,7 @@
 // ==========================================
 // 1. DATABASE CONFIGURATION (STATELESS SSG)
 // ==========================================
-const APP_VERSION = "1.1.5"; // AUTO-UPDATES ON EXPORT
+const APP_VERSION = "1.1.6"; // AUTO-UPDATES ON EXPORT
 let currentEditId = null;
 
 const BASE_URL = 'https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/';
@@ -27,9 +27,9 @@ const defaultSettings = {
 const defaultProjects = [
     {
         "id": 1,
-        "title": "Architectural Mastery",
-        "client": "Private Entity",
-        "desc": "Constructing modern living spaces with unparalleled design.",
+        "title": "Leqtaifiya Palace",
+        "client": "IBA",
+        "desc": "Dafna Palace construction is an exceptional architectural design innovation. Featuring unique, cutting-edge, & historically significant styles. Its unique and luxurious design is making big impact on its surroundings, elevating the value and desirability of nearby properties. Its contribute to the development of an entire neighborhood or district, attracting other luxury developments, businesses, and amenities. Its construcion features smart building systems, sustainable materials, with its environmentally friendly designs that enhance their status as modern, forward-thinking structures. Dafna Palace is a hallmark of luxury, exclusivity, and architectural excellence.",
         "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-1.jpg",
         "budget": "120M QR",
         "duration": "36 Months",
@@ -37,9 +37,9 @@ const defaultProjects = [
     },
     {
         "id": 2,
-        "title": "Inspiring Infrastructure",
-        "client": "Ministry of Transport",
-        "desc": "Building the bridges and roads that connect the future.",
+        "title": "Marina Tower 16",
+        "client": "IBA",
+        "desc": "In the middle of a thriving city, Residential Tower 16 unfolds modern-contemporary residences in Lusail Marina’s urban oasis. An integrated locale places homes at the center of it all – Paramount connectivity to the grand spaces of Lusail’s Medical & Education district and proximity to premier lifestyle destinations in Entertainment city.  Marina R-16 is our latest tower in Lusail city. The new 121 Modern residential units are designed to enjoy benefits of natural light, generously sized bathrooms & wide-open sea views.",
         "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-2.jpg",
         "budget": "85M QR",
         "duration": "18 Months",
@@ -47,9 +47,9 @@ const defaultProjects = [
     },
     {
         "id": 3,
-        "title": "Artistry in Steel",
-        "client": "Apex Developments",
-        "desc": "Elevating commercial construction into a form of modern art.",
+        "title": "Lusail Twin Towers",
+        "client": "IBA",
+        "desc": "Lusail Twin Towers RES17 & RES19 are the premier residential towers in Lusail City. They are the first residential project to be completed and the first to be occupied in Lusail’s exclusive Marina district. The modern towers design house 158 apartments in each building that sits overlooking the Marina which views the Pearl Qatar and City of Doha. It the most desirable place to live in Lusail.",
         "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-3.jpg",
         "budget": "40M QR",
         "duration": "24 Months",
@@ -57,9 +57,9 @@ const defaultProjects = [
     },
     {
         "id": 4,
-        "title": "Eco-Friendly Hub",
-        "client": "Green Future Corp",
-        "desc": "Sustainable building practices leading the way for tomorrow.",
+        "title": "Fox Hills K06 & K14",
+        "client": "IBA",
+        "desc": "Designed to accommodate people for living purposes. Includes living area such as kitchens, bedrooms, bathrooms and private outdoor spaces like gardens & patios. Designed for comport, privacy and personal use.",
         "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-4.jpg",
         "budget": "65M QR",
         "duration": "12 Months",
@@ -67,9 +67,9 @@ const defaultProjects = [
     },
     {
         "id": 5,
-        "title": "Airport Terminal Expansion",
-        "client": "Global Airports Corp",
-        "desc": "Phase II expansion increasing passenger capacity by 40%.",
+        "title": "Al Arqam Academy Schools",
+        "client": "IBA",
+        "desc": "Al Arqam Academy is situated on the main road in Abu Hamour. The all-girls school has become a sought-out school for many parents. The school houses all grades from kindergarten all the way to high school. The school amenities include a swimming pool, gymnasium, outdoor play area along with so much more.",
         "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-5.jpg",
         "budget": "210M QR",
         "duration": "48 Months",
@@ -77,9 +77,9 @@ const defaultProjects = [
     },
     {
         "id": 6,
-        "title": "Civic Center Renovation",
-        "client": "City Council",
-        "desc": "Complete historical restoration and modernization of the central library.",
+        "title": "Al Dana Tower",
+        "client": "IBA",
+        "desc": "The 16 story tower in Al Dafna was one of the first towers to be built in West Bay in the Year 2000. IBA takes pride in being one of the first to build towers in the area and this accomplishment propelled us into other endeavors.",
         "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-6.jpg",
         "budget": "25M QR",
         "duration": "18 Months",
@@ -87,9 +87,9 @@ const defaultProjects = [
     },
     {
         "id": 7,
-        "title": "Oceanfront Resort",
-        "client": "Azure Hotels",
-        "desc": "A world-class resort featuring a unique architectural design and sustainable water management.",
+        "title": "Concorde Hotel",
+        "client": "IBA Group",
+        "desc": "Concorde Hotel Doha is a Five Stars hotel that offers a unique line of products and services. From the carefully appointed bedrooms, contemporary restaurants geared to offering superior experience, superbly appointed conference halls, to a state-of-the-art gymnasium attached with massage room to indulge in, matched with our unwavering commitment and attitude of everyone who works for us. Concorde Hotel Doha stands elegantly in the heart of the city. A heaven of hospitality in the gulf and the preferred venue for prestigious international conferences in Doha, Concorde Hotel Doha is committed to deliver superior experience every time you visit us.",
         "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-7.jpg",
         "budget": "150M QR",
         "duration": "36 Months",
