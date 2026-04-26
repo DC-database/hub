@@ -1,7 +1,7 @@
 // ==========================================
 // 1. DATABASE CONFIGURATION (STATELESS SSG)
 // ==========================================
-const APP_VERSION = "1.2.3"; // AUTO-UPDATES ON EXPORT
+const APP_VERSION = "1.2.4"; // AUTO-UPDATES ON EXPORT
 let currentEditId = null;
 
 const BASE_URL = 'https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/tawd/image/';
@@ -497,13 +497,11 @@ async function generatePresentationPDF() {
     
     let tocProjectsHTML = allProjects.map((p, index) => `<li style="margin-bottom: 8px;"><strong>4.${index + 1}</strong> ${p.title}</li>`).join('');
 
-    // MASSIVE PDF FIX: Removed zoom completely and enforced strict page break avoidance
     let combinedHTML = `
         <style>
             @media print {
                 body { background: white !important; font-family: sans-serif; }
                 
-                /* FORCING NO SPLITS: Block display with break-inside avoid */
                 .review-box { 
                     border: 2px dashed #FF5722; 
                     padding: 20px; 
@@ -524,7 +522,6 @@ async function generatePresentationPDF() {
                 .pdf-cover { display: flex; flex-direction: column; justify-content: center; height: 100vh; padding: 10% 8%; }
                 .print-page-break { page-break-after: always; padding: 20px; }
                 
-                /* Force images to not split and size properly */
                 img { max-width: 100%; page-break-inside: avoid; break-inside: avoid; }
             }
         </style>
@@ -536,7 +533,7 @@ async function generatePresentationPDF() {
 
             <div class="review-box">
                 <div class="review-tag">Approval Required</div>
-                <p><strong>Instructions:</strong> Please review the generated layouts, text, and data below. Use the attached "Remarks" boxes to write in any requested changes (e.g., "Change background color to #1b1b1b", "Update font size", etc.)</p>
+                <p><strong>Instructions:</strong> Please review the generated layouts, text, and data below. Use the attached "Remarks" boxes to write in any requested changes.</p>
                 <div class="remarks-box">
                     <strong>General Notes / Executive Remarks:</strong>
                     <div class="remarks-line"></div>
@@ -550,12 +547,13 @@ async function generatePresentationPDF() {
                 <li><strong>1. Home Page</strong></li>
                 <li><strong>2. About Us</strong></li>
                 <li><strong>3. Services</strong></li>
-                <li><strong>4. Project Portfolio</strong>
+                <li><strong>4. Project Portfolio Grid</strong>
                     <ul style="list-style: none; padding-left: 40px; font-size: 1.1rem; line-height: 1.6; margin-top: 10px;">
                         ${tocProjectsHTML}
                     </ul>
                 </li>
-                <li><strong>5. Global Master Components</strong></li>
+                <li><strong>5. Project Detail View (Sample Popup)</strong></li>
+                <li><strong>6. Global Master Components</strong></li>
             </ul>
         </div>
     `;
@@ -633,7 +631,6 @@ async function generatePresentationPDF() {
             const homeContainer = virtualDoc.getElementById('home-project-container');
             if (homeContainer) {
                 const topProjects = allProjects.slice(0, 3);
-                // INLINE-BLOCK fix for home projects to stop grid slicing
                 homeContainer.style.display = 'block';
                 homeContainer.style.width = '100%';
                 homeContainer.innerHTML = topProjects.map(proj => `
@@ -648,13 +645,15 @@ async function generatePresentationPDF() {
 
             const portfolioContainer = virtualDoc.getElementById('portfolio-container');
             if (portfolioContainer) {
-                // INLINE-BLOCK fix for portfolio container to stop grid slicing
                 portfolioContainer.style.display = 'block';
                 portfolioContainer.style.width = '100%';
                 
                 portfolioContainer.innerHTML = allProjects.map((proj, index) => {
                     const urls = getProjectImages(proj.folder);
                     const thumbnailsHTML = urls.map(u => `<img src="${u}" onerror="this.remove()" style="width:45px; height:45px; object-fit:cover; border-radius:4px; margin-right:5px;">`).join('');
+
+                    // EXTREMELY TRUNCATED DESCRIPTION FOR THE PDF GRID TO SAVE SPACE
+                    const shortDesc = proj.desc.substring(0, 100) + '...';
 
                     return `
                     <div class="review-box" style="display: inline-block; width: 48%; margin: 1%; vertical-align: top;">
@@ -663,12 +662,11 @@ async function generatePresentationPDF() {
                         <div style="margin-bottom: 10px; display: flex;">${thumbnailsHTML}</div>
                         <p style="color: #FF9800; font-weight: bold; font-size: 0.75rem; margin-bottom: 3px; text-transform: uppercase;">${proj.client}</p>
                         <h3 style="font-size: 1.3rem; margin-bottom: 8px; color: #111; font-weight: 800;">4.${index + 1} ${proj.title}</h3>
-                        <p style="color: #666; font-size: 0.85rem; line-height: 1.4;">${proj.desc}</p>
+                        <p style="color: #666; font-size: 0.85rem; line-height: 1.4;">${shortDesc}</p>
                         <div style="margin-top: 10px; font-size: 0.8rem; background: #f8fafc; padding: 10px; border-left: 3px solid #FF9800;">
                             <strong>Year:</strong> ${proj.year} | <strong>Status:</strong> ${proj.status}<br>
                             <strong>Contractor:</strong> ${proj.contractor} | <strong>Location:</strong> ${proj.location}
                         </div>
-                        <div class="remarks-box" style="min-height: 60px;">Remarks: <div class="remarks-line"></div></div>
                     </div>
                 `}).join('');
             }
@@ -691,9 +689,44 @@ async function generatePresentationPDF() {
         } catch (error) { console.error("Error fetching " + page, error); }
     }
 
+    // INJECTING THE PROJECT DETAIL POPUP SAMPLE
+    const sampleProj = allProjects[0];
+    const sampleUrls = getProjectImages(sampleProj.folder);
+    const sampleThumbs = sampleUrls.map(u => `<img src="${u}" onerror="this.remove()" style="aspect-ratio: 1/1; flex: 1; max-width: 120px; object-fit: cover; border-radius: 8px; border: 2px solid #ddd;">`).join('');
+
     combinedHTML += `
         <div class="print-page-break">
-            <h2 style="font-size: 2rem; border-bottom: 2px solid #ccc; padding-bottom: 10px; margin-bottom: 30px;">5. Global Master Components</h2>
+            <h2 style="font-size: 2rem; border-bottom: 2px solid #ccc; padding-bottom: 10px; margin-bottom: 30px;">5. Project Detail View (Sample)</h2>
+            <div class="review-box" style="background:#fdfdfd;">
+                <div class="review-tag">Component: Overlay Popup (Project 1)</div>
+                <div class="annotation">➔ User Interaction: Opens when clicking a project on the grid</div>
+                
+                <div style="display: flex; gap: 30px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; margin-top: 15px;">
+                    <div style="flex: 1; min-height: 400px; background: url('${sampleProj.img}') center/cover; border-radius: 12px;"></div>
+                    
+                    <div style="flex: 1; display: flex; flex-direction: column;">
+                        <div style="display: flex; gap: 10px; margin-bottom: 20px;">${sampleThumbs}</div>
+                        <span style="color: #FF9800; font-weight: bold; font-size: 0.9rem; text-transform: uppercase;">CLIENT // ${sampleProj.client}</span>
+                        <h2 style="font-size: 2rem; margin: 5px 0 15px 0; color: #111;">${sampleProj.title}</h2>
+                        <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">${sampleProj.desc.substring(0, 200)}...</p>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background: #f8fafc; padding: 20px; border-radius: 8px; border-left: 5px solid #FF9800;">
+                            <div><span style="font-size:0.8rem; color:#64748b; text-transform:uppercase; font-weight:bold;">Project Year</span><br><strong style="font-size:1.1rem; color:#111;">${sampleProj.year}</strong></div>
+                            <div><span style="font-size:0.8rem; color:#64748b; text-transform:uppercase; font-weight:bold;">Status</span><br><strong style="font-size:1.1rem; color:#111;">${sampleProj.status}</strong></div>
+                            <div><span style="font-size:0.8rem; color:#64748b; text-transform:uppercase; font-weight:bold;">Contractor</span><br><strong style="font-size:1.1rem; color:#111;">${sampleProj.contractor}</strong></div>
+                            <div><span style="font-size:0.8rem; color:#64748b; text-transform:uppercase; font-weight:bold;">Location</span><br><strong style="font-size:1.1rem; color:#111;">${sampleProj.location}</strong></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="remarks-box">Remarks:<div class="remarks-line"></div></div>
+            </div>
+        </div>
+    `;
+
+    combinedHTML += `
+        <div class="print-page-break">
+            <h2 style="font-size: 2rem; border-bottom: 2px solid #ccc; padding-bottom: 10px; margin-bottom: 30px;">6. Global Master Components</h2>
             
             <div class="review-box">
                 <div class="review-tag">Component: Top Navigation</div>
@@ -709,7 +742,7 @@ async function generatePresentationPDF() {
                 <div class="remarks-box">Remarks:<div class="remarks-line"></div></div>
             </div>
 
-            <div class="review-box">
+            <div class="review-box" style="break-inside: avoid;">
                 <div class="review-tag">Component: Master Footer</div>
                 ${sharedFooterHTML}
                 <div class="remarks-box">Remarks:<div class="remarks-line"></div></div>
