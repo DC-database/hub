@@ -1,7 +1,7 @@
 // ==========================================
 // 1. DATABASE CONFIGURATION (STATELESS SSG)
 // ==========================================
-const APP_VERSION = "1.1.1"; // AUTO-UPDATES ON EXPORT
+const APP_VERSION = "1.1.2"; // AUTO-UPDATES ON EXPORT
 let currentEditId = null;
 
 const BASE_URL = 'https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/';
@@ -13,7 +13,10 @@ const defaultSiteContent = {
     "copyright": "© 2026 IBA Trading W.L.L. All rights reserved.",
     "address": "Doha, Qatar",
     "email": "info@ibatrading.com",
-    "phone": "+974 4444 0000"
+    "phone": "+974 4444 0000",
+    "contactHeading": "Let’s Build<br>Something Great.",
+    "contactSub": "Take the first step towards your inspiring residential or commercial space today! Contact us below to get a personalized quote.",
+    "contactBtn": "Send Message"
 };
 
 const defaultSettings = {
@@ -49,29 +52,37 @@ function getTextContent() { return liveTextContent; }
 // 2. PUBLIC PAGE RENDERING LOGIC (STATIC BYPASS)
 // ==========================================
 
-// NEW: Auto-Inject Text into HTML globally
+// Auto-Inject Text into HTML globally
 function renderGlobalText() {
     const textData = getTextContent();
     
-    // Update all Logos (Navbar and Footer)
+    // Update Logos
     document.querySelectorAll('.logo').forEach(logo => {
-        // Don't overwrite the admin logo
         if(!logo.innerHTML.includes('ADMIN')) {
             logo.innerHTML = `${textData.logoPart1} <span>${textData.logoPart2}</span>`;
         }
     });
 
-    // Update Footer Copyright
+    // Update Footer Copyright & Info
     const copyEl = document.querySelector('.copyright');
     if(copyEl) copyEl.innerText = textData.copyright;
 
-    // Update Footer Info Bar (Address, Email, Phone)
     const infoItems = document.querySelectorAll('.footer-info-item');
     if(infoItems.length >= 3) {
         infoItems[0].innerHTML = `<span class="icon">📍</span> ${textData.address}`;
         infoItems[1].innerHTML = `<span class="icon">✉️</span> ${textData.email}`;
         infoItems[2].innerHTML = `<span class="icon">📞</span> ${textData.phone}`;
     }
+
+    // Update Contact Banner
+    const contactHeading = document.querySelector('.inject-contact-heading');
+    if (contactHeading) contactHeading.innerHTML = textData.contactHeading;
+    
+    const contactSub = document.querySelector('.inject-contact-sub');
+    if (contactSub) contactSub.innerHTML = textData.contactSub;
+
+    const contactBtn = document.querySelector('.inject-contact-btn');
+    if (contactBtn) contactBtn.innerHTML = textData.contactBtn;
 }
 
 function renderHomeProjects() {
@@ -140,12 +151,10 @@ function closeDetailView() {
 // 3. ADMIN PANEL LOGIC (IN-MEMORY)
 // ==========================================
 function loadAdminSettings() {
-    // Load Hero Image
     const settings = getSettings();
     const heroInput = document.getElementById('site-hero-img');
     if (heroInput) heroInput.value = settings.heroImage;
 
-    // Load Text Content
     const txt = getTextContent();
     if(document.getElementById('text-logo-1')) document.getElementById('text-logo-1').value = txt.logoPart1;
     if(document.getElementById('text-logo-2')) document.getElementById('text-logo-2').value = txt.logoPart2;
@@ -153,6 +162,9 @@ function loadAdminSettings() {
     if(document.getElementById('text-address')) document.getElementById('text-address').value = txt.address;
     if(document.getElementById('text-email')) document.getElementById('text-email').value = txt.email;
     if(document.getElementById('text-phone')) document.getElementById('text-phone').value = txt.phone;
+    if(document.getElementById('text-contact-heading')) document.getElementById('text-contact-heading').value = txt.contactHeading;
+    if(document.getElementById('text-contact-sub')) document.getElementById('text-contact-sub').value = txt.contactSub;
+    if(document.getElementById('text-contact-btn')) document.getElementById('text-contact-btn').value = txt.contactBtn;
 }
 
 function saveSiteSettings() {
@@ -168,7 +180,10 @@ function saveTextContent() {
         copyright: document.getElementById('text-copyright').value,
         address: document.getElementById('text-address').value,
         email: document.getElementById('text-email').value,
-        phone: document.getElementById('text-phone').value
+        phone: document.getElementById('text-phone').value,
+        contactHeading: document.getElementById('text-contact-heading').value,
+        contactSub: document.getElementById('text-contact-sub').value,
+        contactBtn: document.getElementById('text-contact-btn').value
     };
     alert('Global Text updated in Memory! Ready to Export.');
 }
@@ -269,7 +284,6 @@ function clearDatabase() {
 // 4. SMART MULTI-PAGE ROUTER
 // ==========================================
 window.onload = function() {
-    // 1. Instantly overwrite HTML text with Admin settings
     renderGlobalText();
 
     const hero = document.getElementById('main-hero');
@@ -387,19 +401,28 @@ async function generatePresentationPDF() {
             const parser = new DOMParser();
             const virtualDoc = parser.parseFromString(htmlString, 'text/html');
 
-            // Apply global text to virtual document BEFORE printing
             const textData = getTextContent();
+            
+            // Inject text into PDF virtual document
             virtualDoc.querySelectorAll('.logo').forEach(logo => {
                 if(!logo.innerHTML.includes('ADMIN')) logo.innerHTML = `${textData.logoPart1} <span>${textData.logoPart2}</span>`;
             });
             const copyEl = virtualDoc.querySelector('.copyright');
             if(copyEl) copyEl.innerText = textData.copyright;
+            
             const infoItems = virtualDoc.querySelectorAll('.footer-info-item');
             if(infoItems.length >= 3) {
                 infoItems[0].innerHTML = `<span class="icon">📍</span> ${textData.address}`;
                 infoItems[1].innerHTML = `<span class="icon">✉️</span> ${textData.email}`;
                 infoItems[2].innerHTML = `<span class="icon">📞</span> ${textData.phone}`;
             }
+
+            const cHeading = virtualDoc.querySelector('.inject-contact-heading');
+            if(cHeading) cHeading.innerHTML = textData.contactHeading;
+            const cSub = virtualDoc.querySelector('.inject-contact-sub');
+            if(cSub) cSub.innerHTML = textData.contactSub;
+            const cBtn = virtualDoc.querySelector('.inject-contact-btn');
+            if(cBtn) cBtn.innerHTML = textData.contactBtn;
 
             if (!sharedNavHTML) {
                 const navElement = virtualDoc.querySelector('nav');
