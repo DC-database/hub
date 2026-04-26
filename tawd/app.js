@@ -1,7 +1,7 @@
 // ==========================================
 // 1. DATABASE CONFIGURATION (STATELESS SSG)
 // ==========================================
-const APP_VERSION = "1.2.4"; // AUTO-UPDATES ON EXPORT
+const APP_VERSION = "1.2.5"; // AUTO-UPDATES ON EXPORT
 let currentEditId = null;
 
 const BASE_URL = 'https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/tawd/image/';
@@ -352,9 +352,7 @@ function editProject(id) {
     document.getElementById('proj-client').value = proj.client;
     document.getElementById('proj-img').value = proj.img;
     document.getElementById('proj-desc').value = proj.desc;
-    
     if(document.getElementById('proj-folder')) document.getElementById('proj-folder').value = proj.folder || "a";
-
     document.getElementById('proj-year').value = proj.year;
     document.getElementById('proj-location').value = proj.location;
     document.getElementById('proj-contractor').value = proj.contractor;
@@ -380,10 +378,8 @@ function saveProject() {
     const client = document.getElementById('proj-client').value;
     const img = document.getElementById('proj-img').value;
     const desc = document.getElementById('proj-desc').value;
-    
     const folderInput = document.getElementById('proj-folder');
     const folder = folderInput ? folderInput.value.toLowerCase().trim() : "a";
-
     const year = document.getElementById('proj-year').value;
     const location = document.getElementById('proj-location').value;
     const contractor = document.getElementById('proj-contractor').value;
@@ -523,6 +519,9 @@ async function generatePresentationPDF() {
                 .print-page-break { page-break-after: always; padding: 20px; }
                 
                 img { max-width: 100%; page-break-inside: avoid; break-inside: avoid; }
+                
+                /* CLEARFIX UTILITY FOR FLOAT GRIDS */
+                .clearfix::after { content: ""; clear: both; display: table; }
             }
         </style>
         <div class="print-page-break pdf-cover">
@@ -593,12 +592,21 @@ async function generatePresentationPDF() {
             const cBtn = virtualDoc.querySelector('.inject-contact-btn');
             if(cBtn) cBtn.innerHTML = textData.contactBtn;
 
+            // FIX: Ensure both page-hero and main-hero get backgrounds injected cleanly
             const pgHero = virtualDoc.querySelector('.page-hero');
             if (pgHero) {
                 let pBg = liveSettings.projectsImage;
                 if (page.includes('about')) pBg = liveSettings.aboutImage;
                 if (page.includes('services')) pBg = liveSettings.servicesImage;
                 pgHero.style.setProperty('background', `linear-gradient(rgba(15, 22, 33, 0.8), rgba(15, 22, 33, 0.8)), url('${pBg}') center/cover no-repeat`, 'important');
+            }
+            
+            const mainHero = virtualDoc.querySelector('#main-hero');
+            if (mainHero) {
+                mainHero.style.setProperty('background', `linear-gradient(to right, rgba(27, 27, 27, 0.95), rgba(27, 27, 27, 0.7)), url('${liveSettings.heroImage}') center/cover no-repeat`, 'important');
+                mainHero.style.height = 'auto'; // FIX: Remove 100vh so it doesn't take up the entire print page
+                mainHero.style.minHeight = '350px';
+                mainHero.style.padding = '80px 5%';
             }
 
             if (!sharedNavHTML) {
@@ -631,32 +639,36 @@ async function generatePresentationPDF() {
             const homeContainer = virtualDoc.getElementById('home-project-container');
             if (homeContainer) {
                 const topProjects = allProjects.slice(0, 3);
+                homeContainer.className = 'clearfix'; // Strip the masonry class!
                 homeContainer.style.display = 'block';
                 homeContainer.style.width = '100%';
-                homeContainer.innerHTML = topProjects.map(proj => `
-                    <div style="display: inline-block; width: 31%; margin: 1%; background: url('${proj.img}') center/cover; position: relative; height: 200px; border-radius: 8px; page-break-inside: avoid; break-inside: avoid; box-sizing: border-box;">
+                
+                let homeContent = topProjects.map(proj => `
+                    <div style="float: left; width: 31%; margin: 1%; background: url('${proj.img}') center/cover; position: relative; height: 200px; border-radius: 8px; page-break-inside: avoid; break-inside: avoid; box-sizing: border-box;">
                         <div style="position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); padding: 15px; border-radius: 0 0 8px 8px;">
                             <p style="color: #FF9800; margin:0; font-weight: bold; font-size: 0.7rem; text-transform: uppercase;">${proj.client}</p>
                             <h3 style="margin:0; font-size: 1rem; color: white;">${proj.title}</h3>
                         </div>
                     </div>
                 `).join('');
+                
+                homeContainer.innerHTML = homeContent + '<div style="clear: both;"></div>';
             }
 
             const portfolioContainer = virtualDoc.getElementById('portfolio-container');
             if (portfolioContainer) {
+                portfolioContainer.className = 'clearfix'; // FIX: Strips out the masonry CSS columns causing the squish
                 portfolioContainer.style.display = 'block';
                 portfolioContainer.style.width = '100%';
                 
-                portfolioContainer.innerHTML = allProjects.map((proj, index) => {
+                let portContent = allProjects.map((proj, index) => {
                     const urls = getProjectImages(proj.folder);
                     const thumbnailsHTML = urls.map(u => `<img src="${u}" onerror="this.remove()" style="width:45px; height:45px; object-fit:cover; border-radius:4px; margin-right:5px;">`).join('');
-
-                    // EXTREMELY TRUNCATED DESCRIPTION FOR THE PDF GRID TO SAVE SPACE
                     const shortDesc = proj.desc.substring(0, 100) + '...';
 
+                    // FIX: Using float left instead of grid/inline-block ensures Chrome doesn't squeeze the width
                     return `
-                    <div class="review-box" style="display: inline-block; width: 48%; margin: 1%; vertical-align: top;">
+                    <div class="review-box" style="float: left; width: 48%; margin: 1%; box-sizing: border-box;">
                         <div class="review-tag">4.${index + 1} - Project Card</div>
                         <img src="${proj.img}" style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 5px 10px rgba(0,0,0,0.1);">
                         <div style="margin-bottom: 10px; display: flex;">${thumbnailsHTML}</div>
@@ -669,6 +681,8 @@ async function generatePresentationPDF() {
                         </div>
                     </div>
                 `}).join('');
+                
+                portfolioContainer.innerHTML = portContent + '<div style="clear: both;"></div>';
             }
 
             const pageName = page.replace('.html', '').toUpperCase();
@@ -689,10 +703,9 @@ async function generatePresentationPDF() {
         } catch (error) { console.error("Error fetching " + page, error); }
     }
 
-    // INJECTING THE PROJECT DETAIL POPUP SAMPLE
     const sampleProj = allProjects[0];
     const sampleUrls = getProjectImages(sampleProj.folder);
-    const sampleThumbs = sampleUrls.map(u => `<img src="${u}" onerror="this.remove()" style="aspect-ratio: 1/1; flex: 1; max-width: 120px; object-fit: cover; border-radius: 8px; border: 2px solid #ddd;">`).join('');
+    const sampleThumbs = sampleUrls.map(u => `<img src="${u}" onerror="this.remove()" style="aspect-ratio: 1/1; float: left; width: 22%; margin-right: 3%; object-fit: cover; border-radius: 8px; border: 2px solid #ddd;">`).join('');
 
     combinedHTML += `
         <div class="print-page-break">
@@ -701,20 +714,21 @@ async function generatePresentationPDF() {
                 <div class="review-tag">Component: Overlay Popup (Project 1)</div>
                 <div class="annotation">➔ User Interaction: Opens when clicking a project on the grid</div>
                 
-                <div style="display: flex; gap: 30px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; margin-top: 15px;">
-                    <div style="flex: 1; min-height: 400px; background: url('${sampleProj.img}') center/cover; border-radius: 12px;"></div>
+                <div class="clearfix" style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; margin-top: 15px;">
                     
-                    <div style="flex: 1; display: flex; flex-direction: column;">
-                        <div style="display: flex; gap: 10px; margin-bottom: 20px;">${sampleThumbs}</div>
+                    <div style="float: left; width: 48%; margin-right: 4%; min-height: 400px; background: url('${sampleProj.img}') center/cover; border-radius: 12px;"></div>
+                    
+                    <div style="float: left; width: 48%;">
+                        <div class="clearfix" style="margin-bottom: 20px;">${sampleThumbs}</div>
                         <span style="color: #FF9800; font-weight: bold; font-size: 0.9rem; text-transform: uppercase;">CLIENT // ${sampleProj.client}</span>
                         <h2 style="font-size: 2rem; margin: 5px 0 15px 0; color: #111;">${sampleProj.title}</h2>
                         <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">${sampleProj.desc.substring(0, 200)}...</p>
                         
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background: #f8fafc; padding: 20px; border-radius: 8px; border-left: 5px solid #FF9800;">
-                            <div><span style="font-size:0.8rem; color:#64748b; text-transform:uppercase; font-weight:bold;">Project Year</span><br><strong style="font-size:1.1rem; color:#111;">${sampleProj.year}</strong></div>
-                            <div><span style="font-size:0.8rem; color:#64748b; text-transform:uppercase; font-weight:bold;">Status</span><br><strong style="font-size:1.1rem; color:#111;">${sampleProj.status}</strong></div>
-                            <div><span style="font-size:0.8rem; color:#64748b; text-transform:uppercase; font-weight:bold;">Contractor</span><br><strong style="font-size:1.1rem; color:#111;">${sampleProj.contractor}</strong></div>
-                            <div><span style="font-size:0.8rem; color:#64748b; text-transform:uppercase; font-weight:bold;">Location</span><br><strong style="font-size:1.1rem; color:#111;">${sampleProj.location}</strong></div>
+                        <div class="clearfix" style="background: #f8fafc; padding: 20px; border-radius: 8px; border-left: 5px solid #FF9800;">
+                            <div style="float: left; width: 50%; margin-bottom: 15px;"><span style="font-size:0.8rem; color:#64748b; text-transform:uppercase; font-weight:bold;">Project Year</span><br><strong style="font-size:1.1rem; color:#111;">${sampleProj.year}</strong></div>
+                            <div style="float: left; width: 50%; margin-bottom: 15px;"><span style="font-size:0.8rem; color:#64748b; text-transform:uppercase; font-weight:bold;">Status</span><br><strong style="font-size:1.1rem; color:#111;">${sampleProj.status}</strong></div>
+                            <div style="float: left; width: 50%;"><span style="font-size:0.8rem; color:#64748b; text-transform:uppercase; font-weight:bold;">Contractor</span><br><strong style="font-size:1.1rem; color:#111;">${sampleProj.contractor}</strong></div>
+                            <div style="float: left; width: 50%;"><span style="font-size:0.8rem; color:#64748b; text-transform:uppercase; font-weight:bold;">Location</span><br><strong style="font-size:1.1rem; color:#111;">${sampleProj.location}</strong></div>
                         </div>
                     </div>
                 </div>
