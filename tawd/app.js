@@ -4,7 +4,7 @@
 const APP_VERSION = "1.1.9"; // AUTO-UPDATES ON EXPORT
 let currentEditId = null;
 
-const BASE_URL = 'https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/';
+const BASE_URL = 'https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/tawd/image/';
 
 // THE ABSOLUTE SOURCE OF TRUTH FOR TEXT
 const defaultSiteContent = {
@@ -21,10 +21,10 @@ const defaultSiteContent = {
 
 // THE ABSOLUTE SOURCE OF TRUTH FOR BANNERS
 const defaultSettings = {
-    "heroImage": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Main.jpg",
-    "aboutImage": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-2.jpg",
-    "servicesImage": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-3.jpg",
-    "projectsImage": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-1.jpg"
+    "heroImage": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/tawd/image/Main.jpg",
+    "aboutImage": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/tawd/image/Construction-2.jpg",
+    "servicesImage": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/tawd/image/Construction-3.jpg",
+    "projectsImage": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/tawd/image/Construction-1.jpg"
 };
 
 // THE ORIGINAL STRUCTURE + NEW DETAILS (Year, Location, Contractor, Status)
