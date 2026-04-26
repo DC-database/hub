@@ -1,19 +1,19 @@
 // ==========================================
 // 1. DATABASE CONFIGURATION (STATELESS SSG)
 // ==========================================
-const APP_VERSION = "1.1.2"; // AUTO-UPDATES ON EXPORT
+const APP_VERSION = "1.1.3"; // AUTO-UPDATES ON EXPORT
 let currentEditId = null;
 
 const BASE_URL = 'https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/';
 
 // THE ABSOLUTE SOURCE OF TRUTH FOR TEXT
 const defaultSiteContent = {
-    "logoPart1": "IBA",
-    "logoPart2": "TRADING",
-    "copyright": "© 2026 IBA Trading W.L.L. All rights reserved.",
+    "logoPart1": "TAWD",
+    "logoPart2": "DEVELOPMENT W.L.L.",
+    "copyright": "© 2026 TAWD Development W.L.L. All rights reserved.",
     "address": "Doha, Qatar",
     "email": "info@ibatrading.com",
-    "phone": "+974 4444 0000",
+    "phone": "+974 4040 3535",
     "contactHeading": "Let’s Build<br>Something Great.",
     "contactSub": "Take the first step towards your inspiring residential or commercial space today! Contact us below to get a personalized quote.",
     "contactBtn": "Send Message"
@@ -25,16 +25,106 @@ const defaultSettings = {
 
 // THE ABSOLUTE SOURCE OF TRUTH FOR PROJECTS
 const defaultProjects = [
-    { "id": 1, "title": "Architectural Mastery", "client": "Private Entity", "desc": "Constructing modern living spaces with unparalleled design.", "img": BASE_URL + "Construction-1.jpg", "budget": "120M QR", "duration": "36 Months", "area": "450k SQFT" },
-    { "id": 2, "title": "Inspiring Infrastructure", "client": "Ministry of Transport", "desc": "Building the bridges and roads that connect the future.", "img": BASE_URL + "Construction-2.jpg", "budget": "85M QR", "duration": "18 Months", "area": "2.4 Miles" },
-    { "id": 3, "title": "Artistry in Steel", "client": "Apex Developments", "desc": "Elevating commercial construction into a form of modern art.", "img": BASE_URL + "Construction-3.jpg", "budget": "40M QR", "duration": "24 Months", "area": "120k SQFT" },
-    { "id": 4, "title": "Eco-Friendly Hub", "client": "Green Future Corp", "desc": "Sustainable building practices leading the way for tomorrow.", "img": BASE_URL + "Construction-4.jpg", "budget": "65M QR", "duration": "12 Months", "area": "90k SQFT" },
-    { "id": 5, "title": "Airport Terminal Expansion", "client": "Global Airports Corp", "desc": "Phase II expansion increasing passenger capacity by 40%.", "img": BASE_URL + "Construction-5.jpg", "budget": "210M QR", "duration": "48 Months", "area": "800k SQFT" },
-    { "id": 6, "title": "Civic Center Renovation", "client": "City Council", "desc": "Complete historical restoration and modernization of the central library.", "img": BASE_URL + "Construction-6.jpg", "budget": "25M QR", "duration": "18 Months", "area": "60k SQFT" },
-    { "id": 7, "title": "Oceanfront Resort", "client": "Azure Hotels", "desc": "A world-class resort featuring a unique architectural design and sustainable water management.", "img": BASE_URL + "Construction-7.jpg", "budget": "150M QR", "duration": "36 Months", "area": "350k SQFT" },
-    { "id": 8, "title": "Sustainable Office Tower", "client": "Eco-Hub Real Estate", "desc": "Leed-certified office space designed for energy efficiency and modern workstyles.", "img": BASE_URL + "Construction-8.jpg", "budget": "95M QR", "duration": "24 Months", "area": "180k SQFT" },
-    { "id": 9, "title": "Intermodal Freight Terminal", "client": "Logistics United", "desc": "A critical logistics hub integrating rail, road, and sea transport.", "img": BASE_URL + "Construction-9.jpg", "budget": "70M QR", "duration": "30 Months", "area": "1.2M SQFT" },
-    { "id": 10, "title": "Community Hospital Wing", "client": "City Health Services", "desc": "New state-of-the-art wing focused on outpatient care and medical research.", "img": BASE_URL + "Construction-10.jpg", "budget": "110M QR", "duration": "36 Months", "area": "220k SQFT" }
+    {
+        "id": 1,
+        "title": "Architectural Mastery",
+        "client": "Private Entity",
+        "desc": "Constructing modern living spaces with unparalleled design.",
+        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-1.jpg",
+        "budget": "120M QR",
+        "duration": "36 Months",
+        "area": "450k SQFT"
+    },
+    {
+        "id": 2,
+        "title": "Inspiring Infrastructure",
+        "client": "Ministry of Transport",
+        "desc": "Building the bridges and roads that connect the future.",
+        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-2.jpg",
+        "budget": "85M QR",
+        "duration": "18 Months",
+        "area": "2.4 Miles"
+    },
+    {
+        "id": 3,
+        "title": "Artistry in Steel",
+        "client": "Apex Developments",
+        "desc": "Elevating commercial construction into a form of modern art.",
+        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-3.jpg",
+        "budget": "40M QR",
+        "duration": "24 Months",
+        "area": "120k SQFT"
+    },
+    {
+        "id": 4,
+        "title": "Eco-Friendly Hub",
+        "client": "Green Future Corp",
+        "desc": "Sustainable building practices leading the way for tomorrow.",
+        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-4.jpg",
+        "budget": "65M QR",
+        "duration": "12 Months",
+        "area": "90k SQFT"
+    },
+    {
+        "id": 5,
+        "title": "Airport Terminal Expansion",
+        "client": "Global Airports Corp",
+        "desc": "Phase II expansion increasing passenger capacity by 40%.",
+        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-5.jpg",
+        "budget": "210M QR",
+        "duration": "48 Months",
+        "area": "800k SQFT"
+    },
+    {
+        "id": 6,
+        "title": "Civic Center Renovation",
+        "client": "City Council",
+        "desc": "Complete historical restoration and modernization of the central library.",
+        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-6.jpg",
+        "budget": "25M QR",
+        "duration": "18 Months",
+        "area": "60k SQFT"
+    },
+    {
+        "id": 7,
+        "title": "Oceanfront Resort",
+        "client": "Azure Hotels",
+        "desc": "A world-class resort featuring a unique architectural design and sustainable water management.",
+        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-7.jpg",
+        "budget": "150M QR",
+        "duration": "36 Months",
+        "area": "350k SQFT"
+    },
+    {
+        "id": 8,
+        "title": "Sustainable Office Tower",
+        "client": "Eco-Hub Real Estate",
+        "desc": "Leed-certified office space designed for energy efficiency and modern workstyles.",
+        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-8.jpg",
+        "budget": "95M QR",
+        "duration": "24 Months",
+        "area": "180k SQFT"
+    },
+    {
+        "id": 9,
+        "title": "Intermodal Freight Terminal",
+        "client": "Logistics United",
+        "desc": "A critical logistics hub integrating rail, road, and sea transport.",
+        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-9.jpg",
+        "budget": "70M QR",
+        "duration": "30 Months",
+        "area": "1.2M SQFT"
+    },
+    {
+        "id": 10,
+        "title": "Community Hospital Wing",
+        "client": "City Health Services",
+        "desc": "New state-of-the-art wing focused on outpatient care and medical research.",
+        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-10.jpg",
+        "budget": "110M QR",
+        "duration": "36 Months",
+        "area": "220k SQFT"
+    }
 ];
 
 // IN-MEMORY DATABASE
@@ -284,20 +374,31 @@ function clearDatabase() {
 // 4. SMART MULTI-PAGE ROUTER
 // ==========================================
 window.onload = function() {
+    // 1. Instantly overwrite HTML text with Admin settings
     renderGlobalText();
+    
+    // 2. Initialize smooth page wipe transitions
+    setupPageTransitions(); 
 
+    // 3. Set the Global Hero Background
     const hero = document.getElementById('main-hero');
     if (hero) {
         hero.style.setProperty('background-image', `linear-gradient(to right, rgba(27, 27, 27, 0.95) 0%, rgba(27, 27, 27, 0.7) 45%, transparent 100%), url('${defaultSettings.heroImage}')`, 'important');
     }
     
+    // 4. Display the current build version in the Admin panel
     const versionDisplay = document.getElementById('app-version-display');
     if (versionDisplay) versionDisplay.innerText = "Build v" + APP_VERSION;
     
+    // 5. Render content depending on which page is open
     if (document.getElementById('home-project-container')) renderHomeProjects();
     if (document.getElementById('portfolio-container')) renderPortfolioProjects();
-    if (document.getElementById('admin-list')) { renderAdminList(); loadAdminSettings(); }
+    if (document.getElementById('admin-list')) { 
+        renderAdminList(); 
+        loadAdminSettings(); 
+    }
 
+    // 6. Initialize scroll reveal animations
     initScrollAnimations(); 
 };
 
@@ -524,4 +625,46 @@ async function generatePresentationPDF() {
         window.print();
         setTimeout(() => { document.body.removeChild(printContainer); }, 1000);
     }, 1500);
+}
+
+// ==========================================
+// 7. MODERN PAGE TRANSITIONS
+// ==========================================
+function setupPageTransitions() {
+    // 1. Create the dark overlay panel dynamically
+    const overlay = document.createElement('div');
+    overlay.className = 'page-transition-overlay';
+    document.body.appendChild(overlay);
+
+    // 2. Reveal the page by sliding the panel up when it loads
+    setTimeout(() => {
+        overlay.classList.add('reveal-page');
+    }, 50);
+
+    // 3. Intercept all link clicks
+    document.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', function(e) {
+            const href = this.getAttribute('href');
+            
+            // Only trigger the animation for your internal .html pages
+            if (href && href.endsWith('.html') && this.target !== '_blank') {
+                e.preventDefault(); // Stop the instant jump
+                
+                // Snap the panel to the bottom of the screen
+                overlay.classList.remove('reveal-page');
+                overlay.classList.add('prepare-cover');
+                
+                // Wait 20 milliseconds, then slide the panel up to cover the screen
+                setTimeout(() => {
+                    overlay.classList.remove('prepare-cover');
+                    overlay.classList.add('cover-page');
+                }, 20);
+
+                // Wait 600 milliseconds for the animation to finish, then go to the next page
+                setTimeout(() => {
+                    window.location.href = href;
+                }, 600);
+            }
+        });
+    });
 }
