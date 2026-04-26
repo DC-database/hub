@@ -1,7 +1,7 @@
 // ==========================================
 // 1. DATABASE CONFIGURATION (STATELESS SSG)
 // ==========================================
-const APP_VERSION = "1.2.1"; // AUTO-UPDATES ON EXPORT
+const APP_VERSION = "1.2.2"; // AUTO-UPDATES ON EXPORT
 let currentEditId = null;
 
 const BASE_URL = 'https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/tawd/image/';
@@ -490,14 +490,16 @@ async function generatePresentationPDF() {
     const pages = ['index.html', 'about.html', 'services.html', 'projects.html'];
 
     const allProjects = getDatabase();
+    
+    // 1. RESTORED: This generates the exact list of projects for the Table of Contents!
     let tocProjectsHTML = allProjects.map((p, index) => `<li style="margin-bottom: 8px;"><strong>4.${index + 1}</strong> ${p.title}</li>`).join('');
 
-    // Global Print Styles injected for Professional Blueprint look
     let combinedHTML = `
         <style>
             @media print {
                 body { background: white !important; }
-                .review-box { border: 2px dashed #FF5722; padding: 25px; margin-bottom: 40px; position: relative; border-radius: 8px; }
+                /* 2. PREVENT SPLITTING: break-inside: avoid ensures boxes don't split over pages */
+                .review-box { border: 2px dashed #FF5722; padding: 25px; margin-bottom: 40px; position: relative; border-radius: 8px; page-break-inside: avoid; break-inside: avoid; }
                 .review-tag { background: #FF5722; color: white; padding: 6px 14px; position: absolute; top: -16px; left: 20px; font-weight: bold; font-size: 14px; font-family: monospace; border-radius: 4px; text-transform: uppercase; }
                 .annotation { display: inline-flex; align-items: center; background: #FFECB3; color: #E65100; border: 1px solid #FF9800; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-bottom: 15px; }
                 .remarks-box { margin-top: 20px; background: #fafafa; border: 1px solid #ccc; padding: 15px; font-family: monospace; color: #666; min-height: 80px; }
@@ -528,7 +530,11 @@ async function generatePresentationPDF() {
                 <li><strong>1. Home Page</strong></li>
                 <li><strong>2. About Us</strong></li>
                 <li><strong>3. Services</strong></li>
-                <li><strong>4. Project Portfolio</strong></li>
+                <li><strong>4. Project Portfolio</strong>
+                    <ul style="list-style: none; padding-left: 40px; font-size: 1.1rem; line-height: 1.6; margin-top: 10px;">
+                        ${tocProjectsHTML}
+                    </ul>
+                </li>
                 <li><strong>5. Global Master Components</strong></li>
             </ul>
         </div>
@@ -614,17 +620,19 @@ async function generatePresentationPDF() {
             const portfolioContainer = virtualDoc.getElementById('portfolio-container');
             if (portfolioContainer) {
                 portfolioContainer.style.display = 'grid'; portfolioContainer.style.gridTemplateColumns = '1fr 1fr'; portfolioContainer.style.gap = '40px';
-                portfolioContainer.innerHTML = allProjects.map(proj => {
+                
+                // Add the specific "4.x" numbering to the project cards to match the Table of Contents
+                portfolioContainer.innerHTML = allProjects.map((proj, index) => {
                     const urls = getProjectImages(proj.folder);
                     const thumbnailsHTML = urls.map(u => `<img src="${u}" onerror="this.remove()" style="width:60px; height:60px; object-fit:cover; border-radius:4px; margin-right:8px;">`).join('');
 
                     return `
-                    <div class="review-box" style="break-inside: avoid;">
-                        <div class="review-tag">Component: Project Card</div>
+                    <div class="review-box" style="break-inside: avoid; page-break-inside: avoid;">
+                        <div class="review-tag">4.${index + 1} - Project Card</div>
                         <img src="${proj.img}" style="width: 100%; height: 250px; object-fit: cover; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.1);">
                         <div style="margin-bottom: 15px; display: flex;">${thumbnailsHTML}</div>
                         <p style="color: #FF9800; font-weight: bold; font-size: 0.8rem; margin-bottom: 5px; text-transform: uppercase;">${proj.client}</p>
-                        <h3 style="font-size: 1.6rem; margin-bottom: 10px; color: #111; font-weight: 800;">${proj.title}</h3>
+                        <h3 style="font-size: 1.6rem; margin-bottom: 10px; color: #111; font-weight: 800;">4.${index + 1} ${proj.title}</h3>
                         <p style="color: #666; font-size: 1rem; line-height: 1.5;">${proj.desc}</p>
                         <div style="margin-top: 15px; font-size: 0.9rem; background: #f8fafc; padding: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border-left: 4px solid #FF9800;">
                             <div><strong>Year:</strong> ${proj.year}</div><div><strong>Status:</strong> ${proj.status}</div>
@@ -638,11 +646,15 @@ async function generatePresentationPDF() {
             const pageName = page.replace('.html', '').toUpperCase();
             combinedHTML += `
                 <div class="print-page-break">
-                    <div class="review-box" style="background:#fdfdfd; margin-top:20px;">
+                    <div class="review-box" style="background:#fdfdfd; margin-top:20px; page-break-inside: avoid; break-inside: avoid;">
                         <div class="review-tag">Page Render: ${pageName}</div>
                         <div class="annotation">➔ Background Image: Set via Admin Control</div>
-                        <div class="annotation">➔ Main Text Color: #1f2937 (Change: _______)</div>
-                        ${virtualDoc.body.innerHTML}
+                        <div class="annotation">➔ Scale: Shrunk to 55% to fit page layout perfectly</div>
+                        
+                        <div style="zoom: 0.55; border: 2px solid #eee; padding: 20px; border-radius: 8px; background: var(--page-bg-color);">
+                            ${virtualDoc.body.innerHTML}
+                        </div>
+
                         <div class="remarks-box"><strong>Page Specific Remarks:</strong><div class="remarks-line"></div><div class="remarks-line"></div></div>
                     </div>
                 </div>
@@ -668,7 +680,7 @@ async function generatePresentationPDF() {
                 <div class="remarks-box">Remarks:<div class="remarks-line"></div></div>
             </div>
 
-            <div class="review-box">
+            <div class="review-box" style="break-inside: avoid;">
                 <div class="review-tag">Component: Master Footer</div>
                 ${sharedFooterHTML}
                 <div class="remarks-box">Remarks:<div class="remarks-line"></div></div>
