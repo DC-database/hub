@@ -77,17 +77,36 @@
             
             <div class="detail-content-block">
                 
-                <div id="thumb-container" style="display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;"></div>
+                <div id="thumb-container" style="display: flex; gap: 10px; margin-bottom: 25px; flex-wrap: wrap;"></div>
 
                 <span class="project-client" id="detail-client"></span>
-                <h2 class="project-title" id="detail-title"></h2>
+                <h2 class="project-title" id="detail-title" style="min-height: 40px;"></h2>
                 <p class="project-desc" id="detail-desc"></p>
                 
-                <div class="infogram-stats" style="grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <div class="stat-box"><span class="stat-label">Project Year</span><span class="stat-value" id="detail-year"></span></div>
-                    <div class="stat-box"><span class="stat-label">Location</span><span class="stat-value" id="detail-location"></span></div>
-                    <div class="stat-box"><span class="stat-label">Contractor</span><span class="stat-value" id="detail-contractor"></span></div>
-                    <div class="stat-box"><span class="stat-label">Status</span><span class="stat-value" id="detail-status"></span></div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background: #f8fafc; padding: 25px; border-radius: 8px; margin-top: 25px; border-left: 5px solid #FF9800; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                    
+                    <div style="display: flex; flex-direction: column; gap: 20px;">
+                        <div style="display: flex; flex-direction: column;">
+                            <span style="font-size: 0.8rem; text-transform: uppercase; color: #64748b; font-weight: bold; margin-bottom: 4px; letter-spacing: 1px;">Project Year</span>
+                            <span id="detail-year" style="font-size: 1.15rem; color: #0f172a; font-weight: 800;"></span>
+                        </div>
+                        <div style="display: flex; flex-direction: column;">
+                            <span style="font-size: 0.8rem; text-transform: uppercase; color: #64748b; font-weight: bold; margin-bottom: 4px; letter-spacing: 1px;">Contractor</span>
+                            <span id="detail-contractor" style="font-size: 1.15rem; color: #0f172a; font-weight: 800;"></span>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 20px;">
+                        <div style="display: flex; flex-direction: column;">
+                            <span style="font-size: 0.8rem; text-transform: uppercase; color: #64748b; font-weight: bold; margin-bottom: 4px; letter-spacing: 1px;">Status</span>
+                            <span id="detail-status" style="font-size: 1.15rem; color: #0f172a; font-weight: 800;"></span>
+                        </div>
+                        <div style="display: flex; flex-direction: column;">
+                            <span style="font-size: 0.8rem; text-transform: uppercase; color: #64748b; font-weight: bold; margin-bottom: 4px; letter-spacing: 1px;">Location</span>
+                            <span id="detail-location" style="font-size: 1.15rem; color: #0f172a; font-weight: 800;"></span>
+                        </div>
+                    </div>
+
                 </div>
 
             </div>

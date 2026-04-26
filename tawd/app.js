@@ -1,7 +1,7 @@
 // ==========================================
 // 1. DATABASE CONFIGURATION (STATELESS SSG)
 // ==========================================
-const APP_VERSION = "1.1.9"; // AUTO-UPDATES ON EXPORT
+const APP_VERSION = "1.2.0"; // AUTO-UPDATES ON EXPORT
 let currentEditId = null;
 
 const BASE_URL = 'https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/tawd/image/';
@@ -19,7 +19,6 @@ const defaultSiteContent = {
     "contactBtn": "Send Message"
 };
 
-// THE ABSOLUTE SOURCE OF TRUTH FOR BANNERS
 const defaultSettings = {
     "heroImage": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/tawd/image/Main.jpg",
     "aboutImage": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/tawd/image/Construction-2.jpg",
@@ -27,7 +26,7 @@ const defaultSettings = {
     "projectsImage": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/tawd/image/Construction-1.jpg"
 };
 
-// THE ORIGINAL STRUCTURE + NEW DETAILS (Year, Location, Contractor, Status)
+// THE ORIGINAL STRUCTURE
 const defaultProjects = [
     { "id": 1, "title": "Leqtaifiya Palace", "client": "IBA", "desc": "Dafna Palace construction is an exceptional architectural design innovation. Featuring unique, cutting-edge, & historically significant styles. Its unique and luxurious design is making big impact on its surroundings, elevating the value and desirability of nearby properties. Its contribute to the development of an entire neighborhood or district, attracting other luxury developments, businesses, and amenities. Its construcion features smart building systems, sustainable materials, with its environmentally friendly designs that enhance their status as modern, forward-thinking structures. Dafna Palace is a hallmark of luxury, exclusivity, and architectural excellence.", "img": BASE_URL + "Construction-1.jpg", "folder": "a", "year": "2024", "location": "Dafna", "contractor": "TAWD Development", "status": "Completed" },
     { "id": 2, "title": "Marina Tower 16", "client": "IBA", "desc": "In the middle of a thriving city, Residential Tower 16 unfolds modern-contemporary residences in Lusail Marina’s urban oasis. An integrated locale places homes at the center of it all – Paramount connectivity to the grand spaces of Lusail’s Medical & Education district and proximity to premier lifestyle destinations in Entertainment city.  Marina R-16 is our latest tower in Lusail city. The new 121 Modern residential units are designed to enjoy benefits of natural light, generously sized bathrooms & wide-open sea views.", "img": BASE_URL + "Construction-2.jpg", "folder": "b", "year": "2025", "location": "Lusail Marina", "contractor": "TAWD Development", "status": "In Progress" },
@@ -139,7 +138,7 @@ function initScrollAnimations() {
 }
 
 // ==========================================
-// 4. ANIMATED NUMBER COUNTER (NEW)
+// 4. ANIMATED TEXT DECODER & NUMBER COUNTER
 // ==========================================
 function initNumberCounters() {
     const counters = document.querySelectorAll('.count-up');
@@ -150,7 +149,7 @@ function initNumberCounters() {
             if (entry.isIntersecting) {
                 const el = entry.target;
                 const target = parseInt(el.getAttribute('data-target'));
-                const duration = 2000; // 2 seconds
+                const duration = 2000; 
                 let startTime = null;
 
                 function step(currentTime) {
@@ -160,20 +159,52 @@ function initNumberCounters() {
                     if (progress < 1) {
                         window.requestAnimationFrame(step);
                     } else {
-                        el.innerText = target; // Ensure exact finish
+                        el.innerText = target; 
                     }
                 }
                 window.requestAnimationFrame(step);
-                observer.unobserve(el); // Only run once
+                observer.unobserve(el); 
             }
         });
     }, { threshold: 0.5 });
 
     counters.forEach(counter => {
-        counter.innerText = '0'; // Start at 0 visually before animation kicks in
+        counter.innerText = '0'; 
         observer.observe(counter);
     });
 }
+
+// THE NEW, HIGHLY VISIBLE "CYBERPUNK" DECODER EFFECT
+function animateTextScramble(element, finalString) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()';
+    let iteration = 0;
+    
+    // Clear any previous interval to prevent overlapping animations
+    if (element.scrambleInterval) {
+        clearInterval(element.scrambleInterval);
+    }
+    
+    element.scrambleInterval = setInterval(() => {
+        element.innerText = finalString
+            .split('')
+            .map((letter, index) => {
+                if (letter === ' ') return ' ';
+                if (index < iteration) {
+                    return finalString[index];
+                }
+                return chars[Math.floor(Math.random() * chars.length)];
+            })
+            .join('');
+        
+        if (iteration >= finalString.length) {
+            clearInterval(element.scrambleInterval);
+        }
+        
+        // This fraction controls the speed. 1/3 means each letter takes ~90ms to resolve.
+        iteration += 1 / 3; 
+    }, 30);
+}
+
 
 // ==========================================
 // 5. SMART SQUARE GALLERY & LIGHTBOX SLIDER
@@ -185,11 +216,13 @@ function openDetailView(projectId) {
     const proj = liveProjects.find(p => p.id === projectId);
     if(!proj) return;
 
+    // 1. LEFT SIDE: Set the Original Image
     const oldMainImg = document.getElementById('detail-img');
     if (oldMainImg) {
         oldMainImg.style.background = `url('${proj.img}') no-repeat center center / cover`;
     }
 
+    // 2. RIGHT SIDE TOP: Build the Smart Square Thumbnails
     const thumbContainer = document.getElementById('thumb-container');
     if(thumbContainer) {
         thumbContainer.innerHTML = '';
@@ -201,7 +234,7 @@ function openDetailView(projectId) {
             
             t.onerror = function() { this.remove(); };
 
-            t.style = "aspect-ratio: 1 / 1; flex: 1; max-width: 100px; min-width: 80px; object-fit: cover; border-radius: 8px; cursor: zoom-in; transition: 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.2); border: 2px solid transparent;";
+            t.style = "aspect-ratio: 1 / 1; flex: 1; max-width: 150px; min-width: 110px; object-fit: cover; border-radius: 8px; cursor: zoom-in; transition: 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.2); border: 2px solid transparent;";
             t.onmouseover = () => t.style.borderColor = "#FF9800";
             t.onmouseout = () => t.style.borderColor = "transparent";
             
@@ -213,10 +246,15 @@ function openDetailView(projectId) {
         });
     }
 
+    // 3. TITLE ANIMATION: Decode the text rapidly
     document.getElementById('detail-client').innerText = `CLIENT // ${proj.client}`;
-    document.getElementById('detail-title').innerText = proj.title;
+    const titleEl = document.getElementById('detail-title');
+    titleEl.innerText = proj.title; 
+    animateTextScramble(titleEl, proj.title); // Trigger the improved running letter effect!
+    
     document.getElementById('detail-desc').innerText = proj.desc;
     
+    // 4. ELEGANT 2x2 PROJECT DETAILS INJECTION
     if(document.getElementById('detail-year')) document.getElementById('detail-year').innerText = proj.year || "N/A";
     if(document.getElementById('detail-location')) document.getElementById('detail-location').innerText = proj.location || "N/A";
     if(document.getElementById('detail-contractor')) document.getElementById('detail-contractor').innerText = proj.contractor || "N/A";
@@ -231,6 +269,7 @@ function closeDetailView() {
     document.body.style.overflow = 'auto'; 
 }
 
+// SLIDER LOGIC
 function openLightboxWithImage(url) {
     const visibleThumbs = document.querySelectorAll('#thumb-container img');
     currentLightboxImages = Array.from(visibleThumbs).map(img => img.src);
@@ -423,24 +462,20 @@ window.onload = function() {
     renderGlobalText();
     setupPageTransitions();
 
-    // Dynamically apply the correct banner depending on the current page
     const currentPath = window.location.pathname.toLowerCase();
     
-    // Apply Home Hero
     const homeHero = document.getElementById('main-hero');
     if (homeHero) {
         homeHero.style.setProperty('background-image', `linear-gradient(to right, rgba(27, 27, 27, 0.95) 0%, rgba(27, 27, 27, 0.7) 45%, transparent 100%), url('${liveSettings.heroImage}')`, 'important');
     }
 
-    // Apply Subpage Banners automatically to the <section class="page-hero">
     const subPageHero = document.querySelector('.page-hero');
     if (subPageHero) {
-        let activeBg = liveSettings.projectsImage; // Default fallback
+        let activeBg = liveSettings.projectsImage; 
         if (currentPath.includes('about')) activeBg = liveSettings.aboutImage;
         if (currentPath.includes('services')) activeBg = liveSettings.servicesImage;
         if (currentPath.includes('projects')) activeBg = liveSettings.projectsImage;
         
-        // This keeps the nice dark tint over the image so white text stays readable!
         subPageHero.style.setProperty('background', `linear-gradient(rgba(15, 22, 33, 0.8), rgba(15, 22, 33, 0.8)), url('${activeBg}') center/cover no-repeat`, 'important');
     }
     
@@ -455,7 +490,7 @@ window.onload = function() {
     }
 
     initScrollAnimations(); 
-    initNumberCounters(); // Initializes the fast counting numbers!
+    initNumberCounters(); 
 };
 
 // ==========================================
@@ -580,7 +615,6 @@ async function generatePresentationPDF() {
             const cBtn = virtualDoc.querySelector('.inject-contact-btn');
             if(cBtn) cBtn.innerHTML = textData.contactBtn;
 
-            // Fix specific subpage backgrounds for PDF
             const pgHero = virtualDoc.querySelector('.page-hero');
             if (pgHero) {
                 let pBg = liveSettings.projectsImage;
@@ -619,15 +653,14 @@ async function generatePresentationPDF() {
             const homeContainer = virtualDoc.getElementById('home-project-container');
             if (homeContainer) {
                 const topProjects = allProjects.slice(0, 3);
-                homeContainer.innerHTML = topProjects.map(proj => {
-                    return `
+                homeContainer.innerHTML = topProjects.map(proj => `
                     <div style="background: url('${proj.img}') center/cover; position: relative; height: 350px; border-radius: 8px; break-inside: avoid; margin-bottom: 20px;">
                         <div style="position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); padding: 30px 20px 20px 20px; border-radius: 0 0 8px 8px;">
                             <p style="color: var(--accent-color); margin:0; font-weight: bold; font-size: 0.85rem; text-transform: uppercase;">${proj.client}</p>
                             <h3 style="margin:0; font-size: 1.5rem; color: white;">${proj.title}</h3>
                         </div>
                     </div>
-                `}).join('');
+                `).join('');
             }
 
             const portfolioContainer = virtualDoc.getElementById('portfolio-container');
@@ -648,8 +681,12 @@ async function generatePresentationPDF() {
                         <p style="color: var(--accent-color); font-weight: bold; font-size: 0.8rem; margin-bottom: 5px; text-transform: uppercase;">${proj.client}</p>
                         <h3 style="font-size: 1.6rem; margin-bottom: 10px; color: var(--text-main); font-weight: 800; line-height: 1.1;">${proj.title}</h3>
                         <p style="color: var(--text-muted); font-size: 1rem; line-height: 1.5;">${proj.desc}</p>
-                        <div style="margin-top: 15px; font-size: 0.9rem; color: #475569; background: #f8fafc; padding: 10px; border-radius: 4px; display: inline-block;">
-                            <strong>Year:</strong> ${proj.year} &nbsp;|&nbsp; <strong>Location:</strong> ${proj.location} &nbsp;|&nbsp; <strong>Status:</strong> ${proj.status}
+                        
+                        <div style="margin-top: 15px; font-size: 0.9rem; color: #475569; background: #f8fafc; padding: 15px; border-radius: 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border-left: 4px solid #FF9800;">
+                            <div><strong>Year:</strong> ${proj.year}</div>
+                            <div><strong>Status:</strong> ${proj.status}</div>
+                            <div><strong>Contractor:</strong> ${proj.contractor}</div>
+                            <div><strong>Location:</strong> ${proj.location}</div>
                         </div>
                     </div>
                 `}).join('');
