@@ -7,26 +7,26 @@
     --page-bg-color: #ffffff;         /* Main background color for all pages */
     --text-main: #1e293b;             /* Main dark text color */
     --text-muted: #64748b;            /* Lighter text for descriptions */
-    --accent-color: #d97706;          /* Primary accent (Buttons, highlights) */
-    --dark-section-bg: #1b1b1b;       /* Background for dark sections */
+    --accent-color: #f2ad00;          /* Primary accent (Buttons, highlights) */
+    --dark-section-bg: #05131d;       /* Background for dark sections */
 
     /* 2. HEADER & NAVIGATION */
-    --logo-iba-color: #ffffff;        /* Color for the word "IBA" */
-    --logo-trading-color: #d97706;    /* Color for the word "TRADING" */
+    --logo-iba-color: #dbceb1;        /* Color for the word "IBA" */
+    --logo-trading-color: #e6e7e8;    /* Color for the word "TRADING" */
     --nav-links-color: #ffffff;       /* Color for Home, About, Services links */
-    --nav-hover-line: #d97706;        /* The line that appears under links on hover */
+    --nav-hover-line: #f2ad00;        /* The line that appears under links on hover */
 
     /* 3. ABOUT PAGE: CORE VALUES CARDS */
     --values-section-bg: #f8fafc;     /* Background behind the 3 cards */
     --card-bg-color: #ffffff;         /* Background color of the cards */
-    --card-title-color: #d97706;      /* Title color (Quality, Integrity, Innovation) */
+    --card-title-color: #05131D;      /* Title color (Quality, Integrity, Innovation) */
     --card-text-color: #64748b;       /* Paragraph text inside the cards */
 
     /* 4. FOOTER CONTROLS */
-    --footer-bg-color: #1a1a1a;       /* Footer background */
+    --footer-bg-color: #05131d;       /* Footer background */
     --footer-text-color: #94a3b8;     /* Footer standard text */
     --footer-link-color: #94a3b8;     /* Footer navigation links */
-    --footer-link-hover: #d97706;     /* Footer links when mouse hovers over them */
+    --footer-link-hover: #142e66;     /* Footer links when mouse hovers over them */
 }
 
 /* ==========================================
@@ -128,7 +128,7 @@ body { background-color: var(--page-bg-color); color: var(--text-main); overflow
 .contact-banner-content { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; max-width: 1200px; margin: 0 auto; align-items: center; }
 .contact-banner-text h2 { font-size: 4rem; color: white; font-weight: 800; line-height: 1.1; margin-bottom: 20px; }
 .contact-banner-text p { color: #cbd5e1; font-size: 1.2rem; line-height: 1.6; max-width: 90%; }
-.contact-banner-form { background: #2d2d2d; padding: 40px; border-radius: 4px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+.contact-banner-form { background: #05131D; padding: 40px; border-radius: 4px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
 .contact-banner-form h3 { color: white; margin-bottom: 25px; font-size: 1.8rem; font-weight: 800; }
 .contact-banner-form input, .contact-banner-form textarea { width: 100%; padding: 15px; margin-bottom: 15px; background: white; border: none; font-size: 1rem; }
 
@@ -178,6 +178,40 @@ body { background-color: var(--page-bg-color); color: var(--text-main); overflow
 .btn-edit { background: var(--text-main); color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: 800; font-size: 0.8rem; }
 .btn-danger { background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: 800; font-size: 0.8rem; }
 
+
+/* ==========================================
+   CENTERED BOTTOM-UP TEXT FADE
+   ========================================== */
+@keyframes textFadeUp {
+    from { 
+        opacity: 0; 
+        transform: translateY(50px); /* Starts lower */
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); /* Pops up and settles perfectly into the center */
+    }
+}
+
+/* Animate the main big titles */
+.page-hero h1, 
+.hero-content h1 {
+    opacity: 0;
+    animation: textFadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    /* Waits 0.3s for the wind sweep to clear */
+    animation-delay: 0.3s; 
+}
+
+/* Animate the smaller subtext and buttons */
+.page-hero p, 
+.hero-content p,
+.hero-content .btn-primary {
+    opacity: 0;
+    animation: textFadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    /* Staggers the animation right after the title */
+    animation-delay: 0.45s; 
+}
+
 /* ==========================================
    PRINT STYLES FOR PDF PRESENTATION EXPORT
    ========================================== */
@@ -190,4 +224,40 @@ body { background-color: var(--page-bg-color); color: var(--text-main); overflow
     .print-page-break { page-break-before: always; }
     .hero, .page-hero { height: auto !important; min-height: 40vh !important; padding: 60px 5% !important; page-break-inside: avoid; }
     .btn-primary, .detail-overlay, .navbar { display: none !important; }
+}
+
+/* ==========================================
+   BI-DIRECTIONAL WIND SWEEP (REVEAL RIGHT, COVER LEFT)
+   ========================================== */
+.page-transition-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    
+    /* The Transparent Wind Effect */
+    background: rgba(255, 255, 255, 0.15); 
+    backdrop-filter: blur(20px); 
+    -webkit-backdrop-filter: blur(20px);
+    
+    z-index: 99999;
+    pointer-events: none;
+    
+    /* Base State: Covering the screen */
+    transform: translateX(0); 
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Action: Slide off to the RIGHT to reveal the page */
+.page-transition-overlay.reveal-page {
+    transform: translateX(100%);
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    color: var(--text-main);
+    background-color: var(--page-bg-color);
+    line-height: 1.6;
+    overflow-x: hidden; /* <-- ADD THIS LINE TO PREVENT STUTTER */
 }
