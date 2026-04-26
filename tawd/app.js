@@ -1,7 +1,7 @@
 // ==========================================
 // 1. DATABASE CONFIGURATION (STATELESS SSG)
 // ==========================================
-const APP_VERSION = "1.2.0"; // AUTO-UPDATES ON EXPORT
+const APP_VERSION = "1.2.1"; // AUTO-UPDATES ON EXPORT
 let currentEditId = null;
 
 const BASE_URL = 'https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/tawd/image/';
@@ -174,37 +174,23 @@ function initNumberCounters() {
     });
 }
 
-// THE NEW, HIGHLY VISIBLE "CYBERPUNK" DECODER EFFECT
 function animateTextScramble(element, finalString) {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()';
     let iteration = 0;
     
-    // Clear any previous interval to prevent overlapping animations
-    if (element.scrambleInterval) {
-        clearInterval(element.scrambleInterval);
-    }
+    if (element.scrambleInterval) clearInterval(element.scrambleInterval);
     
     element.scrambleInterval = setInterval(() => {
-        element.innerText = finalString
-            .split('')
-            .map((letter, index) => {
-                if (letter === ' ') return ' ';
-                if (index < iteration) {
-                    return finalString[index];
-                }
-                return chars[Math.floor(Math.random() * chars.length)];
-            })
-            .join('');
+        element.innerText = finalString.split('').map((letter, index) => {
+            if (letter === ' ') return ' ';
+            if (index < iteration) return finalString[index];
+            return chars[Math.floor(Math.random() * chars.length)];
+        }).join('');
         
-        if (iteration >= finalString.length) {
-            clearInterval(element.scrambleInterval);
-        }
-        
-        // This fraction controls the speed. 1/3 means each letter takes ~90ms to resolve.
+        if (iteration >= finalString.length) clearInterval(element.scrambleInterval);
         iteration += 1 / 3; 
     }, 30);
 }
-
 
 // ==========================================
 // 5. SMART SQUARE GALLERY & LIGHTBOX SLIDER
@@ -216,13 +202,9 @@ function openDetailView(projectId) {
     const proj = liveProjects.find(p => p.id === projectId);
     if(!proj) return;
 
-    // 1. LEFT SIDE: Set the Original Image
     const oldMainImg = document.getElementById('detail-img');
-    if (oldMainImg) {
-        oldMainImg.style.background = `url('${proj.img}') no-repeat center center / cover`;
-    }
+    if (oldMainImg) oldMainImg.style.background = `url('${proj.img}') no-repeat center center / cover`;
 
-    // 2. RIGHT SIDE TOP: Build the Smart Square Thumbnails
     const thumbContainer = document.getElementById('thumb-container');
     if(thumbContainer) {
         thumbContainer.innerHTML = '';
@@ -231,30 +213,21 @@ function openDetailView(projectId) {
         urls.forEach((url) => {
             const t = document.createElement('img');
             t.src = url;
-            
             t.onerror = function() { this.remove(); };
-
             t.style = "aspect-ratio: 1 / 1; flex: 1; max-width: 150px; min-width: 110px; object-fit: cover; border-radius: 8px; cursor: zoom-in; transition: 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.2); border: 2px solid transparent;";
             t.onmouseover = () => t.style.borderColor = "#FF9800";
             t.onmouseout = () => t.style.borderColor = "transparent";
-            
-            t.onclick = (e) => {
-                e.stopPropagation();
-                openLightboxWithImage(url);
-            };
+            t.onclick = (e) => { e.stopPropagation(); openLightboxWithImage(url); };
             thumbContainer.appendChild(t);
         });
     }
 
-    // 3. TITLE ANIMATION: Decode the text rapidly
     document.getElementById('detail-client').innerText = `CLIENT // ${proj.client}`;
     const titleEl = document.getElementById('detail-title');
     titleEl.innerText = proj.title; 
-    animateTextScramble(titleEl, proj.title); // Trigger the improved running letter effect!
-    
+    animateTextScramble(titleEl, proj.title); 
     document.getElementById('detail-desc').innerText = proj.desc;
     
-    // 4. ELEGANT 2x2 PROJECT DETAILS INJECTION
     if(document.getElementById('detail-year')) document.getElementById('detail-year').innerText = proj.year || "N/A";
     if(document.getElementById('detail-location')) document.getElementById('detail-location').innerText = proj.location || "N/A";
     if(document.getElementById('detail-contractor')) document.getElementById('detail-contractor').innerText = proj.contractor || "N/A";
@@ -269,7 +242,6 @@ function closeDetailView() {
     document.body.style.overflow = 'auto'; 
 }
 
-// SLIDER LOGIC
 function openLightboxWithImage(url) {
     const visibleThumbs = document.querySelectorAll('#thumb-container img');
     currentLightboxImages = Array.from(visibleThumbs).map(img => img.src);
@@ -380,9 +352,7 @@ function editProject(id) {
     document.getElementById('proj-client').value = proj.client;
     document.getElementById('proj-img').value = proj.img;
     document.getElementById('proj-desc').value = proj.desc;
-    
     if(document.getElementById('proj-folder')) document.getElementById('proj-folder').value = proj.folder || "a";
-
     document.getElementById('proj-year').value = proj.year;
     document.getElementById('proj-location').value = proj.location;
     document.getElementById('proj-contractor').value = proj.contractor;
@@ -408,10 +378,8 @@ function saveProject() {
     const client = document.getElementById('proj-client').value;
     const img = document.getElementById('proj-img').value;
     const desc = document.getElementById('proj-desc').value;
-    
     const folderInput = document.getElementById('proj-folder');
     const folder = folderInput ? folderInput.value.toLowerCase().trim() : "a";
-
     const year = document.getElementById('proj-year').value;
     const location = document.getElementById('proj-location').value;
     const contractor = document.getElementById('proj-contractor').value;
@@ -423,9 +391,7 @@ function saveProject() {
 
     if (currentEditId) {
         const index = projects.findIndex(p => p.id === currentEditId);
-        if (index !== -1) { 
-            projects[index] = { id: currentEditId, title, client: client || "Private Entity", img, desc, folder, year: year || "N/A", location: location || "N/A", contractor: contractor || "N/A", status: status || "N/A" }; 
-        }
+        if (index !== -1) projects[index] = { id: currentEditId, title, client: client || "Private Entity", img, desc, folder, year: year || "N/A", location: location || "N/A", contractor: contractor || "N/A", status: status || "N/A" }; 
         alert("Project Updates Saved to Memory! Ready to Export."); 
         cancelEdit(); 
     } else {
@@ -434,8 +400,7 @@ function saveProject() {
         alert("New Project Published to Memory! Ready to Export.");
         document.querySelectorAll('.form-grid input').forEach(input => input.value = '');
     }
-    saveDatabase(projects); 
-    renderAdminList();
+    saveDatabase(projects); renderAdminList();
 }
 
 function deleteProject(id) {
@@ -463,11 +428,8 @@ window.onload = function() {
     setupPageTransitions();
 
     const currentPath = window.location.pathname.toLowerCase();
-    
     const homeHero = document.getElementById('main-hero');
-    if (homeHero) {
-        homeHero.style.setProperty('background-image', `linear-gradient(to right, rgba(27, 27, 27, 0.95) 0%, rgba(27, 27, 27, 0.7) 45%, transparent 100%), url('${liveSettings.heroImage}')`, 'important');
-    }
+    if (homeHero) homeHero.style.setProperty('background-image', `linear-gradient(to right, rgba(27, 27, 27, 0.95) 0%, rgba(27, 27, 27, 0.7) 45%, transparent 100%), url('${liveSettings.heroImage}')`, 'important');
 
     const subPageHero = document.querySelector('.page-hero');
     if (subPageHero) {
@@ -475,7 +437,6 @@ window.onload = function() {
         if (currentPath.includes('about')) activeBg = liveSettings.aboutImage;
         if (currentPath.includes('services')) activeBg = liveSettings.servicesImage;
         if (currentPath.includes('projects')) activeBg = liveSettings.projectsImage;
-        
         subPageHero.style.setProperty('background', `linear-gradient(rgba(15, 22, 33, 0.8), rgba(15, 22, 33, 0.8)), url('${activeBg}') center/cover no-repeat`, 'important');
     }
     
@@ -484,10 +445,7 @@ window.onload = function() {
     
     if (document.getElementById('home-project-container')) renderHomeProjects();
     if (document.getElementById('portfolio-container')) renderPortfolioProjects();
-    if (document.getElementById('admin-list')) { 
-        renderAdminList(); 
-        loadAdminSettings(); 
-    }
+    if (document.getElementById('admin-list')) { renderAdminList(); loadAdminSettings(); }
 
     initScrollAnimations(); 
     initNumberCounters(); 
@@ -505,13 +463,9 @@ async function downloadUpdatedAppJs() {
         const newBuild = parseInt(versionParts[2]) + 1;
         const newVersion = `${versionParts[0]}.${versionParts[1]}.${newBuild}`;
 
-        const currentProjects = getDatabase();
-        const currentSettings = getSettings();
-        const currentText = getTextContent();
-
-        const projectsString = 'const defaultProjects = ' + JSON.stringify(currentProjects, null, 4) + ';';
-        const settingsString = 'const defaultSettings = ' + JSON.stringify(currentSettings, null, 4) + ';';
-        const textString = 'const defaultSiteContent = ' + JSON.stringify(currentText, null, 4) + ';';
+        const projectsString = 'const defaultProjects = ' + JSON.stringify(getDatabase(), null, 4) + ';';
+        const settingsString = 'const defaultSettings = ' + JSON.stringify(getSettings(), null, 4) + ';';
+        const textString = 'const defaultSiteContent = ' + JSON.stringify(getTextContent(), null, 4) + ';';
 
         code = code.replace(/const defaultProjects = \[[\s\S]*?\];/, projectsString);
         code = code.replace(/const defaultSettings = \{[\s\S]*?\};/, settingsString);
@@ -520,25 +474,15 @@ async function downloadUpdatedAppJs() {
 
         const blob = new Blob([code], { type: 'application/javascript' });
         const url = URL.createObjectURL(blob);
-        
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'app.js';
-        document.body.appendChild(a);
-        a.click();
-        
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        const a = document.createElement('a'); a.href = url; a.download = 'app.js';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
 
         alert(`Success! Version upgraded to v${newVersion}. Check your Downloads folder for the new app.js file.`);
-    } catch (error) {
-        console.error("Export failed:", error);
-        alert("Failed to export. This tool must be run on the live GitHub server or a local server to read the file.");
-    }
+    } catch (error) { alert("Failed to export. This tool must be run on the live GitHub server or a local server."); }
 }
 
 // ==========================================
-// 9. SMART PDF PRESENTATION GENERATOR
+// 9. PROFESSIONAL DESIGN REVIEW PDF GENERATOR
 // ==========================================
 async function generatePresentationPDF() {
     const printContainer = document.createElement('div');
@@ -546,41 +490,51 @@ async function generatePresentationPDF() {
     const pages = ['index.html', 'about.html', 'services.html', 'projects.html'];
 
     const allProjects = getDatabase();
-    let tocProjectsHTML = allProjects.map((p, index) =>
-        `<li style="margin-bottom: 8px;"><strong>4.${index + 1}</strong> ${p.title} <span style="color: var(--text-muted); font-size: 0.95rem;">— ${p.client}</span></li>`
-    ).join('');
+    let tocProjectsHTML = allProjects.map((p, index) => `<li style="margin-bottom: 8px;"><strong>4.${index + 1}</strong> ${p.title}</li>`).join('');
 
+    // Global Print Styles injected for Professional Blueprint look
     let combinedHTML = `
-        <div class="print-page-break" style="padding: 10% 8%; height: 100vh; display: flex; flex-direction: column; justify-content: center;">
-            <h1 style="font-size: 4.5rem; color: var(--text-main); font-weight: 800; text-transform: uppercase; margin-bottom: 10px; line-height: 1;">TAWD DEVELOPMENT</h1>
-            <h2 style="font-size: 1.8rem; color: var(--accent-color); margin-bottom: 40px;">Website Content Review Document</h2>
-            <hr style="border: 2px solid #e2e8f0; margin-bottom: 40px;">
+        <style>
+            @media print {
+                body { background: white !important; }
+                .review-box { border: 2px dashed #FF5722; padding: 25px; margin-bottom: 40px; position: relative; border-radius: 8px; }
+                .review-tag { background: #FF5722; color: white; padding: 6px 14px; position: absolute; top: -16px; left: 20px; font-weight: bold; font-size: 14px; font-family: monospace; border-radius: 4px; text-transform: uppercase; }
+                .annotation { display: inline-flex; align-items: center; background: #FFECB3; color: #E65100; border: 1px solid #FF9800; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-bottom: 15px; }
+                .remarks-box { margin-top: 20px; background: #fafafa; border: 1px solid #ccc; padding: 15px; font-family: monospace; color: #666; min-height: 80px; }
+                .remarks-line { border-bottom: 1px solid #ddd; height: 25px; margin-top: 5px; }
+                .pdf-cover { display: flex; flex-direction: column; justify-content: center; height: 100vh; padding: 10% 8%; }
+                .print-page-break { page-break-after: always; padding: 40px; }
+            }
+        </style>
+        <div class="print-page-break pdf-cover">
+            <div class="annotation">➔ CEO Review Document</div>
+            <h1 style="font-size: 4.5rem; color: #111; font-weight: 900; line-height: 1;">TAWD DEVELOPMENT</h1>
+            <h2 style="font-size: 1.8rem; color: #FF9800; margin-bottom: 40px;">Website Wireframe & Design Audit</h2>
+            <hr style="border: 2px solid #eee; margin-bottom: 40px;">
 
-            <h3 style="font-size: 2.2rem; margin-bottom: 20px; font-weight: 800;">Table of Contents</h3>
-            <ul style="list-style: none; padding: 0; font-size: 1.4rem; line-height: 2;">
-                <li><strong>1. Home Page</strong> <span style="color: var(--text-muted); font-size: 1.1rem;">(Executive Summary)</span></li>
-                <li><strong>2. About Us</strong> <span style="color: var(--text-muted); font-size: 1.1rem;">(Company History & Pillars)</span></li>
-                <li><strong>3. Services</strong> <span style="color: var(--text-muted); font-size: 1.1rem;">(Core Competencies)</span></li>
-                <li><strong>4. Project Portfolio</strong>
-                    <ul style="list-style: none; padding-left: 40px; font-size: 1.2rem; line-height: 1.6; margin-top: 15px;">
-                        ${tocProjectsHTML}
-                    </ul>
-                </li>
-                <li><strong>5. Global Design Elements</strong>
-                    <ul style="list-style: none; padding-left: 40px; font-size: 1.2rem; line-height: 1.6; margin-top: 15px;">
-                        <li><strong>A.</strong> Header / Navigation Area</li>
-                        <li><strong>B.</strong> Contact Us & Bottom Footer</li>
-                    </ul>
-                </li>
-            </ul>
-
-            <div style="margin-top: auto; padding-top: 30px; border-top: 2px solid #e2e8f0; color: var(--text-muted); font-size: 1.1rem;">
-                <strong>TAWD Development W.L.L.</strong> | 📍 Doha, Qatar | ✉️ info@tawd.com | 📞 +974 4444 0000
+            <div class="review-box">
+                <div class="review-tag">Approval Required</div>
+                <p><strong>Instructions:</strong> Please review the generated layouts, text, and data below. Use the attached "Remarks" boxes to write in any requested changes (e.g., "Change background color to #1b1b1b", "Update font size", etc.)</p>
+                <div class="remarks-box">
+                    <strong>General Notes / Executive Remarks:</strong>
+                    <div class="remarks-line"></div>
+                    <div class="remarks-line"></div>
+                    <div class="remarks-line"></div>
+                </div>
             </div>
+
+            <h3 style="font-size: 2.2rem; margin-bottom: 20px;">Table of Contents</h3>
+            <ul style="list-style: none; padding: 0; font-size: 1.4rem; line-height: 2;">
+                <li><strong>1. Home Page</strong></li>
+                <li><strong>2. About Us</strong></li>
+                <li><strong>3. Services</strong></li>
+                <li><strong>4. Project Portfolio</strong></li>
+                <li><strong>5. Global Master Components</strong></li>
+            </ul>
         </div>
     `;
 
-    alert("Compiling presentation with live data... Please wait a moment.");
+    alert("Compiling Blueprint PDF... Please wait a moment.");
 
     let sharedNavHTML = "";
     let sharedContactHTML = "";
@@ -626,13 +580,7 @@ async function generatePresentationPDF() {
             if (!sharedNavHTML) {
                 const navElement = virtualDoc.querySelector('nav');
                 if (navElement) {
-                    navElement.className = ''; 
-                    navElement.style.position = 'relative';
-                    navElement.style.backgroundColor = '#1b1b1b';
-                    navElement.style.padding = '20px 5%';
-                    navElement.style.display = 'flex';
-                    navElement.style.justifyContent = 'space-between';
-                    navElement.style.alignItems = 'center';
+                    navElement.className = ''; navElement.style.cssText = 'background:#1b1b1b; padding:20px 5%; display:flex; justify-content:space-between; align-items:center;';
                     sharedNavHTML = navElement.outerHTML;
                 }
             }
@@ -656,7 +604,7 @@ async function generatePresentationPDF() {
                 homeContainer.innerHTML = topProjects.map(proj => `
                     <div style="background: url('${proj.img}') center/cover; position: relative; height: 350px; border-radius: 8px; break-inside: avoid; margin-bottom: 20px;">
                         <div style="position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); padding: 30px 20px 20px 20px; border-radius: 0 0 8px 8px;">
-                            <p style="color: var(--accent-color); margin:0; font-weight: bold; font-size: 0.85rem; text-transform: uppercase;">${proj.client}</p>
+                            <p style="color: #FF9800; margin:0; font-weight: bold; font-size: 0.85rem; text-transform: uppercase;">${proj.client}</p>
                             <h3 style="margin:0; font-size: 1.5rem; color: white;">${proj.title}</h3>
                         </div>
                     </div>
@@ -665,29 +613,24 @@ async function generatePresentationPDF() {
 
             const portfolioContainer = virtualDoc.getElementById('portfolio-container');
             if (portfolioContainer) {
-                portfolioContainer.style.columnCount = '1';
-                portfolioContainer.style.display = 'grid';
-                portfolioContainer.style.gridTemplateColumns = '1fr 1fr';
-                portfolioContainer.style.gap = '40px';
-
+                portfolioContainer.style.display = 'grid'; portfolioContainer.style.gridTemplateColumns = '1fr 1fr'; portfolioContainer.style.gap = '40px';
                 portfolioContainer.innerHTML = allProjects.map(proj => {
                     const urls = getProjectImages(proj.folder);
                     const thumbnailsHTML = urls.map(u => `<img src="${u}" onerror="this.remove()" style="width:60px; height:60px; object-fit:cover; border-radius:4px; margin-right:8px;">`).join('');
 
                     return `
-                    <div style="break-inside: avoid; padding-bottom: 20px;">
+                    <div class="review-box" style="break-inside: avoid;">
+                        <div class="review-tag">Component: Project Card</div>
                         <img src="${proj.img}" style="width: 100%; height: 250px; object-fit: cover; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.1);">
                         <div style="margin-bottom: 15px; display: flex;">${thumbnailsHTML}</div>
-                        <p style="color: var(--accent-color); font-weight: bold; font-size: 0.8rem; margin-bottom: 5px; text-transform: uppercase;">${proj.client}</p>
-                        <h3 style="font-size: 1.6rem; margin-bottom: 10px; color: var(--text-main); font-weight: 800; line-height: 1.1;">${proj.title}</h3>
-                        <p style="color: var(--text-muted); font-size: 1rem; line-height: 1.5;">${proj.desc}</p>
-                        
-                        <div style="margin-top: 15px; font-size: 0.9rem; color: #475569; background: #f8fafc; padding: 15px; border-radius: 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border-left: 4px solid #FF9800;">
-                            <div><strong>Year:</strong> ${proj.year}</div>
-                            <div><strong>Status:</strong> ${proj.status}</div>
-                            <div><strong>Contractor:</strong> ${proj.contractor}</div>
-                            <div><strong>Location:</strong> ${proj.location}</div>
+                        <p style="color: #FF9800; font-weight: bold; font-size: 0.8rem; margin-bottom: 5px; text-transform: uppercase;">${proj.client}</p>
+                        <h3 style="font-size: 1.6rem; margin-bottom: 10px; color: #111; font-weight: 800;">${proj.title}</h3>
+                        <p style="color: #666; font-size: 1rem; line-height: 1.5;">${proj.desc}</p>
+                        <div style="margin-top: 15px; font-size: 0.9rem; background: #f8fafc; padding: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border-left: 4px solid #FF9800;">
+                            <div><strong>Year:</strong> ${proj.year}</div><div><strong>Status:</strong> ${proj.status}</div>
+                            <div><strong>Contractor:</strong> ${proj.contractor}</div><div><strong>Location:</strong> ${proj.location}</div>
                         </div>
+                        <div class="remarks-box">Remarks: <div class="remarks-line"></div></div>
                     </div>
                 `}).join('');
             }
@@ -695,32 +638,40 @@ async function generatePresentationPDF() {
             const pageName = page.replace('.html', '').toUpperCase();
             combinedHTML += `
                 <div class="print-page-break">
-                    <div style="background: #f8fafc; padding: 15px 30px; border-left: 6px solid var(--accent-color); margin: 40px 5%; font-size: 1.5rem; color: var(--text-main); font-weight: 800;">
-                        SECTION // ${pageName}
+                    <div class="review-box" style="background:#fdfdfd; margin-top:20px;">
+                        <div class="review-tag">Page Render: ${pageName}</div>
+                        <div class="annotation">➔ Background Image: Set via Admin Control</div>
+                        <div class="annotation">➔ Main Text Color: #1f2937 (Change: _______)</div>
+                        ${virtualDoc.body.innerHTML}
+                        <div class="remarks-box"><strong>Page Specific Remarks:</strong><div class="remarks-line"></div><div class="remarks-line"></div></div>
                     </div>
-                    ${virtualDoc.body.innerHTML}
                 </div>
             `;
-        } catch (error) {
-            console.error("Error fetching " + page, error);
-        }
+        } catch (error) { console.error("Error fetching " + page, error); }
     }
 
     combinedHTML += `
         <div class="print-page-break">
-            <div style="background: #f8fafc; padding: 15px 30px; border-left: 6px solid var(--accent-color); margin: 40px 5%; font-size: 1.5rem; color: var(--text-main); font-weight: 800;">
-                SECTION // 5. GLOBAL DESIGN ELEMENTS
-            </div>
+            <h2 style="font-size: 2rem; border-bottom: 2px solid #ccc; padding-bottom: 10px; margin-bottom: 30px;">5. Global Master Components</h2>
             
-            <div style="margin: 0 5%; border: 2px dashed #cbd5e1; margin-bottom: 40px;">
-                <h4 style="background: #e2e8f0; margin: 0; padding: 10px 20px; font-size: 1.1rem; color: var(--text-main);">A. Header & Navigation Area</h4>
+            <div class="review-box">
+                <div class="review-tag">Component: Top Navigation</div>
+                <div class="annotation">➔ Background Color: #1b1b1b (Change to: _______)</div>
                 ${sharedNavHTML}
+                <div class="remarks-box">Remarks:<div class="remarks-line"></div></div>
             </div>
 
-            <div style="margin: 0 5%; border: 2px dashed #cbd5e1;">
-                <h4 style="background: #e2e8f0; margin: 0; padding: 10px 20px; font-size: 1.1rem; color: var(--text-main);">B. Contact Us & Bottom Footer</h4>
+            <div class="review-box">
+                <div class="review-tag">Component: Contact Banner</div>
+                <div class="annotation">➔ Button Color: Primary Orange #FF9800 (Change to: _______)</div>
                 ${sharedContactHTML}
+                <div class="remarks-box">Remarks:<div class="remarks-line"></div></div>
+            </div>
+
+            <div class="review-box">
+                <div class="review-tag">Component: Master Footer</div>
                 ${sharedFooterHTML}
+                <div class="remarks-box">Remarks:<div class="remarks-line"></div></div>
             </div>
         </div>
     `;
@@ -741,25 +692,17 @@ function setupPageTransitions() {
     const overlay = document.createElement('div');
     overlay.className = 'page-transition-overlay';
     document.body.appendChild(overlay);
-
-    setTimeout(() => {
-        overlay.classList.add('reveal-page');
-    }, 50);
+    setTimeout(() => { overlay.classList.add('reveal-page'); }, 50);
 
     document.querySelectorAll('a').forEach(link => {
         link.addEventListener('click', function(e) {
             const href = this.getAttribute('href');
-            
             if (href && href.endsWith('.html') && this.target !== '_blank') {
                 e.preventDefault(); 
                 overlay.classList.remove('reveal-page');
-                
-                setTimeout(() => {
-                    window.location.href = href;
-                }, 500);
+                setTimeout(() => { window.location.href = href; }, 500);
             }
         });
     });
 }
-
 setupPageTransitions();
