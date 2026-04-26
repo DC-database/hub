@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAWD Admin - Project Management</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%23FF9800%22/><text x=%2250%%22 y=%2255%%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2270%22 font-family=%22Arial%22 font-weight=%22bold%22 fill=%22white%22>T</text></svg>">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body style="background-color: var(--page-bg-color); background-image: none;">
+    <nav class="navbar" style="background: rgba(15, 22, 33, 0.98);">
+        <div class="logo">
+            TAWD <span>ADMIN</span> 
+            <span id="app-version-display" style="font-size: 0.7rem; color: #94a3b8; vertical-align: middle; margin-left: 10px; border: 1px solid #334155; padding: 2px 6px; border-radius: 4px;">v1.1.9</span>
+        </div>
+        <a href="index.html" class="btn-primary">← View Live Portfolio</a>
+    </nav>
+
+    <div class="admin-layout">
+        <div class="admin-left-col">
+            
+            <div class="admin-panel" style="margin-bottom: 30px;">
+                <h2>Page Banner Images</h2>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">Paste image URLs here to change the large background images at the top of each page.</p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                    <div class="form-group"><label>Home Hero Banner</label><input type="text" id="site-hero-img" placeholder=".../Main.jpg"></div>
+                    <div class="form-group"><label>About Page Banner</label><input type="text" id="site-about-img" placeholder=".../About.jpg"></div>
+                    <div class="form-group"><label>Services Page Banner</label><input type="text" id="site-services-img" placeholder=".../Services.jpg"></div>
+                    <div class="form-group"><label>Projects Page Banner</label><input type="text" id="site-projects-img" placeholder=".../Projects.jpg"></div>
+                </div>
+                <button class="btn-primary" onclick="saveSiteSettings()">Update All Banners</button>
+            </div>
+
+            <div class="admin-panel" style="margin-bottom: 30px;">
+                <h2>Global Text Content</h2>
+                <h3 style="font-size: 0.9rem; color: var(--accent-color); margin-bottom: 10px; margin-top: 20px; text-transform: uppercase;">1. Brand & Footer</h3>
+                <div class="form-row" style="margin-bottom: 15px;">
+                    <div class="form-group"><label>Logo Part 1 (White)</label><input type="text" id="text-logo-1"></div>
+                    <div class="form-group"><label>Logo Part 2 (Color)</label><input type="text" id="text-logo-2"></div>
+                </div>
+                <div class="form-group"><label>Footer Copyright Text</label><input type="text" id="text-copyright"></div>
+                
+                <div class="form-row">
+                    <div class="form-group"><label>Address</label><input type="text" id="text-address"></div>
+                    <div class="form-group"><label>Email</label><input type="text" id="text-email"></div>
+                    <div class="form-group"><label>Phone</label><input type="text" id="text-phone"></div>
+                </div>
+
+                <h3 style="font-size: 0.9rem; color: var(--accent-color); margin-bottom: 10px; margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 20px; text-transform: uppercase;">2. Global Contact Banner</h3>
+                <div class="form-group"><label>Large Heading (Use &lt;br&gt; for new line)</label><input type="text" id="text-contact-heading"></div>
+                <div class="form-group"><label>Subtext Description</label><input type="text" id="text-contact-sub"></div>
+                <div class="form-group"><label>Submit Button Text</label><input type="text" id="text-contact-btn"></div>
+                <button class="btn-primary" onclick="saveTextContent()" style="margin-top: 20px;">Update Website Text</button>
+            </div>
+
+            <div class="admin-panel">
+                <h2 id="form-title">Log New Project</h2>
+                <div class="form-grid">
+                    <div class="form-group"><label>Project Title</label><input type="text" id="proj-title"></div>
+                    <div class="form-group"><label>Client Name</label><input type="text" id="proj-client"></div>
+                    
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label>Main Image URL (Shows on Grid and Left Side of Popup)</label>
+                        <input type="text" id="proj-img" placeholder="e.g., .../Construction-1.jpg">
+                    </div>
+
+                    <div class="form-group" style="grid-column: 1 / -1;"><label>Description</label><input type="text" id="proj-desc"></div>
+                    
+                    <div class="form-group" style="grid-column: 1 / -1; background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #cbd5e1;">
+                        <label style="color: var(--text-main); font-weight: bold; text-transform: uppercase; font-size: 0.85rem; margin-bottom: 10px;">Gallery Thumbnail Identifier (a, b, c...)</label>
+                        <input type="text" id="proj-folder" maxlength="1" style="width: 80px; text-transform: lowercase; font-weight: bold; text-align: center; font-size: 1.2rem; padding: 10px; margin-bottom: 10px;" placeholder="a">
+                        <small style="color: var(--text-muted); display: block; line-height: 1.6;">
+                            The system will search GitHub for up to 4 square thumbnails:<br>
+                            <strong>.../thumb/pa1.jpg</strong> through <strong>.../thumb/pa4.jpg</strong><br>
+                            If it only finds 2 photos, it automatically adjusts to show just 2!
+                        </small>
+                    </div>
+                    
+                    <div style="grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                        <div><label>Project Year</label><input type="text" id="proj-year" placeholder="e.g., 2026"></div>
+                        <div><label>Location</label><input type="text" id="proj-location" placeholder="e.g., Doha"></div>
+                        <div><label>Contractor</label><input type="text" id="proj-contractor" placeholder="e.g., TAWD"></div>
+                        <div><label>Status</label><input type="text" id="proj-status" placeholder="e.g., Completed"></div>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 15px; margin-top: 20px;">
+                    <button id="submit-btn" class="btn-primary" onclick="saveProject()" style="flex: 1; padding: 14px;">Publish to Portfolio</button>
+                    <button id="cancel-edit-btn" class="btn-danger" onclick="cancelEdit()" style="display: none; padding: 14px; background: #94a3b8;">Cancel Edit</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="admin-inventory">
+            <h2>Current Projects</h2>
+            <div id="admin-list" class="inventory-list"></div>
+            
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+                <button class="btn-primary" onclick="generatePresentationPDF()" style="width: 100%; padding: 12px; background: #3b82f6; margin-bottom: 10px;">📄 Generate Presentation PDF</button>
+                <button class="btn-primary" onclick="downloadUpdatedAppJs()" style="width: 100%; padding: 12px; background: #10b981; margin-bottom: 10px;">Download Updated app.js</button>
+                <button class="btn-danger" onclick="clearDatabase()" style="width: 100%; padding: 12px; background: #ef4444;">Wipe Session Edits</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

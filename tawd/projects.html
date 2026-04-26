@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAWD Development | Projects</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%23FF9800%22/><text x=%2250%%22 y=%2255%%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2270%22 font-family=%22Arial%22 font-weight=%22bold%22 fill=%22white%22>T</text></svg>">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo"></div>
+        <div class="nav-links">
+            <a href="index.html">Home</a>
+            <a href="about.html">About</a>
+            <a href="services.html">Services</a>
+            <a href="projects.html">Projects</a>
+            <a href="#contact">Contact</a>
+        </div>
+    </nav>
+
+    <section class="page-hero">
+        <h1>Project Portfolio</h1>
+        <p>A showcase of our engineering and construction mastery.</p>
+    </section>
+
+    <div id="portfolio-container" class="masonry-container"></div>
+
+    <section id="contact" class="contact-banner reveal">
+        <div class="contact-banner-content">
+            <div class="contact-banner-text">
+                <h2 class="inject-contact-heading"></h2>
+                <p class="inject-contact-sub"></p>
+            </div>
+            <div class="contact-banner-form">
+                <h3>Contact Us</h3>
+                <input type="text" placeholder="Name">
+                <input type="email" placeholder="Email">
+                <textarea rows="4" placeholder="Message"></textarea>
+                <button class="btn-primary inject-contact-btn" style="width: 100%;"></button>
+            </div>
+        </div>
+    </section>
+
+    <footer class="main-footer">
+        <div class="footer-grid">
+            <div class="footer-col brand-col">
+                <div class="logo"></div>
+                <p>Setting the standard for quality construction and engineering excellence.</p>
+                <span class="copyright"></span>
+            </div>
+            <div class="footer-col">
+                <h4>Quick Links</h4>
+                <a href="index.html">Home</a>
+                <a href="about.html">About Us</a>
+                <a href="services.html">Our Services</a>
+                <a href="projects.html">Portfolio</a>
+            </div>
+            <div class="footer-col">
+                <h4>Contact Info</h4>
+                <a href="#">Support Center</a>
+                <a href="#">Careers</a>
+            </div>
+        </div>
+        <div class="footer-info-bar">
+            <div class="footer-info-item"></div>
+            <div class="footer-info-item"></div>
+            <div class="footer-info-item"></div>
+        </div>
+    </footer>
+
+    <div id="project-detail-view" class="detail-overlay">
+        <div class="detail-close" onclick="closeDetailView()">✕ Close Project</div>
+        <div class="detail-layout">
+            
+            <div class="detail-image-block" id="detail-img"></div>
+            
+            <div class="detail-content-block">
+                
+                <div id="thumb-container" style="display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;"></div>
+
+                <span class="project-client" id="detail-client"></span>
+                <h2 class="project-title" id="detail-title"></h2>
+                <p class="project-desc" id="detail-desc"></p>
+                
+                <div class="infogram-stats" style="grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="stat-box"><span class="stat-label">Project Year</span><span class="stat-value" id="detail-year"></span></div>
+                    <div class="stat-box"><span class="stat-label">Location</span><span class="stat-value" id="detail-location"></span></div>
+                    <div class="stat-box"><span class="stat-label">Contractor</span><span class="stat-value" id="detail-contractor"></span></div>
+                    <div class="stat-box"><span class="stat-label">Status</span><span class="stat-value" id="detail-status"></span></div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div id="lightbox-view" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15, 22, 33, 0.4); backdrop-filter:blur(15px); -webkit-backdrop-filter:blur(15px); z-index:99999; justify-content:space-between; align-items:center;">
+        <div onclick="prevLightboxImage()" style="color:white; font-size:60px; padding:30px; cursor:pointer; user-select:none; z-index: 100000; text-shadow: 0 4px 10px rgba(0,0,0,0.5);">&#10094;</div>
+        <img id="lightbox-img" src="" style="max-width:70%; max-height:85%; border-radius:12px; box-shadow:0 20px 50px rgba(0,0,0,0.4); object-fit: contain;">
+        <div onclick="nextLightboxImage()" style="color:white; font-size:60px; padding:30px; cursor:pointer; user-select:none; z-index: 100000; text-shadow: 0 4px 10px rgba(0,0,0,0.5);">&#10095;</div>
+        <span style="position:absolute; top:30px; right:30px; color:white; font-size:40px; cursor:pointer; font-weight:bold; text-shadow: 0 4px 10px rgba(0,0,0,0.5);" onclick="closeLightbox()">✕</span>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
