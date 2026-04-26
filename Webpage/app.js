@@ -1,7 +1,7 @@
 // ==========================================
 // 1. DATABASE CONFIGURATION (STATELESS SSG)
 // ==========================================
-const APP_VERSION = "1.1.6"; // AUTO-UPDATES ON EXPORT
+const APP_VERSION = "1.1.9"; // AUTO-UPDATES ON EXPORT
 let currentEditId = null;
 
 const BASE_URL = 'https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/';
@@ -19,115 +19,28 @@ const defaultSiteContent = {
     "contactBtn": "Send Message"
 };
 
+// THE ABSOLUTE SOURCE OF TRUTH FOR BANNERS
 const defaultSettings = {
-    "heroImage": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Main.jpg"
+    "heroImage": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Main.jpg",
+    "aboutImage": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-2.jpg",
+    "servicesImage": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-3.jpg",
+    "projectsImage": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-1.jpg"
 };
 
-// THE ABSOLUTE SOURCE OF TRUTH FOR PROJECTS
+// THE ORIGINAL STRUCTURE + NEW DETAILS (Year, Location, Contractor, Status)
 const defaultProjects = [
-    {
-        "id": 1,
-        "title": "Leqtaifiya Palace",
-        "client": "IBA",
-        "desc": "Dafna Palace construction is an exceptional architectural design innovation. Featuring unique, cutting-edge, & historically significant styles. Its unique and luxurious design is making big impact on its surroundings, elevating the value and desirability of nearby properties. Its contribute to the development of an entire neighborhood or district, attracting other luxury developments, businesses, and amenities. Its construcion features smart building systems, sustainable materials, with its environmentally friendly designs that enhance their status as modern, forward-thinking structures. Dafna Palace is a hallmark of luxury, exclusivity, and architectural excellence.",
-        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-1.jpg",
-        "budget": "120M QR",
-        "duration": "36 Months",
-        "area": "450k SQFT"
-    },
-    {
-        "id": 2,
-        "title": "Marina Tower 16",
-        "client": "IBA",
-        "desc": "In the middle of a thriving city, Residential Tower 16 unfolds modern-contemporary residences in Lusail Marina’s urban oasis. An integrated locale places homes at the center of it all – Paramount connectivity to the grand spaces of Lusail’s Medical & Education district and proximity to premier lifestyle destinations in Entertainment city.  Marina R-16 is our latest tower in Lusail city. The new 121 Modern residential units are designed to enjoy benefits of natural light, generously sized bathrooms & wide-open sea views.",
-        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-2.jpg",
-        "budget": "85M QR",
-        "duration": "18 Months",
-        "area": "2.4 Miles"
-    },
-    {
-        "id": 3,
-        "title": "Lusail Twin Towers",
-        "client": "IBA",
-        "desc": "Lusail Twin Towers RES17 & RES19 are the premier residential towers in Lusail City. They are the first residential project to be completed and the first to be occupied in Lusail’s exclusive Marina district. The modern towers design house 158 apartments in each building that sits overlooking the Marina which views the Pearl Qatar and City of Doha. It the most desirable place to live in Lusail.",
-        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-3.jpg",
-        "budget": "40M QR",
-        "duration": "24 Months",
-        "area": "120k SQFT"
-    },
-    {
-        "id": 4,
-        "title": "Fox Hills K06 & K14",
-        "client": "IBA",
-        "desc": "Designed to accommodate people for living purposes. Includes living area such as kitchens, bedrooms, bathrooms and private outdoor spaces like gardens & patios. Designed for comport, privacy and personal use.",
-        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-4.jpg",
-        "budget": "65M QR",
-        "duration": "12 Months",
-        "area": "90k SQFT"
-    },
-    {
-        "id": 5,
-        "title": "Al Arqam Academy Schools",
-        "client": "IBA",
-        "desc": "Al Arqam Academy is situated on the main road in Abu Hamour. The all-girls school has become a sought-out school for many parents. The school houses all grades from kindergarten all the way to high school. The school amenities include a swimming pool, gymnasium, outdoor play area along with so much more.",
-        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-5.jpg",
-        "budget": "210M QR",
-        "duration": "48 Months",
-        "area": "800k SQFT"
-    },
-    {
-        "id": 6,
-        "title": "Al Dana Tower",
-        "client": "IBA",
-        "desc": "The 16 story tower in Al Dafna was one of the first towers to be built in West Bay in the Year 2000. IBA takes pride in being one of the first to build towers in the area and this accomplishment propelled us into other endeavors.",
-        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-6.jpg",
-        "budget": "25M QR",
-        "duration": "18 Months",
-        "area": "60k SQFT"
-    },
-    {
-        "id": 7,
-        "title": "Concorde Hotel",
-        "client": "IBA Group",
-        "desc": "Concorde Hotel Doha is a Five Stars hotel that offers a unique line of products and services. From the carefully appointed bedrooms, contemporary restaurants geared to offering superior experience, superbly appointed conference halls, to a state-of-the-art gymnasium attached with massage room to indulge in, matched with our unwavering commitment and attitude of everyone who works for us. Concorde Hotel Doha stands elegantly in the heart of the city. A heaven of hospitality in the gulf and the preferred venue for prestigious international conferences in Doha, Concorde Hotel Doha is committed to deliver superior experience every time you visit us.",
-        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-7.jpg",
-        "budget": "150M QR",
-        "duration": "36 Months",
-        "area": "350k SQFT"
-    },
-    {
-        "id": 8,
-        "title": "Sustainable Office Tower",
-        "client": "Eco-Hub Real Estate",
-        "desc": "Leed-certified office space designed for energy efficiency and modern workstyles.",
-        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-8.jpg",
-        "budget": "95M QR",
-        "duration": "24 Months",
-        "area": "180k SQFT"
-    },
-    {
-        "id": 9,
-        "title": "Intermodal Freight Terminal",
-        "client": "Logistics United",
-        "desc": "A critical logistics hub integrating rail, road, and sea transport.",
-        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-9.jpg",
-        "budget": "70M QR",
-        "duration": "30 Months",
-        "area": "1.2M SQFT"
-    },
-    {
-        "id": 10,
-        "title": "Community Hospital Wing",
-        "client": "City Health Services",
-        "desc": "New state-of-the-art wing focused on outpatient care and medical research.",
-        "img": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-10.jpg",
-        "budget": "110M QR",
-        "duration": "36 Months",
-        "area": "220k SQFT"
-    }
+    { "id": 1, "title": "Leqtaifiya Palace", "client": "IBA", "desc": "Dafna Palace construction is an exceptional architectural design innovation. Featuring unique, cutting-edge, & historically significant styles. Its unique and luxurious design is making big impact on its surroundings, elevating the value and desirability of nearby properties. Its contribute to the development of an entire neighborhood or district, attracting other luxury developments, businesses, and amenities. Its construcion features smart building systems, sustainable materials, with its environmentally friendly designs that enhance their status as modern, forward-thinking structures. Dafna Palace is a hallmark of luxury, exclusivity, and architectural excellence.", "img": BASE_URL + "Construction-1.jpg", "folder": "a", "year": "2024", "location": "Dafna", "contractor": "TAWD Development", "status": "Completed" },
+    { "id": 2, "title": "Marina Tower 16", "client": "IBA", "desc": "In the middle of a thriving city, Residential Tower 16 unfolds modern-contemporary residences in Lusail Marina’s urban oasis. An integrated locale places homes at the center of it all – Paramount connectivity to the grand spaces of Lusail’s Medical & Education district and proximity to premier lifestyle destinations in Entertainment city.  Marina R-16 is our latest tower in Lusail city. The new 121 Modern residential units are designed to enjoy benefits of natural light, generously sized bathrooms & wide-open sea views.", "img": BASE_URL + "Construction-2.jpg", "folder": "b", "year": "2025", "location": "Lusail Marina", "contractor": "TAWD Development", "status": "In Progress" },
+    { "id": 3, "title": "Lusail Twin Towers", "client": "IBA", "desc": "Lusail Twin Towers RES17 & RES19 are the premier residential towers in Lusail City. They are the first residential project to be completed and the first to be occupied in Lusail’s exclusive Marina district. The modern towers design house 158 apartments in each building that sits overlooking the Marina which views the Pearl Qatar and City of Doha. It the most desirable place to live in Lusail.", "img": BASE_URL + "Construction-3.jpg", "folder": "c", "year": "2023", "location": "Lusail City", "contractor": "TAWD Development", "status": "Completed" },
+    { "id": 4, "title": "Fox Hills K06 & K14", "client": "IBA", "desc": "Designed to accommodate people for living purposes. Includes living area such as kitchens, bedrooms, bathrooms and private outdoor spaces like gardens & patios. Designed for comport, privacy and personal use.", "img": BASE_URL + "Construction-4.jpg", "folder": "d", "year": "2022", "location": "Fox Hills", "contractor": "TAWD Development", "status": "Completed" },
+    { "id": 5, "title": "Al Arqam Academy Schools", "client": "IBA", "desc": "Al Arqam Academy is situated on the main road in Abu Hamour. The all-girls school has become a sought-out school for many parents. The school houses all grades from kindergarten all the way to high school. The school amenities include a swimming pool, gymnasium, outdoor play area along with so much more.", "img": BASE_URL + "Construction-5.jpg", "folder": "e", "year": "2024", "location": "Abu Hamour", "contractor": "TAWD Development", "status": "Completed" },
+    { "id": 6, "title": "Al Dana Tower", "client": "IBA", "desc": "The 16 story tower in Al Dafna was one of the first towers to be built in West Bay in the Year 2000. IBA takes pride in being one of the first to build towers in the area and this accomplishment propelled us into other endeavors.", "img": BASE_URL + "Construction-6.jpg", "folder": "f", "year": "2000", "location": "Al Dafna", "contractor": "TAWD Development", "status": "Completed" },
+    { "id": 7, "title": "Concorde Hotel", "client": "IBA Group", "desc": "Concorde Hotel Doha is a Five Stars hotel that offers a unique line of products and services. From the carefully appointed bedrooms, contemporary restaurants geared to offering superior experience, superbly appointed conference halls, to a state-of-the-art gymnasium attached with massage room to indulge in, matched with our unwavering commitment and attitude of everyone who works for us. Concorde Hotel Doha stands elegantly in the heart of the city. A heaven of hospitality in the gulf and the preferred venue for prestigious international conferences in Doha, Concorde Hotel Doha is committed to deliver superior experience every time you visit us.", "img": BASE_URL + "Construction-7.jpg", "folder": "g", "year": "2015", "location": "Doha City Center", "contractor": "TAWD Development", "status": "Completed" },
+    { "id": 8, "title": "Sustainable Office Tower", "client": "Eco-Hub Real Estate", "desc": "Leed-certified office space designed for energy efficiency and modern workstyles.", "img": BASE_URL + "Construction-8.jpg", "folder": "h", "year": "2026", "location": "Lusail", "contractor": "TAWD Development", "status": "Planning" },
+    { "id": 9, "title": "Intermodal Freight Terminal", "client": "Logistics United", "desc": "A critical logistics hub integrating rail, road, and sea transport.", "img": BASE_URL + "Construction-9.jpg", "folder": "i", "year": "2025", "location": "Mesaieed", "contractor": "TAWD Development", "status": "In Progress" },
+    { "id": 10, "title": "Community Hospital Wing", "client": "City Health Services", "desc": "New state-of-the-art wing focused on outpatient care and medical research.", "img": BASE_URL + "Construction-10.jpg", "folder": "j", "year": "2024", "location": "Al Wakra", "contractor": "TAWD Development", "status": "Completed" }
 ];
 
-// IN-MEMORY DATABASE
 let liveProjects = JSON.parse(JSON.stringify(defaultProjects));
 let liveSettings = JSON.parse(JSON.stringify(defaultSettings));
 let liveTextContent = JSON.parse(JSON.stringify(defaultSiteContent));
@@ -139,21 +52,29 @@ function saveSettings(settings) { liveSettings = settings; }
 function getTextContent() { return liveTextContent; }
 
 // ==========================================
-// 2. PUBLIC PAGE RENDERING LOGIC (STATIC BYPASS)
+// 2. THE "SMART" IMAGE ROUTER
 // ==========================================
+function getProjectImages(folderLetter) {
+    let urls = [];
+    const safeLetter = (folderLetter || "a").toLowerCase().trim();
+    for (let i = 1; i <= 4; i++) {
+        urls.push(`${BASE_URL}thumb/p${safeLetter}${i}.jpg`);
+    }
+    return urls;
+}
 
-// Auto-Inject Text into HTML globally
+// ==========================================
+// 3. PUBLIC PAGE RENDERING LOGIC
+// ==========================================
 function renderGlobalText() {
     const textData = getTextContent();
     
-    // Update Logos
     document.querySelectorAll('.logo').forEach(logo => {
         if(!logo.innerHTML.includes('ADMIN')) {
             logo.innerHTML = `${textData.logoPart1} <span>${textData.logoPart2}</span>`;
         }
     });
 
-    // Update Footer Copyright & Info
     const copyEl = document.querySelector('.copyright');
     if(copyEl) copyEl.innerText = textData.copyright;
 
@@ -164,7 +85,6 @@ function renderGlobalText() {
         infoItems[2].innerHTML = `<span class="icon">📞</span> ${textData.phone}`;
     }
 
-    // Update Contact Banner
     const contactHeading = document.querySelector('.inject-contact-heading');
     if (contactHeading) contactHeading.innerHTML = textData.contactHeading;
     
@@ -176,7 +96,7 @@ function renderGlobalText() {
 }
 
 function renderHomeProjects() {
-    const projects = defaultProjects.slice(0, 3); 
+    const projects = liveProjects.slice(0, 3); 
     const container = document.getElementById('home-project-container');
     if (!container) return; 
     container.innerHTML = ''; 
@@ -193,14 +113,14 @@ function renderHomeProjects() {
 }
 
 function renderPortfolioProjects() {
-    const projects = defaultProjects;
+    const projects = liveProjects;
     const container = document.getElementById('portfolio-container');
     if (!container) return; 
     container.innerHTML = ''; 
     projects.forEach(proj => {
         const blockHTML = `
             <div class="project-card reveal" onclick="openDetailView(${proj.id})">
-                <img src="${proj.img}" alt="${proj.title}" class="project-image">
+                <img src="${proj.img}" alt="${proj.title}" class="project-image" onerror="this.src='https://via.placeholder.com/600x400?text=Photo+Missing'">
                 <div class="project-info">
                     <h3 class="project-title">${proj.title}</h3>
                     <p class="project-desc">${proj.desc}</p>
@@ -218,16 +138,90 @@ function initScrollAnimations() {
     reveals.forEach(reveal => observer.observe(reveal));
 }
 
+// ==========================================
+// 4. ANIMATED NUMBER COUNTER (NEW)
+// ==========================================
+function initNumberCounters() {
+    const counters = document.querySelectorAll('.count-up');
+    if (counters.length === 0) return;
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const el = entry.target;
+                const target = parseInt(el.getAttribute('data-target'));
+                const duration = 2000; // 2 seconds
+                let startTime = null;
+
+                function step(currentTime) {
+                    if (!startTime) startTime = currentTime;
+                    const progress = Math.min((currentTime - startTime) / duration, 1);
+                    el.innerText = Math.floor(progress * target);
+                    if (progress < 1) {
+                        window.requestAnimationFrame(step);
+                    } else {
+                        el.innerText = target; // Ensure exact finish
+                    }
+                }
+                window.requestAnimationFrame(step);
+                observer.unobserve(el); // Only run once
+            }
+        });
+    }, { threshold: 0.5 });
+
+    counters.forEach(counter => {
+        counter.innerText = '0'; // Start at 0 visually before animation kicks in
+        observer.observe(counter);
+    });
+}
+
+// ==========================================
+// 5. SMART SQUARE GALLERY & LIGHTBOX SLIDER
+// ==========================================
+let currentLightboxImages = [];
+let currentLightboxIndex = 0;
+
 function openDetailView(projectId) {
-    const proj = defaultProjects.find(p => p.id === projectId);
+    const proj = liveProjects.find(p => p.id === projectId);
     if(!proj) return;
-    document.getElementById('detail-img').style.background = `url('${proj.img}') no-repeat center center / cover`;
+
+    const oldMainImg = document.getElementById('detail-img');
+    if (oldMainImg) {
+        oldMainImg.style.background = `url('${proj.img}') no-repeat center center / cover`;
+    }
+
+    const thumbContainer = document.getElementById('thumb-container');
+    if(thumbContainer) {
+        thumbContainer.innerHTML = '';
+        const urls = getProjectImages(proj.folder); 
+        
+        urls.forEach((url) => {
+            const t = document.createElement('img');
+            t.src = url;
+            
+            t.onerror = function() { this.remove(); };
+
+            t.style = "aspect-ratio: 1 / 1; flex: 1; max-width: 100px; min-width: 80px; object-fit: cover; border-radius: 8px; cursor: zoom-in; transition: 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.2); border: 2px solid transparent;";
+            t.onmouseover = () => t.style.borderColor = "#FF9800";
+            t.onmouseout = () => t.style.borderColor = "transparent";
+            
+            t.onclick = (e) => {
+                e.stopPropagation();
+                openLightboxWithImage(url);
+            };
+            thumbContainer.appendChild(t);
+        });
+    }
+
     document.getElementById('detail-client').innerText = `CLIENT // ${proj.client}`;
     document.getElementById('detail-title').innerText = proj.title;
     document.getElementById('detail-desc').innerText = proj.desc;
-    document.getElementById('detail-budget').innerText = proj.budget;
-    document.getElementById('detail-duration').innerText = proj.duration;
-    document.getElementById('detail-area').innerText = proj.area;
+    
+    if(document.getElementById('detail-year')) document.getElementById('detail-year').innerText = proj.year || "N/A";
+    if(document.getElementById('detail-location')) document.getElementById('detail-location').innerText = proj.location || "N/A";
+    if(document.getElementById('detail-contractor')) document.getElementById('detail-contractor').innerText = proj.contractor || "N/A";
+    if(document.getElementById('detail-status')) document.getElementById('detail-status').innerText = proj.status || "N/A";
+
     document.getElementById('project-detail-view').classList.add('active');
     document.body.style.overflow = 'hidden'; 
 }
@@ -237,13 +231,47 @@ function closeDetailView() {
     document.body.style.overflow = 'auto'; 
 }
 
+function openLightboxWithImage(url) {
+    const visibleThumbs = document.querySelectorAll('#thumb-container img');
+    currentLightboxImages = Array.from(visibleThumbs).map(img => img.src);
+    
+    currentLightboxIndex = currentLightboxImages.indexOf(url);
+    if (currentLightboxIndex === -1) currentLightboxIndex = 0;
+
+    const lightboxImg = document.getElementById('lightbox-img');
+    const lightboxView = document.getElementById('lightbox-view');
+    if(lightboxImg && lightboxView) {
+        lightboxImg.src = currentLightboxImages[currentLightboxIndex];
+        lightboxView.style.display = 'flex';
+    }
+}
+
+function prevLightboxImage() {
+    if(currentLightboxImages.length === 0) return;
+    currentLightboxIndex = (currentLightboxIndex - 1 + currentLightboxImages.length) % currentLightboxImages.length;
+    document.getElementById('lightbox-img').src = currentLightboxImages[currentLightboxIndex];
+}
+
+function nextLightboxImage() {
+    if(currentLightboxImages.length === 0) return;
+    currentLightboxIndex = (currentLightboxIndex + 1) % currentLightboxImages.length;
+    document.getElementById('lightbox-img').src = currentLightboxImages[currentLightboxIndex];
+}
+
+function closeLightbox() {
+    const lightboxView = document.getElementById('lightbox-view');
+    if(lightboxView) lightboxView.style.display = 'none';
+}
+
 // ==========================================
-// 3. ADMIN PANEL LOGIC (IN-MEMORY)
+// 6. ADMIN PANEL LOGIC (IN-MEMORY)
 // ==========================================
 function loadAdminSettings() {
     const settings = getSettings();
-    const heroInput = document.getElementById('site-hero-img');
-    if (heroInput) heroInput.value = settings.heroImage;
+    if(document.getElementById('site-hero-img')) document.getElementById('site-hero-img').value = settings.heroImage || '';
+    if(document.getElementById('site-about-img')) document.getElementById('site-about-img').value = settings.aboutImage || '';
+    if(document.getElementById('site-services-img')) document.getElementById('site-services-img').value = settings.servicesImage || '';
+    if(document.getElementById('site-projects-img')) document.getElementById('site-projects-img').value = settings.projectsImage || '';
 
     const txt = getTextContent();
     if(document.getElementById('text-logo-1')) document.getElementById('text-logo-1').value = txt.logoPart1;
@@ -258,9 +286,13 @@ function loadAdminSettings() {
 }
 
 function saveSiteSettings() {
-    const heroInput = document.getElementById('site-hero-img').value;
-    saveSettings({ heroImage: heroInput || defaultSettings.heroImage });
-    alert('Site background updated in Memory! Ready to Export.');
+    saveSettings({ 
+        heroImage: document.getElementById('site-hero-img').value || defaultSettings.heroImage,
+        aboutImage: document.getElementById('site-about-img').value || defaultSettings.aboutImage,
+        servicesImage: document.getElementById('site-services-img').value || defaultSettings.servicesImage,
+        projectsImage: document.getElementById('site-projects-img').value || defaultSettings.projectsImage
+    });
+    alert('Site Banners updated in Memory! Ready to Export.');
 }
 
 function saveTextContent() {
@@ -288,7 +320,7 @@ function renderAdminList() {
             <div class="inventory-item">
                 <div class="inventory-info">
                     <h4>${proj.title}</h4>
-                    <p>${proj.client} | ${proj.budget}</p>
+                    <p>Folder: <strong>${(proj.folder || "a").toUpperCase()}</strong> | Year: ${proj.year}</p>
                 </div>
                 <div class="inventory-actions">
                     <button class="btn-edit" onclick="editProject(${proj.id})">Edit</button>
@@ -307,11 +339,15 @@ function editProject(id) {
 
     document.getElementById('proj-title').value = proj.title;
     document.getElementById('proj-client').value = proj.client;
-    document.getElementById('proj-desc').value = proj.desc;
     document.getElementById('proj-img').value = proj.img;
-    document.getElementById('proj-budget').value = proj.budget;
-    document.getElementById('proj-duration').value = proj.duration;
-    document.getElementById('proj-area').value = proj.area;
+    document.getElementById('proj-desc').value = proj.desc;
+    
+    if(document.getElementById('proj-folder')) document.getElementById('proj-folder').value = proj.folder || "a";
+
+    document.getElementById('proj-year').value = proj.year;
+    document.getElementById('proj-location').value = proj.location;
+    document.getElementById('proj-contractor').value = proj.contractor;
+    document.getElementById('proj-status').value = proj.status;
 
     currentEditId = id;
     document.getElementById('form-title').innerText = "Edit Existing Project";
@@ -331,26 +367,36 @@ function cancelEdit() {
 function saveProject() {
     const title = document.getElementById('proj-title').value;
     const client = document.getElementById('proj-client').value;
-    const desc = document.getElementById('proj-desc').value;
     const img = document.getElementById('proj-img').value;
-    const budget = document.getElementById('proj-budget').value;
-    const duration = document.getElementById('proj-duration').value;
-    const area = document.getElementById('proj-area').value;
+    const desc = document.getElementById('proj-desc').value;
+    
+    const folderInput = document.getElementById('proj-folder');
+    const folder = folderInput ? folderInput.value.toLowerCase().trim() : "a";
 
-    if (!title || !desc || !img) { alert("Please fill in at least the Title, Description, and Image URL."); return; }
+    const year = document.getElementById('proj-year').value;
+    const location = document.getElementById('proj-location').value;
+    const contractor = document.getElementById('proj-contractor').value;
+    const status = document.getElementById('proj-status').value;
+
+    if (!title || !desc || !img || !folder) { alert("Please fill in the Title, Description, Folder Letter, and Main Image URL."); return; }
 
     const projects = getDatabase();
 
     if (currentEditId) {
         const index = projects.findIndex(p => p.id === currentEditId);
-        if (index !== -1) { projects[index] = { id: currentEditId, title, client: client || "Private Entity", desc, img, budget: budget || "N/A", duration: duration || "N/A", area: area || "N/A" }; }
-        alert("Project Updates Saved to Memory! Ready to Export."); cancelEdit(); 
+        if (index !== -1) { 
+            projects[index] = { id: currentEditId, title, client: client || "Private Entity", img, desc, folder, year: year || "N/A", location: location || "N/A", contractor: contractor || "N/A", status: status || "N/A" }; 
+        }
+        alert("Project Updates Saved to Memory! Ready to Export."); 
+        cancelEdit(); 
     } else {
-        const newProj = { id: Date.now(), title, client: client || "Private Entity", desc, img, budget: budget || "N/A", duration: duration || "N/A", area: area || "N/A" };
-        projects.push(newProj); alert("New Project Published to Memory! Ready to Export.");
+        const newProj = { id: Date.now(), title, client: client || "Private Entity", img, desc, folder, year: year || "N/A", location: location || "N/A", contractor: contractor || "N/A", status: status || "N/A" };
+        projects.push(newProj); 
+        alert("New Project Published to Memory! Ready to Export.");
         document.querySelectorAll('.form-grid input').forEach(input => input.value = '');
     }
-    saveDatabase(projects); renderAdminList();
+    saveDatabase(projects); 
+    renderAdminList();
 }
 
 function deleteProject(id) {
@@ -371,25 +417,36 @@ function clearDatabase() {
 }
 
 // ==========================================
-// 4. SMART MULTI-PAGE ROUTER
+// 7. SMART MULTI-PAGE ROUTER & BANNERS
 // ==========================================
 window.onload = function() {
-    // 1. Instantly overwrite HTML text with Admin settings
     renderGlobalText();
-    
-    // (Notice setupPageTransitions is REMOVED from here!)
+    setupPageTransitions();
 
-    // 2. Set the Global Hero Background
-    const hero = document.getElementById('main-hero');
-    if (hero) {
-        hero.style.setProperty('background-image', `linear-gradient(to right, rgba(27, 27, 27, 0.95) 0%, rgba(27, 27, 27, 0.7) 45%, transparent 100%), url('${defaultSettings.heroImage}')`, 'important');
+    // Dynamically apply the correct banner depending on the current page
+    const currentPath = window.location.pathname.toLowerCase();
+    
+    // Apply Home Hero
+    const homeHero = document.getElementById('main-hero');
+    if (homeHero) {
+        homeHero.style.setProperty('background-image', `linear-gradient(to right, rgba(27, 27, 27, 0.95) 0%, rgba(27, 27, 27, 0.7) 45%, transparent 100%), url('${liveSettings.heroImage}')`, 'important');
+    }
+
+    // Apply Subpage Banners automatically to the <section class="page-hero">
+    const subPageHero = document.querySelector('.page-hero');
+    if (subPageHero) {
+        let activeBg = liveSettings.projectsImage; // Default fallback
+        if (currentPath.includes('about')) activeBg = liveSettings.aboutImage;
+        if (currentPath.includes('services')) activeBg = liveSettings.servicesImage;
+        if (currentPath.includes('projects')) activeBg = liveSettings.projectsImage;
+        
+        // This keeps the nice dark tint over the image so white text stays readable!
+        subPageHero.style.setProperty('background', `linear-gradient(rgba(15, 22, 33, 0.8), rgba(15, 22, 33, 0.8)), url('${activeBg}') center/cover no-repeat`, 'important');
     }
     
-    // 3. Display the current build version in the Admin panel
     const versionDisplay = document.getElementById('app-version-display');
     if (versionDisplay) versionDisplay.innerText = "Build v" + APP_VERSION;
     
-    // 4. Render content depending on which page is open
     if (document.getElementById('home-project-container')) renderHomeProjects();
     if (document.getElementById('portfolio-container')) renderPortfolioProjects();
     if (document.getElementById('admin-list')) { 
@@ -397,12 +454,12 @@ window.onload = function() {
         loadAdminSettings(); 
     }
 
-    // 5. Initialize scroll reveal animations
     initScrollAnimations(); 
+    initNumberCounters(); // Initializes the fast counting numbers!
 };
 
 // ==========================================
-// 5. STATIC SITE GENERATOR (GITHUB EXPORT)
+// 8. STATIC SITE GENERATOR (GITHUB EXPORT)
 // ==========================================
 async function downloadUpdatedAppJs() {
     try {
@@ -446,7 +503,7 @@ async function downloadUpdatedAppJs() {
 }
 
 // ==========================================
-// 6. SMART PDF PRESENTATION GENERATOR
+// 9. SMART PDF PRESENTATION GENERATOR
 // ==========================================
 async function generatePresentationPDF() {
     const printContainer = document.createElement('div');
@@ -460,7 +517,7 @@ async function generatePresentationPDF() {
 
     let combinedHTML = `
         <div class="print-page-break" style="padding: 10% 8%; height: 100vh; display: flex; flex-direction: column; justify-content: center;">
-            <h1 style="font-size: 4.5rem; color: var(--text-main); font-weight: 800; text-transform: uppercase; margin-bottom: 10px; line-height: 1;">IBA Contracting</h1>
+            <h1 style="font-size: 4.5rem; color: var(--text-main); font-weight: 800; text-transform: uppercase; margin-bottom: 10px; line-height: 1;">TAWD DEVELOPMENT</h1>
             <h2 style="font-size: 1.8rem; color: var(--accent-color); margin-bottom: 40px;">Website Content Review Document</h2>
             <hr style="border: 2px solid #e2e8f0; margin-bottom: 40px;">
 
@@ -483,7 +540,7 @@ async function generatePresentationPDF() {
             </ul>
 
             <div style="margin-top: auto; padding-top: 30px; border-top: 2px solid #e2e8f0; color: var(--text-muted); font-size: 1.1rem;">
-                <strong>IBA Contracting W.L.L.</strong> | 📍 Doha, Qatar | ✉️ info@ibacontracting.com | 📞 +974 4444 0000
+                <strong>TAWD Development W.L.L.</strong> | 📍 Doha, Qatar | ✉️ info@tawd.com | 📞 +974 4444 0000
             </div>
         </div>
     `;
@@ -503,7 +560,6 @@ async function generatePresentationPDF() {
 
             const textData = getTextContent();
             
-            // Inject text into PDF virtual document
             virtualDoc.querySelectorAll('.logo').forEach(logo => {
                 if(!logo.innerHTML.includes('ADMIN')) logo.innerHTML = `${textData.logoPart1} <span>${textData.logoPart2}</span>`;
             });
@@ -523,6 +579,15 @@ async function generatePresentationPDF() {
             if(cSub) cSub.innerHTML = textData.contactSub;
             const cBtn = virtualDoc.querySelector('.inject-contact-btn');
             if(cBtn) cBtn.innerHTML = textData.contactBtn;
+
+            // Fix specific subpage backgrounds for PDF
+            const pgHero = virtualDoc.querySelector('.page-hero');
+            if (pgHero) {
+                let pBg = liveSettings.projectsImage;
+                if (page.includes('about')) pBg = liveSettings.aboutImage;
+                if (page.includes('services')) pBg = liveSettings.servicesImage;
+                pgHero.style.setProperty('background', `linear-gradient(rgba(15, 22, 33, 0.8), rgba(15, 22, 33, 0.8)), url('${pBg}') center/cover no-repeat`, 'important');
+            }
 
             if (!sharedNavHTML) {
                 const navElement = virtualDoc.querySelector('nav');
@@ -554,14 +619,15 @@ async function generatePresentationPDF() {
             const homeContainer = virtualDoc.getElementById('home-project-container');
             if (homeContainer) {
                 const topProjects = allProjects.slice(0, 3);
-                homeContainer.innerHTML = topProjects.map(proj => `
+                homeContainer.innerHTML = topProjects.map(proj => {
+                    return `
                     <div style="background: url('${proj.img}') center/cover; position: relative; height: 350px; border-radius: 8px; break-inside: avoid; margin-bottom: 20px;">
                         <div style="position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); padding: 30px 20px 20px 20px; border-radius: 0 0 8px 8px;">
                             <p style="color: var(--accent-color); margin:0; font-weight: bold; font-size: 0.85rem; text-transform: uppercase;">${proj.client}</p>
                             <h3 style="margin:0; font-size: 1.5rem; color: white;">${proj.title}</h3>
                         </div>
                     </div>
-                `).join('');
+                `}).join('');
             }
 
             const portfolioContainer = virtualDoc.getElementById('portfolio-container');
@@ -571,17 +637,22 @@ async function generatePresentationPDF() {
                 portfolioContainer.style.gridTemplateColumns = '1fr 1fr';
                 portfolioContainer.style.gap = '40px';
 
-                portfolioContainer.innerHTML = allProjects.map(proj => `
+                portfolioContainer.innerHTML = allProjects.map(proj => {
+                    const urls = getProjectImages(proj.folder);
+                    const thumbnailsHTML = urls.map(u => `<img src="${u}" onerror="this.remove()" style="width:60px; height:60px; object-fit:cover; border-radius:4px; margin-right:8px;">`).join('');
+
+                    return `
                     <div style="break-inside: avoid; padding-bottom: 20px;">
                         <img src="${proj.img}" style="width: 100%; height: 250px; object-fit: cover; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.1);">
+                        <div style="margin-bottom: 15px; display: flex;">${thumbnailsHTML}</div>
                         <p style="color: var(--accent-color); font-weight: bold; font-size: 0.8rem; margin-bottom: 5px; text-transform: uppercase;">${proj.client}</p>
                         <h3 style="font-size: 1.6rem; margin-bottom: 10px; color: var(--text-main); font-weight: 800; line-height: 1.1;">${proj.title}</h3>
                         <p style="color: var(--text-muted); font-size: 1rem; line-height: 1.5;">${proj.desc}</p>
                         <div style="margin-top: 15px; font-size: 0.9rem; color: #475569; background: #f8fafc; padding: 10px; border-radius: 4px; display: inline-block;">
-                            <strong>Budget:</strong> ${proj.budget} &nbsp;|&nbsp; <strong>Duration:</strong> ${proj.duration}
+                            <strong>Year:</strong> ${proj.year} &nbsp;|&nbsp; <strong>Location:</strong> ${proj.location} &nbsp;|&nbsp; <strong>Status:</strong> ${proj.status}
                         </div>
                     </div>
-                `).join('');
+                `}).join('');
             }
 
             const pageName = page.replace('.html', '').toUpperCase();
@@ -627,14 +698,13 @@ async function generatePresentationPDF() {
 }
 
 // ==========================================
-// 7. BI-DIRECTIONAL WIND SWEEP TRANSITION
+// 10. BI-DIRECTIONAL WIND SWEEP TRANSITION
 // ==========================================
 function setupPageTransitions() {
     const overlay = document.createElement('div');
     overlay.className = 'page-transition-overlay';
     document.body.appendChild(overlay);
 
-    // Sweep out to the RIGHT instantly
     setTimeout(() => {
         overlay.classList.add('reveal-page');
     }, 50);
@@ -655,5 +725,4 @@ function setupPageTransitions() {
     });
 }
 
-// FIRE INSTANTLY (DO NOT WAIT FOR IMAGES TO LOAD)
 setupPageTransitions();
