@@ -1,10 +1,10 @@
 // ==========================================
 // 1. DATABASE CONFIGURATION (STATELESS SSG)
 // ==========================================
-const APP_VERSION = "1.1.9"; // AUTO-UPDATES ON EXPORT
+const APP_VERSION = "1.2.6"; // AUTO-UPDATES ON EXPORT
 let currentEditId = null;
 
-const BASE_URL = 'https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/';
+const BASE_URL = 'https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/tawd/image/';
 
 // THE ABSOLUTE SOURCE OF TRUTH FOR TEXT
 const defaultSiteContent = {
@@ -19,15 +19,14 @@ const defaultSiteContent = {
     "contactBtn": "Send Message"
 };
 
-// THE ABSOLUTE SOURCE OF TRUTH FOR BANNERS
 const defaultSettings = {
-    "heroImage": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Main.jpg",
-    "aboutImage": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-2.jpg",
-    "servicesImage": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-3.jpg",
-    "projectsImage": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Webpage/Image/Construction-1.jpg"
+    "heroImage": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/tawd/image/Main.jpg",
+    "aboutImage": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/tawd/image/Construction-2.jpg",
+    "servicesImage": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/tawd/image/Construction-3.jpg",
+    "projectsImage": "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/tawd/image/Construction-1.jpg"
 };
 
-// THE ORIGINAL STRUCTURE + NEW DETAILS (Year, Location, Contractor, Status)
+// THE ORIGINAL STRUCTURE
 const defaultProjects = [
     { "id": 1, "title": "Leqtaifiya Palace", "client": "IBA", "desc": "Dafna Palace construction is an exceptional architectural design innovation. Featuring unique, cutting-edge, & historically significant styles. Its unique and luxurious design is making big impact on its surroundings, elevating the value and desirability of nearby properties. Its contribute to the development of an entire neighborhood or district, attracting other luxury developments, businesses, and amenities. Its construcion features smart building systems, sustainable materials, with its environmentally friendly designs that enhance their status as modern, forward-thinking structures. Dafna Palace is a hallmark of luxury, exclusivity, and architectural excellence.", "img": BASE_URL + "Construction-1.jpg", "folder": "a", "year": "2024", "location": "Dafna", "contractor": "TAWD Development", "status": "Completed" },
     { "id": 2, "title": "Marina Tower 16", "client": "IBA", "desc": "In the middle of a thriving city, Residential Tower 16 unfolds modern-contemporary residences in Lusail Marina’s urban oasis. An integrated locale places homes at the center of it all – Paramount connectivity to the grand spaces of Lusail’s Medical & Education district and proximity to premier lifestyle destinations in Entertainment city.  Marina R-16 is our latest tower in Lusail city. The new 121 Modern residential units are designed to enjoy benefits of natural light, generously sized bathrooms & wide-open sea views.", "img": BASE_URL + "Construction-2.jpg", "folder": "b", "year": "2025", "location": "Lusail Marina", "contractor": "TAWD Development", "status": "In Progress" },
@@ -139,7 +138,7 @@ function initScrollAnimations() {
 }
 
 // ==========================================
-// 4. ANIMATED NUMBER COUNTER (NEW)
+// 4. ANIMATED TEXT DECODER & NUMBER COUNTER
 // ==========================================
 function initNumberCounters() {
     const counters = document.querySelectorAll('.count-up');
@@ -150,7 +149,7 @@ function initNumberCounters() {
             if (entry.isIntersecting) {
                 const el = entry.target;
                 const target = parseInt(el.getAttribute('data-target'));
-                const duration = 2000; // 2 seconds
+                const duration = 2000; 
                 let startTime = null;
 
                 function step(currentTime) {
@@ -160,19 +159,37 @@ function initNumberCounters() {
                     if (progress < 1) {
                         window.requestAnimationFrame(step);
                     } else {
-                        el.innerText = target; // Ensure exact finish
+                        el.innerText = target; 
                     }
                 }
                 window.requestAnimationFrame(step);
-                observer.unobserve(el); // Only run once
+                observer.unobserve(el); 
             }
         });
     }, { threshold: 0.5 });
 
     counters.forEach(counter => {
-        counter.innerText = '0'; // Start at 0 visually before animation kicks in
+        counter.innerText = '0'; 
         observer.observe(counter);
     });
+}
+
+function animateTextScramble(element, finalString) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()';
+    let iteration = 0;
+    
+    if (element.scrambleInterval) clearInterval(element.scrambleInterval);
+    
+    element.scrambleInterval = setInterval(() => {
+        element.innerText = finalString.split('').map((letter, index) => {
+            if (letter === ' ') return ' ';
+            if (index < iteration) return finalString[index];
+            return chars[Math.floor(Math.random() * chars.length)];
+        }).join('');
+        
+        if (iteration >= finalString.length) clearInterval(element.scrambleInterval);
+        iteration += 1 / 3; 
+    }, 30);
 }
 
 // ==========================================
@@ -186,9 +203,7 @@ function openDetailView(projectId) {
     if(!proj) return;
 
     const oldMainImg = document.getElementById('detail-img');
-    if (oldMainImg) {
-        oldMainImg.style.background = `url('${proj.img}') no-repeat center center / cover`;
-    }
+    if (oldMainImg) oldMainImg.style.background = `url('${proj.img}') no-repeat center center / cover`;
 
     const thumbContainer = document.getElementById('thumb-container');
     if(thumbContainer) {
@@ -198,23 +213,19 @@ function openDetailView(projectId) {
         urls.forEach((url) => {
             const t = document.createElement('img');
             t.src = url;
-            
             t.onerror = function() { this.remove(); };
-
-            t.style = "aspect-ratio: 1 / 1; flex: 1; max-width: 100px; min-width: 80px; object-fit: cover; border-radius: 8px; cursor: zoom-in; transition: 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.2); border: 2px solid transparent;";
+            t.style = "aspect-ratio: 1 / 1; flex: 1; max-width: 150px; min-width: 110px; object-fit: cover; border-radius: 8px; cursor: zoom-in; transition: 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.2); border: 2px solid transparent;";
             t.onmouseover = () => t.style.borderColor = "#FF9800";
             t.onmouseout = () => t.style.borderColor = "transparent";
-            
-            t.onclick = (e) => {
-                e.stopPropagation();
-                openLightboxWithImage(url);
-            };
+            t.onclick = (e) => { e.stopPropagation(); openLightboxWithImage(url); };
             thumbContainer.appendChild(t);
         });
     }
 
     document.getElementById('detail-client').innerText = `CLIENT // ${proj.client}`;
-    document.getElementById('detail-title').innerText = proj.title;
+    const titleEl = document.getElementById('detail-title');
+    titleEl.innerText = proj.title; 
+    animateTextScramble(titleEl, proj.title); 
     document.getElementById('detail-desc').innerText = proj.desc;
     
     if(document.getElementById('detail-year')) document.getElementById('detail-year').innerText = proj.year || "N/A";
@@ -369,10 +380,8 @@ function saveProject() {
     const client = document.getElementById('proj-client').value;
     const img = document.getElementById('proj-img').value;
     const desc = document.getElementById('proj-desc').value;
-    
     const folderInput = document.getElementById('proj-folder');
     const folder = folderInput ? folderInput.value.toLowerCase().trim() : "a";
-
     const year = document.getElementById('proj-year').value;
     const location = document.getElementById('proj-location').value;
     const contractor = document.getElementById('proj-contractor').value;
@@ -384,9 +393,7 @@ function saveProject() {
 
     if (currentEditId) {
         const index = projects.findIndex(p => p.id === currentEditId);
-        if (index !== -1) { 
-            projects[index] = { id: currentEditId, title, client: client || "Private Entity", img, desc, folder, year: year || "N/A", location: location || "N/A", contractor: contractor || "N/A", status: status || "N/A" }; 
-        }
+        if (index !== -1) projects[index] = { id: currentEditId, title, client: client || "Private Entity", img, desc, folder, year: year || "N/A", location: location || "N/A", contractor: contractor || "N/A", status: status || "N/A" }; 
         alert("Project Updates Saved to Memory! Ready to Export."); 
         cancelEdit(); 
     } else {
@@ -395,8 +402,7 @@ function saveProject() {
         alert("New Project Published to Memory! Ready to Export.");
         document.querySelectorAll('.form-grid input').forEach(input => input.value = '');
     }
-    saveDatabase(projects); 
-    renderAdminList();
+    saveDatabase(projects); renderAdminList();
 }
 
 function deleteProject(id) {
@@ -423,24 +429,16 @@ window.onload = function() {
     renderGlobalText();
     setupPageTransitions();
 
-    // Dynamically apply the correct banner depending on the current page
     const currentPath = window.location.pathname.toLowerCase();
-    
-    // Apply Home Hero
     const homeHero = document.getElementById('main-hero');
-    if (homeHero) {
-        homeHero.style.setProperty('background-image', `linear-gradient(to right, rgba(27, 27, 27, 0.95) 0%, rgba(27, 27, 27, 0.7) 45%, transparent 100%), url('${liveSettings.heroImage}')`, 'important');
-    }
+    if (homeHero) homeHero.style.setProperty('background-image', `linear-gradient(to right, rgba(27, 27, 27, 0.95) 0%, rgba(27, 27, 27, 0.7) 45%, transparent 100%), url('${liveSettings.heroImage}')`, 'important');
 
-    // Apply Subpage Banners automatically to the <section class="page-hero">
     const subPageHero = document.querySelector('.page-hero');
     if (subPageHero) {
-        let activeBg = liveSettings.projectsImage; // Default fallback
+        let activeBg = liveSettings.projectsImage; 
         if (currentPath.includes('about')) activeBg = liveSettings.aboutImage;
         if (currentPath.includes('services')) activeBg = liveSettings.servicesImage;
         if (currentPath.includes('projects')) activeBg = liveSettings.projectsImage;
-        
-        // This keeps the nice dark tint over the image so white text stays readable!
         subPageHero.style.setProperty('background', `linear-gradient(rgba(15, 22, 33, 0.8), rgba(15, 22, 33, 0.8)), url('${activeBg}') center/cover no-repeat`, 'important');
     }
     
@@ -449,13 +447,10 @@ window.onload = function() {
     
     if (document.getElementById('home-project-container')) renderHomeProjects();
     if (document.getElementById('portfolio-container')) renderPortfolioProjects();
-    if (document.getElementById('admin-list')) { 
-        renderAdminList(); 
-        loadAdminSettings(); 
-    }
+    if (document.getElementById('admin-list')) { renderAdminList(); loadAdminSettings(); }
 
     initScrollAnimations(); 
-    initNumberCounters(); // Initializes the fast counting numbers!
+    initNumberCounters(); 
 };
 
 // ==========================================
@@ -470,13 +465,9 @@ async function downloadUpdatedAppJs() {
         const newBuild = parseInt(versionParts[2]) + 1;
         const newVersion = `${versionParts[0]}.${versionParts[1]}.${newBuild}`;
 
-        const currentProjects = getDatabase();
-        const currentSettings = getSettings();
-        const currentText = getTextContent();
-
-        const projectsString = 'const defaultProjects = ' + JSON.stringify(currentProjects, null, 4) + ';';
-        const settingsString = 'const defaultSettings = ' + JSON.stringify(currentSettings, null, 4) + ';';
-        const textString = 'const defaultSiteContent = ' + JSON.stringify(currentText, null, 4) + ';';
+        const projectsString = 'const defaultProjects = ' + JSON.stringify(getDatabase(), null, 4) + ';';
+        const settingsString = 'const defaultSettings = ' + JSON.stringify(getSettings(), null, 4) + ';';
+        const textString = 'const defaultSiteContent = ' + JSON.stringify(getTextContent(), null, 4) + ';';
 
         code = code.replace(/const defaultProjects = \[[\s\S]*?\];/, projectsString);
         code = code.replace(/const defaultSettings = \{[\s\S]*?\};/, settingsString);
@@ -485,25 +476,15 @@ async function downloadUpdatedAppJs() {
 
         const blob = new Blob([code], { type: 'application/javascript' });
         const url = URL.createObjectURL(blob);
-        
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'app.js';
-        document.body.appendChild(a);
-        a.click();
-        
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        const a = document.createElement('a'); a.href = url; a.download = 'app.js';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
 
         alert(`Success! Version upgraded to v${newVersion}. Check your Downloads folder for the new app.js file.`);
-    } catch (error) {
-        console.error("Export failed:", error);
-        alert("Failed to export. This tool must be run on the live GitHub server or a local server to read the file.");
-    }
+    } catch (error) { alert("Failed to export. This tool must be run on the live GitHub server or a local server."); }
 }
 
 // ==========================================
-// 9. SMART PDF PRESENTATION GENERATOR
+// 9. POWERPOINT-STYLE PDF PRESENTATION ENGINE
 // ==========================================
 async function generatePresentationPDF() {
     const printContainer = document.createElement('div');
@@ -511,41 +492,69 @@ async function generatePresentationPDF() {
     const pages = ['index.html', 'about.html', 'services.html', 'projects.html'];
 
     const allProjects = getDatabase();
-    let tocProjectsHTML = allProjects.map((p, index) =>
-        `<li style="margin-bottom: 8px;"><strong>4.${index + 1}</strong> ${p.title} <span style="color: var(--text-muted); font-size: 0.95rem;">— ${p.client}</span></li>`
-    ).join('');
+    
+    // Exact numbering for TOC
+    let tocProjectsHTML = allProjects.map((p, index) => `<li style="margin-bottom: 8px;"><strong>4.${index + 1}</strong> ${p.title}</li>`).join('');
 
+    // THE POWERPOINT MAGIC: @page { size: A4 landscape; } and strict .slide boundaries
     let combinedHTML = `
-        <div class="print-page-break" style="padding: 10% 8%; height: 100vh; display: flex; flex-direction: column; justify-content: center;">
-            <h1 style="font-size: 4.5rem; color: var(--text-main); font-weight: 800; text-transform: uppercase; margin-bottom: 10px; line-height: 1;">TAWD DEVELOPMENT</h1>
-            <h2 style="font-size: 1.8rem; color: var(--accent-color); margin-bottom: 40px;">Website Content Review Document</h2>
-            <hr style="border: 2px solid #e2e8f0; margin-bottom: 40px;">
+        <style>
+            @media print {
+                @page { size: A4 landscape; margin: 0; }
+                body { background: #cbd5e1 !important; margin: 0; font-family: 'Segoe UI', sans-serif; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                
+                .slide { 
+                    width: 297mm; 
+                    height: 209mm; /* Fits perfectly on landscape A4 */
+                    page-break-after: always; 
+                    page-break-inside: avoid;
+                    background: white;
+                    box-sizing: border-box;
+                    padding: 15mm;
+                    display: flex;
+                    flex-direction: column;
+                    overflow: hidden;
+                    position: relative;
+                }
+                
+                .slide-header { border-bottom: 4px solid #FF9800; padding-bottom: 10px; margin-bottom: 20px; flex-shrink: 0; }
+                .slide-title { font-size: 28px; color: #0f172a; font-weight: 900; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
+                .slide-subtitle { font-size: 14px; color: #64748b; font-weight: bold; margin-top: 5px; text-transform: uppercase; }
+                
+                .proj-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 20px; flex: 1; min-height: 0; }
+                .proj-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; display: flex; flex-direction: column; overflow: hidden; background: #f8fafc; }
+                
+                .preview-container { flex: 1; border: 2px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #1b1b1b; position: relative; }
+                .preview-scaler { width: 250%; height: 250%; transform: scale(0.4); transform-origin: top left; pointer-events: none; }
+                
+                .flex-center { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; text-align: center; }
+            }
+        </style>
+        
+        <div class="slide flex-center">
+            <h1 style="font-size: 5rem; color: #111; font-weight: 900; line-height: 1; margin-bottom: 10px;">TAWD DEVELOPMENT</h1>
+            <h2 style="font-size: 2rem; color: #FF9800; margin: 0 0 40px 0;">Website Wireframe & Design Audit</h2>
+            <div style="background: #FFECB3; color: #E65100; border: 1px solid #FF9800; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: bold;">➔ CEO Review Document</div>
+        </div>
 
-            <h3 style="font-size: 2.2rem; margin-bottom: 20px; font-weight: 800;">Table of Contents</h3>
-            <ul style="list-style: none; padding: 0; font-size: 1.4rem; line-height: 2;">
-                <li><strong>1. Home Page</strong> <span style="color: var(--text-muted); font-size: 1.1rem;">(Executive Summary)</span></li>
-                <li><strong>2. About Us</strong> <span style="color: var(--text-muted); font-size: 1.1rem;">(Company History & Pillars)</span></li>
-                <li><strong>3. Services</strong> <span style="color: var(--text-muted); font-size: 1.1rem;">(Core Competencies)</span></li>
-                <li><strong>4. Project Portfolio</strong>
-                    <ul style="list-style: none; padding-left: 40px; font-size: 1.2rem; line-height: 1.6; margin-top: 15px;">
+        <div class="slide flex-center">
+            <h3 style="font-size: 2.5rem; margin-bottom: 30px; border-bottom: 3px solid #FF9800; padding-bottom: 10px;">Table of Contents</h3>
+            <ul style="list-style: none; padding: 0; font-size: 1.6rem; line-height: 2.5; text-align: left;">
+                <li><strong>1. Home Page</strong> (Wireframe Overview)</li>
+                <li><strong>2. About Us</strong> (Wireframe Overview)</li>
+                <li><strong>3. Services</strong> (Wireframe Overview)</li>
+                <li><strong>4. Project Portfolio Grid</strong>
+                    <ul style="list-style: none; padding-left: 40px; font-size: 1.2rem; line-height: 1.8; margin-top: 10px;">
                         ${tocProjectsHTML}
                     </ul>
                 </li>
-                <li><strong>5. Global Design Elements</strong>
-                    <ul style="list-style: none; padding-left: 40px; font-size: 1.2rem; line-height: 1.6; margin-top: 15px;">
-                        <li><strong>A.</strong> Header / Navigation Area</li>
-                        <li><strong>B.</strong> Contact Us & Bottom Footer</li>
-                    </ul>
-                </li>
+                <li><strong>5. Project Detail View</strong> (Sample Popup)</li>
+                <li><strong>6. Global Master Components</strong></li>
             </ul>
-
-            <div style="margin-top: auto; padding-top: 30px; border-top: 2px solid #e2e8f0; color: var(--text-muted); font-size: 1.1rem;">
-                <strong>TAWD Development W.L.L.</strong> | 📍 Doha, Qatar | ✉️ info@tawd.com | 📞 +974 4444 0000
-            </div>
         </div>
     `;
 
-    alert("Compiling presentation with live data... Please wait a moment.");
+    alert("Compiling Presentation Deck... Please wait a moment.");
 
     let sharedNavHTML = "";
     let sharedContactHTML = "";
@@ -580,7 +589,6 @@ async function generatePresentationPDF() {
             const cBtn = virtualDoc.querySelector('.inject-contact-btn');
             if(cBtn) cBtn.innerHTML = textData.contactBtn;
 
-            // Fix specific subpage backgrounds for PDF
             const pgHero = virtualDoc.querySelector('.page-hero');
             if (pgHero) {
                 let pBg = liveSettings.projectsImage;
@@ -588,17 +596,16 @@ async function generatePresentationPDF() {
                 if (page.includes('services')) pBg = liveSettings.servicesImage;
                 pgHero.style.setProperty('background', `linear-gradient(rgba(15, 22, 33, 0.8), rgba(15, 22, 33, 0.8)), url('${pBg}') center/cover no-repeat`, 'important');
             }
+            
+            const mainHero = virtualDoc.querySelector('#main-hero');
+            if (mainHero) {
+                mainHero.style.setProperty('background', `linear-gradient(to right, rgba(27, 27, 27, 0.95), rgba(27, 27, 27, 0.7)), url('${liveSettings.heroImage}') center/cover no-repeat`, 'important');
+            }
 
             if (!sharedNavHTML) {
                 const navElement = virtualDoc.querySelector('nav');
                 if (navElement) {
-                    navElement.className = ''; 
-                    navElement.style.position = 'relative';
-                    navElement.style.backgroundColor = '#1b1b1b';
-                    navElement.style.padding = '20px 5%';
-                    navElement.style.display = 'flex';
-                    navElement.style.justifyContent = 'space-between';
-                    navElement.style.alignItems = 'center';
+                    navElement.className = ''; navElement.style.cssText = 'background:#1b1b1b; padding:20px 5%; display:flex; justify-content:space-between; align-items:center;';
                     sharedNavHTML = navElement.outerHTML;
                 }
             }
@@ -611,79 +618,130 @@ async function generatePresentationPDF() {
                 if (footerSection) sharedFooterHTML = footerSection.outerHTML;
             }
 
-            const nav = virtualDoc.querySelector('nav'); if (nav) nav.remove();
-            const footer = virtualDoc.querySelector('footer'); if (footer) footer.remove();
-            const modals = virtualDoc.querySelectorAll('.detail-overlay'); modals.forEach(m => m.remove());
-            const contactBanner = virtualDoc.querySelector('.contact-banner'); if (contactBanner) contactBanner.remove();
-
-            const homeContainer = virtualDoc.getElementById('home-project-container');
-            if (homeContainer) {
-                const topProjects = allProjects.slice(0, 3);
-                homeContainer.innerHTML = topProjects.map(proj => {
-                    return `
-                    <div style="background: url('${proj.img}') center/cover; position: relative; height: 350px; border-radius: 8px; break-inside: avoid; margin-bottom: 20px;">
-                        <div style="position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); padding: 30px 20px 20px 20px; border-radius: 0 0 8px 8px;">
-                            <p style="color: var(--accent-color); margin:0; font-weight: bold; font-size: 0.85rem; text-transform: uppercase;">${proj.client}</p>
-                            <h3 style="margin:0; font-size: 1.5rem; color: white;">${proj.title}</h3>
-                        </div>
-                    </div>
-                `}).join('');
-            }
-
-            const portfolioContainer = virtualDoc.getElementById('portfolio-container');
-            if (portfolioContainer) {
-                portfolioContainer.style.columnCount = '1';
-                portfolioContainer.style.display = 'grid';
-                portfolioContainer.style.gridTemplateColumns = '1fr 1fr';
-                portfolioContainer.style.gap = '40px';
-
-                portfolioContainer.innerHTML = allProjects.map(proj => {
-                    const urls = getProjectImages(proj.folder);
-                    const thumbnailsHTML = urls.map(u => `<img src="${u}" onerror="this.remove()" style="width:60px; height:60px; object-fit:cover; border-radius:4px; margin-right:8px;">`).join('');
-
-                    return `
-                    <div style="break-inside: avoid; padding-bottom: 20px;">
-                        <img src="${proj.img}" style="width: 100%; height: 250px; object-fit: cover; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.1);">
-                        <div style="margin-bottom: 15px; display: flex;">${thumbnailsHTML}</div>
-                        <p style="color: var(--accent-color); font-weight: bold; font-size: 0.8rem; margin-bottom: 5px; text-transform: uppercase;">${proj.client}</p>
-                        <h3 style="font-size: 1.6rem; margin-bottom: 10px; color: var(--text-main); font-weight: 800; line-height: 1.1;">${proj.title}</h3>
-                        <p style="color: var(--text-muted); font-size: 1rem; line-height: 1.5;">${proj.desc}</p>
-                        <div style="margin-top: 15px; font-size: 0.9rem; color: #475569; background: #f8fafc; padding: 10px; border-radius: 4px; display: inline-block;">
-                            <strong>Year:</strong> ${proj.year} &nbsp;|&nbsp; <strong>Location:</strong> ${proj.location} &nbsp;|&nbsp; <strong>Status:</strong> ${proj.status}
-                        </div>
-                    </div>
-                `}).join('');
-            }
+            // Remove modals and redundant stuff for the clean page shot
+            const modals = virtualDoc.querySelectorAll('.detail-overlay, #lightbox-view'); modals.forEach(m => m.remove());
 
             const pageName = page.replace('.html', '').toUpperCase();
+            
+            // SLIDE: Page Overview (Scaled down perfectly to 1 page)
             combinedHTML += `
-                <div class="print-page-break">
-                    <div style="background: #f8fafc; padding: 15px 30px; border-left: 6px solid var(--accent-color); margin: 40px 5%; font-size: 1.5rem; color: var(--text-main); font-weight: 800;">
-                        SECTION // ${pageName}
+                <div class="slide">
+                    <div class="slide-header">
+                        <h2 class="slide-title">Page Layout: ${pageName}</h2>
+                        <div class="slide-subtitle">Structural Wireframe (Scaled to 40% Fit)</div>
                     </div>
-                    ${virtualDoc.body.innerHTML}
+                    <div class="preview-container">
+                        <div class="preview-scaler">
+                            ${virtualDoc.body.innerHTML}
+                        </div>
+                    </div>
                 </div>
             `;
-        } catch (error) {
-            console.error("Error fetching " + page, error);
-        }
+        } catch (error) { console.error("Error fetching " + page, error); }
     }
 
+    // CHUNKING LOGIC: Splits projects into perfect 2x2 grids (4 projects per slide)
+    const chunked = [];
+    for (let i = 0; i < allProjects.length; i += 4) {
+        chunked.push(allProjects.slice(i, i + 4));
+    }
+
+    chunked.forEach((chunk, chunkIndex) => {
+        const cardsHTML = chunk.map((proj, i) => {
+            const globalIndex = (chunkIndex * 4) + i + 1;
+            const urls = getProjectImages(proj.folder);
+            const thumbs = urls.map(u => `<img src="${u}" onerror="this.remove()" style="width:40px; height:40px; object-fit:cover; border-radius:4px; border:1px solid #ccc;">`).join('');
+            const shortDesc = proj.desc.substring(0, 110) + '...';
+            
+            return `
+                <div class="proj-card">
+                    <div style="display:flex; gap:15px; margin-bottom:10px;">
+                        <img src="${proj.img}" style="width: 140px; height: 90px; object-fit: cover; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        <div style="display: flex; flex-wrap: wrap; gap: 5px; align-content: flex-start;">${thumbs}</div>
+                    </div>
+                    <p style="color: #FF9800; font-weight: bold; font-size: 10px; margin: 0 0 3px 0; text-transform: uppercase;">${proj.client}</p>
+                    <h4 style="margin:0 0 5px 0; font-size:16px; color:#111; font-weight: 800;">4.${globalIndex} ${proj.title}</h4>
+                    <p style="margin:0 0 10px 0; font-size:11px; color:#666; line-height:1.5; flex:1;">${shortDesc}</p>
+                    <div style="background:#fff; padding:10px; border-left:3px solid #FF9800; font-size:10px; display:grid; grid-template-columns: 1fr 1fr; gap:5px; border-radius: 4px; box-shadow: inset 0 0 4px rgba(0,0,0,0.02);">
+                        <div><strong>Year:</strong> ${proj.year}</div>
+                        <div><strong>Status:</strong> ${proj.status}</div>
+                        <div><strong>Contractor:</strong> ${proj.contractor}</div>
+                        <div><strong>Location:</strong> ${proj.location}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // SLIDE: Project Grid Pages
+        combinedHTML += `
+            <div class="slide">
+                <div class="slide-header">
+                    <h2 class="slide-title">4. Project Portfolio Data</h2>
+                    <div class="slide-subtitle">Grid View (Slide ${chunkIndex + 1} of ${chunked.length})</div>
+                </div>
+                <div class="proj-grid">
+                    ${cardsHTML}
+                </div>
+            </div>
+        `;
+    });
+
+    // INJECTING THE PROJECT DETAIL POPUP SAMPLE
+    const sampleProj = allProjects[0];
+    const sampleUrls = getProjectImages(sampleProj.folder);
+    const sampleThumbs = sampleUrls.map(u => `<img src="${u}" onerror="this.remove()" style="aspect-ratio: 1/1; flex: 1; max-width: 120px; object-fit: cover; border-radius: 8px; border: 2px solid #ddd;">`).join('');
+
+    // SLIDE: Detail Popup Sample
     combinedHTML += `
-        <div class="print-page-break">
-            <div style="background: #f8fafc; padding: 15px 30px; border-left: 6px solid var(--accent-color); margin: 40px 5%; font-size: 1.5rem; color: var(--text-main); font-weight: 800;">
-                SECTION // 5. GLOBAL DESIGN ELEMENTS
+        <div class="slide">
+            <div class="slide-header">
+                <h2 class="slide-title">5. Project Detail View (Sample)</h2>
+                <div class="slide-subtitle">User Interface Popup overlaying the grid</div>
             </div>
             
-            <div style="margin: 0 5%; border: 2px dashed #cbd5e1; margin-bottom: 40px;">
-                <h4 style="background: #e2e8f0; margin: 0; padding: 10px 20px; font-size: 1.1rem; color: var(--text-main);">A. Header & Navigation Area</h4>
-                ${sharedNavHTML}
+            <div style="flex:1; display: flex; gap: 30px; background: white; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0;">
+                <div style="flex: 1; background: url('${sampleProj.img}') center/cover; border-radius: 12px;"></div>
+                
+                <div style="flex: 1; display: flex; flex-direction: column;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 20px;">${sampleThumbs}</div>
+                    <span style="color: #FF9800; font-weight: bold; font-size: 0.9rem; text-transform: uppercase;">CLIENT // ${sampleProj.client}</span>
+                    <h2 style="font-size: 2rem; margin: 5px 0 15px 0; color: #111;">${sampleProj.title}</h2>
+                    <p style="color: #666; line-height: 1.6; margin-bottom: 20px; flex:1;">${sampleProj.desc.substring(0, 300)}...</p>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background: #f8fafc; padding: 20px; border-radius: 8px; border-left: 5px solid #FF9800;">
+                        <div><span style="font-size:0.8rem; color:#64748b; text-transform:uppercase; font-weight:bold;">Project Year</span><br><strong style="font-size:1.1rem; color:#111;">${sampleProj.year}</strong></div>
+                        <div><span style="font-size:0.8rem; color:#64748b; text-transform:uppercase; font-weight:bold;">Status</span><br><strong style="font-size:1.1rem; color:#111;">${sampleProj.status}</strong></div>
+                        <div><span style="font-size:0.8rem; color:#64748b; text-transform:uppercase; font-weight:bold;">Contractor</span><br><strong style="font-size:1.1rem; color:#111;">${sampleProj.contractor}</strong></div>
+                        <div><span style="font-size:0.8rem; color:#64748b; text-transform:uppercase; font-weight:bold;">Location</span><br><strong style="font-size:1.1rem; color:#111;">${sampleProj.location}</strong></div>
+                    </div>
+                </div>
             </div>
+        </div>
+    `;
 
-            <div style="margin: 0 5%; border: 2px dashed #cbd5e1;">
-                <h4 style="background: #e2e8f0; margin: 0; padding: 10px 20px; font-size: 1.1rem; color: var(--text-main);">B. Contact Us & Bottom Footer</h4>
-                ${sharedContactHTML}
-                ${sharedFooterHTML}
+    // SLIDE: Global Components
+    combinedHTML += `
+        <div class="slide">
+            <div class="slide-header">
+                <h2 class="slide-title">6. Global Master Components</h2>
+                <div class="slide-subtitle">Navigation, Banner, and Footer Blocks</div>
+            </div>
+            
+            <div style="flex:1; display:flex; flex-direction:column; gap:20px; overflow:hidden;">
+                <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow:hidden;">
+                    <div style="background:#FFECB3; color:#E65100; font-size:10px; font-weight:bold; padding:4px 8px; text-transform:uppercase;">Top Navigation</div>
+                    ${sharedNavHTML}
+                </div>
+
+                <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow:hidden;">
+                    <div style="background:#FFECB3; color:#E65100; font-size:10px; font-weight:bold; padding:4px 8px; text-transform:uppercase;">Contact Banner</div>
+                    ${sharedContactHTML}
+                </div>
+
+                <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow:hidden;">
+                    <div style="background:#FFECB3; color:#E65100; font-size:10px; font-weight:bold; padding:4px 8px; text-transform:uppercase;">Master Footer</div>
+                    ${sharedFooterHTML}
+                </div>
             </div>
         </div>
     `;
@@ -704,25 +762,17 @@ function setupPageTransitions() {
     const overlay = document.createElement('div');
     overlay.className = 'page-transition-overlay';
     document.body.appendChild(overlay);
-
-    setTimeout(() => {
-        overlay.classList.add('reveal-page');
-    }, 50);
+    setTimeout(() => { overlay.classList.add('reveal-page'); }, 50);
 
     document.querySelectorAll('a').forEach(link => {
         link.addEventListener('click', function(e) {
             const href = this.getAttribute('href');
-            
             if (href && href.endsWith('.html') && this.target !== '_blank') {
                 e.preventDefault(); 
                 overlay.classList.remove('reveal-page');
-                
-                setTimeout(() => {
-                    window.location.href = href;
-                }, 500);
+                setTimeout(() => { window.location.href = href; }, 500);
             }
         });
     });
 }
-
 setupPageTransitions();
