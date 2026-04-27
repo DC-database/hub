@@ -1,7 +1,7 @@
 // ==========================================
 // 1. DATABASE CONFIGURATION (STATELESS SSG)
 // ==========================================
-const APP_VERSION = "1.2.7"; // AUTO-UPDATES ON EXPORT
+const APP_VERSION = "1.2.8"; // AUTO-UPDATES ON EXPORT
 let currentEditId = null;
 
 const BASE_URL = 'https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/tawd/image/';
@@ -493,10 +493,8 @@ async function generatePresentationPDF() {
 
     const allProjects = getDatabase();
     
-    // Exact numbering for TOC
     let tocProjectsHTML = allProjects.map((p, index) => `<li style="margin-bottom: 6px;"><span style="color: #FF9800; font-weight: bold;">4.${index + 1}</span> ${p.title}</li>`).join('');
 
-    // THE FIX: Explicit 'display: block' and strict padding on the Cover and TOC to prevent Chrome height bugs
     let combinedHTML = `
         <style>
             @media print {
@@ -505,7 +503,7 @@ async function generatePresentationPDF() {
                 
                 .slide { 
                     width: 297mm; 
-                    height: 209mm; /* Fits perfectly on landscape A4 */
+                    height: 209mm;
                     page-break-after: always; 
                     page-break-inside: avoid;
                     background: white;
@@ -513,7 +511,7 @@ async function generatePresentationPDF() {
                     padding: 15mm;
                     overflow: hidden;
                     position: relative;
-                    display: block; /* Chrome safe block layout */
+                    display: block; 
                 }
                 
                 .slide-header { border-bottom: 4px solid #FF9800; padding-bottom: 10px; margin-bottom: 20px; }
@@ -538,7 +536,6 @@ async function generatePresentationPDF() {
             <h3 style="font-size: 2.5rem; margin: 0 auto 30px auto; border-bottom: 3px solid #FF9800; padding-bottom: 10px; width: 90%; text-align: center; color: #111;">Table of Contents</h3>
             
             <div style="display: flex; width: 90%; margin: 0 auto; justify-content: space-between; text-align: left; gap: 40px;">
-                
                 <div style="flex: 1;">
                     <ul style="list-style: none; padding: 0; font-size: 1.3rem; line-height: 2.2; color: #333;">
                         <li style="margin-bottom: 15px;"><strong>1. Home Page</strong> (Wireframe)</li>
@@ -555,7 +552,6 @@ async function generatePresentationPDF() {
                         ${tocProjectsHTML}
                     </ul>
                 </div>
-
             </div>
         </div>
     `;
@@ -624,12 +620,10 @@ async function generatePresentationPDF() {
                 if (footerSection) sharedFooterHTML = footerSection.outerHTML;
             }
 
-            // Remove modals and redundant stuff for the clean page shot
             const modals = virtualDoc.querySelectorAll('.detail-overlay, #lightbox-view'); modals.forEach(m => m.remove());
 
             const pageName = page.replace('.html', '').toUpperCase();
             
-            // SLIDE: Page Overview
             combinedHTML += `
                 <div class="slide">
                     <div class="slide-header">
@@ -646,7 +640,6 @@ async function generatePresentationPDF() {
         } catch (error) { console.error("Error fetching " + page, error); }
     }
 
-    // CHUNKING LOGIC: Splits projects into perfect 2x2 grids (4 projects per slide)
     const chunked = [];
     for (let i = 0; i < allProjects.length; i += 4) {
         chunked.push(allProjects.slice(i, i + 4));
@@ -678,7 +671,6 @@ async function generatePresentationPDF() {
             `;
         }).join('');
 
-        // SLIDE: Project Grid Pages
         combinedHTML += `
             <div class="slide">
                 <div class="slide-header">
@@ -692,12 +684,10 @@ async function generatePresentationPDF() {
         `;
     });
 
-    // INJECTING THE PROJECT DETAIL POPUP SAMPLE
     const sampleProj = allProjects[0];
     const sampleUrls = getProjectImages(sampleProj.folder);
     const sampleThumbs = sampleUrls.map(u => `<img src="${u}" onerror="this.remove()" style="aspect-ratio: 1/1; flex: 1; max-width: 120px; object-fit: cover; border-radius: 8px; border: 2px solid #ddd;">`).join('');
 
-    // SLIDE: Detail Popup Sample
     combinedHTML += `
         <div class="slide">
             <div class="slide-header">
@@ -725,28 +715,42 @@ async function generatePresentationPDF() {
         </div>
     `;
 
-    // SLIDE: Global Components
+    // SLIDE 6A: Global Components (Header & Footer)
     combinedHTML += `
         <div class="slide">
             <div class="slide-header">
-                <h2 class="slide-title">6. Global Master Components</h2>
-                <div class="slide-subtitle">Navigation, Banner, and Footer Blocks</div>
+                <h2 class="slide-title">6. Global Master Components (1/2)</h2>
+                <div class="slide-subtitle">Navigation and Footer Blocks</div>
             </div>
             
-            <div style="flex:1; display:flex; flex-direction:column; gap:20px; overflow:hidden;">
+            <div style="flex:1; display:flex; flex-direction:column; gap:30px; overflow:hidden;">
                 <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow:hidden;">
                     <div style="background:#FFECB3; color:#E65100; font-size:10px; font-weight:bold; padding:4px 8px; text-transform:uppercase;">Top Navigation</div>
                     ${sharedNavHTML}
                 </div>
 
                 <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow:hidden;">
-                    <div style="background:#FFECB3; color:#E65100; font-size:10px; font-weight:bold; padding:4px 8px; text-transform:uppercase;">Contact Banner</div>
-                    ${sharedContactHTML}
-                </div>
-
-                <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow:hidden;">
                     <div style="background:#FFECB3; color:#E65100; font-size:10px; font-weight:bold; padding:4px 8px; text-transform:uppercase;">Master Footer</div>
                     ${sharedFooterHTML}
+                </div>
+            </div>
+        </div>
+    `;
+
+    // SLIDE 6B: Global Components (Contact Banner)
+    combinedHTML += `
+        <div class="slide">
+            <div class="slide-header">
+                <h2 class="slide-title">6. Global Master Components (2/2)</h2>
+                <div class="slide-subtitle">Contact Banner Block</div>
+            </div>
+            
+            <div style="flex:1; display:flex; flex-direction:column; gap:20px; overflow:hidden;">
+                <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow:hidden;">
+                    <div style="background:#FFECB3; color:#E65100; font-size:10px; font-weight:bold; padding:4px 8px; text-transform:uppercase;">Contact Banner</div>
+                    <div style="padding-bottom: 20px;">
+                        ${sharedContactHTML}
+                    </div>
                 </div>
             </div>
         </div>
