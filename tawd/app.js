@@ -1,7 +1,7 @@
 // ==========================================
 // 1. DATABASE CONFIGURATION (STATELESS SSG)
 // ==========================================
-const APP_VERSION = "1.2.5"; // AUTO-UPDATES ON EXPORT
+const APP_VERSION = "1.2.7"; // AUTO-UPDATES ON EXPORT
 let currentEditId = null;
 
 const BASE_URL = 'https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/tawd/image/';
@@ -352,7 +352,9 @@ function editProject(id) {
     document.getElementById('proj-client').value = proj.client;
     document.getElementById('proj-img').value = proj.img;
     document.getElementById('proj-desc').value = proj.desc;
+    
     if(document.getElementById('proj-folder')) document.getElementById('proj-folder').value = proj.folder || "a";
+
     document.getElementById('proj-year').value = proj.year;
     document.getElementById('proj-location').value = proj.location;
     document.getElementById('proj-contractor').value = proj.contractor;
@@ -482,7 +484,7 @@ async function downloadUpdatedAppJs() {
 }
 
 // ==========================================
-// 9. PROFESSIONAL DESIGN REVIEW PDF GENERATOR
+// 9. POWERPOINT-STYLE PDF PRESENTATION ENGINE
 // ==========================================
 async function generatePresentationPDF() {
     const printContainer = document.createElement('div');
@@ -491,73 +493,74 @@ async function generatePresentationPDF() {
 
     const allProjects = getDatabase();
     
-    let tocProjectsHTML = allProjects.map((p, index) => `<li style="margin-bottom: 8px;"><strong>4.${index + 1}</strong> ${p.title}</li>`).join('');
+    // Exact numbering for TOC
+    let tocProjectsHTML = allProjects.map((p, index) => `<li style="margin-bottom: 6px;"><span style="color: #FF9800; font-weight: bold;">4.${index + 1}</span> ${p.title}</li>`).join('');
 
+    // THE FIX: Explicit 'display: block' and strict padding on the Cover and TOC to prevent Chrome height bugs
     let combinedHTML = `
         <style>
             @media print {
-                body { background: white !important; font-family: sans-serif; }
+                @page { size: A4 landscape; margin: 0; }
+                body { background: #cbd5e1 !important; margin: 0; font-family: 'Segoe UI', sans-serif; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
                 
-                .review-box { 
-                    border: 2px dashed #FF5722; 
-                    padding: 20px; 
-                    margin-bottom: 30px; 
-                    position: relative; 
-                    border-radius: 8px; 
-                    page-break-inside: avoid !important; 
-                    break-inside: avoid !important; 
-                    display: block; 
-                    width: 100%; 
-                    box-sizing: border-box; 
+                .slide { 
+                    width: 297mm; 
+                    height: 209mm; /* Fits perfectly on landscape A4 */
+                    page-break-after: always; 
+                    page-break-inside: avoid;
+                    background: white;
+                    box-sizing: border-box;
+                    padding: 15mm;
+                    overflow: hidden;
+                    position: relative;
+                    display: block; /* Chrome safe block layout */
                 }
                 
-                .review-tag { background: #FF5722; color: white; padding: 6px 14px; position: absolute; top: -16px; left: 20px; font-weight: bold; font-size: 14px; font-family: monospace; border-radius: 4px; text-transform: uppercase; }
-                .annotation { display: inline-flex; align-items: center; background: #FFECB3; color: #E65100; border: 1px solid #FF9800; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-bottom: 15px; page-break-inside: avoid; }
-                .remarks-box { margin-top: 20px; background: #fafafa; border: 1px solid #ccc; padding: 15px; font-family: monospace; color: #666; min-height: 80px; page-break-inside: avoid; break-inside: avoid; }
-                .remarks-line { border-bottom: 1px solid #ddd; height: 25px; margin-top: 5px; }
-                .pdf-cover { display: flex; flex-direction: column; justify-content: center; height: 100vh; padding: 10% 8%; }
-                .print-page-break { page-break-after: always; padding: 20px; }
+                .slide-header { border-bottom: 4px solid #FF9800; padding-bottom: 10px; margin-bottom: 20px; }
+                .slide-title { font-size: 28px; color: #0f172a; font-weight: 900; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
+                .slide-subtitle { font-size: 14px; color: #64748b; font-weight: bold; margin-top: 5px; text-transform: uppercase; }
                 
-                img { max-width: 100%; page-break-inside: avoid; break-inside: avoid; }
+                .proj-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 20px; }
+                .proj-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; display: flex; flex-direction: column; overflow: hidden; background: #f8fafc; }
                 
-                /* CLEARFIX UTILITY FOR FLOAT GRIDS */
-                .clearfix::after { content: ""; clear: both; display: table; }
+                .preview-container { border: 2px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #1b1b1b; position: relative; height: 150mm; }
+                .preview-scaler { width: 250%; height: 250%; transform: scale(0.4); transform-origin: top left; pointer-events: none; }
             }
         </style>
-        <div class="print-page-break pdf-cover">
-            <div class="annotation">➔ CEO Review Document</div>
-            <h1 style="font-size: 4.5rem; color: #111; font-weight: 900; line-height: 1;">TAWD DEVELOPMENT</h1>
-            <h2 style="font-size: 1.8rem; color: #FF9800; margin-bottom: 40px;">Website Wireframe & Design Audit</h2>
-            <hr style="border: 2px solid #eee; margin-bottom: 40px;">
+        
+        <div class="slide" style="text-align: center; padding-top: 60mm;">
+            <h1 style="font-size: 5rem; color: #111; font-weight: 900; line-height: 1; margin-bottom: 20px;">TAWD DEVELOPMENT</h1>
+            <h2 style="font-size: 2rem; color: #FF9800; margin: 0 0 40px 0;">Website Wireframe & Design Audit</h2>
+            <div style="display: inline-block; background: #FFECB3; color: #E65100; border: 1px solid #FF9800; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: bold;">➔ CEO Review Document</div>
+        </div>
 
-            <div class="review-box">
-                <div class="review-tag">Approval Required</div>
-                <p><strong>Instructions:</strong> Please review the generated layouts, text, and data below. Use the attached "Remarks" boxes to write in any requested changes.</p>
-                <div class="remarks-box">
-                    <strong>General Notes / Executive Remarks:</strong>
-                    <div class="remarks-line"></div>
-                    <div class="remarks-line"></div>
-                    <div class="remarks-line"></div>
+        <div class="slide" style="padding-top: 25mm;">
+            <h3 style="font-size: 2.5rem; margin: 0 auto 30px auto; border-bottom: 3px solid #FF9800; padding-bottom: 10px; width: 90%; text-align: center; color: #111;">Table of Contents</h3>
+            
+            <div style="display: flex; width: 90%; margin: 0 auto; justify-content: space-between; text-align: left; gap: 40px;">
+                
+                <div style="flex: 1;">
+                    <ul style="list-style: none; padding: 0; font-size: 1.3rem; line-height: 2.2; color: #333;">
+                        <li style="margin-bottom: 15px;"><strong>1. Home Page</strong> (Wireframe)</li>
+                        <li style="margin-bottom: 15px;"><strong>2. About Us</strong> (Wireframe)</li>
+                        <li style="margin-bottom: 15px;"><strong>3. Services</strong> (Wireframe)</li>
+                        <li style="margin-bottom: 15px;"><strong>5. Project Detail View</strong> (Sample)</li>
+                        <li style="margin-bottom: 15px;"><strong>6. Global Master Components</strong></li>
+                    </ul>
                 </div>
-            </div>
 
-            <h3 style="font-size: 2.2rem; margin-bottom: 20px;">Table of Contents</h3>
-            <ul style="list-style: none; padding: 0; font-size: 1.4rem; line-height: 2;">
-                <li><strong>1. Home Page</strong></li>
-                <li><strong>2. About Us</strong></li>
-                <li><strong>3. Services</strong></li>
-                <li><strong>4. Project Portfolio Grid</strong>
-                    <ul style="list-style: none; padding-left: 40px; font-size: 1.1rem; line-height: 1.6; margin-top: 10px;">
+                <div style="flex: 1.2; background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <h4 style="font-size: 1.3rem; margin: 0 0 15px 0; color: #111;"><strong>4. Project Portfolio Grid</strong></h4>
+                    <ul style="list-style: none; padding-left: 10px; font-size: 1rem; line-height: 1.6; margin: 0; color: #444;">
                         ${tocProjectsHTML}
                     </ul>
-                </li>
-                <li><strong>5. Project Detail View (Sample Popup)</strong></li>
-                <li><strong>6. Global Master Components</strong></li>
-            </ul>
+                </div>
+
+            </div>
         </div>
     `;
 
-    alert("Compiling Blueprint PDF... Please wait a moment.");
+    alert("Compiling Presentation Deck... Please wait a moment.");
 
     let sharedNavHTML = "";
     let sharedContactHTML = "";
@@ -592,7 +595,6 @@ async function generatePresentationPDF() {
             const cBtn = virtualDoc.querySelector('.inject-contact-btn');
             if(cBtn) cBtn.innerHTML = textData.contactBtn;
 
-            // FIX: Ensure both page-hero and main-hero get backgrounds injected cleanly
             const pgHero = virtualDoc.querySelector('.page-hero');
             if (pgHero) {
                 let pBg = liveSettings.projectsImage;
@@ -604,162 +606,148 @@ async function generatePresentationPDF() {
             const mainHero = virtualDoc.querySelector('#main-hero');
             if (mainHero) {
                 mainHero.style.setProperty('background', `linear-gradient(to right, rgba(27, 27, 27, 0.95), rgba(27, 27, 27, 0.7)), url('${liveSettings.heroImage}') center/cover no-repeat`, 'important');
-                mainHero.style.height = 'auto'; // FIX: Remove 100vh so it doesn't take up the entire print page
-                mainHero.style.minHeight = '350px';
-                mainHero.style.padding = '80px 5%';
             }
 
             if (!sharedNavHTML) {
                 const navElement = virtualDoc.querySelector('nav');
                 if (navElement) {
-                    navElement.className = ''; navElement.style.cssText = 'background:#1b1b1b; padding:20px 5%; display:flex; justify-content:space-between; align-items:center; page-break-inside: avoid; break-inside: avoid;';
+                    navElement.className = ''; navElement.style.cssText = 'background:#1b1b1b; padding:20px 5%; display:flex; justify-content:space-between; align-items:center;';
                     sharedNavHTML = navElement.outerHTML;
                 }
             }
             if (!sharedContactHTML) {
                 const contactSection = virtualDoc.querySelector('.contact-banner');
-                if (contactSection) {
-                    contactSection.style.pageBreakInside = 'avoid';
-                    sharedContactHTML = contactSection.outerHTML;
-                }
+                if (contactSection) sharedContactHTML = contactSection.outerHTML;
             }
             if (!sharedFooterHTML) {
                 const footerSection = virtualDoc.querySelector('.main-footer');
-                if (footerSection) {
-                    footerSection.style.pageBreakInside = 'avoid';
-                    sharedFooterHTML = footerSection.outerHTML;
-                }
+                if (footerSection) sharedFooterHTML = footerSection.outerHTML;
             }
 
-            const nav = virtualDoc.querySelector('nav'); if (nav) nav.remove();
-            const footer = virtualDoc.querySelector('footer'); if (footer) footer.remove();
-            const modals = virtualDoc.querySelectorAll('.detail-overlay'); modals.forEach(m => m.remove());
-            const contactBanner = virtualDoc.querySelector('.contact-banner'); if (contactBanner) contactBanner.remove();
-
-            const homeContainer = virtualDoc.getElementById('home-project-container');
-            if (homeContainer) {
-                const topProjects = allProjects.slice(0, 3);
-                homeContainer.className = 'clearfix'; // Strip the masonry class!
-                homeContainer.style.display = 'block';
-                homeContainer.style.width = '100%';
-                
-                let homeContent = topProjects.map(proj => `
-                    <div style="float: left; width: 31%; margin: 1%; background: url('${proj.img}') center/cover; position: relative; height: 200px; border-radius: 8px; page-break-inside: avoid; break-inside: avoid; box-sizing: border-box;">
-                        <div style="position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); padding: 15px; border-radius: 0 0 8px 8px;">
-                            <p style="color: #FF9800; margin:0; font-weight: bold; font-size: 0.7rem; text-transform: uppercase;">${proj.client}</p>
-                            <h3 style="margin:0; font-size: 1rem; color: white;">${proj.title}</h3>
-                        </div>
-                    </div>
-                `).join('');
-                
-                homeContainer.innerHTML = homeContent + '<div style="clear: both;"></div>';
-            }
-
-            const portfolioContainer = virtualDoc.getElementById('portfolio-container');
-            if (portfolioContainer) {
-                portfolioContainer.className = 'clearfix'; // FIX: Strips out the masonry CSS columns causing the squish
-                portfolioContainer.style.display = 'block';
-                portfolioContainer.style.width = '100%';
-                
-                let portContent = allProjects.map((proj, index) => {
-                    const urls = getProjectImages(proj.folder);
-                    const thumbnailsHTML = urls.map(u => `<img src="${u}" onerror="this.remove()" style="width:45px; height:45px; object-fit:cover; border-radius:4px; margin-right:5px;">`).join('');
-                    const shortDesc = proj.desc.substring(0, 100) + '...';
-
-                    // FIX: Using float left instead of grid/inline-block ensures Chrome doesn't squeeze the width
-                    return `
-                    <div class="review-box" style="float: left; width: 48%; margin: 1%; box-sizing: border-box;">
-                        <div class="review-tag">4.${index + 1} - Project Card</div>
-                        <img src="${proj.img}" style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 5px 10px rgba(0,0,0,0.1);">
-                        <div style="margin-bottom: 10px; display: flex;">${thumbnailsHTML}</div>
-                        <p style="color: #FF9800; font-weight: bold; font-size: 0.75rem; margin-bottom: 3px; text-transform: uppercase;">${proj.client}</p>
-                        <h3 style="font-size: 1.3rem; margin-bottom: 8px; color: #111; font-weight: 800;">4.${index + 1} ${proj.title}</h3>
-                        <p style="color: #666; font-size: 0.85rem; line-height: 1.4;">${shortDesc}</p>
-                        <div style="margin-top: 10px; font-size: 0.8rem; background: #f8fafc; padding: 10px; border-left: 3px solid #FF9800;">
-                            <strong>Year:</strong> ${proj.year} | <strong>Status:</strong> ${proj.status}<br>
-                            <strong>Contractor:</strong> ${proj.contractor} | <strong>Location:</strong> ${proj.location}
-                        </div>
-                    </div>
-                `}).join('');
-                
-                portfolioContainer.innerHTML = portContent + '<div style="clear: both;"></div>';
-            }
+            // Remove modals and redundant stuff for the clean page shot
+            const modals = virtualDoc.querySelectorAll('.detail-overlay, #lightbox-view'); modals.forEach(m => m.remove());
 
             const pageName = page.replace('.html', '').toUpperCase();
+            
+            // SLIDE: Page Overview
             combinedHTML += `
-                <div class="print-page-break">
-                    <div class="review-box" style="background:#fdfdfd; margin-top:20px;">
-                        <div class="review-tag">Page Render: ${pageName}</div>
-                        <div class="annotation">➔ Background Image: Set via Admin Control</div>
-                        
-                        <div style="border: 2px solid #eee; padding: 15px; border-radius: 8px; background: var(--page-bg-color); display: block; overflow: hidden;">
+                <div class="slide">
+                    <div class="slide-header">
+                        <h2 class="slide-title">Page Layout: ${pageName}</h2>
+                        <div class="slide-subtitle">Structural Wireframe (Scaled to 40% Fit)</div>
+                    </div>
+                    <div class="preview-container">
+                        <div class="preview-scaler">
                             ${virtualDoc.body.innerHTML}
                         </div>
-
-                        <div class="remarks-box"><strong>Page Specific Remarks:</strong><div class="remarks-line"></div><div class="remarks-line"></div></div>
                     </div>
                 </div>
             `;
         } catch (error) { console.error("Error fetching " + page, error); }
     }
 
-    const sampleProj = allProjects[0];
-    const sampleUrls = getProjectImages(sampleProj.folder);
-    const sampleThumbs = sampleUrls.map(u => `<img src="${u}" onerror="this.remove()" style="aspect-ratio: 1/1; float: left; width: 22%; margin-right: 3%; object-fit: cover; border-radius: 8px; border: 2px solid #ddd;">`).join('');
+    // CHUNKING LOGIC: Splits projects into perfect 2x2 grids (4 projects per slide)
+    const chunked = [];
+    for (let i = 0; i < allProjects.length; i += 4) {
+        chunked.push(allProjects.slice(i, i + 4));
+    }
 
-    combinedHTML += `
-        <div class="print-page-break">
-            <h2 style="font-size: 2rem; border-bottom: 2px solid #ccc; padding-bottom: 10px; margin-bottom: 30px;">5. Project Detail View (Sample)</h2>
-            <div class="review-box" style="background:#fdfdfd;">
-                <div class="review-tag">Component: Overlay Popup (Project 1)</div>
-                <div class="annotation">➔ User Interaction: Opens when clicking a project on the grid</div>
-                
-                <div class="clearfix" style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; margin-top: 15px;">
-                    
-                    <div style="float: left; width: 48%; margin-right: 4%; min-height: 400px; background: url('${sampleProj.img}') center/cover; border-radius: 12px;"></div>
-                    
-                    <div style="float: left; width: 48%;">
-                        <div class="clearfix" style="margin-bottom: 20px;">${sampleThumbs}</div>
-                        <span style="color: #FF9800; font-weight: bold; font-size: 0.9rem; text-transform: uppercase;">CLIENT // ${sampleProj.client}</span>
-                        <h2 style="font-size: 2rem; margin: 5px 0 15px 0; color: #111;">${sampleProj.title}</h2>
-                        <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">${sampleProj.desc.substring(0, 200)}...</p>
-                        
-                        <div class="clearfix" style="background: #f8fafc; padding: 20px; border-radius: 8px; border-left: 5px solid #FF9800;">
-                            <div style="float: left; width: 50%; margin-bottom: 15px;"><span style="font-size:0.8rem; color:#64748b; text-transform:uppercase; font-weight:bold;">Project Year</span><br><strong style="font-size:1.1rem; color:#111;">${sampleProj.year}</strong></div>
-                            <div style="float: left; width: 50%; margin-bottom: 15px;"><span style="font-size:0.8rem; color:#64748b; text-transform:uppercase; font-weight:bold;">Status</span><br><strong style="font-size:1.1rem; color:#111;">${sampleProj.status}</strong></div>
-                            <div style="float: left; width: 50%;"><span style="font-size:0.8rem; color:#64748b; text-transform:uppercase; font-weight:bold;">Contractor</span><br><strong style="font-size:1.1rem; color:#111;">${sampleProj.contractor}</strong></div>
-                            <div style="float: left; width: 50%;"><span style="font-size:0.8rem; color:#64748b; text-transform:uppercase; font-weight:bold;">Location</span><br><strong style="font-size:1.1rem; color:#111;">${sampleProj.location}</strong></div>
-                        </div>
+    chunked.forEach((chunk, chunkIndex) => {
+        const cardsHTML = chunk.map((proj, i) => {
+            const globalIndex = (chunkIndex * 4) + i + 1;
+            const urls = getProjectImages(proj.folder);
+            const thumbs = urls.map(u => `<img src="${u}" onerror="this.remove()" style="width:40px; height:40px; object-fit:cover; border-radius:4px; border:1px solid #ccc;">`).join('');
+            const shortDesc = proj.desc.substring(0, 110) + '...';
+            
+            return `
+                <div class="proj-card">
+                    <div style="display:flex; gap:15px; margin-bottom:10px;">
+                        <img src="${proj.img}" style="width: 140px; height: 90px; object-fit: cover; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        <div style="display: flex; flex-wrap: wrap; gap: 5px; align-content: flex-start;">${thumbs}</div>
+                    </div>
+                    <p style="color: #FF9800; font-weight: bold; font-size: 10px; margin: 0 0 3px 0; text-transform: uppercase;">${proj.client}</p>
+                    <h4 style="margin:0 0 5px 0; font-size:16px; color:#111; font-weight: 800;">4.${globalIndex} ${proj.title}</h4>
+                    <p style="margin:0 0 10px 0; font-size:11px; color:#666; line-height:1.5; flex:1;">${shortDesc}</p>
+                    <div style="background:#fff; padding:10px; border-left:3px solid #FF9800; font-size:10px; display:grid; grid-template-columns: 1fr 1fr; gap:5px; border-radius: 4px; box-shadow: inset 0 0 4px rgba(0,0,0,0.02);">
+                        <div><strong>Year:</strong> ${proj.year}</div>
+                        <div><strong>Status:</strong> ${proj.status}</div>
+                        <div><strong>Contractor:</strong> ${proj.contractor}</div>
+                        <div><strong>Location:</strong> ${proj.location}</div>
                     </div>
                 </div>
+            `;
+        }).join('');
+
+        // SLIDE: Project Grid Pages
+        combinedHTML += `
+            <div class="slide">
+                <div class="slide-header">
+                    <h2 class="slide-title">4. Project Portfolio Data</h2>
+                    <div class="slide-subtitle">Grid View (Slide ${chunkIndex + 1} of ${chunked.length})</div>
+                </div>
+                <div class="proj-grid">
+                    ${cardsHTML}
+                </div>
+            </div>
+        `;
+    });
+
+    // INJECTING THE PROJECT DETAIL POPUP SAMPLE
+    const sampleProj = allProjects[0];
+    const sampleUrls = getProjectImages(sampleProj.folder);
+    const sampleThumbs = sampleUrls.map(u => `<img src="${u}" onerror="this.remove()" style="aspect-ratio: 1/1; flex: 1; max-width: 120px; object-fit: cover; border-radius: 8px; border: 2px solid #ddd;">`).join('');
+
+    // SLIDE: Detail Popup Sample
+    combinedHTML += `
+        <div class="slide">
+            <div class="slide-header">
+                <h2 class="slide-title">5. Project Detail View (Sample)</h2>
+                <div class="slide-subtitle">User Interface Popup overlaying the grid</div>
+            </div>
+            
+            <div style="flex:1; display: flex; gap: 30px; background: white; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0;">
+                <div style="flex: 1; background: url('${sampleProj.img}') center/cover; border-radius: 12px;"></div>
                 
-                <div class="remarks-box">Remarks:<div class="remarks-line"></div></div>
+                <div style="flex: 1; display: flex; flex-direction: column;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 20px;">${sampleThumbs}</div>
+                    <span style="color: #FF9800; font-weight: bold; font-size: 0.9rem; text-transform: uppercase;">CLIENT // ${sampleProj.client}</span>
+                    <h2 style="font-size: 2rem; margin: 5px 0 15px 0; color: #111;">${sampleProj.title}</h2>
+                    <p style="color: #666; line-height: 1.6; margin-bottom: 20px; flex:1;">${sampleProj.desc.substring(0, 300)}...</p>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background: #f8fafc; padding: 20px; border-radius: 8px; border-left: 5px solid #FF9800;">
+                        <div><span style="font-size:0.8rem; color:#64748b; text-transform:uppercase; font-weight:bold;">Project Year</span><br><strong style="font-size:1.1rem; color:#111;">${sampleProj.year}</strong></div>
+                        <div><span style="font-size:0.8rem; color:#64748b; text-transform:uppercase; font-weight:bold;">Status</span><br><strong style="font-size:1.1rem; color:#111;">${sampleProj.status}</strong></div>
+                        <div><span style="font-size:0.8rem; color:#64748b; text-transform:uppercase; font-weight:bold;">Contractor</span><br><strong style="font-size:1.1rem; color:#111;">${sampleProj.contractor}</strong></div>
+                        <div><span style="font-size:0.8rem; color:#64748b; text-transform:uppercase; font-weight:bold;">Location</span><br><strong style="font-size:1.1rem; color:#111;">${sampleProj.location}</strong></div>
+                    </div>
+                </div>
             </div>
         </div>
     `;
 
+    // SLIDE: Global Components
     combinedHTML += `
-        <div class="print-page-break">
-            <h2 style="font-size: 2rem; border-bottom: 2px solid #ccc; padding-bottom: 10px; margin-bottom: 30px;">6. Global Master Components</h2>
+        <div class="slide">
+            <div class="slide-header">
+                <h2 class="slide-title">6. Global Master Components</h2>
+                <div class="slide-subtitle">Navigation, Banner, and Footer Blocks</div>
+            </div>
             
-            <div class="review-box">
-                <div class="review-tag">Component: Top Navigation</div>
-                <div class="annotation">➔ Background Color: #1b1b1b (Change to: _______)</div>
-                ${sharedNavHTML}
-                <div class="remarks-box">Remarks:<div class="remarks-line"></div></div>
-            </div>
+            <div style="flex:1; display:flex; flex-direction:column; gap:20px; overflow:hidden;">
+                <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow:hidden;">
+                    <div style="background:#FFECB3; color:#E65100; font-size:10px; font-weight:bold; padding:4px 8px; text-transform:uppercase;">Top Navigation</div>
+                    ${sharedNavHTML}
+                </div>
 
-            <div class="review-box">
-                <div class="review-tag">Component: Contact Banner</div>
-                <div class="annotation">➔ Button Color: Primary Orange #FF9800 (Change to: _______)</div>
-                ${sharedContactHTML}
-                <div class="remarks-box">Remarks:<div class="remarks-line"></div></div>
-            </div>
+                <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow:hidden;">
+                    <div style="background:#FFECB3; color:#E65100; font-size:10px; font-weight:bold; padding:4px 8px; text-transform:uppercase;">Contact Banner</div>
+                    ${sharedContactHTML}
+                </div>
 
-            <div class="review-box" style="break-inside: avoid;">
-                <div class="review-tag">Component: Master Footer</div>
-                ${sharedFooterHTML}
-                <div class="remarks-box">Remarks:<div class="remarks-line"></div></div>
+                <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow:hidden;">
+                    <div style="background:#FFECB3; color:#E65100; font-size:10px; font-weight:bold; padding:4px 8px; text-transform:uppercase;">Master Footer</div>
+                    ${sharedFooterHTML}
+                </div>
             </div>
         </div>
     `;
