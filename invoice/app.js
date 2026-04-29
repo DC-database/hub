@@ -3601,6 +3601,14 @@ function handleSuccessfulLogin() {
         financeReportButton.classList.toggle('hidden', !canSeeFinancialReport);
     }
 
+    // --- NEW: PO System (Welcome Button): Super Admin (Irwin) ONLY ---
+    const poSystemButton = document.getElementById('po-system-button');
+    if (poSystemButton) {
+        const isSuperAdmin = ((currentApprover?.Name || '').trim().toLowerCase() === SUPER_ADMIN_NAME.toLowerCase());
+        // Toggle 'hidden' class: If NOT Super Admin, it stays hidden.
+        poSystemButton.classList.toggle('hidden', !isSuperAdmin);
+    }
+
     // --- NEW FIX: Hide Invoice Management Button for Unauthorized Users ---
     // Only Admins, Accounting, or Accounts should see this button
     const invoiceMgmtBtn = document.getElementById('invoice-mgmt-button');

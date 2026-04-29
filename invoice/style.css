@@ -7804,3 +7804,28 @@ button[title="Inquire / Request Update via WhatsApp"]:hover {
     background: transparent !important;
     box-shadow: none !important;
 }
+
+/* =========================================================
+   FIX: AUTO-ADJUST DASHBOARD CARD TO FIT BUTTONS
+   ========================================================= */
+/* 1. Tell the container to "shrink-wrap" around whatever is inside it */
+#app-container {
+    max-width: fit-content !important; 
+    margin: 0 auto; /* Keeps the whole thing centered on the screen */
+}
+
+/* 2. Lock the Login, Password, and Setup cards so they don't get too skinny */
+#login-view .form-container,
+#password-view .form-container,
+#setup-view .form-container {
+    width: 420px; 
+    max-width: 90vw;
+    margin: 0 auto;
+}
+
+/* 3. On mobile screens, force the buttons to wrap into a grid so they don't break */
+@media (max-width: 768px) {
+    .welcome-screen-buttons > div {
+        flex-wrap: wrap !important;
+    }
+}
