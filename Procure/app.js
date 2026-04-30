@@ -13,7 +13,7 @@ const firebaseConfig = {
 };
 
 if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
-const db = firebase.database(); // Switched to Realtime Database
+const db = firebase.database(); 
 
 // ==========================================
 // FIREBASE CONFIG 2: REQUISITIONS DATABASE (NEW)
@@ -21,7 +21,7 @@ const db = firebase.database(); // Switched to Realtime Database
 const firebaseConfigReq = {
     apiKey: "AIzaSyCxQKz3MOzyyKsJQhB54ZO1EKH_9QPkI44",
     authDomain: "requisition-bf146.firebaseapp.com",
-    databaseURL: "https://requisition-bf146-default-rtdb.firebaseio.com", // Added Realtime DB URL
+    databaseURL: "https://requisition-bf146-default-rtdb.firebaseio.com", 
     projectId: "requisition-bf146",
     storageBucket: "requisition-bf146.firebasestorage.app",
     messagingSenderId: "419583502521",
@@ -30,7 +30,7 @@ const firebaseConfigReq = {
 };
 
 const reqApp = firebase.initializeApp(firebaseConfigReq, "RequisitionApp");
-const dbReq = reqApp.database(); // Switched to Realtime Database
+const dbReq = reqApp.database(); 
 
 // ==========================================
 // URLs & GLOBALS
@@ -94,14 +94,15 @@ document.getElementById('clearSessionBtn').addEventListener('click', () => {
 // ==========================================
 async function initializeApp() {
     const cacheBuster = "?v=" + new Date().getTime();
-    
-    // Fetch GitHub CSVs
     fetch(ITEMS_CSV_URL + cacheBuster).then(res => res.text()).then(csvText => { Papa.parse(csvText, { header: true, skipEmptyLines: true, complete: function(results) { allSearchableItems = results.data; legacyItems = results.data; }}); });
     
     fetch(ACTIVITY_CSV_URL + cacheBuster).then(res => res.text()).then(csvText => { 
         Papa.parse(csvText, { header: true, skipEmptyLines: true, complete: function(results) { 
             const mainFilter = document.getElementById('mainCategoryFilter'); 
+            const editMainFilter = document.getElementById('editMainCategoryFilter'); 
+            
             mainFilter.innerHTML = '<option value="">-- Select Main Category --</option>'; 
+            editMainFilter.innerHTML = '<option value="">-- Select Main Category --</option>'; 
             
             results.data.forEach(row => { 
                 const groupCode = row["Group Code"]; const groupName = row["Group Name"]; 
@@ -114,7 +115,8 @@ async function initializeApp() {
                     
                     if (!activitiesMap[mainCat]) { 
                         activitiesMap[mainCat] = []; 
-                        const option = document.createElement('option'); option.value = mainCat; option.textContent = mainCat; mainFilter.appendChild(option); 
+                        const option1 = document.createElement('option'); option1.value = mainCat; option1.textContent = mainCat; mainFilter.appendChild(option1); 
+                        const option2 = document.createElement('option'); option2.value = mainCat; option2.textContent = mainCat; editMainFilter.appendChild(option2); 
                     } 
                     if (!activitiesMap[mainCat].some(g => g.groupCode === groupCode)) { activitiesMap[mainCat].push({ groupCode: groupCode, groupName: groupName }); }
                 } 
@@ -125,11 +127,13 @@ async function initializeApp() {
     fetch(VENDORS_CSV_URL + cacheBuster).then(res => res.text()).then(csvText => { Papa.parse(csvText, { header: true, skipEmptyLines: true, complete: function(results) { allVendors = results.data; }}); });
     fetch(SITE_CSV_URL + cacheBuster).then(res => res.text()).then(csvText => { Papa.parse(csvText, { header: true, skipEmptyLines: true, complete: function(results) { allSites = results.data; }}); });
     
-    // ADDED: Fetch custom items from Firebase and push them into the search cache
+    // Fetch custom items from Firebase
     db.ref("items").once("value").then((snapshot) => {
         if (snapshot.exists()) {
             snapshot.forEach(childSnap => {
-                allSearchableItems.push(childSnap.val());
+                let itemData = childSnap.val();
+                itemData.firebaseKey = childSnap.key; 
+                allSearchableItems.push(itemData);
             });
         }
     }).catch(error => console.error("Error loading Firebase items:", error));
@@ -137,7 +141,6 @@ async function initializeApp() {
     loadSession(); 
 }
 initializeApp();
-
 
 // ==========================================
 // 2. VENDOR & SITE AUTOCOMPLETE
@@ -176,17 +179,30 @@ searchInput.addEventListener('input', (e) => {
     if (matches.length === 0) { searchResults.innerHTML = '<div class="no-results">No items found. Click "Create New" to generate a part code.</div>'; return; }
     matches.forEach(item => {
         const partNo = item["Part Code"] || item["Part code"] || "N/A"; const desc = item["Description"] || "N/A"; const uom = item["UOM"] || "EA"; const groupName = item["Group Name"] || item["Group name"] || "N/A"; const actName = item["Activity Name"] || item["Activity name"] || item["Activity"] || "N/A";
+        const groupCode = item["Group Code"] || "N/A"; const seriesCode = item["Series"] || partNo.split('.')[1] || "";
+        
         const safeDesc = String(desc).replace(/'/g, "\\'").replace(/"/g, '&quot;'); const safeGroup = String(groupName).replace(/'/g, "\\'").replace(/"/g, '&quot;'); const safeAct = String(actName).replace(/'/g, "\\'").replace(/"/g, '&quot;');
         const div = document.createElement('div'); div.className = 'result-item';
-        div.innerHTML = `<div class="result-info"><strong>${partNo}</strong> - ${desc} <em>(${uom})</em><br><span style="font-size: 12px; color: #64748b; margin-top: 4px; display: inline-block;"><i class="fa-solid fa-folder-tree"></i> ${groupName} &nbsp;|&nbsp; <i class="fa-solid fa-clipboard-check"></i> ${actName}</span></div><button class="add-btn" onclick="addToCart('${partNo}', '${safeDesc}', '${uom}', '${safeGroup}', '${safeAct}')"><i class="fa-solid fa-plus"></i> Add</button>`;
+        
+        const safeKey = item.firebaseKey ? `'${item.firebaseKey}'` : null;
+        let actionButtons = `<button class="add-btn" onclick="addToCart('${partNo}', '${safeDesc}', '${uom}', '${safeGroup}', '${safeAct}')"><i class="fa-solid fa-plus"></i> Add</button>`;
+        
+        if (safeKey) {
+            actionButtons += `
+                <button onclick="openEditModal(${safeKey}, '${partNo}', '${seriesCode}', '${safeDesc}', '${uom}', '${groupCode}')" style="background: #f59e0b; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; margin-left: 5px;" title="Edit Item"><i class="fa-solid fa-pen"></i></button>
+                <button onclick="deleteFirebaseItem(${safeKey})" style="background: #ef4444; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; margin-left: 5px;" title="Delete Item"><i class="fa-solid fa-trash"></i></button>
+            `;
+        }
+
+        div.innerHTML = `
+            <div class="result-info"><strong>${partNo}</strong> - ${desc} <em>(${uom})</em><br><span style="font-size: 12px; color: #64748b; margin-top: 4px; display: inline-block;"><i class="fa-solid fa-folder-tree"></i> ${groupName} &nbsp;|&nbsp; <i class="fa-solid fa-clipboard-check"></i> ${actName}</span></div>
+            <div class="result-actions" style="display:flex; align-items:center;">${actionButtons}</div>
+        `;
         searchResults.appendChild(div);
     });
 });
 
 window.addToCart = function(partCode, description, unit, groupName, actName) {
-    // The duplicate block has been removed so you can add the same item multiple times
-    // for different sites/comments.
-    
     cart.push({ partNo: partCode, description: description, unit: unit, groupName: groupName, actName: actName, comment: '', qty: 1, price: 0 });
     searchInput.value = ''; searchResults.innerHTML = ''; renderCart(); saveSession();
 };
@@ -205,7 +221,7 @@ function renderCart() {
     
     cart.forEach((item, index) => {
         const total = item.qty * item.price; grandTotal += total;
-        const units = ['Bag', 'Box', 'Bun', 'Day', 'Doz', 'Dr', 'Gal', 'Hrs', 'Kg', 'Litre', 'Lm', 'm2', 'm3', 'Mon', 'Pkts', 'Pcs', 'Set', 'Rolls', 'Ton', 'Trip', 'Annual', 'Sum'];
+        const units = ['Annual', 'Bag', 'Box', 'Bun', 'Day', 'Doz', 'Dr', 'Gal', 'Hrs', 'Kg', 'Litre', 'Lm', 'm2', 'm3', 'Mon', 'Pcs', 'Pkts', 'Rolls', 'Set', 'Sum', 'Ton', 'Trip'];
         let unitOptions = ''; let found = false;
         units.forEach(u => { if (item.unit && u.toLowerCase() === item.unit.toLowerCase()) { unitOptions += `<option value="${u}" selected>${u}</option>`; found = true; } else { unitOptions += `<option value="${u}">${u}</option>`; } });
         if (!found) { unitOptions += `<option value="${item.unit || 'EA'}" selected>${item.unit || 'EA'}</option>`; }
@@ -247,7 +263,7 @@ function renderCart() {
 window.removeFromCart = function(index) { cart.splice(index, 1); renderCart(); saveSession(); };
 
 // ==========================================
-// 4. NEW ITEMS MODAL (SESSION VIEW)
+// 4. NEW ITEMS MODAL (SESSION VIEW) - UPDATED WITH CLASS & CODES
 // ==========================================
 const newItemsModal = document.getElementById('newItemsModal');
 const viewNewItemsBtn = document.getElementById('viewNewItemsBtn');
@@ -258,16 +274,22 @@ if(viewNewItemsBtn && newItemsModal) {
         const tbody = document.getElementById('newItemsTableBody');
         tbody.innerHTML = '';
         if(sessionNewlyCreatedItems.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 30px; color: #64748b; font-style: italic;">No new items were generated during this session.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 30px; color: #64748b; font-style: italic;">No new items were generated during this session.</td></tr>';
             document.getElementById('printNewItemsBtn').disabled = true;
         } else {
             sessionNewlyCreatedItems.forEach(item => {
+                // Combine Codes with Names for display
+                const actText = item["Activity Code"] && item["Activity Code"] !== "N/A" ? `[${item["Activity Code"]}] ${item["Activity Name"]}` : item["Activity Name"];
+                const groupText = item["Group Code"] ? `[${item["Group Code"]}] ${item["Group Name"]}` : item["Group Name"];
+                const classText = item["Class Code"] && item["Class Code"] !== "N/A" ? `[${item["Class Code"]}] ${item["Class Name"]}` : (item["Class Name"] || "N/A");
+
                 tbody.innerHTML += `<tr>
                     <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;"><strong>${item["Part Code"]}</strong></td>
                     <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${item["Description"]}</td>
                     <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${item["UOM"]}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color:#64748b;">${item["Group Name"]}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color:#64748b;">${item["Activity Name"]}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color:#64748b;">${actText}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color:#64748b;">${groupText}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color:#64748b;">${classText}</td>
                 </tr>`;
             });
             document.getElementById('printNewItemsBtn').disabled = false;
@@ -287,23 +309,28 @@ document.getElementById('printNewItemsBtn').addEventListener('click', () => {
     const tbody = document.getElementById('printNewItemsTableBody');
     tbody.innerHTML = '';
     sessionNewlyCreatedItems.forEach(item => {
+        // Combine Codes with Names for printing
+        const actText = item["Activity Code"] && item["Activity Code"] !== "N/A" ? `[${item["Activity Code"]}] ${item["Activity Name"]}` : item["Activity Name"];
+        const groupText = item["Group Code"] ? `[${item["Group Code"]}] ${item["Group Name"]}` : item["Group Name"];
+        const classText = item["Class Code"] && item["Class Code"] !== "N/A" ? `[${item["Class Code"]}] ${item["Class Name"]}` : (item["Class Name"] || "N/A");
+
         tbody.innerHTML += `<tr>
             <td style="border: 1px solid #000; padding: 8px; font-weight: bold;">${item["Part Code"]}</td>
             <td style="border: 1px solid #000; padding: 8px;">${item["Description"]}</td>
             <td style="border: 1px solid #000; padding: 8px;">${item["UOM"]}</td>
-            <td style="border: 1px solid #000; padding: 8px; font-size: 11px;">${item["Group Name"]}</td>
-            <td style="border: 1px solid #000; padding: 8px; font-size: 11px;">${item["Activity Name"]}</td>
+            <td style="border: 1px solid #000; padding: 8px; font-size: 11px;">${actText}</td>
+            <td style="border: 1px solid #000; padding: 8px; font-size: 11px;">${groupText}</td>
+            <td style="border: 1px solid #000; padding: 8px; font-size: 11px;">${classText}</td>
         </tr>`;
     });
     
     document.body.classList.add('printing-new-items'); 
     window.print();
-    
     setTimeout(() => { document.body.classList.remove('printing-new-items'); }, 1000);
 });
 
 // ==========================================
-// 5. MODAL (POP-UP) LOGIC & SMART SEARCH
+// 5. MODAL (CREATE NEW ITEM)
 // ==========================================
 const modal = document.getElementById('generatorModal'); 
 const openBtn = document.getElementById('openGeneratorBtn'); 
@@ -351,7 +378,6 @@ activitySearch.addEventListener('input', (e) => {
 async function calculateNextSeries(groupCode) {
     saveBtn.disabled = true; saveBtn.textContent = "Calculating..."; let highestSeries = 100000; 
     try {
-        // Step 1: Check ALL legacy items globally, ignoring the specific group code
         legacyItems.forEach(item => { 
             if (item["Series"]) {
                 const sNum = parseInt(item["Series"], 10); 
@@ -359,8 +385,6 @@ async function calculateNextSeries(groupCode) {
             }
         });
         
-        // Step 2: Check Firebase Realtime DB globally
-        // We order by "Series" and grab the last one to find the highest number across the whole database
         const snap = await db.ref("items").orderByChild("Series").limitToLast(1).once("value");
         if (snap.exists()) {
             snap.forEach((childSnap) => { 
@@ -382,12 +406,12 @@ document.getElementById('itemForm').addEventListener('submit', async (e) => {
     try {
         saveBtn.disabled = true; saveBtn.textContent = "Saving...";
         
-        // Push new record to Firebase Realtime DB
-        await db.ref("items").push(newItemRecord); 
+        const newRef = db.ref("items").push();
+        newItemRecord.firebaseKey = newRef.key;
+        await newRef.set(newItemRecord);
         
         allSearchableItems.push(newItemRecord); 
         sessionNewlyCreatedItems.push(newItemRecord); 
-        
         addToCart(generatedPartCode, itemDesc, itemUOM, data.groupName, data.activityName); 
         
         document.getElementById('itemForm').reset(); document.getElementById('previewPartCode').textContent = 'XXXXX.XXXXXX'; document.getElementById('previewSeries').textContent = 'Series: ------';
@@ -397,7 +421,134 @@ document.getElementById('itemForm').addEventListener('submit', async (e) => {
 });
 
 // ==========================================
-// 6. PREVIEW & SAVE LOGIC
+// 6. FIREBASE ITEM MANAGEMENT (EDIT/DELETE)
+// ==========================================
+window.deleteFirebaseItem = async function(key) {
+    if(confirm("Are you sure you want to permanently delete this item from the database?")) {
+        try {
+            await db.ref("items").child(key).remove();
+            allSearchableItems = allSearchableItems.filter(item => item.firebaseKey !== key);
+            document.getElementById('searchInput').dispatchEvent(new Event('input'));
+            alert("Item deleted successfully.");
+        } catch (error) { console.error("Error deleting item:", error); alert("Failed to delete item."); }
+    }
+};
+
+let editCurrentGroupCode = null; let editCurrentSeries = null; let editCategoryGroups = [];
+const editMainCategoryFilter = document.getElementById('editMainCategoryFilter');
+const editActivitySearch = document.getElementById('editActivitySearch');
+const editActivitySuggestions = document.getElementById('editActivitySuggestions');
+
+editMainCategoryFilter.addEventListener('change', (e) => {
+    const selectedCat = e.target.value; editActivitySearch.value = ''; editActivitySuggestions.innerHTML = '';
+    document.getElementById('editDispGroup').value = ''; document.getElementById('editDispClass').value = ''; document.getElementById('editDispActivity').value = '';
+    
+    if (!selectedCat) { 
+        editActivitySearch.disabled = true; editActivitySearch.placeholder = "-- Select Main Category First --"; 
+        editCategoryGroups = []; 
+        document.getElementById('editPartCodePreview').textContent = `${document.getElementById('editOriginalGroupCode').value}.${editCurrentSeries}`;
+        editCurrentGroupCode = document.getElementById('editOriginalGroupCode').value;
+        return; 
+    }
+    editActivitySearch.disabled = false; editActivitySearch.placeholder = "Click to see all, or type to search..."; editCategoryGroups = activitiesMap[selectedCat] || [];
+});
+
+function showEditActivitySuggestions(query = "") {
+    editActivitySuggestions.innerHTML = ''; if (editCategoryGroups.length === 0) return;
+    const q = query.toLowerCase().trim();
+    const matches = editCategoryGroups.filter(g => { return g.groupName.toLowerCase().includes(q) || g.groupCode.toLowerCase().includes(q); });
+    matches.forEach(g => {
+        const div = document.createElement('div'); div.className = 'suggestion-item'; div.innerHTML = `<strong>${g.groupCode}</strong> - ${g.groupName}`;
+        div.onclick = () => {
+            editActivitySearch.value = `${g.groupName} (Group: ${g.groupCode})`; editActivitySuggestions.innerHTML = ''; editCurrentGroupCode = g.groupCode; 
+            const data = dynamicActivityData[editCurrentGroupCode]; 
+            document.getElementById('editDispGroup').value = `${editCurrentGroupCode} - ${data.groupName}`; document.getElementById('editDispClass').value = `${data.classCode} - ${data.className}`; document.getElementById('editDispActivity').value = `${data.activityCode} - ${data.activityName}`;
+            document.getElementById('editPartCodePreview').textContent = `${editCurrentGroupCode}.${editCurrentSeries}`;
+        };
+        editActivitySuggestions.appendChild(div);
+    });
+}
+editActivitySearch.addEventListener('focus', () => { showEditActivitySuggestions(''); });
+editActivitySearch.addEventListener('click', () => { showEditActivitySuggestions(''); });
+editActivitySearch.addEventListener('input', (e) => { showEditActivitySuggestions(e.target.value); });
+
+window.openEditModal = function(key, partCode, series, desc, uom, groupCode) {
+    document.getElementById('editFirebaseKey').value = key;
+    editCurrentSeries = series || partCode.split('.')[1]; 
+    editCurrentGroupCode = groupCode;
+    document.getElementById('editOriginalGroupCode').value = groupCode;
+
+    document.getElementById('editPartCodePreview').textContent = partCode;
+    document.getElementById('editDescription').value = desc;
+    
+    const uomSelect = document.getElementById('editUom');
+    for(let i=0; i<uomSelect.options.length; i++) {
+        if(uomSelect.options[i].value === uom) { uomSelect.selectedIndex = i; break; }
+    }
+
+    if (groupCode && dynamicActivityData[groupCode]) {
+        const data = dynamicActivityData[groupCode];
+        const mainCat = data.activityName;
+        document.getElementById('editMainCategoryFilter').value = mainCat;
+        editCategoryGroups = activitiesMap[mainCat] || [];
+        
+        editActivitySearch.disabled = false;
+        editActivitySearch.value = `${data.groupName} (Group: ${groupCode})`;
+        document.getElementById('editDispGroup').value = `${groupCode} - ${data.groupName}`;
+        document.getElementById('editDispClass').value = `${data.classCode} - ${data.className}`;
+        document.getElementById('editDispActivity').value = `${data.activityCode} - ${data.activityName}`;
+    }
+
+    document.getElementById('editItemModal').classList.add('active');
+};
+
+document.getElementById('closeEditModalBtn').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('editItemModal').classList.remove('active'); });
+
+document.getElementById('editItemForm').addEventListener('submit', async (e) => {
+    e.preventDefault(); 
+    const saveBtn = document.getElementById('saveEditBtn');
+    saveBtn.disabled = true; saveBtn.textContent = "Updating...";
+
+    const key = document.getElementById('editFirebaseKey').value;
+    const newDesc = document.getElementById('editDescription').value;
+    const newUom = document.getElementById('editUom').value;
+    
+    const finalGroupCode = editCurrentGroupCode || document.getElementById('editOriginalGroupCode').value;
+    const data = dynamicActivityData[finalGroupCode];
+    const newPartCode = `${finalGroupCode}.${editCurrentSeries}`;
+
+    const updateData = {
+        "Part Code": newPartCode,
+        "Description": newDesc,
+        "UOM": newUom,
+        "Group Code": finalGroupCode,
+        "Group Name": data.groupName,
+        "Class Code": data.classCode,
+        "Class Name": data.className,
+        "Activity Code": data.activityCode,
+        "Activity Name": data.activityName
+    };
+
+    try {
+        await db.ref("items").child(key).update(updateData);
+        
+        const itemIndex = allSearchableItems.findIndex(item => item.firebaseKey === key);
+        if(itemIndex > -1) {
+            allSearchableItems[itemIndex] = { ...allSearchableItems[itemIndex], ...updateData };
+        }
+        
+        document.getElementById('editItemModal').classList.remove('active');
+        document.getElementById('searchInput').dispatchEvent(new Event('input'));
+        alert("Item successfully updated!");
+    } catch (error) { 
+        console.error("Error updating item:", error); alert("Failed to update item."); 
+    } finally {
+        saveBtn.disabled = false; saveBtn.textContent = "Update Item";
+    }
+});
+
+// ==========================================
+// 7. PREVIEW & SAVE LOGIC
 // ==========================================
 function populatePrintLayout(reqNum, dateStr, createdBy, mobile) {
     document.getElementById('printReqNumber').textContent = reqNum; document.getElementById('printReqDate').textContent = dateStr;
@@ -441,7 +592,6 @@ document.getElementById('saveBtnAction').addEventListener('click', async () => {
         let nextReqNum = 100001; 
         const prRef = dbReq.ref("requisitions");
         
-        // Find last Requisition Number in Realtime DB
         const snapshot = await prRef.orderByChild("reqNumber").limitToLast(1).once("value");
         if (snapshot.exists()) {
             snapshot.forEach(child => {
@@ -453,7 +603,6 @@ document.getElementById('saveBtnAction').addEventListener('click', async () => {
         const d = new Date(); const formattedDate = `${String(d.getDate()).padStart(2, '0')} ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getMonth()]} ${d.getFullYear()}`;
         let grandTotal = 0; cart.forEach(item => grandTotal += (item.qty * item.price));
 
-        // Save to Realtime DB
         await prRef.child(nextReqNum.toString()).set({
             reqNumber: nextReqNum, createdAt: d.toISOString(), dateFormatted: formattedDate,
             vendor: selectedVendor, site: selectedSite, createdBy: createdBy, mobileNumber: mobile, items: cart, totalValue: grandTotal

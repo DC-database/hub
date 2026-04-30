@@ -102,8 +102,9 @@
         </div>
     </div>
 
+    <!-- NEW ITEMS MODAL (SESSION VIEW) - UPDATED COLUMNS -->
     <div id="newItemsModal" class="modal-overlay no-print">
-        <div class="modal-content" style="max-width: 900px;">
+        <div class="modal-content" style="max-width: 1000px;">
             <div class="modal-header" style="background-color: #f59e0b;">
                 <h2>Newly Created Items (Current Session)</h2>
                 <button id="closeNewItemsModalBtn" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
@@ -115,12 +116,12 @@
                             <th style="padding: 10px; border-bottom: 2px solid #cbd5e1; text-align: left;">Part Code</th>
                             <th style="padding: 10px; border-bottom: 2px solid #cbd5e1; text-align: left;">Description</th>
                             <th style="padding: 10px; border-bottom: 2px solid #cbd5e1; text-align: left;">UOM</th>
+                            <th style="padding: 10px; border-bottom: 2px solid #cbd5e1; text-align: left;">Main Category</th>
                             <th style="padding: 10px; border-bottom: 2px solid #cbd5e1; text-align: left;">Group</th>
-                            <th style="padding: 10px; border-bottom: 2px solid #cbd5e1; text-align: left;">Activity</th>
+                            <th style="padding: 10px; border-bottom: 2px solid #cbd5e1; text-align: left;">Class</th>
                         </tr>
                     </thead>
-                    <tbody id="newItemsTableBody">
-                        </tbody>
+                    <tbody id="newItemsTableBody"></tbody>
                 </table>
                 <div style="text-align: right;">
                     <button type="button" id="printNewItemsBtn" class="print-btn" style="background-color: #f59e0b; color: white;"><i class="fa-solid fa-print"></i> Print New Items Report</button>
@@ -129,6 +130,7 @@
         </div>
     </div>
 
+    <!-- CREATE NEW ITEM MODAL -->
     <div id="generatorModal" class="modal-overlay no-print">
         <div class="modal-content">
             <div class="modal-header">
@@ -140,7 +142,6 @@
                 <form id="itemForm">
                     <div class="section">
                         <h3>1. Item Classification</h3>
-                        
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
                             <div class="form-group">
                                 <label>1. Main Category</label>
@@ -148,7 +149,6 @@
                                     <option value="">-- Loading Categories... --</option>
                                 </select>
                             </div>
-                            
                             <div class="form-group">
                                 <label>2. Specific Group</label>
                                 <div class="autocomplete-wrapper">
@@ -175,30 +175,31 @@
                             <div class="form-group">
                                 <label>UOM</label>
                                 <select id="uom" required>
-    <option value="">-- Select --</option>
-    <option value="Bag">Bag</option>
-    <option value="Box">Box</option>
-    <option value="Bun">Bundle</option>
-    <option value="Day">Day</option>
-    <option value="Doz">Doz</option>
-    <option value="Dr">Drum</option>
-    <option value="Gal">Gallon</option>
-    <option value="Hrs">Hours</option>
-    <option value="Kg">Kilogram</option>
-    <option value="Litre">Litre</option>
-    <option value="Lm">Linear Meter</option>
-    <option value="m2">Square Meter</option>
-    <option value="m3">Cubic Meter</option>
-    <option value="Mon">Month</option>
-    <option value="Pkts">Packets</option> 
-    <option value="Pcs">Pcs</option>
-    <option value="Set">Set</option>
-    <option value="Annual">Annual</option>
-    <option value="Rolls">Rolls</option> 
-    <option value="Ton">Ton</option> 
-    <option value="Trip">Trip</option> 
-    <option value="Sum">Lumpsum</option> 
-</select>
+                                    <option value="">-- Select --</option>
+				    <option value="Annual">Annual</option>
+				    <option value="Bag">Bag</option>
+				    <option value="Box">Box</option>
+				    <option value="Bun">Bun</option>
+                                    <option value="Day">Day</option>
+                                    <option value="Doz">Doz</option>
+                                    <option value="Dr">Dr</option>
+                                    <option value="Gal">Gal</option
+                                    <option value="Hrs">Hrs</option>
+                                    <option value="Kg">Kg</option>
+                                    <option value="Litre">Litre</option>
+                                    <option value="Lm">Lm</option>
+				    <option value="m2">m2</option>
+				    <option value="m3">m3</option>
+				    <option value="Mon">Mon</option>	
+                                    <option value="Pcs">Pcs</option>
+                                    <option value="Pkts">Pkts</option>
+                                    <option value="Rolls">Rolls</option>
+				    <option value="Set">Set</option>
+				    <option value="Sum">Sum</option>
+				    <option value="Ton">Ton</option>
+                                    <option value="Trip">Trip</option>
+					
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -222,6 +223,96 @@
         </div>
     </div>
 
+    <!-- EDIT EXISTING ITEM MODAL -->
+    <div id="editItemModal" class="modal-overlay no-print">
+        <div class="modal-content">
+            <div class="modal-header" style="background-color: #0284c7;">
+                <h2>Edit Custom Item</h2>
+                <button id="closeEditModalBtn" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="modal-body">
+                <form id="editItemForm">
+                    <input type="hidden" id="editFirebaseKey">
+                    <input type="hidden" id="editOriginalGroupCode">
+
+                    <div class="section">
+                        <h3>1. Update Classification (Optional)</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                            <div class="form-group">
+                                <label>1. Main Category</label>
+                                <select id="editMainCategoryFilter">
+                                    <option value="">-- Loading Categories... --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>2. Specific Group</label>
+                                <div class="autocomplete-wrapper">
+                                    <input type="text" id="editActivitySearch" placeholder="-- Select Main Category First --" autocomplete="off" disabled>
+                                    <div id="editActivitySuggestions" class="suggestions-box"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="read-only-grid">
+                            <div class="form-group"><label>Group Code</label><input type="text" id="editDispGroup" readonly></div>
+                            <div class="form-group"><label>Class Code</label><input type="text" id="editDispClass" readonly></div>
+                            <div class="form-group"><label>Activity</label><input type="text" id="editDispActivity" readonly></div>
+                        </div>
+
+                        <div style="margin-top: 15px; font-size: 13px; color: #1e3a8a; background: #eff6ff; padding: 10px; border-radius: 6px; border: 1px solid #bfdbfe;">
+                            <strong>Note:</strong> Changing the group updates the Part Code prefix, but retains the original 6-digit series.<br>
+                            Current/New Part Code: <strong id="editPartCodePreview" style="font-family: monospace; font-size: 16px; color: #0284c7; letter-spacing: 1px; display: inline-block; margin-top: 5px;">---</strong>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <h3>2. Item Details</h3>
+                        <div class="input-grid">
+                            <div class="form-group span-2">
+                                <label>Item Description</label>
+                                <input type="text" id="editDescription" required autocomplete="off">
+                            </div>
+                            <div class="form-group">
+                                <label>UOM</label>
+                                <select id="editUom" required>
+                                    <option value="">-- Select --</option>
+				    <option value="Annual">Annual</option>
+				    <option value="Bag">Bag</option>
+				    <option value="Box">Box</option>
+				    <option value="Bun">Bun</option>
+                                    <option value="Day">Day</option>
+                                    <option value="Doz">Doz</option>
+                                    <option value="Dr">Dr</option>
+                                    <option value="Gal">Gal</option
+                                    <option value="Hrs">Hrs</option>
+                                    <option value="Kg">Kg</option>
+                                    <option value="Litre">Litre</option>
+                                    <option value="Lm">Lm</option>
+				    <option value="m2">m2</option>
+				    <option value="m3">m3</option>
+				    <option value="Mon">Mon</option>	
+                                    <option value="Pcs">Pcs</option>
+                                    <option value="Pkts">Pkts</option>
+                                    <option value="Rolls">Rolls</option>
+				    <option value="Set">Set</option>
+				    <option value="Sum">Sum</option>
+				    <option value="Ton">Ton</option>
+                                    <option value="Trip">Trip</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="submit-section">
+                        <button type="submit" id="saveEditBtn" class="save-btn" style="background-color: #0284c7;">Update Item</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- PRINT LAYOUTS -->
     <div id="printArea" class="print-only">
         <div class="print-top-header">
             <div class="print-logo-container">
@@ -261,6 +352,7 @@
         </div>
     </div>
 
+    <!-- PRINT NEW ITEMS LAYOUT - UPDATED COLUMNS -->
     <div id="printNewItemsArea" class="print-only-new-items">
         <div style="text-align: center; margin-bottom: 25px; border-bottom: 2px solid #0f172a; padding-bottom: 10px;">
             <h2 style="margin: 0 0 5px 0; font-size: 24px; color: #0f172a; font-family: 'Times New Roman', Times, serif;">Newly Created Items Report</h2>
@@ -272,8 +364,9 @@
                     <th style="background-color: #f1f5f9; padding: 10px; border: 1px solid #000;">Part Code</th>
                     <th style="background-color: #f1f5f9; padding: 10px; border: 1px solid #000;">Description</th>
                     <th style="background-color: #f1f5f9; padding: 10px; border: 1px solid #000;">UOM</th>
-                    <th style="background-color: #f1f5f9; padding: 10px; border: 1px solid #000;">Group Name</th>
-                    <th style="background-color: #f1f5f9; padding: 10px; border: 1px solid #000;">Activity Name</th>
+                    <th style="background-color: #f1f5f9; padding: 10px; border: 1px solid #000;">Main Category</th>
+                    <th style="background-color: #f1f5f9; padding: 10px; border: 1px solid #000;">Group</th>
+                    <th style="background-color: #f1f5f9; padding: 10px; border: 1px solid #000;">Class</th>
                 </tr>
             </thead>
             <tbody id="printNewItemsTableBody"></tbody>
