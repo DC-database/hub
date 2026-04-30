@@ -34890,7 +34890,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 ,60751,17765,Al Attiya Motors and Trading Co.,169,475.80,04-Oct-25,IBA Head Office,mohsin,FALSE
 ,60752,17765,Al Attiya Motors and Trading Co.,M18,237.90,04-Oct-25,IBA Head Office,mohsin,FALSE
 ,60753,11472,Computer Plus,100,485.00,04-Oct-25,IBA Head Office,H.Abbas,FALSE
-20673,60754,11283,Wiltz Trading and Contracting W.L.L,173,9000.00,04-Oct-25,Eng. Khamis Farhan,mohsin,TRUE
+20673,60754,11283,Wiltz Trading and Contracting W.L.L,173,4500.00,04-Oct-25,Eng. Khamis Farhan,mohsin,FALSE
 20825,60755,11304,SunTech Trading Co. W.L.L,123,1475.00,04-Oct-25,IBA Head Office,H.Abbas,FALSE
 20815,60756,10239,Abdel Latif,176,550.00,04-Oct-25,IBA Head Office,mohsin,FALSE
 ,60757,19999,Cash,100,129.00,04-Oct-25,IBA Head Office,H.Abbas,FALSE
@@ -37918,7 +37918,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 22136,63866,11732,Nay Trading Co. W.L.L.,M30,210.00,04-Apr-26,IBA Head Office,Cyril,FALSE
 ,63867,19999,Cash,173,100.00,04-Apr-26,IBA Head Office,i.reza,FALSE
 ,63868,19999,Cash,M30,13.00,04-Apr-26,IBA Head Office,i.reza,FALSE
-22138,63869,30361,Grace Qatar Trading & Contracting W.L.L.,166,1100.00,04-Apr-26,Ali Mohamed Saad Zaghloul,Awais,TRUE
+22138,63869,30361,Grace Qatar Trading & Contracting W.L.L.,166,1100.00,04-Apr-26,Ali Mohamed Saad Zaghloul,Awais,FALSE
 ,63870,10133,Mohd. Yousuf Kafood & Sons. Trad. & Cont. Co.,M30,6480.00,04-Apr-26,Muhammed Siddique,Awais,TRUE
 ,63871,11475,Doha Petroleum Construction Co. LTD.,168,3200.00,04-Apr-26,IBA Head Office,i.reza,TRUE
 22139,63872,11732,Nay Trading Co. W.L.L.,1111,175.00,05-Apr-26,Muhammed Siddique,Cyril,FALSE
@@ -38080,7 +38080,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 ,64030,30529,Saad Badi Furniture,166,10000.00,20-Apr-26,Ali Mohamed Saad Zaghloul,Cyril,TRUE
 ,64031,30388,Gulf Technical Service - GTS (W.L.L),176,60000.00,18-Apr-26,Eng. Mohammed Gomaa,H.Abbas,TRUE
 22189,64032,10245,Don Construction Products - Qatar W.L.L,176,1435.00,19-Apr-26,Eng. Mohamed Abdelhamid,Cyril,TRUE
-,64033,11466,Cozmo Travel,100,31020.00,19-Apr-26,IBA Head Office,H.Abbas,TRUE
+,64033,11466,Cozmo Travel,100,31020.00,19-Apr-26,IBA Head Office,H.Abbas,FALSE
 22226,64034,30382,Al Malki Trading & Contracting Co.,166,1085.00,19-Apr-26,Ali Mohamed Saad Zaghloul,Cyril,TRUE
 22203,64035,19999,Cash,M30,143.00,19-Apr-26,Eng. Ahmed Aboushanab,Cyril,FALSE
 ,64036,10222,Marafeq Qatar,M177,214390.00,19-Apr-26,IBA Head Office,Irwin,FALSE
@@ -38104,7 +38104,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 22232,64054,39125,Equipment Trading & Contracting Co. WLL,1111,2900.01,20-Apr-26,Muhammed Siddique,Cyril,FALSE
 ,64055,19999,Cash,100,385.00,20-Apr-26,IBA Head Office,i.reza,FALSE
 22227,64056,10126,Hempel Paints,176,510.00,20-Apr-26,Eng. Mohammed Gomaa,Cyril,FALSE
-,64057,11466,Cozmo Travel,100,8940.00,20-Apr-26,IBA Head Office,H.Abbas,TRUE
+,64057,11466,Cozmo Travel,100,8940.00,20-Apr-26,IBA Head Office,H.Abbas,FALSE
 ,64058,30143,Al Emadi Stones,173,580000.00,23-Apr-26,Eng. Khamis Farhan,Cyril,TRUE
 ,64059,19999,Cash,100,1200.00,20-Apr-26,IBA Head Office,Irwin,FALSE
 22238,64060,30171,IBA Aluminium,166,20000.00,20-Apr-26,Ali Mohamed Saad Zaghloul,Cyril,TRUE
@@ -38177,7 +38177,6 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 22257,64130,11874,ANSAR GALLERY,M30,27000.00,26-Apr-26,IBA Head Office,Cyril,TRUE
 ,64131,10130,Khalifa Steel Industries Co,M40,26550.00,27-Apr-26,Eng. Ali Al Mughrabi,Cyril,TRUE
 22186,64132,10245,Don Construction Products - Qatar W.L.L,173,7500.00,27-Apr-26,Eng. Khamis Farhan,Cyril,TRUE
-22247,64133,11600,Lamha Trading Co.,M30,6555.00,27-Apr-26,IBA Head Office,Cyril,TRUE
 22258,64134,11732,Nay Trading Co. W.L.L.,176,136.00,27-Apr-26,Eng. Mohammed Gomaa,Cyril,TRUE
 22266,64135,11847,United Gulf Cement Company,M39,6800.00,27-Apr-26,IBA Head Office,H.Abbas,FALSE
 22267,64136,39125,Equipment Trading & Contracting Co. WLL,173,847.00,27-Apr-26,Muhammed Siddique,Cyril,TRUE
@@ -38221,15 +38220,21 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 ,64176,19999,Cash,173,1404.00,29-Apr-26,IBA Head Office,i.reza,FALSE
 22274,64177,11414,Doha Technical Laboratories,176,600.00,29-Apr-26,Eng. Mohammed Gomaa,Cyril,TRUE
 22251,64178,11870,SMART LIGHT & CONTROL,150,2300.00,29-Apr-26,Eng. Ahmed Aboushanab,Cyril,TRUE
-22276,64179,11836,Consort Trading L.L.C,176,2463.97,29-Apr-26,Eng. Mohammed Gomaa,Cyril,TRUE
+22276,64179,11836,Consort Trading L.L.C,176,2463.97,30-Apr-26,Eng. Mohammed Gomaa,Cyril,TRUE
 ,64180,19999,Cash,173,2662.00,29-Apr-26,IBA Head Office,i.reza,FALSE
 22281,64181,11732,Nay Trading Co. W.L.L.,176,147.00,29-Apr-26,Eng. Mohammed Gomaa,Cyril,TRUE
 ,64182,19999,Cash,173,1029.00,29-Apr-26,IBA Head Office,i.reza,FALSE
-,64183,19999,Cash,100,35.00,29-Apr-26,IBA Head Office,i.reza,TRUE
+,64183,19999,Cash,100,35.00,29-Apr-26,IBA Head Office,i.reza,FALSE
 ,64184,19999,Cash,177,75.00,29-Apr-26,IBA Head Office,i.reza,FALSE
 ,64185,19999,Cash,M30,43.00,29-Apr-26,IBA Head Office,i.reza,TRUE
 ,64186,19999,Cash,M39,850.00,29-Apr-26,IBA Head Office,i.reza,FALSE
 22255,64187,30318,Aqua Proof Trading & Cotracting Co.,166,25000.00,29-Apr-26,Ali Mohamed Saad Zaghloul,Cyril,TRUE
 ,64188,19999,Cash,176,96.00,29-Apr-26,IBA Head Office,i.reza,FALSE
 ,64189,19999,Cash,M18,377.00,29-Apr-26,IBA Head Office,i.reza,FALSE
-,64190,11864,ISS Global Forwarding W.L.L,169,7950.00,29-Apr-26,IBA Head Office,Cyril,TRUE
+,64190,11864,ISS Global Forwarding W.L.L,169,7950.00,30-Apr-26,IBA Head Office,Cyril,TRUE
+,64191,19999,Cash,173,330.00,29-Apr-26,IBA Head Office,i.reza,FALSE
+22282,64192,11600,Lamha Trading Co.,173,686.00,30-Apr-26,Muhammed Siddique,Cyril,TRUE
+22280,64193,19999,Cash,176,131.00,30-Apr-26,Eng. Mohammed Gomaa,H.Abbas,FALSE
+,64194,19999,Cash,100,287.50,30-Apr-26,IBA Head Office,H.Abbas,FALSE
+,64195,19999,Cash,M18,120.00,30-Apr-26,IBA Head Office,i.reza,FALSE
+,64196,11466,Cozmo Travel,M35,6200.00,30-Apr-26,IBA Head Office,H.Abbas,FALSE
