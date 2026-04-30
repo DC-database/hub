@@ -7829,3 +7829,63 @@ button[title="Inquire / Request Update via WhatsApp"]:hover {
         flex-wrap: wrap !important;
     }
 }
+
+/* =========================================================
+   HIGHLIGHT SPECIFIC FIELDS IN BATCH ENTRY (CARD LAYOUT)
+   ========================================================= */
+
+/* 1. INV NO. (Turns ALL inputs in the header yellow first) */
+.batch-card-header input {
+    background-color: #fffde7 !important;
+    border: 2px solid #f6c23e !important;
+    color: #000 !important;
+}
+
+/* Protect the 'Attention' dropdown search box from turning yellow */
+.batch-card-header .choices__input {
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* Revert the 'Note' field (the last box) back to normal */
+.batch-card-header .compact-input:last-of-type input,
+.batch-card-header .compact-input:last-child input {
+    background-color: #f8fafc !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #334155 !important;
+}
+
+/* 2. STATUS (WORKING PERFECTLY) */
+.batch-card-header select {
+    background-color: #fffde7 !important;
+    border: 2px solid #f6c23e !important;
+    color: #000 !important;
+    font-weight: 700 !important;
+}
+
+/* 3. INVOICE VALUE (WORKING PERFECTLY) */
+.batch-card-body .batch-input-grid > div:nth-child(5) input {
+    background-color: #fffde7 !important;
+    border: 2px solid #f6c23e !important;
+    color: #000 !important;
+    font-weight: 700 !important;
+}
+
+/* 4. AMOUNT PAID (WORKING PERFECTLY) */
+.batch-card-body .batch-input-grid > div:nth-child(6) input {
+    background-color: #fffde7 !important;
+    border: 2px solid #f6c23e !important;
+    color: #000 !important;
+    font-weight: 700 !important;
+}
+
+/* 5. FOCUS STATES (Turns them clean white when you click to type) */
+.batch-card-header input:focus,
+.batch-card-header select:focus,
+.batch-card-body .batch-input-grid > div:nth-child(5) input:focus,
+.batch-card-body .batch-input-grid > div:nth-child(6) input:focus {
+    background-color: #ffffff !important;
+    border-color: #00748C !important;
+    box-shadow: 0 0 0 3px rgba(0, 116, 140, 0.15) !important;
+}

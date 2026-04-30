@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.8.3";
+const APP_VERSION = "6.8.4";
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -14010,8 +14010,11 @@ function autoFillSummarySrvIfWithAccounts() {
             const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
             const dateStr = `${String(d.getDate()).padStart(2, '0')}-${months[d.getMonth()]}-${d.getFullYear()}`;
             
-            // Instantly fill the box!
-            srvInput.value = `${vendorName} ${dateStr}`; 
+            // 1. Cut the vendor name at 23 characters and clean up the edges
+            let shortVendor = vendorName.length > 23 ? vendorName.substring(0, 23).trim() : vendorName;
+            
+            // 2. Instantly fill the box with the shortened name!
+            srvInput.value = `${shortVendor} ${dateStr}`; 
         }
     }
 }
