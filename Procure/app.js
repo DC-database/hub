@@ -94,6 +94,8 @@ document.getElementById('clearSessionBtn').addEventListener('click', () => {
 // ==========================================
 async function initializeApp() {
     const cacheBuster = "?v=" + new Date().getTime();
+    
+    // Fetch GitHub CSVs
     fetch(ITEMS_CSV_URL + cacheBuster).then(res => res.text()).then(csvText => { Papa.parse(csvText, { header: true, skipEmptyLines: true, complete: function(results) { allSearchableItems = results.data; legacyItems = results.data; }}); });
     
     fetch(ACTIVITY_CSV_URL + cacheBuster).then(res => res.text()).then(csvText => { 
@@ -122,9 +124,20 @@ async function initializeApp() {
     
     fetch(VENDORS_CSV_URL + cacheBuster).then(res => res.text()).then(csvText => { Papa.parse(csvText, { header: true, skipEmptyLines: true, complete: function(results) { allVendors = results.data; }}); });
     fetch(SITE_CSV_URL + cacheBuster).then(res => res.text()).then(csvText => { Papa.parse(csvText, { header: true, skipEmptyLines: true, complete: function(results) { allSites = results.data; }}); });
+    
+    // ADDED: Fetch custom items from Firebase and push them into the search cache
+    db.ref("items").once("value").then((snapshot) => {
+        if (snapshot.exists()) {
+            snapshot.forEach(childSnap => {
+                allSearchableItems.push(childSnap.val());
+            });
+        }
+    }).catch(error => console.error("Error loading Firebase items:", error));
+
     loadSession(); 
 }
 initializeApp();
+
 
 // ==========================================
 // 2. VENDOR & SITE AUTOCOMPLETE
@@ -192,7 +205,7 @@ function renderCart() {
     
     cart.forEach((item, index) => {
         const total = item.qty * item.price; grandTotal += total;
-        const units = ['Bag', 'Box', 'Bun', 'Day', 'Doz', 'Dr', 'Gal', 'Hrs', 'Kg', 'Litre', 'Lm', 'm2', 'm3', 'Mon', 'Pcs', 'Annual', 'Sum'];
+        const units = ['Bag', 'Box', 'Bun', 'Day', 'Doz', 'Dr', 'Gal', 'Hrs', 'Kg', 'Litre', 'Lm', 'm2', 'm3', 'Mon', 'Pkts', 'Pcs', 'Set', 'Rolls', 'Ton', 'Trip', 'Annual', 'Sum'];
         let unitOptions = ''; let found = false;
         units.forEach(u => { if (item.unit && u.toLowerCase() === item.unit.toLowerCase()) { unitOptions += `<option value="${u}" selected>${u}</option>`; found = true; } else { unitOptions += `<option value="${u}">${u}</option>`; } });
         if (!found) { unitOptions += `<option value="${item.unit || 'EA'}" selected>${item.unit || 'EA'}</option>`; }
