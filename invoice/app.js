@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "6.8.4";
+const APP_VERSION = "7.0.0";
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -3592,14 +3592,25 @@ function handleSuccessfulLogin() {
     document.body.classList.toggle('is-vacation-delegate', isVacationDelegate);
 
 
-    // --- Financial Report (Welcome Button): Super Admin (Irwin) + Admin with Accounts position only ---
-    // This keeps the welcome-screen Financial Report restricted to Super Admin and Accounts Admin only.
-    const financeReportButton = document.getElementById('finance-report-button') || document.querySelector('a[href="https://ibaport.site/Finance/"]');
-    if (financeReportButton) {
-        const isSuperAdmin = ((currentApprover?.Name || '').trim().toLowerCase() === SUPER_ADMIN_NAME.toLowerCase());
-        const canSeeFinancialReport = isSuperAdmin || (isAdmin && isAccounts);
-        financeReportButton.classList.toggle('hidden', !canSeeFinancialReport);
-    }
+    // --- Financial Report (Welcome Button): Super Admin + (Admin with specific Finance Positions) ---
+const financeReportButton = document.getElementById('finance-report-button') || document.querySelector('a[href="https://ibaport.site/Finance/"]');
+
+if (financeReportButton) {
+    const isSuperAdmin = ((currentApprover?.Name || '').trim().toLowerCase() === SUPER_ADMIN_NAME.toLowerCase());
+    
+    // Check if the user has one of your 5 specific positions
+    const pos = (userPositionLower || '').toLowerCase();
+    const hasAllowedPosition = pos.includes('ceo') || 
+                               pos.includes('coo') || 
+                               pos.includes('finance') || 
+                               pos.includes('accounts') || 
+                               pos.includes('accounting');
+
+    // ONLY show if they are Super Admin OR (Role is Admin AND Position is one of the 5 above)
+    const canSeeFinancialReport = isSuperAdmin || (isAdmin && hasAllowedPosition);
+    
+    financeReportButton.classList.toggle('hidden', !canSeeFinancialReport);
+}
 
     // --- NEW: PO System (Welcome Button): Super Admin (Irwin) ONLY ---
     const poSystemButton = document.getElementById('po-system-button');
