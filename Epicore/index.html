@@ -17,7 +17,7 @@
             <div class="header-top">
                 <div class="header-title">
                     <div class="icon-wrapper"><i class="fa-solid fa-file-invoice-dollar"></i></div>
-                    <h1>Invoice Records <span class="version-tag">v7.1</span></h1>
+                    <h1>Invoice Records <span class="version-tag">v8.1</span></h1>
                     <button id="bgToggleBtn" class="bg-toggle-btn"><i class="fa-solid fa-wand-magic-sparkles"></i> Auto Theme</button>
                 </div>
                 <button id="refreshBtn" class="refresh-btn" title="Force download latest data">
@@ -112,12 +112,25 @@
                     <option value="no_srv">No Record</option>
                 </select>
             </div>
+            
+	    <!-- ADD THIS NEW FILTER -->
+            <div class="filter-group">
+                <label for="filterInvoiced"><i class="fa-solid fa-file-circle-check"></i> Invoiced Status</label>
+                <select id="filterInvoiced">
+                    <option value="">All</option>
+                    <option value="cleared">Cleared (True)</option>
+                    <option value="pending">Pending (False)</option>
+                </select>
+            </div>
+
+            <!-- UPDATE THIS EXISTING FILTER -->
             <div class="filter-group">
                 <label for="filterRetention"><i class="fa-solid fa-hand-holding-dollar"></i> Retention</label>
                 <select id="filterRetention">
                     <option value="">All Retention</option>
                     <option value="value">Has Value</option>
                     <option value="zero">Zero Balance</option>
+                    <option value="value_or_unpaid">Pending Payment</option>
                 </select>
             </div>
             

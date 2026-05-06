@@ -143,8 +143,9 @@ body.theme-off::before, body.theme-off::after { opacity: 0 !important; animation
 }
 .last-updated { font-weight: 400; color: #94a3b8; }
 
+/* ADJUSTED COLUMN WIDTHS FOR THE ON-SCREEN GRID */
 .grid-header { 
-    display: grid; grid-template-columns: 50px 100px 1.5fr 1.5fr 2fr 1.2fr 110px 120px; 
+    display: grid; grid-template-columns: 50px 100px 1fr 0.8fr 2.7fr 1.2fr 110px 120px; 
     background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px); border: 1px solid rgba(251, 191, 36, 0.4); 
     padding: 15px 20px; border-radius: 12px; color: #fbbf24; font-weight: 900; font-size: 13px; text-transform: uppercase; 
 }
@@ -189,7 +190,8 @@ body.theme-off::before, body.theme-off::after { opacity: 0 !important; animation
 .invoice-card:hover { transform: translateY(-2px); border-color: rgba(56, 189, 248, 0.6); background: rgba(30, 41, 59, 0.4); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4), 0 0 10px rgba(56, 189, 248, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.2); }
 .invoice-card:hover::before { opacity: 1; }
 
-.master-grid-row { display: grid; grid-template-columns: 50px 100px 1.5fr 1.5fr 2fr 1.2fr 110px 120px; align-items: center; padding: 16px 20px; cursor: pointer; }
+/* ADJUSTED COLUMN WIDTHS FOR THE ON-SCREEN GRID */
+.master-grid-row { display: grid; grid-template-columns: 50px 100px 1fr 0.8fr 2.7fr 1.2fr 110px 120px; align-items: center; padding: 16px 20px; cursor: pointer; }
 .master-grid-row .grid-cell { font-size: 14px; font-weight: 500; color: #ffffff; text-shadow: 0 1px 3px rgba(0,0,0,0.8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 15px; }
 .master-grid-row .grid-cell:nth-child(2) { color: #38bdf8 !important; text-shadow: 0 0 5px rgba(56,189,248,0.5); }
 
@@ -260,7 +262,10 @@ body.theme-off::before, body.theme-off::after { opacity: 0 !important; animation
     .print-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 30px; font-size: 9px; table-layout: fixed; border: 3px solid #003A5C !important; border-radius: 8px; overflow: hidden; }
     .print-table th, .print-table td { padding: 8px 6px; text-align: left; word-wrap: break-word; overflow-wrap: break-word; }
     .print-table th { background-color: #f8fafc !important; color: #003A5C !important; font-weight: 800; text-transform: uppercase; -webkit-print-color-adjust: exact; print-color-adjust: exact; border-bottom: 2px solid #003A5C !important; }
-    .print-table td { color: #334155 !important; border-bottom: 1px solid #e2e8f0 !important; }
+    
+    /* Removed the !important text color block here so inline JS styles can work! */
+    .print-table td { border-bottom: 1px solid #e2e8f0 !important; }
+    
     .print-table tr:nth-child(even) td { background-color: #f8fafc !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .print-table tr:last-child td { border-bottom: none; }
     .print-table td.num { text-align: right; }
