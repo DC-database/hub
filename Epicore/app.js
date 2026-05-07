@@ -1555,9 +1555,6 @@ function generateRetentionPrintout() {
     document.getElementById("printArea").innerHTML = printHtml;
     window.print();
 }
-    document.getElementById("printArea").innerHTML = printHtml;
-    window.print();
-}
 
 // =========================================================
 // AUTO-FILL PO FROM INVOICE SYSTEM (Retention Button)
