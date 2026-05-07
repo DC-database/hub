@@ -1558,44 +1558,59 @@ function generateRetentionPrintout() {
 
 // =========================================================
 // AUTO-FILL PO FROM INVOICE SYSTEM (Retention Button)
-// Reads sessionStorage set by ibaport.site main app
 // =========================================================
 (function() {
-    const savedPO = sessionStorage.getItem('epicore_search_po');
-    
-    if (savedPO) {
-        // Clear it so it doesn't trigger on normal reloads
-        sessionStorage.removeItem('epicore_search_po');
+    // Check immediately when script runs
+    function checkAndFill() {
+        const savedPO = sessionStorage.getItem('epicore_search_po');
         
-        // Wait for the page to fully initialize
-        const tryFill = setInterval(() => {
-            const searchInput = document.getElementById('searchInput');
-            const searchBtn = document.getElementById('executeSearchBtn');
+        if (!savedPO) return;
+        
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('executeSearchBtn');
+        const filtersRow = document.getElementById('filtersRow');
+        
+        if (searchInput && filtersRow && !filtersRow.classList.contains('hidden')) {
+            // Clear sessionStorage first
+            sessionStorage.removeItem('epicore_search_po');
             
-            // Check if data is loaded (the filters row is visible)
-            const filtersRow = document.getElementById('filtersRow');
-            const isReady = filtersRow && !filtersRow.classList.contains('hidden');
+            // Clear any existing filters
+            const clearBtn = document.getElementById('clearAllBtn');
+            if (clearBtn) clearBtn.click();
             
-            if (searchInput && isReady) {
-                // Fill the PO number
+            // Fill PO after a short delay (let clear finish)
+            setTimeout(() => {
                 searchInput.value = savedPO;
-                
-                // Trigger input event so any listeners detect the change
                 searchInput.dispatchEvent(new Event('input', { bubbles: true }));
                 searchInput.dispatchEvent(new Event('change', { bubbles: true }));
                 
-                // Auto-click the Search button after a short delay
-                if (searchBtn) {
-                    setTimeout(() => {
+                // Click search
+                setTimeout(() => {
+                    if (searchBtn) {
                         searchBtn.click();
-                    }, 500);
-                }
-                
-                clearInterval(tryFill);
+                        console.log('✅ Epicore: Auto-searched for PO:', savedPO);
+                    }
+                }, 400);
+            }, 400);
+            
+            return true; // Successfully processed
+        }
+        return false; // Not ready yet
+    }
+    
+    // Try immediately
+    if (!checkAndFill()) {
+        // If not ready, keep trying every 500ms
+        const interval = setInterval(() => {
+            if (checkAndFill()) {
+                clearInterval(interval);
             }
-        }, 300);
+        }, 500);
         
-        // Stop trying after 10 seconds
-        setTimeout(() => clearInterval(tryFill), 10000);
+        // Stop after 30 seconds
+        setTimeout(() => {
+            clearInterval(interval);
+            console.log('❌ Epicore: Gave up waiting for page to load');
+        }, 30000);
     }
 })();
