@@ -1555,3 +1555,50 @@ function generateRetentionPrintout() {
     document.getElementById("printArea").innerHTML = printHtml;
     window.print();
 }
+    document.getElementById("printArea").innerHTML = printHtml;
+    window.print();
+}
+
+// =========================================================
+// AUTO-FILL PO FROM INVOICE SYSTEM (Retention Button)
+// Reads sessionStorage set by ibaport.site main app
+// =========================================================
+(function() {
+    const savedPO = sessionStorage.getItem('epicore_search_po');
+    
+    if (savedPO) {
+        // Clear it so it doesn't trigger on normal reloads
+        sessionStorage.removeItem('epicore_search_po');
+        
+        // Wait for the page to fully initialize
+        const tryFill = setInterval(() => {
+            const searchInput = document.getElementById('searchInput');
+            const searchBtn = document.getElementById('executeSearchBtn');
+            
+            // Check if data is loaded (the filters row is visible)
+            const filtersRow = document.getElementById('filtersRow');
+            const isReady = filtersRow && !filtersRow.classList.contains('hidden');
+            
+            if (searchInput && isReady) {
+                // Fill the PO number
+                searchInput.value = savedPO;
+                
+                // Trigger input event so any listeners detect the change
+                searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+                
+                // Auto-click the Search button after a short delay
+                if (searchBtn) {
+                    setTimeout(() => {
+                        searchBtn.click();
+                    }, 500);
+                }
+                
+                clearInterval(tryFill);
+            }
+        }, 300);
+        
+        // Stop trying after 10 seconds
+        setTimeout(() => clearInterval(tryFill), 10000);
+    }
+})();
