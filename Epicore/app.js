@@ -1570,21 +1570,33 @@ function generateRetentionPrintout() {
         window.history.replaceState(null, null, window.location.pathname + window.location.search);
     }
     
-    // Wait MUCH longer - after all data loading completes
-    const tryFill = setInterval(() => {
-        const searchInput = document.getElementById('searchInput');
-        const searchBtn = document.getElementById('executeSearchBtn');
-        const recordCount = document.getElementById('recordCount');
-        
-        // Check if system is fully ready (data loaded message)
-        if (searchInput && recordCount && recordCount.textContent.includes('System ready')) {
-            searchInput.value = poNumber;
-            setTimeout(() => {
-                if (searchBtn) searchBtn.click();
-            }, 600);
-            clearInterval(tryFill);
-        }
-    }, 1000);
+    // OVERRIDE applyFilters to inject our PO
+    const originalApplyFilters = window.applyFilters || function(){};
     
-    setTimeout(() => clearInterval(tryFill), 30000);
+    // Wait for applyFilters to exist
+    const waitForReady = setInterval(() => {
+        if (typeof window.applyFilters === 'function') {
+            clearInterval(waitForReady);
+            
+            // Set the search input value
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.value = poNumber;
+            }
+            
+            // Wait for data to load, then trigger search
+            const waitForData = setInterval(() => {
+                if (typeof isDataLoaded !== 'undefined' && isDataLoaded) {
+                    clearInterval(waitForData);
+                    if (window.applyFilters) {
+                        window.applyFilters();
+                    }
+                }
+            }, 500);
+            
+            setTimeout(() => clearInterval(waitForData), 30000);
+        }
+    }, 300);
+    
+    setTimeout(() => clearInterval(waitForReady), 30000);
 })();
