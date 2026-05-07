@@ -91,12 +91,21 @@
                     <div class="card mb-4">
                         <div class="card-body">
                             <div class="row align-items-center search-wrapper">
+                                <div class="col-md-12 mb-3">
+                                    <div class="btn-group w-100" role="group">
+                                        <input type="radio" class="btn-check" name="searchMode" id="searchByPo" autocomplete="off" checked>
+                                        <label class="btn btn-outline-primary" for="searchByPo">Search by PO Number</label>
+                                        
+                                        <input type="radio" class="btn-check" name="searchMode" id="searchByVendor" autocomplete="off">
+                                        <label class="btn btn-outline-primary" for="searchByVendor">Search by Vendor / Site</label>
+                                    </div>
+                                </div>
                                 <div class="col-md-8">
                                     <div class="input-group">
                                         <span class="input-group-text bg-transparent border-0 ps-3">
                                             <i class="bi bi-search text-muted"></i>
                                         </span>
-                                        <input type="text" class="form-control border-0 bg-light" id="searchPoNo" placeholder="Enter PO Number to search...">
+                                        <input type="text" class="form-control" id="searchPoNo" placeholder="Enter PO Number to search...">
                                     </div>
                                 </div>
                                 <div class="col-md-4 text-end">
@@ -357,6 +366,46 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-danger" id="confirmDeleteBtn" disabled>Delete All</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vendor Search Results Popup Modal -->
+    <div class="modal fade" id="vendorSearchModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header" style="background-color: var(--primary-color); color: white;">
+                    <h5 class="modal-title">
+                        <i class="bi bi-building me-2"></i>Select a PO Record
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3 text-muted">
+                        <small><i class="bi bi-info-circle"></i> Showing records matching "<span id="vendorSearchKeyword"></span>"</small>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead style="background-color: var(--primary-color); color: white;">
+                                <tr>
+                                    <th>Vendor Name</th>
+                                    <th>PO Number</th>
+                                    <th>Site / Project</th>
+                                    <th>PO Value</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="vendorSearchResultsBody">
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 </div>
             </div>
         </div>

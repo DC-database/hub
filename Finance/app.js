@@ -1,7 +1,7 @@
 // ======================
 // Application Version
 // ======================
-const APP_VERSION = "v5.5 (Vendor CSV Auto-Fill + Notes New Lines)";
+const APP_VERSION = "v5.6 (Vendor CSV Auto-Fill + Vendor/Site Search)";
 
 // ======================
 // Firebase Configuration
@@ -57,14 +57,14 @@ const elements = {
   searchResults: document.getElementById('searchResults'),
   searchResultsBody: document.getElementById('searchResultsBody'),
   noResultsAlert: document.getElementById('noResultsAlert'),
-  addNewBtn: document.getElementById('addNewBtn'), // The main Add button on top
+  addNewBtn: document.getElementById('addNewBtn'),
 
   // Form & Modals
   paymentForm: document.getElementById('paymentForm'),
   saveBtn: document.getElementById('saveBtn'),
   cancelBtn: document.getElementById('cancelBtn'),
   clearBtn: document.getElementById('clearBtn'),
-  addNewPaymentBtn: document.getElementById('addNewPaymentBtn'), // "Save as New" button inside modal
+  addNewPaymentBtn: document.getElementById('addNewPaymentBtn'),
   
   // Initialize Modals using Bootstrap API
   paymentModal: new bootstrap.Modal(document.getElementById('paymentModal')),
@@ -99,6 +99,7 @@ let editId = null;
 let isEditing = false;
 let vendorSearchTimeout = null;
 let allPaymentsData = {}; 
+let currentSearchMode = 'po'; // 'po' or 'vendor'
 
 // ======================
 // Initialization
@@ -114,14 +115,12 @@ function setupAuthListeners() {
   elements.loginVersionDisplay.textContent = APP_VERSION;
   auth.onAuthStateChanged(user => {
     if (user) {
-      // User is logged in
       elements.mainApp.style.display = 'block';
       elements.loginScreen.style.display = 'none';
       elements.userEmailDisplay.textContent = user.email;
       elements.versionDisplay.textContent = APP_VERSION;
       initializeApplication();
     } else {
-      // User is logged out
       elements.mainApp.style.display = 'none';
       elements.loginScreen.style.display = 'flex';
       elements.userEmailDisplay.textContent = '';
@@ -160,6 +159,31 @@ function initializeApplication() {
   loadVendorsIfNeeded();
   resetForm();
   resetSearch();
+  setupSearchModeListeners();
+}
+
+// ======================
+// Search Mode Setup
+// ======================
+function setupSearchModeListeners() {
+    const searchByPo = document.getElementById('searchByPo');
+    const searchByVendor = document.getElementById('searchByVendor');
+    
+    if (searchByPo) {
+        searchByPo.addEventListener('change', () => {
+            currentSearchMode = 'po';
+            elements.searchPoNo.placeholder = 'Enter PO Number to search...';
+            resetSearch();
+        });
+    }
+    
+    if (searchByVendor) {
+        searchByVendor.addEventListener('change', () => {
+            currentSearchMode = 'vendor';
+            elements.searchPoNo.placeholder = 'Enter Vendor Name or Site (min 3 letters)...';
+            resetSearch();
+        });
+    }
 }
 
 // ======================
@@ -224,7 +248,6 @@ function showPaymentSection(e) {
     elements.vendorSection.style.display = 'none';
     elements.recordsSection.style.display = 'none';
     
-    // Update active class on Sidebar
     document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
     elements.paymentLink.classList.add('active');
 }
@@ -248,37 +271,154 @@ function showRecordsSection(e) {
 // ======================
 // Search Functions
 // ======================
-function searchPayments() {
-  const poNo = elements.searchPoNo.value.trim();
-  if (!poNo) {
-    alert('Please enter a PO No. to search');
-    return;
-  }
-  
-  // Enable the "New Payment" button now that we have a PO context
-  elements.addNewBtn.disabled = false; 
+async function searchPayments() {
+    const searchTerm = elements.searchPoNo.value.trim();
+    
+    if (!searchTerm) {
+        alert('Please enter a search term');
+        return;
+    }
+    
+    if (currentSearchMode === 'po') {
+        await searchByPoNumber(searchTerm);
+    } else {
+        await searchByVendorOrSite(searchTerm);
+    }
+}
 
-  paymentsRef.orderByChild('poNo').equalTo(poNo).once('value')
-    .then(snapshot => {
-      elements.searchResults.style.display = 'block';
-      elements.searchResultsBody.innerHTML = '';
+async function searchByPoNumber(poNo) {
+    paymentsRef.orderByChild('poNo').equalTo(poNo).once('value')
+        .then(snapshot => {
+            elements.searchResults.style.display = 'block';
+            elements.searchResultsBody.innerHTML = '';
 
-      if (!snapshot.exists()) {
-        showNoResults(poNo);
-      } else {
-        // Store data for local access (editing)
-        allPaymentsData = {};
+            if (!snapshot.exists()) {
+                showNoResults(poNo);
+                elements.addNewBtn.disabled = false;
+            } else {
+                allPaymentsData = {};
+                snapshot.forEach(childSnapshot => {
+                    allPaymentsData[childSnapshot.key] = { id: childSnapshot.key, ...childSnapshot.val() };
+                });
+                showSearchResults(Object.values(allPaymentsData));
+                elements.addNewBtn.disabled = false;
+            }
+        })
+        .catch(error => console.error('Error searching payments:', error));
+}
+
+async function searchByVendorOrSite(keyword) {
+    if (keyword.length < 3) {
+        alert('Please enter at least 3 characters for vendor/site search');
+        return;
+    }
+    
+    const searchTermLower = keyword.toLowerCase();
+    
+    try {
+        const snapshot = await paymentsRef.once('value');
+        
+        if (!snapshot.exists()) {
+            showNoResultsForVendorSearch(keyword);
+            return;
+        }
+        
+        const poGroups = new Map();
+        
         snapshot.forEach(childSnapshot => {
-            allPaymentsData[childSnapshot.key] = { id: childSnapshot.key, ...childSnapshot.val() };
+            const payment = childSnapshot.val();
+            const poNo = payment.poNo;
+            
+            if (!poNo) return;
+            
+            const vendorMatch = payment.vendor && payment.vendor.toLowerCase().includes(searchTermLower);
+            const siteMatch = payment.site && payment.site.toLowerCase().includes(searchTermLower);
+            
+            if (vendorMatch || siteMatch) {
+                if (!poGroups.has(poNo)) {
+                    poGroups.set(poNo, {
+                        poNo: poNo,
+                        site: payment.site || '',
+                        vendor: payment.vendor || '',
+                        vendorId: payment.vendorId || '',
+                        poValue: payment.poValue || '0',
+                        paymentIds: [childSnapshot.key]
+                    });
+                } else {
+                    poGroups.get(poNo).paymentIds.push(childSnapshot.key);
+                }
+            }
         });
-        showSearchResults(Object.values(allPaymentsData));
-      }
-    })
-    .catch(error => console.error('Error searching payments:', error));
+        
+        if (poGroups.size === 0) {
+            showNoResultsForVendorSearch(keyword);
+            return;
+        }
+        
+        showVendorSearchPopup(Array.from(poGroups.values()), keyword);
+        
+    } catch (error) {
+        console.error('Error searching by vendor/site:', error);
+        alert('Error performing search. Please try again.');
+    }
+}
+
+function showVendorSearchPopup(matches, keyword) {
+    const modalElement = document.getElementById('vendorSearchModal');
+    const modal = new bootstrap.Modal(modalElement);
+    const tbody = document.getElementById('vendorSearchResultsBody');
+    const keywordSpan = document.getElementById('vendorSearchKeyword');
+    
+    keywordSpan.textContent = keyword;
+    tbody.innerHTML = '';
+    
+    if (matches.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No matching records found</td></tr>';
+    } else {
+        matches.forEach(match => {
+            const row = document.createElement('tr');
+            row.style.cursor = 'pointer';
+            row.addEventListener('click', () => {
+                elements.searchPoNo.value = match.poNo;
+                modal.hide();
+                const originalMode = currentSearchMode;
+                currentSearchMode = 'po';
+                searchByPoNumber(match.poNo);
+                currentSearchMode = originalMode;
+                const searchByPoRadio = document.getElementById('searchByPo');
+                if (searchByPoRadio) searchByPoRadio.checked = true;
+                elements.searchPoNo.placeholder = 'Enter PO Number to search...';
+            });
+            
+            row.innerHTML = `
+                <td class="fw-bold">${escapeHtml(match.vendor)}</td>
+                <td><span class="badge bg-primary">${escapeHtml(match.poNo)}</span></td>
+                <td>${escapeHtml(match.site)}</td>
+                <td class="text-end fw-bold text-success">${formatNumber(match.poValue)}</td>
+                <td><i class="bi bi-arrow-right-circle text-primary"></i></td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+    
+    modal.show();
 }
 
 function showNoResults(poNo) {
   elements.noResultsAlert.style.display = 'block';
+}
+
+function showNoResultsForVendorSearch(keyword) {
+    elements.searchResults.style.display = 'block';
+    elements.searchResultsBody.innerHTML = `
+        <div class="alert alert-warning border-0 shadow-sm">
+            <i class="bi bi-exclamation-triangle me-2"></i> 
+            No records found matching "${escapeHtml(keyword)}" in Vendor Name or Site.
+        </div>
+    `;
+    elements.noResultsAlert.style.display = 'none';
+    allPaymentsData = {};
+    elements.addNewBtn.disabled = true;
 }
 
 function showSearchResults(payments) {
@@ -286,16 +426,13 @@ function showSearchResults(payments) {
     elements.searchResultsBody.innerHTML = '';
     if (payments.length === 0) return;
 
-    // Sort chronologically (Oldest to Newest) based on dateEntered
     payments.sort((a, b) => {
         return new Date(a.dateEntered) - new Date(b.dateEntered);
     });
     
-    // Get latest payment for Header details (Correct PO Value)
     const latestPayment = payments[payments.length - 1];
     const { site, vendor, vendorId, poNo, poValue } = latestPayment;
 
-    // 1. Header Table (PO Summary)
     const summaryHtml = `
         <div class="card mb-4 bg-white border-0 shadow-sm">
             <div class="card-body p-0">
@@ -323,7 +460,6 @@ function showSearchResults(payments) {
         </div>
     `;
 
-    // 2. Detail Rows
     const paymentRowsHtml = payments.map(payment => `
         <tr>
             <td class="text-muted small">${formatDate(payment.dateEntered) || ''}</td>
@@ -375,20 +511,40 @@ function showSearchResults(payments) {
     elements.searchResultsBody.innerHTML = summaryHtml + detailsHtml;
 }
 
-// Global click handler for dynamic buttons (Edit, Delete, Report)
 function handleActionClick(e) {
     const target = e.target.closest('button');
     if (!target) return;
     
     const action = target.dataset.action;
     const id = target.dataset.id;
-    const payment = allPaymentsData[id];
     
-    if (!action || !id || !payment) return;
-
-    if (action === 'edit') editPayment(id, payment);
-    else if (action === 'delete') confirmDeletePayment(id);
-    else if (action === 'report') generateReport(payment);
+    if (action && id) {
+        if (action === 'edit') {
+            if (allPaymentsData && allPaymentsData[id]) {
+                editPayment(id, allPaymentsData[id]);
+            } else {
+                paymentsRef.child(id).once('value').then(snapshot => {
+                    if (snapshot.exists()) {
+                        editPayment(id, snapshot.val());
+                    }
+                });
+            }
+        } 
+        else if (action === 'delete') {
+            confirmDeletePayment(id);
+        }
+        else if (action === 'report') {
+            if (allPaymentsData && allPaymentsData[id]) {
+                generateReport(allPaymentsData[id]);
+            } else {
+                paymentsRef.child(id).once('value').then(snapshot => {
+                    if (snapshot.exists()) {
+                        generateReport(snapshot.val());
+                    }
+                });
+            }
+        }
+    }
 }
 
 function resetSearch() {
@@ -403,11 +559,9 @@ function resetSearch() {
 // Form & Modal Functions
 // ======================
 
-// Opens the Modal in "Add Mode"
 function showAddNewForm() {
   resetForm();
   
-  // Pre-fill logic based on search results
   const firstPaymentKey = Object.keys(allPaymentsData)[0];
   if(firstPaymentKey) {
       const p = allPaymentsData[firstPaymentKey];
@@ -415,31 +569,26 @@ function showAddNewForm() {
       document.getElementById('vendor').value = p.vendor || '';
       document.getElementById('vendorId').value = p.vendorId || '';
       document.getElementById('poNo').value = p.poNo || '';
-      // Use latest PO Value from sorted data
       const sorted = Object.values(allPaymentsData).sort((a,b) => new Date(a.dateEntered) - new Date(b.dateEntered));
       document.getElementById('poValue').value = sorted[sorted.length-1].poValue || '';
   } else {
      document.getElementById('poNo').value = elements.searchPoNo.value.trim();
   }
 
-  // UI Updates for Modal
   document.getElementById('paymentModalLabel').textContent = 'Add New Payment';
   isEditing = false;
   editId = null;
   elements.saveBtn.textContent = 'Save Record';
   elements.addNewPaymentBtn.style.display = 'none';
 
-  // Highlight input fields
   const fieldsToHighlight = ['certifiedAmount', 'retention', 'payment', 'datePaid', 'note'];
   fieldsToHighlight.forEach(fieldId => {
       document.getElementById(fieldId).classList.add('highlight-field');
   });
 
-  // OPEN MODAL
   elements.paymentModal.show();
 }
 
-// Opens the Modal in "Edit Mode"
 function editPayment(id, payment) {
   editId = id;
   isEditing = true;
@@ -448,7 +597,6 @@ function editPayment(id, payment) {
     document.getElementById(field).value = formatFieldValue(field, payment[field]) || '';
   });
 
-  // Logic for Retention Base
   document.getElementById('retentionBaseAmount').value = formatNumber(payment.certifiedAmount) || '';
   document.getElementById('retentionPercentage').value = '';
 
@@ -461,7 +609,6 @@ function editPayment(id, payment) {
       document.getElementById(fieldId).classList.add('highlight-field');
   });
 
-  // OPEN MODAL
   elements.paymentModal.show();
 }
 
@@ -476,54 +623,41 @@ async function savePayment() {
   const paymentData = {};
   fields.forEach(field => {
     const value = document.getElementById(field).value;
-    // Remove commas for numeric fields
     paymentData[field] = ['poValue', 'certifiedAmount', 'retention', 'payment'].includes(field)
       ? value.replace(/,/g, '')
       : value;
   });
 
-  // ============================================================
-  // DATE LOGIC UPDATE:
-  // 1. Always set 'dateEntered' to NOW (for both Add and Update)
-  // 2. Do NOT auto-fill 'datePaid' (User will enter manually)
-  // ============================================================
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const day = String(now.getDate()).padStart(2, '0');
   
-  // accurately track when this specific record was touched
   paymentData.dateEntered = `${year}-${month}-${day}`;
 
   try {
     if (isEditing) {
-      // Update existing
       await paymentsRef.child(editId).update(paymentData);
       alert('Payment updated successfully!');
     } else {
-      // Create new
-      // Generate PVN if empty
       if (!paymentData.paymentNo) {
         const nextNumber = await getNextAvailablePVNNumber(paymentData);
         paymentData.paymentNo = generatePaymentNumber(nextNumber);
       }
       
-      // We no longer force datePaid to be today. If it's empty, it stays empty.
-      
       await paymentsRef.push(paymentData);
       alert('Payment added successfully!');
     }
     
-    elements.paymentModal.hide(); // Hide modal
+    elements.paymentModal.hide();
     resetForm();
-    searchPayments(); // Refresh list
+    searchPayments();
   } catch (error) { 
       console.error('Error saving payment:', error); 
       alert('Error saving data: ' + error.message);
   }
 }
 
-// "Save as New" button logic (Cloning an existing record)
 async function addNewPaymentFromEdit() {
   if (!isEditing) return;
 
@@ -536,7 +670,6 @@ async function addNewPaymentFromEdit() {
   });
 
   try {
-    // Set Date Ent. to today (System Audit)
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -548,9 +681,8 @@ async function addNewPaymentFromEdit() {
         paymentData.paymentNo = generatePaymentNumber(nextNumber);
     }
       
-    // Clear specific fields for the new copy
     paymentData.chequeNo = ''; 
-    paymentData.datePaid = ''; // DATE LOGIC UPDATE: Clear date paid for manual entry
+    paymentData.datePaid = '';
     paymentData.note = ''; 
     
     calculatePayment();
@@ -572,9 +704,6 @@ function resetForm() {
   elements.saveBtn.textContent = 'Save Record';
   elements.addNewPaymentBtn.style.display = 'none';
   document.getElementById('paymentModalLabel').textContent = 'Add New Payment';
-
-  // DATE LOGIC UPDATE:
-  // Keep Date Paid BLANK for manual entry
   document.getElementById('datePaid').value = '';
 
   const fieldsToHighlight = ['certifiedAmount', 'retention', 'payment', 'datePaid', 'note'];
@@ -582,7 +711,6 @@ function resetForm() {
       document.getElementById(fieldId).classList.remove('highlight-field');
   });
 }
-
 
 function cancelEdit() {
     elements.paymentModal.hide();
@@ -593,13 +721,12 @@ function cancelEdit() {
 // Vendor Functions
 // ======================
 
-// Primary source: GitHub Vendors.csv (fallback to Firebase /vendors node if fetch fails)
 const VENDORS_CSV_URL = 'https://raw.githubusercontent.com/DC-database/Hub/main/Vendors.csv';
 const VENDOR_SUGGESTION_LIMIT = 50;
 
 let vendorsCache = [];
-let vendorsByName = new Map(); // lower(name) -> { name, id }
-let vendorsById = new Map();   // lower(id)   -> { name, id }
+let vendorsByName = new Map();
+let vendorsById = new Map();
 let vendorsLoaded = false;
 let vendorsLoadPromise = null;
 
@@ -687,14 +814,12 @@ function parseVendorCsv(text) {
   return out;
 }
 
-// Minimal CSV parser supporting quoted fields and escaped quotes ("")
 function parseCsvRows(text) {
   const rows = [];
   let row = [];
   let field = '';
   let inQuotes = false;
 
-  // Normalize line endings without using escape sequences that can get mangled by regex replacements
   const s = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
   for (let i = 0; i < s.length; i++) {
@@ -815,7 +940,6 @@ function handleVendorNameChange() {
 }
 
 function handleVendorNameBlur() {
-  // Don't clear user input; only clear the suggestion list
   if (elements.vendorList) elements.vendorList.innerHTML = '';
 }
 
@@ -852,8 +976,6 @@ function handleVendorIdBlur() {
   if (elements.vendorIdList) elements.vendorIdList.innerHTML = '';
 }
 
-
-
 async function uploadVendorCSV(e) {
   e.preventDefault();
   const file = document.getElementById('vendorCsv')?.files?.[0];
@@ -868,12 +990,10 @@ async function uploadVendorCSV(e) {
       return;
     }
 
-    // Keep Firebase vendors node in sync (used as a fallback source if CSV URL is not reachable)
     await vendorsRef.remove();
     const uploadPromises = parsed.map(v => vendorsRef.push({ name: v.name, id: v.id }));
     await Promise.all(uploadPromises);
 
-    // Refresh in-memory cache immediately so suggestions work without reloading the page
     vendorsCache = parsed;
     buildVendorIndexes(vendorsCache);
     vendorsLoaded = true;
@@ -885,7 +1005,6 @@ async function uploadVendorCSV(e) {
     alert('Invalid CSV format. Please ensure it has "Name" and "Supplier ID" columns.');
   }
 }
-
 
 // ======================
 // Calculation Functions
@@ -1061,7 +1180,6 @@ async function generateReport(selectedPayment) {
     let totalCertified = 0, totalRetention = 0, totalPayment = 0, totalPrevPayment = 0;
     let allNotes = [];
 
-    // We add 'index' here to track our position in the array
     payments.forEach((payment, index) => {
       const certified = parseFloat(payment.certifiedAmount || 0);
       const retention = parseFloat(payment.retention || 0);
@@ -1071,7 +1189,6 @@ async function generateReport(selectedPayment) {
       totalRetention += retention;
       totalPayment += paymentAmount;
 
-      // FIX: Add to 'Previous Payment' only if it is NOT the last item (the current certificate)
       if (index < payments.length - 1) {
         totalPrevPayment += paymentAmount;
       }
@@ -1088,15 +1205,11 @@ async function generateReport(selectedPayment) {
     document.getElementById('reportProject').textContent = latestPayment.site || '';
     document.getElementById('reportVendorId').textContent = latestPayment.vendorId || '';
     
-    // ==========================================
-    // TRUNCATE LOGIC: Limit Vendor Name to 27 chars
-    // ==========================================
     let vName = latestPayment.vendor || '';
     if (vName.length > 27) {
         vName = vName.substring(0, 27); 
     }
     document.getElementById('reportVendorName').textContent = vName;
-    // ==========================================
 
     document.getElementById('reportTotalPoValue').textContent = formatNumber(latestPayment.poValue);
     
@@ -1141,6 +1254,16 @@ function printReport() {
 // ======================
 // Utility Functions
 // ======================
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
+
 function getRelationshipKey(paymentData) {
   return `${paymentData.poNo}_${paymentData.site}_${paymentData.vendor}_${paymentData.vendorId}`.toLowerCase();
 }
