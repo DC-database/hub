@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "7.0.0";
+const APP_VERSION = "7.0.1";
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -10816,17 +10816,16 @@ function fetchAndDisplayInvoices(poNumber) {
         invoices.forEach(inv => {
 
             // NEW FIXED CODE
-            const currentInvValue = parseFloat(String(inv.invValue).replace(/,/g, '')) || 0;
-            const currentAmtPaid = parseFloat(String(inv.amountPaid).replace(/,/g, '')) || 0;
-            const noteText = (inv.note || '').toLowerCase();
+const currentInvValue = parseFloat(String(inv.invValue).replace(/,/g, '')) || 0;
+const currentAmtPaid = parseFloat(String(inv.amountPaid).replace(/,/g, '')) || 0;
+const invNoText = (inv.invNumber || '').toLowerCase();  // ← CHANGED from inv.note to inv.invNumber
+totalInvValueSum += currentInvValue;
+totalPaidWithRetention += currentAmtPaid;
 
-            totalInvValueSum += currentInvValue;
-            totalPaidWithRetention += currentAmtPaid;
-       
-            // EXCLUDE 'retention' AND 'delivery confirmed' from the running total
-            if (!noteText.includes('retention')) {
-                totalPaidWithoutRetention += currentAmtPaid;
-            }
+// EXCLUDE 'retention' from the running total based on INV. NO.
+if (!invNoText.includes('retention')) {  // ← CHANGED variable name
+    totalPaidWithoutRetention += currentAmtPaid;
+}
 
             const row = document.createElement('tr');
             row.style.cursor = 'pointer';
@@ -12029,11 +12028,10 @@ currentReportData.forEach(poData => {
 
         const invValue = parseFloat(inv.invValue) || 0;
         const amountPaid = parseFloat(inv.amountPaid) || 0;
-        const noteText = (inv.note || '').toLowerCase();
-
+        const invNoText = (inv.invNumber || '').toLowerCase();  // ← CHANGED from inv.note to inv.invNumber
         totalInvValue += invValue;
         totalPaidWithRetention += amountPaid;
-        if (!noteText.includes('retention')) totalPaidWithoutRetention += amountPaid;
+        if (!invNoText.includes('retention')) totalPaidWithoutRetention += amountPaid;  // ← CHANGED variable name
 
         const releaseDateDisplay = formatToDDMMMYY(inv.releaseDate);
         const invoiceDateDisplay = formatToDDMMMYY(inv.invoiceDate);
@@ -12071,7 +12069,7 @@ currentReportData.forEach(poData => {
                 stickerBtn = `<button type="button" class="action-btn" style="background-color: #28a745; color: white; padding: 4px 8px; border-radius: 4px;" title="Print Sticker" onclick="event.stopPropagation(); handlePrintSticker('${inv.key}', 'Invoice', '${poData.poNumber}')"><i class="fa-solid fa-qrcode"></i></button>`;
             }
 
-            let waBtn = '';
+                        let waBtn = '';
             
             // Show Approval button ONLY if status is "For Approval"
             if ((inv.status || '') === 'For Approval') {
@@ -12287,22 +12285,26 @@ window.generateGithubStylePrintout = function(isDetailed) {
     let totalPOAmt = 0;
     let totalInvAmt = 0;
 
-    let rowsHtml = '';
-    currentReportData.forEach(poData => {
-        const poVal = poData.poAmount || parseFloat(poData.poDetails?.Amount) || 0;
-        totalPOAmt += poVal;
-        
-        let invVal = 0;
-        let poTotalPaid = 0;
-        poData.filteredInvoices.forEach(i => {
-            invVal += parseFloat(i.invValue) || 0;
+let rowsHtml = '';
+currentReportData.forEach(poData => {
+    const poVal = poData.poAmount || parseFloat(poData.poDetails?.Amount) || 0;
+    totalPOAmt += poVal;
+    
+    let invVal = 0;
+    let poTotalPaid = 0;
+    poData.filteredInvoices.forEach(i => {
+        invVal += parseFloat(i.invValue) || 0;
+        // ONLY add to paid total if INV. NO. does NOT contain "retention"
+        const invNoPrint = (i.invNumber || '').toLowerCase();
+        if (!invNoPrint.includes('retention')) {
             poTotalPaid += parseFloat(i.amountPaid) || 0;
-        });
-        totalInvAmt += invVal;
+        }
+    });
+    totalInvAmt += invVal;
 
-        let balance = poVal - invVal;
+    let balance = poVal - invVal;
 
-        if (isDetailed) {
+    if (isDetailed) {
             let invRows = poData.filteredInvoices.map(inv => `
                 <tr class="detail-row">
                     <td style="color: #64748b;">${inv.invEntryID || '---'}</td>
@@ -21343,6 +21345,7 @@ document.addEventListener('focusin', (e) => {
         }
     }
 });
+
 
 // =============================================================
 // IM HELP CENTER (Intelligent Assistant + Growing Knowledge Base)
