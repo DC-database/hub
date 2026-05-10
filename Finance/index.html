@@ -89,32 +89,42 @@
                     </div>
                     
                     <div class="card mb-4">
-                        <div class="card-body">
-                            <div class="row align-items-center search-wrapper">
-                                <div class="col-md-12 mb-3">
-                                    <div class="btn-group w-100" role="group">
-                                        <input type="radio" class="btn-check" name="searchMode" id="searchByPo" autocomplete="off" checked>
-                                        <label class="btn btn-outline-primary" for="searchByPo">Search by PO Number</label>
-                                        
-                                        <input type="radio" class="btn-check" name="searchMode" id="searchByVendor" autocomplete="off">
-                                        <label class="btn btn-outline-primary" for="searchByVendor">Search by Vendor / Site</label>
-                                    </div>
-                                </div>
-                                <div class="col-md-8">
-                                    <div class="input-group">
-                                        <span class="input-group-text bg-transparent border-0 ps-3">
-                                            <i class="bi bi-search text-muted"></i>
-                                        </span>
-                                        <input type="text" class="form-control" id="searchPoNo" placeholder="Enter PO Number to search...">
-                                    </div>
-                                </div>
-                                <div class="col-md-4 text-end">
-                                    <button class="btn btn-primary" type="button" id="searchBtn">Search</button>
-                                    <button class="btn btn-outline-secondary" type="button" id="clearSearchBtn">Clear</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+    <div class="card-body">
+        <!-- Professional Segmented Toggle -->
+        <div class="search-mode-toggle mb-4">
+            <div class="segmented-control">
+                <input type="radio" name="searchMode" id="modePo" class="segmented-input" checked>
+                <label for="modePo" class="segmented-label">
+                    <i class="bi bi-upc-scan me-1"></i> PO Number
+                </label>
+                <input type="radio" name="searchMode" id="modeVendor" class="segmented-input">
+                <label for="modeVendor" class="segmented-label">
+                    <i class="bi bi-building me-1"></i> Vendor / Site
+                </label>
+                <div class="segmented-slider"></div>
+            </div>
+        </div>
+
+        <div class="row align-items-center search-wrapper">
+            <div class="col-md-8">
+                <div class="input-group">
+                    <span class="input-group-text bg-transparent border-0 ps-3">
+                        <i class="bi bi-search text-muted"></i>
+                    </span>
+                    <input type="text" class="form-control" id="searchPoNo" placeholder="Enter PO Number to search...">
+                </div>
+            </div>
+            <div class="col-md-4 text-end">
+                <button class="btn btn-primary" type="button" id="searchBtn">
+                    <i class="bi bi-search me-1"></i> Search
+                </button>
+                <button class="btn btn-outline-secondary" type="button" id="clearSearchBtn">
+                    <i class="bi bi-x-lg me-1"></i> Clear
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
                     <div id="searchResults" style="display: none;">
                         <div class="alert alert-info border-0 shadow-sm" id="noResultsAlert" style="display: none;">

@@ -1,7 +1,7 @@
 // ======================
 // Application Version
 // ======================
-const APP_VERSION = "v5.6 (Vendor CSV Auto-Fill + Vendor/Site Search)";
+const APP_VERSION = "v5.7 (Vendor CSV Auto-Fill + Vendor/Site Search)";
 
 // ======================
 // Firebase Configuration
@@ -166,8 +166,8 @@ function initializeApplication() {
 // Search Mode Setup
 // ======================
 function setupSearchModeListeners() {
-    const searchByPo = document.getElementById('searchByPo');
-    const searchByVendor = document.getElementById('searchByVendor');
+    const searchByPo = document.getElementById('modePo');
+    const searchByVendor = document.getElementById('modeVendor');
     
     if (searchByPo) {
         searchByPo.addEventListener('change', () => {
@@ -1153,7 +1153,7 @@ function deleteAllPayments() {
 }
 
 // ======================
-// Report Functions
+// Report Functions (UPDATED)
 // ======================
 async function generateReport(selectedPayment) {
   const poNo = selectedPayment.poNo;
@@ -1164,55 +1164,86 @@ async function generateReport(selectedPayment) {
       alert('No payments found for this PO No.');
       return;
     }
-    const payments = [];
+    
+    // Collect all payments for this PO
+    const allPayments = [];
     snapshot.forEach(childSnapshot => {
-      payments.push(childSnapshot.val());
+      const payment = childSnapshot.val();
+      payment.id = childSnapshot.key;
+      allPayments.push(payment);
     });
     
-    payments.sort((a, b) => {
+    // Sort by PVN number (ascending)
+    allPayments.sort((a, b) => {
       const aNum = parseInt(String(a.paymentNo).replace('PVN-', ''));
       const bNum = parseInt(String(b.paymentNo).replace('PVN-', ''));
       return (isNaN(aNum) ? 0 : aNum) - (isNaN(bNum) ? 0 : bNum);
     });
-
-    const latestPayment = payments[payments.length - 1]; 
-
+    
+    // Find index of selected payment (or fallback to date order)
+    let selectedIndex = -1;
+    for (let i = 0; i < allPayments.length; i++) {
+      // Compare by Firebase key or paymentNo+date
+      if (allPayments[i].id === selectedPayment.id) {
+        selectedIndex = i;
+        break;
+      }
+    }
+    // If not found by ID, try by paymentNo (shouldn't happen, but safe)
+    if (selectedIndex === -1) {
+      const selectedPVN = parseInt(String(selectedPayment.paymentNo).replace('PVN-', ''));
+      for (let i = 0; i < allPayments.length; i++) {
+        const pvn = parseInt(String(allPayments[i].paymentNo).replace('PVN-', ''));
+        if (pvn === selectedPVN) {
+          selectedIndex = i;
+          break;
+        }
+      }
+    }
+    // If still not found, default to all payments (should not happen)
+    if (selectedIndex === -1) selectedIndex = allPayments.length - 1;
+    
+    // Take only payments up to and including the selected payment
+    const payments = allPayments.slice(0, selectedIndex + 1);
+    
+    // Latest payment among the filtered set (the selected payment itself)
+    const latestPayment = payments[payments.length - 1];
+    
     let totalCertified = 0, totalRetention = 0, totalPayment = 0, totalPrevPayment = 0;
     let allNotes = [];
-
+    
     payments.forEach((payment, index) => {
       const certified = parseFloat(payment.certifiedAmount || 0);
       const retention = parseFloat(payment.retention || 0);
       const paymentAmount = parseFloat(payment.payment || 0);
-
+      
       totalCertified += certified;
       totalRetention += retention;
       totalPayment += paymentAmount;
-
+      
+      // Previous payment total = sum of all payments BEFORE this one
       if (index < payments.length - 1) {
         totalPrevPayment += paymentAmount;
       }
-
+      
       if (payment.note && String(payment.note).trim() !== '') {
-        allNotes.push(`${String(payment.note).trim()}`);
+        allNotes.push(String(payment.note).trim());
       }
     });
-
+    
     const totalCommitted = parseFloat(latestPayment.poValue || 0) - totalCertified;
-
+    
+    // Update report UI
     document.getElementById('reportDate').textContent = formatDateLong(new Date().toISOString());
     document.getElementById('reportPoNo').textContent = poNo;
     document.getElementById('reportProject').textContent = latestPayment.site || '';
     document.getElementById('reportVendorId').textContent = latestPayment.vendorId || '';
     
     let vName = latestPayment.vendor || '';
-    if (vName.length > 27) {
-        vName = vName.substring(0, 27); 
-    }
+    if (vName.length > 27) vName = vName.substring(0, 27);
     document.getElementById('reportVendorName').textContent = vName;
-
-    document.getElementById('reportTotalPoValue').textContent = formatNumber(latestPayment.poValue);
     
+    document.getElementById('reportTotalPoValue').textContent = formatNumber(latestPayment.poValue);
     document.getElementById('reportTotalCertified').textContent = formatNumber(totalCertified);
     document.getElementById('reportTotalPrevPayment').textContent = formatNumber(totalPrevPayment);
     document.getElementById('reportTotalCommitted').textContent = formatNumber(totalCommitted);
@@ -1223,27 +1254,35 @@ async function generateReport(selectedPayment) {
     payments.forEach(payment => {
       const row = document.createElement('tr');
       const pvn = payment.paymentNo ? String(payment.paymentNo).replace('PVN-', '') : '';
-      row.innerHTML = `<td>${pvn}</td><td>${payment.chequeNo || ''}</td><td>${formatNumber(payment.certifiedAmount)}</td><td>${formatNumber(payment.retention)}</td><td>${formatNumber(payment.payment)}</td><td>${payment.datePaid ? formatDate(payment.datePaid) : ''}</td>`;
+      row.innerHTML = `
+        <td>${pvn}</td>
+        <td>${payment.chequeNo || ''}</td>
+        <td>${formatNumber(payment.certifiedAmount)}</td>
+        <td>${formatNumber(payment.retention)}</td>
+        <td>${formatNumber(payment.payment)}</td>
+        <td>${payment.datePaid ? formatDate(payment.datePaid) : ''}</td>
+      `;
       reportTableBody.appendChild(row);
     });
+    
     document.getElementById('reportTotalCertifiedAmount').textContent = formatNumber(totalCertified);
     document.getElementById('reportTotalRetentionAmount').textContent = formatNumber(totalRetention);
     document.getElementById('reportTotalPaymentAmount').textContent = formatNumber(totalPayment);
     
     const reportNotesSection = document.getElementById('reportNotesSection');
     const reportNotesContent = document.getElementById('reportNotesContent');
-    
     if (allNotes.length > 0) {
-        reportNotesContent.textContent = allNotes.join('\n');
-        reportNotesSection.style.display = 'block';
+      reportNotesContent.textContent = allNotes.join('\n');
+      reportNotesSection.style.display = 'block';
     } else {
-        reportNotesContent.textContent = '';
-        reportNotesSection.style.display = 'none';
+      reportNotesContent.textContent = '';
+      reportNotesSection.style.display = 'none';
     }
-
+    
     elements.reportModal.show();
   } catch (error) {
     console.error('Error generating report:', error);
+    alert('Error generating report: ' + error.message);
   }
 }
 
