@@ -444,6 +444,42 @@ function getSrvRecordsForPO(poNumber) {
     return []; 
 }
 
+function getPOInvoicedStatus(poNumber, relatedCommits, isClosed) {
+    // 1) No SRV records → No SRV
+    if (!relatedCommits || relatedCommits.length === 0) {
+        return "No SRV";
+    }
+
+    // 2) Separate fallback from real ECommit2 records
+    const epicorCommits = relatedCommits.filter(c => !c._isFallback);
+
+    if (epicorCommits.length > 0) {
+        // Check if ANY ECommit2 record has Invoiced = FALSE
+        const invHeader = Object.keys(epicorCommits[0]).find(k => k.trim() === "Invoiced") || "Invoiced";
+        const anyFalse = epicorCommits.some(c => {
+            const val = (c[invHeader] || '').toString().trim().toUpperCase();
+            return val !== 'TRUE';
+        });
+        if (anyFalse) {
+            return "Under process";
+        }
+        // All ECommit2 records are TRUE → continue
+    }
+    // else: only fallback records, treat as “all TRUE”
+
+    // 3) Check Firebase for pending payment record(s)
+    const fbRecords = allFirebaseData.filter(r => (r.poNo || r.poNumber || "").toString().trim() === poNumber);
+    const hasPendingPayment = fbRecords.some(rec => {
+        const dPaid = (rec.datePaid || '').toString().trim();
+        const chq = (rec.chequeNo || '').toString().trim();
+        const retVal = parseFloat(rec.retention || 0);
+        return (dPaid === '' || dPaid === '-') && (chq === '' || chq === '-') && Math.abs(retVal) > 0.001;
+    });
+
+    return hasPendingPayment ? "Pending" : "Cleared";
+}
+
+
 function setupDataDependents() {
     commitsByPO = {};
     siteNameMap = {}; 
@@ -644,19 +680,17 @@ function applyFilters() {
         if (selectedStatus === 'open' && isClosed) return false;
         if (selectedStatus === 'closed' && !isClosed) return false;
 
-        if (selectedInvoiced !== "") {
-            const actualInvoicedHeader = row._filteredCommits.length > 0 ? (Object.keys(row._filteredCommits[0]).find(k => k.trim() === "Invoiced") || "Invoiced") : "Invoiced";
-            let isCleared = true;
-            
-            if (row._filteredCommits.length > 0) {
-                isCleared = row._filteredCommits.every(commit => (commit[actualInvoicedHeader] || '').toString().trim().toUpperCase() === 'TRUE');
-            } else {
-                isCleared = isClosed;
-            }
+        // Invoiced filter using the new combined status
+if (selectedInvoiced !== "") {
+    const invStatus = getPOInvoicedStatus(poNumber, row._filteredCommits, isClosed);
+    let statusKey = "";
+    if (invStatus === "Cleared") statusKey = "cleared";
+    else if (invStatus === "Pending") statusKey = "pending";
+    else if (invStatus === "Under process") statusKey = "under_process";
+    else if (invStatus === "No SRV") statusKey = "no_srv";
 
-            if (selectedInvoiced === 'cleared' && !isCleared) return false;
-            if (selectedInvoiced === 'pending' && isCleared) return false;
-        }
+    if (selectedInvoiced !== statusKey) return false;
+}
 
         if (selectedBalance !== "" || selectedSrv !== "" || selectedRetention !== "" || selectedMinBalance !== "") {
             let poSrvAmt = 0;
@@ -1004,6 +1038,8 @@ function getActiveFiltersHtml() {
 
     if (invoiced === "cleared") activeFilters.push(`Invoiced: CLEARED`);
     if (invoiced === "pending") activeFilters.push(`Invoiced: PENDING`);
+    if (invoiced === "under_process") activeFilters.push(`Invoiced: UNDER PROCESS`);
+    if (invoiced === "no_srv") activeFilters.push(`Invoiced: NO SRV`);
 
     if (retention === "value") activeFilters.push(`RETENTION: HAS VALUE`);
     if (retention === "zero") activeFilters.push(`RETENTION: ZERO`);
@@ -1058,8 +1094,9 @@ function exportToExcel() {
 function generateSummaryPrintout() {
     let totalInvoiceAmount = 0; 
     let totalSrvAmount = 0; 
-    let totalRetentionAmount = 0; 
-    let totalOutstandingBalance = 0; 
+    let totalRetentionAmount = 0;
+    let totalUnderProcessSrv = 0;   // NEW
+    let totalOutstandingBalance = 0; // will be re‑defined below
     let rowsHtml = '';
     
     currentFilteredData.forEach(row => {
@@ -1077,28 +1114,16 @@ function generateSummaryPrintout() {
 
         const relatedCommits = row._filteredCommits || getSrvRecordsForPO(poNumber);
         
-let summaryInvoicedStatus = "Pending";
-let summaryInvoicedStyle = "color:#f59e0b !important; font-weight:800;";
-
-if (relatedCommits && relatedCommits.length > 0) {
-    const actualInvoicedHeader = Object.keys(relatedCommits[0]).find(k => k.trim() === "Invoiced") || "Invoiced";
-    const allCleared = relatedCommits.every(commit => {
-        const rawVal = commit[actualInvoicedHeader] || "";
-        const cleanVal = rawVal.toString().trim().toUpperCase();
-        return cleanVal === "TRUE";
-    });
-
-    if (allCleared) {
-        summaryInvoicedStatus = "Cleared";
-        summaryInvoicedStyle = "color:#ef4444 !important; font-weight:800;";
-    }
-} else if (mainStatus === 'Closed') {
-    summaryInvoicedStatus = "Cleared";
-    summaryInvoicedStyle = "color:#ef4444 !important; font-weight:800;";
-} else if (relatedCommits.length === 0) {
-    summaryInvoicedStatus = "No SRV";
-    summaryInvoicedStyle = "color:#94a3b8 !important; font-weight:800;";
-}
+        // Invoiced status
+        const invStatus = getPOInvoicedStatus(poNumber, relatedCommits, mainStatus === 'Closed');
+        let summaryInvoicedStatus = invStatus;
+        let summaryInvoicedStyle = "";
+        switch (invStatus) {
+            case "Cleared":   summaryInvoicedStyle = "color:#ef4444 !important; font-weight:800;"; break;
+            case "Pending":   summaryInvoicedStyle = "color:#ea580c !important; font-weight:800;"; break;
+            case "Under process": summaryInvoicedStyle = "color:#f59e0b !important; font-weight:800;"; break;
+            case "No SRV":    summaryInvoicedStyle = "color:#94a3b8 !important; font-weight:800;"; break;
+        }
 
         let poSrvAmt = 0;
         relatedCommits.forEach(commit => { 
@@ -1106,45 +1131,19 @@ if (relatedCommits && relatedCommits.length > 0) {
         });
         totalSrvAmount += poSrvAmt;
 
-        // ==============================================
-        // CORRECTED RETENTION DISPLAY LOGIC FOR SUMMARY
-        // ==============================================
-        const fbRecords = allFirebaseData.filter(r => (r.poNo || r.poNumber || "").toString().trim() === poNumber);
-        let hasRealPendingPayment = false;
-        let pendingRetentionValue = 0;
-        
-        fbRecords.forEach(rec => {
-            const dPaid = (rec.datePaid || '').toString().trim();
-            const chq = (rec.chequeNo || '').toString().trim();
-            const retVal = parseFloat(rec.retention || 0);
-            
-            const isDPaidEmpty = (dPaid === '' || dPaid === '-');
-            const isChqEmpty = (chq === '' || chq === '-');
-            
-            // Only show "Pending Payment" if retention value is non-zero
-            if (isDPaidEmpty && isChqEmpty && Math.abs(retVal) > 0.001) {
-                hasRealPendingPayment = true;
-                pendingRetentionValue = retVal;
-            }
-        });
+        // If this PO is Under process, add its SRV to the under‑process total
+        if (invStatus === "Under process") {
+            totalUnderProcessSrv += poSrvAmt;
+        }
 
         const poRetention = retentionByPO[poNumber] || 0;
         totalRetentionAmount += poRetention;
-        
-        let retentionDisplay = poRetention.toLocaleString('en-US', {minimumFractionDigits: 2});
-        
-        // Only show "Pending Payment" when total retention is zero but there's a pending record with non-zero value
-        // If total retention is non-zero, just show the number without any label
-        if (Math.abs(poRetention) < 0.01 && hasRealPendingPayment) {
-            retentionDisplay = `${pendingRetentionValue.toLocaleString('en-US', {minimumFractionDigits: 2})} <br><span style="font-size:10px; color:#ef4444; white-space:nowrap;">(Pending Payment)</span>`;
-        }
 
         let rowBalance = invAmt - poSrvAmt;
         if (mainStatus === 'Closed' && poSrvAmt === 0) {
             rowBalance = 0;
         }
-        
-        totalOutstandingBalance += rowBalance;
+        // Not used for grand totals anymore, but keep if needed elsewhere
 
         let statusStyle = mainStatus === 'Closed' ? 'color:#ef4444 !important; font-weight:800;' : 'color:#10b981 !important; font-weight:800;';
 
@@ -1158,11 +1157,15 @@ if (relatedCommits && relatedCommits.length > 0) {
                 <td style="${summaryInvoicedStyle}">${summaryInvoicedStatus}</td>
                 <td class="num">${invAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
                 <td class="num">${poSrvAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-                <td class="num" style="color:#ea580c !important; font-weight:bold;">${retentionDisplay}</td>
+                <td class="num" style="color:#ea580c !important; font-weight:bold;">${poRetention.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
                 <td class="num" style="font-weight:bold; color:#ef4444 !important;">${rowBalance.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
             </tr>
         `;
     });
+
+    // Compute new derived totals
+    const totalOutstandingPayment = totalRetentionAmount + totalUnderProcessSrv;
+    const remainingPOBalance = totalInvoiceAmount - totalSrvAmount;
 
     const printTime = `${formatToDDMMMYYYY(new Date())} ${new Date().toLocaleTimeString()}`;
     const printHtml = `
@@ -1190,10 +1193,15 @@ if (relatedCommits && relatedCommits.length > 0) {
         </table>
         <div class="print-summary-box">
             <table class="print-summary-table">
-                <tr><td>Grand Total PO Value</td><td>QAR ${totalInvoiceAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
-                <tr><td>Grand Total SRV</td><td>QAR ${totalSrvAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
-                <tr><td style="color:#ea580c !important;">Grand Total Retention</td><td style="color:#ea580c !important;">QAR ${totalRetentionAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
-                <tr class="balance-row"><td>TOTAL OUTSTANDING BALANCE</td><td>QAR ${totalOutstandingBalance.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
+                <tr><td style="font-weight:800;">Grand Total PO Value</td><td>QAR ${totalInvoiceAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
+                <tr><td style="font-weight:800;">Grand Total Created SRV</td><td>QAR ${totalSrvAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
+                <tr><td style="font-weight:800; color:#ea580c !important;">Grand Total Retention</td><td style="color:#ea580c !important;">QAR ${totalRetentionAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
+                <tr><td style="font-weight:800;">Total Under Process Value &nbsp; <span style="font-size:10px; color:#f59e0b;">(unbilled work)</span></td><td>QAR ${totalUnderProcessSrv.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
+                <tr style="border-top: 1px dashed #94a3b8; font-weight:900; color:#ef4444 !important;">
+                    <td>TOTAL OUTSTANDING PAYMENT &nbsp; <span style="font-size:10px;">(Retention + Under Process)</span></td>
+                    <td>QAR ${totalOutstandingPayment.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                </tr>
+                <tr class="balance-row"><td>Remaining PO Balance &nbsp; <span style="font-size:10px;">(PO – SRV)</span></td><td>QAR ${remainingPOBalance.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
             </table>
         </div>
     `;
@@ -1202,7 +1210,7 @@ if (relatedCommits && relatedCommits.length > 0) {
 }
 
 function generateDetailedPrintout() {
-    let totalInvoiceAmount = 0; let totalSrvAmount = 0; let totalRetentionAmount = 0; let totalOutstandingBalance = 0; let htmlContent = '';
+    let totalInvoiceAmount = 0; let totalSrvAmount = 0; let totalRetentionAmount = 0; let totalUnderProcessSrv = 0; let htmlContent = '';
     
     currentFilteredData.forEach(row => {
         const poNumber = row._cleanPO;
@@ -1219,6 +1227,11 @@ function generateDetailedPrintout() {
 
         let poSrvAmt = 0;
         const relatedCommits = row._filteredCommits || getSrvRecordsForPO(poNumber);
+
+        const invStatusDetailed = getPOInvoicedStatus(poNumber, relatedCommits, mainStatus === 'Closed');
+        const invStatusColor = invStatusDetailed === 'Cleared' ? '#ef4444' :
+                               invStatusDetailed === 'Pending' ? '#ea580c' :
+                               invStatusDetailed === 'Under process' ? '#f59e0b' : '#94a3b8';
 
         let srvRowsHtml = '';
         if (relatedCommits.length > 0) {
@@ -1242,11 +1255,12 @@ function generateDetailedPrintout() {
                 const srvDate = formatToDDMMMYYYY(commit['Date'] || '-');
                 const srvVal = commit._rawCost;
                 
-const isInvoiced = (commit['Invoiced'] || '').toString().trim().toUpperCase() === 'TRUE';
-const invoicedStatus = isInvoiced ? "Cleared" : "Pending";
-const invoicedStyle = isInvoiced ? "color:#ef4444 !important; font-weight:bold;" : "color:#f59e0b !important; font-weight:bold;";
+                const isInvoiced = (commit['Invoiced'] || '').toString().trim().toUpperCase() === 'TRUE';
+                const invoicedStatus = isInvoiced ? "Cleared" : "Pending";
+                const invoicedStyle = isInvoiced ? "color:#ef4444 !important; font-weight:bold;" : "color:#f59e0b !important; font-weight:bold;";
 
-                poSrvAmt += srvVal; totalSrvAmount += srvVal;
+                poSrvAmt += srvVal;
+                totalSrvAmount += srvVal;
                 
                 srvRowsHtml += `
                     <tr>
@@ -1263,43 +1277,18 @@ const invoicedStyle = isInvoiced ? "color:#ef4444 !important; font-weight:bold;"
             srvRowsHtml = `<div class="print-no-srv">No delivery or payment records found for this PO in the selected period.</div>`;
         }
 
-        // ==============================================
-        // CORRECTED RETENTION DISPLAY LOGIC FOR DETAILED
-        // ==============================================
-        const fbRecords = allFirebaseData.filter(r => (r.poNo || r.poNumber || "").toString().trim() === poNumber);
-        let hasRealPendingPayment = false;
-        let pendingRetentionValue = 0;
-        
-        fbRecords.forEach(rec => {
-            const dPaid = (rec.datePaid || '').toString().trim();
-            const chq = (rec.chequeNo || '').toString().trim();
-            const retVal = parseFloat(rec.retention || 0);
-            
-            const isDPaidEmpty = (dPaid === '' || dPaid === '-');
-            const isChqEmpty = (chq === '' || chq === '-');
-            
-            if (isDPaidEmpty && isChqEmpty && Math.abs(retVal) > 0.001) {
-                hasRealPendingPayment = true;
-                pendingRetentionValue = retVal;
-            }
-        });
+        // Accumulate under‑process SRV
+        if (invStatusDetailed === "Under process") {
+            totalUnderProcessSrv += poSrvAmt;
+        }
 
         const poRetention = retentionByPO[poNumber] || 0;
         totalRetentionAmount += poRetention;
-        
-        let retentionDisplay = poRetention.toLocaleString('en-US', {minimumFractionDigits: 2});
-        
-        // Only show "Pending Payment" when total retention is zero but there's a pending record with non-zero value
-        if (Math.abs(poRetention) < 0.01 && hasRealPendingPayment) {
-            retentionDisplay = `${pendingRetentionValue.toLocaleString('en-US', {minimumFractionDigits: 2})} (Pending Payment)`;
-        }
 
         let rowBalance = invAmt - poSrvAmt;
         if (mainStatus === 'Closed' && poSrvAmt === 0) {
             rowBalance = 0;
         }
-
-        totalOutstandingBalance += rowBalance;
         
         htmlContent += `
             <div class="print-detailed-po-block">
@@ -1307,15 +1296,21 @@ const invoicedStyle = isInvoiced ? "color:#ef4444 !important; font-weight:bold;"
                     <div class="po-title">PO: ${poNumber} <span>| Site: ${site} | Vendor: ${vendor} | Date: ${orderDate}</span></div>
                     <div class="po-inv-amt">PO Value: QAR ${invAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
                 </div>
+                <div style="font-size:10px; font-weight:700; color: ${invStatusColor}; margin-top:8px;">
+                    Overall Invoiced: ${invStatusDetailed}
+                </div>
                 ${srvRowsHtml}
                 <div class="print-po-footer">
                     <div>Total SRV: QAR ${poSrvAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
-                    <div style="color:#ea580c !important;">Total Retention: QAR ${retentionDisplay}</div>
+                    <div style="color:#ea580c !important;">Total Retention: QAR ${poRetention.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
                     <div class="highlight" style="color:#ef4444 !important;">Outstanding Balance: QAR ${rowBalance.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
                 </div>
             </div>
         `;
     });
+
+    const totalOutstandingPayment = totalRetentionAmount + totalUnderProcessSrv;
+    const remainingPOBalance = totalInvoiceAmount - totalSrvAmount;
 
     const printTime = `${formatToDDMMMYYYY(new Date())} ${new Date().toLocaleTimeString()}`;
     
@@ -1328,16 +1323,22 @@ const invoicedStyle = isInvoiced ? "color:#ef4444 !important; font-weight:bold;"
         <div>${htmlContent}</div>
         <div class="print-summary-box">
             <table class="print-summary-table">
-                <tr><td>Grand Total PO Value</td><td>QAR ${totalInvoiceAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
-                <tr><td>Grand Total SRV</td><td>QAR ${totalSrvAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
-                <tr><td style="color:#ea580c !important;">Grand Total Retention</td><td style="color:#ea580c !important;">QAR ${totalRetentionAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
-                <tr class="balance-row"><td>TOTAL OUTSTANDING BALANCE</td><td>QAR ${totalOutstandingBalance.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
+                <tr><td style="font-weight:800;">Grand Total PO Value</td><td>QAR ${totalInvoiceAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
+                <tr><td style="font-weight:800;">Grand Total Created SRV</td><td>QAR ${totalSrvAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
+                <tr><td style="font-weight:800; color:#ea580c !important;">Grand Total Retention</td><td style="color:#ea580c !important;">QAR ${totalRetentionAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
+                <tr><td style="font-weight:800;">Total Under Process Value &nbsp; <span style="font-size:10px; color:#f59e0b;">(unbilled work)</span></td><td>QAR ${totalUnderProcessSrv.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
+                <tr style="border-top: 1px dashed #94a3b8; font-weight:900; color:#ef4444 !important;">
+                    <td>TOTAL OUTSTANDING PAYMENT &nbsp; <span style="font-size:10px;">(Retention + Under Process)</span></td>
+                    <td>QAR ${totalOutstandingPayment.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                </tr>
+                <tr class="balance-row"><td>Remaining PO Balance &nbsp; <span style="font-size:10px;">(PO – SRV)</span></td><td>QAR ${remainingPOBalance.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
             </table>
         </div>
     `;
     document.getElementById("printArea").innerHTML = printHtml;
     window.print();
 }
+
 
 function generateProjectPrintout() {
     let projectTotals = {}; let grandTotalInvoice = 0; let grandTotalSrv = 0; let grandTotalRetention = 0; let validRecordsCount = 0;
@@ -1555,3 +1556,48 @@ function generateRetentionPrintout() {
     document.getElementById("printArea").innerHTML = printHtml;
     window.print();
 }
+
+// =========================================================
+// AUTO-FILL PO FROM INVOICE SYSTEM (Retention Button)
+// =========================================================
+(function() {
+    const hash = window.location.hash;
+    if (!hash || !hash.startsWith('#po=')) return;
+    
+    const poNumber = decodeURIComponent(hash.substring(4));
+    
+    // Clean URL immediately
+    if (window.history && window.history.replaceState) {
+        window.history.replaceState(null, null, window.location.pathname + window.location.search);
+    }
+    
+    // OVERRIDE applyFilters to inject our PO
+    const originalApplyFilters = window.applyFilters || function(){};
+    
+    // Wait for applyFilters to exist
+    const waitForReady = setInterval(() => {
+        if (typeof window.applyFilters === 'function') {
+            clearInterval(waitForReady);
+            
+            // Set the search input value
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.value = poNumber;
+            }
+            
+            // Wait for data to load, then trigger search
+            const waitForData = setInterval(() => {
+                if (typeof isDataLoaded !== 'undefined' && isDataLoaded) {
+                    clearInterval(waitForData);
+                    if (window.applyFilters) {
+                        window.applyFilters();
+                    }
+                }
+            }, 500);
+            
+            setTimeout(() => clearInterval(waitForData), 30000);
+        }
+    }, 300);
+    
+    setTimeout(() => clearInterval(waitForReady), 30000);
+})();
