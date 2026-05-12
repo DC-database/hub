@@ -1516,20 +1516,15 @@
             <div class="header-title">
                 <div class="icon-wrapper"><i class="fa-solid fa-file-invoice-dollar"></i></div>
                 <h1 style="border: none; margin: 0; color: var(--primary-blue);">Invoice Records <span id="reporting-count-display" class="version-tag"></span></h1>
+		<button id="im-mobile-search-btn" class="im-mobile-search-btn" type="button"><i class="fa-solid fa-magnifying-glass"></i></button>
             </div>
             
             <div class="daily-report-section" style="display: flex; gap: 8px; align-items: center;">
-                <button id="im-download-daily-report-button" class="download-btn download-btn--periwinkle" type="button"><i class="fa-solid fa-file-invoice"></i> 1. Under Review</button>
-                
-                <button id="im-download-excel-custom-btn" class="download-btn" type="button" style="background-color: #28a745; color: white;" onclick="exportCurrentTableToExcel()">
-                    <i class="fa-solid fa-file-excel"></i> Export to Excel
-                </button>
-
+                <button id="im-download-daily-report-button" class="download-btn download-btn--periwinkle" type="button"><i class="fa-solid fa-file-invoice"></i> 1. Under Review</button>                   
                 <button id="im-download-with-accounts-report-button" class="download-btn download-btn--gold" type="button"><i class="fa-solid fa-credit-card"></i> 2. With Accounts</button>
-                <button id="im-reporting-download-btn" class="download-btn download-btn--teal" type="button" onclick="downloadReportingTableToExcel()"><i class="fa-solid fa-file-lines"></i> Finance Report</button>
-                <button id="im-refresh-reporting-button" class="refresh-btn" title="Force Full Refresh" style="margin-left: 10px;">
-                    <i class="fa-solid fa-cloud-arrow-down"></i> Refresh
-                </button>
+                <button id="im-reporting-download-btn" class="download-btn download-btn--teal" type="button" onclick="downloadReportingTableToExcel()"><i class="fa-solid fa-file-lines"></i> 3. Finance Report</button>
+		<button id="im-download-excel-custom-btn" class="download-btn" type="button" style="background-color: #28a745; color: white;" onclick="exportCurrentTableToExcel()"><i class="fa-solid fa-file-excel"></i> Export to Excel</button>                
+		<button id="im-refresh-reporting-button" class="refresh-btn" title="Force Full Refresh" style="margin-left: 10px;"><i class="fa-solid fa-cloud-arrow-down"></i> Refresh</button>
             </div>
         </div>
         <p style="margin: 10px 0 0 60px; color: #64748b; font-size: 14px;">Enter your criteria and click <strong>Search</strong> to find records.</p>
@@ -1623,14 +1618,17 @@
         </div>
     </div>
 
-    <div id="im-reporting-grand-total-container" style="display: none; justify-content: flex-end; margin-top: 30px; margin-bottom: 30px; padding-right: 5px;"></div>
+        <div id="im-reporting-grand-total-container" style="display: none; justify-content: flex-end; margin-top: 30px; margin-bottom: 30px; padding-right: 5px;"></div>
 
     <div style="display: none;">
         <div id="im-reporting-total-inv-value"></div>
         <div id="im-reporting-total-paid-value"></div>
         <div id="im-reporting-total-balance-value"></div>
     </div>
-</section>
+
+    <div id="im-reporting-mobile-view" class="hidden"></div>   <!--  ← PASTE THIS LINE HERE -->
+
+</section>                     <!-- closing im-reporting -->
 
 
 
@@ -2733,6 +2731,74 @@
     </div>
 </div>
 
+<!-- Mobile Search Modal for Invoice Records -->
+<div id="im-mobile-search-modal" class="modal-overlay hidden">
+    <div class="modal-container im-search-modal-container">
+        <div class="modal-header">
+            <h2>Search Report</h2>
+            <button class="modal-close-btn" data-modal-id="im-mobile-search-modal">&times;</button>
+        </div>
+        <div class="modal-content">
+            <div class="form-group">
+                <label>PO or Vendor</label>
+                <input type="text" id="im-mobile-search-term" placeholder="Type PO or Vendor...">
+            </div>
+            <div class="form-group">
+                <label>Site</label>
+                <select id="im-mobile-site-filter"><option value="">All Sites</option></select>
+            </div>
+            <div class="form-group">
+                <label>Status</label>
+                <select id="im-mobile-status-filter">
+                    <option value="">All Statuses</option>
+                    <option value="Negative Balance" style="color: red; font-weight: bold;">Negative Balance (Errors)</option>
+                    <option value="For SRV">For SRV</option>
+                    <option value="Pending">Pending</option>
+                    <option value="For IPC">For IPC</option>
+                    <option value="Under Review">Under Review</option>
+                    <option value="In Process">In Process</option>
+                    <option value="Unresolved">Unresolved</option>
+                    <option value="For Approval">For Approval</option>
+                    <option value="CEO Approval">CEO Approval</option>
+                    <option value="Report">Report</option>
+                    <option value="Report Approval">Report Approval</option>
+                    <option value="Report Approved">Report Approved</option>
+                    <option value="With Accounts">With Accounts</option>
+                    <option value="On Hold">On Hold</option>
+                    <option value="CLOSED">CLOSED</option>
+                    <option value="Cancelled">Cancelled</option>
+                    <option value="Paid">Paid</option>
+                    <option value="Original PO">Original PO</option>
+                    <option value="Epicore Value">Epicore Value</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Rejected">Rejected</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Release Month</label>
+                <select id="im-mobile-date-filter">
+                    <option value="">All Months</option>
+                    <option value="01">January</option>
+                    <option value="02">February</option>
+                    <option value="03">March</option>
+                    <option value="04">April</option>
+                    <option value="05">May</option>
+                    <option value="06">June</option>
+                    <option value="07">July</option>
+                    <option value="08">August</option>
+                    <option value="09">September</option>
+                    <option value="10">October</option>
+                    <option value="11">November</option>
+                    <option value="12">December</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button id="im-mobile-search-clear-btn" class="secondary-btn">Clear</button>
+            <button id="im-mobile-search-run-btn" class="primary-btn">Search</button>
+        </div>
+    </div>
+</div>
 
 <div id="im-invoice-print-modal" class="modal hidden" style="z-index: 999999;">
     <div class="modal-content" style="width: 90%; height: 90%; margin: 2% auto; display: flex; flex-direction: column; padding: 0;">
