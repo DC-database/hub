@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "7.0.4";
+const APP_VERSION = "7.0.5";
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -11277,6 +11277,7 @@ function populateInvoiceFormForEditing(invoiceKey) {
     }, 0);
 }
 
+
 async function handleAddInvoice(e) {
     e.preventDefault();
     if (!currentPO) {
@@ -11312,6 +11313,28 @@ async function handleAddInvoice(e) {
         return; // STOP HERE
     }
     // -----------------------------
+
+    // ==========================================================
+    // DUPLICATE INVOICE NUMBER CHECK (for the same PO)
+    // ==========================================================
+    const newInvNumber = (invoiceData.invNumber || '').trim();
+    if (newInvNumber && allInvoiceData && allInvoiceData[currentPO]) {
+        let isDuplicate = false;
+        const existingInvoices = allInvoiceData[currentPO];
+        for (const key in existingInvoices) {
+            const inv = existingInvoices[key];
+            const existingInvNumber = (inv.invNumber || '').trim();
+            if (existingInvNumber && existingInvNumber.toLowerCase() === newInvNumber.toLowerCase()) {
+                isDuplicate = true;
+                break;
+            }
+        }
+        if (isDuplicate) {
+            alert(`❌ Duplicate Invoice Number!\n\nInvoice No. "${newInvNumber}" already exists for PO ${currentPO}.\nPlease check if this invoice was already entered, or use a different invoice number.`);
+            return; // Stop saving
+        }
+    }
+    // ==========================================================
 
     // Auto-generate Invoice Name if blank
     if (!invoiceData.invName || normalizeNameText(invoiceData.invName) === "") {
@@ -11365,16 +11388,12 @@ async function handleAddInvoice(e) {
     });
 
     // =========================================================
-    // 👉 PASTE STEP 2 RIGHT HERE:
-    // --- INJECT IMPORTED RECEPTION HISTORY ---
+    // 👉 INJECT IMPORTED RECEPTION HISTORY (if any)
+    // =========================================================
     if (window.importedJobHistory && window.importedJobHistory.length > 0) {
         invoiceData.history = {};
         window.importedJobHistory.forEach((histItem, index) => {
-            
-            // USE EXACT TIME: Grab the original millisecond timestamp if available
             const exactTime = invoiceData.originTimestamp || new Date(histItem.date).getTime() || (Date.now() - 2000);
-
-            // We give it a special key so it sits at the top of the history list
             invoiceData.history['imported_' + index] = {
                 status: histItem.status,
                 updatedBy: histItem.updatedBy,
@@ -11383,7 +11402,7 @@ async function handleAddInvoice(e) {
             };
         });
     }
-      // =========================================================
+    // =========================================================
 
     try {
         const newRef = await invoiceDb.ref(`invoice_entries/${currentPO}`).push(invoiceData);
@@ -11445,16 +11464,15 @@ async function handleAddInvoice(e) {
         allSystemEntries = [];
         fetchAndDisplayInvoices(currentPO);
         
-        // =========================================================
         // WIPE MEMORY TO PREVENT LEAKS
         window.importedJobHistory = null;
-        // =========================================================
 
     } catch (error) {
         console.error("Error adding invoice:", error);
         alert('Failed to add invoice. Please try again.');
     }
 }
+
 
 async function handleUpdateInvoice(e) {
     e.preventDefault();
@@ -11502,7 +11520,6 @@ async function handleUpdateInvoice(e) {
                 const vendorCandidate = truncateNameText(poDetails['Supplier Name'] || '', 21);
                 const vendor = vendorCandidate || 'Vendor';
 
-                // IMPORTANT: never end the generated name with a space (even if vendor was shorter than the limit)
                 invoiceData.srvName = normalizeNameText(`${formattedDate}-${currentPO}-${invEntryID}-${site}-${vendor}`);
                 document.getElementById('im-srv-name').value = invoiceData.srvName;
             }
@@ -11515,15 +11532,37 @@ async function handleUpdateInvoice(e) {
     // [SMART REFRESH] 1. Add Timestamp to record so we know when it changed
     invoiceData.lastUpdated = firebase.database.ServerValue.TIMESTAMP;
 
-// Ensure this PO exists in invoiceDb/purchase_orders so tasks always have Vendor + Site
-if (typeof ensurePORecordInInvoiceDb === 'function') {
-    await ensurePORecordInInvoiceDb(currentPO);
-}
-
+    // Ensure this PO exists in invoiceDb/purchase_orders so tasks always have Vendor + Site
+    if (typeof ensurePORecordInInvoiceDb === 'function') {
+        await ensurePORecordInInvoiceDb(currentPO);
+    }
 
     Object.keys(invoiceData).forEach(key => {
         if (invoiceData[key] === null || invoiceData[key] === undefined) delete invoiceData[key];
     });
+
+    // ==========================================================
+    // DUPLICATE INVOICE NUMBER CHECK (for the same PO, excluding current invoice)
+    // ==========================================================
+    const newInvNumber = (invoiceData.invNumber || '').trim();
+    if (newInvNumber && allInvoiceData && allInvoiceData[currentPO]) {
+        let isDuplicate = false;
+        const existingInvoices = allInvoiceData[currentPO];
+        for (const key in existingInvoices) {
+            if (key === currentlyEditingInvoiceKey) continue; // skip itself
+            const inv = existingInvoices[key];
+            const existingInvNumber = (inv.invNumber || '').trim();
+            if (existingInvNumber && existingInvNumber.toLowerCase() === newInvNumber.toLowerCase()) {
+                isDuplicate = true;
+                break;
+            }
+        }
+        if (isDuplicate) {
+            alert(`❌ Duplicate Invoice Number!\n\nInvoice No. "${newInvNumber}" already exists for PO ${currentPO}.\nPlease use a different invoice number.`);
+            return; // Stop update
+        }
+    }
+    // ==========================================================
 
     try {
         // 1. Update the Invoice in the Invoice Database
@@ -11540,36 +11579,31 @@ if (typeof ensurePORecordInInvoiceDb === 'function') {
         if (newStatus === "With Accounts" || newStatus === "Paid") {
             console.log("🔄 Syncing: Checking for linked Job Entries...");
             
-            // 1. Identify the Job List (use cache or fetch fresh if empty)
             let jobsToSearch = (typeof allSystemEntries !== 'undefined') ? allSystemEntries : [];
             
-            // Safety: If list is empty, fetch 'job_entries' directly from DB to ensure we find the match
             if (!jobsToSearch || jobsToSearch.length === 0) {
                 const jobSnap = await firebase.database().ref('job_entries').once('value');
                 const jobObj = jobSnap.val() || {};
                 jobsToSearch = Object.entries(jobObj).map(([k, v]) => ({ ...v, key: k, source: 'job_entry' }));
             }
 
-            // 2. Find the matching Job Entry (Matches PO + Invoice Number)
             const matchedJob = jobsToSearch.find(job => 
                 job.source === 'job_entry' &&
                 job.po === currentPO && 
                 (job.ref === invoiceData.invNumber || job.ref === originalInvoiceData.invNumber)
             );
 
-            // 3. Update the Job Entry if found
             if (matchedJob) {
                 console.log(`✅ Found Job Entry ${matchedJob.key}. Updating status...`);
-                const db = firebase.database(); // Ensure we have DB reference
+                const db = firebase.database();
                 
                 await db.ref(`job_entries/${matchedJob.key}`).update({
-                    status: "Completed",        // <--- CRITICAL: Marks it as done
-                    remarks: newStatus,         // Syncs "With Accounts"
-                    dateResponded: new Date().toISOString().split('T')[0], // Marks today as response date
-                    amount: invoiceData.invValue // Syncs amount if changed
+                    status: "Completed",
+                    remarks: newStatus,
+                    dateResponded: new Date().toISOString().split('T')[0],
+                    amount: invoiceData.invValue
                 });
                 
-                // Log history so you know it happened
                 await db.ref(`job_entries/${matchedJob.key}/history`).push({
                     action: "Auto-Sync",
                     by: "System",
@@ -11605,6 +11639,7 @@ if (typeof ensurePORecordInInvoiceDb === 'function') {
         alert('Failed to update invoice. Please try again.');
     }
 }
+
 
 async function handleDeleteInvoice(key) {
     if (!currentPO || !key) {
