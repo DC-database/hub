@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "7.0.3";
+const APP_VERSION = "7.0.4";
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -2052,8 +2052,9 @@ async function fetchAndParseEcommitCSV(url) {
 
         const requiredHeaders = ['PO', 'Whse', 'Date', 'Sys Date', 'Name', 'Packing Slip', 'Extended Cost'];
         if (!requiredHeaders.every(h => headerMap.hasOwnProperty(h))) {
-            throw new Error("Ecommit CSV is missing required headers.");
-        }
+    console.warn("Ecommit CSV is missing required headers. Ecommit data will be empty.");
+    return {};
+}
 
         const poMap = {};
         for (let i = 1; i < lines.length; i++) {
