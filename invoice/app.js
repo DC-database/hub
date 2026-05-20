@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "7.0.5";
+const APP_VERSION = "7.0.6";
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -1728,14 +1728,13 @@ function loadDataFromLocalStorage() {
 
 // NEW HELPER: Get URL from Firebase Storage
 async function getFirebaseCSVUrl(filename) {
-    // This Base URL points to your specific GitHub repository via a fast CDN
+    // For Ecost.csv, use raw GitHub URL to bypass CDN cache
+    if (filename === 'Ecost.csv') {
+        const cacheBuster = "?v=" + new Date().getTime();
+        return "https://raw.githubusercontent.com/DC-database/Hub/main/Ecost.csv" + cacheBuster;
+    }
     const baseUrl = "https://cdn.jsdelivr.net/gh/DC-database/Hub@main/";
-    
-    // Add a unique timestamp to force the CDN/browser to fetch the newest version
     const cacheBuster = "?v=" + new Date().getTime();
-
-    // This automatically combines the base URL with whatever filename is requested
-    // Example: baseUrl + 'POVALUE2.csv?v=170948302000'
     return `${baseUrl}${filename}${cacheBuster}`;
 }
 
@@ -2264,18 +2263,27 @@ async function ensureEcostDataFetched(forceRefresh = false) {
     }
 
     console.log("Fetching Ecost.csv data...");
-
-    // --- THE FIX IS HERE: Get the URL dynamically instead of using undefined variable ---
     const url = await getFirebaseCSVUrl('Ecost.csv');
 
     if (url) {
-        allEcostData = await fetchAndParseEcostCSV(url);
-        if (allEcostData) {
+        try {
+            allEcostData = await fetchAndParseEcostCSV(url);
+            if (allEcostData) {
+                ecostDataTimestamp = now;
+                console.log("Ecost.csv data cached.");
+            } else {
+                console.warn("Ecost.csv could not be parsed. Dashboard will show empty.");
+                allEcostData = [];
+                ecostDataTimestamp = now;
+            }
+        } catch (error) {
+            console.error("Error fetching Ecost.csv:", error);
+            allEcostData = [];
             ecostDataTimestamp = now;
-            console.log("Ecost.csv data cached.");
+            // Remove the alert that bothers the user
         }
     }
-    return allEcostData;
+    return allEcostData || [];
 }
 
 // =========================================================
@@ -14653,99 +14661,146 @@ async function populateInvoiceDashboard(forceRefresh = false) {
             renderTop5List(topActivitiesList, getTop5(yearData, 'Activity Name', 'Total Committed'));
         };
 
-        const renderYearlyChart = (selectedYear) => {
-            const ctx = document.getElementById('imYearlyChartCanvas').getContext('2d');
-            const dataForYear = yearlyData[selectedYear];
+const renderYearlyChart = (selectedYear) => {
+    const ctx = document.getElementById('imYearlyChartCanvas').getContext('2d');
+    const dataForYear = yearlyData[selectedYear];
+    if (!dataForYear) return;
 
-            if (imYearlyChart) {
-                imYearlyChart.destroy();
-            }
+    const monthlyCommitted = dataForYear['Total Committed'];   // new POs per month
+    const monthlyDelivered = dataForYear['Delivered Amount'];  // deliveries per month
 
-            const colors = {
-                'Total Committed': 'rgba(54, 162, 235, 0.7)',
-                'Delivered Amount': 'rgba(75, 192, 192, 0.7)',
-                'Outstanding': 'rgba(255, 206, 86, 0.7)'
-            };
+    // Build cumulative arrays (full year)
+    let cumCommitted = 0;
+    let cumDelivered = 0;
+    const cumulativeCommitted = [];
+    const cumulativeOutstanding = [];
+    for (let i = 0; i < 12; i++) {
+        cumCommitted += monthlyCommitted[i];
+        cumDelivered += monthlyDelivered[i];
+        cumulativeCommitted.push(cumCommitted);
+        cumulativeOutstanding.push(cumCommitted - cumDelivered);
+    }
 
-            imYearlyChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-                    datasets: [
-                        {
-                            label: 'Total Committed',
-                            data: dataForYear['Total Committed'],
-                            backgroundColor: colors['Total Committed'],
-                            borderColor: colors['Total Committed'],
-                            borderWidth: 1
-                        },
-                        {
-                            label: 'Delivered Amount',
-                            data: dataForYear['Delivered Amount'],
-                            backgroundColor: colors['Delivered Amount'],
-                            borderColor: colors['Delivered Amount'],
-                            borderWidth: 1
-                        },
-                        {
-                            label: 'Outstanding',
-                            data: dataForYear['Outstanding'],
-                            backgroundColor: colors['Outstanding'],
-                            borderColor: colors['Outstanding'],
-                            borderWidth: 1
-                        }
-                    ]
+    // Find months where delivery > 0
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const activeIndices = [];
+    for (let i = 0; i < 12; i++) {
+        if (monthlyDelivered[i] > 0) activeIndices.push(i);
+    }
+
+    // If no active months, show a message
+    if (activeIndices.length === 0) {
+        if (imYearlyChart) imYearlyChart.destroy();
+        document.getElementById('imYearlyChartCanvas').style.display = 'none';
+        const container = document.querySelector('.im-chart-container-full');
+        if (container) container.innerHTML = '<div style="text-align:center; padding:40px;">No delivery data for this year.</div>';
+        return;
+    }
+
+    // Filter data for active months only
+    const filteredLabels = activeIndices.map(i => months[i]);
+    const filteredBlue = activeIndices.map(i => cumulativeCommitted[i]);
+    const filteredGreen = activeIndices.map(i => monthlyDelivered[i]);
+    const filteredYellow = activeIndices.map(i => cumulativeOutstanding[i]);
+
+    if (imYearlyChart) imYearlyChart.destroy();
+
+    const colors = {
+        blue: 'rgba(54, 162, 235, 1)',
+        green: 'rgba(75, 192, 192, 1)',
+        yellow: 'rgba(255, 206, 86, 1)'
+    };
+
+    imYearlyChart = new Chart(ctx, {
+        type: 'line',  // ← changed from 'bar' to 'line'
+        data: {
+            labels: filteredLabels,
+            datasets: [
+                {
+                    label: 'Cumulative Committed',
+                    data: filteredBlue,
+                    borderColor: colors.blue,
+                    backgroundColor: 'transparent',
+                    borderWidth: 3,
+                    fill: false,
+                    tension: 0.3,          // smooth curve
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    pointBackgroundColor: colors.blue,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                            labels: {
-                                color: 'rgba(230, 241, 255, 0.9)'
+                {
+                    label: 'Monthly Delivered',
+                    data: filteredGreen,
+                    borderColor: colors.green,
+                    backgroundColor: 'transparent',
+                    borderWidth: 3,
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    pointBackgroundColor: colors.green,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2
+                },
+                {
+                    label: 'Outstanding Balance',
+                    data: filteredYellow,
+                    borderColor: colors.yellow,
+                    backgroundColor: 'transparent',
+                    borderWidth: 3,
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    pointBackgroundColor: colors.yellow,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: { color: 'rgba(230, 241, 255, 0.9)' }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => {
+                            let label = context.dataset.label || '';
+                            if (label) label += ': ';
+                            if (context.parsed.y !== null) {
+                                label += `QAR ${formatCurrency(context.parsed.y)}`;
                             }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function (context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) {
-                                        label += ': ';
-                                    }
-                                    if (context.parsed.y !== null) {
-                                        label += `QAR ${formatCurrency(context.parsed.y)}`;
-                                    }
-                                    return label;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            ticks: {
-                                color: 'rgba(168, 178, 209, 0.7)'
-                            },
-                            grid: {
-                                color: 'rgba(48, 63, 96, 0.5)'
-                            }
-                        },
-                        y: {
-                            ticks: {
-                                callback: function (value) {
-                                    if (value >= 1000000) return `QAR ${value / 1000000}M`;
-                                    if (value >= 1000) return `QAR ${value / 1000}K`;
-                                    return `QAR ${value}`;
-                                },
-                                color: 'rgba(168, 178, 209, 0.7)'
-                            },
-                            grid: {
-                                color: 'rgba(48, 63, 96, 0.5)'
-                            }
+                            return label;
                         }
                     }
                 }
-            });
-        };
+            },
+            scales: {
+                x: {
+                    ticks: { color: 'rgba(168, 178, 209, 0.7)' },
+                    grid: { color: 'rgba(48, 63, 96, 0.5)' }
+                },
+                y: {
+                    ticks: {
+                        callback: (value) => {
+                            if (value >= 1000000) return `QAR ${value / 1000000}M`;
+                            if (value >= 1000) return `QAR ${value / 1000}K`;
+                            return `QAR ${value}`;
+                        },
+                        color: 'rgba(168, 178, 209, 0.7)'
+                    },
+                    grid: { color: 'rgba(48, 63, 96, 0.5)' }
+                }
+            }
+        }
+    });
+};
 
         const initialYear = parseInt(sortedYears[0]);
         renderYearlyChart(initialYear);
@@ -17846,7 +17901,7 @@ if (summaryNotePrintBtn) {
 
     if (imMobileSearchRunBtn) {
     imMobileSearchRunBtn.addEventListener('click', () => {
-        // ----- DOM elements -----
+        // Sync desktop filters with mobile modal values
         const desktopSearch = document.getElementById('im-reporting-search');
         const mobileSearch = document.getElementById('im-mobile-search-term');
         const desktopSite = document.getElementById('im-reporting-site-filter');
@@ -17854,52 +17909,29 @@ if (summaryNotePrintBtn) {
         const desktopStatus = document.getElementById('im-reporting-status-filter');
         const mobileStatus = document.getElementById('im-mobile-status-filter');
         const desktopMonth = document.getElementById('im-reporting-month-filter');
-        const mobileDate = document.getElementById('im-mobile-date-filter'); // mobile uses "date"
+        const mobileDate = document.getElementById('im-mobile-date-filter');
 
-        // ----- Guard: critical elements exist -----
-        if (!desktopSearch || !mobileSearch) {
-            console.warn('Search input missing');
-            return;
-        }
+        if (desktopSearch && mobileSearch) desktopSearch.value = mobileSearch.value;
+        if (desktopSite && mobileSite) desktopSite.value = mobileSite.value;
+        if (desktopStatus && mobileStatus) desktopStatus.value = mobileStatus.value;
+        if (desktopMonth && mobileDate) desktopMonth.value = mobileDate.value;
 
-        // 1. Sync search term
-        desktopSearch.value = mobileSearch.value;
+        // Save search term
+        sessionStorage.setItem('imReportingSearch', desktopSearch?.value || '');
 
-        // 2. Sync site filter
-        if (desktopSite && mobileSite) {
-            desktopSite.value = mobileSite.value;
-            // Populate mobile dropdown if empty (first time)
-            if (desktopSite.options.length > 1 && mobileSite.options.length <= 1) {
-                mobileSite.innerHTML = desktopSite.innerHTML;
-            }
-        }
-
-        // 3. Sync status filter
-        if (desktopStatus && mobileStatus) {
-            desktopStatus.value = mobileStatus.value;
-        }
-
-        // 4. Sync month filter (mobile "date" → desktop month)
-        if (desktopMonth && mobileDate) {
-            desktopMonth.value = mobileDate.value;
-        }
-
-        // (Optional) If you add a year filter to mobile later:
-        // const desktopYear = document.getElementById('im-reporting-year-filter');
-        // const mobileYear = document.getElementById('im-mobile-year-filter');
-        // if (desktopYear && mobileYear) desktopYear.value = mobileYear.value;
-
-        // 5. Save and execute search
-        sessionStorage.setItem('imReportingSearch', desktopSearch.value);
+        // Reload the report – this will update BOTH desktop table and mobile cards
         if (typeof populateInvoiceReporting === 'function') {
-            populateInvoiceReporting(desktopSearch.value);
+            populateInvoiceReporting(desktopSearch?.value || '');
+        } else {
+            console.warn('populateInvoiceReporting not found');
         }
 
-        // 6. Close modal
+        // Close modal
         const modal = document.getElementById('im-mobile-search-modal');
         if (modal) modal.classList.add('hidden');
     });
-}
+}	    
+
     if (modifyTaskStatus) {
         modifyTaskStatus.addEventListener('change', (e) => {
             modifyTaskStatusOtherContainer.classList.toggle('hidden', e.target.value !== 'Other');
