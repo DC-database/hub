@@ -6,7 +6,7 @@
 */
 
 // app.js - Top of file
-const APP_VERSION = "7.0.6";
+const APP_VERSION = "7.0.9";
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -300,6 +300,7 @@ function refreshNotePickers(latestNote) {
     }
 }
 
+
 // --- Vacation Delegation Helpers (Super Admin Replacement) ---
 // When SUPER_ADMIN_NAME enables Vacation in Settings and sets ReplacementName,
 // that replacement user is granted temporary Invoice Management access (except Delete, which remains Irwin-only).
@@ -454,6 +455,207 @@ function getDelegatorsForReplacement(replacementName) {
     return delegators;
 }
 
+async function autoSetAttentionForStatus(status, siteCode, choicesInstance) {
+    if (!choicesInstance) return;
+
+    if (!allApproverData || Object.keys(allApproverData).length === 0) {
+        await ensureApproverDataCached(true);
+    }
+
+    let targetName = null;
+    let candidates = [];
+
+    const st = (status || '').toLowerCase().trim();
+
+    if (st === 'ceo approval') {
+        targetName = findPersonByKeyword('hamad', true);
+    } else if (st === 'in process') {
+        targetName = findPersonByKeyword('e.ali', true);
+    } else if (st === 'report') {
+        targetName = findPersonByKeyword('gio', true);
+    } else if (st === 'for srv') {
+    candidates = getSiteMatchedAttentionCandidatesForSRV(siteCode);
+    candidates = candidates.filter(c => c && c.name && c.name.trim().length > 0);
+    if (candidates.length === 1) {
+        targetName = candidates[0].name;
+    } else if (candidates.length > 1) {
+        showCandidatePicker(candidates, 'Select Person for SRV', (selected) => {
+            // selected is the raw name
+            if (selected) {
+                const attentionSelect = document.getElementById('im-attention');
+                if (attentionSelect) {
+                    attentionSelect.value = selected;
+                    attentionSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                try {
+                    choicesInstance.clearChoices();
+                    choicesInstance.setChoices([{ value: selected, label: selected }], 'value', 'label', false);
+                    choicesInstance.setChoiceByValue(selected);
+                } catch (e) { console.warn(e); }
+            }
+        });
+        return;
+    }
+}
+
+    if (targetName) {
+        try {
+            choicesInstance.setChoiceByValue(targetName);
+            const attentionSelect = document.getElementById('im-attention');
+            if (attentionSelect) attentionSelect.value = targetName;
+        } catch (err) {
+            await populateAttentionDropdown(choicesInstance, status, siteCode, true);
+            choicesInstance.setChoiceByValue(targetName);
+        }
+    } else if (st === 'for srv' && candidates.length === 0) {
+        const fallback = resolveVacationAssignee('Irwin');
+        choicesInstance.setChoiceByValue(fallback);
+        const attentionSelect = document.getElementById('im-attention');
+        if (attentionSelect) attentionSelect.value = fallback;
+    }
+}
+
+// --------------------------------------------------------------
+// Candidate picker modal (simple, no external dependencies)
+// --------------------------------------------------------------
+function showCandidatePicker(candidates, title, callback) {
+    if (!candidates || candidates.length === 0) return;
+
+    const existing = document.getElementById('dynamic-candidate-picker');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'dynamic-candidate-picker';
+    overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10050; display:flex; align-items:center; justify-content:center;';
+
+    const container = document.createElement('div');
+    container.style.cssText = 'background:white; border-radius:12px; max-width:400px; width:90%; padding:20px; box-shadow:0 10px 25px rgba(0,0,0,0.2);';
+
+    const header = document.createElement('div');
+    header.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:10px;';
+    header.innerHTML = `<h3 style="margin:0; color:#000;">${title}</h3>
+                        <button style="background:transparent; border:none; font-size:24px; cursor:pointer; color:#000;">&times;</button>`;
+    container.appendChild(header);
+
+    const content = document.createElement('div');
+    content.style.marginBottom = '20px';
+    content.innerHTML = '<p style="color:#000;">Multiple persons match the site. Please select one:</p>';
+    const listDiv = document.createElement('div');
+    listDiv.style.display = 'flex';
+    listDiv.style.flexDirection = 'column';
+    listDiv.style.gap = '8px';
+
+    candidates.forEach(candidate => {
+        // candidate can be string (backward compat) or object { name, position }
+        const name = typeof candidate === 'object' ? candidate.name : candidate;
+        const position = typeof candidate === 'object' ? candidate.position : '';
+        const displayText = position ? `${name} - ${position}` : name;
+
+        const btn = document.createElement('button');
+        btn.textContent = displayText;
+        btn.style.cssText = 'padding:8px; border:1px solid #ccc; border-radius:8px; background:#f8fafc; cursor:pointer; text-align:left; color:#000000 !important; font-weight:500;';
+        btn.addEventListener('click', () => {
+            overlay.remove();
+            callback(name); // pass only the name (raw)
+        });
+        listDiv.appendChild(btn);
+    });
+    content.appendChild(listDiv);
+    container.appendChild(content);
+
+    const footer = document.createElement('div');
+    footer.style.display = 'flex';
+    footer.style.justifyContent = 'flex-end';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.className = 'secondary-btn';
+    cancelBtn.style.cssText = 'padding:8px 16px; color:#000; background:#e2e8f0; border:none; border-radius:6px; cursor:pointer;';
+    cancelBtn.addEventListener('click', () => {
+        overlay.remove();
+        callback(null);
+    });
+    footer.appendChild(cancelBtn);
+    container.appendChild(footer);
+
+    overlay.appendChild(container);
+    document.body.appendChild(overlay);
+
+    const closeBtn = header.querySelector('button');
+    closeBtn.addEventListener('click', () => {
+        overlay.remove();
+        callback(null);
+    });
+}
+
+// Find a person by exact name (case‑insensitive) or by position keyword
+function findPersonByKeyword(keyword, fallbackToIrwin = true) {
+    if (!allApproverData) return fallbackToIrwin ? 'Irwin' : null;
+    const keywordLower = keyword.toLowerCase();
+    for (const key in allApproverData) {
+        const p = allApproverData[key];
+        if (!p || !p.Name) continue;
+        const name = p.Name.trim();
+        const pos = (p.Position || '').toLowerCase();
+        if (name.toLowerCase() === keywordLower || pos.includes(keywordLower)) {
+            return resolveVacationAssignee(name);
+        }
+    }
+    return fallbackToIrwin ? resolveVacationAssignee('Irwin') : null;
+}
+
+function getSiteMatchedAttentionCandidatesForSRV(siteCode) {
+    if (!allApproverData) {
+        console.warn("allApproverData is null or undefined. Call ensureApproverDataCached() first.");
+        return [];
+    }
+
+    const poSiteId = (siteCode || '').toString().toLowerCase().split(/[\s\-]+/)[0].trim();
+    if (!poSiteId) {
+        console.warn("No site ID extracted from PO site:", siteCode);
+        return [];
+    }
+
+    console.log("🔍 Looking for SRV candidates matching site ID:", poSiteId);
+    const allowedPositions = ['logistic', 'camp boss', 'site dc', 'storekeeper'];
+    const candidates = []; // will store { name, position }
+
+    for (const key in allApproverData) {
+        const approver = allApproverData[key];
+        if (!approver) continue;
+
+        let name = approver.Name || approver.Username || approver.FullName || '';
+        name = name.toString().trim();
+        if (!name) continue;
+
+        const position = (approver.Position || '').toString().toLowerCase().trim();
+        const userSiteRaw = (approver.Site || '').toString().trim();
+        if (!userSiteRaw) continue;
+
+        const userSites = userSiteRaw.split(',').map(s => s.trim()).filter(s => s !== '');
+        if (userSites.length === 0) continue;
+
+        const posMatch = allowedPositions.some(allowed => position.includes(allowed));
+        if (!posMatch) continue;
+
+        const siteMatch = userSites.includes(poSiteId);
+        if (!siteMatch) continue;
+
+        candidates.push({ name, position });
+        console.log(`✅ Candidate: ${name} (${position}) - sites: ${userSites}`);
+    }
+
+    // Remove duplicates by name (keep first occurrence)
+    const unique = [];
+    const seen = new Set();
+    for (const cand of candidates) {
+        if (!seen.has(cand.name)) {
+            seen.add(cand.name);
+            unique.push(cand);
+        }
+    }
+    console.log("🎯 Final SRV candidates:", unique);
+    return unique;
+}
 
 // DETECT INVENTORY CONTEXT
 // Inventory mode can be triggered by:
@@ -3450,6 +3652,10 @@ const mobileLoginForm = document.getElementById('mobile-login-form');
 const wdActiveTaskBadge = document.getElementById('wd-active-task-badge');
 const imActiveTaskBadge = document.getElementById('im-active-task-badge');
 const wdMobileNotifyBadge = document.getElementById('wd-mobile-notify-badge');
+
+
+
+
 
 // ==========================================================================
 // 6. VIEW NAVIGATION & AUTHENTICATION
@@ -6860,7 +7066,6 @@ async function handleSRVDone(btn, key) {
     }
 
     try {
-        // Make sure invoice data is available when dealing with invoice tasks
         if (typeof ensureInvoiceDataFetched === 'function') {
             await ensureInvoiceDataFetched(false);
         } else if (typeof ensureAllEntriesFetched === 'function') {
@@ -6872,7 +7077,6 @@ async function handleSRVDone(btn, key) {
             ? (userActiveTasks.find(t => t && String(t.key || '').trim() === keyStr) || {})
             : {});
 
-        // Some invoice tasks come from invoice_tasks_by_user and should still be treated as invoice even if the key parsing fails.
         const isInvoiceDB = keyStr.includes('_') || (taskFromList && taskFromList.source === 'invoice');
 
         let sender = 'Accounting';
@@ -6881,11 +7085,9 @@ async function handleSRVDone(btn, key) {
         let invoiceKey = '';
 
         if (isInvoiceDB) {
-            // Prefer explicit fields if available (avoids parsing edge cases)
             if (taskFromList && taskFromList.originalPO) poNumber = taskFromList.originalPO;
             if (taskFromList && taskFromList.originalKey) invoiceKey = taskFromList.originalKey;
 
-            // Fallback: parse composite key
             if ((!poNumber || !invoiceKey) && keyStr.includes('_')) {
                 const idx = keyStr.indexOf('_');
                 poNumber = poNumber || keyStr.slice(0, idx);
@@ -6895,122 +7097,88 @@ async function handleSRVDone(btn, key) {
             poNumber = String(poNumber || '').trim().toUpperCase();
             const candidateInvoiceKey = String(invoiceKey || '').trim();
 
-            // ------------------------------------------------------------------
-            // IMPORTANT: Prevent "re-entering" / duplicating invoice entries.
-            // If we update a non-existing path in Firebase, it CREATES a new record.
-            // So we first resolve the REAL invoice entry key before updating.
-            // ------------------------------------------------------------------
             const resolveInvoiceEntry = async () => {
                 if (!poNumber) return { resolvedKey: null, invData: null };
-
-                // 1) Direct key lookup
                 if (candidateInvoiceKey) {
                     const directSnap = await invoiceDb.ref(`invoice_entries/${poNumber}/${candidateInvoiceKey}`).once('value');
                     if (directSnap.exists()) {
                         return { resolvedKey: candidateInvoiceKey, invData: directSnap.val() || {} };
                     }
                 }
-
-                // 2) Try cache / PO scan (match by invEntryID or invNumber)
                 const targetInvEntryID = String(taskFromList.invEntryID || '').trim();
                 const targetInvNumber = String(taskFromList.ref || taskFromList.invNumber || '').trim();
-
                 const pickBestMatch = (bucket) => {
                     const matches = [];
                     if (!bucket) return null;
-
                     for (const [k, v] of Object.entries(bucket)) {
                         if (!v) continue;
                         const vEntry = String(v.invEntryID || '').trim();
                         const vNo = String(v.invNumber || '').trim();
-
                         const entryMatch = targetInvEntryID && vEntry && vEntry === targetInvEntryID;
                         const numberMatch = !entryMatch && targetInvNumber && vNo && vNo === targetInvNumber;
-
                         if (entryMatch || numberMatch) {
                             const score = Number(v.lastUpdated || v.updatedAt || v.enteredAt || 0);
                             matches.push({ k, v, score });
                         }
                     }
-
                     if (matches.length === 0) return null;
                     matches.sort((a, b) => (b.score || 0) - (a.score || 0));
                     return matches[0];
                 };
-
-                // Cache first
                 const cacheBucket = (allInvoiceData && allInvoiceData[poNumber]) ? allInvoiceData[poNumber] : null;
                 let best = pickBestMatch(cacheBucket);
-
-                // If not found in cache, fetch PO branch and scan
                 if (!best) {
                     const poSnap = await invoiceDb.ref(`invoice_entries/${poNumber}`).once('value');
                     const poBucket = poSnap.val() || {};
                     best = pickBestMatch(poBucket);
                     if (best) return { resolvedKey: best.k, invData: best.v || {} };
                 }
-
                 if (best) return { resolvedKey: best.k, invData: best.v || {} };
                 return { resolvedKey: null, invData: null };
             };
 
             const { resolvedKey, invData } = await resolveInvoiceEntry();
-
-            if (!resolvedKey) {
-                throw new Error(`Invoice entry not found for PO ${poNumber}. (Prevented duplicate creation)`);
-            }
-
-            // Use the resolved key (this is what exists in invoice_entries)
+            if (!resolvedKey) throw new Error(`Invoice entry not found for PO ${poNumber}. (Prevented duplicate creation)`);
             invoiceKey = resolvedKey;
-
             sender = (invData && (invData.enteredBy || invData.originEnteredBy)) || 'Accounting';
             oldAttention = (taskFromList.attention || (invData ? invData.attention : '') || '');
 
-            // Update Invoice Entry (correct path)
             const updates = { status: 'SRV Done', attention: '', lastUpdated: firebase.database.ServerValue.TIMESTAMP };
             await invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}`).update(updates);
 
-            // Defensive cleanup: remove any lingering inbox copies for this invoice.
-            // Remove both the candidate key and the resolved key (if different) to cover legacy inbox formats.
+            // === SYNC LINKED JOB ENTRY ===
+            await updateLinkedJobEntry(poNumber, invoiceKey, 'SRV Done', 'Marked SRV Done via Active Task');
+
             try {
                 const sanitizeFirebaseKey = (k) => String(k || '').replace(/[.#$[\]]/g, '_');
                 const safeMe = sanitizeFirebaseKey(currentApprover?.Name || '');
                 const removals = [];
-
                 const keysToRemove = new Set([invoiceKey, candidateInvoiceKey].filter(Boolean));
                 for (const k of keysToRemove) {
                     if (safeMe) removals.push(invoiceDb.ref(`invoice_tasks_by_user/${safeMe}/${k}`).remove());
                     removals.push(invoiceDb.ref(`invoice_tasks_by_user/All/${k}`).remove());
                 }
-
                 await Promise.allSettled(removals);
-            } catch (_) { /* never block SRV Done */ }
+            } catch (_) { }
 
-            // Keep task lookup in sync (so tasks move/clear correctly)
             const originalInvoice = (allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][invoiceKey])
                 ? allInvoiceData[poNumber][invoiceKey]
                 : (invData || {});
             const updatedInvoiceData = { ...originalInvoice, ...updates };
-
             if (typeof updateInvoiceTaskLookup === 'function') {
                 await updateInvoiceTaskLookup(poNumber, invoiceKey, updatedInvoiceData, oldAttention);
             }
             updateLocalInvoiceCache(poNumber, invoiceKey, updates);
-
             if (window.logInvoiceHistory) {
                 await window.logInvoiceHistory(poNumber, invoiceKey, 'SRV Done', 'Marked SRV Done via Active Task');
             }
-
         } else {
-            // Job Entry
             if (typeof ensureAllEntriesFetched === 'function') await ensureAllEntriesFetched(false);
             const jobEntry = (allSystemEntries || []).find(e => e.key === keyStr);
-
             if (jobEntry) {
                 sender = jobEntry.enteredBy || 'Accounting';
                 oldAttention = jobEntry.attention || '';
             }
-
             await db.ref(`job_entries/${keyStr}`).update({
                 remarks: 'SRV Done',
                 attention: '',
@@ -7019,9 +7187,7 @@ async function handleSRVDone(btn, key) {
         }
 
         alert('SRV Completed. Task removed from Active Tasks.');
-
         if (typeof populateActiveTasks === 'function') await populateActiveTasks();
-
     } catch (error) {
         console.error("Error marking SRV Done:", error);
         alert("Error updating status. Please try again.");
@@ -7032,7 +7198,6 @@ async function handleSRVDone(btn, key) {
         }
     }
 }
-
 
 // ==========================================================================
 // AUTO-RECONCILE PR JOBS (Universal Date Fixer)
@@ -10076,8 +10241,6 @@ async function handleSaveModifiedTask() {
 
     try { await ensureApproverDataCached(true); } catch (e) { /* ignore */ }
 
-    // Safety: do not assign tasks to vacationing users. If selected attention is on vacation,
-    // automatically resolve to the replacement (if configured and active).
     if (updates.attention && updates.attention !== 'All' && updates.attention !== 'None') {
         try {
             if (typeof resolveVacationAssignee === 'function') {
@@ -10097,80 +10260,62 @@ async function handleSaveModifiedTask() {
     modifyTaskSaveBtn.textContent = 'Saving...';
 
     try {
-        // --- REPORT WORKFLOW LOGIC ---
         if (source === 'invoice' && originalPO && originalKey) {
-            
-            // 1. Finance Auto-Route Logic
             if (currentApprover && currentApprover.Position) {
                 const isFinance = currentApprover.Position.toLowerCase().includes('finance');
-                
                 if (isFinance && updates.status === 'Report Approval') {
                     updates.status = 'Report Approved';
                     updates.remarks = 'Report Approved';
-                    
                     let accountingUser = null;
                     if (typeof allApproverData !== 'undefined') {
-                        accountingUser = Object.values(allApproverData).find(u => 
+                        accountingUser = Object.values(allApproverData).find(u =>
                             u.Position && (u.Position.toLowerCase().includes('accounting') || u.Position.toLowerCase().includes('accounts'))
                         );
                     }
                     const accName = (typeof getAccountingUser === 'function') ? getAccountingUser() : (accountingUser ? accountingUser.Name : 'Accounting');
                     updates.attention = (typeof resolveVacationAssignee === 'function') ? resolveVacationAssignee(accName) : accName;
-                    
                     alert("Finance Approval Confirmed. Routing back to Accounting for printing.");
                 }
             }
 
-            // 2. Execute Report Database Update
-            // CRITICAL: Checks if function exists before calling
             if (typeof updateReportWorkflow === 'function') {
                 await updateReportWorkflow(originalPO, originalKey, updates.status, currentApprover, updates.attention);
             } else {
                 throw new Error("Helper function 'updateReportWorkflow' is missing from app.js!");
             }
+
+            // === SYNC LINKED JOB ENTRY ===
+            await updateLinkedJobEntry(originalPO, originalKey, selectedStatus, modifyTaskNote.value);
         }
-        // ----------------------------------
 
         if (source === 'job_entry') {
             await ensureAllEntriesFetched();
             const originalEntry = allSystemEntries.find(entry => entry.key === key);
-
             if (originalEntry && currentApprover.Name === (originalEntry.attention || '') && updates.attention === originalEntry.attention) {
-                 updates.dateResponded = formatDate(new Date());
+                updates.dateResponded = formatDate(new Date());
             } else if (updates.attention !== (originalEntry ? originalEntry.attention : '')) {
-                 updates.dateResponded = null;
+                updates.dateResponded = null;
             }
-
             await db.ref(`job_entries/${key}`).update(updates);
             allSystemEntries = [];
-
         } else if (source === 'invoice' && originalPO && originalKey) {
             await invoiceDb.ref(`invoice_entries/${originalPO}/${originalKey}`).update(updates);
-
             if (!allInvoiceData) await ensureInvoiceDataFetched();
             const originalInvoice = (allInvoiceData && allInvoiceData[originalPO]) ? allInvoiceData[originalPO][originalKey] : {};
-            const updatedInvoiceData = {
-                ...originalInvoice,
-                ...updates
-            };
-
+            const updatedInvoiceData = { ...originalInvoice, ...updates };
             await updateInvoiceTaskLookup(originalPO, originalKey, updatedInvoiceData, originalAttention);
             updateLocalInvoiceCache(originalPO, originalKey, updates);
-
             if (window.logInvoiceHistory) {
                 await window.logInvoiceHistory(originalPO, originalKey, updates.status, updates.note);
             }
-        } 
+        }
 
         alert("Task updated successfully!");
         modifyTaskModal.classList.add('hidden');
-
         await populateActiveTasks();
-
     } catch (error) {
         console.error("Detailed Error:", error);
-        // --- THIS ALERT SHOWS THE REAL REASON ---
-        alert("Update Failed: " + error.message); 
+        alert("Update Failed: " + error.message);
     } finally {
         modifyTaskSaveBtn.disabled = false;
         modifyTaskSaveBtn.textContent = 'Confirm Action';
@@ -10426,6 +10571,35 @@ async function removeInvoiceTaskFromUser(invoiceKey, oldData) {
     const safeOldAttentionKey = sanitizeFirebaseKey(oldData.attention);
     await invoiceDb.ref(`invoice_tasks_by_user/${safeOldAttentionKey}/${invoiceKey}`).remove();
 }
+
+async function updateLinkedJobEntry(poNumber, invoiceKey, newStatus, note = '') {
+    if (!poNumber || !invoiceKey) return;
+    // Get the invoice data (use cached version if available)
+    let invoiceData = null;
+    if (allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][invoiceKey]) {
+        invoiceData = allInvoiceData[poNumber][invoiceKey];
+    } else {
+        const snap = await invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}`).once('value');
+        invoiceData = snap.val();
+    }
+    const jobKey = invoiceData?.linkedJobEntryKey;
+    if (!jobKey) return;
+    
+    const updates = {
+        remarks: newStatus,
+        status: newStatus,
+        dateResponded: formatDate(new Date())
+    };
+    await db.ref(`job_entries/${jobKey}`).update(updates);
+    // Optional: push a history entry to the job entry
+    await db.ref(`job_entries/${jobKey}/history`).push({
+        action: "Invoice Status Updated",
+        by: currentApprover?.Name || 'System',
+        timestamp: Date.now(),
+        note: `Invoice status changed to ${newStatus}${note ? ': ' + note : ''}`
+    });
+}
+
 
 // ==========================================================================
 // 13. INVOICE MANAGEMENT: SEARCH & DISPLAY
@@ -11416,6 +11590,10 @@ async function handleAddInvoice(e) {
         const newRef = await invoiceDb.ref(`invoice_entries/${currentPO}`).push(invoiceData);
         const newKey = newRef.key;
 
+	if (jobEntryToUpdateAfterInvoice) {
+    await invoiceDb.ref(`invoice_entries/${currentPO}/${newKey}`).update({ linkedJobEntryKey: jobEntryToUpdateAfterInvoice });
+}
+
         // [SMART REFRESH] 2. Log this update so "Smart Refresh" can find it
         if (typeof logRecentUpdate === 'function') {
             logRecentUpdate(currentPO);
@@ -11490,11 +11668,11 @@ async function handleUpdateInvoice(e) {
     }
     const formData = new FormData(imNewInvoiceForm);
     const invoiceData = Object.fromEntries(formData.entries());
-    
+
     // SANITIZE: Remove commas before saving
     if (invoiceData.invValue) invoiceData.invValue = invoiceData.invValue.replace(/,/g, '');
     if (invoiceData.amountPaid) invoiceData.amountPaid = invoiceData.amountPaid.replace(/,/g, '');
-    
+
     let attentionValue = imAttentionSelectChoices.getValue(true);
     invoiceData.attention = (attentionValue === 'None') ? '' : attentionValue;
 
@@ -11503,7 +11681,6 @@ async function handleUpdateInvoice(e) {
     }
 
     const originalInvoiceData = currentPOInvoices[currentlyEditingInvoiceKey];
-
     const newStatus = invoiceData.status;
     const oldStatus = originalInvoiceData ? originalInvoiceData.status : '';
 
@@ -11521,13 +11698,10 @@ async function handleUpdateInvoice(e) {
                 const mm = String(today.getMonth() + 1).padStart(2, '0');
                 const dd = String(today.getDate()).padStart(2, '0');
                 const formattedDate = `${yyyy}${mm}${dd}`;
-
                 const site = normalizeNameText(poDetails['Project ID'] || 'N/A');
                 const invEntryID = normalizeNameText(invoiceData.invEntryID || 'INV-XX');
-
                 const vendorCandidate = truncateNameText(poDetails['Supplier Name'] || '', 21);
                 const vendor = vendorCandidate || 'Vendor';
-
                 invoiceData.srvName = normalizeNameText(`${formattedDate}-${currentPO}-${invEntryID}-${site}-${vendor}`);
                 document.getElementById('im-srv-name').value = invoiceData.srvName;
             }
@@ -11537,10 +11711,8 @@ async function handleUpdateInvoice(e) {
         }
     }
 
-    // [SMART REFRESH] 1. Add Timestamp to record so we know when it changed
     invoiceData.lastUpdated = firebase.database.ServerValue.TIMESTAMP;
 
-    // Ensure this PO exists in invoiceDb/purchase_orders so tasks always have Vendor + Site
     if (typeof ensurePORecordInInvoiceDb === 'function') {
         await ensurePORecordInInvoiceDb(currentPO);
     }
@@ -11549,15 +11721,12 @@ async function handleUpdateInvoice(e) {
         if (invoiceData[key] === null || invoiceData[key] === undefined) delete invoiceData[key];
     });
 
-    // ==========================================================
-    // DUPLICATE INVOICE NUMBER CHECK (for the same PO, excluding current invoice)
-    // ==========================================================
     const newInvNumber = (invoiceData.invNumber || '').trim();
     if (newInvNumber && allInvoiceData && allInvoiceData[currentPO]) {
         let isDuplicate = false;
         const existingInvoices = allInvoiceData[currentPO];
         for (const key in existingInvoices) {
-            if (key === currentlyEditingInvoiceKey) continue; // skip itself
+            if (key === currentlyEditingInvoiceKey) continue;
             const inv = existingInvoices[key];
             const existingInvNumber = (inv.invNumber || '').trim();
             if (existingInvNumber && existingInvNumber.toLowerCase() === newInvNumber.toLowerCase()) {
@@ -11567,51 +11736,42 @@ async function handleUpdateInvoice(e) {
         }
         if (isDuplicate) {
             alert(`❌ Duplicate Invoice Number!\n\nInvoice No. "${newInvNumber}" already exists for PO ${currentPO}.\nPlease use a different invoice number.`);
-            return; // Stop update
+            return;
         }
     }
-    // ==========================================================
 
     try {
-        // 1. Update the Invoice in the Invoice Database
         await invoiceDb.ref(`invoice_entries/${currentPO}/${currentlyEditingInvoiceKey}`).update(invoiceData);
 
-        // [SMART REFRESH] 2. Log this update so "Smart Refresh" can find it
+        // === SYNC LINKED JOB ENTRY ===
+        await updateLinkedJobEntry(currentPO, currentlyEditingInvoiceKey, invoiceData.status, invoiceData.note);
+
         if (typeof logRecentUpdate === 'function') {
             logRecentUpdate(currentPO);
         }
 
-        // ============================================================
-        // [START] JOB ENTRY SYNC FIX - AUTO COMPLETE JOB
-        // ============================================================
         if (newStatus === "With Accounts" || newStatus === "Paid") {
             console.log("🔄 Syncing: Checking for linked Job Entries...");
-            
             let jobsToSearch = (typeof allSystemEntries !== 'undefined') ? allSystemEntries : [];
-            
             if (!jobsToSearch || jobsToSearch.length === 0) {
                 const jobSnap = await firebase.database().ref('job_entries').once('value');
                 const jobObj = jobSnap.val() || {};
                 jobsToSearch = Object.entries(jobObj).map(([k, v]) => ({ ...v, key: k, source: 'job_entry' }));
             }
-
-            const matchedJob = jobsToSearch.find(job => 
+            const matchedJob = jobsToSearch.find(job =>
                 job.source === 'job_entry' &&
-                job.po === currentPO && 
+                job.po === currentPO &&
                 (job.ref === invoiceData.invNumber || job.ref === originalInvoiceData.invNumber)
             );
-
             if (matchedJob) {
                 console.log(`✅ Found Job Entry ${matchedJob.key}. Updating status...`);
                 const db = firebase.database();
-                
                 await db.ref(`job_entries/${matchedJob.key}`).update({
                     status: "Completed",
                     remarks: newStatus,
                     dateResponded: new Date().toISOString().split('T')[0],
                     amount: invoiceData.invValue
                 });
-                
                 await db.ref(`job_entries/${matchedJob.key}/history`).push({
                     action: "Auto-Sync",
                     by: "System",
@@ -11620,9 +11780,6 @@ async function handleUpdateInvoice(e) {
                 });
             }
         }
-        // ============================================================
-        // [END] JOB ENTRY SYNC FIX
-        // ============================================================
 
         const oldAttn = originalInvoiceData ? originalInvoiceData.attention : null;
         await updateInvoiceTaskLookup(currentPO, currentlyEditingInvoiceKey, invoiceData, oldAttn);
@@ -14404,7 +14561,6 @@ async function handleGenerateSummary() {
     }
 }
 
-
 async function handleUpdateSummaryChanges(sendToAccounts = false) {
     const rows = snTableBody.querySelectorAll('tr');
     if (rows.length === 0) {
@@ -14415,10 +14571,10 @@ async function handleUpdateSummaryChanges(sendToAccounts = false) {
         ? "This will UPDATE all visible entries and SEND them to ACCOUNTS (Status: With Accounts). Continue?"
         : "This will save changes for all visible entries. Continue?";
     if (!confirm(confirmMsg)) return;
-    
+
     summaryNoteUpdateBtn.textContent = "Updating...";
     summaryNoteUpdateBtn.disabled = true;
-    
+
     let newGlobalStatus = document.getElementById('summary-note-status-input').value;
     let newGlobalSRV = document.getElementById('summary-note-srv-input').value.trim();
     const today = getTodayDateString();
@@ -14433,7 +14589,6 @@ async function handleUpdateSummaryChanges(sendToAccounts = false) {
     const vendorName = snVendorName ? snVendorName.textContent.trim() : '';
     const autoSrvName = `${vendorName} ${dateStr}`.trim();
 
-    // 💡 THE FIX: If going to Accounts and box is empty, FORCE Vendor+Date
     if (newGlobalStatus === 'With Accounts' && !newGlobalSRV && vendorName && vendorName !== 'N/A') {
         newGlobalSRV = autoSrvName;
     }
@@ -14449,7 +14604,7 @@ async function handleUpdateSummaryChanges(sendToAccounts = false) {
                 invoiceKey = row.dataset.key;
             const newDetails = row.querySelector('input[name="details"]').value,
                 newInvoiceDate = row.querySelector('input[name="invoiceDate"]').value;
-                
+
             if (poNumber && invoiceKey) {
                 const originalInvoice = (allInvoiceData && allInvoiceData[poNumber]) ? (allInvoiceData[poNumber][invoiceKey] || {}) : {};
                 const originalStatus = (originalInvoice.status || '').toString().trim();
@@ -14459,7 +14614,7 @@ async function handleUpdateSummaryChanges(sendToAccounts = false) {
                     invoiceDate: newInvoiceDate,
                     releaseDate: today
                 };
-                
+
                 if (newGlobalStatus) {
                     updates.status = newGlobalStatus;
                     if (newGlobalStatus !== originalStatus) {
@@ -14480,14 +14635,14 @@ async function handleUpdateSummaryChanges(sendToAccounts = false) {
                     data: updates
                 });
 
-                const updatedInvoiceData = {
-                    ...originalInvoice,
-                    ...updates
-                };
+                // === SYNC LINKED JOB ENTRY ===
+                await updateLinkedJobEntry(poNumber, invoiceKey, updates.status || newGlobalStatus, 'Updated via Summary Note');
+
+                const updatedInvoiceData = { ...originalInvoice, ...updates };
                 updatePromises.push(updateInvoiceTaskLookup(poNumber, invoiceKey, updatedInvoiceData, originalInvoice.attention));
             }
         }
-        
+
         await Promise.all(updatePromises);
 
         if (allInvoiceData) {
@@ -14502,17 +14657,15 @@ async function handleUpdateSummaryChanges(sendToAccounts = false) {
         }
 
         alert("Changes saved successfully!");
-        
-        // Auto-Clear Fields
-        if (typeof summaryClearBtn !== 'undefined' && summaryClearBtn) {
-             summaryClearBtn.click(); 
-        } else {
-             if (summaryNotePreviousInput) summaryNotePreviousInput.value = '';
-             if (summaryNoteCurrentInput) summaryNoteCurrentInput.value = '';
-             snTableBody.innerHTML = '';
-             summaryNotePrintArea.classList.add('hidden');
-        }
 
+        if (typeof summaryClearBtn !== 'undefined' && summaryClearBtn) {
+            summaryClearBtn.click();
+        } else {
+            if (summaryNotePreviousInput) summaryNotePreviousInput.value = '';
+            if (summaryNoteCurrentInput) summaryNoteCurrentInput.value = '';
+            snTableBody.innerHTML = '';
+            summaryNotePrintArea.classList.add('hidden');
+        }
     } catch (error) {
         console.error("Error updating summary changes:", error);
         alert("An error occurred while saving the changes.");
@@ -15080,10 +15233,10 @@ async function handleSavePayments() {
             invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}`).update(updates)
         );
 
-        const updatedFullData = {
-            ...originalInvoiceData,
-            ...updates
-        };
+        // === SYNC LINKED JOB ENTRY ===
+        await updateLinkedJobEntry(poNumber, invoiceKey, 'Paid', 'Payment processed');
+
+        const updatedFullData = { ...originalInvoiceData, ...updates };
         savePromises.push(
             updateInvoiceTaskLookup(poNumber, invoiceKey, updatedFullData, originalInvoiceData.attention)
         );
@@ -15121,8 +15274,6 @@ async function handleSavePayments() {
         alert("An error occurred while saving payments. Some updates may have failed. Please check the data and try again.");
     }
 }
-
-
 
 // ==========================================================================
 // 23. CEO APPROVAL & RECEIPT LOGIC
@@ -15184,13 +15335,11 @@ async function handleCEOAction(status) {
             dateResponded: formatDate(new Date())
         };
 
-        // --- NEW: GENERATE & SAVE ESN PERMANENTLY ---
         if (status === 'Approved') {
             const baseESN = await getNextSeriesNumber();
             const approverName = currentApprover.Name.split(' ')[0].toUpperCase();
-            updates.esn = `${baseESN}/${approverName}`; // Save this string to Firebase!
+            updates.esn = `${baseESN}/${approverName}`;
         }
-        // --------------------------------------------
 
         const processedTask = userActiveTasks.find(t => t.key === key);
         const originalAttention = processedTask ? (processedTask.attention || '') : '';
@@ -15199,6 +15348,9 @@ async function handleCEOAction(status) {
             await db.ref(`job_entries/${key}`).update(updates);
         } else if (source === 'invoice' && originalPO && originalKey) {
             await invoiceDb.ref(`invoice_entries/${originalPO}/${originalKey}`).update(updates);
+
+            // === SYNC LINKED JOB ENTRY ===
+            await updateLinkedJobEntry(originalPO, originalKey, status, newNote);
 
             const updatedInvoiceData = { ...processedTask, ...updates };
             await updateInvoiceTaskLookup(originalPO, originalKey, updatedInvoiceData, originalAttention);
@@ -15210,29 +15362,25 @@ async function handleCEOAction(status) {
             }
         }
 
-        // Update local memory so Receipt sees the new ESN immediately
         if (processedTask) {
             processedTask.status = status;
             processedTask.amountPaid = newAmountPaid;
-            if(updates.esn) processedTask.esn = updates.esn; // Crucial!
+            if (updates.esn) processedTask.esn = updates.esn;
             ceoProcessedTasks.push(processedTask);
-
             const taskIndex = userActiveTasks.findIndex(t => t.key === key);
             if (taskIndex > -1) userActiveTasks.splice(taskIndex, 1);
         }
 
         renderActiveTaskTable(userActiveTasks);
-
         const taskCount = userActiveTasks.length;
         if (activeTaskCountDisplay) activeTaskCountDisplay.textContent = `(Total Tasks: ${taskCount})`;
         [wdActiveTaskBadge, imActiveTaskBadge, wdMobileNotifyBadge].forEach(b => {
-            if(b) { b.textContent = taskCount; b.style.display = taskCount > 0 ? 'inline-block' : 'none'; }
+            if (b) { b.textContent = taskCount; b.style.display = taskCount > 0 ? 'inline-block' : 'none'; }
         });
 
         sendCeoApprovalReceiptBtn.classList.remove('hidden');
         alert(`Task ${status}!`);
         ceoApprovalModal.classList.add('hidden');
-
     } catch (error) {
         console.error("Error updating task:", error);
         alert("Failed to update task.");
@@ -17147,45 +17295,47 @@ const invoiceRow = e.target.closest('.nested-invoice-row');
         });
     }
 
-    if (imStatusSelect) {
-        imStatusSelect.addEventListener('change', async (e) => {
-            const statusValue = e.target.value;
-            
-            // 1. Update Visuals
-            imUpdateAttentionRequiredUI(statusValue);
+   
+if (imStatusSelect) {
+    imStatusSelect.addEventListener('change', async (e) => {
+        const statusValue = e.target.value;
 
-            // 2. Clear if not needed
-            if (imAttentionSelectChoices && (statusValue === 'Under Review' || statusValue === 'With Accounts')) {
-                imAttentionSelectChoices.removeActiveItems();
+        // 1. Update UI (visual required fields)
+        imUpdateAttentionRequiredUI(statusValue);
+
+        // 2. Clear attention if status does not require it
+        if (imAttentionSelectChoices && (statusValue === 'Under Review' || statusValue === 'With Accounts')) {
+            imAttentionSelectChoices.removeActiveItems();
+        }
+        if (imAttentionGroup) imAttentionGroup.classList.remove('im-invalid');
+
+        // 3. Get current PO site (needed for site‑matching)
+        let currentSite = null;
+        if (currentPO && allPOData && allPOData[currentPO]) {
+            currentSite = allPOData[currentPO]['Project ID'];
+        }
+
+        // 4. Apply normal dropdown filtering (already existing)
+        if (imAttentionSelectChoices) {
+            const currentSelection = imAttentionSelectChoices.getValue(true);
+            await populateAttentionDropdown(imAttentionSelectChoices, statusValue, currentSite, true);
+            if (currentSelection) {
+                imAttentionSelectChoices.setChoiceByValue(currentSelection);
             }
-            if (imAttentionGroup) imAttentionGroup.classList.remove('im-invalid');
+        }
 
-            // 3. --- TRIGGER SMART FILTER ---
-            // Get the current PO Site
-            let currentSite = null;
-            if (currentPO && allPOData && allPOData[currentPO]) {
-                currentSite = allPOData[currentPO]['Project ID'];
-            }
+        // 5. AUTO‑ATTENTION LOGIC (new)
+        if (imAttentionSelectChoices && currentPO) {
+            await autoSetAttentionForStatus(statusValue, currentSite, imAttentionSelectChoices);
+        }
+    });
+}
 
-            // Apply Filter
-            if (imAttentionSelectChoices) {
-                // Save current selection to try and keep it if valid
-                const currentSelection = imAttentionSelectChoices.getValue(true);
-                
-                await populateAttentionDropdown(imAttentionSelectChoices, statusValue, currentSite, true);
-                
-                // If previous selection is still in the new list, re-select it
-                if(currentSelection) {
-                    imAttentionSelectChoices.setChoiceByValue(currentSelection);
-                }
-            }
-        });
-    }
+// Wire invoice field "invalid" UI (visual only; no logic changes)
+imWireInvoiceValidationUI();
 
-    // Wire invoice field "invalid" UI (visual only; no logic changes)
-    imWireInvoiceValidationUI();
+// --- 11. Modals, Settings & Misc Listeners ---
 
-    // --- 11. Modals, Settings & Misc Listeners ---
 
     if (settingsForm) settingsForm.addEventListener('submit', handleUpdateSettings);
 if (settingsVacationCheckbox) {
@@ -17382,31 +17532,34 @@ if (settingsVacationCheckbox) {
                     else if (statusLower === 'in process' || statusLower === 'for ipc') {
                         autoAttention = findName('ali');
                     } 
-                    else if (statusLower === 'for srv') {
-                        let siteDcName = null;
-                        
-                        // Look for the specific Site DC in the approvers database
-                        if (allApproverData) {
-                            // Extract just the site number/code (e.g., "175" from "175 - Plaza")
-                            const rowSiteMatch = (site || '').split('-')[0].trim().toLowerCase(); 
-                            
-                            for (let user of Object.values(allApproverData)) {
-                                let userPos = (user.Position || '').toLowerCase();
-                                let userSite = (user.Site || '').toLowerCase();
-                                
-                                // Check if position contains "Site DC" or just "DC"
-                                if (userPos.includes('site dc') || userPos.includes('dc')) {
-                                    // Check if their assigned site covers this row's site
-                                    if (rowSiteMatch && (userSite === 'all' || userSite.includes(rowSiteMatch))) {
-                                        siteDcName = user.Name;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                        // If a matching Site DC is found, use it. Otherwise, fallback to Irwin.
-                        autoAttention = siteDcName || findName('irwin');
-                    }
+                   else if (statusLower === 'for srv') {
+    // Get candidates as objects { name, position }
+    let candidatesObj = [];
+    if (allApproverData && site) {
+        const siteId = (site || '').split('-')[0].trim().toLowerCase();
+        if (siteId) {
+            candidatesObj = getSiteMatchedAttentionCandidatesForSRV(siteId);
+            // Filter out any invalid objects
+            candidatesObj = candidatesObj.filter(c => c && c.name && c.name.trim().length > 0);
+        }
+    }
+    // Extract names array for quick checks
+    const candidateNames = candidatesObj.map(c => c.name);
+    
+    if (candidateNames.length === 1) {
+        autoAttention = candidateNames[0];
+    } else if (candidateNames.length > 1) {
+        // Use the same showCandidatePicker (already handles objects)
+        const selected = await new Promise((resolve) => {
+            showCandidatePicker(candidatesObj, 'Select Person for SRV', (selectedName) => {
+                resolve(selectedName);
+            });
+        });
+        autoAttention = selected || findName('irwin');
+    } else {
+        autoAttention = findName('irwin');
+    }
+}
 
                     // Apply the Auto-Attention if a rule matched, otherwise restore previous selection
                     if (autoAttention) {
