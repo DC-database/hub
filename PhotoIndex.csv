@@ -1,7 +1,16 @@
 photoName
-IBA-SAMPLE
-IBA-TIPPER TRAILER
-IBA-TRUCK
+FAC-0001_site_office_container
+FAC-0002_storage_container
+FAC-0003_worker_cabin
+FAC-0004_portable_toilet
+FAC-0005_temporary_fence_panel
+FAC-0006_hoarding_panel
+FAC-0007_security_gate
+FAC-0008_water_cooler
+FAC-0009_fire_point_stand
+FAC-0010_material_rack
+FAC-0011_toolbox
+FAC-0012_pallet
 VEH-0001_dump_truck
 VEH-0002_tipper_truck
 VEH-0003_concrete_mixer_truck
