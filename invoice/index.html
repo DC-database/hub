@@ -1,4 +1,32 @@
 <!DOCTYPE html>
+<!-- ==========================================================================
+     FILE: index.html
+     ORGANIZED WORKING COPY
+     PURPOSE: Main application layout, views, modals, library references, and script/style loading.
+
+     SAFETY NOTE:
+     - Element order, ids, classes, scripts, and inline styles are preserved.
+     - Cleanup applied: top map, section markers, trailing-space cleanup, blank-line cleanup.
+
+     NAVIGATION MAP:
+       - #celebration-overlay: CELEBRATION BANNER / LOGIN ANNOUNCEMENT
+       - #app-container: MAIN APPLICATION CONTAINER
+       - #login-view: LOGIN VIEW - DESKTOP + MOBILE LOGIN
+       - #password-view: PASSWORD VIEW
+       - #setup-view: FIRST LOGIN / ACCOUNT SETUP VIEW
+       - #dashboard-view: WELCOME DASHBOARD / MODULE LAUNCHER
+       - #workdesk-view: WORKDESK MAIN VIEW
+       - #invoice-management-view: INVOICE MANAGEMENT MAIN VIEW
+       - #inventory-view: INVENTORY MAIN VIEW
+       - #transfer-job-modal: TRANSFER / RESTOCK / RETURN / USAGE MODAL
+       - #standard-job-modal: STANDARD WORKDESK JOB MODAL
+       - #ms-new-material-modal: MATERIAL STOCK - NEW / EDIT MATERIAL MODAL
+       - #im-batch-search-modal: INVOICE MANAGEMENT - BATCH SEARCH MODAL
+       - #im-invoice-entry-modal: INVOICE MANAGEMENT - INVOICE ENTRY MODAL
+       - #im-add-payment-modal: INVOICE MANAGEMENT - ADD PAYMENT MODAL
+       - #ceo-receipt-template: RECEIPT TEMPLATE BODY
+     ========================================================================== -->
+
 <html lang="en" class="preload">
 <head>
     <meta charset="UTF-8">
@@ -20,14 +48,14 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
 
-    <link rel="stylesheet" href="style.css?v=6.3.21">
-    <link rel="stylesheet" href="transfer_stock.css?v=6.3.21">
+    <link rel="stylesheet" href="style.css?v=7.2.6">
+    <link rel="stylesheet" href="transfer_stock.css?v=7.2.6">
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    
+
     <style>
         @media screen {
             #dynamic-print-footer { display: none !important; }
@@ -36,7 +64,7 @@
             #dynamic-print-footer {
                 display: block !important;
                 position: fixed;
-                bottom: 15px; 
+                bottom: 15px;
                 right: 20px;
                 font-size: 12px;
                 font-weight: bold;
@@ -51,6 +79,9 @@
 <audio id="login-sound" src="https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Open.mp3"></audio>
 
 <!-- Celebration Banner (admin-configurable, shows after successful login) -->
+<!-- ====================================================================== -->
+<!-- CELEBRATION BANNER / LOGIN ANNOUNCEMENT -->
+<!-- ====================================================================== -->
 <div id="celebration-overlay" class="celebration-overlay hidden" aria-hidden="true">
     <div id="celebration-particles" class="celebration-particles" aria-hidden="true"></div>
 
@@ -66,8 +97,14 @@
     <div id="celebration-sound-hint" class="celebration-sound-hint hidden">Tap banner for sound 🔊</div>
 </div>
 
+<!-- ====================================================================== -->
+<!-- MAIN APPLICATION CONTAINER -->
+<!-- ====================================================================== -->
 <div id="app-container">
 
+        <!-- ====================================================================== -->
+        <!-- LOGIN VIEW - DESKTOP + MOBILE LOGIN -->
+        <!-- ====================================================================== -->
         <div id="login-view">
             <div class="form-container animated-card cyber-login-card desktop-only-login">
                 <h2>System Login</h2>
@@ -107,10 +144,19 @@
             </div>
         </div>
 
+        <!-- ====================================================================== -->
+        <!-- PASSWORD VIEW -->
+        <!-- ====================================================================== -->
         <div id="password-view" class="hidden"><div class="form-container animated-card"><h2>Enter Password</h2><p>Welcome back! Please enter your password for <strong id="password-user-identifier"></strong>.</p><form id="password-form"><input type="password" id="login-password" placeholder="Password" required><button type="submit">Login</button></form><p id="password-error" class="error-message"></p></div></div>
 
+        <!-- ====================================================================== -->
+        <!-- FIRST LOGIN / ACCOUNT SETUP VIEW -->
+        <!-- ====================================================================== -->
         <div id="setup-view" class="hidden"><div class="form-container animated-card"><h2>Complete Your Account Setup</h2><p>This is your first time logging in. Please complete the following steps.</p><form id="setup-form"><div id="setup-email-container" class="hidden"><label for="setup-email">Enter your email address:</label><input type="email" id="setup-email" placeholder="user@example.com" required></div><div id="setup-site-container" class="hidden"><label for="setup-site">Enter your Site:</label><input type="text" id="setup-site" placeholder="Site Name" required><p class="input-note">For multiple sites, separate them with a comma (ex. 175,176)</p></div><div id="setup-position-container" class="hidden"><label for="setup-position">Enter your Position:</label><input type="text" id="setup-position" placeholder="Position" required></div><label for="setup-password">Create Password</label><input type="password" id="setup-password" placeholder="New Password" required><button type="submit">Complete Setup</button></form><p id="setup-error" class="error-message"></p></div></div>
 
+        <!-- ====================================================================== -->
+        <!-- WELCOME DASHBOARD / MODULE LAUNCHER -->
+        <!-- ====================================================================== -->
         <div id="dashboard-view" class="hidden">
             <div class="form-container animated-card cyber-dashboard-card">
                 <header class="dashboard-header">
@@ -123,10 +169,10 @@
 
 
 <main class="dashboard-main">
-                    
+
 <style>
     /* 🎬 MAGIC PAGE ENTRANCE TRANSITION 🎬 */
-    
+
     /* We add a comma-separated list of all your screen IDs here! */
     #workdesk-view:not(.hidden),
     #invoice-view:not(.hidden),
@@ -135,26 +181,26 @@
     #im-invoice-entry:not(.hidden),
     #inventory-view:not(.hidden) {
         animation: smoothPageEntrance 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
-        transform-origin: center top !important; 
+        transform-origin: center top !important;
     }
 
     @keyframes smoothPageEntrance {
         0% {
             opacity: 0;
-            transform: translateY(30px) scale(0.97); 
+            transform: translateY(30px) scale(0.97);
             filter: blur(3px);
         }
         100% {
             opacity: 1;
-            transform: translateY(0) scale(1); 
+            transform: translateY(0) scale(1);
             filter: blur(0);
         }
     }
 </style>
                     <div class="welcome-screen-buttons" style="display: flex; flex-direction: column; gap: 20px; align-items: center; justify-content: center; padding: 15px 0;">
-                        
+
                         <div style="display: flex; gap: 20px; flex-wrap: nowrap; justify-content: center;">
-                            
+
                             <button id="workdesk-button" class="glass-btn"
                                     style="box-sizing: border-box; width: 120px; height: 120px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 600; color: #f8fafc; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; transition: all 0.3s ease; box-shadow: 0 8px 20px rgba(0,0,0,0.3); text-align: center; padding: 10px; flex-shrink: 0;"
                                     onmouseenter="this.style.transform='translateY(-5px) scale(1.05)'; this.style.background='rgba(30, 41, 59, 0.8)'; this.style.borderColor='rgba(56, 189, 248, 0.5)'; this.style.boxShadow='0 12px 25px rgba(0,0,0,0.5)';"
@@ -162,7 +208,7 @@
                                 <i class="fa-solid fa-desktop" style="font-size: 1.6rem; color: #38bdf8; margin-bottom: 8px; filter: drop-shadow(0 0 8px rgba(56,189,248,0.4));"></i>
                                 WorkDesk
                             </button>
-                            
+
                             <button id="invoice-mgmt-button" class="glass-btn"
                                     style="box-sizing: border-box; width: 120px; height: 120px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 600; color: #f8fafc; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; transition: all 0.3s ease; box-shadow: 0 8px 20px rgba(0,0,0,0.3); text-align: center; padding: 10px; line-height: 1.2; flex-shrink: 0;"
                                     onmouseenter="this.style.transform='translateY(-5px) scale(1.05)'; this.style.background='rgba(30, 41, 59, 0.8)'; this.style.borderColor='rgba(74, 222, 128, 0.5)'; this.style.boxShadow='0 12px 25px rgba(0,0,0,0.5)';"
@@ -170,11 +216,11 @@
                                 <i class="fa-solid fa-file-invoice-dollar" style="font-size: 1.6rem; color: #4ade80; margin-bottom: 8px; filter: drop-shadow(0 0 8px rgba(74,222,128,0.4));"></i>
                                 Invoice<br>Mgt
                             </button>
-                            
+
                         </div>
 
                         <div style="display: flex; gap: 15px; flex-wrap: nowrap; justify-content: center; width: 100%;">
-                            
+
                             <a href="https://ibaport.site/Procure/" target="_blank" id="requisition-button" class="glass-btn"
                                     style="box-sizing: border-box; width: 120px; height: 120px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 600; color: #f8fafc; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; transition: all 0.3s ease; box-shadow: 0 8px 20px rgba(0,0,0,0.3); text-align: center; padding: 10px; text-decoration: none; flex-shrink: 0;"
                                     onmouseenter="this.style.transform='translateY(-5px) scale(1.05)'; this.style.background='rgba(30, 41, 59, 0.8)'; this.style.borderColor='rgba(251, 191, 36, 0.5)'; this.style.boxShadow='0 12px 25px rgba(0,0,0,0.5)';"
@@ -190,7 +236,7 @@
                                 <i class="fa-solid fa-boxes-stacked" style="font-size: 1.6rem; color: #c084fc; margin-bottom: 8px; filter: drop-shadow(0 0 8px rgba(192,132,252,0.4));"></i>
                                 Inventory
                             </button>
-                            
+
                             <a href="https://ibaport.site/Finance/" target="_blank" id="finance-report-button" class="glass-btn"
                                    style="box-sizing: border-box; width: 120px; height: 120px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 600; color: #f8fafc; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; transition: all 0.3s ease; box-shadow: 0 8px 20px rgba(0,0,0,0.3); text-align: center; padding: 10px; line-height: 1.2; text-decoration: none; flex-shrink: 0;"
                                    onmouseenter="this.style.transform='translateY(-5px) scale(1.05)'; this.style.background='rgba(30, 41, 59, 0.8)'; this.style.borderColor='rgba(45, 212, 191, 0.5)'; this.style.boxShadow='0 12px 25px rgba(0,0,0,0.5)';"
@@ -198,7 +244,7 @@
                                 <i class="fa-solid fa-chart-line" style="font-size: 1.6rem; color: #2dd4bf; margin-bottom: 8px; filter: drop-shadow(0 0 8px rgba(45,212,191,0.4));"></i>
                                 Financial<br>Report
                             </a>
-                            
+
                             <!-- NEW PO SYSTEM BUTTON GOES RIGHT HERE -->
                             <a href="https://ibaport.site/PO/" target="_blank" id="po-system-button" class="glass-btn hidden"
                                    style="box-sizing: border-box; width: 120px; height: 120px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 600; color: #f8fafc; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; transition: all 0.3s ease; box-shadow: 0 8px 20px rgba(0,0,0,0.3); text-align: center; padding: 10px; line-height: 1.2; text-decoration: none; flex-shrink: 0;"
@@ -207,7 +253,7 @@
                                 <i class="fa-solid fa-file-invoice" style="font-size: 1.6rem; color: #f43f5e; margin-bottom: 8px; filter: drop-shadow(0 0 8px rgba(244,63,94,0.4));"></i>
                                 PO System
                             </a>
-                            
+
                         </div>
 
                     </div>
@@ -218,6 +264,9 @@
         </div>
     </div>
 
+    <!-- ====================================================================== -->
+    <!-- WORKDESK MAIN VIEW -->
+    <!-- ====================================================================== -->
     <div id="workdesk-view" class="hidden">
         <aside class="workdesk-sidebar">
             <div class="wd-user-profile">
@@ -421,7 +470,7 @@
     <div id="active-task-filters" class="report-tabs" style="margin-bottom: 20px;"></div>
 
     <div class="form-buttons-container" style="justify-content: flex-end; margin-bottom: 15px; min-height: 40px;">
-        
+
         <button id="send-ceo-approval-receipt-btn" class="download-btn hidden" type="button">
             <i class="fa-brands fa-whatsapp"></i> Send CEO Receipt
         </button>
@@ -546,7 +595,7 @@
 
 <section id="wd-material-stock" class="workdesk-section hidden">
     <h1>
-        Material Stock 
+        Material Stock
         <span id="ms-total-count" class="table-count-display"></span>
     </h1>
 
@@ -564,7 +613,7 @@
     </div>
 
     <div id="ms-search-container" style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 15px; gap: 20px;">
-        <div style="display: flex; gap: 10px; align-items: center; flex-grow: 1; max-width: 50%;"> 
+        <div style="display: flex; gap: 10px; align-items: center; flex-grow: 1; max-width: 50%;">
             <div class="search-bar-local" style="flex-grow: 1; margin-bottom: 0; position: relative; height: 40px;">
                 <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #888;"></i>
                 <input type="text" id="ms-search-input" placeholder="Search by ID, Detail, or Relation..." style="width: 100%; height: 100%; padding-left: 35px; margin-bottom: 0; padding-top:0; padding-bottom:0;">
@@ -598,7 +647,7 @@
                     <th style="width: 50px;"></th>
                     <th style="width: 15%;">Product ID</th>
                     <th style="width: 25%;">Product Detail</th>
-                    <th style="width: 15%;">Family</th> 
+                    <th style="width: 15%;">Family</th>
                     <th style="width: 15%;">Relationship</th>
                     <th style="width: 10%;">Total Stock</th>
                     <th style="width: 10%; text-align: center;">Action</th>
@@ -617,9 +666,9 @@
             <h2>Material Stock Report</h2>
             <button class="modal-close-btn" onclick="document.getElementById('ms-report-modal').classList.add('hidden')">&times;</button>
         </div>
-        
+
         <div class="modal-content" id="ms-report-print-content" style="overflow-y: auto; padding: 20px;">
-            
+
             <div class="print-only-header">
                 <div style="border-bottom: 2px solid #003A5C; padding-bottom: 10px; margin-bottom: 20px;">
                     <h1 style="margin: 0; color: #003A5C;">ISMAIL BIN ALI TRADING & CONT. CO. W.L.L</h1>
@@ -655,7 +704,7 @@
                 <tbody id="ms-report-table-body">
                     </tbody>
             </table>
-            
+
             <div class="print-footer" style="margin-top: 30px; border-top: 1px solid #ccc; padding-top: 10px; display: flex; justify-content: space-between; font-size: 0.8rem; display: none;">
                 <span>System Generated Report</span>
                 <span>Page 1 of 1</span>
@@ -766,7 +815,7 @@
                                 <i class="fa-solid fa-volume-high"></i> Sounds Enabled
                             </button>
                         </div>
-                        
+
                         <!-- Super Admin: Celebration Banner Settings -->
                         <div id="celebration-settings-container" class="celebration-settings hidden">
                             <h2 style="margin-top: 18px;">Celebration Banner</h2>
@@ -850,6 +899,9 @@
 
     </div>
 
+<!-- ====================================================================== -->
+<!-- INVENTORY MAIN VIEW -->
+<!-- ====================================================================== -->
 <div id="inventory-view" class="hidden">
     <aside class="workdesk-sidebar">
         <div class="wd-user-profile">
@@ -857,7 +909,7 @@
             <h3 id="inv-username">User</h3>
             <p id="inv-user-identifier">Inventory Access</p>
         </div>
-        
+
         <a href="#" class="wd-back-button back-to-main-dashboard"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</a>
 
         <nav id="inv-nav" class="workdesk-navigation">
@@ -883,6 +935,9 @@
 </div>
 
 
+    <!-- ====================================================================== -->
+    <!-- INVOICE MANAGEMENT MAIN VIEW -->
+    <!-- ====================================================================== -->
     <div id="invoice-management-view" class="hidden">
         <aside class="workdesk-sidebar">
             <div class="wd-user-profile">
@@ -953,7 +1008,7 @@
     <h3 id="active-jobs-sidebar-count-display" class="im-sidebar-title">Your Active Invoice Jobs (0)</h3>
 
     <div style="margin-bottom: 15px;">
-        <input type="text" id="im-sidebar-search" placeholder="Search PO..." 
+        <input type="text" id="im-sidebar-search" placeholder="Search PO..."
                style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.2); color: white; outline: none;">
     </div>
 
@@ -983,7 +1038,7 @@
     <button id="im-refresh-entry-button" class="secondary-btn" type="button" title="Refresh data from Firebase">
         <i class="fa-solid fa-sync"></i>
     </button>
-    
+
     <button id="im-po-clear-button" class="secondary-btn" type="button" style="background: #64748b; color: white; border: none; margin-left: 5px;" title="Clear Search">
         <i class="fa-solid fa-eraser"></i> Clear
     </button>
@@ -995,9 +1050,9 @@
        <div><label>Site:</label> <span class="im-po-site">---</span></div>
        <div><label>Val:</label> <span class="im-po-value">---</span></div>
        <div><label>Vendor:</label> <span class="im-po-vendor">---</span></div>
-       
+
        <div style="grid-column: span 2; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 4px; margin-top: 2px;">
-           <label>PO Record:</label> 
+           <label>PO Record:</label>
            <span class="im-po-record" style="font-weight: bold; color: #ffeb3b;">Checking...</span>
        </div>
     </div>
@@ -1009,18 +1064,21 @@
     </button>
 </div>
 
+<!-- ====================================================================== -->
+<!-- INVOICE MANAGEMENT - INVOICE ENTRY MODAL -->
+<!-- ====================================================================== -->
 <div id="im-invoice-entry-modal" class="modal-overlay hidden">
     <div class="modal-container">
-        
+
 <div class="modal-header">
             <div style="display: flex; align-items: center; gap: 15px;">
                 <h2 id="im-form-title" style="margin: 0;">Invoice Entry</h2>
-                
+
                 <div id="im-nav-controls" class="hidden" style="display: flex; align-items: center; gap: 5px;">
                     <button type="button" id="im-nav-prev" class="secondary-btn" title="Previous Invoice" style="padding: 2px 8px; height: 30px; min-width: 30px; background: #f8fafc; color: #003A5C; border: 1px solid #cbd5e1; font-weight: bold;">&larr;</button>
-                    
+
                     <span id="im-nav-counter" style="color: #00748C; font-weight: bold; font-size: 0.95rem; min-width: 50px; text-align: center; background: #e0f2fe; padding: 2px 8px; border-radius: 4px;"></span>
-                    
+
                     <button type="button" id="im-nav-next" class="secondary-btn" title="Next Invoice" style="padding: 2px 8px; height: 30px; min-width: 30px; background: #f8fafc; color: #003A5C; border: 1px solid #cbd5e1; font-weight: bold;">&rarr;</button>
                 </div>
             </div>
@@ -1029,7 +1087,6 @@
 
 
         <div class="modal-content">
-
 
 
 <form id="im-new-invoice-form" class="hidden">
@@ -1046,7 +1103,7 @@
 
         <div class="form-group is-required">
     <label>Value</label>
-    <input type="text" id="im-inv-value" name="invValue" placeholder="0.00" inputmode="decimal" 
+    <input type="text" id="im-inv-value" name="invValue" placeholder="0.00" inputmode="decimal"
            onblur="formatCurrencyField(this)" onfocus="cleanCurrencyField(this)" autocomplete="off">
 </div>
         <div class="form-group is-required">
@@ -1056,7 +1113,7 @@
 
         <div class="form-group">
     <label>Amt Paid</label>
-    <input type="text" id="im-amount-paid" name="amountPaid" placeholder="0.00" inputmode="decimal" 
+    <input type="text" id="im-amount-paid" name="amountPaid" placeholder="0.00" inputmode="decimal"
            onblur="formatCurrencyField(this)" onfocus="cleanCurrencyField(this)" autocomplete="off">
 </div>
         <div class="form-group">
@@ -1076,9 +1133,9 @@
         <option value="Unresolved">Unresolved</option>
         <option value="On Hold">On Hold</option>
         <option value="For Approval">For Approval</option>
-        
+
         <option value="For Inquiry">For Inquiry</option>
-        
+
         <option value="CEO Approval">CEO Approval</option>
         <option value="Report">Report</option>
         <option value="Report Approval">Report Approval</option>
@@ -1114,15 +1171,15 @@
 </div>
 
 <div style="display: flex; gap: 15px; align-items: flex-end;">
-    
+
     <div class="form-group" style="flex: 1;">
         <label>Report Name</label>
         <div style="display: flex;">
-            <input type="text" id="im-report-name" name="reportName" placeholder="Report Filename" autocomplete="off" 
+            <input type="text" id="im-report-name" name="reportName" placeholder="Report Filename" autocomplete="off"
                    style="border-top-right-radius: 0; border-bottom-right-radius: 0; width: 100%;">
-            
-            <button type="button" id="btn-open-report-drive" class="secondary-btn" 
-                    style="border-top-left-radius: 0; border-bottom-left-radius: 0; border-left: none; background-color: #e9ecef; color: #00748C; padding: 0 15px;" 
+
+            <button type="button" id="btn-open-report-drive" class="secondary-btn"
+                    style="border-top-left-radius: 0; border-bottom-left-radius: 0; border-left: none; background-color: #e9ecef; color: #00748C; padding: 0 15px;"
                     title="Open Reports Folder in SharePoint">
                 <i class="fa-solid fa-cloud-arrow-up"></i>
             </button>
@@ -1145,7 +1202,7 @@
 
 
 <div class="im-toolbar-row" style="border-top: 1px solid #eee; padding-top: 15px; margin-top: 10px;">
-    
+
     <div style="display: flex; gap: 5px; align-items: center;">
         <input type="text" id="im-po-search-input-bottom" placeholder="Search PO..." class="im-compact-search">
         <button id="im-po-search-button-bottom" type="button" class="secondary-btn" style="height: 38px; width: 40px; padding: 0; display: flex; align-items: center; justify-content: center;">
@@ -1169,7 +1226,7 @@
         <button type="button" id="im-delete-invoice-btn" class="secondary-btn hidden" style="background-color: #dc3545; color: white;">
             <i class="fa-solid fa-trash"></i> Delete
         </button>
-        
+
         <button type="button" id="im-clear-form-button" class="secondary-btn" style="background-color: #6c757d; color: white;">
             <i class="fa-solid fa-eraser"></i> Clear
         </button>
@@ -1181,22 +1238,22 @@
 
 </div>
 
-</form> 
-</div> 
+</form>
+</div>
 
 
 <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 25px;">
             <div style="display: flex; gap: 20px; align-items: center; font-size: 0.9rem; color: #555;">
                 <div style="white-space: nowrap;">
-                    <strong style="color: #003A5C;">PO:</strong> 
+                    <strong style="color: #003A5C;">PO:</strong>
                     <span class="im-po-no" style="font-weight: 600; color: #000;">---</span>
                 </div>
                 <div style="white-space: nowrap;">
-                    <strong style="color: #003A5C;">Site:</strong> 
+                    <strong style="color: #003A5C;">Site:</strong>
                     <span class="im-po-site" style="font-weight: 600; color: #000;">---</span>
                 </div>
                 <div style="white-space: nowrap; max-width: 300px; overflow: hidden; text-overflow: ellipsis;">
-                    <strong style="color: #003A5C;">Vendor:</strong> 
+                    <strong style="color: #003A5C;">Vendor:</strong>
                     <span class="im-po-vendor" style="font-weight: 600; color: #000;">---</span>
                 </div>
             </div>
@@ -1241,9 +1298,9 @@
                     </div>
                 </section>
 
-               
+
 <section id="im-batch-entry" class="workdesk-section hidden" style="display: flex; flex-direction: column; height: 100%;">
-    
+
     <div class="header-top" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
         <div class="header-title" style="display: flex; align-items: center; gap: 15px;">
             <div class="icon-wrapper" style="background-color: #e0f2fe; color: #00748C; padding: 12px; border-radius: 10px; font-size: 1.4rem;">
@@ -1255,7 +1312,7 @@
             </div>
             <span id="batch-count-display" style="background: #f1f5f9; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 12px; font-size: 0.85rem; color: #475569; font-weight: bold; margin-left: 10px;">(Total in Batch: 0)</span>
         </div>
-        
+
         <div style="display: flex; gap: 10px;">
             <button id="im-refresh-batch-button" type="button" class="secondary-btn" title="Refresh data from Firebase" style="background-color: #f8fafc; color: #475569; border: 1px solid #cbd5e1;">
                 <i class="fa-solid fa-sync"></i> Refresh Data
@@ -1267,7 +1324,7 @@
     </div>
 
     <div style="position: relative; z-index: 50; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center;">
-        
+
         <div class="search-bar-local" style="margin-bottom: 0; flex-grow: 1; min-width: 250px;">
             <i class="fa-solid fa-magnifying-glass"></i>
             <input type="text" id="im-batch-po-input" placeholder="Enter PO Number or Status..." style="margin-bottom: 0; border: 1px solid #cbd5e1; background: white;">
@@ -1330,9 +1387,8 @@
 </section>
 
 
-
 <section id="im-summary-note" class="workdesk-section hidden" style="height: calc(100vh - 80px); display: flex; flex-direction: column; padding-top: 0 !important;">
-    
+
     <div style="flex: 0 0 auto; padding-bottom: 5px; border-bottom: 1px solid #e0e0e0; margin-bottom: 0; display: flex; justify-content: space-between; align-items: flex-end; min-height: 35px;">
         <div>
             <h1 style="margin: 0; color: #003A5C; font-size: 1.4rem; line-height: 1;">Summary Note Manager</h1>
@@ -1349,9 +1405,9 @@
     </div>
 
     <div style="flex: 1; display: flex; gap: 20px; overflow: hidden; height: 100%;">
-        
+
         <div style="flex: 0 0 350px; background: #fff; border-right: 1px solid #ddd; display: flex; flex-direction: column; overflow-y: auto; padding-right: 10px;">
-            
+
             <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border: 1px solid #eee; margin-bottom: 20px;">
                 <h3 style="margin: 0 0 15px 0; color: #00748C; font-size: 1rem; border-bottom: 2px solid #ddd; padding-bottom: 5px;">
                     <i class="fa-solid fa-pen-to-square"></i> Input Details
@@ -1361,7 +1417,7 @@
                     <label style="font-size: 0.8rem; font-weight: bold; color: #666;">PREVIOUS NOTE</label>
                     <div style="position: relative;">
                          <i class="fa-solid fa-clock-rotate-left" style="position: absolute; left: 10px; top: 10px; color: #999;"></i>
-                         <input type="text" id="summary-note-previous-input" list="note-suggestions" placeholder="e.g. 1st Payment" 
+                         <input type="text" id="summary-note-previous-input" list="note-suggestions" placeholder="e.g. 1st Payment"
                            style="padding-left: 30px; background: #f9f9f9; width: 100%;">
                     </div>
                 </div>
@@ -1370,7 +1426,7 @@
                     <label style="font-size: 0.8rem; font-weight: bold; color: #00748C;">CURRENT NOTE <span style="color:red;">*</span></label>
                     <div style="position: relative;">
                         <i class="fa-solid fa-pen" style="position: absolute; left: 10px; top: 10px; color: #00748C;"></i>
-                        <input type="text" id="summary-note-current-input" list="note-suggestions" placeholder="e.g. 2nd Payment" 
+                        <input type="text" id="summary-note-current-input" list="note-suggestions" placeholder="e.g. 2nd Payment"
                            style="padding-left: 30px; background: #f0fbff; border: 2px solid #00748C; font-weight: bold; width: 100%;">
                     </div>
                     <small style="color: #666; font-size: 0.7rem;">(Tip: Use "Update & Send to Accounts" to copy SRV Name)</small>
@@ -1411,9 +1467,9 @@
             </div>
 
             <div style="flex-grow: 1;"></div>
-            
+
             <div style="position: sticky; bottom: 0; background: white; padding-top: 15px; border-top: 1px solid #eee;">
-                
+
                 <button type="button" id="summary-note-generate-btn" style="width: 100%; background-color: #8c0000; color: white; padding: 15px; font-weight: bold; font-size: 1rem; margin-bottom: 8px; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
                     <i class="fa-solid fa-gears" style="font-size: 1.2rem;"></i> GENERATE SUMMARY
                 </button>
@@ -1436,15 +1492,15 @@
         </div>
 
        <div style="flex: 1; background-color: #e0e0e0; padding: 30px; overflow-y: auto; display: flex; justify-content: center; align-items: flex-start; border-radius: 4px; border-left: 1px solid #ccc;">
-            
+
             <div id="summary-note-printable-area" class="hidden" style="background: white; min-width: 210mm; width: 210mm; min-height: 297mm; padding: 10mm; box-shadow: 0 4px 15px rgba(0,0,0,0.2); box-sizing: border-box; margin: auto;">
-                
+
                 <div class="sn-print-header">
                     <div class="sn-print-company">
-                        <img src="https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/logo%20(1).png" 
-                             alt="IBA Logo" 
+                        <img src="https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/logo%20(1).png"
+                             alt="IBA Logo"
                              style="max-width: 500px; height: auto; display: block; margin-bottom: 10px;">
-                        
+
                         <div class="sn-qr-container" style="margin-top: 5px; text-align: left;">
                             <div id="sn-prev-summary-qr"></div>
                             <p style="font-size: 8pt; margin: 3px 0 0 0; font-weight: bold;">Prev Summary<span id="sn-prev-summary-date"></span></p>
@@ -1459,12 +1515,12 @@
                 <div class="sn-vendor-info">
                     <div class="sn-vendor-summary-title"><p><strong>Summary for :</strong> <span id="sn-vendor-name"></span></p></div>
                 </div>
-                
+
                 <div class="sn-payment-details">
                     <div><strong>Previous Payment:</strong> <span id="sn-previous-payment"></span></div>
                     <div><strong>Current Payment:</strong> <span id="sn-current-payment"></span></div>
                 </div>
-                
+
                 <table class="sn-table">
                     <thead>
                         <tr>
@@ -1478,18 +1534,18 @@
                     </thead>
                     <tbody id="sn-table-body"></tbody>
                 </table>
-                
+
                 <div class="sn-footer">
                     <span>Total Current Payment</span>
                     <span id="sn-total-in-words"></span>
                     <span id="sn-total-numeric"></span>
                 </div>
-                
+
                 <div id="sn-print-notes" class="sn-print-notes-section">
                     <h4>Notes:</h4>
                     <div id="sn-print-notes-content" style="white-space: pre-wrap;"></div>
                 </div>
-                
+
                 <div class="sn-signatures">
                     <div>Prepared By</div>
                     <div>CEO</div>
@@ -1503,11 +1559,9 @@
                 <p>Fill in the details on the left and click "Generate Summary".</p>
             </div>
 
-        </div> 
+        </div>
     </div>
 </section>
-
-
 
 
 <section id="im-reporting" class="workdesk-section hidden">
@@ -1518,12 +1572,12 @@
                 <h1 style="border: none; margin: 0; color: var(--primary-blue);">Invoice Records <span id="reporting-count-display" class="version-tag"></span></h1>
 		<button id="im-mobile-search-btn" class="im-mobile-search-btn" type="button"><i class="fa-solid fa-magnifying-glass"></i></button>
             </div>
-            
+
             <div class="daily-report-section" style="display: flex; gap: 8px; align-items: center;">
-                <button id="im-download-daily-report-button" class="download-btn download-btn--periwinkle" type="button"><i class="fa-solid fa-file-invoice"></i> 1. Under Review</button>                   
+                <button id="im-download-daily-report-button" class="download-btn download-btn--periwinkle" type="button"><i class="fa-solid fa-file-invoice"></i> 1. Under Review</button>
                 <button id="im-download-with-accounts-report-button" class="download-btn download-btn--gold" type="button"><i class="fa-solid fa-credit-card"></i> 2. With Accounts</button>
                 <button id="im-reporting-download-btn" class="download-btn download-btn--teal" type="button" onclick="downloadReportingTableToExcel()"><i class="fa-solid fa-file-lines"></i> 3. Finance Report</button>
-		<button id="im-download-excel-custom-btn" class="download-btn" type="button" style="background-color: #28a745; color: white;" onclick="exportCurrentTableToExcel()"><i class="fa-solid fa-file-excel"></i> Export to Excel</button>                
+		<button id="im-download-excel-custom-btn" class="download-btn" type="button" style="background-color: #28a745; color: white;" onclick="exportCurrentTableToExcel()"><i class="fa-solid fa-file-excel"></i> Export to Excel</button>
 		<button id="im-refresh-reporting-button" class="refresh-btn" title="Force Full Refresh" style="margin-left: 10px;"><i class="fa-solid fa-cloud-arrow-down"></i> Refresh</button>
             </div>
         </div>
@@ -1584,11 +1638,11 @@
                     <option value="">All Years</option>
                     </select>
             </div>
-            
+
             <div class="action-buttons">
                 <button type="submit" id="im-reporting-search-btn" class="primary-btn"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
                 <button type="button" id="im-reporting-clear-button" class="secondary-btn"><i class="fa-solid fa-eraser"></i> Clear</button>
-                
+
                 <div class="print-actions">
                     <button type="button" id="printSummaryBtn" class="print-btn"><i class="fa-solid fa-table"></i> Summary Report</button>
                     <button type="button" id="printDetailedBtn" class="print-btn detailed-btn"><i class="fa-solid fa-list-check"></i> Detailed Report</button>
@@ -1629,9 +1683,6 @@
     <div id="im-reporting-mobile-view" class="hidden"></div>   <!--  ← PASTE THIS LINE HERE -->
 
 </section>                     <!-- closing im-reporting -->
-
-
-
 
 
                 <section id="im-payments" class="workdesk-section hidden">
@@ -1782,7 +1833,7 @@
                                     <label for="im-help-guides-import">Guide Pack File</label>
                                     <input id="im-help-guides-import" type="file" accept=".md,.txt,text/markdown,text/plain" />
                                 </div>
-                                <div class="form-group" style="margin-bottom:10px;"> 
+                                <div class="form-group" style="margin-bottom:10px;">
                                     <label style="display:flex; align-items:center; gap:8px; font-weight: 500;">
                                         <input id="im-help-guides-replace" type="checkbox" />
                                         Replace existing System Guides (dangerous)
@@ -1939,7 +1990,7 @@
                 </form>
             </div>
             <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
-    
+
     <button id="btn-admin-print-finance" class="secondary-btn" style="display: none; background: transparent; color: #888; border: 1px solid #ccc; font-size: 0.8rem;">
         <i class="fas fa-print"></i> Print Financial Report
     </button>
@@ -1953,6 +2004,9 @@
         </div>
     </div>
 
+    <!-- ====================================================================== -->
+    <!-- INVOICE MANAGEMENT - BATCH SEARCH MODAL -->
+    <!-- ====================================================================== -->
     <div id="im-batch-search-modal" class="modal-overlay hidden">
     <div class="modal-container" style="max-width: 1100px; width: 95%;">
         <div class="modal-header"><h2>Search and Add Existing Invoices</h2><button class="modal-close-btn">&times;</button></div>
@@ -1985,6 +2039,9 @@
         </div>
     </div>
 
+    <!-- ====================================================================== -->
+    <!-- INVOICE MANAGEMENT - ADD PAYMENT MODAL -->
+    <!-- ====================================================================== -->
     <div id="im-add-payment-modal" class="modal-overlay hidden">
         <div class="modal-container" style="max-width: 700px;">
             <div class="modal-header"><h2>Add Invoices for Payment</h2><button class="modal-close-btn">&times;</button></div>
@@ -2051,20 +2108,20 @@
         </div>
     </div>
 
-    
+
 <div id="im-finance-report-modal" class="modal-overlay hidden">
     <div class="modal-container" style="max-width: 900px;">
         <div class="modal-header">
             <h2>Payment Certificate</h2>
             <button class="modal-close-btn" onclick="document.getElementById('im-finance-report-modal').classList.add('hidden')">&times;</button>
         </div>
-        
+
         <div class="modal-content" style="max-height: 70vh; overflow-y: auto;">
             <div id="im-finance-report-printable-area">
-                
+
                 <div class="report-header" style="text-align: left; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
     <img src="https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/logo%20(1).png"
-         alt="Ismail Bin Ali Logo" 
+         alt="Ismail Bin Ali Logo"
          style="max-width: 100%; height: auto; max-height: 120px; display: inline-block;">
 </div>
 
@@ -2117,7 +2174,6 @@
                     </table>
                 </div>
 
-                
 
                 <div id="im-reportNotesSection" style="display: none; margin-top: 40px;">
                     <h5 style="font-weight: bold;">Notes:</h5>
@@ -2178,6 +2234,9 @@
         </div>
     </div>
 
+<!-- ====================================================================== -->
+<!-- MATERIAL STOCK - NEW / EDIT MATERIAL MODAL -->
+<!-- ====================================================================== -->
 <div id="ms-new-material-modal" class="modal-overlay hidden">
     <div class="modal-container">
         <div class="modal-header">
@@ -2209,6 +2268,22 @@
                 <div class="form-group">
                     <label>Product ID (Auto-Generated: FFRR.SSSSS)</label>
                     <input type="text" id="ms-new-id-display" readonly style="background-color: #e9ecef; color: #555; font-weight: bold; cursor: not-allowed;">
+                </div>
+
+                <div class="form-group">
+                    <label>Photo Name (OneDrive / SharePoint)</label>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <input type="text" id="ms-new-photo-url" placeholder="e.g. IBA-Sample (system adds .jpg automatically)" style="flex:1;">
+                        <button type="button" id="ms-browse-photo-btn" class="secondary-btn" style="white-space:nowrap; padding:10px 12px;">
+                            <i class="fa-solid fa-images"></i> Browse
+                        </button>
+                        <button type="button" id="ms-clear-photo-field-btn" class="secondary-btn" style="white-space:nowrap; padding:10px 12px; background:#fff5f5; color:#c92a2a; border-color:#ffc9c9;">
+                            <i class="fa-solid fa-trash-can"></i> Clear
+                        </button>
+                    </div>
+                    <small style="display:block; margin-top:5px; color:#6c757d; line-height:1.35;">
+                        Folder is fixed: DC Files / Photo / — type only the photo name. Example: IBA-Sample. The system adds .jpg automatically.
+                    </small>
                 </div>
 
                 <div class="form-group">
@@ -2246,6 +2321,41 @@
     </div>
 </div>
 
+<div id="ms-photo-browser-modal" class="modal-overlay hidden">
+    <div class="modal-container ms-photo-browser-container">
+        <div class="modal-header">
+            <h2><i class="fa-solid fa-images"></i> Browse OneDrive Photo Library</h2>
+            <button id="ms-photo-browser-close" class="modal-close-btn">&times;</button>
+        </div>
+        <div class="modal-content">
+            <div id="ms-photo-browser-target" class="ms-photo-browser-target">Choose a photo name for the current item.</div>
+
+            <div class="ms-photo-browser-top dropdown-mode">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label>Search / Type Photo Name</label>
+                    <input type="text" id="ms-photo-browser-manual" list="ms-photo-browser-options" placeholder="Start typing e.g. IBA-Truck" autocomplete="off">
+                    <datalist id="ms-photo-browser-options"></datalist>
+                    <small>Suggestions come from GitHub PhotoIndex.csv. Do not include .jpg; the folder path and extension are automatic.</small>
+                </div>
+            </div>
+
+            <div id="ms-photo-browser-preview" class="ms-photo-browser-preview clean-preview"></div>
+
+            <div class="ms-photo-browser-note">
+                <i class="fa-solid fa-circle-info"></i>
+                Direct browsing of a private OneDrive/SharePoint folder needs Microsoft Graph/API login. This safe version lets users search a text photo library, preview the generated OneDrive photo, and attach the selected name.
+            </div>
+
+            <div id="ms-photo-browser-status" class="ms-photo-browser-status"></div>
+            <div id="ms-photo-browser-grid" class="ms-photo-browser-grid compact-dropdown-status"></div>
+        </div>
+        <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:10px;">
+            <button type="button" id="ms-photo-browser-cancel" class="secondary-btn">Cancel</button>
+            <button type="button" id="ms-photo-browser-use" class="primary-btn"><i class="fa-solid fa-check"></i> Use This Photo</button>
+        </div>
+    </div>
+</div>
+
  <div id="ms-add-stock-modal" class="modal-overlay hidden">
     <div class="modal-container" style="max-width: 500px;">
         <div class="modal-header" style="background-color: #28a745;">
@@ -2254,12 +2364,12 @@
         </div>
         <div class="modal-content">
             <input type="hidden" id="ms-add-key">
-            
+
             <div class="form-group">
                 <label>Product ID</label>
                 <input type="text" id="ms-add-id" readonly style="background-color: #e9ecef;">
             </div>
-            
+
             <div class="form-group">
                 <label>Product Name</label>
                 <input type="text" id="ms-add-name" readonly style="background-color: #e9ecef;">
@@ -2294,9 +2404,12 @@
             <button id="ms-save-stock-btn" class="download-btn" style="background-color: #28a745;">Update Stock</button>
         </div>
     </div>
-</div>   
+</div>
 
 
+<!-- ====================================================================== -->
+<!-- TRANSFER / RESTOCK / RETURN / USAGE MODAL -->
+<!-- ====================================================================== -->
 <div id="transfer-job-modal" class="modal-overlay hidden">
         <div class="modal-container">
             <div class="modal-header">
@@ -2413,6 +2526,9 @@
         </div>
     </div>
 
+<!-- ====================================================================== -->
+<!-- STANDARD WORKDESK JOB MODAL -->
+<!-- ====================================================================== -->
 <div id="standard-job-modal" class="modal-overlay hidden">
     <div class="modal-container">
         <div class="modal-header">
@@ -2579,6 +2695,9 @@
         </footer>
     </div>
 
+    <!-- ====================================================================== -->
+    <!-- RECEIPT TEMPLATE BODY -->
+    <!-- ====================================================================== -->
     <div id="ceo-receipt-template" style="position: absolute; left: -9999px; width: 320px; padding: 10px; border: 1px solid #ccc; background-color: #fff; font-family: 'Courier New', Courier, monospace; font-size: 14px; line-height: 1.5; box-sizing: border-box;">
         <h2 id="receipt-title" style="text-align: center; margin-top: 0; margin-bottom: 10px; font-size: 1.2rem;">Authorize Approval</h2>
         <p style="margin: 0;"><strong>Series #:</strong> <span id="receipt-series-no">IBA000</span></p>
@@ -2596,7 +2715,7 @@
         </div>
         <div id="receipt-footer" style="text-align: center; margin-top: 15px; padding-top: 10px; border-top: 1px dashed #999;">
     <p id="footer-esn" style="font-weight: bold; font-size: 0.9rem; margin: 5px 0;">ESN #: <span></span></p>
-    
+
     <div id="receipt-qr-code" style="display: flex; justify-content: center; margin: 10px 0;"></div>
     <p id="footer-date" style="font-size: 0.8rem; margin: 5px 0;"></p>
 </div>
@@ -2702,10 +2821,10 @@
         </div>
         <div class="modal-content">
             <p style="margin-bottom: 20px; color: #555;">
-                You are about to submit this for approval. 
+                You are about to submit this for approval.
                 <br><strong>You will be recorded as "Prepared By".</strong>
             </p>
-            
+
             <input type="hidden" id="process-report-key">
             <input type="hidden" id="process-report-po">
             <input type="hidden" id="process-report-inv">
@@ -2815,8 +2934,6 @@
 </div>
 
 
-
-
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
@@ -2832,9 +2949,9 @@
       }
     </script>
 
-    <script src="materialStock.js?v=6.3.21"></script>
-    <script src="transferLogic.js?v=6.3.21"></script>
-    <script src="app.js?v=7.0.9"></script>
+    <script src="materialStock.js?v=7.2.6"></script>
+    <script src="transferLogic.js?v=7.2.6"></script>
+    <script src="app.js?v=7.2.6"></script>
 
     </body>
 </html>

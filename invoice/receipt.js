@@ -1,3 +1,27 @@
+// ==========================================================================
+// FILE: receipt.js
+// ORGANIZED WORKING COPY
+// PURPOSE: Approval receipt generation, QR code, PDF upload, and receipt data rendering.
+// SAFETY NOTE:
+//   - Original execution order is preserved.
+//   - No logic was intentionally changed.
+//   - Cleanup applied: consistent top map, trailing-space cleanup, blank-line cleanup.
+//
+// NAVIGATION MAP:
+// MAJOR SECTIONS FOUND:
+//   - Line     1: receipt.js (V7.2 - Layout Fix)
+//   - Line     3: 1. CONFIG
+//   - Line    31: 2. HELPERS
+//   - Line    38: 3. MAIN LOGIC
+//   - Line    95: CHANGED LAYOUT TO STACK VERTICALLY
+//
+// FUNCTION QUICK INDEX:
+//   - Line    25: ensureSignedIn()
+//   - Line    32: formatCurrency()
+//   - Line    74: populateList()
+//   - Line   121: autoSaveReceipt()
+// ==========================================================================
+
 // =====================================
 // receipt.js (V7.2 - Layout Fix)
 // =====================================
@@ -8,7 +32,7 @@ const invoiceFirebaseConfig = {
   authDomain: "invoiceentry-b15a8.firebaseapp.com",
   databaseURL: "https://invoiceentry-b15a8-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "invoiceentry-b15a8",
-  storageBucket: "invoiceentry-b15a8.firebasestorage.app", 
+  storageBucket: "invoiceentry-b15a8.firebasestorage.app",
   messagingSenderId: "916998429537",
   appId: "1:916998429537:web:6f4635d6d6e1cb98bb0320",
   measurementId: "G-R409J22B97"
@@ -53,13 +77,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelector('#footer-esn span').textContent = seriesNo;
 
     // B. GENERATE QR CODE
-    const safeFilename = seriesNo.replace(/[^a-zA-Z0-9]/g, '_'); 
-    const bucketName = "invoiceentry-b15a8.firebasestorage.app"; 
+    const safeFilename = seriesNo.replace(/[^a-zA-Z0-9]/g, '_');
+    const bucketName = "invoiceentry-b15a8.firebasestorage.app";
     const finalPdfUrl = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/receipts%2F${safeFilename}.pdf?alt=media`;
 
     const qrContainer = document.getElementById('receipt-qr-code');
     if (qrContainer) {
-        qrContainer.innerHTML = ''; 
+        qrContainer.innerHTML = '';
         new QRCode(qrContainer, {
             text: finalPdfUrl,
             width: 100, // Slightly bigger for clarity
@@ -125,29 +149,29 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         try {
             const element = document.getElementById('ceo-receipt-template');
-            
-            const opt = { 
-                margin: 0, 
-                filename: `${safeFilename}.pdf`, 
-                image: { type: 'jpeg', quality: 0.98 }, 
-                html2canvas: { 
-                    scale: 3, 
-                    scrollY: 0, 
+
+            const opt = {
+                margin: 0,
+                filename: `${safeFilename}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: {
+                    scale: 3,
+                    scrollY: 0,
                     useCORS: true,
                     letterRendering: true // Helps with text kerning
-                }, 
-                jsPDF: { unit: 'in', format: [3.6, 8], orientation: 'portrait' } 
+                },
+                jsPDF: { unit: 'in', format: [3.6, 8], orientation: 'portrait' }
             };
 
             const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
-            const storagePath = `receipts/${safeFilename}.pdf`; 
+            const storagePath = `receipts/${safeFilename}.pdf`;
             const storageRef = storage.ref(storagePath);
             await ensureSignedIn();
             await storageRef.put(pdfBlob);
             savedDownloadURL = await storageRef.getDownloadURL();
 
             statusText.textContent = 'Receipt Ready!';
-            statusText.style.color = '#90EE90'; 
+            statusText.style.color = '#90EE90';
             sendBtn.disabled = false;
         } catch (error) {
             console.error(error);

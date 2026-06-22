@@ -1,4 +1,33 @@
 // ==========================================================================
+// FILE: snippet.js
+// ORGANIZED WORKING COPY
+// PURPOSE: Attention dropdown helper logic and smart filtering by status, site, role, and vacation state.
+// SAFETY NOTE:
+//   - Original execution order is preserved.
+//   - No logic was intentionally changed.
+//   - Cleanup applied: consistent top map, trailing-space cleanup, blank-line cleanup.
+//
+// NAVIGATION MAP:
+// MAJOR SECTIONS FOUND:
+//   - Line     1: UPDATED: populateAttentionDropdown (Manual Filter Simulation)
+//   - Line     4: 2. Typing  -> Shows ONLY exact name matches (Clean & Fast).
+//   - Line     5: 1. Fetch Data (if missing)
+//   - Line    21: A. DEFINE RULES
+//   - Line    60: B. PROCESS ALL USERS (Background Data)
+//   - Line   102: C. CREATE SUGGESTED LIST (Default View)
+//   - Line   135: D. INITIAL RENDER
+//   - Line   161: E. OVERRIDE SEARCH (Batch Entry Use-Case)
+//   - Line   192: 1) Choices 'search' event (when supported)
+//   - Line   199: 2) Direct input listener (more reliable across versions)
+//   - Line   244: Helper: Populate Job Types Dynamically
+//
+// FUNCTION QUICK INDEX:
+//   - Line     6: populateAttentionDropdown()
+//   - Line   169: applySmartQuery()
+//   - Line   205: attachInputListener()
+// ==========================================================================
+
+// ==========================================================================
 // UPDATED: populateAttentionDropdown (Manual Filter Simulation)
 // Logic: 1. Default -> Shows ONLY Suggested Users.
 //        2. Typing  -> Shows ONLY exact name matches (Clean & Fast).
@@ -31,26 +60,26 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
                         validPositions = ['Site DC', 'Camp Boss'];
                         checkSite = true; // Match User Site with PO Site
                         break;
-                        
+
                     case 'For IPC':  // <--- ADDED THIS NEW RULE
                         validPositions = ['QS', 'Senior QS'];
                         checkSite = true; // Match User Site with PO Site
                         break;
-                    
+
                     // For Approval and any other status should show ALL (no auto-filter)
                     case 'For Approval':
                         validPositions = null;
                         break;
-                        
+
                     case 'CEO Approval':
                         validPositions = ['CEO'];
                         break;
-                        
+
                     case 'Report':
                         // Report should suggest Admin users only
                         validPositions = ['Admin'];
                         break;
-                        
+
                     default:
                         validPositions = null; // Everyone suggested
                         break;
@@ -101,7 +130,7 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
 
             // --- C. CREATE SUGGESTED LIST (Default View) ---
             const suggestedList = allProcessedUsers.filter(user => {
-                if (!validPositions) return true; 
+                if (!validPositions) return true;
 
                 // Check Position
                 const userPos = (user.position || '').toLowerCase();

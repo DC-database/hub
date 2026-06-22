@@ -1,3 +1,75 @@
+/* ==========================================================================
+   FILE: transfer_stock.css
+   ORGANIZED WORKING COPY
+   PURPOSE: Transfer / inventory modal styling, form layout, Choices.js fixes, and print-related transfer styling.
+
+   SAFETY NOTE:
+   - CSS cascade order is preserved to avoid changing the visual behavior.
+   - Cleanup applied: top map, trailing-space cleanup, blank-line cleanup.
+
+   STYLE BLOCKS / EXISTING HEADERS FOUND:
+     - Line     2: TRANSFER & MODAL STYLESHEET (V4.2 - Updated for Material MS)
+     - Line     3: Organized by Group & Number
+     - Line     7: 1. MODAL CONTAINER, FOOTER & BUTTON CONSISTENCY
+     - Line    10: Shared Container Logic
+     - Line    24: Crystal / glass container
+     - Line    31: Prevent any highlight or backdrop from rendering outside
+     - Line    35: Content Area
+     - Line    48: FIX: give space for bottom dropdowns (Choices.js)
+     - Line    55: [FIX] Footer Styling (White Background)
+     - Line    72: [FIX] Footer Buttons (Uniform Size)
+     - Line    89: 2. UNIVERSAL BLUE HEADER THEME (FIXED BUTTONS)
+     - Line    92: Apply Blue Theme to Transfer, Batch, Payment, and STANDARD JOB Modals
+     - Line    99: Glass header with a formal tint
+     - Line   112: Title Text
+     - Line   125: [FIX START] Split Header and Footer Button Styles
+     - Line   127: 1. Header Close Button (The 'X') - Transparent & Big
+     - Line   155: 2. Footer Cancel Button (The actual Button) - Grey Background
+     - Line   180: [FIX END]
+     - Line   183: 3. GRID SYSTEM (COMPACT & ALIGNED)
+     - Line   196: This 'gap' controls vertical space between fields. Reduced to 8px for a compact look.
+     - Line   201: Mobile Override
+     - Line   210: 4. INPUTS, FORMS & FLOATING FOCUS EFFECT
+     - Line   213: Group Spacing - Ensures rows start at the same vertical position
+     - Line   221: Labels - Uniform height and spacing
+     - Line   233: UNIVERSAL FIELD STYLING (The Alignment Fix)
+     - Line   244: Dimensions
+     - Line   249: Content Alignment
+     - Line   254: Borders & Background
+     - Line   260: Smooth Transition for the Float Effect
+     - Line   264: THE FLOATING HIGHLIGHT EFFECT
+     - Line   280: The "Floating" Shadow
+     - Line   283: The Physical Lift
+     - Line   287: Textarea Exception (Needs more height)
+     - Line   295: 5. DROPDOWN FIXES (CHOICES.JS ALIGNMENT)
+     - Line   298: Remove default wrapper margin so it aligns with standard inputs
+     - Line   306: Fix the inner container to behave like a standard input
+     - Line   317: Fix the dropdown list z-index and shadow
+     - Line   328: 6. HIGHLIGHTS & VISUAL FEEDBACK
+     - Line   331: Blue Highlight for Required/Active Fields
+     - Line   343: Sender Required Warning (Yellow)
+     - Line   350: 7. PRINT STYLES (BARCODE VISIBILITY)
+     - Line   354: Ensure Barcodes are visible ONLY if they have a source
+     - Line   362: Ensure text visibility
+     - Line   368: Ensure containers don't collapse if we need them
+     - Line   376: 8. ATTACHMENT FIELD FIX (ALIGNED)
+     - Line   379: 1. Input Field
+     - Line   387: 2. View Button
+     - Line   399: Add Float Effect to Button too for consistency
+     - Line   408: 3. Center Icon
+     - Line   416: 9. FINAL POLISH: ALIGNMENT & REMOVE SPINNERS
+     - Line   419: A. Remove Up/Down Arrows from Number Inputs
+     - Line   429: B. Force Perfect Row Alignment
+     - Line   430: 1. Prevent labels from wrapping to 2 lines (which breaks alignment)
+     - Line   440: 2. Force Groups to exact same vertical size
+     - Line   447: 3. Attachment Row Exception (It's special, so we let it be auto)
+     - Line   462: CRITICAL FIX: Hide buttons when JS adds .hidden class
+     - Line   469: Allow Choices dropdown to overlay above other modal content
+     - Line   483: 10. CHOICES.JS: ALWAYS SHOW DROPDOWNS (AUTO UP/DOWN)
+     - Line   499: Default dropdown (down)
+     - Line   505: Flipped dropdown (up)
+   ========================================================================== */
+
 /* ============================================================= */
 /* TRANSFER & MODAL STYLESHEET (V4.2 - Updated for Material MS)  */
 /* Organized by Group & Number                                   */
@@ -596,3 +668,1354 @@ input[name="tf-mode"] {
     display: inline-block !important;
 }
 
+/* ======================================================================
+   7.1.8 Inventory Job Records — clearer grouped table view
+   Scope: Inventory Job Records only. Does not affect print/QR/waybill styles.
+   ====================================================================== */
+.inv-job-records-table {
+    border-collapse: separate !important;
+    border-spacing: 0 8px !important;
+}
+
+.inv-job-records-table thead th {
+    background: #f4f7fb !important;
+    color: #243447 !important;
+    border-bottom: 1px solid #d9e3ef !important;
+    font-size: 0.78rem !important;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.inv-job-records-body tr.inv-job-group-row,
+.inv-job-records-body tr.inv-job-single-row {
+    position: relative;
+    background: #ffffff !important;
+    box-shadow: 0 2px 10px rgba(15, 34, 58, 0.07);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.inv-job-records-body tr.inv-job-group-row {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.inv-job-records-body tr.inv-job-group-row td,
+.inv-job-records-body tr.inv-job-single-row td {
+    border-top: 1px solid #e5edf5 !important;
+    border-bottom: 1px solid #e5edf5 !important;
+    padding: 12px 10px !important;
+    vertical-align: middle;
+}
+
+.inv-job-records-body tr.inv-job-group-row td:first-child,
+.inv-job-records-body tr.inv-job-single-row td:first-child {
+    border-left: 5px solid #607d8b !important;
+    border-top-left-radius: 12px;
+    border-bottom-left-radius: 12px;
+}
+
+.inv-job-records-body tr.inv-job-group-row td:last-child,
+.inv-job-records-body tr.inv-job-single-row td:last-child {
+    border-right: 1px solid #e5edf5 !important;
+    border-top-right-radius: 12px;
+    border-bottom-right-radius: 12px;
+}
+
+.inv-job-records-body tr.inv-type-transfer td:first-child { border-left-color: #1976d2 !important; }
+.inv-job-records-body tr.inv-type-usage td:first-child { border-left-color: #ef6c00 !important; }
+.inv-job-records-body tr.inv-type-return td:first-child { border-left-color: #2e7d32 !important; }
+.inv-job-records-body tr.inv-type-restock td:first-child { border-left-color: #6a1b9a !important; }
+
+.inv-job-records-body tr.inv-job-group-row:hover,
+.inv-job-records-body tr.inv-job-single-row:hover {
+    background: #fbfdff !important;
+    box-shadow: 0 4px 14px rgba(15, 34, 58, 0.10);
+}
+
+.inv-job-records-body .group-toggle-icon {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 22px !important;
+    height: 22px;
+    margin-right: 7px !important;
+    border-radius: 50%;
+    background: #eef5fb;
+    color: #003A5C !important;
+    font-size: 0.72rem;
+}
+
+.inv-control-id-text {
+    display: inline-block;
+    color: #102a43;
+    font-size: 0.92rem;
+    letter-spacing: 0.01em;
+}
+
+.inv-type-pill,
+.group-count-badge,
+.inv-expand-hint,
+.inv-job-status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.inv-type-pill {
+    margin-left: 7px;
+    padding: 4px 8px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    background: #eef2f7;
+    color: #334e68;
+    text-transform: uppercase;
+}
+
+.inv-type-pill.inv-type-transfer { background: #e3f2fd; color: #0d47a1; }
+.inv-type-pill.inv-type-usage { background: #fff3e0; color: #b45309; }
+.inv-type-pill.inv-type-return { background: #e8f5e9; color: #1b5e20; }
+.inv-type-pill.inv-type-restock { background: #f3e5f5; color: #4a148c; }
+
+.group-count-badge {
+    margin-left: 0 !important;
+    margin-top: 5px;
+    padding: 4px 8px;
+    width: fit-content;
+    background: #f1f5f9;
+    color: #475569 !important;
+    font-size: 0.72rem;
+    font-weight: 700 !important;
+}
+
+.inv-group-product-cell strong {
+    display: block;
+    color: #102a43;
+}
+
+.inv-expand-hint {
+    padding: 5px 9px;
+    background: #eef5fb;
+    color: #003A5C;
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+
+.inv-job-records-body tr.inv-job-child-row {
+    background: #f8fbfe !important;
+}
+
+.inv-job-records-body tr.inv-job-child-row td {
+    border-top: 1px solid #e6eef6 !important;
+    border-bottom: 1px solid #e6eef6 !important;
+    padding: 10px 10px !important;
+    vertical-align: middle;
+}
+
+.inv-job-records-body tr.inv-job-child-row td:first-child {
+    padding-left: 28px !important;
+    border-left: 5px solid #d6e4f0 !important;
+}
+
+.inv-child-connector {
+    display: inline-block;
+    width: 16px;
+    height: 1px;
+    margin-right: 7px;
+    vertical-align: middle;
+    background: #9fb3c8;
+}
+
+.inv-child-index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 1px solid #d8e2ec;
+    color: #334e68;
+    font-size: 0.75rem;
+    font-weight: 800;
+}
+
+.inv-product-cell {
+    font-weight: 650;
+    color: #243b53;
+}
+
+.inv-route-cell {
+    color: #334e68;
+    font-weight: 600;
+}
+
+.inv-qty-cell {
+    text-align: center;
+    font-weight: 800;
+    color: #102a43;
+}
+
+.inv-job-status-badge {
+    padding: 5px 9px;
+    font-size: 0.70rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.inv-job-status-approved { background: #e8f5e9; color: #1b5e20; }
+.inv-job-status-completed { background: #e8f5e9; color: #1b5e20; }
+.inv-job-status-pending { background: #fff4e5; color: #9a5b00; }
+.inv-job-status-rejected { background: #fdecea; color: #b42318; }
+.inv-job-status-transit { background: #e3f2fd; color: #0d47a1; }
+.inv-job-status-neutral { background: #eef2f7; color: #475569; }
+
+.inv-job-note {
+    margin-top: 6px;
+    color: #6b7280;
+    font-size: 0.75rem;
+    font-style: italic;
+}
+
+.inv-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+    .inv-job-records-table {
+        border-spacing: 0 10px !important;
+    }
+
+    .inv-job-records-table thead {
+        display: none;
+    }
+
+    .inv-job-records-body tr.inv-job-group-row,
+    .inv-job-records-body tr.inv-job-single-row,
+    .inv-job-records-body tr.inv-job-child-row {
+        display: block;
+        border-radius: 14px;
+        box-shadow: 0 2px 10px rgba(15, 34, 58, 0.08);
+        margin-bottom: 10px;
+        background: #ffffff !important;
+    }
+
+    .inv-job-records-body tr.inv-job-group-row td,
+    .inv-job-records-body tr.inv-job-single-row td,
+    .inv-job-records-body tr.inv-job-child-row td {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        border-left: 1px solid #e5edf5 !important;
+        border-right: 1px solid #e5edf5 !important;
+        border-top: none !important;
+        border-bottom: 1px solid #edf2f7 !important;
+        padding: 9px 12px !important;
+    }
+
+    .inv-job-records-body tr.inv-job-group-row td:first-child,
+    .inv-job-records-body tr.inv-job-single-row td:first-child,
+    .inv-job-records-body tr.inv-job-child-row td:first-child {
+        border-left-width: 5px !important;
+        border-top: 1px solid #e5edf5 !important;
+        border-top-left-radius: 14px;
+        border-top-right-radius: 14px;
+    }
+
+    .inv-job-records-body tr.inv-job-group-row td:last-child,
+    .inv-job-records-body tr.inv-job-single-row td:last-child,
+    .inv-job-records-body tr.inv-job-child-row td:last-child {
+        border-bottom-left-radius: 14px;
+        border-bottom-right-radius: 14px;
+    }
+
+    .inv-job-records-body td:nth-child(1)::before { content: 'Control'; }
+    .inv-job-records-body td:nth-child(2)::before { content: 'Product'; }
+    .inv-job-records-body td:nth-child(3)::before { content: 'Route'; }
+    .inv-job-records-body td:nth-child(4)::before { content: 'Ordered'; }
+    .inv-job-records-body td:nth-child(5)::before { content: 'Delivered'; }
+    .inv-job-records-body td:nth-child(6)::before { content: 'Shipping'; }
+    .inv-job-records-body td:nth-child(7)::before { content: 'Arrival'; }
+    .inv-job-records-body td:nth-child(8)::before { content: 'Contact'; }
+    .inv-job-records-body td:nth-child(9)::before { content: 'Status'; }
+
+    .inv-job-records-body td::before {
+        min-width: 82px;
+        color: #829ab1;
+        font-size: 0.72rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .inv-row-actions {
+        justify-content: flex-end;
+    }
+}
+
+/* ======================================================================
+   7.2.0 Material Stock — cleaner professional UI refresh
+   Scope: Material Stock page + its own modals only. No print/QR/waybill logic.
+   ====================================================================== */
+@media screen {
+    :root {
+        --ms-navy: #003A5C;
+        --ms-accent: #00748C;
+        --ms-text: #172033;
+        --ms-muted: #64748b;
+        --ms-border: #dbe5ef;
+        --ms-soft: #f8fafc;
+        --ms-soft-2: #eef4f8;
+    }
+
+    #wd-material-stock {
+        --ms-navy: #003A5C;
+        --ms-accent: #00748C;
+        --ms-text: #172033;
+        --ms-muted: #64748b;
+        --ms-border: #dbe5ef;
+        --ms-soft: #f8fafc;
+        --ms-soft-2: #eef4f8;
+    }
+
+    #wd-material-stock h1 {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        margin-bottom: 16px !important;
+        color: var(--ms-text) !important;
+        font-size: 1.55rem !important;
+        letter-spacing: -0.02em;
+    }
+
+    #wd-material-stock #ms-total-count {
+        color: var(--ms-muted) !important;
+        font-size: 0.88rem !important;
+        font-weight: 700;
+    }
+
+    #wd-material-stock .report-controls,
+    #wd-material-stock #ms-search-container {
+        background: #ffffff !important;
+        border: 1px solid var(--ms-border) !important;
+        border-radius: 14px !important;
+        box-shadow: 0 8px 24px rgba(15, 34, 58, 0.06) !important;
+        padding: 12px !important;
+    }
+
+    #wd-material-stock .report-controls > div,
+    #wd-material-stock #ms-search-container > div {
+        gap: 8px !important;
+        flex-wrap: wrap !important;
+    }
+
+    #wd-material-stock button,
+    #ms-report-modal button,
+    #ms-requestlist-modal button {
+        min-height: 34px !important;
+        padding: 7px 12px !important;
+        border-radius: 9px !important;
+        font-size: 0.82rem !important;
+        font-weight: 750 !important;
+        line-height: 1 !important;
+        box-shadow: none !important;
+        transition: background-color .15s ease, border-color .15s ease, transform .12s ease, color .15s ease !important;
+    }
+
+    #wd-material-stock button:hover,
+    #ms-report-modal button:hover,
+    #ms-requestlist-modal button:hover {
+        transform: translateY(-1px);
+    }
+
+    #wd-material-stock #ms-add-new-btn {
+        background: var(--ms-navy) !important;
+        color: #fff !important;
+        border: 1px solid var(--ms-navy) !important;
+    }
+
+    #wd-material-stock #ms-upload-csv-btn,
+    #wd-material-stock #ms-template-btn,
+    #wd-material-stock #ms-refresh-btn,
+    #wd-material-stock #ms-open-requestlist-btn,
+    #wd-material-stock #ms-open-report-modal-btn,
+    #wd-material-stock #ms-search-clear-btn,
+    #wd-material-stock #ms-search-container button,
+    #wd-material-stock .ms-add-to-required-btn,
+    #wd-material-stock .ms-edit-stock-btn,
+    #ms-report-modal #ms-modal-print-btn,
+    #ms-report-modal #ms-modal-excel-btn,
+    #ms-requestlist-modal #ms-requestlist-add-manual-btn,
+    #ms-requestlist-modal #ms-requestlist-print-btn {
+        background: #ffffff !important;
+        color: var(--ms-navy) !important;
+        border: 1px solid var(--ms-border) !important;
+    }
+
+    #wd-material-stock #ms-open-requestlist-btn,
+    #wd-material-stock #ms-open-report-modal-btn,
+    #ms-report-modal #ms-modal-print-btn,
+    #ms-requestlist-modal #ms-requestlist-print-btn {
+        background: var(--ms-soft-2) !important;
+        border-color: #cbd9e6 !important;
+    }
+
+    #wd-material-stock #ms-search-container button[onclick*="Transfer"] {
+        color: #075985 !important;
+        border-color: #bae6fd !important;
+        background: #f0f9ff !important;
+    }
+
+    #wd-material-stock #ms-search-container button[onclick*="Restock"] {
+        color: #166534 !important;
+        border-color: #bbf7d0 !important;
+        background: #f0fdf4 !important;
+    }
+
+    #wd-material-stock #ms-search-container button[onclick*="Usage"] {
+        color: #5b21b6 !important;
+        border-color: #ddd6fe !important;
+        background: #faf5ff !important;
+    }
+
+    #wd-material-stock .delete-btn,
+    #wd-material-stock #ms-bulk-delete-btn,
+    #ms-requestlist-modal #ms-requestlist-clear-btn,
+    #ms-requestlist-modal .delete-btn {
+        background: #fff7f7 !important;
+        color: #b42318 !important;
+        border: 1px solid #fecaca !important;
+    }
+
+    #wd-material-stock .search-bar-local {
+        height: 38px !important;
+        border-radius: 10px !important;
+    }
+
+    #wd-material-stock #ms-search-input,
+    #wd-material-stock #ms-site-filter,
+    #ms-requestlist-modal #ms-requestlist-to-site {
+        border: 1px solid var(--ms-border) !important;
+        border-radius: 10px !important;
+        background: #fff !important;
+        color: var(--ms-text) !important;
+        box-shadow: none !important;
+    }
+
+    #wd-material-stock #ms-search-input:focus,
+    #wd-material-stock #ms-site-filter:focus,
+    #ms-requestlist-modal #ms-requestlist-to-site:focus {
+        outline: none !important;
+        border-color: var(--ms-accent) !important;
+        box-shadow: 0 0 0 3px rgba(0, 116, 140, 0.10) !important;
+    }
+
+    #wd-material-stock #ms-category-tabs {
+        background: #fff !important;
+        border: 1px solid var(--ms-border) !important;
+        border-radius: 14px !important;
+        padding: 8px !important;
+        gap: 6px !important;
+        box-shadow: 0 5px 16px rgba(15, 34, 58, 0.04) !important;
+    }
+
+    #wd-material-stock #ms-category-tabs button {
+        background: transparent !important;
+        color: var(--ms-muted) !important;
+        border: 1px solid transparent !important;
+        padding: 7px 10px !important;
+        min-height: 32px !important;
+        border-radius: 999px !important;
+        white-space: nowrap;
+    }
+
+    #wd-material-stock #ms-category-tabs button.active,
+    #wd-material-stock #ms-category-tabs button:hover {
+        background: #eaf4f7 !important;
+        color: var(--ms-navy) !important;
+        border-color: #c5dce4 !important;
+    }
+
+    #wd-material-stock .table-wrapper {
+        border: 1px solid var(--ms-border) !important;
+        border-radius: 14px !important;
+        background: #ffffff !important;
+        box-shadow: 0 8px 24px rgba(15, 34, 58, 0.05) !important;
+        overflow: auto !important;
+    }
+
+    #wd-material-stock #ms-table {
+        border-collapse: separate !important;
+        border-spacing: 0 !important;
+        width: 100% !important;
+    }
+
+    #wd-material-stock #ms-table thead th {
+        background: #f8fafc !important;
+        color: #334155 !important;
+        border-bottom: 1px solid var(--ms-border) !important;
+        padding: 11px 10px !important;
+        font-size: 0.74rem !important;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    #wd-material-stock #ms-table tbody td {
+        border-bottom: 1px solid #edf2f7 !important;
+        padding: 11px 10px !important;
+        color: var(--ms-text);
+        vertical-align: middle;
+    }
+
+    #wd-material-stock #ms-table tbody tr.ms-parent-row {
+        background: #fff !important;
+        cursor: pointer;
+    }
+
+    #wd-material-stock #ms-table tbody tr.ms-parent-row:hover td {
+        background: #fbfdff !important;
+    }
+
+    #wd-material-stock .ms-expand-btn {
+        width: 26px !important;
+        height: 26px !important;
+        min-height: 26px !important;
+        padding: 0 !important;
+        border-radius: 50% !important;
+        background: #eaf4f7 !important;
+        color: var(--ms-navy) !important;
+        border: 1px solid #c5dce4 !important;
+        font-weight: 900 !important;
+    }
+
+    #wd-material-stock .stock-child-row > td {
+        background: #f8fafc !important;
+        border-bottom: 1px solid var(--ms-border) !important;
+    }
+
+    #wd-material-stock .stock-detail-table thead th {
+        background: #f1f5f9 !important;
+        color: #334155 !important;
+    }
+
+    #wd-material-stock .stock-detail-table td,
+    #wd-material-stock .stock-detail-table th {
+        border: 1px solid #e5edf5 !important;
+    }
+
+    #ms-report-modal .modal-container,
+    #ms-requestlist-modal .modal-container {
+        border-radius: 16px !important;
+        border: 1px solid #dbe5ef !important;
+        box-shadow: 0 24px 80px rgba(15, 34, 58, .24) !important;
+        overflow: hidden;
+    }
+
+    #ms-report-modal .modal-header,
+    #ms-requestlist-modal .modal-header {
+        background: #f8fafc !important;
+        border-bottom: 1px solid #dbe5ef !important;
+        color: #172033 !important;
+    }
+
+    #ms-report-modal .modal-footer,
+    #ms-requestlist-modal .modal-footer {
+        background: #f8fafc !important;
+        border-top: 1px solid #dbe5ef !important;
+    }
+}
+
+@media (max-width: 768px) {
+    #wd-material-stock .report-controls,
+    #wd-material-stock #ms-search-container {
+        align-items: stretch !important;
+    }
+
+    #wd-material-stock #ms-search-container,
+    #wd-material-stock #ms-search-container > div,
+    #wd-material-stock .report-controls > div {
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+
+    #wd-material-stock #ms-search-container button,
+    #wd-material-stock .report-controls button {
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+}
+
+/* ======================================================================
+   7.2.0 Material Stock polish — compact search, family chips, row clarity
+   Scope: Material Stock screen only. No print/QR/waybill logic.
+   ====================================================================== */
+@media screen {
+    #wd-material-stock .ms-toolbar-card,
+    #wd-material-stock .ms-search-panel,
+    #wd-material-stock .ms-family-strip,
+    #wd-material-stock .ms-stock-table-shell {
+        max-width: 100%;
+    }
+
+    #wd-material-stock .ms-toolbar-card {
+        margin-bottom: 12px !important;
+        padding: 10px 12px !important;
+    }
+
+    #wd-material-stock .ms-toolbar-left {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        flex-wrap: wrap !important;
+        width: 100%;
+    }
+
+    #wd-material-stock .ms-toolbar-btn {
+        height: 34px !important;
+        min-height: 34px !important;
+        padding: 0 11px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 7px !important;
+        border-radius: 9px !important;
+        font-size: .78rem !important;
+        letter-spacing: .01em;
+    }
+
+    #wd-material-stock .ms-primary-action {
+        background: var(--ms-navy) !important;
+        color: #fff !important;
+        border-color: var(--ms-navy) !important;
+    }
+
+    #wd-material-stock .ms-icon-btn {
+        width: 36px !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    #wd-material-stock .ms-search-panel {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 12px !important;
+        width: 100% !important;
+        margin-bottom: 12px !important;
+        padding: 10px 12px !important;
+    }
+
+    #wd-material-stock .ms-search-group {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        flex: 1 1 520px !important;
+        max-width: 720px !important;
+        min-width: 280px !important;
+        flex-wrap: nowrap !important;
+    }
+
+    #wd-material-stock .ms-search-box {
+        position: relative !important;
+        flex: 1 1 auto !important;
+        min-width: 230px !important;
+        height: 38px !important;
+        margin-bottom: 0 !important;
+    }
+
+    #wd-material-stock .ms-search-icon {
+        position: absolute !important;
+        left: 12px !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        color: #94a3b8 !important;
+        pointer-events: none;
+    }
+
+    #wd-material-stock #ms-search-input {
+        width: 100% !important;
+        height: 38px !important;
+        padding: 0 12px 0 36px !important;
+        margin: 0 !important;
+    }
+
+    #wd-material-stock .ms-clear-search-btn {
+        height: 38px !important;
+        min-height: 38px !important;
+        white-space: nowrap !important;
+        flex: 0 0 auto !important;
+        padding: 0 14px !important;
+        background: #fff !important;
+        color: #475569 !important;
+        border: 1px solid var(--ms-border) !important;
+    }
+
+    #wd-material-stock .ms-quick-actions {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        gap: 8px !important;
+        flex: 0 1 auto !important;
+        flex-wrap: nowrap !important;
+    }
+
+    #wd-material-stock .ms-flow-btn {
+        height: 38px !important;
+        min-height: 38px !important;
+        padding: 0 13px !important;
+        border-radius: 999px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 7px !important;
+        border: 1px solid transparent !important;
+        font-size: .78rem !important;
+    }
+
+    #wd-material-stock .ms-flow-transfer {
+        color: #075985 !important;
+        border-color: #bae6fd !important;
+        background: #f0f9ff !important;
+    }
+
+    #wd-material-stock .ms-flow-restock {
+        color: #166534 !important;
+        border-color: #bbf7d0 !important;
+        background: #f0fdf4 !important;
+    }
+
+    #wd-material-stock .ms-flow-usage {
+        color: #5b21b6 !important;
+        border-color: #ddd6fe !important;
+        background: #faf5ff !important;
+    }
+
+    #wd-material-stock .ms-family-strip {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        margin-bottom: 14px !important;
+        padding: 8px !important;
+        overflow-x: auto !important;
+        white-space: nowrap !important;
+        border-bottom: 0 !important;
+        scrollbar-width: thin;
+    }
+
+    #wd-material-stock .ms-family-chip {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 7px !important;
+        height: 34px !important;
+        min-height: 34px !important;
+        padding: 0 10px 0 7px !important;
+        border-radius: 999px !important;
+        background: #fff !important;
+        color: #475569 !important;
+        border: 1px solid #d9e4ec !important;
+        flex: 0 0 auto !important;
+    }
+
+    #wd-material-stock .ms-family-chip .ms-family-code {
+        min-width: 22px;
+        height: 22px;
+        padding: 0 6px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #f1f5f9;
+        color: #0f3b57;
+        font-weight: 900;
+        font-size: .72rem;
+    }
+
+    #wd-material-stock .ms-family-chip .ms-family-name {
+        max-width: 150px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: .76rem;
+        font-weight: 750;
+    }
+
+    #wd-material-stock .ms-family-chip.active,
+    #wd-material-stock .ms-family-chip:hover {
+        background: #e9f6f9 !important;
+        color: var(--ms-navy) !important;
+        border-color: #a8d2dd !important;
+    }
+
+    #wd-material-stock .ms-family-chip.active .ms-family-code,
+    #wd-material-stock .ms-family-chip:hover .ms-family-code {
+        background: var(--ms-navy);
+        color: #fff;
+    }
+
+    #wd-material-stock .ms-stock-table-shell {
+        background: #f8fafc !important;
+        border: 1px solid var(--ms-border) !important;
+        border-radius: 16px !important;
+        padding: 8px !important;
+        overflow: auto !important;
+    }
+
+    #wd-material-stock #ms-table {
+        border-collapse: separate !important;
+        border-spacing: 0 8px !important;
+        min-width: 980px;
+    }
+
+    #wd-material-stock #ms-table thead th {
+        background: transparent !important;
+        border: 0 !important;
+        padding: 5px 10px 7px !important;
+        color: #64748b !important;
+        font-size: .68rem !important;
+        font-weight: 900 !important;
+    }
+
+    #wd-material-stock #ms-table .ms-col-expand { width: 56px; }
+    #wd-material-stock #ms-table .ms-col-code { width: 150px; }
+    #wd-material-stock #ms-table .ms-col-detail { width: 28%; }
+    #wd-material-stock #ms-table .ms-col-family { width: 160px; }
+    #wd-material-stock #ms-table .ms-col-relation { width: 18%; }
+    #wd-material-stock #ms-table .ms-col-stock { width: 105px; text-align: center; }
+    #wd-material-stock #ms-table .ms-col-action { width: 230px; text-align: center; }
+
+    #wd-material-stock #ms-table tbody tr.ms-parent-row td {
+        background: #ffffff !important;
+        border-top: 1px solid #dfe9f1 !important;
+        border-bottom: 1px solid #dfe9f1 !important;
+        padding: 12px 10px !important;
+        box-shadow: 0 3px 10px rgba(15, 34, 58, .045);
+    }
+
+    #wd-material-stock #ms-table tbody tr.ms-parent-row td:first-child {
+        border-left: 1px solid #dfe9f1 !important;
+        border-top-left-radius: 14px;
+        border-bottom-left-radius: 14px;
+    }
+
+    #wd-material-stock #ms-table tbody tr.ms-parent-row td:last-child {
+        border-right: 1px solid #dfe9f1 !important;
+        border-top-right-radius: 14px;
+        border-bottom-right-radius: 14px;
+    }
+
+    #wd-material-stock #ms-table tbody tr.ms-parent-row:hover td {
+        background: #fbfdff !important;
+        border-color: #bed4e2 !important;
+    }
+
+    #wd-material-stock .ms-cell-expand {
+        text-align: center;
+    }
+
+    #wd-material-stock .ms-row-selector {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    #wd-material-stock .ms-product-code {
+        display: inline-flex;
+        align-items: center;
+        padding: 5px 8px;
+        border-radius: 8px;
+        background: #f1f5f9;
+        color: #07566d;
+        font-family: Consolas, Monaco, monospace;
+        font-size: .82rem;
+        font-weight: 900;
+        white-space: nowrap;
+    }
+
+    #wd-material-stock .ms-product-title {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        line-height: 1.25;
+        color: #111827;
+    }
+
+    #wd-material-stock .ms-family-badge {
+        display: inline-flex;
+        max-width: 150px;
+        padding: 5px 9px;
+        border-radius: 999px;
+        background: #eef7fa;
+        color: #07566d;
+        border: 1px solid #cde5ed;
+        font-size: .72rem;
+        font-weight: 850;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    #wd-material-stock .ms-relation-text {
+        display: block;
+        max-width: 230px;
+        color: #475569;
+        font-size: .82rem;
+        line-height: 1.3;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    #wd-material-stock .ms-cell-stock {
+        text-align: center;
+    }
+
+    #wd-material-stock .ms-stock-pill {
+        display: inline-flex;
+        min-width: 58px;
+        justify-content: center;
+        padding: 6px 10px;
+        border-radius: 10px;
+        background: #f8fafc;
+        border: 1px solid #dbe5ef;
+        color: #003A5C;
+        font-size: .95rem;
+        font-weight: 900;
+    }
+
+    #wd-material-stock .ms-cell-actions {
+        text-align: right !important;
+    }
+
+    #wd-material-stock .ms-row-actions {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 6px;
+        flex-wrap: nowrap;
+        white-space: nowrap;
+    }
+
+    #wd-material-stock .ms-row-action-btn {
+        height: 30px !important;
+        min-height: 30px !important;
+        padding: 0 9px !important;
+        border-radius: 8px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 5px !important;
+        font-size: .72rem !important;
+        font-weight: 850 !important;
+        margin: 0 !important;
+        background: #fff !important;
+        color: var(--ms-navy) !important;
+        border: 1px solid var(--ms-border) !important;
+    }
+
+    #wd-material-stock .ms-add-to-required-btn {
+        color: #075985 !important;
+        background: #f0f9ff !important;
+        border-color: #bae6fd !important;
+    }
+
+    #wd-material-stock .ms-edit-stock-btn {
+        color: #07566d !important;
+        background: #eef7fa !important;
+        border-color: #cde5ed !important;
+    }
+
+    #wd-material-stock .ms-delete-btn {
+        color: #b42318 !important;
+        background: #fff7f7 !important;
+        border-color: #fecaca !important;
+    }
+
+    #wd-material-stock .ms-view-only-note {
+        color: #94a3b8;
+        font-size: .75rem;
+        font-weight: 800;
+    }
+
+    #wd-material-stock .stock-child-row > td {
+        background: #ffffff !important;
+        border: 1px solid #dfe9f1 !important;
+        border-radius: 14px !important;
+        box-shadow: 0 3px 10px rgba(15, 34, 58, .035);
+    }
+}
+
+@media (max-width: 980px) {
+    #wd-material-stock .ms-search-panel {
+        align-items: stretch !important;
+        flex-direction: column !important;
+    }
+
+    #wd-material-stock .ms-search-group,
+    #wd-material-stock .ms-quick-actions {
+        width: 100% !important;
+        max-width: none !important;
+    }
+
+    #wd-material-stock .ms-quick-actions {
+        justify-content: flex-start !important;
+        overflow-x: auto;
+        padding-bottom: 2px;
+    }
+}
+
+@media (max-width: 640px) {
+    #wd-material-stock .ms-search-group {
+        flex-wrap: wrap !important;
+    }
+
+    #wd-material-stock .ms-search-box {
+        flex: 1 1 100% !important;
+    }
+
+    #wd-material-stock .ms-clear-search-btn {
+        flex: 1 1 100% !important;
+    }
+
+    #wd-material-stock .ms-family-chip .ms-family-name {
+        max-width: 105px;
+    }
+}
+
+/* ======================================================================
+   7.2.1 Material Stock correction — search alignment and clean family chips
+   Scope: Material Stock only. No data, approval, stock, QR, or print logic.
+   ====================================================================== */
+@media screen {
+    /* Keep Clear button on the same row as the search input on desktop. */
+    #wd-material-stock #ms-search-container {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 14px !important;
+        flex-wrap: nowrap !important;
+    }
+
+    #wd-material-stock #ms-search-container > div:first-child {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        flex: 1 1 auto !important;
+        max-width: none !important;
+        min-width: 0 !important;
+        width: auto !important;
+        flex-wrap: nowrap !important;
+    }
+
+    #wd-material-stock #ms-search-container > div:first-child .search-bar-local {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        width: auto !important;
+        max-width: none !important;
+        margin: 0 !important;
+    }
+
+    #wd-material-stock #ms-search-input {
+        min-width: 0 !important;
+    }
+
+    #wd-material-stock #ms-search-clear-btn {
+        position: static !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        flex: 0 0 auto !important;
+        width: auto !important;
+        min-width: 74px !important;
+        height: 40px !important;
+        min-height: 40px !important;
+        margin: 0 !important;
+        padding: 0 14px !important;
+        white-space: nowrap !important;
+        border-radius: 10px !important;
+    }
+
+    #wd-material-stock #ms-search-container > div:last-child {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        gap: 8px !important;
+        flex: 0 0 auto !important;
+        max-width: none !important;
+        min-width: max-content !important;
+        width: auto !important;
+        flex-wrap: nowrap !important;
+    }
+
+    /* Family tabs: no visible grey scrollbar, active chip keeps both number and name readable. */
+    #wd-material-stock #ms-category-tabs,
+    #wd-material-stock .ms-family-strip {
+        display: flex !important;
+        align-items: center !important;
+        gap: 7px !important;
+        flex-wrap: wrap !important;
+        overflow-x: visible !important;
+        overflow-y: visible !important;
+        white-space: normal !important;
+        border-bottom: 0 !important;
+        padding: 8px !important;
+        scrollbar-width: none !important;
+    }
+
+    #wd-material-stock #ms-category-tabs::-webkit-scrollbar,
+    #wd-material-stock .ms-family-strip::-webkit-scrollbar {
+        width: 0 !important;
+        height: 0 !important;
+        display: none !important;
+    }
+
+    #wd-material-stock #ms-category-tabs .ms-family-chip,
+    #wd-material-stock .ms-family-strip .ms-family-chip {
+        min-width: 0 !important;
+        max-width: none !important;
+        flex: 0 1 auto !important;
+        overflow: visible !important;
+    }
+
+    #wd-material-stock #ms-category-tabs .ms-family-chip .ms-family-name,
+    #wd-material-stock .ms-family-strip .ms-family-chip .ms-family-name {
+        max-width: none !important;
+        color: #475569 !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+    }
+
+    #wd-material-stock #ms-category-tabs .ms-family-chip.active,
+    #wd-material-stock .ms-family-strip .ms-family-chip.active {
+        background: #eef8fb !important;
+        color: #0f172a !important;
+        border-color: #6bb6c8 !important;
+        box-shadow: 0 0 0 2px rgba(0, 116, 140, .08) !important;
+    }
+
+    #wd-material-stock #ms-category-tabs .ms-family-chip.active .ms-family-name,
+    #wd-material-stock .ms-family-strip .ms-family-chip.active .ms-family-name {
+        color: #0f172a !important;
+        font-weight: 900 !important;
+    }
+
+    #wd-material-stock #ms-category-tabs .ms-family-chip.active .ms-family-code,
+    #wd-material-stock .ms-family-strip .ms-family-chip.active .ms-family-code {
+        background: var(--ms-navy) !important;
+        color: #ffffff !important;
+    }
+}
+
+@media (max-width: 1040px) {
+    #wd-material-stock #ms-search-container {
+        flex-wrap: wrap !important;
+        align-items: stretch !important;
+    }
+
+    #wd-material-stock #ms-search-container > div:first-child,
+    #wd-material-stock #ms-search-container > div:last-child {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+        max-width: none !important;
+    }
+
+    #wd-material-stock #ms-search-container > div:last-child {
+        justify-content: flex-start !important;
+        min-width: 0 !important;
+    }
+}
+
+@media (max-width: 640px) {
+    #wd-material-stock #ms-search-container > div:first-child {
+        flex-wrap: wrap !important;
+    }
+
+    #wd-material-stock #ms-search-container > div:first-child .search-bar-local,
+    #wd-material-stock #ms-search-clear-btn {
+        flex: 1 1 100% !important;
+        width: 100% !important;
+    }
+}
+
+/* ======================================================================
+   7.2.2 Material Stock family tabs — short inactive names, full active name
+   Scope: Material Stock family filter only. No table/stock/print logic.
+   ====================================================================== */
+@media screen {
+    #wd-material-stock #ms-category-tabs,
+    #wd-material-stock .ms-family-strip {
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        white-space: nowrap !important;
+        scrollbar-width: none !important;
+        -ms-overflow-style: none !important;
+        padding: 8px !important;
+        border-bottom: 0 !important;
+    }
+
+    #wd-material-stock #ms-category-tabs::-webkit-scrollbar,
+    #wd-material-stock .ms-family-strip::-webkit-scrollbar {
+        width: 0 !important;
+        height: 0 !important;
+        display: none !important;
+    }
+
+    #wd-material-stock #ms-category-tabs .ms-family-chip,
+    #wd-material-stock .ms-family-strip .ms-family-chip {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 6px !important;
+        flex: 0 0 auto !important;
+        min-width: auto !important;
+        max-width: none !important;
+        height: 32px !important;
+        min-height: 32px !important;
+        padding: 0 9px 0 6px !important;
+        overflow: visible !important;
+    }
+
+    #wd-material-stock #ms-category-tabs .ms-family-chip .ms-family-code,
+    #wd-material-stock .ms-family-strip .ms-family-chip .ms-family-code {
+        min-width: 21px !important;
+        height: 21px !important;
+        padding: 0 6px !important;
+        flex: 0 0 auto !important;
+    }
+
+    #wd-material-stock #ms-category-tabs .ms-family-chip .ms-family-name,
+    #wd-material-stock .ms-family-strip .ms-family-chip .ms-family-name {
+        max-width: 12.5ch !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        color: #475569 !important;
+    }
+
+    #wd-material-stock #ms-category-tabs .ms-family-chip.active,
+    #wd-material-stock .ms-family-strip .ms-family-chip.active {
+        padding-right: 12px !important;
+        background: #eef8fb !important;
+        color: #0f172a !important;
+        border-color: #6bb6c8 !important;
+        box-shadow: 0 0 0 2px rgba(0, 116, 140, .08) !important;
+    }
+
+    #wd-material-stock #ms-category-tabs .ms-family-chip.active .ms-family-name,
+    #wd-material-stock .ms-family-strip .ms-family-chip.active .ms-family-name {
+        max-width: none !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        color: #0f172a !important;
+        font-weight: 900 !important;
+    }
+}
+
+
+/* ======================================================================
+   7.2.3 Material Stock family tabs — zoom-safe height and text clipping fix
+   Scope: Material Stock family filter only. No stock/print/table logic.
+   ====================================================================== */
+@media screen {
+    #wd-material-stock #ms-category-tabs,
+    #wd-material-stock .ms-family-strip {
+        align-items: stretch !important;
+        min-height: 44px !important;
+        height: auto !important;
+        overflow-y: visible !important;
+        padding: 8px !important;
+    }
+
+    #wd-material-stock #ms-category-tabs .ms-family-chip,
+    #wd-material-stock .ms-family-strip .ms-family-chip {
+        height: auto !important;
+        min-height: 36px !important;
+        line-height: 1.2 !important;
+        padding: 7px 10px 7px 7px !important;
+        align-items: center !important;
+        box-sizing: border-box !important;
+        overflow: visible !important;
+    }
+
+    #wd-material-stock #ms-category-tabs .ms-family-chip .ms-family-code,
+    #wd-material-stock .ms-family-strip .ms-family-chip .ms-family-code {
+        height: 22px !important;
+        min-height: 22px !important;
+        line-height: 1 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        flex: 0 0 auto !important;
+        box-sizing: border-box !important;
+    }
+
+    #wd-material-stock #ms-category-tabs .ms-family-chip .ms-family-name,
+    #wd-material-stock .ms-family-strip .ms-family-chip .ms-family-name {
+        line-height: 1.2 !important;
+        min-height: 1.2em !important;
+        display: inline-block !important;
+        vertical-align: middle !important;
+        padding: 1px 0 !important;
+    }
+}
+
+/* ============================================================================
+   7.2.4 Inventory transaction modal — product search photo hover preview
+   Scope: Transfer / Restock / Usage / Return creation modal only.
+   ============================================================================ */
+.tf-product-photo-preview {
+    position: fixed;
+    z-index: 999999;
+    width: 198px;
+    height: 154px;
+    padding: 8px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.98);
+    border: 1px solid rgba(15, 23, 42, 0.14);
+    box-shadow: 0 18px 42px rgba(15, 23, 42, 0.22);
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tf-product-photo-preview.hidden {
+    display: none !important;
+}
+
+.tf-product-photo-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 10px;
+    background: #f8fafc;
+}
+
+#transfer-job-modal .tf-product-search-photo-enabled .choices__list--dropdown .choices__item--choice,
+#transfer-job-modal .tf-product-search-photo-enabled .choices__list[aria-expanded] .choices__item--choice {
+    cursor: pointer;
+}
+
+#transfer-job-modal .tf-product-search-photo-enabled .choices__list--dropdown .choices__item--choice:hover,
+#transfer-job-modal .tf-product-search-photo-enabled .choices__list[aria-expanded] .choices__item--choice:hover {
+    background: #eef7fb;
+}
+
+@media (max-width: 768px) {
+    .tf-product-photo-preview {
+        width: 168px;
+        height: 132px;
+        border-radius: 12px;
+    }
+}

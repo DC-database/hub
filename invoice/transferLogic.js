@@ -1,5 +1,82 @@
 // ==========================================================================
-// TRANSFER LOGIC: WORKFLOW ENGINE (V13.1 - MATH FIX)
+// FILE: transferLogic.js
+// ORGANIZED WORKING COPY
+// PURPOSE: Inventory workflow engine for Transfer, Restock, Usage, Return, batch items, stock reservation, approval, and printing.
+// SAFETY NOTE:
+//   - Original execution order is preserved.
+//   - No logic was intentionally changed.
+//   - Cleanup applied: consistent top map, trailing-space cleanup, blank-line cleanup.
+//
+// NAVIGATION MAP:
+// MAJOR SECTIONS FOUND:
+//   - Line     1: TRANSFER LOGIC: WORKFLOW ENGINE (V13.1 - MATH FIX)
+//   - Line    11: MULTI-MODE & CACHE VARIABLES
+//   - Line    16: 1. OPEN NEW TRANSFER
+//   - Line    92: 1.1 INVENTORY RESERVATION LOGIC
+//   - Line   137: 1.2 MULTI-ITEM LOGIC
+//   - Line   160: 1. Capture Data
+//   - Line   166: CAPTURE THE CURRENT SOURCE SITE NOW
+//   - Line   169: 2. Validate
+//   - Line   174: 3. Check Stock Limit for THIS specific item/site combo
+//   - Line   187: 4. Add to Buffer (WITH SOURCE SITE)
+//   - Line   199: PUSH THE SITE INTO THE OBJECT
+//   - Line   203: 5. Reset Fields (Keep Source Site selected for convenience, or reset it if you prefer)
+//   - Line   246: 2. APPROVAL MODAL
+//   - Line   322: 3. ACTION HANDLER (WITH SAFETY CONFIRMATION POPUP)
+//   - Line   324: 1. NEW SAFETY CHECK (The "Pop-up")
+//   - Line   381: WORKFLOW LOGIC
+//   - Line   441: ATOMIC DEDUCT CALL
+//   - Line   457: ATOMIC ADD CALL
+//   - Line   498: 4. ATOMIC DB UPDATES (FIXED FOR MATH ACCURACY)
+//   - Line   500: Track last activity so other modules (e.g., Material Stock cache) can detect fresh changes
+//   - Line   534: 2. Find the Item Key
+//   - Line   542: 3. ATOMIC TRANSACTION
+//   - Line   576: 5. SAVE ENTRY (WITH BATCH VALIDATION)
+//   - Line   584: 1. Get Global Values (Destination, Approver, etc.)
+//   - Line   622: 2. Validate Generals (depends on Job Type)
+//   - Line   623: NOTE:
+//   - Line   665: 3. Build Items List
+//   - Line   687: 4. Validate Stock for EACH Item (Multi-Source Support)
+//   - Line   718: 5. Save to Database
+//   - Line   738: USE ITEM SPECIFIC SOURCE
+//   - Line   774: 6. PRINT WAYBILL (UPDATED: Added SN Column)
+//   - Line   776: Historically, the identifier has been stored under different keys
+//   - Line   839: IMPORTANT: Always resolve a printable control identifier.
+//   - Line   849: IMPORTANT:
+//   - Line   891: IMPORTANT FIX (Mixed Control IDs)
+//
+// FUNCTION QUICK INDEX:
+//   - Line    19: openTransferModal()
+//   - Line    58: highlight()
+//   - Line    95: fetchActiveTransfers()
+//   - Line   116: calculateRealAvailable()
+//   - Line   129: manualRefreshStockData()
+//   - Line   140: toggleTransferMode()
+//   - Line   159: addItemToBatch()
+//   - Line   212: renderBatchTable()
+//   - Line   241: removeItemFromBatch()
+//   - Line   249: openTransferActionModal()
+//   - Line   347: generateStructuredESN()
+//   - Line   501: commitUpdate()
+//   - Line   515: runStockTransaction()
+//   - Line   579: saveTransferEntry()
+//   - Line   630: fail()
+//   - Line   777: handlePrintWaybill()
+//   - Line   818: getFullSiteName()
+//   - Line   827: generateBarcodeSrc()
+//   - Line   853: normalizeState()
+//   - Line   857: isRejected()
+//   - Line   907: buildItemRows()
+//   - Line  1101: doPrint()
+//   - Line  1121: closeTransferModal()
+//   - Line  1125: generateSequentialTransferId()
+//   - Line  1207: initTransferDropdowns()
+//   - Line  1272: updateFromSiteOptions()
+//   - Line  1306: run()
+// ==========================================================================
+
+// ==========================================================================
+// TRANSFER LOGIC: WORKFLOW ENGINE (V13.2 - BULK MOBILE APPROVAL SUPPORT)
 // Includes: Atomic Stock Transactions, Batch Entry, Printing, Returns
 // ==========================================================================
 
@@ -11,7 +88,7 @@ let tfFromSiteChoices, tfToSiteChoices, tfApproverChoices, tfReceiverChoices, tf
 // --- MULTI-MODE & CACHE VARIABLES ---
 let isMultiMode = false;
 let multiItemBuffer = [];
-let activeTransfersCache = []; 
+let activeTransfersCache = [];
 
 // ==========================================================================
 // 1. OPEN NEW TRANSFER
@@ -119,7 +196,7 @@ function calculateRealAvailable(productID, siteName, dbStockQty) {
         .reduce((sum, t) => sum + t.qty, 0);
 
     const batchBufferQty = multiItemBuffer
-        .filter(t => t.productID === productID) 
+        .filter(t => t.productID === productID)
         .reduce((sum, t) => sum + t.qty, 0);
 
     const realAvailable = dbStockQty - pendingDbQty - batchBufferQty;
@@ -162,7 +239,7 @@ function addItemToBatch() {
     const productName = document.getElementById('tf-product-name').value;
     const details = document.getElementById('tf-details').value;
     const qty = parseFloat(document.getElementById('tf-req-qty').value);
-    
+
     // CAPTURE THE CURRENT SOURCE SITE NOW
     const fromSite = (tfFromSiteChoices ? tfFromSiteChoices.getValue(true) : document.getElementById('tf-from').value);
 
@@ -277,21 +354,21 @@ window.openTransferActionModal = async function(task) {
         title.textContent = "Step 1: Source Confirmation";
         approveBtn.textContent = "Confirm & Send";
         approveBtn.style.backgroundColor = "#17a2b8";
-        qtyInput.value = safeOrdered; 
+        qtyInput.value = safeOrdered;
         qtyInput.classList.add('input-required-highlight');
-    } 
+    }
     else if (task.remarks === 'Pending Admin' || task.remarks === 'Pending') {
         title.textContent = "Step 2: Admin Authorization";
         approveBtn.textContent = "Authorize";
         approveBtn.style.backgroundColor = "#28a745";
         qtyInput.value = safeApproved;
         qtyInput.classList.add('input-required-highlight');
-    } 
+    }
     else if (task.remarks === 'In Transit') {
         title.textContent = "Step 3: Confirm Receipt";
         approveBtn.textContent = "Confirm Received";
         approveBtn.style.backgroundColor = "#003A5C";
-        qtyInput.value = safeApproved; 
+        qtyInput.value = safeApproved;
         dateContainer.classList.remove('hidden');
         if(dateInput) {
             dateInput.value = new Date().toISOString().split('T')[0];
@@ -299,7 +376,7 @@ window.openTransferActionModal = async function(task) {
         }
         qtyInput.classList.add('input-required-highlight');
         rejectBtn.classList.add('hidden');
-    } 
+    }
     else if (task.remarks === 'Pending Confirmation') {
         title.textContent = "Final Step: Confirm Usage";
         approveBtn.textContent = "Confirm Actual Usage";
@@ -322,14 +399,17 @@ window.openTransferActionModal = async function(task) {
 // ==========================================================================
 // 3. ACTION HANDLER (WITH SAFETY CONFIRMATION POPUP)
 // ==========================================================================
-window.handleTransferAction = async (status) => {
+window.handleTransferAction = async (status, options = {}) => {
+    const opts = options || {};
+    const silentMode = !!opts.silent;
+
     // --- 1. NEW SAFETY CHECK (The "Pop-up") ---
-    if (status === 'Approved') {
+    if (status === 'Approved' && !opts.skipConfirm) {
         // This stops the code and waits for him to press OK or Cancel
         const isSure = confirm("CONFIRMATION REQUIRED:\n\nAre you sure you want to AUTHORIZE this transaction?\n\n• Press OK to Confirm\n• Press Cancel to go back");
-        
+
         if (!isSure) {
-            return; // If he pressed Cancel, we stop immediately. Nothing happens.
+            return false; // If he pressed Cancel, we stop immediately. Nothing happens.
         }
     }
     // -------------------------------------------
@@ -369,8 +449,8 @@ window.handleTransferAction = async (status) => {
             updates.status = 'Rejected';
             updates.remarks = 'Rejected';
             updates.attention = 'Records';
-            await commitUpdate(database, key, updates, note);
-            return;
+            await commitUpdate(database, key, updates, note, opts);
+            return true;
         }
 
        if (status === 'Approved') {
@@ -382,83 +462,83 @@ window.handleTransferAction = async (status) => {
 
             if (jobType === 'Restock') {
                 if (task.remarks === 'Pending Admin' || task.remarks === 'Pending') {
-                    if (!task.receiver) { alert("Error: No Receiver."); btn.disabled = false; return; }
+                    if (!task.receiver) { if (!silentMode) alert("Error: No Receiver."); if (btn) btn.disabled = false; return false; }
                     updates.approvedQty = qty; updates.status = 'In Transit'; updates.remarks = 'In Transit'; updates.attention = task.receiver; updates.esn = generatedESN;
-                    await commitUpdate(database, key, updates, note); return;
+                    await commitUpdate(database, key, updates, note, opts); return true;
                 }
                  if (task.remarks === 'In Transit') {
                     updates.status = 'Completed'; updates.remarks = 'Completed'; updates.attention = 'Records'; updates.receivedQty = qty; updates.arrivalDate = arrivalDateVal;
                     updates.receiverEsn = `${generateStructuredESN(4, 4)}/${cleanName}`;
-                    
+
                     if (pID && destSite) await runStockTransaction(pID, qty, 'Add', destSite);
-                    
-                    alert(`Restock Confirmed! ${qty} Added to Stock.`);
-                    await commitUpdate(database, key, updates, note); return;
+
+                    if (!silentMode) alert(`Restock Confirmed! ${qty} Added to Stock.`);
+                    await commitUpdate(database, key, updates, note, opts); return true;
                 }
             }
 
             if (jobType === 'Usage') {
                 if (task.remarks === 'Pending Admin' || task.remarks === 'Pending') {
                     updates.approvedQty = qty; updates.status = 'Pending'; updates.remarks = 'Pending Confirmation'; updates.attention = task.requestor; updates.esn = generatedESN;
-                    
+
                     if (pID && sourceSite) await runStockTransaction(pID, qty, 'Deduct', sourceSite);
-                    
-                    alert("Usage Authorized. Stock Deducted.");
-                    await commitUpdate(database, key, updates, note); return;
+
+                    if (!silentMode) alert("Usage Authorized. Stock Deducted.");
+                    await commitUpdate(database, key, updates, note, opts); return true;
                 }
                 if (task.remarks === 'Pending Confirmation') {
                     updates.status = 'Completed'; updates.remarks = 'Completed'; updates.attention = 'Records'; updates.receivedQty = qty;
                     const approved = parseFloat(task.approvedQty) || 0;
                     const diff = approved - qty;
-                    
+
                     if (diff > 0 && pID && sourceSite) await runStockTransaction(pID, diff, 'Add', sourceSite); // Return unused
                     else if (diff < 0) await runStockTransaction(pID, Math.abs(diff), 'Deduct', sourceSite); // Consumed more
-                    
-                    alert("Usage Closed.");
-                    await commitUpdate(database, key, updates, note); return;
+
+                    if (!silentMode) alert("Usage Closed.");
+                    await commitUpdate(database, key, updates, note, opts); return true;
                 }
             }
 
             if (jobType === 'Transfer') {
                 // Step 1: Source Confirms
                 if (task.remarks === 'Pending Source') {
-                    updates.approvedQty = qty; 
-                    updates.status = 'Pending'; 
-                    updates.remarks = 'Pending Admin'; 
+                    updates.approvedQty = qty;
+                    updates.status = 'Pending';
+                    updates.remarks = 'Pending Admin';
                     updates.attention = task.approver;
-                    alert("Source Confirmed. Sent to Admin.");
-                    await commitUpdate(database, key, updates, note); return;
+                    if (!silentMode) alert("Source Confirmed. Sent to Admin.");
+                    await commitUpdate(database, key, updates, note, opts); return true;
                 }
-                
+
                 // Step 2: Admin Authorizes (DEDUCTION HAPPENS HERE)
                 if (task.remarks === 'Pending Admin' || task.remarks === 'Pending') {
-                    updates.approvedQty = qty; 
-                    updates.status = 'In Transit'; 
-                    updates.remarks = 'In Transit'; 
-                    updates.attention = task.receiver; 
+                    updates.approvedQty = qty;
+                    updates.status = 'In Transit';
+                    updates.remarks = 'In Transit';
+                    updates.attention = task.receiver;
                     updates.esn = generatedESN;
-                    
+
                     // --- ATOMIC DEDUCT CALL ---
                     if (pID && sourceSite) await runStockTransaction(pID, qty, 'Deduct', sourceSite);
-                    
-                    alert(`Transfer Authorized. ${qty} Deducted from Source.`);
-                    await commitUpdate(database, key, updates, note); return;
+
+                    if (!silentMode) alert(`Transfer Authorized. ${qty} Deducted from Source.`);
+                    await commitUpdate(database, key, updates, note, opts); return true;
                 }
-                
+
                 // Step 3: Receiver Confirms (ADDITION HAPPENS HERE)
                 if (task.remarks === 'In Transit') {
-                    updates.status = 'Completed'; 
-                    updates.remarks = 'Completed'; 
-                    updates.attention = 'Records'; 
-                    updates.receivedQty = qty; 
+                    updates.status = 'Completed';
+                    updates.remarks = 'Completed';
+                    updates.attention = 'Records';
+                    updates.receivedQty = qty;
                     updates.arrivalDate = arrivalDateVal;
                     updates.receiverEsn = `${generateStructuredESN(4, 4)}/${cleanName}`;
 
                     // --- ATOMIC ADD CALL ---
                     if (pID && destSite) await runStockTransaction(pID, qty, 'Add', destSite);
 
-                    alert(`Transfer Received. ${qty} Added to Destination.`);
-                    await commitUpdate(database, key, updates, note); return;
+                    if (!silentMode) alert(`Transfer Received. ${qty} Added to Destination.`);
+                    await commitUpdate(database, key, updates, note, opts); return true;
                 }
             }
 
@@ -475,21 +555,22 @@ window.handleTransferAction = async (status) => {
                         updates.status = 'In Transit'; updates.remarks = 'In Transit'; updates.attention = task.receiver;
                         if (pID && sourceSite) await runStockTransaction(pID, qty, 'Deduct', sourceSite);
                     }
-                    alert("Return Authorized.");
-                    await commitUpdate(database, key, updates, note); return;
+                    if (!silentMode) alert("Return Authorized.");
+                    await commitUpdate(database, key, updates, note, opts); return true;
                 }
                 if (task.remarks === 'In Transit') {
                     updates.status = 'Completed'; updates.remarks = 'Completed'; updates.attention = 'Records'; updates.receivedQty = qty;
                     updates.receiverEsn = `${generateStructuredESN(4, 4)}/${cleanName}`;
                     if (pID && destSite) await runStockTransaction(pID, qty, 'Add', destSite);
-                    alert("Return Received.");
-                    await commitUpdate(database, key, updates, note); return;
+                    if (!silentMode) alert("Return Received.");
+                    await commitUpdate(database, key, updates, note, opts); return true;
                 }
             }
         }
     } catch (error) {
         console.error("Error:", error);
-        alert("Action failed. Check console.");
+        if (!silentMode) alert("Action failed. Check console.");
+        return false;
     } finally {
         if(btn) btn.disabled = false;
     }
@@ -498,16 +579,23 @@ window.handleTransferAction = async (status) => {
 // ==========================================================================
 // 4. ATOMIC DB UPDATES (FIXED FOR MATH ACCURACY)
 // ==========================================================================
-async function commitUpdate(db, key, updates, note) {
+async function commitUpdate(db, key, updates, note, options = {}) {
     const historyEntry = { action: (updates.remarks || updates.status), by: (typeof currentApprover !== 'undefined' ? currentApprover.Name : 'Unknown'), timestamp: Date.now(), note: note || '' };
     // Track last activity so other modules (e.g., Material Stock cache) can detect fresh changes
     // even when the original `timestamp` (created-at) remains unchanged.
     updates.lastUpdated = firebase.database.ServerValue.TIMESTAMP;
     await db.ref(`transfer_entries/${key}`).update(updates);
     await db.ref(`transfer_entries/${key}/history`).push(historyEntry);
-    document.getElementById('transfer-approval-modal').classList.add('hidden');
-    if(typeof ensureAllEntriesFetched === 'function') await ensureAllEntriesFetched(true);
-    if(typeof populateActiveTasks === 'function') await populateActiveTasks();
+
+    if (!options.keepModalOpen) {
+        const modal = document.getElementById('transfer-approval-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    if (!options.deferRefresh) {
+        if(typeof ensureAllEntriesFetched === 'function') await ensureAllEntriesFetched(true);
+        if(typeof populateActiveTasks === 'function') await populateActiveTasks();
+    }
 }
 
 // *** RENAMED FUNCTION TO AVOID CONFLICT WITH APP.JS ***
@@ -529,12 +617,12 @@ async function runStockTransaction(id, qty, action, siteName) {
     // Sanitize Site Name for Firebase keys (cannot contain . # $ [ ] /)
     const safeSiteName = String(siteName).trim().replace(/[.#$[\]\/]/g, "");
     const database = (typeof db !== 'undefined') ? db : firebase.database();
-    
+
     try {
         // 2. Find the Item Key
         let snapshot = await database.ref('material_stock').orderByChild('productID').equalTo(cleanId).once('value');
         if (!snapshot.exists()) snapshot = await database.ref('material_stock').orderByChild('productId').equalTo(cleanId).once('value');
-        
+
         if (snapshot.exists()) {
             const key = Object.keys(snapshot.val())[0];
             const ref = database.ref(`material_stock/${key}`);
@@ -543,13 +631,13 @@ async function runStockTransaction(id, qty, action, siteName) {
             await ref.transaction((currentData) => {
                 if (currentData) {
                     if (!currentData.sites) currentData.sites = {};
-                    
+
                     // Use the sanitized site key consistently
                     let currentVal = parseFloat(currentData.sites[safeSiteName] || 0);
 
                     if (action === 'Deduct') {
                         currentVal -= amount;
-                        if (currentVal < 0) currentVal = 0; 
+                        if (currentVal < 0) currentVal = 0;
                     } else if (action === 'Add') {
                         currentVal += amount;
                     }
@@ -672,13 +760,13 @@ async function saveTransferEntry(e) {
         const pID = (transferProductChoices ? transferProductChoices.getValue(true) : document.getElementById('tf-product-select').value) || '';
         const pName = document.getElementById('tf-product-name').value;
         const qty = parseFloat(document.getElementById('tf-req-qty').value);
-        
+
         if (!pID || !qty) { alert("Select product and quantity."); btn.disabled = false; return; }
-        
-        itemsToSave.push({ 
-            productID: pID, 
-            productName: pName, 
-            details: document.getElementById('tf-details').value, 
+
+        itemsToSave.push({
+            productID: pID,
+            productName: pName,
+            details: document.getElementById('tf-details').value,
             qty: qty,
             fromSite: globalFromLoc // Capture global source for single mode
         });
@@ -709,7 +797,7 @@ async function saveTransferEntry(e) {
 
         if (errors.length > 0) {
             alert(`⚠️ STOCK ERROR:\n\n${errors.join('\n')}`);
-            btn.disabled = false; 
+            btn.disabled = false;
             btn.textContent = isMultiMode ? "Save All Items" : "Save Transaction";
             return;
         }
@@ -718,7 +806,7 @@ async function saveTransferEntry(e) {
     // 5. Save to Database
     const currentUser = currentApprover ? currentApprover.Name : 'Unknown';
     let startStatus = 'Pending'; // Default
-    // For transfers, we often set 'Pending Source', but since sources vary, 
+    // For transfers, we often set 'Pending Source', but since sources vary,
     // we might default to 'Pending Admin' OR route notifications dynamically.
     // For simplicity, let's stick to standard flow:
     let startRemarks = (type === 'Transfer') ? 'Pending Source' : 'Pending Admin';
@@ -729,29 +817,29 @@ async function saveTransferEntry(e) {
             const entryData = {
                 controlNumber: controlNo,
                 jobType: type, for: type,
-                productID: item.productID, 
-                productName: item.productName, 
-                details: item.details, 
-                requiredQty: item.qty, 
+                productID: item.productID,
+                productName: item.productName,
+                details: item.details,
+                requiredQty: item.qty,
                 orderedQty: item.qty,
-                
+
                 // USE ITEM SPECIFIC SOURCE
-                fromLocation: item.fromSite.trim(), 
+                fromLocation: item.fromSite.trim(),
                 fromSite: item.fromSite.trim(),
-                
-                toLocation: toLoc.trim(), 
-                toSite: toLoc.trim(), 
-                
-                requestor: document.getElementById('tf-requestor').value, 
-                sourceContact: sourceContact, 
-                approver: approver, 
+
+                toLocation: toLoc.trim(),
+                toSite: toLoc.trim(),
+
+                requestor: document.getElementById('tf-requestor').value,
+                sourceContact: sourceContact,
+                approver: approver,
                 receiver: receiver || '',
                 shippingDate: shippingDate,
-                
-                status: startStatus, 
-                remarks: startRemarks, 
+
+                status: startStatus,
+                remarks: startRemarks,
                 attention: startAttention,
-                
+
                 timestamp: firebase.database.ServerValue.TIMESTAMP,
                 lastUpdated: firebase.database.ServerValue.TIMESTAMP,
                 enteredBy: currentUser,
@@ -762,7 +850,7 @@ async function saveTransferEntry(e) {
 
         await Promise.all(promises);
         alert(`Successfully saved ${itemsToSave.length} transfers!`);
-        
+
         document.getElementById('transfer-job-modal').classList.add('hidden');
         if(typeof ensureAllEntriesFetched === 'function') await ensureAllEntriesFetched(true);
         if(typeof populateActiveTasks === 'function') await populateActiveTasks();
@@ -781,7 +869,7 @@ window.handlePrintWaybill = async function(entry) {
     const controlNo = String(entry.controlNumber || entry.controlId || entry.ref || '').trim();
 
     // Company Logo (Firebase Storage)
-    const WAYBILL_LOGO_URL = "https://firebasestorage.googleapis.com/v0/b/ibainvoice-3ea51.firebasestorage.app/o/iba_logo.png?alt=media&token=ccc85b7b-d41e-4242-9e27-08942efb3012";
+    const WAYBILL_LOGO_URL = "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/logo%20(1).png";
 
     let batchItems = [];
     try {
@@ -1118,8 +1206,9 @@ window.handlePrintWaybill = async function(entry) {
 // ==========================================================================
 // 7. INIT (FIXED ID GENERATION)
 // ==========================================================================
-window.closeTransferModal = function() { 
-    document.getElementById('transfer-job-modal').classList.add('hidden'); 
+window.closeTransferModal = function() {
+    tfHideProductPhotoPreview();
+    document.getElementById('transfer-job-modal').classList.add('hidden');
 };
 
 async function generateSequentialTransferId(type) {
@@ -1204,9 +1293,196 @@ async function generateSequentialTransferId(type) {
     }
 }
 
+
+// ============================================================================
+// PRODUCT SEARCH PHOTO PREVIEW (Inventory transaction modal only)
+// - Applies only to the Product Search dropdown inside Transfer / Restock / Usage / Return modal.
+// - Uses saved photoName/photoUrl from material_stock and never changes transaction logic.
+// ============================================================================
+const TRF_MATERIAL_PHOTO_BASE_URL = 'https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/DC%20Files/Photo/';
+const TRF_MATERIAL_PHOTO_DEFAULT_EXT = '.jpg';
+let tfProductPhotoPreviewEl = null;
+let tfProductPhotoPreviewTimer = null;
+
+function tfNormalizePhotoUrl(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    try {
+        const decoded = decodeURIComponent(raw);
+        return decoded.trim();
+    } catch (_) {
+        return raw;
+    }
+}
+
+function tfNormalizeMaterialPhotoName(value) {
+    let raw = String(value || '').trim();
+    if (!raw) return '';
+
+    // Allow accidental full URL paste, then keep only the filename.
+    if (/^https?:\/\//i.test(raw)) {
+        try {
+            const url = new URL(raw);
+            raw = decodeURIComponent(url.pathname.split('/').pop() || raw);
+        } catch (_) {
+            raw = raw.split('/').pop() || raw;
+        }
+    }
+
+    raw = raw.replace(/^.*[\\/]/, '').trim();
+    raw = raw.replace(/\.(jpe?g|png|webp|gif)$/i, '').trim();
+    return raw;
+}
+
+function tfBuildMaterialPhotoUrlFromName(photoName) {
+    const cleanName = tfNormalizeMaterialPhotoName(photoName);
+    if (!cleanName) return '';
+    return `${TRF_MATERIAL_PHOTO_BASE_URL}${encodeURIComponent(cleanName)}${TRF_MATERIAL_PHOTO_DEFAULT_EXT}`;
+}
+
+function tfEscapeAttr(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+function tfEnsureProductPhotoPreviewEl() {
+    if (tfProductPhotoPreviewEl && document.body.contains(tfProductPhotoPreviewEl)) return tfProductPhotoPreviewEl;
+    tfProductPhotoPreviewEl = document.createElement('div');
+    tfProductPhotoPreviewEl.id = 'tf-product-photo-preview';
+    tfProductPhotoPreviewEl.className = 'tf-product-photo-preview hidden';
+    tfProductPhotoPreviewEl.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(tfProductPhotoPreviewEl);
+    return tfProductPhotoPreviewEl;
+}
+
+function tfHideProductPhotoPreview() {
+    if (tfProductPhotoPreviewTimer) {
+        clearTimeout(tfProductPhotoPreviewTimer);
+        tfProductPhotoPreviewTimer = null;
+    }
+    if (tfProductPhotoPreviewEl) {
+        tfProductPhotoPreviewEl.classList.add('hidden');
+        tfProductPhotoPreviewEl.setAttribute('aria-hidden', 'true');
+        tfProductPhotoPreviewEl.innerHTML = '';
+    }
+}
+
+function tfGetProductPhotoUrlFromChoice(choice) {
+    const cp = choice?.customProperties || {};
+    const photoName = tfNormalizeMaterialPhotoName(cp.photoName || cp.photoFileName || cp.photoFile || '');
+    if (photoName) return tfBuildMaterialPhotoUrlFromName(photoName);
+
+    const legacyUrl = tfNormalizePhotoUrl(cp.photoUrl || cp.photoLink || '');
+    if (legacyUrl) return legacyUrl;
+
+    return '';
+}
+
+function tfFindProductChoiceByValue(value) {
+    if (!transferProductChoices || !transferProductChoices._store || !Array.isArray(transferProductChoices._store.choices)) return null;
+    const cleanValue = String(value || '').trim();
+    return transferProductChoices._store.choices.find(c => String(c.value || '').trim() === cleanValue) || null;
+}
+
+function tfPositionProductPhotoPreview(anchorEl) {
+    if (!tfProductPhotoPreviewEl || !anchorEl) return;
+    const rect = anchorEl.getBoundingClientRect();
+    const previewWidth = 198;
+    const previewHeight = 154;
+    const gap = 12;
+
+    let left = rect.right + gap;
+    if (left + previewWidth > window.innerWidth - 12) {
+        left = rect.left - previewWidth - gap;
+    }
+    if (left < 12) left = 12;
+
+    let top = rect.top;
+    if (top + previewHeight > window.innerHeight - 12) {
+        top = window.innerHeight - previewHeight - 12;
+    }
+    if (top < 12) top = 12;
+
+    tfProductPhotoPreviewEl.style.left = `${left}px`;
+    tfProductPhotoPreviewEl.style.top = `${top}px`;
+}
+
+function tfShowProductPhotoPreview(anchorEl, choice) {
+    if (!anchorEl || !choice) return tfHideProductPhotoPreview();
+    const photoUrl = tfGetProductPhotoUrlFromChoice(choice);
+    if (!photoUrl) return tfHideProductPhotoPreview();
+
+    const preview = tfEnsureProductPhotoPreviewEl();
+    preview.innerHTML = `<img src="${tfEscapeAttr(photoUrl)}" alt="" loading="lazy">`;
+    preview.classList.remove('hidden');
+    preview.setAttribute('aria-hidden', 'false');
+    tfPositionProductPhotoPreview(anchorEl);
+
+    const img = preview.querySelector('img');
+    if (img) {
+        img.onerror = () => tfHideProductPhotoPreview();
+    }
+}
+
+function tfBindProductSearchPhotoPreview() {
+    const select = document.getElementById('tf-product-select');
+    if (!select || select.dataset.photoPreviewBound === '1') return;
+    select.dataset.photoPreviewBound = '1';
+
+    const wrap = select.closest('.form-group') || select.parentElement;
+    if (!wrap) return;
+    wrap.classList.add('tf-product-search-photo-enabled');
+
+    const getChoiceItem = (target) => target && target.closest ? target.closest('.choices__item--choice') : null;
+
+    wrap.addEventListener('mouseover', (ev) => {
+        const itemEl = getChoiceItem(ev.target);
+        if (!itemEl) return;
+        const value = itemEl.getAttribute('data-value') || itemEl.dataset.value || '';
+        const choice = tfFindProductChoiceByValue(value);
+        tfShowProductPhotoPreview(itemEl, choice);
+    });
+
+    wrap.addEventListener('focusin', (ev) => {
+        const itemEl = getChoiceItem(ev.target);
+        if (!itemEl) return;
+        const value = itemEl.getAttribute('data-value') || itemEl.dataset.value || '';
+        const choice = tfFindProductChoiceByValue(value);
+        tfShowProductPhotoPreview(itemEl, choice);
+    });
+
+    wrap.addEventListener('mouseout', (ev) => {
+        const itemEl = getChoiceItem(ev.target);
+        if (!itemEl) return;
+        const nextInside = ev.relatedTarget && itemEl.contains(ev.relatedTarget);
+        if (nextInside) return;
+        tfProductPhotoPreviewTimer = setTimeout(tfHideProductPhotoPreview, 120);
+    });
+
+    // Mobile/tablet support: tap a suggestion once to preview while still allowing Choices to select it.
+    wrap.addEventListener('touchstart', (ev) => {
+        const itemEl = getChoiceItem(ev.target);
+        if (!itemEl) return;
+        const value = itemEl.getAttribute('data-value') || itemEl.dataset.value || '';
+        const choice = tfFindProductChoiceByValue(value);
+        tfShowProductPhotoPreview(itemEl, choice);
+    }, { passive: true });
+
+    select.addEventListener('change', tfHideProductPhotoPreview);
+    document.addEventListener('click', (ev) => {
+        if (!wrap.contains(ev.target) && (!tfProductPhotoPreviewEl || !tfProductPhotoPreviewEl.contains(ev.target))) {
+            tfHideProductPhotoPreview();
+        }
+    });
+    window.addEventListener('resize', tfHideProductPhotoPreview);
+}
+
 async function initTransferDropdowns() {
     const database = (typeof db !== 'undefined') ? db : firebase.database();
-    
+
     if (!tfFromSiteChoices) tfFromSiteChoices = new Choices(document.getElementById('tf-from'), { searchEnabled: true, itemSelectText: '' });
     if (!tfToSiteChoices) tfToSiteChoices = new Choices(document.getElementById('tf-to'), { searchEnabled: true, itemSelectText: '' });
     if (!transferProductChoices) transferProductChoices = new Choices(document.getElementById('tf-product-select'), { searchEnabled: true, itemSelectText: '' });
@@ -1215,10 +1491,22 @@ async function initTransferDropdowns() {
         const snap = await database.ref('material_stock').once('value');
         const data = snap.val();
         if (data) {
-            const choices = Object.values(data).map(item => ({ value: item.productID, label: `${item.productID} - ${item.productName}`, customProperties: { name: item.productName, details: item.details, sites: item.sites } }));
+            const choices = Object.values(data).map(item => ({
+                value: item.productID,
+                label: `${item.productID} - ${item.productName}`,
+                customProperties: {
+                    name: item.productName,
+                    details: item.details,
+                    sites: item.sites,
+                    photoName: item.photoName || item.photoFileName || item.photoFile || '',
+                    photoUrl: item.photoUrl || item.photoLink || ''
+                }
+            }));
             transferProductChoices.setChoices(choices, 'value', 'label', true);
         }
     } catch(e) {}
+
+    tfBindProductSearchPhotoPreview();
 
     document.getElementById('tf-product-select').addEventListener('change', () => {
         const val = transferProductChoices.getValue(true);

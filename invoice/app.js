@@ -1,12 +1,67 @@
 // app.js
 /*
+  CLEAN ORGANIZED WORKING COPY - app.js
+  Prepared: 2026-06-10
+
+  IMPORTANT SAFETY NOTE:
+  - Execution order is preserved. Code was NOT moved between modules.
+  - This keeps const/let timing, DOM setup, event listeners, and Firebase initialization safer.
+  - Related areas are wrapped with large searchable block titles so you can navigate quickly.
+
+  HOW TO NAVIGATE:
+  - Use Ctrl+F and search: BLOCK 17, INVOICE ENTRY, HELP CENTER, ACTIVE TASKS, etc.
+  - VS Code can also fold sections marked with //#region / //#endregion.
+
+  MAIN BLOCK MAP:
+  [BLOCK 00] APP VERSION + ULTRA-FAST AUDIO ENGINE
+  [BLOCK 01] NOTE CACHE + VACATION DELEGATION + INVENTORY CONTEXT
+  [BLOCK 02] FIREBASE CONFIGURATION + SERVICE INITIALIZATION
+  [BLOCK 03] GLOBAL CONSTANTS, STATE + SHARED UTILITIES
+  [BLOCK 04] DIRECT MESSAGES / CHAT MODULE
+  [BLOCK 05] RUNTIME STATE CONTAINERS
+  [BLOCK 06] LOCAL CACHE + CSV / DATA FETCHERS
+  [BLOCK 07] GENERAL HELPER FUNCTIONS
+  [BLOCK 08] DOM REFERENCES / PAGE ELEMENT MAP
+  [BLOCK 09] VIEW SWITCHING, LOGIN + SESSION INITIALIZATION
+  [BLOCK 10] CELEBRATION BANNER MODULE
+  [BLOCK 11] MAIN NAVIGATION + SETTINGS
+  [BLOCK 12] WORKDESK DASHBOARD, CALENDAR + REPORTS
+  [BLOCK 13] JOB RECORDS TABLE + REPORT FILTERING
+  [BLOCK 14] ACTIVE TASKS + MOBILE TASK CARDS
+  [BLOCK 15] JOB ENTRY FORM + VENDOR AUTOCOMPLETE + PERMISSIONS
+  [BLOCK 16] MATERIAL STOCK + MODIFY TASK MODAL
+  [BLOCK 17] INVOICE TASK LOOKUP + INVOICE ENTRY MODAL
+  [BLOCK 18] INVOICE REPORTING, RECORDS, DEEP LINKS + SHARING
+  [BLOCK 19] PRINT REPORTS + CSV DOWNLOADS
+  [BLOCK 20] BATCH ENTRY + SUMMARY NOTES
+  [BLOCK 21] INVOICE DASHBOARD + PAYMENT WORKFLOW
+  [BLOCK 22] CEO / MANAGER APPROVAL RECEIPTS + MODALS
+  [BLOCK 23] INVOICE MANAGEMENT EVENT WIRING + ATTENTION CHOICE
+  [BLOCK 24] INVOICE / TRANSFER HISTORY + STOCK REVERSAL
+  [BLOCK 25] STANDARD JOB MODAL + STICKER PRINTING
+  [BLOCK 26] INVENTORY BUTTON + MODAL LISTENERS + CLEAR LOGIC
+  [BLOCK 27] REPORT WORKFLOW, RECEIPT UPLOAD + FINANCE BATCH
+  [BLOCK 28] FINANCE REPORTS + EXPORTS
+  [BLOCK 29] DELETE INVOICE + RECENT SYNC STUBS + INVOICE RECORDS PRINT PREVIEW
+  [BLOCK 30] UI SHORTCUTS, AUDIO TOGGLE + QUICK BUTTONS
+  [BLOCK 31] IM HELP CENTER
+  [BLOCK 32] FINAL UI CLEANUP + HELP CENTER BOOTSTRAP
+*/
+
+/*
   ORGANIZATION:
   - Config (Firebase) → Global State → Data/Caching → UI/DOM → Event Handlers → Init
   - Cleanup note: removed bracket labels like // [1.a], kept logic unchanged.
 */
 
+
+// =================================================================================================
+// #region BLOCK 00 — APP VERSION + ULTRA-FAST AUDIO ENGINE
+// Purpose: Audio preload/volume, global sound controls, search-intent lock, click/keyboard sound triggers, table observers.
+// =================================================================================================
+
 // app.js - Top of file
-const APP_VERSION = "7.0.9";
+const APP_VERSION = "7.2.6";
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -246,6 +301,15 @@ function formatTableCurrency(val) {
         maximumFractionDigits: 2
     });
 }
+
+
+// #endregion BLOCK 00 — APP VERSION + ULTRA-FAST AUDIO ENGINE
+
+
+// =================================================================================================
+// #region BLOCK 01 — NOTE CACHE + VACATION DELEGATION + INVENTORY CONTEXT
+// Purpose: Note dropdown refresh, Super Admin/general vacation delegation, SRV candidate picker, inventory/workdesk context detection.
+// =================================================================================================
 
 // ======================================================================
 // NOTE CACHE / UI REFRESH (keeps Note dropdowns in-sync without reload)
@@ -738,6 +802,15 @@ function shouldExcludeInventoryFromWorkdeskDesktop() {
     return isWorkdeskViewVisible() && !isMobileViewport() && !invCtx;
 }
 
+
+// #endregion BLOCK 01 — NOTE CACHE + VACATION DELEGATION + INVENTORY CONTEXT
+
+
+// =================================================================================================
+// #region BLOCK 02 — FIREBASE CONFIGURATION + SERVICE INITIALIZATION
+// Purpose: Main DB, payment DB, invoice DB, progress PO DB, storage/database handles.
+// =================================================================================================
+
 // ==========================================================================
 // 1. FIREBASE CONFIGURATION & INITIALIZATION
 // ==========================================================================
@@ -811,6 +884,15 @@ try {
     progressApp = firebase.initializeApp(progressPOConfig, "progressApp");
 }
 const progressDb = progressApp.database();
+
+
+// #endregion BLOCK 02 — FIREBASE CONFIGURATION + SERVICE INITIALIZATION
+
+
+// =================================================================================================
+// #region BLOCK 03 — GLOBAL CONSTANTS, STATE + SHARED UTILITIES
+// Purpose: SharePoint paths, cache duration, state variables, safe text/date/html helpers.
+// =================================================================================================
 
 // ==========================================================================
 // 2. GLOBAL CONSTANTS & STATE VARIABLES
@@ -891,6 +973,15 @@ function formatChatTime(ts) {
         return '';
     }
 }
+
+
+// #endregion BLOCK 03 — GLOBAL CONSTANTS, STATE + SHARED UTILITIES
+
+
+// =================================================================================================
+// #region BLOCK 04 — DIRECT MESSAGES / CHAT MODULE
+// Purpose: Presence, unread counts, inbox, message modal UI, mobile chat behavior, injected Messages buttons.
+// =================================================================================================
 
 // ============================================================================
 // DIRECT MESSAGES (DM) — SIMPLE 1:1 IN-APP CHAT + ONLINE STATUS + OFFLINE INBOX
@@ -1804,6 +1895,15 @@ function shutdownDirectMessages() {
 }
 
 
+
+// #endregion BLOCK 04 — DIRECT MESSAGES / CHAT MODULE
+
+
+// =================================================================================================
+// #region BLOCK 05 — RUNTIME STATE CONTAINERS
+// Purpose: Choices instances, data arrays, filter state, cache containers, WorkDesk to Invoice Management context.
+// =================================================================================================
+
 // -- Dropdown Choices Instances --
 let siteSelectChoices = null;
 let attentionSelectChoices = null;
@@ -1876,6 +1976,15 @@ let cacheTimestamps = {
     sitesCSV: 0
 };
 
+
+// #endregion BLOCK 05 — RUNTIME STATE CONTAINERS
+
+
+// =================================================================================================
+// #region BLOCK 06 — LOCAL CACHE + CSV / DATA FETCHERS
+// Purpose: LocalStorage cache, Firebase storage CSV URLs, CSV parsers, invoice/workdesk data loaders, local invoice cache updates.
+// =================================================================================================
+
 // ==========================================================================
 // 3. DATA FETCHING & CACHING LOGIC
 // ==========================================================================
@@ -1935,6 +2044,14 @@ async function getFirebaseCSVUrl(filename) {
         const cacheBuster = "?v=" + new Date().getTime();
         return "https://raw.githubusercontent.com/DC-database/Hub/main/Ecost.csv" + cacheBuster;
     }
+
+    // Summary Note uses POdetails.csv for the Bill Description column.
+    // Use GitHub raw + cache-buster so new uploads are available immediately.
+    if (filename === 'POdetails.csv') {
+        const cacheBuster = "?v=" + new Date().getTime();
+        return "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/POdetails.csv" + cacheBuster;
+    }
+
     const baseUrl = "https://cdn.jsdelivr.net/gh/DC-database/Hub@main/";
     const cacheBuster = "?v=" + new Date().getTime();
     return `${baseUrl}${filename}${cacheBuster}`;
@@ -2074,7 +2191,49 @@ async function fetchAndParseCSV(url) {
     }
 }
 
-async function fetchAndParseEpicoreCSV(url) {
+
+function normalizeSummaryPOKey(value) {
+    let po = String(value || '').replace(/^\uFEFF/, '').replace(/\u00A0/g, ' ').trim();
+    po = po.replace(/^"|"$/g, '').trim().toUpperCase();
+    return po;
+}
+
+function getSummaryPOKeyVariants(value) {
+    const base = normalizeSummaryPOKey(value);
+    if (!base) return [];
+
+    const variants = [base];
+    const noCommas = base.replace(/,/g, '').trim();
+    if (noCommas && noCommas !== base) variants.push(noCommas);
+
+    // Excel sometimes exports numeric-looking PO values as 12345.00.
+    const decimalTrimmed = noCommas.replace(/\.0+$/, '');
+    if (decimalTrimmed && decimalTrimmed !== noCommas) variants.push(decimalTrimmed);
+
+    return [...new Set(variants)];
+}
+
+async function refreshSummaryPODetailsCSV() {
+    try {
+        const url = await getFirebaseCSVUrl('POdetails.csv');
+        if (!url) return false;
+
+        console.log('Refreshing POdetails.csv for Summary Note...');
+        const freshEpicoreData = await fetchAndParseEpicoreCSV(url, { silent: true });
+        if (!freshEpicoreData) return false;
+
+        allEpicoreData = freshEpicoreData;
+        setCache('cached_EPICORE', allEpicoreData);
+        cacheTimestamps.epicoreData = Date.now();
+        console.log('Summary Note POdetails.csv refreshed successfully.');
+        return true;
+    } catch (error) {
+        console.warn('Summary Note POdetails refresh failed. Existing data will be used if available.', error);
+        return false;
+    }
+}
+
+async function fetchAndParseEpicoreCSV(url, options = {}) {
     try {
         const response = await fetch(url, { cache: 'no-store' });
         if (!response.ok) {
@@ -2116,19 +2275,21 @@ async function fetchAndParseEpicoreCSV(url) {
             // Column Mapping for POdetails.csv (0-based index):
             // A[0] = PO. No, B[1] = Bill Description
             if (values.length >= 2) {
-                const poKey = values[0] ? values[0].toUpperCase().trim() : null;
+                const poKeyVariants = getSummaryPOKeyVariants(values[0]);
                 const description = values[1] || ''; 
 
-                if (poKey) {
+                poKeyVariants.forEach((poKey) => {
                     epicoreMap[poKey] = description;
-                }
+                });
             }
         }
         console.log(`Successfully fetched and parsed ${Object.keys(epicoreMap).length} entries from POdetails CSV.`);
         return epicoreMap;
     } catch (error) {
         console.error("Error fetching or parsing POdetails CSV:", error);
-        alert("CRITICAL ERROR: Could not load POdetails data.");
+        if (!options.silent) {
+            alert("CRITICAL ERROR: Could not load POdetails data.");
+        }
         return null;
     }
 }
@@ -2817,6 +2978,15 @@ async function fetchAndParseVendorsCSV(url) {
     }
 }
 
+
+// #endregion BLOCK 06 — LOCAL CACHE + CSV / DATA FETCHERS
+
+
+// =================================================================================================
+// #region BLOCK 07 — GENERAL HELPER FUNCTIONS
+// Purpose: Copy helpers, date/number/currency formatting, debounce, refresh cooldown helper fallback.
+// =================================================================================================
+
 // ==========================================================================
 // 4. GENERAL HELPER FUNCTIONS
 // ==========================================================================
@@ -3214,6 +3384,15 @@ if (!window.__attachRefreshCooldown) {
 function updateDashboardDateTime() {}
 function updateWorkdeskDateTime() {}
 function updateIMDateTime() {}
+
+
+// #endregion BLOCK 07 — GENERAL HELPER FUNCTIONS
+
+
+// =================================================================================================
+// #region BLOCK 08 — DOM REFERENCES / PAGE ELEMENT MAP
+// Purpose: Login, dashboard, WorkDesk, Invoice Management, Batch Entry, Payments, Reporting, mobile/modals DOM constants.
+// =================================================================================================
 
 // ==========================================================================
 // 5. DOM ELEMENT REFERENCES
@@ -3657,6 +3836,15 @@ const wdMobileNotifyBadge = document.getElementById('wd-mobile-notify-badge');
 
 
 
+
+// #endregion BLOCK 08 — DOM REFERENCES / PAGE ELEMENT MAP
+
+
+// =================================================================================================
+// #region BLOCK 09 — VIEW SWITCHING, LOGIN + SESSION INITIALIZATION
+// Purpose: showView, approver lookup, successful-login routing, permissions visibility, deep-link boot logic.
+// =================================================================================================
+
 // ==========================================================================
 // 6. VIEW NAVIGATION & AUTHENTICATION
 // ==========================================================================
@@ -3912,6 +4100,15 @@ if (financeReportButton) {
         console.log('Workdesk deep link parse failed:', e);
     }
 }
+
+
+// #endregion BLOCK 09 — VIEW SWITCHING, LOGIN + SESSION INITIALIZATION
+
+
+// =================================================================================================
+// #region BLOCK 10 — CELEBRATION BANNER MODULE
+// Purpose: Qatar date helpers, active date checks, particles, fireworks audio, banner show/hide.
+// =================================================================================================
 
 // ================================
 // Celebration Banner Overlay (configurable)
@@ -4331,6 +4528,15 @@ async function showCelebrationBannerIfNeeded() {
 // ================================
 
 
+
+
+// #endregion BLOCK 10 — CELEBRATION BANNER MODULE
+
+
+// =================================================================================================
+// #region BLOCK 11 — MAIN NAVIGATION + SETTINGS
+// Purpose: Logout, WorkDesk section switching, Invoice Management section switching, user/settings forms, celebration settings save.
+// =================================================================================================
 
 function handleLogout() {
     // Live chat cleanup
@@ -4858,6 +5064,15 @@ function updateIMDateTime() {}
 // ==========================================================================
 
 // --- Helper: Check Task Completion ---
+
+// #endregion BLOCK 11 — MAIN NAVIGATION + SETTINGS
+
+
+// =================================================================================================
+// #region BLOCK 12 — WORKDESK DASHBOARD, CALENDAR + REPORTS
+// Purpose: Task completion checks, WorkDesk dashboard, calendar/year/day views, CSV download, in-transit report printing.
+// =================================================================================================
+
 function isTaskComplete(task) {
     if (!task) return false;
 
@@ -5587,6 +5802,73 @@ function _escapeHtml(val) {
         .replace(/'/g, "&#039;");
 }
 
+
+function inventoryPrintHtmlInHiddenFrame(html, frameId = 'inventory-print-frame') {
+    const oldFrame = document.getElementById(frameId);
+    if (oldFrame) oldFrame.remove();
+
+    const iframe = document.createElement('iframe');
+    iframe.id = frameId;
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.style.opacity = '0';
+    iframe.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    const doPrint = () => {
+        try {
+            const win = iframe.contentWindow;
+            if (!win) return;
+            win.focus();
+            win.print();
+        } catch (e) {
+            console.warn('Inventory print failed:', e);
+        }
+    };
+
+    const waitForImages = () => {
+        try {
+            const imgs = Array.from(doc.images || []);
+            if (!imgs.length) {
+                setTimeout(doPrint, 250);
+                return;
+            }
+
+            let pending = imgs.length;
+            const done = () => {
+                pending -= 1;
+                if (pending <= 0) setTimeout(doPrint, 250);
+            };
+
+            imgs.forEach(img => {
+                if (img.complete) done();
+                else {
+                    img.onload = done;
+                    img.onerror = done;
+                }
+            });
+
+            setTimeout(() => {
+                if (pending > 0) doPrint();
+            }, 2500);
+        } catch (e) {
+            setTimeout(doPrint, 300);
+        }
+    };
+
+    iframe.onload = waitForImages;
+    setTimeout(waitForImages, 400);
+}
+
 async function printInventoryInTransitReport() {
     try {
         await ensureAllEntriesFetched(false);
@@ -5661,7 +5943,6 @@ async function printInventoryInTransitReport() {
         body { font-family: Arial, sans-serif; margin: 25px; color: #111; }
         .header { display:flex; align-items:center; gap:15px; border-bottom: 2px solid #003A5C; padding-bottom: 10px; margin-bottom: 15px; }
         .header img { height: 55px; width: auto; }
-        .header .company { font-weight: 900; font-size: 16px; color:#003A5C; }
         .meta { margin: 10px 0 15px; color:#444; font-size: 12px; display:flex; justify-content: space-between; gap:20px; flex-wrap:wrap;}
         h2 { margin: 8px 0 0; font-size: 18px; color:#003A5C; }
         table { width:100%; border-collapse: collapse; font-size: 12px; }
@@ -5680,7 +5961,6 @@ async function printInventoryInTransitReport() {
              onerror="this.style.display='none'; document.getElementById('fallbackLogo').style.display='block';" />
         <div id="fallbackLogo" style="display:none; background:#003A5C; color:white; font-weight:900; font-size:26px; padding:6px 12px; letter-spacing:1px;">IBA</div>
         <div>
-            <div class="company">ISMAIL BIN ALI TRADING &amp; CONT. CO. W.L.L</div>
             <h2>Inventory – In Transit Report</h2>
         </div>
     </div>
@@ -5713,24 +5993,10 @@ async function printInventoryInTransitReport() {
     </table>
 
     <div class="summary">Tip: Use your browser Print → “Save as PDF” to share with site teams.</div>
-
-    <script>
-        // Auto-open print dialog (user can Save as PDF)
-        window.onload = function () {
-            try { window.focus(); window.print(); } catch (e) {}
-        };
-    </script>
 </body>
 </html>`;
 
-        const printWin = window.open('', '_blank');
-        if (!printWin) {
-            alert('Popup blocked. Please allow popups to print the report.');
-            return;
-        }
-        printWin.document.open();
-        printWin.document.write(html);
-        printWin.document.close();
+        inventoryPrintHtmlInHiddenFrame(html, 'inventory-in-transit-print-frame');
 
     } catch (error) {
         console.error("printInventoryInTransitReport error:", error);
@@ -5743,6 +6009,15 @@ async function printInventoryInTransitReport() {
 // ==========================================================================
 // UPDATED FUNCTION: renderReportingTable (Includes 'Usage' & Strict Sticker Logic)
 // ==========================================================================
+
+// #endregion BLOCK 12 — WORKDESK DASHBOARD, CALENDAR + REPORTS
+
+
+// =================================================================================================
+// #region BLOCK 13 — JOB RECORDS TABLE + REPORT FILTERING
+// Purpose: Desktop job records table, inventory grouping rows, totals, search/filter rendering.
+// =================================================================================================
+
 function renderReportingTable(entries) {
     reportingTableBody.innerHTML = '';
 
@@ -5750,6 +6025,14 @@ function renderReportingTable(entries) {
     const isInventoryReport = ((typeof isInventoryContext === 'function' && isInventoryContext()) || inventoryTypes.includes(currentReportFilter));
 
     const tableHead = document.querySelector('#reporting-printable-area table thead');
+    const reportingTable = document.querySelector('#reporting-printable-area table');
+
+    if (reportingTable) {
+        reportingTable.classList.toggle('inv-job-records-table', !!isInventoryReport);
+    }
+    if (reportingTableBody) {
+        reportingTableBody.classList.toggle('inv-job-records-body', !!isInventoryReport);
+    }
 
     if (isInventoryReport) {
         tableHead.innerHTML = `
@@ -5848,7 +6131,7 @@ function renderReportingTable(entries) {
 
                 const children = reportingTableBody.querySelectorAll(`tr.inventory-child-row[data-parent="${groupId}"]`);
                 children.forEach(row => {
-                    row.style.display = expanded ? 'none' : 'table-row';
+                    row.style.display = expanded ? 'none' : '';
                 });
 
                 tr.dataset.expanded = expanded ? '0' : '1';
@@ -5858,15 +6141,38 @@ function renderReportingTable(entries) {
             });
         }
 
-        // helper: build a normal inventory row (used for both grouped + single)
-        const buildInventoryRow = (entry) => {
-            let statusColor = 'black';
-            if (entry.remarks === 'Approved') statusColor = '#28a745';
-            if (entry.remarks === 'Pending') statusColor = '#dc3545';
-            if (entry.remarks === 'Rejected') statusColor = 'red';
-            if (entry.remarks === 'Completed') statusColor = '#003A5C';
+        const invTypeClass = (type) => {
+            const t = (type || '').toString().trim().toLowerCase();
+            if (t === 'transfer') return 'inv-type-transfer';
+            if (t === 'usage') return 'inv-type-usage';
+            if (t === 'return') return 'inv-type-return';
+            if (t === 'restock') return 'inv-type-restock';
+            return 'inv-type-other';
+        };
 
-            const noteDisplay = entry.note ? `<br><small style="color:#666; font-style:italic;">${entry.note}</small>` : '';
+        const invStatusClass = (status) => {
+            const st = (status || 'Pending').toString().trim().toLowerCase();
+            if (st.includes('approved') || st.includes('completed')) return 'approved';
+            if (st.includes('reject')) return 'rejected';
+            if (st.includes('transit')) return 'transit';
+            if (st.includes('pending')) return 'pending';
+            return 'neutral';
+        };
+
+        const buildInvStatusBadge = (status) => {
+            const safeStatus = _escapeHtml(status || 'Pending');
+            return `<span class="inv-job-status-badge inv-job-status-${invStatusClass(status)}">${safeStatus}</span>`;
+        };
+
+        // helper: build a normal inventory row (used for both grouped + single)
+        const buildInventoryRow = (entry, opts = {}) => {
+            const isChild = !!opts.isChild;
+            const itemIndex = Number.isFinite(opts.itemIndex) ? opts.itemIndex : null;
+            const controlCell = isChild
+                ? `<span class="inv-child-connector"></span><span class="inv-child-index">${itemIndex !== null ? itemIndex : ''}</span>`
+                : `<strong class="inv-control-id-text">${_escapeHtml(entry.controlId || '')}</strong><span class="inv-type-pill ${invTypeClass(entry.for || entry.jobType)}">${_escapeHtml(entry.for || entry.jobType || 'Inventory')}</span>`;
+
+            const noteDisplay = entry.note ? `<div class="inv-job-note">${_escapeHtml(entry.note)}</div>` : '';
 
             let actions = `<button class="print-btn waybill-btn" data-key="${entry.key}" style="padding:2px 6px; margin-right:5px; font-size:0.7rem; background:#6f42c1; color:white; border:none; border-radius:4px;" title="Print Waybill"><i class="fa-solid fa-print"></i></button>`;
             actions += `<button class="history-btn action-btn" onclick="showTransferHistory('${entry.key}')" style="padding:2px 6px; margin-right:5px; font-size:0.7rem; background:#17a2b8; color:white; border:none; border-radius:4px;" title="View History"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
@@ -5875,18 +6181,18 @@ function renderReportingTable(entries) {
             }
 
             return `
-                <td><strong>${entry.controlId || ''}</strong></td>
-                <td>${entry.productName || ''}</td>
-                <td>${entry.site || ''}</td>
-                <td>${entry.orderedQty || 0}</td>
-                <td>${entry.deliveredQty || 0}</td>
-                <td>${entry.shippingDate || ''}</td>
-                <td>${entry.arrivalDate || ''}</td>
-                <td>${entry.contactName || ''}</td>
-                <td>
-                    <span style="color:${statusColor}; font-weight:bold;">${entry.remarks || 'Pending'}</span>
+                <td class="inv-control-cell">${controlCell}</td>
+                <td class="inv-product-cell">${_escapeHtml(entry.productName || '')}</td>
+                <td class="inv-route-cell">${_escapeHtml(entry.site || '')}</td>
+                <td class="inv-qty-cell">${_escapeHtml(entry.orderedQty || 0)}</td>
+                <td class="inv-qty-cell">${_escapeHtml(entry.deliveredQty || 0)}</td>
+                <td>${_escapeHtml(entry.shippingDate || '')}</td>
+                <td>${_escapeHtml(entry.arrivalDate || '')}</td>
+                <td>${_escapeHtml(entry.contactName || '')}</td>
+                <td class="inv-status-cell">
+                    ${buildInvStatusBadge(entry.remarks || 'Pending')}
                     ${noteDisplay}
-                    <div style="margin-top:5px;">${actions}</div>
+                    <div class="inv-row-actions">${actions}</div>
                 </td>
             `;
         };
@@ -5897,6 +6203,7 @@ function renderReportingTable(entries) {
             if (items.length <= 1) {
                 const entry = items[0];
                 const row = document.createElement('tr');
+                row.className = `inventory-record-single-row inv-job-single-row ${invTypeClass(entry.for || entry.jobType)}`;
                 row.setAttribute('data-key', entry.key);
                 row.innerHTML = buildInventoryRow(entry);
                 reportingTableBody.appendChild(row);
@@ -5923,35 +6230,45 @@ function renderReportingTable(entries) {
 
             // Group header row
             const groupRow = document.createElement('tr');
-            groupRow.className = 'inventory-group-row';
+            groupRow.className = `inventory-group-row inv-job-group-row ${invTypeClass(items[0]?.for || items[0]?.jobType)}`;
             groupRow.dataset.groupId = g.groupId;
             groupRow.dataset.expanded = '0';
 
+            const groupJobType = items[0]?.for || items[0]?.jobType || 'Inventory';
+            const firstShippingDate = items.map(x => x.shippingDate || '').find(Boolean) || '';
+            const firstArrivalDate = items.map(x => x.arrivalDate || '').find(Boolean) || '';
+            const firstContact = items.map(x => x.contactName || '').find(Boolean) || '';
+
             groupRow.innerHTML = `
-                <td>
+                <td class="inv-group-id-cell">
                     <span class="group-toggle-icon">▶</span>
-                    <strong>${g.displayCid}</strong>
-                    <span class="group-count-badge">(${items.length})</span>
+                    <strong class="inv-control-id-text">${_escapeHtml(g.displayCid)}</strong>
+                    <span class="inv-type-pill ${invTypeClass(groupJobType)}">${_escapeHtml(groupJobType)}</span>
                 </td>
-                <td>${productSummary}</td>
-                <td>${siteSummary}</td>
-                <td>${totalOrdered}</td>
-                <td>${totalDelivered}</td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td><span style="color:#003A5C; font-weight:700;">Grouped</span> <span style="color:#666;">(click to expand)</span></td>
+                <td class="inv-group-product-cell">
+                    <strong>${_escapeHtml(productSummary)}</strong>
+                    <span class="group-count-badge">${items.length} items</span>
+                </td>
+                <td>${_escapeHtml(siteSummary)}</td>
+                <td class="inv-qty-cell">${_escapeHtml(totalOrdered)}</td>
+                <td class="inv-qty-cell">${_escapeHtml(totalDelivered)}</td>
+                <td>${_escapeHtml(firstShippingDate)}</td>
+                <td>${_escapeHtml(firstArrivalDate)}</td>
+                <td>${_escapeHtml(firstContact)}</td>
+                <td class="inv-group-status-cell">
+                    <span class="inv-expand-hint">Click to expand</span>
+                </td>
             `;
             reportingTableBody.appendChild(groupRow);
 
             // Child rows (hidden by default)
-            items.forEach(entry => {
+            items.forEach((entry, idx) => {
                 const child = document.createElement('tr');
-                child.className = 'inventory-child-row';
+                child.className = `inventory-child-row inv-job-child-row ${invTypeClass(entry.for || entry.jobType)}`;
                 child.dataset.parent = g.groupId;
                 child.style.display = 'none';
                 child.setAttribute('data-key', entry.key);
-                child.innerHTML = buildInventoryRow(entry);
+                child.innerHTML = buildInventoryRow(entry, { isChild: true, itemIndex: idx + 1 });
                 reportingTableBody.appendChild(child);
             });
         });
@@ -6115,6 +6432,15 @@ let tabsHTML = '';
 // ==========================================================================
 // UPDATED FUNCTION: renderActiveTaskTable (Uses handleSRVDone)
 // ==========================================================================
+
+// #endregion BLOCK 13 — JOB RECORDS TABLE + REPORT FILTERING
+
+
+// =================================================================================================
+// #region BLOCK 14 — ACTIVE TASKS + MOBILE TASK CARDS
+// Purpose: Desktop active-task table, grouped inventory tasks, task filters, mobile cards, CEO/manager/transfer actions.
+// =================================================================================================
+
 function renderActiveTaskTable(tasks) {
     var isMobile = window.innerWidth <= 768;
     if (isMobile) {
@@ -7354,6 +7680,74 @@ async function reconcilePendingPRs() {
 
 
 
+
+function isMobileInventoryTask(task) {
+    return !!(task && ['Transfer', 'Restock', 'Return', 'Usage'].includes(task.for));
+}
+
+function canMobileInventoryBulkApproveTask(task) {
+    if (!isMobileInventoryTask(task)) return false;
+    const currentUserName = (currentApprover && currentApprover.Name) ? currentApprover.Name : '';
+    const isAdminUser = (currentApprover && String(currentApprover.Role || '').toLowerCase() === 'admin');
+    const remarks = String(task.remarks || task.status || '').trim();
+
+    // Bulk approval is intentionally limited to the authorization stage.
+    // Source confirmation, receiver confirmation, and usage confirmation can need manual checking.
+    if (!(remarks === 'Pending Admin' || remarks === 'Pending')) return false;
+    return isAdminUser || String(task.approver || '').trim() === currentUserName;
+}
+
+function getMobileInventoryApprovalQty(task) {
+    if (!task) return 0;
+    const approved = (task.approvedQty !== undefined && task.approvedQty !== null) ? parseFloat(task.approvedQty) : NaN;
+    if (Number.isFinite(approved) && approved > 0) return approved;
+    const ordered = parseFloat(task.orderedQty ?? task.requiredQty ?? 0);
+    return Number.isFinite(ordered) ? ordered : 0;
+}
+
+function updateMobileBulkApprovalCount(container) {
+    if (!container) return;
+    const selected = container.querySelectorAll('.mobile-transfer-select:checked').length;
+    const countEl = container.querySelector('#mobile-bulk-selected-count');
+    const approveBtn = container.querySelector('#mobile-bulk-approve-selected');
+    if (countEl) countEl.textContent = `${selected} selected`;
+    if (approveBtn) approveBtn.disabled = selected === 0;
+}
+
+function setupMobileBulkApprovalControls(container) {
+    if (!container) return;
+    const selectAll = container.querySelector('#mobile-bulk-select-all');
+    const approveBtn = container.querySelector('#mobile-bulk-approve-selected');
+    const checks = Array.from(container.querySelectorAll('.mobile-transfer-select'));
+
+    checks.forEach(chk => {
+        chk.addEventListener('click', e => e.stopPropagation());
+        chk.addEventListener('change', () => {
+            if (selectAll) selectAll.checked = checks.length > 0 && checks.every(c => c.checked);
+            updateMobileBulkApprovalCount(container);
+        });
+    });
+
+    if (selectAll) {
+        selectAll.addEventListener('click', e => e.stopPropagation());
+        selectAll.addEventListener('change', () => {
+            checks.forEach(c => { c.checked = selectAll.checked; });
+            updateMobileBulkApprovalCount(container);
+        });
+    }
+
+    if (approveBtn) {
+        approveBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const selectedKeys = checks.filter(c => c.checked).map(c => c.dataset.key).filter(Boolean);
+            await window.processMobileTransferBulkApproval(selectedKeys, approveBtn, container);
+        });
+    }
+
+    updateMobileBulkApprovalCount(container);
+}
+
 function renderMobileActiveTasks(tasks) {
     const container = document.getElementById('active-task-mobile-view');
     const receiptContainer = document.getElementById('mobile-receipt-action-container');
@@ -7411,7 +7805,27 @@ function renderMobileActiveTasks(tasks) {
         return;
     }
 
-    // 5. Render Cards
+    // 5. Bulk approval toolbar for mobile inventory authorization tasks
+    const bulkApproveTasks = filteredTasks.filter(task => canMobileInventoryBulkApproveTask(task));
+    if (bulkApproveTasks.length > 0) {
+        const bulkBar = document.createElement('div');
+        bulkBar.className = 'mobile-bulk-approval-bar';
+        bulkBar.innerHTML = `
+            <div class="mobile-bulk-approval-main">
+                <label class="mobile-bulk-select-all" onclick="event.stopPropagation();">
+                    <input type="checkbox" id="mobile-bulk-select-all">
+                    <span>Select all</span>
+                </label>
+                <span id="mobile-bulk-selected-count" class="mobile-bulk-selected-count">0 selected</span>
+            </div>
+            <button type="button" id="mobile-bulk-approve-selected" class="mobile-bulk-approve-btn" disabled>
+                <i class="fa-solid fa-check-double"></i> Approve Selected
+            </button>
+            <div class="mobile-bulk-approval-note">For quantity changes or rejection, open the item and process it one by one.</div>`;
+        container.appendChild(bulkBar);
+    }
+
+    // 6. Render Cards
     filteredTasks.forEach(task => {
         const card = document.createElement('div');
         card.className = 'mobile-task-card';
@@ -7451,8 +7865,13 @@ function renderMobileActiveTasks(tasks) {
                 statusMessage = `<i class='fa-solid fa-clock'></i> Waiting for other party`;
             }
 
+            const bulkCheckboxHtml = canApprove
+                ? `<label class="mobile-bulk-item-check" onclick="event.stopPropagation();"><input type="checkbox" class="mobile-transfer-select" data-key="${task.key}"> <span>Select</span></label>`
+                : '';
+
             html += `
             <div class="mobile-card-header" style="border-left: 5px solid #17a2b8;">
+                ${bulkCheckboxHtml}
                 <div class="m-card-main">
                     <h3>${task.productName || 'Unknown Item'}</h3>
                     <div class="m-card-sub">
@@ -7564,6 +7983,8 @@ function renderMobileActiveTasks(tasks) {
         }
         container.appendChild(card);
     });
+
+    setupMobileBulkApprovalControls(container);
 }
 
 async function processMobileCEOAction(taskData, status, amount, note, cardElement) {
@@ -7713,7 +8134,12 @@ window.processMobileTransferAction = async function(task, action, cardElement) {
 
         // 4. Execute Logic (Updates Database Status Only)
         if (window.handleTransferAction) {
-            await window.handleTransferAction(action);
+            const actionResult = await window.handleTransferAction(action);
+            if (actionResult === false) {
+                cardElement.style.opacity = '1';
+                cardElement.style.pointerEvents = 'auto';
+                return;
+            }
         } else {
             throw new Error("Logic engine not found");
         }
@@ -7736,6 +8162,106 @@ window.processMobileTransferAction = async function(task, action, cardElement) {
         alert("Error processing action. Please refresh.");
         cardElement.style.opacity = '1';
         cardElement.style.pointerEvents = 'auto';
+    }
+};
+
+window.processMobileTransferBulkApproval = async function(selectedKeys, buttonElement, container) {
+    const keys = Array.isArray(selectedKeys) ? selectedKeys.filter(Boolean) : [];
+    if (keys.length === 0) {
+        alert('Please tick at least one item to approve.');
+        return;
+    }
+
+    const tasks = keys
+        .map(key => (userActiveTasks || []).find(t => t.key === key))
+        .filter(task => canMobileInventoryBulkApproveTask(task));
+
+    if (tasks.length === 0) {
+        alert('No valid approval items selected. Please refresh and try again.');
+        return;
+    }
+
+    const totalQty = tasks.reduce((sum, t) => sum + (getMobileInventoryApprovalQty(t) || 0), 0);
+    const isSure = confirm(`Approve ${tasks.length} selected inventory item(s)?\n\nThis will process each item using the same stock update logic as one-by-one approval.\nTotal displayed qty: ${totalQty}\n\nContinue?`);
+    if (!isSure) return;
+
+    if (buttonElement) {
+        buttonElement.disabled = true;
+        buttonElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+    }
+
+    const failed = [];
+    const processedKeys = [];
+
+    try {
+        for (const task of tasks) {
+            const qty = getMobileInventoryApprovalQty(task);
+            if (!qty || qty <= 0) {
+                failed.push(`${task.productName || task.ref || task.key}: invalid quantity`);
+                continue;
+            }
+
+            try {
+                const keyInput = document.getElementById('transfer-modal-key');
+                const qtyInput = document.getElementById('transfer-modal-qty');
+                const noteInput = document.getElementById('transfer-modal-note');
+                const dateInput = document.getElementById('transfer-modal-date');
+
+                if (keyInput) keyInput.value = task.key;
+                if (qtyInput) qtyInput.value = qty;
+                if (noteInput) noteInput.value = 'Mobile bulk approval';
+                if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+
+                const actionResult = await window.handleTransferAction('Approved', {
+                    skipConfirm: true,
+                    silent: true,
+                    deferRefresh: true,
+                    keepModalOpen: true
+                });
+
+                if (actionResult === false) {
+                    failed.push(task.productName || task.ref || task.key);
+                    continue;
+                }
+
+                processedKeys.push(task.key);
+                const card = container
+                    ? Array.from(container.querySelectorAll('.mobile-transfer-select')).find(chk => chk.dataset.key === task.key)?.closest('.mobile-task-card')
+                    : null;
+                if (card) {
+                    card.style.opacity = '0.45';
+                    card.style.pointerEvents = 'none';
+                    card.classList.add('mobile-bulk-approved-card');
+                }
+            } catch (err) {
+                console.error('Bulk approval failed for task:', task, err);
+                failed.push(task.productName || task.ref || task.key);
+            }
+        }
+
+        if (processedKeys.length > 0) {
+            for (const key of processedKeys) {
+                const idx = userActiveTasks.findIndex(t => t.key === key);
+                if (idx > -1) userActiveTasks.splice(idx, 1);
+            }
+
+            if (typeof ensureAllEntriesFetched === 'function') await ensureAllEntriesFetched(true);
+            if (typeof populateActiveTasks === 'function') await populateActiveTasks();
+        }
+
+        if (failed.length > 0) {
+            alert(`Bulk approval completed with ${failed.length} item(s) not processed.\n\nNot processed:\n- ${failed.slice(0, 8).join('\n- ')}${failed.length > 8 ? '\n- ...' : ''}`);
+        } else {
+            alert(`Approved ${processedKeys.length} selected item(s).`);
+        }
+    } catch (error) {
+        console.error('Bulk approval error:', error);
+        alert('Bulk approval failed. Please refresh and try again.');
+    } finally {
+        if (buttonElement) {
+            buttonElement.disabled = false;
+            buttonElement.innerHTML = '<i class="fa-solid fa-check-double"></i> Approve Selected';
+        }
     }
 };
 
@@ -7962,6 +8488,15 @@ if (mobileTrfBtn) {
 // ==========================================================================
 
 // --- Form Reset & Dropdown Population ---
+
+
+// #endregion BLOCK 14 — ACTIVE TASKS + MOBILE TASK CARDS
+
+
+// =================================================================================================
+// #region BLOCK 15 — JOB ENTRY FORM + VENDOR AUTOCOMPLETE + PERMISSIONS
+// Purpose: Job entry reset/toggle, vendor suggestions, attention dropdown, site dropdown, CRUD, permission checks.
+// =================================================================================================
 
 function resetJobEntryForm(keepJobType = false) {
     const jobType = document.getElementById('job-for').value;
@@ -9871,6 +10406,15 @@ document.addEventListener('DOMContentLoaded', () => {
             clearStockForm();
         });
     }
+
+// #endregion BLOCK 15 — JOB ENTRY FORM + VENDOR AUTOCOMPLETE + PERMISSIONS
+
+
+// =================================================================================================
+// #region BLOCK 16 — MATERIAL STOCK + MODIFY TASK MODAL
+// Purpose: Stock add/edit/delete, material stock table, task modification modal/save.
+// =================================================================================================
+
     window.openAddStockModal = function (key) {
         const item = tableDataCache.find(i => i.key === key);
         if (!item) return;
@@ -10326,6 +10870,15 @@ async function handleSaveModifiedTask() {
 // 12. INVOICE MANAGEMENT: HELPERS (INBOX SYNC)
 // ==========================================================================
 
+
+// #endregion BLOCK 16 — MATERIAL STOCK + MODIFY TASK MODAL
+
+
+// =================================================================================================
+// #region BLOCK 17 — INVOICE TASK LOOKUP + INVOICE ENTRY MODAL
+// Purpose: Invoice task activity, PO details sync, lookup updates, invoice modal reset/open/close, PO search, invoice CRUD.
+// =================================================================================================
+
 function isInvoiceTaskActive(invoiceData) {
     if (!invoiceData) return false;
 
@@ -10704,9 +11257,25 @@ function resetInvoiceForm() {
     }
 }
 
+function keepIMInvoiceEntryModalInsideViewport() {
+    const modal = document.getElementById('im-invoice-entry-modal');
+    if (!modal) return;
+
+    const container = modal.querySelector('.modal-container');
+    const content = modal.querySelector('.modal-content');
+
+    // Reset any previous scroll state so the modal header/close button is always reachable.
+    requestAnimationFrame(() => {
+        modal.scrollTop = 0;
+        if (container) container.scrollTop = 0;
+        if (content) content.scrollTop = 0;
+    });
+}
+
 function openIMInvoiceEntryModal() {
     if (imInvoiceEntryModal) {
         imInvoiceEntryModal.classList.remove('hidden');
+        keepIMInvoiceEntryModalInsideViewport();
     }
 }
 
@@ -11323,7 +11892,10 @@ async function handleActiveJobClick(e) {
                 openIMInvoiceEntryModal(); 
             } else {
                 const modal = document.getElementById('im-invoice-entry-modal');
-                if (modal) modal.classList.remove('hidden');
+                if (modal) {
+                    modal.classList.remove('hidden');
+                    if (typeof keepIMInvoiceEntryModalInsideViewport === 'function') keepIMInvoiceEntryModalInsideViewport();
+                }
             }
         }, 150); // Small delay to allow data to populate first
         // ----------------------------------------
@@ -12022,6 +12594,15 @@ function formatToDDMMMYY(dateStr) {
 
 
 // --- CORE REPORTING LOGIC ---
+
+// #endregion BLOCK 17 — INVOICE TASK LOOKUP + INVOICE ENTRY MODAL
+
+
+// =================================================================================================
+// #region BLOCK 18 — INVOICE REPORTING, RECORDS, DEEP LINKS + SHARING
+// Purpose: Invoice records/reporting, printout generation, totals, deep links, WhatsApp approval sharing.
+// =================================================================================================
+
 async function populateInvoiceReporting(searchTerm = '', options = {}) {
     const openCard = document.querySelector('#im-reporting-content .invoice-card.expanded');
     if (openCard) {
@@ -13097,6 +13678,15 @@ async function imOpenInvoiceFromDeepLink(po, invKey) {
 // 17. INVOICE MANAGEMENT: REPORTING ACTIONS
 // ==========================================================================
 
+
+// #endregion BLOCK 18 — INVOICE REPORTING, RECORDS, DEEP LINKS + SHARING
+
+
+// =================================================================================================
+// #region BLOCK 19 — PRINT REPORTS + CSV DOWNLOADS
+// Purpose: Generate print report, cleanup, CSV export, approver select.
+// =================================================================================================
+
 function handleGeneratePrintReport() {
     if (currentReportData.length === 0) {
         alert("No data to print. Please run a search first.");
@@ -13310,6 +13900,15 @@ async function handleDownloadCSV() {
 // --------------------------------------------------------------------------
 // SECTION A: UI HELPER FUNCTIONS (Dropdowns & Counters)
 // --------------------------------------------------------------------------
+
+
+// #endregion BLOCK 19 — PRINT REPORTS + CSV DOWNLOADS
+
+
+// =================================================================================================
+// #region BLOCK 20 — BATCH ENTRY + SUMMARY NOTES
+// Purpose: Batch row attention picker, add PO/invoice to batch, batch global search, save batch invoices, note dropdowns, summary generation/update.
+// =================================================================================================
 
 async function populateApproverSelect(selectElement) {
     if (approverListForSelect.length === 0) {
@@ -14386,6 +14985,9 @@ async function handleGenerateSummary() {
 
     try {
         await ensureInvoiceDataFetched();
+        // Summary Note only: always refresh POdetails.csv so newly uploaded Bill Descriptions are available.
+        await refreshSummaryPODetailsCSV();
+
         const allInvoicesByPO = allInvoiceData;
         const allPOs = allPOData;
         const epicoreData = allEpicoreData;
@@ -14515,8 +15117,19 @@ async function handleGenerateSummary() {
             row.setAttribute('data-po', inv.po);
             row.setAttribute('data-key', inv.key);
 
-            const poKey = inv.po.toUpperCase();
-            let rawDescription = (epicoreData && epicoreData[poKey]) ? epicoreData[poKey] : (inv.details || '');
+            const poKeyVariants = getSummaryPOKeyVariants(inv.po);
+            let rawDescription = '';
+
+            if (epicoreData) {
+                for (const poKey of poKeyVariants) {
+                    if (Object.prototype.hasOwnProperty.call(epicoreData, poKey) && epicoreData[poKey]) {
+                        rawDescription = epicoreData[poKey];
+                        break;
+                    }
+                }
+            }
+
+            if (!rawDescription) rawDescription = (inv.details || '');
             rawDescription = String(rawDescription);
             let truncatedDescription = rawDescription;
 
@@ -14680,6 +15293,15 @@ async function handleUpdateSummaryChanges(sendToAccounts = false) {
 // ==========================================================================
 // 20. INVOICE MANAGEMENT: DASHBOARD (CHARTS)
 // ==========================================================================
+
+
+// #endregion BLOCK 20 — BATCH ENTRY + SUMMARY NOTES
+
+
+// =================================================================================================
+// #region BLOCK 21 — INVOICE DASHBOARD + PAYMENT WORKFLOW
+// Purpose: Dashboard charts/top lists, payment modal search/add/save/count, payment totals.
+// =================================================================================================
 
 async function populateInvoiceDashboard(forceRefresh = false) {
     const dashboardSection = document.getElementById('im-dashboard');
@@ -15278,6 +15900,15 @@ async function handleSavePayments() {
 // ==========================================================================
 // 23. CEO APPROVAL & RECEIPT LOGIC
 // ==========================================================================
+
+
+// #endregion BLOCK 21 — INVOICE DASHBOARD + PAYMENT WORKFLOW
+
+
+// =================================================================================================
+// #region BLOCK 22 — CEO / MANAGER APPROVAL RECEIPTS + MODALS
+// Purpose: CEO approval modal/actions, receipt preview/send, manager/transfer receipts, draggable modal helpers.
+// =================================================================================================
 
 function openCEOApprovalModal(taskData) {
     if (!taskData) return;
@@ -16798,6 +17429,15 @@ try {
         }, 50);
     });
 
+
+// #endregion BLOCK 22 — CEO / MANAGER APPROVAL RECEIPTS + MODALS
+
+
+// =================================================================================================
+// #region BLOCK 23 — INVOICE MANAGEMENT EVENT WIRING + ATTENTION CHOICE
+// Purpose: IM attention selection and large modal/form event wiring block.
+// =================================================================================================
+
     function handleIMAttentionChoice(event) {
         if (event.detail && event.detail.value && imAttentionSelectChoices) {
             const selectedValue = event.detail.value;
@@ -17204,7 +17844,10 @@ const invoiceRow = e.target.closest('.nested-invoice-row');
                 if (formTitle) formTitle.textContent = `Importing Invoice: ${invNo || 'New'}`;
                 
                 const modal = document.getElementById('im-invoice-entry-modal');
-                if (modal) modal.classList.remove('hidden');
+                if (modal) {
+                    modal.classList.remove('hidden');
+                    if (typeof keepIMInvoiceEntryModalInsideViewport === 'function') keepIMInvoiceEntryModalInsideViewport();
+                }
                 
                 attempts++;
                 // Stop fighting after 1.5 seconds and format the numbers nicely
@@ -18132,6 +18775,15 @@ if (summaryNotePrintBtn) {
     // ==========================================================================
 
     // 1. Log History to Firebase
+
+// #endregion BLOCK 23 — INVOICE MANAGEMENT EVENT WIRING + ATTENTION CHOICE
+
+
+// =================================================================================================
+// #region BLOCK 24 — INVOICE / TRANSFER HISTORY + STOCK REVERSAL
+// Purpose: Invoice history, history stickers, transfer history, reverse/update stock inventory, transfer delete handling.
+// =================================================================================================
+
     window.logInvoiceHistory = async function (poNumber, invoiceKey, newStatus, note = "") {
         if (!poNumber || !invoiceKey) return;
 
@@ -18873,6 +19525,15 @@ if (saveManualPOBtn) {
     }
 
     // A. OPEN MODAL (Handles both Add and Edit modes)
+
+// #endregion BLOCK 24 — INVOICE / TRANSFER HISTORY + STOCK REVERSAL
+
+
+// =================================================================================================
+// #region BLOCK 25 — STANDARD JOB MODAL + STICKER PRINTING
+// Purpose: Standard job modal open/close, job history, sticker print renderer, approval history saver.
+// =================================================================================================
+
     window.openStandardJobModal = function (mode, entryData = null) {
         const modal = document.getElementById('standard-job-modal');
         const title = document.getElementById('standard-modal-title');
@@ -19316,6 +19977,15 @@ async function saveApprovalToList(po, key, esn, name, role) {
 }
 
 // =========================================================
+
+// #endregion BLOCK 25 — STANDARD JOB MODAL + STICKER PRINTING
+
+
+// =================================================================================================
+// #region BLOCK 26 — INVENTORY BUTTON + MODAL LISTENERS + CLEAR LOGIC
+// Purpose: Inventory mode button, back/dashboard cleanup, invoice modal navigation, value sync, job records clear.
+// =================================================================================================
+
 // NEW: INVENTORY BUTTON LOGIC (SAFE MODE)
 // =========================================================
 const inventoryButton = document.getElementById('inventory-button');
@@ -19543,6 +20213,15 @@ if (imNavNext) {
             }
         });
     }
+
+
+// #endregion BLOCK 26 — INVENTORY BUTTON + MODAL LISTENERS + CLEAR LOGIC
+
+
+// =================================================================================================
+// #region BLOCK 27 — REPORT WORKFLOW, RECEIPT UPLOAD + FINANCE BATCH
+// Purpose: Report workflow update, receipt upload, finance UI batch visibility/finalization, currency inputs, report-name auto generation.
+// =================================================================================================
 
 // =========================================================
 // NUCLEAR FIX: REPORT WORKFLOW + RECEIPT UPLOAD
@@ -19864,6 +20543,15 @@ if (reportAutoSelect) {
     });
 }
 
+
+
+// #endregion BLOCK 27 — REPORT WORKFLOW, RECEIPT UPLOAD + FINANCE BATCH
+
+
+// =================================================================================================
+// #region BLOCK 28 — FINANCE REPORTS + EXPORTS
+// Purpose: Read-only finance report search/actions/print, daily/with-accounts/report-approved exports, custom Excel/table exports.
+// =================================================================================================
 
 // ==========================================================================
 // 22. FINANCE REPORT (READ-ONLY)
@@ -20861,6 +21549,15 @@ function handlePrintReportingTable() {
     }
 }
 
+
+// #endregion BLOCK 28 — FINANCE REPORTS + EXPORTS
+
+
+// =================================================================================================
+// #region BLOCK 29 — DELETE INVOICE + RECENT SYNC STUBS + INVOICE RECORDS PRINT PREVIEW
+// Purpose: Delete invoice handler, disabled live-sync stubs, professional invoice records preview and print.
+// =================================================================================================
+
 // ==========================================
 // [NEW] DELETE INVOICE HANDLER (UI-INSTANT + SAFE CACHE CLEANUP)
 // ==========================================
@@ -21434,6 +22131,15 @@ window.imPrintInvoiceList = function() {
     }, 150);
 };
 
+
+// #endregion BLOCK 29 — DELETE INVOICE + RECENT SYNC STUBS + INVOICE RECORDS PRINT PREVIEW
+
+
+// =================================================================================================
+// #region BLOCK 30 — UI SHORTCUTS, AUDIO TOGGLE + QUICK BUTTONS
+// Purpose: Keyboard shortcuts, deletion collection, audio UI toggle, quick IPC buttons, WhatsApp inquiry, double-click copy, comma formatter.
+// =================================================================================================
+
 // --- GLOBAL SHORTCUT FOR BATCH ENTRY ---
 document.addEventListener('keydown', (e) => {
     // 1. Check if the "Batch Search Modal" is currently open
@@ -21727,6 +22433,15 @@ document.addEventListener('focusin', (e) => {
     }
 });
 
+
+
+// #endregion BLOCK 30 — UI SHORTCUTS, AUDIO TOGGLE + QUICK BUTTONS
+
+
+// =================================================================================================
+// #region BLOCK 31 — IM HELP CENTER
+// Purpose: Help tabs, knowledge base loading/search, FAQ/guide/button admin tools, PDF publish/index, event wiring.
+// =================================================================================================
 
 // =============================================================
 // IM HELP CENTER (Intelligent Assistant + Growing Knowledge Base)
@@ -23299,6 +24014,15 @@ if (imPoClearBtn) {
         // 2. Clear Session Storage
         sessionStorage.removeItem('imPOSearch');
 
+
+// #endregion BLOCK 31 — IM HELP CENTER
+
+
+// =================================================================================================
+// #region BLOCK 32 — FINAL UI CLEANUP + HELP CENTER BOOTSTRAP
+// Purpose: End-of-file UI cleanup, invoice form reset/hide logic, Help Center lazy loading/open actions.
+// =================================================================================================
+
         // 3. Clear the Invoices Table
         if (imInvoicesBody) {
             imInvoicesBody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:#888;">Table cleared. Search for a PO to view invoices.</td></tr>';
@@ -23399,3 +24123,6 @@ imHelpSetContext('invoice', null, null);
 imHelpLoadKnowledgeBase(false);
 
 }); // END OF DOMCONTENTLOADED
+
+// #endregion BLOCK 32 — FINAL UI CLEANUP + HELP CENTER BOOTSTRAP
+

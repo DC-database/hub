@@ -1,8 +1,108 @@
-// materialStock.js - V10.11 (FINAL COMPLETE: All Fixes Included)
+// ==========================================================================
+// FILE: materialStock.js
+// ORGANIZED WORKING COPY
+// PURPOSE: Material Stock master data, category/search UI, stock rendering, refresh cache, and Required Materials list.
+// SAFETY NOTE:
+//   - Original execution order is preserved.
+//   - No logic was intentionally changed.
+//   - Cleanup applied: consistent top map, trailing-space cleanup, blank-line cleanup.
+//
+// NAVIGATION MAP:
+// MAJOR SECTIONS FOUND:
+//   - Line    22: GLOBAL REFRESH COOLDOWN (30-min limit per user, per device)
+//   - Line   116: 1. STOCK LEGENDS (F / RRR Structure)
+//   - Line   255: INIT SYSTEM & SITE FILTER (INCLUDES PRINT CSS FIX)
+//   - Line   257: 1. INJECT PRINT CSS FIX
+//   - Line   344: 2. EXISTING UI LOGIC (TABS & FILTER)
+//   - Line   379: 1. LOAD DATA
+//   - Line   388: NOTE: We cache the stock list for speed, but stock can change due to
+//   - Line   504: 2. TABS & RENDERING
+//   - Line   554: RENDER TABLE (Fixed: Safe Null Checks for currentApprover)
+//   - Line   563: READ SITE FILTER
+//   - Line   623: 1. Family Filter Logic
+//   - Line   628: 2. Search Text (SAFE STRING CONVERSION to prevent crash)
+//   - Line   636: 3. SITE FILTER LOGIC
+//   - Line   646: SAVE FILTERED DATA FOR REPORTING
+//   - Line   659: 1. PRE-CALCULATE HISTORY
+//   - Line   666: 2. GENERATE SITE BREAKDOWN
+//   - Line   680: SMART LOGIC: Hide 0 qty sites UNLESS there's a pending transfer
+//   - Line   713: 3. GENERATE HISTORY ROWS
+//   - Line   799: UX: allow expanding/collapsing by clicking anywhere on the parent row
+//   - Line   902: 4. DELETE & EDIT LOGIC
+//   - Line   949: 5. MODAL LOGIC: OPEN & AUTO-POPULATION
+//   - Line   951: Permission: Admins can edit. Super Admin's Vacation Delegate can edit while delegation is active.
+//   - Line  1129: 6. SAVE LOGIC
+//   - Line  1131: Permission guard (same as modal): Admins OR Super Admin Vacation Delegate.
+//   - Line  1264: 7. CSV UPLOAD
+//   - Line  1452: 8. ADD STOCK MODAL LOGIC
+//   - Line  1480: 9. HELPERS (Fixed: Accordion Effect)
+//   - Line  1482: 1. Auto-Minimize Others (Close all other open rows)
+//   - Line  1499: 2. Toggle Current Item
+//   - Line  1559: BULK DELETE LOGIC
+//   - Line  1614: REPORTING FUNCTIONS (Updated: Logo Left, Text Centered Below)
+//   - Line  1622: 1. Prepare Title & Filter Info
+//   - Line  1629: 2. INJECT LOGO & HEADER
+//   - Line  1650: 3. Update Stats Boxes
+//   - Line  1659: 4. Render Table Rows
+//
+// FUNCTION QUICK INDEX:
+//   - Line    32: _safeStr()
+//   - Line    34: _getUserName()
+//   - Line    43: _sanitizeKey()
+//   - Line    48: _cooldownStorageKey()
+//   - Line    53: _formatRemaining()
+//   - Line    60: __attachRefreshCooldown()
+//   - Line   258: initMaterialStockSystem()
+//   - Line   382: populateMaterialStock()
+//   - Line   489: fetchTransfersOnly()
+//   - Line   507: renderCategoryTabs()
+//   - Line   548: filterStockByCategory()
+//   - Line   557: renderMaterialStockTable()
+//   - Line   609: getSiteDisplayName()
+//   - Line   906: handleDeleteMaterial()
+//   - Line   952: openNewMaterialModal()
+//   - Line  1022: openSuperAdminEdit()
+//   - Line  1068: msParseSeriesFromProductId()
+//   - Line  1076: generatePreviewID()
+//   - Line  1101: msCloseNewMaterialModal()
+//   - Line  1132: handleSaveNewMaterial()
+//   - Line  1267: handleGetTemplate()
+//   - Line  1282: handleUploadCSV()
+//   - Line  1455: openAddStockModal()
+//   - Line  1484: toggleStockDetail()
+//   - Line  1507: populateModalSiteDropdown()
+//   - Line  1523: handleClearMaterialForm()
+//   - Line  1528: initiateReturn()
+//   - Line  1560: handleBulkDelete()
+//   - Line  1617: openStockReportModal()
+//   - Line  1685: downloadFixedStockCSV()
+//   - Line  1732: msRequiredListStorageKey()
+//   - Line  1743: msLoadRequiredList()
+//   - Line  1789: msRequiredListToSiteStorageKey()
+//   - Line  1793: msLoadRequiredListToSite()
+//   - Line  1802: msSaveRequiredListToSite()
+//   - Line  1808: msSaveRequiredList()
+//   - Line  1814: msUpdateRequiredListButton()
+//   - Line  1822: msRenderRequiredListTable()
+//   - Line  1831: esc()
+//   - Line  1891: msAddToRequiredList()
+//   - Line  1939: msAddManualRequiredItem()
+//   - Line  1968: msRemoveFromRequiredList()
+//   - Line  1976: msClearRequiredList()
+//   - Line  1986: msOpenRequiredListModal()
+//   - Line  2034: msPrintRequiredList()
+//   - Line  2071: escapeHtml()
+//   - Line  2153: onload()
+//   - Line  2170: msInitRequiredListUI()
+//   - Line  2280: run()
+//   - Line  2409: deleteSiteStock()
+// ==========================================================================
+
+// materialStock.js - V10.15 (7.1.7: Photo Clear + Inventory Bulk Approval Support)
 
 let allMaterialStockData = [];
 let allTransferData = [];
-let lastFilteredStockData = []; 
+let lastFilteredStockData = [];
 let msProductChoices = null;
 let lastTypedProductID = "";
 // By default, keep the list empty until the user selects a Family tab or types a search.
@@ -18,6 +118,609 @@ let msRequiredListToSite = ""; // optional destination site note for the require
 const STOCK_CACHE_KEY = "cached_MATERIAL_STOCK";
 const STOCK_CACHE_DURATION = 24 * 60 * 60 * 1000;
 
+
+// OneDrive / SharePoint photo support for Material Stock.
+// IMPORTANT: Firebase stores only a small text value.
+// The actual photo file stays in OneDrive/SharePoint to avoid Firebase Storage usage.
+const MS_MATERIAL_PHOTO_BASE_URL = 'https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/DC%20Files/Photo/';
+const MS_MATERIAL_PHOTO_DEFAULT_EXT = '.jpg';
+// PhotoIndex.csv lives in GitHub and contains one required column: photoName.
+// Browsing a private OneDrive folder directly is not possible from a static website without Microsoft Graph/API,
+// so this browser reads the GitHub PhotoIndex CSV, previews the generated OneDrive .jpg, and saves only the selected photoName.
+const MS_MATERIAL_PHOTO_INDEX_URL = 'https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/PhotoIndex.csv';
+const MS_MATERIAL_PHOTO_LIBRARY_DB_PATH = 'material_photo_library';
+const MS_MATERIAL_PHOTO_LIBRARY_CACHE_KEY = 'ms_material_photo_library_names';
+const MS_MATERIAL_PHOTO_LIBRARY_LIMIT = 80;
+let msPhotoBrowserContext = { mode: 'input', targetInputId: 'ms-new-photo-url', itemKey: '', prefill: '' };
+
+function msEscapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function msNormalizePhotoUrl(value) {
+    const url = String(value || '').trim();
+    if (!url) return '';
+
+    // Allow only normal web links for legacy/custom photo links.
+    // This prevents javascript: or other unsafe URL types from being saved/rendered.
+    if (!/^https?:\/\//i.test(url)) return '';
+
+    return url;
+}
+
+function msNormalizePhotoName(value) {
+    let name = String(value || '').trim();
+    if (!name || /^https?:\/\//i.test(name)) return '';
+
+    // Users should type only the filename, but this safely handles pasted local/path text.
+    name = name.split(/[\\/]/).pop().trim();
+
+    // The system appends .jpg automatically, so keep only the clean base filename.
+    name = name.replace(/\.(jpe?g|png|webp|gif)$/i, '').trim();
+
+    // Avoid URL query/hash/path characters in saved file names. Spaces are allowed and encoded later.
+    if (!name || /[?#<>:"|*]/.test(name)) return '';
+
+    return name;
+}
+
+function msIsMaterialPhotoBaseUrl(url) {
+    return String(url || '').toLowerCase().startsWith(MS_MATERIAL_PHOTO_BASE_URL.toLowerCase());
+}
+
+function msExtractPhotoNameFromUrl(url) {
+    try {
+        const parsed = new URL(url);
+        const fileName = decodeURIComponent((parsed.pathname || '').split('/').pop() || '');
+        return msNormalizePhotoName(fileName);
+    } catch (err) {
+        return '';
+    }
+}
+
+function msBuildMaterialPhotoUrlFromName(photoName) {
+    const cleanName = msNormalizePhotoName(photoName);
+    if (!cleanName) return '';
+    return `${MS_MATERIAL_PHOTO_BASE_URL}${encodeURIComponent(cleanName)}${MS_MATERIAL_PHOTO_DEFAULT_EXT}`;
+}
+
+function msPreparePhotoDataForSave(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return { photoName: '', photoUrl: '' };
+
+    // Backward compatibility: full URL is still accepted.
+    if (/^https?:\/\//i.test(raw)) {
+        const cleanUrl = msNormalizePhotoUrl(raw);
+        if (!cleanUrl) return null;
+
+        // If it is from the fixed SharePoint photo folder, save only the filename.
+        if (msIsMaterialPhotoBaseUrl(cleanUrl)) {
+            const extractedName = msExtractPhotoNameFromUrl(cleanUrl);
+            if (!extractedName) return null;
+            return { photoName: extractedName, photoUrl: '' };
+        }
+
+        // For any old/custom external full URL, keep it as legacy photoUrl.
+        return { photoName: '', photoUrl: cleanUrl };
+    }
+
+    const cleanName = msNormalizePhotoName(raw);
+    if (!cleanName) return null;
+
+    return { photoName: cleanName, photoUrl: '' };
+}
+
+function msGetMaterialPhotoInputValue(item) {
+    const photoName = msNormalizePhotoName(item?.photoName || item?.photoFileName || item?.photoFile || '');
+    if (photoName) return photoName;
+
+    const legacyUrl = msNormalizePhotoUrl(item?.photoUrl || item?.photoLink || '');
+    if (legacyUrl && msIsMaterialPhotoBaseUrl(legacyUrl)) {
+        return msExtractPhotoNameFromUrl(legacyUrl) || legacyUrl;
+    }
+
+    return legacyUrl;
+}
+
+function msGetMaterialPhotoUrl(item) {
+    const photoName = msNormalizePhotoName(item?.photoName || item?.photoFileName || item?.photoFile || '');
+    if (photoName) return msBuildMaterialPhotoUrlFromName(photoName);
+
+    // photoUrl/photoLink are accepted for compatibility with older records.
+    return msNormalizePhotoUrl(item?.photoUrl || item?.photoLink || '');
+}
+
+function msBuildMaterialPhotoCard(item, canAttachPhoto) {
+    const photoUrl = msGetMaterialPhotoUrl(item);
+    const safeUrl = msEscapeHtml(photoUrl);
+    const productName = msEscapeHtml(item?.productName || 'Material Photo');
+    const itemKey = msEscapeHtml(item?.key || '');
+    const pickerBtn = canAttachPhoto
+        ? `<button type="button" class="secondary-btn ms-open-photo-picker-btn" data-key="${itemKey}" style="padding:5px 10px; font-size:0.78rem;"><i class="fa-solid fa-images"></i> Browse Photo</button>`
+        : '';
+    const clearBtn = (canAttachPhoto && itemKey)
+        ? `<button type="button" class="secondary-btn ms-clear-photo-btn" data-key="${itemKey}" style="padding:5px 10px; font-size:0.78rem; background:#fff5f5; color:#c92a2a; border-color:#ffc9c9;"><i class="fa-solid fa-trash-can"></i> Remove Photo</button>`
+        : '';
+
+    if (!photoUrl) {
+        return `
+            <div class="ms-photo-card ms-photo-empty">
+                <div class="ms-photo-placeholder">
+                    <i class="fa-regular fa-image" style="font-size:2rem; color:#9aa7b1;"></i>
+                    <div style="font-weight:700; color:#6c757d; margin-top:8px;">No photo available</div>
+                    <div style="font-size:0.78rem; color:#89949e; margin-top:4px;">Browse the OneDrive photo library, preview, then attach the closest matching .jpg photo.</div>
+                    ${canAttachPhoto ? `<div class="ms-photo-actions" style="margin-top:10px;">${pickerBtn}</div>` : ''}
+                </div>
+            </div>`;
+    }
+
+    return `
+        <div class="ms-photo-card">
+            <img src="${safeUrl}" alt="${productName}" class="ms-material-photo-img" loading="lazy" onerror="this.style.display='none'; var box=this.closest('.ms-photo-card'); if(box){ var f=box.querySelector('.ms-photo-fallback'); if(f) f.classList.remove('hidden'); }">
+            <div class="ms-photo-fallback hidden">
+                <i class="fa-regular fa-image" style="font-size:2rem; color:#9aa7b1;"></i>
+                <div style="font-weight:700; color:#6c757d; margin-top:8px;">Preview not available</div>
+                <div style="font-size:0.78rem; color:#89949e; margin-top:4px;">The OneDrive/SharePoint link may not allow direct image preview.</div>
+            </div>
+            <div class="ms-photo-actions">
+                <a href="${safeUrl}" target="_blank" rel="noopener" class="secondary-btn" style="text-decoration:none; padding:5px 10px; font-size:0.78rem;"><i class="fa-solid fa-up-right-from-square"></i> Open Photo</a>
+                ${pickerBtn}
+                ${clearBtn}
+            </div>
+        </div>`;
+}
+
+
+function msGetCurrentMaterialUserName() {
+    try {
+        if (window.currentApprover && window.currentApprover.Name) return String(window.currentApprover.Name).trim();
+        if (window.currentUser && window.currentUser.Name) return String(window.currentUser.Name).trim();
+        if (window.currentUser && window.currentUser.username) return String(window.currentUser.username).trim();
+    } catch (_) {}
+    return '';
+}
+
+function msCanAttachMaterialPhoto() {
+    // Photo attachment only saves a small photoName text field, not stock quantity/details.
+    // Allow logged-in inventory users so site staff can attach photos without opening full stock editing.
+    return !!msGetCurrentMaterialUserName();
+}
+
+function msPhotoLibraryKey(photoName) {
+    const cleanName = msNormalizePhotoName(photoName);
+    if (!cleanName) return '';
+    return encodeURIComponent(cleanName).replace(/[.#$\[\]\/]/g, '_');
+}
+
+function msAddPhotoCandidate(map, value, source) {
+    const cleanName = msNormalizePhotoName(value);
+    if (!cleanName) return;
+    const key = cleanName.toLowerCase();
+    if (!map.has(key)) map.set(key, { name: cleanName, source: source || 'Library' });
+}
+
+function msGetCsvFirstColumn(line) {
+    const raw = String(line || '').replace(/^\uFEFF/, '').trim();
+    if (!raw) return '';
+
+    // Small CSV first-column parser so names with commas inside quotes do not break.
+    if (raw.startsWith('"')) {
+        let out = '';
+        for (let i = 1; i < raw.length; i++) {
+            const ch = raw[i];
+            if (ch === '"' && raw[i + 1] === '"') {
+                out += '"';
+                i++;
+                continue;
+            }
+            if (ch === '"') return out.trim();
+            out += ch;
+        }
+        return out.trim();
+    }
+
+    return raw.split(',')[0].trim();
+}
+
+function msParsePhotoIndexText(text) {
+    const names = [];
+    String(text || '').split(/\r?\n/).forEach((line, idx) => {
+        let value = msGetCsvFirstColumn(line);
+        if (!value) return;
+
+        // Skip normal CSV headers. Required header is photoName.
+        const header = value.replace(/\s+/g, '').toLowerCase();
+        if (idx === 0 && ['photoname', 'photo', 'filename', 'name', 'itemphoto'].includes(header)) return;
+
+        const cleanName = msNormalizePhotoName(value);
+        if (cleanName) names.push(cleanName);
+    });
+    return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b));
+}
+
+async function msFetchOptionalPhotoIndexNames() {
+    const indexUrl = (window.MS_MATERIAL_PHOTO_INDEX_URL || MS_MATERIAL_PHOTO_INDEX_URL || '').trim();
+    if (!indexUrl || !/^https?:\/\//i.test(indexUrl)) return [];
+
+    try {
+        const fetchUrl = `${indexUrl}${indexUrl.includes('?') ? '&' : '?'}_=${Date.now()}`;
+        const response = await fetch(fetchUrl, { cache: 'no-store' });
+        if (!response.ok) return [];
+        const contentType = (response.headers.get('content-type') || '').toLowerCase();
+        if (contentType.includes('application/json')) {
+            const data = await response.json();
+            if (Array.isArray(data)) return data.map(v => typeof v === 'string' ? v : (v.photoName || v.name || '')).filter(Boolean);
+            if (data && Array.isArray(data.photos)) return data.photos.map(v => typeof v === 'string' ? v : (v.photoName || v.name || '')).filter(Boolean);
+            return [];
+        }
+        return msParsePhotoIndexText(await response.text());
+    } catch (err) {
+        console.warn('Photo index could not be loaded:', err);
+        return [];
+    }
+}
+
+async function msGetMaterialPhotoLibraryNames() {
+    const candidates = new Map();
+
+    // 1) Names already attached to stock items.
+    (allMaterialStockData || []).forEach(item => {
+        msAddPhotoCandidate(candidates, item?.photoName || item?.photoFileName || item?.photoFile || '', 'Used in Stock');
+        const legacyUrl = msNormalizePhotoUrl(item?.photoUrl || item?.photoLink || '');
+        if (legacyUrl && msIsMaterialPhotoBaseUrl(legacyUrl)) msAddPhotoCandidate(candidates, msExtractPhotoNameFromUrl(legacyUrl), 'Used in Stock');
+    });
+
+    // 2) Cached names from previous browser sessions.
+    try {
+        const cached = JSON.parse(localStorage.getItem(MS_MATERIAL_PHOTO_LIBRARY_CACHE_KEY) || '[]');
+        if (Array.isArray(cached)) cached.forEach(name => msAddPhotoCandidate(candidates, name, 'Cached'));
+    } catch (_) {}
+
+    // 3) Optional hardcoded list if you later add one in index.html.
+    try {
+        if (Array.isArray(window.MS_MATERIAL_PHOTO_LIBRARY)) {
+            window.MS_MATERIAL_PHOTO_LIBRARY.forEach(name => msAddPhotoCandidate(candidates, name, 'Configured'));
+        }
+    } catch (_) {}
+
+    // 4) Optional Firebase text library. This is database text only, not Firebase Storage.
+    try {
+        const database = (typeof db !== 'undefined') ? db : firebase.database();
+        const snap = await database.ref(MS_MATERIAL_PHOTO_LIBRARY_DB_PATH).once('value');
+        const value = snap.val();
+        if (value) {
+            if (Array.isArray(value)) {
+                value.forEach(v => msAddPhotoCandidate(candidates, typeof v === 'string' ? v : (v.photoName || v.name || ''), 'Library'));
+            } else {
+                Object.keys(value).forEach(k => {
+                    const v = value[k];
+                    msAddPhotoCandidate(candidates, typeof v === 'string' ? v : (v.photoName || v.name || k), 'Library');
+                });
+            }
+        }
+    } catch (err) {
+        console.warn('Photo library DB list not available:', err);
+    }
+
+    // 5) Optional external PhotoIndex.csv/txt/json file if configured.
+    const indexNames = await msFetchOptionalPhotoIndexNames();
+    indexNames.forEach(name => msAddPhotoCandidate(candidates, name, 'Photo Index'));
+
+    const names = Array.from(candidates.values()).map(v => v.name).sort((a, b) => a.localeCompare(b));
+    try { localStorage.setItem(MS_MATERIAL_PHOTO_LIBRARY_CACHE_KEY, JSON.stringify(names)); } catch (_) {}
+    return names;
+}
+
+async function msRememberMaterialPhotoName(photoName) {
+    const cleanName = msNormalizePhotoName(photoName);
+    if (!cleanName) return;
+
+    // Cache locally first for immediate browsing.
+    try {
+        const cached = JSON.parse(localStorage.getItem(MS_MATERIAL_PHOTO_LIBRARY_CACHE_KEY) || '[]');
+        const next = Array.from(new Set([...(Array.isArray(cached) ? cached : []), cleanName])).sort((a, b) => a.localeCompare(b));
+        localStorage.setItem(MS_MATERIAL_PHOTO_LIBRARY_CACHE_KEY, JSON.stringify(next));
+    } catch (_) {}
+
+    // Also store in Firebase Realtime Database as tiny text, if rules allow.
+    try {
+        const key = msPhotoLibraryKey(cleanName);
+        if (!key) return;
+        const database = (typeof db !== 'undefined') ? db : firebase.database();
+        await database.ref(`${MS_MATERIAL_PHOTO_LIBRARY_DB_PATH}/${key}`).set({
+            photoName: cleanName,
+            updatedBy: msGetCurrentMaterialUserName() || 'System',
+            updatedAt: firebase.database.ServerValue.TIMESTAMP
+        });
+    } catch (err) {
+        console.warn('Photo name saved locally but not to shared library:', err);
+    }
+}
+
+function msSetPhotoBrowserStatus(message, isError) {
+    const el = document.getElementById('ms-photo-browser-status');
+    if (!el) return;
+    el.innerHTML = message || '';
+    el.style.color = isError ? '#dc3545' : '#6c757d';
+}
+
+function msRenderPhotoBrowserPreview(photoName) {
+    const preview = document.getElementById('ms-photo-browser-preview');
+    if (!preview) return;
+    const cleanName = msNormalizePhotoName(photoName);
+    if (!cleanName) {
+        preview.innerHTML = '<div class="ms-photo-browser-empty-preview">Choose a photo name from the suggestions to preview.</div>';
+        return;
+    }
+    const url = msBuildMaterialPhotoUrlFromName(cleanName);
+    preview.innerHTML = `
+        <div class="ms-photo-browser-preview-card clean">
+            <img src="${msEscapeHtml(url)}" alt="${msEscapeHtml(cleanName)}" onerror="this.style.display='none'; this.nextElementSibling.classList.remove('hidden');">
+            <div class="ms-photo-browser-preview-fallback hidden">Preview not available.</div>
+        </div>`;
+}
+
+function msFilterAndRenderPhotoLibrary(names) {
+    const grid = document.getElementById('ms-photo-browser-grid');
+    const datalist = document.getElementById('ms-photo-browser-options');
+    const manualEl = document.getElementById('ms-photo-browser-manual');
+    const query = String(manualEl?.value || '').trim().toLowerCase();
+
+    const unique = new Map();
+    (Array.isArray(names) ? names : []).forEach(name => {
+        const cleanName = msNormalizePhotoName(name);
+        if (cleanName) unique.set(cleanName.toLowerCase(), cleanName);
+    });
+
+    const sourceNames = Array.from(unique.values()).sort((a, b) => a.localeCompare(b));
+    const filtered = sourceNames.filter(name => !query || String(name).toLowerCase().includes(query));
+    const shown = filtered.slice(0, MS_MATERIAL_PHOTO_LIBRARY_LIMIT);
+
+    // Native datalist = compact dropdown. It avoids filling the modal with hundreds/thousands of buttons.
+    if (datalist) {
+        datalist.innerHTML = shown.map(name => `<option value="${msEscapeHtml(name)}"></option>`).join('');
+    }
+
+    // Keep the old grid container empty for backward CSS/HTML compatibility.
+    if (grid) grid.innerHTML = '';
+
+    if (!sourceNames.length) {
+        msSetPhotoBrowserStatus('PhotoIndex.csv was not loaded yet. You can still type the exact OneDrive file name manually.', false);
+        return;
+    }
+
+    if (!query) {
+        msSetPhotoBrowserStatus(`${sourceNames.length} photo names loaded. Start typing to search, then choose from the dropdown.`, false);
+        return;
+    }
+
+    if (!filtered.length) {
+        msSetPhotoBrowserStatus('No matching photo name found in PhotoIndex.csv. If the file exists in OneDrive, you can still use this exact name.', false);
+        return;
+    }
+
+    const limitNote = filtered.length > shown.length ? ` Showing first ${shown.length}.` : '';
+    msSetPhotoBrowserStatus(`${filtered.length} match${filtered.length === 1 ? '' : 'es'} found.${limitNote} Choose from the dropdown or click Use This Photo.`, false);
+}
+
+async function msOpenMaterialPhotoBrowser(options = {}) {
+    if (!msCanAttachMaterialPhoto()) {
+        alert('Access Denied: You need to be logged in to attach item photos.');
+        return;
+    }
+
+    msPhotoBrowserContext = {
+        mode: options.mode || 'input',
+        targetInputId: options.targetInputId || 'ms-new-photo-url',
+        itemKey: options.itemKey || '',
+        prefill: options.prefill || ''
+    };
+
+    const modal = document.getElementById('ms-photo-browser-modal');
+    if (!modal) {
+        alert('Photo browser modal was not found. Please refresh and try again.');
+        return;
+    }
+
+    const manual = document.getElementById('ms-photo-browser-manual');
+    const search = document.getElementById('ms-photo-browser-search');
+    const targetLabel = document.getElementById('ms-photo-browser-target');
+    const item = msPhotoBrowserContext.itemKey ? (allMaterialStockData || []).find(i => i.key === msPhotoBrowserContext.itemKey) : null;
+    const initialName = msNormalizePhotoName(msPhotoBrowserContext.prefill || (item ? msGetMaterialPhotoInputValue(item) : (document.getElementById(msPhotoBrowserContext.targetInputId)?.value || '')));
+
+    if (manual) manual.value = initialName;
+    if (search) search.value = '';
+    if (targetLabel) {
+        targetLabel.textContent = item ? `Attaching photo for: ${(item.productID || item.productId || '')} - ${(item.productName || '')}` : 'Choose a photo name for the current item.';
+    }
+
+    msRenderPhotoBrowserPreview(initialName);
+    modal.classList.remove('hidden');
+    msSetPhotoBrowserStatus('Loading photo library...', false);
+
+    const names = await msGetMaterialPhotoLibraryNames();
+    window.__msLastPhotoLibraryNames = names;
+    msFilterAndRenderPhotoLibrary(names);
+}
+
+function msCloseMaterialPhotoBrowser() {
+    const modal = document.getElementById('ms-photo-browser-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+async function msSavePhotoNameForItem(itemKey, photoName) {
+    const cleanName = msNormalizePhotoName(photoName);
+    if (!itemKey || !cleanName) {
+        alert('Please select or type a valid photo name.');
+        return;
+    }
+    if (!msCanAttachMaterialPhoto()) {
+        alert('Access Denied: You need to be logged in to attach item photos.');
+        return;
+    }
+
+    try {
+        const database = (typeof db !== 'undefined') ? db : firebase.database();
+        await database.ref(`material_stock/${itemKey}`).update({
+            photoName: cleanName,
+            photoUrl: null,
+            photoUpdatedBy: msGetCurrentMaterialUserName() || 'System',
+            photoUpdatedAt: firebase.database.ServerValue.TIMESTAMP,
+            lastUpdated: firebase.database.ServerValue.TIMESTAMP
+        });
+        await msRememberMaterialPhotoName(cleanName);
+
+        const item = (allMaterialStockData || []).find(i => i.key === itemKey);
+        if (item) {
+            item.photoName = cleanName;
+            item.photoUrl = '';
+            item.photoUpdatedBy = msGetCurrentMaterialUserName() || 'System';
+        }
+
+        localStorage.removeItem(STOCK_CACHE_KEY);
+        msCloseMaterialPhotoBrowser();
+        renderMaterialStockTable(allMaterialStockData);
+        alert(`Photo attached: ${cleanName}.jpg`);
+    } catch (err) {
+        console.error('Failed to attach photo:', err);
+        alert('Could not attach photo. Please check your connection or permission.');
+    }
+}
+
+
+async function msClearPhotoForItem(itemKey) {
+    if (!itemKey) return;
+    if (!msCanAttachMaterialPhoto()) {
+        alert('Access Denied: You need to be logged in to remove item photos.');
+        return;
+    }
+
+    const item = (allMaterialStockData || []).find(i => i.key === itemKey);
+    const itemLabel = item ? `${item.productID || item.productId || ''} - ${item.productName || ''}` : 'this item';
+    if (!confirm(`Remove the attached photo from ${itemLabel}?
+
+This will only delete the saved photo name/link from the system. It will NOT delete the actual file from OneDrive.`)) {
+        return;
+    }
+
+    try {
+        const database = (typeof db !== 'undefined') ? db : firebase.database();
+        await database.ref(`material_stock/${itemKey}`).update({
+            photoName: null,
+            photoUrl: null,
+            photoFileName: null,
+            photoFile: null,
+            photoRemovedBy: msGetCurrentMaterialUserName() || 'System',
+            photoRemovedAt: firebase.database.ServerValue.TIMESTAMP,
+            lastUpdated: firebase.database.ServerValue.TIMESTAMP
+        });
+
+        if (item) {
+            item.photoName = '';
+            item.photoUrl = '';
+            item.photoFileName = '';
+            item.photoFile = '';
+            item.photoRemovedBy = msGetCurrentMaterialUserName() || 'System';
+        }
+
+        localStorage.removeItem(STOCK_CACHE_KEY);
+        renderMaterialStockTable(allMaterialStockData);
+        alert('Photo link removed. You can now Browse Photo and attach the correct one.');
+    } catch (err) {
+        console.error('Failed to remove photo:', err);
+        alert('Could not remove photo link. Please check your connection or permission.');
+    }
+}
+
+async function msUseSelectedPhotoName(photoName) {
+    const cleanName = msNormalizePhotoName(photoName || document.getElementById('ms-photo-browser-manual')?.value || '');
+    if (!cleanName) {
+        alert('Please type or choose a valid photo name. Example: IBA-Sample');
+        return;
+    }
+
+    if (msPhotoBrowserContext.mode === 'item' && msPhotoBrowserContext.itemKey) {
+        await msSavePhotoNameForItem(msPhotoBrowserContext.itemKey, cleanName);
+        return;
+    }
+
+    const input = document.getElementById(msPhotoBrowserContext.targetInputId || 'ms-new-photo-url');
+    if (input) {
+        input.value = cleanName;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    await msRememberMaterialPhotoName(cleanName);
+    msCloseMaterialPhotoBrowser();
+}
+
+function msInitPhotoBrowserUI() {
+    const closeBtn = document.getElementById('ms-photo-browser-close');
+    if (closeBtn && closeBtn.dataset.bound !== '1') {
+        closeBtn.dataset.bound = '1';
+        closeBtn.addEventListener('click', msCloseMaterialPhotoBrowser);
+    }
+
+    const cancelBtn = document.getElementById('ms-photo-browser-cancel');
+    if (cancelBtn && cancelBtn.dataset.bound !== '1') {
+        cancelBtn.dataset.bound = '1';
+        cancelBtn.addEventListener('click', msCloseMaterialPhotoBrowser);
+    }
+
+    const manual = document.getElementById('ms-photo-browser-manual');
+    if (manual && manual.dataset.bound !== '1') {
+        manual.dataset.bound = '1';
+        const refreshDropdownAndPreview = () => {
+            msRenderPhotoBrowserPreview(manual.value);
+            msFilterAndRenderPhotoLibrary(window.__msLastPhotoLibraryNames || []);
+        };
+        manual.addEventListener('input', refreshDropdownAndPreview);
+        manual.addEventListener('change', refreshDropdownAndPreview);
+    }
+
+    const search = document.getElementById('ms-photo-browser-search');
+    if (search && search.dataset.bound !== '1') {
+        search.dataset.bound = '1';
+        search.addEventListener('input', () => msFilterAndRenderPhotoLibrary(window.__msLastPhotoLibraryNames || []));
+    }
+
+    const useBtn = document.getElementById('ms-photo-browser-use');
+    if (useBtn && useBtn.dataset.bound !== '1') {
+        useBtn.dataset.bound = '1';
+        useBtn.addEventListener('click', () => msUseSelectedPhotoName());
+    }
+
+    const browseBtn = document.getElementById('ms-browse-photo-btn');
+    if (browseBtn && browseBtn.dataset.bound !== '1') {
+        browseBtn.dataset.bound = '1';
+        browseBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            msOpenMaterialPhotoBrowser({ mode: 'input', targetInputId: 'ms-new-photo-url' });
+        });
+    }
+
+    const clearFieldBtn = document.getElementById('ms-clear-photo-field-btn');
+    if (clearFieldBtn && clearFieldBtn.dataset.bound !== '1') {
+        clearFieldBtn.dataset.bound = '1';
+        clearFieldBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const input = document.getElementById('ms-new-photo-url');
+            if (input) {
+                input.value = '';
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.focus();
+            }
+        });
+    }
+}
+
+window.msOpenMaterialPhotoBrowser = msOpenMaterialPhotoBrowser;
+window.msCloseMaterialPhotoBrowser = msCloseMaterialPhotoBrowser;
+window.msClearPhotoForItem = msClearPhotoForItem;
 
 
 // ==========================================================================
@@ -257,7 +960,7 @@ const STOCK_LEGENDS = {
 // INIT SYSTEM & SITE FILTER (INCLUDES PRINT CSS FIX)
 // ==========================================================================
 async function initMaterialStockSystem() {
-    
+
     // --- 1. INJECT PRINT CSS FIX ---
     if (!document.getElementById('ms-print-style-fix')) {
         const style = document.createElement('style');
@@ -265,12 +968,12 @@ async function initMaterialStockSystem() {
         style.innerHTML = `
             @media print {
                 @page { margin: 5mm; size: auto; }
-                
+
                 body { margin: 0 !important; padding: 0 !important; background: white !important; }
                 body * { visibility: hidden; height: 0; overflow: hidden; }
-                
+
                 /* SHOW MODAL & CONTENT */
-                #ms-report-modal, 
+                #ms-report-modal,
                 #ms-report-modal * {
                     visibility: visible !important;
                     height: auto !important;
@@ -309,7 +1012,7 @@ async function initMaterialStockSystem() {
                     width: 100% !important;
                 }
 
-                .print-only-header h3, 
+                .print-only-header h3,
                 .print-only-header p,
                 .print-only-header span {
                     display: block !important;
@@ -332,11 +1035,11 @@ async function initMaterialStockSystem() {
 
                 table { width: 100% !important; border-collapse: collapse !important; }
                 th, td { border: 1px solid #ddd !important; padding: 5px !important; font-size: 11px !important; }
-                
-                th:nth-child(1), td:nth-child(1) { width: 15% !important; } 
-                th:nth-child(2), td:nth-child(2) { width: 35% !important; } 
-                th:nth-child(3), td:nth-child(3) { width: 10% !important; } 
-                th:nth-child(4), td:nth-child(4) { width: 40% !important; } 
+
+                th:nth-child(1), td:nth-child(1) { width: 15% !important; }
+                th:nth-child(2), td:nth-child(2) { width: 35% !important; }
+                th:nth-child(3), td:nth-child(3) { width: 10% !important; }
+                th:nth-child(4), td:nth-child(4) { width: 40% !important; }
             }
         `;
         document.head.appendChild(style);
@@ -345,7 +1048,7 @@ async function initMaterialStockSystem() {
     // --- 2. EXISTING UI LOGIC (TABS & FILTER) ---
     const tabsContainer = document.getElementById('ms-category-tabs');
     const filterId = 'ms-site-filter';
-    
+
     if (tabsContainer && !document.getElementById(filterId)) {
         const wrapper = document.createElement('div');
         wrapper.style.display = 'inline-block';
@@ -354,10 +1057,10 @@ async function initMaterialStockSystem() {
 
         const select = document.createElement('select');
         select.id = filterId;
-        select.className = 'form-control'; 
+        select.className = 'form-control';
         select.style.padding = '5px 10px';
         select.innerHTML = `<option value="All">All Sites</option><option value="Main Store">Main Store</option>`;
-        
+
         const cachedSites = localStorage.getItem('cached_SITES');
         if (cachedSites) {
             try {
@@ -367,7 +1070,7 @@ async function initMaterialStockSystem() {
                 });
             } catch (e) {}
         }
-        
+
         select.addEventListener('change', () => {
             renderMaterialStockTable(allMaterialStockData);
         });
@@ -520,16 +1223,36 @@ function renderCategoryTabs() {
         currentCategoryFilter = 'All';
     }
 
-    let html = `<button class="${currentCategoryFilter === 'All' ? 'active' : ''}" onclick="filterStockByCategory('All')">All Families</button>`;
+    const msTabEsc = (value) => String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+    const shortenFamilyName = (name, limit = 12) => {
+        const clean = String(name || '').trim();
+        if (clean.length <= limit) return clean;
+        return clean.slice(0, limit).trimEnd() + '…';
+    };
+
+    const isAllActive = currentCategoryFilter === 'All';
+    let html = `<button class="ms-family-chip ms-family-all ${isAllActive ? 'active' : ''}" onclick="filterStockByCategory('All')" title="Show all material families">
+                    <span class="ms-family-code">All</span>
+                    <span class="ms-family-name">${isAllActive ? 'Families' : ''}</span>
+                </button>`;
 
     const sortedFamilies = Object.keys(STOCK_LEGENDS).sort((a, b) => parseInt(a) - parseInt(b));
 
     sortedFamilies.forEach(code => {
         if (activeFamilyCodes.has(code)) {
             const name = STOCK_LEGENDS[code].name;
-            const activeClass = (currentCategoryFilter === code) ? 'active' : '';
-            html += `<button class="${activeClass}" onclick="filterStockByCategory('${code}')">
-                        ${name} <span style="font-size: 0.75rem; color: #dc3545; font-weight: normal; margin-left: 4px;">[${code}]</span>
+            const isActive = currentCategoryFilter === code;
+            const activeClass = isActive ? 'active' : '';
+            const displayName = isActive ? name : shortenFamilyName(name, 12);
+            html += `<button class="ms-family-chip ${activeClass}" onclick="filterStockByCategory('${code}')" title="Family ${msTabEsc(code)} - ${msTabEsc(name)}" aria-label="Family ${msTabEsc(code)} - ${msTabEsc(name)}">
+                        <span class="ms-family-code">${msTabEsc(code)}</span>
+                        <span class="ms-family-name">${msTabEsc(displayName)}</span>
                      </button>`;
         }
     });
@@ -559,8 +1282,8 @@ function renderMaterialStockTable(data) {
     const tableBody = document.getElementById('ms-table-body');
     const searchInput = document.getElementById('ms-search-input');
     const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
-    const countDisplay = document.getElementById('ms-total-count'); 
-    
+    const countDisplay = document.getElementById('ms-total-count');
+
     // --- READ SITE FILTER ---
     const siteFilterVal = document.getElementById('ms-site-filter')?.value || 'All';
 
@@ -581,6 +1304,7 @@ function renderMaterialStockTable(data) {
     const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
     // Super Admin replacement: allow edit actions in Inventory (no delete)
     const isEditor = (isAdmin || isVacationDelegate);
+    const canAttachPhoto = isEditor || msCanAttachMaterialPhoto();
 
     const bulkBtn = document.getElementById('ms-bulk-delete-btn');
     if (bulkBtn) {
@@ -630,7 +1354,7 @@ function renderMaterialStockTable(data) {
         const pID = String(item.productID || item.productId || '').toLowerCase();
         const pName = String(item.productName || '').toLowerCase();
         const pDetails = String(item.details || item.relationship || '').toLowerCase();
-        
+
         const matchesText = pID.includes(searchTerm) || pName.includes(searchTerm) || pDetails.includes(searchTerm);
         if (!matchesText) return false;
 
@@ -674,9 +1398,9 @@ function renderMaterialStockTable(data) {
         if (item.sites) {
             Object.entries(item.sites).forEach(([site, qty]) => {
                 const q = parseFloat(qty);
-                
+
                 // Filter Check
-                if (siteFilterVal !== 'All' && site !== siteFilterVal) return; 
+                if (siteFilterVal !== 'All' && site !== siteFilterVal) return;
 
                 // --- SMART LOGIC: Hide 0 qty sites UNLESS there's a pending transfer ---
                 const hasPendingTransaction = productTransfers.some(t => {
@@ -688,12 +1412,12 @@ function renderMaterialStockTable(data) {
                 if (q !== 0 || hasPendingTransaction) {
                     hasSites = true;
                     if (siteFilterVal === 'All') totalStock += q;
-                    
+
                     let deleteSiteAction = '';
-                    if (isIrwin && q === 0) { 
+                    if (isIrwin && q === 0) {
                         deleteSiteAction = `<span onclick="deleteSiteStock('${item.key}', '${site}')" style="color:red; font-weight:bold; cursor:pointer; margin-left:10px; float:right;" title="Delete ONLY this site stock">[x]</span>`;
                     }
-                    
+
                     breakdownRows += `
                         <tr>
                             <td style="width: 70%; padding-left: 20px;">
@@ -704,7 +1428,7 @@ function renderMaterialStockTable(data) {
                 }
             });
         }
-        
+
         if (!hasSites && siteFilterVal === 'All') {
             const legacyStock = parseFloat(item.stockQty) || 0;
             totalStock = legacyStock;
@@ -730,7 +1454,7 @@ function renderMaterialStockTable(data) {
 
                 let actionBtn = '';
                 const isCompleted = (t.remarks === 'Completed' || t.remarks === 'Received');
-                
+
                 // [FIX] Safe check for currentUser inside the loop
                 const currentUser = (currentApprover) ? currentApprover.Name : '';
                 const isMyReceipt = (t.receiver === currentUser);
@@ -760,44 +1484,45 @@ function renderMaterialStockTable(data) {
         // Required Materials (Notepad) - always available (local-only; does not modify stock)
         const _pid = item.productID || item.productId || '';
         const _pname = item.productName || '';
-        const addToRequiredBtn = `<button type="button" class="secondary-btn ms-add-to-required-btn" data-productid="${encodeURIComponent(String(_pid))}" data-productname="${encodeURIComponent(String(_pname))}" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem; background-color: #0d6efd; color: white; margin-right: 5px;" title="Add to Required List"><i class="fa-solid fa-cart-plus"></i> Add</button>`;
+        const addToRequiredBtn = `<button type="button" class="secondary-btn ms-row-action-btn ms-add-to-required-btn" data-productid="${encodeURIComponent(String(_pid))}" data-productname="${encodeURIComponent(String(_pname))}" data-key="${item.key}" title="Add to Required List"><i class="fa-solid fa-cart-plus"></i><span>Add</span></button>`;
 
        if (isEditor) {
             // All Admins and Vacation Delegates can Edit
             actionButtons += addToRequiredBtn;
-            actionButtons += `<button type="button" class="secondary-btn ms-edit-stock-btn" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem; background-color: #00748C; color: white; margin-right: 5px;" title="Edit Details & Add Stock"><i class="fa-solid fa-pen-to-square"></i> Edit</button>`;
+            actionButtons += `<button type="button" class="secondary-btn ms-row-action-btn ms-edit-stock-btn" data-key="${item.key}" title="Edit Details & Add Stock"><i class="fa-solid fa-pen-to-square"></i><span>Edit</span></button>`;
 
             // Delete remains Irwin-only
             if (isIrwin) {
-                actionButtons += `<button type="button" class="delete-btn ms-delete-btn" data-key="${item.key}" style="padding: 5px 10px; font-size: 0.8rem;" title="Delete Item"><i class="fa-solid fa-trash"></i></button>`;
+                actionButtons += `<button type="button" class="delete-btn ms-row-action-btn ms-delete-btn" data-key="${item.key}" title="Delete Item"><i class="fa-solid fa-trash"></i><span>Delete</span></button>`;
                 firstColContent = `
-                    <div style="display:flex; align-items:center; gap:10px;">
+                    <div class="ms-row-selector">
                         <input type="checkbox" class="ms-row-checkbox" data-key="${item.key}" data-name="${item.productName}">
                         <button class="ms-expand-btn" onclick="toggleStockDetail('${uniqueId}', this)">+</button>
                     </div>
                 `;
             }
         } else {
-            actionButtons = addToRequiredBtn + `<small style="color:#999;">View Only</small>`;
+            actionButtons = addToRequiredBtn + `<span class="ms-view-only-note">View Only</span>`;
         }
 
-
-
+        actionButtons = `<div class="ms-row-actions">${actionButtons}</div>`;
 
 
         const familyDisplay = item.family || item.category || 'Unclassified';
         const relationshipDisplay = item.relationship || item.details || '';
+        const materialPhotoCard = msBuildMaterialPhotoCard(item, canAttachPhoto);
+        const hasPhotoIcon = msGetMaterialPhotoUrl(item) ? ' <i class="fa-regular fa-image" title="Photo available" style="color:#00748C; margin-left:6px;"></i>' : '';
 
         const parentRow = document.createElement('tr');
         parentRow.classList.add('ms-parent-row');
         parentRow.innerHTML = `
-            <td>${firstColContent}</td>
-            <td style="font-family:monospace; font-weight:bold; color:#00748C;">${item.productID || item.productId}</td>
-            <td><strong>${item.productName}</strong></td>
-            <td><span style="background:#e3f2fd; color:#00748C; padding:2px 6px; border-radius:4px; font-size:0.75rem;">${familyDisplay}</span></td>
-            <td>${relationshipDisplay}</td>
-            <td style="font-size: 1.1em; font-weight: bold; color: #003A5C;">${totalStock}</td>
-            <td style="text-align: center;">${actionButtons}</td>
+            <td class="ms-cell-expand">${firstColContent}</td>
+            <td class="ms-cell-code"><span class="ms-product-code">${item.productID || item.productId}</span></td>
+            <td class="ms-cell-detail"><div class="ms-product-title"><strong>${item.productName}</strong>${hasPhotoIcon}</div></td>
+            <td class="ms-cell-family"><span class="ms-family-badge">${familyDisplay}</span></td>
+            <td class="ms-cell-relation"><span class="ms-relation-text">${relationshipDisplay || '-'}</span></td>
+            <td class="ms-cell-stock"><span class="ms-stock-pill">${totalStock}</span></td>
+            <td class="ms-cell-actions">${actionButtons}</td>
         `;
 
         // UX: allow expanding/collapsing by clicking anywhere on the parent row
@@ -817,7 +1542,13 @@ function renderMaterialStockTable(data) {
         childRow.className = 'stock-child-row hidden';
         childRow.innerHTML = `
             <td colspan="7" style="padding: 15px 25px; background-color: #fcfcfc;">
-                <div style="display: flex; gap: 30px; flex-wrap: wrap; align-items: flex-start;">
+                <div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start;">
+                    <div style="flex: 0 0 250px; min-width: 230px;">
+                        <h4 style="margin: 0 0 10px 0; color: #00748C; border-bottom: 2px solid #00748C; padding-bottom: 5px;">
+                            <i class="fa-regular fa-image"></i> Item Photo
+                        </h4>
+                        ${materialPhotoCard}
+                    </div>
                     <div style="flex: 1; min-width: 300px;">
                         <h4 style="margin: 0 0 10px 0; color: #003A5C; border-bottom: 2px solid #003A5C; padding-bottom: 5px;">
                             <i class="fa-solid fa-cubes"></i> Current Stock Breakdown
@@ -851,7 +1582,6 @@ function renderMaterialStockTable(data) {
     });
 
 
-
     // Bind action buttons (works for both admins and vacation delegates)
     document.querySelectorAll('.ms-edit-stock-btn').forEach(btn => {
         if (btn.dataset.bound === '1') return;
@@ -861,6 +1591,28 @@ function renderMaterialStockTable(data) {
             e.stopPropagation();
             const key = this.getAttribute('data-key');
             if (typeof openSuperAdminEdit === 'function') openSuperAdminEdit(key);
+        });
+    });
+
+    document.querySelectorAll('.ms-open-photo-picker-btn').forEach(btn => {
+        if (btn.dataset.bound === '1') return;
+        btn.dataset.bound = '1';
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const key = this.getAttribute('data-key');
+            msOpenMaterialPhotoBrowser({ mode: 'item', itemKey: key });
+        });
+    });
+
+    document.querySelectorAll('.ms-clear-photo-btn').forEach(btn => {
+        if (btn.dataset.bound === '1') return;
+        btn.dataset.bound = '1';
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const key = this.getAttribute('data-key');
+            msClearPhotoForItem(key);
         });
     });
 
@@ -949,7 +1701,7 @@ window.handleDeleteMaterial = async function(key) {
     }
 };
 
-window.deleteStock = window.handleDeleteMaterial; 
+window.deleteStock = window.handleDeleteMaterial;
 
 // ==========================================================================
 // 5. MODAL LOGIC: OPEN & AUTO-POPULATION
@@ -977,14 +1729,14 @@ window.openNewMaterialModal = async function() {
 
     const modal = document.getElementById('ms-new-material-modal');
     const form = document.getElementById('ms-new-material-form');
-    
+
     modal.classList.remove('hidden');
     form.reset();
     document.getElementById('ms-modal-title').textContent = "Register New Material";
 
     const familySelect = document.getElementById('ms-new-family');
     familySelect.innerHTML = '<option value="" disabled selected>Select Family</option>';
-    
+
     Object.keys(STOCK_LEGENDS).sort().forEach(code => {
         const opt = document.createElement('option');
         opt.value = code;
@@ -998,7 +1750,7 @@ window.openNewMaterialModal = async function() {
     familySelect.onchange = function() {
         const ff = this.value;
         relationSelect.innerHTML = '<option value="" disabled selected>Select Relationship</option>';
-        
+
         if(STOCK_LEGENDS[ff] && STOCK_LEGENDS[ff].relations) {
             const rels = STOCK_LEGENDS[ff].relations;
             Object.keys(rels).sort().forEach(rr => {
@@ -1021,6 +1773,9 @@ window.openNewMaterialModal = async function() {
     const stockInput = document.getElementById('ms-new-stock-qty');
     if (stockInput) stockInput.placeholder = 'Initial Stock (Optional)';
 
+    const photoInput = document.getElementById('ms-new-photo-url');
+    if (photoInput) photoInput.value = '';
+
     populateModalSiteDropdown();
 };
 
@@ -1032,12 +1787,15 @@ window.openSuperAdminEdit = function(key) {
 
     const modal = document.getElementById('ms-new-material-modal');
     modal.classList.remove('hidden');
-    
+
     document.getElementById('ms-modal-title').textContent = "Edit Item & Add Stock";
     document.getElementById('ms-save-new-btn').textContent = "Update Item";
 
     document.getElementById('ms-new-name').value = item.productName;
     document.getElementById('ms-new-id-display').value = item.productID;
+
+    const photoInput = document.getElementById('ms-new-photo-url');
+    if (photoInput) photoInput.value = msGetMaterialPhotoInputValue(item);
 
     const famSelect = document.getElementById('ms-new-family');
     if(famSelect.options.length <= 1) {
@@ -1064,9 +1822,9 @@ window.openSuperAdminEdit = function(key) {
     relationSelect.value = item.relationCode;
 
     const stockInput = document.getElementById('ms-new-stock-qty');
-    stockInput.value = ''; 
+    stockInput.value = '';
     stockInput.placeholder = "Add Stock (Optional)";
-    
+
     populateModalSiteDropdown();
 };
 
@@ -1079,7 +1837,7 @@ function msParseSeriesFromProductId(pid) {
 }
 
 function generatePreviewID() {
-    if (typeof editingItemKey !== 'undefined' && editingItemKey) return; 
+    if (typeof editingItemKey !== 'undefined' && editingItemKey) return;
 
     const ff = document.getElementById('ms-new-family').value;
     const rr = document.getElementById('ms-new-relation').value;
@@ -1128,6 +1886,8 @@ window.msCloseNewMaterialModal = function() {
             stockInput.value = '';
             stockInput.placeholder = 'Initial Stock (Optional)';
         }
+        const photoInput = document.getElementById('ms-new-photo-url');
+        if (photoInput) photoInput.value = '';
     } catch (_) { /* ignore */ }
 };
 
@@ -1145,7 +1905,7 @@ async function handleSaveNewMaterial() {
     }
 
     const btn = document.getElementById('ms-save-new-btn');
-    btn.disabled = true; 
+    btn.disabled = true;
 
     const familyCode = document.getElementById('ms-new-family').value;
     const relationCode = document.getElementById('ms-new-relation').value;
@@ -1161,26 +1921,35 @@ async function handleSaveNewMaterial() {
         btn.disabled = false;
         return;
     }
-    
+
     const stockInputVal = parseFloat(document.getElementById('ms-new-stock-qty').value) || 0;
     const selectedSite = document.getElementById('ms-new-site-select').value;
+    const photoInputRaw = document.getElementById('ms-new-photo-url')?.value || '';
+    const photoData = msPreparePhotoDataForSave(photoInputRaw);
+    if (!photoData) {
+        alert('Invalid photo name. Type only the file name, for example: IBA-Sample. The system will add .jpg automatically.');
+        btn.disabled = false;
+        return;
+    }
     const database = (typeof db !== 'undefined') ? db : firebase.database();
 
     try {
         if (editingItemKey) {
             // === UPDATE MODE ===
             const item = allMaterialStockData.find(i => i.key === editingItemKey);
-            
+
             const updates = {};
             updates['productName'] = productDetail;
             updates['familyCode'] = familyCode;
             updates['family'] = STOCK_LEGENDS[familyCode].name;
             updates['relationCode'] = relationCode;
             updates['relationship'] = STOCK_LEGENDS[familyCode].relations[relationCode];
-            
+
             updates['category'] = STOCK_LEGENDS[familyCode].name;
             updates['details'] = STOCK_LEGENDS[familyCode].relations[relationCode];
-            
+            updates['photoName'] = photoData.photoName || null;
+            updates['photoUrl'] = photoData.photoUrl || null;
+
             updates['updatedBy'] = (typeof currentApprover !== 'undefined' ? currentApprover.Name : 'Irwin');
             updates['lastUpdated'] = firebase.database.ServerValue.TIMESTAMP;
 
@@ -1188,7 +1957,7 @@ async function handleSaveNewMaterial() {
                 if (!item.sites) item.sites = {};
                 const currentSiteQty = parseFloat(item.sites[selectedSite] || 0);
                 item.sites[selectedSite] = currentSiteQty + stockInputVal;
-                
+
                 updates['sites'] = item.sites;
                 let total = 0;
                 Object.values(item.sites).forEach(q => total += q);
@@ -1197,13 +1966,14 @@ async function handleSaveNewMaterial() {
             }
 
             await database.ref(`material_stock/${editingItemKey}`).update(updates);
+            if (photoData.photoName) await msRememberMaterialPhotoName(photoData.photoName);
             alert("Item Updated Successfully!");
 
         } else {
             // === CREATE NEW MODE ===
             const productID = document.getElementById('ms-new-id-display').value;
             const series = parseInt(document.getElementById('ms-new-id-display').dataset.series);
-            
+
             if (!productID || productID.includes("Auto")) {
                 alert("ID Generation Error. Please select Family + Relationship again.");
                 btn.disabled = false;
@@ -1235,15 +2005,18 @@ async function handleSaveNewMaterial() {
                 category: familyName,
                 details: relationName,
                 stockQty: stockInputVal,
-                transferredQty: 0, 
+                transferredQty: 0,
                 balanceQty: stockInputVal,
                 sites: sitesInit,
                 status: "Active",
+                photoName: photoData.photoName || '',
+                photoUrl: photoData.photoUrl || '',
                 timestamp: firebase.database.ServerValue.TIMESTAMP,
                 updatedBy: (typeof currentApprover !== 'undefined' ? currentApprover.Name : 'System')
             };
 
             await database.ref('material_stock').push(newMaterial);
+            if (photoData.photoName) await msRememberMaterialPhotoName(photoData.photoName);
             alert(`Success! Created: ${productID}`);
         }
 
@@ -1257,12 +2030,12 @@ async function handleSaveNewMaterial() {
         localStorage.removeItem(STOCK_CACHE_KEY);
         populateMaterialStock(true);
 
-    } catch (error) { 
-        console.error("Save Error:", error); 
-        alert("Failed to save."); 
-    } finally { 
-        btn.disabled = false; 
-        btn.textContent = "Save"; 
+    } catch (error) {
+        console.error("Save Error:", error);
+        alert("Failed to save.");
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Save";
     }
 }
 
@@ -1301,10 +2074,10 @@ function handleUploadCSV(event) {
     reader.onload = async function(e) {
         const text = e.target.result;
         const lines = text.split('\n');
-        
+
         const database = (typeof db !== 'undefined') ? db : firebase.database();
         const currentUser = (typeof currentApprover !== 'undefined') ? currentApprover.Name : 'System';
-        
+
         const idMap = new Map();
         const nameMap = new Map();
         let maxSeries = 0;
@@ -1317,14 +2090,14 @@ function handleUploadCSV(event) {
             if (!isNaN(s) && s > maxSeries) maxSeries = s;
         });
 
-        const finalUpdates = {}; 
+        const finalUpdates = {};
         let mergedCount = 0;
         let newCount = 0;
 
         for (let i = 1; i < lines.length; i++) {
             const line = lines[i].trim();
             if (!line) continue;
-            
+
             const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
 
             if (cols.length >= 5) {
@@ -1346,7 +2119,7 @@ function handleUploadCSV(event) {
                     if (existingItem) {
                         if (pName && pName !== "") existingItem.productName = pName;
                         if (!existingItem.sites) existingItem.sites = {};
-                        
+
                         let currentSiteQty = parseFloat(existingItem.sites[pSite] || 0);
                         existingItem.sites[pSite] = currentSiteQty + pQty;
 
@@ -1437,16 +2210,16 @@ function handleUploadCSV(event) {
             if (count > 0) await database.ref('material_stock').update(batch);
 
             alert("Upload Successful!");
-            localStorage.removeItem("cached_MATERIAL_STOCK"); 
+            localStorage.removeItem("cached_MATERIAL_STOCK");
             populateMaterialStock(true);
 
         } catch(e) {
             console.error(e);
             alert("Error: " + e.message);
         } finally {
-            if (uploadBtn) { 
-                uploadBtn.disabled = false; 
-                uploadBtn.innerHTML = '<i class="fa-solid fa-file-csv"></i> Upload CSV'; 
+            if (uploadBtn) {
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '<i class="fa-solid fa-file-csv"></i> Upload CSV';
             }
             document.getElementById('ms-csv-file-input').value = '';
         }
@@ -1467,7 +2240,7 @@ window.openAddStockModal = function (key) {
     document.getElementById('ms-add-details').value = item.relationship || item.details;
     document.getElementById('ms-add-current-stock').value = item.stockQty;
     document.getElementById('ms-add-qty-input').value = '';
-    
+
     const siteSelect = document.getElementById('ms-add-site-select');
     siteSelect.innerHTML = '<option value="Main Store">Main Store</option>';
     if (typeof allSitesCSVData !== 'undefined') {
@@ -1528,6 +2301,8 @@ async function populateModalSiteDropdown() {
 window.handleClearMaterialForm = function() {
     document.getElementById('ms-new-material-form').reset();
     document.getElementById('ms-new-id-display').value = "Auto-Generated";
+    const photoInput = document.getElementById('ms-new-photo-url');
+    if (photoInput) photoInput.value = '';
 };
 
 window.initiateReturn = function(transferKey) {
@@ -1571,7 +2346,7 @@ async function handleBulkDelete() {
 
     const count = checkedBoxes.length;
     const confirmMsg = `⚠️ MASTER BULK DELETE ⚠️\n\nYou are about to delete ${count} items from Stock.\n\nThis will also delete the history for these specific Product IDs.\n\nAre you sure you want to proceed?`;
-    
+
     if (!confirm(confirmMsg)) return;
 
     const btn = document.getElementById('ms-bulk-delete-btn');
@@ -1636,11 +2411,11 @@ function openStockReportModal() {
     if (headerContainer) {
         headerContainer.innerHTML = `
             <div style="margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 15px;">
-                
-                <img src="https://firebasestorage.googleapis.com/v0/b/invoiceentry-b15a8.firebasestorage.app/o/Files%2Fiba_logo.jpg?alt=media&token=d7376281-75e0-4f8b-b9c5-9911e4522f68" 
-                     style="width: 550px; max-width: 100%; height: auto;" 
+
+                <img src="https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/logo%20(1).png"
+                     style="width: 550px; max-width: 100%; height: auto;"
                      alt="IBA Logo">
-                
+
                 <div class="print-only-header-text" style="clear: both; text-align: center; margin-top: 10px;">
                     <h3 style="margin: 0; font-family: sans-serif; color: #222; text-transform: uppercase; font-size: 20px; font-weight: bold; line-height: 1.2;">
                         Material Stock Status Report
@@ -1656,7 +2431,7 @@ function openStockReportModal() {
     document.getElementById('ms-report-total').textContent = data.length;
     document.getElementById('ms-report-instock').textContent = data.filter(i => (parseFloat(i.stockQty) || 0) > 0).length;
     document.getElementById('ms-report-outstock').textContent = data.length - data.filter(i => (parseFloat(i.stockQty) || 0) > 0).length;
-    
+
     // (Optional) Update date if element exists
     const dateEl = document.getElementById('ms-report-date');
     if (dateEl) dateEl.textContent = new Date().toLocaleString();
@@ -1706,7 +2481,7 @@ function downloadFixedStockCSV() {
         }
         if(!locText) locText = "Main Store: " + (item.stockQty || 0);
 
-        const safeLocText = `="${locText.replace(/"/g, '""')}"`; 
+        const safeLocText = `="${locText.replace(/"/g, '""')}"`;
 
         const row = [
             `"${item.productID || item.productId || ''}"`,
@@ -1732,7 +2507,191 @@ function downloadFixedStockCSV() {
 // - Local-only (stored in browser localStorage)
 // - Safe: does NOT modify any stock or transfer logic
 // ==========================================================================
-const MS_REQUIRED_LIST_LOGO_URL = "https://firebasestorage.googleapis.com/v0/b/invoiceentry-b15a8.firebasestorage.app/o/Files%2Fiba_logo.jpg?alt=media&token=d7376281-75e0-4f8b-b9c5-9911e4522f68";
+const MS_REQUIRED_LIST_LOGO_URL = "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/logo%20(1).png";
+
+
+function msPrintHtmlInHiddenFrame(html, frameId = 'ms-inventory-print-frame') {
+    const oldFrame = document.getElementById(frameId);
+    if (oldFrame) oldFrame.remove();
+
+    const iframe = document.createElement('iframe');
+    iframe.id = frameId;
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.style.opacity = '0';
+    iframe.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    const doPrint = () => {
+        try {
+            const win = iframe.contentWindow;
+            if (!win) return;
+            win.focus();
+            win.print();
+        } catch (e) {
+            console.warn('Material Stock print failed:', e);
+        }
+    };
+
+    const waitForImages = () => {
+        try {
+            const imgs = Array.from(doc.images || []);
+            if (!imgs.length) {
+                setTimeout(doPrint, 250);
+                return;
+            }
+
+            let pending = imgs.length;
+            const done = () => {
+                pending -= 1;
+                if (pending <= 0) setTimeout(doPrint, 250);
+            };
+
+            imgs.forEach(img => {
+                if (img.complete) done();
+                else {
+                    img.onload = done;
+                    img.onerror = done;
+                }
+            });
+
+            setTimeout(() => {
+                if (pending > 0) doPrint();
+            }, 2500);
+        } catch (e) {
+            setTimeout(doPrint, 300);
+        }
+    };
+
+    iframe.onload = waitForImages;
+    setTimeout(waitForImages, 400);
+}
+
+function msBuildStockReportPrintHtml() {
+    const data = Array.isArray(lastFilteredStockData) ? lastFilteredStockData : [];
+    const esc = (s) => String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+    let titleSuffix = '';
+    if (currentCategoryFilter && currentCategoryFilter !== 'All') {
+        const familyName = STOCK_LEGENDS[currentCategoryFilter]?.name || currentCategoryFilter;
+        titleSuffix = `<div class="subtitle">Filtered: ${esc(familyName)}</div>`;
+    }
+
+    const rowsHtml = data.map((item) => {
+        let locText = 'Main Store: 0';
+        if (item.sites) {
+            const locs = [];
+            Object.entries(item.sites).forEach(([site, qty]) => {
+                if (parseFloat(qty) > 0) locs.push(`${site}: ${qty}`);
+            });
+            if (locs.length > 0) locText = locs.join(', ');
+            else if ((parseFloat(item.stockQty) || 0) > 0) locText = 'Main Store: ' + item.stockQty;
+            else locText = 'Out of Stock';
+        }
+
+        return `
+            <tr>
+                <td class="mono">${esc(item.productID || item.productId || '')}</td>
+                <td>${esc(item.productName || '')}</td>
+                <td class="num">${esc(item.stockQty ?? 0)}</td>
+                <td>${esc(locText)}</td>
+            </tr>`;
+    }).join('');
+
+    const totalItems = data.length;
+    const inStock = data.filter(i => (parseFloat(i.stockQty) || 0) > 0).length;
+    const outStock = totalItems - inStock;
+
+    return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Material Stock Status Report</title>
+  <style>
+    *{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
+    body{margin:20px;color:#111;background:#fff}
+    .hdr{display:flex;align-items:center;gap:18px;border-bottom:2px solid #003A5C;padding-bottom:12px;margin-bottom:14px}
+    .hdr img{height:58px;width:auto;display:block}
+    h1{margin:0;color:#003A5C;font-size:20px;letter-spacing:.02em}
+    .subtitle{margin-top:4px;color:#555;font-size:12px}
+    .meta{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:10px 0 14px;color:#444;font-size:12px}
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0 16px}
+    .stat{border:1px solid #dbe5ef;border-radius:8px;padding:10px;text-align:center;background:#f8fafc}
+    .stat span{display:block;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.04em}
+    .stat strong{font-size:18px;color:#0f172a}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th,td{border:1px solid #d9e3ef;padding:7px 8px;vertical-align:top}
+    th{background:#f1f5f9;color:#003A5C;text-align:left;text-transform:uppercase;font-size:11px;letter-spacing:.03em}
+    .mono{font-family:Consolas,Monaco,monospace;font-weight:700;color:#003A5C}
+    .num{text-align:center;font-weight:800}
+    .foot{margin-top:18px;border-top:1px solid #d9e3ef;padding-top:8px;font-size:11px;color:#64748b;display:flex;justify-content:space-between}
+    @media print{body{margin:10mm}.stat{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+  </style>
+</head>
+<body>
+  <div class="hdr">
+    <img src="${MS_REQUIRED_LIST_LOGO_URL}" alt="IBA" />
+    <div>
+      <h1>Material Stock Status Report</h1>
+      ${titleSuffix}
+    </div>
+  </div>
+
+  <div class="meta">
+    <div><strong>Generated:</strong> ${esc(new Date().toLocaleString())}</div>
+    <div><strong>Total Items:</strong> ${totalItems}</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><span>Total Items</span><strong>${totalItems}</strong></div>
+    <div class="stat"><span>In Stock</span><strong>${inStock}</strong></div>
+    <div class="stat"><span>Out of Stock</span><strong>${outStock}</strong></div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:16%;">Product ID</th>
+        <th style="width:34%;">Name</th>
+        <th style="width:10%;text-align:center;">Total Qty</th>
+        <th>Location Breakdown</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rowsHtml || '<tr><td colspan="4" style="text-align:center;color:#777;padding:20px;">No materials found.</td></tr>'}
+    </tbody>
+  </table>
+
+  <div class="foot">
+    <span>System Generated Report</span>
+    <span>Signature: _______________________</span>
+  </div>
+</body>
+</html>`;
+}
+
+function msPrintStockReport() {
+    const data = Array.isArray(lastFilteredStockData) ? lastFilteredStockData : [];
+    if (!data.length) {
+        alert('No stock report data to print. Please select a family tab or search first.');
+        return;
+    }
+    msPrintHtmlInHiddenFrame(msBuildStockReportPrintHtml(), 'ms-stock-report-print-frame');
+}
 
 function msRequiredListStorageKey() {
     let name = 'UnknownUser';
@@ -2153,23 +3112,10 @@ function msPrintRequiredList() {
     <span>System Generated</span>
     <span>Signature: _______________________</span>
   </div>
-
-  <script>
-    window.onload = function(){
-      try { window.print(); } catch(e) {}
-    };
-  </script>
 </body>
 </html>`;
 
-    const w = window.open('', '_blank');
-    if (!w) {
-        alert('Popup blocked. Please allow popups to print.');
-        return;
-    }
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
+    msPrintHtmlInHiddenFrame(html, 'ms-required-list-print-frame');
 }
 
 function msInitRequiredListUI() {
@@ -2214,7 +3160,6 @@ function msInitRequiredListUI() {
             msAddManualRequiredItem();
         });
     }
-
 
 
     // Delegated events for qty changes + remove
@@ -2279,6 +3224,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initMaterialStockSystem();
     // Required Materials list (notepad) - safe, local-only
     msInitRequiredListUI();
+    msInitPhotoBrowserUI();
     populateMaterialStock(false); // <--- ENSURE AUTO-LOAD IS ACTIVE
 
         const refreshBtn = document.getElementById('ms-refresh-btn');
@@ -2311,7 +3257,7 @@ const addNewBtn = document.getElementById('ms-add-new-btn');
 
     const clearBtn = document.getElementById('ms-clear-form-btn');
     if (clearBtn) clearBtn.addEventListener('click', handleClearMaterialForm);
-    
+
     // --- SEARCH LOGIC ---
     const msSearchInput = document.getElementById('ms-search-input');
     if (msSearchInput) {
@@ -2331,19 +3277,19 @@ const addNewBtn = document.getElementById('ms-add-new-btn');
             // 1. Clear Search Input
             if (msSearchInput) {
                 msSearchInput.value = '';
-                msSearchInput.focus(); 
+                msSearchInput.focus();
             }
-            
+
             // 2. Wipe Table
             if (msTableBody) {
                 msTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:#777;">List cleared. Please select a Family tab above.</td></tr>';
             }
-            
+
             // 3. Reset Counts
             if (msCountDisplay) {
                 msCountDisplay.textContent = '';
             }
-            
+
             // 4. Reset Category Tabs
             if (msTabs) {
                 msTabs.querySelectorAll('.active').forEach(tab => {
@@ -2352,9 +3298,9 @@ const addNewBtn = document.getElementById('ms-add-new-btn');
                     tab.style.color = '#555';
                 });
             }
-            currentCategoryFilter = null; 
+            currentCategoryFilter = null;
             lastFilteredStockData = [];
-            
+
             // 5. NEW: Reset Site Filter to "All"
             const siteFilter = document.getElementById('ms-site-filter');
             if(siteFilter) siteFilter.value = 'All';
@@ -2365,9 +3311,10 @@ const addNewBtn = document.getElementById('ms-add-new-btn');
     if(openReportBtn) openReportBtn.addEventListener('click', openStockReportModal);
 
     const printModalBtn = document.getElementById('ms-modal-print-btn');
-    if(printModalBtn) printModalBtn.addEventListener('click', () => {
-        window.print();
-    });
+    if (printModalBtn && printModalBtn.dataset.bound !== '1') {
+        printModalBtn.dataset.bound = '1';
+        printModalBtn.addEventListener('click', msPrintStockReport);
+    }
 
     const excelModalBtn = document.getElementById('ms-modal-excel-btn');
     if(excelModalBtn) excelModalBtn.addEventListener('click', downloadFixedStockCSV);
@@ -2381,26 +3328,26 @@ const addNewBtn = document.getElementById('ms-add-new-btn');
             const key = document.getElementById('ms-add-key').value;
             const site = document.getElementById('ms-add-site-select').value;
             const qty = parseFloat(document.getElementById('ms-add-qty-input').value) || 0;
-            
+
             if(qty === 0) { alert("Enter quantity."); return; }
-            
+
             const item = allMaterialStockData.find(i => i.key === key);
             let sites = item.sites || {};
-            
+
             let currentSiteQty = parseFloat(sites[site] || 0);
             currentSiteQty += qty;
             if(currentSiteQty < 0) { alert("Cannot have negative stock."); return; }
-            
+
             sites[site] = currentSiteQty;
-            
+
             let total = 0; Object.values(sites).forEach(q => total += q);
-            
+
             await firebase.database().ref(`material_stock/${key}`).update({
                 sites: sites,
                 stockQty: total,
                 lastUpdated: firebase.database.ServerValue.TIMESTAMP
             });
-            
+
             alert("Stock Updated Successfully.");
             document.getElementById('ms-add-stock-modal').classList.add('hidden');
             localStorage.removeItem(STOCK_CACHE_KEY);
@@ -2418,11 +3365,11 @@ window.deleteSiteStock = async function(key, siteToDelete) {
     }
 
     const database = firebase.database();
-    
+
     try {
         const snapshot = await database.ref(`material_stock/${key}`).once('value');
         const item = snapshot.val();
-        
+
         if (!item || !item.sites) {
             alert("Error: Item or sites not found.");
             return;
@@ -2443,7 +3390,7 @@ window.deleteSiteStock = async function(key, siteToDelete) {
         });
 
         alert(`Success! Removed stock from ${siteToDelete}.`);
-        
+
         localStorage.removeItem(STOCK_CACHE_KEY);
         populateMaterialStock(true);
 

@@ -1,4 +1,18 @@
 <!DOCTYPE html>
+<!-- ==========================================================================
+     FILE: receipt.html
+     ORGANIZED WORKING COPY
+     PURPOSE: Standalone approval receipt print/export page and receipt layout.
+
+     SAFETY NOTE:
+     - Element order, ids, classes, scripts, and inline styles are preserved.
+     - Cleanup applied: top map, section markers, trailing-space cleanup, blank-line cleanup.
+
+     NAVIGATION MAP:
+       - #ceo-receipt-template: RECEIPT TEMPLATE BODY
+       - #button-container: RECEIPT ACTION BUTTONS
+     ========================================================================== -->
+
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -31,74 +45,74 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             margin-bottom: 20px;
             box-sizing: border-box;
-            position: relative; 
-            display: block; 
+            position: relative;
+            display: block;
             margin-left: auto;
             margin-right: auto;
         }
 
         h2#receipt-title {
-            text-align: center; 
-            margin: 0 0 15px 0; 
-            font-size: 1.1rem; 
+            text-align: center;
+            margin: 0 0 15px 0;
+            font-size: 1.1rem;
             font-weight: bold;
-            border-bottom: 2px solid #000; 
+            border-bottom: 2px solid #000;
             padding-bottom: 10px;
         }
 
         /* --- ITEM LAYOUT FIX --- */
-        .item { 
-            display: flex; 
-            justify-content: space-between; 
+        .item {
+            display: flex;
+            justify-content: space-between;
             align-items: flex-start; /* Aligns price to top */
-            margin-bottom: 10px; 
+            margin-bottom: 10px;
             font-size: 0.85rem;
             border-bottom: 1px dashed #eee; /* Separator line */
             padding-bottom: 5px;
         }
-        .item-details { 
-            flex-basis: 70%; 
+        .item-details {
+            flex-basis: 70%;
             display: flex;
             flex-direction: column;
         }
-        
+
         /* New Lines */
         .line-po { font-size: 0.9rem; margin-bottom: 2px; }
         .line-inv { font-size: 0.85rem; margin-bottom: 2px; }
         .line-vendor { font-size: 0.75rem; color: #555; font-style: italic; }
 
-        .item-status { 
-            flex-basis: 30%; 
-            text-align: right; 
-            font-weight: bold; 
+        .item-status {
+            flex-basis: 30%;
+            text-align: right;
+            font-weight: bold;
             font-size: 1rem;
         }
-        
+
         .status-approved { color: #28a745; }
         .status-rejected { color: #D32F2F; }
 
-        .total { 
-            border-top: 1px dashed #000; 
-            margin-top: 10px; 
-            padding-top: 8px; 
-            font-weight: bold; 
-            display: flex; 
-            justify-content: space-between; 
+        .total {
+            border-top: 1px dashed #000;
+            margin-top: 10px;
+            padding-top: 8px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
             font-size: 0.9rem;
         }
         .total-rejected { color: #D32F2F; }
 
-        #receipt-footer { 
-            text-align: center; 
-            margin-top: 25px; 
-            padding-top: 15px; 
-            border-top: 2px solid #000; 
+        #receipt-footer {
+            text-align: center;
+            margin-top: 25px;
+            padding-top: 15px;
+            border-top: 2px solid #000;
         }
-        
-        #footer-esn { 
-            font-weight: bold; 
-            font-size: 0.9rem; 
-            margin: 5px 0; 
+
+        #footer-esn {
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin: 5px 0;
         }
 
         #receipt-qr-code {
@@ -112,15 +126,15 @@
 
         /* BUTTONS */
         #button-container { text-align: center; margin-bottom: 30px; }
-        .action-btn { 
-            padding: 12px 30px; 
-            font-size: 16px; 
-            font-weight: bold; 
-            cursor: pointer; 
-            border: none; 
-            border-radius: 50px; 
-            color: white; 
-            margin: 5px; 
+        .action-btn {
+            padding: 12px 30px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            border-radius: 50px;
+            color: white;
+            margin: 5px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             transition: transform 0.2s;
         }
@@ -148,6 +162,9 @@
 </head>
 <body>
 
+    <!-- ====================================================================== -->
+    <!-- RECEIPT TEMPLATE BODY -->
+    <!-- ====================================================================== -->
     <div id="ceo-receipt-template">
         <h2 id="receipt-title">Authorize Approval</h2>
 
@@ -174,6 +191,9 @@
         </div>
     </div>
 
+    <!-- ====================================================================== -->
+    <!-- RECEIPT ACTION BUTTONS -->
+    <!-- ====================================================================== -->
     <div id="button-container">
         <button id="send-whatsapp-btn" class="action-btn"><i class="fa-brands fa-whatsapp"></i> Send to WhatsApp</button>
         <p id="status-text">Generating receipt...</p>

@@ -1,3 +1,51 @@
+// ==========================================================================
+// FILE: dm_section.js
+// ORGANIZED WORKING COPY
+// PURPOSE: Direct Messages module: 1:1 chat, presence, inbox, unread counts, modal UI, and messaging buttons.
+// SAFETY NOTE:
+//   - Original execution order is preserved.
+//   - No logic was intentionally changed.
+//   - Cleanup applied: consistent top map, trailing-space cleanup, blank-line cleanup.
+//
+// NAVIGATION MAP:
+// MAJOR SECTIONS FOUND:
+//   - Line     1: DIRECT MESSAGES (DM) — SIMPLE 1:1 IN-APP CHAT + ONLINE STATUS + OFFLINE INBOX
+//   - Line   703: NOTE: We subscribe to the presence list only while the Messages window is open.
+//
+// FUNCTION QUICK INDEX:
+//   - Line    44: dmIsMobile()
+//   - Line    68: dmSetMobileScreen()
+//   - Line    84: dmGetThreadId()
+//   - Line    91: dmSafeText()
+//   - Line    95: dmEnsureInlineStyles()
+//   - Line   181: dmEnsureUI()
+//   - Line   308: dmToast()
+//   - Line   323: dmOpen()
+//   - Line   351: dmClose()
+//   - Line   359: dmGetApproversList()
+//   - Line   388: dmTotalUnreadCount()
+//   - Line   398: dmUpdateBadges()
+//   - Line   407: dmInitials()
+//   - Line   417: dmRenderUserList()
+//   - Line   467: open()
+//   - Line   482: dmSetChatHeader()
+//   - Line   508: dmClearThreadListener()
+//   - Line   518: dmOpenThread()
+//   - Line   559: dmRenderMessage()
+//   - Line   582: dmSendCurrent()
+//   - Line   594: dmSendMessage()
+//   - Line   633: dmInjectMessagesButtons()
+//   - Line   669: dmStartPresence()
+//   - Line   707: dmSubscribePresenceList()
+//   - Line   712: onChild()
+//   - Line   717: onRemoved()
+//   - Line   731: dmUnsubscribePresenceList()
+//   - Line   747: dmSubscribeInbox()
+//   - Line   763: dmSubscribeUnread()
+//   - Line   774: initDirectMessages()
+//   - Line   803: shutdownDirectMessages()
+// ==========================================================================
+
 // DIRECT MESSAGES (DM) — SIMPLE 1:1 IN-APP CHAT + ONLINE STATUS + OFFLINE INBOX
 // - Works without Firebase Auth (your rules currently allow reads/writes).
 // - If recipient is online (system open) → instant pop-up.
@@ -818,4 +866,3 @@ function shutdownDirectMessages() {
         console.warn('DM shutdown warning:', e);
     }
 }
-

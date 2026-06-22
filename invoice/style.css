@@ -1,3 +1,75 @@
+/* ==========================================================================
+   FILE: style.css
+   ORGANIZED WORKING COPY
+   PURPOSE: Main system styling for login, dashboard, WorkDesk, Invoice Management, mobile views, and shared components.
+
+   SAFETY NOTE:
+   - CSS cascade order is preserved to avoid changing the visual behavior.
+   - Cleanup applied: top map, trailing-space cleanup, blank-line cleanup.
+
+   STYLE BLOCKS / EXISTING HEADERS FOUND:
+     - Line     1: Keyframe animation for the background
+     - Line     3: MODIFIED: Use new brand colors
+     - Line    53: Fireworks bursts (in addition to confetti)
+     - Line   174: Invoice Management: Batch Entry - Attention Picker (Per Row)
+     - Line   197: +++ Custom Variables +++
+     - Line   199: IBA Brand Palette
+     - Line   206: IBA Tints (for backgrounds/hovers)
+     - Line   212: Text Colors
+     - Line   216: Old Variable Mapping
+     - Line   223: Dashboard Theme Colors
+     - Line   234: General Body Styles
+     - Line   238: UI SIMPLIFICATION: HIDE "ADD NEW JOB" ENTRY POINTS IN REPORTING LIST VIEWS
+     - Line   239: (The WorkDesk sidebar "Add New Job" remains available as the main entry.)
+     - Line   246: +++ Plain Dark Blue Login Background +++
+     - Line   252: Slightly richer backdrop for the glass card (desktop login + welcome)
+     - Line   261: App Container for centered content
+     - Line   264: Card Styling
+     - Line   272: ++ REVERTED: Animated Card Style for Login/Welcome ++
+     - Line   274: Crystal / glass card (login + welcome screen)
+     - Line   280: Edge glow (subtle, readable)
+     - Line   302: Show as border only
+     - Line   327: ADD THIS NEW RULE
+     - Line   335: END OF ADDITION
+     - Line   337: ++ NEW: Style for input hint text ++
+     - Line   346: Main Dashboard Styles
+     - Line   347: MODIFIED: Changed text color for dark card
+     - Line   356: MODIFIED: Themed Circle Buttons
+     - Line   378: WORKDESK STYLES
+     - Line   395: ++ MODIFIED (Req 1): Adjust main content when sidebar is present ++
+     - Line   397: Make room for the sidebar
+     - Line   408: ++ NEW: Table Count Display ++
+     - Line   422: UPDATED Form & Input Styles
+     - Line   436: ++ Vacation Style for Choices.js ++
+     - Line   447: Dividers & Search Bars
+     - Line   453: ++ NEW: Invoice Entry PO Search Container ++
+     - Line   469: ++ NEW (Req 1): Style for Bottom PO Search Container ++
+     - Line   477: max-width: 500px; REMOVED max-width to allow buttons to spread
+     - Line   488: ++ FIX: Add spacing to buttons within the bottom search container ++
+     - Line   493: Remove inherited styles if they cause issues
+     - Line   501: Table Styles
+     - Line   527: Download button color variants (used in Invoice Mgmt → Invoice Records reporting header)
+     - Line   536: New style for clickable rows
+     - Line   541: WORKDESK DASHBOARD STYLES
+     - Line   549: MODIFIED: PO Details Container (Pink Theme)
+     - Line   557: Matching Font Color
+     - Line   562: Optional: Make the labels (PO No:, Site:) slightly darker/bolder
+     - Line   581: REPORTING STYLES
+     - Line   621: TAB STYLE (Workdesk + Inventory)
+     - Line   623: Default colors (can be overridden per button using --tab-color/--tab-text)
+     - Line   637: Hide Scrollbar (Clean Look)
+     - Line   642: Hide Scrollbar for Chrome, Safari, Opera
+     - Line   652: Extra left padding to clear the angled corner
+     - Line   667: Folder-tab edge
+     - Line   707: Make secondary text inside active tabs readable (e.g., [code] labels)
+     - Line   712: Attention effect used on Active Task tabs
+     - Line   752: Legend for Reporting Table
+     - Line   775: ++ Invoice Reporting Form Layout ++
+     - Line   794: Style for disabled navigation links
+     - Line   805: INVOICE REPORT STYLES
+     - Line   821: New Highlighting Rules
+   ========================================================================== */
+
 /* --- Keyframe animation for the background --- */
 @keyframes glowing-border {
     /* MODIFIED: Use new brand colors */
@@ -48,7 +120,6 @@
         opacity: 0.2;
     }
 }
-
 
 
 /* Fireworks bursts (in addition to confetti) */
@@ -1635,7 +1706,7 @@ tbody tr:hover { background-color: #f1f1f1; }
 .im-sidebar-item {
     background-color: white; /* White card for contrast */
     padding: 8px 12px !important; /* Tight padding */
-    margin-bottom: 8px !important; 
+    margin-bottom: 8px !important;
     border-radius: 6px !important;
     border: none;
     cursor: pointer;
@@ -2013,9 +2084,9 @@ tbody tr:hover { background-color: #f1f1f1; }
         padding: 0 !important;
         background: white !important;
         z-index: 99999 !important;
-        
+
         /* Remove Shadow and Border for Print */
-        box-shadow: none !important; 
+        box-shadow: none !important;
         border: none !important;
     }
 
@@ -2041,10 +2112,10 @@ tbody tr:hover { background-color: #f1f1f1; }
     border-bottom: 2px solid #000 !important;
     margin-bottom: 20px !important;
     padding-bottom: 10px !important;
-    
+
     /* ▼ CHANGE THIS TO LEFT ▼ */
-    text-align: left !important; 
-    
+    text-align: left !important;
+
     display: block !important;
 }
 
@@ -2104,7 +2175,7 @@ tbody tr:hover { background-color: #f1f1f1; }
         padding: 5px 3px !important;
         word-wrap: break-word !important;
     }
-    
+
     /* Header - Dark Grey */
     #im-finance-report-modal:not(.hidden) thead th {
     background-color: #333 !important;
@@ -2113,9 +2184,9 @@ tbody tr:hover { background-color: #f1f1f1; }
     text-align: center !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-    
+
     /* ▼ ADD OR CHANGE THIS LINE ▼ */
-    font-size: 9pt !important; 
+    font-size: 9pt !important;
     /* ▲ Adjust this value (e.g., 9pt, 11pt, 12px) to resize text ▲ */
     }
 
@@ -2133,7 +2204,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     /* Col 1: P/N (Reduced to ~50% -> 4%) */
     #im-finance-report-modal:not(.hidden) th:nth-child(1),
     #im-finance-report-modal:not(.hidden) td:nth-child(1) {
-    width: 4% !important; 
+    width: 4% !important;
     white-space: nowrap !important;
     text-align: center !important;
     }
@@ -2141,7 +2212,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     /* Col 2: Cheque No. (Reduced to ~80% -> 12%) */
     #im-finance-report-modal:not(.hidden) th:nth-child(2),
     #im-finance-report-modal:not(.hidden) td:nth-child(2) {
-    width: 12% !important; 
+    width: 12% !important;
     max-width: 100px !important;
     text-align: center !important;
     }
@@ -2153,7 +2224,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     #im-finance-report-modal:not(.hidden) td:nth-child(4),
     #im-finance-report-modal:not(.hidden) th:nth-child(5),
     #im-finance-report-modal:not(.hidden) td:nth-child(5) {
-    width: 22% !important; 
+    width: 22% !important;
     text-align: right !important;
     font-family: monospace !important;
     }
@@ -2161,7 +2232,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     /* Col 6: Date (Takes remaining space) */
     #im-finance-report-modal:not(.hidden) th:nth-child(6),
     #im-finance-report-modal:not(.hidden) td:nth-child(6) {
-    width: auto !important; 
+    width: auto !important;
     }
 
     /* 9. SIGNATURES (Text Below Line) */
@@ -2173,7 +2244,7 @@ tbody tr:hover { background-color: #f1f1f1; }
     }
 
     #im-finance-report-modal:not(.hidden) .signature-box {
-    width: 22% !important; 
+    width: 22% !important;
     text-align: center !important;
     display: flex !important;
     flex-direction: column-reverse !important; /* FLIPS THE ORDER (Text moves to bottom) */
@@ -4948,7 +5019,6 @@ body.is-ceo .desktop-only.col-group {
 }
 
 
-
 /* Invoice Entry Modal: avoid "card inside a card" look */
 #im-invoice-entry-modal #im-new-invoice-form {
     background: transparent;
@@ -5043,7 +5113,7 @@ body.is-ceo .desktop-only.col-group {
 /* 4. MULTI-COLUMN FREEZE (PO, Site, Vendor, Inv No) */
 
 /* 4a. Common Logic for the first 4 columns */
-#im-batch-entry-table th:nth-child(-n+4), 
+#im-batch-entry-table th:nth-child(-n+4),
 #im-batch-entry-table td:nth-child(-n+4) {
     position: sticky;
     z-index: 15;
@@ -5054,7 +5124,7 @@ body.is-ceo .desktop-only.col-group {
 /* 4b. Header Specifics */
 #im-batch-entry-table th:nth-child(-n+4) {
     z-index: 35;
-    background-color: #003A5C; 
+    background-color: #003A5C;
     color: white;
 }
 
@@ -5192,7 +5262,7 @@ body.is-ceo .desktop-only.col-group {
     box-sizing: border-box !important;
     width: 100% !important;
     min-height: 38px !important;       /* Standard height */
-    border: 1px solid #ced4da !important; 
+    border: 1px solid #ced4da !important;
     border-radius: 4px !important;
     background-color: white !important;
     padding: 4px 10px !important;      /* Adjust internal spacing */
@@ -5330,7 +5400,6 @@ body.is-ceo .desktop-only.col-group {
 .icon-only-btn i {
     margin-right: 0 !important;    /* Remove spacing usually reserved for text */
 }
-
 
 
 /* ============================================================= */
@@ -5979,7 +6048,7 @@ body.inventory-mode .wd-nav-material {
     /* 1. Page Setup */
     @page {
         size: auto;
-        margin: 5mm; 
+        margin: 5mm;
     }
 
     /* 2. THE SAFETY SWITCH: Only hide everything IF the Stock Report is OPEN */
@@ -6015,7 +6084,7 @@ body.inventory-mode .wd-nav-material {
 
     #ms-report-modal:not(.hidden) .modal-container {
         box-sizing: border-box !important;
-        width: 100% !important; 
+        width: 100% !important;
         max-width: 100% !important;
         margin: 0 !important;
         padding: 0 !important;
@@ -6034,7 +6103,7 @@ body.inventory-mode .wd-nav-material {
     #ms-report-modal .modal-close-btn {
         display: none !important;
     }
-    
+
     #ms-report-modal:not(.hidden) .print-only-header { display: block !important; }
 
     /* 6. Header Styling */
@@ -6051,7 +6120,7 @@ body.inventory-mode .wd-nav-material {
     #ms-report-modal:not(.hidden) table {
         width: 100% !important;
         border-collapse: collapse !important;
-        table-layout: auto !important; 
+        table-layout: auto !important;
         page-break-inside: auto !important;
     }
 
@@ -6083,7 +6152,7 @@ body.inventory-mode .wd-nav-material {
         color: #000 !important;
         vertical-align: top !important;
         word-wrap: break-word !important;
-        overflow-wrap: break-word !important; 
+        overflow-wrap: break-word !important;
     }
 
     /* 8. Column Widths */
@@ -6095,8 +6164,8 @@ body.inventory-mode .wd-nav-material {
 
     #ms-report-modal:not(.hidden) th:nth-child(2),
     #ms-report-modal:not(.hidden) td:nth-child(2) {
-        width: auto !important; 
-        max-width: 200px; 
+        width: auto !important;
+        max-width: 200px;
     }
 
     #ms-report-modal:not(.hidden) th:nth-child(3),
@@ -6109,7 +6178,7 @@ body.inventory-mode .wd-nav-material {
     #ms-report-modal:not(.hidden) th:nth-child(4),
     #ms-report-modal:not(.hidden) td:nth-child(4) {
         width: auto !important;
-        word-break: break-word !important; 
+        word-break: break-word !important;
     }
 }
 /* Indicate that the header can be dragged */
@@ -6147,8 +6216,8 @@ body.inventory-mode .wd-nav-material {
 @media print {
     /* 1. Minimize Page Margins to give the table more room */
     @page {
-        margin: 0.5cm; 
-        size: auto; 
+        margin: 0.5cm;
+        size: auto;
     }
 
     /* 2. Force the container to fit the page width */
@@ -6189,7 +6258,7 @@ body.inventory-mode .wd-nav-material {
 
 /* Make the PO Number Text Dark Green */
 .im-sidebar-item.status-approved .im-sidebar-po {
-    color: #155724 !important; 
+    color: #155724 !important;
     font-weight: 700;
 }
 
@@ -6272,15 +6341,15 @@ body.inventory-mode .wd-nav-material {
 
 #im-entry-sidebar {
     /* 1. Raise it above the modal overlay (which is usually z-index 1000-9999) */
-    z-index: 10005 !important; 
-    
+    z-index: 10005 !important;
+
     /* 2. Ensure it positions correctly to accept clicks */
-    position: right; 
+    position: right;
 }
 
 /* Optional: Ensure the modal overlay sits just behind it */
 .modal-overlay {
-    z-index: 9999 !important; 
+    z-index: 9999 !important;
 }
 
 /* ======================================================= */
@@ -6288,10 +6357,10 @@ body.inventory-mode .wd-nav-material {
 /* ======================================================= */
 
 /* --- 1. THE RED GROUP (Invoice Details, Status, Attention) --- */
-#im-inv-no, 
-#im-inv-value, 
-#im-invoice-date, 
-#im-status, 
+#im-inv-no,
+#im-inv-value,
+#im-invoice-date,
+#im-status,
 #im-attention {
     border: 2px solid #dc3545 !important;    /* Red Border */
     background-color: rgba(220, 53, 69, 0.05) !important; /* Faint Red Background */
@@ -6300,10 +6369,10 @@ body.inventory-mode .wd-nav-material {
 }
 
 /* Red Glow on Focus */
-#im-inv-no:focus, 
-#im-inv-value:focus, 
+#im-inv-no:focus,
+#im-inv-value:focus,
 #im-invoice-date:focus,
-#im-status:focus, 
+#im-status:focus,
 #im-attention:focus {
     background-color: rgba(220, 53, 69, 0.1) !important;
     box-shadow: 0 0 10px rgba(220, 53, 69, 0.25) !important; /* Red Glow */
@@ -6445,7 +6514,7 @@ body.inventory-mode .wd-nav-material {
 .invoice-filter-grid {
     display: grid;
     /* Columns: Search (Wide) | Site | Status | Date | Buttons (Auto) */
-    grid-template-columns: 2fr 1.2fr 1fr 1fr auto; 
+    grid-template-columns: 2fr 1.2fr 1fr 1fr auto;
     gap: 15px;
     align-items: center;
 }
@@ -6627,7 +6696,7 @@ body.inventory-mode .wd-nav-material {
     }
 
     /* 3. Show Only the Summary Note */
-    #summary-note-printable-area, 
+    #summary-note-printable-area,
     #summary-note-printable-area * {
         visibility: visible !important;
         height: auto !important;
@@ -6644,11 +6713,11 @@ body.inventory-mode .wd-nav-material {
         padding: 0 !important;    /* No extra padding inside */
         box-shadow: none !important;
         background: white !important;
-        
+
         /* Optional: Force fit on one page if content is slightly long */
         page-break-inside: avoid;
     }
-    
+
     /* 5. Hide the Sidebar Layout */
     #im-summary-note {
         display: block !important;
@@ -7415,7 +7484,7 @@ body.inventory-mode .wd-nav-material {
 }
 
 /* This creates the 8 columns for Desktop */
-.im-reporting-grid-header, 
+.im-reporting-grid-header,
 .im-reporting-grid-row {
     display: grid !important;
     grid-template-columns: 80px 140px 110px 120px 120px 110px 140px 1fr !important;
@@ -7467,7 +7536,7 @@ button[title="Inquire / Request Update via WhatsApp"] {
 button[title="Inquire / Request Update via WhatsApp"]:hover {
     transform: scale(1.1);
     /* Subtle glow matching your secondary teal */
-    filter: drop-shadow(0 0 3px var(--iba-secondary-teal)); 
+    filter: drop-shadow(0 0 3px var(--iba-secondary-teal));
 }
 
 /* ==========================================================================
@@ -7480,14 +7549,14 @@ button[title="Inquire / Request Update via WhatsApp"]:hover {
         flex-direction: column !important;
         gap: 12px !important;
     }
-    .im-reporting-filters input, 
-    .im-reporting-filters select, 
+    .im-reporting-filters input,
+    .im-reporting-filters select,
     .im-reporting-filters button {
         width: 100% !important;
         height: 48px !important;
         box-sizing: border-box !important;
     }
-    
+
     /* Hide the junk buttons completely */
     button:has(i.fa-cloud-arrow-down), .fa-cloud-arrow-down,
     button[onclick*="efresh"], button[onclick*="ummary"], button[onclick*="etailed"] {
@@ -7526,11 +7595,11 @@ button[title="Inquire / Request Update via WhatsApp"]:hover {
         border: none !important;
         padding: 0 !important;
     }
-    
+
     /* Strip all text labels (no "Status:", "Date:", etc.) */
     html body div[id*="report"] table > tbody > tr:not(.detail-row) > td::before,
     html body div[id*="record"] table > tbody > tr:not(.detail-row) > td::before {
-        display: none !important; 
+        display: none !important;
     }
 
     /* Top Left: PO Number */
@@ -7632,7 +7701,7 @@ button[title="Inquire / Request Update via WhatsApp"]:hover {
 }
 
 /* Style the inputs inside the table so they are clean and uniform */
-#im-batch-entry-table input, 
+#im-batch-entry-table input,
 #im-batch-entry-table select {
     border: 1px solid #cbd5e1;
     padding: 8px 10px;
@@ -7644,7 +7713,7 @@ button[title="Inquire / Request Update via WhatsApp"]:hover {
     transition: all 0.2s ease;
 }
 
-#im-batch-entry-table input:focus, 
+#im-batch-entry-table input:focus,
 #im-batch-entry-table select:focus {
     border-color: #00748C;
     outline: none;
@@ -7773,7 +7842,7 @@ button[title="Inquire / Request Update via WhatsApp"]:hover {
     display: block;
 }
 
-.batch-input-grid input, 
+.batch-input-grid input,
 .batch-input-grid select {
     width: 100%;
     padding: 8px 10px;
@@ -7784,7 +7853,7 @@ button[title="Inquire / Request Update via WhatsApp"]:hover {
     box-sizing: border-box;
 }
 
-.batch-input-grid input:focus, 
+.batch-input-grid input:focus,
 .batch-input-grid select:focus {
     background: #fff;
     border-color: #00748C;
@@ -7800,7 +7869,7 @@ button[title="Inquire / Request Update via WhatsApp"]:hover {
 #im-invoice-entry-modal,
 #im-invoice-entry-modal.modal-overlay,
 .modal-backdrop {
-    background-color: transparent !important; 
+    background-color: transparent !important;
     background: transparent !important;
     box-shadow: none !important;
 }
@@ -7810,7 +7879,7 @@ button[title="Inquire / Request Update via WhatsApp"]:hover {
    ========================================================= */
 /* 1. Tell the container to "shrink-wrap" around whatever is inside it */
 #app-container {
-    max-width: fit-content !important; 
+    max-width: fit-content !important;
     margin: 0 auto; /* Keeps the whole thing centered on the screen */
 }
 
@@ -7818,7 +7887,7 @@ button[title="Inquire / Request Update via WhatsApp"]:hover {
 #login-view .form-container,
 #password-view .form-container,
 #setup-view .form-container {
-    width: 420px; 
+    width: 420px;
     max-width: 90vw;
     margin: 0 auto;
 }
@@ -7888,4 +7957,480 @@ button[title="Inquire / Request Update via WhatsApp"]:hover {
     background-color: #ffffff !important;
     border-color: #00748C !important;
     box-shadow: 0 0 0 3px rgba(0, 116, 140, 0.15) !important;
+}
+
+/* Material Stock - OneDrive / SharePoint item photo preview */
+.ms-photo-card {
+    width: 100%;
+    min-height: 210px;
+    border: 1px solid #e5e9ef;
+    border-radius: 10px;
+    background: #ffffff;
+    padding: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+}
+
+.ms-material-photo-img {
+    width: 100%;
+    max-height: 190px;
+    object-fit: contain;
+    border-radius: 8px;
+    background: #f8f9fa;
+    border: 1px solid #eef1f4;
+}
+
+.ms-photo-placeholder,
+.ms-photo-fallback {
+    width: 100%;
+    min-height: 150px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 14px;
+    border-radius: 8px;
+    background: #f8f9fa;
+    border: 1px dashed #d8dee6;
+}
+
+.ms-photo-actions {
+    width: 100%;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+/* Material Stock - PhotoIndex CSV Browser (v7.1.5) */
+.ms-photo-browser-container {
+    width: min(940px, 96vw);
+    max-height: 92vh;
+}
+
+.ms-photo-browser-target {
+    background: #f0f8ff;
+    border: 1px solid #d7ebf8;
+    color: #003A5C;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    font-weight: 700;
+}
+
+.ms-photo-browser-top {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.ms-photo-browser-top small {
+    display: block;
+    margin-top: 5px;
+    color: #6c757d;
+    line-height: 1.35;
+}
+
+.ms-photo-browser-preview {
+    margin: 10px 0 12px;
+}
+
+.ms-photo-browser-empty-preview,
+.ms-photo-browser-no-results {
+    border: 1px dashed #d8dee6;
+    background: #f8f9fa;
+    color: #6c757d;
+    border-radius: 8px;
+    padding: 18px;
+    text-align: center;
+}
+
+.ms-photo-browser-preview-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid #e5e9ef;
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 10px;
+}
+
+.ms-photo-browser-preview-card img {
+    width: 120px;
+    height: 90px;
+    object-fit: contain;
+    border: 1px solid #eef1f4;
+    border-radius: 8px;
+    background: #f8f9fa;
+}
+
+.ms-photo-browser-preview-fallback {
+    width: 120px;
+    min-height: 70px;
+    border: 1px dashed #d8dee6;
+    border-radius: 8px;
+    background: #f8f9fa;
+    color: #6c757d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 8px;
+    font-size: 0.8rem;
+}
+
+.ms-photo-browser-preview-name {
+    flex: 1;
+    font-weight: 800;
+    color: #003A5C;
+    word-break: break-word;
+}
+
+.ms-photo-browser-note {
+    font-size: 0.82rem;
+    color: #6c757d;
+    background: #fff8e1;
+    border: 1px solid #ffe8a1;
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+    line-height: 1.4;
+}
+
+.ms-photo-browser-status {
+    font-size: 0.82rem;
+    margin: 6px 0 10px;
+}
+
+.ms-photo-browser-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+    max-height: 310px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.ms-photo-choice-card {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+    justify-content: center;
+    min-height: 150px;
+    border: 1px solid #e5e9ef;
+    border-radius: 10px;
+    background: #ffffff;
+    cursor: pointer;
+    padding: 8px;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+
+.ms-photo-choice-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(0, 58, 92, 0.12);
+    border-color: #00748C;
+}
+
+.ms-photo-choice-card img {
+    width: 100%;
+    height: 92px;
+    object-fit: contain;
+    border-radius: 8px;
+    background: #f8f9fa;
+    border: 1px solid #eef1f4;
+}
+
+.ms-photo-choice-card span {
+    width: 100%;
+    font-size: 0.78rem;
+    color: #003A5C;
+    font-weight: 700;
+    word-break: break-word;
+    line-height: 1.25;
+}
+
+.ms-photo-choice-fallback {
+    width: 100%;
+    height: 92px;
+    border-radius: 8px;
+    background: #f8f9fa;
+    border: 1px dashed #d8dee6;
+    color: #9aa7b1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+}
+
+@media (max-width: 700px) {
+    .ms-photo-browser-top {
+        grid-template-columns: 1fr;
+    }
+
+    .ms-photo-browser-preview-card {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .ms-photo-browser-preview-card img,
+    .ms-photo-browser-preview-fallback {
+        width: 100%;
+        height: 150px;
+    }
+}
+
+
+/* Material Stock - PhotoIndex CSV Browser clean UI (v7.1.5) */
+.ms-photo-browser-top.clean {
+    grid-template-columns: 1fr;
+}
+
+.ms-photo-browser-grid.clean-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    max-height: 150px;
+    overflow-y: auto;
+    padding: 4px 2px 8px;
+    margin-bottom: 10px;
+}
+
+.ms-photo-suggestion-btn {
+    border: 1px solid #d9e4ea;
+    background: #ffffff;
+    color: #003A5C;
+    border-radius: 999px;
+    padding: 7px 12px;
+    font-weight: 700;
+    font-size: 0.84rem;
+    cursor: pointer;
+    line-height: 1.2;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    transition: background 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+}
+
+.ms-photo-suggestion-btn:hover,
+.ms-photo-suggestion-btn:focus {
+    background: #eef9fb;
+    border-color: #00748C;
+    transform: translateY(-1px);
+}
+
+.ms-photo-browser-preview.clean-preview {
+    margin: 10px 0 12px;
+}
+
+.ms-photo-browser-preview-card.clean {
+    justify-content: center;
+    min-height: 220px;
+    padding: 12px;
+}
+
+.ms-photo-browser-preview-card.clean img {
+    width: min(100%, 360px);
+    height: 200px;
+    object-fit: contain;
+}
+
+.ms-photo-browser-note.compact {
+    margin-top: 8px;
+}
+
+@media (max-width: 700px) {
+    .ms-photo-browser-preview-card.clean img,
+    .ms-photo-browser-preview-card.clean .ms-photo-browser-preview-fallback {
+        width: 100%;
+        height: 190px;
+    }
+}
+
+
+/* Material Stock - PhotoIndex CSV Dropdown Browser (v7.1.6) */
+.ms-photo-browser-top.dropdown-mode {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+
+.ms-photo-browser-top.dropdown-mode input[list] {
+    width: 100%;
+}
+
+.ms-photo-browser-grid.compact-dropdown-status {
+    display: none !important;
+    max-height: 0 !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.ms-photo-browser-status {
+    min-height: 18px;
+    font-size: 0.82rem;
+    line-height: 1.35;
+    margin: 8px 0 0;
+}
+
+/* Mobile Inventory Bulk Approval (v7.1.7) */
+.mobile-bulk-approval-bar {
+    margin: 10px 10px 14px 10px;
+    padding: 12px;
+    border: 1px solid #cfe8ef;
+    border-radius: 12px;
+    background: #f4fbfd;
+    box-shadow: 0 2px 8px rgba(0, 58, 92, 0.08);
+}
+
+.mobile-bulk-approval-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.mobile-bulk-select-all,
+.mobile-bulk-item-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 800;
+    color: #003A5C;
+    user-select: none;
+}
+
+.mobile-bulk-select-all input,
+.mobile-bulk-item-check input {
+    width: 18px;
+    height: 18px;
+    accent-color: #00748C;
+}
+
+.mobile-bulk-selected-count {
+    font-size: 0.82rem;
+    color: #60727d;
+    font-weight: 700;
+}
+
+.mobile-bulk-approve-btn {
+    width: 100%;
+    border: none;
+    border-radius: 9px;
+    padding: 11px 12px;
+    background: #28a745;
+    color: #fff;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.mobile-bulk-approve-btn:disabled {
+    background: #aeb8bd;
+    cursor: not-allowed;
+}
+
+.mobile-bulk-approval-note {
+    margin-top: 8px;
+    font-size: 0.76rem;
+    color: #6c757d;
+    line-height: 1.3;
+}
+
+.mobile-bulk-item-check {
+    align-self: flex-start;
+    margin-right: 8px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: #ffffff;
+    border: 1px solid #d5edf3;
+    font-size: 0.78rem;
+    white-space: nowrap;
+}
+
+.mobile-bulk-approved-card {
+    border-color: #28a745 !important;
+}
+
+@media (max-width: 768px) {
+    .mobile-task-card .mobile-card-header {
+        align-items: flex-start;
+    }
+}
+
+
+/* =========================================================
+   7.2.5 – Invoice Entry modal viewport safety fix
+   Keeps the Invoice Entry modal inside the visible screen.
+   This is scoped only to #im-invoice-entry-modal.
+   ========================================================= */
+#im-invoice-entry-modal.modal-overlay:not(.hidden) {
+    align-items: flex-start !important;
+    justify-content: center !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 18px 12px !important;
+    box-sizing: border-box !important;
+}
+
+#im-invoice-entry-modal.modal-overlay:not(.hidden) .modal-container {
+    margin: 0 auto !important;
+    max-height: calc(100dvh - 36px) !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+@supports not (height: 100dvh) {
+    #im-invoice-entry-modal.modal-overlay:not(.hidden) .modal-container {
+        max-height: calc(100vh - 36px) !important;
+    }
+}
+
+#im-invoice-entry-modal .modal-header,
+#im-invoice-entry-modal .modal-footer {
+    flex: 0 0 auto !important;
+}
+
+#im-invoice-entry-modal .modal-content {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain;
+    padding-right: 4px;
+}
+
+#im-invoice-entry-modal .modal-content::-webkit-scrollbar {
+    width: 8px;
+}
+#im-invoice-entry-modal .modal-content::-webkit-scrollbar-thumb {
+    background: rgba(15, 23, 42, 0.22);
+    border-radius: 999px;
+}
+
+@media (max-height: 720px) {
+    #im-invoice-entry-modal.modal-overlay:not(.hidden) {
+        padding-top: 10px !important;
+        padding-bottom: 10px !important;
+    }
+    #im-invoice-entry-modal.modal-overlay:not(.hidden) .modal-container {
+        max-height: calc(100dvh - 20px) !important;
+    }
+}
+
+@media (max-width: 768px) {
+    #im-invoice-entry-modal.modal-overlay:not(.hidden) {
+        padding: 10px 8px !important;
+    }
+    #im-invoice-entry-modal.modal-overlay:not(.hidden) .modal-container {
+        width: min(96vw, 800px) !important;
+        max-height: calc(100dvh - 20px) !important;
+    }
 }
