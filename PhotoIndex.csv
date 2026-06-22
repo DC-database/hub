@@ -1,4 +1,20 @@
 photoName
 IBA-SAMPLE
-IBA-TRUCK
 IBA-TIPPER TRAILER
+IBA-TRUCK
+VEH-0001_dump_truck
+VEH-0002_tipper_truck
+VEH-0003_concrete_mixer_truck
+VEH-0004_flatbed_truck
+VEH-0005_trailer_truck
+VEH-0006_low_bed_trailer
+VEH-0007_boom_truck
+VEH-0008_pickup_truck
+VEH-0009_van
+VEH-0010_water_tanker_truck
+VEH-0011_fuel_tanker_truck
+VEH-0012_sewage_tanker_truck
+VEH-0013_worker_bus
+VEH-0014_mini_bus
+VEH-0015_site_buggy
+VEH-0016_motorcycle
