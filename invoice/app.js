@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = "7.2.6";
+const APP_VERSION = "7.2.9";
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -11269,12 +11269,93 @@ function keepIMInvoiceEntryModalInsideViewport() {
         modal.scrollTop = 0;
         if (container) container.scrollTop = 0;
         if (content) content.scrollTop = 0;
+
+        // If the user previously dragged the modal and the viewport changed,
+        // keep the saved position inside the visible screen.
+        if (container && container.classList.contains('im-user-positioned')) {
+            clampIMInvoiceEntryModalPosition();
+        }
+    });
+}
+
+function clampIMInvoiceEntryModalPosition() {
+    const modal = document.getElementById('im-invoice-entry-modal');
+    const container = modal?.querySelector('.modal-container');
+    if (!modal || !container || !container.classList.contains('im-user-positioned')) return;
+
+    const rect = container.getBoundingClientRect();
+    const gap = 8;
+    const maxLeft = Math.max(gap, window.innerWidth - rect.width - gap);
+    const maxTop = Math.max(gap, window.innerHeight - Math.min(rect.height, window.innerHeight - (gap * 2)) - gap);
+    const currentLeft = parseFloat(container.style.getPropertyValue('--im-modal-left')) || rect.left;
+    const currentTop = parseFloat(container.style.getPropertyValue('--im-modal-top')) || rect.top;
+    const nextLeft = Math.min(Math.max(currentLeft, gap), maxLeft);
+    const nextTop = Math.min(Math.max(currentTop, gap), maxTop);
+
+    container.style.setProperty('--im-modal-left', `${nextLeft}px`);
+    container.style.setProperty('--im-modal-top', `${nextTop}px`);
+}
+
+function initIMInvoiceEntryModalDrag() {
+    const modal = document.getElementById('im-invoice-entry-modal');
+    const container = modal?.querySelector('.modal-container');
+    const header = modal?.querySelector('.modal-header');
+    if (!modal || !container || !header || header.dataset.imDragReady === '1') return;
+
+    header.dataset.imDragReady = '1';
+    header.classList.add('im-modal-drag-handle');
+    modal.classList.add('im-draggable-modal');
+
+    header.addEventListener('pointerdown', (e) => {
+        // Keep header buttons/close/navigation clickable; drag only from blank/header/title area.
+        if (e.target.closest('button, a, input, select, textarea, .modal-close-btn')) return;
+        if (e.button !== undefined && e.button !== 0) return;
+
+        const rect = container.getBoundingClientRect();
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startLeft = rect.left;
+        const startTop = rect.top;
+        const gap = 8;
+
+        container.classList.add('im-user-positioned');
+        container.style.setProperty('--im-modal-left', `${startLeft}px`);
+        container.style.setProperty('--im-modal-top', `${startTop}px`);
+        container.style.setProperty('--im-modal-width', `${rect.width}px`);
+        document.body.classList.add('im-modal-is-dragging');
+
+        try { header.setPointerCapture(e.pointerId); } catch (_) {}
+        e.preventDefault();
+
+        const onMove = (moveEvent) => {
+            const width = rect.width;
+            const height = Math.min(rect.height, window.innerHeight - (gap * 2));
+            const maxLeft = Math.max(gap, window.innerWidth - width - gap);
+            const maxTop = Math.max(gap, window.innerHeight - height - gap);
+            const nextLeft = Math.min(Math.max(startLeft + (moveEvent.clientX - startX), gap), maxLeft);
+            const nextTop = Math.min(Math.max(startTop + (moveEvent.clientY - startY), gap), maxTop);
+            container.style.setProperty('--im-modal-left', `${nextLeft}px`);
+            container.style.setProperty('--im-modal-top', `${nextTop}px`);
+        };
+
+        const onUp = () => {
+            document.removeEventListener('pointermove', onMove);
+            document.removeEventListener('pointerup', onUp);
+            document.removeEventListener('pointercancel', onUp);
+            document.body.classList.remove('im-modal-is-dragging');
+            try { header.releasePointerCapture(e.pointerId); } catch (_) {}
+        };
+
+        document.addEventListener('pointermove', onMove);
+        document.addEventListener('pointerup', onUp);
+        document.addEventListener('pointercancel', onUp);
     });
 }
 
 function openIMInvoiceEntryModal() {
     if (imInvoiceEntryModal) {
         imInvoiceEntryModal.classList.remove('hidden');
+        initIMInvoiceEntryModalDrag();
         keepIMInvoiceEntryModalInsideViewport();
     }
 }
@@ -11284,6 +11365,10 @@ function closeIMInvoiceEntryModal() {
         imInvoiceEntryModal.classList.add('hidden');
     }
 }
+
+window.addEventListener('resize', () => {
+    clampIMInvoiceEntryModalPosition();
+});
 
 // =========================================================
 // SEARCH PO HANDLER (FIXED: Uses Smart Fetcher)
