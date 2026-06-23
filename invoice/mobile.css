@@ -1,6 +1,6 @@
 /* ==========================================================================
    FILE: mobile.css
-   VERSION: 7.5.3
+   VERSION: 7.6.5
    PURPOSE: Mobile-only layout and module-specific UI overrides.
 
    Notes:
@@ -962,5 +962,565 @@ body.iba-mobile-ui #im-reporting .im-po-balance-card::before {
   #invoice-management-view .im-nav-help,
   #invoice-management-view a[data-section="im-help"] {
     display: none !important;
+  }
+}
+
+/* ============================================================
+   7.6.5 — Inventory mobile Item Finder / Suggestion picker
+   Mobile-only, preview-only: type material name/ID, pick one suggestion, then preview photo and movement history.
+   ============================================================ */
+#workdesk-nav .wd-nav-inv-mobile-material-search {
+  display: none !important;
+}
+@media (max-width: 900px) {
+  body.inventory-mode #workdesk-nav .wd-nav-inv-mobile-material-search {
+    display: list-item !important;
+  }
+  body:not(.inventory-mode) #workdesk-nav .wd-nav-inv-mobile-material-search {
+    display: none !important;
+  }
+
+  .inv-mobile-finder-section {
+    padding: 12px 12px 88px !important;
+    background: #f4f7fb !important;
+    min-height: calc(100vh - 120px);
+  }
+  .inv-mobile-finder-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .inv-mobile-finder-head h1 {
+    margin: 0 !important;
+    font-size: 1.35rem !important;
+    color: #0f2942 !important;
+    border: none !important;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .inv-mobile-finder-head p {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: #64748b;
+  }
+  .inv-mobile-finder-search {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: rgba(244, 247, 251, .94);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 8px 0 10px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+  }
+  .inv-mobile-search-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #ffffff;
+    border: 1px solid #dbe7f3;
+    border-radius: 16px;
+    padding: 0 12px;
+    min-height: 46px;
+    box-shadow: 0 8px 22px rgba(15, 41, 66, .08);
+  }
+  .inv-mobile-search-box i {
+    color: #0b7285;
+    font-size: 15px;
+  }
+  .inv-mobile-search-box input {
+    border: 0;
+    outline: 0;
+    flex: 1;
+    min-width: 0;
+    font-size: 14px;
+    background: transparent;
+    color: #0f172a;
+  }
+  #inv-mobile-material-search-clear {
+    min-height: 46px;
+    padding: 0 12px !important;
+    border-radius: 14px !important;
+    font-size: 12px !important;
+    font-weight: 800 !important;
+    white-space: nowrap;
+  }
+  .inv-mobile-material-status {
+    font-size: 12px;
+    color: #64748b;
+    margin: 4px 2px 10px;
+  }
+  .inv-mobile-material-suggestions {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin: -2px 0 10px;
+  }
+  .inv-mobile-material-suggestion-item {
+    width: 100%;
+    border: 1px solid #dbe7f3;
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 8px 10px;
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    text-align: left;
+    box-shadow: 0 8px 22px rgba(15, 41, 66, .08);
+    cursor: pointer;
+  }
+  .inv-mobile-material-suggestion-item:active {
+    transform: scale(.99);
+    background: #f8fbfd;
+  }
+  .inv-mobile-material-suggestion-photo {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #e6f4f8, #f8fafc);
+    color: #94a3b8;
+  }
+  .inv-mobile-material-suggestion-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .inv-mobile-material-suggestion-photo.photo-error::after {
+    content: 'No Photo';
+    font-size: 8px;
+    font-weight: 800;
+    color: #64748b;
+    text-align: center;
+    line-height: 1.05;
+  }
+  .inv-mobile-material-suggestion-photo.no-photo i {
+    font-size: 18px;
+  }
+  .inv-mobile-material-suggestion-text {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .inv-mobile-material-suggestion-text strong {
+    color: #0f172a;
+    font-size: 13px;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .inv-mobile-material-suggestion-text small {
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .inv-mobile-material-suggestion-qty {
+    align-self: center;
+    border-radius: 999px;
+    background: #e8f6f9;
+    color: #0b7285;
+    font-size: 11px;
+    font-weight: 900;
+    padding: 4px 8px;
+    white-space: nowrap;
+  }
+  .inv-mobile-material-results {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .inv-mobile-material-empty {
+    background: #ffffff;
+    border: 1px dashed #cbd5e1;
+    border-radius: 20px;
+    padding: 28px 18px;
+    text-align: center;
+    color: #475569;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, .06);
+  }
+  .inv-mobile-material-empty i {
+    font-size: 34px;
+    color: #94a3b8;
+  }
+  .inv-mobile-material-empty strong {
+    color: #0f172a;
+    font-size: 16px;
+  }
+  .inv-mobile-material-empty span {
+    font-size: 12px;
+  }
+  .inv-mobile-material-card {
+    background: #ffffff;
+    border: 1px solid #dbe7f3;
+    border-radius: 22px;
+    padding: 12px;
+    box-shadow: 0 14px 34px rgba(15, 41, 66, .10);
+    overflow: hidden;
+  }
+  .inv-mobile-material-card-top {
+    display: grid;
+    grid-template-columns: 92px 1fr;
+    gap: 12px;
+    align-items: stretch;
+  }
+  .inv-mobile-material-photo,
+  .inv-mobile-material-photo-link,
+  .inv-mobile-material-photo-placeholder {
+    width: 92px;
+    height: 92px;
+    border-radius: 18px;
+    overflow: hidden;
+    background: linear-gradient(135deg, #e6f4f8, #f8fafc);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+  }
+  .inv-mobile-material-photo-link img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .inv-mobile-material-photo-link.photo-error {
+    background: #f1f5f9;
+  }
+  .inv-mobile-material-photo-link.photo-error::after {
+    content: 'No Photo';
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 800;
+  }
+  .inv-mobile-material-photo-placeholder {
+    flex-direction: column;
+    gap: 5px;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 800;
+  }
+  .inv-mobile-material-photo-placeholder i {
+    font-size: 24px;
+    color: #94a3b8;
+  }
+  .inv-mobile-material-info {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .inv-mobile-material-id {
+    display: inline-flex;
+    width: fit-content;
+    max-width: 100%;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: #e8f6f9;
+    color: #0b7285;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .03em;
+    margin-bottom: 6px;
+    overflow-wrap: anywhere;
+  }
+  .inv-mobile-material-info h3 {
+    margin: 0 0 5px;
+    font-size: 16px;
+    line-height: 1.2;
+    color: #0f172a;
+    overflow-wrap: anywhere;
+  }
+  .inv-mobile-material-info p {
+    margin: 0;
+    color: #475569;
+    font-size: 12px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+  .inv-mobile-material-stats {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .inv-mobile-material-stats > div {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 15px;
+    padding: 9px 8px;
+    min-width: 0;
+  }
+  .inv-mobile-material-stats span {
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    font-weight: 800;
+    color: #64748b;
+  }
+  .inv-mobile-material-stats strong {
+    display: block;
+    margin-top: 3px;
+    font-size: 14px;
+    color: #0f172a;
+    overflow-wrap: anywhere;
+  }
+  .inv-mobile-material-stats .ok strong { color: #137333; }
+  .inv-mobile-material-stats .warning strong { color: #b7791f; }
+  .inv-mobile-material-stats .danger strong { color: #b42318; }
+  .inv-mobile-material-history {
+    margin-top: 12px;
+    background: #f8fbfd;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    padding: 10px;
+  }
+  .inv-mobile-material-history-title {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: #0f2942;
+    font-size: 12px;
+    font-weight: 900;
+    margin-bottom: 8px;
+  }
+  .inv-mobile-material-history-row {
+    background: #ffffff;
+    border: 1px solid #edf2f7;
+    border-radius: 14px;
+    padding: 9px 10px;
+    margin-top: 7px;
+  }
+  .history-main,
+  .history-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: center;
+  }
+  .history-main strong {
+    color: #0f172a;
+    font-size: 12px;
+  }
+  .history-main span,
+  .history-meta span {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .history-route {
+    margin: 6px 0;
+    color: #334155;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+  .inv-mobile-material-history-empty {
+    color: #64748b;
+    font-size: 12px;
+    background: #fff;
+    border-radius: 12px;
+    padding: 10px;
+    text-align: center;
+  }
+}
+
+
+/* ============================================================
+   7.6.5 — Inventory mobile Item Finder page-scroll fix
+   Use the main page scroll only. No inner scrollbar inside the result/history card.
+   Extra bottom spacing keeps the last movement rows above the fixed bottom navigation.
+   ============================================================ */
+@media (max-width: 900px) {
+  body.inventory-mode .inv-mobile-finder-section {
+    padding-bottom: 240px !important;
+    min-height: auto !important;
+    overflow: visible !important;
+  }
+
+  body.inventory-mode .inv-mobile-material-results {
+    padding-bottom: 190px !important;
+    overflow: visible !important;
+  }
+
+  body.inventory-mode .inv-mobile-material-card {
+    margin-bottom: 150px !important;
+    overflow: visible !important;
+  }
+
+  body.inventory-mode .inv-mobile-material-history {
+    max-height: none !important;
+    overflow: visible !important;
+    -webkit-overflow-scrolling: auto !important;
+    overscroll-behavior: auto !important;
+    padding-bottom: 16px !important;
+  }
+
+  body.inventory-mode .inv-mobile-material-history::after {
+    content: "";
+    display: block;
+    height: 28px;
+  }
+}
+
+/* ============================================================
+   7.6.5 — Inventory mobile barcode scanner for Item Finder
+   Camera scan is optional. Manual search remains the fallback.
+   ============================================================ */
+@media (max-width: 900px) {
+  body.inventory-mode .inv-mobile-finder-actions {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  body.inventory-mode .inv-mobile-scan-btn {
+    min-height: 46px;
+    padding: 0 12px !important;
+    border: 0;
+    border-radius: 14px !important;
+    background: linear-gradient(135deg, #0b7285, #0e7490);
+    color: #ffffff;
+    font-size: 12px !important;
+    font-weight: 900 !important;
+    white-space: nowrap;
+    box-shadow: 0 8px 20px rgba(14, 116, 144, .22);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  body.inventory-mode .inv-mobile-scan-btn:active {
+    transform: scale(.98);
+  }
+
+  body.inventory-mode .inv-mobile-barcode-scanner.hidden {
+    display: none !important;
+  }
+
+  body.inventory-mode .inv-mobile-barcode-scanner {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(8, 18, 32, .72);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+  }
+
+  body.inventory-mode .inv-mobile-barcode-box {
+    width: min(100%, 440px);
+    background: #ffffff;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, .35);
+    border: 1px solid rgba(255, 255, 255, .35);
+  }
+
+  body.inventory-mode .inv-mobile-barcode-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: #083344;
+    color: #ffffff;
+  }
+
+  body.inventory-mode .inv-mobile-barcode-head strong {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+  }
+
+  body.inventory-mode #inv-mobile-barcode-close {
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .16);
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  body.inventory-mode .inv-mobile-barcode-video-wrap {
+    position: relative;
+    background: #020617;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+  }
+
+  body.inventory-mode #inv-mobile-barcode-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  body.inventory-mode .inv-mobile-barcode-guide {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 78%;
+    height: 36%;
+    transform: translate(-50%, -50%);
+    border: 3px solid rgba(255, 255, 255, .92);
+    border-radius: 18px;
+    box-shadow: 0 0 0 999px rgba(2, 6, 23, .28), inset 0 0 0 1px rgba(14, 165, 233, .65);
+    pointer-events: none;
+  }
+
+  body.inventory-mode .inv-mobile-barcode-guide::after {
+    content: "";
+    position: absolute;
+    left: 8%;
+    right: 8%;
+    top: 50%;
+    height: 2px;
+    background: rgba(34, 211, 238, .95);
+    box-shadow: 0 0 18px rgba(34, 211, 238, .9);
+  }
+
+  body.inventory-mode .inv-mobile-barcode-status {
+    padding: 12px 16px 16px;
+    font-size: 12px;
+    line-height: 1.35;
+    color: #334155;
+    background: #f8fafc;
+  }
+}
+
+@media (max-width: 390px) {
+  body.inventory-mode .inv-mobile-finder-search {
+    grid-template-columns: 1fr !important;
+  }
+
+  body.inventory-mode .inv-mobile-finder-actions {
+    width: 100%;
+  }
+
+  body.inventory-mode .inv-mobile-scan-btn,
+  body.inventory-mode #inv-mobile-material-search-clear {
+    flex: 1;
   }
 }

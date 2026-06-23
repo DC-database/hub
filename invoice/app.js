@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = "7.6.0";
+const APP_VERSION = "7.6.5";
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -427,7 +427,7 @@ function isVacationDelegateUser() {
     return currentName && currentName.toLowerCase() === vac.replacementName.toLowerCase();
 }
 
-// getInvoiceHandlerName moved to js/app-invoice.js (7.6.0)
+// getInvoiceHandlerName moved to js/app-invoice.js (7.6.1)
 
 // --- General Vacation Delegation (All Users) ---
 // Any user can enable Vacation in Settings and set ReplacementName + (optional) DateReturn.
@@ -10230,7 +10230,7 @@ async function handleSaveModifiedTask() {
 // Purpose: Invoice task activity, PO details sync, lookup updates, invoice modal reset/open/close, PO search, invoice CRUD.
 // =================================================================================================
 
-// isInvoiceTaskActive moved to js/app-invoice.js (7.6.0)
+// isInvoiceTaskActive moved to js/app-invoice.js (7.6.1)
 
 
 
@@ -10240,14 +10240,14 @@ async function handleSaveModifiedTask() {
 // Supports purchase_orders keyed by PO OR stored under push-ids with child "Po"/"PO".
 // Canonical output keys: "Supplier Name", "Project ID", "Amount"
 // -------------------------------------------------------------
-// __invoicePOCache moved to js/app-invoice.js (7.6.0)
+// __invoicePOCache moved to js/app-invoice.js (7.6.1)
 
-// __normalizePOKey moved to js/app-invoice.js (7.6.0)
+// __normalizePOKey moved to js/app-invoice.js (7.6.1)
 
-// __normalizePODetails moved to js/app-invoice.js (7.6.0)
+// __normalizePODetails moved to js/app-invoice.js (7.6.1)
 
-// getInvoicePurchaseOrderDetails moved to js/app-invoice.js (7.6.0)
-// ensurePORecordInInvoiceDb moved to js/app-invoice.js (7.6.0)
+// getInvoicePurchaseOrderDetails moved to js/app-invoice.js (7.6.1)
+// ensurePORecordInInvoiceDb moved to js/app-invoice.js (7.6.1)
 
 async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAttention) {
     const sanitizeFirebaseKey = (key) => key.replace(/[.#$[\]]/g, '_');
@@ -12549,256 +12549,8 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ==========================================================================
-// IM: Invoice Records Totals Footer (Desktop & Mobile)
-// - Shows Total Invoice Value, Total Amount Paid, and Total Balance
-// - Not part of the table (separate footer card)
-// - No workflow/rules changes; display-only
+// 7.6.1: Invoice Records Totals Footer moved to js/app-invoice.js.
 // ==========================================================================
-function imUpdateInvoiceRecordsTotals(reportData) {
-    const card = document.getElementById('im-reporting-totals-card');
-    const elInv = document.getElementById('im-reporting-total-inv-value');
-    const elPaid = document.getElementById('im-reporting-total-paid-value');
-    const elBal = document.getElementById('im-reporting-total-balance-value');
-
-    if (!card || !elInv || !elPaid || !elBal) return;
-
-    // Reset styles
-    elBal.classList.remove('im-total-owed', 'im-total-ok');
-
-    if (!Array.isArray(reportData) || reportData.length === 0) {
-        card.classList.add('hidden');
-        elInv.textContent = '---';
-        elPaid.textContent = '---';
-        elBal.textContent = '---';
-        return;
-    }
-
-    // Permission logic: keep consistent with existing Invoice Records amounts visibility
-    const userRole = (currentApprover?.Role || '').toLowerCase();
-    const userPos = (currentApprover?.Position || '').trim().toLowerCase();
-    const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
-    const canViewAmounts = (userRole === 'admin' || userPos === 'accounting' || isVacationDelegate);
-
-    let totalInv = 0;
-    let totalPaid = 0;
-
-    // Match the same paid-calculation rule used in the per-PO nested footer:
-    // exclude 'retention' unless the paid total equals invoice total.
-    reportData.forEach(poData => {
-        const list = Array.isArray(poData?.filteredInvoices) ? poData.filteredInvoices : [];
-        let poInv = 0;
-        let paidWithRetention = 0;
-        let paidWithoutRetention = 0;
-
-        list.forEach(inv => {
-            const invValue = parseFloat(inv?.invValue) || 0;
-            const amountPaid = parseFloat(inv?.amountPaid) || 0;
-            const noteText = String(inv?.note || '').toLowerCase();
-
-            poInv += invValue;
-            paidWithRetention += amountPaid;
-            if (!noteText.includes('retention')) {
-                paidWithoutRetention += amountPaid;
-            }
-        });
-
-        let finalPaid = paidWithoutRetention;
-        if (Math.abs(paidWithRetention - poInv) < 0.01) finalPaid = paidWithRetention;
-
-        totalInv += poInv;
-        totalPaid += finalPaid;
-    });
-
-    const totalBalance = totalInv - totalPaid;
-
-    if (canViewAmounts) {
-        elInv.textContent = `QAR ${formatCurrency(totalInv)}`;
-        elPaid.textContent = `QAR ${formatCurrency(totalPaid)}`;
-        elBal.textContent = `QAR ${formatCurrency(totalBalance)}`;
-
-        // Red if still owed, Green if settled/overpaid (tolerance)
-        if (totalBalance > 0.05) elBal.classList.add('im-total-owed');
-        else elBal.classList.add('im-total-ok');
-    } else {
-        elInv.textContent = '---';
-        elPaid.textContent = '---';
-        elBal.textContent = '---';
-    }
-
-    card.classList.remove('hidden');
-}
-
-// ========================================================================== 
-// IM: WhatsApp Share + Deep Link Helpers
-// - Adds an optional "Send WhatsApp" action in Invoice Records (no workflow changes)
-// - Deep link can open a specific invoice after login (if user has access)
-// ==========================================================================
-
-// imGetAppBaseUrl moved to js/app-invoice.js (7.6.0)
-
-// imBuildInvoiceDeepLink moved to js/app-invoice.js (7.6.0)
-
-// --- Deep Link (Workdesk Active Task) ---
-// Shared via WhatsApp: opens Workdesk -> Active Task and focuses the invoice task.
-// wdBuildActiveTaskDeepLink moved to js/app-invoice.js (7.6.0)
-
-
-// wdParseActiveTaskDeepLinkFromUrl moved to js/app-invoice.js (7.6.0)
-
-// wdClearActiveTaskDeepLinkFromUrl moved to js/app-invoice.js (7.6.0)
-
-async function wdOpenActiveTaskFromDeepLink(po, invKey) {
-    // Must be logged in
-    if (!currentApprover) return;
-
-    // Navigate to Workdesk
-    try { workdeskButton.click(); } catch (e) { /* ignore */ }
-
-    // Wait for Workdesk view + nav to render
-    setTimeout(async () => {
-        try {
-            const activeTaskLink = (typeof workdeskNav !== 'undefined' && workdeskNav) ? workdeskNav.querySelector('a[data-section="wd-activetask"]') : null;
-            if (activeTaskLink) activeTaskLink.click();
-
-            // Ensure data is loaded and tasks are populated
-            if (typeof ensureAllEntriesFetched === 'function') await ensureAllEntriesFetched();
-            if (typeof ensureInvoiceDataFetched === 'function') await ensureInvoiceDataFetched(false);
-            if (typeof populateActiveTasks === 'function') await populateActiveTasks();
-
-            // Filter by PO for quick find
-            const poStr = String(po || '').trim();
-            if (typeof activeTaskSearchInput !== 'undefined' && activeTaskSearchInput) {
-                activeTaskSearchInput.value = poStr;
-                try { sessionStorage.setItem('activeTaskSearch', poStr); } catch (e) {}
-            }
-            if (typeof handleActiveTaskSearch === 'function') {
-                handleActiveTaskSearch(poStr);
-            }
-
-            // Focus the exact row (invoice tasks use key: <PO>_<invKey>)
-            setTimeout(() => {
-                try {
-                    const rowKey = `${poStr}_${String(invKey || '').trim()}`;
-                    if (!rowKey) return;
-                    const tbody = (typeof activeTaskTableBody !== 'undefined') ? activeTaskTableBody : null;
-                    if (!tbody) return;
-                    const esc = (window.CSS && CSS.escape) ? CSS.escape(rowKey) : rowKey.replace(/"/g, '\\"');
-                    const row = tbody.querySelector(`tr[data-key="${esc}"]`);
-                    if (row && row.scrollIntoView) {
-                        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }
-                } catch (e) { /* ignore */ }
-            }, 250);
-
-        } catch (e) {
-            console.log('Workdesk deep link open failed:', e);
-        }
-    }, 450);
-}
-
-
-// imParseInvoiceDeepLinkFromUrl moved to js/app-invoice.js (7.6.0)
-
-// imClearInvoiceDeepLinkFromUrl moved to js/app-invoice.js (7.6.0)
-
-// Exposed for button onclick
-window.imShareInvoiceForApprovalWhatsApp = function (poNumber, invoiceKey) {
-    try {
-        const po = String(poNumber || '').trim();
-        const key = String(invoiceKey || '').trim();
-        if (!po || !key) { alert('Missing invoice reference.'); return; }
-
-        const inv = (allInvoiceData && allInvoiceData[po] && allInvoiceData[po][key]) ? allInvoiceData[po][key] : null;
-        const poRec = (allPOData && allPOData[po]) ? allPOData[po] : null;
-
-        const vendor = (poRec && (poRec['Supplier Name'] || poRec.vendor)) || (inv && (inv.vendorName || inv.vendor)) || 'N/A';
-        const site = (poRec && (poRec['Project ID'] || poRec.site)) || (inv && (inv.site || inv.project)) || 'N/A';
-
-        const invValueNum = inv ? (parseFloat(String(inv.invValue || '').replace(/,/g, '')) || 0) : 0;
-        const invValueDisplay = inv ? `QAR ${formatCurrency(invValueNum)}` : 'N/A';
-
-        const link = wdBuildActiveTaskDeepLink(po, key);
-        const invNo = (inv && inv.invNumber) ? inv.invNumber : '';
-
-        const msgLines = [
-            'Dear Boss, need your approval for the below detail:',
-            `PO: ${po}`,
-            `Vendor: ${vendor}`,
-            (invNo ? `Invoice No: ${invNo}` : null),
-            `Invoice Value: ${invValueDisplay}`,
-            `Site: ${site}`,
-            '',
-            `Link: ${link}`
-        ].filter(Boolean);
-
-        const waUrl = 'https://wa.me/?text=' + encodeURIComponent(msgLines.join('\n'));
-        window.open(waUrl, '_blank', 'noopener');
-    } catch (e) {
-        console.error('WhatsApp share failed:', e);
-        alert('Unable to create WhatsApp message.');
-    }
-};
-
-async function imOpenInvoiceFromDeepLink(po, invKey) {
-    // Safety: only proceed if we have a logged in user
-    if (!currentApprover) return;
-
-    const userPosLower = (currentApprover?.Position || '').toLowerCase();
-    const userRoleLower = (currentApprover?.Role || '').toLowerCase();
-    const isAdmin = userRoleLower === 'admin';
-    const isAccounting = userPosLower === 'accounting';
-    const isAccounts = userPosLower === 'accounts';
-    const isVacationDelegate = isVacationDelegateUser();
-
-    // Only users who can access IM at all
-    const canOpenIM = isAdmin || isAccounting || isAccounts || isVacationDelegate;
-    if (!canOpenIM) return;
-
-    // Navigate into Invoice Management
-    try { invoiceManagementButton.click(); } catch (e) { /* ignore */ }
-
-    // Give IM nav/time to render
-    setTimeout(async () => {
-        try {
-            // If user is Accounting, open Invoice Entry (edit modal)
-            if (isAccounting) {
-                const entryLink = imNav ? imNav.querySelector('a[data-section="im-invoice-entry"]') : null;
-                if (entryLink) entryLink.click();
-
-                // Ensure invoice data exists
-                const fetchPromise = (typeof ensureInvoiceDataFetched === 'function') ? ensureInvoiceDataFetched() : Promise.resolve();
-                await fetchPromise;
-
-                currentPO = po;
-                // Load PO (from memory if possible)
-                if (allPOData && allPOData[po]) {
-                    await proceedWithPOLoading(po, allPOData[po]);
-                } else {
-                    // Fallback search
-                    imPOSearchInput.value = po;
-                    await handlePOSearch(po);
-                }
-
-                // Populate invoice and open modal
-                populateInvoiceFormForEditing(invKey);
-                imBackToActiveTaskButton.classList.remove('hidden');
-            } else {
-                // Fallback for non-accounting: open Invoice Records and run a quick search by PO
-                const reportingLink = imNav ? imNav.querySelector('a[data-section="im-reporting"]') : null;
-                if (reportingLink) reportingLink.click();
-                if (imReportingSearchInput) {
-                    imReportingSearchInput.value = po;
-                    await populateInvoiceReporting(po);
-                }
-                alert('Opened Invoice Records for this PO. (Editing/approval requires Accounting access.)');
-            }
-        } catch (e) {
-            console.error('Deep link open failed:', e);
-        }
-    }, 650);
-}
-
-
 
 
 // ==========================================================================
