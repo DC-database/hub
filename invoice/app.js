@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = "7.2.9";
+const APP_VERSION = "7.6.0";
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -256,7 +256,7 @@ document.addEventListener('keydown', function(event) {
 // 2. WATCH TABLES 
 const observeTables = [
     'reporting-table-body', 'active-task-table-body', 'im-invoices-table-body', 
-    'im-batch-table-body', 'im-payment-modal-results', 'im-finance-results-body',
+    'im-batch-table-body', 'im-payment-modal-results',
     'invoice-table-body', 'records-table-body', 'invoice-records-table-body'
 ];
 
@@ -427,10 +427,7 @@ function isVacationDelegateUser() {
     return currentName && currentName.toLowerCase() === vac.replacementName.toLowerCase();
 }
 
-function getInvoiceHandlerName() {
-    const vac = getActiveVacationConfig();
-    return (vac && vac.replacementName) ? vac.replacementName : SUPER_ADMIN_NAME;
-}
+// getInvoiceHandlerName moved to js/app-invoice.js (7.6.0)
 
 // --- General Vacation Delegation (All Users) ---
 // Any user can enable Vacation in Settings and set ReplacementName + (optional) DateReturn.
@@ -722,85 +719,19 @@ function getSiteMatchedAttentionCandidatesForSRV(siteCode) {
 }
 
 // DETECT INVENTORY CONTEXT
-// Inventory mode can be triggered by:
-// - URL query: ?mode=inventory (used by the inventory clone)
-// - A dedicated inventory page (URL/title contains 'inventory')
-// - Body class 'inventory-page'
-// - Inventory view currently visible (single-page view switch)
-function isInventoryContext() {
-    try {
-        const params = new URLSearchParams(window.location.search);
-        const mode = (params.get('mode') || '').toLowerCase();
-        if (mode === 'inventory' || mode === 'materialstock' || mode === 'material-stock') return true;
-    } catch (e) { /* ignore */ }
-
-    const href = (window.location.href || '').toLowerCase();
-    const path = (window.location.pathname || '').toLowerCase();
-    const title = (document.title || '').toLowerCase();
-
-    if (document.body && document.body.classList.contains('inventory-page')) return true;
-    if (href.includes('inventory') || path.includes('inventory') || title.includes('inventory')) return true;
-
-    const invView = document.getElementById('inventory-view');
-    if (invView && !invView.classList.contains('hidden')) return true;
-
-	    // --- Detect "Workdesk clone" used for Inventory/Material Stock access ---
-	    // Some deployments use a stripped-down Workdesk layout that only shows:
-	    //   Active Task + Job Records + Material Stock + Logout
-	    // In that case we want Inventory-only behavior even if the URL/title
-	    // does not contain the word "inventory".
-	    try {
-	        const wdView = document.getElementById('workdesk-view');
-	        const wdNav = document.getElementById('workdesk-nav');
-	        const wdViewVisible = (!wdView || !wdView.classList.contains('hidden'));
-	        if (wdNav && wdViewVisible) {
-		            const navText = (wdNav.textContent || '').toLowerCase();
-		            // Prefer structural checks when possible (more robust than text)
-		            const hasMaterial = !!wdNav.querySelector('.wd-nav-material') || navText.includes('material stock');
-		            const hasActiveTask = !!wdNav.querySelector('.wd-nav-activetask') || navText.includes('active task');
-		            const hasJobRecords = !!wdNav.querySelector('.wd-nav-reporting') || navText.includes('job records');
-		            const hasDashboard = !!wdNav.querySelector('.wd-nav-dashboard') || navText.includes('dashboard');
-
-	            // Optional extra signal: the identifier line often shows "Inventory Access"
-	            const idEl = document.getElementById('wd-user-identifier');
-	            const idText = ((idEl && idEl.textContent) ? idEl.textContent : '').toLowerCase();
-	            const idSaysInventory = idText.includes('inventory');
-
-	            if (hasMaterial && hasActiveTask && hasJobRecords && (!hasDashboard || idSaysInventory)) {
-	                return true;
-	            }
-	        }
-	    } catch (e) { /* ignore */ }
-
-    return false;
-}
+// 7.5.4 — Inventory context/type helper functions moved to js/app-inventory.js.
+// Kept as global functions through a classic script so existing app.js calls continue to work.
 
 // Keep legacy variable name for existing code paths
-const isInventoryPage = isInventoryContext();
-// Define what counts as an "Inventory Task"
-const INVENTORY_TYPES = ['Transfer', 'Restock', 'Return', 'Usage'];
+const isInventoryPage = (typeof isInventoryContext === 'function') ? isInventoryContext() : false;
 
 
 
 // ======================================================================
 // WORKDESK (DESKTOP) FILTERING: Hide Inventory Tasks/Jobs (Mobile unchanged)
 // ======================================================================
-function isMobileViewport() {
-    return (window.innerWidth || 0) <= 768;
-}
-function isWorkdeskViewVisible() {
-    const wdView = document.getElementById('workdesk-view');
-    return !!(wdView && !wdView.classList.contains('hidden'));
-}
-/**
- * When we're on the NORMAL Workdesk (desktop viewport) we hide inventory-related
- * tasks/jobs (Transfer/Restock/Return/Usage). Inventory mode pages/clones keep them.
- * Mobile view is intentionally unchanged.
- */
-function shouldExcludeInventoryFromWorkdeskDesktop() {
-    const invCtx = (typeof isInventoryContext === 'function' && isInventoryContext());
-    return isWorkdeskViewVisible() && !isMobileViewport() && !invCtx;
-}
+// 7.5.0 — mobile/responsive helpers moved to js/app-mobile.js
+// Kept as global functions through a classic script so existing app.js calls continue to work.
 
 
 // #endregion BLOCK 01 — NOTE CACHE + VACATION DELEGATION + INVENTORY CONTEXT
@@ -1927,12 +1858,15 @@ let transferProcessedTasks = [];
 window.transferProcessedTasks = transferProcessedTasks; // Expose to transferLogic.js
 
 let allSystemEntries = [];
+// Inventory Phase 2: separate cached record families for Job Records.
+// These are derived from the same Firebase data but keep Inventory and WorkDesk renderers independent.
+let inventorySystemEntries = [];
+let workdeskSystemEntries = [];
 let navigationContextList = [];
 let navigationContextIndex = -1;
 let currentPOInvoices = {};
 let currentReportData = [];
 let invoicesToPay = {};
-let imFinanceAllPaymentsData = {};
 
 // -- Filters & UI State --
 let currentReportFilter = 'All';
@@ -2886,9 +2820,14 @@ async function ensureAllEntriesFetched(forceRefresh = false) {
     // 5. Sort & Save
     allSystemEntries = processedEntries;
     allSystemEntries.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    // Inventory Phase 2: keep separate record families for Job Records.
+    // This prevents Inventory Job Records from depending on the WorkDesk/Invoice list renderer source.
+    inventorySystemEntries = allSystemEntries.filter(entry => (typeof isInventoryTaskRecord === 'function') ? isInventoryTaskRecord(entry) : ['Transfer', 'Restock', 'Return', 'Usage'].includes(entry.for));
+    workdeskSystemEntries = allSystemEntries.filter(entry => (typeof isInventoryTaskRecord === 'function') ? !isInventoryTaskRecord(entry) : !['Transfer', 'Restock', 'Return', 'Usage'].includes(entry.for));
     
     cacheTimestamps.systemEntries = now;
-    console.log(`Loaded ${allSystemEntries.length} entries.`);
+    console.log(`Loaded ${allSystemEntries.length} entries. WorkDesk: ${workdeskSystemEntries.length}, Inventory: ${inventorySystemEntries.length}.`);
 }
 
 async function ensureApproverDataCached(force = false) {
@@ -2992,312 +2931,11 @@ async function fetchAndParseVendorsCSV(url) {
 // ==========================================================================
 
 // --------------------------------------------------------------------------
-// QUICK COPY SHORTCUTS
-// Double-click supported fields to copy their current value to clipboard.
+// QUICK COPY / DATE / MONEY / TEXT HELPERS
 // --------------------------------------------------------------------------
-
-function fallbackCopyText(text) {
-    try {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.setAttribute('readonly', '');
-        ta.style.position = 'fixed';
-        ta.style.top = '-9999px';
-        ta.style.left = '-9999px';
-        document.body.appendChild(ta);
-        ta.select();
-        ta.setSelectionRange(0, ta.value.length);
-        const ok = document.execCommand('copy');
-        document.body.removeChild(ta);
-        return ok;
-    } catch (e) {
-        console.error('Fallback copy failed', e);
-        return false;
-    }
-}
-
-async function copyTextToClipboard(text, feedbackEl) {
-    if (!text) return false;
-
-    const doFeedback = () => {
-        if (!feedbackEl) return;
-        const originalBg = feedbackEl.style.backgroundColor;
-        feedbackEl.style.backgroundColor = '#d4edda'; // Light green flash
-        feedbackEl.style.transition = 'background-color 0.3s';
-        setTimeout(() => {
-            feedbackEl.style.backgroundColor = originalBg;
-        }, 450);
-    };
-
-    try {
-        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-            await navigator.clipboard.writeText(text);
-            doFeedback();
-            return true;
-        }
-    } catch (e) {
-        // Ignore and fall back
-    }
-
-    const ok = fallbackCopyText(text);
-    if (ok) doFeedback();
-    return ok;
-}
-
-function bindDblClickCopy(el, getTextFn, feedbackEl) {
-    if (!el) return;
-    if (el.dataset && el.dataset.dblcopyBound === '1') return;
-    if (el.dataset) el.dataset.dblcopyBound = '1';
-
-    el.addEventListener('dblclick', (e) => {
-        const raw = (typeof getTextFn === 'function')
-            ? getTextFn()
-            : (el.value !== undefined ? el.value : (el.innerText || el.textContent || ''));
-
-        const text = (raw || '').toString().trim();
-        if (!text) return;
-
-        e.preventDefault();
-
-        try {
-            if (typeof el.focus === 'function') el.focus();
-            if (typeof el.select === 'function') el.select();
-        } catch (err) { /* ignore */ }
-
-        copyTextToClipboard(text, feedbackEl || el);
-    });
-}
-
-function normalizeMobile(mobile) {
-    const digitsOnly = mobile.replace(/\D/g, '');
-    if (digitsOnly.length === 8) {
-        return `974${digitsOnly}`;
-    }
-    return digitsOnly;
-}
-function formatDate(date) {
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = months[date.getMonth()];
-    const year = date.getFullYear();
-    return `${day}-${month}-${year}`;
-}
-function formatYYYYMMDD(dateString) {
-    if (!dateString) return 'N/A';
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    const parts = dateString.split('-');
-    if (parts.length !== 3) return dateString;
-
-    const year = parts[0];
-    const monthIndex = parseInt(parts[1], 10) - 1;
-    const day = parts[2];
-
-    const month = months[monthIndex];
-    if (!month) return dateString;
-
-    return `${day}-${month}-${year}`;
-}
-function normalizeDateForInput(dateString) {
-    if (!dateString || typeof dateString !== 'string') return '';
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-        return dateString;
-    }
-    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateString)) {
-        const parts = dateString.split('/');
-        const day = parts[0].padStart(2, '0');
-        const month = parts[1].padStart(2, '0');
-        const year = parts[2];
-        return `${year}-${month}-${day}`;
-    }
-    if (/^\d{2}-\d{2}-\d{2}$/.test(dateString)) {
-        const parts = dateString.split('-');
-        const day = parts[0];
-        const month = parts[1];
-        const year = `20${parts[2]}`;
-        return `${year}-${month}-${day}`;
-    }
-    const date = new Date(dateString);
-    if (!isNaN(date)) {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    }
-    console.warn("Unrecognized date format:", dateString);
-    return '';
-}
-function convertDisplayDateToInput(displayDate) {
-    if (!displayDate || typeof displayDate !== 'string') return '';
-    const parts = displayDate.split('-');
-    if (parts.length !== 3) return '';
-    const day = parts[0];
-    const year = parts[2];
-    const monthMap = {
-        "Jan": "01",
-        "Feb": "02",
-        "Mar": "03",
-        "Apr": "04",
-        "May": "05",
-        "Jun": "06",
-        "Jul": "07",
-        "Aug": "08",
-        "Sep": "09",
-        "Oct": "10",
-        "Nov": "11",
-        "Dec": "12"
-    };
-    const month = monthMap[parts[1]];
-    if (!month) return '';
-    return `${year}-${month}-${day}`;
-}
-function getTodayDateString() {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-}
-function formatCurrency(value) {
-    if (typeof value === 'number') {
-        return value.toLocaleString('en-US', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        });
-    }
-    const number = parseFloat(String(value).replace(/,/g, ''));
-    if (isNaN(number)) {
-        return 'N/A';
-    }
-    return number.toLocaleString('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    });
-}
-function formatFinanceNumber(value) {
-    if (value === undefined || value === null || value === '') return '';
-    const num = parseFloat(String(value).replace(/,/g, ''));
-    return isNaN(num) ? value : num.toLocaleString(undefined, {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    });
-}
-function formatFinanceDate(dateStr) {
-    if (!dateStr || String(dateStr).trim() === '') return '';
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) {
-        return dateStr;
-    }
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-        const parts = dateStr.split('-');
-        const year = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1;
-        const day = parseInt(parts[2], 10);
-        const utcDate = new Date(Date.UTC(year, month, day));
-
-        const dayFormatted = utcDate.getUTCDate().toString().padStart(2, '0');
-        const monthFormatted = utcDate.toLocaleString('default', {
-            month: 'short',
-            timeZone: 'UTC'
-        }).toUpperCase();
-        const yearFormatted = utcDate.getUTCFullYear();
-        return `${dayFormatted}-${monthFormatted}-${yearFormatted}`;
-    }
-    const dayFormatted = date.getUTCDate().toString().padStart(2, '0');
-    const monthFormatted = date.toLocaleString('default', {
-        month: 'short',
-        timeZone: 'UTC'
-    }).toUpperCase();
-    const yearFormatted = date.getUTCFullYear();
-    return `${dayFormatted}-${monthFormatted}-${yearFormatted}`;
-}
-function formatFinanceDateLong(dateStr) {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return dateStr;
-    const day = date.getDate();
-    const month = date.toLocaleString('default', {
-        month: 'long'
-    });
-    const year = date.getFullYear();
-    return `${day}-${month}-${year}`;
-}
-
-function numberToWords(num) {
-  const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
-    'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
-  const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-  const scales = ['', 'Thousand', 'Million', 'Billion', 'Trillion'];
-
-  const n = parseFloat(String(num).replace(/,/g, ''));
-  if (!isFinite(n)) return '';
-
-  const fixed = n.toFixed(2);
-  const [intStr, fracStr] = fixed.split('.');
-
-  function twoDigits(x) {
-    if (x < 20) return a[x];
-    const tens = Math.floor(x / 10);
-    const ones = x % 10;
-    return b[tens] + (ones ? ' ' + a[ones] : '');
-  }
-
-  function threeDigits(x) {
-    const hundreds = Math.floor(x / 100);
-    const rem = x % 100;
-    let out = '';
-
-    if (hundreds) {
-      out += a[hundreds] + ' Hundred';
-      if (rem) out += ' and ' + twoDigits(rem);
-    } else if (rem) {
-      out += twoDigits(rem);
-    }
-    return out.trim();
-  }
-
-  let words = '';
-  let s = intStr;
-  let scaleIndex = 0;
-
-  if (parseInt(s, 10) === 0) {
-    words = 'Zero';
-  } else {
-    const parts = [];
-    while (s.length > 0) {
-      const chunkStr = s.slice(-3);
-      s = s.slice(0, -3);
-      const chunkNum = parseInt(chunkStr, 10);
-
-      if (chunkNum) {
-        const chunkWords = threeDigits(chunkNum);
-        const scale = scales[scaleIndex];
-        parts.push((chunkWords + (scale ? ' ' + scale : '')).trim());
-      }
-      scaleIndex++;
-    }
-    words = parts.reverse().join(' ').trim();
-  }
-
-  // Keep the existing decimal style
-  if (fracStr && parseInt(fracStr, 10) > 0) {
-    words += ' and ' + fracStr + '/100';
-  }
-
-  return words.charAt(0).toUpperCase() + words.slice(1) + ' Qatari Riyals Only';
-}
-
-
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
+// 7.5.2: Moved to js/app-core.js so shared helper changes can be maintained
+// separately from the large main app.js file.
+// --------------------------------------------------------------------------
 
 // --------------------------------------------------------------------------
 // Refresh cooldown helper fallback (materialStock.js normally defines this first)
@@ -3737,16 +3375,8 @@ const imPrintReportBody = document.getElementById('im-print-report-body');
 
 // --- IM: Finance Report (Admin) ---
 const imFinanceReportNavLink = document.getElementById('im-finance-report-nav-link');
-const imFinanceReportSection = document.getElementById('im-finance-report');
-const imFinanceSearchPoInput = document.getElementById('im-finance-search-po');
-const imFinanceSearchBtn = document.getElementById('im-finance-search-btn');
-const imFinanceClearBtn = document.getElementById('im-finance-clear-btn');
-const imFinanceResults = document.getElementById('im-finance-results');
-const imFinanceNoResults = document.getElementById('im-finance-no-results');
-const imFinanceResultsBody = document.getElementById('im-finance-results-body');
 const imFinanceReportModal = document.getElementById('im-finance-report-modal');
 const imFinancePrintReportBtn = document.getElementById('im-finance-print-report-btn');
-const financeReportCountDisplay = document.getElementById('finance-report-count-display');
 // Finance Modal Details
 const imReportDate = document.getElementById('im-reportDate');
 const imReportPoNo = document.getElementById('im-reportPoNo');
@@ -3831,6 +3461,61 @@ const mobileLoginForm = document.getElementById('mobile-login-form');
 const wdActiveTaskBadge = document.getElementById('wd-active-task-badge');
 const imActiveTaskBadge = document.getElementById('im-active-task-badge');
 const wdMobileNotifyBadge = document.getElementById('wd-mobile-notify-badge');
+const imMobileNavBadge = document.getElementById('im-mobile-nav-badge');
+
+// ======================================================================
+// INVENTORY PHASE 1/2 helper functions moved to js/app-inventory.js in 7.5.4.
+// The main app keeps badge updates here, while inventory context/type/record helpers
+// now live in the Inventory JS foundation file.
+// ======================================================================
+
+function setBadgeState(badge, count) {
+    if (!badge) return;
+    const safeCount = Number(count || 0);
+    badge.textContent = safeCount;
+    badge.style.display = safeCount > 0 ? 'inline-block' : 'none';
+}
+
+function setPulseState(el, active) {
+    if (!el) return;
+    if (active) el.classList.add('nav-pulse-active');
+    else el.classList.remove('nav-pulse-active');
+}
+
+function updateActiveTaskModuleBadges(urgentCount, totalTaskCount, moduleName) {
+    const isInventoryModule = moduleName === 'inventory';
+    const count = Number(urgentCount || 0);
+
+    const wdActiveLink = document.querySelector('.wd-nav-activetask a');
+    const imActiveLink = document.getElementById('im-activetask-button');
+    const mobileActiveLink = document.getElementById('im-mobile-activetask-link');
+
+    if (isInventoryModule) {
+        // Inventory lives in the WorkDesk shell for now, but its badge must count
+        // only inventory transfer/usage/return/restock tasks.
+        setBadgeState(wdActiveTaskBadge, count);
+        setBadgeState(wdMobileNotifyBadge, count);
+        setPulseState(wdActiveLink, count > 0);
+
+        // Avoid leaking inventory badge/pulse into Invoice Management.
+        setBadgeState(imActiveTaskBadge, 0);
+        setBadgeState(imMobileNavBadge, 0);
+        setPulseState(imActiveLink, false);
+        setPulseState(mobileActiveLink, false);
+        return;
+    }
+
+    // Normal WorkDesk / Invoice mode must ignore inventory tasks. Both existing
+    // WorkDesk and Invoice active task badges keep using the non-inventory count.
+    setBadgeState(wdActiveTaskBadge, count);
+    setBadgeState(wdMobileNotifyBadge, count);
+    setBadgeState(imActiveTaskBadge, count);
+    setBadgeState(imMobileNavBadge, count);
+
+    setPulseState(wdActiveLink, count > 0);
+    setPulseState(imActiveLink, count > 0);
+    setPulseState(mobileActiveLink, count > 0);
+}
 
 
 
@@ -3955,12 +3640,12 @@ function handleSuccessfulLogin() {
         (currentApprover?.Position || '').toLowerCase() === 'ceo';
     document.body.classList.toggle('is-ceo', isCEO);
 
-    const isMobile = window.innerWidth <= 768;
-    if (isMobile) {
-        workdeskButton.click();
-    } else {
-        showView('dashboard');
-    }
+    // 7.3.6: Mobile should also be able to see the Welcome/module screen after login.
+    // Direct module links such as ?mode=inventory are handled below after permissions are applied.
+    const isMobile = (typeof isMobileViewport === 'function') ? isMobileViewport() : ((window.innerWidth || 0) <= 900);
+    try { window.__ibaActiveModule = 'home'; } catch (_) {}
+    if (document.body) document.body.classList.remove('inventory-mode');
+    showView('dashboard');
 
     const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
     document.body.classList.toggle('is-admin', isAdmin);
@@ -4035,18 +3720,16 @@ if (financeReportButton) {
     }
 
 // [START] Auto-Open Inventory Mode
-    // Check if the URL contains "?mode=inventory"
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('mode') === 'inventory') {
-        console.log("Inventory mode detected. Auto-clicking button...");
+    // Supports direct Inventory links from the main IBA landing page:
+    //   /invoice/?mode=inventory, ?open=inventory, ?module=inventory, or #inventory
+    const directInventoryOpen = (typeof isDirectInventoryOpenRequested === 'function') && isDirectInventoryOpenRequested();
+
+    if (directInventoryOpen) {
+        console.log("Inventory direct-open detected. Opening Inventory module...");
         setTimeout(() => {
             const invBtn = document.getElementById('inventory-button');
-            if (invBtn) {
-                invBtn.click();
-                // Optional: Clean URL so refreshing doesn't trigger it again
-                // window.history.replaceState({}, document.title, window.location.pathname); 
-            }
-        }, 500); // Short delay to ensure view is rendered
+            if (invBtn) invBtn.click();
+        }, 250);
     }
     // [END] Auto-Open Inventory Mode
 
@@ -4637,6 +4320,13 @@ async function showWorkdeskSection(sectionId, newSearchTerm = null) {
 
     // --- NEW: Material Stock Logic ---
     if (sectionId === 'wd-material-stock') {
+        // Inventory Material Stock is still shown inside the WorkDesk shell,
+        // so refresh the Inventory badge with inventory-only tasks here.
+        // This clears stale WorkDesk/Invoice task counts before the user opens Active Task.
+        if (typeof isInventoryContext === 'function' && isInventoryContext() && typeof refreshInventoryTaskBadgeOnly === 'function') {
+            await refreshInventoryTaskBadgeOnly();
+        }
+
         // This function lives in materialStock.js
         if (typeof populateMaterialStock === 'function') {
             await populateMaterialStock();
@@ -4674,9 +4364,6 @@ function showIMSection(sectionId) {
     const canAccessFullIM = isAccountingAdmin || isVacationDelegate;
     const canAccessPayments = isAccountsAdmin; // Vacation delegate does NOT get Payments access
     // Finance/Financial report is read-only and restricted to Super Admin (Irwin) and the active Super Admin replacement.
-    const canAccessFinanceReport = isAdmin || isVacationDelegate;
-
-
     // 3. Strict Access Control Checks
     if (sectionId === 'im-invoice-entry' && !canAccessFullIM) {
         alert('Access Denied: Restricted to Admin & Accounting position.');
@@ -4696,10 +4383,6 @@ function showIMSection(sectionId) {
         return;
     }
 
-    if (sectionId === 'im-finance-report' && !canAccessFinanceReport) {
-        alert('Access Denied: Restricted to Admin users.');
-        return;
-    }
 
     // 4. Show/Hide Views
     imContentArea.querySelectorAll('.workdesk-section').forEach(section => section.classList.add('hidden'));
@@ -4819,6 +4502,12 @@ try {
     }
 
     if (sectionId === 'im-reporting') {
+        // 7.4.4: Mobile Invoice Records has its own identity and should not render desktop controls/table.
+        if (typeof refreshInvoiceRecordsResponsiveIdentity === 'function') refreshInvoiceRecordsResponsiveIdentity();
+        if (typeof isInvoiceReportingMobileMode === 'function' && isInvoiceReportingMobileMode()) {
+            activateMobileInvoiceRecordsIdentity();
+        }
+
         // Date picker was removed from UI (it was not used by report logic),
         // so guard against null to avoid runtime errors.
         if (imDailyReportDateInput) imDailyReportDateInput.value = getTodayDateString();
@@ -4833,6 +4522,7 @@ try {
             currentReportData = [];
         }
         populateSiteFilterDropdown();
+        if (typeof refreshInvoiceRecordsResponsiveIdentity === 'function') refreshInvoiceRecordsResponsiveIdentity();
         // Visibility rules (V5.5.3 update):
         // - CSV/Excel downloads: Only Super Admin (Irwin) OR the active Super Admin Vacation Delegate
         // - Print Preview/List: All Admins (and Accounting)
@@ -4862,14 +4552,6 @@ try {
         imPaymentsTableBody.innerHTML = '';
         invoicesToPay = {};
         updatePaymentsCount();
-    }
-
-    if (sectionId === 'im-finance-report') {
-        imFinanceSearchPoInput.value = '';
-        imFinanceResults.style.display = 'none';
-        imFinanceNoResults.style.display = 'none';
-        imFinanceAllPaymentsData = {};
-        if (financeReportCountDisplay) financeReportCountDisplay.textContent = '';
     }
 }
 
@@ -6021,27 +5703,46 @@ async function printInventoryInTransitReport() {
 function renderReportingTable(entries) {
     reportingTableBody.innerHTML = '';
 
-    const inventoryTypes = ['Transfer', 'Restock', 'Return', 'Usage'];
+    const inventoryTypes = (Array.isArray(window.INVENTORY_TYPES) ? window.INVENTORY_TYPES : ['Transfer', 'Restock', 'Return', 'Usage']);
     const isInventoryReport = ((typeof isInventoryContext === 'function' && isInventoryContext()) || inventoryTypes.includes(currentReportFilter));
+
+    // 7.5.5 — Inventory Job Records renderer moved to js/app-inventory.js.
+    // Keep WorkDesk/Invoice rendering here only.
+    if (isInventoryReport) {
+        if (typeof renderInventoryJobRecordsTable === 'function') {
+            return renderInventoryJobRecordsTable(entries);
+        }
+
+        console.warn('Inventory Job Records renderer is missing. Check js/app-inventory.js.');
+        const tableHead = document.querySelector('#reporting-printable-area table thead');
+        const reportingTable = document.querySelector('#reporting-printable-area table');
+        if (reportingTable) reportingTable.classList.add('inv-job-records-table');
+        if (reportingTableBody) reportingTableBody.classList.add('inv-job-records-body');
+        if (tableHead) {
+            tableHead.innerHTML = `
+                <tr>
+                    <th>Control ID</th><th>Product Name</th><th>Site Route</th>
+                    <th>Ordered Qty</th><th>Delivered Qty</th><th>Shipping Date</th>
+                    <th>Arrival Date</th><th>Contact</th><th>Status / Remarks</th>
+                </tr>`;
+        }
+        if (reportingTableBody) {
+            reportingTableBody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px; color:#b91c1c;">Inventory Job Records renderer is not loaded.</td></tr>';
+        }
+        return;
+    }
 
     const tableHead = document.querySelector('#reporting-printable-area table thead');
     const reportingTable = document.querySelector('#reporting-printable-area table');
 
     if (reportingTable) {
-        reportingTable.classList.toggle('inv-job-records-table', !!isInventoryReport);
+        reportingTable.classList.remove('inv-job-records-table');
     }
     if (reportingTableBody) {
-        reportingTableBody.classList.toggle('inv-job-records-body', !!isInventoryReport);
+        reportingTableBody.classList.remove('inv-job-records-body');
     }
 
-    if (isInventoryReport) {
-        tableHead.innerHTML = `
-            <tr>
-                <th>Control ID</th><th>Product Name</th><th>Site Route</th>
-                <th>Ordered Qty</th><th>Delivered Qty</th><th>Shipping Date</th>
-                <th>Arrival Date</th><th>Contact</th><th>Status / Remarks</th>
-            </tr>`;
-    } else {
+    if (tableHead) {
         tableHead.innerHTML = `
             <tr>
                 <th>Job</th><th>Ref</th><th>Site</th><th>PO</th>
@@ -6052,233 +5753,15 @@ function renderReportingTable(entries) {
     }
 
     const totalRecords = Array.isArray(entries) ? entries.length : 0;
-    const emptyColspan = isInventoryReport ? 9 : 11;
 
     if (!entries || totalRecords === 0) {
         if (document.getElementById('job-records-count-display')) {
             document.getElementById('job-records-count-display').textContent = `(Total Records: 0)`;
         }
-        reportingTableBody.innerHTML = `<tr><td colspan="${emptyColspan}">No entries found.</td></tr>`;
+        reportingTableBody.innerHTML = `<tr><td colspan="11">No entries found.</td></tr>`;
         return;
     }
 
-    const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
-
-    // ---------------------------------------------------------
-    // Inventory Mode: Group by Control ID (Collapsible)
-    // ---------------------------------------------------------
-    if (isInventoryReport) {
-        // helper: safe group id for dataset lookups
-        const makeSafeId = (str) => {
-            const base = (str ?? '').toString().trim();
-            const cleaned = base.replace(/[^a-zA-Z0-9_-]/g, '_');
-            return (cleaned || 'NO_CONTROL_ID').slice(0, 60);
-        };
-
-        // preserve order of first appearance
-        const groups = [];
-        const groupMap = new Map(); // controlId -> groupObj
-
-        entries.forEach((entry, idx) => {
-            const rawCid = (entry.controlId ?? '').toString().trim();
-            const cidKey = rawCid !== '' ? rawCid : `NO_CONTROL_ID_${idx}`;
-            if (!groupMap.has(cidKey)) {
-                const groupId = `cid_${makeSafeId(cidKey)}_${groups.length}`;
-                const g = { cidKey, displayCid: rawCid || '(No Control ID)', groupId, items: [] };
-                groupMap.set(cidKey, g);
-                groups.push(g);
-            }
-            groupMap.get(cidKey).items.push(entry);
-        });
-
-        // Update count display: show groups + records
-        if (document.getElementById('job-records-count-display')) {
-            document.getElementById('job-records-count-display').textContent =
-                `(Groups: ${groups.length} | Records: ${totalRecords})`;
-        }
-
-        // Ensure click handler is attached once (for expand/collapse)
-        if (reportingTableBody && !reportingTableBody.dataset.inventoryGroupToggleBound) {
-            reportingTableBody.dataset.inventoryGroupToggleBound = '1';
-            reportingTableBody.addEventListener('click', (e) => {
-                const tr = e.target.closest('tr.inventory-group-row');
-                if (!tr) return;
-
-                // Do not toggle if user clicked a button/link inside (future-proof)
-                if (e.target.closest('button, a, input, select, textarea, label')) return;
-
-                const groupId = tr.dataset.groupId;
-                if (!groupId) return;
-
-                const expanded = tr.dataset.expanded === '1';
-
-                // Accordion behavior: when opening one Control ID group, close all others
-                if (!expanded) {
-                    const openGroups = reportingTableBody.querySelectorAll('tr.inventory-group-row[data-expanded="1"]');
-                    openGroups.forEach(g => {
-                        if (g === tr) return;
-                        const ogid = g.dataset.groupId;
-                        if (!ogid) return;
-
-                        const ochildren = reportingTableBody.querySelectorAll(`tr.inventory-child-row[data-parent="${ogid}"]`);
-                        ochildren.forEach(r => { r.style.display = 'none'; });
-
-                        g.dataset.expanded = '0';
-                        const oicon = g.querySelector('.group-toggle-icon');
-                        if (oicon) oicon.textContent = '▶';
-                    });
-                }
-
-                const children = reportingTableBody.querySelectorAll(`tr.inventory-child-row[data-parent="${groupId}"]`);
-                children.forEach(row => {
-                    row.style.display = expanded ? 'none' : '';
-                });
-
-                tr.dataset.expanded = expanded ? '0' : '1';
-
-                const icon = tr.querySelector('.group-toggle-icon');
-                if (icon) icon.textContent = expanded ? '▶' : '▼';
-            });
-        }
-
-        const invTypeClass = (type) => {
-            const t = (type || '').toString().trim().toLowerCase();
-            if (t === 'transfer') return 'inv-type-transfer';
-            if (t === 'usage') return 'inv-type-usage';
-            if (t === 'return') return 'inv-type-return';
-            if (t === 'restock') return 'inv-type-restock';
-            return 'inv-type-other';
-        };
-
-        const invStatusClass = (status) => {
-            const st = (status || 'Pending').toString().trim().toLowerCase();
-            if (st.includes('approved') || st.includes('completed')) return 'approved';
-            if (st.includes('reject')) return 'rejected';
-            if (st.includes('transit')) return 'transit';
-            if (st.includes('pending')) return 'pending';
-            return 'neutral';
-        };
-
-        const buildInvStatusBadge = (status) => {
-            const safeStatus = _escapeHtml(status || 'Pending');
-            return `<span class="inv-job-status-badge inv-job-status-${invStatusClass(status)}">${safeStatus}</span>`;
-        };
-
-        // helper: build a normal inventory row (used for both grouped + single)
-        const buildInventoryRow = (entry, opts = {}) => {
-            const isChild = !!opts.isChild;
-            const itemIndex = Number.isFinite(opts.itemIndex) ? opts.itemIndex : null;
-            const controlCell = isChild
-                ? `<span class="inv-child-connector"></span><span class="inv-child-index">${itemIndex !== null ? itemIndex : ''}</span>`
-                : `<strong class="inv-control-id-text">${_escapeHtml(entry.controlId || '')}</strong><span class="inv-type-pill ${invTypeClass(entry.for || entry.jobType)}">${_escapeHtml(entry.for || entry.jobType || 'Inventory')}</span>`;
-
-            const noteDisplay = entry.note ? `<div class="inv-job-note">${_escapeHtml(entry.note)}</div>` : '';
-
-            let actions = `<button class="print-btn waybill-btn" data-key="${entry.key}" style="padding:2px 6px; margin-right:5px; font-size:0.7rem; background:#6f42c1; color:white; border:none; border-radius:4px;" title="Print Waybill"><i class="fa-solid fa-print"></i></button>`;
-            actions += `<button class="history-btn action-btn" onclick="showTransferHistory('${entry.key}')" style="padding:2px 6px; margin-right:5px; font-size:0.7rem; background:#17a2b8; color:white; border:none; border-radius:4px;" title="View History"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
-            if (isAdmin) {
-                actions += `<button type="button" class="delete-btn transfer-delete-btn" data-key="${entry.key}" style="padding:2px 6px; font-size:0.7rem; border-radius:4px;">Del</button>`;
-            }
-
-            return `
-                <td class="inv-control-cell">${controlCell}</td>
-                <td class="inv-product-cell">${_escapeHtml(entry.productName || '')}</td>
-                <td class="inv-route-cell">${_escapeHtml(entry.site || '')}</td>
-                <td class="inv-qty-cell">${_escapeHtml(entry.orderedQty || 0)}</td>
-                <td class="inv-qty-cell">${_escapeHtml(entry.deliveredQty || 0)}</td>
-                <td>${_escapeHtml(entry.shippingDate || '')}</td>
-                <td>${_escapeHtml(entry.arrivalDate || '')}</td>
-                <td>${_escapeHtml(entry.contactName || '')}</td>
-                <td class="inv-status-cell">
-                    ${buildInvStatusBadge(entry.remarks || 'Pending')}
-                    ${noteDisplay}
-                    <div class="inv-row-actions">${actions}</div>
-                </td>
-            `;
-        };
-
-        // Render groups (collapsed by default when multiple)
-        groups.forEach(g => {
-            const items = g.items || [];
-            if (items.length <= 1) {
-                const entry = items[0];
-                const row = document.createElement('tr');
-                row.className = `inventory-record-single-row inv-job-single-row ${invTypeClass(entry.for || entry.jobType)}`;
-                row.setAttribute('data-key', entry.key);
-                row.innerHTML = buildInventoryRow(entry);
-                reportingTableBody.appendChild(row);
-                return;
-            }
-
-            // summary info
-            const uniqueProducts = Array.from(new Set(items.map(x => (x.productName || '').toString().trim()).filter(Boolean)));
-            const productSummary = uniqueProducts.length === 1
-                ? uniqueProducts[0]
-                : `Multiple (${uniqueProducts.length})`;
-
-            const uniqueSites = Array.from(new Set(items.map(x => (x.site || '').toString().trim()).filter(Boolean)));
-            const siteSummary = uniqueSites.length === 1
-                ? uniqueSites[0]
-                : (uniqueSites.length > 1 ? `Multiple (${uniqueSites.length})` : '');
-
-            const sumNum = (val) => {
-                const n = parseFloat(val);
-                return Number.isFinite(n) ? n : 0;
-            };
-            const totalOrdered = items.reduce((acc, x) => acc + sumNum(x.orderedQty), 0);
-            const totalDelivered = items.reduce((acc, x) => acc + sumNum(x.deliveredQty), 0);
-
-            // Group header row
-            const groupRow = document.createElement('tr');
-            groupRow.className = `inventory-group-row inv-job-group-row ${invTypeClass(items[0]?.for || items[0]?.jobType)}`;
-            groupRow.dataset.groupId = g.groupId;
-            groupRow.dataset.expanded = '0';
-
-            const groupJobType = items[0]?.for || items[0]?.jobType || 'Inventory';
-            const firstShippingDate = items.map(x => x.shippingDate || '').find(Boolean) || '';
-            const firstArrivalDate = items.map(x => x.arrivalDate || '').find(Boolean) || '';
-            const firstContact = items.map(x => x.contactName || '').find(Boolean) || '';
-
-            groupRow.innerHTML = `
-                <td class="inv-group-id-cell">
-                    <span class="group-toggle-icon">▶</span>
-                    <strong class="inv-control-id-text">${_escapeHtml(g.displayCid)}</strong>
-                    <span class="inv-type-pill ${invTypeClass(groupJobType)}">${_escapeHtml(groupJobType)}</span>
-                </td>
-                <td class="inv-group-product-cell">
-                    <strong>${_escapeHtml(productSummary)}</strong>
-                    <span class="group-count-badge">${items.length} items</span>
-                </td>
-                <td>${_escapeHtml(siteSummary)}</td>
-                <td class="inv-qty-cell">${_escapeHtml(totalOrdered)}</td>
-                <td class="inv-qty-cell">${_escapeHtml(totalDelivered)}</td>
-                <td>${_escapeHtml(firstShippingDate)}</td>
-                <td>${_escapeHtml(firstArrivalDate)}</td>
-                <td>${_escapeHtml(firstContact)}</td>
-                <td class="inv-group-status-cell">
-                    <span class="inv-expand-hint">Click to expand</span>
-                </td>
-            `;
-            reportingTableBody.appendChild(groupRow);
-
-            // Child rows (hidden by default)
-            items.forEach((entry, idx) => {
-                const child = document.createElement('tr');
-                child.className = `inventory-child-row inv-job-child-row ${invTypeClass(entry.for || entry.jobType)}`;
-                child.dataset.parent = g.groupId;
-                child.style.display = 'none';
-                child.setAttribute('data-key', entry.key);
-                child.innerHTML = buildInventoryRow(entry, { isChild: true, itemIndex: idx + 1 });
-                reportingTableBody.appendChild(child);
-            });
-        });
-
-        return;
-    }
-
-    // ---------------------------------------------------------
-    // Standard Job Records (No grouping changes)
-    // ---------------------------------------------------------
     if (document.getElementById('job-records-count-display')) {
         document.getElementById('job-records-count-display').textContent = `(Total Records: ${totalRecords})`;
     }
@@ -6311,16 +5794,18 @@ function renderReportingTable(entries) {
     });
 }
 
-function filterAndRenderReport(baseEntries = []) {
-    let filteredEntries = [...baseEntries];
-
-    // 0. Inventory Mode: show ONLY inventory records in the Inventory clone.
-//    Normal Workdesk (DESKTOP) hides inventory-related jobs. Mobile is unchanged.
+function filterAndRenderReport(baseEntries = null) {
+    // 7.5.5 — Inventory Job Records filtering moved to js/app-inventory.js.
     if (typeof isInventoryContext === 'function' && isInventoryContext()) {
-        filteredEntries = filteredEntries.filter(entry => INVENTORY_TYPES.includes(entry.for));
-    } else if (typeof shouldExcludeInventoryFromWorkdeskDesktop === 'function' && shouldExcludeInventoryFromWorkdeskDesktop()) {
-        filteredEntries = filteredEntries.filter(entry => !INVENTORY_TYPES.includes(entry.for));
+        if (typeof filterAndRenderInventoryJobRecords === 'function') {
+            return filterAndRenderInventoryJobRecords(baseEntries);
+        }
+        console.warn('Inventory Job Records filter is missing. Falling back to main renderer.');
     }
+
+    // WorkDesk/Invoice Job Records source only.
+    const chosenSource = Array.isArray(baseEntries) ? baseEntries : getWorkdeskJobRecordEntries();
+    let filteredEntries = [...chosenSource].filter(entry => isWorkdeskTaskRecord(entry));
 
     // 1. Filter by Tab (Job Type)
     if (currentReportFilter && currentReportFilter !== 'All') {
@@ -6333,7 +5818,6 @@ function filterAndRenderReport(baseEntries = []) {
 
     if (searchText) {
         filteredEntries = filteredEntries.filter(entry => {
-            // Safe helper to check if a value contains the search text
             const check = (val) => val && String(val).toLowerCase().includes(searchText);
 
             return (
@@ -6345,11 +5829,7 @@ function filterAndRenderReport(baseEntries = []) {
                 check(entry.attention) ||
                 check(entry.enteredBy) ||
                 check(entry.date) ||
-                check(entry.vendorName) ||
-                // Specific to Transfers
-                check(entry.controlId) ||
-                check(entry.productName) ||
-                check(entry.contactName)
+                check(entry.vendorName)
             );
         });
     }
@@ -6370,14 +5850,9 @@ async function handleReportingSearch() {
         await ensureInvoiceDataFetched(false);
         await reconcilePendingPRs();
 
-        // 2. Build Tabs
-        let baseEntries = allSystemEntries;
-        if (typeof isInventoryContext === 'function' && isInventoryContext()) {
-            baseEntries = allSystemEntries.filter(entry => INVENTORY_TYPES.includes(entry.for));
-        } else if (typeof shouldExcludeInventoryFromWorkdeskDesktop === 'function' && shouldExcludeInventoryFromWorkdeskDesktop()) {
-            // Desktop Workdesk should hide inventory job records (mobile unchanged)
-            baseEntries = allSystemEntries.filter(entry => !INVENTORY_TYPES.includes(entry.for));
-        }
+        // 2. Build Tabs from the current module family only.
+        // Inventory gets transfer_entries only; WorkDesk gets job_entries only.
+        let baseEntries = getJobRecordsBaseEntriesForCurrentContext();
 
         const uniqueJobTypes = [...new Set(baseEntries.map(entry => entry.for || 'Other'))];
         uniqueJobTypes.sort();
@@ -6416,7 +5891,7 @@ let tabsHTML = '';
                     <td colspan="11" style="text-align: center; padding: 50px; color: #888;">
                         <i class="fa-solid fa-arrow-up" style="font-size: 2rem; margin-bottom: 15px; color: #00748C;"></i><br>
                         <strong style="font-size: 1.1rem; color: #333;">Select a Category above</strong><br>
-                        <span>(e.g., IPC, Invoice, Transfer) to view records.</span>
+                        <span>${(typeof isInventoryContext === 'function' && isInventoryContext()) ? '(Transfer, Restock, Return, Usage)' : '(e.g., IPC, Invoice, PR)' } to view records.</span>
                     </td>
                 </tr>`;
              // Clear the count display
@@ -6442,49 +5917,39 @@ let tabsHTML = '';
 // =================================================================================================
 
 function renderActiveTaskTable(tasks) {
-    var isMobile = window.innerWidth <= 768;
+    // 7.3.5 — Active Task Renderer Separation
+    // This router keeps the old public function name used by listeners/search,
+    // but sends Inventory and WorkDesk tasks to different renderers.
+    const list = Array.isArray(tasks) ? tasks : [];
+    const inventoryMode = (typeof isInventoryContext === 'function' && isInventoryContext()) ||
+        (list.length > 0 && list.every(t => isInventoryTaskRecord(t)));
+
+    if (inventoryMode) {
+        return renderInventoryActiveTaskTable(list);
+    }
+    return renderWorkdeskActiveTaskTable(list);
+}
+
+// 7.5.6 — renderInventoryActiveTaskTable moved to js/app-inventory.js.
+function renderWorkdeskActiveTaskTable(tasks) {
+    const workdeskTasks = (Array.isArray(tasks) ? tasks : []).filter(t => isWorkdeskTaskRecord(t));
+    const isMobile = (typeof isMobileViewport === 'function') ? isMobileViewport() : (window.innerWidth <= 768);
     if (isMobile) {
-        if (typeof renderMobileActiveTasks === 'function') renderMobileActiveTasks(tasks);
+        if (typeof renderWorkdeskMobileActiveTasks === 'function') renderWorkdeskMobileActiveTasks(workdeskTasks);
+        else if (typeof renderMobileActiveTasks === 'function') renderMobileActiveTasks(workdeskTasks);
         return;
     }
 
     activeTaskTableBody.innerHTML = '';
 
-    // Filter by Hybrid Tabs
-    var filteredTasks = tasks.filter(function(task) {
-        var specialTypes = ['Transfer', 'Restock', 'Return', 'Usage'];
-        var isSpecialTab = specialTypes.indexOf(currentActiveTaskFilter) !== -1;
-        var taskIsSpecial = specialTypes.indexOf(task.for) !== -1;
-
-        if (isSpecialTab) {
-            return task.for === currentActiveTaskFilter;
-        } else {
-            return task.remarks === currentActiveTaskFilter && !taskIsSpecial;
-        }
+    const filteredTasks = workdeskTasks.filter(function(task) {
+        if (currentActiveTaskFilter === 'All') return true;
+        return task.remarks === currentActiveTaskFilter;
     });
 
-    if (filteredTasks.length === 0) {
-        activeTaskTableBody.innerHTML = '<tr><td colspan="10">No tasks found for "' + currentActiveTaskFilter + '".</td></tr>';
-        return; 
-    } 
-
-    // Setup Headers
-    var isTransferView = filteredTasks.length > 0 && ['Transfer', 'Restock', 'Return', 'Usage'].indexOf(filteredTasks[0].for) !== -1;
-    var tableHead = document.querySelector('#wd-activetask table thead');
-
-    if (isTransferView) {
-        tableHead.innerHTML = 
-            '<tr>' +
-                '<th class="desktop-only">Control ID</th>' +
-                '<th class="desktop-only">Product Name</th>' +
-                '<th class="desktop-only">Details</th>' +
-                '<th class="desktop-only">Movement</th>' +
-                '<th class="desktop-only">Current Qty</th> <th class="desktop-only">Contact</th>' +
-                '<th class="desktop-only">Status</th>' +
-                '<th class="desktop-only">Action</th>' +
-            '</tr>';
-    } else {
-        tableHead.innerHTML = 
+    const tableHead = document.querySelector('#wd-activetask table thead');
+    if (tableHead) {
+        tableHead.innerHTML =
             '<tr>' +
                 '<th class="desktop-only">Job</th>' +
                 '<th class="desktop-only">Ref</th>' +
@@ -6499,260 +5964,96 @@ function renderActiveTaskTable(tasks) {
             '</tr>';
     }
 
-    var isCEO = document.body.classList.contains('is-ceo');
-    var userPos = (currentApprover.Position || '').toLowerCase();
-    var userRole = (currentApprover.Role || '').toLowerCase();
-    var isManager = userPos.indexOf('manager') !== -1 || 
-                    userPos.indexOf('director') !== -1 || 
-                    userPos.indexOf('ceo') !== -1 || 
-                    userRole === 'admin'; 
+    if (filteredTasks.length === 0) {
+        activeTaskTableBody.innerHTML = '<tr><td colspan="10">No WorkDesk tasks found for "' + currentActiveTaskFilter + '".</td></tr>';
+        return;
+    }
 
-    // --- Inventory Active Tasks: group by Control ID (accordion) ---
-if (isTransferView) {
-    const getControlKey = (t) => String(t.ref || t.controlId || t.controlNumber || '').trim() || 'N/A';
+    const isCEO = document.body.classList.contains('is-ceo');
+    const userPos = (currentApprover.Position || '').toLowerCase();
+    const userRole = (currentApprover.Role || '').toLowerCase();
+    const isManager = userPos.indexOf('manager') !== -1 ||
+                    userPos.indexOf('director') !== -1 ||
+                    userPos.indexOf('ceo') !== -1 ||
+                    userRole === 'admin';
 
-    const getMovementText = (t) => {
-        const fromLoc = t.fromSite || t.fromLocation || 'N/A';
-        const toLoc = t.toSite || t.toLocation || 'N/A';
-        let movement = `${fromLoc} ➔ ${toLoc}`;
-        if (t.for === 'Usage') movement = `Consumed at ${fromLoc}`;
-        return movement;
-    };
-
-    const getDisplayQty = (t) => {
-        let displayQty = parseFloat(t.orderedQty ?? t.requiredQty ?? 0) || 0;
-        if (t.approvedQty !== undefined && t.approvedQty !== null) {
-            displayQty = parseFloat(t.approvedQty) || displayQty;
-        }
-        if (t.receivedQty !== undefined && t.receivedQty !== null) {
-            displayQty = parseFloat(t.receivedQty) || displayQty;
-        }
-        return displayQty;
-    };
-
-    const getStatusColor = (status) => {
-        if (status === 'Pending' || status === 'Pending Admin') return '#dc3545';
-        if (status === 'Approved') return '#28a745';
-        if (status === 'Completed') return '#003A5C';
-        return '#333';
-    };
-
-    const inInventoryContext = (typeof isInventoryContext === 'function' && isInventoryContext());
-
-    const renderTransferRow = (task, { isChild = false } = {}) => {
+    filteredTasks.forEach(function(task) {
         const row = document.createElement('tr');
         row.setAttribute('data-key', task.key);
-        row.classList.toggle('controlid-group-child', isChild);
 
         if (task.isUrgent === false) {
             row.style.opacity = '0.7';
             row.style.backgroundColor = '#f9f9f9';
         }
 
-        let actionButtons = '<button class="transfer-action-btn" data-key="' + task.key + '" style="background-color: #17a2b8; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 600;">Action</button>';
+        const isInvoiceFromIrwin = task.source === 'invoice' && task.enteredBy === 'Irwin';
+        const invName = task.invName || '';
+        const isClickable = (isInvoiceFromIrwin || (task.source === 'invoice' && invName)) &&
+                          invName.trim() && invName.toLowerCase() !== 'nil';
 
-        // Keep existing delete rule (admin-only and not in inventory clone)
-        if (userRole === 'admin' && !inInventoryContext) {
-            actionButtons += '<button type="button" class="delete-btn transfer-delete-btn" data-key="' + task.key + '" style="margin-left: 5px; padding: 6px 12px;">Delete</button>';
-        }
+        if (isClickable) row.classList.add('clickable-pdf');
+        if (isCEO) row.title = "Click to open approval modal";
+        else if (isClickable) row.title = "Click to open PDF";
 
-        const movement = getMovementText(task);
+        const displayAmount = task.amountPaid || task.amount || 0;
 
-        let displayQty = task.orderedQty || task.requiredQty || 0;
-        let qtyLabel = "";
-        if (task.approvedQty !== undefined && task.approvedQty !== null) {
-            displayQty = task.approvedQty;
-            if (displayQty != task.orderedQty) qtyLabel = " (Adj)";
-        }
-        if (task.receivedQty !== undefined && task.receivedQty !== null) {
-            displayQty = task.receivedQty;
-            qtyLabel = "";
-        }
-
-        const statusColor = getStatusColor(task.remarks);
-
-        const controlCell = isChild
-            ? '<td class="desktop-only controlid-child-cell"><span class="controlid-child-marker">↳</span> ' + (getControlKey(task)) + '</td>'
-            : '<td class="desktop-only"><strong>' + (getControlKey(task)) + '</strong></td>';
-
-        // Render with the same column order as before
         row.innerHTML =
-            controlCell +
-            '<td class="desktop-only">' + (task.vendorName || task.productName) + '</td>' +
-            '<td class="desktop-only">' + (task.details || '') + '</td>' +
-            '<td class="desktop-only">' + movement + '</td>' +
-            '<td class="desktop-only" style="font-weight: bold; color: #003A5C;">' + displayQty + qtyLabel + '</td>' +
-            '<td class="desktop-only">' + (task.contactName || task.requestor || '') + '</td>' +
-            '<td class="desktop-only"><span style="color: ' + statusColor + '; font-weight: bold;">' + task.remarks + '</span></td>' +
-            '<td class="desktop-only">' + actionButtons + '</td>';
+            '<td class="desktop-only">' + (task.for || '') + '</td>' +
+            '<td class="desktop-only">' + (task.ref || '') + '</td>' +
+            '<td class="desktop-only">' + (task.po || '') + '</td>' +
+            '<td class="desktop-only">' + (task.vendorName || 'N/A') + '</td>' +
+            '<td class="desktop-only">' + formatCurrency(displayAmount) + '</td>' +
+            '<td class="desktop-only">' + (task.site || '') + '</td>' +
+            '<td class="desktop-only">' + (task.date || '') + '</td>' +
+            '<td class="desktop-only">' + (task.note || '') + '</td>' +
+            '<td class="desktop-only">' + (task.remarks || 'Pending') + '</td>';
 
-        return row;
-    };
+        const actionsCell = document.createElement('td');
+        actionsCell.className = "desktop-only";
 
-    // Group tasks by Control ID (ref)
-    const groups = new Map();
-    filteredTasks.forEach(t => {
-        const k = getControlKey(t);
-        if (!groups.has(k)) groups.set(k, []);
-        groups.get(k).push(t);
-    });
+        if (task.remarks === 'For Approval' && isManager) {
+            const approveBtn = document.createElement('button');
+            approveBtn.className = 'action-btn approve-btn';
+            approveBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
+            approveBtn.title = 'Approve';
+            approveBtn.style.backgroundColor = '#28a745';
+            approveBtn.style.color = 'white';
+            approveBtn.style.marginRight = '5px';
+            approveBtn.onclick = function(e) { e.stopPropagation(); handleDesktopApproval(task, 'Approved'); };
 
-    // Helpers for accordion (only one open at a time)
-    const closeAllGroups = () => {
-        document.querySelectorAll('#active-task-table-body tr.controlid-group-child').forEach(r => { r.style.display = 'none'; });
-        document.querySelectorAll('#active-task-table-body tr.controlid-group-header').forEach(r => { r.classList.remove('open'); });
-    };
+            const rejectBtn = document.createElement('button');
+            rejectBtn.className = 'action-btn reject-btn';
+            rejectBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+            rejectBtn.title = 'Reject';
+            rejectBtn.style.backgroundColor = '#dc3545';
+            rejectBtn.style.color = 'white';
+            rejectBtn.onclick = function(e) { e.stopPropagation(); handleDesktopApproval(task, 'Rejected'); };
 
-    const openGroup = (groupId) => {
-        document.querySelectorAll('#active-task-table-body tr.controlid-group-child[data-parent-group="' + groupId.replace(/"/g, '') + '"]').forEach(r => { r.style.display = 'table-row'; });
-        const header = document.querySelector('#active-task-table-body tr.controlid-group-header[data-group-id="' + groupId.replace(/"/g, '') + '"]');
-        if (header) header.classList.add('open');
-    };
-
-    // Render groups (sorted)
-    const groupIds = Array.from(groups.keys()).sort((a, b) => String(a).localeCompare(String(b)));
-    groupIds.forEach(groupId => {
-        const items = groups.get(groupId) || [];
-        if (items.length <= 1) {
-            activeTaskTableBody.appendChild(renderTransferRow(items[0]));
-            return;
-        }
-
-        // Summary line
-        const first = items[0] || {};
-        const productName = first.vendorName || first.productName || '';
-        const uniqueDetails = Array.from(new Set(items.map(i => String(i.details || '').trim()).filter(Boolean)));
-        const detailsSummary = uniqueDetails.length === 0 ? '' : (uniqueDetails.length === 1 ? uniqueDetails[0] : 'Multiple records');
-
-        const uniqueMov = Array.from(new Set(items.map(getMovementText)));
-        const movementSummary = uniqueMov.length === 1 ? uniqueMov[0] : 'Multiple';
-
-        const totalQty = items.reduce((sum, t) => sum + getDisplayQty(t), 0);
-        const uniqueContacts = Array.from(new Set(items.map(i => String(i.contactName || i.requestor || '').trim()).filter(Boolean)));
-        const contactSummary = uniqueContacts.length === 0 ? '' : (uniqueContacts.length === 1 ? uniqueContacts[0] : 'Multiple');
-
-        const uniqueStatuses = Array.from(new Set(items.map(i => String(i.remarks || '').trim()).filter(Boolean)));
-        const statusSummary = uniqueStatuses.length === 0 ? '' : (uniqueStatuses.length === 1 ? uniqueStatuses[0] : 'Multiple');
-        const statusColor = uniqueStatuses.length === 1 ? getStatusColor(statusSummary) : '#333';
-
-        const groupIsUrgent = items.some(t => t.isUrgent === true);
-
-        const headerRow = document.createElement('tr');
-        headerRow.className = 'controlid-group-header';
-        headerRow.setAttribute('data-group-id', groupId);
-
-        if (!groupIsUrgent) {
-            headerRow.style.opacity = '0.7';
-            headerRow.style.backgroundColor = '#f9f9f9';
-        }
-
-        headerRow.innerHTML =
-            '<td class="desktop-only"><span class="group-toggle-icon">▸</span> <strong>' + groupId + '</strong> <span class="controlid-group-count">(' + items.length + ')</span></td>' +
-            '<td class="desktop-only">' + productName + '</td>' +
-            '<td class="desktop-only">' + detailsSummary + '</td>' +
-            '<td class="desktop-only">' + movementSummary + '</td>' +
-            '<td class="desktop-only" style="font-weight: bold; color: #003A5C;">' + (Number.isFinite(totalQty) ? totalQty : '') + ' <span class="controlid-group-total-label">(Total)</span></td>' +
-            '<td class="desktop-only">' + contactSummary + '</td>' +
-            '<td class="desktop-only"><span style="color: ' + statusColor + '; font-weight: bold;">' + statusSummary + '</span></td>' +
-            '<td class="desktop-only"><span class="controlid-group-hint">Click to expand</span></td>';
-
-        // Accordion click behavior
-        headerRow.addEventListener('click', () => {
-            const isOpen = headerRow.classList.contains('open');
-            closeAllGroups();
-            if (!isOpen) openGroup(groupId);
-        });
-
-        activeTaskTableBody.appendChild(headerRow);
-
-        // Child rows (hidden by default)
-        items.forEach(item => {
-            const childRow = renderTransferRow(item, { isChild: true });
-            childRow.setAttribute('data-parent-group', groupId);
-            childRow.style.display = 'none';
-            activeTaskTableBody.appendChild(childRow);
-        });
-    });
-
-    return; // prevent standard renderer
-}
-
-filteredTasks.forEach(function(task) {
-        var row = document.createElement('tr');
-        row.setAttribute('data-key', task.key);
-
-        if (task.isUrgent === false) {
-            row.style.opacity = '0.7';
-            row.style.backgroundColor = '#f9f9f9';
-        }
-
-            // --- STANDARD ROW ---
-            var isInvoiceFromIrwin = task.source === 'invoice' && task.enteredBy === 'Irwin';
-            var invName = task.invName || '';
-            var isClickable = (isInvoiceFromIrwin || (task.source === 'invoice' && invName)) &&
-                              invName.trim() && invName.toLowerCase() !== 'nil';
-
-            if (isClickable) row.classList.add('clickable-pdf');
-            if (isCEO) row.title = "Click to open approval modal";
-            else if (isClickable) row.title = "Click to open PDF";
-
-            var displayAmount = task.amountPaid || task.amount || 0;
-
-            row.innerHTML = 
-                '<td class="desktop-only">' + (task.for || '') + '</td>' +
-                '<td class="desktop-only">' + (task.ref || '') + '</td>' +
-                '<td class="desktop-only">' + (task.po || '') + '</td>' +
-                '<td class="desktop-only">' + (task.vendorName || 'N/A') + '</td>' +
-                '<td class="desktop-only">' + formatCurrency(displayAmount) + '</td>' +
-                '<td class="desktop-only">' + (task.site || '') + '</td>' +
-                '<td class="desktop-only">' + (task.date || '') + '</td>' +
-                '<td class="desktop-only">' + (task.note || '') + '</td>' +
-                '<td class="desktop-only">' + (task.remarks || 'Pending') + '</td>';
-
-            var actionsCell = document.createElement('td');
-            actionsCell.className = "desktop-only";
-
-            if (task.remarks === 'For Approval' && isManager) {
-                var approveBtn = document.createElement('button');
-                approveBtn.className = 'action-btn approve-btn';
-                approveBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
-                approveBtn.title = 'Approve';
-                approveBtn.style.backgroundColor = '#28a745';
-                approveBtn.style.color = 'white';
-                approveBtn.style.marginRight = '5px';
-                approveBtn.onclick = function(e) { e.stopPropagation(); handleDesktopApproval(task, 'Approved'); };
-                
-                var rejectBtn = document.createElement('button');
-                rejectBtn.className = 'action-btn reject-btn';
-                rejectBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-                rejectBtn.title = 'Reject';
-                rejectBtn.style.backgroundColor = '#dc3545';
-                rejectBtn.style.color = 'white';
-                rejectBtn.onclick = function(e) { e.stopPropagation(); handleDesktopApproval(task, 'Rejected'); };
-
-                actionsCell.appendChild(approveBtn);
-                actionsCell.appendChild(rejectBtn);
-
-            } else if (isCEO) {
-                actionsCell.innerHTML = '<button class="ceo-approve-btn" data-key="' + task.key + '">Make Approval</button>';
+            actionsCell.appendChild(approveBtn);
+            actionsCell.appendChild(rejectBtn);
+        } else if (isCEO) {
+            actionsCell.innerHTML = '<button class="ceo-approve-btn" data-key="' + task.key + '">Make Approval</button>';
+        } else {
+            let actionsHTML = '';
+            if (task.remarks === 'For SRV' || task.remarks === 'Waiting Signature' || task.remarks === 'Waiting Approval') {
+                actionsHTML += `<button class="srv-done-btn" data-key="${task.key}" style="margin-right: 5px;">SRV Done</button>`;
+                actionsHTML += `<button class="modify-btn" data-key="${task.key}">Process</button>`;
             } else {
-                var actionsHTML = '';
-                
-		        // SRV Done is handled via the unified Active Task click listener (single source of truth).
-		        if (task.remarks === 'For SRV' || task.remarks === 'Waiting Signature' || task.remarks === 'Waiting Approval') {
-		            // 1. The Finish Button
-		            actionsHTML += `<button class="srv-done-btn" data-key="${task.key}" style="margin-right: 5px;">SRV Done</button>`;
-                    
-                    // 2. The Edit Button (Process)
-                    actionsHTML += `<button class="modify-btn" data-key="${task.key}">Process</button>`;
-                } else {
-                    actionsHTML = `<button class="modify-btn" data-key="${task.key}">Process</button>`;
-                }
-                actionsCell.innerHTML = actionsHTML;
+                actionsHTML = `<button class="modify-btn" data-key="${task.key}">Process</button>`;
             }
-            row.appendChild(actionsCell);
+            actionsCell.innerHTML = actionsHTML;
+        }
+
+        row.appendChild(actionsCell);
         activeTaskTableBody.appendChild(row);
     });
+}
+
+// 7.5.6 — renderInventoryMobileActiveTasks moved to js/app-inventory.js.
+function renderWorkdeskMobileActiveTasks(tasks) {
+    // 7.3.5: WorkDesk has its own mobile renderer entry point and receives
+    // WorkDesk/Invoice-only tasks.
+    return renderMobileActiveTasks((Array.isArray(tasks) ? tasks : []).filter(t => isWorkdeskTaskRecord(t)));
 }
 
 // ==========================================================================
@@ -6789,11 +6090,11 @@ async function populateActiveTasks() {
         };
 
 // =============================================================
-// Direct-attention + site-match helpers (for accurate UI triggers)
-// Only tasks that are BOTH:
-//   1) attention == current user (case-insensitive), AND
-//   2) task site matches the user's site
-// will be allowed to trigger blink/color/count.
+// Direct-attention helpers (for accurate UI triggers)
+// 7.5.1: Manual Attention override rule for WorkDesk/Invoice tasking.
+// If a user's name is manually selected in Attention, the task must blink/count/color
+// for that person even when the task site is not part of their registered site list.
+// Site matching is kept only for broad/all-site visibility rules, not for direct Attention.
 // =============================================================
 const _norm = (v) => String(v || '').trim().toLowerCase();
 const _userNameNorm = _norm(currentUserName);
@@ -6920,11 +6221,25 @@ const getTaskSiteForMatch = (t) =>
             if (task.for === 'Invoice' && displayStatus === 'Pending') displayStatus = 'New Entry'; 
 
             const taskSiteForMatch = getTaskSiteForMatch(task);
-let isUrgent = isDirectAttentionForUser(task.attention) && isSiteMatchForUser(taskSiteForMatch);
+            const taskIsInventory = isInventoryTaskRecord(task);
+            let attentionForUrgent = task.attention;
 
-// Keep existing "no action" states from triggering UI
-if (String(displayStatus || '').toLowerCase().includes('on hold')) isUrgent = false;
-if (task.remarks === 'SRV Done') isUrgent = false;
+            // Inventory approvals use role-specific people instead of always using
+            // the generic attention field. This keeps Inventory badge/blink counts
+            // accurate without borrowing WorkDesk/Invoice task triggers.
+            if (taskIsInventory) {
+                const invStatus = String(task.remarks || task.status || '').trim();
+                if (invStatus === 'Pending Confirmation') attentionForUrgent = task.requestor || task.attention;
+                else if (invStatus === 'Pending Source') attentionForUrgent = task.sourceContact || task.attention;
+                else if (invStatus === 'Pending Admin' || invStatus === 'Pending') attentionForUrgent = task.approver || task.attention;
+                else if (invStatus === 'Approved' || invStatus === 'In Transit') attentionForUrgent = task.receiver || task.attention;
+            }
+
+            let isUrgent = isDirectAttentionForUser(attentionForUrgent);
+
+            // Keep existing "no action" states from triggering UI
+            if (String(displayStatus || '').toLowerCase().includes('on hold')) isUrgent = false;
+            if (task.remarks === 'SRV Done') isUrgent = false;
             
             const source = ['Transfer', 'Restock', 'Return', 'Usage'].includes(task.for) ? 'transfer_entry' : 'job_entry';
             return { ...task, source: source, isUrgent: isUrgent, remarks: displayStatus };
@@ -7025,7 +6340,6 @@ if (task.remarks === 'SRV Done') isUrgent = false;
                         
                         const taskSiteForMatch = task.site;
 let isUrgent = isDirectAttentionForUser(finalAttention) &&
-               isSiteMatchForUser(taskSiteForMatch) &&
                task.status !== 'On Hold';
 
                         // Resolve PO details (POVALUE2.csv + invoiceDb/purchase_orders) for Vendor/Site fallback
@@ -7128,16 +6442,17 @@ let isUrgent = isDirectAttentionForUser(finalAttention) &&
                         }
                     }
 
-                    // [FIX 3] ATTENTION CHECK (Direct attention ONLY triggers UI)
+                    // [7.5.1] ATTENTION CHECK (Manual Attention override)
 // Visibility may still be granted by the blocks above, but
-// blink/color/count is ONLY for direct attention + site match.
+// blink/color/count must trigger for direct Attention even if the site is not
+// registered under that helper's profile.
 if (inv.attention === 'All') {
     shouldShow = true;
     isUrgent = false; // "All" = visible but NOT a direct action for a specific user
 } 
 else if (isDirectAttentionForUser(inv.attention)) {
     shouldShow = true;
-    isUrgent = isSiteMatchForUser(poSite) && inv.status !== 'On Hold';
+    isUrgent = inv.status !== 'On Hold';
 }
 
                     
@@ -7173,9 +6488,15 @@ else if (isDirectAttentionForUser(inv.attention)) {
                 }
             }
         }
-        // Desktop Workdesk: hide inventory tasks/jobs (Mobile unchanged)
-        if (typeof shouldExcludeInventoryFromWorkdeskDesktop === 'function' && shouldExcludeInventoryFromWorkdeskDesktop()) {
-            userTasks = userTasks.filter(t => !INVENTORY_TYPES.includes(t.for));
+        // INVENTORY PHASE 1: separate task identity.
+        // Inventory mode keeps only inventory tasks. Normal WorkDesk/Invoice mode
+        // keeps only non-inventory tasks, so invoice/workdesk jobs cannot trigger
+        // Inventory Active Task counts/blink anymore and inventory jobs cannot leak
+        // into WorkDesk Active Task counts.
+        if (isInventoryPage) {
+            userTasks = userTasks.filter(t => isInventoryTaskRecord(t));
+        } else {
+            userTasks = userTasks.filter(t => isWorkdeskTaskRecord(t));
         }
 
 	        // ------------------------------------------------------------------
@@ -7234,24 +6555,10 @@ else if (isDirectAttentionForUser(inv.attention)) {
             activeTaskCountDisplay.textContent = `(Action: ${urgentCount} | Records: ${totalTaskCount})`;
         }
         
-        [wdActiveTaskBadge, imActiveTaskBadge, wdMobileNotifyBadge].forEach(badge => {
-            if (badge) {
-                badge.textContent = urgentCount;
-                badge.style.display = urgentCount > 0 ? 'inline-block' : 'none';
-            }
-        });
-
-        const wdActiveLink = document.querySelector('.wd-nav-activetask a');
-        const imActiveLink = document.getElementById('im-activetask-button');
-        const mobileActiveLink = document.getElementById('im-mobile-activetask-link');
-        const targets = [wdActiveLink, imActiveLink, mobileActiveLink];
-
-        targets.forEach(el => {
-            if (el) {
-                if (urgentCount > 0) el.classList.add('nav-pulse-active');
-                else el.classList.remove('nav-pulse-active');
-            }
-        });
+        if (isInventoryPage) {
+            inventoryActiveTasks = userActiveTasks.slice();
+        }
+        updateActiveTaskModuleBadges(urgentCount, totalTaskCount, isInventoryPage ? 'inventory' : 'workdesk');
 
         // --- D. Tab Calculation ---
 // Tabs are built from ALL visible tasks, but blink/color/count is ONLY for
@@ -7349,6 +6656,13 @@ const uniqueTabs = Object.keys(tabCountsAll).sort((a, b) => {
             tabsHTML = '<button class="active" disabled>No Tasks</button>';
             activeTaskTableBody.innerHTML = `<tr><td colspan="10">You have no active tasks.</td></tr>`;
             activeTaskFilters.innerHTML = tabsHTML;
+            // 7.4.1: Also clear/render the mobile card area. Without this,
+            // old invoice mobile cards can remain below the Inventory "No Tasks" tab.
+            if (typeof renderActiveTaskTable === 'function') {
+                renderActiveTaskTable([]);
+            } else if (typeof clearMobileActiveTaskCards === 'function') {
+                clearMobileActiveTaskCards();
+            }
             return;
         }
         activeTaskFilters.innerHTML = tabsHTML;
@@ -7364,7 +6678,13 @@ function handleActiveTaskSearch(searchTerm) {
     const searchText = searchTerm.toLowerCase();
     sessionStorage.setItem('activeTaskSearch', searchText);
 
-    let searchedTasks = userActiveTasks;
+    let searchedTasks = Array.isArray(userActiveTasks) ? userActiveTasks.slice() : [];
+    // 7.4.1: When the mobile module changes, never let stale invoice cards render inside Inventory.
+    if (typeof isInventoryContext === 'function' && isInventoryContext()) {
+        searchedTasks = searchedTasks.filter(t => isInventoryTaskRecord(t));
+    } else {
+        searchedTasks = searchedTasks.filter(t => isWorkdeskTaskRecord(t));
+    }
     if (searchText) {
         searchedTasks = userActiveTasks.filter(task => {
             return (
@@ -7787,12 +7107,17 @@ function renderMobileActiveTasks(tasks) {
     }
 
     // 3. Filter Logic (Restored)
-    let filteredTasks = tasks;
+    let filteredTasks = Array.isArray(tasks) ? tasks.slice() : [];
+    if (typeof isInventoryContext === 'function' && isInventoryContext()) {
+        filteredTasks = filteredTasks.filter(t => isInventoryTaskRecord(t));
+    } else {
+        filteredTasks = filteredTasks.filter(t => isWorkdeskTaskRecord(t));
+    }
     if (currentActiveTaskFilter !== 'All') {
         if (currentActiveTaskFilter === 'Other') {
-            filteredTasks = tasks.filter(task => task.remarks !== 'For SRV' && task.remarks !== 'Pending Signature');
+            filteredTasks = filteredTasks.filter(task => task.remarks !== 'For SRV' && task.remarks !== 'Pending Signature');
         } else {
-            filteredTasks = tasks.filter(task => {
+            filteredTasks = filteredTasks.filter(task => {
                 if(['Transfer', 'Restock', 'Return', 'Usage'].includes(task.for)) return task.for === currentActiveTaskFilter;
                 return task.remarks === currentActiveTaskFilter;
             });
@@ -9460,47 +8785,64 @@ function updateJobTypeDropdown() {
     const select = document.getElementById('job-for');
     if (!select) return;
 
-    // 1. Default Types (Hardcoded)
-    // ADD 'Return' TO THIS LIST
-    const defaultTypes = new Set(['PR', 'Invoice', 'IPC', 'Payment', 'Transfer', 'Trip', 'Report', 'Return', 'Other']);
+    // 7.3.4: Separate WorkDesk job types from Inventory job types.
+    // WorkDesk Add New Job should not show Transfer/Restock/Return/Usage.
+    // Inventory context may still use the same modal shell, but it must show inventory types only.
+    const inventoryTypes = new Set(['Transfer', 'Restock', 'Return', 'Usage']);
+    const inInventory = (typeof isInventoryContext === 'function') ? isInventoryContext() : false;
 
-    // 2. Learn from History
-    // (allSystemEntries is your cached list of all jobs)
+    const defaultTypes = inInventory
+        ? new Set(['Transfer', 'Restock', 'Return', 'Usage', 'Other'])
+        : new Set(['PR', 'Invoice', 'IPC', 'Payment', 'Trip', 'Report', 'Other']);
+
+    // Learn from history, but keep the two families separated.
     if (allSystemEntries && allSystemEntries.length > 0) {
         allSystemEntries.forEach(entry => {
-            if (entry.for && entry.for.trim() !== '') {
-                // If this type isn't in our default list, it's a custom one!
-                defaultTypes.add(entry.for.trim());
+            const rawType = (entry.for || entry.jobType || '').toString().trim();
+            if (!rawType) return;
+
+            const isInvType = inventoryTypes.has(rawType);
+            if (inInventory) {
+                if (isInvType) defaultTypes.add(rawType);
+            } else {
+                if (!isInvType) defaultTypes.add(rawType);
             }
         });
     }
 
-    // 3. Rebuild Options
-    // Save current selection to restore it after rebuild
     const currentVal = select.value;
+    select.innerHTML = '<option value="" disabled selected>Select a Type</option>';
 
-    select.innerHTML = '<option value="" disabled>Select a Type</option>';
-
-    // Sort them alphabetically
-    const sortedTypes = Array.from(defaultTypes).sort();
+    const sortedTypes = Array.from(defaultTypes)
+        .filter(type => type && type !== 'Other')
+        .sort((a, b) => a.localeCompare(b));
 
     sortedTypes.forEach(type => {
-        if (type === 'Other') return; // Skip 'Other', we add it at the end manually
         const opt = document.createElement('option');
         opt.value = type;
         opt.textContent = type;
+        if (inventoryTypes.has(type)) {
+            opt.style.fontWeight = 'bold';
+            if (type === 'Transfer') opt.textContent = '↔ Transfer Stock';
+            if (type === 'Restock') opt.textContent = '+ Restock';
+            if (type === 'Return') opt.textContent = '↩ Return';
+            if (type === 'Usage') opt.textContent = '✓ Usage';
+        }
         select.appendChild(opt);
     });
 
-    // Always add 'Other' at the end
     const otherOpt = document.createElement('option');
     otherOpt.value = 'Other';
     otherOpt.textContent = '-- Other (Specify) --';
     otherOpt.style.fontWeight = 'bold';
     select.appendChild(otherOpt);
 
-    // Restore selection if possible
-    if (currentVal) select.value = currentVal;
+    // Restore only if the option is still allowed in the current family.
+    if (currentVal && Array.from(select.options).some(opt => opt.value === currentVal)) {
+        select.value = currentVal;
+    } else {
+        select.value = '';
+    }
 }
 
 async function populateSiteDropdown() {
@@ -10285,6 +9627,15 @@ document.addEventListener('DOMContentLoaded', () => {
             // This ensures Transfer, Restock, Return, AND Usage all trigger the new modal
             const transferTypes = ['Transfer', 'Restock', 'Return', 'Usage'];
 
+            if (transferTypes.includes(jobType) && !(typeof isInventoryContext === 'function' && isInventoryContext())) {
+                // 7.3.4 safety guard: WorkDesk is not allowed to create Inventory jobs.
+                // This protects users who still have old cached dropdown options in the browser.
+                e.target.value = '';
+                if (typeof toggleJobOtherInput === 'function') toggleJobOtherInput();
+                alert('Transfer / Restock / Return / Usage are Inventory task types. Please open Inventory Management to create them.');
+                return;
+            }
+
             if (transferTypes.includes(jobType)) {
                 // A. Close the Standard Job Modal
                 if (typeof closeStandardJobModal === 'function') {
@@ -10879,26 +10230,7 @@ async function handleSaveModifiedTask() {
 // Purpose: Invoice task activity, PO details sync, lookup updates, invoice modal reset/open/close, PO search, invoice CRUD.
 // =================================================================================================
 
-function isInvoiceTaskActive(invoiceData) {
-    if (!invoiceData) return false;
-
-    // We REMOVED 'Approved' and 'Rejected' from this list.
-    // Now, they are considered ACTIVE so they can be sent back to the sender.
-    const inactiveStatuses = [
-        'With Accounts',
-        'SRV Done',
-        'Paid',
-        'On Hold',
-        'CLOSED',
-        'Cancelled'
-    ];
-
-    if (inactiveStatuses.includes(invoiceData.status)) {
-        return false;
-    }
-    // Must have an attention person assigned
-    return !!invoiceData.attention;
-}
+// isInvoiceTaskActive moved to js/app-invoice.js (7.6.0)
 
 
 
@@ -10908,141 +10240,14 @@ function isInvoiceTaskActive(invoiceData) {
 // Supports purchase_orders keyed by PO OR stored under push-ids with child "Po"/"PO".
 // Canonical output keys: "Supplier Name", "Project ID", "Amount"
 // -------------------------------------------------------------
-const __invoicePOCache = new Map();
+// __invoicePOCache moved to js/app-invoice.js (7.6.0)
 
-function __normalizePOKey(poNumber) {
-    const po = String(poNumber || '').trim();
-    if (!po) return '';
-    return po.toUpperCase();
-}
+// __normalizePOKey moved to js/app-invoice.js (7.6.0)
 
-function __normalizePODetails(raw) {
-    const d = raw || {};
-    const supplier =
-        d['Supplier Name'] || d['Supplier Name:'] || d['Supplier'] || d['Supplier:'] ||
-        d['supplier name'] || d['supplier'] || d['SUPPLIER NAME'] || d['SUPPLIER'] || '';
-    const projectId =
-        d['Project ID'] || d['Project ID:'] || d['Project'] || d['Project:'] ||
-        d['project id'] || d['PROJECT ID'] || '';
-    const amount =
-        d['Amount'] || d['amount'] || d.Amount || d.AMOUNT || '';
+// __normalizePODetails moved to js/app-invoice.js (7.6.0)
 
-    const supplierId =
-        d['Supplier ID'] || d['Supplier ID:'] || d['SupplierID'] || d['Supplier Id'] ||
-        d['supplier id'] || d['SUPPLIER ID'] || d['Vendor ID'] || d['vendorId'] || d['vendor_id'] || '';
-
-    // Return a merged object but ensure canonical keys exist
-    return {
-        ...d,
-        'Supplier Name': supplier || d['Supplier Name'] || d['Supplier'] || '',
-        'Supplier ID': supplierId || d['Supplier ID'] || d['Vendor ID'] || '',
-        'Project ID': projectId || d['Project ID'] || '',
-        'Amount': amount || d['Amount'] || ''
-    };
-}
-
-async function getInvoicePurchaseOrderDetails(poNumber) {
-    const poKey = __normalizePOKey(poNumber);
-    if (!poKey) return {};
-
-    if (__invoicePOCache.has(poKey)) return __invoicePOCache.get(poKey);
-
-    // 1) Memory (POVALUE2.csv -> allPOData)
-    let details = (typeof allPOData !== 'undefined' && allPOData && allPOData[poKey]) ? allPOData[poKey] : null;
-
-    // 2) Firebase RTDB fallback (invoiceentry-b15a8 / purchase_orders)
-    if ((!details || Object.keys(details).length === 0) && typeof invoiceDb !== 'undefined' && invoiceDb) {
-        try {
-            // A) Direct key: purchase_orders/<PO>
-            const directSnap = await invoiceDb.ref(`purchase_orders/${poKey}`).once('value');
-            if (directSnap.exists()) details = directSnap.val();
-        } catch (_) { /* ignore */ }
-
-        // B) Query by child "Po" or "PO" if the records are stored under push-ids
-        if (!details || Object.keys(details).length === 0) {
-            const tryQuery = async (child, value) => {
-                try {
-                    const snap = await invoiceDb.ref('purchase_orders').orderByChild(child).equalTo(value).once('value');
-                    if (snap.exists()) {
-                        const obj = snap.val() || {};
-                        const firstKey = Object.keys(obj)[0];
-                        return firstKey ? obj[firstKey] : null;
-                    }
-                } catch (_) { /* ignore */ }
-                return null;
-            };
-
-            details = await tryQuery('Po', poKey) ||
-                      await tryQuery('PO', poKey) ||
-                      await tryQuery('po', poKey) ||
-                      null;
-
-            // Some DBs store Po as number. Try numeric query too.
-            if ((!details || Object.keys(details).length === 0) && /^\d+$/.test(poKey)) {
-                const n = Number(poKey);
-                details = await tryQuery('Po', n) || await tryQuery('PO', n) || await tryQuery('po', n) || details;
-            }
-        }
-    }
-
-    const normalized = __normalizePODetails(details || {});
-    __invoicePOCache.set(poKey, normalized);
-    return normalized;
-}
-async function ensurePORecordInInvoiceDb(poNumber) {
-    try {
-        if (!poNumber || typeof invoiceDb === 'undefined' || !invoiceDb) return;
-        const po = String(poNumber).trim().toUpperCase();
-        if (!po) return;
-
-        // Avoid hammering the DB: only sync each PO once per session
-        if (typeof ensuredPOInInvoiceDb !== 'undefined' && ensuredPOInInvoiceDb.has(po)) return;
-        if (typeof ensuredPOInInvoiceDb !== 'undefined') ensuredPOInInvoiceDb.add(po);
-
-        const mem = (allPOData && allPOData[po]) ? allPOData[po] : null;
-
-        // Quick exit if we have nothing to sync
-        if (!mem) {
-            // Still check if an older record exists with colon-keys and normalize it once
-            const snap = await invoiceDb.ref(`purchase_orders/${po}`).once('value');
-            const existing = snap.val();
-            if (existing && existing['Project ID:'] && !existing['Project ID']) {
-                await invoiceDb.ref(`purchase_orders/${po}`).update({ 'Project ID': existing['Project ID:'] });
-            }
-            if (existing && existing['Supplier Name:'] && !existing['Supplier Name']) {
-                await invoiceDb.ref(`purchase_orders/${po}`).update({ 'Supplier Name': existing['Supplier Name:'] });
-            }
-            if (existing && existing['Supplier'] && !existing['Supplier Name']) {
-                await invoiceDb.ref(`purchase_orders/${po}`).update({ 'Supplier Name': existing['Supplier'] });
-            }
-            return;
-        }
-
-        const supplier = mem['Supplier Name'] || mem['Supplier Name:'] || mem['Supplier'] || mem['Supplier:'] || '';
-        const projectId = mem['Project ID'] || mem['Project ID:'] || '';
-        const amount = mem.Amount || mem['Amount'] || '';
-        const supplierId = mem['Supplier ID'] || mem['Supplier ID:'] || mem['SupplierID'] || mem['Vendor ID'] || mem.vendorId || mem.vendor_id || '';
-
-        const ref = invoiceDb.ref(`purchase_orders/${po}`);
-        const snap = await ref.once('value');
-        const existing = snap.val();
-
-        // Build minimal upsert payload (only what you asked for + safe extras)
-        const upsert = {};
-        if (!existing) upsert['PO'] = po;
-        if (supplier) { upsert['Supplier Name'] = supplier; upsert['Supplier'] = supplier; }
-        if (projectId) upsert['Project ID'] = projectId;
-        if (supplierId) upsert['Supplier ID'] = supplierId;
-        if (amount && (!existing || !existing.Amount)) upsert['Amount'] = amount;
-        if (!existing) upsert['IsManual'] = false;
-
-        if (Object.keys(upsert).length > 0) {
-            await ref.update(upsert);
-        }
-    } catch (err) {
-        console.warn("PO auto-sync to purchase_orders failed:", err);
-    }
-}
+// getInvoicePurchaseOrderDetails moved to js/app-invoice.js (7.6.0)
+// ensurePORecordInInvoiceDb moved to js/app-invoice.js (7.6.0)
 
 async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAttention) {
     const sanitizeFirebaseKey = (key) => key.replace(/[.#$[\]]/g, '_');
@@ -12688,6 +11893,10 @@ function formatToDDMMMYY(dateStr) {
 // Purpose: Invoice records/reporting, printout generation, totals, deep links, WhatsApp approval sharing.
 // =================================================================================================
 
+
+// 7.5.0 — mobile invoice records card helpers moved to js/app-mobile.js
+// populateInvoiceReporting remains in app.js; the mobile renderer is loaded before app.js.
+
 async function populateInvoiceReporting(searchTerm = '', options = {}) {
     const openCard = document.querySelector('#im-reporting-content .invoice-card.expanded');
     if (openCard) {
@@ -12846,7 +12055,7 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
 
        if (currentReportData.length === 0) {
             if (typeof window.playSystemError === 'function') window.playSystemError();
-            contentArea.innerHTML = '<div class="loading-state">No records found for your search criteria.</div>';
+            if (contentArea) contentArea.innerHTML = '<div class="loading-state">No records found for your search criteria.</div>';
             const sleekBar = document.getElementById('im-sleek-totals-bar');
             if (sleekBar) sleekBar.innerHTML = '<span>No records found.</span>';
             
@@ -12857,6 +12066,9 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
                 grandTotalContainer.innerHTML = '';
             }
             
+            if (window.innerWidth <= 768 && typeof renderMobileInvoiceRecordsCards === 'function') {
+                renderMobileInvoiceRecordsCards([], canViewAmounts);
+            }
             return;
         }
 
@@ -12882,117 +12094,13 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
         // ================================================================
         // MOBILE / DESKTOP SPLIT 1
         // ================================================================
-        const isMobile = window.innerWidth <= 768;
+        const isMobile = (typeof isMobileViewport === 'function') ? isMobileViewport() : ((window.innerWidth || 0) <= 900);
 
         if (isMobile) {
-            // ========================
-            // MOBILE CARD RENDERING
-            // ========================
-            const mobileContainer = document.getElementById('im-reporting-mobile-view');
-            const desktopContent = document.getElementById('im-reporting-content');
-
-            if (desktopContent) desktopContent.classList.add('hidden');
-            if (mobileContainer) {
-                mobileContainer.classList.remove('hidden');
-                mobileContainer.innerHTML = '';
-
-                // Legend
-                const legendHTML = `
-                    <div class="im-mobile-legend">
-                        <div class="legend-item"><span class="legend-color-dot" style="background:#28a745;"></span> Close</div>
-                        <div class="legend-item"><span class="legend-color-dot" style="background:#00748C;"></span> Open</div>
-                        <div class="legend-item"><span class="legend-color-dot" style="background:#f59e0b;"></span> New</div>
-                        <div class="legend-item"><span class="legend-color-dot" style="background:#dc3545;"></span> Pending</div>
-                    </div>
-                `;
-                mobileContainer.innerHTML = legendHTML;
-
-                currentReportData.forEach(poData => {
-                    // Determine card colour based on invoice statuses
-                    let cardClass = 'status-pending'; // default red
-                    const allStatuses = poData.filteredInvoices.map(inv => inv.status);
-                    if (allStatuses.every(s => s === 'With Accounts' || s === 'Paid')) {
-                        cardClass = 'status-close'; // green
-                    } else if (allStatuses.some(s => s === 'Under Review')) {
-                        cardClass = 'status-open'; // blue
-                    } else if (allStatuses.some(s => s === 'For IPC' || s === 'For SRV')) {
-                        cardClass = 'status-new'; // yellow
-                    }
-
-                    const totalInvValue = poData.filteredInvoices.reduce((sum, inv) => sum + parseFloat(inv.invValue||0), 0);
-                    const balance = (parseFloat(poData.poDetails?.Amount) || 0) - totalInvValue;
-
-                    const cardHTML = `
-                        <div class="im-po-balance-card ${cardClass}" data-toggle-target="#mobile-invoice-list-${poData.poNumber}">
-                            <div class="po-card-header">
-                                <div>
-                                    <span class="po-card-vendor">${escapeHtml(poData.vendor)}</span>
-                                    <div class="po-card-ponum">${escapeHtml(poData.poNumber)}</div>
-                                </div>
-                                <i class="fa-solid fa-chevron-down po-card-chevron"></i>
-                            </div>
-                            <div class="po-card-body">
-                                <div class="po-card-grid">
-                                    <div>
-                                        <span class="po-card-label">Total PO Value</span>
-                                        <span class="po-card-value">QAR ${formatCurrency(parseFloat(poData.poDetails?.Amount) || 0)}</span>
-                                    </div>
-                                    <div>
-                                        <span class="po-card-label">Balance</span>
-                                        <span class="po-card-value po-card-balance">QAR ${formatCurrency(balance)}</span>
-                                    </div>
-                                </div>
-                                <span class="po-card-site">${escapeHtml(poData.site)}</span>
-                            </div>
-                        </div>
-                        <div id="mobile-invoice-list-${poData.poNumber}" class="hidden-invoice-list">
-                            <div class="im-invoice-list-header">
-                                <h3>Transactions (${poData.filteredInvoices.length})</h3>
-                            </div>
-                            <ul class="im-invoice-list">
-                                ${poData.filteredInvoices.map(inv => {
-                                    const invPDFName = getSharePointPdfBaseName(inv.invName);
-                                    const srvPDFName = getSharePointPdfBaseName(inv.srvName);
-                                    return `
-                                        <li class="im-invoice-item">
-                                            <div class="im-tx-icon ${(inv.status === 'With Accounts' || inv.status === 'Paid') ? 'paid' : 'pending'}">
-                                                <i class="fa-solid ${(inv.status === 'With Accounts' || inv.status === 'Paid') ? 'fa-check' : 'fa-clock'}"></i>
-                                            </div>
-                                            <div class="im-tx-details">
-                                                <span class="im-tx-title">${escapeHtml(inv.invNumber || 'N/A')}</span>
-                                                <span class="im-tx-subtitle">${escapeHtml(inv.status || '')}</span>
-                                                <span class="im-tx-date">${formatToDDMMMYY(inv.releaseDate || inv.invoiceDate)}</span>
-                                            </div>
-                                            <div class="im-tx-amount">
-                                                <span class="im-tx-value ${(inv.status === 'With Accounts' || inv.status === 'Paid') ? 'paid' : 'pending'}">QAR ${formatCurrency(parseFloat(inv.invValue) || 0)}</span>
-                                                <div class="im-tx-actions">
-                                                    ${invPDFName ? `<a href="${PDF_BASE_PATH}${encodeURIComponent(invPDFName)}.pdf" target="_blank" class="im-tx-action-btn invoice-pdf-btn">Inv</a>` : ''}
-                                                    ${srvPDFName ? `<a href="${SRV_BASE_PATH}${encodeURIComponent(srvPDFName)}.pdf" target="_blank" class="im-tx-action-btn srv-pdf-btn">SRV</a>` : ''}
-                                                </div>
-                                            </div>
-                                        </li>
-                                    `;
-                                }).join('')}
-                            </ul>
-                        </div>
-                    `;
-                    mobileContainer.insertAdjacentHTML('beforeend', cardHTML);
-                });
-
-                // Re-bind toggle listeners
-                mobileContainer.querySelectorAll('.im-po-balance-card').forEach(card => {
-                    card.addEventListener('click', function(e) {
-                        const chevron = this.querySelector('.po-card-chevron');
-                        const targetId = this.dataset.toggleTarget;
-                        const list = document.getElementById(targetId);
-                        if (list) {
-                            list.classList.toggle('hidden-invoice-list');
-                            if (chevron) {
-                                chevron.style.transform = list.classList.contains('hidden-invoice-list') ? 'rotate(0deg)' : 'rotate(180deg)';
-                            }
-                        }
-                    });
-                });
+            // 7.4.2: Mobile Invoice Records uses a dedicated PO card renderer.
+            // Desktop table remains untouched below this mobile return.
+            if (typeof renderMobileInvoiceRecordsCards === 'function') {
+                renderMobileInvoiceRecordsCards(currentReportData, canViewAmounts);
             }
 
             // Keep the record count updated
@@ -13526,63 +12634,18 @@ function imUpdateInvoiceRecordsTotals(reportData) {
 // - Deep link can open a specific invoice after login (if user has access)
 // ==========================================================================
 
-function imGetAppBaseUrl() {
-    try {
-        const u = new URL(window.location.href);
-        // keep pathname, remove query/hash
-        u.search = '';
-        u.hash = '';
-        return u.toString();
-    } catch (e) {
-        return (window.location.origin || '') + (window.location.pathname || '/');
-    }
-}
+// imGetAppBaseUrl moved to js/app-invoice.js (7.6.0)
 
-function imBuildInvoiceDeepLink(poNumber, invoiceKey) {
-    const base = imGetAppBaseUrl();
-    const u = new URL(base);
-    u.searchParams.set('open', 'invoice');
-    u.searchParams.set('po', String(poNumber || '').trim());
-    u.searchParams.set('invKey', String(invoiceKey || '').trim());
-    return u.toString();
-}
+// imBuildInvoiceDeepLink moved to js/app-invoice.js (7.6.0)
 
 // --- Deep Link (Workdesk Active Task) ---
 // Shared via WhatsApp: opens Workdesk -> Active Task and focuses the invoice task.
-function wdBuildActiveTaskDeepLink(poNumber, invoiceKey) {
-    const base = imGetAppBaseUrl();
-    const u = new URL(base);
-    u.searchParams.set('open', 'wdtask');
-    u.searchParams.set('po', String(poNumber || '').trim());
-    u.searchParams.set('invKey', String(invoiceKey || '').trim());
-    return u.toString();
-}
+// wdBuildActiveTaskDeepLink moved to js/app-invoice.js (7.6.0)
 
 
-function wdParseActiveTaskDeepLinkFromUrl() {
-    try {
-        const params = new URLSearchParams(window.location.search);
-        const open = (params.get('open') || '').toLowerCase();
-        if (open !== 'wdtask') return null;
-        const po = (params.get('po') || '').trim();
-        const invKey = (params.get('invKey') || params.get('invoiceKey') || '').trim();
-        if (!po || !invKey) return null;
-        return { po, invKey };
-    } catch (e) {
-        return null;
-    }
-}
+// wdParseActiveTaskDeepLinkFromUrl moved to js/app-invoice.js (7.6.0)
 
-function wdClearActiveTaskDeepLinkFromUrl() {
-    try {
-        const u = new URL(window.location.href);
-        u.searchParams.delete('open');
-        u.searchParams.delete('po');
-        u.searchParams.delete('invKey');
-        u.searchParams.delete('invoiceKey');
-        window.history.replaceState({}, document.title, u.toString());
-    } catch (e) { /* ignore */ }
-}
+// wdClearActiveTaskDeepLinkFromUrl moved to js/app-invoice.js (7.6.0)
 
 async function wdOpenActiveTaskFromDeepLink(po, invKey) {
     // Must be logged in
@@ -13634,30 +12697,9 @@ async function wdOpenActiveTaskFromDeepLink(po, invKey) {
 }
 
 
-function imParseInvoiceDeepLinkFromUrl() {
-    try {
-        const params = new URLSearchParams(window.location.search);
-        const open = (params.get('open') || '').toLowerCase();
-        if (open !== 'invoice') return null;
-        const po = (params.get('po') || '').trim();
-        const invKey = (params.get('invKey') || params.get('invoiceKey') || '').trim();
-        if (!po || !invKey) return null;
-        return { po, invKey };
-    } catch (e) {
-        return null;
-    }
-}
+// imParseInvoiceDeepLinkFromUrl moved to js/app-invoice.js (7.6.0)
 
-function imClearInvoiceDeepLinkFromUrl() {
-    try {
-        const u = new URL(window.location.href);
-        u.searchParams.delete('open');
-        u.searchParams.delete('po');
-        u.searchParams.delete('invKey');
-        u.searchParams.delete('invoiceKey');
-        window.history.replaceState({}, document.title, u.toString());
-    } catch (e) { /* ignore */ }
-}
+// imClearInvoiceDeepLinkFromUrl moved to js/app-invoice.js (7.6.0)
 
 // Exposed for button onclick
 window.imShareInvoiceForApprovalWhatsApp = function (poNumber, invoiceKey) {
@@ -16090,9 +15132,7 @@ async function handleCEOAction(status) {
         renderActiveTaskTable(userActiveTasks);
         const taskCount = userActiveTasks.length;
         if (activeTaskCountDisplay) activeTaskCountDisplay.textContent = `(Total Tasks: ${taskCount})`;
-        [wdActiveTaskBadge, imActiveTaskBadge, wdMobileNotifyBadge].forEach(b => {
-            if (b) { b.textContent = taskCount; b.style.display = taskCount > 0 ? 'inline-block' : 'none'; }
-        });
+        updateActiveTaskModuleBadges(taskCount, taskCount, (typeof isInventoryContext === 'function' && isInventoryContext()) ? 'inventory' : 'workdesk');
 
         sendCeoApprovalReceiptBtn.classList.remove('hidden');
         alert(`Task ${status}!`);
@@ -16250,6 +15290,19 @@ async function previewAndSendReceipt() {
 // ==========================================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
+
+    // 7.4.0: Bind/repair mobile-only Invoice/Inventory module dropdowns placed with the version display.
+    try { if (typeof initMobileModuleSwitchers === 'function') initMobileModuleSwitchers(); } catch (e) { console.warn('Mobile module switcher init failed:', e); }
+    try { if (typeof enforceInventoryMobileNavVisibility === 'function') enforceInventoryMobileNavVisibility(); } catch (_) {}
+    try {
+        if (!window.__ibaMobileModuleResizeBound) {
+            window.__ibaMobileModuleResizeBound = true;
+            window.addEventListener('resize', () => {
+                const currentModule = (typeof isInventoryMobileModuleActive === 'function' && isInventoryMobileModuleActive()) ? 'inventory' : 'workdesk';
+                if (typeof updateWorkdeskModuleRoutingUI === 'function') updateWorkdeskModuleRoutingUI(currentModule);
+            });
+        }
+    } catch (_) {}
 
     // --- NEW: DRAGGABLE MODALS LOGIC (FIXED V2 - TRANSFORM) ---
     const makeDraggable = (modal) => {
@@ -16571,6 +15624,12 @@ try {
             handleLogout();
             return;
         }
+
+        // 7.3.6: Opening normal WorkDesk explicitly exits Inventory module mode.
+        if (document.body) document.body.classList.remove('inventory-mode');
+        try { window.__ibaActiveModule = 'workdesk'; } catch (_) {}
+        if (typeof updateWorkdeskModuleRoutingUI === 'function') updateWorkdeskModuleRoutingUI('workdesk');
+
         wdUsername.textContent = currentApprover.Name || 'User';
         wdUserIdentifier.textContent = currentApprover.Email || currentApprover.Mobile;
 
@@ -16985,7 +16044,7 @@ try {
         if (e.key !== 'Enter') return;
         const dashboardSection = document.getElementById('wd-dashboard');
         if (!dashboardSection || dashboardSection.classList.contains('hidden')) return;
-        const isMobile = window.innerWidth <= 768;
+        const isMobile = (typeof isMobileViewport === 'function') ? isMobileViewport() : ((window.innerWidth || 0) <= 900);
         if (isMobile) return;
 
         const selectedDay = document.querySelector('.wd-calendar-day.selected');
@@ -17397,7 +16456,7 @@ try {
             currentReportFilter = e.target.getAttribute('data-job-type');
 
             ensureAllEntriesFetched().then(() => {
-                filterAndRenderReport(allSystemEntries);
+                filterAndRenderReport(getJobRecordsBaseEntriesForCurrentContext());
             });
         }
     });
@@ -17414,6 +16473,14 @@ try {
             handleLogout();
             return;
         }
+
+        // 7.3.6: Invoice Management is its own module and exits Inventory mode.
+        if (document.body) document.body.classList.remove('inventory-mode');
+        try { window.__ibaActiveModule = 'invoice'; } catch (_) {}
+        if (typeof updateWorkdeskModuleRoutingUI === 'function') updateWorkdeskModuleRoutingUI('workdesk');
+        try { window.__ibaActiveModule = 'invoice'; } catch (_) {}
+        try { if (typeof syncMobileModuleSwitchers === 'function') syncMobileModuleSwitchers('invoice'); } catch (_) {}
+
         // If Help was opened standalone from WorkDesk/Inventory, restore normal IM navigation
         window.__imHelpStandalone = false;
         if (imNav) imNav.classList.remove('hidden');
@@ -17481,10 +16548,6 @@ try {
                 else link.classList.remove('hidden');
             }
 
-            // 3. Finance Report: Only Super Admin (Irwin) and the active Super Admin Replacement
-            if (section === 'im-finance-report' && !(isAdmin || isVacationDelegate)) {
-                li.style.display = 'none';
-            }
 
             if (section === 'im-dashboard' && !(isAdmin || isVacationDelegate)) {
                 li.style.display = 'none';
@@ -17560,6 +16623,37 @@ try {
     if (wdImReportingLinkMobile) {
         wdImReportingLinkMobile.addEventListener('click', (e) => {
             e.preventDefault();
+
+            // 7.3.7: Same mobile label, different module route.
+            // Inventory mode: Reporting = Inventory Job Records.
+            // Invoice mode: Reporting = Invoice Records.
+            const inventoryMobileMode = (typeof isInventoryMobileModuleActive === 'function')
+                ? isInventoryMobileModuleActive()
+                : !!(document.body && document.body.classList.contains('inventory-mode'));
+
+            if (inventoryMobileMode) {
+                try { window.__ibaActiveModule = 'inventory'; } catch (_) {}
+                if (document.body) document.body.classList.add('inventory-mode');
+                if (typeof updateWorkdeskModuleRoutingUI === 'function') updateWorkdeskModuleRoutingUI('inventory');
+                if (typeof syncMobileModuleSwitchers === 'function') syncMobileModuleSwitchers('inventory');
+
+                // Make sure the shared Reporting screen is fed by inventory_entries only.
+                currentReportFilter = null;
+                try { sessionStorage.removeItem('reportingSearch'); } catch (_) {}
+
+                document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a').forEach(a => a.classList.remove('active'));
+                const invReportingLink = workdeskNav.querySelector('a[data-section="wd-reporting"]');
+                if (invReportingLink) invReportingLink.classList.add('active');
+                showView('workdesk');
+                showWorkdeskSection('wd-reporting');
+                return;
+            }
+
+            try { window.__ibaActiveModule = 'invoice'; } catch (_) {}
+            if (document.body) document.body.classList.remove('inventory-mode');
+            if (typeof updateWorkdeskModuleRoutingUI === 'function') updateWorkdeskModuleRoutingUI('workdesk');
+            if (typeof syncMobileModuleSwitchers === 'function') syncMobileModuleSwitchers('invoice');
+
             invoiceManagementButton.click();
             setTimeout(() => {
                 const imReportingLink = imNav.querySelector('a[data-section="im-reporting"]');
@@ -18677,17 +17771,6 @@ if (summaryNotePrintBtn) {
     }
     if (imPaymentModalAddSelectedBtn) imPaymentModalAddSelectedBtn.addEventListener('click', handleAddSelectedToPayments);
 
-    if (imFinanceSearchBtn) imFinanceSearchBtn.addEventListener('click', handleFinanceSearch);
-    if (imFinanceClearBtn) imFinanceClearBtn.addEventListener('click', resetFinanceSearch);
-    if (imFinanceSearchPoInput) {
-        imFinanceSearchPoInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                handleFinanceSearch();
-            }
-        });
-    }
-    if (imFinanceResults) imFinanceResults.addEventListener('click', handleFinanceActionClick);
     if (imFinancePrintReportBtn) imFinancePrintReportBtn.addEventListener('click', printFinanceReport);
 
     document.addEventListener('click', (e) => {
@@ -18720,46 +17803,29 @@ if (summaryNotePrintBtn) {
 
     // Mobile Search Modal Logic
     if (imMobileSearchBtn) {
-        imMobileSearchBtn.addEventListener('click', () => {
-            const desktopSearchInput = document.getElementById('im-reporting-search');
-            const desktopSiteFilter = document.getElementById('im-reporting-site-filter');
-            const desktopStatusFilter = document.getElementById('im-reporting-status-filter');
-            const desktopDateFilter = document.getElementById('im-reporting-date-filter');
-
-            const mobileSearchInput = document.getElementById('im-mobile-search-term');
-            const mobileSiteFilter = document.getElementById('im-mobile-site-filter');
-            const mobileStatusFilter = document.getElementById('im-mobile-status-filter');
-            const mobileDateFilter = document.getElementById('im-mobile-date-filter');
-
-            mobileSearchInput.value = desktopSearchInput.value;
-            mobileSiteFilter.value = desktopSiteFilter.value;
-            mobileStatusFilter.value = desktopStatusFilter.value;
-           
-            if (desktopSiteFilter.options.length > 1 && mobileSiteFilter.options.length <= 1) {
-                mobileSiteFilter.innerHTML = desktopSiteFilter.innerHTML;
-            }
-
-            if (imMobileSearchModal) imMobileSearchModal.classList.remove('hidden');
+        imMobileSearchBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            if (typeof imOpenMobileInvoiceSearchModal === 'function') await imOpenMobileInvoiceSearchModal();
         });
     }
 
     if (imMobileSearchCloseBtn) {
         imMobileSearchCloseBtn.addEventListener('click', () => {
-            if (imMobileSearchModal) imMobileSearchModal.classList.add('hidden');
+            if (typeof imCloseMobileInvoiceSearchModal === 'function') imCloseMobileInvoiceSearchModal();
+            else if (imMobileSearchModal) imMobileSearchModal.classList.add('hidden');
         });
     }
 
     if (imMobileSearchClearBtn) {
         imMobileSearchClearBtn.addEventListener('click', () => {
-            document.getElementById('im-mobile-search-term').value = '';
-            document.getElementById('im-mobile-site-filter').value = '';
-            document.getElementById('im-mobile-status-filter').value = '';
-            document.getElementById('im-mobile-date-filter').value = '';
-
-            document.getElementById('im-reporting-search').value = '';
-            document.getElementById('im-reporting-site-filter').value = '';
-            document.getElementById('im-reporting-status-filter').value = '';
-            document.getElementById('im-reporting-date-filter').value = '';
+            const idsToClear = [
+                'im-mobile-search-term', 'im-mobile-site-filter', 'im-mobile-status-filter', 'im-mobile-date-filter',
+                'im-reporting-search', 'im-reporting-site-filter', 'im-reporting-status-filter', 'im-reporting-month-filter', 'im-reporting-year-filter'
+            ];
+            idsToClear.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
 
             sessionStorage.removeItem('imReportingSearch');
             currentReportData = [];
@@ -18767,51 +17833,133 @@ if (summaryNotePrintBtn) {
             const desktopContainer = document.getElementById('im-reporting-content');
             const mobileContainer = document.getElementById('im-reporting-mobile-view');
 
-            if (desktopContainer) desktopContainer.innerHTML = '<p>Please enter a PO, Vendor, or Invoice No. and click Search.</p>';
-            if (mobileContainer) {
-                mobileContainer.innerHTML = `
-                    <div class="im-mobile-empty-state">
-                        <i class="fa-solid fa-file-circle-question"></i>
-                        <h3>No Results Found</h3>
-                        <p>Use the search button to find a PO, Vendor, or Invoice No.</p>
-                    </div>`;
+            if (desktopContainer) desktopContainer.innerHTML = '<div class="loading-state"><i class="fa-solid fa-magnifying-glass"></i> <span style="margin-left: 8px;">Enter a search term and click Search to load data.</span></div>';
+            if (mobileContainer) mobileContainer.innerHTML = imMobileInvoiceEmptyState('No Results Found', 'Use the Search button to find a PO, Vendor, or Invoice No.');
+            const grandTotalContainer = document.getElementById('im-reporting-grand-total-container');
+            if (grandTotalContainer) {
+                grandTotalContainer.style.display = 'none';
+                grandTotalContainer.innerHTML = '';
             }
             if (reportingCountDisplay) reportingCountDisplay.textContent = '(Found: 0)';
         });
     }
 
     if (imMobileSearchRunBtn) {
-    imMobileSearchRunBtn.addEventListener('click', () => {
-        // Sync desktop filters with mobile modal values
-        const desktopSearch = document.getElementById('im-reporting-search');
-        const mobileSearch = document.getElementById('im-mobile-search-term');
-        const desktopSite = document.getElementById('im-reporting-site-filter');
-        const mobileSite = document.getElementById('im-mobile-site-filter');
-        const desktopStatus = document.getElementById('im-reporting-status-filter');
-        const mobileStatus = document.getElementById('im-mobile-status-filter');
-        const desktopMonth = document.getElementById('im-reporting-month-filter');
-        const mobileDate = document.getElementById('im-mobile-date-filter');
+        imMobileSearchRunBtn.addEventListener('click', () => {
+            // Sync desktop filters with mobile modal values so the existing invoice search engine is reused safely.
+            const desktopSearch = document.getElementById('im-reporting-search');
+            const mobileSearch = document.getElementById('im-mobile-search-term');
+            const desktopSite = document.getElementById('im-reporting-site-filter');
+            const mobileSite = document.getElementById('im-mobile-site-filter');
+            const desktopStatus = document.getElementById('im-reporting-status-filter');
+            const mobileStatus = document.getElementById('im-mobile-status-filter');
+            const desktopMonth = document.getElementById('im-reporting-month-filter');
+            const mobileDate = document.getElementById('im-mobile-date-filter');
 
-        if (desktopSearch && mobileSearch) desktopSearch.value = mobileSearch.value;
-        if (desktopSite && mobileSite) desktopSite.value = mobileSite.value;
-        if (desktopStatus && mobileStatus) desktopStatus.value = mobileStatus.value;
-        if (desktopMonth && mobileDate) desktopMonth.value = mobileDate.value;
+            if (desktopSearch && mobileSearch) desktopSearch.value = mobileSearch.value.trim();
+            if (desktopSite && mobileSite) desktopSite.value = mobileSite.value;
+            if (desktopStatus && mobileStatus) desktopStatus.value = mobileStatus.value;
+            if (desktopMonth && mobileDate) desktopMonth.value = mobileDate.value;
 
-        // Save search term
-        sessionStorage.setItem('imReportingSearch', desktopSearch?.value || '');
+            sessionStorage.setItem('imReportingSearch', desktopSearch?.value || '');
 
-        // Reload the report – this will update BOTH desktop table and mobile cards
-        if (typeof populateInvoiceReporting === 'function') {
-            populateInvoiceReporting(desktopSearch?.value || '');
-        } else {
-            console.warn('populateInvoiceReporting not found');
+            if (typeof imCloseMobileInvoiceSearchModal === 'function') imCloseMobileInvoiceSearchModal();
+            else {
+                const modal = document.getElementById('im-mobile-search-modal');
+                if (modal) modal.classList.add('hidden');
+            }
+
+            if (typeof populateInvoiceReporting === 'function') {
+                populateInvoiceReporting(desktopSearch?.value || '');
+            } else {
+                console.warn('populateInvoiceReporting not found');
+            }
+        });
+    }
+
+    // 7.4.5: Mobile Invoice Records inline search panel.
+    // The mobile view now uses visible inline filters instead of a modal so it cannot get mixed with desktop search.
+    if (!window.__ibaMobileInvoiceInlineSearchBound) {
+        window.__ibaMobileInvoiceInlineSearchBound = true;
+        document.addEventListener('click', async (e) => {
+            const runBtn = e.target.closest('#im-mobile-inline-run-btn');
+            if (!runBtn) return;
+            const reportingSection = document.getElementById('im-reporting');
+            const isReportingVisible = reportingSection && !reportingSection.classList.contains('hidden');
+            const isMobile = (typeof isMobileViewport === 'function') ? isMobileViewport() : ((window.innerWidth || 0) <= 900);
+            const inventoryMode = (typeof isInventoryMobileModuleActive === 'function') ? isInventoryMobileModuleActive() : document.body.classList.contains('inventory-mode');
+            if (!isMobile || !isReportingVisible || inventoryMode) return;
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+            if (typeof imRunMobileInlineInvoiceSearch === 'function') await imRunMobileInlineInvoiceSearch();
+        }, true);
+
+        document.addEventListener('click', (e) => {
+            const editBtn = e.target.closest('#im-mobile-inline-edit-btn, #im-mobile-inline-collapsed-summary');
+            if (!editBtn) return;
+            const reportingSection = document.getElementById('im-reporting');
+            const isReportingVisible = reportingSection && !reportingSection.classList.contains('hidden');
+            const isMobile = (typeof isMobileViewport === 'function') ? isMobileViewport() : ((window.innerWidth || 0) <= 900);
+            const inventoryMode = (typeof isInventoryMobileModuleActive === 'function') ? isInventoryMobileModuleActive() : document.body.classList.contains('inventory-mode');
+            if (!isMobile || !isReportingVisible || inventoryMode) return;
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+            if (typeof imSetMobileInvoiceSearchCollapsed === 'function') imSetMobileInvoiceSearchCollapsed(false);
+        }, true);
+
+        document.addEventListener('click', (e) => {
+            const clearBtn = e.target.closest('#im-mobile-inline-clear-btn');
+            if (!clearBtn) return;
+            const reportingSection = document.getElementById('im-reporting');
+            const isReportingVisible = reportingSection && !reportingSection.classList.contains('hidden');
+            const isMobile = (typeof isMobileViewport === 'function') ? isMobileViewport() : ((window.innerWidth || 0) <= 900);
+            const inventoryMode = (typeof isInventoryMobileModuleActive === 'function') ? isInventoryMobileModuleActive() : document.body.classList.contains('inventory-mode');
+            if (!isMobile || !isReportingVisible || inventoryMode) return;
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+            if (typeof imClearMobileInlineInvoiceSearch === 'function') imClearMobileInlineInvoiceSearch();
+        }, true);
+    }
+
+    // 7.4.3: Mobile invoice records search safety net.
+    // On mobile, any visible Search button in Invoice Records should open the modal,
+    // not run the desktop table search directly.
+    if (!window.__ibaMobileInvoiceSearchDelegated) {
+        window.__ibaMobileInvoiceSearchDelegated = true;
+        document.addEventListener('click', async (e) => {
+            const btn = e.target.closest('#im-mobile-search-btn, #im-reporting-search-btn');
+            if (!btn) return;
+            const reportingSection = document.getElementById('im-reporting');
+            const isReportingVisible = reportingSection && !reportingSection.classList.contains('hidden');
+            const isMobile = (typeof isMobileViewport === 'function') ? isMobileViewport() : ((window.innerWidth || 0) <= 900);
+            const inventoryMode = (typeof isInventoryMobileModuleActive === 'function') ? isInventoryMobileModuleActive() : document.body.classList.contains('inventory-mode');
+            if (!isMobile || !isReportingVisible || inventoryMode) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+            if (typeof imOpenMobileInvoiceSearchModal === 'function') await imOpenMobileInvoiceSearchModal();
+        }, true);
+
+        const reportingForm = document.getElementById('im-reporting-form');
+        if (reportingForm) {
+            reportingForm.addEventListener('submit', async (e) => {
+                const reportingSection = document.getElementById('im-reporting');
+                const isReportingVisible = reportingSection && !reportingSection.classList.contains('hidden');
+                const isMobile = (typeof isMobileViewport === 'function') ? isMobileViewport() : ((window.innerWidth || 0) <= 900);
+                const inventoryMode = (typeof isInventoryMobileModuleActive === 'function') ? isInventoryMobileModuleActive() : document.body.classList.contains('inventory-mode');
+                if (!isMobile || !isReportingVisible || inventoryMode) return;
+
+                e.preventDefault();
+                e.stopPropagation();
+                if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+                if (typeof imOpenMobileInvoiceSearchModal === 'function') await imOpenMobileInvoiceSearchModal();
+            }, true);
         }
-
-        // Close modal
-        const modal = document.getElementById('im-mobile-search-modal');
-        if (modal) modal.classList.add('hidden');
-    });
-}	    
+    }
 
     if (modifyTaskStatus) {
         modifyTaskStatus.addEventListener('change', (e) => {
@@ -19623,6 +18771,12 @@ if (saveManualPOBtn) {
         const modal = document.getElementById('standard-job-modal');
         const title = document.getElementById('standard-modal-title');
 
+        // 7.3.4: Rebuild the Job Type dropdown every time the modal opens,
+        // so WorkDesk and Inventory do not share the same type list.
+        if (typeof updateJobTypeDropdown === 'function') {
+            updateJobTypeDropdown();
+        }
+
         // Get Buttons
         const addBtn = document.getElementById('add-job-button');
         const updateBtn = document.getElementById('update-job-button');
@@ -20078,18 +19232,20 @@ const inventoryButton = document.getElementById('inventory-button');
 // 1. Handle "Inventory" Click
 if (inventoryButton) {
     inventoryButton.addEventListener('click', async () => {
-        // --- 1. MOBILE GUARD ---
-        if (window.innerWidth <= 768) {
-            console.log("Mobile detected: Redirecting to Standard WorkDesk");
-            workdeskButton.click(); 
-            return; 
-        }
-
+        // 7.3.6: Mobile is now supported. Inventory no longer redirects to normal WorkDesk.
         if (!currentApprover) { handleLogout(); return; }
 
         // --- 2. IMMEDIATE UI SWITCH (THE FIX) ---
-        // A. Enter Inventory Mode styling
+        // A. Enter Inventory Mode styling and routing
         document.body.classList.add('inventory-mode');
+        try { window.__ibaActiveModule = 'inventory'; } catch (_) {}
+        try { if (typeof syncMobileModuleSwitchers === 'function') syncMobileModuleSwitchers('inventory'); } catch (_) {}
+        if (typeof updateWorkdeskModuleRoutingUI === 'function') updateWorkdeskModuleRoutingUI('inventory');
+        if (typeof updateActiveTaskModuleBadges === 'function') {
+            updateActiveTaskModuleBadges(0, 0, 'inventory');
+        }
+        if (typeof clearMobileActiveTaskCards === 'function') clearMobileActiveTaskCards();
+        if (typeof forceInventoryMobileActiveTaskShell === 'function') forceInventoryMobileActiveTaskShell();
 
         // B. Update Sidebar Text
         const wdUser = document.getElementById('wd-username');
@@ -20098,26 +19254,32 @@ if (inventoryButton) {
         if(wdId) wdId.textContent = "Inventory Access";
 
         // C. PRE-EMPTIVE SECTION SWAP (Crucial Step)
-        // Immediately hide all sections and show only Material Stock
-        // This prevents the Dashboard from flashing while data loads
+        // 7.3.8: On mobile, Inventory should open the Inventory Active Task screen
+        // because Material Stock and Reporting tabs are intentionally hidden there.
+        const inventoryDefaultSection = (typeof isMobileViewport === 'function' && isMobileViewport())
+            ? 'wd-activetask'
+            : 'wd-material-stock';
+
         document.querySelectorAll('.workdesk-section').forEach(el => el.classList.add('hidden'));
-        const stockSection = document.getElementById('wd-material-stock');
-        if (stockSection) stockSection.classList.remove('hidden');
+        const defaultInventorySectionEl = document.getElementById(inventoryDefaultSection);
+        if (defaultInventorySectionEl) defaultInventorySectionEl.classList.remove('hidden');
 
         // D. Update Active Nav Link Visually
         document.querySelectorAll('#workdesk-nav a').forEach(el => el.classList.remove('active'));
-        const stockLink = document.querySelector('a[data-section="wd-material-stock"]');
-        if (stockLink) stockLink.classList.add('active');
+        const defaultInventoryLink = document.querySelector(`a[data-section="${inventoryDefaultSection}"]`);
+        if (defaultInventoryLink) defaultInventoryLink.classList.add('active');
 
         // E. Show the Main View
         showView('workdesk');
+        if (typeof updateWorkdeskModuleRoutingUI === 'function') updateWorkdeskModuleRoutingUI('inventory');
 
-        // --- 3. LOAD DATA (Happens while user sees the empty stock table) ---
+        // --- 3. LOAD DATA (Happens while user sees the empty Inventory screen) ---
         console.log("Loading Inventory Data...");
         
-        // Show a loading state in the table if possible (optional but good UX)
+        // Show a loading state in the Material Stock table only when the desktop/default
+        // section is Material Stock.
         const stockTableBody = document.getElementById('ms-table-body');
-        if(stockTableBody) stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px;">Loading Inventory Data...</td></tr>';
+        if(inventoryDefaultSection === 'wd-material-stock' && stockTableBody) stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px;">Loading Inventory Data...</td></tr>';
 
         if (typeof ensureInvoiceDataFetched === 'function') await ensureInvoiceDataFetched(false); 
         if (typeof ensureAllEntriesFetched === 'function') await ensureAllEntriesFetched(false);
@@ -20136,8 +19298,13 @@ if (inventoryButton) {
         // --- 4. POPULATE THE TABLE ---
         // Now that data is ready, run the logic to fill the table
         if (typeof showWorkdeskSection === 'function') {
-            // Pass 'wd-material-stock' to trigger the specific logic for that section
-            await showWorkdeskSection('wd-material-stock');
+            // Desktop opens Material Stock; mobile opens Inventory Active Task.
+            await showWorkdeskSection(inventoryDefaultSection);
+        }
+        if (typeof forceInventoryMobileActiveTaskShell === 'function') forceInventoryMobileActiveTaskShell();
+        if (typeof enforceInventoryMobileNavVisibility === 'function') enforceInventoryMobileNavVisibility();
+        if (typeof refreshInventoryTaskBadgeOnly === 'function') {
+            await refreshInventoryTaskBadgeOnly();
         }
     });
 }
@@ -20149,6 +19316,9 @@ document.querySelectorAll('.back-to-main-dashboard').forEach(btn => {
         
         // Remove the special class so WorkDesk goes back to normal next time
         document.body.classList.remove('inventory-mode');
+        try { window.__ibaActiveModule = 'home'; } catch (_) {}
+        if (typeof updateWorkdeskModuleRoutingUI === 'function') updateWorkdeskModuleRoutingUI('workdesk');
+        try { window.__ibaActiveModule = 'home'; } catch (_) {}
         
         // Return to dashboard
         showView('dashboard');
@@ -20160,6 +19330,7 @@ const mainLogout = document.getElementById('wd-logout-button');
 if(mainLogout) {
     mainLogout.addEventListener('click', () => {
         document.body.classList.remove('inventory-mode');
+        try { window.__ibaActiveModule = 'home'; } catch (_) {}
         handleLogout();
     });
 }
@@ -20635,171 +19806,15 @@ if (reportAutoSelect) {
 
 // =================================================================================================
 // #region BLOCK 28 — FINANCE REPORTS + EXPORTS
-// Purpose: Read-only finance report search/actions/print, daily/with-accounts/report-approved exports, custom Excel/table exports.
+// Purpose: Report PDF generation/print, daily/with-accounts/report-approved exports, custom Excel/table exports.
 // =================================================================================================
 
 // ==========================================================================
 // 22. FINANCE REPORT (READ-ONLY)
 // ==========================================================================
 
-function handleFinanceSearch() {
-    const poNo = imFinanceSearchPoInput.value.trim();
-    if (!poNo) {
-        alert('Please enter a PO No. to search');
-        return;
-    }
-
-    paymentDb.ref('payments').orderByChild('poNo').equalTo(poNo).once('value')
-        .then(snapshot => {
-            imFinanceResults.style.display = 'block';
-            imFinanceResultsBody.innerHTML = '';
-
-            if (!snapshot.exists()) {
-                imFinanceNoResults.style.display = 'block';
-                if (financeReportCountDisplay) financeReportCountDisplay.textContent = '';
-            } else {
-                imFinanceNoResults.style.display = 'none';
-                imFinanceAllPaymentsData = {};
-                snapshot.forEach(childSnapshot => {
-                    imFinanceAllPaymentsData[childSnapshot.key] = {
-                        id: childSnapshot.key,
-                        ...childSnapshot.val()
-                    };
-                });
-                const payments = Object.values(imFinanceAllPaymentsData);
-                if (financeReportCountDisplay) {
-                    financeReportCountDisplay.textContent = `(Total Payments Found: ${payments.length})`;
-                }
-                showFinanceSearchResults(payments);
-            }
-        })
-        .catch(error => console.error('Error searching payments:', error));
-}
-
-function showFinanceSearchResults(payments) {
-    imFinanceResultsBody.innerHTML = '';
-    if (payments.length === 0) return;
-
-    const firstPayment = payments[0];
-    const {
-        site,
-        vendor,
-        vendorId,
-        poNo,
-        poValue
-    } = firstPayment;
-
-    const summaryHtml = `
-        <table class="po-summary-table">
-            <thead>
-                <tr>
-                    <th>Site</th>
-                    <th>Vendor</th>
-                    <th>Vendor ID</th>
-                    <th>PO No.</th>
-                    <th>PO Value</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>${site || ''}</td>
-                    <td>${vendor || ''}</td>
-                    <td>${vendorId || ''}</td>
-                    <td>${poNo || ''}</td>
-                    <td>${formatFinanceNumber(poValue) || ''}</td>
-                </tr>
-            </tbody>
-        </table>
-    `;
-
-    let totalCertified = 0;
-    let totalRetention = 0;
-    let totalPayment = 0;
-
-    const paymentRowsHtml = payments.map(payment => `
-        <tr>
-            <td>${formatFinanceDate(payment.dateEntered) || ''}</td>
-            <td>${payment.paymentNo || ''}</td>
-            <td>${payment.chequeNo || ''}</td>
-            <td>${formatFinanceNumber(payment.certifiedAmount) || ''}</td>
-            <td>${formatFinanceNumber(payment.retention) || ''}</td>
-            <td>${formatFinanceNumber(payment.payment) || ''}</td>
-            <td>${formatFinanceDate(payment.datePaid) || ''}</td>
-            <td>
-                <button class="btn btn-sm btn-info me-2" data-action="report" data-id="${payment.id}">Print Preview</button>
-            </td>
-        </tr>
-    `).join('');
-
-    payments.forEach(payment => {
-        totalCertified += parseFloat(payment.certifiedAmount) || 0;
-        totalRetention += parseFloat(payment.retention) || 0;
-        totalPayment += parseFloat(payment.payment) || 0;
-    });
-
-    const footerHtml = `
-        <tfoot style="background-color: #e9ecef; font-weight: bold;">
-            <tr>
-                <td colspan="3" style="text-align: right;">Total:</td>
-                <td>${formatFinanceNumber(totalCertified)}</td>
-                <td>${formatFinanceNumber(totalRetention)}</td>
-                <td>${formatFinanceNumber(totalPayment)}</td>
-                <td colspan="2"></td>
-            </tr>
-        </tfoot>
-    `;
-
-    const detailsHtml = `
-        <div class="payment-details-wrapper">
-            <h6 class="payment-details-header">Invoice Entries for PO ${poNo}</h6>
-            <div class="table-responsive">
-                <table class="table payment-details-table">
-                    <thead>
-                        <tr>
-                            <th>Date Entered</th>
-                            <th>Payment No.</th>
-                            <th>Cheque No.</th>
-                            <th>Certified Amount</th>
-                            <th>Retention</th>
-                            <th>Payment</th>
-                            <th>Date Paid</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${paymentRowsHtml}
-                    </tbody>
-                    ${footerHtml} </table>
-            </div>
-        </div>
-    `;
-
-    imFinanceResultsBody.innerHTML = summaryHtml + detailsHtml;
-}
-
-function handleFinanceActionClick(e) {
-    const target = e.target.closest('button');
-    if (!target) return;
-
-    const action = target.dataset.action;
-    const id = target.dataset.id;
-    const payment = imFinanceAllPaymentsData[id];
-
-    if (!action || !id || !payment) return;
-
-    if (action === 'report') {
-        generateFinanceReport(payment);
-    }
-}
-
-function resetFinanceSearch() {
-    imFinanceSearchPoInput.value = '';
-    imFinanceResults.style.display = 'none';
-    imFinanceNoResults.style.display = 'none';
-    imFinanceResultsBody.innerHTML = '';
-    imFinanceAllPaymentsData = {};
-    if (financeReportCountDisplay) financeReportCountDisplay.textContent = '';
-}
+// 7.5.9: Removed unused internal Finance Report search/view code.
+// The external Finance/Epicore links and Report PDF generation remain unchanged.
 
 async function generateFinanceReport(selectedPayment) {
     const poNo = selectedPayment.poNo;

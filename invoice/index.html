@@ -37,7 +37,7 @@
       .hidden { display: none !important; }
       html.preload body { opacity: 0; transition: opacity .15s ease; }
     </style>
-    <script>
+<script>
       (function () {
         function show() { document.documentElement.classList.remove('preload'); }
         window.addEventListener('load', show);
@@ -50,6 +50,7 @@
 
     <link rel="stylesheet" href="style.css?v=7.2.9">
     <link rel="stylesheet" href="transfer_stock.css?v=7.2.8">
+    <link rel="stylesheet" href="mobile.css?v=7.5.3">
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -310,6 +311,13 @@
 
             <div class="sidebar-footer-info">
                 <span id="workdesk-datetime"></span>
+                <div class="mobile-module-switcher-wrap" data-mobile-module-switcher-wrap="workdesk">
+                    <label class="mobile-module-switcher-label" for="mobile-module-switcher-wd">Module</label>
+                    <select id="mobile-module-switcher-wd" class="mobile-module-switcher-select" aria-label="Switch module">
+                        <option value="invoice">Invoice / Task</option>
+                        <option value="inventory">Inventory</option>
+                    </select>
+                </div>
                 <p class="version-display sidebar-version-display"></p>
             </div>
         </aside>
@@ -924,6 +932,13 @@
                 <li><a href="#" id="inv-logout-button"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</a></li>
             </ul>
         </div>
+        <div class="mobile-module-switcher-wrap" data-mobile-module-switcher-wrap="inventory">
+            <label class="mobile-module-switcher-label" for="mobile-module-switcher-inv">Module</label>
+            <select id="mobile-module-switcher-inv" class="mobile-module-switcher-select" aria-label="Switch module">
+                <option value="invoice">Invoice / Task</option>
+                <option value="inventory">Inventory</option>
+            </select>
+        </div>
     </aside>
 
     <div class="workdesk-main" role="main">
@@ -1000,6 +1015,13 @@
             </div>
 
             <span id="im-datetime"></span>
+            <div class="mobile-module-switcher-wrap" data-mobile-module-switcher-wrap="invoice">
+                <label class="mobile-module-switcher-label" for="mobile-module-switcher-im">Module</label>
+                <select id="mobile-module-switcher-im" class="mobile-module-switcher-select" aria-label="Switch module">
+                    <option value="invoice">Invoice / Task</option>
+                    <option value="inventory">Inventory</option>
+                </select>
+            </div>
             <p class="version-display sidebar-version-display"></p>
 
         </aside>
@@ -1570,7 +1592,7 @@
             <div class="header-title">
                 <div class="icon-wrapper"><i class="fa-solid fa-file-invoice-dollar"></i></div>
                 <h1 style="border: none; margin: 0; color: var(--primary-blue);">Invoice Records <span id="reporting-count-display" class="version-tag"></span></h1>
-		<button id="im-mobile-search-btn" class="im-mobile-search-btn" type="button"><i class="fa-solid fa-magnifying-glass"></i></button>
+		<button id="im-mobile-search-btn" class="im-mobile-search-btn" type="button"><i class="fa-solid fa-magnifying-glass"></i><span>Search</span></button>
             </div>
 
             <div class="daily-report-section" style="display: flex; gap: 8px; align-items: center;">
@@ -1694,25 +1716,6 @@
                      <div class="table-wrapper"><table id="im-payments-table"><thead><tr><th>PO</th><th>Site</th><th>Vendor</th><th>Inv. Entry</th><th>Inv. Value</th><th>Amount To Paid</th><th>Release Date</th><th>Status</th><th></th></tr></thead><tbody id="im-payments-table-body"></tbody></table></div>
                     <div class="form-buttons-container" style="justify-content: flex-end; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
                         <button id="im-save-payments-button" type="button" class="download-btn"><i class="fa-solid fa-save"></i> Save All Payments as Paid</button>
-                    </div>
-                </section>
-
-                <section id="im-finance-report" class="workdesk-section hidden">
-                    <h1>Financial Report (Read-Only) <span id="finance-report-count-display" class="table-count-display"></span></h1>
-                    <p>Search for payments from the finance database. This is a read-only view.</p>
-                    <div class="search-and-filter-group" style="max-width: 600px; margin-bottom: 20px;">
-                        <div class="search-bar-local" style="margin-bottom: 0;">
-                            <i class="fa-solid fa-magnifying-glass"></i>
-                            <input type="text" id="im-finance-search-po" placeholder="Enter PO No. to search...">
-                        </div>
-                        <button class="form-buttons-container" id="im-finance-search-btn" type="button">Search</button>
-                        <button class="form-buttons-container secondary-btn" id="im-finance-clear-btn" type="button">Clear</button>
-                    </div>
-                    <div id="im-finance-results" style="display: none;">
-                        <div class="form-container" style="padding:0; box-shadow: none; background: none;">
-                            <div id="im-finance-no-results" style="display: none; padding: 15px; background-color: #fff3cd; border-radius: 6px;">No payments found for this PO No.</div>
-                            <div id="im-finance-results-body"></div>
-                        </div>
                     </div>
                 </section>
 
@@ -2553,10 +2556,6 @@
                     <option value="Trip">Trip</option>
                     <option value="Payment">Payment</option>
                     <option value="Report">Report</option>
-                    <option value="Transfer" style="color: #00748C; font-weight: bold;">&#8644; Transfer Stock</option>
-                    <option value="Restock" style="color: #28a745; font-weight: bold;">&#43; Restock</option>
-                    <option value="Return" style="color: #dc3545; font-weight: bold;">&#8617; Return</option>
-                    <option value="Usage" style="color: #6f42c1; font-weight: bold;">&#10003; Usage</option>
                     <option value="Other" style="font-weight: bold;">-- Other (Specify) --</option>
                 </select>
                 <input type="text" id="job-other-specify" class="hidden" placeholder="Type Job Name..." style="margin-top: 5px;">
@@ -2951,7 +2950,11 @@
 
     <script src="materialStock.js?v=7.2.7"></script>
     <script src="transferLogic.js?v=7.2.7"></script>
-    <script src="app.js?v=7.2.9"></script>
+    <script src="js/app-core.js?v=7.6.0"></script>
+    <script src="js/app-inventory.js?v=7.6.0"></script>
+    <script src="js/app-invoice.js?v=7.6.0"></script>
+    <script src="js/app-mobile.js?v=7.6.0"></script>
+    <script src="app.js?v=7.6.0"></script>
 
     </body>
 </html>
