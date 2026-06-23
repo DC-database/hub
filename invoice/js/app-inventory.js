@@ -601,3 +601,558 @@ function renderInventoryMobileActiveTasks(tasks) {
 }
 
 
+
+// =================================================================================================
+// 7.6.5 — Inventory Mobile Material Finder (preview/search only)
+// Purpose: Mobile-only item lookup with suggestion picker, photo, stock balance, and recent movement history.
+// No CRUD, no stock writes, no approval changes.
+// =================================================================================================
+(function inventoryMobileMaterialFinderModule(){
+    const PHOTO_BASE_URL = 'https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/DC%20Files/Photo/';
+    let materialCache = null;
+    let movementCache = null;
+    let isLoadingMaterials = false;
+    let barcodeScannerStream = null;
+    let barcodeScannerTimer = null;
+    let barcodeScannerActive = false;
+
+    function isInventoryFinderMobileActive() {
+        const mobile = (typeof isMobileViewport === 'function') ? isMobileViewport() : ((window.innerWidth || 0) <= 900);
+        const inv = (typeof isInventoryContext === 'function') ? isInventoryContext() : ((window.__ibaActiveModule || '') === 'inventory');
+        return !!(mobile && inv);
+    }
+
+    function invFinderEscape(value) {
+        if (typeof _escapeHtml === 'function') return _escapeHtml(value);
+        return String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    }
+
+    function invFinderNumber(value) {
+        const n = parseFloat(String(value ?? '').replace(/,/g, ''));
+        return Number.isFinite(n) ? n : 0;
+    }
+
+    function invFinderQty(value) {
+        const n = invFinderNumber(value);
+        return Number.isInteger(n) ? String(n) : n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    }
+
+    function invFinderPhotoUrl(item) {
+        const direct = String(item?.photoUrl || item?.photoURL || item?.imageUrl || item?.imageURL || '').trim();
+        if (direct) return direct;
+        let name = String(item?.photoName || item?.photo || item?.photoFile || item?.photoFileName || '').trim();
+        if (!name) return '';
+        name = name.replace(/^\/+/, '').replace(/\.(jpg|jpeg|png|webp)$/i, '');
+        return PHOTO_BASE_URL + encodeURIComponent(name) + '.jpg';
+    }
+
+    function invFinderProductId(item) {
+        return String(item?.productId || item?.productID || item?.ProductID || item?.id || '').trim();
+    }
+
+    function invFinderProductName(item) {
+        return String(item?.productName || item?.ProductName || item?.name || item?.vendorName || '').trim();
+    }
+
+    function invFinderDetails(item) {
+        return String(item?.details || item?.detail || item?.description || item?.relation || '').trim();
+    }
+
+    function invFinderBarcodeText(item) {
+        return String(item?.barcode || item?.barcodeNo || item?.barcodeNumber || item?.itemBarcode || item?.productBarcode || item?.productCode || item?.itemCode || item?.sku || '').trim();
+    }
+
+    function invFinderNormalizeCode(value) {
+        return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+
+    function invFinderMatchText(item) {
+        return [invFinderProductId(item), invFinderProductName(item), invFinderDetails(item), invFinderBarcodeText(item), item?.family, item?.relationship]
+            .map(v => String(v || '').toLowerCase()).join(' ');
+    }
+
+    function getMaterialFinderSection() {
+        let section = document.getElementById('wd-inv-mobile-material-finder');
+        if (section) return section;
+
+        const main = document.querySelector('#workdesk-view .workdesk-main') || document.querySelector('#workdesk-view [role="main"]');
+        if (!main) return null;
+
+        section = document.createElement('section');
+        section.id = 'wd-inv-mobile-material-finder';
+        section.className = 'workdesk-section hidden inv-mobile-finder-section';
+        section.innerHTML = `
+            <div class="inv-mobile-finder-head">
+                <div>
+                    <h1><i class="fa-solid fa-magnifying-glass"></i> Item Finder</h1>
+                    <p>Search material by name, ID, or details. Preview only.</p>
+                </div>
+            </div>
+            <div class="inv-mobile-finder-search">
+                <div class="inv-mobile-search-box">
+                    <i class="fa-solid fa-box-open"></i>
+                    <input id="inv-mobile-material-search-input" type="search" placeholder="Search item material or scan barcode..." autocomplete="off">
+                </div>
+                <div class="inv-mobile-finder-actions">
+                    <button id="inv-mobile-material-scan" type="button" class="inv-mobile-scan-btn"><i class="fa-solid fa-barcode"></i> Scan</button>
+                    <button id="inv-mobile-material-search-clear" type="button" class="secondary-btn">Clear</button>
+                </div>
+            </div>
+            <div id="inv-mobile-barcode-scanner" class="inv-mobile-barcode-scanner hidden" aria-live="polite">
+                <div class="inv-mobile-barcode-box">
+                    <div class="inv-mobile-barcode-head">
+                        <strong><i class="fa-solid fa-barcode"></i> Scan item barcode</strong>
+                        <button type="button" id="inv-mobile-barcode-close" aria-label="Close barcode scanner"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div class="inv-mobile-barcode-video-wrap">
+                        <video id="inv-mobile-barcode-video" autoplay muted playsinline></video>
+                        <div class="inv-mobile-barcode-guide"></div>
+                    </div>
+                    <div id="inv-mobile-barcode-status" class="inv-mobile-barcode-status">Point camera at the barcode.</div>
+                </div>
+            </div>
+            <div id="inv-mobile-material-suggestions" class="inv-mobile-material-suggestions" aria-live="polite"></div>
+            <div id="inv-mobile-material-status" class="inv-mobile-material-status">Type an item name to search, then pick one suggestion.</div>
+            <div id="inv-mobile-material-results" class="inv-mobile-material-results"></div>
+        `;
+        main.appendChild(section);
+        return section;
+    }
+
+    function ensureInventoryMobileMaterialFinderNav() {
+        const navList = document.querySelector('#workdesk-nav ul');
+        if (!navList) return;
+        let li = document.getElementById('wd-nav-inv-mobile-material-search')?.closest('li');
+        if (!li) {
+            li = document.createElement('li');
+            li.className = 'wd-nav-inv-mobile-material-search mobile-only-nav-item';
+            li.innerHTML = `<a href="#" id="wd-nav-inv-mobile-material-search"><i class="fa-solid fa-magnifying-glass"></i> Item Search</a>`;
+            const logoutLi = document.getElementById('mobile-nav-logout')?.closest('li');
+            if (logoutLi && logoutLi.parentNode === navList) navList.insertBefore(li, logoutLi);
+            else navList.appendChild(li);
+        }
+
+        const link = document.getElementById('wd-nav-inv-mobile-material-search');
+        if (link && link.dataset.bound !== '1') {
+            link.dataset.bound = '1';
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                openInventoryMobileMaterialFinder();
+            });
+        }
+
+        updateInventoryMobileMaterialFinderNavVisibility();
+    }
+
+    function updateInventoryMobileMaterialFinderNavVisibility() {
+        const li = document.getElementById('wd-nav-inv-mobile-material-search')?.closest('li');
+        if (!li) return;
+        if (isInventoryFinderMobileActive()) li.style.removeProperty('display');
+        else li.style.setProperty('display', 'none', 'important');
+    }
+
+    function openInventoryMobileMaterialFinder() {
+        const section = getMaterialFinderSection();
+        if (!section) return;
+        try { window.__ibaActiveModule = 'inventory'; } catch (_) {}
+        if (document.body) document.body.classList.add('inventory-mode');
+
+        document.querySelectorAll('#workdesk-view .workdesk-section, .workdesk-section').forEach(el => el.classList.add('hidden'));
+        section.classList.remove('hidden');
+
+        document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a').forEach(a => a.classList.remove('active'));
+        const link = document.getElementById('wd-nav-inv-mobile-material-search');
+        if (link) link.classList.add('active');
+
+        updateInventoryMobileMaterialFinderNavVisibility();
+        bindInventoryMobileMaterialFinderControls();
+        const input = document.getElementById('inv-mobile-material-search-input');
+        if (input) setTimeout(() => input.focus(), 120);
+
+        if (!materialCache) {
+            loadInventoryMobileMaterialFinderData().then(() => {
+                renderInventoryMobileMaterialFinderSuggestions(input?.value || '');
+            });
+        } else {
+            renderInventoryMobileMaterialFinderSuggestions(input?.value || '');
+        }
+    }
+
+    function bindInventoryMobileMaterialFinderControls() {
+        const input = document.getElementById('inv-mobile-material-search-input');
+        const clearBtn = document.getElementById('inv-mobile-material-search-clear');
+        const scanBtn = document.getElementById('inv-mobile-material-scan');
+        const scannerClose = document.getElementById('inv-mobile-barcode-close');
+        const suggestions = document.getElementById('inv-mobile-material-suggestions');
+        if (input && input.dataset.bound !== '1') {
+            input.dataset.bound = '1';
+            input.addEventListener('input', () => renderInventoryMobileMaterialFinderSuggestions(input.value));
+            input.addEventListener('focus', () => renderInventoryMobileMaterialFinderSuggestions(input.value));
+        }
+        if (suggestions && suggestions.dataset.bound !== '1') {
+            suggestions.dataset.bound = '1';
+            suggestions.addEventListener('click', (event) => {
+                const btn = event.target.closest('.inv-mobile-material-suggestion-item');
+                if (!btn) return;
+                const key = btn.getAttribute('data-material-key') || '';
+                const item = findInventoryMobileMaterialByKey(key);
+                if (!item) return;
+                if (input) input.value = `${invFinderProductName(item) || invFinderProductId(item)}`;
+                renderInventoryMobileMaterialFinderSelected(item);
+            });
+        }
+        if (clearBtn && clearBtn.dataset.bound !== '1') {
+            clearBtn.dataset.bound = '1';
+            clearBtn.addEventListener('click', () => {
+                if (input) input.value = '';
+                resetInventoryMobileMaterialFinder();
+                stopInventoryMobileBarcodeScanner();
+                if (input) input.focus();
+            });
+        }
+        if (scanBtn && scanBtn.dataset.bound !== '1') {
+            scanBtn.dataset.bound = '1';
+            scanBtn.addEventListener('click', () => startInventoryMobileBarcodeScanner());
+        }
+        if (scannerClose && scannerClose.dataset.bound !== '1') {
+            scannerClose.dataset.bound = '1';
+            scannerClose.addEventListener('click', () => stopInventoryMobileBarcodeScanner());
+        }
+    }
+
+
+    async function startInventoryMobileBarcodeScanner() {
+        const scanner = document.getElementById('inv-mobile-barcode-scanner');
+        const video = document.getElementById('inv-mobile-barcode-video');
+        const scannerStatus = document.getElementById('inv-mobile-barcode-status');
+        const status = document.getElementById('inv-mobile-material-status');
+        if (!scanner || !video) return;
+
+        if (!('BarcodeDetector' in window)) {
+            const msg = 'Barcode scanning is not supported in this browser. Try Chrome on Android, or type the item code manually.';
+            if (scannerStatus) scannerStatus.textContent = msg;
+            if (status) status.textContent = msg;
+            scanner.classList.remove('hidden');
+            return;
+        }
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            const msg = 'Camera access is not available. Please type the item code manually.';
+            if (scannerStatus) scannerStatus.textContent = msg;
+            if (status) status.textContent = msg;
+            scanner.classList.remove('hidden');
+            return;
+        }
+
+        try {
+            if (!materialCache && !isLoadingMaterials) await loadInventoryMobileMaterialFinderData();
+            stopInventoryMobileBarcodeScanner(false);
+            scanner.classList.remove('hidden');
+            barcodeScannerActive = true;
+            if (scannerStatus) scannerStatus.textContent = 'Starting camera...';
+
+            const supported = typeof BarcodeDetector.getSupportedFormats === 'function'
+                ? await BarcodeDetector.getSupportedFormats()
+                : [];
+            const preferredFormats = ['qr_code', 'code_128', 'code_39', 'code_93', 'codabar', 'ean_13', 'ean_8', 'upc_a', 'upc_e', 'itf', 'data_matrix', 'pdf417'];
+            const formats = supported.length ? preferredFormats.filter(f => supported.includes(f)) : preferredFormats;
+            const detector = new BarcodeDetector(formats.length ? { formats } : undefined);
+
+            barcodeScannerStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: { ideal: 'environment' } },
+                audio: false
+            });
+            video.srcObject = barcodeScannerStream;
+            await video.play();
+            if (scannerStatus) scannerStatus.textContent = 'Point camera at the barcode.';
+
+            const scanLoop = async () => {
+                if (!barcodeScannerActive) return;
+                try {
+                    const codes = await detector.detect(video);
+                    if (codes && codes.length) {
+                        const raw = String(codes[0].rawValue || '').trim();
+                        if (raw) {
+                            handleInventoryMobileBarcodeValue(raw);
+                            return;
+                        }
+                    }
+                } catch (err) {
+                    // Some browsers throw while the video is starting. Keep trying quietly.
+                }
+                barcodeScannerTimer = window.setTimeout(scanLoop, 250);
+            };
+            barcodeScannerTimer = window.setTimeout(scanLoop, 400);
+        } catch (err) {
+            console.error('Inventory mobile barcode scanner failed:', err);
+            if (scannerStatus) scannerStatus.textContent = 'Camera permission denied or scanner failed. You can still type the item code manually.';
+            if (status) status.textContent = 'Camera scanner could not start. Type the item code manually.';
+            stopInventoryMobileBarcodeScanner(false);
+        }
+    }
+
+    function stopInventoryMobileBarcodeScanner(hide = true) {
+        barcodeScannerActive = false;
+        if (barcodeScannerTimer) {
+            clearTimeout(barcodeScannerTimer);
+            barcodeScannerTimer = null;
+        }
+        if (barcodeScannerStream) {
+            barcodeScannerStream.getTracks().forEach(track => {
+                try { track.stop(); } catch (_) {}
+            });
+            barcodeScannerStream = null;
+        }
+        const video = document.getElementById('inv-mobile-barcode-video');
+        if (video) video.srcObject = null;
+        if (hide) {
+            const scanner = document.getElementById('inv-mobile-barcode-scanner');
+            if (scanner) scanner.classList.add('hidden');
+        }
+    }
+
+    function findInventoryMobileMaterialByBarcode(code) {
+        if (!Array.isArray(materialCache)) return null;
+        const normalized = invFinderNormalizeCode(code);
+        if (!normalized) return null;
+        return materialCache.find(item => {
+            const candidates = [
+                invFinderBarcodeText(item),
+                invFinderProductId(item),
+                item?.productCode,
+                item?.itemCode,
+                item?.sku
+            ].map(invFinderNormalizeCode).filter(Boolean);
+            return candidates.some(v => v === normalized);
+        }) || null;
+    }
+
+    function handleInventoryMobileBarcodeValue(rawValue) {
+        const input = document.getElementById('inv-mobile-material-search-input');
+        const status = document.getElementById('inv-mobile-material-status');
+        const scannerStatus = document.getElementById('inv-mobile-barcode-status');
+        stopInventoryMobileBarcodeScanner();
+
+        if (input) input.value = rawValue;
+        if (scannerStatus) scannerStatus.textContent = `Scanned: ${rawValue}`;
+
+        const exact = findInventoryMobileMaterialByBarcode(rawValue);
+        if (exact) {
+            if (input) input.value = invFinderProductName(exact) || invFinderProductId(exact) || rawValue;
+            if (status) status.textContent = `Barcode matched: ${invFinderProductName(exact) || invFinderProductId(exact)}`;
+            renderInventoryMobileMaterialFinderSelected(exact);
+            return;
+        }
+
+        if (status) status.textContent = `Barcode scanned: ${rawValue}. No exact Product ID match. Showing suggestions.`;
+        renderInventoryMobileMaterialFinderSuggestions(rawValue);
+    }
+
+    async function loadInventoryMobileMaterialFinderData() {
+        if (isLoadingMaterials) return;
+        isLoadingMaterials = true;
+        const status = document.getElementById('inv-mobile-material-status');
+        if (status) status.textContent = 'Loading material records...';
+        try {
+            const dbRef = (typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null;
+            if (!dbRef) throw new Error('Firebase database is not loaded.');
+
+            const [matSnap, moveSnap] = await Promise.all([
+                dbRef.ref('material_stock').once('value'),
+                dbRef.ref('transfer_entries').limitToLast(400).once('value')
+            ]);
+
+            const matObj = matSnap.val() || {};
+            materialCache = Object.entries(matObj).map(([key, val]) => ({ key, ...(val || {}) }));
+
+            const moveObj = moveSnap.val() || {};
+            movementCache = Object.entries(moveObj).map(([key, val]) => ({ key, ...(val || {}) }));
+
+            if (status) status.textContent = materialCache.length ? 'Search ready.' : 'No material records found.';
+        } catch (err) {
+            console.error('Inventory mobile material finder load failed:', err);
+            materialCache = [];
+            movementCache = [];
+            if (status) status.textContent = 'Unable to load material records.';
+        } finally {
+            isLoadingMaterials = false;
+        }
+    }
+
+    function getInventoryMaterialMovements(item) {
+        const pid = invFinderProductId(item).toLowerCase();
+        const name = invFinderProductName(item).toLowerCase();
+        const detail = invFinderDetails(item).toLowerCase();
+        const moves = Array.isArray(movementCache) ? movementCache : [];
+        return moves.filter(m => {
+            const mid = String(m.productId || m.productID || m.productCode || '').toLowerCase();
+            const mname = String(m.productName || m.vendorName || m.itemName || '').toLowerCase();
+            const mdetail = String(m.details || m.detail || '').toLowerCase();
+            return (pid && mid === pid) ||
+                   (pid && String(m.controlId || '').toLowerCase().includes(pid)) ||
+                   (name && mname && mname.includes(name)) ||
+                   (detail && mdetail && mdetail.includes(detail));
+        }).slice(-5).reverse();
+    }
+
+    function invFinderMovementLine(move) {
+        const type = String(move.for || move.jobType || '').trim() || 'Movement';
+        const from = move.fromSite || move.fromLocation || move.sourceSite || move.site || 'N/A';
+        const to = move.toSite || move.toLocation || move.destinationSite || move.requestSite || 'N/A';
+        const qty = move.receivedQty ?? move.approvedQty ?? move.orderedQty ?? move.requiredQty ?? '';
+        const date = move.arrivalDate || move.shippingDate || move.dateResponded || move.date || '';
+        const status = move.remarks || move.status || '';
+        return { type, from, to, qty, date, status };
+    }
+
+    function resetInventoryMobileMaterialFinder() {
+        const results = document.getElementById('inv-mobile-material-results');
+        const status = document.getElementById('inv-mobile-material-status');
+        const suggestions = document.getElementById('inv-mobile-material-suggestions');
+        if (suggestions) suggestions.innerHTML = '';
+        if (results) {
+            results.innerHTML = '<div class="inv-mobile-material-empty"><i class="fa-solid fa-boxes-stacked"></i><strong>Search item material</strong><span>Type item name / ID or scan barcode, then pick one suggestion to preview.</span></div>';
+        }
+        if (status) status.textContent = Array.isArray(materialCache)
+            ? `${materialCache.length} material records available.`
+            : 'Type an item name or scan barcode, then pick one suggestion.';
+    }
+
+    function findInventoryMobileMaterialByKey(key) {
+        if (!Array.isArray(materialCache)) return null;
+        return materialCache.find(item => String(item.key || '') === String(key || '')) || null;
+    }
+
+    function renderInventoryMobileMaterialFinderSuggestions(term) {
+        const results = document.getElementById('inv-mobile-material-results');
+        const status = document.getElementById('inv-mobile-material-status');
+        const suggestions = document.getElementById('inv-mobile-material-suggestions');
+        if (!suggestions) return;
+
+        const q = String(term || '').trim().toLowerCase();
+        if (!Array.isArray(materialCache)) {
+            suggestions.innerHTML = '';
+            if (results) results.innerHTML = '<div class="inv-mobile-material-empty"><i class="fa-solid fa-spinner fa-spin"></i><strong>Loading...</strong></div>';
+            if (status) status.textContent = 'Loading material records...';
+            return;
+        }
+
+        if (!q) {
+            suggestions.innerHTML = '';
+            resetInventoryMobileMaterialFinder();
+            return;
+        }
+
+        if (q.length < 2) {
+            suggestions.innerHTML = '';
+            if (status) status.textContent = 'Type at least 2 characters to show suggestions.';
+            if (results) results.innerHTML = '<div class="inv-mobile-material-empty"><i class="fa-solid fa-keyboard"></i><strong>Keep typing</strong><span>Suggestions will appear after 2 characters.</span></div>';
+            return;
+        }
+
+        const matches = materialCache.filter(item => invFinderMatchText(item).includes(q)).slice(0, 12);
+        if (status) status.textContent = matches.length
+            ? `${matches.length} suggestion${matches.length === 1 ? '' : 's'} found. Pick one item.`
+            : 'No matching material found.';
+
+        if (!matches.length) {
+            suggestions.innerHTML = '';
+            if (results) results.innerHTML = '<div class="inv-mobile-material-empty"><i class="fa-regular fa-face-frown"></i><strong>No item found</strong><span>Try a shorter name or product ID.</span></div>';
+            return;
+        }
+
+        suggestions.innerHTML = matches.map(item => renderInventoryMobileMaterialSuggestion(item)).join('');
+        if (results) results.innerHTML = '<div class="inv-mobile-material-empty"><i class="fa-solid fa-hand-pointer"></i><strong>Select item</strong><span>Tap one suggestion above to view photo, stock, and history.</span></div>';
+    }
+
+    function renderInventoryMobileMaterialSuggestion(item) {
+        const key = invFinderEscape(item?.key || '');
+        const pid = invFinderProductId(item) || 'No ID';
+        const name = invFinderProductName(item) || 'Unnamed Item';
+        const details = invFinderDetails(item) || 'No details available';
+        const balVal = invFinderNumber(item.balanceQty ?? item.availableQty ?? item.available ?? item.stockQty ?? 0);
+        const photoUrl = invFinderPhotoUrl(item);
+        const photoHtml = photoUrl
+            ? `<span class="inv-mobile-material-suggestion-photo"><img src="${invFinderEscape(photoUrl)}" alt="" loading="lazy" onerror="this.parentElement.classList.add('photo-error'); this.remove();"></span>`
+            : `<span class="inv-mobile-material-suggestion-photo no-photo"><i class="fa-solid fa-image"></i></span>`;
+        return `<button type="button" class="inv-mobile-material-suggestion-item" data-material-key="${key}">
+            ${photoHtml}
+            <span class="inv-mobile-material-suggestion-text">
+                <strong>${invFinderEscape(name)}</strong>
+                <small>${invFinderEscape(pid)} · ${invFinderEscape(details)}</small>
+            </span>
+            <span class="inv-mobile-material-suggestion-qty">${invFinderEscape(invFinderQty(balVal))}</span>
+        </button>`;
+    }
+
+    function renderInventoryMobileMaterialFinderSelected(item) {
+        const results = document.getElementById('inv-mobile-material-results');
+        const status = document.getElementById('inv-mobile-material-status');
+        const suggestions = document.getElementById('inv-mobile-material-suggestions');
+        if (suggestions) suggestions.innerHTML = '';
+        if (status) status.textContent = 'Previewing selected material.';
+        if (results) results.innerHTML = renderInventoryMobileMaterialCard(item);
+    }
+
+    function renderInventoryMobileMaterialCard(item) {
+        const pid = invFinderProductId(item) || 'No ID';
+        const name = invFinderProductName(item) || 'Unnamed Item';
+        const details = invFinderDetails(item) || 'No details available';
+        const stockQty = invFinderQty(item.stockQty ?? item.stock ?? item.quantity ?? 0);
+        const movedQty = invFinderQty(item.transferredQty ?? item.issuedQty ?? item.usedQty ?? 0);
+        const balVal = invFinderNumber(item.balanceQty ?? item.availableQty ?? item.available ?? item.stockQty ?? 0);
+        const balance = invFinderQty(balVal);
+        const photoUrl = invFinderPhotoUrl(item);
+        const movements = getInventoryMaterialMovements(item);
+        const balanceClass = balVal <= 0 ? 'danger' : (balVal <= 5 ? 'warning' : 'ok');
+
+        const photoHtml = photoUrl
+            ? `<a class="inv-mobile-material-photo-link" href="${invFinderEscape(photoUrl)}" target="_blank" rel="noopener"><img src="${invFinderEscape(photoUrl)}" alt="${invFinderEscape(name)}" loading="lazy" onerror="this.closest('.inv-mobile-material-photo-link').classList.add('photo-error'); this.remove();"></a>`
+            : `<div class="inv-mobile-material-photo-placeholder"><i class="fa-solid fa-image"></i><span>No Photo</span></div>`;
+
+        const historyHtml = movements.length
+            ? movements.map(move => {
+                const m = invFinderMovementLine(move);
+                return `<div class="inv-mobile-material-history-row">
+                    <div class="history-main"><strong>${invFinderEscape(m.type)}</strong><span>${invFinderEscape(m.status)}</span></div>
+                    <div class="history-route"><i class="fa-solid fa-location-dot"></i> ${invFinderEscape(m.from)} <i class="fa-solid fa-arrow-right-long"></i> ${invFinderEscape(m.to)}</div>
+                    <div class="history-meta"><span>Qty: ${invFinderEscape(m.qty || '0')}</span><span>${invFinderEscape(m.date || '')}</span></div>
+                </div>`;
+            }).join('')
+            : `<div class="inv-mobile-material-history-empty">No recent movement found.</div>`;
+
+        return `<article class="inv-mobile-material-card">
+            <div class="inv-mobile-material-card-top">
+                <div class="inv-mobile-material-photo">${photoHtml}</div>
+                <div class="inv-mobile-material-info">
+                    <span class="inv-mobile-material-id">${invFinderEscape(pid)}</span>
+                    <h3>${invFinderEscape(name)}</h3>
+                    <p>${invFinderEscape(details)}</p>
+                </div>
+            </div>
+            <div class="inv-mobile-material-stats">
+                <div><span>Stock</span><strong>${invFinderEscape(stockQty)}</strong></div>
+                <div><span>Moved/Used</span><strong>${invFinderEscape(movedQty)}</strong></div>
+                <div class="${balanceClass}"><span>Available</span><strong>${invFinderEscape(balance)}</strong></div>
+            </div>
+            <div class="inv-mobile-material-history">
+                <div class="inv-mobile-material-history-title"><i class="fa-solid fa-clock-rotate-left"></i> Recent History</div>
+                ${historyHtml}
+            </div>
+        </article>`;
+    }
+
+    // Make helpers available for mobile router/switcher without making app.js larger.
+    window.ensureInventoryMobileMaterialFinderNav = ensureInventoryMobileMaterialFinderNav;
+    window.updateInventoryMobileMaterialFinderNavVisibility = updateInventoryMobileMaterialFinderNavVisibility;
+    window.openInventoryMobileMaterialFinder = openInventoryMobileMaterialFinder;
+    window.startInventoryMobileBarcodeScanner = startInventoryMobileBarcodeScanner;
+    window.stopInventoryMobileBarcodeScanner = stopInventoryMobileBarcodeScanner;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        ensureInventoryMobileMaterialFinderNav();
+        getMaterialFinderSection();
+        bindInventoryMobileMaterialFinderControls();
+        window.addEventListener('resize', updateInventoryMobileMaterialFinderNavVisibility);
+        window.addEventListener('beforeunload', () => stopInventoryMobileBarcodeScanner(false));
+    });
+})();

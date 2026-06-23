@@ -499,6 +499,8 @@ function updateWorkdeskModuleRoutingUI(moduleName) {
     // that convert the sidebar into a bottom nav with !important display styles.
     try { if (typeof enforceInventoryMobileNavVisibility === 'function') enforceInventoryMobileNavVisibility(); } catch (_) {}
     try { if (typeof enforceMaterialStockNavigationScope === 'function') enforceMaterialStockNavigationScope(inventoryMode ? 'inventory' : 'workdesk'); } catch (_) {}
+    try { if (typeof ensureInventoryMobileMaterialFinderNav === 'function') ensureInventoryMobileMaterialFinderNav(); } catch (_) {}
+    try { if (typeof updateInventoryMobileMaterialFinderNavVisibility === 'function') updateInventoryMobileMaterialFinderNavVisibility(); } catch (_) {}
 
     // 7.3.7: Keep the mobile module dropdown aligned with the active module.
     try {
@@ -543,6 +545,8 @@ function enforceInventoryMobileNavVisibility() {
     });
 
     try { if (typeof enforceMaterialStockNavigationScope === 'function') enforceMaterialStockNavigationScope(inventoryMode ? 'inventory' : 'workdesk'); } catch (_) {}
+    try { if (typeof ensureInventoryMobileMaterialFinderNav === 'function') ensureInventoryMobileMaterialFinderNav(); } catch (_) {}
+    try { if (typeof updateInventoryMobileMaterialFinderNavVisibility === 'function') updateInventoryMobileMaterialFinderNavVisibility(); } catch (_) {}
 }
 
 // 7.4.1 — Hard reset for mobile module switching.
