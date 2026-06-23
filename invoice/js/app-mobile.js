@@ -480,7 +480,8 @@ function updateWorkdeskModuleRoutingUI(moduleName) {
 
     // If Inventory is opened on mobile, always force the Inventory shell to Active Task.
     // Material Stock and Reporting are desktop-only for Inventory mobile.
-    if (inventoryMode && isMobile) {
+    const itemFinderOpen = (typeof isInventoryMobileMaterialFinderOpen === 'function') && isInventoryMobileMaterialFinderOpen();
+    if (inventoryMode && isMobile && !itemFinderOpen) {
         if (typeof forceInventoryMobileActiveTaskShell === 'function') {
             forceInventoryMobileActiveTaskShell();
         } else {
@@ -566,6 +567,7 @@ function forceInventoryMobileActiveTaskShell() {
     const inventoryMode = ((window.__ibaActiveModule || '').toLowerCase() === 'inventory') ||
         (document.body && document.body.classList.contains('inventory-mode'));
     if (!inventoryMode || !isMobile) return;
+    if (typeof isInventoryMobileMaterialFinderOpen === 'function' && isInventoryMobileMaterialFinderOpen()) return;
 
     try {
         if (document.body) document.body.classList.add('inventory-mode');
@@ -667,7 +669,7 @@ function bindMobileModuleSwitcher(el) {
     el.addEventListener('change', () => {
         const selected = String(el.value || '').toLowerCase();
         if (selected === 'inventory') {
-            try { window.__ibaActiveModule = 'inventory'; } catch (_) {}
+            try { window.__ibaActiveModule = 'inventory'; window.__ibaInventoryMobileSection = ''; } catch (_) {}
             if (document.body) document.body.classList.add('inventory-mode');
             if (typeof clearMobileActiveTaskCards === 'function') clearMobileActiveTaskCards();
             if (typeof updateActiveTaskModuleBadges === 'function') updateActiveTaskModuleBadges(0, 0, 'inventory');
@@ -688,7 +690,8 @@ function bindMobileModuleSwitcher(el) {
         }
 
         // Invoice/Task Management module
-        try { window.__ibaActiveModule = 'invoice'; } catch (_) {}
+        try { if (typeof clearInventoryMobileMaterialFinderState === 'function') clearInventoryMobileMaterialFinderState(); } catch (_) {}
+        try { window.__ibaActiveModule = 'invoice'; window.__ibaInventoryMobileSection = ''; } catch (_) {}
         if (document.body) document.body.classList.remove('inventory-mode');
         if (typeof updateWorkdeskModuleRoutingUI === 'function') updateWorkdeskModuleRoutingUI('workdesk');
         if (typeof syncMobileModuleSwitchers === 'function') syncMobileModuleSwitchers('invoice');

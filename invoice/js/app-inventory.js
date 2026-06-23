@@ -754,7 +754,10 @@ function renderInventoryMobileActiveTasks(tasks) {
     function openInventoryMobileMaterialFinder() {
         const section = getMaterialFinderSection();
         if (!section) return;
-        try { window.__ibaActiveModule = 'inventory'; } catch (_) {}
+        try {
+            window.__ibaActiveModule = 'inventory';
+            window.__ibaInventoryMobileSection = 'item-search';
+        } catch (_) {}
         if (document.body) document.body.classList.add('inventory-mode');
 
         document.querySelectorAll('#workdesk-view .workdesk-section, .workdesk-section').forEach(el => el.classList.add('hidden'));
@@ -1142,6 +1145,20 @@ function renderInventoryMobileActiveTasks(tasks) {
     }
 
     // Make helpers available for mobile router/switcher without making app.js larger.
+    function isInventoryMobileMaterialFinderOpen() {
+        const section = document.getElementById('wd-inv-mobile-material-finder');
+        const activeByState = String(window.__ibaInventoryMobileSection || '').toLowerCase() === 'item-search';
+        const activeByDom = !!(section && !section.classList.contains('hidden'));
+        return !!(activeByState || activeByDom);
+    }
+
+    function clearInventoryMobileMaterialFinderState() {
+        try { if (String(window.__ibaInventoryMobileSection || '').toLowerCase() === 'item-search') window.__ibaInventoryMobileSection = ''; } catch (_) {}
+        stopInventoryMobileBarcodeScanner(false);
+    }
+
+    window.isInventoryMobileMaterialFinderOpen = isInventoryMobileMaterialFinderOpen;
+    window.clearInventoryMobileMaterialFinderState = clearInventoryMobileMaterialFinderState;
     window.ensureInventoryMobileMaterialFinderNav = ensureInventoryMobileMaterialFinderNav;
     window.updateInventoryMobileMaterialFinderNavVisibility = updateInventoryMobileMaterialFinderNavVisibility;
     window.openInventoryMobileMaterialFinder = openInventoryMobileMaterialFinder;
