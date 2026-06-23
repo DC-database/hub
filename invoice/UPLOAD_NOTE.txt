@@ -1,11 +1,3 @@
-7.6.5 changed files only
-
-Upload/replace:
-- app.js
-- index.html
-- mobile.css
-- js/app-inventory.js
-
-No CRUD or stock-write changes. Barcode scan is mobile Inventory Item Search only.
-Camera scanning uses the browser BarcodeDetector API and requires HTTPS + camera permission.
-If a browser does not support BarcodeDetector, manual typing/search still works.
+7.6.6 changed files only
+Upload/replace: app.js, index.html, js/app-mobile.js, js/app-inventory.js
+Fix: Inventory mobile Item Search tab no longer gets forced back to Active Task after opening.

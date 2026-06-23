@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = "7.6.5";
+const APP_VERSION = "7.6.6";
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -19049,11 +19049,12 @@ if (inventoryButton) {
 
         // --- 4. POPULATE THE TABLE ---
         // Now that data is ready, run the logic to fill the table
-        if (typeof showWorkdeskSection === 'function') {
+        const itemFinderStillActive = String(window.__ibaInventoryMobileSection || '').toLowerCase() === 'item-search';
+        if (typeof showWorkdeskSection === 'function' && !itemFinderStillActive) {
             // Desktop opens Material Stock; mobile opens Inventory Active Task.
             await showWorkdeskSection(inventoryDefaultSection);
         }
-        if (typeof forceInventoryMobileActiveTaskShell === 'function') forceInventoryMobileActiveTaskShell();
+        if (!itemFinderStillActive && typeof forceInventoryMobileActiveTaskShell === 'function') forceInventoryMobileActiveTaskShell();
         if (typeof enforceInventoryMobileNavVisibility === 'function') enforceInventoryMobileNavVisibility();
         if (typeof refreshInventoryTaskBadgeOnly === 'function') {
             await refreshInventoryTaskBadgeOnly();
