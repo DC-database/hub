@@ -1,6 +1,6 @@
 // =================================================================================================
 // IBA — Inventory JS Foundation
-// Version: 7.7.9
+// Version: 7.9.4
 // Purpose: Inventory context/type helpers separated from app.js.
 // Keep this file lightweight. Do not move stock saving/approval logic here until later phases.
 // =================================================================================================
@@ -103,6 +103,102 @@ function getJobRecordsBaseEntriesForCurrentContext() {
 }
 
 
+
+// =================================================================================================
+// 7.8.1 — Inventory Job Records Active / Completed switch
+// Purpose: Keep open jobs separate from closed/completed jobs inside Inventory Job Records.
+// =================================================================================================
+function getInventoryJobRecordsStageFilter() {
+    const val = (window.inventoryJobRecordsStageFilter || 'Active').toString();
+    return val === 'Completed' ? 'Completed' : 'Active';
+}
+
+function setInventoryJobRecordsStageFilter(stage) {
+    window.inventoryJobRecordsStageFilter = (stage === 'Completed') ? 'Completed' : 'Active';
+}
+
+function getInventoryRecordStatusText(entry) {
+    return (entry?.remarks || entry?.status || entry?.transferStatus || entry?.jobStatus || '').toString().trim();
+}
+
+function isInventoryRecordCompletedOrClosed(entry) {
+    const st = getInventoryRecordStatusText(entry).toLowerCase();
+    if (!st) return false;
+
+    // Completed/received/closed records belong to the Completed folder.
+    // Rejected/cancelled records are also closed records, not active tasks.
+    return (
+        st.includes('completed') ||
+        st.includes('complete') ||
+        st.includes('received') ||
+        st.includes('final') ||
+        st.includes('closed') ||
+        st.includes('rejected') ||
+        st.includes('cancelled') ||
+        st.includes('canceled')
+    );
+}
+
+function ensureInventoryJobRecordsStageSwitch(counts = {}) {
+    const isInv = (typeof isInventoryContext === 'function') ? isInventoryContext() : false;
+    let wrap = document.getElementById('inventory-job-records-stage-switch');
+
+    if (!isInv) {
+        if (wrap) wrap.remove();
+        return;
+    }
+
+    const reportControls = document.querySelector('#wd-reporting .report-controls');
+    const printableArea = document.getElementById('reporting-printable-area');
+    const anchor = reportControls || printableArea;
+    if (!anchor || !anchor.parentNode) return;
+
+    if (!wrap) {
+        wrap = document.createElement('div');
+        wrap.id = 'inventory-job-records-stage-switch';
+        wrap.className = 'inv-job-stage-switch';
+        if (reportControls && reportControls.nextSibling) {
+            reportControls.parentNode.insertBefore(wrap, reportControls.nextSibling);
+        } else if (printableArea) {
+            printableArea.parentNode.insertBefore(wrap, printableArea);
+        } else {
+            anchor.parentNode.appendChild(wrap);
+        }
+    }
+
+    const activeCount = Number(counts.active || 0);
+    const completedCount = Number(counts.completed || 0);
+    const current = getInventoryJobRecordsStageFilter();
+
+    wrap.innerHTML = `
+        <button type="button" class="inv-stage-btn ${current === 'Active' ? 'active' : ''}" data-inv-stage="Active">
+            <span class="inv-stage-main">Active Jobs</span>
+            <span class="inv-stage-count">${activeCount}</span>
+        </button>
+        <button type="button" class="inv-stage-btn ${current === 'Completed' ? 'active' : ''}" data-inv-stage="Completed">
+            <span class="inv-stage-main">Completed / Closed</span>
+            <span class="inv-stage-count">${completedCount}</span>
+        </button>
+    `;
+
+    if (!wrap.dataset.bound) {
+        wrap.dataset.bound = '1';
+        wrap.addEventListener('click', (event) => {
+            const btn = event.target.closest('[data-inv-stage]');
+            if (!btn) return;
+            setInventoryJobRecordsStageFilter(btn.dataset.invStage || 'Active');
+            if (typeof filterAndRenderInventoryJobRecords === 'function') {
+                filterAndRenderInventoryJobRecords();
+            }
+        });
+    }
+}
+
+function removeInventoryJobRecordsStageSwitch() {
+    const wrap = document.getElementById('inventory-job-records-stage-switch');
+    if (wrap) wrap.remove();
+}
+
 // =================================================================================================
 // 7.5.5 — Inventory Job Records filtering + rendering
 // Purpose: Keep Inventory Job Records table ownership outside main app.js.
@@ -142,6 +238,20 @@ function filterAndRenderInventoryJobRecords(baseEntries = null) {
             );
         });
     }
+
+    const stageCounts = filteredEntries.reduce((acc, entry) => {
+        if (isInventoryRecordCompletedOrClosed(entry)) acc.completed += 1;
+        else acc.active += 1;
+        return acc;
+    }, { active: 0, completed: 0 });
+
+    ensureInventoryJobRecordsStageSwitch(stageCounts);
+
+    const stage = getInventoryJobRecordsStageFilter();
+    filteredEntries = filteredEntries.filter(entry => {
+        const completed = isInventoryRecordCompletedOrClosed(entry);
+        return stage === 'Completed' ? completed : !completed;
+    });
 
     renderInventoryJobRecordsTable(filteredEntries);
 }
@@ -373,6 +483,11 @@ function bindInventoryJobRecordGroupToggle() {
 }
 
 // Explicit exports for future module cleanup. Current code still uses classic global functions.
+window.getInventoryJobRecordsStageFilter = getInventoryJobRecordsStageFilter;
+window.setInventoryJobRecordsStageFilter = setInventoryJobRecordsStageFilter;
+window.isInventoryRecordCompletedOrClosed = isInventoryRecordCompletedOrClosed;
+window.ensureInventoryJobRecordsStageSwitch = ensureInventoryJobRecordsStageSwitch;
+window.removeInventoryJobRecordsStageSwitch = removeInventoryJobRecordsStageSwitch;
 window.isDirectInventoryOpenRequested = isDirectInventoryOpenRequested;
 window.isInventoryContext = isInventoryContext;
 window.isInventoryTaskRecord = isInventoryTaskRecord;
@@ -675,6 +790,34 @@ function renderInventoryMobileActiveTasks(tasks) {
 
     function invFinderNormalizeCode(value) {
         return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+
+
+    // 7.8.2 — QR label helpers for scan-to-item workflow.
+    // QR labels use a short stable value: Product ID first, then barcode, then Firebase key.
+    function invFinderQrValue(item) {
+        return String(invFinderProductId(item) || invFinderBarcodeText(item) || item?.key || '').trim();
+    }
+
+    function invFinderQrImageUrl(value, size = 220) {
+        const clean = String(value || '').trim();
+        if (!clean) return '';
+        const px = Math.max(120, Math.min(400, parseInt(size, 10) || 220));
+        return `https://api.qrserver.com/v1/create-qr-code/?size=${px}x${px}&margin=10&data=${encodeURIComponent(clean)}`;
+    }
+
+    function invFinderExtractScannedCode(rawValue) {
+        const raw = String(rawValue || '').trim();
+        if (!raw) return '';
+        try {
+            const url = new URL(raw);
+            const keys = ['item', 'productId', 'productID', 'pid', 'code', 'barcode'];
+            for (const key of keys) {
+                const val = String(url.searchParams.get(key) || '').trim();
+                if (val) return val;
+            }
+        } catch (_) {}
+        return raw;
     }
 
     function invFinderMatchText(item) {
@@ -1013,24 +1156,24 @@ function renderInventoryMobileActiveTasks(tasks) {
             <div class="inv-mobile-finder-search">
                 <div class="inv-mobile-search-box">
                     <i class="fa-solid fa-box-open"></i>
-                    <input id="inv-mobile-material-search-input" type="search" placeholder="Search item material or scan barcode..." autocomplete="off">
+                    <input id="inv-mobile-material-search-input" type="search" placeholder="Search item material or scan QR / barcode..." autocomplete="off">
                 </div>
                 <div class="inv-mobile-finder-actions">
-                    <button id="inv-mobile-material-scan" type="button" class="inv-mobile-scan-btn"><i class="fa-solid fa-barcode"></i> Scan</button>
+                    <button id="inv-mobile-material-scan" type="button" class="inv-mobile-scan-btn"><i class="fa-solid fa-qrcode"></i> Scan</button>
                     <button id="inv-mobile-material-search-clear" type="button" class="secondary-btn">Clear</button>
                 </div>
             </div>
             <div id="inv-mobile-barcode-scanner" class="inv-mobile-barcode-scanner hidden" aria-live="polite">
                 <div class="inv-mobile-barcode-box">
                     <div class="inv-mobile-barcode-head">
-                        <strong><i class="fa-solid fa-barcode"></i> Scan item barcode</strong>
+                        <strong><i class="fa-solid fa-qrcode"></i> Scan item QR / barcode</strong>
                         <button type="button" id="inv-mobile-barcode-close" aria-label="Close barcode scanner"><i class="fa-solid fa-xmark"></i></button>
                     </div>
                     <div class="inv-mobile-barcode-video-wrap">
                         <video id="inv-mobile-barcode-video" autoplay muted playsinline></video>
                         <div class="inv-mobile-barcode-guide"></div>
                     </div>
-                    <div id="inv-mobile-barcode-status" class="inv-mobile-barcode-status">Point camera at the barcode.</div>
+                    <div id="inv-mobile-barcode-status" class="inv-mobile-barcode-status">Point camera at the QR code or barcode.</div>
                 </div>
             </div>
             <div id="inv-mobile-material-suggestions" class="inv-mobile-material-suggestions" aria-live="polite"></div>
@@ -1082,10 +1225,16 @@ function renderInventoryMobileActiveTasks(tasks) {
             window.__ibaActiveModule = 'inventory';
             window.__ibaInventoryMobileSection = 'item-search';
         } catch (_) {}
-        if (document.body) document.body.classList.add('inventory-mode');
+        if (document.body) {
+            document.body.classList.add('inventory-mode');
+            document.body.classList.add('inventory-mobile-finder-active');
+            document.body.classList.remove('inventory-request-review-active');
+        }
+        try { closeInventoryRequestReview(); } catch (_) {}
 
         document.querySelectorAll('#workdesk-view .workdesk-section, .workdesk-section').forEach(el => el.classList.add('hidden'));
         section.classList.remove('hidden');
+        section.classList.add('is-open');
 
         document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a').forEach(a => a.classList.remove('active'));
         const link = document.getElementById('wd-nav-inv-mobile-material-search');
@@ -1128,6 +1277,7 @@ function renderInventoryMobileActiveTasks(tasks) {
                 if (input) input.value = `${invFinderProductName(item) || invFinderProductId(item)}`;
                 transferRequestFormItemKey = '';
                 renderInventoryMobileMaterialFinderSelected(item);
+                invMobileScrollToCenter(null, '#inv-mobile-material-results .inv-mobile-material-card');
             });
         }
         if (results && results.dataset.transferRequestBound !== '1') {
@@ -1163,7 +1313,7 @@ function renderInventoryMobileActiveTasks(tasks) {
         if (!scanner || !video) return;
 
         if (!('BarcodeDetector' in window)) {
-            const msg = 'Barcode scanning is not supported in this browser. Try Chrome on Android, or type the item code manually.';
+            const msg = 'QR / barcode scanning is not supported in this browser. Try Chrome on Android, or type the item code manually.';
             if (scannerStatus) scannerStatus.textContent = msg;
             if (status) status.textContent = msg;
             scanner.classList.remove('hidden');
@@ -1197,7 +1347,7 @@ function renderInventoryMobileActiveTasks(tasks) {
             });
             video.srcObject = barcodeScannerStream;
             await video.play();
-            if (scannerStatus) scannerStatus.textContent = 'Point camera at the barcode.';
+            if (scannerStatus) scannerStatus.textContent = 'Point camera at the QR code or barcode.';
 
             const scanLoop = async () => {
                 if (!barcodeScannerActive) return;
@@ -1266,19 +1416,20 @@ function renderInventoryMobileActiveTasks(tasks) {
         const scannerStatus = document.getElementById('inv-mobile-barcode-status');
         stopInventoryMobileBarcodeScanner();
 
-        if (input) input.value = rawValue;
-        if (scannerStatus) scannerStatus.textContent = `Scanned: ${rawValue}`;
+        const scanCode = invFinderExtractScannedCode(rawValue);
+        if (input) input.value = scanCode || rawValue;
+        if (scannerStatus) scannerStatus.textContent = `Scanned: ${scanCode || rawValue}`;
 
-        const exact = findInventoryMobileMaterialByBarcode(rawValue);
+        const exact = findInventoryMobileMaterialByBarcode(scanCode || rawValue);
         if (exact) {
-            if (input) input.value = invFinderProductName(exact) || invFinderProductId(exact) || rawValue;
-            if (status) status.textContent = `Barcode matched: ${invFinderProductName(exact) || invFinderProductId(exact)}`;
+            if (input) input.value = invFinderProductName(exact) || invFinderProductId(exact) || scanCode || rawValue;
+            if (status) status.textContent = `QR / barcode matched: ${invFinderProductName(exact) || invFinderProductId(exact)}`;
             renderInventoryMobileMaterialFinderSelected(exact);
             return;
         }
 
-        if (status) status.textContent = `Barcode scanned: ${rawValue}. No exact Product ID match. Showing suggestions.`;
-        renderInventoryMobileMaterialFinderSuggestions(rawValue);
+        if (status) status.textContent = `QR / barcode scanned: ${scanCode || rawValue}. No exact Product ID match. Showing suggestions.`;
+        renderInventoryMobileMaterialFinderSuggestions(scanCode || rawValue);
     }
 
     async function loadInventoryMobileMaterialFinderData() {
@@ -1352,11 +1503,122 @@ function renderInventoryMobileActiveTasks(tasks) {
         const suggestions = document.getElementById('inv-mobile-material-suggestions');
         if (suggestions) suggestions.innerHTML = '';
         if (results) {
-            results.innerHTML = '<div class="inv-mobile-material-empty"><i class="fa-solid fa-boxes-stacked"></i><strong>Search item material</strong><span>Type item name / ID or scan barcode, then pick one suggestion to preview.</span></div>';
+            results.innerHTML = '<div class="inv-mobile-material-empty"><i class="fa-solid fa-boxes-stacked"></i><strong>Search item material</strong><span>Type item name / ID or scan QR / barcode, then pick one suggestion to preview.</span></div>';
         }
         if (status) status.textContent = Array.isArray(materialCache)
             ? `${materialCache.length} material records available.`
-            : 'Type an item name or scan barcode, then pick one suggestion.';
+            : 'Type an item name or scan QR / barcode, then pick one suggestion.';
+    }
+
+    function invMobileScrollToCenter(target, fallbackSelector) {
+        // 7.9.3 — Stronger mobile refocus.
+        // scrollIntoView({ block:'center' }) is not reliable when the page has a sticky
+        // blue module header and fixed bottom nav. This centers the target inside the
+        // visible safe area instead of just bringing it barely into view.
+        const run = () => {
+            try {
+                const el = target || (fallbackSelector ? document.querySelector(fallbackSelector) : null);
+                if (!el) return;
+
+                const findScrollParent = (node) => {
+                    let cur = node && node.parentElement;
+                    while (cur && cur !== document.body && cur !== document.documentElement) {
+                        const st = window.getComputedStyle ? window.getComputedStyle(cur) : null;
+                        const oy = st ? String(st.overflowY || '') : '';
+                        if ((oy === 'auto' || oy === 'scroll') && cur.scrollHeight > cur.clientHeight + 8) return cur;
+                        cur = cur.parentElement;
+                    }
+                    return null;
+                };
+
+                const getFixedBottomHeight = () => {
+                    const candidates = [
+                        '.workdesk-footer-nav',
+                        '.mobile-bottom-nav',
+                        '#workdesk-mobile-bottom-nav',
+                        '#inventory-mobile-bottom-nav',
+                        '.bottom-mobile-nav'
+                    ];
+                    for (const sel of candidates) {
+                        const n = document.querySelector(sel);
+                        if (!n || n.classList.contains('hidden')) continue;
+                        const r = n.getBoundingClientRect();
+                        if (r.height > 20 && r.bottom > (window.innerHeight - 140)) return r.height;
+                    }
+                    return 74;
+                };
+
+                const getFixedHeaderBottom = () => {
+                    const candidates = [
+                        '.mobile-module-header',
+                        '.workdesk-mobile-header',
+                        '.inventory-mobile-header',
+                        '#workdesk-mobile-header',
+                        '#inventory-mobile-header'
+                    ];
+                    let maxBottom = 0;
+                    for (const sel of candidates) {
+                        const n = document.querySelector(sel);
+                        if (!n || n.classList.contains('hidden')) continue;
+                        const r = n.getBoundingClientRect();
+                        if (r.height > 20 && r.top <= 2) maxBottom = Math.max(maxBottom, r.bottom);
+                    }
+                    return maxBottom || 0;
+                };
+
+                const parent = findScrollParent(el);
+                if (parent) {
+                    const pr = parent.getBoundingClientRect();
+                    const er = el.getBoundingClientRect();
+                    const safeTop = pr.top + 16;
+                    const safeBottom = pr.bottom - 16;
+                    const desiredCenter = (safeTop + safeBottom) / 2;
+                    const delta = (er.top + er.height / 2) - desiredCenter;
+                    parent.scrollTo({ top: parent.scrollTop + delta, behavior: 'smooth' });
+                    return;
+                }
+
+                const er = el.getBoundingClientRect();
+                const safeTop = getFixedHeaderBottom() + 12;
+                const safeBottom = (window.innerHeight || document.documentElement.clientHeight || 700) - getFixedBottomHeight() - 12;
+                const desiredCenter = (safeTop + safeBottom) / 2;
+                const delta = (er.top + er.height / 2) - desiredCenter;
+                window.scrollBy({ top: delta, behavior: 'smooth' });
+            } catch (_) {
+                try {
+                    const el = target || (fallbackSelector ? document.querySelector(fallbackSelector) : null);
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+                } catch (__) {}
+            }
+        };
+        setTimeout(run, 90);
+        setTimeout(run, 320);
+    }
+
+    function closeInventoryMobileMaterialFinder() {
+        try { window.__ibaInventoryMobileSection = ''; } catch (_) {}
+        const section = document.getElementById('wd-inv-mobile-material-finder');
+        if (section) {
+            section.classList.add('hidden');
+            section.classList.remove('is-open');
+        }
+        if (document.body) document.body.classList.remove('inventory-mobile-finder-active');
+        const link = document.getElementById('wd-nav-inv-mobile-material-search');
+        if (link) link.classList.remove('active');
+        try { stopInventoryMobileBarcodeScanner(false); } catch (_) {}
+    }
+
+    function bindInventoryMobileMaterialFinderAutoClose() {
+        if (window.__ibaInvFinderAutoCloseBound === true) return;
+        window.__ibaInvFinderAutoCloseBound = true;
+        document.addEventListener('click', (e) => {
+            const itemSearchLink = e.target && e.target.closest ? e.target.closest('#wd-nav-inv-mobile-material-search') : null;
+            if (itemSearchLink) return;
+            const insideFinder = e.target && e.target.closest ? e.target.closest('#wd-inv-mobile-material-finder') : null;
+            if (insideFinder) return;
+            const navClick = e.target && e.target.closest ? e.target.closest('#workdesk-nav a, .workdesk-footer-nav a, #im-nav a, #invoice-management-view a, #dashboard a, #dashboard button, .dashboard-card, .menu-card, .nav-link, .mobile-module-switcher-select') : null;
+            if (navClick) closeInventoryMobileMaterialFinder();
+        }, true);
     }
 
     function findInventoryMobileMaterialByKey(key) {
@@ -1375,6 +1637,7 @@ function renderInventoryMobileActiveTasks(tasks) {
             }
             transferRequestFormItemKey = item.key || '';
             renderInventoryMobileMaterialFinderSelected(item);
+            invMobileScrollToCenter(null, '#inv-mobile-material-results .inv-transfer-request-form, #inv-mobile-material-results .inv-mobile-material-card');
             return;
         }
 
@@ -1416,6 +1679,16 @@ function renderInventoryMobileActiveTasks(tasks) {
         const checkoutBtn = event.target.closest('[data-inv-transfer-request-checkout]');
         if (checkoutBtn) {
             submitInventoryTransferRequestCart();
+            return;
+        }
+
+        const qrPrintBtn = event.target.closest('[data-inv-qr-print-label]');
+        if (qrPrintBtn) {
+            const key = qrPrintBtn.getAttribute('data-material-key') || document.querySelector('.inv-mobile-material-card')?.getAttribute('data-material-key') || '';
+            const item = findInventoryMobileMaterialByKey(key);
+            if (item) printInventoryMobileQrLabel(item, qrPrintBtn.getAttribute('data-inv-qr-print-label') || 'thermal');
+            else alert('Unable to find selected item for QR label.');
+            return;
         }
     }
 
@@ -1484,6 +1757,7 @@ function renderInventoryMobileActiveTasks(tasks) {
         transferRequestFormItemKey = '';
         if (status) status.textContent = 'Item added to transfer request cart.';
         renderInventoryMobileMaterialFinderSelected(item);
+        invMobileScrollToCenter(null, '#inv-mobile-material-results .inv-transfer-request-cart, #inv-mobile-material-results .inv-mobile-material-card');
     }
 
     function removeInventoryTransferRequestCartItem(cartId) {
@@ -1539,6 +1813,82 @@ function renderInventoryMobileActiveTasks(tasks) {
             if (status) status.textContent = 'Transfer request failed to submit.';
             alert('Transfer request failed. Please try again.');
         }
+    }
+
+    function renderInventoryQrLabelBlock(item) {
+        const qrValue = invFinderQrValue(item);
+        if (!qrValue) return '';
+        const qrUrl = invFinderQrImageUrl(qrValue, 220);
+        const key = invFinderEscape(item?.key || '');
+        const pid = invFinderProductId(item) || qrValue;
+        return `<details class="inv-mobile-qr-label-card inv-mobile-qr-label-collapsed">
+            <summary class="inv-mobile-qr-label-summary">
+                <span><i class="fa-solid fa-qrcode"></i> QR Label <em>Optional</em></span>
+                <small>Tap only if you need to print item label</small>
+                <i class="fa-solid fa-chevron-down inv-mobile-qr-label-chevron"></i>
+            </summary>
+            <div class="inv-mobile-qr-label-content">
+                <div class="inv-mobile-qr-label-head">
+                    <div><strong><i class="fa-solid fa-tag"></i> Print Item Label</strong><span>Use this only when site wants a physical QR label.</span></div>
+                </div>
+                <div class="inv-mobile-qr-label-body">
+                    <img src="${invFinderEscape(qrUrl)}" alt="QR code for ${invFinderEscape(pid)}" loading="lazy">
+                    <div><span>QR Value</span><strong>${invFinderEscape(qrValue)}</strong><small>Use Product ID as the label code for reliable scanning.</small></div>
+                </div>
+                <div class="inv-mobile-qr-label-actions">
+                    <button type="button" data-inv-qr-print-label="thermal" data-material-key="${key}"><i class="fa-solid fa-tag"></i> Label Printer</button>
+                    <button type="button" data-inv-qr-print-label="office" data-material-key="${key}"><i class="fa-solid fa-file-pdf"></i> Office / PDF</button>
+                </div>
+                <div class="inv-mobile-qr-label-note">Label Printer uses 50mm × 30mm layout. Office/PDF uses an A4-friendly layout.</div>
+            </div>
+        </details>`;
+    }
+
+    function invFinderShortText(value, max = 34) {
+        const clean = String(value || '').replace(/\s+/g, ' ').trim();
+        if (clean.length <= max) return clean;
+        return clean.slice(0, Math.max(0, max - 1)).trim() + '…';
+    }
+
+    function printInventoryMobileQrLabel(item, mode = 'thermal') {
+        const qrValue = invFinderQrValue(item);
+        if (!qrValue) { alert('This item has no Product ID / code to generate QR.'); return; }
+        const pid = invFinderProductId(item) || qrValue;
+        const name = invFinderProductName(item) || 'Inventory Item';
+        const details = invFinderDetails(item) || '';
+        const isOffice = String(mode || '').toLowerCase() === 'office';
+        const qrUrl = invFinderQrImageUrl(qrValue, isOffice ? 320 : 260);
+        const safePid = invFinderEscape(pid);
+        const shortName = invFinderShortText(name, isOffice ? 58 : 30);
+        const shortDetails = invFinderShortText(details, isOffice ? 80 : 26);
+        const title = isOffice ? `QR Office/PDF - ${safePid}` : `QR Thermal Label - ${safePid}`;
+        const thermalStyle = `
+            @page{size:50mm 30mm;margin:0}
+            html,body{width:50mm;height:30mm;margin:0;padding:0;overflow:hidden;background:#fff;color:#111;font-family:Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+            .toolbar{display:none}.label{width:50mm;height:30mm;box-sizing:border-box;padding:1.6mm 1.8mm;display:grid;grid-template-columns:21mm 1fr;gap:1.5mm;align-items:center;overflow:hidden;border:0}
+            .qr{width:21mm;height:21mm;display:flex;align-items:center;justify-content:center}.qr img{width:20.5mm;height:20.5mm;display:block}
+            .txt{min-width:0;overflow:hidden}.brand{font-size:6.6pt;font-weight:900;line-height:1;margin:0 0 1.3mm 0;white-space:nowrap}.name{font-size:6.2pt;font-weight:800;line-height:1.12;margin:0 0 1mm 0;max-height:14pt;overflow:hidden}.code{font-size:6.6pt;font-weight:900;line-height:1.1;word-break:break-all;margin:0 0 .8mm 0}.details{font-size:5.2pt;line-height:1.05;color:#333;max-height:11pt;overflow:hidden}.hint{font-size:4.8pt;color:#555;margin-top:.7mm}@media print{.toolbar{display:none!important}}
+        `;
+        const officeStyle = `
+            @page{size:A4;margin:12mm}
+            html,body{margin:0;padding:0;background:#f6f8fb;color:#111;font-family:Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+            .toolbar{position:sticky;top:0;background:#0f2942;color:#fff;padding:10px 12px;font-size:12px;display:flex;gap:8px;align-items:center;justify-content:space-between}.toolbar button{border:0;border-radius:8px;background:#14b8a6;color:#fff;font-weight:800;padding:8px 10px}.toolbar span{opacity:.9}
+            .sheet{padding:14mm;display:flex;justify-content:center}.label{width:86mm;min-height:54mm;background:#fff;border:1px solid #111;border-radius:3mm;box-sizing:border-box;padding:5mm;display:grid;grid-template-columns:33mm 1fr;gap:5mm;align-items:center;box-shadow:0 8px 24px rgba(15,23,42,.12)}
+            .qr img{width:33mm;height:33mm;display:block}.brand{font-size:12pt;font-weight:900;margin:0 0 2mm 0}.name{font-size:10pt;font-weight:800;line-height:1.15;margin:0 0 2mm 0}.code{font-size:11pt;font-weight:900;border:1px solid #cbd5e1;border-radius:2mm;padding:1.5mm 2mm;display:inline-block;word-break:break-all}.details{font-size:8pt;color:#444;line-height:1.25;margin-top:2mm}.hint{font-size:7pt;color:#64748b;margin-top:2.5mm}@media print{body{background:#fff}.toolbar{display:none!important}.sheet{padding:0}.label{box-shadow:none}}
+        `;
+        const style = isOffice ? officeStyle : thermalStyle;
+        const bodyClass = isOffice ? 'office' : 'thermal';
+        const instruction = isOffice ? 'Office/PDF mode: choose printer or Save as PDF in the print dialog.' : 'Thermal label mode: use paper size 50mm × 30mm. Set scale to 100% if available.';
+        const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title>
+            <style>${style}</style></head><body class="${bodyClass}">
+            <div class="toolbar"><span>${invFinderEscape(instruction)}</span><button onclick="window.print()">Print / Save PDF</button></div>
+            <div class="sheet"><div class="label"><div class="qr"><img src="${invFinderEscape(qrUrl)}" alt="QR"></div><div class="txt"><div class="brand">IBA Inventory</div><div class="name">${invFinderEscape(shortName)}</div><div class="code">${invFinderEscape(qrValue)}</div>${shortDetails ? `<div class="details">${invFinderEscape(shortDetails)}</div>` : ''}<div class="hint">Scan QR to find item</div></div></div></div>
+            <script>window.onload=function(){setTimeout(function(){window.print();},450);};</script></body></html>`;
+        const w = window.open('', '_blank', isOffice ? 'width=820,height=700' : 'width=360,height=260');
+        if (!w) { alert('Popup blocked. Please allow popups to print QR label.'); return; }
+        w.document.open();
+        w.document.write(html);
+        w.document.close();
     }
 
     function renderInventoryTransferRequestForm(item) {
@@ -1718,6 +2068,7 @@ function renderInventoryMobileActiveTasks(tasks) {
             <div class="inv-mobile-material-stats single-stat">
                 <div class="${balanceClass}"><span>Available Stock</span><strong>${invFinderEscape(balance)}</strong></div>
             </div>
+            ${renderInventoryQrLabelBlock(item)}
             <div class="inv-mobile-material-history">
                 <div class="inv-mobile-material-history-title"><i class="fa-solid fa-clock-rotate-left"></i> Item Movement History</div>
                 ${historyHtml}
@@ -1743,14 +2094,26 @@ function renderInventoryMobileActiveTasks(tasks) {
         section.id = 'wd-inv-request-review';
         section.className = 'workdesk-section hidden inventory-request-review-section';
         section.innerHTML = `<div class="inventory-request-review-head">
-            <div><h1><i class="fa-solid fa-clipboard-list"></i> Inventory Request Review</h1><p>Pending mobile transfer requests from site.</p></div>
+            <div><h1><i class="fa-solid fa-clipboard-list"></i> Inventory Request Review</h1><p>Mobile transfer requests from site. Default view shows pending requests only.</p></div>
             <button type="button" id="inv-request-review-refresh" class="secondary-btn"><i class="fa-solid fa-rotate"></i> Refresh</button>
+        </div>
+        <div class="inventory-request-review-toolbar">
+            <label>Show
+                <select id="inv-request-review-filter">
+                    <option value="pending" selected>Pending</option>
+                    <option value="converted">Converted</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="all">All</option>
+                </select>
+            </label>
         </div>
         <div id="inv-request-review-status" class="inventory-request-review-status">Loading requests...</div>
         <div id="inv-request-review-list" class="inventory-request-review-list"></div>`;
         main.appendChild(section);
         const refresh = section.querySelector('#inv-request-review-refresh');
         if (refresh) refresh.addEventListener('click', loadInventoryRequestReviewList);
+        const filter = section.querySelector('#inv-request-review-filter');
+        if (filter) filter.addEventListener('change', loadInventoryRequestReviewList);
         const list = section.querySelector('#inv-request-review-list');
         if (list && list.dataset.bound !== '1') {
             list.dataset.bound = '1';
@@ -1827,14 +2190,20 @@ function renderInventoryMobileActiveTasks(tasks) {
         window.__ibaInvRequestConvertFallbackBound = true;
         document.addEventListener('click', (event) => {
             const convertBtn = event.target && event.target.closest ? event.target.closest('[data-inv-request-convert]') : null;
+            const rejectBtn = event.target && event.target.closest ? event.target.closest('[data-inv-request-reject]') : null;
             const deleteBtn = event.target && event.target.closest ? event.target.closest('[data-inv-request-delete]') : null;
-            const btn = convertBtn || deleteBtn;
+            const btn = convertBtn || rejectBtn || deleteBtn;
             if (!btn || !btn.closest('#wd-inv-request-review')) return;
             event.preventDefault();
             event.stopPropagation();
             if (convertBtn) {
                 const code = convertBtn.getAttribute('data-inv-request-convert') || convertBtn.getAttribute('data-inv-request-code') || '';
                 convertInventoryRequestToOfficialTransfer(code, convertBtn);
+                return;
+            }
+            if (rejectBtn) {
+                const code = rejectBtn.getAttribute('data-inv-request-reject') || rejectBtn.getAttribute('data-inv-request-code') || '';
+                rejectInventoryRequest(code, rejectBtn);
                 return;
             }
             if (deleteBtn) {
@@ -1855,7 +2224,9 @@ function renderInventoryMobileActiveTasks(tasks) {
         if (document.body) {
             document.body.classList.add('inventory-mode');
             document.body.classList.add('inventory-request-review-active');
+            document.body.classList.remove('inventory-mobile-finder-active');
         }
+        try { closeInventoryMobileMaterialFinder(); } catch (_) {}
         document.querySelectorAll('#workdesk-view .workdesk-section, .workdesk-section').forEach(el => el.classList.add('hidden'));
         section.classList.remove('hidden');
         section.classList.add('is-open');
@@ -1884,24 +2255,44 @@ function renderInventoryMobileActiveTasks(tasks) {
         }
     }
 
+    function invRequestStatusBucket(status) {
+        const s = String(status || '').trim().toLowerCase();
+        if (s === 'pending office review' || s === 'pending' || !s) return 'pending';
+        if (s.includes('converted')) return 'converted';
+        if (s.includes('reject')) return 'rejected';
+        if (s.includes('delete')) return 'deleted';
+        return s.replace(/\s+/g, '-');
+    }
+
     async function loadInventoryRequestReviewList() {
         const list = document.getElementById('inv-request-review-list');
         const status = document.getElementById('inv-request-review-status');
+        const filterEl = document.getElementById('inv-request-review-filter');
+        const activeFilter = invRequestSafeText(filterEl?.value || 'pending').toLowerCase() || 'pending';
+        const filterLabelMap = { pending: 'pending', converted: 'converted', rejected: 'rejected', all: 'all' };
+        const label = filterLabelMap[activeFilter] || activeFilter;
         if (!list) return;
-        if (status) status.textContent = 'Loading pending requests...';
+        if (status) status.textContent = `Loading ${label} requests...`;
         list.innerHTML = '';
         try {
             const dbRef = (typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null;
             if (!dbRef) throw new Error('Firebase database is not loaded.');
-            const snap = await dbRef.ref('inventory_requests').limitToLast(100).once('value');
+            const snap = await dbRef.ref('inventory_requests').limitToLast(150).once('value');
             const data = snap.val() || {};
-            const requests = Object.entries(data)
+            let requests = Object.entries(data)
                 .map(([key, value]) => ({ ...(value || {}), __firebaseKey: key, requestCode: invRequestSafeText(value?.requestCode || key) }))
-                .filter(r => String(r?.status || '').toLowerCase() === 'pending office review')
-                .sort((a,b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
-            if (status) status.textContent = requests.length ? `${requests.length} pending transfer request${requests.length === 1 ? '' : 's'}.` : 'No pending transfer request.';
+                .filter(r => {
+                    const bucket = invRequestStatusBucket(r?.status);
+                    if (activeFilter === 'all') return bucket !== 'deleted';
+                    return bucket === activeFilter;
+                })
+                .sort((a,b) => String(b.createdAt || b.convertedAt || b.rejectedAt || '').localeCompare(String(a.createdAt || a.convertedAt || a.rejectedAt || '')));
+
+            const noun = activeFilter === 'all' ? 'request' : `${label} request`;
+            if (status) status.textContent = requests.length ? `${requests.length} ${noun}${requests.length === 1 ? '' : 's'}.` : `No ${noun}${activeFilter === 'all' ? 's' : ''}.`;
             if (!requests.length) {
-                list.innerHTML = `<div class="inventory-request-empty"><i class="fa-solid fa-clipboard-check"></i><strong>No pending requests</strong><span>Mobile transfer requests will appear here.</span></div>`;
+                list.innerHTML = `<div class="inventory-request-empty"><i class="fa-solid fa-clipboard-check"></i><strong>No ${invFinderEscape(label)} requests</strong><span>Use the filter above to view Pending, Converted, or Rejected requests.</span></div>`;
+                refreshInventoryRequestReviewBadge();
                 return;
             }
             list.innerHTML = requests.map(renderInventoryRequestReviewCard).join('');
@@ -1912,6 +2303,7 @@ function renderInventoryMobileActiveTasks(tasks) {
             list.innerHTML = `<div class="inventory-request-empty"><i class="fa-solid fa-triangle-exclamation"></i><strong>Unable to load requests</strong><span>Please try refresh.</span></div>`;
         }
     }
+
 
 
     function invRequestSafeText(value) {
@@ -2235,6 +2627,68 @@ function renderInventoryMobileActiveTasks(tasks) {
         };
     }
 
+    function canRejectInventoryTransferRequests() {
+        return canAccessInventoryRequestReview();
+    }
+
+    async function rejectInventoryRequest(requestCode, button = null) {
+        if (!canRejectInventoryTransferRequests()) {
+            alert('You are not authorized to reject this request.');
+            return;
+        }
+        const code = invRequestSafeText(requestCode);
+        if (!code) {
+            alert('Reject failed: missing request code. Please refresh Request Review and try again.');
+            return;
+        }
+        const reason = prompt(`Reject ${code}?\n\nEnter rejection reason:`);
+        if (reason === null) return;
+        const cleanReason = invRequestSafeText(reason);
+        if (!cleanReason) {
+            alert('Please enter a rejection reason.');
+            return;
+        }
+
+        const originalText = button ? button.innerHTML : '';
+        try {
+            if (button) {
+                button.disabled = true;
+                button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Rejecting...';
+            }
+            const dbRef = (typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null;
+            if (!dbRef) throw new Error('Firebase database is not loaded.');
+            const reqRef = dbRef.ref(`inventory_requests/${code}`);
+            const snap = await reqRef.once('value');
+            const req = snap.val();
+            if (!req) throw new Error('Request not found.');
+            if (invRequestStatusBucket(req.status) !== 'pending') {
+                alert(`This request is already ${req.status || 'processed'} and cannot be rejected as pending.`);
+                loadInventoryRequestReviewList();
+                return;
+            }
+            const reviewer = invRequestUser();
+            await reqRef.update({
+                status: 'Rejected',
+                remarks: `Rejected: ${cleanReason}`,
+                rejectionReason: cleanReason,
+                rejectedBy: reviewer.name || 'Unknown',
+                rejectedByPosition: reviewer.position || '',
+                rejectedAt: new Date().toISOString()
+            });
+            alert(`${code} rejected.\n\nReason: ${cleanReason}`);
+            loadInventoryRequestReviewList();
+            refreshInventoryRequestReviewBadge();
+        } catch (err) {
+            console.error('Reject inventory request failed:', err);
+            alert(`Reject failed: ${err.message || err}`);
+        } finally {
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = originalText;
+            }
+        }
+    }
+
     async function deleteInventoryRequest(requestCode, button = null) {
         if (!canDeleteInventoryTransferRequests()) {
             alert('Only Logistic / COO / Super Admin can delete pending requests.');
@@ -2543,12 +2997,17 @@ function renderInventoryMobileActiveTasks(tasks) {
 
     function handleInventoryRequestReviewListClick(event) {
         const convertBtn = event.target.closest('[data-inv-request-convert]');
+        const rejectBtn = event.target.closest('[data-inv-request-reject]');
         const deleteBtn = event.target.closest('[data-inv-request-delete]');
-        if (!convertBtn && !deleteBtn) return;
+        if (!convertBtn && !rejectBtn && !deleteBtn) return;
         event.preventDefault();
         event.stopPropagation();
         if (convertBtn) {
             convertInventoryRequestToOfficialTransfer(convertBtn.getAttribute('data-inv-request-convert') || '', convertBtn);
+            return;
+        }
+        if (rejectBtn) {
+            rejectInventoryRequest(rejectBtn.getAttribute('data-inv-request-reject') || '', rejectBtn);
             return;
         }
         if (deleteBtn) deleteInventoryRequest(deleteBtn.getAttribute('data-inv-request-delete') || '', deleteBtn);
@@ -2558,8 +3017,16 @@ function renderInventoryMobileActiveTasks(tasks) {
         const items = Array.isArray(req.items) ? req.items : Object.values(req.items || {});
         const requestKey = invRequestSafeText(req.__firebaseKey || req.requestCode || '');
         const displayCode = invRequestSafeText(req.requestCode || requestKey);
+        const statusBucket = invRequestStatusBucket(req.status);
+        const isPending = statusBucket === 'pending';
         const itemsHtml = items.map(it => `<div class="inventory-request-review-item"><strong>${invFinderEscape(it.productName || it.productId || 'Item')}</strong><span>${invFinderEscape(it.productId || '')} · Qty ${invFinderEscape(invFinderQty(it.qty))}</span><small>${invFinderEscape(it.fromSiteLabel || it.fromSite || '')} → ${invFinderEscape(it.toSiteLabel || it.toSite || '')}${it.remarks ? ' · ' + invFinderEscape(it.remarks) : ''}</small></div>`).join('');
-        return `<article class="inventory-request-review-card" data-request-key="${invFinderEscape(requestKey)}">
+        const rejectionHtml = statusBucket === 'rejected'
+            ? `<div class="inventory-request-review-note is-rejected"><i class="fa-solid fa-ban"></i> Rejected by ${invFinderEscape(req.rejectedBy || '')}${req.rejectionReason ? ': ' + invFinderEscape(req.rejectionReason) : ''}</div>`
+            : '';
+        const convertedHtml = statusBucket === 'converted'
+            ? `<div class="inventory-request-review-note is-converted"><i class="fa-solid fa-circle-check"></i> Converted by ${invFinderEscape(req.convertedBy || '')}. Official transfer count: ${invFinderEscape(req.officialTransferCount || 0)}</div>`
+            : '';
+        return `<article class="inventory-request-review-card status-${invFinderEscape(statusBucket)}" data-request-key="${invFinderEscape(requestKey)}">
             <div class="inventory-request-review-card-head">
                 <div><span class="inventory-request-code">${invFinderEscape(displayCode)}</span><h3>${invFinderEscape(req.requestType || 'Transfer')} Request</h3></div>
                 <span class="inventory-request-status">${invFinderEscape(req.status || '')}</span>
@@ -2571,13 +3038,78 @@ function renderInventoryMobileActiveTasks(tasks) {
                 <span><b>Items:</b> ${items.length}</span>
             </div>
             <div class="inventory-request-review-items">${itemsHtml}</div>
-            <div class="inventory-request-review-note"><i class="fa-solid fa-shield-halved"></i> Stock will be re-checked before conversion. Conversion opens a designation form and creates official Transfer record(s) starting at Pending Source; no stock moves yet.</div>
+            ${rejectionHtml}${convertedHtml}
+            ${isPending ? `<div class="inventory-request-review-note"><i class="fa-solid fa-shield-halved"></i> Stock will be re-checked before conversion. If another request already consumed the stock, this request must be adjusted or rejected.</div>` : ''}
             <div class="inventory-request-review-actions">
-                ${canReviewInventoryTransferRequests() ? `<button type="button" class="primary-btn" data-inv-request-convert="${invFinderEscape(requestKey || displayCode)}" data-inv-request-code="${invFinderEscape(displayCode)}"><i class="fa-solid fa-right-left"></i> Convert / Designate</button>` : ''}
-                ${canDeleteInventoryTransferRequests() ? `<button type="button" class="danger-btn inv-request-delete-btn" data-inv-request-delete="${invFinderEscape(requestKey || displayCode)}" data-inv-request-code="${invFinderEscape(displayCode)}"><i class="fa-solid fa-trash-can"></i> Delete Request</button>` : ''}
+                ${isPending && canReviewInventoryTransferRequests() ? `<button type="button" class="primary-btn" data-inv-request-convert="${invFinderEscape(requestKey || displayCode)}" data-inv-request-code="${invFinderEscape(displayCode)}"><i class="fa-solid fa-right-left"></i> Convert / Designate</button>` : ''}
+                ${isPending && canRejectInventoryTransferRequests() ? `<button type="button" class="secondary-btn inv-request-reject-btn" data-inv-request-reject="${invFinderEscape(requestKey || displayCode)}" data-inv-request-code="${invFinderEscape(displayCode)}"><i class="fa-solid fa-ban"></i> Reject Request</button>` : ''}
+                ${statusBucket !== 'converted' && canDeleteInventoryTransferRequests() ? `<button type="button" class="danger-btn inv-request-delete-btn" data-inv-request-delete="${invFinderEscape(requestKey || displayCode)}" data-inv-request-code="${invFinderEscape(displayCode)}"><i class="fa-solid fa-trash-can"></i> Delete Request</button>` : ''}
             </div>
         </article>`;
     }
+
+
+
+    function buildInventoryRequestLineFromTransferTask(task) {
+        return {
+            productId: task?.productId || task?.productID || task?.productIDNo || task?.productIDNo || '',
+            productName: task?.productName || '',
+            details: task?.details || '',
+            fromSite: task?.fromSite || task?.fromLocation || '',
+            fromSiteLabel: task?.fromSite || task?.fromLocation || '',
+            qty: invFinderNumber(task?.orderedQty ?? task?.requiredQty ?? task?.approvedQty ?? task?.receivedQty ?? 0),
+            materialKey: task?.materialKey || '',
+            materialGroupKey: task?.materialGroupKey || ''
+        };
+    }
+
+    function isConvertedMobileRequestTransferTask(task) {
+        if (!task) return false;
+        const status = invRequestSafeText(task.remarks || task.status || '');
+        const type = invRequestSafeText(task.for || task.jobType || '');
+        if (type !== 'Transfer' || status !== 'Pending Source') return false;
+        return !!(task.convertedFromRequest || task.inventoryRequestCode || task.requestCode || String(task.source || '').includes('mobile-request'));
+    }
+
+    async function guardConvertedRequestSourceConfirmation(task) {
+        if (!isConvertedMobileRequestTransferTask(task)) return true;
+        const materialRows = await loadInventoryRequestMaterialRows();
+        const line = buildInventoryRequestLineFromTransferTask(task);
+        const check = validateInventoryRequestStockBeforeConvert({ items: [line] }, materialRows);
+        if (check.ok) return true;
+        alert(`Stock changed before source confirmation.\n\n${check.message || 'Requested qty is no longer available.'}\n\nPlease adjust/reject the related request or recreate the transfer with the current available stock.`);
+        return false;
+    }
+
+    function bindInventoryRequestSourceConfirmationStockGuard() {
+        if (window.__ibaInvSourceConfirmationStockGuardBound === true) return;
+        window.__ibaInvSourceConfirmationStockGuardBound = true;
+        let attempts = 0;
+        const tryWrap = () => {
+            attempts += 1;
+            if (typeof window.openTransferActionModal !== 'function') {
+                if (attempts < 30) setTimeout(tryWrap, 500);
+                return;
+            }
+            if (window.openTransferActionModal.__ibaSourceStockGuardWrapped) return;
+            const originalOpenTransferActionModal = window.openTransferActionModal;
+            window.openTransferActionModal = async function(task, ...args) {
+                try {
+                    const ok = await guardConvertedRequestSourceConfirmation(task);
+                    if (!ok) return;
+                } catch (err) {
+                    console.error('Source confirmation stock guard failed:', err);
+                    alert(`Unable to verify current stock before source confirmation. Please refresh and try again.\n\n${err.message || err}`);
+                    return;
+                }
+                return originalOpenTransferActionModal.apply(this, [task, ...args]);
+            };
+            window.openTransferActionModal.__ibaSourceStockGuardWrapped = true;
+        };
+        tryWrap();
+    }
+
+    bindInventoryRequestSourceConfirmationStockGuard();
 
     // Make helpers available for mobile router/switcher without making app.js larger.
     function isInventoryMobileMaterialFinderOpen() {
@@ -2588,14 +3120,13 @@ function renderInventoryMobileActiveTasks(tasks) {
     }
 
     function clearInventoryMobileMaterialFinderState() {
-        try { if (String(window.__ibaInventoryMobileSection || '').toLowerCase() === 'item-search') window.__ibaInventoryMobileSection = ''; } catch (_) {}
-        stopInventoryMobileBarcodeScanner(false);
+        closeInventoryMobileMaterialFinder();
     }
 
     // 7.6.7: Keep the Item Search public API grouped under one Inventory-owned namespace.
     // The older window-level names stay as aliases so app-mobile.js and app.js do not break.
     window.InventoryMobileMaterialFinder = Object.assign(window.InventoryMobileMaterialFinder || {}, {
-        version: '7.7.9',
+        version: '7.9.0',
         isOpen: isInventoryMobileMaterialFinderOpen,
         clearState: clearInventoryMobileMaterialFinderState,
         ensureNav: ensureInventoryMobileMaterialFinderNav,
@@ -2606,6 +3137,8 @@ function renderInventoryMobileActiveTasks(tasks) {
         canSubmitTransferRequest: canSubmitInventoryTransferRequest,
         canReviewRequests: canReviewInventoryTransferRequests,
         canDeleteRequests: canDeleteInventoryTransferRequests,
+        canRejectRequests: canRejectInventoryTransferRequests,
+        rejectRequest: rejectInventoryRequest,
         canAccessRequestReview: canAccessInventoryRequestReview,
         ensureRequestReviewNav: ensureInventoryRequestReviewNav,
         openRequestReview: openInventoryRequestReview,
@@ -2629,6 +3162,7 @@ function renderInventoryMobileActiveTasks(tasks) {
 
     document.addEventListener('DOMContentLoaded', () => {
         ensureInventoryMobileMaterialFinderNav();
+        bindInventoryMobileMaterialFinderAutoClose();
         ensureInventoryRequestReviewNav();
         getMaterialFinderSection();
         getInventoryRequestReviewSection();
@@ -2643,3 +3177,280 @@ function renderInventoryMobileActiveTasks(tasks) {
         window.addEventListener('beforeunload', () => stopInventoryMobileBarcodeScanner(false));
     });
 })();
+
+// ==========================================================================
+// Inventory In-Transit printable PDF helpers
+// Moved from app.js in v7.9.4 to keep Inventory-only reporting code together.
+// ==========================================================================
+
+function updateInTransitReportButtonVisibility() {
+    try {
+        if (!wdInTransitReportBtn) return;
+        const invCtx = (typeof isInventoryContext === 'function' && isInventoryContext());
+        const show = invCtx && !isMobileViewport();
+        wdInTransitReportBtn.style.display = show ? 'inline-flex' : 'none';
+
+        if (wdInTransitContactFilterSelect) {
+            wdInTransitContactFilterSelect.style.display = show ? 'inline-flex' : 'none';
+            if (show) {
+                populateInTransitContactFilterOptions();
+            }
+        }
+    } catch (e) {
+        // fail silently
+    }
+}
+
+function _normalizeContactLabel(val) {
+    return String(val || '').replace(/\s+/g, ' ').trim();
+}
+
+function getInTransitTransferEntries() {
+    return (allSystemEntries || [])
+        .filter(e => (e && e.source === 'transfer_entry'))
+        .filter(e => {
+            const status = String(e.remarks || e.status || '').trim().toLowerCase();
+            return status === 'in transit';
+        })
+        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+}
+
+async function populateInTransitContactFilterOptions() {
+    try {
+        if (!wdInTransitContactFilterSelect) return;
+        await ensureAllEntriesFetched(false);
+
+        const inTransit = getInTransitTransferEntries();
+        const map = new Map();
+
+        for (const e of inTransit) {
+            const label = _normalizeContactLabel(e.contactName || e.receiver || e.attention || e.contact || '');
+            if (!label) continue;
+            const key = label.toLowerCase();
+            if (!map.has(key)) map.set(key, label);
+        }
+
+        const stored = (localStorage && localStorage.getItem('wd_intransit_contact')) || '';
+        const current = _normalizeContactLabel(wdInTransitContactFilterSelect.value) || stored;
+        const contacts = Array.from(map.values()).sort((a, b) => a.localeCompare(b));
+
+        wdInTransitContactFilterSelect.innerHTML = [
+            `<option value="">All Contacts</option>`,
+            ...contacts.map(c => `<option value="${_inventoryEscapeHtml(c)}">${_inventoryEscapeHtml(c)}</option>`)
+        ].join('');
+
+        if (current && Array.from(wdInTransitContactFilterSelect.options).some(o => o.value === current)) {
+            wdInTransitContactFilterSelect.value = current;
+        }
+    } catch (e) {
+        // Silent failure to avoid breaking WorkDesk/Inventory page rendering.
+    }
+}
+
+function _inventoryEscapeHtml(val) {
+    const s = (val === null || val === undefined) ? '' : String(val);
+    return s
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function inventoryPrintHtmlInHiddenFrame(html, frameId = 'inventory-print-frame') {
+    const oldFrame = document.getElementById(frameId);
+    if (oldFrame) oldFrame.remove();
+
+    const iframe = document.createElement('iframe');
+    iframe.id = frameId;
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.style.opacity = '0';
+    iframe.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    const doPrint = () => {
+        try {
+            const win = iframe.contentWindow;
+            if (!win) return;
+            win.focus();
+            win.print();
+        } catch (e) {
+            console.warn('Inventory print failed:', e);
+        }
+    };
+
+    const waitForImages = () => {
+        try {
+            const imgs = Array.from(doc.images || []);
+            if (!imgs.length) {
+                setTimeout(doPrint, 250);
+                return;
+            }
+
+            let pending = imgs.length;
+            const done = () => {
+                pending -= 1;
+                if (pending <= 0) setTimeout(doPrint, 250);
+            };
+
+            imgs.forEach(img => {
+                if (img.complete) done();
+                else {
+                    img.onload = done;
+                    img.onerror = done;
+                }
+            });
+
+            setTimeout(() => {
+                if (pending > 0) doPrint();
+            }, 2500);
+        } catch (e) {
+            setTimeout(doPrint, 300);
+        }
+    };
+
+    iframe.onload = waitForImages;
+    setTimeout(waitForImages, 400);
+}
+
+async function printInventoryInTransitReport() {
+    try {
+        await ensureAllEntriesFetched(false);
+
+        if (typeof populateInTransitContactFilterOptions === 'function') {
+            populateInTransitContactFilterOptions();
+        }
+
+        const inTransitAll = getInTransitTransferEntries();
+        const selectedContact = wdInTransitContactFilterSelect ? _normalizeContactLabel(wdInTransitContactFilterSelect.value) : '';
+        const selectedKey = selectedContact ? selectedContact.toLowerCase() : '';
+        const inTransit = selectedKey
+            ? inTransitAll.filter(e => _normalizeContactLabel(e.contactName || e.receiver || e.attention || e.contact || '').toLowerCase() === selectedKey)
+            : inTransitAll;
+
+        if (!inTransitAll.length) {
+            alert('No "In Transit" inventory records found.');
+            return;
+        }
+
+        if (!inTransit.length) {
+            alert(selectedContact
+                ? `No "In Transit" inventory records found for contact: ${selectedContact}`
+                : 'No "In Transit" inventory records found.');
+            return;
+        }
+
+        const now = new Date();
+        const printDate = now.toLocaleString('en-GB', { hour12: false });
+        const logoUrl = "https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/logo%20(1).png";
+
+        const rowsHtml = inTransit.map((e, idx) => {
+            const controlId = e.controlId || e.ref || e.controlNumber || '';
+            const product = e.productName || e.vendorName || '';
+            const route = e.site || '';
+            const ordered = (e.orderedQty ?? e.requiredQty ?? 0);
+            const delivered = (e.deliveredQty ?? e.receivedQty ?? 0);
+            const ship = e.shippingDate || '';
+            const arr = e.arrivalDate || '';
+            const contact = e.contactName || e.receiver || '';
+            const jobType = e.for || e.jobType || 'Transfer';
+            const status = e.remarks || e.status || 'In Transit';
+
+            return `
+                <tr>
+                    <td>${idx + 1}</td>
+                    <td>${_inventoryEscapeHtml(controlId)}</td>
+                    <td>${_inventoryEscapeHtml(jobType)}</td>
+                    <td>${_inventoryEscapeHtml(product)}</td>
+                    <td>${_inventoryEscapeHtml(route)}</td>
+                    <td style="text-align:right;">${_inventoryEscapeHtml(ordered)}</td>
+                    <td style="text-align:right;">${_inventoryEscapeHtml(delivered)}</td>
+                    <td>${_inventoryEscapeHtml(ship)}</td>
+                    <td>${_inventoryEscapeHtml(arr)}</td>
+                    <td>${_inventoryEscapeHtml(contact)}</td>
+                    <td><strong>${_inventoryEscapeHtml(status)}</strong></td>
+                </tr>
+            `;
+        }).join('');
+
+        const html = `
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Inventory In Transit Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 25px; color: #111; }
+        .header { display:flex; align-items:center; gap:15px; border-bottom: 2px solid #003A5C; padding-bottom: 10px; margin-bottom: 15px; }
+        .header img { height: 55px; width: auto; }
+        .meta { margin: 10px 0 15px; color:#444; font-size: 12px; display:flex; justify-content: space-between; gap:20px; flex-wrap:wrap;}
+        h2 { margin: 8px 0 0; font-size: 18px; color:#003A5C; }
+        table { width:100%; border-collapse: collapse; font-size: 12px; }
+        th, td { border: 1px solid #ddd; padding: 6px 8px; vertical-align: top; }
+        th { background: #f2f5f7; color:#003A5C; text-align: left; }
+        .summary { margin-top: 10px; font-size: 12px; color:#003A5C; font-weight: 700; }
+        @media print {
+            body { margin: 10mm; }
+            .no-print { display:none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="${logoUrl}" alt="IBA" crossorigin="anonymous"
+             onerror="this.style.display='none'; document.getElementById('fallbackLogo').style.display='block';" />
+        <div id="fallbackLogo" style="display:none; background:#003A5C; color:white; font-weight:900; font-size:26px; padding:6px 12px; letter-spacing:1px;">IBA</div>
+        <div>
+            <h2>Inventory – In Transit Report</h2>
+        </div>
+    </div>
+
+    <div class="meta">
+        <div><strong>Generated:</strong> ${_inventoryEscapeHtml(printDate)}</div>
+        <div><strong>Contact:</strong> ${selectedContact ? _inventoryEscapeHtml(selectedContact) : 'All'}</div>
+        <div><strong>Total In Transit:</strong> ${inTransit.length}</div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width:35px;">#</th>
+                <th style="width:110px;">Control ID</th>
+                <th style="width:80px;">Job</th>
+                <th>Product Name</th>
+                <th>Site Route</th>
+                <th style="width:80px;">Ordered</th>
+                <th style="width:80px;">Delivered</th>
+                <th style="width:95px;">Shipping</th>
+                <th style="width:95px;">Arrival</th>
+                <th style="width:120px;">Contact</th>
+                <th style="width:90px;">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${rowsHtml}
+        </tbody>
+    </table>
+
+    <div class="summary">Tip: Use your browser Print → “Save as PDF” to share with site teams.</div>
+</body>
+</html>`;
+
+        inventoryPrintHtmlInHiddenFrame(html, 'inventory-in-transit-print-frame');
+
+    } catch (error) {
+        console.error("printInventoryInTransitReport error:", error);
+        alert('Failed to generate the In Transit report.');
+    }
+}
+

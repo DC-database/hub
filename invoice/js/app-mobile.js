@@ -432,6 +432,7 @@ function updateWorkdeskModuleRoutingUI(moduleName) {
 
     try { window.__ibaActiveModule = inventoryMode ? 'inventory' : 'workdesk'; } catch (_) {}
     if (document.body) document.body.classList.toggle('inventory-mode', inventoryMode);
+    if (!inventoryMode) { try { if (typeof hardCloseInventoryDynamicMobileSections === 'function') hardCloseInventoryDynamicMobileSections(); } catch (_) {} }
 
     const isMobile = (typeof isMobileViewport === 'function') ? isMobileViewport() : ((window.innerWidth || 0) <= 768);
     const setLiDisplay = (selector, show) => {
@@ -562,6 +563,58 @@ function clearMobileActiveTaskCards() {
     } catch (_) {}
 }
 
+function hardCloseInventoryDynamicMobileSections() {
+    try { if (window.InventoryMobileMaterialFinder && typeof window.InventoryMobileMaterialFinder.clearState === 'function') window.InventoryMobileMaterialFinder.clearState(); } catch (_) {}
+    try { if (typeof clearInventoryMobileMaterialFinderState === 'function') clearInventoryMobileMaterialFinderState(); } catch (_) {}
+    try { if (typeof closeInventoryRequestReview === 'function') closeInventoryRequestReview(); } catch (_) {}
+    const finder = document.getElementById('wd-inv-mobile-material-finder');
+    if (finder) finder.classList.add('hidden');
+    const review = document.getElementById('wd-inv-request-review');
+    if (review) review.classList.add('hidden');
+    if (document.body) {
+        document.body.classList.remove('inventory-mobile-finder-active');
+        document.body.classList.remove('inventory-request-review-active');
+    }
+}
+
+
+// 7.9.0 — Dedicated mobile landing for Invoice / Task.
+// Mobile Invoice/Task must not land on the heavy Invoice Dashboard standby screen.
+// It uses the WorkDesk Active Task shell as the clean default, while Invoice Records
+// remains available through its own bottom-nav button.
+function forceInvoiceTaskMobileActiveTaskShell() {
+    const isMobile = (typeof isMobileViewport === 'function') ? isMobileViewport() : ((window.innerWidth || 0) <= 900);
+    if (!isMobile) return false;
+
+    try { if (typeof hardCloseInventoryDynamicMobileSections === 'function') hardCloseInventoryDynamicMobileSections(); } catch (_) {}
+    try { window.__ibaActiveModule = 'invoice'; window.__ibaInventoryMobileSection = ''; } catch (_) {}
+    if (document.body) {
+        document.body.classList.remove('inventory-mode');
+        document.body.classList.remove('inventory-mobile-finder-active');
+        document.body.classList.remove('inventory-request-review-active');
+        document.body.classList.remove('im-mobile-reporting-mode');
+    }
+
+    try { if (typeof syncMobileModuleSwitchers === 'function') syncMobileModuleSwitchers('invoice'); } catch (_) {}
+    try { if (typeof updateWorkdeskModuleRoutingUI === 'function') updateWorkdeskModuleRoutingUI('workdesk'); } catch (_) {}
+
+    if (typeof showView === 'function') showView('workdesk');
+
+    try {
+        document.querySelectorAll('#workdesk-view .workdesk-section').forEach(el => el.classList.add('hidden'));
+        const activeSection = document.getElementById('wd-activetask');
+        if (activeSection) activeSection.classList.remove('hidden');
+
+        document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a').forEach(a => a.classList.remove('active'));
+        const activeLink = document.querySelector('#workdesk-nav a[data-section="wd-activetask"]');
+        if (activeLink) activeLink.classList.add('active');
+    } catch (_) {}
+
+    try { if (typeof showWorkdeskSection === 'function') showWorkdeskSection('wd-activetask'); } catch (_) {}
+    try { if (typeof refreshActiveTaskList === 'function') refreshActiveTaskList(); } catch (_) {}
+    return true;
+}
+
 function forceInventoryMobileActiveTaskShell() {
     const isMobile = (typeof isMobileViewport === 'function') ? isMobileViewport() : ((window.innerWidth || 0) <= 768);
     const inventoryMode = ((window.__ibaActiveModule || '').toLowerCase() === 'inventory') ||
@@ -690,18 +743,24 @@ function bindMobileModuleSwitcher(el) {
         }
 
         // Invoice/Task Management module
-        try { if (typeof clearInventoryMobileMaterialFinderState === 'function') clearInventoryMobileMaterialFinderState(); } catch (_) {}
+        // 7.9.0: switch back to the WorkDesk Active Task shell, not the Invoice dashboard,
+        // and close Inventory-only dynamic sections so Item Finder cannot leak into other pages.
+        try { if (typeof hardCloseInventoryDynamicMobileSections === 'function') hardCloseInventoryDynamicMobileSections(); } catch (_) {}
         try { window.__ibaActiveModule = 'invoice'; window.__ibaInventoryMobileSection = ''; } catch (_) {}
         if (document.body) document.body.classList.remove('inventory-mode');
         if (typeof updateWorkdeskModuleRoutingUI === 'function') updateWorkdeskModuleRoutingUI('workdesk');
         if (typeof syncMobileModuleSwitchers === 'function') syncMobileModuleSwitchers('invoice');
 
-        if (typeof invoiceManagementButton !== 'undefined' && invoiceManagementButton) {
-            invoiceManagementButton.click();
-        } else if (typeof showView === 'function') {
-            showView('invoice-management');
-            if (typeof showIMSection === 'function') showIMSection('im-dashboard');
+        if (typeof showView === 'function') {
+            showView('workdesk');
+            if (typeof showWorkdeskSection === 'function') showWorkdeskSection('wd-activetask');
+            else {
+                document.querySelectorAll('.workdesk-section').forEach(el => el.classList.add('hidden'));
+                const activeSection = document.getElementById('wd-activetask');
+                if (activeSection) activeSection.classList.remove('hidden');
+            }
         }
+        try { if (typeof refreshActiveTaskList === 'function') refreshActiveTaskList(); } catch (_) {}
     });
 }
 
@@ -914,3 +973,87 @@ function imSyncMobileInvoiceSearchModalOptions() {
     const mobileSite = document.getElementById('im-mobile-site-filter');
     if (desktopSite && mobileSite) mobileSite.innerHTML = desktopSite.innerHTML;
 }
+
+
+// =================================================================================================
+// 7.9.3 — Mobile Invoice Records route repair
+// -------------------------------------------------------------------------------------------------
+// The Invoice/Task module defaults to the WorkDesk Active Task shell on mobile, so using the normal
+// Invoice Management button can intentionally redirect back to Active Task. The bottom-nav
+// Reporting/Invoice Records buttons must bypass that mobile dashboard redirect and open the
+// Invoice Records section directly.
+// =================================================================================================
+function openMobileInvoiceRecordsRoute() {
+    try { if (typeof hardCloseInventoryDynamicMobileSections === 'function') hardCloseInventoryDynamicMobileSections(); } catch (_) {}
+
+    try {
+        window.__ibaActiveModule = 'invoice';
+        window.__ibaInventoryMobileSection = '';
+    } catch (_) {}
+
+    if (document.body) {
+        document.body.classList.remove('inventory-mode');
+        document.body.classList.remove('inventory-mobile-finder-active');
+        document.body.classList.remove('inventory-request-review-active');
+    }
+
+    try { if (typeof syncMobileModuleSwitchers === 'function') syncMobileModuleSwitchers('invoice'); } catch (_) {}
+    try { if (typeof updateWorkdeskModuleRoutingUI === 'function') updateWorkdeskModuleRoutingUI('workdesk'); } catch (_) {}
+
+    try {
+        const appContainer = document.getElementById('app-container');
+        if (appContainer) appContainer.style.display = 'none';
+        if (document.body) document.body.classList.remove('login-background');
+        document.querySelectorAll('#workdesk-view, #invoice-management-view, #inventory-view').forEach(v => v.classList.add('hidden'));
+        const imView = document.getElementById('invoice-management-view');
+        if (imView) imView.classList.remove('hidden');
+    } catch (_) {
+        try { if (typeof showView === 'function') showView('invoice-management'); } catch (__) {}
+    }
+
+    try {
+        const imNavEl = document.getElementById('im-nav');
+        if (imNavEl) imNavEl.classList.remove('hidden');
+        document.querySelectorAll('#im-nav a, #workdesk-nav a, .workdesk-footer-nav a').forEach(a => a.classList.remove('active'));
+        const desktopReportingLink = document.querySelector('#im-nav a[data-section="im-reporting"]');
+        const mobileReportingLink = document.getElementById('im-nav-reporting-link-mobile') || document.getElementById('wd-im-reporting-link-mobile');
+        if (desktopReportingLink) desktopReportingLink.classList.add('active');
+        if (mobileReportingLink) mobileReportingLink.classList.add('active');
+    } catch (_) {}
+
+    try {
+        if (typeof showIMSection === 'function') {
+            showIMSection('im-reporting');
+        } else {
+            const content = document.getElementById('im-content-area');
+            if (content) content.querySelectorAll('.workdesk-section').forEach(sec => sec.classList.add('hidden'));
+            const reporting = document.getElementById('im-reporting');
+            if (reporting) reporting.classList.remove('hidden');
+        }
+    } catch (e) {
+        console.warn('Mobile Invoice Records route failed:', e);
+    }
+
+    try { if (typeof refreshInvoiceRecordsResponsiveIdentity === 'function') refreshInvoiceRecordsResponsiveIdentity(); } catch (_) {}
+    try { if (typeof activateMobileInvoiceRecordsIdentity === 'function') activateMobileInvoiceRecordsIdentity(); } catch (_) {}
+
+    try {
+        const reporting = document.getElementById('im-reporting');
+        if (reporting) reporting.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (_) {}
+}
+
+// Capture phase prevents the generic WorkDesk/IM mobile click handlers from rerouting this button
+// back to the Active Task shell before Invoice Records opens.
+document.addEventListener('click', function (event) {
+    const link = event.target && event.target.closest && event.target.closest('#wd-im-reporting-link-mobile, #im-nav-reporting-link-mobile');
+    if (!link) return;
+
+    const isMobile = (typeof isMobileViewport === 'function') ? isMobileViewport() : ((window.innerWidth || 0) <= 900);
+    if (!isMobile) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+    openMobileInvoiceRecordsRoute();
+}, true);
