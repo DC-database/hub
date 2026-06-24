@@ -1,6 +1,6 @@
 // =================================================================================================
 // IBA — Inventory JS Foundation
-// Version: 7.5.6
+// Version: 7.7.6
 // Purpose: Inventory context/type helpers separated from app.js.
 // Keep this file lightweight. Do not move stock saving/approval logic here until later phases.
 // =================================================================================================
@@ -603,7 +603,7 @@ function renderInventoryMobileActiveTasks(tasks) {
 
 
 // =================================================================================================
-// 7.6.5 — Inventory Mobile Material Finder (preview/search only)
+// 7.6.9 — Inventory Mobile Material Finder (preview/search only)
 // Purpose: Mobile-only item lookup with suggestion picker, photo, stock balance, and recent movement history.
 // No CRUD, no stock writes, no approval changes.
 // =================================================================================================
@@ -611,10 +611,18 @@ function renderInventoryMobileActiveTasks(tasks) {
     const PHOTO_BASE_URL = 'https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/DC%20Files/Photo/';
     let materialCache = null;
     let movementCache = null;
+    let siteCache = null;
     let isLoadingMaterials = false;
     let barcodeScannerStream = null;
     let barcodeScannerTimer = null;
     let barcodeScannerActive = false;
+
+    // 7.7.6 — Mobile Transfer Request Cart foundation + manual source-site picker.
+    // Request stage is separated from official transfer_entries so no stock movement happens here.
+    const TRANSFER_REQUEST_CART_KEY = 'iba_inventory_transfer_request_cart_v1';
+    const TRANSFER_REQUEST_SUBMIT_POSITIONS = ['site dc', 'procurement', 'coo', 'ceo', 'reception', 'logistic', 'storekeeper'];
+    const TRANSFER_REQUEST_REVIEW_POSITIONS = ['logistic', 'storekeeper'];
+    let transferRequestFormItemKey = '';
 
     function isInventoryFinderMobileActive() {
         const mobile = (typeof isMobileViewport === 'function') ? isMobileViewport() : ((window.innerWidth || 0) <= 900);
@@ -669,6 +677,309 @@ function renderInventoryMobileActiveTasks(tasks) {
     function invFinderMatchText(item) {
         return [invFinderProductId(item), invFinderProductName(item), invFinderDetails(item), invFinderBarcodeText(item), item?.family, item?.relationship]
             .map(v => String(v || '').toLowerCase()).join(' ');
+    }
+
+    function invSiteSafeKey(value) {
+        return String(value || '').trim().replace(/[.#$[\]]/g, '_');
+    }
+
+    function invSiteDisplayKey(value) {
+        return String(value || '').trim().replace(/_/g, ' ');
+    }
+
+    function invSiteNorm(value) {
+        return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+
+    function invReadCachedSites() {
+        try {
+            const raw = localStorage.getItem('cached_SITES');
+            if (!raw) return [];
+            const parsed = JSON.parse(raw);
+            const arr = Array.isArray(parsed?.data) ? parsed.data : (Array.isArray(parsed) ? parsed : []);
+            return arr.map(s => ({
+                site: String(s.site || s.Site || s.value || '').trim(),
+                description: String(s.description || s.Description || s.name || s.label || '').trim()
+            })).filter(s => s.site || s.description);
+        } catch (_) {
+            return [];
+        }
+    }
+
+    function buildInventorySiteCache(projectSites = null, materialObj = null) {
+        const map = new Map();
+        const add = (site, description = '') => {
+            const code = String(site || '').trim();
+            const desc = String(description || '').trim();
+            if (!code && !desc) return;
+            const key = invSiteNorm(code || desc);
+            if (!key) return;
+            const current = map.get(key) || {};
+            map.set(key, {
+                site: current.site || code || desc,
+                description: current.description || desc || ''
+            });
+        };
+
+        invReadCachedSites().forEach(s => add(s.site, s.description));
+
+        if (projectSites && typeof projectSites === 'object') {
+            Object.entries(projectSites).forEach(([key, val]) => {
+                if (val && typeof val === 'object') {
+                    add(val.site || val.siteNo || val.siteNumber || val.projectId || val.projectID || key, val.description || val.siteName || val.name || val.projectName || '');
+                } else {
+                    add(key, val);
+                }
+            });
+        }
+
+        if (materialObj && typeof materialObj === 'object') {
+            Object.values(materialObj).forEach(item => {
+                if (!item || typeof item !== 'object') return;
+                if (item.sites && typeof item.sites === 'object') {
+                    Object.keys(item.sites).forEach(siteKey => add(invSiteDisplayKey(siteKey), ''));
+                }
+                add(item.site || item.siteNo || item.siteNumber || item.site_name || item.siteName || item.location || item.projectSite || '', item.siteDescription || item.siteDesc || item.projectName || '');
+            });
+        }
+
+        return Array.from(map.values())
+            .filter(s => s.site || s.description)
+            .sort((a, b) => {
+                const na = parseInt(a.site, 10);
+                const nb = parseInt(b.site, 10);
+                if (!isNaN(na) && !isNaN(nb)) return na - nb;
+                return `${a.site} ${a.description}`.localeCompare(`${b.site} ${b.description}`);
+            });
+    }
+
+    function invSiteLabel(siteValue) {
+        const raw = String(siteValue || '').trim();
+        if (!raw) return '';
+        const norm = invSiteNorm(raw);
+        const hit = Array.isArray(siteCache) ? siteCache.find(s => invSiteNorm(s.site) === norm || invSiteNorm(s.description) === norm) : null;
+        if (hit && hit.description && invSiteNorm(hit.description) !== invSiteNorm(hit.site)) return `${hit.site} - ${hit.description}`;
+        return hit?.site || raw;
+    }
+
+    function invResolveSiteInput(input) {
+        const raw = String(input || '').trim();
+        if (!raw) return { site: '', siteName: '', label: '' };
+        const clean = raw.replace(/^site\s+/i, '').trim();
+        const beforeDash = clean.split(/\s+-\s+/)[0].trim();
+        const rawNorm = invSiteNorm(clean);
+        const beforeNorm = invSiteNorm(beforeDash);
+        const sites = Array.isArray(siteCache) ? siteCache : [];
+        let hit = sites.find(s =>
+            invSiteNorm(s.site) === rawNorm ||
+            invSiteNorm(s.description) === rawNorm ||
+            invSiteNorm(`${s.site} ${s.description}`) === rawNorm ||
+            invSiteNorm(`${s.site} - ${s.description}`) === rawNorm ||
+            invSiteNorm(s.site) === beforeNorm
+        );
+        if (!hit && rawNorm) {
+            hit = sites.find(s => invSiteNorm(s.description).includes(rawNorm) || invSiteNorm(s.site).includes(rawNorm));
+        }
+        if (hit) {
+            const label = hit.description ? `${hit.site} - ${hit.description}` : hit.site;
+            return { site: String(hit.site || '').trim(), siteName: String(hit.description || '').trim(), label };
+        }
+        return { site: beforeDash || clean, siteName: '', label: clean };
+    }
+
+    function invSiteOptionsHtml() {
+        const sites = Array.isArray(siteCache) ? siteCache : [];
+        return sites.map(s => {
+            const label = s.description ? `${s.site} - ${s.description}` : s.site;
+            return `<option value="${invFinderEscape(label)}"></option>`;
+        }).join('');
+    }
+
+    function invMaterialGroupKey(item) {
+        const pid = invFinderNormalizeCode(invFinderProductId(item));
+        if (pid) return `pid:${pid}`;
+        return `name:${invRequestNorm(invFinderProductName(item))}|${invRequestNorm(invFinderDetails(item))}`;
+    }
+
+    function invMaterialSameGroup(a, b) {
+        if (!a || !b) return false;
+        const aid = invFinderNormalizeCode(invFinderProductId(a));
+        const bid = invFinderNormalizeCode(invFinderProductId(b));
+        if (aid && bid) return aid === bid;
+        return invRequestNorm(invFinderProductName(a)) === invRequestNorm(invFinderProductName(b)) &&
+               invRequestNorm(invFinderDetails(a)) === invRequestNorm(invFinderDetails(b));
+    }
+
+    function invAddStockLocation(map, site, qty, item = null) {
+        const amount = invFinderNumber(qty);
+        if (amount <= 0) return;
+        let siteCode = invSiteDisplayKey(site || item?.site || item?.siteNo || item?.siteNumber || item?.site_name || item?.siteName || item?.location || item?.projectSite || invRequestUser().site || 'Unassigned');
+        const resolved = invResolveSiteInput(siteCode);
+        siteCode = resolved.site || siteCode;
+        const key = invSiteNorm(siteCode);
+        if (!key) return;
+        const current = map.get(key) || { site: siteCode, siteName: resolved.siteName || '', label: invSiteLabel(siteCode), qty: 0 };
+        current.qty += amount;
+        if (!current.siteName && resolved.siteName) current.siteName = resolved.siteName;
+        current.label = invSiteLabel(current.site);
+        map.set(key, current);
+    }
+
+    function getInventoryItemStockLocations(item) {
+        const map = new Map();
+        const list = Array.isArray(materialCache) ? materialCache : [];
+        const matches = list.filter(row => invMaterialSameGroup(row, item));
+        const rows = matches.length ? matches : [item];
+
+        rows.forEach(row => {
+            if (!row || typeof row !== 'object') return;
+            if (row.sites && typeof row.sites === 'object') {
+                Object.entries(row.sites).forEach(([siteKey, qty]) => invAddStockLocation(map, siteKey, qty, row));
+                return;
+            }
+            const qty = row.balanceQty ?? row.availableQty ?? row.available ?? row.stockQty ?? row.stock ?? row.quantity ?? 0;
+            const site = row.site || row.siteNo || row.siteNumber || row.site_name || row.siteName || row.location || row.projectSite || '';
+            invAddStockLocation(map, site, qty, row);
+        });
+
+        if (!map.size) {
+            const fallbackQty = invFinderNumber(item?.balanceQty ?? item?.availableQty ?? item?.available ?? item?.stockQty ?? 0);
+            invAddStockLocation(map, item?.site || item?.site_name || item?.siteName || invRequestUser().site || 'Unassigned', fallbackQty, item);
+        }
+
+        return Array.from(map.values()).sort((a, b) => {
+            const na = parseInt(a.site, 10);
+            const nb = parseInt(b.site, 10);
+            if (!isNaN(na) && !isNaN(nb)) return na - nb;
+            return String(a.site).localeCompare(String(b.site));
+        });
+    }
+
+    function getInventoryItemTotalAvailable(item) {
+        return getInventoryItemStockLocations(item).reduce((sum, loc) => sum + invFinderNumber(loc.qty), 0);
+    }
+
+    function getCartQtyForMaterialSource(cart, item, fromSite) {
+        const srcNorm = invSiteNorm(fromSite);
+        const groupKey = invMaterialGroupKey(item);
+        return (cart?.items || []).reduce((sum, it) => {
+            const sameGroup = (it.materialGroupKey && it.materialGroupKey === groupKey) ||
+                (invFinderNormalizeCode(it.productId) && invFinderNormalizeCode(it.productId) === invFinderNormalizeCode(invFinderProductId(item))) ||
+                (String(it.materialKey || '') && String(it.materialKey) === String(item?.key || ''));
+            if (!sameGroup) return sum;
+            if (invSiteNorm(it.fromSite) !== srcNorm) return sum;
+            return sum + invFinderNumber(it.qty);
+        }, 0);
+    }
+
+    function getTransferRequestSourceOptions(item, cart = null, toSiteValue = '') {
+        const toResolved = invResolveSiteInput(toSiteValue);
+        const toNorm = invSiteNorm(toResolved.site || toResolved.label || toSiteValue);
+        return getInventoryItemStockLocations(item).map(src => {
+            const available = invFinderNumber(src.qty);
+            const alreadyInCart = getCartQtyForMaterialSource(cart || readTransferRequestCart(), item, src.site);
+            const remaining = Math.max(0, available - alreadyInCart);
+            const sameAsTo = !!(toNorm && invSiteNorm(src.site) === toNorm);
+            return { ...src, available, alreadyInCart, remaining, sameAsTo };
+        });
+    }
+
+    function validateManualTransferRequestQty(item, requestedQty, fromSiteValue, toSiteValue, cart) {
+        const toResolved = invResolveSiteInput(toSiteValue);
+        const toNorm = invSiteNorm(toResolved.site || toResolved.label || toSiteValue);
+        const fromResolved = invResolveSiteInput(fromSiteValue);
+        const fromSite = fromResolved.site || fromResolved.label || fromSiteValue;
+        const fromNorm = invSiteNorm(fromSite);
+        if (!fromNorm) return { ok: false, message: 'Please select From Site.' };
+        if (toNorm && fromNorm === toNorm) return { ok: false, message: 'From Site and To Site cannot be the same.' };
+
+        const sources = getTransferRequestSourceOptions(item, cart, toSiteValue);
+        const src = sources.find(x => invSiteNorm(x.site) === fromNorm || invSiteNorm(x.label) === fromNorm || invSiteNorm(`${x.site} - ${x.siteName || ''}`) === fromNorm);
+        if (!src) return { ok: false, message: 'Selected From Site has no available stock for this item.' };
+        if (src.sameAsTo) return { ok: false, message: 'From Site and To Site cannot be the same.' };
+        if (src.remaining <= 0) return { ok: false, message: `No remaining stock is available from ${src.label || src.site}.` };
+        if (requestedQty > src.remaining) {
+            return { ok: false, message: `Requested qty is ${invFinderQty(requestedQty)}, but ${src.label || src.site} has only ${invFinderQty(src.remaining)} available for this request.` };
+        }
+        return {
+            ok: true,
+            toResolved,
+            fromResolved,
+            lines: [{
+                fromSite: src.site,
+                fromSiteName: src.siteName || fromResolved.siteName || '',
+                fromSiteLabel: src.label || fromResolved.label || invSiteLabel(src.site),
+                sourceAvailableQty: src.available,
+                sourceRemainingQty: src.remaining,
+                qty: requestedQty
+            }]
+        };
+    }
+
+    function invRequestUser() {
+        const u = window.currentUser || {};
+        return {
+            name: String(u.Name || u.username || u.name || '').trim(),
+            position: String(u.Position || u.position || '').trim(),
+            role: String(u.Role || u.role || '').trim(),
+            email: String(u.Email || u.email || '').trim(),
+            site: String(u.Site || u.site || '').trim()
+        };
+    }
+
+    function invRequestNorm(value) {
+        return String(value || '').trim().toLowerCase();
+    }
+
+    function invRequestIsSuperAdmin() {
+        try {
+            if (typeof window.isCurrentUserSuperAdmin === 'function' && window.isCurrentUserSuperAdmin()) return true;
+        } catch (_) {}
+        const user = invRequestUser();
+        const name = invRequestNorm(user.name);
+        const role = invRequestNorm(user.role);
+        const pos = invRequestNorm(user.position);
+        return name === 'irwin' || name === 'super admin' || role.includes('super') || pos.includes('super admin');
+    }
+
+    function invRequestPositionAllowed(allowed) {
+        if (invRequestIsSuperAdmin()) return true;
+        const pos = invRequestNorm(invRequestUser().position);
+        return allowed.some(p => pos === p || pos.includes(p));
+    }
+
+    function canSubmitInventoryTransferRequest() {
+        return invRequestPositionAllowed(TRANSFER_REQUEST_SUBMIT_POSITIONS);
+    }
+
+    function canReviewInventoryTransferRequests() {
+        return invRequestPositionAllowed(TRANSFER_REQUEST_REVIEW_POSITIONS);
+    }
+
+    function readTransferRequestCart() {
+        try {
+            const raw = localStorage.getItem(TRANSFER_REQUEST_CART_KEY);
+            const parsed = raw ? JSON.parse(raw) : null;
+            return parsed && Array.isArray(parsed.items) ? parsed : { requestType: 'Transfer', items: [] };
+        } catch (_) {
+            return { requestType: 'Transfer', items: [] };
+        }
+    }
+
+    function writeTransferRequestCart(cart) {
+        try { localStorage.setItem(TRANSFER_REQUEST_CART_KEY, JSON.stringify(cart || { requestType: 'Transfer', items: [] })); } catch (_) {}
+    }
+
+    function clearTransferRequestCart() {
+        try { localStorage.removeItem(TRANSFER_REQUEST_CART_KEY); } catch (_) {}
+    }
+
+    function transferRequestCode() {
+        const d = new Date();
+        const pad = n => String(n).padStart(2, '0');
+        const stamp = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+        const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+        return `TRFREQ-${stamp}-${rand}`;
     }
 
     function getMaterialFinderSection() {
@@ -746,9 +1057,11 @@ function renderInventoryMobileActiveTasks(tasks) {
 
     function updateInventoryMobileMaterialFinderNavVisibility() {
         const li = document.getElementById('wd-nav-inv-mobile-material-search')?.closest('li');
-        if (!li) return;
-        if (isInventoryFinderMobileActive()) li.style.removeProperty('display');
-        else li.style.setProperty('display', 'none', 'important');
+        if (li) {
+            if (isInventoryFinderMobileActive()) li.style.removeProperty('display');
+            else li.style.setProperty('display', 'none', 'important');
+        }
+        try { updateInventoryRequestReviewNavVisibility(); } catch (_) {}
     }
 
     function openInventoryMobileMaterialFinder() {
@@ -787,6 +1100,7 @@ function renderInventoryMobileActiveTasks(tasks) {
         const scanBtn = document.getElementById('inv-mobile-material-scan');
         const scannerClose = document.getElementById('inv-mobile-barcode-close');
         const suggestions = document.getElementById('inv-mobile-material-suggestions');
+        const results = document.getElementById('inv-mobile-material-results');
         if (input && input.dataset.bound !== '1') {
             input.dataset.bound = '1';
             input.addEventListener('input', () => renderInventoryMobileMaterialFinderSuggestions(input.value));
@@ -801,8 +1115,14 @@ function renderInventoryMobileActiveTasks(tasks) {
                 const item = findInventoryMobileMaterialByKey(key);
                 if (!item) return;
                 if (input) input.value = `${invFinderProductName(item) || invFinderProductId(item)}`;
+                transferRequestFormItemKey = '';
                 renderInventoryMobileMaterialFinderSelected(item);
             });
+        }
+        if (results && results.dataset.transferRequestBound !== '1') {
+            results.dataset.transferRequestBound = '1';
+            results.addEventListener('click', handleInventoryTransferRequestClick);
+            results.addEventListener('change', handleInventoryTransferRequestChange);
         }
         if (clearBtn && clearBtn.dataset.bound !== '1') {
             clearBtn.dataset.bound = '1';
@@ -959,9 +1279,10 @@ function renderInventoryMobileActiveTasks(tasks) {
             const dbRef = (typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null;
             if (!dbRef) throw new Error('Firebase database is not loaded.');
 
-            const [matSnap, moveSnap] = await Promise.all([
+            const [matSnap, moveSnap, siteSnap] = await Promise.all([
                 dbRef.ref('material_stock').once('value'),
-                dbRef.ref('transfer_entries').limitToLast(400).once('value')
+                dbRef.ref('transfer_entries').limitToLast(400).once('value'),
+                dbRef.ref('project_sites').once('value').catch(() => ({ val: () => null }))
             ]);
 
             const matObj = matSnap.val() || {};
@@ -969,12 +1290,14 @@ function renderInventoryMobileActiveTasks(tasks) {
 
             const moveObj = moveSnap.val() || {};
             movementCache = Object.entries(moveObj).map(([key, val]) => ({ key, ...(val || {}) }));
+            siteCache = buildInventorySiteCache(siteSnap?.val ? siteSnap.val() : null, matObj);
 
             if (status) status.textContent = materialCache.length ? 'Search ready.' : 'No material records found.';
         } catch (err) {
             console.error('Inventory mobile material finder load failed:', err);
             materialCache = [];
             movementCache = [];
+            siteCache = buildInventorySiteCache();
             if (status) status.textContent = 'Unable to load material records.';
         } finally {
             isLoadingMaterials = false;
@@ -982,19 +1305,24 @@ function renderInventoryMobileActiveTasks(tasks) {
     }
 
     function getInventoryMaterialMovements(item) {
-        const pid = invFinderProductId(item).toLowerCase();
-        const name = invFinderProductName(item).toLowerCase();
-        const detail = invFinderDetails(item).toLowerCase();
+        const pid = invFinderNormalizeCode(invFinderProductId(item));
+        const barcode = invFinderNormalizeCode(invFinderBarcodeText(item));
+        const name = invRequestNorm(invFinderProductName(item));
+        const detail = invRequestNorm(invFinderDetails(item));
         const moves = Array.isArray(movementCache) ? movementCache : [];
         return moves.filter(m => {
-            const mid = String(m.productId || m.productID || m.productCode || '').toLowerCase();
-            const mname = String(m.productName || m.vendorName || m.itemName || '').toLowerCase();
-            const mdetail = String(m.details || m.detail || '').toLowerCase();
-            return (pid && mid === pid) ||
-                   (pid && String(m.controlId || '').toLowerCase().includes(pid)) ||
-                   (name && mname && mname.includes(name)) ||
-                   (detail && mdetail && mdetail.includes(detail));
-        }).slice(-5).reverse();
+            const ids = [m.productId, m.productID, m.productCode, m.productIDNo, m.itemCode, m.sku]
+                .map(invFinderNormalizeCode).filter(Boolean);
+            if (pid && ids.includes(pid)) return true;
+            if (barcode && ids.includes(barcode)) return true;
+
+            // Backup only when the entry has no reliable Product ID. Keep this strict to avoid showing unrelated history.
+            const midMissing = !ids.length;
+            if (!midMissing) return false;
+            const mname = invRequestNorm(m.productName || m.vendorName || m.itemName || '');
+            const mdetail = invRequestNorm(m.details || m.detail || '');
+            return !!(name && detail && mname === name && mdetail === detail);
+        }).slice(-8).reverse();
     }
 
     function invFinderMovementLine(move) {
@@ -1023,6 +1351,251 @@ function renderInventoryMobileActiveTasks(tasks) {
     function findInventoryMobileMaterialByKey(key) {
         if (!Array.isArray(materialCache)) return null;
         return materialCache.find(item => String(item.key || '') === String(key || '')) || null;
+    }
+
+    function handleInventoryTransferRequestClick(event) {
+        const startBtn = event.target.closest('[data-inv-transfer-request-start]');
+        if (startBtn) {
+            const item = findInventoryMobileMaterialByKey(startBtn.getAttribute('data-material-key') || '');
+            if (!item) return;
+            if (!canSubmitInventoryTransferRequest()) {
+                alert('Transfer request is only available for approved positions.');
+                return;
+            }
+            transferRequestFormItemKey = item.key || '';
+            renderInventoryMobileMaterialFinderSelected(item);
+            return;
+        }
+
+        const cancelBtn = event.target.closest('[data-inv-transfer-request-cancel]');
+        if (cancelBtn) {
+            const item = findInventoryMobileMaterialByKey(cancelBtn.getAttribute('data-material-key') || '');
+            transferRequestFormItemKey = '';
+            if (item) renderInventoryMobileMaterialFinderSelected(item);
+            return;
+        }
+
+        const addBtn = event.target.closest('[data-inv-transfer-request-add]');
+        if (addBtn) {
+            const item = findInventoryMobileMaterialByKey(addBtn.getAttribute('data-material-key') || '');
+            if (item) addInventoryTransferRequestItem(item);
+            return;
+        }
+
+        const removeBtn = event.target.closest('[data-inv-transfer-request-remove]');
+        if (removeBtn) {
+            removeInventoryTransferRequestCartItem(removeBtn.getAttribute('data-cart-id') || '');
+            const currentKey = document.querySelector('.inv-mobile-material-card')?.getAttribute('data-material-key') || '';
+            const item = findInventoryMobileMaterialByKey(currentKey);
+            if (item) renderInventoryMobileMaterialFinderSelected(item);
+            return;
+        }
+
+        const clearBtn = event.target.closest('[data-inv-transfer-request-clear-cart]');
+        if (clearBtn) {
+            if (confirm('Clear the current transfer request cart?')) {
+                clearTransferRequestCart();
+                const currentKey = document.querySelector('.inv-mobile-material-card')?.getAttribute('data-material-key') || '';
+                const item = findInventoryMobileMaterialByKey(currentKey);
+                if (item) renderInventoryMobileMaterialFinderSelected(item);
+            }
+            return;
+        }
+
+        const checkoutBtn = event.target.closest('[data-inv-transfer-request-checkout]');
+        if (checkoutBtn) {
+            submitInventoryTransferRequestCart();
+        }
+    }
+
+    function handleInventoryTransferRequestChange(event) {
+        const sourcePick = event.target.closest('input[name="inv-transfer-request-from-pick"]');
+        if (sourcePick) {
+            const hidden = document.getElementById('inv-transfer-request-from');
+            if (hidden) hidden.value = sourcePick.value || '';
+        }
+    }
+
+    function addInventoryTransferRequestItem(item) {
+        const qtyEl = document.getElementById('inv-transfer-request-qty');
+        const fromEl = document.getElementById('inv-transfer-request-from');
+        const toEl = document.getElementById('inv-transfer-request-to');
+        const remarksEl = document.getElementById('inv-transfer-request-remarks');
+        const status = document.getElementById('inv-mobile-material-status');
+        const qty = invFinderNumber(qtyEl?.value);
+        const fromRaw = String(fromEl?.value || '').trim();
+        const toRaw = String(toEl?.value || '').trim();
+        const remarks = String(remarksEl?.value || '').trim();
+        if (!fromRaw) { alert('Please select From Site.'); fromEl?.focus(); return; }
+        if (!qty || qty <= 0) { alert('Please enter a valid quantity.'); qtyEl?.focus(); return; }
+        if (!toRaw) { alert('Please enter To Site.'); toEl?.focus(); return; }
+
+        const cart = readTransferRequestCart();
+        const split = validateManualTransferRequestQty(item, qty, fromRaw, toRaw, cart);
+        if (!split.ok) {
+            alert(split.message || 'Requested quantity is not available.');
+            qtyEl?.focus();
+            return;
+        }
+
+        const toSite = split.toResolved.site || split.toResolved.label || toRaw;
+        const toSiteName = split.toResolved.siteName || '';
+        const materialGroupKey = invMaterialGroupKey(item);
+        const toLabel = split.toResolved.label || invSiteLabel(toSite) || toRaw;
+        const addedAt = Date.now();
+        split.lines.forEach((line, idx) => {
+            const cartId = `${addedAt}-${idx}-${Math.random().toString(36).slice(2, 7)}`;
+            cart.items.push({
+                cartId,
+                productId: invFinderProductId(item),
+                productName: invFinderProductName(item),
+                details: invFinderDetails(item),
+                photoName: item?.photoName || item?.photo || '',
+                photoUrl: invFinderPhotoUrl(item),
+                qty: line.qty,
+                requestedTotalQty: qty,
+                fromSite: line.fromSite,
+                fromSiteName: line.fromSiteName || '',
+                fromSiteLabel: line.fromSiteLabel || invSiteLabel(line.fromSite),
+                toSite,
+                toSiteName,
+                toSiteLabel: toLabel,
+                remarks,
+                materialKey: item?.key || '',
+                materialGroupKey,
+                availableQty: line.sourceAvailableQty,
+                sourceAvailableQty: line.sourceAvailableQty,
+                sourceRemainingQty: line.sourceRemainingQty,
+                splitFromMultiSource: false
+            });
+        });
+        writeTransferRequestCart(cart);
+        transferRequestFormItemKey = '';
+        if (status) status.textContent = 'Item added to transfer request cart.';
+        renderInventoryMobileMaterialFinderSelected(item);
+    }
+
+    function removeInventoryTransferRequestCartItem(cartId) {
+        const cart = readTransferRequestCart();
+        cart.items = cart.items.filter(x => String(x.cartId) !== String(cartId));
+        if (cart.items.length) writeTransferRequestCart(cart);
+        else clearTransferRequestCart();
+    }
+
+    async function submitInventoryTransferRequestCart() {
+        const cart = readTransferRequestCart();
+        if (!cart.items.length) { alert('No items in transfer request cart.'); return; }
+        const user = invRequestUser();
+        const code = transferRequestCode();
+        const status = document.getElementById('inv-mobile-material-status');
+        const totalQty = cart.items.reduce((sum, it) => sum + invFinderNumber(it.qty), 0);
+        const fromSites = [...new Set(cart.items.map(it => String(it.fromSite || '').trim()).filter(Boolean))];
+        const toSites = [...new Set(cart.items.map(it => String(it.toSite || '').trim()).filter(Boolean))];
+        const payload = {
+            requestCode: code,
+            requestType: 'Transfer',
+            status: 'Pending Office Review',
+            remarks: 'Pending Office Review',
+            requestedBy: user.name || 'Unknown',
+            requestedByPosition: user.position || '',
+            requestedByRole: user.role || '',
+            requestedByEmail: user.email || '',
+            requestedSite: user.site || '',
+            fromSite: fromSites.length === 1 ? fromSites[0] : 'Mixed',
+            toSite: toSites.length === 1 ? toSites[0] : 'Mixed',
+            itemCount: cart.items.length,
+            totalQty,
+            items: cart.items,
+            createdAt: new Date().toISOString(),
+            timestamp: (typeof firebase !== 'undefined' && firebase.database) ? firebase.database.ServerValue.TIMESTAMP : Date.now(),
+            source: 'mobile-item-search'
+        };
+        try {
+            if (status) status.textContent = 'Submitting transfer request...';
+            const dbRef = (typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null;
+            if (!dbRef) throw new Error('Firebase database is not loaded.');
+            await dbRef.ref(`inventory_requests/${code}`).set(payload);
+            clearTransferRequestCart();
+            if (status) status.textContent = `Transfer request submitted: ${code}`;
+            alert(`Transfer Request Submitted!\n\nRequest Code: ${code}\n\nOffice Logistic/Storekeeper can review this request.`);
+            refreshInventoryRequestReviewBadge();
+            const currentKey = document.querySelector('.inv-mobile-material-card')?.getAttribute('data-material-key') || '';
+            const item = findInventoryMobileMaterialByKey(currentKey);
+            if (item) renderInventoryMobileMaterialFinderSelected(item);
+            else resetInventoryMobileMaterialFinder();
+        } catch (err) {
+            console.error('Transfer request submit failed:', err);
+            if (status) status.textContent = 'Transfer request failed to submit.';
+            alert('Transfer request failed. Please try again.');
+        }
+    }
+
+    function renderInventoryTransferRequestForm(item) {
+        if (!canSubmitInventoryTransferRequest()) return '';
+        const key = invFinderEscape(item?.key || '');
+        if (String(transferRequestFormItemKey || '') !== String(item?.key || '')) {
+            return `<button type="button" class="inv-transfer-request-start" data-inv-transfer-request-start data-material-key="${key}"><i class="fa-solid fa-truck-arrow-right"></i> Create Transfer Request</button>`;
+        }
+        const cart = readTransferRequestCart();
+        const locations = getTransferRequestSourceOptions(item, cart);
+        const totalAvailable = locations.reduce((sum, loc) => sum + invFinderNumber(loc.available), 0);
+        const totalRemaining = locations.reduce((sum, loc) => sum + invFinderNumber(loc.remaining), 0);
+        const positiveLocations = locations.filter(x => x.remaining > 0);
+        const sourceRows = locations.length
+            ? locations.map(loc => {
+                const usedText = loc.alreadyInCart > 0 ? `<small>Already in cart: ${invFinderEscape(invFinderQty(loc.alreadyInCart))}</small>` : '<small>Available source</small>';
+                const disabled = loc.remaining <= 0 ? ' disabled' : '';
+                return `<label class="inv-transfer-source-card${disabled}">
+                    <input type="radio" name="inv-transfer-request-from-pick" value="${invFinderEscape(loc.site)}" ${disabled ? 'disabled' : ''} ${!disabled && positiveLocations.indexOf(loc) === 0 ? 'checked' : ''}>
+                    <span><strong>${invFinderEscape(loc.label || loc.site)}</strong>${usedText}</span>
+                    <em>${invFinderEscape(invFinderQty(loc.remaining))}</em>
+                </label>`;
+            }).join('')
+            : `<div class="inv-transfer-source-row"><span>No stock location found</span><strong>0</strong></div>`;
+        const firstAvailable = positiveLocations[0];
+        return `<div class="inv-transfer-request-form inv-shopping-form">
+            <div class="inv-transfer-request-form-title"><i class="fa-solid fa-cart-plus"></i> Add to Transfer Cart</div>
+            <div class="inv-transfer-source-box">
+                <div class="inv-transfer-source-title">Choose From Site<span>Available: ${invFinderEscape(invFinderQty(totalRemaining))}</span></div>
+                <div class="inv-transfer-source-picker">
+                    ${sourceRows}
+                </div>
+                <small class="inv-transfer-source-hint">Pick the exact site where you want to take the material. Qty cannot exceed the selected site's remaining available stock.</small>
+            </div>
+            <input id="inv-transfer-request-from" type="hidden" value="${invFinderEscape(firstAvailable?.site || '')}">
+            <label>Quantity to take<input id="inv-transfer-request-qty" type="number" min="0.01" max="${invFinderEscape(totalAvailable)}" step="0.01" placeholder="Qty"></label>
+            <label>To Site<input id="inv-transfer-request-to" type="text" list="inv-transfer-request-to-options" placeholder="Type site no. or site name"></label>
+            <datalist id="inv-transfer-request-to-options">${invSiteOptionsHtml()}</datalist>
+            <label>Remarks<textarea id="inv-transfer-request-remarks" rows="2" placeholder="Optional remarks"></textarea></label>
+            <div class="inv-transfer-request-form-actions">
+                <button type="button" class="primary-btn" data-inv-transfer-request-add data-material-key="${key}"><i class="fa-solid fa-cart-plus"></i> Add to Cart</button>
+                <button type="button" class="secondary-btn" data-inv-transfer-request-cancel data-material-key="${key}">Cancel</button>
+            </div>
+        </div>`;
+    }
+
+    function renderInventoryTransferRequestCart() {
+        const cart = readTransferRequestCart();
+        if (!cart.items.length) return '';
+        const totalQty = cart.items.reduce((sum, it) => sum + invFinderNumber(it.qty), 0);
+        const itemsHtml = cart.items.map((it, idx) => `<div class="inv-transfer-cart-item shop-cart-line">
+            <div class="shop-cart-line-index">${idx + 1}</div>
+            <div class="shop-cart-line-main">
+                <strong>${invFinderEscape(it.productName || it.productId || 'Item')}</strong>
+                <span>${invFinderEscape(it.productId || '')}</span>
+                <small><i class="fa-solid fa-location-dot"></i> ${invFinderEscape(it.fromSiteLabel || it.fromSite || '')} <i class="fa-solid fa-arrow-right-long"></i> ${invFinderEscape(it.toSiteLabel || it.toSite || '')}</small>
+            </div>
+            <div class="shop-cart-line-qty"><span>Qty</span><strong>${invFinderEscape(invFinderQty(it.qty))}</strong></div>
+            <button type="button" data-inv-transfer-request-remove data-cart-id="${invFinderEscape(it.cartId)}" aria-label="Remove item"><i class="fa-solid fa-trash-can"></i></button>
+        </div>`).join('');
+        return `<div class="inv-transfer-request-cart inv-shopping-cart">
+            <div class="inv-transfer-request-cart-head"><strong><i class="fa-solid fa-basket-shopping"></i> Transfer Cart</strong><span>${cart.items.length} line${cart.items.length === 1 ? '' : 's'} · Qty ${invFinderEscape(invFinderQty(totalQty))}</span></div>
+            <div class="inv-shopping-cart-list">${itemsHtml}</div>
+            <div class="inv-transfer-request-cart-actions">
+                <button type="button" class="primary-btn" data-inv-transfer-request-checkout><i class="fa-solid fa-paper-plane"></i> Checkout Request</button>
+                <button type="button" class="secondary-btn" data-inv-transfer-request-clear-cart>Clear Cart</button>
+            </div>
+        </div>`;
     }
 
     function renderInventoryMobileMaterialFinderSuggestions(term) {
@@ -1072,7 +1645,7 @@ function renderInventoryMobileActiveTasks(tasks) {
         const pid = invFinderProductId(item) || 'No ID';
         const name = invFinderProductName(item) || 'Unnamed Item';
         const details = invFinderDetails(item) || 'No details available';
-        const balVal = invFinderNumber(item.balanceQty ?? item.availableQty ?? item.available ?? item.stockQty ?? 0);
+        const balVal = getInventoryItemTotalAvailable(item);
         const photoUrl = invFinderPhotoUrl(item);
         const photoHtml = photoUrl
             ? `<span class="inv-mobile-material-suggestion-photo"><img src="${invFinderEscape(photoUrl)}" alt="" loading="lazy" onerror="this.parentElement.classList.add('photo-error'); this.remove();"></span>`
@@ -1102,7 +1675,7 @@ function renderInventoryMobileActiveTasks(tasks) {
         const details = invFinderDetails(item) || 'No details available';
         const stockQty = invFinderQty(item.stockQty ?? item.stock ?? item.quantity ?? 0);
         const movedQty = invFinderQty(item.transferredQty ?? item.issuedQty ?? item.usedQty ?? 0);
-        const balVal = invFinderNumber(item.balanceQty ?? item.availableQty ?? item.available ?? item.stockQty ?? 0);
+        const balVal = getInventoryItemTotalAvailable(item);
         const balance = invFinderQty(balVal);
         const photoUrl = invFinderPhotoUrl(item);
         const movements = getInventoryMaterialMovements(item);
@@ -1121,9 +1694,9 @@ function renderInventoryMobileActiveTasks(tasks) {
                     <div class="history-meta"><span>Qty: ${invFinderEscape(m.qty || '0')}</span><span>${invFinderEscape(m.date || '')}</span></div>
                 </div>`;
             }).join('')
-            : `<div class="inv-mobile-material-history-empty">No recent movement found.</div>`;
+            : `<div class="inv-mobile-material-history-empty">No movement history found for this item.</div>`;
 
-        return `<article class="inv-mobile-material-card">
+        return `<article class="inv-mobile-material-card" data-material-key="${invFinderEscape(item?.key || '')}">
             <div class="inv-mobile-material-card-top">
                 <div class="inv-mobile-material-photo">${photoHtml}</div>
                 <div class="inv-mobile-material-info">
@@ -1138,8 +1711,766 @@ function renderInventoryMobileActiveTasks(tasks) {
                 <div class="${balanceClass}"><span>Available</span><strong>${invFinderEscape(balance)}</strong></div>
             </div>
             <div class="inv-mobile-material-history">
-                <div class="inv-mobile-material-history-title"><i class="fa-solid fa-clock-rotate-left"></i> Recent History</div>
+                <div class="inv-mobile-material-history-title"><i class="fa-solid fa-clock-rotate-left"></i> Item Movement History</div>
                 ${historyHtml}
+            </div>
+            ${renderInventoryTransferRequestForm(item)}
+            ${renderInventoryTransferRequestCart()}
+        </article>`;
+    }
+
+    // =====================================================================
+    // 7.6.9 — Desktop Inventory Request Review foundation
+    // Shows pending mobile transfer requests to Logistic / Storekeeper / Super Admin.
+    // 7.7.2 adds controlled conversion to official transfer_entries after stock re-check.
+    // 7.7.3 adds delete option for wrong pending requests before conversion.
+    // 7.7.4 adds proper conversion modal/designation and combines same-route items.
+    // =====================================================================
+    function getInventoryRequestReviewSection() {
+        let section = document.getElementById('wd-inv-request-review');
+        if (section) return section;
+        const main = document.querySelector('#workdesk-view .workdesk-main') || document.querySelector('#workdesk-view [role="main"]');
+        if (!main) return null;
+        section = document.createElement('section');
+        section.id = 'wd-inv-request-review';
+        section.className = 'workdesk-section hidden inventory-request-review-section';
+        section.innerHTML = `<div class="inventory-request-review-head">
+            <div><h1><i class="fa-solid fa-clipboard-list"></i> Inventory Request Review</h1><p>Pending mobile transfer requests from site.</p></div>
+            <button type="button" id="inv-request-review-refresh" class="secondary-btn"><i class="fa-solid fa-rotate"></i> Refresh</button>
+        </div>
+        <div id="inv-request-review-status" class="inventory-request-review-status">Loading requests...</div>
+        <div id="inv-request-review-list" class="inventory-request-review-list"></div>`;
+        main.appendChild(section);
+        const refresh = section.querySelector('#inv-request-review-refresh');
+        if (refresh) refresh.addEventListener('click', loadInventoryRequestReviewList);
+        const list = section.querySelector('#inv-request-review-list');
+        if (list && list.dataset.bound !== '1') {
+            list.dataset.bound = '1';
+            list.addEventListener('click', handleInventoryRequestReviewListClick);
+        }
+        return section;
+    }
+
+    function ensureInventoryRequestReviewNav() {
+        const navList = document.querySelector('#workdesk-nav ul');
+        if (!navList) return;
+        let li = document.getElementById('wd-nav-inv-request-review')?.closest('li');
+        if (!li) {
+            li = document.createElement('li');
+            li.className = 'wd-nav-inv-request-review desktop-only-li';
+            li.innerHTML = `<a href="#" id="wd-nav-inv-request-review"><i class="fa-solid fa-clipboard-list"></i> Request Review <span id="wd-inv-request-review-badge" class="notification-badge" style="display:none;">0</span></a>`;
+            const materialLi = document.querySelector('#workdesk-nav .wd-nav-material');
+            if (materialLi && materialLi.parentNode === navList) navList.insertBefore(li, materialLi);
+            else navList.appendChild(li);
+        }
+        const link = document.getElementById('wd-nav-inv-request-review');
+        if (link && link.dataset.bound !== '1') {
+            link.dataset.bound = '1';
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                openInventoryRequestReview();
+            });
+        }
+        updateInventoryRequestReviewNavVisibility();
+        bindInventoryRequestReviewAutoClose();
+        bindInventoryRequestReviewConvertButtonFallback();
+    }
+
+    function updateInventoryRequestReviewNavVisibility() {
+        const li = document.getElementById('wd-nav-inv-request-review')?.closest('li');
+        if (!li) return;
+        const mobile = (typeof isMobileViewport === 'function') ? isMobileViewport() : ((window.innerWidth || 0) <= 900);
+        const activeModule = String(window.__ibaActiveModule || '').toLowerCase();
+        // 7.7.2: keep Request Review only in the Inventory module. Do not let old body classes
+        // or shared WorkDesk sections make it appear in Invoice/Task pages.
+        const inventory = activeModule === 'inventory' || (!activeModule && typeof isDirectInventoryOpenRequested === 'function' && isDirectInventoryOpenRequested());
+        if (!mobile && inventory && canReviewInventoryTransferRequests()) {
+            li.style.removeProperty('display');
+            refreshInventoryRequestReviewBadge();
+        } else {
+            li.style.setProperty('display', 'none', 'important');
+        }
+    }
+
+    function closeInventoryRequestReview() {
+        const section = document.getElementById('wd-inv-request-review');
+        if (section) {
+            section.classList.add('hidden');
+            section.classList.remove('is-open');
+        }
+        if (document.body) document.body.classList.remove('inventory-request-review-active');
+        const link = document.getElementById('wd-nav-inv-request-review');
+        if (link) link.classList.remove('active');
+    }
+
+    function bindInventoryRequestReviewAutoClose() {
+        if (window.__ibaInvRequestReviewAutoCloseBound === true) return;
+        window.__ibaInvRequestReviewAutoCloseBound = true;
+        document.addEventListener('click', (e) => {
+            const reviewLink = e.target && e.target.closest ? e.target.closest('#wd-nav-inv-request-review') : null;
+            if (reviewLink) return;
+            const navClick = e.target && e.target.closest ? e.target.closest('#workdesk-nav a, .workdesk-footer-nav a, #im-nav a, #invoice-management-view a, #dashboard a, #dashboard button, .dashboard-card, .menu-card, .nav-link') : null;
+            if (navClick) closeInventoryRequestReview();
+        }, true);
+    }
+
+    function bindInventoryRequestReviewConvertButtonFallback() {
+        if (window.__ibaInvRequestConvertFallbackBound === true) return;
+        window.__ibaInvRequestConvertFallbackBound = true;
+        document.addEventListener('click', (event) => {
+            const convertBtn = event.target && event.target.closest ? event.target.closest('[data-inv-request-convert]') : null;
+            const deleteBtn = event.target && event.target.closest ? event.target.closest('[data-inv-request-delete]') : null;
+            const btn = convertBtn || deleteBtn;
+            if (!btn || !btn.closest('#wd-inv-request-review')) return;
+            event.preventDefault();
+            event.stopPropagation();
+            if (convertBtn) {
+                const code = convertBtn.getAttribute('data-inv-request-convert') || convertBtn.getAttribute('data-inv-request-code') || '';
+                convertInventoryRequestToOfficialTransfer(code, convertBtn);
+                return;
+            }
+            if (deleteBtn) {
+                const code = deleteBtn.getAttribute('data-inv-request-delete') || deleteBtn.getAttribute('data-inv-request-code') || '';
+                deleteInventoryRequest(code, deleteBtn);
+            }
+        }, true);
+    }
+
+    function openInventoryRequestReview() {
+        if (!canReviewInventoryTransferRequests()) {
+            alert('Request Review is available only for Logistic / Storekeeper / Super Admin.');
+            return;
+        }
+        const section = getInventoryRequestReviewSection();
+        if (!section) return;
+        try { window.__ibaActiveModule = 'inventory'; } catch (_) {}
+        if (document.body) {
+            document.body.classList.add('inventory-mode');
+            document.body.classList.add('inventory-request-review-active');
+        }
+        document.querySelectorAll('#workdesk-view .workdesk-section, .workdesk-section').forEach(el => el.classList.add('hidden'));
+        section.classList.remove('hidden');
+        section.classList.add('is-open');
+        document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a').forEach(a => a.classList.remove('active'));
+        document.getElementById('wd-nav-inv-request-review')?.classList.add('active');
+        loadInventoryRequestReviewList();
+    }
+
+    async function refreshInventoryRequestReviewBadge() {
+        const badge = document.getElementById('wd-inv-request-review-badge');
+        if (!badge || !canReviewInventoryTransferRequests()) return;
+        try {
+            const dbRef = (typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null;
+            if (!dbRef) return;
+            const snap = await dbRef.ref('inventory_requests').limitToLast(100).once('value');
+            const data = snap.val() || {};
+            const pending = Object.values(data).filter(r => String(r?.status || '').toLowerCase() === 'pending office review').length;
+            if (pending > 0) {
+                badge.textContent = String(pending);
+                badge.style.display = 'inline-block';
+            } else {
+                badge.style.display = 'none';
+            }
+        } catch (err) {
+            console.warn('Request review badge failed:', err);
+        }
+    }
+
+    async function loadInventoryRequestReviewList() {
+        const list = document.getElementById('inv-request-review-list');
+        const status = document.getElementById('inv-request-review-status');
+        if (!list) return;
+        if (status) status.textContent = 'Loading pending requests...';
+        list.innerHTML = '';
+        try {
+            const dbRef = (typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null;
+            if (!dbRef) throw new Error('Firebase database is not loaded.');
+            const snap = await dbRef.ref('inventory_requests').limitToLast(100).once('value');
+            const data = snap.val() || {};
+            const requests = Object.entries(data)
+                .map(([key, value]) => ({ ...(value || {}), __firebaseKey: key, requestCode: invRequestSafeText(value?.requestCode || key) }))
+                .filter(r => String(r?.status || '').toLowerCase() === 'pending office review')
+                .sort((a,b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+            if (status) status.textContent = requests.length ? `${requests.length} pending transfer request${requests.length === 1 ? '' : 's'}.` : 'No pending transfer request.';
+            if (!requests.length) {
+                list.innerHTML = `<div class="inventory-request-empty"><i class="fa-solid fa-clipboard-check"></i><strong>No pending requests</strong><span>Mobile transfer requests will appear here.</span></div>`;
+                return;
+            }
+            list.innerHTML = requests.map(renderInventoryRequestReviewCard).join('');
+            refreshInventoryRequestReviewBadge();
+        } catch (err) {
+            console.error('Inventory request review load failed:', err);
+            if (status) status.textContent = 'Unable to load requests.';
+            list.innerHTML = `<div class="inventory-request-empty"><i class="fa-solid fa-triangle-exclamation"></i><strong>Unable to load requests</strong><span>Please try refresh.</span></div>`;
+        }
+    }
+
+
+    function invRequestSafeText(value) {
+        return String(value ?? '').trim();
+    }
+
+    function invRequestSiteLooseMatch(a, b) {
+        const rawA = invRequestSafeText(a).replace(/_/g, ' ');
+        const rawB = invRequestSafeText(b).replace(/_/g, ' ');
+        if (!rawA || !rawB) return false;
+        const normA = invSiteNorm(rawA);
+        const normB = invSiteNorm(rawB);
+        if (!normA || !normB) return false;
+        if (normA === normB) return true;
+        const headA = invSiteNorm(rawA.split(/\s+-\s+|➔|→/)[0]);
+        const headB = invSiteNorm(rawB.split(/\s+-\s+|➔|→/)[0]);
+        if (headA && headB && headA === headB) return true;
+        // Common case: "100 - STORE" against "100".
+        if (headA && normB === headA) return true;
+        if (headB && normA === headB) return true;
+        if (normA.length >= 3 && normB.includes(normA)) return true;
+        if (normB.length >= 3 && normA.includes(normB)) return true;
+        return false;
+    }
+
+    function invRequestMaterialGroupKeyFromLine(line) {
+        const pid = invFinderNormalizeCode(line?.productId || line?.productID || line?.productIDNo || '');
+        if (pid) return `pid:${pid}`;
+        return `name:${invRequestNorm(line?.productName || '')}|${invRequestNorm(line?.details || '')}`;
+    }
+
+    function invRequestMaterialRowMatchesLine(row, line) {
+        if (!row || !line) return false;
+        const linePid = invFinderNormalizeCode(line.productId || line.productID || line.productIDNo || '');
+        const rowPid = invFinderNormalizeCode(row.productId || row.productID || row.ProductID || row.productIDNo || row.id || '');
+        if (linePid && rowPid && linePid === rowPid) return true;
+        const lineName = invRequestNorm(line.productName || '');
+        const rowName = invRequestNorm(invFinderProductName(row));
+        const lineDetail = invRequestNorm(line.details || '');
+        const rowDetail = invRequestNorm(invFinderDetails(row));
+        return !!(lineName && rowName && lineName === rowName && (!lineDetail || !rowDetail || lineDetail === rowDetail));
+    }
+
+    function invRequestQtyFromRowAtSite(row, fromSite) {
+        if (!row || !fromSite) return 0;
+        let total = 0;
+        if (row.sites && typeof row.sites === 'object') {
+            Object.entries(row.sites).forEach(([siteKey, qty]) => {
+                if (invRequestSiteLooseMatch(siteKey, fromSite)) total += invFinderNumber(qty);
+            });
+            return total;
+        }
+        const rowSite = row.site || row.siteNo || row.siteNumber || row.site_name || row.siteName || row.location || row.projectSite || '';
+        if (!invRequestSiteLooseMatch(rowSite, fromSite)) return 0;
+        return invFinderNumber(row.balanceQty ?? row.availableQty ?? row.available ?? row.stockQty ?? row.stock ?? row.quantity ?? 0);
+    }
+
+    async function loadInventoryRequestMaterialRows() {
+        const dbRef = (typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null;
+        if (!dbRef) throw new Error('Firebase database is not loaded.');
+        const snap = await dbRef.ref('material_stock').once('value');
+        const obj = snap.val() || {};
+        return Object.entries(obj).map(([key, val]) => ({ key, ...(val || {}) }));
+    }
+
+    function validateInventoryRequestStockBeforeConvert(req, materialRows) {
+        const items = Array.isArray(req.items) ? req.items : Object.values(req.items || {});
+        if (!items.length) return { ok: false, message: 'This request has no item lines.' };
+
+        const needed = new Map();
+        items.forEach(line => {
+            const from = invRequestSafeText(line.fromSite || line.fromSiteLabel || '');
+            const qty = invFinderNumber(line.qty);
+            if (!from || qty <= 0) return;
+            const key = `${invRequestMaterialGroupKeyFromLine(line)}@@${invSiteNorm(from)}`;
+            const current = needed.get(key) || { line, fromSite: from, qty: 0 };
+            current.qty += qty;
+            needed.set(key, current);
+        });
+
+        for (const check of needed.values()) {
+            const matchingRows = materialRows.filter(row => invRequestMaterialRowMatchesLine(row, check.line));
+            const available = matchingRows.reduce((sum, row) => sum + invRequestQtyFromRowAtSite(row, check.fromSite), 0);
+            if (check.qty > available) {
+                return {
+                    ok: false,
+                    message: `${check.line.productName || check.line.productId || 'Item'} from ${check.fromSite}: requested ${invFinderQty(check.qty)}, available ${invFinderQty(available)}.`
+                };
+            }
+        }
+        return { ok: true };
+    }
+
+    function buildOfficialTransferControlNumber(requestCode, index) {
+        const base = String(requestCode || 'REQ').replace(/^TRFREQ-?/i, '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 28);
+        return `TRF-${base}-${String(index + 1).padStart(2, '0')}`;
+    }
+
+    function invRequestNormName(value) {
+        return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    }
+
+    function getInventoryRequestApproverRecords() {
+        let data = null;
+        try {
+            if (typeof getCachedApproversData === 'function') data = getCachedApproversData();
+        } catch (_) {}
+        try {
+            if ((!data || Object.keys(data || {}).length === 0) && typeof allApproverData !== 'undefined') data = allApproverData;
+        } catch (_) {}
+        const list = Object.entries(data || {}).map(([key, a]) => ({
+            key,
+            name: invRequestSafeText(a?.Name || a?.Username || a?.FullName || ''),
+            position: invRequestSafeText(a?.Position || ''),
+            role: invRequestSafeText(a?.Role || ''),
+            site: invRequestSafeText(a?.Site || '')
+        })).filter(u => u.name);
+        return list.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    function isInventoryRequestAdminRecord(user) {
+        const role = String(user?.role || '').toLowerCase();
+        const pos = String(user?.position || '').toLowerCase();
+        return role === 'admin' || role.includes('admin') || pos.includes('super admin');
+    }
+
+    function buildInventoryRequestUserOptions(list, selectedName = '') {
+        const selectedNorm = invRequestNormName(selectedName);
+        return (list || []).map(u => {
+            const labelParts = [u.name];
+            if (u.position) labelParts.push(u.position);
+            if (u.site) labelParts.push(`Site ${u.site}`);
+            const selected = selectedNorm && invRequestNormName(u.name) === selectedNorm ? ' selected' : '';
+            return `<option value="${invFinderEscape(u.name)}"${selected}>${invFinderEscape(labelParts.join(' — '))}</option>`;
+        }).join('');
+    }
+
+    function findInventoryRequestDefaultUser(users, { site = '', positionIncludes = [], roleAdminOnly = false } = {}) {
+        const candidates = (users || []).filter(u => !roleAdminOnly || isInventoryRequestAdminRecord(u));
+        const posTerms = (positionIncludes || []).map(v => String(v || '').toLowerCase()).filter(Boolean);
+        const siteNorm = invSiteNorm(site || '');
+        const bySiteAndPosition = candidates.find(u => {
+            const okPos = posTerms.length === 0 || posTerms.some(term => String(u.position || '').toLowerCase().includes(term));
+            const okSite = siteNorm && invSiteNorm(u.site || '').includes(siteNorm);
+            return okPos && okSite;
+        });
+        if (bySiteAndPosition) return bySiteAndPosition.name;
+        const byPosition = candidates.find(u => posTerms.length === 0 || posTerms.some(term => String(u.position || '').toLowerCase().includes(term)));
+        if (byPosition) return byPosition.name;
+        const currentName = invRequestSafeText((typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover.Name : '');
+        const currentRecord = candidates.find(u => invRequestNormName(u.name) === invRequestNormName(currentName));
+        if (currentRecord) return currentRecord.name;
+        return candidates[0]?.name || '';
+    }
+
+    function getInventoryRequestItems(req) {
+        return Array.isArray(req?.items) ? req.items : Object.values(req?.items || {});
+    }
+
+    function getInventoryRequestRouteGroups(req) {
+        const items = getInventoryRequestItems(req);
+        const groups = new Map();
+        items.forEach(line => {
+            const fromSite = invRequestSafeText(line.fromSite || line.fromSiteLabel || '');
+            const toSite = invRequestSafeText(line.toSite || line.toSiteLabel || '');
+            const groupKey = `${invSiteNorm(fromSite)}@@${invSiteNorm(toSite)}`;
+            if (!groups.has(groupKey)) groups.set(groupKey, { key: groupKey, fromSite, toSite, lines: [] });
+            groups.get(groupKey).lines.push(line);
+        });
+        return Array.from(groups.values());
+    }
+
+    function buildOfficialTransferEntryFromRequestLine(req, line, index, officialKey, reviewer, routeMeta = {}) {
+        const nowIso = new Date().toISOString();
+        const todayYmd = nowIso.slice(0, 10);
+        const shippingDate = invRequestSafeText(line.shippingDate || req.shippingDate || req.requestedShippingDate || todayYmd) || todayYmd;
+        const qty = invFinderNumber(line.qty);
+        const fromSite = invRequestSafeText(line.fromSite || line.fromSiteLabel || routeMeta.fromSite || '');
+        const toSite = invRequestSafeText(line.toSite || line.toSiteLabel || routeMeta.toSite || '');
+        const requester = invRequestSafeText(req.requestedBy || line.requestedBy || reviewer.name || 'Unknown');
+        const reviewerName = invRequestSafeText(reviewer.name || 'Unknown');
+        const sourceContact = invRequestSafeText(routeMeta.sourceContact || reviewerName);
+        const approver = invRequestSafeText(routeMeta.approver || '');
+        const receiver = invRequestSafeText(routeMeta.receiver || requester);
+        const controlNumber = invRequestSafeText(routeMeta.controlNumber || buildOfficialTransferControlNumber(req.requestCode, index));
+        return {
+            controlNumber,
+            controlId: controlNumber,
+            ref: controlNumber,
+            jobType: 'Transfer',
+            for: 'Transfer',
+            productID: invRequestSafeText(line.productId || line.productID || ''),
+            productId: invRequestSafeText(line.productId || line.productID || ''),
+            productName: invRequestSafeText(line.productName || ''),
+            details: invRequestSafeText(line.details || ''),
+            fromSite,
+            toSite,
+            fromLocation: fromSite,
+            toLocation: toSite,
+            requiredQty: qty,
+            orderedQty: qty,
+            requestor: requester,
+            approver,
+            sourceContact,
+            receiver,
+            contactName: sourceContact,
+            attention: sourceContact,
+            status: 'Pending Source',
+            remarks: 'Pending Source',
+            enteredBy: reviewerName,
+            createdBy: reviewerName,
+            createdAt: nowIso,
+            date: todayYmd,
+            shippingDate,
+            timestamp: (typeof firebase !== 'undefined' && firebase.database) ? firebase.database.ServerValue.TIMESTAMP : Date.now(),
+            source: 'mobile-request-conversion',
+            convertedFromRequest: true,
+            requestCode: invRequestSafeText(req.requestCode || ''),
+            inventoryRequestCode: invRequestSafeText(req.requestCode || ''),
+            requestItemCartId: invRequestSafeText(line.cartId || ''),
+            materialKey: invRequestSafeText(line.materialKey || ''),
+            materialGroupKey: invRequestSafeText(line.materialGroupKey || ''),
+            splitFromMultiSource: !!line.splitFromMultiSource,
+            convertedRouteKey: invRequestSafeText(routeMeta.routeKey || ''),
+            originalRequestedByPosition: invRequestSafeText(req.requestedByPosition || ''),
+            history: [{
+                action: 'Converted to Official Transfer',
+                by: reviewerName,
+                timestamp: Date.now(),
+                note: `From mobile request ${req.requestCode || ''}; pending source confirmation by ${sourceContact}`
+            }]
+        };
+    }
+
+    async function deleteInventoryRequest(requestCode, button = null) {
+        if (!canReviewInventoryTransferRequests()) {
+            alert('Only Logistic / Storekeeper / Super Admin can delete pending requests.');
+            return;
+        }
+        const code = invRequestSafeText(requestCode);
+        if (!code) {
+            alert('Delete failed: missing request code. Please refresh Request Review and try again.');
+            return;
+        }
+        if (!confirm(`Delete ${code}?\n\nThis will remove the pending request only. No stock movement will happen.`)) return;
+
+        const originalText = button ? button.innerHTML : '';
+        try {
+            if (button) {
+                button.disabled = true;
+                button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Deleting...';
+            }
+            const dbRef = (typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null;
+            if (!dbRef) throw new Error('Firebase database is not loaded.');
+            const reqRef = dbRef.ref(`inventory_requests/${code}`);
+            const reqSnap = await reqRef.once('value');
+            const req = reqSnap.val();
+            if (!req) {
+                alert('Request not found or already deleted.');
+                loadInventoryRequestReviewList();
+                refreshInventoryRequestReviewBadge();
+                return;
+            }
+            if (String(req.status || '').toLowerCase() !== 'pending office review') {
+                alert(`This request is already ${req.status || 'processed'} and cannot be deleted from pending review.`);
+                loadInventoryRequestReviewList();
+                return;
+            }
+            await reqRef.remove();
+            alert(`${code} deleted. You can now create a new correct request.`);
+            loadInventoryRequestReviewList();
+            refreshInventoryRequestReviewBadge();
+        } catch (err) {
+            console.error('Delete inventory request failed:', err);
+            alert(`Delete failed: ${err.message || err}`);
+        } finally {
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = originalText;
+            }
+        }
+    }
+
+    function ensureInventoryRequestConvertModal() {
+        let modal = document.getElementById('inv-request-convert-modal');
+        if (modal) return modal;
+        modal = document.createElement('div');
+        modal.id = 'inv-request-convert-modal';
+        modal.className = 'inventory-request-convert-backdrop hidden';
+        modal.innerHTML = `
+            <div class="inventory-request-convert-modal" role="dialog" aria-modal="true" aria-labelledby="inv-request-convert-title">
+                <div class="inventory-request-convert-head">
+                    <div>
+                        <h2 id="inv-request-convert-title"><i class="fa-solid fa-right-left"></i> Convert Request to Official Transfer</h2>
+                        <p id="inv-request-convert-subtitle">Complete the official designation before creating transfer record(s).</p>
+                    </div>
+                    <button type="button" id="inv-request-convert-close" class="inventory-request-convert-close" aria-label="Close">×</button>
+                </div>
+                <div id="inv-request-convert-body" class="inventory-request-convert-body"></div>
+                <div class="inventory-request-convert-footer">
+                    <button type="button" id="inv-request-convert-cancel" class="secondary-btn">Cancel</button>
+                    <button type="button" id="inv-request-convert-submit" class="primary-btn"><i class="fa-solid fa-file-circle-check"></i> Create Official Transfer</button>
+                </div>
+            </div>`;
+        document.body.appendChild(modal);
+        const close = () => modal.classList.add('hidden');
+        modal.addEventListener('click', e => { if (e.target === modal) close(); });
+        modal.querySelector('#inv-request-convert-close')?.addEventListener('click', close);
+        modal.querySelector('#inv-request-convert-cancel')?.addEventListener('click', close);
+        modal.querySelector('#inv-request-convert-submit')?.addEventListener('click', () => submitInventoryRequestConversionFromModal());
+        return modal;
+    }
+
+    function renderInventoryRequestConvertModal(req) {
+        const modal = ensureInventoryRequestConvertModal();
+        const body = modal.querySelector('#inv-request-convert-body');
+        const subtitle = modal.querySelector('#inv-request-convert-subtitle');
+        const users = getInventoryRequestApproverRecords();
+        const adminUsers = users.filter(isInventoryRequestAdminRecord);
+        const groups = getInventoryRequestRouteGroups(req);
+        if (subtitle) subtitle.textContent = `${req.requestCode || 'Request'} • ${groups.length} route${groups.length === 1 ? '' : 's'} • same From/To items will be combined under one Transfer ID.`;
+        const currentUser = invRequestUser();
+        const reviewerName = invRequestSafeText(currentUser.name || '');
+        const groupHtml = groups.map((group, index) => {
+            const sourceDefault = findInventoryRequestDefaultUser(users, { site: group.fromSite, positionIncludes: ['storekeeper', 'logistic'] }) || reviewerName;
+            const receiverDefault = findInventoryRequestDefaultUser(users, { site: group.toSite, positionIncludes: ['site dc', 'storekeeper', 'logistic'] });
+            const approverDefault = findInventoryRequestDefaultUser(adminUsers, { roleAdminOnly: true }) || reviewerName;
+            const linesHtml = group.lines.map(line => `
+                <div class="inventory-request-convert-line">
+                    <span><strong>${invFinderEscape(line.productName || line.productId || 'Item')}</strong><small>${invFinderEscape(line.productId || '')} ${line.details ? '· ' + invFinderEscape(line.details) : ''}</small></span>
+                    <b>Qty ${invFinderEscape(invFinderQty(line.qty))}</b>
+                </div>`).join('');
+            return `
+                <section class="inventory-request-convert-route" data-route-index="${index}" data-route-key="${invFinderEscape(group.key)}">
+                    <div class="inventory-request-convert-route-head">
+                        <div><strong>Official Transfer ${index + 1}</strong><span>${invFinderEscape(group.fromSite)} → ${invFinderEscape(group.toSite)}</span></div>
+                        <em>${group.lines.length} item${group.lines.length === 1 ? '' : 's'} combined</em>
+                    </div>
+                    <div class="inventory-request-convert-lines">${linesHtml}</div>
+                    <div class="inventory-request-convert-grid">
+                        <label>Source Qty Checker / Confirmer
+                            <select data-convert-field="sourceContact" data-route-index="${index}" required>
+                                <option value="">Select source checker</option>
+                                ${buildInventoryRequestUserOptions(users, sourceDefault)}
+                            </select>
+                        </label>
+                        <label>Approver (Admin role only)
+                            <select data-convert-field="approver" data-route-index="${index}" required>
+                                <option value="">Select approver</option>
+                                ${buildInventoryRequestUserOptions(adminUsers, approverDefault)}
+                            </select>
+                        </label>
+                        <label>Receiver / Receiving Contact
+                            <select data-convert-field="receiver" data-route-index="${index}" required>
+                                <option value="">Select receiver</option>
+                                ${buildInventoryRequestUserOptions(users, receiverDefault)}
+                            </select>
+                        </label>
+                    </div>
+                </section>`;
+        }).join('');
+        if (body) {
+            body.innerHTML = `
+                <div class="inventory-request-convert-warning">
+                    <i class="fa-solid fa-circle-info"></i>
+                    This will create official Transfer record(s) with status <strong>Pending Source</strong>. Stock will not move yet. Source checker confirms qty first, then it goes to the selected admin approver, then receiver.
+                </div>
+                ${groupHtml || '<div class="inventory-request-empty">No route lines found.</div>'}`;
+        }
+        modal.dataset.requestCode = invRequestSafeText(req.__firebaseKey || req.requestCode || '');
+        modal.dataset.displayCode = invRequestSafeText(req.requestCode || req.__firebaseKey || '');
+        modal.classList.remove('hidden');
+    }
+
+    async function openInventoryRequestConvertModal(requestCode, button = null) {
+        if (!canReviewInventoryTransferRequests()) {
+            alert('Only Logistic / Storekeeper / Super Admin can convert requests.');
+            return;
+        }
+        const code = invRequestSafeText(requestCode);
+        if (!code) {
+            alert('Convert failed: missing request code. Please refresh Request Review and try again.');
+            return;
+        }
+        const originalText = button ? button.innerHTML : '';
+        try {
+            if (button) {
+                button.disabled = true;
+                button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading...';
+            }
+            const dbRef = (typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null;
+            if (!dbRef) throw new Error('Firebase database is not loaded.');
+            if (typeof ensureApproverDataCached === 'function') await ensureApproverDataCached(false);
+            const reqSnap = await dbRef.ref(`inventory_requests/${code}`).once('value');
+            const req = reqSnap.val();
+            if (!req) throw new Error('Request not found.');
+            if (String(req.status || '').toLowerCase() !== 'pending office review') {
+                alert(`This request is already ${req.status || 'processed'}.`);
+                loadInventoryRequestReviewList();
+                return;
+            }
+            const items = getInventoryRequestItems(req);
+            if (!items.length) throw new Error('Request has no item lines.');
+            const materialRows = await loadInventoryRequestMaterialRows();
+            const stockCheck = validateInventoryRequestStockBeforeConvert(req, materialRows);
+            if (!stockCheck.ok) {
+                alert(`Cannot convert yet. Stock check failed:\n\n${stockCheck.message}`);
+                return;
+            }
+            renderInventoryRequestConvertModal({ ...req, __firebaseKey: code, requestCode: invRequestSafeText(req.requestCode || code) });
+        } catch (err) {
+            console.error('Open inventory request conversion failed:', err);
+            alert(`Convert failed: ${err.message || err}`);
+        } finally {
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = originalText;
+            }
+        }
+    }
+
+    async function submitInventoryRequestConversionFromModal() {
+        const modal = ensureInventoryRequestConvertModal();
+        const code = invRequestSafeText(modal.dataset.requestCode || modal.dataset.displayCode || '');
+        if (!code) {
+            alert('Convert failed: missing request code. Please close and reopen Request Review.');
+            return;
+        }
+        const groupsMeta = [];
+        const routeSections = Array.from(modal.querySelectorAll('.inventory-request-convert-route'));
+        for (const section of routeSections) {
+            const index = Number(section.dataset.routeIndex || 0);
+            const sourceContact = invRequestSafeText(section.querySelector('[data-convert-field="sourceContact"]')?.value || '');
+            const approver = invRequestSafeText(section.querySelector('[data-convert-field="approver"]')?.value || '');
+            const receiver = invRequestSafeText(section.querySelector('[data-convert-field="receiver"]')?.value || '');
+            if (!sourceContact || !approver || !receiver) {
+                alert('Please complete Source Checker, Approver, and Receiver for every route.');
+                return;
+            }
+            groupsMeta[index] = { sourceContact, approver, receiver, routeKey: invRequestSafeText(section.dataset.routeKey || '') };
+        }
+        if (!confirm(`Create official Transfer record(s) for ${modal.dataset.displayCode || code}?\n\nThis will start at Pending Source. No stock will move yet.`)) return;
+
+        const submitBtn = modal.querySelector('#inv-request-convert-submit');
+        const originalText = submitBtn ? submitBtn.innerHTML : '';
+        try {
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating...';
+            }
+            const dbRef = (typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null;
+            if (!dbRef) throw new Error('Firebase database is not loaded.');
+
+            const reqSnap = await dbRef.ref(`inventory_requests/${code}`).once('value');
+            const req = reqSnap.val();
+            if (!req) throw new Error('Request not found.');
+            if (String(req.status || '').toLowerCase() !== 'pending office review') {
+                alert(`This request is already ${req.status || 'processed'}.`);
+                modal.classList.add('hidden');
+                loadInventoryRequestReviewList();
+                return;
+            }
+
+            const materialRows = await loadInventoryRequestMaterialRows();
+            const stockCheck = validateInventoryRequestStockBeforeConvert(req, materialRows);
+            if (!stockCheck.ok) {
+                alert(`Cannot convert yet. Stock check failed:\n\n${stockCheck.message}`);
+                return;
+            }
+
+            const reviewer = invRequestUser();
+            const routeGroups = getInventoryRequestRouteGroups(req);
+            const updates = {};
+            const officialKeys = [];
+            const officialGroups = [];
+            let runningIndex = 0;
+            routeGroups.forEach((group, groupIndex) => {
+                const meta = groupsMeta[groupIndex] || {};
+                const controlNumber = buildOfficialTransferControlNumber(req.requestCode || code, groupIndex);
+                officialGroups.push({ controlNumber, fromSite: group.fromSite, toSite: group.toSite, itemCount: group.lines.length, sourceContact: meta.sourceContact, approver: meta.approver, receiver: meta.receiver });
+                group.lines.forEach(line => {
+                    const newRef = dbRef.ref('transfer_entries').push();
+                    const officialKey = newRef.key;
+                    officialKeys.push(officialKey);
+                    updates[`transfer_entries/${officialKey}`] = buildOfficialTransferEntryFromRequestLine(req, line, runningIndex, officialKey, reviewer, {
+                        ...meta,
+                        controlNumber,
+                        fromSite: group.fromSite,
+                        toSite: group.toSite,
+                        routeKey: group.key
+                    });
+                    runningIndex += 1;
+                });
+            });
+            const reviewerName = invRequestSafeText(reviewer.name || 'Unknown');
+            updates[`inventory_requests/${code}/status`] = 'Converted to Official';
+            updates[`inventory_requests/${code}/remarks`] = 'Converted to Official Transfer';
+            updates[`inventory_requests/${code}/convertedBy`] = reviewerName;
+            updates[`inventory_requests/${code}/convertedByPosition`] = invRequestSafeText(reviewer.position || '');
+            updates[`inventory_requests/${code}/convertedAt`] = new Date().toISOString();
+            updates[`inventory_requests/${code}/officialTransferKeys`] = officialKeys;
+            updates[`inventory_requests/${code}/officialTransferGroups`] = officialGroups;
+            updates[`inventory_requests/${code}/officialTransferCount`] = officialKeys.length;
+            updates[`inventory_requests/${code}/officialRouteCount`] = officialGroups.length;
+
+            await dbRef.ref().update(updates);
+            modal.classList.add('hidden');
+            alert(`${code} converted to ${officialGroups.length} official Transfer route${officialGroups.length === 1 ? '' : 's'} with ${officialKeys.length} item line${officialKeys.length === 1 ? '' : 's'}.\n\nStatus: Pending Source confirmation.`);
+            try { if (typeof ensureAllEntriesFetched === 'function') await ensureAllEntriesFetched(true); } catch (_) {}
+            try { if (typeof populateActiveTasks === 'function') populateActiveTasks(); } catch (_) {}
+            try {
+                if (document.getElementById('reporting-table-body')) {
+                    if (typeof filterAndRenderReport === 'function') filterAndRenderReport(window.allSystemEntries || []);
+                    else if (typeof renderReportingTable === 'function') renderReportingTable(window.allSystemEntries || []);
+                }
+            } catch (_) {}
+            loadInventoryRequestReviewList();
+            refreshInventoryRequestReviewBadge();
+        } catch (err) {
+            console.error('Convert inventory request failed:', err);
+            alert(`Convert failed: ${err.message || err}`);
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        }
+    }
+
+    async function convertInventoryRequestToOfficialTransfer(requestCode, button = null) {
+        return openInventoryRequestConvertModal(requestCode, button);
+    }
+
+    function handleInventoryRequestReviewListClick(event) {
+        const convertBtn = event.target.closest('[data-inv-request-convert]');
+        const deleteBtn = event.target.closest('[data-inv-request-delete]');
+        if (!convertBtn && !deleteBtn) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (convertBtn) {
+            convertInventoryRequestToOfficialTransfer(convertBtn.getAttribute('data-inv-request-convert') || '', convertBtn);
+            return;
+        }
+        if (deleteBtn) deleteInventoryRequest(deleteBtn.getAttribute('data-inv-request-delete') || '', deleteBtn);
+    }
+
+    function renderInventoryRequestReviewCard(req) {
+        const items = Array.isArray(req.items) ? req.items : Object.values(req.items || {});
+        const requestKey = invRequestSafeText(req.__firebaseKey || req.requestCode || '');
+        const displayCode = invRequestSafeText(req.requestCode || requestKey);
+        const itemsHtml = items.map(it => `<div class="inventory-request-review-item"><strong>${invFinderEscape(it.productName || it.productId || 'Item')}</strong><span>${invFinderEscape(it.productId || '')} · Qty ${invFinderEscape(invFinderQty(it.qty))}</span><small>${invFinderEscape(it.fromSiteLabel || it.fromSite || '')} → ${invFinderEscape(it.toSiteLabel || it.toSite || '')}${it.remarks ? ' · ' + invFinderEscape(it.remarks) : ''}</small></div>`).join('');
+        return `<article class="inventory-request-review-card" data-request-key="${invFinderEscape(requestKey)}">
+            <div class="inventory-request-review-card-head">
+                <div><span class="inventory-request-code">${invFinderEscape(displayCode)}</span><h3>${invFinderEscape(req.requestType || 'Transfer')} Request</h3></div>
+                <span class="inventory-request-status">${invFinderEscape(req.status || '')}</span>
+            </div>
+            <div class="inventory-request-review-meta">
+                <span><b>By:</b> ${invFinderEscape(req.requestedBy || '')}</span>
+                <span><b>Position:</b> ${invFinderEscape(req.requestedByPosition || '')}</span>
+                <span><b>Route:</b> ${invFinderEscape(req.fromSite || '')} → ${invFinderEscape(req.toSite || '')}</span>
+                <span><b>Items:</b> ${items.length}</span>
+            </div>
+            <div class="inventory-request-review-items">${itemsHtml}</div>
+            <div class="inventory-request-review-note"><i class="fa-solid fa-shield-halved"></i> Stock will be re-checked before conversion. Conversion opens a designation form and creates official Transfer record(s) starting at Pending Source; no stock moves yet.</div>
+            <div class="inventory-request-review-actions">
+                <button type="button" class="primary-btn" data-inv-request-convert="${invFinderEscape(requestKey || displayCode)}" data-inv-request-code="${invFinderEscape(displayCode)}"><i class="fa-solid fa-right-left"></i> Convert / Designate</button>
+                <button type="button" class="danger-btn inv-request-delete-btn" data-inv-request-delete="${invFinderEscape(requestKey || displayCode)}" data-inv-request-code="${invFinderEscape(displayCode)}"><i class="fa-solid fa-trash-can"></i> Delete Request</button>
             </div>
         </article>`;
     }
@@ -1157,6 +2488,26 @@ function renderInventoryMobileActiveTasks(tasks) {
         stopInventoryMobileBarcodeScanner(false);
     }
 
+    // 7.6.7: Keep the Item Search public API grouped under one Inventory-owned namespace.
+    // The older window-level names stay as aliases so app-mobile.js and app.js do not break.
+    window.InventoryMobileMaterialFinder = Object.assign(window.InventoryMobileMaterialFinder || {}, {
+        version: '7.7.6',
+        isOpen: isInventoryMobileMaterialFinderOpen,
+        clearState: clearInventoryMobileMaterialFinderState,
+        ensureNav: ensureInventoryMobileMaterialFinderNav,
+        updateNavVisibility: updateInventoryMobileMaterialFinderNavVisibility,
+        open: openInventoryMobileMaterialFinder,
+        startScanner: startInventoryMobileBarcodeScanner,
+        stopScanner: stopInventoryMobileBarcodeScanner,
+        canSubmitTransferRequest: canSubmitInventoryTransferRequest,
+        canReviewRequests: canReviewInventoryTransferRequests,
+        ensureRequestReviewNav: ensureInventoryRequestReviewNav,
+        openRequestReview: openInventoryRequestReview,
+        refreshRequestReviewBadge: refreshInventoryRequestReviewBadge,
+        convertRequestToOfficialTransfer: convertInventoryRequestToOfficialTransfer,
+        deleteRequest: deleteInventoryRequest
+    });
+
     window.isInventoryMobileMaterialFinderOpen = isInventoryMobileMaterialFinderOpen;
     window.clearInventoryMobileMaterialFinderState = clearInventoryMobileMaterialFinderState;
     window.ensureInventoryMobileMaterialFinderNav = ensureInventoryMobileMaterialFinderNav;
@@ -1164,12 +2515,25 @@ function renderInventoryMobileActiveTasks(tasks) {
     window.openInventoryMobileMaterialFinder = openInventoryMobileMaterialFinder;
     window.startInventoryMobileBarcodeScanner = startInventoryMobileBarcodeScanner;
     window.stopInventoryMobileBarcodeScanner = stopInventoryMobileBarcodeScanner;
+    window.ensureInventoryRequestReviewNav = ensureInventoryRequestReviewNav;
+    window.openInventoryRequestReview = openInventoryRequestReview;
+    window.refreshInventoryRequestReviewBadge = refreshInventoryRequestReviewBadge;
+    window.convertInventoryRequestToOfficialTransfer = convertInventoryRequestToOfficialTransfer;
+    window.deleteInventoryRequest = deleteInventoryRequest;
 
     document.addEventListener('DOMContentLoaded', () => {
         ensureInventoryMobileMaterialFinderNav();
+        ensureInventoryRequestReviewNav();
         getMaterialFinderSection();
+        getInventoryRequestReviewSection();
         bindInventoryMobileMaterialFinderControls();
         window.addEventListener('resize', updateInventoryMobileMaterialFinderNavVisibility);
+        let reqReviewRefreshCount = 0;
+        const reqReviewTimer = window.setInterval(() => {
+            reqReviewRefreshCount += 1;
+            try { ensureInventoryRequestReviewNav(); updateInventoryRequestReviewNavVisibility(); } catch (_) {}
+            if (reqReviewRefreshCount >= 20) window.clearInterval(reqReviewTimer);
+        }, 1000);
         window.addEventListener('beforeunload', () => stopInventoryMobileBarcodeScanner(false));
     });
 })();
