@@ -1257,8 +1257,11 @@ body.iba-mobile-ui #im-reporting .im-po-balance-card::before {
   .inv-mobile-material-stats {
     margin-top: 12px;
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 8px;
+  }
+  .inv-mobile-material-stats.single-stat {
+    grid-template-columns: 1fr;
   }
   .inv-mobile-material-stats > div {
     background: #f8fafc;
