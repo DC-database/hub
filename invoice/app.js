@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = "7.6.6";
+const APP_VERSION = "7.7.6";
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -2805,7 +2805,8 @@ async function ensureAllEntriesFetched(forceRefresh = false) {
             site: combinedSite,
             orderedQty: value.requiredQty || 0,
             deliveredQty: value.receivedQty || 0,
-            shippingDate: value.shippingDate || 'N/A',
+            // 7.7.6: if no shipping date was entered, show the record date/created date instead of N/A.
+            shippingDate: value.shippingDate || (value.createdAt ? String(value.createdAt).slice(0, 10) : (value.date || 'N/A')),
             arrivalDate: value.arrivalDate || 'N/A',
             contactName: contactPerson,
             vendorName: value.productName,
@@ -3626,7 +3627,9 @@ function handleSuccessfulLogin() {
                 Position: currentApprover?.Position || '',
                 Role: currentApprover?.Role || '',
                 Mobile: currentApprover?.Mobile || '',
-                Email: currentApprover?.Email || ''
+                Email: currentApprover?.Email || '',
+                Site: currentApprover?.Site || '',
+                site: currentApprover?.Site || ''
             };
         } catch (e) { /* ignore */ }
     } else {
@@ -6185,10 +6188,11 @@ const getTaskSiteForMatch = (t) =>
             if (['Transfer', 'Restock', 'Return', 'Usage'].includes(entry.for)) {
                 if (entry.remarks === 'Pending Confirmation') return isMeOrDelegated(entry.requestor);
                 if (entry.remarks === 'Pending Source') return isMeOrDelegated(entry.sourceContact);
-                if (entry.remarks === 'Pending Admin' || entry.remarks === 'Pending') return isMeOrDelegated(entry.approver);
+                if (entry.remarks === 'Pending Admin' || entry.remarks === 'Pending') return isMeOrDelegated(entry.approver) || isMeOrDelegated(entry.attention);
                 if (entry.remarks === 'Approved' || entry.remarks === 'In Transit') return isMeOrDelegated(entry.receiver);
                 if (isMeOrDelegated(entry.attention)) return true;
-                if (entry.attention === 'All' && (entry.site === currentUserSite || currentUserSite === 'All')) return true;
+                // 7.7.4: Inventory Active Task is personal/designated only.
+                // Do not show broad Attention=All inventory tasks in My Active Task.
                 return false;
             }
 
@@ -6236,6 +6240,10 @@ const getTaskSiteForMatch = (t) =>
             }
 
             let isUrgent = isDirectAttentionForUser(attentionForUrgent);
+
+            // 7.7.4: Inventory Active Task must stay personal/designated.
+            // Admin/Super Admin still have full access in Job Records/Request Review, but
+            // My Active Task should not show every generic Pending Admin inventory record.
 
             // Keep existing "no action" states from triggering UI
             if (String(displayStatus || '').toLowerCase().includes('on hold')) isUrgent = false;
@@ -15931,7 +15939,8 @@ try {
                             receivedQty: val.receivedQty || 0,
 
                             // Dates
-                            shippingDate: val.shippingDate || '',
+                            // 7.7.6: if shipping date was not entered, use the entry/created date as fallback.
+                            shippingDate: val.shippingDate || (val.createdAt ? String(val.createdAt).slice(0, 10) : (val.date || '')),
                             arrivalDate: val.arrivalDate || '',
 
                             // Status & Logic

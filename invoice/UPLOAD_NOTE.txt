@@ -1,3 +1,13 @@
-7.6.6 changed files only
-Upload/replace: app.js, index.html, js/app-mobile.js, js/app-inventory.js
-Fix: Inventory mobile Item Search tab no longer gets forced back to Active Task after opening.
+7.6.7 changed files only
+
+Upload/replace:
+- app.js
+- index.html
+- js/app-inventory.js
+
+No changes needed for:
+- mobile.css
+- js/app-core.js
+- js/app-mobile.js
+- js/app-invoice.js
+- style.css
