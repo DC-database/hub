@@ -1,6 +1,6 @@
 // =================================================================================================
 // IBA — Inventory JS Foundation
-// Version: 7.7.6
+// Version: 7.7.9
 // Purpose: Inventory context/type helpers separated from app.js.
 // Keep this file lightweight. Do not move stock saving/approval logic here until later phases.
 // =================================================================================================
@@ -622,6 +622,9 @@ function renderInventoryMobileActiveTasks(tasks) {
     const TRANSFER_REQUEST_CART_KEY = 'iba_inventory_transfer_request_cart_v1';
     const TRANSFER_REQUEST_SUBMIT_POSITIONS = ['site dc', 'procurement', 'coo', 'ceo', 'reception', 'logistic', 'storekeeper'];
     const TRANSFER_REQUEST_REVIEW_POSITIONS = ['logistic', 'storekeeper'];
+    // 7.7.7 — Delete pending requests is narrower than review/conversion.
+    // Logistic, COO, and Super Admin can delete; Storekeeper can review/convert but not delete.
+    const TRANSFER_REQUEST_DELETE_POSITIONS = ['logistic', 'coo'];
     let transferRequestFormItemKey = '';
 
     function isInventoryFinderMobileActive() {
@@ -954,6 +957,14 @@ function renderInventoryMobileActiveTasks(tasks) {
 
     function canReviewInventoryTransferRequests() {
         return invRequestPositionAllowed(TRANSFER_REQUEST_REVIEW_POSITIONS);
+    }
+
+    function canDeleteInventoryTransferRequests() {
+        return invRequestPositionAllowed(TRANSFER_REQUEST_DELETE_POSITIONS);
+    }
+
+    function canAccessInventoryRequestReview() {
+        return canReviewInventoryTransferRequests() || canDeleteInventoryTransferRequests();
     }
 
     function readTransferRequestCart() {
@@ -1674,7 +1685,6 @@ function renderInventoryMobileActiveTasks(tasks) {
         const name = invFinderProductName(item) || 'Unnamed Item';
         const details = invFinderDetails(item) || 'No details available';
         const stockQty = invFinderQty(item.stockQty ?? item.stock ?? item.quantity ?? 0);
-        const movedQty = invFinderQty(item.transferredQty ?? item.issuedQty ?? item.usedQty ?? 0);
         const balVal = getInventoryItemTotalAvailable(item);
         const balance = invFinderQty(balVal);
         const photoUrl = invFinderPhotoUrl(item);
@@ -1705,10 +1715,8 @@ function renderInventoryMobileActiveTasks(tasks) {
                     <p>${invFinderEscape(details)}</p>
                 </div>
             </div>
-            <div class="inv-mobile-material-stats">
-                <div><span>Stock</span><strong>${invFinderEscape(stockQty)}</strong></div>
-                <div><span>Moved/Used</span><strong>${invFinderEscape(movedQty)}</strong></div>
-                <div class="${balanceClass}"><span>Available</span><strong>${invFinderEscape(balance)}</strong></div>
+            <div class="inv-mobile-material-stats single-stat">
+                <div class="${balanceClass}"><span>Available Stock</span><strong>${invFinderEscape(balance)}</strong></div>
             </div>
             <div class="inv-mobile-material-history">
                 <div class="inv-mobile-material-history-title"><i class="fa-solid fa-clock-rotate-left"></i> Item Movement History</div>
@@ -1784,7 +1792,7 @@ function renderInventoryMobileActiveTasks(tasks) {
         // 7.7.2: keep Request Review only in the Inventory module. Do not let old body classes
         // or shared WorkDesk sections make it appear in Invoice/Task pages.
         const inventory = activeModule === 'inventory' || (!activeModule && typeof isDirectInventoryOpenRequested === 'function' && isDirectInventoryOpenRequested());
-        if (!mobile && inventory && canReviewInventoryTransferRequests()) {
+        if (!mobile && inventory && canAccessInventoryRequestReview()) {
             li.style.removeProperty('display');
             refreshInventoryRequestReviewBadge();
         } else {
@@ -1837,8 +1845,8 @@ function renderInventoryMobileActiveTasks(tasks) {
     }
 
     function openInventoryRequestReview() {
-        if (!canReviewInventoryTransferRequests()) {
-            alert('Request Review is available only for Logistic / Storekeeper / Super Admin.');
+        if (!canAccessInventoryRequestReview()) {
+            alert('Request Review is available only for Logistic / Storekeeper / COO / Super Admin.');
             return;
         }
         const section = getInventoryRequestReviewSection();
@@ -1858,7 +1866,7 @@ function renderInventoryMobileActiveTasks(tasks) {
 
     async function refreshInventoryRequestReviewBadge() {
         const badge = document.getElementById('wd-inv-request-review-badge');
-        if (!badge || !canReviewInventoryTransferRequests()) return;
+        if (!badge || !canAccessInventoryRequestReview()) return;
         try {
             const dbRef = (typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null;
             if (!dbRef) return;
@@ -1971,7 +1979,7 @@ function renderInventoryMobileActiveTasks(tasks) {
 
     function validateInventoryRequestStockBeforeConvert(req, materialRows) {
         const items = Array.isArray(req.items) ? req.items : Object.values(req.items || {});
-        if (!items.length) return { ok: false, message: 'This request has no item lines.' };
+        if (!items.length) return { ok: false, message: 'This request has no item lines.', shortages: [] };
 
         const needed = new Map();
         items.forEach(line => {
@@ -1979,22 +1987,111 @@ function renderInventoryMobileActiveTasks(tasks) {
             const qty = invFinderNumber(line.qty);
             if (!from || qty <= 0) return;
             const key = `${invRequestMaterialGroupKeyFromLine(line)}@@${invSiteNorm(from)}`;
-            const current = needed.get(key) || { line, fromSite: from, qty: 0 };
+            const current = needed.get(key) || { line, fromSite: from, qty: 0, key };
             current.qty += qty;
             needed.set(key, current);
         });
 
+        const shortages = [];
         for (const check of needed.values()) {
             const matchingRows = materialRows.filter(row => invRequestMaterialRowMatchesLine(row, check.line));
             const available = matchingRows.reduce((sum, row) => sum + invRequestQtyFromRowAtSite(row, check.fromSite), 0);
             if (check.qty > available) {
-                return {
-                    ok: false,
+                shortages.push({
+                    ...check,
+                    available,
+                    shortage: Math.max(0, check.qty - available),
                     message: `${check.line.productName || check.line.productId || 'Item'} from ${check.fromSite}: requested ${invFinderQty(check.qty)}, available ${invFinderQty(available)}.`
-                };
+                });
             }
         }
-        return { ok: true };
+        if (shortages.length) {
+            return {
+                ok: false,
+                shortages,
+                message: shortages.map(s => s.message).slice(0, 5).join('\n')
+            };
+        }
+        return { ok: true, shortages: [] };
+    }
+
+    function buildInventoryRequestReducedItems(req, materialRows) {
+        const items = Array.isArray(req.items) ? req.items : Object.values(req.items || {});
+        const availableMap = new Map();
+        const usedMap = new Map();
+        const adjusted = [];
+        const changes = [];
+
+        items.forEach(line => {
+            const from = invRequestSafeText(line.fromSite || line.fromSiteLabel || '');
+            const key = `${invRequestMaterialGroupKeyFromLine(line)}@@${invSiteNorm(from)}`;
+            if (!availableMap.has(key)) {
+                const matchingRows = materialRows.filter(row => invRequestMaterialRowMatchesLine(row, line));
+                const available = matchingRows.reduce((sum, row) => sum + invRequestQtyFromRowAtSite(row, from), 0);
+                availableMap.set(key, available);
+            }
+            const requested = invFinderNumber(line.qty);
+            const used = usedMap.get(key) || 0;
+            const remaining = Math.max(0, invFinderNumber(availableMap.get(key)) - used);
+            const allowed = Math.min(requested, remaining);
+
+            if (allowed > 0) {
+                const nextLine = { ...line, qty: allowed };
+                if (allowed !== requested) {
+                    nextLine.originalRequestedQty = requested;
+                    nextLine.adjustedQty = allowed;
+                    nextLine.stockAdjustedAt = new Date().toISOString();
+                }
+                adjusted.push(nextLine);
+            }
+
+            usedMap.set(key, used + allowed);
+            if (allowed !== requested) {
+                changes.push({
+                    productName: line.productName || line.productId || 'Item',
+                    fromSite: from || 'N/A',
+                    requested,
+                    adjusted: allowed,
+                    available: invFinderNumber(availableMap.get(key))
+                });
+            }
+        });
+
+        return { items: adjusted, changes, changed: changes.length > 0 };
+    }
+
+    async function offerInventoryRequestStockAdjustment(req, materialRows, code, reasonText = '') {
+        const reduced = buildInventoryRequestReducedItems(req, materialRows);
+        if (!reduced.changed) return null;
+        const validLines = reduced.items.filter(line => invFinderNumber(line.qty) > 0);
+        const changeLines = reduced.changes.map(ch =>
+            `• ${ch.productName} from ${ch.fromSite}: ${invFinderQty(ch.requested)} → ${invFinderQty(ch.adjusted)}`
+        ).slice(0, 8).join('\n');
+
+        if (!validLines.length) {
+            alert(`Stock changed and no quantity is available for this request anymore.\n\n${reasonText || ''}\n\nPlease delete/reject this request and create a new one if needed.`);
+            return null;
+        }
+
+        const ok = confirm(`Stock changed before this request was converted.\n\nFirst completed/converted requests take priority, so this request must be adjusted before it can continue.\n\nAdjust request quantity to current available stock?\n\n${changeLines}\n\nOK = continue with reduced qty.\nCancel = keep request pending so you can delete/reject or review it.`);
+        if (!ok) return null;
+
+        const dbRef = (typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null;
+        if (!dbRef) throw new Error('Firebase database is not loaded.');
+        const reviewer = invRequestUser();
+        const adjustmentLog = {
+            at: new Date().toISOString(),
+            by: reviewer.name || 'Unknown',
+            changes: reduced.changes
+        };
+        await dbRef.ref(`inventory_requests/${code}`).update({
+            items: validLines,
+            stockAdjustedAt: adjustmentLog.at,
+            stockAdjustedBy: adjustmentLog.by,
+            stockAdjustmentLog: adjustmentLog,
+            remarks: 'Adjusted to current available stock before official conversion'
+        });
+        return { ...req, items: validLines, stockAdjustmentLog: adjustmentLog };
     }
 
     function buildOfficialTransferControlNumber(requestCode, index) {
@@ -2139,8 +2236,8 @@ function renderInventoryMobileActiveTasks(tasks) {
     }
 
     async function deleteInventoryRequest(requestCode, button = null) {
-        if (!canReviewInventoryTransferRequests()) {
-            alert('Only Logistic / Storekeeper / Super Admin can delete pending requests.');
+        if (!canDeleteInventoryTransferRequests()) {
+            alert('Only Logistic / COO / Super Admin can delete pending requests.');
             return;
         }
         const code = invRequestSafeText(requestCode);
@@ -2309,11 +2406,14 @@ function renderInventoryMobileActiveTasks(tasks) {
             if (!items.length) throw new Error('Request has no item lines.');
             const materialRows = await loadInventoryRequestMaterialRows();
             const stockCheck = validateInventoryRequestStockBeforeConvert(req, materialRows);
+            let reviewReq = req;
             if (!stockCheck.ok) {
-                alert(`Cannot convert yet. Stock check failed:\n\n${stockCheck.message}`);
-                return;
+                const adjustedReq = await offerInventoryRequestStockAdjustment(req, materialRows, code, stockCheck.message);
+                if (!adjustedReq) return;
+                reviewReq = adjustedReq;
+                alert('Request quantity was adjusted to current available stock. Please review the updated lines before creating the official transfer.');
             }
-            renderInventoryRequestConvertModal({ ...req, __firebaseKey: code, requestCode: invRequestSafeText(req.requestCode || code) });
+            renderInventoryRequestConvertModal({ ...reviewReq, __firebaseKey: code, requestCode: invRequestSafeText(reviewReq.requestCode || code) });
         } catch (err) {
             console.error('Open inventory request conversion failed:', err);
             alert(`Convert failed: ${err.message || err}`);
@@ -2370,7 +2470,11 @@ function renderInventoryMobileActiveTasks(tasks) {
             const materialRows = await loadInventoryRequestMaterialRows();
             const stockCheck = validateInventoryRequestStockBeforeConvert(req, materialRows);
             if (!stockCheck.ok) {
-                alert(`Cannot convert yet. Stock check failed:\n\n${stockCheck.message}`);
+                const adjustedReq = await offerInventoryRequestStockAdjustment(req, materialRows, code, stockCheck.message);
+                if (adjustedReq) {
+                    alert('Request was adjusted to current available stock. Please review the updated lines and click Create Official Transfer again.');
+                    renderInventoryRequestConvertModal({ ...adjustedReq, __firebaseKey: code, requestCode: invRequestSafeText(adjustedReq.requestCode || code) });
+                }
                 return;
             }
 
@@ -2469,8 +2573,8 @@ function renderInventoryMobileActiveTasks(tasks) {
             <div class="inventory-request-review-items">${itemsHtml}</div>
             <div class="inventory-request-review-note"><i class="fa-solid fa-shield-halved"></i> Stock will be re-checked before conversion. Conversion opens a designation form and creates official Transfer record(s) starting at Pending Source; no stock moves yet.</div>
             <div class="inventory-request-review-actions">
-                <button type="button" class="primary-btn" data-inv-request-convert="${invFinderEscape(requestKey || displayCode)}" data-inv-request-code="${invFinderEscape(displayCode)}"><i class="fa-solid fa-right-left"></i> Convert / Designate</button>
-                <button type="button" class="danger-btn inv-request-delete-btn" data-inv-request-delete="${invFinderEscape(requestKey || displayCode)}" data-inv-request-code="${invFinderEscape(displayCode)}"><i class="fa-solid fa-trash-can"></i> Delete Request</button>
+                ${canReviewInventoryTransferRequests() ? `<button type="button" class="primary-btn" data-inv-request-convert="${invFinderEscape(requestKey || displayCode)}" data-inv-request-code="${invFinderEscape(displayCode)}"><i class="fa-solid fa-right-left"></i> Convert / Designate</button>` : ''}
+                ${canDeleteInventoryTransferRequests() ? `<button type="button" class="danger-btn inv-request-delete-btn" data-inv-request-delete="${invFinderEscape(requestKey || displayCode)}" data-inv-request-code="${invFinderEscape(displayCode)}"><i class="fa-solid fa-trash-can"></i> Delete Request</button>` : ''}
             </div>
         </article>`;
     }
@@ -2491,7 +2595,7 @@ function renderInventoryMobileActiveTasks(tasks) {
     // 7.6.7: Keep the Item Search public API grouped under one Inventory-owned namespace.
     // The older window-level names stay as aliases so app-mobile.js and app.js do not break.
     window.InventoryMobileMaterialFinder = Object.assign(window.InventoryMobileMaterialFinder || {}, {
-        version: '7.7.6',
+        version: '7.7.9',
         isOpen: isInventoryMobileMaterialFinderOpen,
         clearState: clearInventoryMobileMaterialFinderState,
         ensureNav: ensureInventoryMobileMaterialFinderNav,
@@ -2501,6 +2605,8 @@ function renderInventoryMobileActiveTasks(tasks) {
         stopScanner: stopInventoryMobileBarcodeScanner,
         canSubmitTransferRequest: canSubmitInventoryTransferRequest,
         canReviewRequests: canReviewInventoryTransferRequests,
+        canDeleteRequests: canDeleteInventoryTransferRequests,
+        canAccessRequestReview: canAccessInventoryRequestReview,
         ensureRequestReviewNav: ensureInventoryRequestReviewNav,
         openRequestReview: openInventoryRequestReview,
         refreshRequestReviewBadge: refreshInventoryRequestReviewBadge,
