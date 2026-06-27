@@ -1,0 +1,726 @@
+// js/app-navigation-settings.js
+// Extracted from app.js in v8.3.1 (cleanup only).
+// Keeps navigation, login/session routing, logout, and user settings helpers globally available.
+
+// #region BLOCK 09 — VIEW SWITCHING, LOGIN + SESSION INITIALIZATION
+// Purpose: showView, approver lookup, successful-login routing, permissions visibility, deep-link boot logic.
+// =================================================================================================
+
+// ==========================================================================
+// 6. VIEW NAVIGATION & AUTHENTICATION
+// ==========================================================================
+
+function showView(viewName) {
+    Object.keys(views).forEach(key => {
+        if (views[key]) views[key].classList.add('hidden');
+    });
+    if (invoiceManagementView) invoiceManagementView.classList.add('hidden');
+
+    if (viewName === 'workdesk' || viewName === 'invoice-management') {
+        document.body.classList.remove('login-background');
+        document.getElementById('app-container').style.display = 'none';
+    } else {
+        document.body.classList.add('login-background');
+        document.getElementById('app-container').style.display = 'block';
+    }
+
+    if (views[viewName]) {
+        views[viewName].classList.remove('hidden');
+    } else if (viewName === 'invoice-management' && invoiceManagementView) {
+        invoiceManagementView.classList.remove('hidden');
+    }
+}
+
+// --- Authentication Helpers ---
+
+async function findApprover(identifier) {
+    const isEmail = identifier.includes('@');
+    const searchKey = isEmail ? 'Email' : 'Mobile';
+    const searchValue = isEmail ? identifier : normalizeMobile(identifier);
+
+    // Cache check
+    if (!allApproverData) {
+        console.log("Caching approvers list for the first time...");
+        const snapshot = await db.ref('approvers').once('value');
+        allApproverData = snapshot.val();
+    }
+    const approversData = allApproverData;
+
+    if (!approversData) return null;
+    for (const key in approversData) {
+        const record = approversData[key];
+        const dbValue = record[searchKey];
+        if (dbValue) {
+            if (isEmail) {
+                if (dbValue.toLowerCase() === searchValue.toLowerCase()) {
+                    return {
+                        key,
+                        ...record
+                    };
+                }
+            } else {
+                const normalizedDbMobile = dbValue.replace(/\D/g, '');
+                if (normalizedDbMobile === searchValue) {
+                    return {
+                        key,
+                        ...record
+                    };
+                }
+            }
+        }
+    }
+    return null;
+}
+
+async function getApproverByKey(key) {
+    try {
+        const snapshot = await db.ref(`approvers/${key}`).once('value');
+        const approverData = snapshot.val();
+        if (approverData) {
+            return {
+                key,
+                ...approverData
+            };
+        } else {
+            return null;
+        }
+    } catch (error) {
+        console.error("Error fetching approver by key:", error);
+        return null;
+    }
+}
+
+function handleSuccessfulLogin() {
+    if (currentApprover && currentApprover.key) {
+        localStorage.setItem('approverKey', currentApprover.key);
+
+        // Keep a lightweight global user object for modules that rely on window.currentUser
+        try {
+            window.currentUser = {
+                username: (currentApprover?.Name || '').trim(),
+                Name: (currentApprover?.Name || '').trim(),
+                Position: currentApprover?.Position || '',
+                Role: currentApprover?.Role || '',
+                Mobile: currentApprover?.Mobile || '',
+                Email: currentApprover?.Email || '',
+                Site: currentApprover?.Site || '',
+                site: currentApprover?.Site || ''
+            };
+        } catch (e) { /* ignore */ }
+    } else {
+        console.error("Attempted to save login state but currentApprover or key is missing.");
+        handleLogout();
+        return;
+    }
+
+    // Check for CEO Admin role
+    const isCEO = (currentApprover?.Role || '').toLowerCase() === 'admin' &&
+        (currentApprover?.Position || '').toLowerCase() === 'ceo';
+    document.body.classList.toggle('is-ceo', isCEO);
+
+    // 7.3.6: Mobile should also be able to see the Welcome/module screen after login.
+    // Direct module links such as ?mode=inventory are handled below after permissions are applied.
+    const isMobile = (typeof isMobileViewport === 'function') ? isMobileViewport() : ((window.innerWidth || 0) <= 900);
+    try { window.__ibaActiveModule = 'home'; } catch (_) {}
+    if (document.body) document.body.classList.remove('inventory-mode');
+    showView('dashboard');
+
+    const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
+    document.body.classList.toggle('is-admin', isAdmin);
+
+    // --- Vacation delegation requires full approvers cache (preload + re-apply UI on refresh) ---
+    // On initial login we often already have it, but on session restore we may only have a single user record.
+    // Preload approvers in background and then re-apply Invoice Management visibility once available.
+    if (!allApproverDataCache) {
+        ensureApproverDataCached().then(() => {
+            const _isVacationDelegate = isVacationDelegateUser();
+            document.body.classList.toggle('is-vacation-delegate', _isVacationDelegate);
+            const _invoiceMgmtBtn = document.getElementById('invoice-mgmt-button');
+            if (_invoiceMgmtBtn) {
+                const _userPosLower = (currentApprover?.Position || '').toLowerCase();
+                const _isAccounting = _userPosLower === 'accounting';
+                const _isAccounts = _userPosLower === 'accounts';
+                const _isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
+                if (_isAdmin || _isAccounting || _isAccounts || _isVacationDelegate) {
+                    _invoiceMgmtBtn.classList.remove('hidden');
+                } else {
+                    _invoiceMgmtBtn.classList.add('hidden');
+                }
+            }
+        }).catch((e) => console.warn('Approver cache preload failed:', e));
+    }
+
+
+    const userPositionLower = (currentApprover?.Position || '').toLowerCase();
+    const isAccounting = userPositionLower === 'accounting';
+    const isAccounts = userPositionLower === 'accounts';
+    const isVacationDelegate = isVacationDelegateUser();
+    document.body.classList.toggle('is-vacation-delegate', isVacationDelegate);
+
+
+    // --- Financial Report (Welcome Button): Super Admin + (Admin with specific Finance Positions) ---
+const financeReportButton = document.getElementById('finance-report-button') || document.querySelector('a[href="https://ibaport.site/Finance/"]');
+
+if (financeReportButton) {
+    const isSuperAdmin = ((currentApprover?.Name || '').trim().toLowerCase() === SUPER_ADMIN_NAME.toLowerCase());
+    
+    // Check if the user has one of your 5 specific positions
+    const pos = (userPositionLower || '').toLowerCase();
+    const hasAllowedPosition = pos.includes('ceo') || 
+                               pos.includes('coo') || 
+                               pos.includes('finance') || 
+                               pos.includes('accounts') || 
+                               pos.includes('accounting');
+
+    // ONLY show if they are Super Admin OR (Role is Admin AND Position is one of the 5 above)
+    const canSeeFinancialReport = isSuperAdmin || (isAdmin && hasAllowedPosition);
+    
+    financeReportButton.classList.toggle('hidden', !canSeeFinancialReport);
+}
+
+    // --- NEW: PO System (Welcome Button): Super Admin (Irwin) ONLY ---
+    const poSystemButton = document.getElementById('po-system-button');
+    if (poSystemButton) {
+        const isSuperAdmin = ((currentApprover?.Name || '').trim().toLowerCase() === SUPER_ADMIN_NAME.toLowerCase());
+        // Toggle 'hidden' class: If NOT Super Admin, it stays hidden.
+        poSystemButton.classList.toggle('hidden', !isSuperAdmin);
+    }
+
+    // --- NEW FIX: Hide Invoice Management Button for Unauthorized Users ---
+    // Only Admins, Accounting, or Accounts should see this button
+    const invoiceMgmtBtn = document.getElementById('invoice-mgmt-button');
+    if (invoiceMgmtBtn) {
+        if (isAdmin || isAccounting || isAccounts || isVacationDelegate) {
+            invoiceMgmtBtn.classList.remove('hidden');
+        } else {
+            invoiceMgmtBtn.classList.add('hidden');
+        }
+    }
+
+// [START] Auto-Open Inventory Mode
+    // Supports direct Inventory links from the main IBA landing page:
+    //   /invoice/?mode=inventory, ?open=inventory, ?module=inventory, or #inventory
+    const directInventoryOpen = (typeof isDirectInventoryOpenRequested === 'function') && isDirectInventoryOpenRequested();
+
+    if (directInventoryOpen) {
+        console.log("Inventory direct-open detected. Opening Inventory module...");
+        setTimeout(() => {
+            const invBtn = document.getElementById('inventory-button');
+            if (invBtn) invBtn.click();
+        }, 250);
+    }
+    // [END] Auto-Open Inventory Mode
+
+    // Smart Sync / Smart Refresh removed (no background auto-sync).
+
+    // --- Celebration Banner (configurable; optional) ---
+    // Safe to call on both mobile + desktop.
+    try {
+        showCelebrationBannerIfNeeded();
+    } catch (e) {
+        console.log('Celebration banner failed:', e);
+    }
+
+    // --- Direct Messages (1:1) ---
+    // Works across WorkDesk + Invoice Management + Inventory.
+    try {
+        initDirectMessages();
+    } catch (e) {
+        console.warn('Direct messages init failed:', e);
+    }
+
+    // --- Deep Link: open a specific invoice (shared via WhatsApp / URL) ---
+    // Safe: no-op unless URL contains ?open=invoice&po=...&invKey=...
+    try {
+        const dl = imParseInvoiceDeepLinkFromUrl();
+        if (dl && dl.po && dl.invKey) {
+            // Prevent repeated opens on refresh/back
+            imClearInvoiceDeepLinkFromUrl();
+            // Give UI a moment to finish view rendering
+            setTimeout(() => {
+                imOpenInvoiceFromDeepLink(dl.po, dl.invKey);
+            }, 700);
+        }
+    } catch (e) {
+        console.log('Deep link parse failed:', e);
+    }
+
+
+
+    // --- Deep Link: open Workdesk Active Task for a specific invoice task ---
+    // URL: ?open=wdtask&po=...&invKey=...
+    try {
+        const wdl = wdParseActiveTaskDeepLinkFromUrl();
+        if (wdl && wdl.po && wdl.invKey) {
+            wdClearActiveTaskDeepLinkFromUrl();
+            setTimeout(() => {
+                wdOpenActiveTaskFromDeepLink(wdl.po, wdl.invKey);
+            }, 700);
+        }
+    } catch (e) {
+        console.log('Workdesk deep link parse failed:', e);
+    }
+}
+
+
+// #endregion BLOCK 09 — VIEW SWITCHING, LOGIN + SESSION INITIALIZATION
+
+
+// #region BLOCK 11 — MAIN NAVIGATION + SETTINGS
+// Purpose: Logout, WorkDesk section switching, Invoice Management section switching, user/settings forms, celebration settings save.
+// =================================================================================================
+
+function handleLogout() {
+    // Live chat cleanup
+
+    // Direct messages cleanup
+    try { shutdownDirectMessages(); } catch (e) { /* ignore */ }
+
+    // Smart Sync / Smart Refresh removed (no background listeners).
+
+    localStorage.removeItem('approverKey');
+
+    try { window.currentUser = null; } catch (e) { /* ignore */ }
+
+    if (dateTimeInterval) clearInterval(dateTimeInterval);
+    if (workdeskDateTimeInterval) clearInterval(workdeskDateTimeInterval);
+    if (imDateTimeInterval) clearInterval(imDateTimeInterval);
+    location.reload();
+}
+
+// --- Workdesk Navigation ---
+
+async function showWorkdeskSection(sectionId, newSearchTerm = null) {
+    // 1. Cleanup
+    if (activeTaskAutoRefreshInterval) {
+        clearInterval(activeTaskAutoRefreshInterval);
+        activeTaskAutoRefreshInterval = null;
+    }
+
+    // 2. Hide all sections, Show target
+    workdeskSections.forEach(section => {
+        section.classList.add('hidden');
+    });
+    const targetSection = document.getElementById(sectionId);
+    if (targetSection) {
+        targetSection.classList.remove('hidden');
+    }
+
+
+    // Inventory In-Transit report button is only relevant in Inventory context (desktop)
+    if (typeof updateInTransitReportButtonVisibility === 'function') {
+        updateInTransitReportButtonVisibility();
+    }
+
+    // 3. Section-Specific Logic
+    if (sectionId === 'wd-dashboard') {
+        await populateWorkdeskDashboard();
+        renderWorkdeskCalendar();
+        renderYearView();
+        await populateCalendarTasks();
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        const todayStr = `${year}-${month}-${day}`;
+        displayCalendarTasksForDay(todayStr);
+    }
+
+    if (sectionId === 'wd-jobentry') {
+        if (!currentlyEditingKey) {
+            resetJobEntryForm(false);
+        }
+        const savedSearch = sessionStorage.getItem('jobEntrySearch');
+        if (savedSearch) {
+            jobEntrySearchInput.value = savedSearch;
+        }
+        await handleJobEntrySearch(jobEntrySearchInput.value);
+    }
+
+    if (sectionId === 'wd-activetask') {
+        await populateActiveTasks();
+
+        let searchTerm = '';
+        if (newSearchTerm !== null) {
+            searchTerm = newSearchTerm;
+        } else {
+            searchTerm = sessionStorage.getItem('activeTaskSearch') || '';
+        }
+
+        if (searchTerm) {
+            activeTaskSearchInput.value = searchTerm;
+            handleActiveTaskSearch(searchTerm);
+        }
+    }
+
+    if (sectionId === 'wd-reporting') {
+        // --- NEW: Reset filter to clean slate ---
+        currentReportFilter = null;
+
+        const savedSearch = sessionStorage.getItem('reportingSearch');
+        if (savedSearch) {
+            reportingSearchInput.value = savedSearch;
+        } else {
+            // Clear search input if no saved search
+            reportingSearchInput.value = '';
+        }
+        await handleReportingSearch();
+    }
+
+    // --- NEW: Material Stock Logic ---
+    if (sectionId === 'wd-material-stock') {
+        // Inventory Material Stock is still shown inside the WorkDesk shell,
+        // so refresh the Inventory badge with inventory-only tasks here.
+        // This clears stale WorkDesk/Invoice task counts before the user opens Active Task.
+        if (typeof isInventoryContext === 'function' && isInventoryContext() && typeof refreshInventoryTaskBadgeOnly === 'function') {
+            await refreshInventoryTaskBadgeOnly();
+        }
+
+        // This function lives in materialStock.js
+        if (typeof populateMaterialStock === 'function') {
+            await populateMaterialStock();
+        } else {
+            console.error("materialStock.js functions are not loaded.");
+        }
+    }
+
+    if (sectionId === 'wd-settings') {
+        populateSettingsForm();
+    }
+}
+
+// --- Invoice Management Navigation ---
+function showIMSection(sectionId) {
+    // 1. Get User Credentials
+    const userPos = (currentApprover?.Position || '').trim(); // Case sensitive check next
+    const userRole = (currentApprover?.Role || '').toLowerCase();
+
+    // 2. Define Permission Flags (Strict Logic)
+    const isAdmin = userRole === 'admin';
+    const isAccountingPos = userPos === 'Accounting'; // Case sensitive as per request usually, but let's be safe
+    const isAccountsPos = userPos === 'Accounts';
+
+    // "Admin with Accounting" (Has Everything)
+    const isAccountingAdmin = isAdmin && isAccountingPos; // Strictly Admin + Accounting
+
+    // "Admin with Accounts" (Has Payments)
+    // Note: We allow AccountingAdmin to see payments too since they have "everything"
+    const isAccountsAdmin = (isAdmin && isAccountsPos) || isAccountingAdmin;
+
+    // Vacation delegate (replacement for Irwin) gets temporary Invoice Management access
+    const isVacationDelegate = isVacationDelegateUser();
+    const isSuperAdmin = ((currentApprover?.Name || '').trim().toLowerCase() === SUPER_ADMIN_NAME.toLowerCase());
+    const canAccessFullIM = isAccountingAdmin || isVacationDelegate;
+    const canAccessPayments = isAccountsAdmin; // Vacation delegate does NOT get Payments access
+    // Finance/Financial report is read-only and restricted to Super Admin (Irwin) and the active Super Admin replacement.
+    // 3. Strict Access Control Checks
+    if (sectionId === 'im-invoice-entry' && !canAccessFullIM) {
+        alert('Access Denied: Restricted to Admin & Accounting position.');
+        return;
+    }
+    if (sectionId === 'im-batch-entry' && !canAccessFullIM) {
+        alert('Access Denied: Restricted to Admin & Accounting position.');
+        return;
+    }
+    if (sectionId === 'im-summary-note' && !canAccessFullIM) {
+        alert('Access Denied: Restricted to Admin & Accounting position.');
+        return;
+    }
+
+    if (sectionId === 'im-payments' && !canAccessPayments) {
+        alert('Access Denied: Restricted to Admin & Accounts/Accounting position.');
+        return;
+    }
+
+
+    // 4. Show/Hide Views
+    imContentArea.querySelectorAll('.workdesk-section').forEach(section => section.classList.add('hidden'));
+    const targetSection = document.getElementById(sectionId);
+    if (targetSection) targetSection.classList.remove('hidden');
+
+    // 5. Sidebar Handling
+    if (sectionId === 'im-invoice-entry') {
+        if (imEntrySidebar) imEntrySidebar.classList.remove('hidden');
+        if (imMainElement) imMainElement.classList.add('with-sidebar');
+        populateActiveJobsSidebar();
+    } else {
+        if (imEntrySidebar) imEntrySidebar.classList.add('hidden');
+        if (imMainElement) imMainElement.classList.remove('with-sidebar');
+    }
+
+    // 6. Section Specific Initializers
+    if (sectionId === 'im-dashboard') {
+        // 7.9.0: On mobile, Invoice/Task should land in Active Task shell.
+        // The Dashboard standby page is desktop-only and was confusing in mobile.
+        const isMobileIMDashboard = (typeof isMobileViewport === 'function') ? isMobileViewport() : ((window.innerWidth || 0) <= 900);
+        if (isMobileIMDashboard && typeof forceInvoiceTaskMobileActiveTaskShell === 'function') {
+            forceInvoiceTaskMobileActiveTaskShell();
+            return;
+        }
+        // STOP AUTOMATIC LOADING
+        // populateInvoiceDashboard(false); <--- REMOVED
+
+        // Show "Standby" Message instead
+        const dbSection = document.getElementById('im-dashboard');
+        dbSection.innerHTML = `
+            <h1>Dashboard</h1>
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; color: #777; text-align: center;">
+                <i class="fa-solid fa-chart-column" style="font-size: 4rem; margin-bottom: 20px; color: #ccc;"></i>
+                <h2 style="margin-bottom: 10px;">Dashboard Standby</h2>
+                <p>To view heavy chart data, please <strong>Double-Click</strong> the "Dashboard" button in the sidebar.</p>
+            </div>
+        `;
+    }
+
+    if (sectionId === 'im-batch-entry') {
+        const savedBatchSearch = sessionStorage.getItem('imBatchSearch');
+        const savedBatchNoteSearch = sessionStorage.getItem('imBatchNoteSearch');
+        if (savedBatchSearch) document.getElementById('im-batch-po-input').value = savedBatchSearch;
+        else document.getElementById('im-batch-po-input').value = '';
+
+        document.getElementById('im-batch-table-body').innerHTML = '';
+        updateBatchCount();
+
+        if (!imBatchGlobalAttentionChoices) {
+            imBatchGlobalAttentionChoices = new Choices(document.getElementById('im-batch-global-attention'), {
+                searchEnabled: true,
+                shouldSort: false,
+                itemSelectText: '',
+            });
+            populateAttentionDropdown(imBatchGlobalAttentionChoices);
+        } else populateAttentionDropdown(imBatchGlobalAttentionChoices);
+
+        if (!imBatchNoteSearchChoices) {
+            imBatchNoteSearchChoices = new Choices(document.getElementById('im-batch-note-search-select'), {
+                searchEnabled: true,
+                shouldSort: true,
+                itemSelectText: '',
+                removeItemButton: true,
+                placeholder: true,
+                placeholderValue: 'Search by Note...'
+            });
+        }
+
+
+// Double-click copy shortcut: Batch Entry "Search by Note"
+try {
+    const noteSelectEl = document.getElementById('im-batch-note-search-select');
+    if (noteSelectEl && imBatchNoteSearchChoices) {
+        const choicesWrapper =
+            (noteSelectEl.parentElement && noteSelectEl.parentElement.querySelector('.choices')) ||
+            noteSelectEl.closest('.choices');
+
+        const feedbackEl = choicesWrapper
+            ? (choicesWrapper.querySelector('.choices__inner') || choicesWrapper)
+            : noteSelectEl;
+
+        if (choicesWrapper) {
+            bindDblClickCopy(choicesWrapper, () => {
+                // Prefer selected note labels
+                try {
+                    const selected = imBatchNoteSearchChoices.getValue();
+                    if (Array.isArray(selected) && selected.length) {
+                        return selected
+                            .map(x => (x.label || x.value || ''))
+                            .filter(Boolean)
+                            .join(', ');
+                    }
+                    if (selected && typeof selected === 'object') {
+                        return (selected.label || selected.value || '');
+                    }
+                } catch (e) { /* ignore */ }
+
+                // Fallback: whatever user typed into the search box
+                const inputEl = choicesWrapper.querySelector('input.choices__input');
+                return inputEl ? inputEl.value : '';
+            }, feedbackEl);
+        }
+    }
+} catch (e) { /* ignore */ }
+
+        populateNoteDropdown(imBatchNoteSearchChoices).then(() => {
+            if (savedBatchNoteSearch) imBatchNoteSearchChoices.setChoiceByValue(savedBatchNoteSearch);
+        });
+    }
+
+    if (sectionId === 'im-summary-note') {
+        initializeNoteSuggestions();
+        const savedPrevNote = sessionStorage.getItem('imSummaryPrevNote');
+        const savedCurrNote = sessionStorage.getItem('imSummaryCurrNote');
+        if (savedPrevNote) summaryNotePreviousInput.value = savedPrevNote;
+        if (savedCurrNote) {
+            summaryNoteCurrentInput.value = savedCurrNote;
+            handleGenerateSummary();
+        } else {
+            summaryNotePrintArea.classList.add('hidden');
+            if (summaryNoteCountDisplay) summaryNoteCountDisplay.textContent = '';
+        }
+    }
+
+    if (sectionId === 'im-reporting') {
+        // 7.4.4: Mobile Invoice Records has its own identity and should not render desktop controls/table.
+        if (typeof refreshInvoiceRecordsResponsiveIdentity === 'function') refreshInvoiceRecordsResponsiveIdentity();
+        if (typeof isInvoiceReportingMobileMode === 'function' && isInvoiceReportingMobileMode()) {
+            activateMobileInvoiceRecordsIdentity();
+        }
+
+        // Date picker was removed from UI (it was not used by report logic),
+        // so guard against null to avoid runtime errors.
+        if (imDailyReportDateInput) imDailyReportDateInput.value = getTodayDateString();
+        const savedSearch = sessionStorage.getItem('imReportingSearch');
+        if (savedSearch) {
+            imReportingSearchInput.value = savedSearch;
+            populateInvoiceReporting(savedSearch);
+        } else {
+            imReportingContent.innerHTML = '<p>Please enter a PO, Vendor, or Invoice No. and click Search.</p>';
+            if (reportingCountDisplay) reportingCountDisplay.textContent = '';
+            imReportingSearchInput.value = '';
+            currentReportData = [];
+        }
+        populateSiteFilterDropdown();
+        if (typeof refreshInvoiceRecordsResponsiveIdentity === 'function') refreshInvoiceRecordsResponsiveIdentity();
+        // Visibility rules (V5.5.3 update):
+        // - CSV/Excel downloads: Only Super Admin (Irwin) OR the active Super Admin Vacation Delegate
+        // - Print Preview/List: All Admins (and Accounting)
+        const isSuperAdmin = ((currentApprover?.Name || '').trim().toLowerCase() === SUPER_ADMIN_NAME.toLowerCase());
+        const isSuperAdminDelegate = isVacationDelegateUser();
+
+        const isAdminRole = (currentApprover?.Role || '').toLowerCase() === 'admin';
+        const posLower = (currentApprover?.Position || '').toLowerCase();
+        const isAccountingPos = posLower.includes('accounting') || posLower.includes('accounts') || posLower.includes('finance');
+
+        const showReportBtns = (isSuperAdmin || isSuperAdminDelegate) && (window.innerWidth > 768);
+        if (imReportingDownloadCSVButton) imReportingDownloadCSVButton.style.display = showReportBtns ? 'inline-block' : 'none';
+        if (imDownloadDailyReportButton) imDownloadDailyReportButton.style.display = showReportBtns ? 'inline-block' : 'none';
+        if (imDownloadWithAccountsReportButton) imDownloadWithAccountsReportButton.style.display = showReportBtns ? 'inline-block' : 'none';
+        if (imDailyReportDateInput) imDailyReportDateInput.style.display = showReportBtns ? 'inline-block' : 'none';
+        if (imReportingDownloadExcelButton) imReportingDownloadExcelButton.style.display = showReportBtns ? 'inline-block' : 'none';
+        
+        // --- ADD THIS NEW LINE HERE ---
+        const customExcelBtn = document.getElementById('im-download-excel-custom-btn');
+        if (customExcelBtn) customExcelBtn.style.display = showReportBtns ? 'inline-block' : 'none';
+
+        const canPrintInvoiceReport = isAdminRole || isAccountingPos;
+        if (imReportingPrintBtn) imReportingPrintBtn.disabled = !canPrintInvoiceReport;
+    }
+
+    if (sectionId === 'im-payments') {
+        imPaymentsTableBody.innerHTML = '';
+        invoicesToPay = {};
+        updatePaymentsCount();
+    }
+}
+
+// --- User Settings ---
+
+function populateSettingsForm() {
+    if (!currentApprover) return;
+    settingsMessage.textContent = '';
+    settingsMessage.className = 'error-message';
+    settingsPasswordInput.value = '';
+    settingsNameInput.value = currentApprover.Name || '';
+    settingsEmailInput.value = currentApprover.Email || '';
+    settingsMobileInput.value = currentApprover.Mobile || '';
+    settingsPositionInput.value = currentApprover.Position || '';
+    settingsSiteInput.value = currentApprover.Site || '';
+    settingsVacationCheckbox.checked = currentApprover.Vacation === true || currentApprover.Vacation === "Yes";
+    settingsReturnDateInput.value = currentApprover.DateReturn || '';
+
+    settingsReplacementNameInput.value = currentApprover.ReplacementName || '';
+    settingsReplacementContactInput.value = currentApprover.ReplacementContact || '';
+    settingsReplacementEmailInput.value = currentApprover.ReplacementEmail || '';
+
+    settingsVacationDetailsContainer.classList.toggle('hidden', !settingsVacationCheckbox.checked);
+
+    // Super Admin tools
+    populateCelebrationSettingsForm();
+
+}
+
+function isCurrentUserSuperAdmin() {
+    const name = (currentApprover?.Name || '').trim().toLowerCase();
+    const role = (currentApprover?.Role || '').trim().toLowerCase();
+    const pos = (currentApprover?.Position || '').trim().toLowerCase();
+    return name === 'irwin' || role.includes('super') || pos.includes('super admin');
+}
+
+// Celebration settings helpers moved to js/app-celebration.js in 8.0.1 (cleanup only).
+
+
+async function handleUpdateSettings(e) {
+    e.preventDefault();
+    if (!currentApprover || !currentApprover.key) {
+        settingsMessage.textContent = 'Could not identify user. Please log in again.';
+        settingsMessage.className = 'error-message';
+        return;
+    }
+
+    const onVacation = settingsVacationCheckbox.checked;
+    const updates = {
+        Site: settingsSiteInput.value.trim(),
+        Vacation: onVacation ? "Yes" : "",
+        DateReturn: onVacation ? settingsReturnDateInput.value : '',
+        ReplacementName: onVacation ? settingsReplacementNameInput.value.trim() : '',
+        ReplacementContact: onVacation ? settingsReplacementContactInput.value.trim() : '',
+        ReplacementEmail: onVacation ? settingsReplacementEmailInput.value.trim() : ''
+    };
+    let passwordChanged = false;
+    const newPassword = settingsPasswordInput.value;
+    if (newPassword) {
+        if (newPassword.length < 6) {
+            settingsMessage.textContent = 'Password must be at least 6 characters long.';
+            settingsMessage.className = 'error-message';
+            return;
+        }
+        updates.Password = newPassword;
+        passwordChanged = true;
+    }
+
+    try {
+        await db.ref(`approvers/${currentApprover.key}`).update(updates);
+        currentApprover = {
+            ...currentApprover,
+            ...updates,
+            Vacation: updates.Vacation === "Yes"
+        };
+        allApproversCache = null;
+        allApproverData = null;
+        allApproverDataCache = null;
+        // Refresh dropdowns that use cached approver data (so Vacation updates show immediately).
+        try {
+            if (typeof attentionSelectChoices !== 'undefined' && attentionSelectChoices) await populateAttentionDropdown(attentionSelectChoices);
+            if (typeof modifyTaskAttentionChoices !== 'undefined' && modifyTaskAttentionChoices) await populateAttentionDropdown(modifyTaskAttentionChoices);
+            if (typeof imAttentionSelectChoices !== 'undefined' && imAttentionSelectChoices) await populateAttentionDropdown(imAttentionSelectChoices);
+        } catch (refreshErr) {
+            console.warn('Could not refresh attention dropdowns after settings update:', refreshErr);
+        }
+
+        settingsMessage.textContent = 'Settings updated successfully!';
+        settingsMessage.className = 'success-message';
+        settingsPasswordInput.value = '';
+        if (passwordChanged) {
+            alert('Password changed successfully! You will now be logged out.');
+            handleLogout();
+        } else {
+            populateSettingsForm();
+        }
+    } catch (error) {
+        console.error("Error updating settings:", error);
+        settingsMessage.textContent = `Update failed: ${error?.message || error}`;
+        settingsMessage.className = 'error-message';
+    }
+}
+
+// --- Placeholder Clock Functions ---
+function updateWorkdeskDateTime() {}
+function updateDashboardDateTime() {}
+function updateIMDateTime() {}
+
+// ==========================================================================
+// 7. WORKDESK LOGIC: DASHBOARD & CALENDAR
+// ==========================================================================
+
+// --- Helper: Check Task Completion ---
+
+// #endregion BLOCK 11 — MAIN NAVIGATION + SETTINGS
+

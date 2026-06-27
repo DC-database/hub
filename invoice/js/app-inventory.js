@@ -1566,24 +1566,102 @@ function renderInventoryMobileActiveTasks(tasks) {
                     return maxBottom || 0;
                 };
 
-                const parent = findScrollParent(el);
-                if (parent) {
-                    const pr = parent.getBoundingClientRect();
-                    const er = el.getBoundingClientRect();
-                    const safeTop = pr.top + 16;
-                    const safeBottom = pr.bottom - 16;
-                    const desiredCenter = (safeTop + safeBottom) / 2;
-                    const delta = (er.top + er.height / 2) - desiredCenter;
-                    parent.scrollTo({ top: parent.scrollTop + delta, behavior: 'smooth' });
-                    return;
-                }
-
                 const er = el.getBoundingClientRect();
-                const safeTop = getFixedHeaderBottom() + 12;
-                const safeBottom = (window.innerHeight || document.documentElement.clientHeight || 700) - getFixedBottomHeight() - 12;
-                const desiredCenter = (safeTop + safeBottom) / 2;
-                const delta = (er.top + er.height / 2) - desiredCenter;
-                window.scrollBy({ top: delta, behavior: 'smooth' });
+                const headerBottom = getFixedHeaderBottom();
+                const footerHeight = getFixedBottomHeight();
+                const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 700;
+                const viewportSafeTop = Math.max(headerBottom + 14, 14);
+                const viewportSafeBottom = Math.max(viewportSafeTop + 120, viewportHeight - footerHeight - 18);
+                const viewportSafeHeight = Math.max(140, viewportSafeBottom - viewportSafeTop);
+
+                // 8.0.7 — hard align transfer form near the visible header.
+                // The request form is tall, so true center makes the title look too low and hides fields.
+                // User asked for the "Add to Transfer Cart" bar to land near the MODULE/version header.
+                // Therefore transfer forms use a near-header anchor; other item previews keep center logic.
+                const isTransferForm = !!(el.classList && el.classList.contains('inv-transfer-request-form'));
+                const shouldTopAlign = isTransferForm || er.height > (viewportSafeHeight * 0.72);
+                const desiredTop = isTransferForm
+                    ? Math.max(viewportSafeTop + 10, Math.min(viewportSafeTop + 24, viewportHeight * 0.14))
+                    : (shouldTopAlign ? viewportSafeTop + 8 : viewportSafeTop + (viewportSafeHeight - er.height) / 2);
+
+                const scrollByDelta = (delta, behavior = 'smooth') => {
+                    const preferOuter = isTransferForm;
+                    let parent = null;
+                    if (preferOuter) {
+                        let cur = el && el.parentElement;
+                        while (cur && cur !== document.body && cur !== document.documentElement) {
+                            const st = window.getComputedStyle ? window.getComputedStyle(cur) : null;
+                            const oy = st ? String(st.overflowY || '') : '';
+                            if ((oy === 'auto' || oy === 'scroll') && cur.scrollHeight > cur.clientHeight + 8) parent = cur;
+                            cur = cur.parentElement;
+                        }
+                    } else {
+                        parent = findScrollParent(el);
+                    }
+
+                    if (parent) {
+                        parent.scrollTo({ top: parent.scrollTop + delta, behavior });
+                        return true;
+                    }
+
+                    window.scrollBy({ top: delta, behavior });
+                    return true;
+                };
+
+                const firstDelta = er.top - desiredTop;
+                scrollByDelta(firstDelta, 'smooth');
+
+                // Verify multiple times. Mobile browsers sometimes ignore the first smooth-scroll,
+                // especially when the result card re-renders and nested panels are scrollable. For the
+                // transfer form, force the final position by correcting all possible scroll containers.
+                if (isTransferForm) {
+                    const forceNearHeader = () => {
+                        try {
+                            const latest = el.getBoundingClientRect();
+                            const correction = latest.top - desiredTop;
+                            if (Math.abs(correction) <= 8) return;
+
+                            const touched = [];
+                            let cur = el.parentElement;
+                            while (cur && cur !== document.body && cur !== document.documentElement) {
+                                const st = window.getComputedStyle ? window.getComputedStyle(cur) : null;
+                                const oy = st ? String(st.overflowY || '') : '';
+                                if ((oy === 'auto' || oy === 'scroll' || oy === 'overlay') && cur.scrollHeight > cur.clientHeight + 8) {
+                                    touched.push(cur);
+                                }
+                                cur = cur.parentElement;
+                            }
+
+                            const pageScroller = document.scrollingElement || document.documentElement || document.body;
+                            touched.push(pageScroller);
+
+                            // Try the nearest/outer scroll areas. The first one with available movement usually wins.
+                            for (const scroller of touched) {
+                                if (!scroller || typeof scroller.scrollTop !== 'number') continue;
+                                const before = scroller.scrollTop;
+                                const maxScroll = Math.max(0, (scroller.scrollHeight || 0) - (scroller.clientHeight || 0));
+                                const next = Math.max(0, Math.min(maxScroll || (before + correction), before + correction));
+                                if (Math.abs(next - before) > 1) {
+                                    scroller.scrollTop = next;
+                                    break;
+                                }
+                            }
+
+                            // Last safety: if it still did not move enough, use window scroll directly.
+                            setTimeout(() => {
+                                try {
+                                    const after = el.getBoundingClientRect();
+                                    const remaining = after.top - desiredTop;
+                                    if (Math.abs(remaining) > 10) window.scrollBy({ top: remaining, behavior: 'auto' });
+                                } catch (_) {}
+                            }, 30);
+                        } catch (_) {}
+                    };
+                    setTimeout(forceNearHeader, 80);
+                    setTimeout(forceNearHeader, 180);
+                    setTimeout(forceNearHeader, 360);
+                    setTimeout(forceNearHeader, 650);
+                }
             } catch (_) {
                 try {
                     const el = target || (fallbackSelector ? document.querySelector(fallbackSelector) : null);
