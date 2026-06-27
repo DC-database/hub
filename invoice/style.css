@@ -8674,3 +8674,31 @@ body.im-modal-is-dragging {
         max-width: calc(100vw - 16px) !important;
     }
 }
+
+
+/* =========================================================
+   8.2.4 Invoice Entry Modal Pass-Through Fix
+   Keep the 8.0.9/8.2.3 full-window floating modal, but allow
+   the Invoice Management left navigation and Active Jobs side panel
+   to stay clickable while the Invoice Entry modal is open.
+   ========================================================= */
+#im-invoice-entry-modal.modal-overlay:not(.hidden) {
+    pointer-events: none !important;
+}
+
+#im-invoice-entry-modal.modal-overlay:not(.hidden) .modal-container,
+#im-invoice-entry-modal.modal-overlay:not(.hidden) .modal-container * {
+    pointer-events: auto;
+}
+
+/* Make sure the Invoice Entry Active Jobs panel remains an active layer. */
+#invoice-management-view > .workdesk-sidebar {
+    position: relative;
+    z-index: 10006;
+}
+
+#im-entry-sidebar {
+    position: fixed !important;
+    z-index: 10007 !important;
+    pointer-events: auto !important;
+}

@@ -1,13 +1,2 @@
-7.6.7 changed files only
-
-Upload/replace:
-- app.js
-- index.html
-- js/app-inventory.js
-
-No changes needed for:
-- mobile.css
-- js/app-core.js
-- js/app-mobile.js
-- js/app-invoice.js
-- style.css
+IBA system full package version 8.3.5
+Upload root files plus js/ and css/ folders. Keep backups before replacing live files.
