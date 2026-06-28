@@ -1,0 +1,623 @@
+// js/app-invoice-po-ocr.js
+// Version 8.3.9 — Invoice Records PO/LPO OCR Scanner
+// Purpose: Mobile Invoice Records camera text scan for printed PO/LPO numbers.
+// Privacy: Captured camera frames are processed in browser memory only.
+// No Firebase upload, no server upload, no phone gallery save.
+(function () {
+  'use strict';
+
+  const OCR_SCRIPT_ID = 'tesseract-js-cdn';
+  const OCR_SCRIPT_SRC = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+  const BUTTON_ID = 'im-records-po-ocr-scan-button';
+  const BUTTON_BOTTOM_ID = 'im-records-po-ocr-scan-button-mobile-modal';
+  const BUTTON_INLINE_ID = 'im-mobile-inline-po-ocr-scan-button';
+  const MODAL_ID = 'im-po-ocr-modal';
+
+  let stream = null;
+  let isReading = false;
+
+  function injectStyles() {
+    if (document.getElementById('im-po-ocr-style')) return;
+    const style = document.createElement('style');
+    style.id = 'im-po-ocr-style';
+    style.textContent = `
+      #${BUTTON_ID}, #${BUTTON_BOTTOM_ID}, #${BUTTON_INLINE_ID} {
+        background: #7c3aed;
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        padding: 0 14px;
+        min-height: 44px;
+        font-weight: 800;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        cursor: pointer;
+        white-space: nowrap;
+        width: 100%;
+        margin: 8px 0 0;
+      }
+      #${BUTTON_ID} {
+        display: none;
+      }
+      #${BUTTON_ID}:hover, #${BUTTON_BOTTOM_ID}:hover, #${BUTTON_INLINE_ID}:hover { filter: brightness(1.05); }
+      #${MODAL_ID} {
+        position: fixed;
+        inset: 0;
+        z-index: 30000;
+        background: rgba(15, 23, 42, 0.82);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 14px;
+      }
+      #${MODAL_ID}.hidden { display: none !important; }
+      .im-po-ocr-card {
+        width: min(96vw, 520px);
+        max-height: 92vh;
+        overflow: auto;
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 18px 50px rgba(0,0,0,0.35);
+        color: #0f172a;
+      }
+      .im-po-ocr-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 16px;
+        background: #003A5C;
+        color: #fff;
+        border-radius: 16px 16px 0 0;
+      }
+      .im-po-ocr-header h3 {
+        margin: 0;
+        font-size: 1rem;
+      }
+      .im-po-ocr-close {
+        background: rgba(255,255,255,0.12);
+        color: #fff;
+        border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 10px;
+        width: 36px;
+        height: 36px;
+        font-size: 1.35rem;
+        line-height: 1;
+        cursor: pointer;
+      }
+      .im-po-ocr-body { padding: 14px 16px 16px; }
+      .im-po-ocr-hint {
+        margin: 0 0 10px;
+        font-size: 0.9rem;
+        color: #475569;
+        line-height: 1.35;
+      }
+      .im-po-ocr-video-wrap {
+        position: relative;
+        background: #0f172a;
+        border-radius: 14px;
+        overflow: hidden;
+        min-height: 240px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #im-po-ocr-video {
+        width: 100%;
+        max-height: 55vh;
+        object-fit: contain;
+        background: #0f172a;
+      }
+      .im-po-ocr-guide {
+        position: absolute;
+        left: 8%;
+        right: 8%;
+        top: 36%;
+        height: 26%;
+        border: 2px solid rgba(34, 197, 94, 0.95);
+        border-radius: 10px;
+        box-shadow: 0 0 0 999px rgba(0,0,0,0.08);
+        pointer-events: none;
+      }
+      .im-po-ocr-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+      .im-po-ocr-actions button {
+        border: none;
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      #im-po-ocr-read-btn { background: #16a34a; color: #fff; flex: 1; }
+      #im-po-ocr-search-btn { background: #00748C; color: #fff; }
+      #im-po-ocr-scan-again-btn { background: #e2e8f0; color: #0f172a; }
+      #im-po-ocr-cancel-btn { background: #64748b; color: #fff; }
+      #im-po-ocr-status {
+        margin-top: 10px;
+        min-height: 22px;
+        font-size: 0.92rem;
+        color: #334155;
+        line-height: 1.35;
+      }
+      #im-po-ocr-status strong { color: #14532d; }
+      .im-po-ocr-candidates {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .im-po-ocr-candidate-btn {
+        background: #f1f5f9;
+        border: 1px solid #cbd5e1;
+        border-radius: 999px;
+        color: #0f172a;
+        padding: 7px 10px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .im-po-ocr-small {
+        margin-top: 8px;
+        font-size: 0.78rem;
+        color: #64748b;
+      }
+      #${BUTTON_BOTTOM_ID} {
+        width: 100%;
+        min-height: 42px;
+        margin-top: 8px;
+      }
+      @media (max-width: 900px), (hover: none) and (pointer: coarse) {
+        #${BUTTON_ID} { display: inline-flex !important; }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function loadTesseract() {
+    if (window.Tesseract) return Promise.resolve(window.Tesseract);
+
+    const existing = document.getElementById(OCR_SCRIPT_ID);
+    if (existing) {
+      return new Promise((resolve, reject) => {
+        existing.addEventListener('load', () => resolve(window.Tesseract), { once: true });
+        existing.addEventListener('error', reject, { once: true });
+      });
+    }
+
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.id = OCR_SCRIPT_ID;
+      script.src = OCR_SCRIPT_SRC;
+      script.async = true;
+      script.onload = () => resolve(window.Tesseract);
+      script.onerror = () => reject(new Error('OCR library failed to load.'));
+      document.head.appendChild(script);
+    });
+  }
+
+  function createModal() {
+    let modal = document.getElementById(MODAL_ID);
+    if (modal) return modal;
+
+    modal = document.createElement('div');
+    modal.id = MODAL_ID;
+    modal.className = 'hidden';
+    modal.innerHTML = `
+      <div class="im-po-ocr-card" role="dialog" aria-modal="true" aria-labelledby="im-po-ocr-title">
+        <div class="im-po-ocr-header">
+          <h3 id="im-po-ocr-title"><i class="fa-solid fa-camera"></i> Scan PO/LPO Text</h3>
+          <button type="button" class="im-po-ocr-close" id="im-po-ocr-close-btn" aria-label="Close">&times;</button>
+        </div>
+        <div class="im-po-ocr-body">
+          <p class="im-po-ocr-hint">Point the camera at the printed <strong>P.O. Number</strong>, <strong>PO Number</strong>, or <strong>LPO</strong>. Keep the number inside the green box, then tap <strong>Read PO</strong>.</p>
+          <div class="im-po-ocr-video-wrap">
+            <video id="im-po-ocr-video" playsinline autoplay muted></video>
+            <div class="im-po-ocr-guide"></div>
+          </div>
+          <canvas id="im-po-ocr-canvas" class="hidden"></canvas>
+          <div class="im-po-ocr-actions">
+            <button type="button" id="im-po-ocr-read-btn"><i class="fa-solid fa-wand-magic-sparkles"></i> Read PO</button>
+            <button type="button" id="im-po-ocr-search-btn" class="hidden"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+            <button type="button" id="im-po-ocr-scan-again-btn" class="hidden">Scan Again</button>
+            <button type="button" id="im-po-ocr-cancel-btn">Cancel</button>
+          </div>
+          <div id="im-po-ocr-status">Camera is ready.</div>
+          <div class="im-po-ocr-small">Privacy: the image frame is temporary. It is not saved to your phone, Firebase, GitHub, or server.</div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    modal.querySelector('#im-po-ocr-close-btn').addEventListener('click', closeModal);
+    modal.querySelector('#im-po-ocr-cancel-btn').addEventListener('click', closeModal);
+    modal.querySelector('#im-po-ocr-read-btn').addEventListener('click', readCurrentFrame);
+    modal.querySelector('#im-po-ocr-scan-again-btn').addEventListener('click', resetForScanAgain);
+    modal.querySelector('#im-po-ocr-search-btn').addEventListener('click', () => {
+      const searchButton = document.getElementById('im-reporting-search-btn') || document.getElementById('im-mobile-search-run-btn');
+      if (searchButton) searchButton.click();
+      closeModal();
+    });
+
+    modal.addEventListener('click', (event) => {
+      if (event.target === modal) closeModal();
+    });
+
+    return modal;
+  }
+
+  function setStatus(message, html) {
+    const status = document.getElementById('im-po-ocr-status');
+    if (!status) return;
+    if (html) status.innerHTML = message;
+    else status.textContent = message;
+  }
+
+  function setReadingUI(reading) {
+    isReading = reading;
+    const readBtn = document.getElementById('im-po-ocr-read-btn');
+    if (readBtn) {
+      readBtn.disabled = reading;
+      readBtn.innerHTML = reading
+        ? '<i class="fa-solid fa-spinner fa-spin"></i> Reading...'
+        : '<i class="fa-solid fa-wand-magic-sparkles"></i> Read PO';
+    }
+  }
+
+  async function openModal() {
+    injectStyles();
+    const modal = createModal();
+    modal.classList.remove('hidden');
+    resetForScanAgain(false);
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setStatus('Camera access is not supported in this browser. Use Android Chrome over HTTPS.');
+      return;
+    }
+
+    try {
+      stopStream();
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
+      });
+      const video = document.getElementById('im-po-ocr-video');
+      if (video) {
+        video.srcObject = stream;
+        await video.play().catch(() => {});
+      }
+      setStatus('Camera is ready. Keep the PO/LPO number clear, then tap Read PO.');
+    } catch (error) {
+      console.error('[PO OCR] Camera error:', error);
+      setStatus('Camera permission failed. Please allow camera access and try again.');
+    }
+  }
+
+  function closeModal() {
+    stopStream();
+    const modal = document.getElementById(MODAL_ID);
+    if (modal) modal.classList.add('hidden');
+    clearCanvas();
+  }
+
+  function stopStream() {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      stream = null;
+    }
+    const video = document.getElementById('im-po-ocr-video');
+    if (video) video.srcObject = null;
+  }
+
+  function clearCanvas() {
+    const canvas = document.getElementById('im-po-ocr-canvas');
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) ctx.clearRect(0, 0, canvas.width || 1, canvas.height || 1);
+      canvas.width = 0;
+      canvas.height = 0;
+    }
+  }
+
+  function resetForScanAgain(keepMessage = true) {
+    const searchBtn = document.getElementById('im-po-ocr-search-btn');
+    const againBtn = document.getElementById('im-po-ocr-scan-again-btn');
+    const readBtn = document.getElementById('im-po-ocr-read-btn');
+    if (searchBtn) searchBtn.classList.add('hidden');
+    if (againBtn) againBtn.classList.add('hidden');
+    if (readBtn) readBtn.classList.remove('hidden');
+    clearCanvas();
+    setReadingUI(false);
+    if (keepMessage) setStatus('Ready. Aim at the PO/LPO number and tap Read PO.');
+  }
+
+  async function readCurrentFrame() {
+    if (isReading) return;
+    const video = document.getElementById('im-po-ocr-video');
+    const canvas = document.getElementById('im-po-ocr-canvas');
+    if (!video || !canvas || !video.videoWidth || !video.videoHeight) {
+      setStatus('Camera is not ready yet. Wait a moment and try again.');
+      return;
+    }
+
+    try {
+      setReadingUI(true);
+      setStatus('Loading OCR reader...');
+      const Tesseract = await loadTesseract();
+
+      const maxWidth = 1280;
+      const scale = Math.min(1, maxWidth / video.videoWidth);
+      canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+      canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // Improve contrast a little for printed documents.
+      try {
+        const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = img.data;
+        for (let i = 0; i < data.length; i += 4) {
+          const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+          const contrast = gray > 145 ? 255 : gray < 105 ? 0 : gray;
+          data[i] = data[i + 1] = data[i + 2] = contrast;
+        }
+        ctx.putImageData(img, 0, 0);
+      } catch (contrastError) {
+        console.warn('[PO OCR] Contrast step skipped:', contrastError);
+      }
+
+      setStatus('Reading text... hold on.');
+      const result = await Tesseract.recognize(canvas, 'eng', {
+        logger: (m) => {
+          if (m && m.status === 'recognizing text' && typeof m.progress === 'number') {
+            setStatus(`Reading text... ${Math.round(m.progress * 100)}%`);
+          }
+        }
+      });
+
+      const text = result && result.data && result.data.text ? result.data.text : '';
+      const parsed = extractPoNumber(text);
+      if (parsed.best) {
+        pastePoNumber(parsed.best);
+        showSuccess(parsed.best, parsed.candidates);
+      } else {
+        showNoResult(parsed.candidates, text);
+      }
+    } catch (error) {
+      console.error('[PO OCR] Read error:', error);
+      setStatus('OCR failed. Check internet for OCR library loading, then try again.');
+    } finally {
+      setReadingUI(false);
+    }
+  }
+
+  function normalizeText(text) {
+    return String(text || '')
+      .replace(/[|]/g, 'I')
+      .replace(/[０-９]/g, d => String.fromCharCode(d.charCodeAt(0) - 0xFF10 + 48));
+  }
+
+  function extractPoNumber(rawText) {
+    const text = normalizeText(rawText);
+    const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+    const candidates = [];
+
+    function addCandidate(value, score, reason) {
+      const cleaned = String(value || '').replace(/\D/g, '');
+      if (!/^\d{4,8}$/.test(cleaned)) return;
+      const existing = candidates.find(item => item.value === cleaned);
+      if (existing) {
+        existing.score = Math.max(existing.score, score);
+        if (!existing.reason.includes(reason)) existing.reason += ', ' + reason;
+      } else {
+        candidates.push({ value: cleaned, score, reason });
+      }
+    }
+
+    const labelRe = /\b(P\s*\.?\s*O\s*\.?\s*(NUMBER|NO|#)?|PURCHASE\s*ORDER|LPO)\b/i;
+    const avoidRe = /\b(REQ\.?|REQUEST|DATE|TEL|PHONE|FAX|VAT|QTY|TOTAL|AMOUNT|PAGE|TRN)\b/i;
+
+    lines.forEach((line, index) => {
+      const hasLabel = labelRe.test(line);
+      const hasAvoid = avoidRe.test(line);
+      const numbers = line.match(/\b\d{4,8}\b/g) || [];
+
+      if (hasLabel && numbers.length) {
+        numbers.forEach(num => addCandidate(num, num.length === 5 ? 120 : 95, 'same line as PO/LPO label'));
+      }
+
+      if (hasLabel && !numbers.length && lines[index + 1]) {
+        const nextNums = lines[index + 1].match(/\b\d{4,8}\b/g) || [];
+        nextNums.forEach(num => addCandidate(num, num.length === 5 ? 105 : 85, 'line after PO/LPO label'));
+      }
+
+      if (!hasAvoid) {
+        numbers.forEach(num => addCandidate(num, num.length === 5 ? 30 : 15, 'number found'));
+      }
+    });
+
+    const wholePatterns = [
+      /(?:P\s*\.?\s*O\s*\.?\s*(?:NUMBER|NO|#)?|PURCHASE\s*ORDER|LPO)[^\d]{0,50}(\d{4,8})/ig,
+      /(\d{4,8})[^\n]{0,50}(?:P\s*\.?\s*O\s*\.?\s*(?:NUMBER|NO|#)?|PURCHASE\s*ORDER|LPO)/ig
+    ];
+    wholePatterns.forEach(re => {
+      let match;
+      while ((match = re.exec(text)) !== null) {
+        addCandidate(match[1], match[1].length === 5 ? 130 : 100, 'near PO/LPO label');
+      }
+    });
+
+    const sorted = candidates
+      .sort((a, b) => b.score - a.score || a.value.length - b.value.length)
+      .slice(0, 5);
+
+    return {
+      best: sorted.length ? sorted[0].value : '',
+      candidates: sorted.map(item => item.value)
+    };
+  }
+
+  function pastePoNumber(value) {
+    const recordsInput = document.getElementById('im-reporting-search');
+    const mobileInlineInput = document.getElementById('im-mobile-inline-search-term');
+    const mobileModalInput = document.getElementById('im-mobile-search-term');
+    [recordsInput, mobileInlineInput, mobileModalInput].filter(Boolean).forEach(input => {
+      input.value = value;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    const focusTarget = mobileInlineInput || mobileModalInput || recordsInput;
+    if (focusTarget) {
+      focusTarget.focus({ preventScroll: true });
+      try { focusTarget.setSelectionRange(value.length, value.length); } catch (_) {}
+    }
+  }
+
+  function showSuccess(value, candidates) {
+    const searchBtn = document.getElementById('im-po-ocr-search-btn');
+    const againBtn = document.getElementById('im-po-ocr-scan-again-btn');
+    const readBtn = document.getElementById('im-po-ocr-read-btn');
+    if (searchBtn) searchBtn.classList.remove('hidden');
+    if (againBtn) againBtn.classList.remove('hidden');
+    if (readBtn) readBtn.classList.add('hidden');
+
+    const others = (candidates || []).filter(num => num !== value).slice(0, 4);
+    const otherButtons = others.length
+      ? `<div class="im-po-ocr-candidates">${others.map(num => `<button type="button" class="im-po-ocr-candidate-btn" data-po="${escapeHtml(num)}">Use ${escapeHtml(num)}</button>`).join('')}</div>`
+      : '';
+
+    setStatus(
+      `Detected and pasted PO/LPO: <strong>${escapeHtml(value)}</strong>${otherButtons}<div class="im-po-ocr-small">Tap Search to search Invoice Records, or Scan Again if the number is wrong.</div>`,
+      true
+    );
+    wireCandidateButtons();
+  }
+
+  function showNoResult(candidates, text) {
+    const againBtn = document.getElementById('im-po-ocr-scan-again-btn');
+    if (againBtn) againBtn.classList.remove('hidden');
+
+    const unique = Array.from(new Set(candidates || [])).slice(0, 6);
+    if (unique.length) {
+      setStatus(
+        `I could not confirm a PO/LPO label, but found possible numbers:<div class="im-po-ocr-candidates">${unique.map(num => `<button type="button" class="im-po-ocr-candidate-btn" data-po="${escapeHtml(num)}">Use ${escapeHtml(num)}</button>`).join('')}</div><div class="im-po-ocr-small">Use one, or scan again closer to the P.O Number / LPO text.</div>`,
+        true
+      );
+      wireCandidateButtons();
+      return;
+    }
+
+    console.log('[PO OCR] Raw OCR text:', text);
+    setStatus('No PO/LPO number detected. Move closer, improve lighting, and scan again.');
+  }
+
+  function wireCandidateButtons() {
+    document.querySelectorAll('.im-po-ocr-candidate-btn').forEach(button => {
+      button.addEventListener('click', () => {
+        const value = button.getAttribute('data-po') || '';
+        if (!value) return;
+        pastePoNumber(value);
+        showSuccess(value, []);
+      });
+    });
+  }
+
+  function escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function bindScanButton(button) {
+    if (!button || button.dataset.ocrBound === '1') return;
+    button.dataset.ocrBound = '1';
+    button.addEventListener('click', openModal);
+  }
+
+  function makeScanButton(id, compact) {
+    const button = document.createElement('button');
+    button.id = id;
+    button.type = 'button';
+    button.title = 'Scan printed PO/LPO number with camera OCR';
+    button.innerHTML = compact
+      ? '<i class="fa-solid fa-camera"></i> Scan'
+      : '<i class="fa-solid fa-camera"></i> Scan PO Text';
+    bindScanButton(button);
+    return button;
+  }
+
+  function insertButton() {
+    // Correct location: Invoice Records mobile search card, under the PO/Vendor search field.
+    // This is intentionally not placed in Invoice Entry.
+    bindScanButton(document.getElementById(BUTTON_ID));
+    if (!document.getElementById(BUTTON_ID)) {
+      const recordsInput = document.getElementById('im-reporting-search');
+      if (recordsInput) {
+        const searchBox = recordsInput.closest('.search-box') || recordsInput.parentNode;
+        if (searchBox) {
+          const button = makeScanButton(BUTTON_ID, false);
+          button.classList.add('im-records-mobile-ocr-btn');
+          searchBox.insertAdjacentElement('afterend', button);
+        }
+      }
+    }
+
+    // Correct visible mobile location: Invoice Records inline mobile search card.
+    bindScanButton(document.getElementById(BUTTON_INLINE_ID));
+    if (!document.getElementById(BUTTON_INLINE_ID)) {
+      const inlineTerm = document.getElementById('im-mobile-inline-search-term');
+      if (inlineTerm) {
+        const group = inlineTerm.closest('.form-group') || inlineTerm.parentNode;
+        if (group) {
+          const button = makeScanButton(BUTTON_INLINE_ID, false);
+          button.classList.add('im-records-mobile-ocr-btn', 'im-mobile-inline-scan-btn');
+          group.appendChild(button);
+        }
+      }
+    }
+
+    // If the older Invoice Records mobile search modal is opened, support it too.
+    bindScanButton(document.getElementById(BUTTON_BOTTOM_ID));
+    if (!document.getElementById(BUTTON_BOTTOM_ID)) {
+      const mobileTerm = document.getElementById('im-mobile-search-term');
+      if (mobileTerm) {
+        const group = mobileTerm.closest('.form-group') || mobileTerm.parentNode;
+        if (group) {
+          const button = makeScanButton(BUTTON_BOTTOM_ID, true);
+          button.classList.add('im-records-mobile-ocr-btn');
+          group.appendChild(button);
+        }
+      }
+    }
+  }
+
+  function initInvoicePoOcr() {
+    injectStyles();
+    insertButton();
+    setTimeout(insertButton, 300);
+    setTimeout(insertButton, 1000);
+    document.addEventListener('click', (event) => {
+      const target = event.target && event.target.closest ? event.target.closest('[data-section="im-reporting"], #im-nav-reporting-link-mobile, .wd-nav-im-reporting-mobile a, .im-nav-reporting a') : null;
+      if (target) setTimeout(insertButton, 150);
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initInvoicePoOcr);
+  } else {
+    initInvoicePoOcr();
+  }
+
+  window.openIMPoOcrScanner = openModal;
+  window.initInvoicePoOcr = initInvoicePoOcr;
+})();
