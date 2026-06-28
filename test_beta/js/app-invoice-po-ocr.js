@@ -1,5 +1,5 @@
 // js/app-invoice-po-ocr.js
-// Version 8.3.9 — Invoice Records PO/LPO OCR Scanner
+// Version 8.4.1 — Invoice Records PO/LPO OCR Scanner with guide-box crop
 // Purpose: Mobile Invoice Records camera text scan for printed PO/LPO numbers.
 // Privacy: Captured camera frames are processed in browser memory only.
 // No Firebase upload, no server upload, no phone gallery save.
@@ -115,9 +115,9 @@
         right: 8%;
         top: 36%;
         height: 26%;
-        border: 2px solid rgba(34, 197, 94, 0.95);
+        border: 3px solid rgba(34, 197, 94, 0.98);
         border-radius: 10px;
-        box-shadow: 0 0 0 999px rgba(0,0,0,0.08);
+        box-shadow: 0 0 0 999px rgba(0,0,0,0.18);
         pointer-events: none;
       }
       .im-po-ocr-actions {
@@ -213,7 +213,7 @@
           <button type="button" class="im-po-ocr-close" id="im-po-ocr-close-btn" aria-label="Close">&times;</button>
         </div>
         <div class="im-po-ocr-body">
-          <p class="im-po-ocr-hint">Point the camera at the printed <strong>P.O. Number</strong>, <strong>PO Number</strong>, or <strong>LPO</strong>. Keep the number inside the green box, then tap <strong>Read PO</strong>.</p>
+          <p class="im-po-ocr-hint">Point the camera at the printed <strong>P.O. Number</strong>, <strong>PO Number</strong>, or <strong>LPO</strong>. Keep only the number or vendor text inside the green box, then tap <strong>Read PO</strong>. The OCR reads only that green-box area.</p>
           <div class="im-po-ocr-video-wrap">
             <video id="im-po-ocr-video" playsinline autoplay muted></video>
             <div class="im-po-ocr-guide"></div>
@@ -293,7 +293,7 @@
         video.srcObject = stream;
         await video.play().catch(() => {});
       }
-      setStatus('Camera is ready. Keep the PO/LPO number clear, then tap Read PO.');
+      setStatus('Camera is ready. Put only the PO/LPO number or vendor text inside the green box, then tap Read PO.');
     } catch (error) {
       console.error('[PO OCR] Camera error:', error);
       setStatus('Camera permission failed. Please allow camera access and try again.');
@@ -335,7 +335,86 @@
     if (readBtn) readBtn.classList.remove('hidden');
     clearCanvas();
     setReadingUI(false);
-    if (keepMessage) setStatus('Ready. Aim at the PO/LPO number and tap Read PO.');
+    if (keepMessage) setStatus('Ready. Aim the green box at the PO/LPO number or vendor text, then tap Read PO.');
+  }
+
+
+  function getGuideCrop(video) {
+    const guide = document.querySelector('.im-po-ocr-guide');
+    const videoRect = video.getBoundingClientRect();
+    const guideRect = guide ? guide.getBoundingClientRect() : null;
+
+    if (!guideRect || !videoRect.width || !videoRect.height) {
+      return {
+        sx: 0,
+        sy: 0,
+        sw: video.videoWidth,
+        sh: video.videoHeight
+      };
+    }
+
+    const videoAspect = video.videoWidth / video.videoHeight;
+    const elementAspect = videoRect.width / videoRect.height;
+    let contentLeft = videoRect.left;
+    let contentTop = videoRect.top;
+    let contentWidth = videoRect.width;
+    let contentHeight = videoRect.height;
+
+    // Account for object-fit: contain letterboxing inside the video element.
+    if (elementAspect > videoAspect) {
+      contentWidth = videoRect.height * videoAspect;
+      contentLeft = videoRect.left + (videoRect.width - contentWidth) / 2;
+    } else if (elementAspect < videoAspect) {
+      contentHeight = videoRect.width / videoAspect;
+      contentTop = videoRect.top + (videoRect.height - contentHeight) / 2;
+    }
+
+    const ix1 = Math.max(guideRect.left, contentLeft);
+    const iy1 = Math.max(guideRect.top, contentTop);
+    const ix2 = Math.min(guideRect.right, contentLeft + contentWidth);
+    const iy2 = Math.min(guideRect.bottom, contentTop + contentHeight);
+
+    let rx = (ix1 - contentLeft) / contentWidth;
+    let ry = (iy1 - contentTop) / contentHeight;
+    let rw = (ix2 - ix1) / contentWidth;
+    let rh = (iy2 - iy1) / contentHeight;
+
+    if (!isFinite(rx) || !isFinite(ry) || !isFinite(rw) || !isFinite(rh) || rw <= 0 || rh <= 0) {
+      rx = 0.08;
+      ry = 0.36;
+      rw = 0.84;
+      rh = 0.26;
+    }
+
+    // Small margin helps when the user places text near the green border, but still keeps OCR focused.
+    const marginX = rw * 0.04;
+    const marginY = rh * 0.10;
+    rx = Math.max(0, rx - marginX);
+    ry = Math.max(0, ry - marginY);
+    rw = Math.min(1 - rx, rw + marginX * 2);
+    rh = Math.min(1 - ry, rh + marginY * 2);
+
+    return {
+      sx: Math.max(0, Math.round(rx * video.videoWidth)),
+      sy: Math.max(0, Math.round(ry * video.videoHeight)),
+      sw: Math.max(1, Math.round(rw * video.videoWidth)),
+      sh: Math.max(1, Math.round(rh * video.videoHeight))
+    };
+  }
+
+  function prepareCropForOcr(ctx, width, height) {
+    const img = ctx.getImageData(0, 0, width, height);
+    const data = img.data;
+    for (let i = 0; i < data.length; i += 4) {
+      const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+      // Stronger contrast because the crop should contain only the target PO/vendor area.
+      let value = gray;
+      if (gray > 168) value = 255;
+      else if (gray < 96) value = 0;
+      else value = (gray - 96) * (255 / 72);
+      data[i] = data[i + 1] = data[i + 2] = Math.max(0, Math.min(255, value));
+    }
+    ctx.putImageData(img, 0, 0);
   }
 
   async function readCurrentFrame() {
@@ -352,23 +431,21 @@
       setStatus('Loading OCR reader...');
       const Tesseract = await loadTesseract();
 
-      const maxWidth = 1280;
-      const scale = Math.min(1, maxWidth / video.videoWidth);
-      canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
-      canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+      const crop = getGuideCrop(video);
+      const maxWidth = 1100;
+      const upscale = 2;
+      const rawTargetWidth = Math.min(maxWidth, Math.max(420, Math.round(crop.sw * upscale)));
+      const scale = rawTargetWidth / crop.sw;
+      canvas.width = Math.max(1, Math.round(crop.sw * scale));
+      canvas.height = Math.max(1, Math.round(crop.sh * scale));
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(video, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, canvas.width, canvas.height);
 
-      // Improve contrast a little for printed documents.
+      // Improve contrast for the cropped green-box area only.
       try {
-        const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = img.data;
-        for (let i = 0; i < data.length; i += 4) {
-          const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-          const contrast = gray > 145 ? 255 : gray < 105 ? 0 : gray;
-          data[i] = data[i + 1] = data[i + 2] = contrast;
-        }
-        ctx.putImageData(img, 0, 0);
+        prepareCropForOcr(ctx, canvas.width, canvas.height);
       } catch (contrastError) {
         console.warn('[PO OCR] Contrast step skipped:', contrastError);
       }
@@ -386,7 +463,7 @@
       const parsed = extractPoNumber(text);
       if (parsed.best) {
         pastePoNumber(parsed.best);
-        showSuccess(parsed.best, parsed.candidates);
+        showSuccess(parsed.best, parsed.candidates, parsed.kind);
       } else {
         showNoResult(parsed.candidates, text);
       }
@@ -406,18 +483,26 @@
 
   function extractPoNumber(rawText) {
     const text = normalizeText(rawText);
+    const flatText = text.replace(/\s+/g, ' ').trim();
     const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
     const candidates = [];
 
-    function addCandidate(value, score, reason) {
-      const cleaned = String(value || '').replace(/\D/g, '');
-      if (!/^\d{4,8}$/.test(cleaned)) return;
+    function addCandidate(value, score, reason, kind) {
+      const isText = kind === 'text';
+      const cleaned = isText
+        ? cleanVendorText(value)
+        : String(value || '').replace(/\D/g, '');
+      if (isText) {
+        if (!cleaned || cleaned.length < 3) return;
+      } else {
+        if (!/^\d{3,8}$/.test(cleaned)) return;
+      }
       const existing = candidates.find(item => item.value === cleaned);
       if (existing) {
         existing.score = Math.max(existing.score, score);
         if (!existing.reason.includes(reason)) existing.reason += ', ' + reason;
       } else {
-        candidates.push({ value: cleaned, score, reason });
+        candidates.push({ value: cleaned, score, reason, kind: isText ? 'text' : 'number' });
       }
     }
 
@@ -427,41 +512,70 @@
     lines.forEach((line, index) => {
       const hasLabel = labelRe.test(line);
       const hasAvoid = avoidRe.test(line);
-      const numbers = line.match(/\b\d{4,8}\b/g) || [];
+      const numbers = line.match(/\b\d{3,8}\b/g) || [];
 
       if (hasLabel && numbers.length) {
-        numbers.forEach(num => addCandidate(num, num.length === 5 ? 120 : 95, 'same line as PO/LPO label'));
+        numbers.forEach(num => addCandidate(num, num.length === 5 ? 160 : 90, 'same crop line as PO/LPO label', 'number'));
       }
 
       if (hasLabel && !numbers.length && lines[index + 1]) {
-        const nextNums = lines[index + 1].match(/\b\d{4,8}\b/g) || [];
-        nextNums.forEach(num => addCandidate(num, num.length === 5 ? 105 : 85, 'line after PO/LPO label'));
+        const nextNums = lines[index + 1].match(/\b\d{3,8}\b/g) || [];
+        nextNums.forEach(num => addCandidate(num, num.length === 5 ? 140 : 80, 'line after PO/LPO label in crop', 'number'));
       }
 
       if (!hasAvoid) {
-        numbers.forEach(num => addCandidate(num, num.length === 5 ? 30 : 15, 'number found'));
+        numbers.forEach(num => {
+          const score = num.length === 5 ? 120 : (num.length >= 4 && num.length <= 6 ? 45 : 15);
+          addCandidate(num, score, 'number inside green crop', 'number');
+        });
       }
     });
 
     const wholePatterns = [
-      /(?:P\s*\.?\s*O\s*\.?\s*(?:NUMBER|NO|#)?|PURCHASE\s*ORDER|LPO)[^\d]{0,50}(\d{4,8})/ig,
-      /(\d{4,8})[^\n]{0,50}(?:P\s*\.?\s*O\s*\.?\s*(?:NUMBER|NO|#)?|PURCHASE\s*ORDER|LPO)/ig
+      /(?:P\s*\.?\s*O\s*\.?\s*(?:NUMBER|NO|#)?|PURCHASE\s*ORDER|LPO)[^\d]{0,50}(\d{3,8})/ig,
+      /(\d{3,8})[^\n]{0,50}(?:P\s*\.?\s*O\s*\.?\s*(?:NUMBER|NO|#)?|PURCHASE\s*ORDER|LPO)/ig
     ];
     wholePatterns.forEach(re => {
       let match;
       while ((match = re.exec(text)) !== null) {
-        addCandidate(match[1], match[1].length === 5 ? 130 : 100, 'near PO/LPO label');
+        addCandidate(match[1], match[1].length === 5 ? 170 : 100, 'near PO/LPO label in crop', 'number');
       }
     });
 
+    // If the green box contains only text and no useful 5-digit PO, use it as vendor/search text.
+    const vendorText = cleanVendorText(flatText);
+    const hasFiveDigit = candidates.some(item => item.kind === 'number' && /^\d{5}$/.test(item.value));
+    if (!hasFiveDigit && vendorText) {
+      addCandidate(vendorText, 70, 'text inside green crop', 'text');
+    }
+
     const sorted = candidates
-      .sort((a, b) => b.score - a.score || a.value.length - b.value.length)
-      .slice(0, 5);
+      .sort((a, b) => {
+        const aFive = a.kind === 'number' && /^\d{5}$/.test(a.value) ? 1 : 0;
+        const bFive = b.kind === 'number' && /^\d{5}$/.test(b.value) ? 1 : 0;
+        if (aFive !== bFive) return bFive - aFive;
+        if (a.kind !== b.kind) return a.kind === 'number' ? -1 : 1;
+        return b.score - a.score || a.value.length - b.value.length;
+      })
+      .slice(0, 6);
 
     return {
       best: sorted.length ? sorted[0].value : '',
+      kind: sorted.length ? sorted[0].kind : '',
       candidates: sorted.map(item => item.value)
     };
+  }
+
+  function cleanVendorText(value) {
+    let text = String(value || '')
+      .replace(/[^A-Za-z0-9&.,()\-\/ ]+/g, ' ')
+      .replace(/\b(P\s*\.?\s*O\s*\.?|PO|NUMBER|NO|LPO|PURCHASE|ORDER|DATE|REQ\.?|REQUEST)\b/ig, ' ')
+      .replace(/\b\d{1,4}\b/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    // Avoid pasting long messy OCR paragraphs into the search field.
+    if (text.length > 60) text = text.slice(0, 60).trim();
+    return text;
   }
 
   function pastePoNumber(value) {
@@ -480,7 +594,7 @@
     }
   }
 
-  function showSuccess(value, candidates) {
+  function showSuccess(value, candidates, kind) {
     const searchBtn = document.getElementById('im-po-ocr-search-btn');
     const againBtn = document.getElementById('im-po-ocr-scan-again-btn');
     const readBtn = document.getElementById('im-po-ocr-read-btn');
@@ -493,8 +607,9 @@
       ? `<div class="im-po-ocr-candidates">${others.map(num => `<button type="button" class="im-po-ocr-candidate-btn" data-po="${escapeHtml(num)}">Use ${escapeHtml(num)}</button>`).join('')}</div>`
       : '';
 
+    const label = kind === 'text' ? 'Detected and pasted text/vendor' : 'Detected and pasted PO/LPO';
     setStatus(
-      `Detected and pasted PO/LPO: <strong>${escapeHtml(value)}</strong>${otherButtons}<div class="im-po-ocr-small">Tap Search to search Invoice Records, or Scan Again if the number is wrong.</div>`,
+      `${label}: <strong>${escapeHtml(value)}</strong>${otherButtons}<div class="im-po-ocr-small">OCR read only the green-box area. Tap Search to search Invoice Records, or Scan Again if it is wrong.</div>`,
       true
     );
     wireCandidateButtons();
@@ -507,7 +622,7 @@
     const unique = Array.from(new Set(candidates || [])).slice(0, 6);
     if (unique.length) {
       setStatus(
-        `I could not confirm a PO/LPO label, but found possible numbers:<div class="im-po-ocr-candidates">${unique.map(num => `<button type="button" class="im-po-ocr-candidate-btn" data-po="${escapeHtml(num)}">Use ${escapeHtml(num)}</button>`).join('')}</div><div class="im-po-ocr-small">Use one, or scan again closer to the P.O Number / LPO text.</div>`,
+        `I could not confirm a PO/LPO label, but found possible numbers:<div class="im-po-ocr-candidates">${unique.map(num => `<button type="button" class="im-po-ocr-candidate-btn" data-po="${escapeHtml(num)}">Use ${escapeHtml(num)}</button>`).join('')}</div><div class="im-po-ocr-small">Use one, or scan again with only the target text/number inside the green box.</div>`,
         true
       );
       wireCandidateButtons();
@@ -515,7 +630,7 @@
     }
 
     console.log('[PO OCR] Raw OCR text:', text);
-    setStatus('No PO/LPO number detected. Move closer, improve lighting, and scan again.');
+    setStatus('No PO/LPO number or readable text detected inside the green box. Move closer, improve lighting, and scan again.');
   }
 
   function wireCandidateButtons() {
