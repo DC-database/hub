@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '8.4.3';
+const APP_VERSION = '8.5.2';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -2268,7 +2268,7 @@ async function handleUpdateJobEntry(e) {
     }
 
     // 1. Disable button
-    const btn = document.getElementById('update-job-btn');
+    const btn = document.getElementById('update-job-button');
     if(btn) {
         btn.disabled = true;
         btn.textContent = 'Saving...';
@@ -2288,12 +2288,25 @@ async function handleUpdateJobEntry(e) {
 
     try { await ensureApproverDataCached(true); } catch (e) { /* ignore */ }
 
-    // --- YOUR CUSTOM INVOICE LOGIC (Preserved) ---
+    // --- INVOICE CONVERSION / UPDATE LOGIC (8.5.2) ---
+    // When an existing Job Record such as IPC is changed to Invoice, it must save
+    // as a fresh invoice job task and route to the invoice/accounting handler.
+    // Use safe fallbacks because getInvoiceHandlerName is not present in all builds.
     if (jobData.for === 'Invoice') {
-        jobData.remarks = 'New Entry'; 
-        // Set attention to current handler (Irwin or vacation replacement)
-        const handler = getInvoiceHandlerName();
-        jobData.attention = (typeof resolveVacationAssignee === 'function') ? resolveVacationAssignee(handler) : handler;
+        jobData.remarks = 'New Entry';
+
+        let handler = '';
+        if (typeof getInvoiceHandlerName === 'function') {
+            handler = getInvoiceHandlerName();
+        } else if (typeof getAccountingUser === 'function') {
+            handler = getAccountingUser();
+        } else {
+            handler = 'Accounting';
+        }
+
+        jobData.attention = (typeof resolveVacationAssignee === 'function')
+            ? resolveVacationAssignee(handler)
+            : handler;
     }
 
     // 3. Validation
@@ -2363,6 +2376,15 @@ async function handleUpdateJobEntry(e) {
 
         // 6. Refresh UI
         await ensureAllEntriesFetched(true);
+
+        // 8.5.2: Job Record edits can change Active Task/Dashboard buckets
+        // (example: IPC -> Invoice). Clear short browser snapshots so the
+        // next dashboard/active task view uses accurate fresh data.
+        try {
+            sessionStorage.removeItem('IBA_ACTIVE_TASK_WORKDESK_SNAPSHOT_V1');
+            localStorage.removeItem('IBA_WD_ACTIVE_DASHBOARD_CACHE_V1');
+            if (typeof wdClearWorkdeskDashboardCache === 'function') wdClearWorkdeskDashboardCache();
+        } catch (_) {}
         
         const currentSearch = sessionStorage.getItem('jobEntrySearch') || '';
         if(typeof handleJobEntrySearch === 'function') handleJobEntrySearch(currentSearch);

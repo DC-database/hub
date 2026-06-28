@@ -48,8 +48,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
 
-    <link rel="stylesheet" href="style.css?v=8.2.4">
-    <link rel="stylesheet" href="css/transfer_stock.css?v=8.2.6">
+    <link rel="stylesheet" href="style.css?v=8.5.2">
+    <link rel="stylesheet" href="css/transfer_stock.css?v=8.5.2">
     <link rel="stylesheet" href="css/mobile.css?v=8.2.6">
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -326,65 +326,37 @@
             <div id="workdesk-content-area">
 
                 <section id="wd-dashboard" class="workdesk-section">
-                    <h1>Dashboard</h1>
-
-                    <div class="dashboard-summary-cards">
-                        <div class="summary-card">
-                            <div class="card-icon" style="background-color: #ffc107;"><i class="fa-solid fa-list-check"></i></div>
-                            <div class="card-details">
-                                <span id="db-active-tasks-count" class="card-value">0</span>
-                                <span class="card-label">Total Active Tasks</span>
-                            </div>
+                    <div class="wd-control-center-hero">
+                        <div>
+                            <p class="wd-control-eyebrow">WorkDesk Control Center</p>
+                            <h1>Active Invoice Command Board</h1>
+                            <p class="wd-control-subtitle">See every invoice entry that still needs attention. Completed With Accounts records stay in Invoice Records, while this board focuses only on unfinished work.</p>
                         </div>
-                        <div class="summary-card">
-                            <div class="card-icon" style="background-color: #28a745;"><i class="fa-solid fa-check-double"></i></div>
-                            <div class="card-details">
-                                <span id="db-completed-tasks-count" class="card-value">0</span>
-                                <span class="card-label">Total Tasks Completed</span>
-                            </div>
+                        <button id="wd-active-dashboard-refresh" class="secondary-btn wd-dashboard-refresh-btn" type="button">
+                            <i class="fa-solid fa-rotate"></i> Refresh
+                        </button>
+                    </div>
+
+                    <div id="wd-active-dashboard-cards" class="wd-active-dashboard-cards">
+                        <div class="wd-dashboard-loading-card">
+                            <i class="fa-solid fa-spinner fa-spin"></i>
+                            Loading open tasks...
                         </div>
                     </div>
 
-                    <hr class="section-divider">
+                    <div class="wd-active-dashboard-toolbar">
+                        <div>
+                            <h2 id="wd-active-dashboard-title">All Open Tasks</h2>
+                            <p id="wd-active-dashboard-summary">Only incomplete invoice-related entries are shown.</p>
+                        </div>
+                        <div class="wd-active-dashboard-search-wrap">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input id="wd-active-dashboard-search" type="search" placeholder="Search PO, vendor, site, note, status...">
+                        </div>
+                    </div>
 
-                    <div id="wd-calendar-widget">
-                        <h2>Task Calendar</h2>
-                        <div class="wd-calendar-legend">
-                            <div class="legend-item">
-                                <span class="legend-color-dot status-red"></span> Active Task
-                            </div>
-                            <div class="legend-item">
-                                <span class="legend-color-dot status-yellow"></span> Pending Signature
-                            </div>
-                            <div class="legend-item legend-admin-only">
-                                <span class="legend-color-dot status-green"></span> View-Only (Admin)
-                            </div>
-                        </div>
-
-                        <div id="wd-calendar-container">
-                            <div id="wd-calendar-header">
-                                <button id="wd-calendar-toggle-view" title="Toggle Year/Month View">Year View</button>
-                                <button id="wd-calendar-prev" title="Previous month/year">&larr;</button>
-                                <h3 id="wd-calendar-month-year">Month Year</h3>
-                                <button id="wd-calendar-next" title="Next month/year">&rarr;</button>
-                            </div>
-                            <div id="wd-calendar-grid">
-                                <div class="wd-calendar-day-name">Sun</div>
-                                <div class="wd-calendar-day-name">Mon</div>
-                                <div class="wd-calendar-day-name">Tue</div>
-                                <div class="wd-calendar-day-name">Wed</div>
-                                <div class="wd-calendar-day-name">Thu</div>
-                                <div class="wd-calendar-day-name">Fri</div>
-                                <div class="wd-calendar-day-name">Sat</div>
-                            </div>
-                            <div id="wd-calendar-year-grid" class="hidden">
-                            </div>
-                        </div>
-                        <div id="wd-calendar-task-list">
-                            <h3 id="wd-calendar-task-list-title">Select a day to see tasks</h3>
-                            <ul id="wd-calendar-task-list-ul">
-                            </ul>
-                        </div>
+                    <div id="wd-active-dashboard-list" class="wd-active-dashboard-list">
+                        <div class="wd-dashboard-empty-state">Select a card to view tasks.</div>
                     </div>
                 </section>
 
@@ -465,17 +437,28 @@
         <h1>My Tasks</h1>
     </div>
 
-    <h1 class="hidden-mobile">Your Active Tasks <span id="active-task-count-display" class="table-count-display"></span></h1>
-
-    <div class="search-and-filter-group" style="display: flex; flex-wrap: nowrap; align-items: center; gap: 10px; max-width: 500px; margin-bottom: 20px;">
-        <div class="search-bar-local" style="margin-bottom: 0; flex-grow: 1; width: 100%;">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" id="active-task-search" placeholder="Type to search your active tasks..." style="margin-bottom: 0;">
+    <div class="wd-page-hero wd-page-hero-active hidden-mobile">
+        <div class="wd-page-hero-main">
+            <span class="wd-page-eyebrow"><i class="fa-solid fa-bolt"></i> WorkDesk Action Center</span>
+            <h1>Your Active Tasks</h1>
+            <p>Personal action queue with the documents, notes, status, and process buttons in one clean working view.</p>
         </div>
-        <button id="active-task-clear-button" class="secondary-btn" type="button" style="height: 45px; margin-bottom: 0; white-space: nowrap;">Clear</button>
+        <div class="wd-page-hero-metric">
+            <span id="active-task-count-display" class="table-count-display"></span>
+            <small>Live workload</small>
+        </div>
     </div>
 
-    <div id="active-task-filters" class="report-tabs" style="margin-bottom: 20px;"></div>
+    <div class="search-and-filter-group wd-premium-searchbar">
+        <div class="search-bar-local wd-search-field">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="active-task-search" placeholder="Search PO, vendor, site, note, status...">
+        </div>
+        <button id="active-task-clear-button" class="secondary-btn wd-clear-chip" type="button">Clear</button>
+    </div>
+
+    <div id="active-task-filters" class="report-tabs wd-premium-tabs"></div>
+    <div id="active-task-summary-strip" class="wd-mini-metrics hidden-mobile"></div>
 
     <div class="form-buttons-container" style="justify-content: flex-end; margin-bottom: 15px; min-height: 40px;">
 
@@ -549,20 +532,27 @@
                 </section>
 
 <section id="wd-reporting" class="workdesk-section hidden">
-    <h1>
-        Job Records
-        <span id="job-records-count-display" class="table-count-display"></span>
-    </h1>
-
-    <div class="search-and-filter-group" style="display: flex; flex-wrap: nowrap; align-items: center; gap: 10px; max-width: 500px; margin-bottom: 20px;">
-        <div class="search-bar-local" style="margin-bottom: 0; flex-grow: 1; width: 100%;">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" id="reporting-search" placeholder="Search entries..." style="margin-bottom: 0;">
+    <div class="wd-page-hero wd-page-hero-records hidden-mobile">
+        <div class="wd-page-hero-main">
+            <span class="wd-page-eyebrow"><i class="fa-solid fa-chart-line"></i> WorkDesk Records Center</span>
+            <h1>Job Records</h1>
+            <p>Searchable job history arranged for fast review by category, PO, site, vendor, attention, and current status.</p>
         </div>
-        <button id="reporting-clear-button" class="secondary-btn" type="button" style="height: 45px; margin-bottom: 0; white-space: nowrap;">Clear</button>
+        <div class="wd-page-hero-metric">
+            <span id="job-records-count-display" class="table-count-display"></span>
+            <small>Visible records</small>
+        </div>
     </div>
 
-<div class="report-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+    <div class="search-and-filter-group wd-premium-searchbar">
+        <div class="search-bar-local wd-search-field">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="reporting-search" placeholder="Search job, PO, vendor, site, attention, status...">
+        </div>
+        <button id="reporting-clear-button" class="secondary-btn wd-clear-chip" type="button">Clear</button>
+    </div>
+
+<div class="report-controls wd-records-controls">
 
         <div class="report-tabs-container" style="flex-grow: 1;">
             <div id="report-tabs" class="report-tabs"></div>
@@ -576,6 +566,8 @@
             </button>
         </div>
     </div>
+
+    <div id="job-records-summary-strip" class="wd-mini-metrics hidden-mobile"></div>
 
     <div id="reporting-printable-area">
         <div class="table-wrapper">
@@ -602,12 +594,19 @@
 </section>
 
 <section id="wd-material-stock" class="workdesk-section hidden">
-    <h1>
-        Material Stock
-        <span id="ms-total-count" class="table-count-display"></span>
-    </h1>
+    <div class="wd-page-hero wd-page-hero-material">
+        <div class="wd-page-hero-main">
+            <span class="wd-page-eyebrow"><i class="fa-solid fa-boxes-stacked"></i> Inventory Stock Center</span>
+            <h1>Material Stock</h1>
+            <p>Clean material control view for item registration, stock balance, family filtering, transfer, usage, restock, and stock reports.</p>
+        </div>
+        <div class="wd-page-hero-metric">
+            <span id="ms-total-count" class="table-count-display"></span>
+            <small>Registered items</small>
+        </div>
+    </div>
 
-    <div class="report-controls" style="margin-bottom: 20px; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+    <div class="report-controls ms-premium-toolbar" style="margin-bottom: 20px; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
         <div style="display: flex; gap: 5px;">
             <button id="ms-add-new-btn" style="background-color: #00748C;"><i class="fa-solid fa-plus"></i> Register New Material</button>
             <button id="ms-upload-csv-btn" class="secondary-btn"><i class="fa-solid fa-file-csv"></i> Upload</button>
@@ -620,7 +619,7 @@
         </div>
     </div>
 
-    <div id="ms-search-container" style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 15px; gap: 20px;">
+    <div id="ms-search-container" class="ms-premium-searchbar" style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 15px; gap: 20px;">
         <div style="display: flex; gap: 10px; align-items: center; flex-grow: 1; max-width: 50%;">
             <div class="search-bar-local" style="flex-grow: 1; margin-bottom: 0; position: relative; height: 40px;">
                 <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #888;"></i>
@@ -644,11 +643,11 @@
         </div>
     </div>
 
-    <div id="ms-category-tabs" class="report-tabs" style="margin-bottom: 15px; border-bottom: 2px solid #eee; overflow-x: auto; white-space: nowrap; display: flex; gap: 10px; padding-bottom: 5px;">
+    <div id="ms-category-tabs" class="report-tabs ms-premium-tabs" style="margin-bottom: 15px; border-bottom: 2px solid #eee; overflow-x: auto; white-space: nowrap; display: flex; gap: 10px; padding-bottom: 5px;">
         <span style="color:#999; font-style:italic; padding:10px;">Loading families...</span>
     </div>
 
-    <div class="table-wrapper">
+    <div class="table-wrapper ms-premium-tablewrap">
         <table id="ms-table">
            <thead>
                 <tr>
@@ -1612,7 +1611,6 @@
             <i class="fa-solid fa-keyboard search-icon"></i>
             <input type="text" id="im-reporting-search" placeholder="Type PO, Vendor, Invoice No, or Value..." autocomplete="off">
         </div>
-        <button id="im-records-po-ocr-scan-button" class="im-records-mobile-ocr-btn" type="button" onclick="openIMPoOcrScanner && openIMPoOcrScanner()" title="Scan printed PO/LPO number with camera OCR"><i class="fa-solid fa-camera"></i> Scan PO Text</button>
 
         <div class="controls-row">
             <div class="filter-group">
@@ -2550,7 +2548,7 @@
         <div class="transfer-col">
             <div class="form-group">
                 <label>Job Type</label>
-                <select id="job-for" name="for" required onchange="toggleJobOtherInput()">
+                <select id="job-for" name="for" required onchange="toggleJobOtherInput(); if (typeof toggleJobInvoiceFields === 'function') toggleJobInvoiceFields();">
                     <option value="" disabled selected>Select a Type</option>
                     <option value="PR">PR</option>
                     <option value="Invoice">Invoice</option>
@@ -2950,31 +2948,31 @@
       }
     </script>
 
-    <script src="js/materialStock.js?v=8.2.6"></script>
+    <script src="js/materialStock.js?v=8.5.2"></script>
     <script src="js/transferLogic.js?v=8.2.6"></script>
     <script src="js/app-audio.js?v=8.2.3"></script>
     <script src="js/app-core.js?v=8.2.3"></script>
-    <script src="js/app-inventory.js?v=8.2.3"></script>
+    <script src="js/app-inventory.js?v=8.5.2"></script>
     <script src="js/app-invoice.js?v=8.2.3"></script>
-    <script src="js/app-mobile.js?v=8.4.3"></script>
+    <script src="js/app-mobile.js?v=8.2.3"></script>
     <script src="js/app-finance.js?v=8.2.3"></script>
     <script src="js/app-chat.js?v=8.2.3"></script>
     <script src="js/app-celebration.js?v=8.2.3"></script>
     <script src="js/app-utils.js?v=8.2.3"></script>
     <script src="js/app-vacation.js?v=8.2.3"></script>
     <script src="js/app-dom-refs.js?v=8.2.9"></script>
-    <script src="app.js?v=8.4.3"></script>
-    <script src="js/app-navigation-settings.js?v=8.3.1"></script>
+    <script src="app.js?v=8.5.2"></script>
+    <script src="js/app-navigation-settings.js?v=8.5.2"></script>
     <script src="js/app-data-cache.js?v=8.2.3"></script>
     <script src="js/app-job-vendor.js?v=8.2.3"></script>
     <script src="js/app-workdesk-job-entry.js?v=8.2.5"></script>
     <script src="js/app-standard-job.js?v=8.2.3"></script>
-    <script src="js/app-invoice-dashboard.js?v=8.2.3"></script>
+    <script src="js/app-invoice-dashboard.js?v=8.5.2"></script>
     <script src="js/app-payments.js?v=8.3.0"></script>
     <script src="js/app-invoice-records.js?v=8.2.3"></script>
-    <script src="js/app-active-tasks.js?v=8.2.3"></script>
-    <script src="js/app-workdesk-dashboard.js?v=8.2.3"></script>
-    <script src="js/app-workdesk-reporting.js?v=8.2.3"></script>
+    <script src="js/app-active-tasks.js?v=8.5.2"></script>
+    <script src="js/app-workdesk-dashboard.js?v=8.5.2"></script>
+    <script src="js/app-workdesk-reporting.js?v=8.5.2"></script>
     <script src="js/app-reporting-actions.js?v=8.2.3"></script>
     <script src="js/app-report-workflow.js?v=8.2.3"></script>
     <script src="js/app-ui-shortcuts.js?v=8.2.3"></script>
@@ -2984,7 +2982,6 @@
     <script src="js/app-batch-entry-ui.js?v=8.2.7"></script>
     <script src="js/app-im-event-wiring.js?v=8.2.8"></script>
     <script src="js/app-history-transfer.js?v=8.3.2"></script>
-    <script src="js/app-invoice-po-ocr.js?v=8.4.3"></script>
     <script src="js/app-help.js?v=8.2.3"></script>
 
     </body>

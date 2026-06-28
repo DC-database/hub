@@ -8702,3 +8702,3041 @@ body.im-modal-is-dragging {
     z-index: 10007 !important;
     pointer-events: auto !important;
 }
+
+/* ========================================================================
+   8.3.6 — WorkDesk Dashboard Active Task Control Center
+   Replaces the unused calendar dashboard with a professional incomplete
+   invoice task overview. View-only display.
+   ======================================================================== */
+.wd-control-center-hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 22px 24px;
+    margin-bottom: 18px;
+    border-radius: 22px;
+    background: linear-gradient(135deg, #f8fafc 0%, #eef6fb 52%, #fff8ef 100%);
+    border: 1px solid rgba(15, 76, 117, 0.14);
+    box-shadow: 0 14px 36px rgba(15, 46, 71, 0.08);
+}
+
+.wd-control-eyebrow {
+    margin: 0 0 6px 0;
+    color: var(--iba-secondary-terracotta, #C3502F);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 0.75rem;
+    font-weight: 800;
+}
+
+.wd-control-center-hero h1 {
+    margin: 0;
+    color: var(--primary-blue, #003A5C);
+    font-size: clamp(1.55rem, 2vw, 2.2rem);
+    letter-spacing: -0.03em;
+}
+
+.wd-control-subtitle {
+    margin: 8px 0 0 0;
+    max-width: 780px;
+    color: #526173;
+    line-height: 1.45;
+    font-size: 0.96rem;
+}
+
+.wd-dashboard-refresh-btn {
+    white-space: nowrap;
+    border-radius: 999px;
+    padding: 11px 16px;
+    font-weight: 800;
+}
+
+.wd-active-dashboard-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.wd-active-status-card,
+.wd-dashboard-loading-card,
+.wd-dashboard-error-card {
+    border: 1px solid rgba(15, 76, 117, 0.12);
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 10px 24px rgba(15, 46, 71, 0.07);
+    padding: 16px;
+    min-height: 92px;
+}
+
+.wd-active-status-card {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    width: 100%;
+    cursor: pointer;
+    text-align: left;
+    transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.wd-active-status-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 32px rgba(15, 46, 71, 0.11);
+}
+
+.wd-active-status-card.active {
+    border-color: var(--primary-blue, #003A5C);
+    box-shadow: 0 18px 38px rgba(0, 58, 92, 0.16);
+    outline: 2px solid rgba(0, 58, 92, 0.08);
+}
+
+.wd-status-icon {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    color: #fff;
+    background: var(--primary-blue, #003A5C);
+    font-size: 1rem;
+}
+
+.wd-active-status-card.all-card .wd-status-icon { background: #0f4c75; }
+.wd-active-status-card.tone-pending .wd-status-icon { background: #f59e0b; }
+.wd-active-status-card.tone-hold .wd-status-icon { background: #64748b; }
+.wd-active-status-card.tone-srv .wd-status-icon { background: #db2777; }
+.wd-active-status-card.tone-approval .wd-status-icon { background: #16a34a; }
+.wd-active-status-card.tone-ipc .wd-status-icon { background: #7c3aed; }
+.wd-active-status-card.tone-report .wd-status-icon { background: #2563eb; }
+
+.wd-status-meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.wd-status-meta strong {
+    color: #0f172a;
+    font-size: 1.75rem;
+    line-height: 1;
+    font-weight: 900;
+}
+
+.wd-status-meta em {
+    margin-top: 5px;
+    color: #536173;
+    font-style: normal;
+    font-size: 0.86rem;
+    font-weight: 800;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+
+.wd-dashboard-loading-card,
+.wd-dashboard-error-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #526173;
+    font-weight: 800;
+}
+
+.wd-dashboard-error-card { color: #b91c1c; }
+
+.wd-active-dashboard-toolbar {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 20px;
+    border-radius: 20px 20px 0 0;
+    background: #ffffff;
+    border: 1px solid rgba(15, 76, 117, 0.12);
+    border-bottom: none;
+    box-shadow: 0 10px 24px rgba(15, 46, 71, 0.05);
+}
+
+.wd-active-dashboard-toolbar h2 {
+    margin: 0;
+    color: var(--primary-blue, #003A5C);
+    font-size: 1.25rem;
+}
+
+.wd-active-dashboard-toolbar p {
+    margin: 5px 0 0;
+    color: #64748b;
+    font-size: 0.86rem;
+}
+
+.wd-active-dashboard-search-wrap {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: min(360px, 100%);
+    padding: 0 13px;
+    border: 1px solid rgba(15, 76, 117, 0.16);
+    border-radius: 999px;
+    background: #f8fafc;
+    color: #64748b;
+}
+
+.wd-active-dashboard-search-wrap input {
+    width: 100%;
+    height: 42px;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 0.92rem;
+    color: #0f172a;
+}
+
+.wd-active-dashboard-list {
+    background: #ffffff;
+    border: 1px solid rgba(15, 76, 117, 0.12);
+    border-radius: 0 0 20px 20px;
+    box-shadow: 0 18px 38px rgba(15, 46, 71, 0.08);
+    overflow: hidden;
+}
+
+.wd-dashboard-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.wd-dashboard-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 960px;
+}
+
+.wd-dashboard-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #f8fafc;
+    color: #334155;
+    text-transform: uppercase;
+    letter-spacing: 0.055em;
+    font-size: 0.72rem;
+    font-weight: 900;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 13px 14px;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.wd-dashboard-table tbody td {
+    padding: 14px;
+    border-bottom: 1px solid #eef2f7;
+    vertical-align: middle;
+    color: #1e293b;
+    font-size: 0.88rem;
+}
+
+.wd-dashboard-table tbody tr:hover {
+    background: #f8fbfd;
+}
+
+.wd-po-cell strong {
+    color: var(--primary-blue, #003A5C);
+    font-size: 0.96rem;
+}
+
+.wd-po-cell small {
+    display: block;
+    margin-top: 3px;
+    color: #64748b;
+    font-weight: 700;
+}
+
+.wd-site-pill,
+.wd-status-pill,
+.wd-ipc-active,
+.wd-ipc-empty {
+    display: inline-flex;
+    align-items: center;
+    min-height: 26px;
+    padding: 5px 9px;
+    border-radius: 999px;
+    font-weight: 800;
+    font-size: 0.78rem;
+    line-height: 1.15;
+    white-space: nowrap;
+}
+
+.wd-site-pill {
+    background: #edf6fb;
+    color: #0f4c75;
+}
+
+.wd-status-pill.tone-pending { background: #fff7ed; color: #c2410c; }
+.wd-status-pill.tone-hold { background: #f1f5f9; color: #475569; }
+.wd-status-pill.tone-srv { background: #fdf2f8; color: #be185d; }
+.wd-status-pill.tone-approval { background: #ecfdf5; color: #15803d; }
+.wd-status-pill.tone-ipc { background: #f5f3ff; color: #6d28d9; }
+.wd-status-pill.tone-report { background: #eff6ff; color: #1d4ed8; }
+.wd-status-pill.tone-default { background: #f8fafc; color: #334155; }
+
+.wd-note-cell {
+    max-width: 260px;
+    white-space: normal;
+    line-height: 1.35;
+    color: #475569;
+}
+
+.wd-ipc-active {
+    background: #f5f3ff;
+    color: #6d28d9;
+}
+
+.wd-ipc-empty {
+    background: #f8fafc;
+    color: #94a3b8;
+}
+
+.wd-dashboard-pdf-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    color: #ffffff !important;
+    text-decoration: none;
+    font-size: 0.78rem;
+    font-weight: 900;
+    white-space: nowrap;
+    box-shadow: 0 6px 14px rgba(15, 46, 71, 0.12);
+}
+
+.wd-dashboard-pdf-btn.invoice { background: #dc2626; }
+.wd-dashboard-pdf-btn.report { background: #6d28d9; }
+.wd-dashboard-pdf-btn:hover { filter: brightness(0.96); transform: translateY(-1px); }
+
+.wd-pdf-empty,
+.wd-muted {
+    color: #94a3b8;
+    font-weight: 800;
+}
+
+.wd-dashboard-empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 180px;
+    padding: 28px;
+    color: #64748b;
+    font-weight: 800;
+    text-align: center;
+}
+
+.wd-dashboard-empty-state.success {
+    color: #15803d;
+}
+
+@media (max-width: 900px) {
+    .wd-control-center-hero,
+    .wd-active-dashboard-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .wd-dashboard-refresh-btn,
+    .wd-active-dashboard-search-wrap {
+        width: 100%;
+    }
+
+    .wd-active-dashboard-cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .wd-active-status-card {
+        min-height: 86px;
+        padding: 13px;
+    }
+
+    .wd-status-icon {
+        width: 36px;
+        height: 36px;
+        flex-basis: 36px;
+        border-radius: 12px;
+    }
+
+    .wd-status-meta strong {
+        font-size: 1.45rem;
+    }
+
+    .wd-status-meta em {
+        font-size: 0.78rem;
+    }
+
+    .wd-dashboard-table {
+        min-width: 0;
+        border-collapse: separate;
+        border-spacing: 0 12px;
+        padding: 12px;
+    }
+
+    .wd-dashboard-table thead {
+        display: none;
+    }
+
+    .wd-dashboard-table,
+    .wd-dashboard-table tbody,
+    .wd-dashboard-table tr,
+    .wd-dashboard-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .wd-dashboard-table tbody tr {
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        background: #ffffff;
+        box-shadow: 0 8px 22px rgba(15, 46, 71, 0.07);
+        overflow: hidden;
+    }
+
+    .wd-dashboard-table tbody td {
+        display: grid;
+        grid-template-columns: 112px minmax(0, 1fr);
+        gap: 10px;
+        padding: 11px 13px;
+        border-bottom: 1px solid #eef2f7;
+        font-size: 0.86rem;
+    }
+
+    .wd-dashboard-table tbody td::before {
+        content: attr(data-label);
+        color: #64748b;
+        font-weight: 900;
+        font-size: 0.74rem;
+        text-transform: uppercase;
+        letter-spacing: 0.045em;
+    }
+
+    .wd-dashboard-table tbody td:last-child {
+        border-bottom: none;
+    }
+
+    .wd-note-cell {
+        max-width: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .wd-active-dashboard-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .wd-control-center-hero {
+        padding: 18px;
+        border-radius: 18px;
+    }
+
+    .wd-active-dashboard-toolbar {
+        padding: 16px;
+    }
+}
+
+/* ========================================================================
+   8.3.8 — WorkDesk Dashboard Premium UI Polish
+   Modern command-board layout. Display only; no workflow/write logic changed.
+   ======================================================================== */
+.wd-control-center-hero {
+    position: relative;
+    overflow: hidden;
+    min-height: 154px;
+    padding: 28px 30px;
+    border-radius: 28px;
+    background:
+        radial-gradient(circle at top right, rgba(195,80,47,0.18), transparent 36%),
+        radial-gradient(circle at 12% 0%, rgba(24,119,154,0.20), transparent 34%),
+        linear-gradient(135deg, #072b45 0%, #0b4869 48%, #f8fafc 49%, #ffffff 100%);
+    border: 1px solid rgba(255,255,255,0.54);
+    box-shadow: 0 24px 60px rgba(5, 28, 44, 0.17);
+}
+
+.wd-control-center-hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px);
+    background-size: 24px 24px;
+    opacity: 0.38;
+    pointer-events: none;
+}
+
+.wd-control-center-hero > * {
+    position: relative;
+    z-index: 1;
+}
+
+.wd-control-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 11px;
+    margin-bottom: 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.14);
+    color: #fdebd3;
+    border: 1px solid rgba(255,255,255,0.22);
+    backdrop-filter: blur(8px);
+}
+
+.wd-control-eyebrow::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #22c55e;
+    box-shadow: 0 0 0 5px rgba(34,197,94,0.16);
+}
+
+.wd-control-center-hero h1 {
+    color: #ffffff;
+    text-shadow: 0 12px 28px rgba(0,0,0,0.22);
+}
+
+.wd-control-subtitle {
+    color: rgba(255,255,255,0.84);
+    max-width: 680px;
+    font-weight: 600;
+}
+
+.wd-dashboard-refresh-btn {
+    border: none !important;
+    background: rgba(255,255,255,0.96) !important;
+    color: #073b5c !important;
+    box-shadow: 0 16px 34px rgba(3, 29, 47, 0.18);
+}
+
+.wd-active-dashboard-cards {
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 16px;
+    margin: 20px 0 20px;
+}
+
+.wd-active-status-card,
+.wd-dashboard-loading-card,
+.wd-dashboard-error-card {
+    position: relative;
+    overflow: hidden;
+    min-height: 118px;
+    padding: 18px;
+    border-radius: 24px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.98));
+    border: 1px solid rgba(148,163,184,0.22);
+    box-shadow: 0 18px 42px rgba(15, 46, 71, 0.09);
+}
+
+.wd-active-status-card::after {
+    content: "";
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    bottom: 12px;
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(148,163,184,0.22);
+}
+
+.wd-status-card-glow {
+    position: absolute;
+    right: -42px;
+    top: -42px;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: rgba(15,76,117,0.10);
+    pointer-events: none;
+}
+
+.wd-active-status-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 24px 56px rgba(15, 46, 71, 0.15);
+}
+
+.wd-active-status-card.active {
+    background: linear-gradient(180deg, #ffffff, #f7fbff);
+    border-color: rgba(0,58,92,0.44);
+    box-shadow: 0 28px 66px rgba(0,58,92,0.21);
+    outline: 3px solid rgba(0,58,92,0.07);
+}
+
+.wd-active-status-card.all-card::after,
+.wd-active-status-card.all-card .wd-status-icon { background: #0f4c75; }
+.wd-active-status-card.tone-pending::after,
+.wd-active-status-card.tone-pending .wd-status-icon { background: #f59e0b; }
+.wd-active-status-card.tone-hold::after,
+.wd-active-status-card.tone-hold .wd-status-icon { background: #64748b; }
+.wd-active-status-card.tone-srv::after,
+.wd-active-status-card.tone-srv .wd-status-icon { background: #db2777; }
+.wd-active-status-card.tone-approval::after,
+.wd-active-status-card.tone-approval .wd-status-icon { background: #16a34a; }
+.wd-active-status-card.tone-ipc::after,
+.wd-active-status-card.tone-ipc .wd-status-icon { background: #7c3aed; }
+.wd-active-status-card.tone-report::after,
+.wd-active-status-card.tone-report .wd-status-icon { background: #2563eb; }
+.wd-active-status-card.tone-default::after,
+.wd-active-status-card.tone-default .wd-status-icon { background: #334155; }
+
+.wd-status-icon {
+    width: 48px;
+    height: 48px;
+    flex-basis: 48px;
+    border-radius: 18px;
+    box-shadow: 0 12px 26px rgba(15,46,71,0.18);
+}
+
+.wd-status-meta strong {
+    font-size: 2.05rem;
+    letter-spacing: -0.06em;
+}
+
+.wd-status-meta em {
+    color: #1e293b;
+    font-size: 0.9rem;
+}
+
+.wd-status-meta small {
+    display: block;
+    margin-top: 4px;
+    color: #94a3b8;
+    font-size: 0.73rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.055em;
+}
+
+.wd-status-arrow {
+    margin-left: auto;
+    color: #94a3b8;
+    font-size: 0.84rem;
+    opacity: 0;
+    transform: translateX(-6px);
+    transition: opacity .16s ease, transform .16s ease;
+}
+
+.wd-active-status-card:hover .wd-status-arrow,
+.wd-active-status-card.active .wd-status-arrow {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.wd-active-dashboard-toolbar {
+    padding: 20px 22px;
+    border-radius: 26px 26px 0 0;
+    background: linear-gradient(180deg, #ffffff, #f8fbfd);
+    border-color: rgba(148,163,184,0.24);
+    box-shadow: 0 16px 36px rgba(15, 46, 71, 0.07);
+}
+
+.wd-active-dashboard-toolbar h2 {
+    font-size: 1.35rem;
+    letter-spacing: -0.025em;
+}
+
+.wd-active-dashboard-toolbar p {
+    color: #64748b;
+    font-weight: 700;
+}
+
+.wd-active-dashboard-search-wrap {
+    min-width: min(420px, 100%);
+    height: 48px;
+    padding: 0 16px;
+    background: #ffffff;
+    border-color: rgba(15,76,117,0.18);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 10px 22px rgba(15,46,71,0.06);
+}
+
+.wd-active-dashboard-list {
+    border-color: rgba(148,163,184,0.24);
+    border-radius: 0 0 26px 26px;
+    background: #f6f9fc;
+    box-shadow: 0 26px 60px rgba(15,46,71,0.11);
+}
+
+.wd-task-board {
+    padding: 18px;
+}
+
+.wd-task-board-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #0b3d5b, #116684);
+    color: #ffffff;
+    box-shadow: 0 18px 36px rgba(6, 54, 84, 0.18);
+}
+
+.wd-task-board-head > div:first-child {
+    display: flex;
+    align-items: baseline;
+    gap: 9px;
+    flex-wrap: wrap;
+}
+
+.wd-board-label {
+    width: 100%;
+    color: rgba(255,255,255,0.70);
+    font-size: .72rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+}
+
+.wd-task-board-head strong {
+    font-size: 2rem;
+    line-height: 1;
+    letter-spacing: -0.06em;
+}
+
+.wd-task-board-head span:not(.wd-board-label) {
+    color: rgba(255,255,255,0.84);
+    font-weight: 800;
+}
+
+.wd-board-access-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.14);
+    border: 1px solid rgba(255,255,255,0.18);
+    color: #fff;
+    font-size: .82rem;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.wd-task-card-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.wd-task-card {
+    --tone: #334155;
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 210px;
+    gap: 16px;
+    padding: 18px;
+    border: 1px solid rgba(148,163,184,0.24);
+    border-radius: 24px;
+    background: rgba(255,255,255,0.98);
+    box-shadow: 0 16px 38px rgba(15,46,71,0.08);
+    overflow: hidden;
+    animation: wdCardRise .28s ease both;
+    animation-delay: var(--wd-delay, 0ms);
+}
+
+@keyframes wdCardRise {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.wd-task-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 22px 50px rgba(15,46,71,0.13);
+}
+
+.wd-task-card.tone-pending { --tone: #f59e0b; }
+.wd-task-card.tone-hold { --tone: #64748b; }
+.wd-task-card.tone-srv { --tone: #db2777; }
+.wd-task-card.tone-approval { --tone: #16a34a; }
+.wd-task-card.tone-ipc { --tone: #7c3aed; }
+.wd-task-card.tone-report { --tone: #2563eb; }
+.wd-task-card.tone-default { --tone: #334155; }
+
+.wd-task-accent {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 6px;
+    background: var(--tone);
+}
+
+.wd-task-card::before {
+    content: "";
+    position: absolute;
+    right: -54px;
+    top: -54px;
+    width: 148px;
+    height: 148px;
+    border-radius: 50%;
+    background: rgba(15,76,117,0.10);
+    background: color-mix(in srgb, var(--tone) 16%, transparent);
+    pointer-events: none;
+}
+
+.wd-task-main,
+.wd-task-side {
+    position: relative;
+    z-index: 1;
+}
+
+.wd-task-topline {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+.wd-task-kicker,
+.wd-task-meta-box label,
+.wd-doc-label {
+    display: block;
+    color: #94a3b8;
+    font-size: .72rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+}
+
+.wd-task-identity h3 {
+    margin: 2px 0 2px;
+    color: #073b5c;
+    font-size: 1.55rem;
+    line-height: 1;
+    letter-spacing: -0.055em;
+}
+
+.wd-task-subref {
+    margin: 0;
+    color: #64748b;
+    font-size: .82rem;
+    font-weight: 800;
+}
+
+.wd-task-status-block {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.wd-task-vendor-line {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-top: 14px;
+    color: #0f172a;
+    font-weight: 900;
+    font-size: .98rem;
+}
+
+.wd-task-vendor-line i {
+    color: #0f4c75;
+}
+
+.wd-task-meta-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 220px;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.wd-task-meta-box {
+    padding: 12px 13px;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    background: #f8fafc;
+}
+
+.wd-task-meta-box.compact {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.wd-task-note-text {
+    margin-top: 6px;
+    color: #334155;
+    line-height: 1.45;
+    font-size: .88rem;
+    font-weight: 700;
+}
+
+.wd-task-footline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 12px;
+    color: #64748b;
+    font-size: .78rem;
+    font-weight: 800;
+}
+
+.wd-task-footline span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.wd-task-side {
+    display: flex;
+    align-items: stretch;
+}
+
+.wd-doc-zone {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 10px;
+    padding: 14px;
+    border-radius: 18px;
+    background: linear-gradient(180deg, #ffffff, #f8fafc);
+    border: 1px solid #e2e8f0;
+}
+
+.wd-doc-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #64748b;
+}
+
+.wd-doc-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+
+.wd-dashboard-pdf-btn {
+    justify-content: center;
+    min-height: 40px;
+    border-radius: 14px;
+    box-shadow: 0 12px 24px rgba(15,46,71,0.14);
+}
+
+.wd-dashboard-pdf-btn.invoice {
+    background: linear-gradient(135deg, #ef4444, #b91c1c);
+}
+
+.wd-dashboard-pdf-btn.report {
+    background: linear-gradient(135deg, #8b5cf6, #5b21b6);
+}
+
+.wd-doc-actions .wd-pdf-empty {
+    display: flex;
+    min-height: 40px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    background: #f1f5f9;
+    color: #94a3b8;
+}
+
+.wd-site-pill,
+.wd-status-pill,
+.wd-ipc-active,
+.wd-ipc-empty {
+    gap: 6px;
+    min-height: 30px;
+    padding: 7px 10px;
+    border-radius: 999px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.45);
+}
+
+.wd-status-pill.tone-pending { background: #fff7ed; color: #c2410c; }
+.wd-status-pill.tone-hold { background: #f1f5f9; color: #475569; }
+.wd-status-pill.tone-srv { background: #fdf2f8; color: #be185d; }
+.wd-status-pill.tone-approval { background: #ecfdf5; color: #15803d; }
+.wd-status-pill.tone-ipc { background: #f5f3ff; color: #6d28d9; }
+.wd-status-pill.tone-report { background: #eff6ff; color: #1d4ed8; }
+.wd-status-pill.tone-default { background: #f8fafc; color: #334155; }
+
+.wd-dashboard-empty-state {
+    min-height: 230px;
+    flex-direction: column;
+    background: #ffffff;
+}
+
+.wd-dashboard-empty-state .wd-empty-icon {
+    width: 54px;
+    height: 54px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 20px;
+    background: #f1f5f9;
+    font-size: 1.35rem;
+}
+
+.wd-dashboard-empty-state strong {
+    display: block;
+    margin-bottom: 4px;
+    color: #0f172a;
+    font-size: 1rem;
+}
+
+.wd-dashboard-empty-state p {
+    margin: 0;
+    color: #64748b;
+}
+
+@media (max-width: 1100px) {
+    .wd-task-card {
+        grid-template-columns: 1fr;
+    }
+
+    .wd-task-side {
+        display: block;
+    }
+
+    .wd-doc-actions {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .wd-doc-actions > * {
+        flex: 1 1 150px;
+    }
+}
+
+@media (max-width: 900px) {
+    .wd-control-center-hero {
+        min-height: 0;
+        background:
+            radial-gradient(circle at top right, rgba(195,80,47,0.16), transparent 40%),
+            linear-gradient(135deg, #072b45 0%, #0b4869 100%);
+    }
+
+    .wd-task-board-head {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .wd-board-access-pill {
+        white-space: normal;
+    }
+
+    .wd-task-meta-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .wd-task-topline {
+        flex-direction: column;
+    }
+
+    .wd-task-status-block {
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 520px) {
+    .wd-control-center-hero {
+        padding: 20px;
+        border-radius: 22px;
+    }
+
+    .wd-active-dashboard-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .wd-active-status-card {
+        min-height: 104px;
+    }
+
+    .wd-task-board {
+        padding: 12px;
+    }
+
+    .wd-task-card {
+        padding: 16px 14px 16px 16px;
+        border-radius: 20px;
+    }
+
+    .wd-task-identity h3 {
+        font-size: 1.35rem;
+    }
+
+    .wd-doc-actions {
+        flex-direction: column;
+    }
+}
+
+/* ========================================================================
+   8.3.9 — WorkDesk Dashboard Queue Fix + Header Contrast
+   ======================================================================== */
+.wd-control-center-hero h1 {
+    color: #facc15 !important;
+    text-shadow: 0 10px 24px rgba(0,0,0,0.36), 0 0 22px rgba(250,204,21,0.22);
+}
+
+.wd-control-center-hero .wd-control-subtitle {
+    color: rgba(255,255,255,0.90);
+}
+
+.wd-active-status-card.tone-ipc::after,
+.wd-active-status-card.tone-ipc .wd-status-icon {
+    background: #7c3aed;
+}
+
+.wd-task-card.tone-ipc {
+    --tone: #7c3aed;
+}
+
+.wd-status-card-glow {
+    opacity: .95;
+}
+
+
+/* ========================================================================
+   8.4.1 — WorkDesk Dashboard Note / IPC Width Balance
+   Reduces the Note area weight and gives more readable width to IPC status.
+   Display-only polish; no data or save logic changed.
+   ======================================================================== */
+.wd-task-meta-grid {
+    grid-template-columns: minmax(0, 0.8fr) minmax(280px, 0.45fr);
+}
+
+.wd-task-ipc-box {
+    min-width: 280px;
+}
+
+.wd-task-ipc-box .wd-ipc-active,
+.wd-task-ipc-box .wd-ipc-empty {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+    white-space: normal;
+}
+
+@media (max-width: 900px) {
+    .wd-task-meta-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .wd-task-ipc-box {
+        min-width: 0;
+    }
+}
+
+/* ========================================================================
+   8.4.2 — Active Task + Job Records Premium UI Polish
+   Display polish only. No Firebase/write/workflow logic changed.
+   ======================================================================== */
+.wd-page-hero {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: stretch;
+    gap: 22px;
+    padding: 25px 28px;
+    margin-bottom: 20px;
+    border-radius: 28px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.58);
+    box-shadow: 0 24px 58px rgba(5, 28, 44, 0.15);
+}
+.wd-page-hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px);
+    background-size: 24px 24px;
+    opacity: .34;
+    pointer-events: none;
+}
+.wd-page-hero::after {
+    content: "";
+    position: absolute;
+    right: -80px;
+    top: -95px;
+    width: 260px;
+    height: 260px;
+    border-radius: 50%;
+    background: rgba(250,204,21,0.15);
+    pointer-events: none;
+}
+.wd-page-hero-active {
+    background:
+        radial-gradient(circle at 90% 20%, rgba(250,204,21,0.16), transparent 30%),
+        linear-gradient(135deg, #06283d 0%, #0b4e70 54%, #ffffff 55%, #f8fafc 100%);
+}
+.wd-page-hero-records {
+    background:
+        radial-gradient(circle at 90% 20%, rgba(124,58,237,0.15), transparent 30%),
+        linear-gradient(135deg, #082f49 0%, #0f5f78 54%, #ffffff 55%, #f8fafc 100%);
+}
+.wd-page-hero > * { position: relative; z-index: 1; }
+.wd-page-hero-main { max-width: 720px; }
+.wd-page-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    margin-bottom: 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.14);
+    color: #fde68a;
+    border: 1px solid rgba(255,255,255,0.18);
+    font-size: .78rem;
+    font-weight: 900;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    backdrop-filter: blur(8px);
+}
+.wd-page-hero h1 {
+    display: inline-block;
+    margin: 0;
+    color: #ffd43b;
+    border: none;
+    font-size: clamp(2rem, 3vw, 3.15rem);
+    line-height: .95;
+    letter-spacing: -0.075em;
+    -webkit-text-stroke: .65px rgba(3, 18, 30, .58);
+    text-shadow:
+        0 2px 0 rgba(3, 18, 30, .72),
+        0 12px 30px rgba(0,0,0,.42),
+        0 0 26px rgba(255, 212, 59, .34);
+    filter: drop-shadow(0 10px 18px rgba(0, 0, 0, .20));
+}
+.wd-page-hero p {
+    max-width: 680px;
+    margin: 12px 0 0;
+    color: rgba(255,255,255,.86);
+    font-size: .95rem;
+    font-weight: 650;
+}
+.wd-page-hero-metric {
+    min-width: 210px;
+    align-self: center;
+    padding: 18px 20px;
+    border-radius: 22px;
+    background: rgba(255,255,255,.92);
+    border: 1px solid rgba(255,255,255,.76);
+    box-shadow: 0 18px 40px rgba(15,46,71,.13);
+    text-align: right;
+}
+.wd-page-hero-metric .table-count-display,
+.wd-page-hero-metric span {
+    display: block;
+    margin: 0;
+    color: #073b5c;
+    font-size: 1rem;
+    font-weight: 950;
+    letter-spacing: -0.03em;
+}
+.wd-page-hero-metric small {
+    display: block;
+    margin-top: 6px;
+    color: #64748b;
+    font-size: .72rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+}
+
+.wd-premium-searchbar {
+    max-width: none !important;
+    margin: 0 0 16px !important;
+    padding: 12px;
+    border-radius: 24px;
+    background: rgba(255,255,255,.95);
+    border: 1px solid rgba(148,163,184,.25);
+    box-shadow: 0 16px 38px rgba(15,46,71,.08);
+}
+.wd-search-field {
+    height: 48px;
+    margin: 0 !important;
+    border-radius: 17px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.95);
+}
+.wd-search-field input {
+    height: 100%;
+    margin: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    font-weight: 750;
+}
+.wd-clear-chip {
+    height: 48px !important;
+    margin: 0 !important;
+    border-radius: 16px !important;
+    white-space: nowrap;
+    background: #eef2f7 !important;
+    color: #334155 !important;
+    border: 1px solid #dbe3ec !important;
+    font-weight: 900 !important;
+}
+.wd-premium-tabs {
+    margin-bottom: 16px !important;
+    padding: 8px;
+    border-radius: 22px;
+    background: rgba(241,245,249,.88);
+    border: 1px solid rgba(148,163,184,.18);
+}
+.wd-premium-tabs button,
+#wd-reporting .report-tabs button,
+#wd-activetask .report-tabs button {
+    border-radius: 14px !important;
+    min-height: 40px;
+    border: 1px solid transparent;
+    box-shadow: none;
+    font-weight: 900;
+    transition: transform .16s ease, box-shadow .16s ease, background .16s ease;
+}
+.wd-premium-tabs button:hover,
+#wd-reporting .report-tabs button:hover,
+#wd-activetask .report-tabs button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px rgba(15,46,71,.10);
+}
+.wd-premium-tabs button.active,
+#wd-reporting .report-tabs button.active,
+#wd-activetask .report-tabs button.active {
+    background: linear-gradient(135deg, #073b5c, #0f6d8d) !important;
+    color: #ffffff !important;
+    border-color: rgba(255,255,255,.28) !important;
+}
+
+.wd-records-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px;
+    border-radius: 24px;
+    background: rgba(255,255,255,.92);
+    border: 1px solid rgba(148,163,184,.24);
+    box-shadow: 0 16px 38px rgba(15,46,71,.07);
+}
+
+.wd-mini-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+    gap: 12px;
+    margin: 0 0 16px;
+}
+.wd-mini-metric {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 14px 15px;
+    border-radius: 19px;
+    overflow: hidden;
+    background: #ffffff;
+    border: 1px solid rgba(148,163,184,.24);
+    box-shadow: 0 14px 30px rgba(15,46,71,.07);
+}
+.wd-mini-metric::after {
+    content: "";
+    position: absolute;
+    inset: auto 13px 10px 13px;
+    height: 3px;
+    border-radius: 999px;
+    background: #0f4c75;
+    opacity: .88;
+}
+.wd-mini-metric.tone-pending::after { background: #f59e0b; }
+.wd-mini-metric.tone-hold::after { background: #64748b; }
+.wd-mini-metric.tone-srv::after { background: #db2777; }
+.wd-mini-metric.tone-approval::after { background: #16a34a; }
+.wd-mini-metric.tone-ipc::after { background: #7c3aed; }
+.wd-mini-metric.tone-report::after { background: #2563eb; }
+.wd-mini-metric.tone-danger::after { background: #dc2626; }
+.wd-mini-icon {
+    width: 39px;
+    height: 39px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 15px;
+    color: #ffffff;
+    background: linear-gradient(135deg, #073b5c, #0f6d8d);
+    box-shadow: 0 12px 22px rgba(15,46,71,.16);
+}
+.wd-mini-metric strong {
+    display: block;
+    color: #0f172a;
+    font-size: 1.45rem;
+    line-height: 1;
+    letter-spacing: -0.055em;
+}
+.wd-mini-metric small {
+    display: block;
+    margin-top: 3px;
+    color: #64748b;
+    font-size: .70rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+}
+
+#wd-activetask .table-wrapper,
+#wd-reporting #reporting-printable-area .table-wrapper {
+    border-radius: 26px;
+    padding: 12px;
+    background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(246,249,252,.98));
+    border: 1px solid rgba(148,163,184,.24);
+    box-shadow: 0 24px 60px rgba(15,46,71,.11);
+}
+.wd-modern-table {
+    width: 100%;
+    border-collapse: separate !important;
+    border-spacing: 0 10px !important;
+    background: transparent !important;
+}
+.wd-modern-table thead th {
+    padding: 12px 14px !important;
+    border: none !important;
+    color: #64748b !important;
+    background: transparent !important;
+    font-size: .72rem !important;
+    font-weight: 950 !important;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+}
+.wd-modern-table tbody tr.wd-modern-row {
+    position: relative;
+    background: #ffffff;
+    box-shadow: 0 13px 30px rgba(15,46,71,.07);
+    transition: transform .16s ease, box-shadow .16s ease;
+}
+.wd-modern-table tbody tr.wd-modern-row:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 20px 42px rgba(15,46,71,.13);
+}
+.wd-modern-table tbody tr.wd-modern-row td {
+    padding: 14px 13px !important;
+    border-top: 1px solid #e2e8f0 !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    color: #334155;
+    vertical-align: middle !important;
+}
+.wd-modern-table tbody tr.wd-modern-row td:first-child {
+    border-left: 6px solid #334155 !important;
+    border-radius: 18px 0 0 18px;
+}
+.wd-modern-table tbody tr.wd-modern-row td:last-child {
+    border-right: 1px solid #e2e8f0 !important;
+    border-radius: 0 18px 18px 0;
+}
+.wd-modern-table tbody tr.wd-modern-row.tone-pending td:first-child { border-left-color: #f59e0b !important; }
+.wd-modern-table tbody tr.wd-modern-row.tone-hold td:first-child { border-left-color: #64748b !important; }
+.wd-modern-table tbody tr.wd-modern-row.tone-srv td:first-child { border-left-color: #db2777 !important; }
+.wd-modern-table tbody tr.wd-modern-row.tone-approval td:first-child { border-left-color: #16a34a !important; }
+.wd-modern-table tbody tr.wd-modern-row.tone-ipc td:first-child { border-left-color: #7c3aed !important; }
+.wd-modern-table tbody tr.wd-modern-row.tone-report td:first-child { border-left-color: #2563eb !important; }
+.wd-modern-table tbody tr.wd-modern-row.tone-danger td:first-child { border-left-color: #dc2626 !important; }
+.wd-modern-table tbody tr.wd-row-muted { opacity: .70; }
+.wd-modern-table tbody tr.wd-row-urgent td { background: linear-gradient(180deg, #ffffff, #fffbeb); }
+
+.wd-table-kicker,
+.wd-ref-chip,
+.wd-po-code,
+.wd-site-badge,
+.wd-date-chip,
+.wd-user-chip,
+.wd-attention-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 29px;
+    padding: 6px 9px;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #334155;
+    font-size: .78rem;
+    font-weight: 900;
+    white-space: nowrap;
+}
+.wd-table-kicker { background: #e0f2fe; color: #075985; }
+.wd-po-code { background: #fff7ed; color: #c2410c; letter-spacing: .02em; }
+.wd-ref-chip { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
+.wd-site-badge { background: #ecfdf5; color: #166534; }
+.wd-date-chip { background: #f8fafc; color: #64748b; }
+.wd-user-chip { background: #f5f3ff; color: #6d28d9; }
+.wd-attention-chip { background: #fef3c7; color: #92400e; }
+.wd-vendor-name {
+    color: #073b5c;
+    font-weight: 950;
+    line-height: 1.15;
+}
+.wd-amount-cell {
+    color: #0f172a !important;
+    font-weight: 950;
+    white-space: nowrap;
+}
+.wd-note-cell {
+    max-width: 260px;
+    color: #475569;
+    font-size: .82rem;
+    font-weight: 750;
+    line-height: 1.35;
+}
+.wd-status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 31px;
+    padding: 7px 11px;
+    border-radius: 999px;
+    font-size: .76rem;
+    font-weight: 950;
+    letter-spacing: .02em;
+    white-space: nowrap;
+    border: 1px solid transparent;
+}
+.wd-status-badge.tone-pending { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
+.wd-status-badge.tone-hold { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+.wd-status-badge.tone-srv { background: #fdf2f8; color: #be185d; border-color: #fbcfe8; }
+.wd-status-badge.tone-approval { background: #ecfdf5; color: #15803d; border-color: #bbf7d0; }
+.wd-status-badge.tone-ipc { background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe; }
+.wd-status-badge.tone-report { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+.wd-status-badge.tone-danger { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+.wd-status-badge.tone-default { background: #f8fafc; color: #334155; border-color: #e2e8f0; }
+
+.wd-row-action {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 34px;
+    padding: 8px 11px !important;
+    margin: 2px 3px !important;
+    border: none !important;
+    border-radius: 12px !important;
+    color: #ffffff !important;
+    font-size: .76rem !important;
+    font-weight: 950 !important;
+    box-shadow: 0 12px 24px rgba(15,46,71,.15);
+    transition: transform .16s ease, filter .16s ease;
+}
+.wd-row-action:hover { transform: translateY(-1px); filter: brightness(.98); }
+.wd-action-process { background: linear-gradient(135deg, #0f6d8d, #073b5c) !important; }
+.wd-action-srv { background: linear-gradient(135deg, #db2777, #9d174d) !important; }
+.wd-action-gold { background: linear-gradient(135deg, #f59e0b, #b45309) !important; }
+.wd-action-approve { background: linear-gradient(135deg, #22c55e, #15803d) !important; }
+.wd-action-reject { background: linear-gradient(135deg, #ef4444, #b91c1c) !important; }
+.wd-action-history { background: linear-gradient(135deg, #38bdf8, #0369a1) !important; }
+.wd-record-status-cell {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+}
+.wd-modern-empty-row {
+    min-height: 210px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 34px 18px;
+    border-radius: 22px;
+    color: #64748b;
+    background: linear-gradient(180deg, #ffffff, #f8fafc);
+    border: 1px dashed #cbd5e1;
+}
+.wd-modern-empty-row i {
+    width: 58px;
+    height: 58px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 20px;
+    background: #eff6ff;
+    color: #0f6d8d;
+    font-size: 1.45rem;
+}
+.wd-modern-empty-row strong {
+    color: #0f172a;
+    font-size: 1rem;
+}
+.wd-modern-empty-row span { color: #64748b; font-weight: 700; }
+
+/* Mobile active task cards inherit the dashboard polish */
+#active-task-mobile-view .mobile-task-card {
+    border: 1px solid rgba(148,163,184,.24) !important;
+    border-radius: 22px !important;
+    background: #ffffff !important;
+    box-shadow: 0 16px 34px rgba(15,46,71,.10) !important;
+    overflow: hidden;
+}
+#active-task-mobile-view .mobile-card-header {
+    padding: 16px !important;
+    background: linear-gradient(135deg, #073b5c, #0f6d8d) !important;
+    color: #ffffff !important;
+    border-left: none !important;
+}
+#active-task-mobile-view .mobile-card-header h3,
+#active-task-mobile-view .m-card-main h3 {
+    color: #facc15 !important;
+    letter-spacing: -0.03em;
+}
+#active-task-mobile-view .m-card-sub { color: rgba(255,255,255,.82) !important; }
+#active-task-mobile-view .m-card-amount {
+    min-width: 92px;
+    padding: 10px;
+    border-radius: 16px;
+    background: rgba(255,255,255,.14);
+    border: 1px solid rgba(255,255,255,.16);
+}
+#active-task-mobile-view .m-card-val { color: #ffffff !important; font-weight: 950; }
+#active-task-mobile-view .m-card-ref { color: rgba(255,255,255,.75) !important; }
+#active-task-mobile-view .mobile-card-body {
+    background: #f8fafc !important;
+    border-top: 1px solid #e2e8f0;
+}
+#active-task-mobile-view .m-pdf-btn,
+#active-task-mobile-view .m-btn-approve,
+#active-task-mobile-view .m-btn-reject {
+    border-radius: 14px !important;
+    font-weight: 950 !important;
+    box-shadow: 0 12px 24px rgba(15,46,71,.14);
+}
+
+@media (max-width: 980px) {
+    .wd-page-hero {
+        flex-direction: column;
+        background: linear-gradient(135deg, #06283d, #0b4e70) !important;
+    }
+    .wd-page-hero-metric {
+        align-self: stretch;
+        text-align: left;
+    }
+}
+
+@media (max-width: 760px) {
+    .wd-premium-searchbar {
+        flex-wrap: wrap !important;
+        border-radius: 20px;
+    }
+    .wd-clear-chip,
+    .wd-search-field { width: 100% !important; }
+    .wd-mini-metrics { grid-template-columns: 1fr 1fr; }
+}
+
+
+/* ========================================================================
+   8.4.3 — Active Task + Job Records Title Contrast Fix
+   Make the hero titles stand out from the blue header background.
+   Display polish only. No data/workflow/Firebase logic changed.
+   ======================================================================== */
+#wd-activetask .wd-page-hero h1,
+#wd-reporting .wd-page-hero h1 {
+    color: #ffd43b !important;
+    -webkit-text-stroke: .65px rgba(3, 18, 30, .62);
+    text-shadow:
+        0 2px 0 rgba(3, 18, 30, .76),
+        0 12px 30px rgba(0,0,0,.42),
+        0 0 28px rgba(255, 212, 59, .38) !important;
+}
+#wd-activetask .wd-page-eyebrow,
+#wd-reporting .wd-page-eyebrow {
+    color: #fff1a8 !important;
+    background: rgba(3, 18, 30, .18);
+}
+
+/* ========================================================================
+   8.4.4 — Active Task / Job Records / Inventory UI Cleanup
+   Display-only cleanup: fixes hero title stacking, separates Inventory context,
+   refreshes inventory metrics, and aligns Material Stock with premium UI.
+   ======================================================================== */
+#wd-activetask .wd-page-hero-main,
+#wd-reporting .wd-page-hero-main,
+#wd-material-stock .wd-page-hero-main {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+#wd-activetask .wd-page-hero h1,
+#wd-reporting .wd-page-hero h1,
+#wd-material-stock .wd-page-hero h1 {
+    display: block !important;
+    width: 100%;
+    margin-top: 2px !important;
+}
+#wd-activetask .wd-page-eyebrow,
+#wd-reporting .wd-page-eyebrow,
+#wd-material-stock .wd-page-eyebrow {
+    flex: 0 0 auto;
+}
+
+.wd-page-hero-inventory {
+    background:
+        radial-gradient(circle at 88% 18%, rgba(52,211,153,0.18), transparent 31%),
+        linear-gradient(135deg, #052e2b 0%, #0f766e 54%, #ffffff 55%, #f8fafc 100%) !important;
+}
+.wd-page-hero-records-inventory {
+    background:
+        radial-gradient(circle at 88% 18%, rgba(56,189,248,0.16), transparent 31%),
+        linear-gradient(135deg, #06324a 0%, #047481 54%, #ffffff 55%, #f8fafc 100%) !important;
+}
+.wd-page-hero-material {
+    background:
+        radial-gradient(circle at 88% 18%, rgba(250,204,21,0.16), transparent 31%),
+        linear-gradient(135deg, #053a36 0%, #0d766d 54%, #ffffff 55%, #f8fafc 100%) !important;
+}
+#wd-material-stock .wd-page-hero {
+    margin-bottom: 18px;
+}
+#wd-material-stock .wd-page-hero h1 {
+    color: #ffd43b !important;
+    -webkit-text-stroke: .65px rgba(3, 18, 30, .62);
+    text-shadow:
+        0 2px 0 rgba(3, 18, 30, .76),
+        0 12px 30px rgba(0,0,0,.42),
+        0 0 28px rgba(255, 212, 59, .38) !important;
+}
+#wd-material-stock .wd-page-eyebrow {
+    color: #fff1a8 !important;
+    background: rgba(3, 18, 30, .18);
+}
+
+#wd-activetask .wd-page-hero-metric .table-count-display,
+#wd-reporting .wd-page-hero-metric .table-count-display,
+#wd-material-stock .wd-page-hero-metric .table-count-display {
+    font-size: .96rem !important;
+    white-space: normal;
+}
+
+#wd-activetask .wd-inventory-modern-table tbody tr.wd-inventory-row td,
+#wd-activetask .wd-inventory-modern-table tbody tr.wd-inventory-group-row td {
+    background: #ffffff;
+}
+#wd-activetask .wd-inventory-modern-table tbody tr.controlid-group-header {
+    cursor: pointer;
+}
+#wd-activetask .wd-inventory-modern-table .controlid-group-hint {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #ecfeff;
+    color: #0e7490;
+    font-weight: 900;
+    font-size: .72rem;
+}
+
+@media (max-width: 980px) {
+    .wd-page-hero-inventory,
+    .wd-page-hero-records-inventory,
+    .wd-page-hero-material {
+        background: linear-gradient(135deg, #052e2b, #0f766e) !important;
+    }
+}
+
+/* ========================================================================
+   8.4.5 — Invoice Management Dashboard Premium UI Upgrade
+   Visual polish only. Existing dashboard data source and workflow logic preserved.
+   ======================================================================== */
+#im-dashboard {
+    background: transparent !important;
+}
+
+#im-dashboard > h1 {
+    display: none;
+}
+
+.im-premium-dashboard-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.im-dashboard-hero {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    justify-content: space-between;
+    gap: 22px;
+    min-height: 170px;
+    padding: 28px 30px;
+    border-radius: 30px;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 88% 20%, rgba(250, 204, 21, 0.18), transparent 32%),
+        radial-gradient(circle at 10% 0%, rgba(34, 211, 238, 0.20), transparent 36%),
+        linear-gradient(135deg, #05243a 0%, #0b4a66 49%, #f8fafc 50%, #ffffff 100%);
+    border: 1px solid rgba(255,255,255,0.62);
+    box-shadow: 0 26px 64px rgba(5, 28, 44, 0.18);
+}
+
+.im-dashboard-hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(rgba(255,255,255,0.065) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.065) 1px, transparent 1px);
+    background-size: 24px 24px;
+    opacity: .34;
+    pointer-events: none;
+}
+
+.im-dashboard-hero::after {
+    content: "";
+    position: absolute;
+    right: -92px;
+    top: -105px;
+    width: 285px;
+    height: 285px;
+    border-radius: 999px;
+    background: rgba(250, 204, 21, .15);
+    pointer-events: none;
+}
+
+.im-dashboard-hero > * {
+    position: relative;
+    z-index: 1;
+}
+
+.im-dashboard-hero-main {
+    max-width: 780px;
+}
+
+.im-dashboard-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    margin-bottom: 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.14);
+    color: #fde68a;
+    border: 1px solid rgba(255,255,255,0.20);
+    font-size: .78rem;
+    font-weight: 950;
+    letter-spacing: .075em;
+    text-transform: uppercase;
+    backdrop-filter: blur(8px);
+}
+
+.im-dashboard-eyebrow::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #22c55e;
+    box-shadow: 0 0 0 5px rgba(34,197,94,.16);
+}
+
+.im-dashboard-hero h1 {
+    display: inline-block;
+    margin: 0;
+    color: #ffd43b !important;
+    border: none !important;
+    font-size: clamp(2.05rem, 3vw, 3.2rem);
+    line-height: .95;
+    letter-spacing: -0.075em;
+    -webkit-text-stroke: .65px rgba(3, 18, 30, .58);
+    text-shadow:
+        0 2px 0 rgba(3, 18, 30, .72),
+        0 12px 30px rgba(0,0,0,.42),
+        0 0 26px rgba(255, 212, 59, .34);
+    filter: drop-shadow(0 10px 18px rgba(0, 0, 0, .20));
+}
+
+.im-dashboard-hero p {
+    max-width: 700px;
+    margin: 12px 0 0;
+    color: rgba(255,255,255,.88);
+    font-size: .96rem;
+    font-weight: 650;
+    line-height: 1.55;
+}
+
+.im-dashboard-hero-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-width: 210px;
+}
+
+.im-dashboard-refresh-btn,
+#im-dashboard-refresh-btn.im-dashboard-refresh-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    padding: 12px 16px !important;
+    border: none !important;
+    border-radius: 999px !important;
+    background: rgba(255,255,255,.96) !important;
+    color: #073b5c !important;
+    font-weight: 950 !important;
+    box-shadow: 0 16px 34px rgba(3, 29, 47, .20);
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.im-dashboard-refresh-btn:hover,
+#im-dashboard-refresh-btn.im-dashboard-refresh-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 20px 40px rgba(3, 29, 47, .24);
+}
+
+.im-dashboard-summary-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.im-dashboard-summary-card {
+    position: relative;
+    overflow: hidden;
+    min-height: 112px;
+    padding: 18px 18px 16px;
+    border-radius: 22px;
+    background: rgba(255,255,255,.96);
+    border: 1px solid rgba(148,163,184,.24);
+    box-shadow: 0 16px 38px rgba(15,46,71,.08);
+}
+
+.im-dashboard-summary-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 5px;
+    background: linear-gradient(90deg, #0f6d8d, #22c55e);
+}
+
+.im-dashboard-summary-card.committed::before { background: linear-gradient(90deg, #0f6d8d, #38bdf8); }
+.im-dashboard-summary-card.delivered::before { background: linear-gradient(90deg, #16a34a, #86efac); }
+.im-dashboard-summary-card.outstanding::before { background: linear-gradient(90deg, #f59e0b, #fde68a); }
+.im-dashboard-summary-card.months::before { background: linear-gradient(90deg, #7c3aed, #c4b5fd); }
+
+.im-dashboard-summary-card span {
+    display: block;
+    color: #64748b;
+    font-size: .76rem;
+    font-weight: 950;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+}
+
+.im-dashboard-summary-card strong {
+    display: block;
+    margin-top: 11px;
+    color: #073b5c;
+    font-size: clamp(1.25rem, 1.9vw, 1.8rem);
+    line-height: 1.05;
+    letter-spacing: -0.055em;
+    font-weight: 950;
+}
+
+.im-dashboard-summary-card small {
+    display: block;
+    margin-top: 9px;
+    color: #6b7280;
+    font-weight: 800;
+}
+
+.im-dashboard-quick-actions {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.im-dashboard-action-tile {
+    position: relative;
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    grid-template-areas: "icon title" "icon desc";
+    gap: 3px 12px;
+    align-items: center;
+    min-height: 86px;
+    padding: 15px;
+    border-radius: 22px;
+    border: 1px solid rgba(148,163,184,.24);
+    background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(248,250,252,.94));
+    box-shadow: 0 14px 34px rgba(15,46,71,.07);
+    text-align: left;
+    cursor: pointer;
+    transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+
+.im-dashboard-action-tile:hover {
+    transform: translateY(-2px);
+    border-color: rgba(15, 109, 141, .25);
+    box-shadow: 0 20px 42px rgba(15,46,71,.12);
+}
+
+.im-dashboard-action-tile i {
+    grid-area: icon;
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border-radius: 16px;
+    color: #ffffff;
+    background: linear-gradient(135deg, #073b5c, #0f6d8d);
+    box-shadow: 0 12px 24px rgba(15,109,141,.24);
+}
+
+.im-dashboard-action-tile span {
+    grid-area: title;
+    color: #0f172a;
+    font-weight: 950;
+    font-size: .96rem;
+}
+
+.im-dashboard-action-tile small {
+    grid-area: desc;
+    color: #64748b;
+    font-weight: 750;
+    line-height: 1.25;
+}
+
+.im-dashboard-premium-grid {
+    gap: 16px !important;
+}
+
+.im-chart-card.im-premium-rank-card,
+.im-chart-card.im-dashboard-flow-card {
+    background: rgba(255,255,255,.97) !important;
+    color: #0f172a !important;
+    border: 1px solid rgba(148,163,184,.24) !important;
+    border-radius: 26px !important;
+    padding: 20px !important;
+    box-shadow: 0 18px 44px rgba(15,46,71,.08) !important;
+}
+
+.im-card-title-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.im-card-title-row h2,
+.im-dashboard-flow-header h2 {
+    margin: 0 !important;
+    padding: 0 !important;
+    color: #073b5c !important;
+    border: none !important;
+    font-size: 1.18rem !important;
+    letter-spacing: -0.035em !important;
+    text-transform: none !important;
+    font-weight: 950 !important;
+}
+
+.im-card-kicker {
+    display: block;
+    margin-bottom: 5px;
+    color: #c3502f;
+    font-size: .72rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    font-weight: 950;
+}
+
+.im-card-title-row > i {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border-radius: 15px;
+    color: #073b5c;
+    background: #f1f5f9;
+}
+
+.im-premium-top5-list li {
+    display: grid !important;
+    grid-template-columns: 34px minmax(0, 1fr) auto !important;
+    gap: 10px !important;
+    align-items: center !important;
+    padding: 12px 0 !important;
+    border-bottom: 1px solid rgba(148,163,184,.20) !important;
+}
+
+.im-premium-top5-list li:last-child {
+    border-bottom: none !important;
+}
+
+.im-top5-rank {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    color: #073b5c;
+    background: #e0f2fe;
+    font-weight: 950;
+}
+
+.im-top5-main {
+    min-width: 0;
+}
+
+.im-premium-top5-list .top5-name {
+    display: block;
+    color: #0f172a !important;
+    font-weight: 900 !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 0 !important;
+}
+
+.im-top5-bar {
+    height: 6px;
+    margin-top: 7px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    overflow: hidden;
+}
+
+.im-top5-bar span {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #0f6d8d, #22c55e);
+}
+
+.im-premium-top5-list .top5-value {
+    color: #073b5c !important;
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    font-weight: 950 !important;
+    padding: 7px 10px !important;
+    border-radius: 999px !important;
+}
+
+.im-dashboard-flow-header {
+    align-items: flex-start !important;
+    gap: 18px;
+    margin-bottom: 12px;
+}
+
+.im-dashboard-flow-header p {
+    margin: 7px 0 0;
+    color: #64748b;
+    font-weight: 750;
+}
+
+.im-dashboard-chart-controls select,
+.dashboard-chart-header.im-dashboard-flow-header select {
+    min-width: 120px !important;
+    height: 42px;
+    border-radius: 14px !important;
+    background: #f8fafc !important;
+    color: #073b5c !important;
+    border: 1px solid #dbe3ec !important;
+    font-weight: 950 !important;
+    padding: 0 12px !important;
+}
+
+.im-premium-chart-container {
+    height: 430px !important;
+    padding: 14px;
+    border-radius: 22px;
+    background: linear-gradient(180deg, #ffffff, #f8fafc);
+    border: 1px solid rgba(148,163,184,.20);
+}
+
+.im-dashboard-standby-card,
+.im-dashboard-error-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 280px;
+    text-align: center;
+    border-radius: 28px;
+    background: rgba(255,255,255,.96);
+    border: 1px solid rgba(148,163,184,.24);
+    box-shadow: 0 16px 38px rgba(15,46,71,.08);
+    padding: 28px;
+}
+
+.im-dashboard-standby-card i,
+.im-dashboard-error-state i,
+.im-dashboard-chart-empty i {
+    width: 70px;
+    height: 70px;
+    display: grid;
+    place-items: center;
+    border-radius: 24px;
+    color: #ffffff;
+    background: linear-gradient(135deg, #073b5c, #0f6d8d);
+    font-size: 1.9rem;
+    box-shadow: 0 18px 34px rgba(15,109,141,.25);
+}
+
+.im-dashboard-standby-card h2,
+.im-dashboard-error-state h2 {
+    margin: 16px 0 8px;
+    color: #073b5c;
+    font-size: 1.35rem;
+    letter-spacing: -0.04em;
+}
+
+.im-dashboard-standby-card p,
+.im-dashboard-error-state p {
+    max-width: 620px;
+    margin: 0;
+    color: #64748b;
+    font-weight: 750;
+}
+
+.im-dashboard-chart-empty {
+    position: absolute;
+    inset: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    font-weight: 850;
+}
+
+.im-dashboard-list-loading,
+.im-dashboard-empty-line {
+    display: block !important;
+    color: #64748b !important;
+    font-weight: 800;
+    padding: 18px 0 !important;
+}
+
+@media (max-width: 1100px) {
+    .im-dashboard-summary-row,
+    .im-dashboard-quick-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .im-dashboard-hero {
+        flex-direction: column;
+        padding: 22px;
+        background:
+            radial-gradient(circle at 90% 10%, rgba(250, 204, 21, 0.18), transparent 32%),
+            linear-gradient(135deg, #05243a 0%, #0b4a66 100%);
+    }
+    .im-dashboard-hero-actions {
+        justify-content: flex-start;
+        min-width: 0;
+    }
+    .im-dashboard-summary-row,
+    .im-dashboard-quick-actions,
+    .im-dashboard-grid.im-dashboard-premium-grid {
+        grid-template-columns: 1fr !important;
+    }
+    .im-dashboard-action-tile {
+        min-height: 78px;
+    }
+    .im-premium-top5-list li {
+        grid-template-columns: 30px minmax(0, 1fr) !important;
+    }
+    .im-premium-top5-list .top5-value {
+        grid-column: 2 / 3;
+        width: fit-content;
+    }
+    .im-dashboard-flow-header {
+        flex-direction: column;
+    }
+    .im-premium-chart-container {
+        height: 340px !important;
+        padding: 8px;
+    }
+}
+
+
+/* ========================================================================
+   8.4.7 — Invoice Management Full Premium UI + Title Contrast Fix
+   Visual polish only. No save/update/Firebase/payment workflow logic changed.
+   ======================================================================== */
+
+/* Fix unreadable dashboard title: give the gold title a dark glass plate. */
+.im-dashboard-hero h1 {
+    display: inline-flex !important;
+    align-items: center;
+    width: fit-content;
+    max-width: 100%;
+    padding: 8px 16px 10px !important;
+    border-radius: 18px !important;
+    color: #ffd43b !important;
+    background: linear-gradient(135deg, rgba(3, 18, 30, .82), rgba(7, 59, 92, .64)) !important;
+    border: 1px solid rgba(250, 204, 21, .28) !important;
+    letter-spacing: -0.04em !important;
+    -webkit-text-stroke: .55px rgba(3, 18, 30, .72);
+    text-shadow:
+        0 2px 0 rgba(3, 18, 30, .76),
+        0 12px 28px rgba(0,0,0,.42),
+        0 0 24px rgba(255, 212, 59, .36) !important;
+    box-shadow: 0 18px 40px rgba(3, 18, 30, .24), inset 0 1px 0 rgba(255,255,255,.10);
+}
+
+.im-dashboard-quick-actions {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
+}
+
+/* Shared Invoice Management premium hero language. */
+#im-invoice-entry > h1,
+#im-payments > h1,
+#im-batch-entry > .header-top,
+#im-summary-note > div:first-of-type,
+#im-reporting > .header {
+    position: relative;
+    overflow: hidden;
+    margin: 0 0 18px !important;
+    padding: 24px 28px !important;
+    border: 1px solid rgba(255,255,255,.58) !important;
+    border-radius: 28px !important;
+    background:
+        radial-gradient(circle at 89% 18%, rgba(250, 204, 21, .16), transparent 32%),
+        linear-gradient(135deg, #05243a 0%, #0b4a66 54%, #ffffff 55%, #f8fafc 100%) !important;
+    box-shadow: 0 24px 58px rgba(5, 28, 44, .15) !important;
+}
+
+#im-invoice-entry > h1::after,
+#im-payments > h1::after,
+#im-batch-entry > .header-top::after,
+#im-summary-note > div:first-of-type::after,
+#im-reporting > .header::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(rgba(255,255,255,.055) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.055) 1px, transparent 1px);
+    background-size: 24px 24px;
+    opacity: .34;
+    pointer-events: none;
+}
+
+#im-invoice-entry > h1 > *,
+#im-payments > h1 > *,
+#im-batch-entry > .header-top > *,
+#im-summary-note > div:first-of-type > *,
+#im-reporting > .header > * {
+    position: relative;
+    z-index: 1;
+}
+
+#im-invoice-entry > h1,
+#im-payments > h1 {
+    display: flex !important;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: #ffd43b !important;
+    border-bottom: none !important;
+    font-size: clamp(1.85rem, 2.8vw, 2.7rem) !important;
+    line-height: .95 !important;
+    letter-spacing: -0.055em !important;
+    -webkit-text-stroke: .55px rgba(3, 18, 30, .68);
+    text-shadow: 0 2px 0 rgba(3, 18, 30, .76), 0 12px 28px rgba(0,0,0,.40), 0 0 25px rgba(255,212,59,.34);
+}
+
+#im-invoice-entry > h1::before,
+#im-payments > h1::before {
+    content: "Invoice Management";
+    width: 100%;
+    color: #fff1a8;
+    font-size: .76rem;
+    font-weight: 950;
+    letter-spacing: .085em;
+    text-transform: uppercase;
+    text-shadow: none;
+    -webkit-text-stroke: 0;
+}
+#im-payments > h1::before { content: "Accounts Payment Queue"; }
+
+#im-invoice-entry > h1 #im-show-active-jobs-btn {
+    margin-left: auto !important;
+    border-radius: 999px !important;
+    padding: 10px 15px !important;
+    background: rgba(255,255,255,.96) !important;
+    color: #073b5c !important;
+    border: 1px solid rgba(255,255,255,.70) !important;
+    box-shadow: 0 14px 30px rgba(3, 18, 30, .18);
+    font-weight: 950 !important;
+    text-shadow: none !important;
+}
+
+#im-batch-entry > .header-top {
+    min-height: 138px;
+    align-items: center !important;
+    gap: 18px !important;
+}
+#im-batch-entry > .header-top .header-title,
+#im-reporting > .header .header-title {
+    flex-wrap: wrap;
+    align-items: flex-start !important;
+}
+#im-batch-entry > .header-top .header-title > div:not(.icon-wrapper),
+#im-reporting > .header .header-title > h1 {
+    min-width: 0;
+}
+#im-batch-entry > .header-top h1,
+#im-summary-note > div:first-of-type h1,
+#im-reporting > .header h1 {
+    display: inline-flex !important;
+    align-items: center;
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 !important;
+    padding: 8px 14px 10px !important;
+    border: none !important;
+    border-radius: 17px !important;
+    color: #ffd43b !important;
+    background: linear-gradient(135deg, rgba(3, 18, 30, .82), rgba(7, 59, 92, .64)) !important;
+    font-size: clamp(1.55rem, 2.3vw, 2.25rem) !important;
+    line-height: .98 !important;
+    letter-spacing: -0.045em !important;
+    -webkit-text-stroke: .48px rgba(3, 18, 30, .72);
+    text-shadow: 0 2px 0 rgba(3, 18, 30, .76), 0 11px 26px rgba(0,0,0,.40), 0 0 22px rgba(255,212,59,.34) !important;
+}
+#im-batch-entry > .header-top p,
+#im-reporting > .header p {
+    color: rgba(255,255,255,.88) !important;
+    font-weight: 750 !important;
+}
+#im-batch-entry > .header-top .icon-wrapper,
+#im-reporting > .header .icon-wrapper {
+    width: 52px !important;
+    height: 52px !important;
+    display: inline-grid !important;
+    place-items: center !important;
+    border-radius: 18px !important;
+    background: rgba(255,255,255,.96) !important;
+    color: #073b5c !important;
+    box-shadow: 0 16px 34px rgba(3, 18, 30, .20) !important;
+}
+#batch-count-display,
+#reporting-count-display,
+#payments-count-display,
+#summary-note-count-display {
+    border-radius: 999px !important;
+    background: rgba(255,255,255,.95) !important;
+    color: #073b5c !important;
+    border: 1px solid rgba(255,255,255,.70) !important;
+    font-weight: 950 !important;
+}
+
+#im-summary-note > div:first-of-type {
+    min-height: 110px !important;
+    align-items: center !important;
+}
+#im-summary-note > div:first-of-type > div:first-child::before,
+#im-reporting > .header .header-title::before,
+#im-batch-entry > .header-top .header-title::before {
+    content: "Invoice Management";
+    display: block;
+    width: 100%;
+    margin-bottom: 8px;
+    color: #fff1a8;
+    font-size: .76rem;
+    font-weight: 950;
+    letter-spacing: .085em;
+    text-transform: uppercase;
+}
+#im-reporting > .header .header-title::before { content: "Records & Reports"; }
+#im-batch-entry > .header-top .header-title::before { content: "Bulk Invoice Update"; }
+#im-summary-note > div:first-of-type > div:first-child::before { content: "Payment Summary"; }
+
+#im-reporting > .header .header-top,
+#im-reporting > .header .daily-report-section,
+#im-batch-entry > .header-top > div:last-child,
+#im-summary-note > div:first-of-type > div:last-child {
+    position: relative;
+    z-index: 1;
+    flex-wrap: wrap;
+}
+#im-reporting > .header .daily-report-section button,
+#im-batch-entry > .header-top button,
+#im-summary-note > div:first-of-type button,
+#im-payments #im-add-payment-button,
+#im-payments #im-save-payments-button {
+    border-radius: 14px !important;
+    font-weight: 950 !important;
+    box-shadow: 0 14px 30px rgba(3, 18, 30, .16) !important;
+}
+
+/* Premium search/form/table containers in Invoice Management. */
+#im-po-search-container,
+#im-invoice-form-trigger,
+#im-existing-invoices-container,
+#im-batch-entry > div:nth-of-type(2),
+#im-batch-global-controls,
+#im-reporting-form,
+#im-reporting .reporting-legend,
+#im-payments > p,
+#im-payments .form-buttons-container,
+#im-summary-note > div:nth-of-type(2) > div:first-child {
+    border-radius: 24px !important;
+    background: rgba(255,255,255,.95) !important;
+    border: 1px solid rgba(148,163,184,.24) !important;
+    box-shadow: 0 16px 38px rgba(15,46,71,.07) !important;
+}
+#im-po-search-container,
+#im-batch-entry > div:nth-of-type(2),
+#im-batch-global-controls,
+#im-reporting-form {
+    padding: 14px !important;
+}
+#im-invoice-form-trigger {
+    padding: 12px !important;
+}
+#im-existing-invoices-container {
+    padding: 18px !important;
+    margin-top: 16px !important;
+}
+#im-payments > p {
+    display: block;
+    margin: 0 0 14px !important;
+    padding: 14px 16px !important;
+    color: #475569;
+    font-weight: 800;
+}
+
+#im-invoice-entry input,
+#im-invoice-entry select,
+#im-batch-entry input,
+#im-batch-entry select,
+#im-reporting input,
+#im-reporting select,
+#im-summary-note input,
+#im-summary-note select,
+#im-summary-note textarea,
+#im-payments input,
+#im-payments select {
+    border-radius: 13px !important;
+    border-color: #dbe3ec !important;
+}
+
+#im-po-search-container .search-bar-local,
+#im-reporting-form .search-box,
+#im-batch-entry .search-bar-local {
+    height: 48px;
+    border-radius: 17px !important;
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.95);
+}
+#im-po-search-container button,
+#im-reporting-form button,
+#im-batch-entry button,
+#im-invoice-form-trigger button,
+#im-payments button {
+    border-radius: 14px !important;
+    font-weight: 950 !important;
+}
+
+#im-reporting .grid-header,
+#im-reporting .grid-body,
+#im-payments .table-wrapper,
+#im-existing-invoices-container .table-wrapper {
+    border-radius: 26px !important;
+    padding: 12px !important;
+    background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(246,249,252,.98)) !important;
+    border: 1px solid rgba(148,163,184,.24) !important;
+    box-shadow: 0 24px 60px rgba(15,46,71,.10) !important;
+}
+#im-reporting .grid-header {
+    color: #64748b !important;
+    font-size: .72rem !important;
+    font-weight: 950 !important;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+}
+#im-payments table,
+#im-existing-invoices-container table {
+    border-collapse: separate !important;
+    border-spacing: 0 9px !important;
+    background: transparent !important;
+}
+#im-payments table thead th,
+#im-existing-invoices-container table thead th {
+    background: transparent !important;
+    border: none !important;
+    color: #64748b !important;
+    font-size: .72rem !important;
+    font-weight: 950 !important;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+}
+#im-payments table tbody tr,
+#im-existing-invoices-container table tbody tr {
+    background: #ffffff !important;
+    box-shadow: 0 13px 30px rgba(15,46,71,.07);
+}
+#im-payments table tbody td,
+#im-existing-invoices-container table tbody td {
+    border-top: 1px solid #e2e8f0 !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+}
+#im-payments table tbody td:first-child,
+#im-existing-invoices-container table tbody td:first-child {
+    border-left: 6px solid #0f6d8d !important;
+    border-radius: 17px 0 0 17px;
+}
+#im-payments table tbody td:last-child,
+#im-existing-invoices-container table tbody td:last-child {
+    border-right: 1px solid #e2e8f0 !important;
+    border-radius: 0 17px 17px 0;
+}
+
+/* Invoice Entry modal receives the same premium shell without changing fields/logic. */
+#im-invoice-entry-modal .modal-container {
+    border-radius: 26px !important;
+    border: 1px solid rgba(148,163,184,.24) !important;
+    box-shadow: 0 32px 80px rgba(3, 18, 30, .26) !important;
+    overflow: hidden;
+}
+#im-invoice-entry-modal .modal-header {
+    background: linear-gradient(135deg, #05243a, #0b4a66) !important;
+    color: #ffffff !important;
+    border-bottom: none !important;
+}
+#im-invoice-entry-modal #im-form-title {
+    color: #ffd43b !important;
+    font-weight: 950 !important;
+    letter-spacing: -0.035em;
+    text-shadow: 0 2px 0 rgba(3,18,30,.65);
+}
+#im-invoice-entry-modal .modal-content {
+    background: linear-gradient(180deg, #ffffff, #f8fafc) !important;
+}
+#im-invoice-entry-modal .form-grid-compact {
+    gap: 14px !important;
+}
+#im-invoice-entry-modal .form-group {
+    border-radius: 17px;
+}
+
+/* Summary Note: polish the workspace without disturbing the print layout. */
+#im-summary-note > div:nth-of-type(2) {
+    gap: 18px !important;
+}
+#im-summary-note > div:nth-of-type(2) > div:first-child {
+    padding: 14px !important;
+    border-right: none !important;
+}
+#im-summary-note > div:nth-of-type(2) > div:first-child > div:first-child {
+    border-radius: 22px !important;
+    background: linear-gradient(180deg, #ffffff, #f8fafc) !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 14px 30px rgba(15,46,71,.06);
+}
+#im-summary-note > div:nth-of-type(2) > div:last-child {
+    border-radius: 26px !important;
+    border-left: none !important;
+    background: linear-gradient(135deg, #e2e8f0, #f8fafc) !important;
+}
+#summary-note-generate-btn,
+#summary-note-clear-btn,
+#summary-note-update-btn,
+#im-refresh-summary-button {
+    border-radius: 15px !important;
+    font-weight: 950 !important;
+    box-shadow: 0 14px 28px rgba(15,46,71,.12) !important;
+}
+
+@media (max-width: 980px) {
+    #im-invoice-entry > h1,
+    #im-payments > h1,
+    #im-batch-entry > .header-top,
+    #im-summary-note > div:first-of-type,
+    #im-reporting > .header {
+        background: linear-gradient(135deg, #05243a, #0b4a66) !important;
+    }
+    #im-batch-entry > .header-top,
+    #im-reporting > .header .header-top,
+    #im-summary-note > div:first-of-type {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+    }
+    #im-reporting > .header .daily-report-section,
+    #im-batch-entry > .header-top > div:last-child,
+    #im-summary-note > div:first-of-type > div:last-child {
+        width: 100%;
+        justify-content: flex-start !important;
+    }
+    #im-dashboard-hero h1,
+    .im-dashboard-hero h1 {
+        font-size: 2rem !important;
+    }
+    #im-summary-note {
+        height: auto !important;
+    }
+    #im-summary-note > div:nth-of-type(2) {
+        flex-direction: column !important;
+        overflow: visible !important;
+    }
+    #im-summary-note > div:nth-of-type(2) > div:first-child,
+    #im-summary-note > div:nth-of-type(2) > div:last-child {
+        width: 100% !important;
+        flex: none !important;
+    }
+}
+
+
+/* ========================================================================
+   8.4.7 — Invoice Dashboard Header Readability Fix
+   Fix only the Invoice Management Dashboard hero. Other premium headers remain unchanged.
+   ======================================================================== */
+#im-dashboard .im-dashboard-hero,
+#im-dashboard .im-dashboard-standby-hero {
+    min-height: 170px !important;
+    align-items: center !important;
+    background:
+        radial-gradient(circle at 92% 10%, rgba(250, 204, 21, .22), transparent 31%),
+        radial-gradient(circle at 7% 0%, rgba(34, 211, 238, .18), transparent 35%),
+        linear-gradient(135deg, #05243a 0%, #083650 45%, #0b4a66 100%) !important;
+    border: 1px solid rgba(255,255,255,.34) !important;
+    box-shadow: 0 26px 64px rgba(5, 28, 44, .20) !important;
+}
+
+#im-dashboard .im-dashboard-hero::after,
+#im-dashboard .im-dashboard-standby-hero::after {
+    right: -74px !important;
+    top: -84px !important;
+    width: 245px !important;
+    height: 245px !important;
+    background: radial-gradient(circle, rgba(250,204,21,.28), rgba(250,204,21,.10) 58%, transparent 72%) !important;
+}
+
+#im-dashboard .im-dashboard-hero-main {
+    max-width: 840px !important;
+}
+
+#im-dashboard .im-dashboard-hero h1 {
+    display: inline-flex !important;
+    align-items: center !important;
+    width: fit-content !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 9px 18px 11px !important;
+    border-radius: 18px !important;
+    background: rgba(3, 18, 30, .90) !important;
+    border: 1px solid rgba(250, 204, 21, .46) !important;
+    box-shadow:
+        0 18px 42px rgba(0, 0, 0, .32),
+        inset 0 1px 0 rgba(255,255,255,.12) !important;
+    line-height: 1 !important;
+    letter-spacing: -0.035em !important;
+    filter: none !important;
+}
+
+#im-dashboard .im-dashboard-hero h1,
+#im-dashboard .im-dashboard-hero h1 .im-command-title-text {
+    color: #ffe66d !important;
+    -webkit-text-fill-color: #ffe66d !important;
+    -webkit-text-stroke: 0 !important;
+    text-shadow:
+        0 2px 0 rgba(3, 18, 30, .92),
+        0 0 18px rgba(250, 204, 21, .44),
+        0 10px 22px rgba(0, 0, 0, .35) !important;
+    font-weight: 950 !important;
+}
+
+#im-dashboard .im-dashboard-eyebrow {
+    background: rgba(255,255,255,.13) !important;
+    color: #fff3bf !important;
+    border-color: rgba(250, 204, 21, .30) !important;
+}
+
+#im-dashboard .im-dashboard-hero p {
+    max-width: 760px !important;
+    color: rgba(255,255,255,.94) !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,.25) !important;
+}
+
+#im-dashboard .im-dashboard-hero-actions {
+    align-items: center !important;
+    justify-content: flex-end !important;
+}
+
+#im-dashboard .im-dashboard-refresh-btn,
+#im-dashboard #im-dashboard-refresh-btn.im-dashboard-refresh-btn {
+    background: linear-gradient(135deg, #ffffff, #fff7cc) !important;
+    color: #073b5c !important;
+    border: 1px solid rgba(250, 204, 21, .38) !important;
+    box-shadow: 0 16px 36px rgba(3, 18, 30, .24) !important;
+}
+
+@media (max-width: 768px) {
+    #im-dashboard .im-dashboard-hero,
+    #im-dashboard .im-dashboard-standby-hero {
+        min-height: auto !important;
+        padding: 22px !important;
+    }
+    #im-dashboard .im-dashboard-hero h1 {
+        font-size: 1.8rem !important;
+        padding: 8px 13px 10px !important;
+    }
+    #im-dashboard .im-dashboard-hero-actions {
+        justify-content: flex-start !important;
+    }
+}
+
+
+/* ========================================================================
+   8.4.9 — Invoice Dashboard Header Uniformity Fix
+   Makes the Dashboard hero match the clean Invoice Records premium header.
+   ======================================================================== */
+#im-dashboard .im-dashboard-hero,
+#im-dashboard .im-dashboard-standby-hero {
+    min-height: 132px !important;
+    padding: 24px 28px !important;
+    align-items: center !important;
+    border-radius: 28px !important;
+    overflow: hidden !important;
+    background:
+        radial-gradient(circle at 92% 12%, rgba(250, 204, 21, .16), transparent 30%),
+        linear-gradient(135deg, #05243a 0%, #0b4a66 72%, #ffffff 73%, #f8fafc 100%) !important;
+    border: 1px solid rgba(255,255,255,.58) !important;
+    box-shadow: 0 24px 58px rgba(5, 28, 44, .15) !important;
+}
+
+#im-dashboard .im-dashboard-hero::before,
+#im-dashboard .im-dashboard-standby-hero::before {
+    opacity: .34 !important;
+}
+
+#im-dashboard .im-dashboard-hero::after,
+#im-dashboard .im-dashboard-standby-hero::after {
+    right: -78px !important;
+    top: -86px !important;
+    width: 235px !important;
+    height: 235px !important;
+    background: rgba(250, 204, 21, .14) !important;
+}
+
+#im-dashboard .im-dashboard-hero-main {
+    max-width: 860px !important;
+}
+
+#im-dashboard .im-dashboard-eyebrow {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 0 12px !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    color: #fff1a8 !important;
+    font-size: .76rem !important;
+    font-weight: 950 !important;
+    letter-spacing: .085em !important;
+    text-transform: uppercase !important;
+    text-shadow: 0 2px 8px rgba(0,0,0,.28) !important;
+    backdrop-filter: none !important;
+}
+
+#im-dashboard .im-dashboard-eyebrow::before {
+    display: none !important;
+}
+
+#im-dashboard .im-dashboard-title-row {
+    display: flex !important;
+    align-items: center !important;
+    gap: 14px !important;
+    flex-wrap: wrap !important;
+}
+
+#im-dashboard .im-dashboard-title-icon {
+    width: 52px !important;
+    height: 52px !important;
+    min-width: 52px !important;
+    display: inline-grid !important;
+    place-items: center !important;
+    border-radius: 18px !important;
+    background: rgba(255,255,255,.96) !important;
+    color: #073b5c !important;
+    box-shadow: 0 16px 34px rgba(3, 18, 30, .20) !important;
+}
+
+#im-dashboard .im-dashboard-hero h1 {
+    display: inline-flex !important;
+    align-items: center !important;
+    width: fit-content !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    filter: none !important;
+    font-size: clamp(1.65rem, 2.4vw, 2.35rem) !important;
+    line-height: .98 !important;
+    letter-spacing: -0.045em !important;
+}
+
+#im-dashboard .im-dashboard-hero h1,
+#im-dashboard .im-dashboard-hero h1 .im-command-title-text {
+    color: #ffd43b !important;
+    -webkit-text-fill-color: #ffd43b !important;
+    -webkit-text-stroke: .48px rgba(3, 18, 30, .72) !important;
+    text-shadow:
+        0 2px 0 rgba(3, 18, 30, .76),
+        0 11px 26px rgba(0,0,0,.40),
+        0 0 22px rgba(255,212,59,.34) !important;
+    font-weight: 950 !important;
+}
+
+#im-dashboard .im-dashboard-hero p {
+    margin: 11px 0 0 66px !important;
+    max-width: 760px !important;
+    color: rgba(255,255,255,.92) !important;
+    font-weight: 750 !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,.25) !important;
+}
+
+#im-dashboard .im-dashboard-refresh-btn,
+#im-dashboard #im-dashboard-refresh-btn.im-dashboard-refresh-btn {
+    background: rgba(255,255,255,.96) !important;
+    color: #073b5c !important;
+    border: 1px solid rgba(255,255,255,.70) !important;
+    box-shadow: 0 14px 30px rgba(3, 18, 30, .18) !important;
+}
+
+@media (max-width: 768px) {
+    #im-dashboard .im-dashboard-hero,
+    #im-dashboard .im-dashboard-standby-hero {
+        padding: 22px !important;
+        min-height: auto !important;
+        background: linear-gradient(135deg, #05243a 0%, #0b4a66 100%) !important;
+    }
+    #im-dashboard .im-dashboard-title-row {
+        align-items: flex-start !important;
+    }
+    #im-dashboard .im-dashboard-title-icon {
+        width: 46px !important;
+        height: 46px !important;
+        min-width: 46px !important;
+        border-radius: 16px !important;
+    }
+    #im-dashboard .im-dashboard-hero h1 {
+        font-size: 1.8rem !important;
+    }
+    #im-dashboard .im-dashboard-hero p {
+        margin-left: 0 !important;
+    }
+}
+
+
+/* ========================================================================
+   8.4.9 — Invoice Dashboard Title Size + Naming Fix
+   Makes the dashboard hero title match the same strong size as Invoice Records.
+   Display-only. No invoice/save/Firebase logic changed.
+   ======================================================================== */
+#im-dashboard .im-dashboard-title-row {
+    align-items: center !important;
+    gap: 16px !important;
+}
+
+#im-dashboard .im-dashboard-title-icon {
+    width: 54px !important;
+    height: 54px !important;
+    min-width: 54px !important;
+}
+
+#im-dashboard .im-dashboard-hero h1,
+#im-dashboard .im-dashboard-hero h1 .im-command-title-text {
+    font-size: clamp(2rem, 3vw, 3.15rem) !important;
+    line-height: .95 !important;
+    letter-spacing: -0.075em !important;
+    font-weight: 950 !important;
+}
+
+#im-dashboard .im-dashboard-hero p {
+    margin-top: 12px !important;
+}
+
+@media (max-width: 768px) {
+    #im-dashboard .im-dashboard-title-icon {
+        width: 48px !important;
+        height: 48px !important;
+        min-width: 48px !important;
+    }
+    #im-dashboard .im-dashboard-hero h1,
+    #im-dashboard .im-dashboard-hero h1 .im-command-title-text {
+        font-size: clamp(2rem, 9vw, 2.75rem) !important;
+        letter-spacing: -0.065em !important;
+    }
+}
+
+
+/* 8.4.10 - Invoice search field border cleanup
+   Keep one premium rounded outline only on the search wrapper.
+   Removes the extra inner oval/line from Invoice Records, Invoice Entry, and Batch Entry search fields. */
+#im-po-search-container .search-bar-local,
+#im-reporting-form .search-box,
+#im-batch-entry .search-bar-local {
+    overflow: hidden !important;
+    border: 1px solid #dbe3ec !important;
+    background: #ffffff !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.95), 0 10px 24px rgba(15,46,71,.05) !important;
+}
+#im-po-search-container .search-bar-local:focus-within,
+#im-reporting-form .search-box:focus-within,
+#im-batch-entry .search-bar-local:focus-within {
+    border-color: #0f6d8d !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.95), 0 0 0 4px rgba(15,109,141,.12), 0 12px 26px rgba(15,46,71,.08) !important;
+}
+#im-po-search-container .search-bar-local input,
+#im-reporting-form .search-box input,
+#im-batch-entry .search-bar-local input,
+#im-batch-po-input {
+    height: 100% !important;
+    min-height: 0 !important;
+    border: 0 !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    color: #1e293b !important;
+    font-weight: 750;
+}
+#im-po-search-container .search-bar-local input,
+#im-batch-entry .search-bar-local input,
+#im-batch-po-input {
+    padding: 0 14px 0 42px !important;
+}
+#im-reporting-form .search-box input {
+    padding: 0 18px 0 56px !important;
+}
+#im-po-search-container .search-bar-local input:focus,
+#im-reporting-form .search-box input:focus,
+#im-batch-entry .search-bar-local input:focus,
+#im-batch-po-input:focus {
+    border: 0 !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+}
+#im-po-search-container .search-bar-local i,
+#im-reporting-form .search-box i,
+#im-batch-entry .search-bar-local i {
+    pointer-events: none;
+    z-index: 2;
+}
