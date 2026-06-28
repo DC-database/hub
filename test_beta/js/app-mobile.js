@@ -76,8 +76,6 @@ function imEnsureMobileInvoiceInlineSearchPanel() {
             <div class="form-group">
                 <label for="im-mobile-inline-search-term">PO or Vendor</label>
                 <input type="text" id="im-mobile-inline-search-term" placeholder="Type PO or Vendor..." autocomplete="off">
-                <button id="im-mobile-inline-po-ocr-scan-button" class="im-mobile-inline-scan-btn im-records-mobile-ocr-btn" type="button" onclick="openIMPoOcrScanner && openIMPoOcrScanner()" title="Scan printed PO/LPO number with camera OCR"><i class="fa-solid fa-camera"></i> Scan PO Text</button>
-                <button id="im-mobile-inline-paste-scanned-text-button" class="im-mobile-inline-paste-btn im-records-mobile-paste-btn" type="button" onclick="pasteIMScannedText && pasteIMScannedText()" title="Paste text copied from Google Lens or Android text scan"><i class="fa-solid fa-paste"></i> Paste Scanned Text</button>
             </div>
             <div class="form-group">
                 <label for="im-mobile-inline-site-filter">Site</label>

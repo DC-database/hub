@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-workdesk-reporting.js
    IBA WorkDesk/Inventory Job Records table and report filter helpers.
-   Version: 8.1.3
+   Version: 8.4.4
 
    Cleanup Phase:
    - Moved Block 13 out of app.js.
@@ -13,6 +13,43 @@
 // Purpose: Desktop job records table, inventory grouping rows, totals, search/filter rendering.
 // =================================================================================================
 
+
+function wdUiSetRecordsHeroContext(mode) {
+    const isInventory = String(mode || '').toLowerCase() === 'inventory';
+    const hero = document.querySelector('#wd-reporting .wd-page-hero');
+    if (hero) {
+        hero.classList.toggle('wd-page-hero-records-inventory', isInventory);
+        hero.classList.toggle('wd-page-hero-records', !isInventory);
+    }
+
+    const eyebrow = document.querySelector('#wd-reporting .wd-page-eyebrow');
+    if (eyebrow) {
+        eyebrow.innerHTML = isInventory
+            ? '<i class="fa-solid fa-warehouse"></i> Inventory Records Center'
+            : '<i class="fa-solid fa-chart-line"></i> WorkDesk Records Center';
+    }
+
+    const title = document.querySelector('#wd-reporting .wd-page-hero h1');
+    if (title) title.textContent = isInventory ? 'Inventory Job Records' : 'Job Records';
+
+    const subtitle = document.querySelector('#wd-reporting .wd-page-hero p');
+    if (subtitle) {
+        subtitle.textContent = isInventory
+            ? 'Inventory movement history arranged by Control ID, product, route, quantity, contact, and current status.'
+            : 'Searchable job history arranged for fast review by category, PO, site, vendor, attention, and current status.';
+    }
+
+    const metricLabel = document.querySelector('#wd-reporting .wd-page-hero-metric small');
+    if (metricLabel) metricLabel.textContent = isInventory ? 'Inventory records' : 'Visible records';
+
+    const searchInput = document.getElementById('reporting-search');
+    if (searchInput) {
+        searchInput.placeholder = isInventory
+            ? 'Search control ID, product, route, contact, status...'
+            : 'Search job, PO, vendor, site, attention, status...';
+    }
+}
+
 function renderReportingTable(entries) {
     reportingTableBody.innerHTML = '';
 
@@ -22,6 +59,7 @@ function renderReportingTable(entries) {
     // 7.5.5 — Inventory Job Records renderer moved to js/app-inventory.js.
     // Keep WorkDesk/Invoice rendering here only.
     if (isInventoryReport) {
+        wdUiSetRecordsHeroContext('inventory');
         if (typeof renderInventoryJobRecordsTable === 'function') {
             return renderInventoryJobRecordsTable(entries);
         }
@@ -45,8 +83,10 @@ function renderReportingTable(entries) {
         return;
     }
 
+    wdUiSetRecordsHeroContext('workdesk');
     const tableHead = document.querySelector('#reporting-printable-area table thead');
     const reportingTable = document.querySelector('#reporting-printable-area table');
+    if (reportingTable) reportingTable.classList.add('wd-modern-table', 'wd-records-modern-table');
 
     // 7.8.2: Remove Inventory Active/Completed switch when returning to WorkDesk/Invoice records.
     const invStageSwitch = document.getElementById('inventory-job-records-stage-switch');
@@ -75,7 +115,8 @@ function renderReportingTable(entries) {
         if (document.getElementById('job-records-count-display')) {
             document.getElementById('job-records-count-display').textContent = `(Total Records: 0)`;
         }
-        reportingTableBody.innerHTML = `<tr><td colspan="11">No entries found.</td></tr>`;
+        if (typeof wdUiUpdateMiniMetrics === 'function') wdUiUpdateMiniMetrics('job-records-summary-strip', [], 'Job Records');
+        reportingTableBody.innerHTML = `<tr><td colspan="11"><div class="wd-modern-empty-row"><i class="fa-solid fa-folder-open"></i><strong>No entries found</strong><span>Try another category or search term.</span></div></td></tr>`;
         return;
     }
 
@@ -83,28 +124,33 @@ function renderReportingTable(entries) {
         document.getElementById('job-records-count-display').textContent = `(Total Records: ${totalRecords})`;
     }
 
+    if (typeof wdUiUpdateMiniMetrics === 'function') {
+        wdUiUpdateMiniMetrics('job-records-summary-strip', entries, 'Job Records');
+    }
+
     entries.forEach(entry => {
         const row = document.createElement('tr');
         row.setAttribute('data-key', entry.key);
 
+        const esc = (typeof wdUiEscape === 'function') ? wdUiEscape : (v) => String(v == null ? '' : v);
+        const badge = (typeof wdUiStatusBadge === 'function') ? wdUiStatusBadge : (v) => esc(v || 'Pending');
+        const tone = (typeof wdUiStatusTone === 'function') ? wdUiStatusTone : () => 'default';
         const status = entry.remarks || 'Pending';
-        let actions = `<button class="history-btn action-btn" onclick="event.stopPropagation(); showJobHistory('${entry.key}')" style="padding:2px 6px; font-size:0.7rem; background:#17a2b8; color:white; border:none; border-radius:4px;" title="View History"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
+        row.className = 'wd-modern-row tone-' + tone(status);
+        let actions = `<button class="history-btn action-btn wd-row-action wd-action-history" onclick="event.stopPropagation(); showJobHistory('${esc(entry.key)}')" title="View History"><i class="fa-solid fa-clock-rotate-left"></i> History</button>`;
 
         row.innerHTML = `
-            <td>${entry.for || ''}</td>
-            <td>${entry.ref || ''}</td>
-            <td>${entry.site || ''}</td>
-            <td>${entry.po || ''}</td>
-            <td>${entry.vendorName || 'N/A'}</td>
-            <td>${entry.amount || ''}</td>
-            <td>${entry.enteredBy || ''}</td>
-            <td>${entry.date || ''}</td>
-            <td>${entry.attention || ''}</td>
-            <td>${entry.dateResponded || ''}</td>
-            <td>
-                ${status}
-                <div style="margin-top:5px;">${actions}</div>
-            </td>
+            <td><span class="wd-table-kicker">${esc(entry.for || '')}</span></td>
+            <td><span class="wd-ref-chip">${esc(entry.ref || '')}</span></td>
+            <td><span class="wd-site-badge"><i class="fa-solid fa-location-dot"></i>${esc(entry.site || '')}</span></td>
+            <td><span class="wd-po-code">${esc(entry.po || '')}</span></td>
+            <td><strong class="wd-vendor-name">${esc(entry.vendorName || 'N/A')}</strong></td>
+            <td class="wd-amount-cell">${esc(entry.amount || '')}</td>
+            <td><span class="wd-user-chip">${esc(entry.enteredBy || '')}</span></td>
+            <td><span class="wd-date-chip">${esc(entry.date || '')}</span></td>
+            <td><span class="wd-attention-chip">${esc(entry.attention || '')}</span></td>
+            <td><span class="wd-date-chip">${esc(entry.dateResponded || '—')}</span></td>
+            <td><div class="wd-record-status-cell">${badge(status)}${actions}</div></td>
         `;
 
         reportingTableBody.appendChild(row);
@@ -205,14 +251,17 @@ let tabsHTML = '';
         else {
              reportingTableBody.innerHTML = `
                 <tr>
-                    <td colspan="11" style="text-align: center; padding: 50px; color: #888;">
-                        <i class="fa-solid fa-arrow-up" style="font-size: 2rem; margin-bottom: 15px; color: #00748C;"></i><br>
-                        <strong style="font-size: 1.1rem; color: #333;">Select a Category above</strong><br>
-                        <span>${(typeof isInventoryContext === 'function' && isInventoryContext()) ? '(Transfer, Restock, Return, Usage)' : '(e.g., IPC, Invoice, PR)' } to view records.</span>
+                    <td colspan="11">
+                        <div class="wd-modern-empty-row wd-select-category-state">
+                            <i class="fa-solid fa-arrow-up-wide-short"></i>
+                            <strong>Select a Category above</strong>
+                            <span>${(typeof isInventoryContext === 'function' && isInventoryContext()) ? '(Transfer, Restock, Return, Usage)' : '(e.g., IPC, Invoice, PR)' } to view records.</span>
+                        </div>
                     </td>
                 </tr>`;
              // Clear the count display
              if (reportingCountDisplay) reportingCountDisplay.textContent = '';
+             if (typeof wdUiUpdateMiniMetrics === 'function') wdUiUpdateMiniMetrics('job-records-summary-strip', [], 'Job Records');
         }
 
     } catch (error) {

@@ -314,16 +314,9 @@ async function showWorkdeskSection(sectionId, newSearchTerm = null) {
 
     // 3. Section-Specific Logic
     if (sectionId === 'wd-dashboard') {
+        // 8.3.6: WorkDesk Dashboard is now an open invoice task control center.
+        // Calendar/date sorting was retired from this dashboard view.
         await populateWorkdeskDashboard();
-        renderWorkdeskCalendar();
-        renderYearView();
-        await populateCalendarTasks();
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const day = String(today.getDate()).padStart(2, '0');
-        const todayStr = `${year}-${month}-${day}`;
-        displayCalendarTasksForDay(todayStr);
     }
 
     if (sectionId === 'wd-jobentry') {
@@ -460,14 +453,30 @@ function showIMSection(sectionId) {
         // STOP AUTOMATIC LOADING
         // populateInvoiceDashboard(false); <--- REMOVED
 
-        // Show "Standby" Message instead
+        // 8.4.9: Premium standby view. Data still loads only on double-click to avoid heavy dashboard refresh on every entry.
         const dbSection = document.getElementById('im-dashboard');
         dbSection.innerHTML = `
-            <h1>Dashboard</h1>
-            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; color: #777; text-align: center;">
-                <i class="fa-solid fa-chart-column" style="font-size: 4rem; margin-bottom: 20px; color: #ccc;"></i>
-                <h2 style="margin-bottom: 10px;">Dashboard Standby</h2>
-                <p>To view heavy chart data, please <strong>Double-Click</strong> the "Dashboard" button in the sidebar.</p>
+            <div class="im-premium-dashboard-shell">
+                <div class="im-dashboard-hero im-dashboard-standby-hero">
+                    <div class="im-dashboard-hero-main">
+                        <div class="im-dashboard-eyebrow">Invoice Management</div>
+                        <div class="im-dashboard-title-row">
+                            <div class="icon-wrapper im-dashboard-title-icon"><i class="fa-solid fa-building-columns"></i></div>
+                            <h1><span class="im-command-title-text">Invoice Dashboard</span></h1>
+                        </div>
+                        <p>Premium finance dashboard is on standby to keep the system fast. Double-click Dashboard when you need live chart and cost movement data.</p>
+                    </div>
+                    <div class="im-dashboard-hero-actions">
+                        <button type="button" class="im-dashboard-refresh-btn" onclick="populateInvoiceDashboard(true)">
+                            <i class="fa-solid fa-chart-column"></i> Load Dashboard
+                        </button>
+                    </div>
+                </div>
+                <div class="im-dashboard-standby-card">
+                    <i class="fa-solid fa-gauge-high"></i>
+                    <h2>Dashboard Standby</h2>
+                    <p>Click <strong>Load Dashboard</strong> or double-click the Dashboard menu to open the full Invoice Dashboard.</p>
+                </div>
             </div>
         `;
     }

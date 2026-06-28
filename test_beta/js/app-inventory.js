@@ -1,6 +1,6 @@
 // =================================================================================================
 // IBA — Inventory JS Foundation
-// Version: 7.9.4
+// Version: 8.4.4
 // Purpose: Inventory context/type helpers separated from app.js.
 // Keep this file lightweight. Do not move stock saving/approval logic here until later phases.
 // =================================================================================================
@@ -258,6 +258,7 @@ function filterAndRenderInventoryJobRecords(baseEntries = null) {
 
 function renderInventoryJobRecordsTable(entries) {
     if (!reportingTableBody) return;
+    if (typeof wdUiSetRecordsHeroContext === 'function') wdUiSetRecordsHeroContext('inventory');
     reportingTableBody.innerHTML = '';
 
     const tableHead = document.querySelector('#reporting-printable-area table thead');
@@ -280,7 +281,8 @@ function renderInventoryJobRecordsTable(entries) {
 
     if (!entries || totalRecords === 0) {
         if (countDisplay) countDisplay.textContent = `(Total Records: 0)`;
-        reportingTableBody.innerHTML = '<tr><td colspan="9">No entries found.</td></tr>';
+        if (typeof wdUiUpdateMiniMetrics === 'function') wdUiUpdateMiniMetrics('job-records-summary-strip', [], 'Inventory Records');
+        reportingTableBody.innerHTML = '<tr><td colspan="9"><div class="wd-modern-empty-row"><i class="fa-solid fa-box-open"></i><strong>No inventory records found</strong><span>Select another inventory category or search term.</span></div></td></tr>';
         return;
     }
 
@@ -313,6 +315,7 @@ function renderInventoryJobRecordsTable(entries) {
     if (countDisplay) {
         countDisplay.textContent = `(Groups: ${groups.length} | Records: ${totalRecords})`;
     }
+    if (typeof wdUiUpdateMiniMetrics === 'function') wdUiUpdateMiniMetrics('job-records-summary-strip', entries, 'Inventory Records');
 
     bindInventoryJobRecordGroupToggle();
 
@@ -507,6 +510,7 @@ window.bindInventoryJobRecordGroupToggle = bindInventoryJobRecordGroupToggle;
 // =================================================================================================
 function renderInventoryActiveTaskTable(tasks) {
     // Moved from app.js in 7.5.6. Keep Inventory Active Task UI owned by app-inventory.js.
+    if (typeof wdUiSetActiveTaskHeroContext === 'function') wdUiSetActiveTaskHeroContext('inventory');
     const inventoryTasks = (Array.isArray(tasks) ? tasks : []).filter(t => isInventoryTaskRecord(t));
     const isMobile = (typeof isMobileViewport === 'function') ? isMobileViewport() : (window.innerWidth <= 768);
     if (isMobile) {
@@ -516,6 +520,10 @@ function renderInventoryActiveTaskTable(tasks) {
     }
 
     activeTaskTableBody.innerHTML = '';
+
+    const activeTaskTable = document.querySelector('#wd-activetask table');
+    if (activeTaskTable) activeTaskTable.classList.add('wd-modern-table', 'wd-inventory-modern-table');
+    if (typeof wdUiUpdateMiniMetrics === 'function') wdUiUpdateMiniMetrics('active-task-summary-strip', inventoryTasks, 'Inventory Tasks');
 
     const filteredTasks = inventoryTasks.filter(function(task) {
         if (currentActiveTaskFilter === 'All') return true;
@@ -538,7 +546,7 @@ function renderInventoryActiveTaskTable(tasks) {
     }
 
     if (filteredTasks.length === 0) {
-        activeTaskTableBody.innerHTML = '<tr><td colspan="8">No inventory tasks found for "' + currentActiveTaskFilter + '".</td></tr>';
+        activeTaskTableBody.innerHTML = '<tr><td colspan="8"><div class="wd-modern-empty-row"><i class="fa-solid fa-clipboard-check"></i><strong>No inventory tasks found</strong><span>No item under "' + currentActiveTaskFilter + '" right now.</span></div></td></tr>';
         return;
     }
 
@@ -576,6 +584,7 @@ function renderInventoryActiveTaskTable(tasks) {
         const row = document.createElement('tr');
         row.setAttribute('data-key', task.key);
         row.classList.toggle('controlid-group-child', isChild);
+        row.classList.add('wd-modern-row', 'wd-inventory-row', 'tone-' + ((typeof wdUiStatusTone === 'function') ? wdUiStatusTone(task.remarks || task.status || 'Pending') : 'default'));
 
         if (task.isUrgent === false) {
             row.style.opacity = '0.7';
@@ -670,7 +679,7 @@ function renderInventoryActiveTaskTable(tasks) {
 
         const groupIsUrgent = items.some(t => t.isUrgent === true);
         const headerRow = document.createElement('tr');
-        headerRow.className = 'controlid-group-header';
+        headerRow.className = 'controlid-group-header wd-modern-row wd-inventory-group-row tone-' + ((typeof wdUiStatusTone === 'function') ? wdUiStatusTone(statusSummary || 'Pending') : 'default');
         headerRow.setAttribute('data-group-id', safeSelectorValue(groupId));
 
         if (!groupIsUrgent) {
