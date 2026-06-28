@@ -2019,3 +2019,142 @@ input[name="tf-mode"] {
         border-radius: 12px;
     }
 }
+
+/* ========================================================================
+   8.4.4 — Material Stock Premium UI Alignment
+   Visual-only polish to match Dashboard / Active Task / Job Records style.
+   ======================================================================== */
+#wd-material-stock .ms-premium-toolbar,
+#wd-material-stock .ms-premium-searchbar {
+    padding: 12px !important;
+    border-radius: 24px !important;
+    background: rgba(255,255,255,.95) !important;
+    border: 1px solid rgba(148,163,184,.25) !important;
+    box-shadow: 0 16px 38px rgba(15,46,71,.08) !important;
+}
+#wd-material-stock .ms-premium-toolbar > div,
+#wd-material-stock .ms-premium-searchbar > div {
+    flex-wrap: wrap !important;
+}
+#wd-material-stock .ms-premium-toolbar button,
+#wd-material-stock .ms-premium-searchbar button {
+    min-height: 42px !important;
+    border-radius: 14px !important;
+    padding: 0 14px !important;
+    font-weight: 900 !important;
+    letter-spacing: .01em;
+    border: 1px solid transparent !important;
+    box-shadow: 0 10px 22px rgba(15,46,71,.10) !important;
+}
+#wd-material-stock #ms-add-new-btn {
+    background: linear-gradient(135deg, #0f6d8d, #073b5c) !important;
+    color: #ffffff !important;
+}
+#wd-material-stock #ms-upload-csv-btn,
+#wd-material-stock #ms-template-btn,
+#wd-material-stock #ms-refresh-btn {
+    background: #eef2f7 !important;
+    color: #334155 !important;
+    border-color: #dbe3ec !important;
+}
+#wd-material-stock #ms-open-requestlist-btn {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+    color: #ffffff !important;
+}
+#wd-material-stock #ms-open-report-modal-btn {
+    background: linear-gradient(135deg, #7c3aed, #5b21b6) !important;
+    color: #ffffff !important;
+}
+#wd-material-stock #ms-bulk-delete-btn {
+    background: linear-gradient(135deg, #ef4444, #b91c1c) !important;
+    color: #ffffff !important;
+}
+#wd-material-stock .ms-premium-searchbar {
+    align-items: center !important;
+    gap: 12px !important;
+}
+#wd-material-stock .ms-premium-searchbar .search-bar-local {
+    height: 48px !important;
+    border-radius: 17px !important;
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.95) !important;
+}
+#wd-material-stock .ms-premium-searchbar input {
+    height: 100% !important;
+    border: none !important;
+    background: transparent !important;
+    font-weight: 750 !important;
+}
+#wd-material-stock #ms-search-clear-btn {
+    background: #fff1f2 !important;
+    color: #be123c !important;
+    border-color: #fecdd3 !important;
+}
+#wd-material-stock .ms-premium-tabs,
+#wd-material-stock #ms-category-tabs {
+    margin-bottom: 16px !important;
+    padding: 8px !important;
+    border-radius: 22px !important;
+    background: rgba(241,245,249,.88) !important;
+    border: 1px solid rgba(148,163,184,.18) !important;
+    box-shadow: none !important;
+}
+#wd-material-stock .ms-premium-tablewrap,
+#wd-material-stock .table-wrapper:has(#ms-table) {
+    border-radius: 26px !important;
+    padding: 12px !important;
+    background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(246,249,252,.98)) !important;
+    border: 1px solid rgba(148,163,184,.24) !important;
+    box-shadow: 0 24px 60px rgba(15,46,71,.11) !important;
+}
+#wd-material-stock #ms-table {
+    border-collapse: separate !important;
+    border-spacing: 0 10px !important;
+    background: transparent !important;
+}
+#wd-material-stock #ms-table thead th {
+    background: transparent !important;
+    color: #64748b !important;
+    border: none !important;
+    font-size: .72rem !important;
+    font-weight: 950 !important;
+    letter-spacing: .08em !important;
+    text-transform: uppercase !important;
+}
+#wd-material-stock #ms-table tbody tr.ms-parent-row {
+    background: transparent !important;
+}
+#wd-material-stock #ms-table tbody tr.ms-parent-row td {
+    background: #ffffff !important;
+    border-top: 1px solid #e2e8f0 !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    box-shadow: 0 13px 30px rgba(15,46,71,.07);
+}
+#wd-material-stock #ms-table tbody tr.ms-parent-row td:first-child {
+    border-left: 6px solid #0f766e !important;
+    border-radius: 18px 0 0 18px !important;
+}
+#wd-material-stock #ms-table tbody tr.ms-parent-row td:last-child {
+    border-right: 1px solid #e2e8f0 !important;
+    border-radius: 0 18px 18px 0 !important;
+}
+#wd-material-stock #ms-table tbody tr.ms-parent-row:hover td {
+    background: #f8fafc !important;
+    box-shadow: 0 20px 42px rgba(15,46,71,.13);
+}
+@media (max-width: 920px) {
+    #wd-material-stock .ms-premium-searchbar,
+    #wd-material-stock .ms-premium-toolbar {
+        align-items: stretch !important;
+    }
+    #wd-material-stock #ms-search-container > div,
+    #wd-material-stock #ms-search-container > div:first-child {
+        max-width: none !important;
+        width: 100% !important;
+    }
+    #wd-material-stock .ms-premium-searchbar button,
+    #wd-material-stock .ms-premium-toolbar button {
+        flex: 1 1 auto;
+    }
+}
