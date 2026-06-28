@@ -1,5 +1,5 @@
 // js/app-invoice-po-ocr.js
-// Version 8.4.2 — Invoice Records PO/LPO OCR Scanner with focus + smaller guide-box crop
+// Version 8.4.3 — Invoice Records PO/LPO OCR Scanner + Google Lens Paste helper
 // Purpose: Mobile Invoice Records camera text scan for printed PO/LPO numbers.
 // Privacy: Captured camera frames are processed in browser memory only.
 // No Firebase upload, no server upload, no phone gallery save.
@@ -11,6 +11,9 @@
   const BUTTON_ID = 'im-records-po-ocr-scan-button';
   const BUTTON_BOTTOM_ID = 'im-records-po-ocr-scan-button-mobile-modal';
   const BUTTON_INLINE_ID = 'im-mobile-inline-po-ocr-scan-button';
+  const PASTE_BUTTON_ID = 'im-records-paste-scanned-text-button';
+  const PASTE_BOTTOM_ID = 'im-records-paste-scanned-text-button-mobile-modal';
+  const PASTE_INLINE_ID = 'im-mobile-inline-paste-scanned-text-button';
   const MODAL_ID = 'im-po-ocr-modal';
 
   let stream = null;
@@ -22,7 +25,8 @@
     const style = document.createElement('style');
     style.id = 'im-po-ocr-style';
     style.textContent = `
-      #${BUTTON_ID}, #${BUTTON_BOTTOM_ID}, #${BUTTON_INLINE_ID} {
+      #${BUTTON_ID}, #${BUTTON_BOTTOM_ID}, #${BUTTON_INLINE_ID},
+      #${PASTE_BUTTON_ID}, #${PASTE_BOTTOM_ID}, #${PASTE_INLINE_ID} {
         background: #7c3aed;
         color: #fff;
         border: none;
@@ -38,10 +42,14 @@
         width: 100%;
         margin: 8px 0 0;
       }
-      #${BUTTON_ID} {
+      #${BUTTON_ID}, #${PASTE_BUTTON_ID} {
         display: none;
       }
-      #${BUTTON_ID}:hover, #${BUTTON_BOTTOM_ID}:hover, #${BUTTON_INLINE_ID}:hover { filter: brightness(1.05); }
+      #${PASTE_BUTTON_ID}, #${PASTE_BOTTOM_ID}, #${PASTE_INLINE_ID} {
+        background: #0f766e;
+      }
+      #${BUTTON_ID}:hover, #${BUTTON_BOTTOM_ID}:hover, #${BUTTON_INLINE_ID}:hover,
+      #${PASTE_BUTTON_ID}:hover, #${PASTE_BOTTOM_ID}:hover, #${PASTE_INLINE_ID}:hover { filter: brightness(1.05); }
       #${MODAL_ID} {
         position: fixed;
         inset: 0;
@@ -183,13 +191,29 @@
         font-size: 0.78rem;
         color: #64748b;
       }
-      #${BUTTON_BOTTOM_ID} {
+      #${BUTTON_BOTTOM_ID}, #${PASTE_BOTTOM_ID} {
         width: 100%;
         min-height: 42px;
         margin-top: 8px;
       }
+      #im-po-ocr-toast {
+        position: fixed;
+        left: 50%;
+        bottom: 18px;
+        transform: translateX(-50%);
+        z-index: 40000;
+        background: rgba(15, 23, 42, 0.95);
+        color: #fff;
+        border-radius: 999px;
+        padding: 10px 14px;
+        font-size: 0.88rem;
+        font-weight: 700;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.28);
+        max-width: min(90vw, 520px);
+        text-align: center;
+      }
       @media (max-width: 900px), (hover: none) and (pointer: coarse) {
-        #${BUTTON_ID} { display: inline-flex !important; }
+        #${BUTTON_ID}, #${PASTE_BUTTON_ID} { display: inline-flex !important; }
       }
     `;
     document.head.appendChild(style);
@@ -765,6 +789,63 @@
       .replace(/'/g, '&#39;');
   }
 
+
+
+  function showOcrToast(message) {
+    let toast = document.getElementById('im-po-ocr-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'im-po-ocr-toast';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    clearTimeout(showOcrToast._timer);
+    showOcrToast._timer = setTimeout(() => {
+      if (toast && toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 2800);
+  }
+
+  function chooseSearchValueFromText(rawText) {
+    const text = String(rawText || '').trim();
+    if (!text) return '';
+    const parsed = extractPoNumber(text);
+    if (parsed && parsed.best) return parsed.best;
+
+    // Extra simple fallback for Google Lens/copied text: prefer any standalone 5-digit PO first.
+    const five = text.match(/\b\d{5}\b/);
+    if (five) return five[0];
+
+    return cleanVendorText(text);
+  }
+
+  async function pasteScannedTextFromClipboard() {
+    injectStyles();
+    let text = '';
+
+    try {
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        text = await navigator.clipboard.readText();
+      }
+    } catch (error) {
+      console.warn('[PO OCR] Clipboard read failed:', error);
+    }
+
+    if (!String(text || '').trim()) {
+      // Fallback for browsers that block direct clipboard read.
+      const manual = window.prompt('Paste the text/number copied from Google Lens here:');
+      text = manual || '';
+    }
+
+    const value = chooseSearchValueFromText(text);
+    if (!value) {
+      showOcrToast('No PO number or vendor text found in copied text.');
+      return;
+    }
+
+    pastePoNumber(value);
+    showOcrToast(`Pasted: ${value}`);
+  }
+
   function bindScanButton(button) {
     if (!button || button.dataset.ocrBound === '1') return;
     button.dataset.ocrBound = '1';
@@ -783,10 +864,30 @@
     return button;
   }
 
+
+  function bindPasteButton(button) {
+    if (!button || button.dataset.ocrPasteBound === '1') return;
+    button.dataset.ocrPasteBound = '1';
+    button.addEventListener('click', pasteScannedTextFromClipboard);
+  }
+
+  function makePasteButton(id, compact) {
+    const button = document.createElement('button');
+    button.id = id;
+    button.type = 'button';
+    button.title = 'Paste text copied from Google Lens or Android text scan';
+    button.innerHTML = compact
+      ? '<i class="fa-solid fa-paste"></i> Paste'
+      : '<i class="fa-solid fa-paste"></i> Paste Scanned Text';
+    bindPasteButton(button);
+    return button;
+  }
+
   function insertButton() {
     // Correct location: Invoice Records mobile search card, under the PO/Vendor search field.
     // This is intentionally not placed in Invoice Entry.
     bindScanButton(document.getElementById(BUTTON_ID));
+    bindPasteButton(document.getElementById(PASTE_BUTTON_ID));
     if (!document.getElementById(BUTTON_ID)) {
       const recordsInput = document.getElementById('im-reporting-search');
       if (recordsInput) {
@@ -798,9 +899,22 @@
         }
       }
     }
+    if (!document.getElementById(PASTE_BUTTON_ID)) {
+      const recordsInput = document.getElementById('im-reporting-search');
+      if (recordsInput) {
+        const searchBox = recordsInput.closest('.search-box') || recordsInput.parentNode;
+        const anchor = document.getElementById(BUTTON_ID) || searchBox;
+        if (anchor) {
+          const pasteButton = makePasteButton(PASTE_BUTTON_ID, false);
+          pasteButton.classList.add('im-records-mobile-paste-btn');
+          anchor.insertAdjacentElement('afterend', pasteButton);
+        }
+      }
+    }
 
     // Correct visible mobile location: Invoice Records inline mobile search card.
     bindScanButton(document.getElementById(BUTTON_INLINE_ID));
+    bindPasteButton(document.getElementById(PASTE_INLINE_ID));
     if (!document.getElementById(BUTTON_INLINE_ID)) {
       const inlineTerm = document.getElementById('im-mobile-inline-search-term');
       if (inlineTerm) {
@@ -812,9 +926,21 @@
         }
       }
     }
+    if (!document.getElementById(PASTE_INLINE_ID)) {
+      const inlineTerm = document.getElementById('im-mobile-inline-search-term');
+      if (inlineTerm) {
+        const group = inlineTerm.closest('.form-group') || inlineTerm.parentNode;
+        if (group) {
+          const pasteButton = makePasteButton(PASTE_INLINE_ID, false);
+          pasteButton.classList.add('im-records-mobile-paste-btn', 'im-mobile-inline-paste-btn');
+          group.appendChild(pasteButton);
+        }
+      }
+    }
 
     // If the older Invoice Records mobile search modal is opened, support it too.
     bindScanButton(document.getElementById(BUTTON_BOTTOM_ID));
+    bindPasteButton(document.getElementById(PASTE_BOTTOM_ID));
     if (!document.getElementById(BUTTON_BOTTOM_ID)) {
       const mobileTerm = document.getElementById('im-mobile-search-term');
       if (mobileTerm) {
@@ -823,6 +949,17 @@
           const button = makeScanButton(BUTTON_BOTTOM_ID, true);
           button.classList.add('im-records-mobile-ocr-btn');
           group.appendChild(button);
+        }
+      }
+    }
+    if (!document.getElementById(PASTE_BOTTOM_ID)) {
+      const mobileTerm = document.getElementById('im-mobile-search-term');
+      if (mobileTerm) {
+        const group = mobileTerm.closest('.form-group') || mobileTerm.parentNode;
+        if (group) {
+          const pasteButton = makePasteButton(PASTE_BOTTOM_ID, true);
+          pasteButton.classList.add('im-records-mobile-paste-btn');
+          group.appendChild(pasteButton);
         }
       }
     }
@@ -846,5 +983,6 @@
   }
 
   window.openIMPoOcrScanner = openModal;
+  window.pasteIMScannedText = pasteScannedTextFromClipboard;
   window.initInvoicePoOcr = initInvoicePoOcr;
 })();
