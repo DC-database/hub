@@ -1,5 +1,5 @@
 // js/app-invoice-po-ocr.js
-// Version 8.4.1 — Invoice Records PO/LPO OCR Scanner with guide-box crop
+// Version 8.4.2 — Invoice Records PO/LPO OCR Scanner with focus + smaller guide-box crop
 // Purpose: Mobile Invoice Records camera text scan for printed PO/LPO numbers.
 // Privacy: Captured camera frames are processed in browser memory only.
 // No Firebase upload, no server upload, no phone gallery save.
@@ -15,6 +15,7 @@
 
   let stream = null;
   let isReading = false;
+  let torchEnabled = false;
 
   function injectStyles() {
     if (document.getElementById('im-po-ocr-style')) return;
@@ -98,7 +99,7 @@
         background: #0f172a;
         border-radius: 14px;
         overflow: hidden;
-        min-height: 240px;
+        min-height: 260px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -111,14 +112,29 @@
       }
       .im-po-ocr-guide {
         position: absolute;
-        left: 8%;
-        right: 8%;
-        top: 36%;
-        height: 26%;
+        left: 18%;
+        right: 18%;
+        top: 43%;
+        height: 14%;
         border: 3px solid rgba(34, 197, 94, 0.98);
-        border-radius: 10px;
-        box-shadow: 0 0 0 999px rgba(0,0,0,0.18);
+        border-radius: 8px;
+        box-shadow: 0 0 0 999px rgba(0,0,0,0.24);
         pointer-events: none;
+      }
+      .im-po-ocr-guide::before {
+        content: 'Keep PO/LPO here';
+        position: absolute;
+        left: 50%;
+        top: -26px;
+        transform: translateX(-50%);
+        color: #dcfce7;
+        background: rgba(15, 23, 42, 0.82);
+        border: 1px solid rgba(34, 197, 94, 0.7);
+        border-radius: 999px;
+        padding: 3px 8px;
+        font-size: 0.72rem;
+        font-weight: 800;
+        white-space: nowrap;
       }
       .im-po-ocr-actions {
         display: flex;
@@ -133,7 +149,9 @@
         font-weight: 700;
         cursor: pointer;
       }
-      #im-po-ocr-read-btn { background: #16a34a; color: #fff; flex: 1; }
+      #im-po-ocr-read-btn { background: #16a34a; color: #fff; flex: 1 1 100%; }
+      #im-po-ocr-refocus-btn { background: #0ea5e9; color: #fff; }
+      #im-po-ocr-torch-btn { background: #f59e0b; color: #111827; }
       #im-po-ocr-search-btn { background: #00748C; color: #fff; }
       #im-po-ocr-scan-again-btn { background: #e2e8f0; color: #0f172a; }
       #im-po-ocr-cancel-btn { background: #64748b; color: #fff; }
@@ -213,7 +231,7 @@
           <button type="button" class="im-po-ocr-close" id="im-po-ocr-close-btn" aria-label="Close">&times;</button>
         </div>
         <div class="im-po-ocr-body">
-          <p class="im-po-ocr-hint">Point the camera at the printed <strong>P.O. Number</strong>, <strong>PO Number</strong>, or <strong>LPO</strong>. Keep only the number or vendor text inside the green box, then tap <strong>Read PO</strong>. The OCR reads only that green-box area.</p>
+          <p class="im-po-ocr-hint">Point the camera at the printed <strong>P.O. Number</strong>, <strong>PO Number</strong>, or <strong>LPO</strong>. Keep only the target line inside the smaller green box, then tap <strong>Read PO</strong>. Use <strong>Refocus</strong> if the camera looks blurry.</p>
           <div class="im-po-ocr-video-wrap">
             <video id="im-po-ocr-video" playsinline autoplay muted></video>
             <div class="im-po-ocr-guide"></div>
@@ -221,6 +239,8 @@
           <canvas id="im-po-ocr-canvas" class="hidden"></canvas>
           <div class="im-po-ocr-actions">
             <button type="button" id="im-po-ocr-read-btn"><i class="fa-solid fa-wand-magic-sparkles"></i> Read PO</button>
+            <button type="button" id="im-po-ocr-refocus-btn"><i class="fa-solid fa-crosshairs"></i> Refocus</button>
+            <button type="button" id="im-po-ocr-torch-btn" class="hidden"><i class="fa-solid fa-lightbulb"></i> Light</button>
             <button type="button" id="im-po-ocr-search-btn" class="hidden"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
             <button type="button" id="im-po-ocr-scan-again-btn" class="hidden">Scan Again</button>
             <button type="button" id="im-po-ocr-cancel-btn">Cancel</button>
@@ -235,6 +255,8 @@
     modal.querySelector('#im-po-ocr-close-btn').addEventListener('click', closeModal);
     modal.querySelector('#im-po-ocr-cancel-btn').addEventListener('click', closeModal);
     modal.querySelector('#im-po-ocr-read-btn').addEventListener('click', readCurrentFrame);
+    modal.querySelector('#im-po-ocr-refocus-btn').addEventListener('click', refocusCamera);
+    modal.querySelector('#im-po-ocr-torch-btn').addEventListener('click', toggleTorch);
     modal.querySelector('#im-po-ocr-scan-again-btn').addEventListener('click', resetForScanAgain);
     modal.querySelector('#im-po-ocr-search-btn').addEventListener('click', () => {
       const searchButton = document.getElementById('im-reporting-search-btn') || document.getElementById('im-mobile-search-run-btn');
@@ -283,8 +305,13 @@
       stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: 'environment' },
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          advanced: [
+            { focusMode: 'continuous' },
+            { exposureMode: 'continuous' },
+            { whiteBalanceMode: 'continuous' }
+          ]
         },
         audio: false
       });
@@ -293,7 +320,8 @@
         video.srcObject = stream;
         await video.play().catch(() => {});
       }
-      setStatus('Camera is ready. Put only the PO/LPO number or vendor text inside the green box, then tap Read PO.');
+      await applyCameraImprovements(false);
+      setStatus('Camera is ready. Put only the PO/LPO number or vendor text inside the smaller green box, then tap Read PO.');
     } catch (error) {
       console.error('[PO OCR] Camera error:', error);
       setStatus('Camera permission failed. Please allow camera access and try again.');
@@ -312,6 +340,8 @@
       stream.getTracks().forEach(track => track.stop());
       stream = null;
     }
+    torchEnabled = false;
+    updateTorchButton(false);
     const video = document.getElementById('im-po-ocr-video');
     if (video) video.srcObject = null;
   }
@@ -335,9 +365,91 @@
     if (readBtn) readBtn.classList.remove('hidden');
     clearCanvas();
     setReadingUI(false);
-    if (keepMessage) setStatus('Ready. Aim the green box at the PO/LPO number or vendor text, then tap Read PO.');
+    if (keepMessage) setStatus('Ready. Aim the smaller green box at the PO/LPO number or vendor text, then tap Read PO.');
   }
 
+  function getVideoTrack() {
+    return stream ? stream.getVideoTracks()[0] : null;
+  }
+
+  function updateTorchButton(isSupported) {
+    const torchBtn = document.getElementById('im-po-ocr-torch-btn');
+    if (!torchBtn) return;
+    torchBtn.classList.toggle('hidden', !isSupported);
+    torchBtn.innerHTML = torchEnabled
+      ? '<i class="fa-solid fa-lightbulb"></i> Light On'
+      : '<i class="fa-solid fa-lightbulb"></i> Light';
+  }
+
+  async function applyCameraImprovements(showMessage = true) {
+    const track = getVideoTrack();
+    if (!track || !track.getCapabilities) return;
+    const capabilities = track.getCapabilities() || {};
+    const advanced = [];
+
+    // Supported on some Android Chrome devices. Unsupported keys are ignored/fail safely.
+    if (Array.isArray(capabilities.focusMode) && capabilities.focusMode.includes('continuous')) advanced.push({ focusMode: 'continuous' });
+    if (Array.isArray(capabilities.exposureMode) && capabilities.exposureMode.includes('continuous')) advanced.push({ exposureMode: 'continuous' });
+    if (Array.isArray(capabilities.whiteBalanceMode) && capabilities.whiteBalanceMode.includes('continuous')) advanced.push({ whiteBalanceMode: 'continuous' });
+
+    if (advanced.length && track.applyConstraints) {
+      try { await track.applyConstraints({ advanced }); } catch (error) { console.warn('[PO OCR] Camera improvement skipped:', error); }
+    }
+
+    updateTorchButton(Boolean(capabilities.torch));
+    if (showMessage) setStatus('Refocus requested. Hold steady, keep good light, then tap Read PO.');
+  }
+
+  async function refocusCamera() {
+    const track = getVideoTrack();
+    if (!track) {
+      setStatus('Camera is not ready yet.');
+      return;
+    }
+
+    await applyCameraImprovements(false);
+
+    // Some browsers do not expose manual focus. Restarting the stream often forces a fresh autofocus.
+    try {
+      setStatus('Refocusing camera...');
+      const video = document.getElementById('im-po-ocr-video');
+      stopStream();
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          advanced: [{ focusMode: 'continuous' }]
+        },
+        audio: false
+      });
+      if (video) {
+        video.srcObject = stream;
+        await video.play().catch(() => {});
+      }
+      await applyCameraImprovements(false);
+      setStatus('Refocus done. Hold steady and tap Read PO.');
+    } catch (error) {
+      console.warn('[PO OCR] Refocus restart failed:', error);
+      setStatus('Refocus was requested. If still blurry, move slightly closer/farther and try again.');
+    }
+  }
+
+  async function toggleTorch() {
+    const track = getVideoTrack();
+    if (!track || !track.getCapabilities || !track.getCapabilities().torch || !track.applyConstraints) return;
+    try {
+      torchEnabled = !torchEnabled;
+      await track.applyConstraints({ advanced: [{ torch: torchEnabled }] });
+      updateTorchButton(true);
+      setStatus(torchEnabled ? 'Light is on. Aim at the PO/LPO line and tap Read PO.' : 'Light is off.');
+    } catch (error) {
+      torchEnabled = false;
+      updateTorchButton(false);
+      console.warn('[PO OCR] Torch not available:', error);
+      setStatus('Light control is not supported on this phone/browser.');
+    }
+  }
 
   function getGuideCrop(video) {
     const guide = document.querySelector('.im-po-ocr-guide');
@@ -380,15 +492,15 @@
     let rh = (iy2 - iy1) / contentHeight;
 
     if (!isFinite(rx) || !isFinite(ry) || !isFinite(rw) || !isFinite(rh) || rw <= 0 || rh <= 0) {
-      rx = 0.08;
-      ry = 0.36;
-      rw = 0.84;
-      rh = 0.26;
+      rx = 0.18;
+      ry = 0.43;
+      rw = 0.64;
+      rh = 0.14;
     }
 
     // Small margin helps when the user places text near the green border, but still keeps OCR focused.
-    const marginX = rw * 0.04;
-    const marginY = rh * 0.10;
+    const marginX = rw * 0.025;
+    const marginY = rh * 0.08;
     rx = Math.max(0, rx - marginX);
     ry = Math.max(0, ry - marginY);
     rw = Math.min(1 - rx, rw + marginX * 2);
