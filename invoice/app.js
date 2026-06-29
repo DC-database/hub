@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '8.3.5';
+const APP_VERSION = '8.9.6';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -2260,120 +2260,141 @@ async function handleDeleteJobEntry(e) {
 // UPDATED FUNCTION: handleUpdateJobEntry (Fixed "Gio" Bug + Fixed "Undefined" Crash)
 // ==========================================================================
 async function handleUpdateJobEntry(e) {
-    if(e) e.preventDefault(); // Safety check if 'e' exists
-    
+    if (e) e.preventDefault();
+
     if (!currentlyEditingKey) {
         alert("No entry selected for update.");
         return;
     }
 
-    // 1. Disable button
-    const btn = document.getElementById('update-job-btn');
-    if(btn) {
+    const btn = document.getElementById('update-job-button');
+    if (btn) {
         btn.disabled = true;
         btn.textContent = 'Saving...';
     }
 
-    // 2. Get Data
-    // We assume this function exists in your system as per your previous code
     const jobData = typeof getJobDataFromForm === 'function' ? getJobDataFromForm() : null;
-
-    // Fallback if getJobDataFromForm isn't available (Safety)
     if (!jobData) {
-        // Try to grab manually if the helper function is missing
         console.warn("getJobDataFromForm not found, check your code.");
-        if(btn) { btn.disabled = false; btn.textContent = 'Update'; }
-        return; 
-    }
-
-    try { await ensureApproverDataCached(true); } catch (e) { /* ignore */ }
-
-    // --- YOUR CUSTOM INVOICE LOGIC (Preserved) ---
-    if (jobData.for === 'Invoice') {
-        jobData.remarks = 'New Entry'; 
-        // Set attention to current handler (Irwin or vacation replacement)
-        const handler = getInvoiceHandlerName();
-        jobData.attention = (typeof resolveVacationAssignee === 'function') ? resolveVacationAssignee(handler) : handler;
-    }
-
-    // 3. Validation
-    if (!jobData.for || !jobData.site || !jobData.group) {
-        alert('Please fill in Job, Site, and Group.');
-        if(btn) { btn.disabled = false; btn.textContent = 'Update'; }
+        if (btn) { btn.disabled = false; btn.textContent = 'Update'; }
         return;
     }
-    
+
+    const normalizeJobType = (value) => String(value || '').trim();
+    const getInvoiceHandlerSafe = () => {
+        let handler = '';
+        if (typeof getInvoiceHandlerName === 'function') {
+            handler = getInvoiceHandlerName();
+        } else if (typeof getAccountingUser === 'function') {
+            handler = getAccountingUser();
+        }
+        handler = String(handler || '').trim() || 'Accounting';
+        return (typeof resolveVacationAssignee === 'function') ? resolveVacationAssignee(handler) : handler;
+    };
+
+    try { await ensureApproverDataCached(true); } catch (err) { /* non-blocking */ }
+
+    const newJobType = normalizeJobType(jobData.for);
+
+    // 8.7.0: Robust IPC/Job Record -> Invoice conversion.
+    // Invoice job records must always go back to Accounting/Invoice handler as a fresh
+    // New Entry task. Old IPC dateResponded/status values must not make it look complete.
+    if (newJobType === 'Invoice') {
+        jobData.for = 'Invoice';
+        jobData.remarks = 'New Entry';
+        jobData.status = 'New Entry';
+        jobData.attention = getInvoiceHandlerSafe();
+    }
+
+    if (!jobData.for || !jobData.site || !jobData.group) {
+        alert('Please fill in Job, Site, and Group.');
+        if (btn) { btn.disabled = false; btn.textContent = 'Update'; }
+        return;
+    }
+
     if (jobData.for !== 'Invoice' && !jobData.attention) {
         alert('Please select an Attention user.');
-        if(btn) { btn.disabled = false; btn.textContent = 'Update'; }
+        if (btn) { btn.disabled = false; btn.textContent = 'Update'; }
         return;
     }
 
     try {
-        await ensureAllEntriesFetched();
+        await ensureAllEntriesFetched(true);
         const originalEntry = allSystemEntries.find(entry => entry.key === currentlyEditingKey);
+        const originalJobType = normalizeJobType(originalEntry?.for || originalEntry?.jobType || '');
+        const convertedToInvoice = !!originalEntry && originalJobType !== 'Invoice' && jobData.for === 'Invoice';
 
         if (originalEntry) {
-            // --- CRITICAL FIX START ---
-            // We verify 'enteredBy' exists. If not, we fallback to 'System' or You.
-            // This prevents the "values argument contains undefined" error.
             const currentUser = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover.Name : 'System';
             jobData.enteredBy = originalEntry.enteredBy || currentUser;
-            
             jobData.timestamp = originalEntry.timestamp || firebase.database.ServerValue.TIMESTAMP;
-            // --- CRITICAL FIX END ---
-            
-            // If the user didn't change the Date field manually, keep original
-            if(!jobData.date) jobData.date = originalEntry.date;
+            if (!jobData.date) jobData.date = originalEntry.date;
 
-            // Handle "Date Responded" Reset Logic
-            if (jobData.attention !== originalEntry.attention) {
-                jobData.dateResponded = null; 
+            if (convertedToInvoice) {
+                // Critical: do not carry IPC/old response state into the new Invoice task.
+                jobData.dateResponded = null;
+                jobData.invoiceConvertedFrom = originalJobType || 'Job Record';
+                jobData.invoiceConvertedAt = firebase.database.ServerValue.TIMESTAMP;
+                jobData.invoiceConvertedBy = currentUser;
+            } else if (jobData.attention !== originalEntry.attention) {
+                jobData.dateResponded = null;
             } else {
                 if (typeof currentApprover !== 'undefined' && currentApprover.Name === jobData.attention && !originalEntry.dateResponded) {
-                     // Format date safely
-                     const today = new Date();
-                     jobData.dateResponded = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, '0') + "-" + String(today.getDate()).padStart(2, '0');
+                    const today = new Date();
+                    jobData.dateResponded = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, '0') + "-" + String(today.getDate()).padStart(2, '0');
                 } else {
                     jobData.dateResponded = originalEntry.dateResponded || null;
                 }
             }
         } else {
-            // Fallback if original not found
-             const currentUser = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover.Name : 'System';
-             jobData.enteredBy = currentUser;
-             jobData.timestamp = firebase.database.ServerValue.TIMESTAMP;
+            const currentUser = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover.Name : 'System';
+            jobData.enteredBy = currentUser;
+            jobData.timestamp = firebase.database.ServerValue.TIMESTAMP;
+            if (jobData.for === 'Invoice') jobData.dateResponded = null;
         }
 
-        // 4. Update Database
         await db.ref(`job_entries/${currentlyEditingKey}`).update(jobData);
 
-        // 5. Log History
         const updaterName = (typeof currentApprover !== 'undefined') ? currentApprover.Name : "System";
         const historyEntry = {
-            action: "Updated",
+            action: convertedToInvoice ? "Converted to Invoice" : "Updated",
             by: updaterName,
             timestamp: Date.now(),
             status: jobData.remarks || "Updated",
-            note: `Updated Attention to: ${jobData.attention}`
+            note: convertedToInvoice
+                ? `Converted from ${originalJobType || 'Job Record'} to Invoice and routed to: ${jobData.attention}`
+                : `Updated Attention to: ${jobData.attention}`
         };
         await db.ref(`job_entries/${currentlyEditingKey}/history`).push(historyEntry);
 
-        alert('Job Updated Successfully!');
+        alert(convertedToInvoice ? 'Job converted to Invoice successfully!' : 'Job Updated Successfully!');
 
-        // 6. Refresh UI
+        // Force all affected WorkDesk lists/cards to refresh after bucket changes.
+        allSystemEntries = [];
+        if (typeof cacheTimestamps !== 'undefined') {
+            cacheTimestamps.systemEntries = 0;
+            cacheTimestamps.invoiceData = 0;
+        }
+
+        try {
+            sessionStorage.removeItem('IBA_ACTIVE_TASK_WORKDESK_SNAPSHOT_V1');
+            localStorage.removeItem('IBA_WD_ACTIVE_DASHBOARD_CACHE_V1');
+            if (typeof wdClearWorkdeskDashboardCache === 'function') wdClearWorkdeskDashboardCache();
+        } catch (_) {}
+
         await ensureAllEntriesFetched(true);
-        
+
         const currentSearch = sessionStorage.getItem('jobEntrySearch') || '';
-        if(typeof handleJobEntrySearch === 'function') handleJobEntrySearch(currentSearch);
-        if(typeof populateActiveTasks === 'function') populateActiveTasks();
+        if (typeof handleJobEntrySearch === 'function') handleJobEntrySearch(currentSearch);
+        if (typeof populateActiveTasks === 'function') await populateActiveTasks(true);
+        if (typeof populateWorkdeskDashboard === 'function') await populateWorkdeskDashboard(true);
         if (typeof closeStandardJobModal === 'function') closeStandardJobModal();
 
     } catch (error) {
         console.error("Error updating job:", error);
         alert('Failed to update. Check console for details.');
     } finally {
-        if(btn) { btn.disabled = false; btn.textContent = 'Update'; }
+        if (btn) { btn.disabled = false; btn.textContent = 'Update'; }
     }
 }
 
@@ -3495,8 +3516,15 @@ async function handleUpdateInvoice(e) {
     const newStatus = invoiceData.status;
     const oldStatus = originalInvoiceData ? originalInvoiceData.status : '';
 
-    if (newStatus === 'With Accounts' && oldStatus !== 'With Accounts') {
+    // v8.5.7: Release Date drives department/status duration history.
+    // Update it only when the invoice moves to a different status, not when
+    // saving the same status again. Applies to all statuses, including With Accounts.
+    const normalizedNewStatus = String(newStatus || '').trim();
+    const normalizedOldStatus = String(oldStatus || '').trim();
+    if (normalizedNewStatus && normalizedOldStatus && normalizedNewStatus !== normalizedOldStatus) {
         invoiceData.releaseDate = getTodayDateString();
+    } else if (originalInvoiceData && originalInvoiceData.releaseDate && !String(invoiceData.releaseDate || '').trim()) {
+        invoiceData.releaseDate = originalInvoiceData.releaseDate;
     }
 
     const srvNameLower = (invoiceData.srvName || '').toLowerCase();
@@ -4062,6 +4090,17 @@ async function handleSaveBatchInvoices() {
         // 5. SAVE & CACHE LOGIC
         if (existingKey) {
             const originalInvoice = (allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][existingKey]) ? allInvoiceData[poNumber][existingKey] : {};
+
+            // v8.5.7: Batch Entry releaseDate must follow the same history rule as Invoice Entry.
+            // Per-row and Global Override updates refresh Release Date only when status changes.
+            const originalBatchStatus = String(originalInvoice.status || '').trim();
+            const finalBatchStatus = String(invoiceData.status || '').trim();
+            if (originalBatchStatus && finalBatchStatus && originalBatchStatus !== finalBatchStatus) {
+                invoiceData.releaseDate = getTodayDateString();
+            } else if (originalInvoice.releaseDate && !String(invoiceData.releaseDate || '').trim()) {
+                invoiceData.releaseDate = originalInvoice.releaseDate;
+            }
+
             try {
                 const origVendor = originalInvoice.vendor_name || originalInvoice.vendorName || originalInvoice.vendor || '';
                 const origSite = originalInvoice.site_name || originalInvoice.site || originalInvoice.siteName || '';
@@ -4081,11 +4120,15 @@ async function handleSaveBatchInvoices() {
 
             invoiceData.updatedAt = firebase.database.ServerValue.TIMESTAMP;
             invoiceData.updatedBy = currentUserName;
+            const statusChangedForHistory = (originalBatchStatus && finalBatchStatus && originalBatchStatus !== finalBatchStatus);
             const p = invoiceDb.ref(`invoice_entries/${poNumber}/${existingKey}`).update(invoiceData);
             savePromises.push(p);
             
             const updatedFullData = { ...originalInvoice, ...invoiceData };
             savePromises.push(p.then(() => updateInvoiceTaskLookup(poNumber, existingKey, updatedFullData, originalInvoice.attention)));
+            if (statusChangedForHistory && window.logInvoiceHistory) {
+                savePromises.push(p.then(() => window.logInvoiceHistory(poNumber, existingKey, finalBatchStatus, invoiceData.note || 'Updated via Batch Entry')));
+            }
             updatedInvoicesCount++;
             
             if (allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][existingKey]) {
@@ -4105,6 +4148,9 @@ async function handleSaveBatchInvoices() {
             const p = newRef.set(invoiceData);
             savePromises.push(p);
             savePromises.push(p.then(() => updateInvoiceTaskLookup(poNumber, newKey, invoiceData, null)));
+            if (window.logInvoiceHistory) {
+                savePromises.push(p.then(() => window.logInvoiceHistory(poNumber, newKey, invoiceData.status, 'Initial Entry via Batch Entry')));
+            }
             newInvoicesCount++;
 
             if (!allInvoiceData) allInvoiceData = {};
@@ -4407,13 +4453,13 @@ async function handleUpdateSummaryChanges(sendToAccounts = false) {
 
                 const updates = {
                     details: newDetails,
-                    invoiceDate: newInvoiceDate,
-                    releaseDate: today
+                    invoiceDate: newInvoiceDate
                 };
 
                 if (newGlobalStatus) {
                     updates.status = newGlobalStatus;
                     if (newGlobalStatus !== originalStatus) {
+                        updates.releaseDate = today;
                         updates.updatedAt = Date.now();
                     }
                 }
@@ -4424,7 +4470,12 @@ async function handleUpdateSummaryChanges(sendToAccounts = false) {
 
                 if (newGlobalStatus === 'With Accounts') updates.attention = '';
 
-                updatePromises.push(invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}`).update(updates));
+                const statusChangedForSummaryHistory = !!(newGlobalStatus && newGlobalStatus !== originalStatus);
+                const updatePromise = invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}`).update(updates);
+                updatePromises.push(updatePromise);
+                if (statusChangedForSummaryHistory && window.logInvoiceHistory) {
+                    updatePromises.push(updatePromise.then(() => window.logInvoiceHistory(poNumber, invoiceKey, newGlobalStatus, 'Updated via Summary Note')));
+                }
                 localCacheUpdates.push({
                     po: poNumber,
                     key: invoiceKey,
@@ -4846,6 +4897,109 @@ document.addEventListener('DOMContentLoaded', async () => {
 document.querySelectorAll('.sidebar-version-display').forEach(el => {
         el.textContent = `V ${APP_VERSION}`;
     });
+
+    // 8.6.4: Welcome screen time-based greeting + single date display.
+    // Local-only display. No Firebase reads and no navigation logic changes.
+    const refreshWelcomePremiumDetails = () => {
+        try {
+            const greetingEl = document.getElementById('welcome-time-greeting');
+            const nameEl = document.getElementById('welcome-person-name');
+            const dateEl = document.getElementById('welcome-current-date');
+            const quoteEl = document.getElementById('welcome-daily-quote');
+            const panelDateEl = document.getElementById('welcome-panel-date');
+            const panelSubEl = document.getElementById('welcome-panel-sub');
+
+            const pickPersonName = (obj) => {
+                if (!obj) return '';
+                return obj.Name || obj.name || obj.FullName || obj.fullName || obj.DisplayName || obj.displayName || obj.UserName || obj.username || obj.User || obj.user || obj['User Name'] || '';
+            };
+            const nameCandidates = [
+                (typeof currentApprover !== 'undefined') ? pickPersonName(currentApprover) : '',
+                pickPersonName(window.currentApprover),
+                localStorage.getItem('IBA_LAST_USER_NAME') || '',
+                localStorage.getItem('approverName') || '',
+                localStorage.getItem('userName') || '',
+                localStorage.getItem('loggedInUserName') || '',
+                document.getElementById('dashboard-username')?.textContent || '',
+                document.getElementById('wd-username')?.textContent || '',
+                document.getElementById('im-username')?.textContent || ''
+            ];
+            let cleanName = 'User';
+            for (const candidate of nameCandidates) {
+                const cleaned = String(candidate || '')
+                    .replace(/V\s*\d+(?:\.\d+)+/gi, '')
+                    .replace(/User Name/gi, '')
+                    .trim();
+                if (cleaned && cleaned.toLowerCase() !== 'user' && cleaned !== '-') {
+                    cleanName = cleaned;
+                    break;
+                }
+            }
+            try { if (cleanName && cleanName !== 'User') localStorage.setItem('IBA_LAST_USER_NAME', cleanName); } catch (_) {}
+
+            const now = new Date();
+            const hour = now.getHours();
+            const greeting = hour < 12 ? 'Good morning' : (hour < 17 ? 'Good afternoon' : 'Good evening');
+            const fullDate = now.toLocaleDateString('en-QA', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            const timeText = now.toLocaleTimeString('en-QA', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            });
+
+            const quotes = [
+                'A clear record today prevents confusion tomorrow.',
+                'Small accurate updates keep the whole project moving.',
+                'Good work is easier when every task has a clear owner.',
+                'Finish the step in front of you, and the flow becomes lighter.',
+                'Organized records are quiet proof of good teamwork.',
+                'Progress becomes visible when every update is done properly.',
+                'The best system is the one people can trust every day.'
+            ];
+            const start = new Date(now.getFullYear(), 0, 0);
+            const dayNo = Math.floor((now - start) / 86400000);
+            const quote = quotes[Math.abs(dayNo) % quotes.length];
+
+            if (greetingEl) greetingEl.textContent = greeting;
+            if (nameEl) nameEl.textContent = cleanName;
+            if (dateEl) dateEl.textContent = '';
+            if (quoteEl) quoteEl.textContent = quote;
+            if (panelDateEl) panelDateEl.textContent = fullDate;
+            if (panelSubEl) {
+                panelSubEl.textContent = timeText;
+                panelSubEl.classList.add('welcome-panel-time');
+                panelSubEl.setAttribute('aria-label', 'Current system time');
+            }
+        } catch (e) {
+            console.warn('Welcome details refresh skipped:', e);
+        }
+    };
+
+    window.refreshWelcomePremiumDetails = refreshWelcomePremiumDetails;
+    refreshWelcomePremiumDetails();
+    setTimeout(refreshWelcomePremiumDetails, 250);
+    setTimeout(refreshWelcomePremiumDetails, 1200);
+    if (!window.__ibaWelcomeClockInterval) {
+        window.__ibaWelcomeClockInterval = setInterval(refreshWelcomePremiumDetails, 1000);
+    }
+
+    if (typeof window.showView === 'function' && !window.__ibaWelcomeShowViewWrapped) {
+        window.__ibaWelcomeShowViewWrapped = true;
+        const __ibaOriginalShowView = window.showView;
+        window.showView = function(viewName, ...args) {
+            const result = __ibaOriginalShowView.call(this, viewName, ...args);
+            if (String(viewName || '').toLowerCase() === 'dashboard') {
+                setTimeout(refreshWelcomePremiumDetails, 50);
+            }
+            return result;
+        };
+    }
 
 
 // --- Quick Copy Shortcuts (Double-click to copy) ---
@@ -6160,3 +6314,59 @@ try {
 }); // END OF DOMCONTENTLOADED
 
 // #endregion BLOCK 31 — IM HELP CENTER MOVED
+
+
+// =================================================================================================
+// v8.6.11 — WorkDesk darker theme v2 + modal header targeting (UI only)
+// Keeps the dashboard as an executive/reference view without adding extra Firebase reads.
+// =================================================================================================
+(function () {
+    function ensureInvoiceDashboardReferenceNote() {
+        const dash = document.getElementById('im-dashboard');
+        if (!dash) return;
+
+        // This dashboard is for Super Admin/reference review. Remove launcher tiles that duplicate the left menu.
+        dash.querySelectorAll('.im-dashboard-quick-actions').forEach(function (el) {
+            el.remove();
+        });
+
+        if (dash.querySelector('.im-dashboard-reference-note')) return;
+
+        const note = document.createElement('div');
+        note.className = 'im-dashboard-reference-note';
+        note.innerHTML = `
+            <div class="im-dashboard-reference-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <div>
+                <strong>Reference only — not an official record.</strong>
+                <span>The figures and results shown here are tentative calculations gathered from Epicore/internal data and may be incomplete or inaccurate. Use this dashboard only as an estimated overview, not as final proof or official financial record.</span>
+            </div>
+        `;
+
+        const hero = dash.querySelector('.im-dashboard-hero, .im-dashboard-standby-hero');
+        if (hero && hero.parentNode) {
+            hero.insertAdjacentElement('afterend', note);
+        } else {
+            dash.insertBefore(note, dash.firstChild || null);
+        }
+    }
+
+    function bootInvoiceDashboardUiGuard() {
+        ensureInvoiceDashboardReferenceNote();
+        const dash = document.getElementById('im-dashboard');
+        if (!dash || dash.dataset.referenceNoteObserver === '1') return;
+        dash.dataset.referenceNoteObserver = '1';
+        let timer = null;
+        const observer = new MutationObserver(function () {
+            clearTimeout(timer);
+            timer = setTimeout(ensureInvoiceDashboardReferenceNote, 80);
+        });
+        observer.observe(dash, { childList: true, subtree: true });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bootInvoiceDashboardUiGuard);
+    } else {
+        bootInvoiceDashboardUiGuard();
+    }
+    window.ensureInvoiceDashboardReferenceNote = ensureInvoiceDashboardReferenceNote;
+})();

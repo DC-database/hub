@@ -48,9 +48,16 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
 
-    <link rel="stylesheet" href="style.css?v=8.2.4">
-    <link rel="stylesheet" href="css/transfer_stock.css?v=8.2.6">
-    <link rel="stylesheet" href="css/mobile.css?v=8.2.6">
+    <link rel="stylesheet" href="style.css?v=8.9.6">
+    <link rel="stylesheet" href="css/transfer_stock.css?v=8.6.2">
+    <link rel="stylesheet" href="css/mobile.css?v=8.9.6">
+    <!-- 8.9.6 module split: page-specific desktop/mobile override layers -->
+    <link rel="stylesheet" href="css/workdesk-desktop.css?v=8.9.6">
+    <link rel="stylesheet" href="css/invoice-desktop.css?v=8.9.6">
+    <link rel="stylesheet" href="css/inventory-desktop.css?v=8.9.6">
+    <link rel="stylesheet" href="css/workdesk-mobile.css?v=8.9.6">
+    <link rel="stylesheet" href="css/invoice-mobile.css?v=8.9.6">
+    <link rel="stylesheet" href="css/inventory-mobile.css?v=8.9.6">
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -169,95 +176,79 @@
                 </header>
 
 
-<main class="dashboard-main">
-
-<style>
-    /* 🎬 MAGIC PAGE ENTRANCE TRANSITION 🎬 */
-
-    /* We add a comma-separated list of all your screen IDs here! */
-    #workdesk-view:not(.hidden),
-    #invoice-view:not(.hidden),
-    #im-view:not(.hidden),
-    #invoice-management-view:not(.hidden),
-    #im-invoice-entry:not(.hidden),
-    #inventory-view:not(.hidden) {
-        animation: smoothPageEntrance 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
-        transform-origin: center top !important;
-    }
-
-    @keyframes smoothPageEntrance {
-        0% {
-            opacity: 0;
-            transform: translateY(30px) scale(0.97);
-            filter: blur(3px);
-        }
-        100% {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-            filter: blur(0);
-        }
-    }
-</style>
-                    <div class="welcome-screen-buttons" style="display: flex; flex-direction: column; gap: 20px; align-items: center; justify-content: center; padding: 15px 0;">
-
-                        <div style="display: flex; gap: 20px; flex-wrap: nowrap; justify-content: center;">
-
-                            <button id="workdesk-button" class="glass-btn"
-                                    style="box-sizing: border-box; width: 120px; height: 120px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 600; color: #f8fafc; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; transition: all 0.3s ease; box-shadow: 0 8px 20px rgba(0,0,0,0.3); text-align: center; padding: 10px; flex-shrink: 0;"
-                                    onmouseenter="this.style.transform='translateY(-5px) scale(1.05)'; this.style.background='rgba(30, 41, 59, 0.8)'; this.style.borderColor='rgba(56, 189, 248, 0.5)'; this.style.boxShadow='0 12px 25px rgba(0,0,0,0.5)';"
-                                    onmouseleave="this.style.transform='translateY(0) scale(1)'; this.style.background='rgba(15, 23, 42, 0.6)'; this.style.borderColor='rgba(255, 255, 255, 0.1)'; this.style.boxShadow='0 8px 20px rgba(0,0,0,0.3)';">
-                                <i class="fa-solid fa-desktop" style="font-size: 1.6rem; color: #38bdf8; margin-bottom: 8px; filter: drop-shadow(0 0 8px rgba(56,189,248,0.4));"></i>
-                                WorkDesk
-                            </button>
-
-                            <button id="invoice-mgmt-button" class="glass-btn"
-                                    style="box-sizing: border-box; width: 120px; height: 120px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 600; color: #f8fafc; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; transition: all 0.3s ease; box-shadow: 0 8px 20px rgba(0,0,0,0.3); text-align: center; padding: 10px; line-height: 1.2; flex-shrink: 0;"
-                                    onmouseenter="this.style.transform='translateY(-5px) scale(1.05)'; this.style.background='rgba(30, 41, 59, 0.8)'; this.style.borderColor='rgba(74, 222, 128, 0.5)'; this.style.boxShadow='0 12px 25px rgba(0,0,0,0.5)';"
-                                    onmouseleave="this.style.transform='translateY(0) scale(1)'; this.style.background='rgba(15, 23, 42, 0.6)'; this.style.borderColor='rgba(255, 255, 255, 0.1)'; this.style.boxShadow='0 8px 20px rgba(0,0,0,0.3)';">
-                                <i class="fa-solid fa-file-invoice-dollar" style="font-size: 1.6rem; color: #4ade80; margin-bottom: 8px; filter: drop-shadow(0 0 8px rgba(74,222,128,0.4));"></i>
-                                Invoice<br>Mgt
-                            </button>
-
+<main class="dashboard-main welcome-premium-main">
+                    <section class="welcome-premium-hero" aria-label="Welcome launcher">
+                        <div class="welcome-premium-copy">
+                            <span class="welcome-eyebrow"><i class="fa-solid fa-building-columns"></i> IBA OPERATIONS PORTAL</span>
+                            <h1>Welcome to IBA System Management</h1>
+                            <p class="welcome-person-line"><span id="welcome-time-greeting">Good day</span>, <strong id="welcome-person-name">User</strong>.<span id="welcome-current-date" class="welcome-date-inline" aria-hidden="true"></span></p>
+                            <div class="welcome-quote-row" aria-label="Daily quote">
+                                <i class="fa-solid fa-quote-left"></i>
+                                <span id="welcome-daily-quote">A clear record today prevents confusion tomorrow.</span>
+                            </div>
                         </div>
-
-                        <div style="display: flex; gap: 15px; flex-wrap: nowrap; justify-content: center; width: 100%;">
-
-                            <a href="https://ibaport.site/Procure/" target="_blank" id="requisition-button" class="glass-btn"
-                                    style="box-sizing: border-box; width: 120px; height: 120px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 600; color: #f8fafc; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; transition: all 0.3s ease; box-shadow: 0 8px 20px rgba(0,0,0,0.3); text-align: center; padding: 10px; text-decoration: none; flex-shrink: 0;"
-                                    onmouseenter="this.style.transform='translateY(-5px) scale(1.05)'; this.style.background='rgba(30, 41, 59, 0.8)'; this.style.borderColor='rgba(251, 191, 36, 0.5)'; this.style.boxShadow='0 12px 25px rgba(0,0,0,0.5)';"
-                                    onmouseleave="this.style.transform='translateY(0) scale(1)'; this.style.background='rgba(15, 23, 42, 0.6)'; this.style.borderColor='rgba(255, 255, 255, 0.1)'; this.style.boxShadow='0 8px 20px rgba(0,0,0,0.3)';">
-                                <i class="fa-solid fa-clipboard-list" style="font-size: 1.6rem; color: #fbbf24; margin-bottom: 8px; filter: drop-shadow(0 0 8px rgba(251,191,36,0.4));"></i>
-                                Requisition
-                            </a>
-
-                            <button id="inventory-button" class="glass-btn"
-                                    style="box-sizing: border-box; width: 120px; height: 120px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 600; color: #f8fafc; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; transition: all 0.3s ease; box-shadow: 0 8px 20px rgba(0,0,0,0.3); text-align: center; padding: 10px; flex-shrink: 0;"
-                                    onmouseenter="this.style.transform='translateY(-5px) scale(1.05)'; this.style.background='rgba(30, 41, 59, 0.8)'; this.style.borderColor='rgba(192, 132, 252, 0.5)'; this.style.boxShadow='0 12px 25px rgba(0,0,0,0.5)';"
-                                    onmouseleave="this.style.transform='translateY(0) scale(1)'; this.style.background='rgba(15, 23, 42, 0.6)'; this.style.borderColor='rgba(255, 255, 255, 0.1)'; this.style.boxShadow='0 8px 20px rgba(0,0,0,0.3)';">
-                                <i class="fa-solid fa-boxes-stacked" style="font-size: 1.6rem; color: #c084fc; margin-bottom: 8px; filter: drop-shadow(0 0 8px rgba(192,132,252,0.4));"></i>
-                                Inventory
-                            </button>
-
-                            <a href="https://ibaport.site/Finance/" target="_blank" id="finance-report-button" class="glass-btn"
-                                   style="box-sizing: border-box; width: 120px; height: 120px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 600; color: #f8fafc; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; transition: all 0.3s ease; box-shadow: 0 8px 20px rgba(0,0,0,0.3); text-align: center; padding: 10px; line-height: 1.2; text-decoration: none; flex-shrink: 0;"
-                                   onmouseenter="this.style.transform='translateY(-5px) scale(1.05)'; this.style.background='rgba(30, 41, 59, 0.8)'; this.style.borderColor='rgba(45, 212, 191, 0.5)'; this.style.boxShadow='0 12px 25px rgba(0,0,0,0.5)';"
-                                   onmouseleave="this.style.transform='translateY(0) scale(1)'; this.style.background='rgba(15, 23, 42, 0.6)'; this.style.borderColor='rgba(255, 255, 255, 0.1)'; this.style.boxShadow='0 8px 20px rgba(0,0,0,0.3)';">
-                                <i class="fa-solid fa-chart-line" style="font-size: 1.6rem; color: #2dd4bf; margin-bottom: 8px; filter: drop-shadow(0 0 8px rgba(45,212,191,0.4));"></i>
-                                Financial<br>Report
-                            </a>
-
-                            <!-- NEW PO SYSTEM BUTTON GOES RIGHT HERE -->
-                            <a href="https://ibaport.site/PO/" target="_blank" id="po-system-button" class="glass-btn hidden"
-                                   style="box-sizing: border-box; width: 120px; height: 120px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 600; color: #f8fafc; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; transition: all 0.3s ease; box-shadow: 0 8px 20px rgba(0,0,0,0.3); text-align: center; padding: 10px; line-height: 1.2; text-decoration: none; flex-shrink: 0;"
-                                   onmouseenter="this.style.transform='translateY(-5px) scale(1.05)'; this.style.background='rgba(30, 41, 59, 0.8)'; this.style.borderColor='rgba(244, 63, 94, 0.5)'; this.style.boxShadow='0 12px 25px rgba(0,0,0,0.5)';"
-                                   onmouseleave="this.style.transform='translateY(0) scale(1)'; this.style.background='rgba(15, 23, 42, 0.6)'; this.style.borderColor='rgba(255, 255, 255, 0.1)'; this.style.boxShadow='0 8px 20px rgba(0,0,0,0.3)';">
-                                <i class="fa-solid fa-file-invoice" style="font-size: 1.6rem; color: #f43f5e; margin-bottom: 8px; filter: drop-shadow(0 0 8px rgba(244,63,94,0.4));"></i>
-                                PO System
-                            </a>
-
+                        <div class="welcome-premium-panel">
+                            <span class="welcome-panel-label">Today</span>
+                            <strong id="welcome-panel-date">Today</strong>
+                            <p id="welcome-panel-sub" class="welcome-panel-time">Loading time...</p>
                         </div>
+                    </section>
 
-                    </div>
+                    <section class="welcome-module-grid" aria-label="System modules">
+                        <button id="workdesk-button" class="welcome-module-card welcome-module-workdesk" type="button">
+                            <span class="welcome-module-icon"><i class="fa-solid fa-desktop"></i></span>
+                            <span class="welcome-module-text">
+                                <strong>WorkDesk</strong>
+                                <em>Tasks, approvals, job records, and control board.</em>
+                            </span>
+                            <span class="welcome-module-open">Open <i class="fa-solid fa-arrow-right"></i></span>
+                        </button>
+
+                        <button id="invoice-mgmt-button" class="welcome-module-card welcome-module-invoice" type="button">
+                            <span class="welcome-module-icon"><i class="fa-solid fa-file-invoice-dollar"></i></span>
+                            <span class="welcome-module-text">
+                                <strong>Invoice Management</strong>
+                                <em>Invoice entry, records, batch update, payments, and finance reports.</em>
+                            </span>
+                            <span class="welcome-module-open">Open <i class="fa-solid fa-arrow-right"></i></span>
+                        </button>
+
+                        <button id="inventory-button" class="welcome-module-card welcome-module-inventory" type="button">
+                            <span class="welcome-module-icon"><i class="fa-solid fa-boxes-stacked"></i></span>
+                            <span class="welcome-module-text">
+                                <strong>Inventory</strong>
+                                <em>Transfer, usage, restock, material stock, and waybill tools.</em>
+                            </span>
+                            <span class="welcome-module-open">Open <i class="fa-solid fa-arrow-right"></i></span>
+                        </button>
+
+                        <a href="https://ibaport.site/Procure/" target="_blank" id="requisition-button" class="welcome-module-card welcome-module-requisition" rel="noopener">
+                            <span class="welcome-module-icon"><i class="fa-solid fa-clipboard-list"></i></span>
+                            <span class="welcome-module-text">
+                                <strong>Requisition</strong>
+                                <em>Open procurement and requisition workspace.</em>
+                            </span>
+                            <span class="welcome-module-open">Open <i class="fa-solid fa-arrow-up-right-from-square"></i></span>
+                        </a>
+
+                        <a href="https://ibaport.site/Finance/" target="_blank" id="finance-report-button" class="welcome-module-card welcome-module-finance" rel="noopener">
+                            <span class="welcome-module-icon"><i class="fa-solid fa-chart-line"></i></span>
+                            <span class="welcome-module-text">
+                                <strong>Financial Report</strong>
+                                <em>Open the finance reporting workspace.</em>
+                            </span>
+                            <span class="welcome-module-open">Open <i class="fa-solid fa-arrow-up-right-from-square"></i></span>
+                        </a>
+
+                        <a href="https://ibaport.site/PO/" target="_blank" id="po-system-button" class="welcome-module-card welcome-module-po hidden" rel="noopener">
+                            <span class="welcome-module-icon"><i class="fa-solid fa-file-invoice"></i></span>
+                            <span class="welcome-module-text">
+                                <strong>PO System</strong>
+                                <em>Open purchase order system access.</em>
+                            </span>
+                            <span class="welcome-module-open">Open <i class="fa-solid fa-arrow-up-right-from-square"></i></span>
+                        </a>
+                    </section>
                 </main>
 
 
@@ -276,7 +267,7 @@
                 <p id="wd-user-identifier">user@iba.com.qa</p>
             </div>
 
-            <a href="#" id="back-to-dashboard-button" class="wd-back-button back-to-main-dashboard"><i class="fa-solid fa-arrow-left"></i> Welcome Screen</a>
+            <a href="#" id="back-to-dashboard-button" class="wd-back-button back-to-main-dashboard"><i class="fa-solid fa-arrow-left"></i> Main Portal</a>
 
             <nav id="workdesk-nav" class="workdesk-navigation">
                 <ul>
@@ -300,7 +291,7 @@
             </nav>
             <div class="workdesk-footer-nav">
                  <ul>
-                    <li id="workdesk-im-link-container" class="hidden" style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 10px;">
+                    <li id="workdesk-im-link-container" class="hidden" style="margin-top: 20px; border-top: 1px solid transparent; padding-top: 10px;">
                         <a href="#" id="workdesk-im-link"><i class="fa-solid fa-file-invoice-dollar"></i> Invoice Management</a>
                     </li>
                     <li><a href="#" id="wd-help-link"><i class="fa-solid fa-circle-question"></i> Help</a></li>
@@ -326,65 +317,37 @@
             <div id="workdesk-content-area">
 
                 <section id="wd-dashboard" class="workdesk-section">
-                    <h1>Dashboard</h1>
-
-                    <div class="dashboard-summary-cards">
-                        <div class="summary-card">
-                            <div class="card-icon" style="background-color: #ffc107;"><i class="fa-solid fa-list-check"></i></div>
-                            <div class="card-details">
-                                <span id="db-active-tasks-count" class="card-value">0</span>
-                                <span class="card-label">Total Active Tasks</span>
-                            </div>
+                    <div class="wd-control-center-hero">
+                        <div>
+                            <p class="wd-control-eyebrow">WorkDesk Control Center</p>
+                            <h1>Active Invoice Command Board</h1>
+                            <p class="wd-control-subtitle">See every invoice entry that still needs attention. Completed With Accounts records stay in Invoice Records, while this board focuses only on unfinished work.</p>
                         </div>
-                        <div class="summary-card">
-                            <div class="card-icon" style="background-color: #28a745;"><i class="fa-solid fa-check-double"></i></div>
-                            <div class="card-details">
-                                <span id="db-completed-tasks-count" class="card-value">0</span>
-                                <span class="card-label">Total Tasks Completed</span>
-                            </div>
+                        <button id="wd-active-dashboard-refresh" class="secondary-btn wd-dashboard-refresh-btn" type="button">
+                            <i class="fa-solid fa-rotate"></i> Refresh
+                        </button>
+                    </div>
+
+                    <div id="wd-active-dashboard-cards" class="wd-active-dashboard-cards">
+                        <div class="wd-dashboard-loading-card">
+                            <i class="fa-solid fa-spinner fa-spin"></i>
+                            Loading open tasks...
                         </div>
                     </div>
 
-                    <hr class="section-divider">
+                    <div class="wd-active-dashboard-toolbar">
+                        <div>
+                            <h2 id="wd-active-dashboard-title">All Open Tasks</h2>
+                            <p id="wd-active-dashboard-summary">Only incomplete invoice-related entries are shown.</p>
+                        </div>
+                        <div class="wd-active-dashboard-search-wrap">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input id="wd-active-dashboard-search" type="search" placeholder="Search PO, vendor, site, note, status...">
+                        </div>
+                    </div>
 
-                    <div id="wd-calendar-widget">
-                        <h2>Task Calendar</h2>
-                        <div class="wd-calendar-legend">
-                            <div class="legend-item">
-                                <span class="legend-color-dot status-red"></span> Active Task
-                            </div>
-                            <div class="legend-item">
-                                <span class="legend-color-dot status-yellow"></span> Pending Signature
-                            </div>
-                            <div class="legend-item legend-admin-only">
-                                <span class="legend-color-dot status-green"></span> View-Only (Admin)
-                            </div>
-                        </div>
-
-                        <div id="wd-calendar-container">
-                            <div id="wd-calendar-header">
-                                <button id="wd-calendar-toggle-view" title="Toggle Year/Month View">Year View</button>
-                                <button id="wd-calendar-prev" title="Previous month/year">&larr;</button>
-                                <h3 id="wd-calendar-month-year">Month Year</h3>
-                                <button id="wd-calendar-next" title="Next month/year">&rarr;</button>
-                            </div>
-                            <div id="wd-calendar-grid">
-                                <div class="wd-calendar-day-name">Sun</div>
-                                <div class="wd-calendar-day-name">Mon</div>
-                                <div class="wd-calendar-day-name">Tue</div>
-                                <div class="wd-calendar-day-name">Wed</div>
-                                <div class="wd-calendar-day-name">Thu</div>
-                                <div class="wd-calendar-day-name">Fri</div>
-                                <div class="wd-calendar-day-name">Sat</div>
-                            </div>
-                            <div id="wd-calendar-year-grid" class="hidden">
-                            </div>
-                        </div>
-                        <div id="wd-calendar-task-list">
-                            <h3 id="wd-calendar-task-list-title">Select a day to see tasks</h3>
-                            <ul id="wd-calendar-task-list-ul">
-                            </ul>
-                        </div>
+                    <div id="wd-active-dashboard-list" class="wd-active-dashboard-list">
+                        <div class="wd-dashboard-empty-state">Select a card to view tasks.</div>
                     </div>
                 </section>
 
@@ -465,17 +428,28 @@
         <h1>My Tasks</h1>
     </div>
 
-    <h1 class="hidden-mobile">Your Active Tasks <span id="active-task-count-display" class="table-count-display"></span></h1>
-
-    <div class="search-and-filter-group" style="display: flex; flex-wrap: nowrap; align-items: center; gap: 10px; max-width: 500px; margin-bottom: 20px;">
-        <div class="search-bar-local" style="margin-bottom: 0; flex-grow: 1; width: 100%;">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" id="active-task-search" placeholder="Type to search your active tasks..." style="margin-bottom: 0;">
+    <div class="wd-page-hero wd-page-hero-active hidden-mobile">
+        <div class="wd-page-hero-main">
+            <span class="wd-page-eyebrow"><i class="fa-solid fa-bolt"></i> WorkDesk Action Center</span>
+            <h1>Your Active Tasks</h1>
+            <p>Personal action queue with the documents, notes, status, and process buttons in one clean working view.</p>
         </div>
-        <button id="active-task-clear-button" class="secondary-btn" type="button" style="height: 45px; margin-bottom: 0; white-space: nowrap;">Clear</button>
+        <div class="wd-page-hero-metric">
+            <span id="active-task-count-display" class="table-count-display"></span>
+            <small>Live workload</small>
+        </div>
     </div>
 
-    <div id="active-task-filters" class="report-tabs" style="margin-bottom: 20px;"></div>
+    <div class="search-and-filter-group wd-premium-searchbar">
+        <div class="search-bar-local wd-search-field">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="active-task-search" placeholder="Search PO, vendor, site, note, status...">
+        </div>
+        <button id="active-task-clear-button" class="secondary-btn wd-clear-chip" type="button">Clear</button>
+    </div>
+
+    <div id="active-task-filters" class="report-tabs wd-premium-tabs"></div>
+    <div id="active-task-summary-strip" class="wd-mini-metrics hidden-mobile"></div>
 
     <div class="form-buttons-container" style="justify-content: flex-end; margin-bottom: 15px; min-height: 40px;">
 
@@ -549,20 +523,27 @@
                 </section>
 
 <section id="wd-reporting" class="workdesk-section hidden">
-    <h1>
-        Job Records
-        <span id="job-records-count-display" class="table-count-display"></span>
-    </h1>
-
-    <div class="search-and-filter-group" style="display: flex; flex-wrap: nowrap; align-items: center; gap: 10px; max-width: 500px; margin-bottom: 20px;">
-        <div class="search-bar-local" style="margin-bottom: 0; flex-grow: 1; width: 100%;">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" id="reporting-search" placeholder="Search entries..." style="margin-bottom: 0;">
+    <div class="wd-page-hero wd-page-hero-records hidden-mobile">
+        <div class="wd-page-hero-main">
+            <span class="wd-page-eyebrow"><i class="fa-solid fa-chart-line"></i> WorkDesk Records Center</span>
+            <h1>Job Records</h1>
+            <p>Searchable job history arranged for fast review by category, PO, site, vendor, attention, and current status.</p>
         </div>
-        <button id="reporting-clear-button" class="secondary-btn" type="button" style="height: 45px; margin-bottom: 0; white-space: nowrap;">Clear</button>
+        <div class="wd-page-hero-metric">
+            <span id="job-records-count-display" class="table-count-display"></span>
+            <small>Visible records</small>
+        </div>
     </div>
 
-<div class="report-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+    <div class="search-and-filter-group wd-premium-searchbar">
+        <div class="search-bar-local wd-search-field">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="reporting-search" placeholder="Search job, PO, vendor, site, attention, status...">
+        </div>
+        <button id="reporting-clear-button" class="secondary-btn wd-clear-chip" type="button">Clear</button>
+    </div>
+
+<div class="report-controls wd-records-controls">
 
         <div class="report-tabs-container" style="flex-grow: 1;">
             <div id="report-tabs" class="report-tabs"></div>
@@ -571,11 +552,13 @@
         <div style="display: flex; gap: 5px;">
             <!-- Inventory context only (desktop): Print In-Transit inventory report -->
             <select id="wd-inventory-intransit-contact-filter" style="display:none; height:45px; padding:0 10px; border-radius:8px; border:1px solid #cfcfcf; background:white; min-width:180px;"></select>
-            <button id="wd-inventory-intransit-report-btn" class="download-btn" type="button" style="display:none; background-color:#003A5C; color:white; height:45px; align-items:center; gap:8px;">
-                <i class="fa-solid fa-file-pdf"></i> In Transit PDF
+            <button id="wd-inventory-intransit-report-btn" class="download-btn" type="button" style="display:none; background-color:#4d0000; color:white; height:45px; align-items:center; gap:8px;">
+                <i class="fa-solid fa-file-pdf"></i> In Transit
             </button>
         </div>
     </div>
+
+    <div id="job-records-summary-strip" class="wd-mini-metrics hidden-mobile"></div>
 
     <div id="reporting-printable-area">
         <div class="table-wrapper">
@@ -602,12 +585,19 @@
 </section>
 
 <section id="wd-material-stock" class="workdesk-section hidden">
-    <h1>
-        Material Stock
-        <span id="ms-total-count" class="table-count-display"></span>
-    </h1>
+    <div class="wd-page-hero wd-page-hero-material">
+        <div class="wd-page-hero-main">
+            <span class="wd-page-eyebrow"><i class="fa-solid fa-boxes-stacked"></i> Inventory Stock Center</span>
+            <h1>Material Stock</h1>
+            <p>Clean material control view for item registration, stock balance, family filtering, transfer, usage, restock, and stock reports.</p>
+        </div>
+        <div class="wd-page-hero-metric">
+            <span id="ms-total-count" class="table-count-display"></span>
+            <small>Registered items</small>
+        </div>
+    </div>
 
-    <div class="report-controls" style="margin-bottom: 20px; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+    <div class="report-controls ms-premium-toolbar" style="margin-bottom: 20px; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
         <div style="display: flex; gap: 5px;">
             <button id="ms-add-new-btn" style="background-color: #00748C;"><i class="fa-solid fa-plus"></i> Register New Material</button>
             <button id="ms-upload-csv-btn" class="secondary-btn"><i class="fa-solid fa-file-csv"></i> Upload</button>
@@ -620,7 +610,7 @@
         </div>
     </div>
 
-    <div id="ms-search-container" style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 15px; gap: 20px;">
+    <div id="ms-search-container" class="ms-premium-searchbar" style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 15px; gap: 20px;">
         <div style="display: flex; gap: 10px; align-items: center; flex-grow: 1; max-width: 50%;">
             <div class="search-bar-local" style="flex-grow: 1; margin-bottom: 0; position: relative; height: 40px;">
                 <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #888;"></i>
@@ -632,23 +622,23 @@
         </div>
 
         <div style="display: flex; gap: 5px; align-items: center;">
-            <button onclick="openTransferModal('Transfer')" style="background-color: #17a2b8; color: white; padding: 0 15px; border: none; border-radius: 4px; cursor: pointer; height: 40px; display: flex; align-items: center; gap: 5px; font-weight: 600;">
+            <button id="ms-transfer-action-btn" class="ms-stock-action-btn" onclick="openTransferModal('Transfer')" style="background:#4d0000; color:#ffffff; padding:0 18px; border:1px solid rgba(77,0,0,0.35); border-radius:14px; cursor:pointer; height:40px; display:flex; align-items:center; gap:7px; font-weight:900; box-shadow:0 8px 18px rgba(77,0,0,0.16);">
                 <i class="fa-solid fa-arrow-right-arrow-left"></i> Transfer
             </button>
-            <button onclick="openTransferModal('Restock')" style="background-color: #28a745; color: white; padding: 0 15px; border: none; border-radius: 4px; cursor: pointer; height: 40px; display: flex; align-items: center; gap: 5px; font-weight: 600;">
+            <button id="ms-restock-action-btn" class="ms-stock-action-btn" onclick="openTransferModal('Restock')" style="background:#4d0000; color:#ffffff; padding:0 18px; border:1px solid rgba(77,0,0,0.35); border-radius:14px; cursor:pointer; height:40px; display:flex; align-items:center; gap:7px; font-weight:900; box-shadow:0 8px 18px rgba(77,0,0,0.16);">
                 <i class="fa-solid fa-boxes-packing"></i> Restock
             </button>
-            <button onclick="openTransferModal('Usage')" style="background-color: #6f42c1; color: white; padding: 0 15px; border: none; border-radius: 4px; cursor: pointer; height: 40px; display: flex; align-items: center; gap: 5px; font-weight: 600;">
+            <button id="ms-usage-action-btn" class="ms-stock-action-btn" onclick="openTransferModal('Usage')" style="background:#4d0000; color:#ffffff; padding:0 18px; border:1px solid rgba(77,0,0,0.35); border-radius:14px; cursor:pointer; height:40px; display:flex; align-items:center; gap:7px; font-weight:900; box-shadow:0 8px 18px rgba(77,0,0,0.16);">
                 <i class="fa-solid fa-screwdriver-wrench"></i> Usage
             </button>
         </div>
     </div>
 
-    <div id="ms-category-tabs" class="report-tabs" style="margin-bottom: 15px; border-bottom: 2px solid #eee; overflow-x: auto; white-space: nowrap; display: flex; gap: 10px; padding-bottom: 5px;">
+    <div id="ms-category-tabs" class="report-tabs ms-premium-tabs" style="margin-bottom: 15px; border-bottom: 2px solid #eee; overflow-x: auto; white-space: nowrap; display: flex; gap: 10px; padding-bottom: 5px;">
         <span style="color:#999; font-style:italic; padding:10px;">Loading families...</span>
     </div>
 
-    <div class="table-wrapper">
+    <div class="table-wrapper ms-premium-tablewrap">
         <table id="ms-table">
            <thead>
                 <tr>
@@ -668,7 +658,7 @@
     </div>
 </section>
 
-<div id="ms-report-modal" class="modal-overlay hidden">
+<div id="ms-report-modal" class="modal-overlay hidden inventory-themed-modal">
     <div class="modal-container" style="max-width: 900px; height: 90vh; display: flex; flex-direction: column;">
         <div class="modal-header">
             <h2>Material Stock Report</h2>
@@ -734,7 +724,7 @@
 </div>
 
 <!-- Required Materials (Notepad) Modal -->
-<div id="ms-requestlist-modal" class="modal-overlay hidden">
+<div id="ms-requestlist-modal" class="modal-overlay hidden inventory-themed-modal">
     <div class="modal-container" style="max-width: 900px; height: 85vh; display: flex; flex-direction: column;">
         <div class="modal-header">
             <h2 style="margin:0;">Required Materials to Transfer</h2>
@@ -957,12 +947,12 @@
     <div id="invoice-management-view" class="hidden">
         <aside class="workdesk-sidebar">
             <div class="wd-user-profile">
-                <div class="wd-user-avatar"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+                <div class="wd-user-avatar"><i class="fa-solid fa-user"></i></div>
                 <h3 id="im-username">User Name</h3>
                 <p id="im-user-identifier">user@iba.com.qa</p>
             </div>
 
-            <a href="#" class="wd-back-button back-to-main-dashboard"><i class="fa-solid fa-arrow-left"></i> Welcome Screen</a>
+            <a href="#" class="wd-back-button back-to-main-dashboard"><i class="fa-solid fa-arrow-left"></i> Main Portal</a>
 
             <nav id="im-nav" class="workdesk-navigation">
                 <ul>
@@ -983,11 +973,11 @@
 
                     <li class="wd-nav-im-reporting-mobile"><a href="#" id="im-nav-reporting-link-mobile"><i class="fa-solid fa-chart-line"></i> Invoice Records</a></li>
 
-                    <li class="nav-section-divider im-nav-invoice-entry desktop-only-li" style="border-top: 1px solid rgba(255,255,255,0.3) !important;"><a href="#" data-section="im-invoice-entry"><i class="fa-solid fa-file-pen"></i> Invoice Entry</a></li>
+                    <li class="nav-section-divider im-nav-invoice-entry desktop-only-li" style="border-top: 1px solid transparent !important;"><a href="#" data-section="im-invoice-entry"><i class="fa-solid fa-file-pen"></i> Invoice Entry</a></li>
                     <li class="im-nav-batch-entry desktop-only-li"><a href="#" id="batch-entry-nav-link" data-section="im-batch-entry"><i class="fa-solid fa-file-excel"></i> Batch Entry</a></li>
                     <li class="im-nav-summary-note desktop-only-li"><a href="#" id="summary-note-nav-link" data-section="im-summary-note"><i class="fa-solid fa-receipt"></i> Summary Note</a></li>
 
-                    <li class="nav-section-divider im-nav-payments desktop-only-li" style="border-top: 1px solid rgba(255,255,255,0.3) !important;"><a href="#" id="payments-nav-link" data-section="im-payments" class="hidden"><i class="fa-solid fa-money-check-dollar"></i> Payments</a></li>
+                    <li class="nav-section-divider im-nav-payments desktop-only-li" style="border-top: 1px solid transparent !important;"><a href="#" id="payments-nav-link" data-section="im-payments" class="hidden"><i class="fa-solid fa-money-check-dollar"></i> Payments</a></li>
                     <li class="im-nav-finance-report desktop-only-li">
     <a href="https://ibaport.site/Epicore/" id="im-finance-report-nav-link" class="external-link" target="_blank">
         <i class="fa-solid fa-building-columns"></i> Financial Report
@@ -1007,7 +997,7 @@
             </nav>
             <div class="workdesk-footer-nav">
                  <ul>
-                    <li id="im-nav-workdesk" class="hidden" style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 10px;">
+                    <li id="im-nav-workdesk" class="hidden" style="margin-top: 20px; border-top: 1px solid transparent; padding-top: 10px;">
                         <a href="#" id="im-workdesk-button"><i class="fa-solid fa-briefcase"></i> WorkDesk</a>
                     </li>
                     <li class="im-nav-activetask-link"><a href="#" id="im-activetask-button"><i class="fa-solid fa-list-check"></i> Active Task <span id="im-active-task-badge" class="notification-badge" style="display: none;">0</span></a></li>
@@ -1047,11 +1037,18 @@
                 </section>
 
                 <section id="im-invoice-entry" class="workdesk-section hidden">
-                    <h1>Invoice Entry
-                        <button id="im-show-active-jobs-btn" class="secondary-btn" type="button">
-                            <i class="fa-solid fa-list-check"></i> Active Jobs
-                        </button>
-                    </h1>
+                    <div class="im-standard-hero im-hero-invoice-entry">
+                        <div class="im-standard-hero-main">
+                            <span class="im-standard-eyebrow"><i class="fa-solid fa-file-pen"></i> Invoice Management</span>
+                            <h1>Invoice Entry</h1>
+                            <p>Search a PO, review supplier details, and prepare invoice records in one clean working view.</p>
+                        </div>
+                        <div class="im-standard-hero-actions">
+                            <button id="im-show-active-jobs-btn" class="secondary-btn" type="button">
+                                <i class="fa-solid fa-list-check"></i> Active Jobs
+                            </button>
+                        </div>
+                    </div>
                    <div id="im-po-search-container">
     <div class="search-bar-local">
         <i class="fa-solid fa-magnifying-glass"></i>
@@ -1082,7 +1079,7 @@
 </div>
 
                     <div id="im-invoice-form-trigger" class="hidden" style="margin-top: 10px; margin-bottom: 10px; display: flex; justify-content: flex-end;">
-    <button id="im-open-invoice-form-btn" type="button" class="download-btn" style="background-color: #00748C;">
+    <button id="im-open-invoice-form-btn" type="button" class="download-btn" style="background-color: #116045;">
         <i class="fa-solid fa-plus"></i> Add / Edit Invoice
     </button>
 </div>
@@ -1098,11 +1095,11 @@
                 <h2 id="im-form-title" style="margin: 0;">Invoice Entry</h2>
 
                 <div id="im-nav-controls" class="hidden" style="display: flex; align-items: center; gap: 5px;">
-                    <button type="button" id="im-nav-prev" class="secondary-btn" title="Previous Invoice" style="padding: 2px 8px; height: 30px; min-width: 30px; background: #f8fafc; color: #003A5C; border: 1px solid #cbd5e1; font-weight: bold;">&larr;</button>
+                    <button type="button" id="im-nav-prev" class="secondary-btn" title="Previous Invoice" style="padding: 2px 8px; height: 30px; min-width: 30px; background: #f8fafc; color: #116045; border: 1px solid #cbd5e1; font-weight: bold;">&larr;</button>
 
-                    <span id="im-nav-counter" style="color: #00748C; font-weight: bold; font-size: 0.95rem; min-width: 50px; text-align: center; background: #e0f2fe; padding: 2px 8px; border-radius: 4px;"></span>
+                    <span id="im-nav-counter" style="color: #116045; font-weight: bold; font-size: 0.95rem; min-width: 50px; text-align: center; background: #eaf8f1; padding: 2px 8px; border-radius: 4px;"></span>
 
-                    <button type="button" id="im-nav-next" class="secondary-btn" title="Next Invoice" style="padding: 2px 8px; height: 30px; min-width: 30px; background: #f8fafc; color: #003A5C; border: 1px solid #cbd5e1; font-weight: bold;">&rarr;</button>
+                    <button type="button" id="im-nav-next" class="secondary-btn" title="Next Invoice" style="padding: 2px 8px; height: 30px; min-width: 30px; background: #f8fafc; color: #116045; border: 1px solid #cbd5e1; font-weight: bold;">&rarr;</button>
                 </div>
             </div>
             <button type="button" class="modal-close-btn">&times;</button>
@@ -1177,7 +1174,7 @@
     <label>Invoice Name</label>
     <div style="display: flex; gap: 5px;">
         <input type="text" id="im-inv-name" name="invName" placeholder="Auto-generated...">
-        <button id="im-btn-view-invoice" type="button" class="action-btn" style="background: #00748C; color: white;">
+        <button id="im-btn-view-invoice" type="button" class="action-btn" style="background: #116045; color: white;">
             <i class="fa-solid fa-cloud-arrow-up"></i>
         </button>
     </div>
@@ -1187,7 +1184,7 @@
     <label>SRV Name</label>
     <div style="display: flex; gap: 5px;">
         <input type="text" id="im-srv-name" name="srvName" placeholder="Auto-generated...">
-        <button id="im-btn-view-srv" type="button" class="action-btn" style="background: #00748C; color: white;">
+        <button id="im-btn-view-srv" type="button" class="action-btn" style="background: #116045; color: white;">
             <i class="fa-solid fa-cloud-arrow-up"></i>
         </button>
     </div>
@@ -1202,7 +1199,7 @@
                    style="border-top-right-radius: 0; border-bottom-right-radius: 0; width: 100%;">
 
             <button type="button" id="btn-open-report-drive" class="secondary-btn"
-                    style="border-top-left-radius: 0; border-bottom-left-radius: 0; border-left: none; background-color: #e9ecef; color: #00748C; padding: 0 15px;"
+                    style="border-top-left-radius: 0; border-bottom-left-radius: 0; border-left: none; background-color: #e9ecef; color: #116045; padding: 0 15px;"
                     title="Open Reports Folder in SharePoint">
                 <i class="fa-solid fa-cloud-arrow-up"></i>
             </button>
@@ -1234,7 +1231,7 @@
     </div>
 
 <div class="im-toolbar-buttons">
-        <button type="submit" id="im-add-invoice-button" class="secondary-btn" style="background-color: #00748C; color: white;">
+        <button type="submit" id="im-add-invoice-button" class="secondary-btn" style="background-color: #116045; color: white;">
             <i class="fa-solid fa-plus"></i> Add
         </button>
 
@@ -1268,26 +1265,20 @@
 <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 25px;">
             <div style="display: flex; gap: 20px; align-items: center; font-size: 0.9rem; color: #555;">
                 <div style="white-space: nowrap;">
-                    <strong style="color: #003A5C;">PO:</strong>
+                    <strong style="color: #116045;">PO:</strong>
                     <span class="im-po-no" style="font-weight: 600; color: #000;">---</span>
                 </div>
                 <div style="white-space: nowrap;">
-                    <strong style="color: #003A5C;">Site:</strong>
+                    <strong style="color: #116045;">Site:</strong>
                     <span class="im-po-site" style="font-weight: 600; color: #000;">---</span>
                 </div>
                 <div style="white-space: nowrap; max-width: 300px; overflow: hidden; text-overflow: ellipsis;">
-                    <strong style="color: #003A5C;">Vendor:</strong>
+                    <strong style="color: #116045;">Vendor:</strong>
                     <span class="im-po-vendor" style="font-weight: 600; color: #000;">---</span>
                 </div>
             </div>
 
             <div style="display: flex; gap: 10px; align-items: center;">
-                <div id="im-invoice-print-report-container" class="hidden">
-                    <button type="button" id="btn-invoice-entry-print-report" class="action-btn" style="background-color: #17a2b8; color: white; padding: 8px 20px; border-radius: 4px; font-weight: bold; font-size: 0.9rem;">
-                        <i class="fa-solid fa-print"></i> Print Financial Report (One-Time)
-                    </button>
-                </div>
-
                 <button type="button" class="modal-close-btn" style="margin: 0;">Close</button>
             </div>
         </div> </div> </div> <div id="im-existing-invoices-container" class="hidden">
@@ -1326,11 +1317,11 @@
 
     <div class="header-top" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
         <div class="header-title" style="display: flex; align-items: center; gap: 15px;">
-            <div class="icon-wrapper" style="background-color: #e0f2fe; color: #00748C; padding: 12px; border-radius: 10px; font-size: 1.4rem;">
+            <div class="icon-wrapper" style="background-color: #eaf8f1; color: #116045; padding: 12px; border-radius: 10px; font-size: 1.4rem;">
                 <i class="fa-solid fa-layer-group"></i>
             </div>
             <div>
-                <h1 style="border: none; margin: 0; color: #003A5C; font-size: 1.6rem;">Batch Invoice Entry</h1>
+                <h1 style="border: none; margin: 0; color: #116045; font-size: 1.6rem;">Batch Invoice Entry</h1>
                 <p style="margin: 2px 0 0 0; color: #64748b; font-size: 0.85rem;">Add a new PO or search existing invoices for bulk editing.</p>
             </div>
             <span id="batch-count-display" style="background: #f1f5f9; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 12px; font-size: 0.85rem; color: #475569; font-weight: bold; margin-left: 10px;">(Total in Batch: 0)</span>
@@ -1340,7 +1331,7 @@
             <button id="im-refresh-batch-button" type="button" class="secondary-btn" title="Refresh data from Firebase" style="background-color: #f8fafc; color: #475569; border: 1px solid #cbd5e1;">
                 <i class="fa-solid fa-sync"></i> Refresh Data
             </button>
-            <button id="im-batch-save-button" type="button" class="download-btn" style="background-color: #00748C; font-weight: bold; font-size: 1rem; padding: 10px 20px; box-shadow: 0 4px 6px rgba(0, 116, 140, 0.2);">
+            <button id="im-batch-save-button" type="button" class="download-btn" style="background-color: #116045; font-weight: bold; font-size: 1rem; padding: 10px 20px; box-shadow: 0 4px 6px rgba(17, 96, 69, 0.22);">
                 <i class="fa-solid fa-floppy-disk"></i> Save All Invoices
             </button>
         </div>
@@ -1414,7 +1405,7 @@
 
     <div style="flex: 0 0 auto; padding-bottom: 5px; border-bottom: 1px solid #e0e0e0; margin-bottom: 0; display: flex; justify-content: space-between; align-items: flex-end; min-height: 35px;">
         <div>
-            <h1 style="margin: 0; color: #003A5C; font-size: 1.4rem; line-height: 1;">Summary Note Manager</h1>
+            <h1 style="margin: 0; color: #116045; font-size: 1.4rem; line-height: 1;">Summary Note Manager</h1>
         </div>
         <div style="display: flex; align-items: center;">
             <span id="summary-note-count-display" class="table-count-display" style="font-size: 0.9rem; margin-right: 10px;"></span>
@@ -1432,7 +1423,7 @@
         <div style="flex: 0 0 350px; background: #fff; border-right: 1px solid #ddd; display: flex; flex-direction: column; overflow-y: auto; padding-right: 10px;">
 
             <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border: 1px solid #eee; margin-bottom: 20px;">
-                <h3 style="margin: 0 0 15px 0; color: #00748C; font-size: 1rem; border-bottom: 2px solid #ddd; padding-bottom: 5px;">
+                <h3 style="margin: 0 0 15px 0; color: #116045; font-size: 1rem; border-bottom: 2px solid #ddd; padding-bottom: 5px;">
                     <i class="fa-solid fa-pen-to-square"></i> Input Details
                 </h3>
 
@@ -1446,11 +1437,11 @@
                 </div>
 
                 <div class="form-group">
-                    <label style="font-size: 0.8rem; font-weight: bold; color: #00748C;">CURRENT NOTE <span style="color:red;">*</span></label>
+                    <label style="font-size: 0.8rem; font-weight: bold; color: #116045;">CURRENT NOTE <span style="color:red;">*</span></label>
                     <div style="position: relative;">
-                        <i class="fa-solid fa-pen" style="position: absolute; left: 10px; top: 10px; color: #00748C;"></i>
+                        <i class="fa-solid fa-pen" style="position: absolute; left: 10px; top: 10px; color: #116045;"></i>
                         <input type="text" id="summary-note-current-input" list="note-suggestions" placeholder="e.g. 2nd Payment"
-                           style="padding-left: 30px; background: #f0fbff; border: 2px solid #00748C; font-weight: bold; width: 100%;">
+                           style="padding-left: 30px; background: #f2fff8; border: 2px solid #116045; font-weight: bold; width: 100%;">
                     </div>
                     <small style="color: #666; font-size: 0.7rem;">(Tip: Use "Update & Send to Accounts" to copy SRV Name)</small>
                 </div>
@@ -1589,22 +1580,24 @@
 
 <section id="im-reporting" class="workdesk-section hidden">
     <div class="header">
-        <div class="header-top">
-            <div class="header-title">
-                <div class="icon-wrapper"><i class="fa-solid fa-file-invoice-dollar"></i></div>
-                <h1 style="border: none; margin: 0; color: var(--primary-blue);">Invoice Records <span id="reporting-count-display" class="version-tag"></span></h1>
-		<button id="im-mobile-search-btn" class="im-mobile-search-btn" type="button"><i class="fa-solid fa-magnifying-glass"></i><span>Search</span></button>
+        <div class="header-top im-reporting-hero-layout">
+            <div class="header-title im-reporting-hero-copy">
+                <h1>Invoice Records</h1>
+                <p class="im-reporting-hero-subtitle">Enter your criteria and click <strong>Search</strong> to find records.</p>
+                <div class="im-reporting-hero-meta">
+                    <span id="reporting-count-display" class="im-found-count-chip"></span>
+                    <button id="im-mobile-search-btn" class="im-mobile-search-btn" type="button"><i class="fa-solid fa-magnifying-glass"></i><span>Search</span></button>
+                </div>
             </div>
 
-            <div class="daily-report-section" style="display: flex; gap: 8px; align-items: center;">
-                <button id="im-download-daily-report-button" class="download-btn download-btn--periwinkle" type="button"><i class="fa-solid fa-file-invoice"></i> 1. Under Review</button>
-                <button id="im-download-with-accounts-report-button" class="download-btn download-btn--gold" type="button"><i class="fa-solid fa-credit-card"></i> 2. With Accounts</button>
-                <button id="im-reporting-download-btn" class="download-btn download-btn--teal" type="button" onclick="downloadReportingTableToExcel()"><i class="fa-solid fa-file-lines"></i> 3. Finance Report</button>
-		<button id="im-download-excel-custom-btn" class="download-btn" type="button" style="background-color: #28a745; color: white;" onclick="exportCurrentTableToExcel()"><i class="fa-solid fa-file-excel"></i> Export to Excel</button>
-		<button id="im-refresh-reporting-button" class="refresh-btn" title="Force Full Refresh" style="margin-left: 10px;"><i class="fa-solid fa-cloud-arrow-down"></i> Refresh</button>
+            <div class="daily-report-section im-reporting-hero-actions">
+                <button id="im-download-daily-report-button" class="download-btn download-btn--periwinkle" type="button" title="Download Under Review report"><i class="fa-solid fa-file-invoice"></i><span>Under Review</span></button>
+                <button id="im-download-with-accounts-report-button" class="download-btn download-btn--gold" type="button" title="Download With Accounts report"><i class="fa-solid fa-credit-card"></i><span>With Accounts</span></button>
+                <button id="im-reporting-download-btn" class="download-btn download-btn--teal" type="button" onclick="downloadReportingTableToExcel()" title="Download Finance Report"><i class="fa-solid fa-file-lines"></i><span>Finance</span></button>
+                <button id="im-download-excel-custom-btn" class="download-btn im-export-excel-btn" type="button" onclick="exportCurrentTableToExcel()" title="Export current results to Excel"><i class="fa-solid fa-file-excel"></i><span>Excel</span></button>
+                <button id="im-refresh-reporting-button" class="refresh-btn im-reporting-refresh-mini" title="Force Full Refresh" type="button"><i class="fa-solid fa-cloud-arrow-down"></i><span>Refresh</span></button>
             </div>
         </div>
-        <p style="margin: 10px 0 0 60px; color: #64748b; font-size: 14px;">Enter your criteria and click <strong>Search</strong> to find records.</p>
     </div>
 
     <form id="im-reporting-form">
@@ -1709,10 +1702,15 @@
 
 
                 <section id="im-payments" class="workdesk-section hidden">
-                    <h1>Process Payments <span id="payments-count-display" class="table-count-display"></span></h1>
-                    <p>Add invoices with status "With Accounts" to process payments.</p>
-                     <div class="form-buttons-container" style="justify-content: flex-start; margin-bottom: 20px;">
-                        <button type="button" id="im-add-payment-button"><i class="fa-solid fa-plus"></i> Add Invoice for Payment</button>
+                    <div class="im-standard-hero im-hero-payments">
+                        <div class="im-standard-hero-main">
+                            <span class="im-standard-eyebrow"><i class="fa-solid fa-wallet"></i> Accounts Payment Queue</span>
+                            <h1>Process Payments <span id="payments-count-display" class="table-count-display"></span></h1>
+                            <p>Add invoices with status "With Accounts" to process payments.</p>
+                        </div>
+                        <div class="im-standard-hero-actions">
+                            <button type="button" id="im-add-payment-button"><i class="fa-solid fa-plus"></i> Add Invoice for Payment</button>
+                        </div>
                     </div>
                      <div class="table-wrapper"><table id="im-payments-table"><thead><tr><th>PO</th><th>Site</th><th>Vendor</th><th>Inv. Entry</th><th>Inv. Value</th><th>Amount To Paid</th><th>Release Date</th><th>Status</th><th></th></tr></thead><tbody id="im-payments-table-body"></tbody></table></div>
                     <div class="form-buttons-container" style="justify-content: flex-end; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
@@ -1925,7 +1923,7 @@
         </div>
     </div>
 
-    <div id="vacation-replacement-modal" class="modal-overlay hidden">
+    <div id="vacation-replacement-modal" class="modal-overlay hidden wd-themed-modal">
         <div class="modal-container">
             <div class="modal-header"><h2 id="vacation-modal-title">Attention: User on Vacation</h2><button class="modal-close-btn" data-modal-id="vacation-replacement-modal">&times;</button></div>
             <div class="modal-content">
@@ -1943,7 +1941,7 @@
         </div>
     </div>
 
-    <div id="calendar-task-modal" class="modal-overlay hidden">
+    <div id="calendar-task-modal" class="modal-overlay hidden wd-themed-modal">
         <div class="modal-container" style="max-width: 450px;">
             <div class="modal-header"><h2>Active Tasks Found</h2><button class="modal-close-btn" data-modal-id="calendar-task-modal">&times;</button></div>
             <div class="modal-content">
@@ -1954,7 +1952,7 @@
         </div>
     </div>
 
-    <div id="modify-task-modal" class="modal-overlay hidden">
+    <div id="modify-task-modal" class="modal-overlay hidden wd-themed-modal">
         <div class="modal-container">
             <div class="modal-header"><h2 id="modify-task-title">Modify Task</h2><button class="modal-close-btn">&times;</button></div>
             <div class="modal-content">
@@ -1994,10 +1992,6 @@
                 </form>
             </div>
             <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
-
-    <button id="btn-admin-print-finance" class="secondary-btn" style="display: none; background: transparent; color: #888; border: 1px solid #ccc; font-size: 0.8rem;">
-        <i class="fas fa-print"></i> Print Financial Report
-    </button>
 
     <div style="display: flex; gap: 10px;">
         <button class="secondary-btn modal-close-btn">Cancel</button>
@@ -2195,7 +2189,7 @@
 </div>
 
 
-    <div id="ceo-approval-modal" class="modal-overlay hidden">
+    <div id="ceo-approval-modal" class="modal-overlay hidden wd-themed-modal">
         <div class="modal-container">
             <div class="modal-header"><h2>Make Approval</h2><button class="modal-close-btn">&times;</button></div>
             <div class="modal-content">
@@ -2211,15 +2205,16 @@
     </div>
 
     <div id="history-modal" class="modal-overlay hidden">
-        <div class="modal-container" style="max-width: 600px;">
-            <div class="modal-header">
-                <h2>Invoice Status History</h2>
+        <div class="modal-container history-modal-container">
+            <div class="modal-header history-modal-header">
+                <h2 id="history-modal-title">Invoice Status History</h2>
                 <button class="modal-close-btn" onclick="document.getElementById('history-modal').classList.add('hidden')">&times;</button>
             </div>
             <div class="modal-content">
-                <div id="history-modal-loader" class="hidden" style="text-align: center; padding: 20px;">Loading...</div>
-                <div class="table-wrapper">
-                    <table id="history-table">
+                <div id="history-modal-loader" class="hidden history-loader">Loading history timeline...</div>
+                <div id="history-modal-summary" class="history-modal-summary"></div>
+                <div class="table-wrapper history-table-wrapper">
+                    <table id="history-table" class="history-premium-table">
                         <thead>
                             <tr>
                                 <th>Status</th>
@@ -2241,7 +2236,7 @@
 <!-- ====================================================================== -->
 <!-- MATERIAL STOCK - NEW / EDIT MATERIAL MODAL -->
 <!-- ====================================================================== -->
-<div id="ms-new-material-modal" class="modal-overlay hidden">
+<div id="ms-new-material-modal" class="modal-overlay hidden inventory-themed-modal">
     <div class="modal-container">
         <div class="modal-header">
             <h2 id="ms-modal-title">Register New Product</h2>
@@ -2325,7 +2320,7 @@
     </div>
 </div>
 
-<div id="ms-photo-browser-modal" class="modal-overlay hidden">
+<div id="ms-photo-browser-modal" class="modal-overlay hidden inventory-themed-modal">
     <div class="modal-container ms-photo-browser-container">
         <div class="modal-header">
             <h2><i class="fa-solid fa-images"></i> Browse OneDrive Photo Library</h2>
@@ -2360,7 +2355,7 @@
     </div>
 </div>
 
- <div id="ms-add-stock-modal" class="modal-overlay hidden">
+ <div id="ms-add-stock-modal" class="modal-overlay hidden inventory-themed-modal">
     <div class="modal-container" style="max-width: 500px;">
         <div class="modal-header" style="background-color: #28a745;">
             <h2 style="color:white;"><i class="fa-solid fa-boxes-packing"></i> Adjust Stock Level</h2>
@@ -2414,7 +2409,7 @@
 <!-- ====================================================================== -->
 <!-- TRANSFER / RESTOCK / RETURN / USAGE MODAL -->
 <!-- ====================================================================== -->
-<div id="transfer-job-modal" class="modal-overlay hidden">
+<div id="transfer-job-modal" class="modal-overlay hidden inventory-themed-modal">
         <div class="modal-container">
             <div class="modal-header">
                 <h2 id="transfer-job-modal-title">New Transaction</h2>
@@ -2506,7 +2501,7 @@
             </div>
         </div>
     </div>
-    <div id="transfer-approval-modal" class="modal-overlay hidden">
+    <div id="transfer-approval-modal" class="modal-overlay hidden inventory-themed-modal">
         <div class="modal-container">
             <div class="modal-header">
                 <h2 id="transfer-approval-modal-title">Transfer Action</h2>
@@ -2533,7 +2528,7 @@
 <!-- ====================================================================== -->
 <!-- STANDARD WORKDESK JOB MODAL -->
 <!-- ====================================================================== -->
-<div id="standard-job-modal" class="modal-overlay hidden">
+<div id="standard-job-modal" class="modal-overlay hidden wd-themed-modal">
     <div class="modal-container">
         <div class="modal-header">
             <h2 id="standard-modal-title">Add New Job Entry</h2>
@@ -2549,7 +2544,7 @@
         <div class="transfer-col">
             <div class="form-group">
                 <label>Job Type</label>
-                <select id="job-for" name="for" required onchange="toggleJobOtherInput()">
+                <select id="job-for" name="for" required onchange="toggleJobOtherInput(); if (typeof toggleJobInvoiceFields === 'function') toggleJobInvoiceFields();">
                     <option value="" disabled selected>Select a Type</option>
                     <option value="PR">PR</option>
                     <option value="Invoice">Invoice</option>
@@ -2813,7 +2808,7 @@
     <div style="text-align: center; font-size: 9px; margin-top: 20px; color: #777;">Printed: <span id="wb-print-date"></span></div>
 </div>
 
-<div id="process-report-modal" class="modal-overlay hidden">
+<div id="process-report-modal" class="modal-overlay hidden wd-themed-modal">
     <div class="modal-container" style="max-width: 500px;">
         <div class="modal-header" style="background-color: #003A5C; color: white;">
             <h2>Process Report Approval</h2>
@@ -2949,11 +2944,11 @@
       }
     </script>
 
-    <script src="js/materialStock.js?v=8.2.6"></script>
+    <script src="js/materialStock.js?v=8.6.5"></script>
     <script src="js/transferLogic.js?v=8.2.6"></script>
     <script src="js/app-audio.js?v=8.2.3"></script>
     <script src="js/app-core.js?v=8.2.3"></script>
-    <script src="js/app-inventory.js?v=8.2.3"></script>
+    <script src="js/app-inventory.js?v=8.6.5"></script>
     <script src="js/app-invoice.js?v=8.2.3"></script>
     <script src="js/app-mobile.js?v=8.2.3"></script>
     <script src="js/app-finance.js?v=8.2.3"></script>
@@ -2962,27 +2957,27 @@
     <script src="js/app-utils.js?v=8.2.3"></script>
     <script src="js/app-vacation.js?v=8.2.3"></script>
     <script src="js/app-dom-refs.js?v=8.2.9"></script>
-    <script src="app.js?v=8.3.5"></script>
-    <script src="js/app-navigation-settings.js?v=8.3.1"></script>
+    <script src="app.js?v=8.9.6"></script>
+    <script src="js/app-navigation-settings.js?v=8.6.5"></script>
     <script src="js/app-data-cache.js?v=8.2.3"></script>
     <script src="js/app-job-vendor.js?v=8.2.3"></script>
     <script src="js/app-workdesk-job-entry.js?v=8.2.5"></script>
-    <script src="js/app-standard-job.js?v=8.2.3"></script>
-    <script src="js/app-invoice-dashboard.js?v=8.2.3"></script>
+    <script src="js/app-standard-job.js?v=8.7.4"></script>
+    <script src="js/app-invoice-dashboard.js?v=8.6.5"></script>
     <script src="js/app-payments.js?v=8.3.0"></script>
     <script src="js/app-invoice-records.js?v=8.2.3"></script>
-    <script src="js/app-active-tasks.js?v=8.2.3"></script>
-    <script src="js/app-workdesk-dashboard.js?v=8.2.3"></script>
-    <script src="js/app-workdesk-reporting.js?v=8.2.3"></script>
+    <script src="js/app-active-tasks.js?v=8.7.0"></script>
+    <script src="js/app-workdesk-dashboard.js?v=8.9.6"></script>
+    <script src="js/app-workdesk-reporting.js?v=8.6.5"></script>
     <script src="js/app-reporting-actions.js?v=8.2.3"></script>
     <script src="js/app-report-workflow.js?v=8.2.3"></script>
     <script src="js/app-ui-shortcuts.js?v=8.2.3"></script>
     <script src="js/app-modal-navigation-clear.js?v=8.2.3"></script>
-    <script src="js/app-invoice-entry-search.js?v=8.2.3"></script>
+    <script src="js/app-invoice-entry-search.js?v=8.8.3"></script>
     <script src="js/app-attention-validation.js?v=8.2.4"></script>
     <script src="js/app-batch-entry-ui.js?v=8.2.7"></script>
     <script src="js/app-im-event-wiring.js?v=8.2.8"></script>
-    <script src="js/app-history-transfer.js?v=8.3.2"></script>
+    <script src="js/app-history-transfer.js?v=8.6.5"></script>
     <script src="js/app-help.js?v=8.2.3"></script>
 
     </body>
