@@ -1,0 +1,1070 @@
+/*
+  IBA 8.8.9 CSS MODULE SPLIT
+  This file is a module-specific override layer.
+  style.css and css/mobile.css remain as legacy/shared base for now.
+  Future UI fixes should go here instead of adding more mixed rules to the base files.
+*/
+
+:root {
+    --iba-inventory: #4d0000;
+    --iba-inventory-deep: #2b0000;
+    --iba-inventory-mid: #7a1111;
+    --iba-inventory-soft: #fff1f1;
+}
+
+@media (min-width: 769px) {
+    #inventory-view,
+    body.inventory-mode {
+        --module-accent: var(--iba-inventory);
+        --module-accent-deep: var(--iba-inventory-deep);
+        --module-accent-mid: var(--iba-inventory-mid);
+    }
+
+    #inventory-view .wd-user-avatar {
+        background: linear-gradient(135deg, var(--iba-inventory-deep), var(--iba-inventory-mid)) !important;
+        color: #ffffff !important;
+    }
+    #inventory-view .wd-user-avatar i {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+
+    #inventory-view .workdesk-navigation a {
+        background: transparent !important;
+        border: 1px solid transparent !important;
+        color: rgba(255,255,255,0.86) !important;
+        box-shadow: none !important;
+    }
+    #inventory-view .workdesk-navigation a:hover,
+    #inventory-view .workdesk-navigation a.active,
+    #inventory-view .workdesk-navigation li.active > a {
+        background: rgba(255,255,255,0.12) !important;
+        border-color: rgba(255,255,255,0.34) !important;
+        color: #ffffff !important;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05), 0 10px 22px rgba(0,0,0,0.14) !important;
+    }
+
+    #inventory-view .wd-page-hero,
+    #inventory-view .inventory-hero,
+    body.inventory-mode .wd-page-hero,
+    body.inventory-mode .inventory-request-review-head {
+        background:
+            radial-gradient(circle at 96% 0%, rgba(255,255,255,0.16), transparent 30%),
+            linear-gradient(135deg, var(--iba-inventory-deep) 0%, var(--iba-inventory) 58%, var(--iba-inventory-mid) 100%) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255,241,241,0.24) !important;
+    }
+    #inventory-view .wd-page-hero h1,
+    #inventory-view .inventory-hero h1,
+    body.inventory-mode .wd-page-hero h1,
+    body.inventory-mode .inventory-request-review-head h1 {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.30) !important;
+    }
+    #inventory-view .wd-page-hero h1::after,
+    #inventory-view .inventory-hero h1::after,
+    body.inventory-mode .wd-page-hero h1::after,
+    body.inventory-mode .inventory-request-review-head h1::after {
+        content: "";
+        display: block;
+        width: min(300px, 64%);
+        height: 2px;
+        margin-top: 8px;
+        background: linear-gradient(90deg, rgba(255,255,255,0.88), rgba(255,255,255,0.16), transparent);
+        border-radius: 999px;
+    }
+
+    #ms-search-input {
+        border-color: rgba(77,0,0,0.18) !important;
+    }
+    #ms-search-input:focus {
+        border-color: var(--iba-inventory) !important;
+        box-shadow: 0 0 0 4px rgba(77,0,0,0.12) !important;
+    }
+    #ms-clear-search-btn {
+        background: #fff7f7 !important;
+        color: var(--iba-inventory) !important;
+        -webkit-text-fill-color: var(--iba-inventory) !important;
+        border: 1px solid rgba(77,0,0,0.20) !important;
+        border-radius: 14px !important;
+        font-weight: 900 !important;
+    }
+    #ms-transfer-btn,
+    #ms-restock-btn,
+    #ms-usage-btn {
+        background: linear-gradient(135deg, var(--iba-inventory) 0%, var(--iba-inventory-mid) 100%) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border: 1px solid rgba(255,241,241,0.34) !important;
+        border-radius: 14px !important;
+        font-weight: 900 !important;
+        opacity: 1 !important;
+        box-shadow: 0 10px 22px rgba(43,0,0,0.18) !important;
+    }
+    #ms-transfer-btn *,
+    #ms-restock-btn *,
+    #ms-usage-btn * {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+    #ms-transfer-btn:disabled,
+    #ms-restock-btn:disabled,
+    #ms-usage-btn:disabled,
+    #ms-transfer-btn.disabled,
+    #ms-restock-btn.disabled,
+    #ms-usage-btn.disabled {
+        background: #fff1f1 !important;
+        color: var(--iba-inventory) !important;
+        -webkit-text-fill-color: var(--iba-inventory) !important;
+        border: 1px solid rgba(77,0,0,0.24) !important;
+        opacity: 1 !important;
+        box-shadow: 0 8px 18px rgba(43,0,0,0.06) !important;
+    }
+    #ms-transfer-btn:disabled *,
+    #ms-restock-btn:disabled *,
+    #ms-usage-btn:disabled *,
+    #ms-transfer-btn.disabled *,
+    #ms-restock-btn.disabled *,
+    #ms-usage-btn.disabled * {
+        color: var(--iba-inventory) !important;
+        -webkit-text-fill-color: var(--iba-inventory) !important;
+    }
+
+    #inventory-view table thead,
+    #inventory-view table thead tr,
+    #inventory-view table thead th,
+    body.inventory-mode table thead,
+    body.inventory-mode table thead tr,
+    body.inventory-mode table thead th,
+    #ms-table thead,
+    #ms-table thead tr,
+    #ms-table thead th {
+        background: var(--iba-inventory) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border-color: rgba(255,241,241,0.20) !important;
+    }
+    #inventory-view table,
+    body.inventory-mode table,
+    #ms-table {
+        border-collapse: separate !important;
+        border-spacing: 0 !important;
+        border-radius: 14px !important;
+        overflow: hidden !important;
+    }
+
+    .inventory-themed-modal .modal-header,
+    #ms-report-modal .modal-header,
+    #ms-requestlist-modal .modal-header,
+    #ms-new-material-modal .modal-header,
+    #ms-photo-browser-modal .modal-header,
+    #ms-add-stock-modal .modal-header,
+    #transfer-job-modal .modal-header,
+    #transfer-approval-modal .modal-header {
+        background:
+            radial-gradient(circle at 92% 8%, rgba(255,255,255,0.16), transparent 30%),
+            linear-gradient(135deg, var(--iba-inventory-deep) 0%, var(--iba-inventory) 58%, var(--iba-inventory-mid) 100%) !important;
+        color: #ffffff !important;
+        border-bottom: 1px solid rgba(255,241,241,0.30) !important;
+    }
+    .inventory-themed-modal .modal-header *,
+    #ms-report-modal .modal-header *,
+    #ms-requestlist-modal .modal-header *,
+    #ms-new-material-modal .modal-header *,
+    #ms-photo-browser-modal .modal-header *,
+    #ms-add-stock-modal .modal-header *,
+    #transfer-job-modal .modal-header *,
+    #transfer-approval-modal .modal-header * {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        text-shadow: none !important;
+    }
+    .inventory-themed-modal .modal-footer button,
+    .inventory-themed-modal .download-btn,
+    .inventory-themed-modal .print-btn,
+    .inventory-themed-modal .primary-btn,
+    #transfer-modal-approve-btn,
+    #tf-save-btn,
+    #ms-save-material-btn,
+    #ms-modal-print-btn,
+    #ms-modal-excel-btn,
+    #ms-requestlist-print-btn,
+    #ms-requestlist-add-manual-btn {
+        background: linear-gradient(135deg, var(--iba-inventory) 0%, var(--iba-inventory-mid) 100%) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border: 1px solid rgba(255,241,241,0.34) !important;
+        border-radius: 14px !important;
+        font-weight: 900 !important;
+    }
+    .inventory-themed-modal .secondary-btn:not(.delete-btn),
+    #transfer-job-modal .secondary-btn:not(.delete-btn),
+    #transfer-approval-modal .secondary-btn:not(.delete-btn),
+    #ms-new-material-modal .secondary-btn:not(.delete-btn),
+    #ms-report-modal .secondary-btn:not(.delete-btn),
+    #ms-requestlist-modal .secondary-btn:not(.delete-btn) {
+        background: #fff7f7 !important;
+        color: var(--iba-inventory) !important;
+        -webkit-text-fill-color: var(--iba-inventory) !important;
+        border: 1px solid rgba(77,0,0,0.24) !important;
+        border-radius: 14px !important;
+    }
+    .inventory-themed-modal .delete-btn,
+    .inventory-themed-modal button[id*="delete"],
+    .inventory-themed-modal button[id*="reject"] {
+        background: linear-gradient(135deg, #7f1d1d 0%, #b91c1c 100%) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+
+    #inventory-job-records-stage-switch,
+    body.inventory-mode #wd-activetask #active-task-filters.report-tabs {
+        background: rgba(255,248,248,0.92) !important;
+        border: 1px solid rgba(77,0,0,0.16) !important;
+        border-radius: 18px !important;
+    }
+    #inventory-job-records-stage-switch .inv-stage-btn,
+    body.inventory-mode #wd-activetask #active-task-filters.report-tabs button:not(.active) {
+        background: #fffafa !important;
+        color: var(--iba-inventory) !important;
+        -webkit-text-fill-color: var(--iba-inventory) !important;
+        border: 1px solid rgba(77,0,0,0.22) !important;
+        border-radius: 14px !important;
+    }
+    #inventory-job-records-stage-switch .inv-stage-btn.active,
+    body.inventory-mode #wd-activetask #active-task-filters.report-tabs button.active {
+        background: linear-gradient(135deg, var(--iba-inventory) 0%, var(--iba-inventory-mid) 100%) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border-color: rgba(77,0,0,0.45) !important;
+    }
+    #inventory-job-records-stage-switch .inv-stage-btn.active *,
+    body.inventory-mode #wd-activetask #active-task-filters.report-tabs button.active * {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+}
+
+/* =========================================================
+   8.8.6 INVENTORY MAROON DEEP SYNC — TABS + ROW DETAILS
+   Scope: Inventory desktop only.
+   Purpose:
+   - Sync Job Records type tabs (Transfer/Restock/Return/Usage) to maroon.
+   - Sync Active Task tabs to maroon even when JS injects inline tab colors.
+   - Sync Material Stock family tabs (All + 1-9) to maroon.
+   - Sync Material Stock row badges/action buttons/product pills to maroon.
+   ========================================================= */
+@media (min-width: 769px) {
+    /* Inventory Job Records category tabs: Transfer / Restock / Return / Usage. */
+    body.inventory-mode #wd-reporting #report-tabs.report-tabs,
+    body.inventory-mode #report-tabs.report-tabs {
+        background: rgba(255, 248, 248, 0.94) !important;
+        border: 1px solid rgba(77, 0, 0, 0.16) !important;
+        border-bottom: 1px solid rgba(77, 0, 0, 0.16) !important;
+        border-radius: 18px !important;
+        padding: 8px !important;
+        gap: 8px !important;
+        box-shadow: 0 10px 24px rgba(43, 0, 0, 0.06) !important;
+    }
+
+    body.inventory-mode #wd-reporting #report-tabs.report-tabs button,
+    body.inventory-mode #report-tabs.report-tabs button {
+        background: #fffafa !important;
+        color: var(--iba-inventory) !important;
+        -webkit-text-fill-color: var(--iba-inventory) !important;
+        border: 1px solid rgba(77, 0, 0, 0.22) !important;
+        border-radius: 14px !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+        font-weight: 900 !important;
+        min-height: 40px !important;
+    }
+
+    body.inventory-mode #wd-reporting #report-tabs.report-tabs button:hover,
+    body.inventory-mode #report-tabs.report-tabs button:hover {
+        background: #fff1f1 !important;
+        border-color: rgba(77, 0, 0, 0.38) !important;
+        color: var(--iba-inventory-deep) !important;
+        -webkit-text-fill-color: var(--iba-inventory-deep) !important;
+        transform: translateY(-1px) !important;
+    }
+
+    body.inventory-mode #wd-reporting #report-tabs.report-tabs button.active,
+    body.inventory-mode #report-tabs.report-tabs button.active {
+        background: linear-gradient(135deg, var(--iba-inventory-deep) 0%, var(--iba-inventory) 62%, var(--iba-inventory-mid) 100%) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border-color: rgba(77, 0, 0, 0.48) !important;
+        box-shadow: 0 12px 26px rgba(43, 0, 0, 0.20) !important;
+    }
+    body.inventory-mode #wd-reporting #report-tabs.report-tabs button.active *,
+    body.inventory-mode #report-tabs.report-tabs button.active * {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+
+    /* Inventory Active Task status tabs: override JS inline status colors while Inventory is active. */
+    body.inventory-mode #wd-activetask #active-task-filters.report-tabs,
+    body.inventory-mode #active-task-filters.report-tabs {
+        background: rgba(255, 248, 248, 0.94) !important;
+        border: 1px solid rgba(77, 0, 0, 0.16) !important;
+        border-bottom: 1px solid rgba(77, 0, 0, 0.16) !important;
+        border-radius: 18px !important;
+        padding: 8px !important;
+        gap: 8px !important;
+        box-shadow: 0 10px 24px rgba(43, 0, 0, 0.06) !important;
+    }
+
+    body.inventory-mode #wd-activetask #active-task-filters.report-tabs button,
+    body.inventory-mode #active-task-filters.report-tabs button {
+        --tab-color: var(--iba-inventory) !important;
+        --tab-text: var(--iba-inventory) !important;
+        background: #fffafa !important;
+        color: var(--iba-inventory) !important;
+        -webkit-text-fill-color: var(--iba-inventory) !important;
+        border: 1px solid rgba(77, 0, 0, 0.22) !important;
+        border-radius: 14px !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+        font-weight: 900 !important;
+        min-height: 40px !important;
+    }
+
+    body.inventory-mode #wd-activetask #active-task-filters.report-tabs button:hover,
+    body.inventory-mode #active-task-filters.report-tabs button:hover,
+    body.inventory-mode #wd-activetask #active-task-filters.report-tabs button.blink-tab:not(.active),
+    body.inventory-mode #active-task-filters.report-tabs button.blink-tab:not(.active) {
+        background: #fff1f1 !important;
+        color: var(--iba-inventory-deep) !important;
+        -webkit-text-fill-color: var(--iba-inventory-deep) !important;
+        border-color: rgba(77, 0, 0, 0.38) !important;
+        box-shadow: 0 8px 18px rgba(43, 0, 0, 0.08) !important;
+    }
+
+    body.inventory-mode #wd-activetask #active-task-filters.report-tabs button.active,
+    body.inventory-mode #active-task-filters.report-tabs button.active {
+        --tab-color: var(--iba-inventory) !important;
+        --tab-text: #ffffff !important;
+        background: linear-gradient(135deg, var(--iba-inventory-deep) 0%, var(--iba-inventory) 62%, var(--iba-inventory-mid) 100%) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border-color: rgba(77, 0, 0, 0.48) !important;
+        box-shadow: 0 12px 26px rgba(43, 0, 0, 0.20) !important;
+    }
+    body.inventory-mode #wd-activetask #active-task-filters.report-tabs button.active *,
+    body.inventory-mode #active-task-filters.report-tabs button.active * {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+    body.inventory-mode #wd-activetask #active-task-filters.report-tabs .notification-badge,
+    body.inventory-mode #active-task-filters.report-tabs .notification-badge {
+        background: rgba(255,255,255,0.18) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border: 1px solid rgba(255,255,255,0.35) !important;
+    }
+
+    /* Material Stock family tabs: All + 1-9. */
+    #wd-material-stock #ms-category-tabs.report-tabs,
+    #ms-category-tabs.report-tabs,
+    #ms-category-tabs.ms-premium-tabs {
+        background: rgba(255, 248, 248, 0.94) !important;
+        border: 1px solid rgba(77, 0, 0, 0.16) !important;
+        border-bottom: 1px solid rgba(77, 0, 0, 0.16) !important;
+        border-radius: 18px !important;
+        padding: 8px !important;
+        gap: 8px !important;
+        box-shadow: 0 10px 24px rgba(43, 0, 0, 0.06) !important;
+        scrollbar-color: rgba(77,0,0,0.30) transparent !important;
+    }
+
+    #ms-category-tabs .ms-family-chip,
+    #ms-category-tabs.report-tabs button,
+    #wd-material-stock #ms-category-tabs button {
+        background: #fffafa !important;
+        color: var(--iba-inventory) !important;
+        -webkit-text-fill-color: var(--iba-inventory) !important;
+        border: 1px solid rgba(77, 0, 0, 0.22) !important;
+        border-radius: 14px !important;
+        box-shadow: none !important;
+        min-height: 42px !important;
+        font-weight: 900 !important;
+        text-shadow: none !important;
+    }
+
+    #ms-category-tabs .ms-family-chip:hover,
+    #ms-category-tabs.report-tabs button:hover,
+    #wd-material-stock #ms-category-tabs button:hover {
+        background: #fff1f1 !important;
+        border-color: rgba(77, 0, 0, 0.38) !important;
+        color: var(--iba-inventory-deep) !important;
+        -webkit-text-fill-color: var(--iba-inventory-deep) !important;
+        transform: translateY(-1px) !important;
+    }
+
+    #ms-category-tabs .ms-family-chip.active,
+    #ms-category-tabs.report-tabs button.active,
+    #wd-material-stock #ms-category-tabs button.active {
+        background: linear-gradient(135deg, var(--iba-inventory-deep) 0%, var(--iba-inventory) 62%, var(--iba-inventory-mid) 100%) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border-color: rgba(77, 0, 0, 0.48) !important;
+        box-shadow: 0 12px 26px rgba(43, 0, 0, 0.20) !important;
+    }
+    #ms-category-tabs .ms-family-chip.active *,
+    #ms-category-tabs.report-tabs button.active *,
+    #wd-material-stock #ms-category-tabs button.active * {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+    #ms-category-tabs .ms-family-code,
+    #ms-category-tabs .ms-family-name {
+        color: inherit !important;
+        -webkit-text-fill-color: inherit !important;
+    }
+
+    /* Material Stock row details, product ID pill, family badge, stock pill, and action buttons. */
+    #ms-table tbody tr.ms-parent-row:hover,
+    #ms-table tbody tr:hover {
+        background: #fffafa !important;
+        box-shadow: inset 4px 0 0 var(--iba-inventory) !important;
+    }
+    #ms-table .ms-product-code,
+    #ms-table .ms-family-badge,
+    #ms-table .ms-relation-text,
+    #ms-table .ms-stock-pill {
+        border-radius: 999px !important;
+        font-weight: 900 !important;
+        text-shadow: none !important;
+    }
+    #ms-table .ms-product-code,
+    #ms-table .ms-family-badge {
+        background: #fff1f1 !important;
+        color: var(--iba-inventory) !important;
+        -webkit-text-fill-color: var(--iba-inventory) !important;
+        border: 1px solid rgba(77,0,0,0.20) !important;
+        padding: 5px 9px !important;
+    }
+    #ms-table .ms-stock-pill {
+        background: linear-gradient(135deg, var(--iba-inventory) 0%, var(--iba-inventory-mid) 100%) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border: 1px solid rgba(77,0,0,0.38) !important;
+        min-width: 42px !important;
+        text-align: center !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 5px 10px !important;
+    }
+    #ms-table .ms-product-title strong,
+    #ms-table .ms-cell-detail strong {
+        color: #2b0000 !important;
+        -webkit-text-fill-color: #2b0000 !important;
+    }
+    #ms-table .ms-expand-btn,
+    #ms-table .ms-row-action-btn,
+    #ms-table .ms-add-to-required-btn,
+    #ms-table .ms-edit-stock-btn {
+        background: #fff8f8 !important;
+        color: var(--iba-inventory) !important;
+        -webkit-text-fill-color: var(--iba-inventory) !important;
+        border: 1px solid rgba(77,0,0,0.24) !important;
+        border-radius: 12px !important;
+        box-shadow: 0 6px 14px rgba(43,0,0,0.07) !important;
+        font-weight: 900 !important;
+    }
+    #ms-table .ms-row-action-btn:hover,
+    #ms-table .ms-add-to-required-btn:hover,
+    #ms-table .ms-edit-stock-btn:hover,
+    #ms-table .ms-expand-btn:hover {
+        background: var(--iba-inventory) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border-color: rgba(77,0,0,0.44) !important;
+    }
+    #ms-table .ms-row-action-btn:hover *,
+    #ms-table .ms-add-to-required-btn:hover *,
+    #ms-table .ms-edit-stock-btn:hover *,
+    #ms-table .ms-expand-btn:hover * {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+    #ms-table .ms-delete-btn,
+    #ms-table .delete-btn {
+        background: linear-gradient(135deg, #7f1d1d 0%, #b91c1c 100%) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border: 1px solid rgba(127,29,29,0.40) !important;
+        border-radius: 12px !important;
+        font-weight: 900 !important;
+    }
+    #ms-table .ms-delete-btn *,
+    #ms-table .delete-btn * {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+
+    /* Stock child/history area inside each row. */
+    #ms-table .stock-child-row td,
+    #ms-table tr.stock-child-row td {
+        background: #fffafa !important;
+        border-top: 1px solid rgba(77,0,0,0.10) !important;
+    }
+    #ms-table .stock-child-row table thead th,
+    #ms-table tr.stock-child-row table thead th {
+        background: var(--iba-inventory) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+}
+
+
+/* =========================================================
+   8.8.7 INVENTORY DESKTOP POLISH — MAROON SYNC HARDENING
+   Scope: DESKTOP INVENTORY ONLY. Mobile CSS is intentionally untouched.
+   Fixes:
+   - Active Task empty/"No Tasks" tab still showing blue.
+   - Request Review title underline wrapping into two lines.
+   - Material Stock selected family tab becoming pale/blue/unreadable.
+   - Material Stock row side accents and child-row accents still blue.
+   - Job Records / Active Task table header corners and tab accents.
+   ========================================================= */
+@media (min-width: 769px) {
+    /* Inventory scope helper: keep all fixes desktop-only and inventory-only. */
+    body.inventory-mode #workdesk-view,
+    #inventory-view {
+        --iba-inventory: #4d0000;
+        --iba-inventory-deep: #2b0000;
+        --iba-inventory-mid: #650000;
+        --iba-inventory-soft: #fff1f1;
+        --iba-inventory-line: rgba(77, 0, 0, 0.24);
+    }
+
+    /* Active Task: force the empty "No Tasks" state away from old blue. */
+    body.inventory-mode #workdesk-view #wd-activetask #active-task-filters.report-tabs button,
+    body.inventory-mode #workdesk-view #active-task-filters.report-tabs button,
+    body.inventory-mode #workdesk-view #active-task-filters.report-tabs button:disabled,
+    body.inventory-mode #workdesk-view #active-task-filters.report-tabs button.active:disabled,
+    body.inventory-mode #workdesk-view #active-task-filters.report-tabs button[disabled],
+    body.inventory-mode #workdesk-view #active-task-filters.report-tabs button.active[disabled] {
+        background: #fff7f7 !important;
+        color: var(--iba-inventory) !important;
+        -webkit-text-fill-color: var(--iba-inventory) !important;
+        border: 1px solid var(--iba-inventory-line) !important;
+        border-radius: 14px !important;
+        box-shadow: 0 8px 18px rgba(43,0,0,0.06) !important;
+        text-shadow: none !important;
+        opacity: 1 !important;
+    }
+    body.inventory-mode #workdesk-view #wd-activetask #active-task-filters.report-tabs button.active:not(:disabled),
+    body.inventory-mode #workdesk-view #active-task-filters.report-tabs button.active:not(:disabled) {
+        background: linear-gradient(135deg, var(--iba-inventory-deep) 0%, var(--iba-inventory) 62%, var(--iba-inventory-mid) 100%) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border-color: rgba(77,0,0,0.48) !important;
+        box-shadow: 0 12px 26px rgba(43,0,0,0.20) !important;
+    }
+    body.inventory-mode #workdesk-view #active-task-filters.report-tabs button *,
+    body.inventory-mode #workdesk-view #wd-activetask #active-task-filters.report-tabs button * {
+        color: inherit !important;
+        -webkit-text-fill-color: inherit !important;
+        text-shadow: none !important;
+    }
+
+    /* Inventory Request Review: make title one clean line with one underline only. */
+    body.inventory-mode #workdesk-view .inventory-request-review-head {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 18px !important;
+        background:
+            radial-gradient(circle at 92% 8%, rgba(255,255,255,0.14), transparent 32%),
+            linear-gradient(135deg, var(--iba-inventory-deep) 0%, var(--iba-inventory) 58%, var(--iba-inventory-mid) 100%) !important;
+        border: 1px solid rgba(255,241,241,0.24) !important;
+        border-radius: 18px !important;
+        color: #ffffff !important;
+        padding: 26px 30px !important;
+        box-shadow: 0 24px 58px rgba(43,0,0,0.20) !important;
+    }
+    body.inventory-mode #workdesk-view .inventory-request-review-head > div {
+        min-width: 0 !important;
+        flex: 1 1 auto !important;
+    }
+    body.inventory-mode #workdesk-view .inventory-request-review-head h1 {
+        display: inline-block !important;
+        width: auto !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        white-space: nowrap !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        line-height: 1.08 !important;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.34) !important;
+    }
+    body.inventory-mode #workdesk-view .inventory-request-review-head h1::after {
+        content: "" !important;
+        display: block !important;
+        width: 100% !important;
+        height: 2px !important;
+        margin-top: 10px !important;
+        background: linear-gradient(90deg, rgba(255,255,255,0.92), rgba(255,230,230,0.52), transparent) !important;
+        border-radius: 999px !important;
+    }
+    body.inventory-mode #workdesk-view .inventory-request-review-head p {
+        color: rgba(255,255,255,0.92) !important;
+        -webkit-text-fill-color: rgba(255,255,255,0.92) !important;
+        margin: 14px 0 0 !important;
+        text-shadow: none !important;
+    }
+    body.inventory-mode #workdesk-view #inv-request-review-refresh {
+        background: #fff7f7 !important;
+        color: var(--iba-inventory) !important;
+        -webkit-text-fill-color: var(--iba-inventory) !important;
+        border: 1px solid rgba(255,241,241,0.55) !important;
+        border-radius: 14px !important;
+        font-weight: 900 !important;
+        white-space: nowrap !important;
+    }
+
+    /* Material Stock family tabs: active tab and its number badge must remain visible. */
+    body.inventory-mode #workdesk-view #wd-material-stock #ms-category-tabs.report-tabs,
+    body.inventory-mode #workdesk-view #ms-category-tabs.report-tabs,
+    body.inventory-mode #workdesk-view #ms-category-tabs.ms-premium-tabs {
+        background: rgba(255, 248, 248, 0.98) !important;
+        border: 1px solid rgba(77,0,0,0.18) !important;
+        border-bottom: 1px solid rgba(77,0,0,0.18) !important;
+        border-radius: 18px !important;
+        padding: 8px !important;
+        gap: 8px !important;
+        box-shadow: 0 10px 24px rgba(43,0,0,0.06) !important;
+    }
+    body.inventory-mode #workdesk-view #ms-category-tabs .ms-family-chip,
+    body.inventory-mode #workdesk-view #wd-material-stock #ms-category-tabs .ms-family-chip,
+    body.inventory-mode #workdesk-view #ms-category-tabs.report-tabs button {
+        background: #fffafa !important;
+        color: var(--iba-inventory) !important;
+        -webkit-text-fill-color: var(--iba-inventory) !important;
+        border: 1px solid rgba(77,0,0,0.24) !important;
+        border-radius: 15px !important;
+        box-shadow: none !important;
+        opacity: 1 !important;
+        text-shadow: none !important;
+    }
+    body.inventory-mode #workdesk-view #ms-category-tabs .ms-family-chip.active,
+    body.inventory-mode #workdesk-view #wd-material-stock #ms-category-tabs .ms-family-chip.active,
+    body.inventory-mode #workdesk-view #ms-category-tabs.report-tabs button.active {
+        background: linear-gradient(135deg, var(--iba-inventory-deep) 0%, var(--iba-inventory) 60%, var(--iba-inventory-mid) 100%) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border-color: rgba(77,0,0,0.55) !important;
+        box-shadow: 0 12px 26px rgba(43,0,0,0.20) !important;
+    }
+    body.inventory-mode #workdesk-view #ms-category-tabs .ms-family-code {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-width: 24px !important;
+        height: 24px !important;
+        padding: 0 8px !important;
+        border-radius: 999px !important;
+        background: var(--iba-inventory) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border: 1px solid rgba(77,0,0,0.30) !important;
+        font-weight: 950 !important;
+        text-shadow: none !important;
+    }
+    body.inventory-mode #workdesk-view #ms-category-tabs .ms-family-chip.active .ms-family-code {
+        background: rgba(255,255,255,0.18) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border-color: rgba(255,255,255,0.38) !important;
+    }
+    body.inventory-mode #workdesk-view #ms-category-tabs .ms-family-chip .ms-family-name,
+    body.inventory-mode #workdesk-view #ms-category-tabs .ms-family-chip.active .ms-family-name {
+        color: inherit !important;
+        -webkit-text-fill-color: inherit !important;
+        opacity: 1 !important;
+        text-shadow: none !important;
+    }
+
+    /* Material Stock rows: replace remaining blue/teal side accents with maroon. */
+    body.inventory-mode #workdesk-view #ms-table tbody tr.ms-parent-row,
+    body.inventory-mode #workdesk-view #ms-table tbody tr:not(.stock-child-row) {
+        border-left: 4px solid var(--iba-inventory) !important;
+        box-shadow: inset 4px 0 0 var(--iba-inventory) !important;
+    }
+    body.inventory-mode #workdesk-view #ms-table tbody tr.ms-parent-row:hover,
+    body.inventory-mode #workdesk-view #ms-table tbody tr:not(.stock-child-row):hover {
+        background: #fffafa !important;
+        box-shadow: inset 5px 0 0 var(--iba-inventory), 0 8px 18px rgba(43,0,0,0.05) !important;
+    }
+    body.inventory-mode #workdesk-view #ms-table tbody tr.ms-parent-row td:first-child,
+    body.inventory-mode #workdesk-view #ms-table tbody tr:not(.stock-child-row) td:first-child {
+        border-left: 4px solid var(--iba-inventory) !important;
+    }
+    body.inventory-mode #workdesk-view #ms-table .stock-child-row,
+    body.inventory-mode #workdesk-view #ms-table tr.stock-child-row {
+        border-left: 5px solid var(--iba-inventory) !important;
+        box-shadow: inset 5px 0 0 var(--iba-inventory) !important;
+    }
+    body.inventory-mode #workdesk-view #ms-table [style*="#00748C"],
+    body.inventory-mode #workdesk-view #ms-table [style*="#003A5C"],
+    body.inventory-mode #workdesk-view #ms-table [style*="#17a2b8"] {
+        color: var(--iba-inventory) !important;
+        border-color: var(--iba-inventory) !important;
+    }
+    body.inventory-mode #workdesk-view #ms-table .fa-image,
+    body.inventory-mode #workdesk-view #ms-table .fa-regular.fa-image {
+        color: var(--iba-inventory) !important;
+        -webkit-text-fill-color: var(--iba-inventory) !important;
+    }
+
+    /* Job Records and Active Task desktop tables: rounded maroon table headers. */
+    body.inventory-mode #workdesk-view #wd-reporting table,
+    body.inventory-mode #workdesk-view #wd-activetask table,
+    body.inventory-mode #workdesk-view #ms-table {
+        border-collapse: separate !important;
+        border-spacing: 0 !important;
+        border-radius: 14px !important;
+        overflow: hidden !important;
+    }
+    body.inventory-mode #workdesk-view #wd-reporting table thead th,
+    body.inventory-mode #workdesk-view #wd-activetask table thead th,
+    body.inventory-mode #workdesk-view #ms-table thead th {
+        background: var(--iba-inventory) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border-color: rgba(255,241,241,0.24) !important;
+    }
+    body.inventory-mode #workdesk-view #wd-reporting table thead th:first-child,
+    body.inventory-mode #workdesk-view #wd-activetask table thead th:first-child,
+    body.inventory-mode #workdesk-view #ms-table thead th:first-child {
+        border-top-left-radius: 12px !important;
+    }
+    body.inventory-mode #workdesk-view #wd-reporting table thead th:last-child,
+    body.inventory-mode #workdesk-view #wd-activetask table thead th:last-child,
+    body.inventory-mode #workdesk-view #ms-table thead th:last-child {
+        border-top-right-radius: 12px !important;
+    }
+}
+
+/* Chrome/Edge desktop fallback for Inventory mode when body.inventory-mode was not yet applied. */
+@supports selector(body:has(*)) {
+    @media (min-width: 769px) {
+        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #active-task-filters.report-tabs button,
+        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #active-task-filters.report-tabs button:disabled,
+        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #active-task-filters.report-tabs button.active:disabled {
+            background: #fff7f7 !important;
+            color: #4d0000 !important;
+            -webkit-text-fill-color: #4d0000 !important;
+            border: 1px solid rgba(77,0,0,0.24) !important;
+            border-radius: 14px !important;
+            box-shadow: 0 8px 18px rgba(43,0,0,0.06) !important;
+            opacity: 1 !important;
+        }
+        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-category-tabs .ms-family-chip.active {
+            background: linear-gradient(135deg, #2b0000 0%, #4d0000 60%, #650000 100%) !important;
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
+        }
+        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-category-tabs .ms-family-chip.active * {
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
+        }
+        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody tr.ms-parent-row,
+        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody tr:not(.stock-child-row) {
+            border-left: 4px solid #4d0000 !important;
+            box-shadow: inset 4px 0 0 #4d0000 !important;
+        }
+    }
+}
+
+
+/* =========================================================
+   8.8.8 INVENTORY DESKTOP FINAL POLISH
+   Scope: desktop Inventory only.
+   - Shorten/polish In Transit report button.
+   - Remove extra full-table left maroon line in Material Stock.
+   - Keep only per-row rounded maroon markers.
+   - Remove extra solid line in Request Review header.
+   ========================================================= */
+@media (min-width: 769px) {
+    body.inventory-mode #workdesk-view,
+    #inventory-view {
+        --iba-inventory: #4d0000;
+        --iba-inventory-deep: #2b0000;
+        --iba-inventory-mid: #650000;
+        --iba-inventory-soft: #fff1f1;
+        --iba-inventory-line: rgba(77, 0, 0, 0.24);
+    }
+
+    /* Job Records: shorter report button text should stay on one line. */
+    body.inventory-mode #workdesk-view #wd-inventory-intransit-report-btn,
+    #wd-inventory-intransit-report-btn {
+        background: linear-gradient(135deg, var(--iba-inventory-deep) 0%, var(--iba-inventory) 62%, var(--iba-inventory-mid) 100%) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border: 1px solid rgba(255,241,241,0.32) !important;
+        border-radius: 14px !important;
+        min-width: 0 !important;
+        width: auto !important;
+        padding: 0 14px !important;
+        white-space: nowrap !important;
+        line-height: 1.05 !important;
+        text-align: center !important;
+        box-shadow: 0 10px 22px rgba(43,0,0,0.18) !important;
+    }
+    body.inventory-mode #workdesk-view #wd-inventory-intransit-report-btn *,
+    #wd-inventory-intransit-report-btn * {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+
+    /* Request Review: remove any second/extra title line and keep one clean underline only. */
+    body.inventory-mode #workdesk-view .inventory-request-review-head h1,
+    body.inventory-mode .inventory-request-review-head h1 {
+        border: 0 !important;
+        border-bottom: 0 !important;
+        text-decoration: none !important;
+        background-image: none !important;
+        display: inline-block !important;
+        width: auto !important;
+        max-width: 100% !important;
+        white-space: nowrap !important;
+    }
+    body.inventory-mode #workdesk-view .inventory-request-review-head h1::before,
+    body.inventory-mode .inventory-request-review-head h1::before,
+    body.inventory-mode #workdesk-view .inventory-request-review-head > div::after,
+    body.inventory-mode .inventory-request-review-head > div::after {
+        content: none !important;
+        display: none !important;
+    }
+    body.inventory-mode #workdesk-view .inventory-request-review-head h1::after,
+    body.inventory-mode .inventory-request-review-head h1::after {
+        content: "" !important;
+        display: block !important;
+        width: 100% !important;
+        height: 2px !important;
+        margin-top: 10px !important;
+        background: linear-gradient(90deg, rgba(255,255,255,0.94), rgba(255,230,230,0.50), transparent) !important;
+        border: 0 !important;
+        border-radius: 999px !important;
+        box-shadow: none !important;
+    }
+
+    /* Material Stock: remove the accidental full-table/continuous left line. */
+    body.inventory-mode #workdesk-view #ms-table,
+    body.inventory-mode #workdesk-view #ms-table tbody,
+    body.inventory-mode #workdesk-view #ms-table tr,
+    body.inventory-mode #workdesk-view #ms-table td {
+        border-left: 0 !important;
+    }
+    body.inventory-mode #workdesk-view #ms-table tbody tr.ms-parent-row,
+    body.inventory-mode #workdesk-view #ms-table tbody tr:not(.stock-child-row),
+    body.inventory-mode #workdesk-view #ms-table .stock-child-row,
+    body.inventory-mode #workdesk-view #ms-table tr.stock-child-row {
+        border-left: 0 !important;
+        box-shadow: none !important;
+    }
+    body.inventory-mode #workdesk-view #ms-table tbody tr.ms-parent-row td:first-child,
+    body.inventory-mode #workdesk-view #ms-table tbody tr:not(.stock-child-row) td:first-child,
+    body.inventory-mode #workdesk-view #ms-table .stock-child-row td:first-child,
+    body.inventory-mode #workdesk-view #ms-table tr.stock-child-row td:first-child {
+        border-left: 0 !important;
+        position: relative !important;
+    }
+    body.inventory-mode #workdesk-view #ms-table tbody tr.ms-parent-row td:first-child::before,
+    body.inventory-mode #workdesk-view #ms-table tbody tr:not(.stock-child-row) td:first-child::before {
+        content: "" !important;
+        position: absolute !important;
+        left: 0 !important;
+        top: 12px !important;
+        bottom: 12px !important;
+        width: 4px !important;
+        background: var(--iba-inventory) !important;
+        border-radius: 999px !important;
+        box-shadow: none !important;
+    }
+    body.inventory-mode #workdesk-view #ms-table .stock-child-row td:first-child::before,
+    body.inventory-mode #workdesk-view #ms-table tr.stock-child-row td:first-child::before {
+        content: "" !important;
+        position: absolute !important;
+        left: 0 !important;
+        top: 10px !important;
+        bottom: 10px !important;
+        width: 4px !important;
+        background: var(--iba-inventory) !important;
+        border-radius: 999px !important;
+        box-shadow: none !important;
+    }
+    body.inventory-mode #workdesk-view #ms-table tbody tr.ms-parent-row:hover,
+    body.inventory-mode #workdesk-view #ms-table tbody tr:not(.stock-child-row):hover {
+        background: #fffafa !important;
+        box-shadow: 0 8px 18px rgba(43,0,0,0.05) !important;
+    }
+}
+
+@supports selector(body:has(*)) {
+    @media (min-width: 769px) {
+        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table,
+        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody,
+        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tr,
+        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table td {
+            border-left: 0 !important;
+        }
+        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody tr.ms-parent-row,
+        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody tr:not(.stock-child-row) {
+            border-left: 0 !important;
+            box-shadow: none !important;
+        }
+        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody tr.ms-parent-row td:first-child,
+        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody tr:not(.stock-child-row) td:first-child {
+            position: relative !important;
+            border-left: 0 !important;
+        }
+        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody tr.ms-parent-row td:first-child::before,
+        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody tr:not(.stock-child-row) td:first-child::before {
+            content: "" !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 12px !important;
+            bottom: 12px !important;
+            width: 4px !important;
+            background: #4d0000 !important;
+            border-radius: 999px !important;
+        }
+    }
+}
+
+
+/* =========================================================
+   8.8.9 INVENTORY DESKTOP MATERIAL STOCK ROW MARKER POLISH
+   Scope: desktop Inventory only.
+   Purpose:
+   - Make Material Stock row side marker look like a clean row accent,
+     not a small awkward line or a continuous table border.
+   - Keep marker maroon and per-entry only.
+   ========================================================= */
+@media (min-width: 769px) {
+    body.inventory-mode #workdesk-view,
+    #inventory-view {
+        --iba-inventory: #4d0000;
+        --iba-inventory-deep: #2b0000;
+        --iba-inventory-mid: #650000;
+        --iba-inventory-soft: #fff1f1;
+    }
+
+    /* Remove any inherited/old full-table left border first. */
+    body.inventory-mode #workdesk-view #ms-table,
+    body.inventory-mode #workdesk-view #ms-table tbody,
+    body.inventory-mode #workdesk-view #ms-table tr,
+    body.inventory-mode #workdesk-view #ms-table td {
+        border-left: 0 !important;
+    }
+
+    /* Keep each Material Stock entry as a clean row with one maroon side accent. */
+    body.inventory-mode #workdesk-view #ms-table tbody tr.ms-parent-row,
+    body.inventory-mode #workdesk-view #ms-table tbody tr:not(.stock-child-row) {
+        border-left: 0 !important;
+        box-shadow: none !important;
+        background: #ffffff !important;
+    }
+    body.inventory-mode #workdesk-view #ms-table tbody tr.ms-parent-row td,
+    body.inventory-mode #workdesk-view #ms-table tbody tr:not(.stock-child-row) td {
+        background: #ffffff !important;
+        border-bottom: 1px solid rgba(77,0,0,0.07) !important;
+    }
+    body.inventory-mode #workdesk-view #ms-table tbody tr.ms-parent-row td:first-child,
+    body.inventory-mode #workdesk-view #ms-table tbody tr:not(.stock-child-row) td:first-child {
+        position: relative !important;
+        border-left: 0 !important;
+        overflow: visible !important;
+    }
+
+    /* Screenshot-style row accent: tall, clean, rounded, maroon. */
+    body.inventory-mode #workdesk-view #ms-table tbody tr.ms-parent-row td:first-child::before,
+    body.inventory-mode #workdesk-view #ms-table tbody tr:not(.stock-child-row) td:first-child::before {
+        content: "" !important;
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        width: 4px !important;
+        background: var(--iba-inventory) !important;
+        border-radius: 999px !important;
+        box-shadow: none !important;
+        opacity: 1 !important;
+        z-index: 1 !important;
+    }
+    body.inventory-mode #workdesk-view #ms-table tbody tr.ms-parent-row:hover td,
+    body.inventory-mode #workdesk-view #ms-table tbody tr:not(.stock-child-row):hover td {
+        background: #fffafa !important;
+    }
+    body.inventory-mode #workdesk-view #ms-table tbody tr.ms-parent-row:hover td:first-child::before,
+    body.inventory-mode #workdesk-view #ms-table tbody tr:not(.stock-child-row):hover td:first-child::before {
+        width: 5px !important;
+        background: linear-gradient(180deg, var(--iba-inventory-deep), var(--iba-inventory), var(--iba-inventory-mid)) !important;
+    }
+
+    /* Child/detail rows use a softer accent so they do not compete with the main entry. */
+    body.inventory-mode #workdesk-view #ms-table tr.stock-child-row,
+    body.inventory-mode #workdesk-view #ms-table .stock-child-row {
+        border-left: 0 !important;
+        box-shadow: none !important;
+    }
+    body.inventory-mode #workdesk-view #ms-table tr.stock-child-row td:first-child,
+    body.inventory-mode #workdesk-view #ms-table .stock-child-row td:first-child {
+        position: relative !important;
+        border-left: 0 !important;
+        overflow: visible !important;
+    }
+    body.inventory-mode #workdesk-view #ms-table tr.stock-child-row td:first-child::before,
+    body.inventory-mode #workdesk-view #ms-table .stock-child-row td:first-child::before {
+        content: "" !important;
+        position: absolute !important;
+        left: 0 !important;
+        top: 6px !important;
+        bottom: 6px !important;
+        width: 3px !important;
+        background: rgba(77,0,0,0.52) !important;
+        border-radius: 999px !important;
+        box-shadow: none !important;
+    }
+}
+
+@supports selector(body:has(*)) {
+    @media (min-width: 769px) {
+        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table,
+        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody,
+        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tr,
+        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table td {
+            border-left: 0 !important;
+        }
+        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody tr.ms-parent-row,
+        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody tr:not(.stock-child-row) {
+            border-left: 0 !important;
+            box-shadow: none !important;
+        }
+        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody tr.ms-parent-row td:first-child,
+        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody tr:not(.stock-child-row) td:first-child {
+            position: relative !important;
+            border-left: 0 !important;
+            overflow: visible !important;
+        }
+        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody tr.ms-parent-row td:first-child::before,
+        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody tr:not(.stock-child-row) td:first-child::before {
+            content: "" !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            bottom: 0 !important;
+            width: 4px !important;
+            background: #4d0000 !important;
+            border-radius: 999px !important;
+            box-shadow: none !important;
+        }
+    }
+}

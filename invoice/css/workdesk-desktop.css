@@ -1,0 +1,158 @@
+/*
+  IBA 8.8.5 CSS MODULE SPLIT
+  This file is a module-specific override layer.
+  style.css and css/mobile.css remain as legacy/shared base for now.
+  Future UI fixes should go here instead of adding more mixed rules to the base files.
+*/
+
+:root {
+    --iba-workdesk: #0b4f71;
+    --iba-workdesk-deep: #063a57;
+    --iba-workdesk-mid: #0d6e96;
+    --iba-workdesk-soft: #eaf6fb;
+}
+
+@media (min-width: 769px) {
+    #workdesk-view {
+        --module-accent: var(--iba-workdesk);
+        --module-accent-deep: var(--iba-workdesk-deep);
+        --module-accent-mid: var(--iba-workdesk-mid);
+    }
+
+    #workdesk-view .wd-user-avatar {
+        background: linear-gradient(135deg, var(--iba-workdesk-deep), var(--iba-workdesk-mid)) !important;
+        color: #fff !important;
+    }
+
+    #workdesk-view .workdesk-navigation a {
+        background: transparent !important;
+        border: 1px solid transparent !important;
+        color: rgba(255,255,255,0.86) !important;
+        box-shadow: none !important;
+    }
+    #workdesk-view .workdesk-navigation a:hover,
+    #workdesk-view .workdesk-navigation a.active,
+    #workdesk-view .workdesk-navigation li.active > a {
+        background: rgba(255,255,255,0.12) !important;
+        border-color: rgba(255,255,255,0.34) !important;
+        color: #ffffff !important;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05), 0 10px 22px rgba(0,0,0,0.14) !important;
+    }
+
+    #workdesk-view .wd-page-hero,
+    #workdesk-view .wd-dashboard-hero,
+    #workdesk-view .workdesk-dashboard-header {
+        background:
+            radial-gradient(circle at 96% 0%, rgba(255,255,255,0.16), transparent 30%),
+            linear-gradient(135deg, var(--iba-workdesk-deep) 0%, var(--iba-workdesk) 58%, var(--iba-workdesk-mid) 100%) !important;
+        color: #ffffff !important;
+    }
+    #workdesk-view .wd-page-hero h1,
+    #workdesk-view .wd-dashboard-hero h1,
+    #workdesk-view .workdesk-dashboard-header h1 {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.28) !important;
+    }
+    #workdesk-view .wd-page-hero h1::after,
+    #workdesk-view .wd-dashboard-hero h1::after,
+    #workdesk-view .workdesk-dashboard-header h1::after {
+        content: "";
+        display: block;
+        width: min(300px, 64%);
+        height: 2px;
+        margin-top: 8px;
+        background: linear-gradient(90deg, rgba(255,255,255,0.88), rgba(255,255,255,0.16), transparent);
+        border-radius: 999px;
+    }
+
+    .wd-themed-modal .modal-header,
+    #standard-job-modal .modal-header,
+    #modify-task-modal .modal-header,
+    #calendar-task-modal .modal-header,
+    #vacation-replacement-modal .modal-header,
+    #process-report-modal .modal-header {
+        background: linear-gradient(135deg, var(--iba-workdesk-deep), var(--iba-workdesk-mid)) !important;
+        color: #ffffff !important;
+    }
+    .wd-themed-modal .modal-header *,
+    #standard-job-modal .modal-header *,
+    #modify-task-modal .modal-header *,
+    #calendar-task-modal .modal-header *,
+    #vacation-replacement-modal .modal-header *,
+    #process-report-modal .modal-header * {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+}
+
+/* ========================================================================
+   8.9.0 — WorkDesk Dashboard Hero Underline Polish
+   Purpose: remove the old global solid h1 divider from the WorkDesk dashboard
+   hero and restore the clean premium gradient underline style.
+   Desktop only. No workflow/Firebase logic changed.
+   ======================================================================== */
+@media (min-width: 769px) {
+    #workdesk-view #wd-dashboard .wd-control-center-hero h1 {
+        display: inline-block !important;
+        width: auto !important;
+        max-width: 100% !important;
+        border-bottom: 0 !important;
+        padding-bottom: 0 !important;
+        margin: 0 !important;
+        line-height: 1.08 !important;
+        position: relative !important;
+        justify-content: flex-start !important;
+        align-items: flex-start !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+
+    #workdesk-view #wd-dashboard .wd-control-center-hero h1::after {
+        content: "" !important;
+        display: block !important;
+        width: min(315px, 92%) !important;
+        height: 2px !important;
+        margin-top: 10px !important;
+        border-radius: 999px !important;
+        background: linear-gradient(90deg, rgba(255,255,255,0.96), rgba(255,255,255,0.48), rgba(255,255,255,0.00)) !important;
+        box-shadow: none !important;
+    }
+
+    #workdesk-view #wd-dashboard .wd-control-center-hero .wd-control-subtitle {
+        margin-top: 12px !important;
+    }
+}
+
+
+/* ========================================================================
+   8.9.2 — WorkDesk Desktop Dashboard Hero Stack Fix
+   Purpose: keep the small control-center label above the dashboard title.
+   The label uses inline-flex in the legacy base, so it could sit beside the
+   h1. Force a clean stacked title group like the original premium layout.
+   Desktop only. No workflow/Firebase logic changed.
+   ======================================================================== */
+@media (min-width: 769px) {
+    #workdesk-view #wd-dashboard .wd-control-center-hero > div:first-child {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        justify-content: center !important;
+        min-width: 0 !important;
+    }
+
+    #workdesk-view #wd-dashboard .wd-control-center-hero .wd-control-eyebrow {
+        display: flex !important;
+        width: fit-content !important;
+        max-width: 100% !important;
+        margin: 0 0 14px 0 !important;
+        flex: 0 0 auto !important;
+    }
+
+    #workdesk-view #wd-dashboard .wd-control-center-hero h1 {
+        display: block !important;
+        width: fit-content !important;
+        max-width: 100% !important;
+        clear: both !important;
+    }
+}

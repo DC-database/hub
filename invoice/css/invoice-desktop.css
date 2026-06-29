@@ -1,0 +1,308 @@
+/*
+  IBA 8.8.5 CSS MODULE SPLIT
+  This file is a module-specific override layer.
+  style.css and css/mobile.css remain as legacy/shared base for now.
+  Future UI fixes should go here instead of adding more mixed rules to the base files.
+*/
+
+:root {
+    --iba-invoice: #116045;
+    --iba-invoice-deep: #073d2b;
+    --iba-invoice-mid: #1c7a59;
+    --iba-invoice-soft: #eaf8f1;
+    --iba-invoice-line: rgba(255,255,255,0.86);
+}
+
+@media (min-width: 769px) {
+    #invoice-management-view {
+        --module-accent: var(--iba-invoice);
+        --module-accent-deep: var(--iba-invoice-deep);
+        --module-accent-mid: var(--iba-invoice-mid);
+    }
+
+    #invoice-management-view .wd-user-avatar {
+        background: linear-gradient(135deg, var(--iba-invoice-deep), var(--iba-invoice-mid)) !important;
+        color: #ffffff !important;
+    }
+    #invoice-management-view .wd-user-avatar i {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+
+    #invoice-management-view .workdesk-navigation a {
+        background: transparent !important;
+        border: 1px solid transparent !important;
+        color: rgba(255,255,255,0.86) !important;
+        box-shadow: none !important;
+    }
+    #invoice-management-view .workdesk-navigation a:hover,
+    #invoice-management-view .workdesk-navigation a.active,
+    #invoice-management-view .workdesk-navigation li.active > a {
+        background: rgba(255,255,255,0.12) !important;
+        border-color: rgba(255,255,255,0.34) !important;
+        color: #ffffff !important;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05), 0 10px 22px rgba(0,0,0,0.14) !important;
+    }
+
+    /* WorkDesk-style header clone for every Invoice Management section. */
+    #invoice-management-view .im-standard-hero,
+    #invoice-management-view .im-dashboard-hero,
+    #invoice-management-view .im-reporting-hero,
+    #invoice-management-view .im-finance-hero,
+    #invoice-management-view .wd-page-hero,
+    #invoice-management-view .section-header,
+    #invoice-management-view .report-hero,
+    #invoice-management-view .finance-report-header {
+        position: relative !important;
+        overflow: hidden !important;
+        border: 1px solid rgba(255,255,255,0.18) !important;
+        border-radius: 24px !important;
+        background:
+            radial-gradient(circle at 96% 0%, rgba(255,255,255,0.16), transparent 30%),
+            linear-gradient(135deg, var(--iba-invoice-deep) 0%, var(--iba-invoice) 58%, var(--iba-invoice-mid) 100%) !important;
+        box-shadow: 0 18px 48px rgba(7,61,43,0.20) !important;
+        color: #ffffff !important;
+    }
+    #invoice-management-view .im-standard-hero::before,
+    #invoice-management-view .im-dashboard-hero::before,
+    #invoice-management-view .im-reporting-hero::before,
+    #invoice-management-view .im-finance-hero::before,
+    #invoice-management-view .wd-page-hero::before,
+    #invoice-management-view .section-header::before,
+    #invoice-management-view .report-hero::before,
+    #invoice-management-view .finance-report-header::before {
+        border: 0 !important;
+        box-shadow: none !important;
+        display: none !important;
+    }
+    #invoice-management-view .im-standard-hero h1,
+    #invoice-management-view .im-standard-hero h2,
+    #invoice-management-view .im-dashboard-hero h1,
+    #invoice-management-view .im-reporting-hero h1,
+    #invoice-management-view .im-finance-hero h1,
+    #invoice-management-view .wd-page-hero h1,
+    #invoice-management-view .section-header h1,
+    #invoice-management-view .section-header h2,
+    #invoice-management-view .report-hero h1,
+    #invoice-management-view .finance-report-header h1 {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.26) !important;
+    }
+    #invoice-management-view .im-standard-hero h1::after,
+    #invoice-management-view .im-standard-hero h2::after,
+    #invoice-management-view .im-dashboard-hero h1::after,
+    #invoice-management-view .im-reporting-hero h1::after,
+    #invoice-management-view .im-finance-hero h1::after,
+    #invoice-management-view .wd-page-hero h1::after,
+    #invoice-management-view .section-header h1::after,
+    #invoice-management-view .section-header h2::after,
+    #invoice-management-view .report-hero h1::after,
+    #invoice-management-view .finance-report-header h1::after {
+        content: "";
+        display: block;
+        width: min(300px, 64%);
+        height: 2px;
+        margin-top: 8px;
+        background: linear-gradient(90deg, var(--iba-invoice-line), rgba(255,255,255,0.16), transparent) !important;
+        border-radius: 999px;
+        box-shadow: none !important;
+    }
+    #invoice-management-view .im-standard-eyebrow,
+    #invoice-management-view .wd-page-eyebrow,
+    #invoice-management-view .hero-eyebrow,
+    #invoice-management-view .section-eyebrow {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        width: auto !important;
+        background: rgba(255,255,255,0.10) !important;
+        border: 1px solid rgba(255,255,255,0.24) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border-radius: 999px !important;
+        padding: 7px 14px !important;
+        box-shadow: none !important;
+    }
+    #invoice-management-view .im-standard-hero p,
+    #invoice-management-view .im-dashboard-hero p,
+    #invoice-management-view .im-reporting-hero p,
+    #invoice-management-view .im-finance-hero p,
+    #invoice-management-view .wd-page-hero p,
+    #invoice-management-view .section-header p,
+    #invoice-management-view .report-hero p,
+    #invoice-management-view .finance-report-header p {
+        color: #e9fff6 !important;
+        -webkit-text-fill-color: #e9fff6 !important;
+    }
+
+    /* Invoice modal and history headers: remove the remaining navy layer. */
+    #im-invoice-entry-modal .modal-container .modal-header,
+    #im-invoice-entry-modal .modal-content .modal-header,
+    #im-invoice-entry-modal .form-header,
+    #im-batch-search-modal .modal-header,
+    #im-attention-picker-modal .modal-header,
+    #im-add-payment-modal .modal-header,
+    #im-manual-po-modal .modal-header,
+    #im-finance-report-modal .modal-header,
+    #im-mobile-search-modal .modal-header,
+    #history-modal .modal-header,
+    #history-modal .history-modal-header {
+        background:
+            radial-gradient(circle at 92% 8%, rgba(255,255,255,0.16), transparent 30%),
+            linear-gradient(135deg, var(--iba-invoice-deep) 0%, var(--iba-invoice) 58%, var(--iba-invoice-mid) 100%) !important;
+        color: #ffffff !important;
+        border-bottom: 1px solid rgba(255,255,255,0.24) !important;
+        box-shadow: none !important;
+    }
+    #im-invoice-entry-modal .modal-header *,
+    #im-invoice-entry-modal .form-header *,
+    #im-batch-search-modal .modal-header *,
+    #im-attention-picker-modal .modal-header *,
+    #im-add-payment-modal .modal-header *,
+    #im-manual-po-modal .modal-header *,
+    #im-finance-report-modal .modal-header *,
+    #im-mobile-search-modal .modal-header *,
+    #history-modal .modal-header *,
+    #history-modal .history-modal-header * {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        text-shadow: none !important;
+    }
+    #im-invoice-entry-modal .modal-header h2::after,
+    #im-invoice-entry-modal .form-header h2::after,
+    #im-batch-search-modal .modal-header h2::after,
+    #history-modal .history-modal-header h2::after {
+        content: "";
+        display: block;
+        width: min(240px, 60%);
+        height: 2px;
+        margin-top: 8px;
+        background: linear-gradient(90deg, rgba(255,255,255,0.88), rgba(255,255,255,0.18), transparent) !important;
+        border-radius: 999px;
+    }
+
+    /* Tables and totals contrast. */
+    #invoice-management-view table thead,
+    #invoice-management-view table thead tr,
+    #invoice-management-view table thead th,
+    #im-invoice-entry-modal table thead,
+    #im-invoice-entry-modal table thead tr,
+    #im-invoice-entry-modal table thead th,
+    #im-batch-search-modal table thead,
+    #im-batch-search-modal table thead tr,
+    #im-batch-search-modal table thead th,
+    #history-modal table thead,
+    #history-modal table thead tr,
+    #history-modal table thead th,
+    #history-table thead,
+    #history-table thead tr,
+    #history-table thead th {
+        background: var(--iba-invoice) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border-color: rgba(255,255,255,0.20) !important;
+    }
+    #invoice-management-view table,
+    #im-invoice-entry-modal table,
+    #im-batch-search-modal table,
+    #history-modal table {
+        border-collapse: separate !important;
+        border-spacing: 0 !important;
+        border-radius: 14px !important;
+        overflow: hidden !important;
+    }
+    #invoice-management-view tfoot,
+    #invoice-management-view tfoot tr,
+    #invoice-management-view tfoot td,
+    #im-invoice-entry-modal tfoot,
+    #im-invoice-entry-modal tfoot tr,
+    #im-invoice-entry-modal tfoot td,
+    #existing-invoices-table tfoot,
+    #existing-invoices-table tfoot tr,
+    #existing-invoices-table tfoot td {
+        background: var(--iba-invoice) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        font-weight: 900 !important;
+    }
+
+    /* Buttons: dark green means white text; light green means dark green text. */
+    #invoice-management-view button,
+    #im-invoice-entry-modal button,
+    #im-batch-search-modal button,
+    #history-modal button,
+    #im-add-payment-modal button,
+    #im-manual-po-modal button,
+    #im-finance-report-modal button {
+        font-weight: 900 !important;
+    }
+    #invoice-management-view .download-btn,
+    #invoice-management-view .primary-btn,
+    #invoice-management-view button[id*="search"],
+    #invoice-management-view button[id*="add"],
+    #invoice-management-view button[id*="update"],
+    #im-invoice-entry-modal .download-btn,
+    #im-invoice-entry-modal .primary-btn,
+    #im-invoice-entry-modal button[id*="add"],
+    #im-invoice-entry-modal button[id*="update"],
+    #im-batch-search-modal .download-btn,
+    #im-batch-search-modal button[id*="search"],
+    #history-modal .download-btn {
+        background: linear-gradient(135deg, var(--iba-invoice) 0%, var(--iba-invoice-mid) 100%) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border: 1px solid rgba(255,255,255,0.35) !important;
+        border-radius: 14px !important;
+        box-shadow: 0 10px 22px rgba(7,61,43,0.16) !important;
+    }
+    #invoice-management-view .secondary-btn:not(.delete-btn),
+    #im-invoice-entry-modal .secondary-btn:not(.delete-btn),
+    #im-batch-search-modal .secondary-btn:not(.delete-btn),
+    #history-modal .secondary-btn:not(.delete-btn),
+    #im-add-payment-modal .secondary-btn:not(.delete-btn),
+    #im-manual-po-modal .secondary-btn:not(.delete-btn),
+    #im-finance-report-modal .secondary-btn:not(.delete-btn) {
+        background: #f1fff8 !important;
+        color: var(--iba-invoice) !important;
+        -webkit-text-fill-color: var(--iba-invoice) !important;
+        border: 1px solid rgba(17,96,69,0.24) !important;
+        border-radius: 14px !important;
+        box-shadow: 0 8px 18px rgba(7,61,43,0.06) !important;
+    }
+    #invoice-management-view .delete-btn,
+    #im-invoice-entry-modal .delete-btn,
+    #invoice-management-view button[id*="delete"],
+    #im-invoice-entry-modal button[id*="delete"] {
+        background: linear-gradient(135deg, #b91c1c, #dc2626) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border-radius: 14px !important;
+    }
+    #history-modal .modal-footer .modal-close-btn,
+    #history-modal .modal-footer button,
+    #im-batch-search-modal .modal-footer .modal-close-btn,
+    #im-batch-search-modal .modal-footer button {
+        min-width: 96px !important;
+        width: auto !important;
+        height: auto !important;
+        padding: 11px 18px !important;
+        border-radius: 12px !important;
+        white-space: nowrap !important;
+        overflow: visible !important;
+    }
+
+    #invoice-management-view input:focus,
+    #invoice-management-view select:focus,
+    #invoice-management-view textarea:focus,
+    #im-invoice-entry-modal input:focus,
+    #im-invoice-entry-modal select:focus,
+    #im-invoice-entry-modal textarea:focus,
+    #im-batch-search-modal input:focus,
+    #im-batch-search-modal select:focus,
+    #im-batch-search-modal textarea:focus {
+        border-color: var(--iba-invoice) !important;
+        box-shadow: 0 0 0 4px rgba(17,96,69,0.12), 0 8px 18px rgba(7,61,43,0.10) !important;
+        outline: none !important;
+    }
+}

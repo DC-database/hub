@@ -1,0 +1,177 @@
+/*
+  IBA 8.8.5 CSS MODULE SPLIT
+  This file is a module-specific override layer.
+  style.css and css/mobile.css remain as legacy/shared base for now.
+  Future UI fixes should go here instead of adding more mixed rules to the base files.
+*/
+
+@media (max-width: 768px) {
+    #workdesk-view {
+        --module-accent: #0b4f71;
+        --module-accent-deep: #063a57;
+        --module-accent-mid: #0d6e96;
+    }
+    #workdesk-view .wd-mobile-header,
+    #workdesk-view .mobile-page-header,
+    #workdesk-view .wd-page-hero {
+        background: linear-gradient(135deg, #063a57, #0b4f71 60%, #0d6e96) !important;
+        color: #ffffff !important;
+    }
+    #workdesk-view .workdesk-navigation a.active,
+    #workdesk-view .workdesk-navigation a:hover {
+        background: rgba(255,255,255,0.12) !important;
+        border-color: rgba(255,255,255,0.30) !important;
+        color: #ffffff !important;
+    }
+    .wd-themed-modal .modal-header,
+    #standard-job-modal .modal-header,
+    #modify-task-modal .modal-header,
+    #calendar-task-modal .modal-header {
+        background: linear-gradient(135deg, #063a57, #0d6e96) !important;
+        color: #ffffff !important;
+    }
+    .wd-themed-modal .modal-header *,
+    #standard-job-modal .modal-header *,
+    #modify-task-modal .modal-header *,
+    #calendar-task-modal .modal-header * {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+}
+
+
+/* =====================================================================
+   8.9.1 — WorkDesk mobile cleanup
+   - Remove the large desktop-style Active Task hero from phone view.
+   - Keep mobile navigation readable: dark inactive labels/icons, strong blue active state.
+   ===================================================================== */
+@media (max-width: 900px) {
+    body.iba-mobile-ui #workdesk-view #wd-activetask .wd-page-hero,
+    body.iba-mobile-ui #workdesk-view #wd-activetask .wd-page-hero-active,
+    body.iba-mobile-ui #workdesk-view #wd-activetask .wd-page-hero-metric,
+    body.iba-mobile-ui #workdesk-view #wd-activetask #active-task-summary-strip {
+        display: none !important;
+    }
+
+    body.iba-mobile-ui #workdesk-view #active-task-mobile-header {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 10px !important;
+        min-height: 42px !important;
+        padding: 0 2px 8px !important;
+        margin: 0 0 8px !important;
+        background: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
+    }
+
+    body.iba-mobile-ui #workdesk-view #active-task-mobile-header h1 {
+        margin: 0 !important;
+        font-size: 1.15rem !important;
+        line-height: 1.15 !important;
+        color: #063a57 !important;
+        -webkit-text-fill-color: #063a57 !important;
+        text-shadow: none !important;
+    }
+
+    body.iba-mobile-ui #workdesk-view #mobile-activetask-refresh-btn {
+        width: 38px !important;
+        height: 38px !important;
+        border-radius: 12px !important;
+        background: #eaf6fb !important;
+        border: 1px solid rgba(11, 79, 113, .25) !important;
+        color: #0b4f71 !important;
+    }
+
+    body.iba-mobile-ui:not(.inventory-mode) #workdesk-view #workdesk-nav.workdesk-navigation {
+        display: block !important;
+        position: fixed !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        height: 64px !important;
+        min-height: 64px !important;
+        background: rgba(255,255,255,.98) !important;
+        border-top: 1px solid #d7e5ee !important;
+        box-shadow: 0 -8px 22px rgba(15, 23, 42, .13) !important;
+        z-index: 1200 !important;
+        overflow: hidden !important;
+    }
+
+    body.iba-mobile-ui:not(.inventory-mode) #workdesk-view #workdesk-nav > ul {
+        height: 64px !important;
+        display: flex !important;
+        align-items: stretch !important;
+        justify-content: space-around !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    body.iba-mobile-ui:not(.inventory-mode) #workdesk-view #workdesk-nav a {
+        position: relative !important;
+        height: 64px !important;
+        min-height: 64px !important;
+        padding: 6px 3px 5px !important;
+        margin: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 4px !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        color: #334155 !important;
+        -webkit-text-fill-color: #334155 !important;
+        font-size: 10px !important;
+        font-weight: 850 !important;
+        line-height: 1.05 !important;
+        opacity: 1 !important;
+        text-shadow: none !important;
+    }
+
+    body.iba-mobile-ui:not(.inventory-mode) #workdesk-view #workdesk-nav a i,
+    body.iba-mobile-ui:not(.inventory-mode) #workdesk-view #workdesk-nav a span:not(.notification-badge) {
+        color: inherit !important;
+        -webkit-text-fill-color: currentColor !important;
+        opacity: 1 !important;
+        text-shadow: none !important;
+    }
+
+    body.iba-mobile-ui:not(.inventory-mode) #workdesk-view #workdesk-nav a i {
+        font-size: 18px !important;
+        margin: 0 !important;
+    }
+
+    body.iba-mobile-ui:not(.inventory-mode) #workdesk-view #workdesk-nav a.active,
+    body.iba-mobile-ui:not(.inventory-mode) #workdesk-view #workdesk-nav a:hover {
+        color: #0b4f71 !important;
+        -webkit-text-fill-color: #0b4f71 !important;
+        background: #eef8fc !important;
+        font-weight: 950 !important;
+    }
+
+    body.iba-mobile-ui:not(.inventory-mode) #workdesk-view #workdesk-nav a.active::before {
+        content: '' !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        width: 42px !important;
+        height: 3px !important;
+        border-radius: 999px !important;
+        background: #0b4f71 !important;
+    }
+
+    body.iba-mobile-ui:not(.inventory-mode) #workdesk-view #workdesk-nav .notification-badge {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        background: #d6452f !important;
+        opacity: 1 !important;
+    }
+
+    body.iba-mobile-ui:not(.inventory-mode) #workdesk-view .workdesk-main {
+        padding-bottom: 78px !important;
+    }
+}

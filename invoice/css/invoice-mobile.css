@@ -1,0 +1,205 @@
+/*
+  IBA 8.8.5 CSS MODULE SPLIT
+  This file is a module-specific override layer.
+  style.css and css/mobile.css remain as legacy/shared base for now.
+  Future UI fixes should go here instead of adding more mixed rules to the base files.
+*/
+
+@media (max-width: 768px) {
+    #invoice-management-view {
+        --module-accent: #116045;
+        --module-accent-deep: #073d2b;
+        --module-accent-mid: #1c7a59;
+    }
+    #invoice-management-view .wd-mobile-header,
+    #invoice-management-view .mobile-page-header,
+    #invoice-management-view .im-standard-hero,
+    #invoice-management-view .im-dashboard-hero,
+    #invoice-management-view .im-reporting-hero,
+    #invoice-management-view .im-finance-hero,
+    #invoice-management-view .section-header {
+        background:
+            radial-gradient(circle at 96% 0%, rgba(255,255,255,0.16), transparent 30%),
+            linear-gradient(135deg, #073d2b, #116045 60%, #1c7a59) !important;
+        color: #ffffff !important;
+        border-radius: 20px !important;
+        border: 1px solid rgba(255,255,255,0.20) !important;
+    }
+    #invoice-management-view .im-standard-hero h1,
+    #invoice-management-view .im-standard-hero h2,
+    #invoice-management-view .im-dashboard-hero h1,
+    #invoice-management-view .im-reporting-hero h1,
+    #invoice-management-view .im-finance-hero h1,
+    #invoice-management-view .section-header h1,
+    #invoice-management-view .section-header h2 {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+    #invoice-management-view .im-standard-hero h1::after,
+    #invoice-management-view .im-standard-hero h2::after,
+    #invoice-management-view .im-dashboard-hero h1::after,
+    #invoice-management-view .im-reporting-hero h1::after,
+    #invoice-management-view .section-header h1::after,
+    #invoice-management-view .section-header h2::after {
+        content: "";
+        display: block;
+        width: 220px;
+        max-width: 70%;
+        height: 2px;
+        margin-top: 8px;
+        background: linear-gradient(90deg, rgba(255,255,255,0.88), rgba(255,255,255,0.16), transparent) !important;
+        border-radius: 999px;
+    }
+    #im-invoice-entry-modal .modal-header,
+    #im-invoice-entry-modal .form-header,
+    #im-batch-search-modal .modal-header,
+    #im-attention-picker-modal .modal-header,
+    #im-add-payment-modal .modal-header,
+    #im-manual-po-modal .modal-header,
+    #im-finance-report-modal .modal-header,
+    #im-mobile-search-modal .modal-header,
+    #history-modal .modal-header,
+    #history-modal .history-modal-header {
+        background: linear-gradient(135deg, #073d2b, #116045 60%, #1c7a59) !important;
+        color: #ffffff !important;
+    }
+    #im-invoice-entry-modal .modal-header *,
+    #im-invoice-entry-modal .form-header *,
+    #im-batch-search-modal .modal-header *,
+    #history-modal .modal-header *,
+    #history-modal .history-modal-header * {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+    #invoice-management-view table thead th,
+    #im-invoice-entry-modal table thead th,
+    #im-batch-search-modal table thead th,
+    #history-modal table thead th {
+        background: #116045 !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+    #invoice-management-view button,
+    #im-invoice-entry-modal button,
+    #im-batch-search-modal button,
+    #history-modal button {
+        font-weight: 900 !important;
+    }
+}
+
+
+/* =====================================================================
+   8.9.1 — Invoice mobile cleanup
+   - Remove the tall Invoice Records hero/header from phone view.
+   - Fix mobile bottom navigation readability and contrast.
+   ===================================================================== */
+@media (max-width: 900px) {
+    body.iba-mobile-ui #invoice-management-view #im-reporting > .header,
+    body.im-mobile-reporting-mode #invoice-management-view #im-reporting > .header,
+    body.iba-mobile-ui #im-reporting > .header,
+    body.im-mobile-reporting-mode #im-reporting > .header {
+        display: none !important;
+    }
+
+    body.iba-mobile-ui #invoice-management-view .workdesk-navigation,
+    body.im-mobile-reporting-mode #invoice-management-view .workdesk-navigation {
+        display: block !important;
+        position: fixed !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        height: 64px !important;
+        min-height: 64px !important;
+        background: rgba(255,255,255,.98) !important;
+        border-top: 1px solid #d6e7df !important;
+        box-shadow: 0 -8px 22px rgba(15, 23, 42, .13) !important;
+        z-index: 1200 !important;
+        overflow: hidden !important;
+    }
+
+    body.iba-mobile-ui #invoice-management-view .workdesk-navigation ul,
+    body.im-mobile-reporting-mode #invoice-management-view .workdesk-navigation ul {
+        height: 64px !important;
+        display: flex !important;
+        align-items: stretch !important;
+        justify-content: space-around !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    body.iba-mobile-ui #invoice-management-view .workdesk-navigation a,
+    body.im-mobile-reporting-mode #invoice-management-view .workdesk-navigation a {
+        position: relative !important;
+        height: 64px !important;
+        min-height: 64px !important;
+        padding: 6px 3px 5px !important;
+        margin: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 4px !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        color: #334155 !important;
+        -webkit-text-fill-color: #334155 !important;
+        font-size: 10px !important;
+        font-weight: 850 !important;
+        line-height: 1.05 !important;
+        opacity: 1 !important;
+        text-shadow: none !important;
+    }
+
+    body.iba-mobile-ui #invoice-management-view .workdesk-navigation a i,
+    body.iba-mobile-ui #invoice-management-view .workdesk-navigation a span:not(.notification-badge),
+    body.im-mobile-reporting-mode #invoice-management-view .workdesk-navigation a i,
+    body.im-mobile-reporting-mode #invoice-management-view .workdesk-navigation a span:not(.notification-badge) {
+        color: inherit !important;
+        -webkit-text-fill-color: currentColor !important;
+        opacity: 1 !important;
+        text-shadow: none !important;
+    }
+
+    body.iba-mobile-ui #invoice-management-view .workdesk-navigation a i,
+    body.im-mobile-reporting-mode #invoice-management-view .workdesk-navigation a i {
+        font-size: 18px !important;
+        margin: 0 !important;
+    }
+
+    body.iba-mobile-ui #invoice-management-view .workdesk-navigation a.active,
+    body.iba-mobile-ui #invoice-management-view .workdesk-navigation a:hover,
+    body.im-mobile-reporting-mode #invoice-management-view .workdesk-navigation a.active,
+    body.im-mobile-reporting-mode #invoice-management-view .workdesk-navigation a:hover {
+        color: #116045 !important;
+        -webkit-text-fill-color: #116045 !important;
+        background: #edf8f3 !important;
+        font-weight: 950 !important;
+    }
+
+    body.iba-mobile-ui #invoice-management-view .workdesk-navigation a.active::before,
+    body.im-mobile-reporting-mode #invoice-management-view .workdesk-navigation a.active::before {
+        content: '' !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        width: 42px !important;
+        height: 3px !important;
+        border-radius: 999px !important;
+        background: #116045 !important;
+    }
+
+    body.iba-mobile-ui #invoice-management-view .workdesk-navigation .notification-badge,
+    body.im-mobile-reporting-mode #invoice-management-view .workdesk-navigation .notification-badge {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        background: #d6452f !important;
+        opacity: 1 !important;
+    }
+
+    body.iba-mobile-ui #invoice-management-view .workdesk-main,
+    body.im-mobile-reporting-mode #invoice-management-view .workdesk-main {
+        padding-bottom: 78px !important;
+    }
+}

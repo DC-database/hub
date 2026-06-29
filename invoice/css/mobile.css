@@ -3300,3 +3300,610 @@ body.inventory-request-review-active .inventory-request-review-section.is-open:n
     padding-top: 70px !important;
   }
 }
+
+/* =========================================================
+   8.8.4 INVENTORY MAROON SYNC — MODALS, BUTTONS, TABS
+   Scope: Inventory UI only.
+   Purpose:
+   - Force Inventory modal headers/buttons to maroon #4d0000.
+   - Fix Material Stock Transfer/Restock/Usage disabled contrast.
+   - Sync Inventory Job Records tabs and Active Task tabs to maroon.
+   - Sync Inventory Request Review title/header/buttons to maroon.
+   ========================================================= */
+:root {
+    --inv-maroon: #4d0000;
+    --inv-maroon-deep: #2b0000;
+    --inv-maroon-mid: #650000;
+    --inv-maroon-soft: #fff1f1;
+    --inv-maroon-border: rgba(77, 0, 0, 0.22);
+}
+
+/* Material Stock action buttons: target by ID so old disabled pastel rules cannot win. */
+#ms-transfer-action-btn,
+#ms-restock-action-btn,
+#ms-usage-action-btn,
+body.inventory-mode #workdesk-view #ms-transfer-action-btn,
+body.inventory-mode #workdesk-view #ms-restock-action-btn,
+body.inventory-mode #workdesk-view #ms-usage-action-btn {
+    background: linear-gradient(135deg, var(--inv-maroon) 0%, var(--inv-maroon-mid) 100%) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    border: 1px solid rgba(77, 0, 0, 0.42) !important;
+    border-radius: 14px !important;
+    min-height: 40px !important;
+    padding: 0 18px !important;
+    font-weight: 950 !important;
+    box-shadow: 0 8px 18px rgba(77, 0, 0, 0.18) !important;
+    opacity: 1 !important;
+    filter: none !important;
+    text-shadow: none !important;
+}
+#ms-transfer-action-btn *,
+#ms-restock-action-btn *,
+#ms-usage-action-btn * {
+    color: inherit !important;
+    -webkit-text-fill-color: inherit !important;
+    opacity: 1 !important;
+    filter: none !important;
+}
+#ms-transfer-action-btn:disabled,
+#ms-transfer-action-btn[disabled],
+#ms-restock-action-btn:disabled,
+#ms-restock-action-btn[disabled],
+#ms-usage-action-btn:disabled,
+#ms-usage-action-btn[disabled],
+body.inventory-mode #workdesk-view #ms-transfer-action-btn:disabled,
+body.inventory-mode #workdesk-view #ms-restock-action-btn:disabled,
+body.inventory-mode #workdesk-view #ms-usage-action-btn:disabled {
+    background: linear-gradient(135deg, #fff8f8 0%, #f3e6e6 100%) !important;
+    color: var(--inv-maroon) !important;
+    -webkit-text-fill-color: var(--inv-maroon) !important;
+    border: 1px solid rgba(77, 0, 0, 0.32) !important;
+    box-shadow: none !important;
+    opacity: 1 !important;
+    cursor: not-allowed !important;
+    filter: none !important;
+}
+#ms-transfer-action-btn:disabled *,
+#ms-transfer-action-btn[disabled] *,
+#ms-restock-action-btn:disabled *,
+#ms-restock-action-btn[disabled] *,
+#ms-usage-action-btn:disabled *,
+#ms-usage-action-btn[disabled] * {
+    color: var(--inv-maroon) !important;
+    -webkit-text-fill-color: var(--inv-maroon) !important;
+    opacity: 1 !important;
+}
+
+/* Inventory modal headers: direct IDs, not dependent only on body.inventory-mode. */
+#ms-report-modal .modal-header,
+#ms-requestlist-modal .modal-header,
+#ms-new-material-modal .modal-header,
+#ms-photo-browser-modal .modal-header,
+#ms-add-stock-modal .modal-header,
+#transfer-job-modal .modal-header,
+#transfer-approval-modal .modal-header,
+.inventory-themed-modal .modal-header {
+    background:
+        radial-gradient(circle at 92% 8%, rgba(255,255,255,0.16), transparent 30%),
+        linear-gradient(135deg, var(--inv-maroon-deep) 0%, var(--inv-maroon) 58%, var(--inv-maroon-mid) 100%) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    border-bottom: 1px solid rgba(255, 241, 241, 0.30) !important;
+    box-shadow: 0 12px 26px rgba(43, 0, 0, 0.22) !important;
+}
+#ms-report-modal .modal-header *,
+#ms-requestlist-modal .modal-header *,
+#ms-new-material-modal .modal-header *,
+#ms-photo-browser-modal .modal-header *,
+#ms-add-stock-modal .modal-header *,
+#transfer-job-modal .modal-header *,
+#transfer-approval-modal .modal-header *,
+.inventory-themed-modal .modal-header * {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    text-shadow: none !important;
+}
+
+/* Inventory modal content/forms/tables/button sync. */
+#ms-report-modal .modal-container,
+#ms-requestlist-modal .modal-container,
+#ms-new-material-modal .modal-container,
+#ms-photo-browser-modal .modal-container,
+#ms-add-stock-modal .modal-container,
+#transfer-job-modal .modal-container,
+#transfer-approval-modal .modal-container,
+.inventory-themed-modal .modal-container {
+    border-color: rgba(77, 0, 0, 0.18) !important;
+    box-shadow: 0 30px 75px rgba(43, 0, 0, 0.24), inset 0 1px 0 rgba(255,255,255,0.80) !important;
+}
+#ms-report-modal table thead,
+#ms-report-modal table thead tr,
+#ms-report-modal table thead th,
+#ms-requestlist-modal table thead,
+#ms-requestlist-modal table thead tr,
+#ms-requestlist-modal table thead th,
+#transfer-job-modal table thead,
+#transfer-job-modal table thead tr,
+#transfer-job-modal table thead th,
+#transfer-approval-modal table thead,
+#transfer-approval-modal table thead tr,
+#transfer-approval-modal table thead th,
+.inventory-themed-modal table thead,
+.inventory-themed-modal table thead tr,
+.inventory-themed-modal table thead th {
+    background: var(--inv-maroon) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    border-color: rgba(255, 241, 241, 0.25) !important;
+}
+#ms-report-modal table,
+#ms-requestlist-modal table,
+#transfer-job-modal table,
+#transfer-approval-modal table,
+.inventory-themed-modal table {
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    border-radius: 14px !important;
+    overflow: hidden !important;
+}
+#ms-report-modal .modal-footer button,
+#ms-requestlist-modal .modal-footer button,
+#ms-new-material-modal .modal-footer button,
+#ms-photo-browser-modal .modal-footer button,
+#ms-add-stock-modal .modal-footer button,
+#transfer-job-modal .modal-footer button,
+#transfer-approval-modal .modal-footer button,
+.inventory-themed-modal .modal-footer button,
+.inventory-themed-modal .primary-btn,
+.inventory-themed-modal .download-btn,
+.inventory-themed-modal .print-btn,
+.inventory-themed-modal button[id*="save"],
+.inventory-themed-modal button[id*="print"],
+.inventory-themed-modal button[id*="excel"],
+#tf-save-btn,
+#transfer-modal-approve-btn,
+#ms-save-material-btn,
+#ms-modal-print-btn,
+#ms-modal-excel-btn,
+#ms-requestlist-print-btn,
+#ms-requestlist-add-manual-btn {
+    background: linear-gradient(135deg, var(--inv-maroon) 0%, var(--inv-maroon-mid) 100%) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    border: 1px solid rgba(255, 241, 241, 0.36) !important;
+    border-radius: 12px !important;
+    font-weight: 900 !important;
+    box-shadow: 0 10px 20px rgba(43, 0, 0, 0.16) !important;
+}
+.inventory-themed-modal .secondary-btn:not(.delete-btn),
+#transfer-job-modal .secondary-btn:not(.delete-btn),
+#transfer-approval-modal .secondary-btn:not(.delete-btn),
+#ms-new-material-modal .secondary-btn:not(.delete-btn),
+#ms-report-modal .secondary-btn:not(.delete-btn),
+#ms-requestlist-modal .secondary-btn:not(.delete-btn) {
+    background: #fff8f8 !important;
+    color: var(--inv-maroon) !important;
+    -webkit-text-fill-color: var(--inv-maroon) !important;
+    border: 1px solid rgba(77, 0, 0, 0.24) !important;
+    box-shadow: 0 8px 18px rgba(43, 0, 0, 0.06) !important;
+}
+.inventory-themed-modal .delete-btn,
+.inventory-themed-modal button[id*="delete"],
+.inventory-themed-modal button[id*="reject"] {
+    background: linear-gradient(135deg, #7f1d1d 0%, #b91c1c 100%) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
+#transfer-job-modal label,
+#transfer-approval-modal label,
+#ms-new-material-modal label,
+#ms-add-stock-modal label,
+#ms-photo-browser-modal label,
+#ms-report-modal strong,
+#ms-requestlist-modal strong,
+.inventory-themed-modal label,
+.inventory-themed-modal strong {
+    color: var(--inv-maroon) !important;
+    -webkit-text-fill-color: var(--inv-maroon) !important;
+}
+#transfer-job-modal input:focus,
+#transfer-job-modal select:focus,
+#transfer-job-modal textarea:focus,
+#transfer-approval-modal input:focus,
+#transfer-approval-modal select:focus,
+#transfer-approval-modal textarea:focus,
+#ms-new-material-modal input:focus,
+#ms-new-material-modal select:focus,
+#ms-new-material-modal textarea:focus,
+#ms-add-stock-modal input:focus,
+#ms-add-stock-modal select:focus,
+#ms-add-stock-modal textarea:focus,
+.inventory-themed-modal input:focus,
+.inventory-themed-modal select:focus,
+.inventory-themed-modal textarea:focus {
+    border-color: var(--inv-maroon) !important;
+    box-shadow: 0 0 0 4px rgba(77,0,0,0.12), 0 8px 18px rgba(43,0,0,0.10) !important;
+    outline: none !important;
+}
+
+/* Inventory Job Records stage switch: Active Jobs / Completed Closed. */
+body.inventory-mode #inventory-job-records-stage-switch,
+#inventory-job-records-stage-switch {
+    background: rgba(255, 248, 248, 0.92) !important;
+    border: 1px solid rgba(77, 0, 0, 0.16) !important;
+    border-radius: 18px !important;
+    padding: 8px !important;
+    box-shadow: 0 10px 24px rgba(43, 0, 0, 0.06) !important;
+}
+body.inventory-mode .inv-stage-btn,
+#inventory-job-records-stage-switch .inv-stage-btn {
+    background: #fffafa !important;
+    color: var(--inv-maroon) !important;
+    -webkit-text-fill-color: var(--inv-maroon) !important;
+    border: 1px solid rgba(77, 0, 0, 0.22) !important;
+    border-radius: 14px !important;
+    box-shadow: none !important;
+}
+body.inventory-mode .inv-stage-btn.active,
+#inventory-job-records-stage-switch .inv-stage-btn.active {
+    background: linear-gradient(135deg, var(--inv-maroon) 0%, var(--inv-maroon-mid) 100%) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    border-color: rgba(77, 0, 0, 0.45) !important;
+    box-shadow: 0 10px 22px rgba(43, 0, 0, 0.18) !important;
+}
+body.inventory-mode .inv-stage-btn.active *,
+#inventory-job-records-stage-switch .inv-stage-btn.active * {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
+body.inventory-mode .inv-stage-count,
+#inventory-job-records-stage-switch .inv-stage-count {
+    background: #fff1f1 !important;
+    color: var(--inv-maroon) !important;
+    -webkit-text-fill-color: var(--inv-maroon) !important;
+}
+body.inventory-mode .inv-stage-btn.active .inv-stage-count,
+#inventory-job-records-stage-switch .inv-stage-btn.active .inv-stage-count {
+    background: #ffffff !important;
+    color: var(--inv-maroon) !important;
+    -webkit-text-fill-color: var(--inv-maroon) !important;
+}
+
+/* Inventory Active Task tabs: maroon only while in inventory mode. */
+body.inventory-mode #wd-activetask #active-task-filters.report-tabs {
+    background: rgba(255, 248, 248, 0.92) !important;
+    border: 1px solid rgba(77, 0, 0, 0.16) !important;
+    border-radius: 18px !important;
+}
+body.inventory-mode #wd-activetask #active-task-filters.report-tabs button:not(.active),
+body.inventory-mode #wd-activetask #active-task-filters.report-tabs button.blink-tab:not(.active) {
+    background: #fffafa !important;
+    color: var(--inv-maroon) !important;
+    -webkit-text-fill-color: var(--inv-maroon) !important;
+    border: 1px solid rgba(77, 0, 0, 0.20) !important;
+    box-shadow: 0 8px 18px rgba(43, 0, 0, 0.06) !important;
+}
+body.inventory-mode #wd-activetask #active-task-filters.report-tabs button.active {
+    background: linear-gradient(135deg, var(--inv-maroon) 0%, var(--inv-maroon-mid) 100%) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    border-color: rgba(77, 0, 0, 0.45) !important;
+    box-shadow: 0 12px 26px rgba(43, 0, 0, 0.20) !important;
+}
+body.inventory-mode #wd-activetask #active-task-filters.report-tabs button.active *,
+body.inventory-mode #wd-activetask #active-task-filters.report-tabs button.active .notification-badge {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
+
+/* Inventory Request Review section title/header/buttons. */
+body.inventory-mode #wd-inv-request-review .inventory-request-review-head,
+#wd-inv-request-review .inventory-request-review-head {
+    background:
+        radial-gradient(circle at 88% 16%, rgba(122,17,17,0.26), transparent 32%),
+        linear-gradient(135deg, var(--inv-maroon-deep) 0%, var(--inv-maroon) 58%, var(--inv-maroon-mid) 100%) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 241, 241, 0.24) !important;
+    border-radius: 24px !important;
+    padding: 22px 26px !important;
+    box-shadow: 0 22px 48px rgba(43, 0, 0, 0.18) !important;
+}
+body.inventory-mode #wd-inv-request-review .inventory-request-review-head h1,
+#wd-inv-request-review .inventory-request-review-head h1 {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    text-shadow: 0 2px 10px rgba(20,0,0,0.35) !important;
+}
+body.inventory-mode #wd-inv-request-review .inventory-request-review-head p,
+#wd-inv-request-review .inventory-request-review-head p {
+    color: #ffe3e3 !important;
+    -webkit-text-fill-color: #ffe3e3 !important;
+}
+body.inventory-mode #wd-inv-request-review #inv-request-review-refresh,
+#wd-inv-request-review #inv-request-review-refresh,
+body.inventory-mode #wd-inv-request-review .primary-btn,
+#wd-inv-request-review .primary-btn {
+    background: #ffffff !important;
+    color: var(--inv-maroon) !important;
+    -webkit-text-fill-color: var(--inv-maroon) !important;
+    border: 1px solid rgba(255, 241, 241, 0.45) !important;
+    border-radius: 14px !important;
+    font-weight: 900 !important;
+}
+body.inventory-mode #wd-inv-request-review .inventory-request-review-toolbar,
+#wd-inv-request-review .inventory-request-review-toolbar,
+body.inventory-mode #wd-inv-request-review .inventory-request-review-list,
+#wd-inv-request-review .inventory-request-review-list {
+    border-color: rgba(77, 0, 0, 0.16) !important;
+    background: #fffafa !important;
+}
+body.inventory-mode #wd-inv-request-review .inventory-request-review-card,
+#wd-inv-request-review .inventory-request-review-card {
+    border-color: rgba(77, 0, 0, 0.16) !important;
+    box-shadow: 0 10px 24px rgba(43, 0, 0, 0.06) !important;
+}
+
+
+
+/* =====================================================================
+   8.9.4 — Mobile welcome launcher cleanup
+   Scope: first mobile landing/welcome screen only.
+   - Hide the desktop welcome hero/time/quote panel on phones.
+   - Show only the two mobile modules the team uses: Invoice and Inventory.
+   - Keep the module buttons clear, readable, and finger-friendly.
+   ===================================================================== */
+@media (max-width: 900px) {
+    body.iba-mobile-ui #dashboard-view,
+    #dashboard-view.mobile-view {
+        padding: 12px !important;
+        min-height: calc(100dvh - 24px) !important;
+        align-items: stretch !important;
+        justify-content: flex-start !important;
+    }
+
+    body.iba-mobile-ui #dashboard-view .cyber-dashboard-card,
+    #dashboard-view.mobile-view .cyber-dashboard-card {
+        width: 100% !important;
+        max-width: 520px !important;
+        margin: 0 auto !important;
+        padding: 14px !important;
+        border-radius: 24px !important;
+    }
+
+    body.iba-mobile-ui #dashboard-view .welcome-premium-hero,
+    body.iba-mobile-ui #dashboard-view .welcome-premium-panel,
+    body.iba-mobile-ui #dashboard-view .welcome-quote-row,
+    body.iba-mobile-ui #dashboard-view .welcome-eyebrow,
+    body.iba-mobile-ui #dashboard-view .welcome-person-line,
+    #dashboard-view.mobile-view .welcome-premium-hero,
+    #dashboard-view.mobile-view .welcome-premium-panel,
+    #dashboard-view.mobile-view .welcome-quote-row,
+    #dashboard-view.mobile-view .welcome-eyebrow,
+    #dashboard-view.mobile-view .welcome-person-line {
+        display: none !important;
+    }
+
+    body.iba-mobile-ui #dashboard-view .welcome-module-grid,
+    #dashboard-view.mobile-view .welcome-module-grid {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 14px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    body.iba-mobile-ui #dashboard-view #workdesk-button,
+    body.iba-mobile-ui #dashboard-view #requisition-button,
+    body.iba-mobile-ui #dashboard-view #finance-report-button,
+    body.iba-mobile-ui #dashboard-view #po-system-button,
+    #dashboard-view.mobile-view #workdesk-button,
+    #dashboard-view.mobile-view #requisition-button,
+    #dashboard-view.mobile-view #finance-report-button,
+    #dashboard-view.mobile-view #po-system-button {
+        display: none !important;
+    }
+
+    body.iba-mobile-ui #dashboard-view #invoice-mgmt-button,
+    body.iba-mobile-ui #dashboard-view #inventory-button,
+    #dashboard-view.mobile-view #invoice-mgmt-button,
+    #dashboard-view.mobile-view #inventory-button {
+        display: grid !important;
+        grid-template-columns: 52px minmax(0, 1fr) auto !important;
+        min-height: 96px !important;
+        width: 100% !important;
+        padding: 16px !important;
+        border-radius: 22px !important;
+        border: 1px solid rgba(226, 232, 240, .18) !important;
+        box-shadow: 0 14px 30px rgba(2, 6, 23, .22), inset 0 1px 0 rgba(255,255,255,.08) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+
+    body.iba-mobile-ui #dashboard-view #invoice-mgmt-button,
+    #dashboard-view.mobile-view #invoice-mgmt-button {
+        background:
+            radial-gradient(circle at 96% 0%, rgba(255,255,255,.16), transparent 34%),
+            linear-gradient(135deg, #073d2b, #116045 62%, #1c7a59) !important;
+    }
+
+    body.iba-mobile-ui #dashboard-view #inventory-button,
+    #dashboard-view.mobile-view #inventory-button {
+        background:
+            radial-gradient(circle at 96% 0%, rgba(255,255,255,.16), transparent 34%),
+            linear-gradient(135deg, #2a0000, #4d0000 62%, #7a1010) !important;
+    }
+
+    body.iba-mobile-ui #dashboard-view .welcome-module-card::before,
+    #dashboard-view.mobile-view .welcome-module-card::before {
+        width: 5px !important;
+        border-radius: 999px !important;
+        top: 14px !important;
+        bottom: 14px !important;
+        inset: 14px auto 14px 0 !important;
+        background: rgba(255,255,255,.82) !important;
+    }
+
+    body.iba-mobile-ui #dashboard-view .welcome-module-icon,
+    #dashboard-view.mobile-view .welcome-module-icon {
+        width: 52px !important;
+        height: 52px !important;
+        border-radius: 17px !important;
+        background: rgba(255,255,255,.14) !important;
+        border: 1px solid rgba(255,255,255,.22) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        box-shadow: none !important;
+    }
+
+    body.iba-mobile-ui #dashboard-view .welcome-module-text strong,
+    body.iba-mobile-ui #dashboard-view .welcome-module-text em,
+    body.iba-mobile-ui #dashboard-view .welcome-module-open,
+    body.iba-mobile-ui #dashboard-view .welcome-module-open i,
+    #dashboard-view.mobile-view .welcome-module-text strong,
+    #dashboard-view.mobile-view .welcome-module-text em,
+    #dashboard-view.mobile-view .welcome-module-open,
+    #dashboard-view.mobile-view .welcome-module-open i {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        opacity: 1 !important;
+        text-shadow: none !important;
+    }
+
+    body.iba-mobile-ui #dashboard-view .welcome-module-text strong,
+    #dashboard-view.mobile-view .welcome-module-text strong {
+        font-size: 1.06rem !important;
+        font-weight: 950 !important;
+        line-height: 1.1 !important;
+    }
+
+    body.iba-mobile-ui #dashboard-view .welcome-module-text em,
+    #dashboard-view.mobile-view .welcome-module-text em {
+        margin-top: 4px !important;
+        font-size: .82rem !important;
+        line-height: 1.25 !important;
+        color: rgba(255,255,255,.86) !important;
+        -webkit-text-fill-color: rgba(255,255,255,.86) !important;
+    }
+
+    body.iba-mobile-ui #dashboard-view .welcome-module-open,
+    #dashboard-view.mobile-view .welcome-module-open {
+        height: 34px !important;
+        padding: 0 10px !important;
+        border-radius: 999px !important;
+        background: rgba(255,255,255,.16) !important;
+        border: 1px solid rgba(255,255,255,.22) !important;
+        white-space: nowrap !important;
+    }
+}
+
+/* =====================================================================
+   8.9.6 — Mobile welcome launcher fit cleanup
+   Scope: first mobile landing/welcome screen only.
+   - Prevent the two module buttons from being cut off on narrow phones.
+   - Force the welcome launcher/card to use border-box sizing.
+   - Keep only Invoice Management and Inventory visible from 8.9.4.
+   ===================================================================== */
+@media (max-width: 900px) {
+    html,
+    body,
+    body.iba-mobile-ui {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+    }
+
+    body.iba-mobile-ui #dashboard-view,
+    #dashboard-view.mobile-view {
+        width: 100% !important;
+        max-width: 100vw !important;
+        min-width: 0 !important;
+        overflow-x: hidden !important;
+        padding: 10px !important;
+        box-sizing: border-box !important;
+    }
+
+    body.iba-mobile-ui #dashboard-view .cyber-dashboard-card,
+    #dashboard-view.mobile-view .cyber-dashboard-card {
+        width: calc(100vw - 20px) !important;
+        max-width: calc(100vw - 20px) !important;
+        min-width: 0 !important;
+        margin: 0 auto !important;
+        padding: 12px !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+        border-radius: 22px !important;
+    }
+
+    body.iba-mobile-ui #dashboard-view .welcome-module-grid,
+    #dashboard-view.mobile-view .welcome-module-grid {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+        overflow: visible !important;
+        gap: 12px !important;
+    }
+
+    body.iba-mobile-ui #dashboard-view #invoice-mgmt-button,
+    body.iba-mobile-ui #dashboard-view #inventory-button,
+    #dashboard-view.mobile-view #invoice-mgmt-button,
+    #dashboard-view.mobile-view #inventory-button {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+        display: grid !important;
+        grid-template-columns: 48px minmax(0, 1fr) !important;
+        grid-template-areas:
+            "icon text"
+            ". open" !important;
+        column-gap: 12px !important;
+        row-gap: 10px !important;
+        align-items: center !important;
+        padding: 14px 14px 14px 18px !important;
+        overflow: hidden !important;
+    }
+
+    body.iba-mobile-ui #dashboard-view .welcome-module-card::before,
+    #dashboard-view.mobile-view .welcome-module-card::before {
+        left: 0 !important;
+        right: auto !important;
+    }
+
+    body.iba-mobile-ui #dashboard-view .welcome-module-icon,
+    #dashboard-view.mobile-view .welcome-module-icon {
+        grid-area: icon !important;
+        width: 48px !important;
+        height: 48px !important;
+        min-width: 48px !important;
+    }
+
+    body.iba-mobile-ui #dashboard-view .welcome-module-text,
+    #dashboard-view.mobile-view .welcome-module-text {
+        grid-area: text !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        overflow: hidden !important;
+    }
+
+    body.iba-mobile-ui #dashboard-view .welcome-module-text strong,
+    body.iba-mobile-ui #dashboard-view .welcome-module-text em,
+    #dashboard-view.mobile-view .welcome-module-text strong,
+    #dashboard-view.mobile-view .welcome-module-text em {
+        display: block !important;
+        max-width: 100% !important;
+        overflow-wrap: anywhere !important;
+        word-break: normal !important;
+    }
+
+    body.iba-mobile-ui #dashboard-view .welcome-module-open,
+    #dashboard-view.mobile-view .welcome-module-open {
+        grid-area: open !important;
+        justify-self: start !important;
+        width: auto !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+}
