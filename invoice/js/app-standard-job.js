@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-standard-job.js
    IBA WorkDesk standard job modal, job history, and approval sticker printing.
-   Version: 8.1.9
+   Version: 8.7.3
 
    Cleanup Phase:
    - Moved Block 25 out of app.js.
@@ -53,6 +53,16 @@
             // Hide Add, Show Update
             addBtn.classList.add('hidden');
             updateBtn.classList.remove('hidden');
+
+            // 8.7.3: make the Update button explicitly usable for Job Records edit mode.
+            // This keeps Hafiz/original entry users from being blocked by an old disabled
+            // state or a cached modal state after opening a record. Actual save validation
+            // still happens inside handleUpdateJobEntry().
+            updateBtn.disabled = false;
+            updateBtn.removeAttribute('disabled');
+            updateBtn.style.pointerEvents = 'auto';
+            updateBtn.style.opacity = '1';
+            updateBtn.textContent = 'Update Job';
 
             // Check permission for Delete button
             // - Irwin (Accounting) can delete any job entry (existing behavior)

@@ -1,13 +1,19 @@
 /* ==========================================================================
    js/app-active-tasks.js
    IBA WorkDesk active-task renderer, filters, mobile cards, and task loader.
-   Version: 8.1.5
+   Version: 8.7.0
 
    Cleanup Phase:
    - Moved Block 14 active-task display/loading helpers out of app.js.
    - Public function names and existing behavior are preserved.
    - No SRV Done write logic, approval write logic, invoice save logic, batch save logic,
      Firebase write paths, or inventory stock logic changed.
+
+   8.4.11:
+   - Added a short session snapshot for WorkDesk Active Task data so the dashboard can
+     reuse it without re-fetching from Firebase.
+   - populateActiveTasks now supports optional forceRefresh for manual dashboard refresh.
+   - Approver lookup no longer force-refreshes every active-task load unless requested.
    ========================================================================== */
 
 // =================================================================================================
@@ -20,8 +26,16 @@ function isTaskComplete(task) {
 
     // 1. Special check for Job Entries (Invoice Type)
     if (task.source === 'job_entry' && task.for === 'Invoice') {
-        if (task.remarks === 'Approved' || task.remarks === 'Rejected') {
-            return false; 
+        const invoiceJobStatus = String(task.remarks || task.status || '').trim();
+
+        // 8.7.0: IPC/Job Record items converted to Invoice must remain visible as
+        // fresh invoice tasks even if the old IPC record carried dateResponded.
+        if (invoiceJobStatus === 'New Entry' || invoiceJobStatus === 'Pending' || !invoiceJobStatus) {
+            return false;
+        }
+
+        if (invoiceJobStatus === 'Approved' || invoiceJobStatus === 'Rejected') {
+            return false;
         }
         return !!task.dateResponded;
     }
@@ -72,7 +86,101 @@ function renderActiveTaskTable(tasks) {
     return renderWorkdeskActiveTaskTable(list);
 }
 
+
+function wdUiEscape(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function wdUiStatusTone(status) {
+    const s = String(status || '').toLowerCase();
+    if (s.includes('hold')) return 'hold';
+    if (s.includes('new') || s.includes('pending')) return 'pending';
+    if (s.includes('srv') || s.includes('signature')) return 'srv';
+    if (s.includes('approval') || s === 'approved' || s.includes('manager approved')) return 'approval';
+    if (s.includes('ipc')) return 'ipc';
+    if (s.includes('report')) return 'report';
+    if (s.includes('reject') || s.includes('cancel')) return 'danger';
+    return 'default';
+}
+
+function wdUiStatusBadge(status, extraClass = '') {
+    const label = wdUiEscape(status || 'Pending');
+    const tone = wdUiStatusTone(status);
+    return `<span class="wd-status-badge tone-${tone} ${extraClass}">${label}</span>`;
+}
+
+function wdUiUpdateMiniMetrics(containerId, entries, modeLabel) {
+    const box = document.getElementById(containerId);
+    if (!box) return;
+    const list = Array.isArray(entries) ? entries : [];
+    if (!list.length) {
+        box.innerHTML = '';
+        return;
+    }
+    const total = list.length;
+    const statusCounts = {};
+    list.forEach(item => {
+        const st = String(item.remarks || item.status || 'Pending').trim() || 'Pending';
+        statusCounts[st] = (statusCounts[st] || 0) + 1;
+    });
+    const topStatuses = Object.entries(statusCounts)
+        .sort((a,b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .slice(0, 4);
+    const siteCount = new Set(list.map(i => String(i.site || '').trim()).filter(Boolean)).size;
+    const urgent = list.filter(i => i.isUrgent === true).length;
+    const cards = [
+        {label: modeLabel || 'Records', value: total, icon: 'fa-layer-group', tone: 'default'},
+        {label: 'Action Now', value: urgent, icon: 'fa-bell', tone: urgent ? 'pending' : 'default'},
+        {label: 'Sites', value: siteCount, icon: 'fa-location-dot', tone: 'approval'}
+    ].concat(topStatuses.map(([label, value]) => ({label, value, icon: 'fa-circle-dot', tone: wdUiStatusTone(label)})));
+    box.innerHTML = cards.map(c => `
+        <div class="wd-mini-metric tone-${wdUiEscape(c.tone)}">
+            <span class="wd-mini-icon"><i class="fa-solid ${wdUiEscape(c.icon)}"></i></span>
+            <strong>${wdUiEscape(c.value)}</strong>
+            <small>${wdUiEscape(c.label)}</small>
+        </div>`).join('');
+}
+
+
+function wdUiSetActiveTaskHeroContext(mode) {
+    const isInventory = String(mode || '').toLowerCase() === 'inventory';
+    const hero = document.querySelector('#wd-activetask .wd-page-hero');
+    if (hero) {
+        hero.classList.toggle('wd-page-hero-inventory', isInventory);
+        hero.classList.toggle('wd-page-hero-active', !isInventory);
+    }
+
+    const eyebrow = document.querySelector('#wd-activetask .wd-page-eyebrow');
+    if (eyebrow) {
+        eyebrow.innerHTML = isInventory
+            ? '<i class="fa-solid fa-boxes-stacked"></i> Inventory Action Center'
+            : '<i class="fa-solid fa-bolt"></i> WorkDesk Action Center';
+    }
+
+    const title = document.querySelector('#wd-activetask .wd-page-hero h1');
+    if (title) title.textContent = isInventory ? 'Inventory Active Tasks' : 'Your Active Tasks';
+
+    const subtitle = document.querySelector('#wd-activetask .wd-page-hero p');
+    if (subtitle) {
+        subtitle.textContent = isInventory
+            ? 'Inventory-only action queue for transfer, restock, return, usage, receiving, and movement approvals.'
+            : 'Personal invoice and WorkDesk action queue with the documents, notes, status, and process buttons in one clean working view.';
+    }
+
+    const metricLabel = document.querySelector('#wd-activetask .wd-page-hero-metric small');
+    if (metricLabel) metricLabel.textContent = isInventory ? 'Inventory workload' : 'Live workload';
+
+    const mobileTitle = document.querySelector('#active-task-mobile-header h1');
+    if (mobileTitle) mobileTitle.textContent = isInventory ? 'Inventory Tasks' : 'My Tasks';
+}
+
 function renderWorkdeskActiveTaskTable(tasks) {
+    wdUiSetActiveTaskHeroContext('workdesk');
     const workdeskTasks = (Array.isArray(tasks) ? tasks : []).filter(t => isWorkdeskTaskRecord(t));
     const isMobile = (typeof isMobileViewport === 'function') ? isMobileViewport() : (window.innerWidth <= 768);
     if (isMobile) {
@@ -82,6 +190,10 @@ function renderWorkdeskActiveTaskTable(tasks) {
     }
 
     activeTaskTableBody.innerHTML = '';
+
+    const activeTaskTable = document.querySelector('#wd-activetask table');
+    if (activeTaskTable) activeTaskTable.classList.add('wd-modern-table', 'wd-active-modern-table');
+    wdUiUpdateMiniMetrics('active-task-summary-strip', workdeskTasks, 'Active Tasks');
 
     const filteredTasks = workdeskTasks.filter(function(task) {
         if (currentActiveTaskFilter === 'All') return true;
@@ -106,7 +218,7 @@ function renderWorkdeskActiveTaskTable(tasks) {
     }
 
     if (filteredTasks.length === 0) {
-        activeTaskTableBody.innerHTML = '<tr><td colspan="10">No WorkDesk tasks found for "' + currentActiveTaskFilter + '".</td></tr>';
+        activeTaskTableBody.innerHTML = '<tr><td colspan="10"><div class="wd-modern-empty-row"><i class="fa-solid fa-circle-check"></i><strong>No WorkDesk tasks found</strong><span>No item under "' + wdUiEscape(currentActiveTaskFilter) + '" right now.</span></div></td></tr>';
         return;
     }
 
@@ -121,10 +233,10 @@ function renderWorkdeskActiveTaskTable(tasks) {
     filteredTasks.forEach(function(task) {
         const row = document.createElement('tr');
         row.setAttribute('data-key', task.key);
+        row.className = 'wd-modern-row tone-' + wdUiStatusTone(task.remarks || 'Pending') + (task.isUrgent === true ? ' wd-row-urgent' : ' wd-row-calm');
 
         if (task.isUrgent === false) {
-            row.style.opacity = '0.7';
-            row.style.backgroundColor = '#f9f9f9';
+            row.classList.add('wd-row-muted');
         }
 
         const isInvoiceFromIrwin = task.source === 'invoice' && task.enteredBy === 'Irwin';
@@ -138,23 +250,25 @@ function renderWorkdeskActiveTaskTable(tasks) {
 
         const displayAmount = task.amountPaid || task.amount || 0;
 
+        const taskStatus = task.remarks || 'Pending';
+        const taskNote = task.note || 'No note';
         row.innerHTML =
-            '<td class="desktop-only">' + (task.for || '') + '</td>' +
-            '<td class="desktop-only">' + (task.ref || '') + '</td>' +
-            '<td class="desktop-only">' + (task.po || '') + '</td>' +
-            '<td class="desktop-only">' + (task.vendorName || 'N/A') + '</td>' +
-            '<td class="desktop-only">' + formatCurrency(displayAmount) + '</td>' +
-            '<td class="desktop-only">' + (task.site || '') + '</td>' +
-            '<td class="desktop-only">' + (task.date || '') + '</td>' +
-            '<td class="desktop-only">' + (task.note || '') + '</td>' +
-            '<td class="desktop-only">' + (task.remarks || 'Pending') + '</td>';
+            '<td class="desktop-only"><span class="wd-table-kicker">' + wdUiEscape(task.for || '') + '</span></td>' +
+            '<td class="desktop-only"><span class="wd-ref-chip">' + wdUiEscape(task.ref || '') + '</span></td>' +
+            '<td class="desktop-only"><span class="wd-po-code">' + wdUiEscape(task.po || '') + '</span></td>' +
+            '<td class="desktop-only"><strong class="wd-vendor-name">' + wdUiEscape(task.vendorName || 'N/A') + '</strong></td>' +
+            '<td class="desktop-only wd-amount-cell">' + wdUiEscape(formatCurrency(displayAmount)) + '</td>' +
+            '<td class="desktop-only"><span class="wd-site-badge"><i class="fa-solid fa-location-dot"></i>' + wdUiEscape(task.site || '') + '</span></td>' +
+            '<td class="desktop-only"><span class="wd-date-chip">' + wdUiEscape(task.date || '') + '</span></td>' +
+            '<td class="desktop-only"><div class="wd-note-cell">' + wdUiEscape(taskNote) + '</div></td>' +
+            '<td class="desktop-only">' + wdUiStatusBadge(taskStatus) + '</td>';
 
         const actionsCell = document.createElement('td');
         actionsCell.className = "desktop-only";
 
         if (task.remarks === 'For Approval' && isManager) {
             const approveBtn = document.createElement('button');
-            approveBtn.className = 'action-btn approve-btn';
+            approveBtn.className = 'action-btn approve-btn wd-row-action wd-action-approve';
             approveBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
             approveBtn.title = 'Approve';
             approveBtn.style.backgroundColor = '#28a745';
@@ -163,7 +277,7 @@ function renderWorkdeskActiveTaskTable(tasks) {
             approveBtn.onclick = function(e) { e.stopPropagation(); handleDesktopApproval(task, 'Approved'); };
 
             const rejectBtn = document.createElement('button');
-            rejectBtn.className = 'action-btn reject-btn';
+            rejectBtn.className = 'action-btn reject-btn wd-row-action wd-action-reject';
             rejectBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
             rejectBtn.title = 'Reject';
             rejectBtn.style.backgroundColor = '#dc3545';
@@ -173,14 +287,14 @@ function renderWorkdeskActiveTaskTable(tasks) {
             actionsCell.appendChild(approveBtn);
             actionsCell.appendChild(rejectBtn);
         } else if (isCEO) {
-            actionsCell.innerHTML = '<button class="ceo-approve-btn" data-key="' + task.key + '">Make Approval</button>';
+            actionsCell.innerHTML = '<button class="ceo-approve-btn wd-row-action wd-action-gold" data-key="' + wdUiEscape(task.key) + '">Make Approval</button>';
         } else {
             let actionsHTML = '';
             if (task.remarks === 'For SRV' || task.remarks === 'Waiting Signature' || task.remarks === 'Waiting Approval') {
-                actionsHTML += `<button class="srv-done-btn" data-key="${task.key}" style="margin-right: 5px;">SRV Done</button>`;
-                actionsHTML += `<button class="modify-btn" data-key="${task.key}">Process</button>`;
+                actionsHTML += `<button class="srv-done-btn wd-row-action wd-action-srv" data-key="${wdUiEscape(task.key)}">SRV Done</button>`;
+                actionsHTML += `<button class="modify-btn wd-row-action wd-action-process" data-key="${wdUiEscape(task.key)}">Process</button>`;
             } else {
-                actionsHTML = `<button class="modify-btn" data-key="${task.key}">Process</button>`;
+                actionsHTML = `<button class="modify-btn wd-row-action wd-action-process" data-key="${wdUiEscape(task.key)}">Process</button>`;
             }
             actionsCell.innerHTML = actionsHTML;
         }
@@ -196,7 +310,35 @@ function renderWorkdeskMobileActiveTasks(tasks) {
     return renderMobileActiveTasks((Array.isArray(tasks) ? tasks : []).filter(t => isWorkdeskTaskRecord(t)));
 }
 
-async function populateActiveTasks() {
+
+function wdActiveTaskCacheUserKey() {
+    try {
+        return [
+            String(currentApprover?.Name || '').trim().toLowerCase(),
+            String(currentApprover?.Role || currentApprover?.role || '').trim().toLowerCase(),
+            String(currentApprover?.Site || currentApprover?.site || '').trim().toLowerCase()
+        ].join('|');
+    } catch (e) {
+        return '';
+    }
+}
+
+function wdSaveActiveTaskSessionSnapshot(mode, tasks) {
+    try {
+        window.IBA_ACTIVE_TASK_LAST_MODE = mode;
+        window.IBA_ACTIVE_TASK_LOADED_AT = Date.now();
+        if (mode !== 'workdesk' || !Array.isArray(tasks)) return;
+        window.sessionStorage.setItem('IBA_ACTIVE_TASK_WORKDESK_SNAPSHOT_V1', JSON.stringify({
+            userKey: wdActiveTaskCacheUserKey(),
+            savedAt: Date.now(),
+            tasks: tasks
+        }));
+    } catch (e) {
+        // Storage can fail in private mode. Never block task rendering.
+    }
+}
+
+async function populateActiveTasks(forceRefresh = false) {
     activeTaskTableBody.innerHTML = `<tr><td colspan="10">Loading tasks...</td></tr>`;
 
     // --- SAFETY DEFINITIONS ---
@@ -288,11 +430,11 @@ const getTaskSiteForMatch = (t) =>
         let userTasks = [];
         let pulledInvoiceKeys = new Set(); 
 
-        await ensureAllEntriesFetched();
-        await ensureApproverDataCached(true);
+        await ensureAllEntriesFetched(forceRefresh);
+        await ensureApproverDataCached(forceRefresh);
         
         if (!isInventoryPage) {
-            await ensureInvoiceDataFetched(false);
+            await ensureInvoiceDataFetched(forceRefresh);
         }
 
         if (typeof reconcilePendingPRs === 'function') {
@@ -688,6 +830,7 @@ else if (isDirectAttentionForUser(inv.attention)) {
 	        }
 
 	        userActiveTasks = userTasks.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        wdSaveActiveTaskSessionSnapshot(isInventoryPage ? 'inventory' : 'workdesk', userActiveTasks);
         const totalTaskCount = userActiveTasks.length;
         const urgentCount = userActiveTasks.filter(t => t.isUrgent === true).length;
 
@@ -752,6 +895,24 @@ const uniqueTabs = Object.keys(tabCountsAll).sort((a, b) => {
             return '#fd7e14';
         };
 
+        // 8.6.10: Choose black/white tab text based on real contrast.
+        // This keeps unread / not-clicked Active Task status tabs readable,
+        // especially bright colors like Pending yellow and New Entry cyan.
+        const getReadableTabText = (hexColor) => {
+            try {
+                const hex = String(hexColor || '').replace('#', '').trim();
+                if (!/^[0-9a-fA-F]{6}$/.test(hex)) return '#0f172a';
+                const rgb = [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16) / 255);
+                const linear = rgb.map(v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+                const lum = (0.2126 * linear[0]) + (0.7152 * linear[1]) + (0.0722 * linear[2]);
+                const whiteContrast = (1.05) / (lum + 0.05);
+                const darkContrast = (lum + 0.05) / 0.068; // #0f172a approximate luminance
+                return darkContrast >= whiteContrast ? '#0f172a' : '#ffffff';
+            } catch (e) {
+                return '#0f172a';
+            }
+        };
+
         if (uniqueTabs.length > 0) {
             if (currentActiveTaskFilter === 'All' || !uniqueTabs.includes(currentActiveTaskFilter)) {
                 currentActiveTaskFilter = uniqueTabs[0];
@@ -766,8 +927,8 @@ const uniqueTabs = Object.keys(tabCountsAll).sort((a, b) => {
     if (hasDirectTasks) {
         const statusColor = getTabColor(tabName);
         tabColor = statusColor;
-        tabText = '#ffffff';
-        fontWeight = '800';
+        tabText = getReadableTabText(statusColor);
+        fontWeight = '900';
         blinkClass = 'blink-tab';
     } else {
         // No direct attention tasks for this user in this tab => keep it neutral
@@ -779,7 +940,7 @@ const uniqueTabs = Object.keys(tabCountsAll).sort((a, b) => {
 
     const badgeHTML = hasDirectTasks
         ? `<span class="notification-badge"
-                 style="background-color: ${tabColor}; color: white; font-size: 0.7rem; margin-left: 5px;">
+                 style="background-color: ${tabColor}; color: ${tabText}; font-size: 0.7rem; margin-left: 5px; border: 1px solid rgba(255,255,255,.45);">
                 ${directCount}
            </span>`
         : '';

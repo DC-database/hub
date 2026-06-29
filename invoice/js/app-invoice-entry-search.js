@@ -156,12 +156,17 @@ function clampIMInvoiceEntryModalPosition() {
 
     const rect = container.getBoundingClientRect();
     const gap = 8;
-    const maxLeft = Math.max(gap, window.innerWidth - rect.width - gap);
-    const maxTop = Math.max(gap, window.innerHeight - Math.min(rect.height, window.innerHeight - (gap * 2)) - gap);
+    // 8.7.8: allow the Invoice Entry popup to slide over the left menu or the
+    // right active-jobs panel while keeping a safe grab area visible onscreen.
+    const visibleGrip = Math.min(260, Math.max(180, rect.width * 0.22));
+    const minLeft = Math.min(gap, -(rect.width - visibleGrip));
+    const maxLeft = Math.max(gap, window.innerWidth - visibleGrip);
+    const minTop = gap;
+    const maxTop = Math.max(gap, window.innerHeight - 76);
     const currentLeft = parseFloat(container.style.getPropertyValue('--im-modal-left')) || rect.left;
     const currentTop = parseFloat(container.style.getPropertyValue('--im-modal-top')) || rect.top;
-    const nextLeft = Math.min(Math.max(currentLeft, gap), maxLeft);
-    const nextTop = Math.min(Math.max(currentTop, gap), maxTop);
+    const nextLeft = Math.min(Math.max(currentLeft, minLeft), maxLeft);
+    const nextTop = Math.min(Math.max(currentTop, minTop), maxTop);
 
     container.style.setProperty('--im-modal-left', `${nextLeft}px`);
     container.style.setProperty('--im-modal-top', `${nextTop}px`);
@@ -199,12 +204,15 @@ function initIMInvoiceEntryModalDrag() {
         e.preventDefault();
 
         const onMove = (moveEvent) => {
-            const width = rect.width;
-            const height = Math.min(rect.height, window.innerHeight - (gap * 2));
-            const maxLeft = Math.max(gap, window.innerWidth - width - gap);
-            const maxTop = Math.max(gap, window.innerHeight - height - gap);
-            const nextLeft = Math.min(Math.max(startLeft + (moveEvent.clientX - startX), gap), maxLeft);
-            const nextTop = Math.min(Math.max(startTop + (moveEvent.clientY - startY), gap), maxTop);
+            // 8.7.8: do not trap the popup inside the Invoice Entry card/container.
+            // Keep enough of the header visible so the user can always drag it back.
+            const visibleGrip = Math.min(260, Math.max(180, rect.width * 0.22));
+            const minLeft = Math.min(gap, -(rect.width - visibleGrip));
+            const maxLeft = Math.max(gap, window.innerWidth - visibleGrip);
+            const minTop = gap;
+            const maxTop = Math.max(gap, window.innerHeight - 76);
+            const nextLeft = Math.min(Math.max(startLeft + (moveEvent.clientX - startX), minLeft), maxLeft);
+            const nextTop = Math.min(Math.max(startTop + (moveEvent.clientY - startY), minTop), maxTop);
             container.style.setProperty('--im-modal-left', `${nextLeft}px`);
             container.style.setProperty('--im-modal-top', `${nextTop}px`);
         };

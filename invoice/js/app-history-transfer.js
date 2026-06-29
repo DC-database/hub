@@ -1,11 +1,116 @@
 // js/app-history-transfer.js
-// Version 8.3.2
+// Version 8.5.8
 // Moved from app.js: BLOCK 24 — Invoice / Transfer History + Stock Reversal
 // Logic preserved; only file location changed.
 
 // #region BLOCK 24 — INVOICE / TRANSFER HISTORY + STOCK REVERSAL
 // Purpose: Invoice history, history stickers, transfer history, reverse/update stock inventory, transfer delete handling.
 // =================================================================================================
+
+
+function ibaHistoryText(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function ibaHistoryStatusClass(status) {
+    const s = String(status || '').toLowerCase();
+    if (s.includes('with accounts') || s.includes('complete')) return 'history-status-complete';
+    if (s.includes('approved') || s.includes('approval')) return 'history-status-approved';
+    if (s.includes('report')) return 'history-status-report';
+    if (s.includes('review') || s.includes('new entry') || s.includes('pending')) return 'history-status-pending';
+    if (s.includes('reject') || s.includes('hold')) return 'history-status-warning';
+    if (s.includes('srv') || s.includes('ipc')) return 'history-status-process';
+    return 'history-status-default';
+}
+
+function ibaHistoryFormatTime(timestamp) {
+    const ts = Number(timestamp) || Date.now();
+    const dateObj = new Date(ts);
+    return dateObj.toLocaleDateString('en-GB') + ' ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function ibaHistoryDurationBetween(startTs, endTs) {
+    const start = Number(startTs) || 0;
+    const end = Number(endTs) || 0;
+    const diffMs = Math.max(0, end - start);
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffHrs = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    if (diffDays > 0) return `${diffDays}d ${diffHrs}h`;
+    if (diffHrs > 0) return `${diffHrs}h ${diffMins}m`;
+    return `${diffMins}m`;
+}
+
+function ibaHistorySetModalTitle(text) {
+    const title = document.getElementById('history-modal-title');
+    if (title) title.textContent = text || 'Status History';
+}
+
+function ibaHistoryRenderSummary(items, contextLabel, referenceLabel) {
+    const summary = document.getElementById('history-modal-summary');
+    if (!summary) return;
+    if (!items || !items.length) {
+        summary.innerHTML = '';
+        return;
+    }
+
+    const asc = items.slice().sort((a, b) => (Number(a.timestamp) || 0) - (Number(b.timestamp) || 0));
+    const first = asc[0] || {};
+    const latest = asc[asc.length - 1] || {};
+    const totalDuration = asc.length > 1 ? ibaHistoryDurationBetween(first.timestamp, latest.timestamp) : '-';
+    const currentStatus = latest.action || latest.status || 'Current';
+    const statusClass = ibaHistoryStatusClass(currentStatus);
+
+    summary.innerHTML = `
+        <div class="history-summary-card">
+            <div>
+                <span class="history-summary-label">${ibaHistoryText(contextLabel || 'History')}</span>
+                <strong>${ibaHistoryText(referenceLabel || 'Status Movement')}</strong>
+            </div>
+            <div class="history-summary-metrics">
+                <span><b>${items.length}</b> step${items.length === 1 ? '' : 's'}</span>
+                <span><b>${ibaHistoryText(totalDuration)}</b> total flow</span>
+                <span class="history-status-pill ${statusClass}">${ibaHistoryText(currentStatus)}</span>
+            </div>
+        </div>`;
+}
+
+function ibaHistoryRenderEmpty(message) {
+    const tbody = document.getElementById('history-table-body');
+    const summary = document.getElementById('history-modal-summary');
+    if (summary) summary.innerHTML = '';
+    if (tbody) {
+        tbody.innerHTML = `<tr class="history-empty-row"><td colspan="4"><div class="history-empty-state"><i class="fa-regular fa-clock"></i><strong>${ibaHistoryText(message || 'No history recorded.')}</strong><span>Once this record moves to another status, the timeline will appear here.</span></div></td></tr>`;
+    }
+}
+
+function ibaHistoryBuildRow(h, qrButton) {
+    const status = h.action || h.status || 'Status Updated';
+    const statusClass = ibaHistoryStatusClass(status);
+    const note = h.note ? `<div class="history-note">${ibaHistoryText(h.note)}</div>` : '';
+    const who = h.updatedBy || h.by || 'System';
+    const dateStr = ibaHistoryFormatTime(h.timestamp);
+    const duration = h.durationDisplay || '-';
+
+    return `
+        <tr class="history-row ${statusClass}">
+            <td>
+                <div class="history-status-cell">
+                    <span class="history-status-pill ${statusClass}">${ibaHistoryText(status)}</span>
+                    ${qrButton || ''}
+                    ${note}
+                </div>
+            </td>
+            <td><span class="history-date-chip"><i class="fa-regular fa-calendar"></i>${ibaHistoryText(dateStr)}</span></td>
+            <td><span class="history-user-chip"><i class="fa-regular fa-user"></i>${ibaHistoryText(who)}</span></td>
+            <td><span class="history-duration-chip"><i class="fa-regular fa-clock"></i>${ibaHistoryText(duration)}</span></td>
+        </tr>`;
+}
 
     window.logInvoiceHistory = async function (poNumber, invoiceKey, newStatus, note = "") {
         if (!poNumber || !invoiceKey) return;
@@ -31,9 +136,12 @@ window.showInvoiceHistory = async function (poNumber, invoiceKey) {
     const modal = document.getElementById('history-modal');
     const tbody = document.getElementById('history-table-body');
     const loader = document.getElementById('history-modal-loader');
+    const summary = document.getElementById('history-modal-summary');
 
+    ibaHistorySetModalTitle('Invoice Status History');
     if (modal) modal.classList.remove('hidden');
     if (loader) loader.classList.remove('hidden');
+    if (summary) summary.innerHTML = '';
     if (tbody) tbody.innerHTML = '';
 
     try {
@@ -42,28 +150,69 @@ window.showInvoiceHistory = async function (poNumber, invoiceKey) {
 
         snapshot.forEach(child => { historyData.push(child.val()); });
 
+        // v8.5.7: Safety backfill for older updates that changed the invoice status
+        // but did not write a /history child (common in older Batch/Summary updates).
+        // This does not write to Firebase; it only shows the current invoice status in the modal.
+        try {
+            const invoiceSnap = await invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}`).once('value');
+            const invoice = invoiceSnap.val() || {};
+            const currentStatus = String(invoice.status || invoice.remarks || '').trim();
+
+            const normalizeStatusForHistory = (v) => String(v || '').trim().toLowerCase();
+            const newestLogged = historyData.length
+                ? historyData.slice().sort((a, b) => (Number(b.timestamp) || 0) - (Number(a.timestamp) || 0))[0]
+                : null;
+            const newestLoggedStatus = normalizeStatusForHistory(newestLogged ? (newestLogged.status || newestLogged.action) : '');
+
+            const parseHistoryDate = (value) => {
+                if (!value) return 0;
+                if (typeof value === 'number') return value;
+                const raw = String(value).trim();
+                if (!raw) return 0;
+                if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return new Date(raw + 'T23:59:00').getTime();
+                const parsed = new Date(raw).getTime();
+                return Number.isFinite(parsed) ? parsed : 0;
+            };
+
+            if (currentStatus && normalizeStatusForHistory(currentStatus) !== newestLoggedStatus) {
+                const fallbackTs = parseHistoryDate(invoice.updatedAt)
+                    || parseHistoryDate(invoice.lastUpdated)
+                    || parseHistoryDate(invoice.releaseDate)
+                    || parseHistoryDate(invoice.enteredAt)
+                    || parseHistoryDate(invoice.createdAt)
+                    || Date.now();
+
+                historyData.push({
+                    status: currentStatus,
+                    updatedBy: invoice.updatedBy || invoice.enteredBy || 'System',
+                    timestamp: fallbackTs,
+                    note: invoice.note ? `Current invoice status: ${invoice.note}` : 'Current invoice status'
+                });
+            }
+        } catch (statusBackfillError) {
+            console.warn('Could not backfill current invoice status for history modal:', statusBackfillError);
+        }
+
         // 1. Sort ASCENDING first (Oldest First) to calculate duration
-        historyData.sort((a, b) => a.timestamp - b.timestamp);
+        historyData.sort((a, b) => (Number(a.timestamp) || 0) - (Number(b.timestamp) || 0));
 
         // 2. Calculate Duration
         historyData.forEach((entry, index) => {
             if (index === 0) {
-                entry.durationDisplay = '-'; // First entry has no duration
+                entry.durationDisplay = '-';
             } else {
-                const prevTime = historyData[index - 1].timestamp;
-                const currTime = entry.timestamp;
-                const diffMs = currTime - prevTime;
-
-                // Math logic
-                const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-                const diffHrs = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-
-                if (diffDays > 0) entry.durationDisplay = `${diffDays}d ${diffHrs}h`;
-                else if (diffHrs > 0) entry.durationDisplay = `${diffHrs}h ${diffMins}m`;
-                else entry.durationDisplay = `${diffMins}m`;
+                entry.durationDisplay = ibaHistoryDurationBetween(historyData[index - 1].timestamp, entry.timestamp);
             }
         });
+
+        if (loader) loader.classList.add('hidden');
+
+        if (historyData.length === 0) {
+            ibaHistoryRenderEmpty('No invoice history recorded.');
+            return;
+        }
+
+        ibaHistoryRenderSummary(historyData, 'Invoice Timeline', `PO ${poNumber || '-'}`);
 
         // 3. Reverse back to DESCENDING (Newest First) for display
         historyData.reverse();
@@ -79,18 +228,8 @@ window.showInvoiceHistory = async function (poNumber, invoiceKey) {
             }
         }
 
-        if (loader) loader.classList.add('hidden');
-
-        if (historyData.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4">No history recorded.</td></tr>';
-            return;
-        }
-
+        let rows = '';
         historyData.forEach((h) => {
-            const dateObj = new Date(h.timestamp);
-            const dateStr = dateObj.toLocaleDateString('en-GB') + ' ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-            // QR Logic
             let qrButton = '';
             let currentEsn = h.esn;
             let currentLink = h.pdfLink;
@@ -101,35 +240,24 @@ window.showInvoiceHistory = async function (poNumber, invoiceKey) {
             }
 
             if (currentEsn && currentLink) {
+                const safeEsn = String(currentEsn).replace(/'/g, "\\'");
+                const safeLink = String(currentLink).replace(/'/g, "\\'");
                 qrButton = `
-                <button onclick="printHistorySticker('${currentEsn}', '${currentLink}')" 
-                        class="action-btn" 
-                        title="Print QR Sticker (${currentEsn})"
-                        style="background-color: #6f42c1; color: white; border: none; padding: 4px 8px; border-radius: 4px; margin-left: 5px; cursor: pointer;">
+                <button onclick="printHistorySticker('${safeEsn}', '${safeLink}')"
+                        class="history-qr-btn"
+                        title="Print QR Sticker (${ibaHistoryText(currentEsn)})">
                     <i class="fa-solid fa-qrcode"></i> Print
                 </button>`;
             }
 
-            // [MODIFIED] Added h.durationDisplay to the 4th column
-            const row = `
-            <tr>
-                <td>
-                    <strong>${h.action || h.status}</strong>
-                    ${qrButton} <br>
-                    <small style="color:#777">${h.note || ''}</small>
-                </td>
-                <td>${dateStr}</td>
-                <td>${h.updatedBy || h.by || 'System'}</td>
-                <td style="font-weight: bold; color: #00748C;">${h.durationDisplay}</td>
-            </tr>
-            `;
-            tbody.innerHTML += row;
+            rows += ibaHistoryBuildRow(h, qrButton);
         });
+        tbody.innerHTML = rows;
 
     } catch (error) {
         console.error(error);
         if (loader) loader.classList.add('hidden');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="4">Error loading history.</td></tr>';
+        if (tbody) tbody.innerHTML = '<tr class="history-empty-row"><td colspan="4"><div class="history-empty-state history-error"><i class="fa-solid fa-triangle-exclamation"></i><strong>Error loading history.</strong><span>Please try again or refresh the page.</span></div></td></tr>';
     }
 };
 
@@ -386,13 +514,15 @@ if (saveManualPOBtn) {
     const modal = document.getElementById('history-modal');
     const loader = document.getElementById('history-modal-loader');
     const tbody = document.getElementById('history-table-body');
+    const summary = document.getElementById('history-modal-summary');
 
+    ibaHistorySetModalTitle('Inventory Movement History');
     if (modal) modal.classList.remove('hidden');
     if (loader) loader.classList.remove('hidden');
+    if (summary) summary.innerHTML = '';
     if (tbody) tbody.innerHTML = '';
 
     try {
-        // 1. Get the entry
         const snapshot = await db.ref(`transfer_entries/${key}`).once('value');
         const entry = snapshot.val();
 
@@ -400,7 +530,6 @@ if (saveManualPOBtn) {
 
         const historyData = [];
 
-        // 2. Parse History (array or object)
         if (entry.history) {
             if (Array.isArray(entry.history)) {
                 historyData.push(...entry.history);
@@ -411,61 +540,35 @@ if (saveManualPOBtn) {
 
         if (historyData.length === 0) {
             if (loader) loader.classList.add('hidden');
-            tbody.innerHTML = '<tr><td colspan="4">No history recorded.</td></tr>';
+            ibaHistoryRenderEmpty('No inventory movement history recorded.');
             return;
         }
 
-        // 3. Sort ASC (oldest -> newest) to calculate duration
         historyData.sort((a, b) => (Number(a.timestamp) || 0) - (Number(b.timestamp) || 0));
 
-        // 4. Duration calculation (same style as Invoice history)
         historyData.forEach((h, index) => {
             if (index === 0) {
                 h.durationDisplay = '-';
             } else {
-                const prevTs = Number(historyData[index - 1].timestamp) || 0;
-                const currTs = Number(h.timestamp) || 0;
-                const diffMs = Math.max(0, currTs - prevTs);
-
-                const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-                const diffHrs = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-
-                if (diffDays > 0) h.durationDisplay = `${diffDays}d ${diffHrs}h`;
-                else if (diffHrs > 0) h.durationDisplay = `${diffHrs}h ${diffMins}m`;
-                else h.durationDisplay = `${diffMins}m`;
+                h.durationDisplay = ibaHistoryDurationBetween(historyData[index - 1].timestamp, h.timestamp);
             }
         });
 
-        // 5. Reverse to DESC for display
+        if (loader) loader.classList.add('hidden');
+        ibaHistoryRenderSummary(historyData, 'Inventory Timeline', key || 'Transfer Record');
+
         historyData.reverse();
 
-        if (loader) loader.classList.add('hidden');
-
+        let rows = '';
         historyData.forEach((h) => {
-            const dateObj = new Date(Number(h.timestamp) || Date.now());
-            const dateStr = dateObj.toLocaleDateString('en-GB') + ' ' + dateObj.toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-
-            const who = h.by || h.updatedBy || 'System';
-
-            const row = `
-                <tr>
-                    <td><strong>${h.action || h.status || ''}</strong><br><small>${h.note || ''}</small></td>
-                    <td>${dateStr}</td>
-                    <td>${who}</td>
-                    <td style="font-weight: bold; color: #00748C;">${h.durationDisplay || '-'}</td>
-                </tr>
-            `;
-            tbody.innerHTML += row;
+            rows += ibaHistoryBuildRow(h, '');
         });
+        tbody.innerHTML = rows;
 
     } catch (error) {
         console.error(error);
         if (loader) loader.classList.add('hidden');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="4">Error loading history.</td></tr>';
+        if (tbody) tbody.innerHTML = '<tr class="history-empty-row"><td colspan="4"><div class="history-empty-state history-error"><i class="fa-solid fa-triangle-exclamation"></i><strong>Error loading history.</strong><span>Please try again or refresh the page.</span></div></td></tr>';
     }
 };
 
