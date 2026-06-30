@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-active-tasks.js
    IBA WorkDesk active-task renderer, filters, mobile cards, and task loader.
-   Version: 8.7.0
+   Version: 9.2.7
 
    Cleanup Phase:
    - Moved Block 14 active-task display/loading helpers out of app.js.
@@ -14,6 +14,15 @@
      reuse it without re-fetching from Firebase.
    - populateActiveTasks now supports optional forceRefresh for manual dashboard refresh.
    - Approver lookup no longer force-refreshes every active-task load unless requested.
+
+   9.2.5:
+   - WorkDesk Active Task is now a personal Attention-name queue only.
+   - Dashboard overview rules remain unchanged.
+   - Active Task dashboard-style mini metric cards are removed/cleared.
+
+   9.2.7:
+   - Active Task tab emphasis softened so the UI is readable without every label
+     looking extra-bold.
    ========================================================================== */
 
 // =================================================================================================
@@ -193,7 +202,12 @@ function renderWorkdeskActiveTaskTable(tasks) {
 
     const activeTaskTable = document.querySelector('#wd-activetask table');
     if (activeTaskTable) activeTaskTable.classList.add('wd-modern-table', 'wd-active-modern-table');
-    wdUiUpdateMiniMetrics('active-task-summary-strip', workdeskTasks, 'Active Tasks');
+
+    // 9.2.7: Active Task should not repeat Dashboard summary cards.
+    // Dashboard remains the overview/control board; Active Task is only the
+    // logged-in user's personal Attention-name task queue.
+    const summaryStrip = document.getElementById('active-task-summary-strip');
+    if (summaryStrip) summaryStrip.innerHTML = '';
 
     const filteredTasks = workdeskTasks.filter(function(task) {
         if (currentActiveTaskFilter === 'All') return true;
@@ -328,7 +342,7 @@ function wdSaveActiveTaskSessionSnapshot(mode, tasks) {
         window.IBA_ACTIVE_TASK_LAST_MODE = mode;
         window.IBA_ACTIVE_TASK_LOADED_AT = Date.now();
         if (mode !== 'workdesk' || !Array.isArray(tasks)) return;
-        window.sessionStorage.setItem('IBA_ACTIVE_TASK_WORKDESK_SNAPSHOT_V1', JSON.stringify({
+        window.sessionStorage.setItem('IBA_ACTIVE_TASK_WORKDESK_SNAPSHOT_V2', JSON.stringify({
             userKey: wdActiveTaskCacheUserKey(),
             savedAt: Date.now(),
             tasks: tasks
@@ -377,7 +391,36 @@ const _norm = (v) => String(v || '').trim().toLowerCase();
 const _userNameNorm = _norm(currentUserName);
 const _userSiteNorm = _norm(currentUserSite);
 
-const isDirectAttentionForUser = (attentionVal) => _norm(attentionVal) === _userNameNorm;
+// 9.2.7: WorkDesk Active Task must be personal. If the logged-in
+// user's name is mentioned in Attention, show/count/blink it for them.
+// Site, position, and broad department visibility are for Dashboard only.
+const _attentionMentionsName = (attentionVal, nameVal) => {
+    const attention = _norm(attentionVal);
+    const name = _norm(nameVal);
+    if (!attention || !name) return false;
+    if (['all', 'site', 'accounting', 'accounts', 'finance'].includes(attention)) return false;
+    if (attention === name) return true;
+
+    // Handle multi-name Attention values such as "Irwin / Hafiz",
+    // "Irwin, Hafiz", "Irwin & Hafiz", etc.
+    const parts = attention
+        .split(/\s*(?:,|;|\/|\||&|\+|->|➔|\band\b|\bor\b)\s*/i)
+        .map(v => v.trim())
+        .filter(Boolean);
+    if (parts.includes(name)) return true;
+
+    // Safer fallback for names with middle/last-name differences.
+    const nameParts = name.split(/\s+/).filter(Boolean);
+    if (nameParts.length >= 2 && nameParts.every(part => attention.includes(part))) return true;
+
+    return false;
+};
+
+const isDirectAttentionForUser = (attentionVal) => _attentionMentionsName(attentionVal, currentUserName);
+const isAttentionForMeOrDelegated = (attentionVal) => {
+    if (isDirectAttentionForUser(attentionVal)) return true;
+    return delegatedFromNames.some(name => _attentionMentionsName(attentionVal, name));
+};
 
 const isSiteMatchForUser = (taskSiteVal) => {
     // Users with Site "All" can match any site.
@@ -778,7 +821,16 @@ else if (isDirectAttentionForUser(inv.attention)) {
         if (isInventoryPage) {
             userTasks = userTasks.filter(t => isInventoryTaskRecord(t));
         } else {
-            userTasks = userTasks.filter(t => isWorkdeskTaskRecord(t));
+            // 9.2.7: WorkDesk Active Task = My Attention tasks only.
+            // Do not show broad Accounting/Admin/Site/All tasks here; those remain
+            // visible in the Dashboard overview according to the existing dashboard rules.
+            userTasks = userTasks
+                .filter(t => isWorkdeskTaskRecord(t))
+                .filter(t => isAttentionForMeOrDelegated(t.attention))
+                .map(t => ({
+                    ...t,
+                    isUrgent: !String(t.status || t.remarks || '').toLowerCase().includes('on hold')
+                }));
         }
 
 	        // ------------------------------------------------------------------
@@ -835,7 +887,9 @@ else if (isDirectAttentionForUser(inv.attention)) {
         const urgentCount = userActiveTasks.filter(t => t.isUrgent === true).length;
 
         if (activeTaskCountDisplay) {
-            activeTaskCountDisplay.textContent = `(Action: ${urgentCount} | Records: ${totalTaskCount})`;
+            activeTaskCountDisplay.textContent = isInventoryPage
+                ? `(Action: ${urgentCount} | Records: ${totalTaskCount})`
+                : '';
         }
         
         if (isInventoryPage) {
@@ -928,7 +982,7 @@ const uniqueTabs = Object.keys(tabCountsAll).sort((a, b) => {
         const statusColor = getTabColor(tabName);
         tabColor = statusColor;
         tabText = getReadableTabText(statusColor);
-        fontWeight = '900';
+        fontWeight = '700';
         blinkClass = 'blink-tab';
     } else {
         // No direct attention tasks for this user in this tab => keep it neutral

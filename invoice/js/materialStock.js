@@ -98,7 +98,7 @@
 //   - Line  2409: deleteSiteStock()
 // ==========================================================================
 
-// materialStock.js - V10.15 (7.1.7: Photo Clear + Inventory Bulk Approval Support)
+// materialStock.js - V10.16 (9.4.8: Firebase read optimization - no auto Material Stock download on login)
 
 let allMaterialStockData = [];
 let allTransferData = [];
@@ -3225,7 +3225,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Required Materials list (notepad) - safe, local-only
     msInitRequiredListUI();
     msInitPhotoBrowserUI();
-    populateMaterialStock(false); // <--- ENSURE AUTO-LOAD IS ACTIVE
+    // 9.4.8 Firebase read optimization:
+    // Do NOT auto-download material_stock + transfer_entries on every login/page load.
+    // Data now loads only when the user opens the Material Stock section through navigation
+    // or clicks Refresh while already inside that section.
 
         const refreshBtn = document.getElementById('ms-refresh-btn');
     if (refreshBtn) {

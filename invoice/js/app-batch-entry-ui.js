@@ -1,5 +1,5 @@
 // js/app-batch-entry-ui.js
-// Version 8.2.7 — Batch Entry UI/search helpers moved from app.js.
+// Version 9.4.2 — Batch Entry UI/search helpers + invoice theme contrast cleanup.
 // Cleanup only: public function names preserved; save/write logic remains in app.js.
 
 function updateBatchRowAttentionButton(row) {
@@ -183,25 +183,25 @@ async function handleAddPOToBatch() {
         row.setAttribute('data-next-invid', nextInvId);
 
         row.innerHTML = `
-            <div class="batch-card-header" style="background-color: #023020 !important; border-bottom: 4px solid #16a34a !important; padding: 12px 15px !important; display: flex !important; flex-wrap: nowrap !important; gap: 15px !important; align-items: flex-end !important; overflow-x: auto !important; overflow-y: hidden !important;">
+            <div class="batch-card-header" style="background: linear-gradient(135deg, #073d2b 0%, #116045 68%, #1c7a59 100%) !important; border-bottom: 4px solid #d8fae9 !important; padding: 12px 15px !important; display: flex !important; flex-wrap: nowrap !important; gap: 15px !important; align-items: flex-end !important; overflow-x: auto !important; overflow-y: hidden !important;">
                 
-                <div title="PO Number" style="color: #FFD700 !important; font-weight: 800 !important; font-size: 1.05rem !important; white-space: nowrap !important; margin-bottom: 6px !important; flex: 0 0 auto !important;">
-                    <i class="fa-solid fa-hashtag"></i> ${poNumber} <span style="color: #4ade80 !important; font-size: 0.75rem !important;">(New)</span>
+                <div title="PO Number" style="color: #ffffff !important; font-weight: 800 !important; font-size: 1.05rem !important; white-space: nowrap !important; margin-bottom: 6px !important; flex: 0 0 auto !important;">
+                    <i class="fa-solid fa-hashtag"></i> ${poNumber} <span style="color: #d8fae9 !important; font-size: 0.75rem !important;">(New)</span>
                 </div>
 
-                <div title="Site" style="color: #FFD700 !important; font-weight: 800 !important; font-size: 1.05rem !important; white-space: nowrap !important; margin-bottom: 6px !important; flex: 0 0 auto !important;">
+                <div title="Site" style="color: #ffffff !important; font-weight: 800 !important; font-size: 1.05rem !important; white-space: nowrap !important; margin-bottom: 6px !important; flex: 0 0 auto !important;">
                     <i class="fa-solid fa-location-dot"></i> ${site}
                 </div>
 
-                <div title="Vendor" style="color: #FFD700 !important; font-weight: 800 !important; font-size: 1.05rem !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; flex: 0 1 180px !important; max-width: 250px !important; margin-bottom: 6px !important;">
+                <div title="Vendor" style="color: #ffffff !important; font-weight: 800 !important; font-size: 1.05rem !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; flex: 0 1 180px !important; max-width: 250px !important; margin-bottom: 6px !important;">
                     <i class="fa-solid fa-building"></i> ${vendor}
                 </div>
 
                 <div style="display: flex !important; flex-direction: column !important; gap: 4px !important; flex: 1 1 195px !important; min-width: 130px !important;">
                     <label style="color: white !important; font-weight: 600 !important; font-size: 0.75rem !important; display: flex !important; justify-content: space-between !important; align-items: center !important; margin: 0 !important; white-space: nowrap !important;">Inv No. 
                         <div style="display: flex !important; gap: 3px !important;">
-                            <button type="button" class="btn-quick-ipc" data-po="${poNumber}" style="padding: 2px 4px !important; font-size: 8px !important; font-weight: bold !important; background: #003A5C !important; color: white !important; border: none !important; border-radius: 3px !important; cursor: pointer !important;">IPC</button>
-                            <button type="button" class="btn-quick-five" data-po="${poNumber}" style="padding: 2px 4px !important; font-size: 8px !important; font-weight: bold !important; background: #00748C !important; color: white !important; border: none !important; border-radius: 3px !important; cursor: pointer !important;">FIVE</button>
+                            <button type="button" class="btn-quick-ipc" data-po="${poNumber}" style="padding: 2px 4px !important; font-size: 8px !important; font-weight: bold !important; background: #0b4b35 !important; color: white !important; border: none !important; border-radius: 3px !important; cursor: pointer !important;">IPC</button>
+                            <button type="button" class="btn-quick-five" data-po="${poNumber}" style="padding: 2px 4px !important; font-size: 8px !important; font-weight: bold !important; background: #1c7a59 !important; color: white !important; border: none !important; border-radius: 3px !important; cursor: pointer !important;">FIVE</button>
                         </div>
                     </label>
                     <input type="text" name="invNumber" class="batch-input" style="padding: 0 8px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #023020 !important; width: 100% !important; box-sizing: border-box !important; margin: 0 !important; height: 32px !important;">
@@ -245,19 +245,19 @@ async function handleAddPOToBatch() {
  <div class="batch-card-body" style="padding: 12px 15px !important;">
             <div class="batch-input-grid" style="display: flex !important; flex-wrap: nowrap !important; gap: 8px !important; overflow-x: auto !important; align-items: flex-start !important;">
                 
-                <div style="flex: 0 0 18%; min-width: 130px;"><label style="font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Invoice Name</label><input type="text" name="invName" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;"></div>
+                <div style="flex: 0 0 18%; min-width: 130px;"><label style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Invoice Name</label><input type="text" name="invName" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;"></div>
                 
-                <div style="flex: 0 0 18%; min-width: 130px;"><label style="font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">SRV Name</label><input type="text" name="srvName" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;"></div>
+                <div style="flex: 0 0 18%; min-width: 130px;"><label style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">SRV Name</label><input type="text" name="srvName" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;"></div>
                 
-                <div style="flex: 0 0 12%; min-width: 90px;"><label style="font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Description</label><input type="text" name="details" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;"></div>
+                <div style="flex: 0 0 12%; min-width: 90px;"><label style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Description</label><input type="text" name="details" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;"></div>
                 
-                <div style="flex: 0 0 11%; min-width: 90px;"><label style="font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Invoice Date</label><input type="date" name="invoiceDate" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 4px !important;" value="${typeof getTodayDateString === 'function' ? getTodayDateString() : new Date().toISOString().split('T')[0]}"></div>
+                <div style="flex: 0 0 11%; min-width: 90px;"><label style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Invoice Date</label><input type="date" name="invoiceDate" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 4px !important;" value="${typeof getTodayDateString === 'function' ? getTodayDateString() : new Date().toISOString().split('T')[0]}"></div>
                 
-                <div style="flex: 0 0 11%; min-width: 80px;"><label style="font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Invoice Value</label><input type="text" name="invValue" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;"></div>
+                <div style="flex: 0 0 11%; min-width: 80px;"><label style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Invoice Value</label><input type="text" name="invValue" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;"></div>
                 
-                <div style="flex: 0 0 11%; min-width: 80px;"><label style="font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Amount Paid</label><input type="text" name="amountPaid" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;" value="0.00"></div>
+                <div style="flex: 0 0 11%; min-width: 80px;"><label style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Amount Paid</label><input type="text" name="amountPaid" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;" value="0.00"></div>
                 
-                <div style="flex: 0 0 11%; min-width: 90px;"><label style="color: #00748C; font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Release Date</label><input type="date" name="releaseDate" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 4px !important;" value="${typeof getTodayDateString === 'function' ? getTodayDateString() : new Date().toISOString().split('T')[0]}"></div>
+                <div style="flex: 0 0 11%; min-width: 90px;"><label style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Release Date</label><input type="date" name="releaseDate" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 4px !important;" value="${typeof getTodayDateString === 'function' ? getTodayDateString() : new Date().toISOString().split('T')[0]}"></div>
             
             </div>
         </div>
@@ -335,17 +335,17 @@ async function addInvoiceToBatchTable(invData) {
     row.setAttribute('data-vendor', resolvedVendor);
 
     row.innerHTML = `
-        <div class="batch-card-header" style="background-color: #023020 !important; border-bottom: 4px solid #16a34a !important; padding: 12px 15px !important; display: flex !important; flex-wrap: nowrap !important; gap: 15px !important; align-items: flex-end !important; overflow-x: auto !important; overflow-y: hidden !important;">
+        <div class="batch-card-header" style="background: linear-gradient(135deg, #073d2b 0%, #116045 68%, #1c7a59 100%) !important; border-bottom: 4px solid #d8fae9 !important; padding: 12px 15px !important; display: flex !important; flex-wrap: nowrap !important; gap: 15px !important; align-items: flex-end !important; overflow-x: auto !important; overflow-y: hidden !important;">
             
-            <div title="PO Number" style="color: #FFD700 !important; font-weight: 800 !important; font-size: 1.05rem !important; white-space: nowrap !important; margin-bottom: 6px !important; flex: 0 0 auto !important;">
-                <i class="fa-solid fa-hashtag"></i> ${invData.po} <span class="existing-indicator" style="color: #94a3b8 !important; font-size: 0.75rem !important;">(Existing: ${invData.invEntryID})</span>
+            <div title="PO Number" style="color: #ffffff !important; font-weight: 800 !important; font-size: 1.05rem !important; white-space: nowrap !important; margin-bottom: 6px !important; flex: 0 0 auto !important;">
+                <i class="fa-solid fa-hashtag"></i> ${invData.po} <span class="existing-indicator" style="color: #d8fae9 !important; font-size: 0.75rem !important;">(Existing: ${invData.invEntryID})</span>
             </div>
 
-            <div title="Site" style="color: #FFD700 !important; font-weight: 800 !important; font-size: 1.05rem !important; white-space: nowrap !important; margin-bottom: 6px !important; flex: 0 0 auto !important;">
+            <div title="Site" style="color: #ffffff !important; font-weight: 800 !important; font-size: 1.05rem !important; white-space: nowrap !important; margin-bottom: 6px !important; flex: 0 0 auto !important;">
                 <i class="fa-solid fa-location-dot"></i> ${resolvedSite}
             </div>
 
-            <div title="Vendor" style="color: #FFD700 !important; font-weight: 800 !important; font-size: 1.05rem !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; flex: 0 1 180px !important; max-width: 250px !important; margin-bottom: 6px !important;">
+            <div title="Vendor" style="color: #ffffff !important; font-weight: 800 !important; font-size: 1.05rem !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; flex: 0 1 180px !important; max-width: 250px !important; margin-bottom: 6px !important;">
                 <i class="fa-solid fa-building"></i> ${resolvedVendor}
             </div>
             
@@ -353,8 +353,8 @@ async function addInvoiceToBatchTable(invData) {
                 <label style="color: white !important; font-weight: 600 !important; font-size: 0.75rem !important; display: flex !important; justify-content: space-between !important; align-items: flex-end !important; margin: 0 !important; white-space: nowrap !important; height: 14px !important; line-height: 14px !important;">
                     <span>Inv No.</span>
                     <div style="display: flex !important; gap: 3px !important; height: 14px !important;">
-                        <button type="button" class="btn-quick-ipc" style="height: 14px !important; line-height: 14px !important; padding: 0 4px !important; font-size: 8px !important; font-weight: bold !important; background: #003A5C !important; color: white !important; border: none !important; border-radius: 2px !important; cursor: pointer !important; margin: 0 !important; box-sizing: border-box !important;">IPC</button>
-                        <button type="button" class="btn-quick-five" style="height: 14px !important; line-height: 14px !important; padding: 0 4px !important; font-size: 8px !important; font-weight: bold !important; background: #00748C !important; color: white !important; border: none !important; border-radius: 2px !important; cursor: pointer !important; margin: 0 !important; box-sizing: border-box !important;">FIVE</button>
+                        <button type="button" class="btn-quick-ipc" style="height: 14px !important; line-height: 14px !important; padding: 0 4px !important; font-size: 8px !important; font-weight: bold !important; background: #0b4b35 !important; color: white !important; border: none !important; border-radius: 2px !important; cursor: pointer !important; margin: 0 !important; box-sizing: border-box !important;">IPC</button>
+                        <button type="button" class="btn-quick-five" style="height: 14px !important; line-height: 14px !important; padding: 0 4px !important; font-size: 8px !important; font-weight: bold !important; background: #1c7a59 !important; color: white !important; border: none !important; border-radius: 2px !important; cursor: pointer !important; margin: 0 !important; box-sizing: border-box !important;">FIVE</button>
                     </div>
                 </label>
                 <input type="text" name="invNumber" class="batch-input" value="${invData.invNumber || ''}" style="padding: 0 8px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #023020 !important; width: 100% !important; box-sizing: border-box !important; margin: 0 !important; height: 32px !important;">
@@ -405,19 +405,19 @@ async function addInvoiceToBatchTable(invData) {
 <div class="batch-card-body" style="padding: 12px 15px !important;">
             <div class="batch-input-grid" style="display: flex !important; flex-wrap: nowrap !important; gap: 8px !important; overflow-x: auto !important; align-items: flex-start !important;">
                 
-                <div style="flex: 0 0 18%; min-width: 130px;"><label style="font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Invoice Name</label><input type="text" name="invName" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;" value="${invData.invName || ''}"></div>
+                <div style="flex: 0 0 18%; min-width: 130px;"><label style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Invoice Name</label><input type="text" name="invName" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;" value="${invData.invName || ''}"></div>
                 
-                <div style="flex: 0 0 18%; min-width: 130px;"><label style="font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">SRV Name</label><input type="text" name="srvName" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;" value="${invData.srvName || ''}"></div>
+                <div style="flex: 0 0 18%; min-width: 130px;"><label style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">SRV Name</label><input type="text" name="srvName" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;" value="${invData.srvName || ''}"></div>
                 
-                <div style="flex: 0 0 12%; min-width: 90px;"><label style="font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Description</label><input type="text" name="details" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;" value="${invData.details || ''}"></div>
+                <div style="flex: 0 0 12%; min-width: 90px;"><label style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Description</label><input type="text" name="details" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;" value="${invData.details || ''}"></div>
                 
-                <div style="flex: 0 0 11%; min-width: 90px;"><label style="font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Invoice Date</label><input type="date" name="invoiceDate" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 4px !important;" value="${(typeof normalizeDateForInput === 'function' ? normalizeDateForInput(invData.invoiceDate) : invData.invoiceDate) || ''}"></div>
+                <div style="flex: 0 0 11%; min-width: 90px;"><label style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Invoice Date</label><input type="date" name="invoiceDate" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 4px !important;" value="${(typeof normalizeDateForInput === 'function' ? normalizeDateForInput(invData.invoiceDate) : invData.invoiceDate) || ''}"></div>
                 
-                <div style="flex: 0 0 11%; min-width: 80px;"><label style="font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Invoice Value</label><input type="text" name="invValue" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;" value="${invData.invValue ? parseFloat(String(invData.invValue).replace(/,/g, '')).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : ''}"></div>
+                <div style="flex: 0 0 11%; min-width: 80px;"><label style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Invoice Value</label><input type="text" name="invValue" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;" value="${invData.invValue ? parseFloat(String(invData.invValue).replace(/,/g, '')).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : ''}"></div>
                 
-                <div style="flex: 0 0 11%; min-width: 80px;"><label style="font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Amount Paid</label><input type="text" name="amountPaid" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;" value="${invData.amountPaid ? parseFloat(String(invData.amountPaid).replace(/,/g, '')).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00'}"></div>
+                <div style="flex: 0 0 11%; min-width: 80px;"><label style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Amount Paid</label><input type="text" name="amountPaid" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;" value="${invData.amountPaid ? parseFloat(String(invData.amountPaid).replace(/,/g, '')).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00'}"></div>
                 
-                <div style="flex: 0 0 11%; min-width: 90px;"><label style="color: #00748C; font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Release Date</label><input type="date" name="releaseDate" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 4px !important;" value="${invData.releaseDate || (typeof getTodayDateString === 'function' ? getTodayDateString() : new Date().toISOString().split('T')[0])}"></div>
+                <div style="flex: 0 0 11%; min-width: 90px;"><label style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Release Date</label><input type="date" name="releaseDate" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 4px !important;" value="${invData.releaseDate || (typeof getTodayDateString === 'function' ? getTodayDateString() : new Date().toISOString().split('T')[0])}"></div>
             
             </div>
         </div>
@@ -613,7 +613,7 @@ async function handleBatchModalPOSearch() {
                 if (e.key === 'Enter') { e.preventDefault(); document.getElementById('im-batch-modal-add-selected-btn').click(); }
             });
 
-            tr.addEventListener('focus', () => { tr.style.backgroundColor = '#e6f2ff'; tr.style.outline = '2px solid #003A5C'; });
+            tr.addEventListener('focus', () => { tr.style.backgroundColor = '#eaf8f1'; tr.style.outline = '2px solid #116045'; });
             tr.addEventListener('blur', () => { tr.style.backgroundColor = ''; tr.style.outline = 'none'; });
             
             tbody.appendChild(tr);

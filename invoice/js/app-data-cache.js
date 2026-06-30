@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-data-cache.js
    IBA shared local cache, CSV fetchers/parsers, and Firebase data loaders.
-   Version: 8.2.0
+   Version: 9.4.0
 
    Cleanup Phase:
    - Moved Block 06 out of app.js intact.
@@ -89,8 +89,16 @@ async function getFirebaseCSVUrl(filename) {
         return "https://raw.githubusercontent.com/DC-database/Hub/main/Site.csv" + cacheBuster;
     }
 
-    const baseUrl = "https://cdn.jsdelivr.net/gh/DC-database/Hub@main/";
+    // 9.4.0: Prefer GitHub raw for critical Invoice Management CSV files.
+    // jsDelivr sometimes returns 503 or omits CORS headers during local testing,
+    // which can block Batch Entry PO Search / ECommit loading.
     const cacheBuster = "?v=" + new Date().getTime();
+    const criticalRawCsv = ['POVALUE2.csv', 'Vendors.csv', 'ECommit.csv', 'ECommit2.csv'];
+    if (criticalRawCsv.includes(filename)) {
+        return `https://raw.githubusercontent.com/DC-database/Hub/main/${filename}${cacheBuster}`;
+    }
+
+    const baseUrl = "https://cdn.jsdelivr.net/gh/DC-database/Hub@main/";
     return `${baseUrl}${filename}${cacheBuster}`;
 }
 
@@ -131,15 +139,34 @@ async function silentlyRefreshStaleCaches() {
 
 // --- CSV Parsers ---
 
+async function fetchCsvTextWithFallback(url, label = 'CSV') {
+    const urlsToTry = [url];
+
+    // If any older code still passes a jsDelivr URL, retry the same file from GitHub raw.
+    if (typeof url === 'string' && url.includes('cdn.jsdelivr.net/gh/DC-database/Hub@main/')) {
+        const filenamePart = url.split('/').pop().split('?')[0];
+        if (filenamePart) {
+            urlsToTry.push(`https://raw.githubusercontent.com/DC-database/Hub/main/${filenamePart}?v=${Date.now()}`);
+        }
+    }
+
+    let lastError = null;
+    for (const candidateUrl of urlsToTry) {
+        try {
+            const response = await fetch(candidateUrl, { cache: 'no-store', mode: 'cors' });
+            if (!response.ok) throw new Error(`${label} fetch failed: ${response.status} ${response.statusText}`);
+            return await response.text();
+        } catch (error) {
+            lastError = error;
+            console.warn(`${label} fetch failed from ${candidateUrl}:`, error);
+        }
+    }
+    throw lastError || new Error(`${label} fetch failed`);
+}
+
 async function fetchAndParseCSV(url) {
     try {
-        const response = await fetch(url, {
-            cache: 'no-store'
-        });
-        if (!response.ok) {
-            throw new Error(`Failed to fetch CSV: ${response.statusText}`);
-        }
-        const csvText = await response.text();
+        const csvText = await fetchCsvTextWithFallback(url, 'POVALUE2.csv');
         // Remove Byte Order Mark (BOM) if present
         const lines = csvText.replace(/^\uFEFF/, '').split('\n').filter(line => line.trim() !== '');
 
@@ -272,11 +299,7 @@ async function refreshSummaryPODetailsCSV() {
 
 async function fetchAndParseEpicoreCSV(url, options = {}) {
     try {
-        const response = await fetch(url, { cache: 'no-store' });
-        if (!response.ok) {
-            throw new Error(`Failed to fetch CSV: ${response.statusText}`);
-        }
-        const csvText = await response.text();
+        const csvText = await fetchCsvTextWithFallback(url, 'POdetails.csv');
 
         const parseCsvRow = (rowStr) => {
             const values = [];
@@ -333,13 +356,7 @@ async function fetchAndParseEpicoreCSV(url, options = {}) {
 
 async function fetchAndParseSitesCSV(url) {
     try {
-        const response = await fetch(url, {
-            cache: 'no-store'
-        });
-        if (!response.ok) {
-            throw new Error(`Failed to fetch Sites CSV: ${response.statusText}`);
-        }
-        const csvText = await response.text();
+        const csvText = await fetchCsvTextWithFallback(url, 'Site.csv');
         const lines = csvText.replace(/^\uFEFF/, '').split('\n').filter(line => line.trim() !== '');
         if (lines.length < 2) {
             throw new Error("Site.csv is empty or has no data rows.");
@@ -393,13 +410,7 @@ async function fetchAndParseSitesCSV(url) {
 
 async function fetchAndParseEcommitCSV(url) {
     try {
-        const response = await fetch(url, {
-            cache: 'no-store'
-        });
-        if (!response.ok) {
-            throw new Error(`Failed to fetch CSV: ${response.statusText}`);
-        }
-        const csvText = await response.text();
+        const csvText = await fetchCsvTextWithFallback(url, 'ECommit.csv');
         const lines = csvText.replace(/^\uFEFF/, '').split('\n').filter(line => line.trim() !== '');
         if (lines.length < 2) {
             throw new Error("Ecommit CSV is empty or has no data rows.");
@@ -990,11 +1001,7 @@ function removeFromLocalInvoiceCache(poNumber, invoiceKey) {
 
 async function fetchAndParseVendorsCSV(url) {
     try {
-        const response = await fetch(url, {
-            cache: 'no-store'
-        });
-        if (!response.ok) throw new Error("Failed to fetch Vendors CSV");
-        const csvText = await response.text();
+        const csvText = await fetchCsvTextWithFallback(url, 'Vendors.csv');
         const lines = csvText.replace(/^\uFEFF/, '').split('\n').filter(line => line.trim() !== '');
 
         const vendorMap = {}; // Key: Supplier ID, Value: Vendor Name

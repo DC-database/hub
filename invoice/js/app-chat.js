@@ -1,6 +1,6 @@
 /* =================================================================================================
    IBA WorkDesk — Direct Messages / Chat Module
-   Version: 8.0.0
+   Version: 9.0.2
    Cleanup: moved out of app.js in 8.0.0.
    Scope: UI/presence/unread/inbox/message helpers only.
 ================================================================================================= */
@@ -141,8 +141,10 @@ function dmEnsureInlineStyles() {
   font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif}
 .dm-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.10)}
 .dm-header .dm-title{font-weight:850;letter-spacing:.2px;display:flex;align-items:center;gap:10px}
-.dm-close{background:transparent;border:0;color:#fff;font-size:22px;cursor:pointer;opacity:.9}
-.dm-close:hover{opacity:1}
+.dm-close{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:transparent;border:0;color:#fff;font-size:22px;cursor:pointer;opacity:.9;min-width:38px;height:38px;border-radius:14px}
+.dm-close:hover{opacity:1;background:rgba(255,255,255,.10)}
+.dm-close-label{display:none;font-size:13px;font-weight:900;letter-spacing:.2px}
+.dm-close-x{line-height:1;font-size:24px;font-weight:900}
 
 .dm-body{display:grid;grid-template-columns:360px 1fr;height:calc(100% - 58px);min-height:0}
 
@@ -171,12 +173,13 @@ function dmEnsureInlineStyles() {
 .dm-chat-ident{display:flex;align-items:center;gap:10px;min-width:0}
 .dm-chat-avatar{width:36px;height:36px;border-radius:14px;display:flex;align-items:center;justify-content:center;
   background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.12);font-weight:850;flex:0 0 auto}
-.dm-back{display:none;align-items:center;justify-content:center;width:36px;height:36px;border-radius:14px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#fff;cursor:pointer}
+.dm-back{display:none;align-items:center;justify-content:center;gap:7px;width:36px;height:36px;border-radius:14px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#fff;cursor:pointer;font-weight:900}
 .dm-chat-top .dm-chat-title{font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dm-chat-actions{display:flex;align-items:center;gap:8px}
 .dm-action{display:inline-flex;align-items:center;gap:8px;border-radius:14px;border:1px solid rgba(255,255,255,.14);
   background:rgba(255,255,255,.06);color:#fff;padding:9px 12px;cursor:pointer;font-weight:750}
 .dm-action span{font-size:13px;opacity:.92}
+.dm-back-label{display:none;font-size:13px;font-weight:900}
 .dm-action:hover{background:rgba(255,255,255,.09)}
 
 .dm-message-list{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:10px;min-height:0}
@@ -196,11 +199,22 @@ function dmEnsureInlineStyles() {
 /* Mobile: WhatsApp-style list <-> chat with Back (touch devices only; controlled by dm-mobile class) */
 @media (max-width: 820px){
   .dm-toast-wrap{left:14px;right:14px;top:14px;max-width:none}
-  .dm-card.dm-mobile{width:100vw;height:100vh;border-radius:0}
-  .dm-card.dm-mobile .dm-body{grid-template-columns:1fr}
+  .dm-modal{align-items:stretch;justify-content:stretch;background:rgba(0,0,0,.26)}
+  .dm-card.dm-mobile{width:100vw;height:100dvh;min-height:100vh;border-radius:0;display:flex;flex-direction:column}
+  .dm-card.dm-mobile .dm-header{position:sticky;top:0;z-index:30;flex:0 0 auto;padding:calc(10px + env(safe-area-inset-top,0px)) 14px 10px;background:linear-gradient(135deg,rgba(18,18,24,.98),rgba(0,58,92,.96));box-shadow:0 8px 22px rgba(0,0,0,.22)}
+  .dm-card.dm-mobile .dm-title{font-size:16px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dm-card.dm-mobile .dm-close{display:inline-flex !important;min-width:82px;width:auto;height:40px;padding:0 12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.14);box-shadow:0 10px 24px rgba(0,0,0,.22);font-size:14px;opacity:1;flex:0 0 auto}
+  .dm-card.dm-mobile .dm-close-label{display:inline}
+  .dm-card.dm-mobile .dm-close-x{font-size:20px}
+  .dm-card.dm-mobile .dm-body{grid-template-columns:1fr;flex:1;min-height:0;height:auto}
   .dm-card.dm-mobile.dm-mobile-list .dm-chat{display:none}
   .dm-card.dm-mobile.dm-mobile-chat .dm-users{display:none}
-  .dm-card.dm-mobile .dm-back{display:inline-flex}
+  .dm-card.dm-mobile.dm-mobile-chat .dm-back{display:inline-flex !important;width:auto;min-width:76px;padding:0 12px}
+  .dm-card.dm-mobile .dm-back-label{display:inline}
+  .dm-card.dm-mobile .dm-chat-top{position:sticky;top:0;z-index:20;background:rgba(18,18,24,.96);box-shadow:0 8px 18px rgba(0,0,0,.18)}
+  .dm-card.dm-mobile .dm-chat-actions{gap:6px;flex:0 0 auto}
+  .dm-card.dm-mobile .dm-action{min-height:38px;padding:8px 10px}
+  .dm-card.dm-mobile .dm-action span{font-size:12px}
 }
 `;
     document.head.appendChild(style);
@@ -225,7 +239,7 @@ function dmEnsureUI() {
 <div class="dm-card" role="dialog" aria-modal="true">
   <div class="dm-header">
     <div class="dm-title"><i class="fa-solid fa-comments"></i> Messages</div>
-    <button class="dm-close" id="dm-close" title="Close">&times;</button>
+    <button class="dm-close" id="dm-close" title="Close" aria-label="Close messages"><span class="dm-close-x">&times;</span><span class="dm-close-label">Close</span></button>
   </div>
   <div class="dm-body">
     <aside class="dm-users" aria-label="Users">
@@ -238,8 +252,8 @@ function dmEnsureUI() {
     <section class="dm-chat" aria-label="Chat">
       <div class="dm-chat-top">
         <div class="dm-chat-top-left">
-          <button id="dm-back-users" class="dm-back" type="button" aria-label="Back">
-            <i class="fa-solid fa-arrow-left"></i>
+          <button id="dm-back-users" class="dm-back" type="button" aria-label="Back to users">
+            <i class="fa-solid fa-arrow-left"></i><span class="dm-back-label">Users</span>
           </button>
           <div class="dm-chat-ident">
             <div class="dm-chat-avatar" id="dm-chat-avatar">?</div>
@@ -285,6 +299,16 @@ function dmEnsureUI() {
     document.addEventListener('keydown', (e) => {
         if (dmState.open && e.key === 'Escape') dmClose();
     });
+
+    // Mobile safety: Android/iOS browser back closes the Messages overlay first.
+    if (!window.__dmMobilePopBound) {
+        window.__dmMobilePopBound = true;
+        window.addEventListener('popstate', () => {
+            if (dmState.open) {
+                dmClose();
+            }
+        });
+    }
 
     // Send
     const input = document.getElementById('dm-input');
@@ -351,8 +375,15 @@ function dmOpen() {
     const modal = document.getElementById('dm-modal');
     if (!modal) return;
     modal.classList.remove('dm-hidden');
+    document.body.classList.add('dm-open');
     dmState.open = true;
     dmSetMobileScreen('list');
+    try {
+        if (dmIsMobile() && !window.__dmMobileHistoryOpen) {
+            history.pushState({ dmModal: true }, '', location.href);
+            window.__dmMobileHistoryOpen = true;
+        }
+    } catch (_) { /* ignore */ }
     try { dmSubscribePresenceList(); } catch (_) { /* ignore */ }
     // Ensure approver list is loaded so the user picker isn't empty.
     try {
@@ -377,8 +408,10 @@ function dmOpen() {
 function dmClose() {
     const modal = document.getElementById('dm-modal');
     if (modal) modal.classList.add('dm-hidden');
+    document.body.classList.remove('dm-open');
     dmState.open = false;
     try { dmUnsubscribePresenceList(); } catch (_) { /* ignore */ }
+    try { window.__dmMobileHistoryOpen = false; } catch (_) { /* ignore */ }
     dmSetMobileScreen('list');
 }
 

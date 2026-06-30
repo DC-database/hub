@@ -90,6 +90,132 @@ async function getApproverByKey(key) {
     }
 }
 
+// 9.5.1: Centralized Welcome Screen module permissions with hard restricted-button enforcement.
+// Financial Report and PO System must never appear for Logistics/Admin or normal users.
+// Default rule:
+// - Everyone logged in: WorkDesk, Invoice Management, Inventory, Requisition
+// - Financial Report: Super Admin, or Admin with finance/accounts/accounting/CEO/COO position only
+// - PO System: Super Admin only
+function normalizeWelcomeRoleText(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function getWelcomePermissionState() {
+    const user = currentApprover || window.currentApprover || window.currentUser || null;
+    const hasUser = !!(user && (
+        user.key || user.Name || user.username || user.name || user.Role || user.role || user.Position || user.position
+    ));
+
+    const nameLower = normalizeWelcomeRoleText(user?.Name || user?.username || user?.name);
+    const roleLower = normalizeWelcomeRoleText(user?.Role || user?.role);
+    const posLower = normalizeWelcomeRoleText(user?.Position || user?.position);
+
+    const superName = (typeof SUPER_ADMIN_NAME !== 'undefined') ? String(SUPER_ADMIN_NAME || '') : 'Irwin';
+    const isSuperAdmin = hasUser && nameLower === normalizeWelcomeRoleText(superName);
+    const isAdminRole = roleLower === 'admin';
+
+    // 9.5.1: strict finance permission.
+    // Logistics / Logistic Admin / Coordinator must NOT match CEO/COO/Finance by substring.
+    const financeTokens = posLower.split(/[^a-z0-9]+/).filter(Boolean);
+    const hasFinancePosition =
+        financeTokens.includes('ceo') ||
+        financeTokens.includes('coo') ||
+        financeTokens.includes('finance') ||
+        financeTokens.includes('accounts') ||
+        financeTokens.includes('accounting');
+
+    return {
+        canCoreModules: hasUser,
+        canFinancialReport: !!(isSuperAdmin || (isAdminRole && hasFinancePosition)),
+        canPOSystem: !!isSuperAdmin
+    };
+}
+
+function setWelcomeModuleVisibility(id, canShow, fallbackSelector = null) {
+    const el = document.getElementById(id) || (fallbackSelector ? document.querySelector(fallbackSelector) : null);
+    if (!el) return;
+
+    el.classList.toggle('hidden', !canShow);
+    el.style.setProperty('display', canShow ? '' : 'none', 'important');
+    el.setAttribute('aria-hidden', canShow ? 'false' : 'true');
+
+    if (canShow) {
+        el.removeAttribute('tabindex');
+        if (el.dataset.originalHref) {
+            el.setAttribute('href', el.dataset.originalHref);
+        }
+    } else {
+        el.setAttribute('tabindex', '-1');
+        if (el.tagName === 'A') {
+            if (!el.dataset.originalHref && el.getAttribute('href')) {
+                el.dataset.originalHref = el.getAttribute('href');
+            }
+            el.removeAttribute('href');
+        }
+    }
+}
+
+function applyWelcomeModulePermissions() {
+    const permission = getWelcomePermissionState();
+
+    // 9.5.1: body classes drive the hard CSS guard in index.html.
+    // Without these classes, restricted buttons stay hidden even if another script resets element classes.
+    if (document.body) {
+        document.body.classList.toggle('iba-can-see-financial-report', !!permission.canFinancialReport);
+        document.body.classList.toggle('iba-can-see-po-system', !!permission.canPOSystem);
+    }
+
+    // Default visible modules for every logged-in user.
+    setWelcomeModuleVisibility('workdesk-button', permission.canCoreModules);
+    setWelcomeModuleVisibility('invoice-mgmt-button', permission.canCoreModules);
+    setWelcomeModuleVisibility('inventory-button', permission.canCoreModules);
+    setWelcomeModuleVisibility('requisition-button', permission.canCoreModules);
+
+    // Restricted modules: never based on Admin alone.
+    setWelcomeModuleVisibility(
+        'finance-report-button',
+        permission.canFinancialReport,
+        'a[href="https://ibaport.site/Finance/"], a[data-original-href="https://ibaport.site/Finance/"]'
+    );
+    setWelcomeModuleVisibility(
+        'po-system-button',
+        permission.canPOSystem,
+        'a[href="https://ibaport.site/PO/"], a[data-original-href="https://ibaport.site/PO/"]'
+    );
+}
+
+function installWelcomeRestrictedButtonGuard() {
+    const guard = function (e) {
+        const financeBtn = e.target.closest && e.target.closest('#finance-report-button');
+        const poBtn = e.target.closest && e.target.closest('#po-system-button');
+        if (!financeBtn && !poBtn) return;
+
+        const permission = getWelcomePermissionState();
+        if ((financeBtn && !permission.canFinancialReport) || (poBtn && !permission.canPOSystem)) {
+            e.preventDefault();
+            e.stopPropagation();
+            applyWelcomeModulePermissions();
+            alert('Access Denied: This module is restricted.');
+        }
+    };
+
+    document.addEventListener('click', guard, true);
+
+    // Re-enforce after any UI refresh/class reset.
+    const enforce = () => {
+        try { applyWelcomeModulePermissions(); } catch (_) {}
+    };
+    document.addEventListener('DOMContentLoaded', enforce);
+    window.addEventListener('load', enforce);
+    setTimeout(enforce, 100);
+    setTimeout(enforce, 300);
+    setTimeout(enforce, 1000);
+    setTimeout(enforce, 2000);
+}
+
+installWelcomeRestrictedButtonGuard();
+try { window.applyWelcomeModulePermissions = applyWelcomeModulePermissions; } catch (_) {}
+
 function handleSuccessfulLogin() {
     if (currentApprover && currentApprover.key) {
         localStorage.setItem('approverKey', currentApprover.key);
@@ -123,30 +249,23 @@ function handleSuccessfulLogin() {
     const isMobile = (typeof isMobileViewport === 'function') ? isMobileViewport() : ((window.innerWidth || 0) <= 900);
     try { window.__ibaActiveModule = 'home'; } catch (_) {}
     if (document.body) document.body.classList.remove('inventory-mode');
+
+    // 9.5.1: apply module visibility before showing the Welcome screen.
+    // This prevents normal/site users from seeing restricted buttons.
+    applyWelcomeModulePermissions();
     showView('dashboard');
 
     const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
     document.body.classList.toggle('is-admin', isAdmin);
 
-    // --- Vacation delegation requires full approvers cache (preload + re-apply UI on refresh) ---
-    // On initial login we often already have it, but on session restore we may only have a single user record.
-    // Preload approvers in background and then re-apply Invoice Management visibility once available.
+    // --- Vacation delegation requires approver cache for replacement logic. ---
+    // 9.5.1: after the cache finishes, re-apply the same centralized Welcome permissions
+    // instead of using old Invoice Management-only visibility rules.
     if (!allApproverDataCache) {
         ensureApproverDataCached().then(() => {
             const _isVacationDelegate = isVacationDelegateUser();
             document.body.classList.toggle('is-vacation-delegate', _isVacationDelegate);
-            const _invoiceMgmtBtn = document.getElementById('invoice-mgmt-button');
-            if (_invoiceMgmtBtn) {
-                const _userPosLower = (currentApprover?.Position || '').toLowerCase();
-                const _isAccounting = _userPosLower === 'accounting';
-                const _isAccounts = _userPosLower === 'accounts';
-                const _isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
-                if (_isAdmin || _isAccounting || _isAccounts || _isVacationDelegate) {
-                    _invoiceMgmtBtn.classList.remove('hidden');
-                } else {
-                    _invoiceMgmtBtn.classList.add('hidden');
-                }
-            }
+            applyWelcomeModulePermissions();
         }).catch((e) => console.warn('Approver cache preload failed:', e));
     }
 
@@ -158,44 +277,10 @@ function handleSuccessfulLogin() {
     document.body.classList.toggle('is-vacation-delegate', isVacationDelegate);
 
 
-    // --- Financial Report (Welcome Button): Super Admin + (Admin with specific Finance Positions) ---
-const financeReportButton = document.getElementById('finance-report-button') || document.querySelector('a[href="https://ibaport.site/Finance/"]');
-
-if (financeReportButton) {
-    const isSuperAdmin = ((currentApprover?.Name || '').trim().toLowerCase() === SUPER_ADMIN_NAME.toLowerCase());
-    
-    // Check if the user has one of your 5 specific positions
-    const pos = (userPositionLower || '').toLowerCase();
-    const hasAllowedPosition = pos.includes('ceo') || 
-                               pos.includes('coo') || 
-                               pos.includes('finance') || 
-                               pos.includes('accounts') || 
-                               pos.includes('accounting');
-
-    // ONLY show if they are Super Admin OR (Role is Admin AND Position is one of the 5 above)
-    const canSeeFinancialReport = isSuperAdmin || (isAdmin && hasAllowedPosition);
-    
-    financeReportButton.classList.toggle('hidden', !canSeeFinancialReport);
-}
-
-    // --- NEW: PO System (Welcome Button): Super Admin (Irwin) ONLY ---
-    const poSystemButton = document.getElementById('po-system-button');
-    if (poSystemButton) {
-        const isSuperAdmin = ((currentApprover?.Name || '').trim().toLowerCase() === SUPER_ADMIN_NAME.toLowerCase());
-        // Toggle 'hidden' class: If NOT Super Admin, it stays hidden.
-        poSystemButton.classList.toggle('hidden', !isSuperAdmin);
-    }
-
-    // --- NEW FIX: Hide Invoice Management Button for Unauthorized Users ---
-    // Only Admins, Accounting, or Accounts should see this button
-    const invoiceMgmtBtn = document.getElementById('invoice-mgmt-button');
-    if (invoiceMgmtBtn) {
-        if (isAdmin || isAccounting || isAccounts || isVacationDelegate) {
-            invoiceMgmtBtn.classList.remove('hidden');
-        } else {
-            invoiceMgmtBtn.classList.add('hidden');
-        }
-    }
+    // 9.5.1: enforce final Welcome Screen role visibility.
+    // Normal/site users see only WorkDesk, Invoice Management, Inventory, and Requisition.
+    // Financial Report is restricted; PO System is Super Admin only.
+    applyWelcomeModulePermissions();
 
 // [START] Auto-Open Inventory Mode
     // Supports direct Inventory links from the main IBA landing page:
