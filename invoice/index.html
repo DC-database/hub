@@ -36,6 +36,14 @@
       /* Prevent flash of unstyled/unhidden content on hard refresh */
       .hidden { display: none !important; }
       html.preload body { opacity: 0; transition: opacity .15s ease; }
+
+      /* 9.5.1: hard permission guard for restricted Welcome buttons.
+         These stay hidden unless app-navigation-settings.js adds the allowed body class. */
+      body:not(.iba-can-see-financial-report) #finance-report-button,
+      body:not(.iba-can-see-po-system) #po-system-button {
+        display: none !important;
+        pointer-events: none !important;
+      }
     </style>
 <script>
       (function () {
@@ -48,16 +56,16 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
 
-    <link rel="stylesheet" href="style.css?v=8.9.6">
+    <link rel="stylesheet" href="style.css?v=9.4.6">
     <link rel="stylesheet" href="css/transfer_stock.css?v=8.6.2">
-    <link rel="stylesheet" href="css/mobile.css?v=8.9.6">
-    <!-- 8.9.6 module split: page-specific desktop/mobile override layers -->
-    <link rel="stylesheet" href="css/workdesk-desktop.css?v=8.9.6">
-    <link rel="stylesheet" href="css/invoice-desktop.css?v=8.9.6">
-    <link rel="stylesheet" href="css/inventory-desktop.css?v=8.9.6">
-    <link rel="stylesheet" href="css/workdesk-mobile.css?v=8.9.6">
-    <link rel="stylesheet" href="css/invoice-mobile.css?v=8.9.6">
-    <link rel="stylesheet" href="css/inventory-mobile.css?v=8.9.6">
+    <link rel="stylesheet" href="css/mobile.css?v=9.2.7">
+    <!-- 9.0.1 module split: page-specific desktop/mobile override layers -->
+    <link rel="stylesheet" href="css/workdesk-desktop.css?v=9.2.7">
+    <link rel="stylesheet" href="css/invoice-desktop.css?v=9.4.2">
+    <link rel="stylesheet" href="css/inventory-desktop.css?v=9.2.7">
+    <link rel="stylesheet" href="css/workdesk-mobile.css?v=9.2.7">
+    <link rel="stylesheet" href="css/invoice-mobile.css?v=9.2.7">
+    <link rel="stylesheet" href="css/inventory-mobile.css?v=9.2.7">
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -171,7 +179,8 @@
                     <div id="user-info">
                         <span id="dashboard-username"></span>
                         <span id="dashboard-version-display" class="dashboard-version-display"></span>
-                        </div>
+                    </div>
+                    <p class="welcome-header-greeting welcome-person-line"><span class="welcome-greeting-inline"><span id="welcome-time-greeting">Good day</span>, <strong id="welcome-person-name">User</strong></span><span id="welcome-current-date" class="welcome-date-inline" aria-hidden="true"></span></p>
                     <button id="logout-button">Logout</button>
                 </header>
 
@@ -180,17 +189,12 @@
                     <section class="welcome-premium-hero" aria-label="Welcome launcher">
                         <div class="welcome-premium-copy">
                             <span class="welcome-eyebrow"><i class="fa-solid fa-building-columns"></i> IBA OPERATIONS PORTAL</span>
-                            <h1>Welcome to IBA System Management</h1>
-                            <p class="welcome-person-line"><span id="welcome-time-greeting">Good day</span>, <strong id="welcome-person-name">User</strong>.<span id="welcome-current-date" class="welcome-date-inline" aria-hidden="true"></span></p>
+                            <h1><span>Welcome to</span><span>IBA System Management</span></h1>
                             <div class="welcome-quote-row" aria-label="Daily quote">
-                                <i class="fa-solid fa-quote-left"></i>
+                                <span class="welcome-quote-mark" aria-hidden="true">“</span>
                                 <span id="welcome-daily-quote">A clear record today prevents confusion tomorrow.</span>
+                                <span class="welcome-quote-mark" aria-hidden="true">”</span>
                             </div>
-                        </div>
-                        <div class="welcome-premium-panel">
-                            <span class="welcome-panel-label">Today</span>
-                            <strong id="welcome-panel-date">Today</strong>
-                            <p id="welcome-panel-sub" class="welcome-panel-time">Loading time...</p>
                         </div>
                     </section>
 
@@ -231,7 +235,7 @@
                             <span class="welcome-module-open">Open <i class="fa-solid fa-arrow-up-right-from-square"></i></span>
                         </a>
 
-                        <a href="https://ibaport.site/Finance/" target="_blank" id="finance-report-button" class="welcome-module-card welcome-module-finance" rel="noopener">
+                        <a href="https://ibaport.site/Finance/" target="_blank" id="finance-report-button" class="welcome-module-card welcome-module-finance hidden" style="display: none;" rel="noopener">
                             <span class="welcome-module-icon"><i class="fa-solid fa-chart-line"></i></span>
                             <span class="welcome-module-text">
                                 <strong>Financial Report</strong>
@@ -240,7 +244,7 @@
                             <span class="welcome-module-open">Open <i class="fa-solid fa-arrow-up-right-from-square"></i></span>
                         </a>
 
-                        <a href="https://ibaport.site/PO/" target="_blank" id="po-system-button" class="welcome-module-card welcome-module-po hidden" rel="noopener">
+                        <a href="https://ibaport.site/PO/" target="_blank" id="po-system-button" class="welcome-module-card welcome-module-po hidden" style="display: none;" rel="noopener">
                             <span class="welcome-module-icon"><i class="fa-solid fa-file-invoice"></i></span>
                             <span class="welcome-module-text">
                                 <strong>PO System</strong>
@@ -249,6 +253,12 @@
                             <span class="welcome-module-open">Open <i class="fa-solid fa-arrow-up-right-from-square"></i></span>
                         </a>
                     </section>
+
+                    <div class="welcome-premium-panel welcome-header-clock">
+                        <span class="welcome-panel-label">Today</span>
+                        <strong id="welcome-panel-date">Today</strong>
+                        <p id="welcome-panel-sub" class="welcome-panel-time">Loading time...</p>
+                    </div>
                 </main>
 
 
@@ -321,7 +331,7 @@
                         <div>
                             <p class="wd-control-eyebrow">WorkDesk Control Center</p>
                             <h1>Active Invoice Command Board</h1>
-                            <p class="wd-control-subtitle">See every invoice entry that still needs attention. Completed With Accounts records stay in Invoice Records, while this board focuses only on unfinished work.</p>
+                            <p class="wd-control-subtitle">Dashboard preview only: personal assignments by Attention plus active open items. With Accounts, Under Review, and approval queues are excluded here.</p>
                         </div>
                         <button id="wd-active-dashboard-refresh" class="secondary-btn wd-dashboard-refresh-btn" type="button">
                             <i class="fa-solid fa-rotate"></i> Refresh
@@ -337,8 +347,8 @@
 
                     <div class="wd-active-dashboard-toolbar">
                         <div>
-                            <h2 id="wd-active-dashboard-title">All Open Tasks</h2>
-                            <p id="wd-active-dashboard-summary">Only incomplete invoice-related entries are shown.</p>
+                            <h2 id="wd-active-dashboard-title">All Active Tasks</h2>
+                            <p id="wd-active-dashboard-summary">Only Pending, On Hold, IPC, Report, New Entry, Unresolved, and In Process items are shown.</p>
                         </div>
                         <div class="wd-active-dashboard-search-wrap">
                             <i class="fa-solid fa-magnifying-glass"></i>
@@ -1022,7 +1032,7 @@
 
     <div style="margin-bottom: 15px;">
         <input type="text" id="im-sidebar-search" placeholder="Search PO..."
-               style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.2); color: white; outline: none;">
+               style="width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(216,250,233,0.42); background: #ffffff; color: #073d2b; outline: none; font-weight: 700;">
     </div>
 
     <ul id="im-entry-sidebar-list" class="im-sidebar-list">
@@ -2944,7 +2954,7 @@
       }
     </script>
 
-    <script src="js/materialStock.js?v=8.6.5"></script>
+    <script src="js/materialStock.js?v=9.4.8"></script>
     <script src="js/transferLogic.js?v=8.2.6"></script>
     <script src="js/app-audio.js?v=8.2.3"></script>
     <script src="js/app-core.js?v=8.2.3"></script>
@@ -2952,22 +2962,22 @@
     <script src="js/app-invoice.js?v=8.2.3"></script>
     <script src="js/app-mobile.js?v=8.2.3"></script>
     <script src="js/app-finance.js?v=8.2.3"></script>
-    <script src="js/app-chat.js?v=8.2.3"></script>
+    <script src="js/app-chat.js?v=9.2.7"></script>
     <script src="js/app-celebration.js?v=8.2.3"></script>
     <script src="js/app-utils.js?v=8.2.3"></script>
     <script src="js/app-vacation.js?v=8.2.3"></script>
     <script src="js/app-dom-refs.js?v=8.2.9"></script>
-    <script src="app.js?v=8.9.6"></script>
-    <script src="js/app-navigation-settings.js?v=8.6.5"></script>
-    <script src="js/app-data-cache.js?v=8.2.3"></script>
+    <script src="app.js?v=9.5.1"></script>
+    <script src="js/app-navigation-settings.js?v=9.5.1"></script>
+    <script src="js/app-data-cache.js?v=9.4.0"></script>
     <script src="js/app-job-vendor.js?v=8.2.3"></script>
     <script src="js/app-workdesk-job-entry.js?v=8.2.5"></script>
     <script src="js/app-standard-job.js?v=8.7.4"></script>
     <script src="js/app-invoice-dashboard.js?v=8.6.5"></script>
     <script src="js/app-payments.js?v=8.3.0"></script>
     <script src="js/app-invoice-records.js?v=8.2.3"></script>
-    <script src="js/app-active-tasks.js?v=8.7.0"></script>
-    <script src="js/app-workdesk-dashboard.js?v=8.9.6"></script>
+    <script src="js/app-active-tasks.js?v=9.3.8"></script>
+    <script src="js/app-workdesk-dashboard.js?v=9.4.8"></script>
     <script src="js/app-workdesk-reporting.js?v=8.6.5"></script>
     <script src="js/app-reporting-actions.js?v=8.2.3"></script>
     <script src="js/app-report-workflow.js?v=8.2.3"></script>
@@ -2975,7 +2985,7 @@
     <script src="js/app-modal-navigation-clear.js?v=8.2.3"></script>
     <script src="js/app-invoice-entry-search.js?v=8.8.3"></script>
     <script src="js/app-attention-validation.js?v=8.2.4"></script>
-    <script src="js/app-batch-entry-ui.js?v=8.2.7"></script>
+    <script src="js/app-batch-entry-ui.js?v=9.4.2"></script>
     <script src="js/app-im-event-wiring.js?v=8.2.8"></script>
     <script src="js/app-history-transfer.js?v=8.6.5"></script>
     <script src="js/app-help.js?v=8.2.3"></script>

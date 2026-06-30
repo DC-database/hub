@@ -21455,3 +21455,2627 @@ body.inventory-mode #wd-inv-request-review .inventory-request-review-card,
     box-shadow: 0 10px 24px rgba(43, 0, 0, 0.06) !important;
 }
 
+
+
+/* =========================================================
+   9.0.6 DESKTOP WELCOME LAUNCHER - PREMIUM SQUARE TILES
+   Scope: desktop welcome screen only. Mobile tile styles remain in css/mobile.css.
+   ========================================================= */
+@media (min-width: 721px) {
+    #dashboard-view .welcome-module-grid {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important;
+        gap: 18px !important;
+        align-items: stretch !important;
+    }
+
+    #dashboard-view .welcome-module-card,
+    #dashboard-view .welcome-module-card:visited {
+        min-height: 0 !important;
+        aspect-ratio: 1 / 1 !important;
+        width: 100% !important;
+        padding: 18px !important;
+        border-radius: 28px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 14px !important;
+        text-align: center !important;
+        color: #ffffff !important;
+        background:
+            radial-gradient(circle at 20% 12%, rgba(255, 255, 255, 0.22), transparent 28%),
+            linear-gradient(145deg,
+                color-mix(in srgb, var(--welcome-accent, #38bdf8) 92%, #ffffff 8%) 0%,
+                color-mix(in srgb, var(--welcome-accent, #38bdf8) 70%, #020617 30%) 100%) !important;
+        border: 1px solid color-mix(in srgb, var(--welcome-accent, #38bdf8) 36%, rgba(255,255,255,0.26)) !important;
+        box-shadow:
+            0 18px 38px rgba(2, 6, 23, 0.24),
+            inset 0 1px 0 rgba(255,255,255,0.20) !important;
+        overflow: hidden !important;
+    }
+
+    #dashboard-view .welcome-module-card::before {
+        display: none !important;
+    }
+
+    #dashboard-view .welcome-module-card::after {
+        content: "";
+        position: absolute;
+        right: -34px;
+        bottom: -34px;
+        width: 92px;
+        height: 92px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.14);
+        pointer-events: none;
+    }
+
+    #dashboard-view .welcome-module-card:hover {
+        transform: translateY(-5px) !important;
+        box-shadow:
+            0 26px 58px rgba(2, 6, 23, 0.34),
+            inset 0 1px 0 rgba(255,255,255,0.24) !important;
+        filter: saturate(1.05) brightness(1.04);
+    }
+
+    #dashboard-view .welcome-module-icon {
+        width: 62px !important;
+        height: 62px !important;
+        border-radius: 22px !important;
+        color: #ffffff !important;
+        background: rgba(255, 255, 255, 0.16) !important;
+        border: 1px solid rgba(255, 255, 255, 0.24) !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.18) !important;
+    }
+
+    #dashboard-view .welcome-module-icon i {
+        font-size: 1.65rem !important;
+    }
+
+    #dashboard-view .welcome-module-text {
+        display: block !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    #dashboard-view .welcome-module-text strong {
+        margin: 0 !important;
+        color: #ffffff !important;
+        font-size: clamp(0.92rem, 1.1vw, 1.15rem) !important;
+        line-height: 1.18 !important;
+        font-weight: 950 !important;
+        letter-spacing: -0.02em !important;
+        text-shadow: 0 2px 10px rgba(2, 6, 23, 0.30) !important;
+        overflow-wrap: anywhere;
+    }
+
+    #dashboard-view .welcome-module-text em,
+    #dashboard-view .welcome-module-open {
+        display: none !important;
+    }
+
+    #dashboard-view .welcome-module-workdesk { --welcome-accent: #0e5f86 !important; }
+    #dashboard-view .welcome-module-invoice { --welcome-accent: #116045 !important; }
+    #dashboard-view .welcome-module-inventory { --welcome-accent: #4d0000 !important; }
+    #dashboard-view .welcome-module-requisition { --welcome-accent: #b98205 !important; }
+    #dashboard-view .welcome-module-finance { --welcome-accent: #0f766e !important; }
+    #dashboard-view .welcome-module-po { --welcome-accent: #9f1239 !important; }
+}
+
+/* =========================================================
+   9.0.7 DESKTOP WELCOME LAUNCHER - BALANCED TILE GRID
+   Scope: desktop welcome screen only.
+   Goal: same size tiles; 6 modules = 3 + 3, 4 modules = one row of 4.
+   ========================================================= */
+@media (min-width: 721px) {
+    #dashboard-view .welcome-module-grid {
+        --welcome-tile-size: clamp(150px, 13.2vw, 190px);
+        display: grid !important;
+        grid-template-columns: repeat(auto-fit, var(--welcome-tile-size)) !important;
+        justify-content: center !important;
+        justify-items: center !important;
+        align-items: stretch !important;
+        gap: 22px !important;
+        width: min(100%, 860px) !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+
+    /* Six visible modules should sit as 3 tiles above / 3 tiles below. */
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(6)) {
+        grid-template-columns: repeat(3, var(--welcome-tile-size)) !important;
+        width: min(100%, calc((var(--welcome-tile-size) * 3) + 44px)) !important;
+    }
+
+    /* Five visible modules: balanced 3 above / 2 below. */
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(5)):not(:has(> .welcome-module-card:nth-child(6))) {
+        grid-template-columns: repeat(3, var(--welcome-tile-size)) !important;
+        width: min(100%, calc((var(--welcome-tile-size) * 3) + 44px)) !important;
+    }
+
+    /* Four visible modules should stay as one clean row of four. */
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(4)):not(:has(> .welcome-module-card:nth-child(5))) {
+        grid-template-columns: repeat(4, var(--welcome-tile-size)) !important;
+        width: min(100%, calc((var(--welcome-tile-size) * 4) + 66px)) !important;
+    }
+
+    #dashboard-view .welcome-module-card,
+    #dashboard-view .welcome-module-card:visited {
+        width: var(--welcome-tile-size) !important;
+        height: var(--welcome-tile-size) !important;
+        min-width: var(--welcome-tile-size) !important;
+        max-width: var(--welcome-tile-size) !important;
+        min-height: var(--welcome-tile-size) !important;
+        max-height: var(--welcome-tile-size) !important;
+        aspect-ratio: 1 / 1 !important;
+        box-sizing: border-box !important;
+    }
+
+    #dashboard-view .welcome-module-text strong {
+        max-width: 100% !important;
+        text-align: center !important;
+    }
+}
+
+/* =========================================================
+   9.0.8 DESKTOP WELCOME - BETTER BALANCE
+   Scope: desktop welcome screen only.
+   Goal: reduce the oversized welcome title/hero so module tiles can be larger
+   and look properly balanced in the available space.
+   ========================================================= */
+@media (min-width: 721px) {
+    #dashboard-view .welcome-premium-hero {
+        grid-template-columns: minmax(0, 1fr) 250px !important;
+        gap: 18px !important;
+        padding: 22px 26px !important;
+        align-items: center !important;
+        min-height: 238px !important;
+    }
+
+    #dashboard-view .welcome-premium-copy {
+        min-width: 0 !important;
+    }
+
+    #dashboard-view .welcome-premium-copy h1 {
+        max-width: 920px !important;
+        margin: 14px auto 10px !important;
+        font-size: clamp(2.35rem, 3.35vw, 3.85rem) !important;
+        line-height: 1.03 !important;
+        letter-spacing: -0.045em !important;
+        text-align: center !important;
+    }
+
+    #dashboard-view .welcome-eyebrow {
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+
+    #dashboard-view .welcome-person-line {
+        justify-content: center !important;
+        margin-top: 8px !important;
+    }
+
+    #dashboard-view .welcome-quote-row {
+        justify-content: center !important;
+        margin: 12px auto 0 !important;
+        text-align: center !important;
+    }
+
+    #dashboard-view .welcome-premium-panel {
+        min-height: 130px !important;
+        padding: 8px 4px !important;
+    }
+
+    #dashboard-view .welcome-module-grid {
+        --welcome-tile-size: clamp(185px, 15vw, 220px) !important;
+        gap: 24px !important;
+        margin-top: 20px !important;
+    }
+
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(6)),
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(5)):not(:has(> .welcome-module-card:nth-child(6))) {
+        width: min(100%, calc((var(--welcome-tile-size) * 3) + 48px)) !important;
+    }
+
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(4)):not(:has(> .welcome-module-card:nth-child(5))) {
+        width: min(100%, calc((var(--welcome-tile-size) * 4) + 72px)) !important;
+    }
+
+    #dashboard-view .welcome-module-icon {
+        width: 68px !important;
+        height: 68px !important;
+        border-radius: 24px !important;
+    }
+
+    #dashboard-view .welcome-module-icon i {
+        font-size: 1.82rem !important;
+    }
+
+    #dashboard-view .welcome-module-text strong {
+        font-size: clamp(1.04rem, 1.18vw, 1.24rem) !important;
+        line-height: 1.15 !important;
+    }
+}
+
+@media (min-width: 721px) and (max-height: 780px) {
+    #dashboard-view .welcome-premium-hero {
+        min-height: 210px !important;
+        padding-top: 18px !important;
+        padding-bottom: 18px !important;
+    }
+
+    #dashboard-view .welcome-premium-copy h1 {
+        font-size: clamp(2.05rem, 3vw, 3.3rem) !important;
+        margin-top: 10px !important;
+        margin-bottom: 8px !important;
+    }
+
+    #dashboard-view .welcome-module-grid {
+        --welcome-tile-size: clamp(170px, 14vw, 205px) !important;
+        margin-top: 18px !important;
+    }
+}
+
+/* =========================================================
+   9.0.9 DESKTOP WELCOME - WIDER BALANCED TILE GRID
+   Scope: desktop welcome screen only.
+   Goal: use the available left/right space better so module tiles do not look too small.
+   ========================================================= */
+@media (min-width: 721px) {
+    #dashboard-view .welcome-premium-hero {
+        min-height: 205px !important;
+        padding: 18px 24px !important;
+        margin-bottom: 10px !important;
+    }
+
+    #dashboard-view .welcome-premium-copy h1 {
+        max-width: 780px !important;
+        font-size: clamp(2.05rem, 3vw, 3.35rem) !important;
+        line-height: 1.02 !important;
+        margin-top: 10px !important;
+        margin-bottom: 8px !important;
+    }
+
+    #dashboard-view .welcome-person-line {
+        margin-top: 6px !important;
+    }
+
+    #dashboard-view .welcome-quote-row {
+        margin-top: 9px !important;
+    }
+
+    #dashboard-view .welcome-premium-panel {
+        min-height: 112px !important;
+    }
+
+    #dashboard-view .welcome-module-grid {
+        --welcome-tile-size: clamp(230px, 20vw, 285px) !important;
+        grid-template-columns: repeat(3, var(--welcome-tile-size)) !important;
+        width: min(100%, calc((var(--welcome-tile-size) * 3) + 72px)) !important;
+        max-width: 100% !important;
+        gap: 36px !important;
+        margin-top: 18px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        justify-content: center !important;
+    }
+
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(4)):not(:has(> .welcome-module-card:nth-child(5))) {
+        --welcome-tile-size: clamp(205px, 16vw, 250px) !important;
+        grid-template-columns: repeat(4, var(--welcome-tile-size)) !important;
+        width: min(100%, calc((var(--welcome-tile-size) * 4) + 108px)) !important;
+    }
+
+    #dashboard-view .welcome-module-card,
+    #dashboard-view .welcome-module-card:visited {
+        width: var(--welcome-tile-size) !important;
+        height: var(--welcome-tile-size) !important;
+        min-width: var(--welcome-tile-size) !important;
+        max-width: var(--welcome-tile-size) !important;
+        min-height: var(--welcome-tile-size) !important;
+        max-height: var(--welcome-tile-size) !important;
+        border-radius: 30px !important;
+        gap: 18px !important;
+    }
+
+    #dashboard-view .welcome-module-icon {
+        width: 78px !important;
+        height: 78px !important;
+        border-radius: 26px !important;
+    }
+
+    #dashboard-view .welcome-module-icon i {
+        font-size: 2.05rem !important;
+    }
+
+    #dashboard-view .welcome-module-text strong {
+        font-size: clamp(1.18rem, 1.35vw, 1.42rem) !important;
+        line-height: 1.12 !important;
+    }
+}
+
+@media (min-width: 721px) and (max-width: 1180px) {
+    #dashboard-view .welcome-module-grid {
+        --welcome-tile-size: clamp(205px, 23vw, 250px) !important;
+        gap: 28px !important;
+    }
+}
+
+@media (min-width: 721px) and (max-height: 780px) {
+    #dashboard-view .welcome-premium-hero {
+        min-height: 185px !important;
+        padding-top: 16px !important;
+        padding-bottom: 16px !important;
+    }
+
+    #dashboard-view .welcome-premium-copy h1 {
+        font-size: clamp(1.95rem, 2.8vw, 3.05rem) !important;
+        margin-top: 8px !important;
+        margin-bottom: 7px !important;
+    }
+
+    #dashboard-view .welcome-module-grid {
+        --welcome-tile-size: clamp(210px, 18vw, 260px) !important;
+        gap: 30px !important;
+        margin-top: 14px !important;
+    }
+
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(4)):not(:has(> .welcome-module-card:nth-child(5))) {
+        --welcome-tile-size: clamp(190px, 15vw, 230px) !important;
+    }
+}
+
+/* =========================================================
+   9.1.1 DESKTOP WELCOME - COMPACT BALANCED APP TILES
+   Scope: desktop welcome screen only.
+   Goal: keep the welcome title proportional and keep module tiles around
+   compact app-box size instead of oversized cards.
+   ========================================================= */
+@media (min-width: 721px) {
+    #dashboard-view .welcome-premium-hero {
+        min-height: 170px !important;
+        padding: 16px 22px !important;
+        margin-bottom: 8px !important;
+        grid-template-columns: minmax(0, 1fr) 220px !important;
+        gap: 16px !important;
+    }
+
+    #dashboard-view .welcome-premium-copy h1 {
+        max-width: 660px !important;
+        font-size: clamp(1.9rem, 2.65vw, 2.9rem) !important;
+        line-height: 1.06 !important;
+        letter-spacing: -0.035em !important;
+        margin: 8px auto 6px !important;
+    }
+
+    #dashboard-view .welcome-eyebrow {
+        transform: scale(0.92) !important;
+        transform-origin: center !important;
+    }
+
+    #dashboard-view .welcome-person-line {
+        margin-top: 5px !important;
+        font-size: 0.86rem !important;
+    }
+
+    #dashboard-view .welcome-quote-row {
+        margin-top: 7px !important;
+        font-size: 0.84rem !important;
+    }
+
+    #dashboard-view .welcome-date-stack {
+        transform: scale(0.92) !important;
+        transform-origin: center right !important;
+    }
+
+    #dashboard-view .welcome-premium-panel {
+        min-height: 92px !important;
+        padding: 4px 4px 10px !important;
+    }
+
+    #dashboard-view .welcome-module-grid {
+        --welcome-tile-size: clamp(118px, 8.7vw, 138px) !important;
+        grid-template-columns: repeat(3, var(--welcome-tile-size)) !important;
+        width: min(100%, calc((var(--welcome-tile-size) * 3) + 44px)) !important;
+        gap: 22px !important;
+        margin-top: 14px !important;
+        justify-content: center !important;
+        justify-items: center !important;
+    }
+
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(5)):not(:has(> .welcome-module-card:nth-child(6))),
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(6)) {
+        --welcome-tile-size: clamp(118px, 8.7vw, 138px) !important;
+        grid-template-columns: repeat(3, var(--welcome-tile-size)) !important;
+        width: min(100%, calc((var(--welcome-tile-size) * 3) + 44px)) !important;
+    }
+
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(4)):not(:has(> .welcome-module-card:nth-child(5))) {
+        --welcome-tile-size: clamp(112px, 7.4vw, 132px) !important;
+        grid-template-columns: repeat(4, var(--welcome-tile-size)) !important;
+        width: min(100%, calc((var(--welcome-tile-size) * 4) + 66px)) !important;
+        gap: 22px !important;
+    }
+
+    #dashboard-view .welcome-module-card,
+    #dashboard-view .welcome-module-card:visited {
+        width: var(--welcome-tile-size) !important;
+        height: var(--welcome-tile-size) !important;
+        min-width: var(--welcome-tile-size) !important;
+        max-width: var(--welcome-tile-size) !important;
+        min-height: var(--welcome-tile-size) !important;
+        max-height: var(--welcome-tile-size) !important;
+        padding: 12px !important;
+        border-radius: 24px !important;
+        gap: 9px !important;
+    }
+
+    #dashboard-view .welcome-module-card::after {
+        right: -28px !important;
+        bottom: -28px !important;
+        width: 70px !important;
+        height: 70px !important;
+    }
+
+    #dashboard-view .welcome-module-card:hover {
+        transform: translateY(-3px) !important;
+    }
+
+    #dashboard-view .welcome-module-icon {
+        width: 48px !important;
+        height: 48px !important;
+        border-radius: 17px !important;
+    }
+
+    #dashboard-view .welcome-module-icon i {
+        font-size: 1.28rem !important;
+    }
+
+    #dashboard-view .welcome-module-text strong {
+        font-size: clamp(0.82rem, 0.85vw, 0.95rem) !important;
+        line-height: 1.12 !important;
+        letter-spacing: -0.015em !important;
+    }
+}
+
+@media (min-width: 721px) and (max-height: 780px) {
+    #dashboard-view .welcome-premium-hero {
+        min-height: 152px !important;
+        padding-top: 14px !important;
+        padding-bottom: 14px !important;
+    }
+
+    #dashboard-view .welcome-premium-copy h1 {
+        font-size: clamp(1.7rem, 2.3vw, 2.45rem) !important;
+    }
+
+    #dashboard-view .welcome-module-grid,
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(6)),
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(5)):not(:has(> .welcome-module-card:nth-child(6))) {
+        --welcome-tile-size: clamp(108px, 8vw, 126px) !important;
+        gap: 18px !important;
+    }
+
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(4)):not(:has(> .welcome-module-card:nth-child(5))) {
+        --welcome-tile-size: clamp(104px, 7vw, 122px) !important;
+    }
+}
+
+/* =========================================================
+   9.1.1 DESKTOP WELCOME - SAMPLE-STYLE COMPACT BALANCE
+   Scope: desktop welcome screen only.
+   Goal: follow the user's sample: smaller welcome title, compact
+   app tiles around 1-inch visual size, balanced 3 + 3 layout.
+   ========================================================= */
+@media (min-width: 721px) {
+    #dashboard-view .welcome-premium-hero {
+        min-height: 138px !important;
+        padding: 12px 18px !important;
+        margin: 10px 0 12px !important;
+        grid-template-columns: minmax(0, 1fr) 190px !important;
+        gap: 12px !important;
+        border-radius: 22px !important;
+    }
+
+    #dashboard-view .welcome-premium-copy {
+        gap: 0 !important;
+        justify-content: center !important;
+    }
+
+    #dashboard-view .welcome-eyebrow {
+        transform: scale(0.82) !important;
+        transform-origin: center !important;
+        margin-bottom: 2px !important;
+    }
+
+    #dashboard-view .welcome-premium-copy h1 {
+        max-width: 560px !important;
+        font-size: clamp(1.55rem, 2.05vw, 2.28rem) !important;
+        line-height: 1.04 !important;
+        letter-spacing: -0.04em !important;
+        margin: 4px auto 4px !important;
+        text-wrap: balance !important;
+    }
+
+    #dashboard-view .welcome-person-line {
+        margin-top: 2px !important;
+        font-size: 0.78rem !important;
+        line-height: 1.1 !important;
+    }
+
+    #dashboard-view .welcome-quote-row {
+        margin-top: 4px !important;
+        font-size: 0.76rem !important;
+        line-height: 1.15 !important;
+    }
+
+    #dashboard-view .welcome-date-stack {
+        transform: scale(0.82) !important;
+        transform-origin: center right !important;
+    }
+
+    #dashboard-view .welcome-premium-panel {
+        min-height: 72px !important;
+        padding: 2px 4px 12px !important;
+    }
+
+    #dashboard-view .welcome-module-grid,
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(6)),
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(5)):not(:has(> .welcome-module-card:nth-child(6))) {
+        --welcome-tile-size: clamp(92px, 6.6vw, 108px) !important;
+        grid-template-columns: repeat(3, var(--welcome-tile-size)) !important;
+        width: min(100%, calc((var(--welcome-tile-size) * 3) + 34px)) !important;
+        gap: 17px !important;
+        margin-top: 10px !important;
+        margin-bottom: 4px !important;
+        justify-content: center !important;
+        justify-items: center !important;
+    }
+
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(4)):not(:has(> .welcome-module-card:nth-child(5))) {
+        --welcome-tile-size: clamp(88px, 6vw, 104px) !important;
+        grid-template-columns: repeat(4, var(--welcome-tile-size)) !important;
+        width: min(100%, calc((var(--welcome-tile-size) * 4) + 51px)) !important;
+        gap: 17px !important;
+    }
+
+    #dashboard-view .welcome-module-card,
+    #dashboard-view .welcome-module-card:visited {
+        width: var(--welcome-tile-size) !important;
+        height: var(--welcome-tile-size) !important;
+        min-width: var(--welcome-tile-size) !important;
+        max-width: var(--welcome-tile-size) !important;
+        min-height: var(--welcome-tile-size) !important;
+        max-height: var(--welcome-tile-size) !important;
+        padding: 9px !important;
+        border-radius: 19px !important;
+        gap: 6px !important;
+    }
+
+    #dashboard-view .welcome-module-card::after {
+        right: -24px !important;
+        bottom: -24px !important;
+        width: 56px !important;
+        height: 56px !important;
+        opacity: 0.42 !important;
+    }
+
+    #dashboard-view .welcome-module-card::before {
+        width: 56px !important;
+        height: 56px !important;
+    }
+
+    #dashboard-view .welcome-module-icon {
+        width: 38px !important;
+        height: 38px !important;
+        border-radius: 14px !important;
+        margin-bottom: 2px !important;
+    }
+
+    #dashboard-view .welcome-module-icon i {
+        font-size: 1.02rem !important;
+    }
+
+    #dashboard-view .welcome-module-text strong {
+        font-size: clamp(0.68rem, 0.72vw, 0.8rem) !important;
+        line-height: 1.06 !important;
+        letter-spacing: -0.01em !important;
+    }
+}
+
+@media (min-width: 721px) and (max-height: 780px) {
+    #dashboard-view .welcome-premium-hero {
+        min-height: 122px !important;
+        padding-top: 10px !important;
+        padding-bottom: 10px !important;
+    }
+
+    #dashboard-view .welcome-premium-copy h1 {
+        font-size: clamp(1.35rem, 1.75vw, 1.95rem) !important;
+    }
+
+    #dashboard-view .welcome-module-grid,
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(6)),
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(5)):not(:has(> .welcome-module-card:nth-child(6))) {
+        --welcome-tile-size: clamp(84px, 6vw, 96px) !important;
+        gap: 14px !important;
+        width: min(100%, calc((var(--welcome-tile-size) * 3) + 28px)) !important;
+    }
+
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(4)):not(:has(> .welcome-module-card:nth-child(5))) {
+        --welcome-tile-size: clamp(82px, 5.5vw, 94px) !important;
+        width: min(100%, calc((var(--welcome-tile-size) * 4) + 42px)) !important;
+    }
+
+    #dashboard-view .welcome-module-icon {
+        width: 34px !important;
+        height: 34px !important;
+    }
+
+    #dashboard-view .welcome-module-text strong {
+        font-size: 0.66rem !important;
+    }
+}
+
+
+/* =========================================================
+   9.1.2 DESKTOP WELCOME - COMPACT HERO WIDTH ALIGNMENT
+   Scope: desktop welcome screen only.
+   Goal: keep the welcome hero card from spanning the full page width;
+   align it visually with the compact app-tile launcher area.
+   ========================================================= */
+@media (min-width: 721px) {
+    #dashboard-view .welcome-premium-main {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+    }
+
+    #dashboard-view .welcome-premium-hero {
+        width: min(100%, 680px) !important;
+        max-width: 680px !important;
+        margin: 10px auto 12px !important;
+        grid-template-columns: minmax(0, 1fr) 150px !important;
+        gap: 10px !important;
+        padding: 12px 16px !important;
+        min-height: 132px !important;
+    }
+
+    #dashboard-view .welcome-premium-copy h1 {
+        max-width: 430px !important;
+        font-size: clamp(1.45rem, 2vw, 2.05rem) !important;
+        line-height: 1.05 !important;
+        margin: 4px auto 4px !important;
+    }
+
+    #dashboard-view .welcome-eyebrow {
+        transform: scale(0.78) !important;
+        margin-bottom: 0 !important;
+    }
+
+    #dashboard-view .welcome-person-line {
+        font-size: 0.76rem !important;
+        line-height: 1.08 !important;
+    }
+
+    #dashboard-view .welcome-quote-row {
+        font-size: 0.74rem !important;
+        line-height: 1.08 !important;
+    }
+
+    #dashboard-view .welcome-premium-panel {
+        min-height: 68px !important;
+        padding: 4px 6px !important;
+        border-radius: 16px !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        border-color: transparent !important;
+    }
+
+    #dashboard-view .welcome-panel-label {
+        margin-inline: auto !important;
+    }
+
+    #dashboard-view #welcome-panel-date {
+        font-size: 0.98rem !important;
+        line-height: 1.12 !important;
+        text-align: center !important;
+    }
+
+    #dashboard-view #welcome-panel-sub,
+    #dashboard-view #welcome-panel-sub.welcome-panel-time {
+        font-size: 0.82rem !important;
+        text-align: center !important;
+    }
+
+    #dashboard-view .welcome-module-grid,
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(6)),
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(5)):not(:has(> .welcome-module-card:nth-child(6))) {
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+}
+
+@media (min-width: 721px) and (max-height: 780px) {
+    #dashboard-view .welcome-premium-hero {
+        width: min(100%, 620px) !important;
+        max-width: 620px !important;
+        min-height: 112px !important;
+        padding: 9px 14px !important;
+        grid-template-columns: minmax(0, 1fr) 136px !important;
+    }
+
+    #dashboard-view .welcome-premium-copy h1 {
+        max-width: 390px !important;
+        font-size: clamp(1.28rem, 1.68vw, 1.75rem) !important;
+    }
+}
+
+/* =========================================================
+   9.1.4 DESKTOP WELCOME - COMPACT SHELL + HEADER CLOCK
+   Scope: desktop welcome screen only.
+   Goal: stop the outer welcome card from stretching too wide.
+   Move Today/date/time into the top header row with version/logout,
+   then keep the welcome hero and app tiles inside a compact launcher shell.
+   ========================================================= */
+@media (min-width: 721px) {
+    #dashboard-view {
+        width: min(760px, calc(100vw - 44px)) !important;
+        max-width: 760px !important;
+        margin: 0 auto !important;
+    }
+
+    #dashboard-view .cyber-dashboard-card {
+        width: 100% !important;
+        max-width: 760px !important;
+        min-height: 0 !important;
+        padding: 18px 20px 22px !important;
+        border-radius: 26px !important;
+    }
+
+    #dashboard-view .dashboard-header {
+        display: grid !important;
+        grid-template-columns: auto minmax(220px, 1fr) auto !important;
+        align-items: center !important;
+        gap: 14px !important;
+        padding-bottom: 12px !important;
+        margin-bottom: 18px !important;
+    }
+
+    #dashboard-view #user-info {
+        justify-self: start !important;
+    }
+
+    #dashboard-view .welcome-header-clock {
+        justify-self: center !important;
+        align-self: center !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        display: grid !important;
+        grid-template-columns: auto auto auto !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 10px !important;
+        text-align: center !important;
+        color: #eaf6ff !important;
+        white-space: nowrap !important;
+    }
+
+    #dashboard-view .welcome-header-clock .welcome-panel-label {
+        margin: 0 !important;
+        padding: 4px 8px !important;
+        border-radius: 999px !important;
+        color: #082f49 !important;
+        background: #fbbf24 !important;
+        font-size: 0.66rem !important;
+        line-height: 1 !important;
+        letter-spacing: 0.08em !important;
+    }
+
+    #dashboard-view .welcome-header-clock #welcome-panel-date {
+        margin: 0 !important;
+        color: #f8fafc !important;
+        font-size: 0.88rem !important;
+        line-height: 1 !important;
+        font-weight: 900 !important;
+        text-align: center !important;
+    }
+
+    #dashboard-view .welcome-header-clock #welcome-panel-sub,
+    #dashboard-view .welcome-header-clock #welcome-panel-sub.welcome-panel-time {
+        margin: 0 !important;
+        color: #dbeafe !important;
+        font-size: 0.82rem !important;
+        line-height: 1 !important;
+        font-weight: 900 !important;
+        text-align: center !important;
+    }
+
+    #dashboard-view #logout-button {
+        justify-self: end !important;
+    }
+
+    #dashboard-view .welcome-premium-main {
+        width: 100% !important;
+        max-width: 620px !important;
+        margin: 0 auto !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+    }
+
+    #dashboard-view .welcome-premium-hero {
+        width: 100% !important;
+        max-width: 620px !important;
+        min-height: 118px !important;
+        display: block !important;
+        grid-template-columns: none !important;
+        margin: 0 auto 14px !important;
+        padding: 13px 18px !important;
+        border-radius: 21px !important;
+    }
+
+    #dashboard-view .welcome-premium-copy {
+        width: 100% !important;
+        max-width: 100% !important;
+        text-align: center !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+    }
+
+    #dashboard-view .welcome-eyebrow {
+        transform: none !important;
+        margin-bottom: 5px !important;
+        padding: 5px 10px !important;
+        font-size: 0.66rem !important;
+    }
+
+    #dashboard-view .welcome-premium-copy h1 {
+        max-width: 520px !important;
+        font-size: clamp(1.42rem, 2.2vw, 2.05rem) !important;
+        line-height: 1.04 !important;
+        margin: 2px auto 4px !important;
+        letter-spacing: -0.04em !important;
+        text-wrap: balance !important;
+    }
+
+    #dashboard-view .welcome-person-line {
+        font-size: 0.76rem !important;
+        line-height: 1.08 !important;
+        margin: 0 auto 3px !important;
+    }
+
+    #dashboard-view .welcome-quote-row {
+        font-size: 0.73rem !important;
+        line-height: 1.08 !important;
+        margin: 2px auto 0 !important;
+    }
+
+    #dashboard-view .welcome-module-grid,
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(6)),
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(5)):not(:has(> .welcome-module-card:nth-child(6))) {
+        --welcome-tile-size: 102px !important;
+        grid-template-columns: repeat(3, var(--welcome-tile-size)) !important;
+        width: auto !important;
+        max-width: calc((var(--welcome-tile-size) * 3) + 32px) !important;
+        gap: 16px !important;
+        margin: 8px auto 0 !important;
+        justify-content: center !important;
+        justify-items: center !important;
+    }
+
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(4)):not(:has(> .welcome-module-card:nth-child(5))) {
+        --welcome-tile-size: 100px !important;
+        grid-template-columns: repeat(4, var(--welcome-tile-size)) !important;
+        max-width: calc((var(--welcome-tile-size) * 4) + 48px) !important;
+        gap: 16px !important;
+    }
+
+    #dashboard-view .welcome-module-card,
+    #dashboard-view .welcome-module-card:visited {
+        width: var(--welcome-tile-size) !important;
+        height: var(--welcome-tile-size) !important;
+        min-width: var(--welcome-tile-size) !important;
+        max-width: var(--welcome-tile-size) !important;
+        min-height: var(--welcome-tile-size) !important;
+        max-height: var(--welcome-tile-size) !important;
+        padding: 9px !important;
+        border-radius: 18px !important;
+    }
+}
+
+@media (min-width: 721px) and (max-width: 900px) {
+    #dashboard-view {
+        width: min(720px, calc(100vw - 30px)) !important;
+    }
+
+    #dashboard-view .cyber-dashboard-card {
+        max-width: 720px !important;
+    }
+
+    #dashboard-view .dashboard-header {
+        grid-template-columns: auto 1fr auto !important;
+        gap: 10px !important;
+    }
+
+    #dashboard-view .welcome-header-clock {
+        gap: 7px !important;
+    }
+
+    #dashboard-view .welcome-header-clock #welcome-panel-date,
+    #dashboard-view .welcome-header-clock #welcome-panel-sub {
+        font-size: 0.76rem !important;
+    }
+}
+
+/* =========================================================
+   9.1.4 DESKTOP WELCOME - COMPACT OUTER SHELL / NO INNER HERO CARD
+   Scope: desktop welcome screen only.
+   Goal: make the whole welcome launcher fit the compact tile area better.
+   The date/time stays in the top row. The welcome text no longer sits inside
+   a wide inner card; it becomes a clean centered text block above the tiles.
+   ========================================================= */
+@media (min-width: 721px) {
+    #dashboard-view {
+        width: min(590px, calc(100vw - 44px)) !important;
+        max-width: 590px !important;
+        margin: 0 auto !important;
+    }
+
+    #dashboard-view .cyber-dashboard-card {
+        width: 100% !important;
+        max-width: 590px !important;
+        min-height: 0 !important;
+        padding: 15px 18px 20px !important;
+        border-radius: 24px !important;
+    }
+
+    #dashboard-view .dashboard-header {
+        grid-template-columns: auto minmax(260px, 1fr) auto !important;
+        gap: 10px !important;
+        padding-bottom: 10px !important;
+        margin-bottom: 16px !important;
+    }
+
+    #dashboard-view .welcome-header-clock {
+        gap: 8px !important;
+        transform: none !important;
+    }
+
+    #dashboard-view .welcome-header-clock .welcome-panel-label {
+        padding: 4px 7px !important;
+        font-size: 0.62rem !important;
+    }
+
+    #dashboard-view .welcome-header-clock #welcome-panel-date {
+        font-size: 0.78rem !important;
+    }
+
+    #dashboard-view .welcome-header-clock #welcome-panel-sub,
+    #dashboard-view .welcome-header-clock #welcome-panel-sub.welcome-panel-time {
+        font-size: 0.74rem !important;
+    }
+
+    #dashboard-view .welcome-premium-main {
+        width: 100% !important;
+        max-width: 430px !important;
+        margin: 0 auto !important;
+        padding: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+    }
+
+    #dashboard-view .welcome-premium-hero {
+        width: 100% !important;
+        max-width: 430px !important;
+        min-height: 0 !important;
+        margin: 0 auto 12px !important;
+        padding: 0 4px 4px !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        outline: 0 !important;
+    }
+
+    #dashboard-view .welcome-premium-hero::before,
+    #dashboard-view .welcome-premium-hero::after {
+        display: none !important;
+        content: none !important;
+    }
+
+    #dashboard-view .welcome-premium-copy {
+        width: 100% !important;
+        text-align: center !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+    }
+
+    #dashboard-view .welcome-eyebrow {
+        margin: 0 auto 6px !important;
+        padding: 4px 10px !important;
+        font-size: 0.61rem !important;
+        border-radius: 999px !important;
+    }
+
+    #dashboard-view .welcome-premium-copy h1 {
+        max-width: 410px !important;
+        font-size: clamp(1.48rem, 2.35vw, 1.82rem) !important;
+        line-height: 1.02 !important;
+        margin: 0 auto 4px !important;
+        letter-spacing: -0.045em !important;
+        text-wrap: balance !important;
+    }
+
+    #dashboard-view .welcome-person-line {
+        font-size: 0.68rem !important;
+        line-height: 1.05 !important;
+        margin: 0 auto 3px !important;
+    }
+
+    #dashboard-view .welcome-quote-row {
+        font-size: 0.66rem !important;
+        line-height: 1.05 !important;
+        margin: 1px auto 0 !important;
+        max-width: 380px !important;
+    }
+
+    #dashboard-view .welcome-module-grid,
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(6)),
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(5)):not(:has(> .welcome-module-card:nth-child(6))) {
+        --welcome-tile-size: 94px !important;
+        grid-template-columns: repeat(3, var(--welcome-tile-size)) !important;
+        width: auto !important;
+        max-width: calc((var(--welcome-tile-size) * 3) + 32px) !important;
+        gap: 16px !important;
+        margin: 6px auto 0 !important;
+        justify-content: center !important;
+        justify-items: center !important;
+    }
+
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(4)):not(:has(> .welcome-module-card:nth-child(5))) {
+        --welcome-tile-size: 92px !important;
+        grid-template-columns: repeat(4, var(--welcome-tile-size)) !important;
+        max-width: calc((var(--welcome-tile-size) * 4) + 48px) !important;
+        gap: 16px !important;
+    }
+
+    #dashboard-view .welcome-module-card,
+    #dashboard-view .welcome-module-card:visited {
+        width: var(--welcome-tile-size) !important;
+        height: var(--welcome-tile-size) !important;
+        min-width: var(--welcome-tile-size) !important;
+        max-width: var(--welcome-tile-size) !important;
+        min-height: var(--welcome-tile-size) !important;
+        max-height: var(--welcome-tile-size) !important;
+        padding: 8px !important;
+        border-radius: 17px !important;
+    }
+
+    #dashboard-view .welcome-module-icon {
+        width: 36px !important;
+        height: 36px !important;
+        border-radius: 14px !important;
+        margin-bottom: 6px !important;
+    }
+
+    #dashboard-view .welcome-module-text strong {
+        font-size: 0.72rem !important;
+        line-height: 0.95 !important;
+        max-width: 82px !important;
+    }
+}
+
+@media (min-width: 721px) and (max-width: 850px) {
+    #dashboard-view {
+        width: min(560px, calc(100vw - 30px)) !important;
+    }
+
+    #dashboard-view .cyber-dashboard-card {
+        max-width: 560px !important;
+        padding-left: 15px !important;
+        padding-right: 15px !important;
+    }
+
+    #dashboard-view .dashboard-header {
+        grid-template-columns: auto 1fr auto !important;
+        gap: 8px !important;
+    }
+
+    #dashboard-view .welcome-header-clock {
+        gap: 6px !important;
+    }
+
+    #dashboard-view .welcome-header-clock #welcome-panel-date,
+    #dashboard-view .welcome-header-clock #welcome-panel-sub {
+        font-size: 0.7rem !important;
+    }
+}
+
+/* =========================================================
+   9.1.5 DESKTOP WELCOME - TIGHTER PREMIUM LAUNCHER SHELL
+   Scope: desktop welcome screen only.
+   Goal: reduce the outer card width to match the compact title + app tile grid.
+   Keep the date/time in the top row, but remove the large empty left/right space.
+   ========================================================= */
+@media (min-width: 721px) {
+    #dashboard-view {
+        width: min(470px, calc(100vw - 44px)) !important;
+        max-width: 470px !important;
+        margin: 0 auto !important;
+    }
+
+    #dashboard-view .cyber-dashboard-card {
+        width: 100% !important;
+        max-width: 470px !important;
+        min-height: 0 !important;
+        padding: 14px 16px 18px !important;
+        border-radius: 24px !important;
+        overflow: hidden !important;
+    }
+
+    #dashboard-view .dashboard-header {
+        display: grid !important;
+        grid-template-columns: auto 1fr auto !important;
+        align-items: center !important;
+        gap: 8px !important;
+        padding-bottom: 9px !important;
+        margin-bottom: 14px !important;
+    }
+
+    #dashboard-view .dashboard-brand {
+        min-width: 0 !important;
+        gap: 7px !important;
+    }
+
+    #dashboard-view .dashboard-user-avatar,
+    #dashboard-view #dashboard-user-icon {
+        width: 34px !important;
+        height: 34px !important;
+        border-radius: 11px !important;
+    }
+
+    #dashboard-view .dashboard-version {
+        padding: 5px 9px !important;
+        font-size: 0.72rem !important;
+        line-height: 1 !important;
+        white-space: nowrap !important;
+    }
+
+    #dashboard-view .welcome-header-clock {
+        justify-content: center !important;
+        gap: 7px !important;
+        min-width: 0 !important;
+        white-space: nowrap !important;
+    }
+
+    #dashboard-view .welcome-header-clock .welcome-panel-label {
+        padding: 3px 7px !important;
+        font-size: 0.58rem !important;
+        line-height: 1 !important;
+    }
+
+    #dashboard-view .welcome-header-clock #welcome-panel-date,
+    #dashboard-view .welcome-header-clock #welcome-panel-sub,
+    #dashboard-view .welcome-header-clock #welcome-panel-sub.welcome-panel-time {
+        font-size: 0.70rem !important;
+        line-height: 1 !important;
+        letter-spacing: -0.015em !important;
+    }
+
+    #dashboard-view #logout-button {
+        padding: 9px 15px !important;
+        min-height: 38px !important;
+        border-radius: 999px !important;
+        font-size: 0.78rem !important;
+        white-space: nowrap !important;
+    }
+
+    #dashboard-view .welcome-premium-main {
+        width: 100% !important;
+        max-width: 360px !important;
+        margin: 0 auto !important;
+    }
+
+    #dashboard-view .welcome-premium-hero {
+        width: 100% !important;
+        max-width: 360px !important;
+        margin: 0 auto 12px !important;
+        padding: 0 !important;
+        background: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
+    }
+
+    #dashboard-view .welcome-eyebrow {
+        padding: 4px 9px !important;
+        font-size: 0.58rem !important;
+        margin-bottom: 6px !important;
+    }
+
+    #dashboard-view .welcome-premium-copy h1 {
+        max-width: 350px !important;
+        font-size: clamp(1.36rem, 1.95vw, 1.64rem) !important;
+        line-height: 1.03 !important;
+        margin: 0 auto 4px !important;
+        letter-spacing: -0.045em !important;
+    }
+
+    #dashboard-view .welcome-person-line {
+        font-size: 0.64rem !important;
+        margin: 0 auto 3px !important;
+    }
+
+    #dashboard-view .welcome-quote-row {
+        font-size: 0.62rem !important;
+        max-width: 340px !important;
+        margin: 0 auto !important;
+    }
+
+    #dashboard-view .welcome-module-grid,
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(6)),
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(5)):not(:has(> .welcome-module-card:nth-child(6))) {
+        --welcome-tile-size: 92px !important;
+        grid-template-columns: repeat(3, var(--welcome-tile-size)) !important;
+        gap: 14px !important;
+        width: auto !important;
+        max-width: calc((var(--welcome-tile-size) * 3) + 28px) !important;
+        margin: 8px auto 0 !important;
+    }
+
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(4)):not(:has(> .welcome-module-card:nth-child(5))) {
+        --welcome-tile-size: 90px !important;
+        grid-template-columns: repeat(4, var(--welcome-tile-size)) !important;
+        max-width: calc((var(--welcome-tile-size) * 4) + 42px) !important;
+        gap: 14px !important;
+    }
+
+    #dashboard-view .welcome-module-card,
+    #dashboard-view .welcome-module-card:visited {
+        width: var(--welcome-tile-size) !important;
+        height: var(--welcome-tile-size) !important;
+        min-width: var(--welcome-tile-size) !important;
+        max-width: var(--welcome-tile-size) !important;
+        min-height: var(--welcome-tile-size) !important;
+        max-height: var(--welcome-tile-size) !important;
+        border-radius: 17px !important;
+        padding: 8px !important;
+    }
+
+    #dashboard-view .welcome-module-icon {
+        width: 34px !important;
+        height: 34px !important;
+        border-radius: 13px !important;
+        margin-bottom: 6px !important;
+    }
+
+    #dashboard-view .welcome-module-icon i {
+        font-size: 1.02rem !important;
+    }
+
+    #dashboard-view .welcome-module-text strong {
+        max-width: 78px !important;
+        font-size: 0.68rem !important;
+        line-height: 0.96 !important;
+    }
+}
+
+@media (min-width: 721px) and (max-width: 820px) {
+    #dashboard-view {
+        width: min(450px, calc(100vw - 30px)) !important;
+        max-width: 450px !important;
+    }
+
+    #dashboard-view .cyber-dashboard-card {
+        max-width: 450px !important;
+        padding-left: 13px !important;
+        padding-right: 13px !important;
+    }
+
+    #dashboard-view .welcome-header-clock #welcome-panel-date,
+    #dashboard-view .welcome-header-clock #welcome-panel-sub,
+    #dashboard-view .welcome-header-clock #welcome-panel-sub.welcome-panel-time {
+        font-size: 0.66rem !important;
+    }
+
+    #dashboard-view #logout-button {
+        padding-left: 12px !important;
+        padding-right: 12px !important;
+    }
+}
+
+
+/* =========================================================
+   9.1.7 DESKTOP WELCOME - CLOCK BELOW TILES + TIGHTER SHELL
+   Scope: desktop welcome screen only.
+   User direction: move Today/date/time below the module buttons, bottom-right,
+   and keep the main launcher compact instead of stretched wide.
+   ========================================================= */
+@media (min-width: 721px) {
+    #dashboard-view {
+        width: min(410px, calc(100vw - 44px)) !important;
+        max-width: 410px !important;
+        margin: 0 auto !important;
+    }
+
+    #dashboard-view .cyber-dashboard-card {
+        position: relative !important;
+        width: 100% !important;
+        max-width: 410px !important;
+        min-height: 0 !important;
+        padding: 13px 14px 46px !important;
+        border-radius: 24px !important;
+        overflow: hidden !important;
+    }
+
+    #dashboard-view .dashboard-header {
+        display: grid !important;
+        grid-template-columns: auto 1fr auto !important;
+        align-items: center !important;
+        gap: 8px !important;
+        padding-bottom: 9px !important;
+        margin-bottom: 12px !important;
+    }
+
+    #dashboard-view .dashboard-brand {
+        min-width: 0 !important;
+        gap: 7px !important;
+    }
+
+    #dashboard-view .dashboard-user-avatar,
+    #dashboard-view #dashboard-user-icon {
+        width: 34px !important;
+        height: 34px !important;
+        border-radius: 11px !important;
+    }
+
+    #dashboard-view .dashboard-version {
+        padding: 5px 9px !important;
+        font-size: 0.72rem !important;
+        line-height: 1 !important;
+        white-space: nowrap !important;
+    }
+
+    #dashboard-view #logout-button {
+        justify-self: end !important;
+        padding: 9px 15px !important;
+        min-height: 38px !important;
+        border-radius: 999px !important;
+        font-size: 0.78rem !important;
+        white-space: nowrap !important;
+    }
+
+    #dashboard-view .welcome-header-clock {
+        position: absolute !important;
+        right: 14px !important;
+        bottom: 12px !important;
+        z-index: 3 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        gap: 7px !important;
+        width: auto !important;
+        min-width: 0 !important;
+        max-width: calc(100% - 28px) !important;
+        padding: 5px 8px !important;
+        margin: 0 !important;
+        border-radius: 999px !important;
+        background: rgba(5, 27, 44, 0.42) !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        box-shadow: none !important;
+        white-space: nowrap !important;
+    }
+
+    #dashboard-view .welcome-header-clock .welcome-panel-label {
+        padding: 3px 7px !important;
+        font-size: 0.56rem !important;
+        line-height: 1 !important;
+        border-radius: 999px !important;
+    }
+
+    #dashboard-view .welcome-header-clock #welcome-panel-date,
+    #dashboard-view .welcome-header-clock #welcome-panel-sub,
+    #dashboard-view .welcome-header-clock #welcome-panel-sub.welcome-panel-time {
+        display: inline-block !important;
+        margin: 0 !important;
+        font-size: 0.66rem !important;
+        line-height: 1 !important;
+        letter-spacing: -0.02em !important;
+        white-space: nowrap !important;
+    }
+
+    #dashboard-view .welcome-premium-main {
+        width: 100% !important;
+        max-width: 342px !important;
+        margin: 0 auto !important;
+    }
+
+    #dashboard-view .welcome-premium-hero {
+        width: 100% !important;
+        max-width: 342px !important;
+        margin: 0 auto 11px !important;
+        padding: 0 !important;
+        background: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
+    }
+
+    #dashboard-view .welcome-eyebrow {
+        padding: 4px 9px !important;
+        font-size: 0.56rem !important;
+        margin-bottom: 6px !important;
+    }
+
+    #dashboard-view .welcome-premium-copy h1 {
+        max-width: 326px !important;
+        font-size: clamp(1.28rem, 1.75vw, 1.50rem) !important;
+        line-height: 1.03 !important;
+        margin: 0 auto 4px !important;
+        letter-spacing: -0.045em !important;
+    }
+
+    #dashboard-view .welcome-person-line {
+        font-size: 0.62rem !important;
+        margin: 0 auto 3px !important;
+    }
+
+    #dashboard-view .welcome-quote-row {
+        font-size: 0.60rem !important;
+        max-width: 316px !important;
+        margin: 0 auto !important;
+    }
+
+    #dashboard-view .welcome-module-grid,
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(6)),
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(5)):not(:has(> .welcome-module-card:nth-child(6))) {
+        --welcome-tile-size: 90px !important;
+        grid-template-columns: repeat(3, var(--welcome-tile-size)) !important;
+        gap: 14px !important;
+        width: auto !important;
+        max-width: calc((var(--welcome-tile-size) * 3) + 28px) !important;
+        margin: 8px auto 0 !important;
+        justify-content: center !important;
+        justify-items: center !important;
+    }
+
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(4)):not(:has(> .welcome-module-card:nth-child(5))) {
+        --welcome-tile-size: 88px !important;
+        grid-template-columns: repeat(4, var(--welcome-tile-size)) !important;
+        max-width: calc((var(--welcome-tile-size) * 4) + 42px) !important;
+        gap: 14px !important;
+    }
+
+    #dashboard-view .welcome-module-card,
+    #dashboard-view .welcome-module-card:visited {
+        width: var(--welcome-tile-size) !important;
+        height: var(--welcome-tile-size) !important;
+        min-width: var(--welcome-tile-size) !important;
+        max-width: var(--welcome-tile-size) !important;
+        min-height: var(--welcome-tile-size) !important;
+        max-height: var(--welcome-tile-size) !important;
+        border-radius: 17px !important;
+        padding: 8px !important;
+    }
+
+    #dashboard-view .welcome-module-icon {
+        width: 34px !important;
+        height: 34px !important;
+        border-radius: 13px !important;
+        margin-bottom: 6px !important;
+    }
+
+    #dashboard-view .welcome-module-icon i {
+        font-size: 1.00rem !important;
+    }
+
+    #dashboard-view .welcome-module-text strong {
+        max-width: 78px !important;
+        font-size: 0.67rem !important;
+        line-height: 0.96 !important;
+    }
+}
+
+@media (min-width: 721px) and (max-width: 820px) {
+    #dashboard-view {
+        width: min(400px, calc(100vw - 30px)) !important;
+        max-width: 400px !important;
+    }
+
+    #dashboard-view .cyber-dashboard-card {
+        max-width: 400px !important;
+        padding-left: 13px !important;
+        padding-right: 13px !important;
+    }
+
+    #dashboard-view .welcome-header-clock #welcome-panel-date,
+    #dashboard-view .welcome-header-clock #welcome-panel-sub,
+    #dashboard-view .welcome-header-clock #welcome-panel-sub.welcome-panel-time {
+        font-size: 0.62rem !important;
+    }
+
+    #dashboard-view #logout-button {
+        padding-left: 12px !important;
+        padding-right: 12px !important;
+    }
+}
+
+/* =========================================================
+   9.1.7 DESKTOP WELCOME - CLOCK TRUE BOTTOM RIGHT FIX
+   Scope: desktop welcome screen only.
+   Fix: dashboard header was position:relative, so the clock was anchoring
+   to the top header instead of the card bottom. Keep clock below tiles,
+   bottom-right aligned with the logout side.
+   ========================================================= */
+@media (min-width: 721px) {
+    #dashboard-view .cyber-dashboard-card {
+        position: relative !important;
+        padding-bottom: 50px !important;
+    }
+
+    #dashboard-view .dashboard-header {
+        position: static !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        grid-template-columns: none !important;
+    }
+
+    #dashboard-view #user-info {
+        flex: 0 0 auto !important;
+    }
+
+    #dashboard-view #logout-button {
+        margin-left: auto !important;
+        justify-self: auto !important;
+        flex: 0 0 auto !important;
+    }
+
+    #dashboard-view .welcome-header-clock {
+        position: absolute !important;
+        top: auto !important;
+        left: auto !important;
+        right: 14px !important;
+        bottom: 12px !important;
+        transform: none !important;
+        z-index: 5 !important;
+        display: inline-flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        width: auto !important;
+        min-width: 0 !important;
+        max-width: calc(100% - 28px) !important;
+        padding: 4px 8px !important;
+        margin: 0 !important;
+        border-radius: 999px !important;
+        background: rgba(5, 27, 44, 0.30) !important;
+        border: 1px solid rgba(255, 255, 255, 0.10) !important;
+        box-shadow: none !important;
+        gap: 7px !important;
+        white-space: nowrap !important;
+        text-align: right !important;
+    }
+
+    #dashboard-view .welcome-header-clock .welcome-panel-label,
+    #dashboard-view .welcome-header-clock #welcome-panel-date,
+    #dashboard-view .welcome-header-clock #welcome-panel-sub,
+    #dashboard-view .welcome-header-clock #welcome-panel-sub.welcome-panel-time {
+        position: static !important;
+        display: inline-block !important;
+        margin: 0 !important;
+        line-height: 1 !important;
+        white-space: nowrap !important;
+    }
+
+    #dashboard-view .welcome-header-clock .welcome-panel-label {
+        padding: 3px 7px !important;
+        font-size: 0.56rem !important;
+    }
+
+    #dashboard-view .welcome-header-clock #welcome-panel-date,
+    #dashboard-view .welcome-header-clock #welcome-panel-sub,
+    #dashboard-view .welcome-header-clock #welcome-panel-sub.welcome-panel-time {
+        font-size: 0.62rem !important;
+    }
+}
+
+/* =========================================================
+   9.1.9 DESKTOP WELCOME - INTERNAL BALANCE REFINEMENT
+   Scope: desktop welcome screen only.
+   Direction: keep the outer card size, make the inside feel natural:
+   title in two lines, greeting/quote below, 20% larger tiles with spacing,
+   and date/time centered underneath the module buttons.
+   ========================================================= */
+@media (min-width: 721px) {
+    #dashboard-view .cyber-dashboard-card {
+        max-width: 410px !important;
+        padding: 13px 16px 18px !important;
+        min-height: 0 !important;
+    }
+
+    #dashboard-view .dashboard-header {
+        position: static !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        padding-bottom: 10px !important;
+        margin-bottom: 10px !important;
+    }
+
+    #dashboard-view .welcome-premium-main {
+        width: 100% !important;
+        max-width: 372px !important;
+        margin: 0 auto !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+    }
+
+    #dashboard-view .welcome-premium-hero {
+        width: 100% !important;
+        max-width: 356px !important;
+        margin: 0 auto 14px !important;
+        padding: 0 !important;
+        background: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
+    }
+
+    #dashboard-view .welcome-premium-copy {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        text-align: center !important;
+        width: 100% !important;
+    }
+
+    #dashboard-view .welcome-eyebrow {
+        margin-bottom: 8px !important;
+    }
+
+    #dashboard-view .welcome-premium-copy h1 {
+        max-width: 320px !important;
+        margin: 0 auto 6px !important;
+        font-size: clamp(1.38rem, 1.85vw, 1.62rem) !important;
+        line-height: 1.03 !important;
+        letter-spacing: -0.045em !important;
+        text-align: center !important;
+    }
+
+    #dashboard-view .welcome-premium-copy h1 span {
+        display: block !important;
+    }
+
+    #dashboard-view .welcome-person-line {
+        width: 100% !important;
+        max-width: 318px !important;
+        margin: 0 auto 4px !important;
+        padding-left: 18px !important;
+        text-align: left !important;
+        font-size: 0.66rem !important;
+        line-height: 1.1 !important;
+    }
+
+    #dashboard-view .welcome-quote-row {
+        width: 100% !important;
+        max-width: 318px !important;
+        margin: 0 auto !important;
+        justify-content: flex-start !important;
+        text-align: left !important;
+        font-size: 0.62rem !important;
+        line-height: 1.15 !important;
+    }
+
+    #dashboard-view .welcome-module-grid,
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(6)),
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(5)):not(:has(> .welcome-module-card:nth-child(6))) {
+        --welcome-tile-size: 108px !important;
+        grid-template-columns: repeat(3, var(--welcome-tile-size)) !important;
+        gap: 18px !important;
+        width: auto !important;
+        max-width: calc((var(--welcome-tile-size) * 3) + 36px) !important;
+        margin: 0 auto !important;
+        justify-content: center !important;
+        justify-items: center !important;
+    }
+
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(4)):not(:has(> .welcome-module-card:nth-child(5))) {
+        --welcome-tile-size: 104px !important;
+        grid-template-columns: repeat(4, var(--welcome-tile-size)) !important;
+        gap: 16px !important;
+        max-width: calc((var(--welcome-tile-size) * 4) + 48px) !important;
+    }
+
+    #dashboard-view .welcome-module-card,
+    #dashboard-view .welcome-module-card:visited {
+        width: var(--welcome-tile-size) !important;
+        height: var(--welcome-tile-size) !important;
+        min-width: var(--welcome-tile-size) !important;
+        max-width: var(--welcome-tile-size) !important;
+        min-height: var(--welcome-tile-size) !important;
+        max-height: var(--welcome-tile-size) !important;
+        border-radius: 18px !important;
+        padding: 10px !important;
+    }
+
+    #dashboard-view .welcome-module-icon {
+        width: 38px !important;
+        height: 38px !important;
+        border-radius: 14px !important;
+        margin-bottom: 8px !important;
+    }
+
+    #dashboard-view .welcome-module-icon i {
+        font-size: 1.10rem !important;
+    }
+
+    #dashboard-view .welcome-module-text strong {
+        max-width: 92px !important;
+        font-size: 0.76rem !important;
+        line-height: 0.98 !important;
+        word-break: normal !important;
+        overflow-wrap: normal !important;
+    }
+
+    #dashboard-view .welcome-header-clock {
+        position: static !important;
+        inset: auto !important;
+        transform: none !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        flex-direction: row !important;
+        gap: 8px !important;
+        width: auto !important;
+        max-width: 100% !important;
+        margin: 14px auto 0 !important;
+        padding: 5px 10px !important;
+        border-radius: 999px !important;
+        background: rgba(5, 27, 44, 0.26) !important;
+        border: 1px solid rgba(255, 255, 255, 0.10) !important;
+        box-shadow: none !important;
+        white-space: nowrap !important;
+        text-align: center !important;
+    }
+
+    #dashboard-view .welcome-header-clock .welcome-panel-label,
+    #dashboard-view .welcome-header-clock #welcome-panel-date,
+    #dashboard-view .welcome-header-clock #welcome-panel-sub,
+    #dashboard-view .welcome-header-clock #welcome-panel-sub.welcome-panel-time {
+        position: static !important;
+        display: inline-block !important;
+        margin: 0 !important;
+        line-height: 1 !important;
+        white-space: nowrap !important;
+        text-align: center !important;
+    }
+
+    #dashboard-view .welcome-header-clock .welcome-panel-label {
+        padding: 3px 7px !important;
+        font-size: 0.56rem !important;
+    }
+
+    #dashboard-view .welcome-header-clock #welcome-panel-date,
+    #dashboard-view .welcome-header-clock #welcome-panel-sub,
+    #dashboard-view .welcome-header-clock #welcome-panel-sub.welcome-panel-time {
+        font-size: 0.64rem !important;
+    }
+}
+
+@media (min-width: 721px) and (max-width: 820px) {
+    #dashboard-view .welcome-premium-main {
+        max-width: 360px !important;
+    }
+
+    #dashboard-view .welcome-module-grid,
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(6)),
+    #dashboard-view .welcome-module-grid:has(> .welcome-module-card:nth-child(5)):not(:has(> .welcome-module-card:nth-child(6))) {
+        --welcome-tile-size: 104px !important;
+        gap: 14px !important;
+        max-width: calc((var(--welcome-tile-size) * 3) + 28px) !important;
+    }
+
+    #dashboard-view .welcome-module-card,
+    #dashboard-view .welcome-module-card:visited {
+        padding: 9px !important;
+    }
+}
+
+
+/* =========================================================
+   9.1.9 DESKTOP WELCOME - GREETING / QUOTE BALANCE
+   Scope: desktop welcome screen only.
+   - Keep title in two lines.
+   - Add breathing room above greeting.
+   - Greeting is centered as a block but text is indented left.
+   - Quote is centered and uses opening + closing quotation marks.
+   ========================================================= */
+@media (min-width: 721px) {
+    #dashboard-view .welcome-premium-copy h1 {
+        margin-bottom: 12px !important;
+    }
+
+    #dashboard-view .welcome-person-line {
+        width: 100% !important;
+        max-width: 318px !important;
+        margin: 0 auto 7px !important;
+        padding-left: 42px !important;
+        text-align: left !important;
+        font-size: 0.67rem !important;
+        line-height: 1.18 !important;
+    }
+
+    #dashboard-view .welcome-quote-row {
+        width: 100% !important;
+        max-width: 336px !important;
+        margin: 0 auto !important;
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 5px !important;
+        text-align: center !important;
+        font-size: 0.62rem !important;
+        line-height: 1.18 !important;
+    }
+
+    #dashboard-view .welcome-quote-row i {
+        display: none !important;
+    }
+
+    #dashboard-view .welcome-quote-mark {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        color: #ffc400 !important;
+        font-size: 0.90rem !important;
+        line-height: 1 !important;
+        font-weight: 900 !important;
+        text-shadow: 0 1px 8px rgba(255, 196, 0, 0.28) !important;
+    }
+
+    #dashboard-view #welcome-daily-quote {
+        display: inline !important;
+        color: rgba(255,255,255,0.96) !important;
+        text-align: center !important;
+    }
+}
+
+
+/* =========================================================
+   9.2.0 DESKTOP WELCOME - GREETING LEFT ALIGN FIX
+   Scope: desktop welcome screen only.
+   User direction: "Good morning, [user]" should sit on the left side,
+   not centered. Keep quote centered below it.
+   ========================================================= */
+@media (min-width: 721px) {
+    #dashboard-view .welcome-person-line {
+        align-self: flex-start !important;
+        width: auto !important;
+        max-width: 336px !important;
+        margin: 0 0 7px 0 !important;
+        padding-left: 0 !important;
+        text-align: left !important;
+        justify-content: flex-start !important;
+    }
+
+    #dashboard-view .welcome-quote-row {
+        align-self: center !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        text-align: center !important;
+        justify-content: center !important;
+    }
+}
+
+
+/* 9.2.1 - Greeting moved to top header center */
+@media (min-width:721px){
+ #dashboard-view .dashboard-header{display:grid!important;grid-template-columns:auto 1fr auto!important;align-items:center!important;}
+ #dashboard-view .welcome-header-greeting{justify-self:center!important;align-self:center!important;margin:0!important;padding:0!important;font-size:.72rem!important;line-height:1!important;font-weight:800!important;text-align:center!important;white-space:nowrap!important;color:#fff!important;}
+ #dashboard-view .welcome-header-greeting strong{color:#fff!important;}
+ #dashboard-view .welcome-premium-copy{padding-top:2px!important;}
+}
+
+
+/* =========================================================
+   9.2.2 DESKTOP WELCOME - GREETING TRUE HEADER CENTER FIX
+   Move the Good morning line out of the Welcome title block and keep it
+   centered in the same top row as version/logout.
+   ========================================================= */
+@media (min-width: 721px) {
+    #dashboard-view .dashboard-header {
+        display: grid !important;
+        grid-template-columns: minmax(160px, auto) 1fr minmax(92px, auto) !important;
+        align-items: center !important;
+        column-gap: 14px !important;
+    }
+
+    #dashboard-view .dashboard-header #user-info {
+        justify-self: start !important;
+        min-width: 0 !important;
+    }
+
+    #dashboard-view .dashboard-header #logout-button {
+        justify-self: end !important;
+        margin: 0 !important;
+    }
+
+    #dashboard-view .welcome-header-greeting,
+    #dashboard-view .dashboard-header .welcome-person-line {
+        grid-column: 2 !important;
+        justify-self: center !important;
+        align-self: center !important;
+        width: auto !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 0 10px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 4px !important;
+        text-align: center !important;
+        white-space: nowrap !important;
+        color: rgba(255,255,255,.96) !important;
+        font-size: .82rem !important;
+        line-height: 1.1 !important;
+        font-weight: 800 !important;
+        letter-spacing: .01em !important;
+    }
+
+    #dashboard-view .welcome-header-greeting strong,
+    #dashboard-view .dashboard-header .welcome-person-line strong {
+        color: #fff !important;
+        font-weight: 900 !important;
+    }
+
+    #dashboard-view .welcome-premium-copy > .welcome-person-line:not(.welcome-header-greeting) {
+        display: none !important;
+    }
+}
+
+/* =========================================================
+   9.2.3 DESKTOP WELCOME - GREETING ONE-LINE HEADER FIX
+   Scope: desktop welcome header only.
+   Fix: keep "Good morning, Irwin" on one straight line and remove the
+   unwanted flex gap before the comma/name.
+   ========================================================= */
+@media (min-width: 721px) {
+    #dashboard-view .dashboard-header {
+        grid-template-columns: minmax(150px, auto) minmax(220px, 1fr) minmax(92px, auto) !important;
+    }
+
+    #dashboard-view .welcome-header-greeting,
+    #dashboard-view .dashboard-header .welcome-person-line {
+        min-width: 220px !important;
+        max-width: none !important;
+        white-space: nowrap !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        gap: 0 !important;
+        flex-wrap: nowrap !important;
+        line-height: 1 !important;
+    }
+
+    #dashboard-view .welcome-header-greeting .welcome-greeting-inline {
+        display: inline-block !important;
+        white-space: nowrap !important;
+        flex: 0 0 auto !important;
+        min-width: max-content !important;
+        max-width: none !important;
+    }
+
+    #dashboard-view .welcome-header-greeting #welcome-time-greeting,
+    #dashboard-view .welcome-header-greeting #welcome-person-name,
+    #dashboard-view .welcome-header-greeting strong {
+        display: inline !important;
+        white-space: nowrap !important;
+        flex: 0 0 auto !important;
+    }
+}
+
+/* =========================================================
+   9.2.4 DESKTOP WELCOME - HEADER FIT / LOGOUT VISIBLE FIX
+   Scope: desktop welcome header only.
+   Fix: previous greeting one-line rule used a wide center column, pushing
+   Logout outside the compact welcome card. Keep greeting one line while
+   letting the top row fit inside the card.
+   ========================================================= */
+@media (min-width: 721px) {
+    #dashboard-view .dashboard-header {
+        display: grid !important;
+        grid-template-columns: auto minmax(0, 1fr) auto !important;
+        align-items: center !important;
+        column-gap: 8px !important;
+        overflow: visible !important;
+    }
+
+    #dashboard-view .dashboard-header #user-info,
+    #dashboard-view .dashboard-brand {
+        justify-self: start !important;
+        min-width: 0 !important;
+        max-width: max-content !important;
+        flex: 0 0 auto !important;
+    }
+
+    #dashboard-view .welcome-header-greeting,
+    #dashboard-view .dashboard-header .welcome-person-line {
+        grid-column: 2 !important;
+        justify-self: center !important;
+        min-width: 0 !important;
+        width: auto !important;
+        max-width: 100% !important;
+        padding: 0 4px !important;
+        font-size: 0.78rem !important;
+        line-height: 1 !important;
+        white-space: nowrap !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+    }
+
+    #dashboard-view .welcome-header-greeting .welcome-greeting-inline {
+        min-width: 0 !important;
+        max-width: 100% !important;
+        white-space: nowrap !important;
+    }
+
+    #dashboard-view .dashboard-header #logout-button,
+    #dashboard-view #logout-button {
+        grid-column: 3 !important;
+        justify-self: end !important;
+        flex: 0 0 auto !important;
+        margin: 0 !important;
+        padding: 8px 13px !important;
+        min-width: 0 !important;
+        max-width: max-content !important;
+        min-height: 36px !important;
+        font-size: 0.76rem !important;
+        white-space: nowrap !important;
+        transform: none !important;
+    }
+}
+
+/* === 9.2.7 WorkDesk Active Task personal queue cleanup ===
+   Dashboard remains the overview/control board. Active Task no longer repeats
+   dashboard-style summary cards/count blocks. */
+#wd-activetask .wd-page-hero-active .wd-page-hero-metric,
+#wd-activetask #active-task-summary-strip {
+    display: none !important;
+}
+#wd-activetask .wd-page-hero-active {
+    grid-template-columns: 1fr !important;
+}
+
+
+/* ========================================================================
+   9.2.7 — WorkDesk Active Task: Remove Yellow Row Highlight
+   The Dashboard keeps its overview rules. Active Task entries stay clean and
+   readable without the yellow "highlighter" wash on personal attention rows.
+   ======================================================================== */
+#wd-activetask .wd-modern-table tbody tr.wd-modern-row td,
+#wd-activetask .wd-modern-table tbody tr.wd-modern-row.wd-row-urgent td,
+#wd-activetask .wd-modern-table tbody tr.wd-modern-row.wd-row-calm td {
+    background: #ffffff !important;
+}
+
+#wd-activetask .wd-modern-table tbody tr.wd-modern-row:hover td,
+#wd-activetask .wd-modern-table tbody tr.wd-modern-row.wd-row-urgent:hover td,
+#wd-activetask .wd-modern-table tbody tr.wd-modern-row.wd-row-calm:hover td {
+    background: #f8fafc !important;
+}
+
+#wd-activetask .wd-modern-table tbody tr.wd-row-muted td {
+    background: #ffffff !important;
+}
+
+/* ========================================================================
+   9.2.7 — WorkDesk Active Task Softer Typography
+   Active Task stays personal by Attention name. Dashboard keeps full overview.
+   These rules reduce the heavy all-bold feeling inside Active Task only.
+   ======================================================================== */
+#wd-activetask .wd-modern-table thead th {
+    font-weight: 700 !important;
+    letter-spacing: .055em !important;
+}
+
+#wd-activetask .wd-table-kicker,
+#wd-activetask .wd-ref-chip,
+#wd-activetask .wd-po-code,
+#wd-activetask .wd-site-badge,
+#wd-activetask .wd-date-chip,
+#wd-activetask .wd-user-chip,
+#wd-activetask .wd-attention-chip {
+    font-weight: 650 !important;
+}
+
+#wd-activetask .wd-vendor-name {
+    font-weight: 700 !important;
+}
+
+#wd-activetask .wd-amount-cell {
+    font-weight: 700 !important;
+}
+
+#wd-activetask .wd-note-cell {
+    font-weight: 500 !important;
+}
+
+#wd-activetask .wd-status-badge {
+    font-weight: 700 !important;
+    letter-spacing: .01em !important;
+}
+
+#wd-activetask .wd-row-action {
+    font-weight: 700 !important;
+}
+
+#wd-activetask .wd-modern-empty-row strong {
+    font-weight: 700 !important;
+}
+
+#wd-activetask .wd-modern-empty-row span {
+    font-weight: 500 !important;
+}
+
+#active-task-filters .filter-btn,
+#wd-activetask #active-task-filters button {
+    font-weight: 700 !important;
+}
+
+/* 9.2.8 WorkDesk Dashboard split: Personal Tasks + All Active Tasks */
+#wd-dashboard .wd-active-dashboard-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+#wd-dashboard .wd-dashboard-card-section {
+    background: rgba(255, 255, 255, 0.84);
+    border: 1px solid rgba(15, 76, 117, 0.12);
+    border-radius: 18px;
+    padding: 14px;
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.06);
+}
+
+#wd-dashboard .wd-dashboard-card-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 12px;
+    color: #0f2742;
+}
+
+#wd-dashboard .wd-dashboard-card-section-head span {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+#wd-dashboard .wd-dashboard-card-section-head small {
+    color: #64748b;
+    font-size: 0.78rem;
+    font-weight: 500;
+    text-align: right;
+}
+
+#wd-dashboard .wd-dashboard-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(172px, 1fr));
+    gap: 12px;
+}
+
+#wd-dashboard .wd-dashboard-status-grid {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+#wd-dashboard .wd-person-task-card::after,
+#wd-dashboard .wd-person-task-card .wd-status-icon {
+    background: #0f4c75;
+}
+
+#wd-dashboard .wd-dashboard-mini-empty {
+    min-height: 82px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    border: 1px dashed rgba(15, 76, 117, 0.22);
+    color: #64748b;
+    background: rgba(248, 250, 252, 0.92);
+    font-weight: 500;
+}
+
+#wd-dashboard .wd-task-footline span i.fa-user-check {
+    color: #0f4c75;
+}
+
+@media (max-width: 780px) {
+    #wd-dashboard .wd-dashboard-card-section {
+        padding: 12px;
+        border-radius: 15px;
+    }
+
+    #wd-dashboard .wd-dashboard-card-section-head {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 3px;
+    }
+
+    #wd-dashboard .wd-dashboard-card-grid,
+    #wd-dashboard .wd-dashboard-status-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* 9.3.1 WorkDesk Dashboard card readability polish */
+#wd-dashboard .wd-active-status-card {
+    min-width: 0;
+}
+
+#wd-dashboard .wd-status-meta {
+    min-width: 0;
+    overflow: hidden;
+}
+
+#wd-dashboard .wd-status-meta em {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: keep-all;
+    overflow-wrap: normal;
+    line-height: 1.15;
+    font-weight: 700;
+}
+
+#wd-dashboard .wd-status-meta small {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: keep-all;
+    overflow-wrap: normal;
+    font-weight: 600;
+}
+
+#wd-dashboard .wd-dashboard-person-grid,
+#wd-dashboard .wd-dashboard-status-grid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+#wd-dashboard .wd-active-status-card.tone-srv::after,
+#wd-dashboard .wd-active-status-card.tone-srv .wd-status-icon {
+    background: #db2777;
+}
+
+/* 9.3.1 WorkDesk Dashboard: personal cards mirror Active Task + readable status cards */
+#wd-dashboard .wd-dashboard-card-section-head small {
+    white-space: normal;
+    line-height: 1.25;
+}
+
+#wd-dashboard .wd-dashboard-card-grid,
+#wd-dashboard .wd-dashboard-status-grid {
+    grid-template-columns: repeat(auto-fit, minmax(205px, 1fr)) !important;
+}
+
+#wd-dashboard .wd-active-status-card {
+    min-height: 88px;
+    padding: 12px 12px !important;
+}
+
+#wd-dashboard .wd-status-meta em,
+#wd-dashboard .wd-status-meta small {
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+    hyphens: none !important;
+}
+
+#wd-dashboard .wd-status-meta em {
+    font-size: 0.78rem !important;
+    letter-spacing: 0.005em !important;
+}
+
+#wd-dashboard .wd-status-meta small {
+    font-size: 0.66rem !important;
+    line-height: 1.05 !important;
+}
+
+#wd-dashboard .wd-status-arrow {
+    flex: 0 0 auto;
+}
+
+
+/* 9.3.2 WorkDesk dashboard cleanup: readable cards + remove Job Records extra metric strip */
+#wd-dashboard .wd-active-status-card {
+    min-height: 104px !important;
+    padding: 14px 14px 24px !important;
+    align-items: center;
+}
+
+#wd-dashboard .wd-active-status-card::after {
+    bottom: 7px !important;
+    left: 16px !important;
+    right: 16px !important;
+    height: 3px !important;
+    z-index: 0;
+    pointer-events: none;
+}
+
+#wd-dashboard .wd-status-icon,
+#wd-dashboard .wd-status-meta,
+#wd-dashboard .wd-status-arrow {
+    position: relative;
+    z-index: 1;
+}
+
+#wd-dashboard .wd-status-meta em {
+    max-width: 100%;
+    white-space: normal !important;
+    line-height: 1.12 !important;
+}
+
+#wd-dashboard .wd-status-meta small {
+    max-width: 100%;
+    white-space: normal !important;
+    line-height: 1.12 !important;
+}
+
+#wd-dashboard .wd-dashboard-person-grid {
+    grid-template-columns: minmax(220px, 320px) !important;
+}
+
+#job-records-summary-strip,
+#wd-reporting #job-records-summary-strip {
+    display: none !important;
+}
+
+#wd-reporting .wd-page-hero-metric {
+    display: none !important;
+}
+
+
+/* 9.3.6 WorkDesk dashboard card readability: prevent status words from splitting and keep underline clear */
+.wd-active-status-card {
+    padding-bottom: 22px !important;
+}
+.wd-active-status-card::after {
+    bottom: 8px !important;
+    left: 18px !important;
+    right: 18px !important;
+    height: 3px !important;
+}
+.wd-status-meta,
+.wd-status-meta em,
+.wd-status-meta small {
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+    hyphens: none !important;
+}
+.wd-status-meta em {
+    white-space: normal !important;
+    line-height: 1.12 !important;
+    max-width: 118px;
+}
+.wd-status-meta small {
+    line-height: 1.12 !important;
+}
+
+
+/* 9.3.8 WorkDesk Dashboard: personal task cards side-by-side */
+#wd-dashboard .wd-dashboard-person-section .wd-dashboard-person-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 280px)) !important;
+    justify-content: flex-start !important;
+    align-items: stretch !important;
+    gap: 14px !important;
+}
+
+#wd-dashboard .wd-dashboard-person-section .wd-person-task-card {
+    width: 100% !important;
+    max-width: 280px !important;
+    min-height: 104px !important;
+}
+
+#wd-dashboard .wd-dashboard-person-section .wd-dashboard-mini-empty {
+    grid-column: 1 / -1;
+}
+
+@media (max-width: 780px) {
+    #wd-dashboard .wd-dashboard-person-section .wd-dashboard-person-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    #wd-dashboard .wd-dashboard-person-section .wd-person-task-card {
+        max-width: none !important;
+    }
+}
+
+/* =========================================================
+   9.4.3 — Desktop Welcome Module Icon Cleanup
+   UI-only. Removes the extra mini-card behind module icons.
+   ========================================================= */
+@media screen and (min-width: 769px) {
+    .welcome-module-card,
+    .welcome-module-card:visited {
+        grid-template-columns: 34px minmax(0, 1fr) auto !important;
+        gap: 13px !important;
+    }
+
+    .welcome-module-icon {
+        width: 34px !important;
+        height: 34px !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        color: var(--welcome-accent, #38bdf8) !important;
+    }
+
+    .welcome-module-icon i {
+        font-size: 1.42rem !important;
+        line-height: 1 !important;
+    }
+}
+
+
+/* =========================================================
+   9.4.4 — Desktop Welcome Transparent Mini-Card Removal
+   UI-only. Removes remaining transparent rounded backgrounds from
+   module icons, version badge, and date/time area on desktop welcome.
+   ========================================================= */
+@media screen and (min-width: 769px) {
+    /* Module icons: icon only, no inner mini-card/background/ring. */
+    #dashboard-view .welcome-module-card .welcome-module-icon,
+    #dashboard-view .welcome-module-card:visited .welcome-module-icon,
+    #dashboard-view .welcome-module-icon {
+        width: 34px !important;
+        height: 34px !important;
+        min-width: 34px !important;
+        min-height: 34px !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        background-color: transparent !important;
+        background-image: none !important;
+        border: 0 !important;
+        outline: 0 !important;
+        box-shadow: none !important;
+        filter: none !important;
+        color: var(--welcome-accent, #38bdf8) !important;
+    }
+
+    #dashboard-view .welcome-module-card .welcome-module-icon::before,
+    #dashboard-view .welcome-module-card .welcome-module-icon::after,
+    #dashboard-view .welcome-module-icon::before,
+    #dashboard-view .welcome-module-icon::after {
+        content: none !important;
+        display: none !important;
+        background: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
+    }
+
+    #dashboard-view .welcome-module-card .welcome-module-icon i,
+    #dashboard-view .welcome-module-icon i {
+        font-size: 1.42rem !important;
+        line-height: 1 !important;
+        color: inherit !important;
+        background: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
+    }
+
+    /* Version: plain text only, no rounded badge/card. */
+    #dashboard-view .dashboard-version-display,
+    #dashboard-view #dashboard-version-display {
+        height: auto !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        margin-left: 8px !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        background-color: transparent !important;
+        background-image: none !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        color: #bae6fd !important;
+        -webkit-text-fill-color: #bae6fd !important;
+        font-weight: 850 !important;
+    }
+
+    /* Date/time: plain inline text area, no pill/card behind it. */
+    #dashboard-view .welcome-header-clock,
+    #dashboard-view .welcome-premium-panel.welcome-header-clock {
+        padding: 0 !important;
+        margin: 12px auto 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        background-color: transparent !important;
+        background-image: none !important;
+        border: 0 !important;
+        outline: 0 !important;
+        box-shadow: none !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 8px !important;
+    }
+
+    #dashboard-view .welcome-header-clock .welcome-panel-label,
+    #dashboard-view .welcome-header-clock #welcome-panel-date,
+    #dashboard-view .welcome-header-clock #welcome-panel-sub,
+    #dashboard-view .welcome-header-clock #welcome-panel-sub.welcome-panel-time {
+        padding: 0 !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        background-color: transparent !important;
+        background-image: none !important;
+        border: 0 !important;
+        box-shadow: none !important;
+    }
+}
+
+
+/* =========================================================
+   9.4.6 — WorkDesk All Active Total Card Removal
+   UI-only. Keeps mini icon cards removed, but restores strong
+   icon visibility with plain icon-only styling.
+   ========================================================= */
+@media screen and (min-width: 769px) {
+    #dashboard-view .welcome-module-card .welcome-module-icon,
+    #dashboard-view .welcome-module-card:visited .welcome-module-icon,
+    #dashboard-view .welcome-module-icon {
+        width: 34px !important;
+        height: 34px !important;
+        min-width: 34px !important;
+        min-height: 34px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        background-color: transparent !important;
+        background-image: none !important;
+        border: 0 !important;
+        outline: 0 !important;
+        box-shadow: none !important;
+        filter: none !important;
+        opacity: 1 !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        text-shadow:
+            0 2px 7px rgba(2, 6, 23, 0.55),
+            0 0 12px color-mix(in srgb, var(--welcome-accent, #38bdf8) 62%, transparent) !important;
+    }
+
+    #dashboard-view .welcome-module-card .welcome-module-icon i,
+    #dashboard-view .welcome-module-card:visited .welcome-module-icon i,
+    #dashboard-view .welcome-module-icon i {
+        display: inline-block !important;
+        font-size: 1.36rem !important;
+        line-height: 1 !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        opacity: 1 !important;
+        background: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        filter: none !important;
+        transform: translateY(0) !important;
+    }
+}

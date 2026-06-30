@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '8.9.6';
+const APP_VERSION = '9.5.1';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -6369,4 +6369,147 @@ try {
         bootInvoiceDashboardUiGuard();
     }
     window.ensureInvoiceDashboardReferenceNote = ensureInvoiceDashboardReferenceNote;
+})();
+
+
+// =================================================================================================
+// v9.0.1 — Inventory mobile theme flag for Active Task tab color only (UI only)
+// Ensures the Inventory mobile Active Task tabs use maroon even when the shared WorkDesk task view is reused.
+// =================================================================================================
+(function () {
+    function isSmallScreen() {
+        return window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+    }
+
+    function selectedMobileModuleIsInventory() {
+        const selectors = Array.from(document.querySelectorAll('.mobile-module-switcher-select'));
+        if (!selectors.length) return false;
+
+        const visibleSelected = selectors.find(function (sel) {
+            const wrap = sel.closest('.mobile-module-switcher-wrap');
+            const visible = !!(sel.offsetWidth || sel.offsetHeight || sel.getClientRects().length);
+            const wrapVisible = !wrap || !!(wrap.offsetWidth || wrap.offsetHeight || wrap.getClientRects().length);
+            return visible && wrapVisible;
+        });
+
+        return !!(visibleSelected && visibleSelected.value === 'inventory');
+    }
+
+    function syncInventoryMobileThemeFlag() {
+        if (!document.body) return;
+        const active = isSmallScreen() && (
+            document.body.classList.contains('inventory-mode') ||
+            document.body.classList.contains('inventory-mobile-finder-active') ||
+            document.body.classList.contains('inventory-request-review-active') ||
+            selectedMobileModuleIsInventory()
+        );
+        document.body.classList.toggle('inventory-mobile-theme-active', !!active);
+    }
+
+    function bootInventoryMobileThemeFlag() {
+        syncInventoryMobileThemeFlag();
+        document.querySelectorAll('.mobile-module-switcher-select').forEach(function (sel) {
+            sel.addEventListener('change', function () {
+                setTimeout(syncInventoryMobileThemeFlag, 0);
+                setTimeout(syncInventoryMobileThemeFlag, 120);
+            });
+        });
+        document.addEventListener('click', function () {
+            setTimeout(syncInventoryMobileThemeFlag, 60);
+        }, true);
+        window.addEventListener('resize', syncInventoryMobileThemeFlag);
+        setInterval(syncInventoryMobileThemeFlag, 1000);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bootInventoryMobileThemeFlag);
+    } else {
+        bootInventoryMobileThemeFlag();
+    }
+
+    window.syncInventoryMobileThemeFlag = syncInventoryMobileThemeFlag;
+})();
+
+// =================================================================================================
+// v9.0.1 — Inventory mobile Active Task tab hard maroon fix (UI only)
+// Applies a direct class + inline fallback to the shared Active Task filter strip when the mobile
+// module dropdown is set to Inventory, so the No Tasks tab cannot keep the old WorkDesk blue.
+// =================================================================================================
+(function () {
+    function isMobileWidth() {
+        return !window.matchMedia || window.matchMedia('(max-width: 768px)').matches;
+    }
+
+    function moduleSwitcherSaysInventory() {
+        try {
+            const wd = document.getElementById('mobile-module-switcher-wd');
+            const inv = document.getElementById('mobile-module-switcher-inv');
+            const im = document.getElementById('mobile-module-switcher-im');
+            return !!(
+                (wd && wd.value === 'inventory') ||
+                (inv && inv.value === 'inventory') ||
+                (im && im.value === 'inventory')
+            );
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function inventoryTaskContextActive() {
+        return isMobileWidth() && !!document.body && (
+            document.body.classList.contains('inventory-mode') ||
+            document.body.classList.contains('inventory-mobile-theme-active') ||
+            document.body.classList.contains('inventory-mobile-finder-active') ||
+            document.body.classList.contains('inventory-request-review-active') ||
+            moduleSwitcherSaysInventory()
+        );
+    }
+
+    function forceInventoryMobileTaskTabs() {
+        const filters = document.getElementById('active-task-filters');
+        if (!filters) return;
+        const active = inventoryTaskContextActive();
+        filters.classList.toggle('inventory-task-filters-maroon', active);
+        if (!active) return;
+
+        filters.querySelectorAll('button').forEach(function (btn) {
+            const isActive = btn.classList.contains('active') || btn.classList.contains('blink-tab') || btn.disabled;
+            btn.style.setProperty('background', isActive ? '#4d0000' : '#fffafa', 'important');
+            btn.style.setProperty('background-image', isActive ? 'linear-gradient(135deg, #2b0000 0%, #4d0000 65%, #7a1111 100%)' : 'none', 'important');
+            btn.style.setProperty('color', isActive ? '#ffffff' : '#4d0000', 'important');
+            btn.style.setProperty('-webkit-text-fill-color', isActive ? '#ffffff' : '#4d0000', 'important');
+            btn.style.setProperty('border-color', isActive ? '#4d0000' : 'rgba(77, 0, 0, 0.24)', 'important');
+            btn.style.setProperty('text-shadow', 'none', 'important');
+            btn.style.setProperty('opacity', '1', 'important');
+        });
+    }
+
+    function bootInventoryMobileTaskTabHardFix() {
+        forceInventoryMobileTaskTabs();
+        const filters = document.getElementById('active-task-filters');
+        if (filters && window.MutationObserver) {
+            new MutationObserver(function () {
+                setTimeout(forceInventoryMobileTaskTabs, 0);
+            }).observe(filters, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'disabled'] });
+        }
+        document.addEventListener('change', function (evt) {
+            if (evt && evt.target && evt.target.classList && evt.target.classList.contains('mobile-module-switcher-select')) {
+                setTimeout(forceInventoryMobileTaskTabs, 0);
+                setTimeout(forceInventoryMobileTaskTabs, 120);
+            }
+        }, true);
+        document.addEventListener('click', function () {
+            setTimeout(forceInventoryMobileTaskTabs, 60);
+        }, true);
+        window.addEventListener('resize', forceInventoryMobileTaskTabs);
+        setInterval(forceInventoryMobileTaskTabs, 1000);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bootInventoryMobileTaskTabHardFix);
+    } else {
+        bootInventoryMobileTaskTabHardFix();
+    }
+
+    window.forceInventoryMobileTaskTabs = forceInventoryMobileTaskTabs;
 })();

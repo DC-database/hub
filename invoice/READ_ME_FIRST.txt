@@ -1,13 +1,17 @@
-8.9.6 — Mobile Welcome Launcher Fit Cleanup
+IBA WorkDesk 9.5.1 - Welcome Restricted Buttons Hard Guard Fix
 
-Replace these files only:
+Upload these files to the same paths:
 - index.html
 - app.js
-- css/mobile.css
+- js/app-navigation-settings.js
 
 Fixes:
-- Mobile welcome screen no longer cuts the Invoice Management / Inventory menu cards on the right side.
-- Launcher/card/container now use proper mobile border-box sizing.
-- Buttons fit inside the phone width cleanly.
-- Desktop layout is not changed.
-- No Firebase/workflow logic changed.
+- Financial Report and PO System are hidden by default in index.html.
+- Added hard CSS guard: buttons remain hidden unless the new permission JS adds allowed body classes.
+- Logistic Admin / Logistics / Coordinator can no longer see Financial Report or PO System.
+- Financial Report: Super Admin only, or Admin with Finance/Accounts/Accounting/CEO/COO position.
+- PO System: Super Admin only.
+
+After upload:
+- Open the site with Ctrl + F5 or clear cache.
+- The welcome screen should show V 9.5.1.
