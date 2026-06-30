@@ -291,3 +291,621 @@
         box-shadow: none !important;
     }
 }
+
+
+/* =========================================================
+   8.9.7 INVENTORY MOBILE ACTIVE TASK MAROON CLEANUP
+   Desktop is untouched. This only fixes Inventory mobile Active Task
+   refresh/header, filter tabs, empty state, task cards and action buttons.
+   ========================================================= */
+@media (max-width: 768px) {
+    body.inventory-mode #wd-activetask #active-task-mobile-header,
+    body.inventory-mode #active-task-mobile-header {
+        background: linear-gradient(135deg, #2b0000 0%, #4d0000 62%, #7a1111 100%) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 241, 241, 0.22) !important;
+        border-radius: 18px !important;
+        margin: 8px 0 12px 0 !important;
+        padding: 10px 12px !important;
+        box-shadow: 0 12px 26px rgba(43, 0, 0, 0.16) !important;
+    }
+
+    body.inventory-mode #active-task-mobile-header h1 {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        font-size: 1.05rem !important;
+        font-weight: 950 !important;
+        letter-spacing: -0.02em !important;
+    }
+
+    body.inventory-mode #mobile-activetask-refresh-btn,
+    body.inventory-mode #active-task-mobile-header .mobile-header-icon {
+        width: 42px !important;
+        height: 42px !important;
+        min-width: 42px !important;
+        border-radius: 14px !important;
+        background: rgba(255, 255, 255, 0.96) !important;
+        color: #4d0000 !important;
+        -webkit-text-fill-color: #4d0000 !important;
+        border: 1px solid rgba(255, 241, 241, 0.42) !important;
+        box-shadow: 0 10px 18px rgba(43, 0, 0, 0.18) !important;
+        opacity: 1 !important;
+    }
+
+    body.inventory-mode #mobile-activetask-refresh-btn i,
+    body.inventory-mode #active-task-mobile-header .mobile-header-icon i {
+        color: #4d0000 !important;
+        -webkit-text-fill-color: #4d0000 !important;
+    }
+
+    body.inventory-mode #wd-activetask .wd-premium-searchbar,
+    body.inventory-mode #wd-activetask .search-and-filter-group {
+        border: 1px solid rgba(77, 0, 0, 0.14) !important;
+        box-shadow: 0 10px 22px rgba(43, 0, 0, 0.06) !important;
+    }
+
+    body.inventory-mode #wd-activetask .wd-search-field:focus-within,
+    body.inventory-mode #wd-activetask .search-bar-local:focus-within {
+        border-color: rgba(77, 0, 0, 0.44) !important;
+        box-shadow: 0 10px 22px rgba(43, 0, 0, 0.12) !important;
+    }
+
+    body.inventory-mode #wd-activetask .wd-search-field i,
+    body.inventory-mode #wd-activetask .search-bar-local i {
+        color: #4d0000 !important;
+        -webkit-text-fill-color: #4d0000 !important;
+    }
+
+    body.inventory-mode #wd-activetask #active-task-clear-button {
+        background: #fff8f8 !important;
+        color: #4d0000 !important;
+        -webkit-text-fill-color: #4d0000 !important;
+        border: 1px solid rgba(77, 0, 0, 0.22) !important;
+        border-radius: 14px !important;
+        font-weight: 900 !important;
+        opacity: 1 !important;
+    }
+
+    body.inventory-mode #wd-activetask #active-task-filters.report-tabs,
+    body.inventory-mode #active-task-filters.report-tabs {
+        background: #fffafa !important;
+        border: 1px solid rgba(77, 0, 0, 0.16) !important;
+        border-bottom: 1px solid rgba(77, 0, 0, 0.16) !important;
+        border-radius: 18px !important;
+        padding: 8px !important;
+        margin: 10px 0 14px 0 !important;
+        gap: 8px !important;
+        box-shadow: 0 8px 20px rgba(43, 0, 0, 0.06) !important;
+    }
+
+    body.inventory-mode #wd-activetask #active-task-filters.report-tabs button,
+    body.inventory-mode #active-task-filters.report-tabs button,
+    body.inventory-mode #active-task-filters.report-tabs button[disabled] {
+        --tab-color: #fff1f1 !important;
+        --tab-text: #4d0000 !important;
+        background: #fff1f1 !important;
+        color: #4d0000 !important;
+        -webkit-text-fill-color: #4d0000 !important;
+        border: 1px solid rgba(77, 0, 0, 0.24) !important;
+        border-radius: 14px !important;
+        clip-path: none !important;
+        margin: 0 !important;
+        padding: 10px 14px !important;
+        font-weight: 950 !important;
+        opacity: 1 !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+    }
+
+    body.inventory-mode #wd-activetask #active-task-filters.report-tabs button.active,
+    body.inventory-mode #active-task-filters.report-tabs button.active,
+    body.inventory-mode #active-task-filters.report-tabs button.blink-tab {
+        --tab-color: #4d0000 !important;
+        --tab-text: #ffffff !important;
+        background: linear-gradient(135deg, #2b0000 0%, #4d0000 62%, #7a1111 100%) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border-color: rgba(77, 0, 0, 0.48) !important;
+        box-shadow: 0 10px 22px rgba(43, 0, 0, 0.18) !important;
+    }
+
+    body.inventory-mode #active-task-filters.report-tabs button .notification-badge {
+        background: #ffffff !important;
+        color: #4d0000 !important;
+        -webkit-text-fill-color: #4d0000 !important;
+        border: 1px solid rgba(77, 0, 0, 0.20) !important;
+    }
+
+    body.inventory-mode #active-task-mobile-view {
+        padding-bottom: 130px !important;
+    }
+
+    body.inventory-mode #active-task-mobile-view .mobile-task-card,
+    body.inventory-mode #active-task-mobile-view .wd-task-card {
+        border: 1px solid rgba(77, 0, 0, 0.16) !important;
+        border-radius: 20px !important;
+        box-shadow: 0 14px 30px rgba(43, 0, 0, 0.10) !important;
+        overflow: hidden !important;
+        background: #ffffff !important;
+    }
+
+    body.inventory-mode #active-task-mobile-view .mobile-card-header,
+    body.inventory-mode #active-task-mobile-view .wd-task-card-header,
+    body.inventory-mode #active-task-mobile-view .m-card-header {
+        background: linear-gradient(135deg, #2b0000 0%, #4d0000 62%, #7a1111 100%) !important;
+        color: #ffffff !important;
+        border-left: 0 !important;
+    }
+
+    body.inventory-mode #active-task-mobile-view .mobile-card-header *,
+    body.inventory-mode #active-task-mobile-view .wd-task-card-header *,
+    body.inventory-mode #active-task-mobile-view .m-card-header * {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+
+    body.inventory-mode #active-task-mobile-view .mobile-card-header h3,
+    body.inventory-mode #active-task-mobile-view .m-card-main h3 {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+
+    body.inventory-mode #active-task-mobile-view .m-card-amount {
+        background: rgba(255, 255, 255, 0.16) !important;
+        border: 1px solid rgba(255, 255, 255, 0.22) !important;
+        color: #ffffff !important;
+    }
+
+    body.inventory-mode #active-task-mobile-view .mobile-card-body,
+    body.inventory-mode #active-task-mobile-view .wd-task-card-body {
+        background: #fffafa !important;
+        border-top: 1px solid rgba(77, 0, 0, 0.12) !important;
+    }
+
+    body.inventory-mode #active-task-mobile-view .m-pdf-btn,
+    body.inventory-mode #active-task-mobile-view .m-btn-approve,
+    body.inventory-mode #active-task-mobile-view .m-btn-reject,
+    body.inventory-mode #active-task-mobile-view .modify-btn,
+    body.inventory-mode #active-task-mobile-view .srv-done-btn,
+    body.inventory-mode #active-task-mobile-view button:not(.delete-btn):not(.reject-btn) {
+        background: linear-gradient(135deg, #4d0000, #7a1111) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border: 1px solid rgba(77, 0, 0, 0.32) !important;
+        border-radius: 14px !important;
+        font-weight: 950 !important;
+        box-shadow: 0 10px 20px rgba(43, 0, 0, 0.14) !important;
+    }
+
+    body.inventory-mode #active-task-mobile-view .wd-modern-empty-row,
+    body.inventory-mode #wd-activetask .wd-modern-empty-row {
+        background: #fffafa !important;
+        border: 1px dashed rgba(77, 0, 0, 0.28) !important;
+        color: #4d0000 !important;
+    }
+
+    body.inventory-mode #active-task-mobile-view .wd-modern-empty-row i,
+    body.inventory-mode #wd-activetask .wd-modern-empty-row i {
+        background: #fff1f1 !important;
+        color: #4d0000 !important;
+        -webkit-text-fill-color: #4d0000 !important;
+    }
+}
+
+
+/* =========================================================
+   8.9.8 INVENTORY MOBILE ACTIVE TASK ALIGNMENT
+   Goal: follow the clean Invoice / Task mobile style, not heavy maroon cards.
+   Desktop untouched. This overrides the too-strong 8.9.7 mobile styling.
+   ========================================================= */
+@media (max-width: 900px) {
+    /* Keep the Inventory Active Task top area light/clean like Invoice / Task */
+    body.inventory-mode #wd-activetask #active-task-mobile-header,
+    body.inventory-mode #active-task-mobile-header,
+    #inventory-view #wd-activetask #active-task-mobile-header,
+    #inventory-view #active-task-mobile-header {
+        background: transparent !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        margin: 4px 0 10px !important;
+        padding: 0 4px !important;
+        color: #4d0000 !important;
+        min-height: auto !important;
+    }
+
+    body.inventory-mode #active-task-mobile-header h1,
+    #inventory-view #active-task-mobile-header h1 {
+        color: #4d0000 !important;
+        -webkit-text-fill-color: #4d0000 !important;
+        font-size: 1rem !important;
+        font-weight: 950 !important;
+        text-shadow: none !important;
+        margin: 0 !important;
+    }
+
+    /* Refresh should be a readable light button with maroon accent, not hidden in a dark card */
+    body.inventory-mode #mobile-activetask-refresh-btn,
+    body.inventory-mode #active-task-mobile-header .mobile-header-icon,
+    #inventory-view #mobile-activetask-refresh-btn,
+    #inventory-view #active-task-mobile-header .mobile-header-icon {
+        width: auto !important;
+        min-width: 42px !important;
+        height: 40px !important;
+        padding: 0 12px !important;
+        border-radius: 14px !important;
+        background: #fffafa !important;
+        color: #4d0000 !important;
+        -webkit-text-fill-color: #4d0000 !important;
+        border: 1px solid rgba(77, 0, 0, 0.20) !important;
+        box-shadow: 0 8px 18px rgba(43, 0, 0, 0.08) !important;
+        opacity: 1 !important;
+    }
+
+    body.inventory-mode #mobile-activetask-refresh-btn i,
+    body.inventory-mode #active-task-mobile-header .mobile-header-icon i,
+    #inventory-view #mobile-activetask-refresh-btn i,
+    #inventory-view #active-task-mobile-header .mobile-header-icon i {
+        color: #4d0000 !important;
+        -webkit-text-fill-color: #4d0000 !important;
+        opacity: 1 !important;
+    }
+
+    /* Active Task tab strip: remove the remaining blue panel */
+    body.inventory-mode #wd-activetask #active-task-filters,
+    body.inventory-mode #wd-activetask #active-task-filters.report-tabs,
+    body.inventory-mode #active-task-filters,
+    body.inventory-mode #active-task-filters.report-tabs,
+    #inventory-view #wd-activetask #active-task-filters,
+    #inventory-view #wd-activetask #active-task-filters.report-tabs,
+    #inventory-view #active-task-filters,
+    #inventory-view #active-task-filters.report-tabs {
+        background: #fffafa !important;
+        border: 1px solid rgba(77, 0, 0, 0.16) !important;
+        border-bottom: 1px solid rgba(77, 0, 0, 0.16) !important;
+        border-radius: 16px !important;
+        padding: 7px !important;
+        gap: 7px !important;
+        box-shadow: 0 8px 18px rgba(43, 0, 0, 0.05) !important;
+        overflow-x: auto !important;
+    }
+
+    body.inventory-mode #wd-activetask #active-task-filters button,
+    body.inventory-mode #active-task-filters button,
+    #inventory-view #wd-activetask #active-task-filters button,
+    #inventory-view #active-task-filters button,
+    body.inventory-mode #active-task-filters .filter-tab,
+    #inventory-view #active-task-filters .filter-tab {
+        background: #ffffff !important;
+        color: #4d0000 !important;
+        -webkit-text-fill-color: #4d0000 !important;
+        border: 1px solid rgba(77, 0, 0, 0.20) !important;
+        border-radius: 13px !important;
+        padding: 10px 14px !important;
+        font-weight: 950 !important;
+        opacity: 1 !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+        clip-path: none !important;
+    }
+
+    body.inventory-mode #wd-activetask #active-task-filters button.active,
+    body.inventory-mode #active-task-filters button.active,
+    body.inventory-mode #active-task-filters button.blink-tab,
+    #inventory-view #wd-activetask #active-task-filters button.active,
+    #inventory-view #active-task-filters button.active,
+    #inventory-view #active-task-filters button.blink-tab,
+    body.inventory-mode #active-task-filters .filter-tab.active,
+    #inventory-view #active-task-filters .filter-tab.active {
+        background: #4d0000 !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border-color: #4d0000 !important;
+        box-shadow: 0 8px 18px rgba(43, 0, 0, 0.14) !important;
+    }
+
+    body.inventory-mode #active-task-filters button.active *,
+    body.inventory-mode #active-task-filters button.blink-tab *,
+    #inventory-view #active-task-filters button.active *,
+    #inventory-view #active-task-filters button.blink-tab * {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+
+    body.inventory-mode #active-task-filters .notification-badge,
+    #inventory-view #active-task-filters .notification-badge {
+        background: #fffafa !important;
+        color: #4d0000 !important;
+        -webkit-text-fill-color: #4d0000 !important;
+        border: 1px solid rgba(77, 0, 0, 0.20) !important;
+    }
+
+    /* Empty/no-task state: remove blue bar/pill and keep it clean maroon themed */
+    body.inventory-mode #wd-activetask .wd-modern-empty-row,
+    body.inventory-mode #active-task-mobile-view .wd-modern-empty-row,
+    body.inventory-mode #active-task-mobile-view .no-task,
+    body.inventory-mode #active-task-mobile-view .empty-state,
+    #inventory-view #wd-activetask .wd-modern-empty-row,
+    #inventory-view #active-task-mobile-view .wd-modern-empty-row,
+    #inventory-view #active-task-mobile-view .no-task,
+    #inventory-view #active-task-mobile-view .empty-state {
+        background: #fffafa !important;
+        color: #4d0000 !important;
+        -webkit-text-fill-color: #4d0000 !important;
+        border: 1px dashed rgba(77, 0, 0, 0.24) !important;
+        border-radius: 16px !important;
+        box-shadow: none !important;
+    }
+
+    body.inventory-mode #wd-activetask .wd-modern-empty-row i,
+    body.inventory-mode #active-task-mobile-view .wd-modern-empty-row i,
+    #inventory-view #wd-activetask .wd-modern-empty-row i,
+    #inventory-view #active-task-mobile-view .wd-modern-empty-row i {
+        background: #fff1f1 !important;
+        color: #4d0000 !important;
+        -webkit-text-fill-color: #4d0000 !important;
+    }
+
+    /* Keep task cards close to the existing mobile task layout; only recolor accents */
+    body.inventory-mode #active-task-mobile-view .mobile-task-card,
+    body.inventory-mode #active-task-mobile-view .wd-task-card,
+    #inventory-view #active-task-mobile-view .mobile-task-card,
+    #inventory-view #active-task-mobile-view .wd-task-card {
+        background: #ffffff !important;
+        border: 1px solid rgba(77, 0, 0, 0.14) !important;
+        border-left: 4px solid #4d0000 !important;
+        border-radius: 18px !important;
+        box-shadow: 0 10px 24px rgba(43, 0, 0, 0.08) !important;
+        overflow: hidden !important;
+    }
+
+    body.inventory-mode #active-task-mobile-view .mobile-card-header,
+    body.inventory-mode #active-task-mobile-view .wd-task-card-header,
+    body.inventory-mode #active-task-mobile-view .m-card-header,
+    #inventory-view #active-task-mobile-view .mobile-card-header,
+    #inventory-view #active-task-mobile-view .wd-task-card-header,
+    #inventory-view #active-task-mobile-view .m-card-header {
+        background: #fffafa !important;
+        color: #4d0000 !important;
+        -webkit-text-fill-color: #4d0000 !important;
+        border-bottom: 1px solid rgba(77, 0, 0, 0.10) !important;
+    }
+
+    body.inventory-mode #active-task-mobile-view .mobile-card-header *,
+    body.inventory-mode #active-task-mobile-view .wd-task-card-header *,
+    body.inventory-mode #active-task-mobile-view .m-card-header *,
+    #inventory-view #active-task-mobile-view .mobile-card-header *,
+    #inventory-view #active-task-mobile-view .wd-task-card-header *,
+    #inventory-view #active-task-mobile-view .m-card-header * {
+        color: #4d0000 !important;
+        -webkit-text-fill-color: #4d0000 !important;
+        text-shadow: none !important;
+    }
+
+    body.inventory-mode #active-task-mobile-view .mobile-card-body,
+    body.inventory-mode #active-task-mobile-view .wd-task-card-body,
+    #inventory-view #active-task-mobile-view .mobile-card-body,
+    #inventory-view #active-task-mobile-view .wd-task-card-body {
+        background: #ffffff !important;
+        border-top: 0 !important;
+    }
+
+    body.inventory-mode #active-task-mobile-view .m-pdf-btn,
+    body.inventory-mode #active-task-mobile-view .m-btn-approve,
+    body.inventory-mode #active-task-mobile-view .modify-btn,
+    body.inventory-mode #active-task-mobile-view .srv-done-btn,
+    #inventory-view #active-task-mobile-view .m-pdf-btn,
+    #inventory-view #active-task-mobile-view .m-btn-approve,
+    #inventory-view #active-task-mobile-view .modify-btn,
+    #inventory-view #active-task-mobile-view .srv-done-btn {
+        background: #4d0000 !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border: 1px solid #4d0000 !important;
+        border-radius: 13px !important;
+        box-shadow: 0 8px 16px rgba(43, 0, 0, 0.12) !important;
+    }
+}
+
+
+/* =================================================================================================
+   8.9.9 INVENTORY MOBILE ACTIVE TASK TAB FINAL COLOR FIX
+   Keep the clean Invoice / Task mobile layout. Only correct the remaining blue task tab/pill.
+   ================================================================================================= */
+@media (max-width: 768px) {
+    body.inventory-mode #active-task-filters.report-tabs button,
+    body.inventory-mode #active-task-filters.report-tabs button[disabled],
+    body.inventory-mode #wd-activetask #active-task-filters.report-tabs button,
+    body.inventory-mode #wd-activetask #active-task-filters.report-tabs button[disabled],
+    body.inventory-mobile-theme-active #active-task-filters.report-tabs button,
+    body.inventory-mobile-theme-active #active-task-filters.report-tabs button[disabled],
+    body.inventory-mobile-theme-active #wd-activetask #active-task-filters.report-tabs button,
+    body.inventory-mobile-theme-active #wd-activetask #active-task-filters.report-tabs button[disabled],
+    body.inventory-request-review-active #active-task-filters.report-tabs button,
+    body.inventory-request-review-active #active-task-filters.report-tabs button[disabled] {
+        background: #fffafa !important;
+        color: #4d0000 !important;
+        -webkit-text-fill-color: #4d0000 !important;
+        border: 1px solid rgba(77, 0, 0, 0.22) !important;
+        border-radius: 13px !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+        opacity: 1 !important;
+    }
+
+    body.inventory-mode #active-task-filters.report-tabs button.active,
+    body.inventory-mode #active-task-filters.report-tabs button.active[disabled],
+    body.inventory-mode #active-task-filters.report-tabs button.blink-tab,
+    body.inventory-mobile-theme-active #active-task-filters.report-tabs button.active,
+    body.inventory-mobile-theme-active #active-task-filters.report-tabs button.active[disabled],
+    body.inventory-mobile-theme-active #active-task-filters.report-tabs button.blink-tab,
+    body.inventory-request-review-active #active-task-filters.report-tabs button.active,
+    body.inventory-request-review-active #active-task-filters.report-tabs button.active[disabled],
+    body.inventory-request-review-active #active-task-filters.report-tabs button.blink-tab,
+    body.inventory-mode #wd-activetask #active-task-filters.report-tabs button.active,
+    body.inventory-mode #wd-activetask #active-task-filters.report-tabs button.active[disabled],
+    body.inventory-mobile-theme-active #wd-activetask #active-task-filters.report-tabs button.active,
+    body.inventory-mobile-theme-active #wd-activetask #active-task-filters.report-tabs button.active[disabled] {
+        background: #4d0000 !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border-color: #4d0000 !important;
+        box-shadow: 0 8px 18px rgba(43, 0, 0, 0.16) !important;
+        text-shadow: none !important;
+        opacity: 1 !important;
+    }
+
+    body.inventory-mode #active-task-filters.report-tabs button.active *,
+    body.inventory-mode #active-task-filters.report-tabs button.active[disabled] *,
+    body.inventory-mobile-theme-active #active-task-filters.report-tabs button.active *,
+    body.inventory-mobile-theme-active #active-task-filters.report-tabs button.active[disabled] *,
+    body.inventory-request-review-active #active-task-filters.report-tabs button.active *,
+    body.inventory-request-review-active #active-task-filters.report-tabs button.active[disabled] * {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        text-shadow: none !important;
+    }
+}
+
+/* =================================================================================================
+   9.0.0 INVENTORY MOBILE ACTIVE TASK TAB HARD FIX
+   The shared Active Task view sometimes does not keep body.inventory-mode while the mobile module
+   dropdown is set to Inventory. This class is applied directly by app.js to the filter strip, so the
+   No Tasks tab can no longer fall back to the old WorkDesk blue.
+   ================================================================================================= */
+@media (max-width: 768px) {
+    #active-task-filters.inventory-task-filters-maroon,
+    #wd-activetask #active-task-filters.inventory-task-filters-maroon {
+        background: #fffafa !important;
+        border: 1px solid rgba(77, 0, 0, 0.16) !important;
+        border-radius: 16px !important;
+        box-shadow: 0 8px 18px rgba(43, 0, 0, 0.05) !important;
+    }
+
+    #active-task-filters.inventory-task-filters-maroon > button,
+    #active-task-filters.inventory-task-filters-maroon button,
+    #wd-activetask #active-task-filters.inventory-task-filters-maroon > button,
+    #wd-activetask #active-task-filters.inventory-task-filters-maroon button,
+    #active-task-filters.inventory-task-filters-maroon button[disabled],
+    #wd-activetask #active-task-filters.inventory-task-filters-maroon button[disabled] {
+        background: #fffafa !important;
+        background-image: none !important;
+        color: #4d0000 !important;
+        -webkit-text-fill-color: #4d0000 !important;
+        border: 1px solid rgba(77, 0, 0, 0.24) !important;
+        border-radius: 13px !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+        opacity: 1 !important;
+        filter: none !important;
+    }
+
+    #active-task-filters.inventory-task-filters-maroon > button.active,
+    #active-task-filters.inventory-task-filters-maroon button.active,
+    #active-task-filters.inventory-task-filters-maroon > button[disabled],
+    #active-task-filters.inventory-task-filters-maroon button[disabled],
+    #wd-activetask #active-task-filters.inventory-task-filters-maroon > button.active,
+    #wd-activetask #active-task-filters.inventory-task-filters-maroon button.active,
+    #wd-activetask #active-task-filters.inventory-task-filters-maroon > button[disabled],
+    #wd-activetask #active-task-filters.inventory-task-filters-maroon button[disabled] {
+        background: #4d0000 !important;
+        background-image: linear-gradient(135deg, #2b0000 0%, #4d0000 65%, #7a1111 100%) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border-color: #4d0000 !important;
+        box-shadow: 0 8px 18px rgba(43, 0, 0, 0.16) !important;
+        text-shadow: none !important;
+    }
+
+    #active-task-filters.inventory-task-filters-maroon button *,
+    #wd-activetask #active-task-filters.inventory-task-filters-maroon button * {
+        color: inherit !important;
+        -webkit-text-fill-color: inherit !important;
+        text-shadow: none !important;
+    }
+}
+
+
+/* =================================================================================================
+   9.0.1 INVENTORY MOBILE ITEM FINDER INPUT FOCUS RECTANGLE FIX
+   The Item Finder search input is rendered inside a custom rounded search bar. Some mobile browsers
+   still paint the native input field/focus rectangle. Reset the real input directly, without relying
+   on body.inventory-mode, so only the outer rounded search bar remains visible.
+   ================================================================================================= */
+@media (max-width: 768px) {
+    #wd-inv-mobile-material-finder .inv-mobile-search-box,
+    .inventory-mobile-finder-active #wd-inv-mobile-material-finder .inv-mobile-search-box {
+        overflow: hidden !important;
+        background: #ffffff !important;
+        border: 1px solid rgba(77, 0, 0, 0.22) !important;
+        border-radius: 18px !important;
+        box-shadow: 0 10px 22px rgba(43, 0, 0, 0.08) !important;
+    }
+
+    #wd-inv-mobile-material-finder .inv-mobile-search-box:focus-within,
+    .inventory-mobile-finder-active #wd-inv-mobile-material-finder .inv-mobile-search-box:focus-within {
+        border-color: rgba(77, 0, 0, 0.45) !important;
+        box-shadow: 0 12px 26px rgba(43, 0, 0, 0.13) !important;
+    }
+
+    #wd-inv-mobile-material-finder #inv-mobile-material-search-input,
+    #wd-inv-mobile-material-finder #inv-mobile-material-search-input:focus,
+    #wd-inv-mobile-material-finder #inv-mobile-material-search-input:active,
+    #wd-inv-mobile-material-finder .inv-mobile-search-box input,
+    #wd-inv-mobile-material-finder .inv-mobile-search-box input:focus,
+    #wd-inv-mobile-material-finder .inv-mobile-search-box input:active,
+    .inventory-mobile-finder-active #wd-inv-mobile-material-finder #inv-mobile-material-search-input,
+    .inventory-mobile-finder-active #wd-inv-mobile-material-finder #inv-mobile-material-search-input:focus,
+    .inventory-mobile-finder-active #wd-inv-mobile-material-finder #inv-mobile-material-search-input:active {
+        all: unset !important;
+        -webkit-appearance: none !important;
+        appearance: none !important;
+        box-sizing: border-box !important;
+        display: block !important;
+        flex: 1 1 auto !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        height: 32px !important;
+        min-height: 32px !important;
+        line-height: 32px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        background-color: transparent !important;
+        background-image: none !important;
+        border-radius: 0 !important;
+        color: #111827 !important;
+        -webkit-text-fill-color: #111827 !important;
+        caret-color: #4d0000 !important;
+        font-family: inherit !important;
+        font-size: 13px !important;
+        font-weight: 700 !important;
+        text-shadow: none !important;
+        filter: none !important;
+    }
+
+    #wd-inv-mobile-material-finder #inv-mobile-material-search-input::placeholder,
+    #wd-inv-mobile-material-finder .inv-mobile-search-box input::placeholder {
+        color: #6b7280 !important;
+        -webkit-text-fill-color: #6b7280 !important;
+        opacity: 1 !important;
+        text-shadow: none !important;
+    }
+
+    #wd-inv-mobile-material-finder #inv-mobile-material-search-input::-webkit-search-decoration,
+    #wd-inv-mobile-material-finder #inv-mobile-material-search-input::-webkit-search-cancel-button,
+    #wd-inv-mobile-material-finder #inv-mobile-material-search-input::-webkit-search-results-button,
+    #wd-inv-mobile-material-finder #inv-mobile-material-search-input::-webkit-search-results-decoration,
+    #wd-inv-mobile-material-finder .inv-mobile-search-box input::-webkit-search-decoration,
+    #wd-inv-mobile-material-finder .inv-mobile-search-box input::-webkit-search-cancel-button,
+    #wd-inv-mobile-material-finder .inv-mobile-search-box input::-webkit-search-results-button,
+    #wd-inv-mobile-material-finder .inv-mobile-search-box input::-webkit-search-results-decoration {
+        -webkit-appearance: none !important;
+        appearance: none !important;
+        display: none !important;
+    }
+}

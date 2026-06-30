@@ -306,3 +306,345 @@
         outline: none !important;
     }
 }
+
+/* ========================================================================
+   9.3.9 — Invoice Management desktop cleanup
+   Scope: Batch Entry green coordination + Invoice Entry Active Jobs sidebar title contrast.
+   ======================================================================== */
+@media (min-width: 769px) {
+    #invoice-management-view {
+        --iba-invoice: #116045;
+        --iba-invoice-deep: #073d2b;
+        --iba-invoice-mid: #1c7a59;
+        --iba-invoice-soft: #eaf8f1;
+        --iba-invoice-soft-2: #f3fff9;
+        --iba-invoice-border: rgba(17, 96, 69, 0.22);
+    }
+
+    /* Batch Entry page header/buttons must follow Invoice green, not old navy/blue/yellow. */
+    #im-batch-entry > .header-top {
+        background:
+            radial-gradient(circle at 96% 0%, rgba(255,255,255,0.14), transparent 30%),
+            linear-gradient(135deg, var(--iba-invoice-deep) 0%, var(--iba-invoice) 58%, var(--iba-invoice-mid) 100%) !important;
+        border: 1px solid rgba(255,255,255,0.18) !important;
+        color: #ffffff !important;
+    }
+    #im-batch-entry > .header-top h1,
+    #im-batch-entry > .header-top p,
+    #im-batch-entry > .header-top .header-title::before,
+    #im-batch-entry > .header-top .icon-wrapper,
+    #im-batch-entry > .header-top .icon-wrapper i,
+    #im-batch-entry > .header-top * {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+    #im-batch-entry > .header-top h1::after {
+        background: linear-gradient(90deg, rgba(255,255,255,.88), rgba(255,255,255,.18), transparent) !important;
+    }
+    #batch-count-display {
+        background: rgba(255,255,255,0.13) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border-color: rgba(255,255,255,0.24) !important;
+    }
+
+    #im-batch-entry > div:nth-of-type(2),
+    #im-batch-global-controls {
+        background:
+            radial-gradient(circle at 0% 0%, rgba(17,96,69,.075), transparent 32%),
+            linear-gradient(180deg, rgba(255,255,255,.985), rgba(243,255,249,.965)) !important;
+        border-color: var(--iba-invoice-border) !important;
+        box-shadow: 0 20px 44px rgba(7,61,43,.08) !important;
+    }
+    #im-batch-entry .search-bar-local i,
+    #im-batch-entry > div:nth-of-type(2) .fa-solid,
+    #im-batch-global-controls .fa-solid {
+        color: var(--iba-invoice) !important;
+        -webkit-text-fill-color: var(--iba-invoice) !important;
+    }
+    #im-batch-entry .search-bar-local:focus-within,
+    #im-batch-entry input:focus,
+    #im-batch-entry select:focus,
+    #im-batch-entry textarea:focus,
+    #im-batch-global-controls input:focus,
+    #im-batch-global-controls select:focus,
+    #im-batch-global-controls .choices.is-focused .choices__inner {
+        border-color: rgba(17,96,69,.58) !important;
+        box-shadow: 0 0 0 4px rgba(17,96,69,.12), 0 10px 20px rgba(7,61,43,.08) !important;
+        outline: none !important;
+    }
+
+    #im-batch-global-controls > div:first-child {
+        color: var(--iba-invoice) !important;
+        -webkit-text-fill-color: var(--iba-invoice) !important;
+    }
+    #im-batch-global-controls label,
+    #im-batch-entry label {
+        color: #174636 !important;
+        -webkit-text-fill-color: #174636 !important;
+    }
+
+    #im-batch-entry button,
+    #im-batch-entry .download-btn,
+    #im-batch-entry .secondary-btn {
+        border-radius: 14px !important;
+        font-weight: 800 !important;
+        letter-spacing: .01em !important;
+    }
+    #im-batch-add-po-button,
+    #im-batch-save-button,
+    #im-batch-search-by-status-button,
+    #im-batch-modal-search-btn,
+    #im-batch-modal-add-selected-btn {
+        background: linear-gradient(135deg, var(--iba-invoice-deep), var(--iba-invoice)) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border-color: rgba(216,250,233,.26) !important;
+        box-shadow: 0 10px 20px rgba(7,61,43,.16) !important;
+    }
+    #im-batch-search-existing-button,
+    #im-batch-search-by-note-button,
+    #im-refresh-batch-button {
+        background: var(--iba-invoice-soft-2) !important;
+        color: var(--iba-invoice) !important;
+        -webkit-text-fill-color: var(--iba-invoice) !important;
+        border: 1px solid rgba(17,96,69,.24) !important;
+        box-shadow: 0 8px 16px rgba(7,61,43,.06) !important;
+    }
+    #im-batch-clear-button {
+        background: #fff5f5 !important;
+        color: #b91c1c !important;
+        -webkit-text-fill-color: #b91c1c !important;
+        border-color: rgba(185,28,28,.24) !important;
+    }
+
+    /* Batch cards/table headers: force green theme and readable text. */
+    .batch-invoice-card {
+        border-color: rgba(17,96,69,.18) !important;
+        box-shadow: 0 16px 36px rgba(7,61,43,.08) !important;
+    }
+    .batch-invoice-card:hover {
+        border-color: rgba(17,96,69,.34) !important;
+        box-shadow: 0 22px 48px rgba(7,61,43,.13) !important;
+    }
+    .batch-card-header {
+        background:
+            radial-gradient(circle at 95% 0%, rgba(255,255,255,.14), transparent 30%),
+            linear-gradient(135deg, var(--iba-invoice-deep), var(--iba-invoice)) !important;
+        color: #ffffff !important;
+    }
+    .batch-card-header,
+    .batch-card-header *,
+    .batch-card-header .header-info,
+    .batch-card-header .header-info span,
+    .batch-card-header .compact-input label {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+    .batch-card-header .header-info span,
+    .batch-card-header .compact-input {
+        background: rgba(255,255,255,.12) !important;
+        border-color: rgba(255,255,255,.22) !important;
+    }
+    .batch-card-header input,
+    .batch-card-header select,
+    .batch-card-header .choices__inner,
+    .batch-input-grid input,
+    .batch-input-grid select,
+    .batch-input-grid .choices__inner {
+        border-color: rgba(17,96,69,.22) !important;
+    }
+    .batch-input-grid > div {
+        border-color: rgba(17,96,69,.14) !important;
+    }
+    .batch-input-grid label {
+        color: #456154 !important;
+        -webkit-text-fill-color: #456154 !important;
+    }
+    #im-batch-entry-table thead th,
+    #im-batch-entry table thead th,
+    #im-batch-modal-results th,
+    #im-batch-modal-results table thead th,
+    #im-batch-modal-results .table-wrapper table thead th {
+        background: var(--iba-invoice) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border-color: rgba(255,255,255,.18) !important;
+    }
+    #im-batch-entry-table,
+    #im-batch-modal-results table,
+    #im-batch-modal-results .table-wrapper table {
+        border-radius: 14px !important;
+        overflow: hidden !important;
+    }
+    #im-batch-entry-table tbody tr:hover,
+    #im-batch-modal-results tbody tr:hover td {
+        background: #f3fff9 !important;
+    }
+
+    /* Invoice Entry side panel: remove the rounded green-on-green title card. */
+    #im-entry-sidebar {
+        background:
+            radial-gradient(circle at top right, rgba(216,250,233,.16), transparent 34%),
+            linear-gradient(180deg, var(--iba-invoice-deep) 0%, #0b4b35 55%, var(--iba-invoice) 100%) !important;
+        border-left: 1px solid rgba(216,250,233,.20) !important;
+        box-shadow: -16px 0 35px rgba(7,53,36,.22) !important;
+    }
+    #im-entry-sidebar .im-sidebar-title,
+    #active-jobs-sidebar-count-display {
+        display: block !important;
+        background: transparent !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        padding: 0 0 10px 0 !important;
+        margin: 0 0 14px 0 !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        font-size: 1.04rem !important;
+        font-weight: 850 !important;
+        line-height: 1.25 !important;
+        text-shadow: 0 2px 8px rgba(0,0,0,.26) !important;
+        border-bottom: 1px solid rgba(216,250,233,.26) !important;
+    }
+    #im-entry-sidebar .im-sidebar-title::after,
+    #active-jobs-sidebar-count-display::after {
+        content: "";
+        display: block;
+        width: 92px;
+        height: 2px;
+        margin-top: 8px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #ffffff, rgba(255,255,255,.18), transparent) !important;
+    }
+    #im-sidebar-search {
+        background: rgba(255,255,255,.11) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border: 1px solid rgba(216,250,233,.24) !important;
+        border-radius: 14px !important;
+    }
+    #im-sidebar-search::placeholder {
+        color: rgba(234,248,241,.78) !important;
+        -webkit-text-fill-color: rgba(234,248,241,.78) !important;
+    }
+    #im-sidebar-search:focus {
+        background: rgba(255,255,255,.16) !important;
+        border-color: rgba(216,250,233,.58) !important;
+        box-shadow: 0 0 0 4px rgba(216,250,233,.10) !important;
+    }
+    #im-entry-sidebar .im-sidebar-no-jobs {
+        color: rgba(234,248,241,.82) !important;
+        -webkit-text-fill-color: rgba(234,248,241,.82) !important;
+    }
+    #im-entry-sidebar .im-sidebar-item {
+        background: #ffffff !important;
+        border: 1px solid rgba(216,250,233,.36) !important;
+        border-left: 4px solid rgba(17,96,69,.70) !important;
+        border-radius: 14px !important;
+        box-shadow: 0 10px 22px rgba(0,0,0,.14) !important;
+    }
+    #im-entry-sidebar .im-sidebar-item:hover,
+    #im-entry-sidebar .im-sidebar-item.active,
+    #im-entry-sidebar .im-sidebar-item.selected {
+        background: #eaf8f1 !important;
+        border-left-color: var(--iba-invoice) !important;
+    }
+}
+
+/* ========================================================================
+   9.4.1 — Invoice Management UI contrast correction
+   Scope: Batch Entry green-only accents + Active Jobs readable sidebar.
+   ======================================================================== */
+@media (min-width: 769px) {
+    #invoice-management-view #im-batch-entry {
+        --iba-invoice: #116045;
+        --iba-invoice-deep: #073d2b;
+        --iba-invoice-mid: #1c7a59;
+        --iba-invoice-soft: #eaf8f1;
+        --iba-invoice-border: rgba(17,96,69,.22);
+    }
+
+    #invoice-management-view #im-batch-table-body .batch-card-header,
+    #invoice-management-view #im-batch-table-body .batch-card-header[style] {
+        background: linear-gradient(135deg, #073d2b 0%, #116045 68%, #1c7a59 100%) !important;
+        border-bottom-color: #d8fae9 !important;
+    }
+
+    #invoice-management-view #im-batch-table-body .batch-card-header .btn-quick-ipc,
+    #invoice-management-view #im-batch-table-body .batch-card-header .btn-quick-five {
+        background: rgba(216,250,233,.18) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border: 1px solid rgba(216,250,233,.28) !important;
+    }
+
+    #invoice-management-view #im-batch-table-body .batch-input-grid label,
+    #invoice-management-view #im-batch-table-body label,
+    #invoice-management-view #im-batch-entry label {
+        color: #174636 !important;
+        -webkit-text-fill-color: #174636 !important;
+    }
+
+    #invoice-management-view #im-entry-sidebar #active-jobs-sidebar-count-display,
+    #invoice-management-view #im-entry-sidebar .im-sidebar-title {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        background: transparent !important;
+        border: 0 !important;
+        border-bottom: 1px solid rgba(216,250,233,.30) !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        padding: 0 0 10px 0 !important;
+        margin: 0 0 14px 0 !important;
+        text-shadow: 0 2px 8px rgba(0,0,0,.30) !important;
+    }
+
+    #invoice-management-view #im-entry-sidebar #im-sidebar-search,
+    #invoice-management-view #im-entry-sidebar input#im-sidebar-search[style] {
+        background: #ffffff !important;
+        color: #073d2b !important;
+        -webkit-text-fill-color: #073d2b !important;
+        border: 1px solid rgba(216,250,233,.42) !important;
+        border-radius: 12px !important;
+        font-weight: 700 !important;
+        box-shadow: 0 8px 18px rgba(7,61,43,.14) !important;
+    }
+
+    #invoice-management-view #im-entry-sidebar #im-sidebar-search::placeholder {
+        color: #64748b !important;
+        -webkit-text-fill-color: #64748b !important;
+        opacity: 1 !important;
+    }
+
+    #invoice-management-view #im-entry-sidebar #im-sidebar-search:focus {
+        border-color: #d8fae9 !important;
+        box-shadow: 0 0 0 4px rgba(216,250,233,.16), 0 10px 22px rgba(7,61,43,.18) !important;
+        outline: none !important;
+    }
+}
+
+
+/* ========================================================================
+   9.4.2 — Batch Entry field title contrast fix
+   Scope: keep green header, but make field labels readable and not green-on-green.
+   ======================================================================== */
+@media (min-width: 769px) {
+    #invoice-management-view #im-batch-table-body .batch-card-header label,
+    #invoice-management-view #im-batch-table-body .batch-card-header label[style],
+    #invoice-management-view #im-batch-table-body .batch-card-header .compact-input label,
+    #invoice-management-view #im-batch-table-body .batch-card-header .compact-input label[style] {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        text-shadow: 0 1px 3px rgba(0,0,0,.26) !important;
+    }
+
+    #invoice-management-view #im-batch-table-body .batch-card-body .batch-input-grid label,
+    #invoice-management-view #im-batch-table-body .batch-card-body .batch-input-grid label[style] {
+        color: #0f172a !important;
+        -webkit-text-fill-color: #0f172a !important;
+        font-weight: 850 !important;
+        letter-spacing: .01em !important;
+        text-shadow: none !important;
+    }
+}
