@@ -1,1 +1,13 @@
-Upload index.html and js/app-reporting-actions.js. Then Ctrl+F5.
+IBA WorkDesk 9.9.6 - My Personal Corkboard Simple Status Pill
+
+Upload/replace these files:
+- index.html
+- js/app-workdesk-dashboard.js
+
+Manual visible version update in app.js:
+const APP_VERSION = '9.9.6';
+
+Changes:
+- My Personal corkboard note top-right pill now shows only the simple queue title (example: IPC, For SRV, Report).
+- Detailed/current status remains below Current Note in the Current Status box.
+- No Firebase save/write/workflow logic changed.
