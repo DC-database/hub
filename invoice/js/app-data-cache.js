@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-data-cache.js
    IBA shared local cache, CSV fetchers/parsers, and Firebase data loaders.
-   Version: 9.4.0
+   Version: 9.5.2
 
    Cleanup Phase:
    - Moved Block 06 out of app.js intact.
@@ -546,9 +546,12 @@ async function fetchAndParseEcommitCSV(url) {
         console.log(`Successfully processed ${Object.keys(finalEcommitData).length} POs from Ecommit.csv.`);
         return finalEcommitData;
     } catch (error) {
-        console.error("Error fetching or parsing Ecommit CSV:", error);
-        alert("CRITICAL ERROR: Could not load Ecommit data.");
-        return null;
+        // 9.5.2: ECommit.csv is optional supporting data.
+        // Do not stop login/refresh or block Invoice Management when this CSV is missing,
+        // temporarily unavailable, too large, or blocked by network/cache/CORS.
+        // Invoice records can still load Firebase invoices without ECommit values.
+        console.warn("ECommit.csv could not be loaded. Continuing without ECommit data.", error);
+        return {};
     }
 }
 async function fetchAndParseEcostCSV(url) {
@@ -801,7 +804,9 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
             cacheTimestamps.sitesCSV = now;
         }
         if (ecommitUrl) {
-            allEcommitDataProcessed = results[resultIndex++];
+            // 9.5.2: Treat ECommit as optional. An empty object is valid and prevents
+            // repeated critical alerts after browser refresh/F5.
+            allEcommitDataProcessed = results[resultIndex++] || {};
             cacheTimestamps.ecommitData = now;
         }
         if (vendorUrl) {
