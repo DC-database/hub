@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '9.5.2';
+const APP_VERSION = '9.8.8';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -1157,7 +1157,10 @@ async function processMobileCEOAction(taskData, status, amount, note, cardElemen
         amountPaid: amount,
         amount: amount,
         note: note ? note.trim() : '',
-        dateResponded: formatDate(new Date())
+        dateResponded: formatDate(new Date()),
+        releaseDate: getTodayDateString(),
+        statusChangedAt: firebase.database.ServerValue.TIMESTAMP,
+        statusQueueAt: firebase.database.ServerValue.TIMESTAMP
     };
 
     // --- FIX: Create History Entry Object ---
@@ -1215,7 +1218,10 @@ async function processMobileManagerAction(taskData, status, amount, note, cardEl
         amountPaid: amount,
         amount: amount,
         note: note ? note.trim() : '',
-        dateResponded: formatDate(new Date())
+        dateResponded: formatDate(new Date()),
+        releaseDate: getTodayDateString(),
+        statusChangedAt: firebase.database.ServerValue.TIMESTAMP,
+        statusQueueAt: firebase.database.ServerValue.TIMESTAMP
     };
 
     if (taskData.attention) updates.note = `${updates.note} [Action by ${currentApprover.Name}]`;
@@ -1790,7 +1796,10 @@ async function handleDesktopApproval(task, action) {
         remarks: action,
         note: note ? note.trim() : '',
         dateResponded: formatDate(new Date()),
-        last_approver: currentApprover.Name
+        last_approver: currentApprover.Name,
+        releaseDate: getTodayDateString(),
+        statusChangedAt: firebase.database.ServerValue.TIMESTAMP,
+        statusQueueAt: firebase.database.ServerValue.TIMESTAMP
     };
 
     // --- NEW LOGIC: RETURN TO SENDER ---
@@ -3083,9 +3092,24 @@ async function handleSaveModifiedTask() {
             await db.ref(`job_entries/${key}`).update(updates);
             allSystemEntries = [];
         } else if (source === 'invoice' && originalPO && originalKey) {
-            await invoiceDb.ref(`invoice_entries/${originalPO}/${originalKey}`).update(updates);
             if (!allInvoiceData) await ensureInvoiceDataFetched();
             const originalInvoice = (allInvoiceData && allInvoiceData[originalPO]) ? allInvoiceData[originalPO][originalKey] : {};
+            const oldInvoiceStatus = String((originalInvoice && originalInvoice.status) || '').trim();
+            const newInvoiceStatus = String(updates.status || '').trim();
+            if (newInvoiceStatus && oldInvoiceStatus !== newInvoiceStatus) {
+                updates.releaseDate = getTodayDateString();
+                updates.statusChangedAt = firebase.database.ServerValue.TIMESTAMP;
+                updates.statusQueueAt = firebase.database.ServerValue.TIMESTAMP;
+                if (newInvoiceStatus.toLowerCase().includes('srv')) {
+                    updates.forSrvAt = firebase.database.ServerValue.TIMESTAMP;
+                    updates.sentToSrvAt = firebase.database.ServerValue.TIMESTAMP;
+                }
+                if (newInvoiceStatus.toLowerCase().includes('report')) {
+                    updates.reportAt = firebase.database.ServerValue.TIMESTAMP;
+                    updates.sentToReportAt = firebase.database.ServerValue.TIMESTAMP;
+                }
+            }
+            await invoiceDb.ref(`invoice_entries/${originalPO}/${originalKey}`).update(updates);
             const updatedInvoiceData = { ...originalInvoice, ...updates };
             await updateInvoiceTaskLookup(originalPO, originalKey, updatedInvoiceData, originalAttention);
             updateLocalInvoiceCache(originalPO, originalKey, updates);
@@ -3140,6 +3164,45 @@ async function handleSaveModifiedTask() {
 
 async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAttention) {
     const sanitizeFirebaseKey = (key) => key.replace(/[.#$[\]]/g, '_');
+    const decodeFirebasePushTimestamp = (key) => {
+        const PUSH_CHARS = '-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz';
+        const raw = String(key || '').trim();
+        const candidates = raw.length === 20 ? [raw] : (raw.match(/[-0-9A-Z_a-z]{20}/g) || []);
+        for (const id of candidates.reverse()) {
+            let ts = 0;
+            let valid = true;
+            for (let i = 0; i < 8; i += 1) {
+                const c = PUSH_CHARS.indexOf(id.charAt(i));
+                if (c < 0) { valid = false; break; }
+                ts = ts * 64 + c;
+            }
+            if (valid && ts > 0) return ts;
+        }
+        return '';
+    };
+    const getJobRecordDateEnteredForInvoice = () => {
+        const direct = invoiceData.jobRecordDateEntered || invoiceData.originDateEntered || invoiceData.dateEntered || invoiceData.entryDate || '';
+        if (direct) return direct;
+        const linkedKey = invoiceData.linkedJobEntryKey || invoiceData.originJobEntryKey || invoiceData.jobEntryKey || '';
+        const originTs = invoiceData.originTimestamp || invoiceData.jobRecordTimestamp || '';
+        try {
+            const list = Array.isArray(allSystemEntries) ? allSystemEntries : [];
+            let match = null;
+            if (linkedKey) match = list.find(e => e && e.key === linkedKey);
+            if (!match && originTs) {
+                const target = Number(originTs);
+                match = list.find(e => e && Number(e.timestamp || 0) === target);
+            }
+            if (!match && invoiceData.po_number) {
+                const poKey = String(invoiceData.po_number || poNumber || '').trim().toUpperCase();
+                match = list.find(e => e && String(e.po || '').trim().toUpperCase() === poKey && String(e.for || '').toLowerCase() === 'invoice');
+            }
+            return match ? (match.date || '') : '';
+        } catch (_) {
+            return '';
+        }
+    };
+
     const newAttention = invoiceData.attention;
     const isTaskNowActive = isInvoiceTaskActive(invoiceData);
 
@@ -3180,6 +3243,58 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
             invoiceData.createdBy ||
             '';
 
+        const taskStatusLower = String(invoiceData.status || '').trim().toLowerCase();
+        const taskKeyCreatedAt = decodeFirebasePushTimestamp(invoiceKey);
+        const taskJobRecordDateEntered = getJobRecordDateEnteredForInvoice();
+        const taskJobRecordTimestamp = invoiceData.jobRecordTimestamp || invoiceData.originTimestamp || '';
+        const normalizeQueueStatus = (value) => String(value || '').trim().toLowerCase().replace(/[_\-]+/g, ' ').replace(/\s+/g, ' ');
+        const parseQueueTimestamp = (value) => {
+            if (value === undefined || value === null || value === '') return '';
+            if (typeof value === 'object') return value;
+            const n = Number(value);
+            if (!Number.isNaN(n) && n > 0) return n < 10000000000 ? n * 1000 : n;
+            const raw = String(value || '').trim();
+            const parsed = Date.parse(raw);
+            return Number.isNaN(parsed) ? '' : parsed;
+        };
+        const historyValues = (history) => {
+            if (!history) return [];
+            if (Array.isArray(history)) return history.filter(Boolean);
+            if (typeof history === 'object') return Object.values(history).filter(Boolean);
+            return [];
+        };
+        const historyStatusMatches = (entryStatus, targetStatus) => {
+            const entry = normalizeQueueStatus(entryStatus);
+            const target = normalizeQueueStatus(targetStatus);
+            if (!entry || !target) return false;
+            if (entry === target) return true;
+            if (target.includes('srv')) return entry.includes('srv');
+            if (target.includes('report')) return entry.includes('report');
+            if (target.includes('process')) return entry.includes('process');
+            if (target.includes('unresolved')) return entry.includes('unresolved');
+            if (target.includes('pending')) return entry.includes('pending');
+            if (target.includes('hold') || target.includes('waiting')) return entry.includes('hold') || entry.includes('waiting');
+            return entry.includes(target) || target.includes(entry);
+        };
+        const getInvoiceHistoryQueueAt = () => {
+            const hist = historyValues(invoiceData.history || invoiceData.invoiceHistory || invoiceData.statusHistory);
+            let best = '';
+            hist.forEach(h => {
+                const hStatus = h && (h.status || h.action || h.remarks || '');
+                if (!historyStatusMatches(hStatus, invoiceData.status)) return;
+                const ts = parseQueueTimestamp(h.timestamp || h.updatedAt || h.createdAt || h.date || h.releaseDate);
+                if (!ts || typeof ts === 'object') return;
+                if (!best || Number(ts) > Number(best)) best = ts;
+            });
+            return best;
+        };
+        const taskCreatedQueueAt = taskJobRecordDateEntered || invoiceData.createdAt || invoiceData.enteredAt || invoiceData.originTimestamp || invoiceData.dateAdded || taskKeyCreatedAt || '';
+        const taskInvoiceHistoryQueueAt = getInvoiceHistoryQueueAt();
+        const taskStatusQueueAt = taskInvoiceHistoryQueueAt || invoiceData.statusQueueAt || invoiceData.forSrvAt || invoiceData.sentToSrvAt || invoiceData.statusChangedAt || invoiceData.statusUpdatedAt || invoiceData.releaseDate || invoiceData.updatedAt || invoiceData.lastUpdated || '';
+        const isJobNewEntryStatus = taskStatusLower.includes('new entry');
+        const isInvoiceStatusQueue = taskStatusLower.includes('srv') || taskStatusLower.includes('report') || taskStatusLower.includes('process') || taskStatusLower.includes('unresolved') || taskStatusLower.includes('pending') || taskStatusLower.includes('hold') || taskStatusLower.includes('waiting');
+        const taskQueueAt = isJobNewEntryStatus ? taskCreatedQueueAt : (isInvoiceStatusQueue ? (taskStatusQueueAt || taskKeyCreatedAt || '') : (taskStatusQueueAt || taskCreatedQueueAt));
+
         const taskData = {
             // include these so Workdesk can route back correctly
             attention: newAttention,
@@ -3192,8 +3307,32 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
             amount: invoiceData.invValue || '', // Total Invoice Value
             amountPaid: invoiceData.amountPaid || '', // Actual Payment Amount
 
+            // Supplier invoice date remains separate from the work queue date.
             date: invoiceData.invoiceDate || getTodayDateString(),
+            invoiceDate: invoiceData.invoiceDate || getTodayDateString(),
+
+            // Job Records Date Entered is the official source for New Entry date tabs.
+            // Keep supplier Invoice Date separate from this workflow/queue date.
+            linkedJobEntryKey: invoiceData.linkedJobEntryKey || invoiceData.originJobEntryKey || '',
+            jobRecordDateEntered: taskJobRecordDateEntered || '',
+            originDateEntered: invoiceData.originDateEntered || taskJobRecordDateEntered || '',
+            dateEntered: invoiceData.dateEntered || taskJobRecordDateEntered || '',
+            jobRecordTimestamp: taskJobRecordTimestamp || '',
+
+            // Queue/date-tab tracking: these are used by WorkDesk/Active Task
+            // to group by the date the work entered the queue, not invoice date.
+            dateAdded: invoiceData.dateAdded || '',
+            createdAt: invoiceData.createdAt || invoiceData.enteredAt || invoiceData.originTimestamp || invoiceData.dateAdded || taskKeyCreatedAt || '',
+            enteredAt: invoiceData.enteredAt || invoiceData.createdAt || invoiceData.originTimestamp || invoiceData.dateAdded || taskKeyCreatedAt || '',
+            originTimestamp: invoiceData.originTimestamp || '',
+            keyCreatedAt: taskKeyCreatedAt || '',
             releaseDate: invoiceData.releaseDate || '',
+            statusQueueAt: taskStatusQueueAt || '',
+            statusChangedAt: invoiceData.statusChangedAt || invoiceData.statusUpdatedAt || '',
+            statusUpdatedAt: invoiceData.statusUpdatedAt || invoiceData.statusChangedAt || '',
+            forSrvAt: invoiceData.forSrvAt || invoiceData.sentToSrvAt || '',
+            sentToSrvAt: invoiceData.sentToSrvAt || invoiceData.forSrvAt || '',
+            queueAt: invoiceData.queueAt || taskQueueAt || '',
             status: invoiceData.status || 'Pending',
             vendorName: vendorName,
             site: site,
@@ -3235,7 +3374,10 @@ async function updateLinkedJobEntry(poNumber, invoiceKey, newStatus, note = '') 
     const updates = {
         remarks: newStatus,
         status: newStatus,
-        dateResponded: formatDate(new Date())
+        dateResponded: formatDate(new Date()),
+        releaseDate: getTodayDateString(),
+        statusChangedAt: firebase.database.ServerValue.TIMESTAMP,
+        statusQueueAt: firebase.database.ServerValue.TIMESTAMP
     };
     await db.ref(`job_entries/${jobKey}`).update(updates);
     // Optional: push a history entry to the job entry
@@ -3390,7 +3532,12 @@ async function handleAddInvoice(e) {
     if (jobEntryToUpdateAfterInvoice) {
         const originJobEntry = allSystemEntries.find(entry => entry.key === jobEntryToUpdateAfterInvoice);
         if (originJobEntry) {
+            invoiceData.linkedJobEntryKey = jobEntryToUpdateAfterInvoice;
             invoiceData.originTimestamp = originJobEntry.timestamp;
+            invoiceData.jobRecordTimestamp = originJobEntry.timestamp;
+            invoiceData.originDateEntered = originJobEntry.date || '';
+            invoiceData.jobRecordDateEntered = originJobEntry.date || '';
+            invoiceData.dateEntered = originJobEntry.date || '';
             invoiceData.originEnteredBy = originJobEntry.enteredBy;
             invoiceData.originType = "Job Entry";
         }
@@ -3423,7 +3570,13 @@ async function handleAddInvoice(e) {
         const newKey = newRef.key;
 
 	if (jobEntryToUpdateAfterInvoice) {
-    await invoiceDb.ref(`invoice_entries/${currentPO}/${newKey}`).update({ linkedJobEntryKey: jobEntryToUpdateAfterInvoice });
+    await invoiceDb.ref(`invoice_entries/${currentPO}/${newKey}`).update({
+        linkedJobEntryKey: jobEntryToUpdateAfterInvoice,
+        originDateEntered: invoiceData.originDateEntered || '',
+        jobRecordDateEntered: invoiceData.jobRecordDateEntered || '',
+        dateEntered: invoiceData.dateEntered || '',
+        jobRecordTimestamp: invoiceData.jobRecordTimestamp || invoiceData.originTimestamp || ''
+    });
 }
 
         // [SMART REFRESH] 2. Log this update so "Smart Refresh" can find it
@@ -3523,8 +3676,12 @@ async function handleUpdateInvoice(e) {
     const normalizedOldStatus = String(oldStatus || '').trim();
     if (normalizedNewStatus && normalizedOldStatus && normalizedNewStatus !== normalizedOldStatus) {
         invoiceData.releaseDate = getTodayDateString();
+        invoiceData.statusChangedAt = firebase.database.ServerValue.TIMESTAMP;
+        if (normalizedNewStatus.toLowerCase().includes('srv')) invoiceData.forSrvAt = firebase.database.ServerValue.TIMESTAMP;
     } else if (originalInvoiceData && originalInvoiceData.releaseDate && !String(invoiceData.releaseDate || '').trim()) {
         invoiceData.releaseDate = originalInvoiceData.releaseDate;
+        invoiceData.statusChangedAt = originalInvoiceData.statusChangedAt || originalInvoiceData.statusUpdatedAt || '';
+        invoiceData.forSrvAt = originalInvoiceData.forSrvAt || originalInvoiceData.sentToSrvAt || '';
     }
 
     const srvNameLower = (invoiceData.srvName || '').toLowerCase();
@@ -4097,8 +4254,12 @@ async function handleSaveBatchInvoices() {
             const finalBatchStatus = String(invoiceData.status || '').trim();
             if (originalBatchStatus && finalBatchStatus && originalBatchStatus !== finalBatchStatus) {
                 invoiceData.releaseDate = getTodayDateString();
+                invoiceData.statusChangedAt = firebase.database.ServerValue.TIMESTAMP;
+                if (finalBatchStatus.toLowerCase().includes('srv')) invoiceData.forSrvAt = firebase.database.ServerValue.TIMESTAMP;
             } else if (originalInvoice.releaseDate && !String(invoiceData.releaseDate || '').trim()) {
                 invoiceData.releaseDate = originalInvoice.releaseDate;
+                invoiceData.statusChangedAt = originalInvoice.statusChangedAt || originalInvoice.statusUpdatedAt || '';
+                invoiceData.forSrvAt = originalInvoice.forSrvAt || originalInvoice.sentToSrvAt || '';
             }
 
             try {
@@ -4461,6 +4622,8 @@ async function handleUpdateSummaryChanges(sendToAccounts = false) {
                     if (newGlobalStatus !== originalStatus) {
                         updates.releaseDate = today;
                         updates.updatedAt = Date.now();
+                        updates.statusChangedAt = Date.now();
+                        if (String(newGlobalStatus || '').toLowerCase().includes('srv')) updates.forSrvAt = Date.now();
                     }
                 }
 

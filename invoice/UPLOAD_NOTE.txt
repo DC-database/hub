@@ -1,3 +1,9 @@
-Patch version 9.5.2
-Upload: index.html and js/app-data-cache.js
-Optional manual app.js version: const APP_VERSION = '9.5.2';
+Patch version: 9.8.8
+
+Upload/replace:
+- index.html
+- js/app-active-tasks.js
+- js/app-workdesk-dashboard.js
+
+Manual app.js visible version update if needed:
+const APP_VERSION = '9.8.8';

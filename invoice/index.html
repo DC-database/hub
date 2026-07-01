@@ -56,7 +56,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
 
-    <link rel="stylesheet" href="style.css?v=9.4.6">
+    <link rel="stylesheet" href="style.css?v=9.8.1">
     <link rel="stylesheet" href="css/transfer_stock.css?v=8.6.2">
     <link rel="stylesheet" href="css/mobile.css?v=9.2.7">
     <!-- 9.0.1 module split: page-specific desktop/mobile override layers -->
@@ -459,6 +459,7 @@
     </div>
 
     <div id="active-task-filters" class="report-tabs wd-premium-tabs"></div>
+    <div id="active-task-date-tabs" class="wd-active-date-tabs hidden-mobile"></div>
     <div id="active-task-summary-strip" class="wd-mini-metrics hidden-mobile"></div>
 
     <div class="form-buttons-container" style="justify-content: flex-end; margin-bottom: 15px; min-height: 40px;">
@@ -790,60 +791,95 @@
     </div>
 </div>
 
-                 <section id="wd-settings" class="workdesk-section hidden">
-                    <h1>Account Settings</h1>
-                    <p>Manage your personal information and preferences. Fields that are greyed out are managed by the system administrator.</p>
-                    <form id="settings-form">
-                        <div class="jobentry-form-2col">
-                            <div class="form-column">
-                                <div class="form-group"><label for="settings-name">Name</label><input type="text" id="settings-name" readonly></div>
-                                <div class="form-group"><label for="settings-email">Email</label><input type="email" id="settings-email" readonly></div>
-                                <div class="form-group"><label for="settings-mobile">Mobile</label><input type="text" id="settings-mobile" readonly></div>
-                                <div class="form-group"><label for="settings-position">Position</label><input type="text" id="settings-position" readonly></div>
+                 <section id="wd-settings" class="workdesk-section hidden premium-settings-section">
+                    <div class="settings-hero">
+                        <div class="settings-hero-icon"><i class="fa-solid fa-user-gear"></i></div>
+                        <div class="settings-hero-text">
+                            <span class="settings-kicker">Profile & Preferences</span>
+                            <h1>Account Settings</h1>
+                            <p>Manage your account details, site access, password, vacation delegation, and interface preferences.</p>
+                        </div>
+                        <div class="settings-hero-badge"><i class="fa-solid fa-shield-halved"></i> Secured Profile</div>
+                    </div>
+
+                    <form id="settings-form" class="premium-settings-form">
+                        <div class="settings-grid">
+                            <div class="settings-card settings-profile-card">
+                                <div class="settings-card-header">
+                                    <div class="settings-card-icon"><i class="fa-solid fa-id-card"></i></div>
+                                    <div>
+                                        <h2>Profile Information</h2>
+                                        <p>Read-only fields are managed by the system administrator.</p>
+                                    </div>
+                                </div>
+                                <div class="settings-fields-grid">
+                                    <div class="form-group"><label for="settings-name">Name</label><input type="text" id="settings-name" readonly></div>
+                                    <div class="form-group"><label for="settings-email">Email</label><input type="email" id="settings-email" readonly></div>
+                                    <div class="form-group"><label for="settings-mobile">Mobile</label><input type="text" id="settings-mobile" readonly></div>
+                                    <div class="form-group"><label for="settings-position">Position</label><input type="text" id="settings-position" readonly></div>
+                                </div>
                             </div>
-                            <div class="form-column">
-                                <div class="form-group"><label for="settings-site">Site</label><input type="text" id="settings-site" placeholder="Your site(s)"><p class="input-note">For multiple sites, separate them with a comma (ex. 175,176)</p></div>
-                                <div class="form-group"><label for="settings-password">New Password</label><input type="password" id="settings-password" placeholder="Leave blank to keep current password"></div>
-                                <div class="form-group"><div class="checkbox-group"><input type="checkbox" id="settings-vacation"><label for="settings-vacation">On Vacation</label></div></div>
-                                <div id="settings-vacation-details-container" class="hidden">
-                                    <div class="form-group"><label for="settings-return-date">Return Date</label><input type="date" id="settings-return-date"></div>
-                                    <div class="form-group"><label for="settings-replacement-name">Replacement</label><input type="text" id="settings-replacement-name" placeholder="Replacement's Name"></div>
-                                    <div class="form-group"><label for="settings-replacement-contact">Replacement Contact No.</label><input type="tel" id="settings-replacement-contact" placeholder="Replacement's Contact"></div>
-                                    <div class="form-group"><label for="settings-replacement-email">Replacement Email</label><input type="email" id="settings-replacement-email" placeholder="Replacement's Email"></div>
+
+                            <div class="settings-card settings-account-card">
+                                <div class="settings-card-header">
+                                    <div class="settings-card-icon"><i class="fa-solid fa-sliders"></i></div>
+                                    <div>
+                                        <h2>Account Controls</h2>
+                                        <p>Update your site coverage, password, and temporary replacement details.</p>
+                                    </div>
+                                </div>
+                                <div class="settings-fields-grid">
+                                    <div class="form-group settings-span-2"><label for="settings-site">Site</label><input type="text" id="settings-site" placeholder="Your site(s)"><p class="input-note">For multiple sites, separate them with a comma (ex. 175,176)</p></div>
+                                    <div class="form-group settings-span-2"><label for="settings-password">New Password</label><input type="password" id="settings-password" placeholder="Leave blank to keep current password"></div>
+                                    <div class="form-group settings-span-2 settings-toggle-row"><div class="checkbox-group settings-toggle"><input type="checkbox" id="settings-vacation"><label for="settings-vacation"><span>On Vacation</span><small>Enable replacement routing while you are away</small></label></div></div>
+                                    <div id="settings-vacation-details-container" class="settings-vacation-panel hidden">
+                                        <div class="form-group"><label for="settings-return-date">Return Date</label><input type="date" id="settings-return-date"></div>
+                                        <div class="form-group"><label for="settings-replacement-name">Replacement</label><input type="text" id="settings-replacement-name" placeholder="Replacement's Name"></div>
+                                        <div class="form-group"><label for="settings-replacement-contact">Replacement Contact No.</label><input type="tel" id="settings-replacement-contact" placeholder="Replacement's Contact"></div>
+                                        <div class="form-group"><label for="settings-replacement-email">Replacement Email</label><input type="email" id="settings-replacement-email" placeholder="Replacement's Email"></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-<div style="margin: 30px 0 20px 0; display: flex; align-items: center; justify-content: space-between; max-width: 500px; padding-top: 20px; border-top: 1px solid #eee;">
-                            <div style="display: flex; flex-direction: column;">
-                                <label style="font-weight: bold; font-size: 14px; margin-bottom: 4px;">System Audio</label>
-                                <span style="font-size: 12px; color: #666;">Enable or mute interface click & success sounds</span>
+                        <div class="settings-card settings-audio-card">
+                            <div class="settings-card-header compact">
+                                <div class="settings-card-icon"><i class="fa-solid fa-volume-high"></i></div>
+                                <div>
+                                    <h2>System Audio</h2>
+                                    <p>Enable or mute interface click and success sounds.</p>
+                                </div>
                             </div>
-                            <button type="button" id="audio-toggle-btn" class="secondary-btn" onclick="handleAudioUIUpdate()" style="width: 160px; margin-left: 15px;">
+                            <button type="button" id="audio-toggle-btn" class="secondary-btn settings-audio-btn" onclick="handleAudioUIUpdate()">
                                 <i class="fa-solid fa-volume-high"></i> Sounds Enabled
                             </button>
                         </div>
 
                         <!-- Super Admin: Celebration Banner Settings -->
-                        <div id="celebration-settings-container" class="celebration-settings hidden">
-                            <h2 style="margin-top: 18px;">Celebration Banner</h2>
-                            <p class="small-muted" style="margin-top: -6px;">Super Admin only. Configure a festive banner (text + effects) that appears after login during a date range.</p>
+                        <div id="celebration-settings-container" class="celebration-settings settings-card settings-celebration-card hidden">
+                            <div class="settings-card-header">
+                                <div class="settings-card-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+                                <div>
+                                    <h2>Celebration Banner</h2>
+                                    <p>Super Admin only. Configure a festive banner that appears after login during a date range.</p>
+                                </div>
+                            </div>
 
-                            <div class="jobentry-form-2col">
-                                <div class="form-column">
-                                    <div class="form-group">
-                                        <div class="checkbox-group">
+                            <div class="settings-grid inner-grid">
+                                <div class="settings-fields-grid">
+                                    <div class="form-group settings-span-2">
+                                        <div class="checkbox-group settings-toggle">
                                             <input type="checkbox" id="celebration-enabled">
-                                            <label for="celebration-enabled">Enable banner</label>
+                                            <label for="celebration-enabled"><span>Enable banner</span><small>Show the configured celebration after login</small></label>
                                         </div>
                                     </div>
 
-                                    <div class="form-group">
+                                    <div class="form-group settings-span-2">
                                         <label for="celebration-title-input">Banner Title</label>
                                         <input type="text" id="celebration-title-input" placeholder="Happy New Year 2026">
                                     </div>
 
-                                    <div class="form-group">
+                                    <div class="form-group settings-span-2">
                                         <label for="celebration-subtitle-input">Banner Subtitle</label>
                                         <input type="text" id="celebration-subtitle-input" placeholder="Welcome back — wishing you a successful year.">
                                     </div>
@@ -854,7 +890,7 @@
                                     </div>
                                 </div>
 
-                                <div class="form-column">
+                                <div class="settings-fields-grid">
                                     <div class="form-group">
                                         <label for="celebration-start-date">Start Date (Asia/Qatar)</label>
                                         <input type="date" id="celebration-start-date">
@@ -863,10 +899,10 @@
                                     <div class="form-group">
                                         <label for="celebration-end-date">End Date (Asia/Qatar)</label>
                                         <input type="date" id="celebration-end-date">
-                                        <p class="small-muted" style="margin-top: 6px;">Tip: leave empty to keep showing until you turn it off.</p>
+                                        <p class="small-muted">Tip: leave empty to keep showing until you turn it off.</p>
                                     </div>
 
-                                    <div class="form-group">
+                                    <div class="form-group settings-span-2">
                                         <label for="celebration-show-mode">Show Frequency</label>
                                         <select id="celebration-show-mode">
                                             <option value="every_login">Every login</option>
@@ -874,32 +910,32 @@
                                         </select>
                                     </div>
 
-                                    <div class="form-group">
-                                        <div class="checkbox-group">
+                                    <div class="form-group settings-span-2">
+                                        <div class="checkbox-group settings-toggle">
                                             <input type="checkbox" id="celebration-sound-enabled">
-                                            <label for="celebration-sound-enabled">Play fireworks sound</label>
+                                            <label for="celebration-sound-enabled"><span>Play fireworks sound</span><small>On mobile, sound may require a tap due to browser rules.</small></label>
                                         </div>
-                                        <p class="small-muted" style="margin-top: 6px;">On mobile, sound may require a tap due to browser rules.</p>
                                     </div>
 
-                                    <div class="form-group">
+                                    <div class="form-group settings-span-2">
                                         <label for="celebration-sound-url">Sound URL (optional)</label>
                                         <input type="url" id="celebration-sound-url" placeholder="https://.../fireworks.mp3">
-                                        <p class="small-muted" style="margin-top: 6px;">If empty, the system uses a built-in sound effect. Tip: you can paste a Firebase Storage mp3 link here.</p>
+                                        <p class="small-muted">If empty, the system uses a built-in sound effect. You can paste a Firebase Storage mp3 link here.</p>
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="form-buttons-container" style="justify-content: flex-start; gap: 10px; flex-wrap: wrap;">
+                            <div class="settings-action-row celebration-actions">
                                 <button type="button" id="celebration-preview-btn" class="secondary-btn">Preview</button>
                                 <button type="button" id="celebration-save-btn">Save Celebration</button>
                                 <button type="button" id="celebration-disable-btn" class="danger-btn">Turn Off</button>
                             </div>
 
-                            <p id="celebration-settings-message" class="error-message" style="text-align: left;"></p>
+                            <p id="celebration-settings-message" class="error-message settings-message-line"></p>
                         </div>
-<div class="form-buttons-container" style="justify-content: flex-start; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;"><button type="submit" id="update-settings-button">Update Settings</button></div>
-                        <p id="settings-message" class="error-message" style="text-align: left;"></p>
+
+                        <div class="settings-action-row main-settings-actions"><button type="submit" id="update-settings-button"><i class="fa-solid fa-floppy-disk"></i> Update Settings</button></div>
+                        <p id="settings-message" class="error-message settings-message-line"></p>
                     </form>
                 </section>
             </div>
@@ -1083,7 +1119,7 @@
 
        <div style="grid-column: span 2; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 4px; margin-top: 2px;">
            <label>PO Record:</label>
-           <span class="im-po-record" style="font-weight: bold; color: #ffeb3b;">Checking...</span>
+           <span class="im-po-record im-po-record-status im-po-record-status-checking"><i class="fa-solid fa-circle-notch fa-spin"></i> Checking PO file...</span>
        </div>
     </div>
 </div>
@@ -1249,7 +1285,7 @@
             <i class="fa-solid fa-floppy-disk"></i> Update
         </button>
 
-        <button type="button" id="im-modal-deletion-list-btn" class="secondary-btn hidden" title="Add to Deletion List" style="background-color: #16a34a; color: white; padding: 6px 12px; border: none;">
+        <button type="button" id="im-modal-deletion-list-btn" class="secondary-btn hidden im-po-file-action-btn" title="Original PO is in file — add to deletion list">
             <i class="fa-solid fa-folder-minus"></i>
         </button>
 
@@ -2959,7 +2995,7 @@
     <script src="js/app-audio.js?v=8.2.3"></script>
     <script src="js/app-core.js?v=8.2.3"></script>
     <script src="js/app-inventory.js?v=8.6.5"></script>
-    <script src="js/app-invoice.js?v=8.2.3"></script>
+    <script src="js/app-invoice.js?v=9.8.6"></script>
     <script src="js/app-mobile.js?v=8.2.3"></script>
     <script src="js/app-finance.js?v=8.2.3"></script>
     <script src="js/app-chat.js?v=9.2.7"></script>
@@ -2967,7 +3003,7 @@
     <script src="js/app-utils.js?v=8.2.3"></script>
     <script src="js/app-vacation.js?v=8.2.3"></script>
     <script src="js/app-dom-refs.js?v=8.2.9"></script>
-    <script src="app.js?v=9.5.1"></script>
+    <script src="app.js?v=9.8.6"></script>
     <script src="js/app-navigation-settings.js?v=9.5.1"></script>
     <script src="js/app-data-cache.js?v=9.5.2"></script>
     <script src="js/app-job-vendor.js?v=8.2.3"></script>
@@ -2975,15 +3011,15 @@
     <script src="js/app-standard-job.js?v=8.7.4"></script>
     <script src="js/app-invoice-dashboard.js?v=8.6.5"></script>
     <script src="js/app-payments.js?v=8.3.0"></script>
-    <script src="js/app-invoice-records.js?v=8.2.3"></script>
-    <script src="js/app-active-tasks.js?v=9.3.8"></script>
-    <script src="js/app-workdesk-dashboard.js?v=9.4.8"></script>
-    <script src="js/app-workdesk-reporting.js?v=8.6.5"></script>
+    <script src="js/app-invoice-records.js?v=9.7.7"></script>
+    <script src="js/app-active-tasks.js?v=9.8.8"></script>
+    <script src="js/app-workdesk-dashboard.js?v=9.8.8"></script>
+    <script src="js/app-workdesk-reporting.js?v=9.8.0"></script>
     <script src="js/app-reporting-actions.js?v=8.2.3"></script>
     <script src="js/app-report-workflow.js?v=8.2.3"></script>
     <script src="js/app-ui-shortcuts.js?v=8.2.3"></script>
     <script src="js/app-modal-navigation-clear.js?v=8.2.3"></script>
-    <script src="js/app-invoice-entry-search.js?v=8.8.3"></script>
+    <script src="js/app-invoice-entry-search.js?v=9.8.1"></script>
     <script src="js/app-attention-validation.js?v=8.2.4"></script>
     <script src="js/app-batch-entry-ui.js?v=9.4.2"></script>
     <script src="js/app-im-event-wiring.js?v=8.2.8"></script>

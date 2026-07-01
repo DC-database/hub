@@ -1,13 +1,17 @@
-IBA WorkDesk 9.5.2 - ECommit Optional Load Fix
+IBA WorkDesk 9.8.8 Exact Status Match Fix
 
-Upload/replace:
-1. index.html
-2. js/app-data-cache.js
+Upload these files to patch 9.8.7.
+
+Files included:
+- index.html
+- js/app-active-tasks.js
+- js/app-workdesk-dashboard.js
 
 Fix:
-- F5/browser refresh should no longer stop with: CRITICAL ERROR: Could not load Ecommit data.
-- ECommit.csv is now treated as optional supporting data.
-- Invoice Management can continue with Firebase invoice records if ECommit.csv is temporarily unavailable.
-
-Manual visible version update, optional:
-- In app.js, change APP_VERSION to '9.5.2' if you want the welcome screen to display V 9.5.2.
+- WorkDesk status tabs now use exact invoice status names only.
+- Report Approved is not counted as Report.
+- SRV Done is not counted as For SRV.
+- For SRV, On Hold, In Process, Pending, Unresolved, and Report must match exact current invoice_entries status.
+- IPC remains separate from Job Records.
+- Inventory remains separate.
+- No invoice save/payment/SRV/inventory workflow write logic changed.
