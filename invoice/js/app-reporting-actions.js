@@ -183,6 +183,213 @@ const poValueNum = parseFloat(po.poDetails.Amount) || 0;
 }
 
 
+
+function markInvoiceReportDataDirty(reason = '') {
+    try {
+        window.__imInvoiceReportingDirty = true;
+        window.__imInvoiceReportingDirtyReason = reason || 'Invoice data changed';
+    } catch (_) {}
+}
+
+function getInvoiceReportingSearchTermForRefresh() {
+    try {
+        const searchInput = document.getElementById('im-reporting-search');
+        const fromInput = searchInput ? String(searchInput.value || '').trim() : '';
+        if (fromInput) return fromInput;
+        return String(sessionStorage.getItem('imReportingSearch') || '').trim();
+    } catch (_) {
+        return '';
+    }
+}
+
+async function refreshInvoiceReportDataBeforeCsvIfNeeded() {
+    // 9.8.9: CSV export must not use stale currentReportData after Batch Entry
+    // global updates. Refresh only when the system knows invoice records changed.
+    if (!window.__imInvoiceReportingDirty) return;
+
+    const previousButtonText = (() => {
+        try {
+            const btn = document.getElementById('download-csv-btn') || document.getElementById('downloadCSVBtn');
+            if (btn) {
+                const oldText = btn.textContent;
+                btn.textContent = 'Refreshing...';
+                btn.disabled = true;
+                return { btn, oldText };
+            }
+        } catch (_) {}
+        return null;
+    })();
+
+    try {
+        if (typeof ensureInvoiceDataFetched === 'function') {
+            await ensureInvoiceDataFetched(true);
+        }
+        if (typeof populateInvoiceReporting === 'function') {
+            await populateInvoiceReporting(getInvoiceReportingSearchTermForRefresh(), { silent: true });
+        }
+        window.__imInvoiceReportingDirty = false;
+        window.__imInvoiceReportingDirtyReason = '';
+    } finally {
+        if (previousButtonText && previousButtonText.btn) {
+            previousButtonText.btn.textContent = previousButtonText.oldText;
+            previousButtonText.btn.disabled = false;
+        }
+    }
+}
+
+function imCsvText(value) {
+    const s = String(value == null ? '' : value).replace(/\r?\n/g, ' ').replace(/"/g, '""');
+    return `"${s}"`;
+}
+
+function imCsvNormalizeStatus(value) {
+    return String(value == null ? '' : value).replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function imCsvStatusMatches(currentStatus, selectedStatus) {
+    const selected = imCsvNormalizeStatus(selectedStatus);
+    if (!selected) return true;
+    // Exact normalized match only. This prevents Report Approved from matching Report,
+    // and SRV Done from matching For SRV, while tolerating accidental case/spacing.
+    return imCsvNormalizeStatus(currentStatus) === selected;
+}
+
+function imCsvGetPoDetails(poNumber) {
+    try {
+        return (allPOData && allPOData[poNumber]) ? allPOData[poNumber] : {};
+    } catch (_) {
+        return {};
+    }
+}
+
+function imCsvGetPoSite(poNumber, inv) {
+    const poDetails = imCsvGetPoDetails(poNumber);
+    return String(
+        poDetails['Project ID'] || poDetails['Project ID:'] ||
+        inv.site_name || inv.siteName || inv.site ||
+        inv.projectId || inv.project_id || 'N/A'
+    ).trim() || 'N/A';
+}
+
+function imCsvGetPoVendor(poNumber, inv) {
+    const poDetails = imCsvGetPoDetails(poNumber);
+    return String(
+        poDetails['Supplier Name'] || poDetails['Supplier Name:'] || poDetails.Supplier ||
+        inv.vendor_name || inv.vendorName || inv.vendor ||
+        inv.supplierName || inv.supplier_name || 'N/A'
+    ).trim() || 'N/A';
+}
+
+function imCsvDateFilterMatches(inv, monthFilter, yearFilter) {
+    if (!monthFilter && !yearFilter) return true;
+    const rDate = String(inv.releaseDate || inv.invoiceDate || '').trim();
+    if (!rDate) return false;
+    const normalized = (typeof normalizeDateForInput === 'function') ? normalizeDateForInput(rDate) : rDate;
+    const parts = String(normalized || '').split('-');
+    if (parts.length < 2) return false;
+    const rYear = parts[0];
+    const rMonth = parts[1];
+    if (monthFilter && rMonth !== monthFilter) return false;
+    if (yearFilter && rYear !== yearFilter) return false;
+    return true;
+}
+
+function imCsvSearchMatches(poNumber, vendor, inv, searchTerm) {
+    const q = String(searchTerm || '').trim().toLowerCase();
+    if (!q) return true;
+    return String(poNumber || '').toLowerCase().includes(q) ||
+        String(vendor || '').toLowerCase().includes(q) ||
+        String(inv.invNumber || '').toLowerCase().includes(q) ||
+        String(inv.note || '').toLowerCase().includes(q);
+}
+
+function buildFreshInvoiceRowsForCsv() {
+    const siteFilter = String(document.getElementById('im-reporting-site-filter')?.value || '').trim();
+    const monthFilter = String(document.getElementById('im-reporting-month-filter')?.value || '').trim();
+    const yearFilter = String(document.getElementById('im-reporting-year-filter')?.value || '').trim();
+    const statusFilter = String(document.getElementById('im-reporting-status-filter')?.value || '').trim();
+    const searchTerm = getInvoiceReportingSearchTermForRefresh();
+
+    if (!statusFilter || statusFilter === 'Negative Balance') return null;
+    if (!allInvoiceData) return [];
+
+    const rows = [];
+    Object.entries(allInvoiceData || {}).forEach(([poNumber, invoicesByKey]) => {
+        if (!invoicesByKey || typeof invoicesByKey !== 'object') return;
+        const poDetails = imCsvGetPoDetails(poNumber);
+        Object.entries(invoicesByKey).forEach(([key, rawInv]) => {
+            const inv = rawInv || {};
+            if (!imCsvStatusMatches(inv.status, statusFilter)) return;
+
+            const site = imCsvGetPoSite(poNumber, inv);
+            if (siteFilter && site.toLowerCase() !== siteFilter.toLowerCase()) return;
+            if (!imCsvDateFilterMatches(inv, monthFilter, yearFilter)) return;
+
+            const vendor = imCsvGetPoVendor(poNumber, inv);
+            if (!imCsvSearchMatches(poNumber, vendor, inv, searchTerm)) return;
+
+            rows.push({
+                poNumber,
+                key,
+                site,
+                vendor,
+                poDetails,
+                inv: { key, ...inv }
+            });
+        });
+    });
+
+    rows.sort((a, b) => {
+        const poCompare = String(a.poNumber || '').localeCompare(String(b.poNumber || ''), undefined, { numeric: true, sensitivity: 'base' });
+        if (poCompare) return poCompare;
+        const da = String(a.inv.invoiceDate || a.inv.releaseDate || '9999-12-31');
+        const db = String(b.inv.invoiceDate || b.inv.releaseDate || '9999-12-31');
+        return da.localeCompare(db) || String(a.inv.invNumber || '').localeCompare(String(b.inv.invNumber || ''), undefined, { numeric: true, sensitivity: 'base' });
+    });
+
+    return rows;
+}
+
+function downloadInvoiceCsvRows(rows, filename = 'invoice_report.csv') {
+    const headers = ["PO", "Site", "Vendor", "PO Value", "Total Paid Amount", "Last Paid Date", "invEntryID", "invNumber", "invoiceDate", "invValue", "amountPaid", "invName", "srvName", "attention", "releaseDate", "status", "note"];
+    const csvLines = [headers.join(',')];
+
+    rows.forEach(row => {
+        const poDetails = row.poDetails || {};
+        const inv = row.inv || {};
+        const values = [
+            row.poNumber,
+            row.site,
+            row.vendor,
+            poDetails.Amount || '0',
+            '',
+            '',
+            inv.invEntryID || '',
+            inv.invNumber || '',
+            inv.invoiceDate || '',
+            inv.invValue || '0',
+            inv.amountPaid || '0',
+            inv.invName || '',
+            inv.srvName || '',
+            inv.attention || '',
+            inv.releaseDate || '',
+            inv.status || '',
+            inv.note || ''
+        ];
+        csvLines.push(values.map(imCsvText).join(','));
+    });
+
+    const blob = new Blob([csvLines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 2500);
+}
+
 async function handleDownloadCSV() {
     const isSuperAdmin = ((currentApprover?.Name || '').trim().toLowerCase() === SUPER_ADMIN_NAME.toLowerCase());
     const isSuperAdminDelegate = isVacationDelegateUser();
@@ -190,28 +397,58 @@ async function handleDownloadCSV() {
         alert("You do not have permission to download this report.");
         return;
     }
+
+    try {
+        // 9.9.0: CSV export always refreshes invoice_entries first when a status filter is selected.
+        // This avoids old currentReportData and exports directly from the current Firebase invoice_entries source.
+        if (typeof ensureInvoiceDataFetched === 'function') {
+            await ensureInvoiceDataFetched(true);
+        }
+
+        const freshRows = buildFreshInvoiceRowsForCsv();
+        if (Array.isArray(freshRows)) {
+            if (freshRows.length === 0) {
+                alert("No data to download for the selected status/filter.");
+                return;
+            }
+            downloadInvoiceCsvRows(freshRows, 'invoice_report.csv');
+            try {
+                window.__imInvoiceReportingDirty = false;
+                window.__imInvoiceReportingDirtyReason = '';
+            } catch (_) {}
+            return;
+        }
+
+        await refreshInvoiceReportDataBeforeCsvIfNeeded();
+    } catch (error) {
+        console.error('CSV refresh failed:', error);
+        alert('Could not refresh the latest invoice data for CSV. Please try again.');
+        return;
+    }
+
     if (currentReportData.length === 0) {
         alert("No data to download. Please perform a search first.");
         return;
     }
-    let csvContent = "data:text/csv;charset=utf-8,";
-    const headers = ["PO", "Site", "Vendor", "PO Value", "Total Paid Amount", "Last Paid Date", "invEntryID", "invNumber", "invoiceDate", "invValue", "amountPaid", "invName", "srvName", "attention", "releaseDate", "status", "note"];
-    csvContent += headers.join(",") + "\r\n";
+
+    const rows = [];
     currentReportData.forEach(po => {
-        const totalPaidCSV = (po.paymentData.totalPaidAmount !== 'N/A' ? po.paymentData.totalPaidAmount : '');
-        const datePaidCSV = (po.paymentData.datePaid !== 'N/A' ? po.paymentData.datePaid : '');
         po.filteredInvoices.forEach(inv => {
-            const row = [po.poNumber, po.site, `"${(po.vendor || '').replace(/"/g, '""')}"`, po.poDetails.Amount || '0', totalPaidCSV, datePaidCSV, inv.invEntryID || '', `"${(inv.invNumber || '').replace(/"/g, '""')}"`, inv.invoiceDate || '', inv.invValue || '0', inv.amountPaid || '0', `"${(inv.invName || '').replace(/"/g, '""')}"`, `"${(inv.srvName || '').replace(/"/g, '""')}"`, inv.attention || '', inv.releaseDate || '', inv.status || '', `"${(inv.note || '').replace(/"/g, '""')}"`];
-            csvContent += row.join(",") + "\r\n";
+            rows.push({
+                poNumber: po.poNumber,
+                site: po.site,
+                vendor: po.vendor,
+                poDetails: po.poDetails || {},
+                inv
+            });
         });
     });
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "invoice_report.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+
+    if (rows.length === 0) {
+        alert("No data to download. Please perform a search first.");
+        return;
+    }
+    downloadInvoiceCsvRows(rows, 'invoice_report.csv');
 }
 
 
@@ -230,4 +467,6 @@ async function handleDownloadCSV() {
 try {
     window.handleGeneratePrintReport = handleGeneratePrintReport;
     window.handleDownloadCSV = handleDownloadCSV;
+    window.markInvoiceReportDataDirty = markInvoiceReportDataDirty;
+    window.refreshInvoiceReportDataBeforeCsvIfNeeded = refreshInvoiceReportDataBeforeCsvIfNeeded;
 } catch (_) { /* ignore */ }
