@@ -1,9 +1,1 @@
-Patch version: 9.8.8
-
-Upload/replace:
-- index.html
-- js/app-active-tasks.js
-- js/app-workdesk-dashboard.js
-
-Manual app.js visible version update if needed:
-const APP_VERSION = '9.8.8';
+Upload index.html and js/app-reporting-actions.js. Then Ctrl+F5.

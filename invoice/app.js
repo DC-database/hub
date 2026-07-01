@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '9.8.8';
+const APP_VERSION = '9.9.0';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -4329,6 +4329,18 @@ async function handleSaveBatchInvoices() {
 
     try {
         await Promise.all(savePromises);
+
+        // 9.8.9: Batch Entry can change many invoice statuses at once.
+        // Mark Invoice Records / CSV data as dirty so the next export/search uses
+        // a fresh invoice_entries read instead of an old currentReportData snapshot.
+        try {
+            window.__imInvoiceReportingDirty = true;
+            if (typeof window.markInvoiceReportDataDirty === 'function') {
+                window.markInvoiceReportDataDirty('Batch Entry save/update');
+            }
+            if (typeof currentReportData !== 'undefined') currentReportData = [];
+        } catch (_) {}
+
         if (notesTouchedThisBatch.size > 0) refreshNotePickers(Array.from(notesTouchedThisBatch)[notesTouchedThisBatch.size - 1]);
         
         alert(`Batch Process Complete!\n\nNew Invoices: ${newInvoicesCount}\nUpdated Invoices: ${updatedInvoicesCount}`);

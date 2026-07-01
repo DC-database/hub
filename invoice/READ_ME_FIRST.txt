@@ -1,17 +1,14 @@
-IBA WorkDesk 9.8.8 Exact Status Match Fix
+IBA WorkDesk 9.9.0 — Invoice Records CSV Direct Status Export Fix
 
-Upload these files to patch 9.8.7.
+Upload/replace:
+1. index.html
+2. js/app-reporting-actions.js
 
-Files included:
-- index.html
-- js/app-active-tasks.js
-- js/app-workdesk-dashboard.js
+Purpose:
+- CSV download with a selected status now refreshes invoice_entries and exports directly from the fresh Firebase invoice_entries source.
+- Prevents stale currentReportData / PO grouping from missing recently batch-updated invoices.
+- Status match is exact after trim/case normalization, so Report Approved is not Report and SRV Done is not For SRV.
+- No Batch save/write/payment/SRV/inventory logic changed.
 
-Fix:
-- WorkDesk status tabs now use exact invoice status names only.
-- Report Approved is not counted as Report.
-- SRV Done is not counted as For SRV.
-- For SRV, On Hold, In Process, Pending, Unresolved, and Report must match exact current invoice_entries status.
-- IPC remains separate from Job Records.
-- Inventory remains separate.
-- No invoice save/payment/SRV/inventory workflow write logic changed.
+Manual visible version update in app.js:
+const APP_VERSION = '9.9.0';
