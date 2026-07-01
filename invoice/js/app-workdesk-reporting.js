@@ -137,7 +137,7 @@ function renderReportingTable(entries) {
         const tone = (typeof wdUiStatusTone === 'function') ? wdUiStatusTone : () => 'default';
         const status = entry.remarks || 'Pending';
         row.className = 'wd-modern-row tone-' + tone(status);
-        let actions = `<button class="history-btn action-btn wd-row-action wd-action-history" onclick="event.stopPropagation(); showJobHistory('${esc(entry.key)}')" title="View History"><i class="fa-solid fa-clock-rotate-left"></i> History</button>`;
+        let actions = `<button class="history-btn action-btn wd-row-action wd-action-history wd-history-icon-only" onclick="event.stopPropagation(); showJobHistory('${esc(entry.key)}')" title="View History" aria-label="View History"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
 
         row.innerHTML = `
             <td><span class="wd-table-kicker">${esc(entry.for || '')}</span></td>

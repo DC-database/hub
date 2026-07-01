@@ -428,58 +428,61 @@ async function proceedWithPOLoading(poNumber, poData) {
     // PO RECORDS SEARCH & BUTTON LOGIC
     // ============================================================
     const poRecordEl = document.querySelector('.im-po-record');
-    const modalDeletionBtn = document.getElementById('im-modal-deletion-list-btn'); // 💡 Grabs your new modal button
+    const modalDeletionBtn = document.getElementById('im-modal-deletion-list-btn');
+
+    const setPoRecordStatus = (status, label, iconClass) => {
+        if (!poRecordEl) return;
+        poRecordEl.className = `im-po-record im-po-record-status im-po-record-status-${status}`;
+        poRecordEl.innerHTML = `<i class="${iconClass}"></i> <span>${escapeHtml(label)}</span>`;
+    };
 
     if (poRecordEl) {
-        poRecordEl.textContent = "Searching...";
-        poRecordEl.style.color = "#ffeb3b"; 
+        setPoRecordStatus('checking', 'Checking PO file...', 'fa-solid fa-circle-notch fa-spin');
 
-        // CRITICAL: Remove/Hide buttons immediately when starting a new search
+        // Remove the old inline add button and reset the modal folder action on every new PO search.
         document.getElementById('im-po-collect-btn')?.remove();
-        if (modalDeletionBtn) modalDeletionBtn.classList.add('hidden'); // 💡 Hide modal button on new search
+        if (modalDeletionBtn) {
+            modalDeletionBtn.classList.add('hidden');
+            modalDeletionBtn.classList.remove('im-po-file-action-btn--active');
+            modalDeletionBtn.onclick = null;
+        }
 
         try {
-            const searchVal = poNumber.replace(/[^0-9]/g, ''); 
+            const searchVal = poNumber.replace(/[^0-9]/g, '');
             const ref = progressDb.ref('records');
-            
-            // Perform the indexed search
+
+            // Perform the indexed search. This stays lightweight because it queries the PO child only.
             let snapshot = await ref.orderByChild('PO').equalTo(searchVal).once('value');
             if (!snapshot.exists()) {
-                snapshot = await ref.orderByChild('PO').equalTo(parseInt(searchVal)).once('value');
+                snapshot = await ref.orderByChild('PO').equalTo(parseInt(searchVal, 10)).once('value');
             }
 
             if (snapshot.exists()) {
-                // SUCCESS: Record Found
-                poRecordEl.textContent = "Original in File";
-                poRecordEl.style.color = "#90EE90"; 
+                // Attention state: this PO has an original file record. Make it obvious.
+                setPoRecordStatus('found', 'Original PO in File', 'fa-solid fa-folder-open');
 
-                // 1. Add the small inline button (your existing logic)
                 const collectBtn = document.createElement('button');
                 collectBtn.id = 'im-po-collect-btn';
-                collectBtn.innerHTML = `<i class="fa-solid fa-plus"></i> Add to Deletion List`;
-                collectBtn.style.cssText = "background: #0369a1; color: white; border: none; padding: 2px 10px; border-radius: 4px; margin-left: 10px; cursor: pointer; font-size: 11px;";
-                
+                collectBtn.type = 'button';
+                collectBtn.className = 'im-po-collect-btn';
+                collectBtn.title = 'Original PO is in file — add to deletion list';
+                collectBtn.innerHTML = `<i class="fa-solid fa-folder-minus"></i> Add to Deletion List`;
                 collectBtn.onclick = () => window.imAddToDeletionCollection(poNumber);
                 poRecordEl.parentElement.appendChild(collectBtn);
 
-                // 2. 💡 SHOW THE MODAL BUTTON (Our new logic)
                 if (modalDeletionBtn) {
                     modalDeletionBtn.classList.remove('hidden');
-                    modalDeletionBtn.onclick = () => {
-                        window.imAddToDeletionCollection(poNumber); // Runs your exact same deletion logic
-                    };
+                    modalDeletionBtn.classList.add('im-po-file-action-btn--active');
+                    modalDeletionBtn.title = 'Original PO is in file — add to deletion list';
+                    modalDeletionBtn.onclick = () => window.imAddToDeletionCollection(poNumber);
                 }
 
             } else {
-                // FAIL: No Record
-                poRecordEl.textContent = "None";
-                poRecordEl.style.color = "#ffcccb";
-                // Both buttons remain removed/hidden because of the cleanup lines above
+                setPoRecordStatus('none', 'No PO file found', 'fa-regular fa-circle');
             }
         } catch (error) {
             console.error("Query Error:", error);
-            poRecordEl.textContent = "Error";
-            poRecordEl.style.color = "orange";
+            setPoRecordStatus('error', 'PO file check error', 'fa-solid fa-triangle-exclamation');
         }
     }
 

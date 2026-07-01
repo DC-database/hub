@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-workdesk-dashboard.js
    IBA WorkDesk Dashboard Active Task Control Center
-   Version: 9.4.8
+   Version: 9.8.8
 
    8.3.6:
    - Replaced the old WorkDesk calendar/date dashboard with a clean view-only
@@ -96,6 +96,17 @@
    - WorkDesk Dashboard IPC job source reads job_entries only and no longer triggers
      a full transfer_entries read through ensureAllEntriesFetched.
    - Display/data-read only; no Firebase write/workflow logic changed.
+
+   9.7.2:
+   - Added clean queue-age guidance for New Entry and For SRV tasks.
+   - Task lists now sort older queue items first while still allowing users to open any task.
+   - Shows Invoice Date separately from Entered / Sent to SRV timing so priority is clearer.
+   - Display/sort only; no Firebase write/workflow logic changed.
+
+   9.7.3:
+   - Replaced the queue-age chip layout with clean date tabs for selected dashboard queues.
+   - Users can click date tabs such as Jun 30 / Jul 01 and see only that date's entries.
+   - Default date tab is the oldest queue date so the system still guides priority without forcing order.
    ========================================================================== */
 
 // =================================================================================================
@@ -106,13 +117,20 @@
 let wdActiveDashboardTasks = [];
 let wdPersonalDashboardTasks = [];
 let wdActiveDashboardSelectedStatus = '__NONE__';
+let wdActiveDashboardSelectedQueueDate = '';
 let wdActiveDashboardCacheMeta = { fromCache: false, savedAt: 0 };
 let wdDashboardJobEntriesCache = { entries: [], savedAt: 0 };
+let wdInvoiceTaskLookupLiveCache = { nodes: null, savedAt: 0, scope: '' };
+let wdDashboardLiveSyncStarted = false;
+let wdDashboardLiveSyncTimer = null;
+let wdDashboardTaskLookupRootRef = null;
+let wdDashboardTaskLookupPersonalRef = null;
+let wdDashboardTaskLookupAllRef = null;
 
 // 8.5.1: Keep the WorkDesk Dashboard self-sufficient for short periods.
 // It prevents repeated Firebase downloads when users switch pages or reopen the dashboard.
 // Manual Refresh still bypasses this cache and gets fresh live data.
-const WD_DASHBOARD_CACHE_KEY = 'IBA_WD_ACTIVE_DASHBOARD_CACHE_V12';
+const WD_DASHBOARD_CACHE_KEY = 'IBA_WD_ACTIVE_DASHBOARD_CACHE_V14';
 const WD_ACTIVE_TASK_SOURCE_CACHE_KEY = 'IBA_ACTIVE_TASK_WORKDESK_SNAPSHOT_V2';
 const WD_DASHBOARD_CACHE_TTL = 60 * 60 * 1000; // 9.3.1: 60 minutes to reduce Firebase reads; Refresh still forces live data.
 
@@ -206,6 +224,32 @@ function wdWriteJSONStorage(storage, key, value) {
     } catch (e) {
         return false;
     }
+}
+
+function wdIsDashboardVisible() {
+    const section = document.getElementById('wd-dashboard');
+    if (!section) return false;
+    return !section.classList.contains('hidden') && section.offsetParent !== null;
+}
+
+function wdCurrentSafeUserTaskKey() {
+    const name = wdText(currentApprover?.Name || currentApprover?.name || '');
+    return name ? wdSanitizeFirebaseKey(name) : '';
+}
+
+function wdSetInvoiceTaskLookupLiveCache(nodes, scope) {
+    wdInvoiceTaskLookupLiveCache = {
+        nodes: (nodes && typeof nodes === 'object') ? nodes : {},
+        savedAt: Date.now(),
+        scope: scope || 'unknown'
+    };
+}
+
+function wdGetLiveInvoiceTaskLookupNodes(forceRefresh = false) {
+    if (forceRefresh) return null;
+    if (!wdInvoiceTaskLookupLiveCache || !wdInvoiceTaskLookupLiveCache.nodes) return null;
+    if ((Date.now() - Number(wdInvoiceTaskLookupLiveCache.savedAt || 0)) > (10 * 60 * 1000)) return null;
+    return wdInvoiceTaskLookupLiveCache.nodes;
 }
 
 function wdLoadDashboardCache() {
@@ -324,6 +368,24 @@ async function wdGetExactMyActiveTaskList(forceRefresh = false) {
     return [];
 }
 
+
+async function wdEnsureDashboardInvoiceEntriesFetched(forceRefresh = false) {
+    // 9.8.7: Dashboard invoice tabs must be accurate from invoice_entries.
+    // Use the existing Invoice Management loader when available, so the dashboard
+    // does not invent another competing source.
+    try {
+        const hasInvoiceMemory = (typeof allInvoiceData !== 'undefined' && allInvoiceData && Object.keys(allInvoiceData || {}).length);
+        if (hasInvoiceMemory && !forceRefresh) return allInvoiceData;
+        if (typeof ensureInvoiceDataFetched === 'function') {
+            await ensureInvoiceDataFetched(forceRefresh);
+            return (typeof allInvoiceData !== 'undefined' && allInvoiceData) ? allInvoiceData : {};
+        }
+    } catch (e) {
+        console.warn('WorkDesk dashboard could not load Invoice Entry data for accurate status tabs:', e);
+    }
+    return (typeof allInvoiceData !== 'undefined' && allInvoiceData) ? allInvoiceData : {};
+}
+
 function wdStatus(value, fallback = 'Pending') {
     return wdText(value, fallback);
 }
@@ -342,6 +404,56 @@ function wdInvoiceRecordStatus(inv) {
     );
 }
 
+
+function wdCurrentInvoiceTaskStatus(task = {}, latestMeta = {}) {
+    // 9.8.6: Invoice Entry Firebase record is the source of truth for status tabs.
+    // Lightweight inbox rows can be stale after batch update/manual status changes.
+    const current = wdInvoiceRecordStatus(latestMeta);
+    if (current) return current;
+    return wdStatus(task.status || task.remarks || task.Status || task.Remarks || 'Pending');
+}
+
+
+// 9.8.8: Official Dashboard invoice-status queues must be exact matches.
+// Similar/completed names must not be folded into active queues:
+// "SRV Done" is not "For SRV", and "Report Approved" is not "Report".
+const WD_DASHBOARD_EXACT_INVOICE_STATUS_MAP = {
+    'for srv': 'For SRV',
+    'on hold': 'On Hold',
+    'in process': 'In Process',
+    'pending': 'Pending',
+    'unresolved': 'Unresolved',
+    'report': 'Report'
+};
+const WD_DASHBOARD_COMPLETED_OR_NON_QUEUE_STATUSES = new Set([
+    'with accounts',
+    'srv done',
+    'report approved',
+    'approved',
+    'rejected',
+    'under review',
+    'manager approved',
+    'ceo approved',
+    'cancelled',
+    'canceled',
+    'closed',
+    'paid'
+]);
+
+function wdDashboardExactInvoiceStatusLabel(value) {
+    const raw = wdNormalize(value);
+    if (!raw || WD_DASHBOARD_COMPLETED_OR_NON_QUEUE_STATUSES.has(raw)) return '';
+    return WD_DASHBOARD_EXACT_INVOICE_STATUS_MAP[raw] || '';
+}
+
+function wdDashboardInvoiceStatusLabel(value) {
+    return wdDashboardExactInvoiceStatusLabel(value);
+}
+
+function wdDashboardIsTrackedInvoiceStatus(value) {
+    return !!wdDashboardInvoiceStatusLabel(value);
+}
+
 function wdIsNewEntryStatus(status) {
     const s = wdNormalize(status);
     return !s || s === 'pending' || s === 'new' || s === 'new entry' || s.includes('new entry');
@@ -351,14 +463,12 @@ function wdDashboardBucket(status, type = '') {
     const typeText = wdNormalize(type);
     const s = wdNormalize(status);
 
-    // 9.2.9: Dashboard is an active-work preview only. Keep bucket names tight
-    // so completed/review/approval records do not come back into the board.
-    if (s.includes('srv')) return 'For SRV';
-    if (typeText === 'ipc' || s.includes('ipc')) return 'IPC';
-    if (s.includes('report')) return 'Report';
-    if (s.includes('hold') || s.includes('waiting')) return 'On Hold';
-    if (s.includes('unresolved') || s.includes('unresolve')) return 'Unresolved';
-    if (s.includes('in process') || s.includes('processing') || s.includes('process')) return 'In Process';
+    // Exact status names only for invoice-management queues.
+    // This prevents SRV Done -> For SRV and Report Approved -> Report mistakes.
+    const exactInvoiceStatus = wdDashboardExactInvoiceStatusLabel(status);
+    if (exactInvoiceStatus) return exactInvoiceStatus;
+
+    if (typeText === 'ipc' || s === 'ipc') return 'IPC';
 
     // New Entry should be the WorkDesk Job Record entry, not every invoice record
     // that happens to have generic Pending status.
@@ -375,18 +485,9 @@ function wdIsCompletedStatus(status) {
 function wdDashboardAllowedBucket(status, type = '') {
     const raw = wdNormalize(status);
 
-    // Explicitly excluded from Dashboard per 9.2.9 discussion:
-    // With Accounts, Under Review, CEO Approval and other completed/approval queues.
     if (!raw) return type === 'job_entry' ? 'New Entry' : 'Pending';
+    if (WD_DASHBOARD_COMPLETED_OR_NON_QUEUE_STATUSES.has(raw)) return '';
     if (WD_COMPLETED_STATUSES.has(raw)) return '';
-    if (raw.includes('with accounts')) return '';
-    if (raw.includes('under review')) return '';
-    if (raw.includes('ceo')) return '';
-    if (raw.includes('approval') || raw === 'approved' || raw.includes('approved')) return '';
-    if (raw.includes('srv done') || raw.includes('marked srv done') || raw.includes('completed srv')) return '';
-    if (raw.includes('original po') || raw.includes('epicore')) return '';
-    // Waiting-style notes are still open work and should stay visible as On Hold.
-    if (raw.includes('waiting')) return 'On Hold';
 
     const bucket = wdDashboardBucket(status, type);
     return WD_DASHBOARD_ALLOWED_BUCKETS.has(wdNormalize(bucket)) ? bucket : '';
@@ -406,14 +507,18 @@ function wdDashboardMyStatusFilterKey(status) {
 
 function wdDashboardPersonalBucket(status, type = '') {
     const s = wdNormalize(status);
-    if (!s) return 'New Entry';
-    if (s.includes('srv')) return 'For SRV';
-    if (s.includes('new entry') || s === 'pending' || s === 'new') return 'New Entry';
-    if (s.includes('hold') || s.includes('waiting')) return 'On Hold';
-    if (s.includes('unresolved') || s.includes('unresolve')) return 'Unresolved';
-    if (s.includes('in process') || s.includes('processing') || s.includes('process')) return 'In Process';
-    if (s.includes('ipc')) return 'IPC';
-    if (s.includes('report')) return 'Report';
+    const typeText = wdNormalize(type);
+    const isJobRecordQueue = typeText.includes('job') || typeText === 'invoice job' || typeText === 'job_entry';
+
+    if (!s) return isJobRecordQueue ? 'New Entry' : 'Pending';
+
+    const exactInvoiceStatus = wdDashboardExactInvoiceStatusLabel(status);
+    if (exactInvoiceStatus) return exactInvoiceStatus;
+
+    if (s === 'new entry' || s === 'new') return 'New Entry';
+    if (s === 'pending') return isJobRecordQueue ? 'New Entry' : 'Pending';
+    if (s === 'ipc') return 'IPC';
+
     return wdStatus(status, 'Pending');
 }
 
@@ -692,16 +797,18 @@ function wdEntryTimestamp(entry) {
         entry?.invoiceLastUpdated,
         entry?.lastUpdated,
         entry?.updatedAt,
-        entry?.timestamp,
+        entry?.createdAt,
+        entry?.enteredAt,
+        entry?.originTimestamp,
         entry?.dateCreated,
-        entry?.date,
-        entry?.invoiceDate,
-        entry?.releaseDate
+        entry?.dateAdded,
+        entry?.releaseDate,
+        entry?.timestamp
     ];
     for (const c of candidates) {
         if (!c) continue;
         const n = Number(c);
-        if (!Number.isNaN(n) && n > 0) return n;
+        if (!Number.isNaN(n) && n > 0) return n < 10000000000 ? n * 1000 : n;
         const d = new Date(c).getTime();
         if (!Number.isNaN(d)) return d;
     }
@@ -798,6 +905,433 @@ function wdFormatDashboardDate(value) {
     return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+
+function wdParseQueueTimestamp(value) {
+    if (value === undefined || value === null || value === '') return 0;
+    if (typeof value === 'object') {
+        if (value.seconds) return Number(value.seconds) * 1000;
+        if (value._seconds) return Number(value._seconds) * 1000;
+        return 0;
+    }
+    const n = Number(value);
+    if (!Number.isNaN(n) && n > 0) {
+        // Accept Firebase millisecond timestamps and older second-based values.
+        return n < 10000000000 ? n * 1000 : n;
+    }
+    const raw = String(value || '').trim();
+    const m = raw.match(/^(\d{1,2})[-\/\s]([A-Za-z]{3,}|\d{1,2})[-\/\s](\d{4})$/);
+    if (m) {
+        const months = { jan:0, january:0, feb:1, february:1, mar:2, march:2, apr:3, april:3, may:4, jun:5, june:5, jul:6, july:6, aug:7, august:7, sep:8, sept:8, september:8, oct:9, october:9, nov:10, november:10, dec:11, december:11 };
+        const day = Number(m[1]);
+        const monthRaw = String(m[2]).toLowerCase();
+        const month = /^\d+$/.test(monthRaw) ? Number(monthRaw) - 1 : months[monthRaw];
+        const year = Number(m[3]);
+        if (day > 0 && month >= 0 && month <= 11 && year > 1900) {
+            const d = new Date(year, month, day);
+            if (!Number.isNaN(d.getTime())) return d.getTime();
+        }
+    }
+    const d = new Date(value).getTime();
+    return Number.isNaN(d) ? 0 : d;
+}
+
+function wdFindLinkedJobRecord(rawTask = {}, invMeta = {}) {
+    try {
+        const list = Array.isArray(allSystemEntries) ? allSystemEntries : [];
+        if (!list.length) return null;
+        const linkedKey = rawTask?.linkedJobEntryKey || rawTask?.originJobEntryKey || rawTask?.jobEntryKey || invMeta?.linkedJobEntryKey || invMeta?.originJobEntryKey || invMeta?.jobEntryKey || '';
+        if (linkedKey) {
+            const found = list.find(e => e && e.key === linkedKey);
+            if (found) return found;
+        }
+        const targetTs = Number(rawTask?.jobRecordTimestamp || invMeta?.jobRecordTimestamp || rawTask?.originTimestamp || invMeta?.originTimestamp || 0);
+        if (targetTs) {
+            const found = list.find(e => e && Number(e.timestamp || 0) === targetTs);
+            if (found) return found;
+        }
+        return null;
+    } catch (_) {
+        return null;
+    }
+}
+
+function wdJobRecordEnteredTimestamp(rawTask = {}, invMeta = {}) {
+    const linked = wdFindLinkedJobRecord(rawTask, invMeta);
+    const source = String(rawTask?.source || '').toLowerCase();
+    const directJobEntryDate = (source === 'job_entry' || source === 'transfer_entry' || source === 'ipc_job_record') ? rawTask?.date : '';
+    return wdFirstQueueTimestamp(
+        linked?.date,
+        directJobEntryDate,
+        rawTask?.jobRecordDateEntered,
+        rawTask?.originDateEntered,
+        rawTask?.dateEntered,
+        rawTask?.entryDate,
+        invMeta?.jobRecordDateEntered,
+        invMeta?.originDateEntered,
+        invMeta?.dateEntered,
+        invMeta?.entryDate,
+        rawTask?.jobRecordTimestamp,
+        invMeta?.jobRecordTimestamp,
+        linked?.timestamp
+    );
+}
+
+// 9.8.2: Decode Firebase push IDs to recover true created/entered time for
+// older invoice/task rows where createdAt/enteredAt was not stored. This keeps
+// Dashboard date tabs based on queue/entered date, never supplier invoice date.
+function wdFirebasePushTimestamp(value) {
+    const PUSH_CHARS = '-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz';
+    const raw = String(value || '');
+    const candidates = [];
+    if (raw.length >= 20) {
+        const direct = raw.trim();
+        if (direct.length === 20) candidates.push(direct);
+        const matches = raw.match(/[-0-9A-Z_a-z]{20}/g) || [];
+        candidates.push(...matches);
+    }
+    for (const id of candidates.reverse()) {
+        let ts = 0;
+        let valid = true;
+        for (let i = 0; i < 8; i += 1) {
+            const c = PUSH_CHARS.indexOf(id.charAt(i));
+            if (c < 0) { valid = false; break; }
+            ts = ts * 64 + c;
+        }
+        if (valid && ts > 0) return ts;
+    }
+    return 0;
+}
+
+function wdTaskKeyCreatedTimestamp(rawTask = {}, invMeta = {}) {
+    return wdFirebasePushTimestamp(
+        rawTask?.originalKey || rawTask?.invoiceKey || rawTask?.firebaseKey || rawTask?.key || invMeta?.key || rawTask?.id || ''
+    );
+}
+
+function wdTrustedTaskEnteredTimestamp(rawTask = {}, invMeta = {}) {
+    // Official New Entry grouping uses the same value shown in Job Records > Date Entered.
+    const officialJobDate = wdJobRecordEnteredTimestamp(rawTask, invMeta);
+    if (officialJobDate) return officialJobDate;
+
+    const source = String(rawTask?.source || '').toLowerCase();
+    const taskFor = String(rawTask?.for || '').toLowerCase();
+    if (source === 'job_entry' || source === 'transfer_entry' || taskFor === 'invoice') return rawTask?.timestamp;
+    return '';
+}
+
+function wdFirstQueueTimestamp(...values) {
+    for (const value of values) {
+        const ts = wdParseQueueTimestamp(value);
+        if (ts > 0) return ts;
+    }
+    return 0;
+}
+
+function wdQueueLabelForTask(status, type = '') {
+    const bucket = wdDashboardPersonalBucket(status, type);
+    const s = wdNormalize(bucket || status);
+    if (bucket === 'For SRV') return 'Sent to SRV';
+    if (bucket === 'New Entry' || s === 'pending' || s === 'new') return 'Entered';
+    if (bucket === 'Report') return 'Sent to Report';
+    if (bucket === 'IPC' || s === 'ipc') return 'IPC since';
+    if (bucket === 'On Hold') return 'Waiting since';
+    return 'Queue since';
+}
+
+function wdHistoryValues(history) {
+    if (!history) return [];
+    if (Array.isArray(history)) return history.filter(Boolean);
+    if (typeof history === 'object') return Object.values(history).filter(Boolean);
+    return [];
+}
+
+function wdHistoryStatusMatches(entryStatus, targetStatus) {
+    const entryLabel = wdDashboardExactInvoiceStatusLabel(entryStatus);
+    const targetLabel = wdDashboardExactInvoiceStatusLabel(targetStatus);
+    if (entryLabel && targetLabel) return entryLabel === targetLabel;
+    const entry = wdNormalize(entryStatus);
+    const target = wdNormalize(targetStatus);
+    return !!entry && !!target && entry === target;
+}
+
+function wdInvoiceHistoryTimestampForStatus(rawTask = {}, invMeta = {}, status = '') {
+    const target = wdNormalize(status || rawTask?.status || rawTask?.remarks || invMeta?.status || invMeta?.remarks || '');
+    const historyList = [
+        ...wdHistoryValues(rawTask?.history),
+        ...wdHistoryValues(rawTask?.invoiceHistory),
+        ...wdHistoryValues(rawTask?.statusHistory),
+        ...wdHistoryValues(invMeta?.history),
+        ...wdHistoryValues(invMeta?.invoiceHistory),
+        ...wdHistoryValues(invMeta?.statusHistory)
+    ];
+    let best = 0;
+    historyList.forEach(entry => {
+        const entryStatus = entry?.status || entry?.action || entry?.remarks || '';
+        if (!wdHistoryStatusMatches(entryStatus, target)) return;
+        const ts = wdFirstQueueTimestamp(entry?.timestamp, entry?.updatedAt, entry?.createdAt, entry?.date, entry?.releaseDate);
+        if (ts && ts > best) best = ts;
+    });
+    return best;
+}
+
+function wdIsJobNewEntryQueue(rawTask = {}, status = '', type = '') {
+    const s = wdNormalize(status || rawTask?.status || rawTask?.remarks || '');
+    const source = wdNormalize(rawTask?.source || type || '');
+    const taskFor = wdNormalize(rawTask?.for || rawTask?.type || '');
+    if (s.includes('new entry')) return true;
+    // Pending becomes a New Entry queue only for Job Records invoice entries.
+    // Invoice Management Pending must use invoice status/history dates.
+    return (s === 'pending' || s === 'new') && (source.includes('job') || taskFor === 'invoice job');
+}
+
+function wdIsIPCQueue(rawTask = {}, status = '', type = '') {
+    const s = wdNormalize(status || rawTask?.status || rawTask?.remarks || '');
+    const source = wdNormalize(rawTask?.source || type || '');
+    const taskFor = wdNormalize(rawTask?.for || rawTask?.type || '');
+    return taskFor === 'ipc' || source.includes('ipc') || s.includes('ipc');
+}
+
+function wdInvoiceStatusQueueTimestamp(rawTask = {}, invMeta = {}, status = '') {
+    const exactStatus = wdDashboardExactInvoiceStatusLabel(status || rawTask?.status || rawTask?.remarks || invMeta?.status || '');
+    const keyCreatedAt = wdTaskKeyCreatedTimestamp(rawTask, invMeta);
+    const historyTs = wdInvoiceHistoryTimestampForStatus(rawTask, invMeta, exactStatus || status);
+
+    if (exactStatus === 'For SRV') {
+        return wdFirstQueueTimestamp(
+            historyTs,
+            rawTask?.statusQueueAt,
+            invMeta?.statusQueueAt,
+            rawTask?.forSrvAt,
+            rawTask?.sentToSrvAt,
+            rawTask?.srvRequestedAt,
+            invMeta?.forSrvAt,
+            invMeta?.sentToSrvAt,
+            invMeta?.srvRequestedAt,
+            rawTask?.queueAt,
+            invMeta?.queueAt,
+            rawTask?.statusChangedAt,
+            rawTask?.statusUpdatedAt,
+            invMeta?.statusChangedAt,
+            invMeta?.statusUpdatedAt,
+            rawTask?.releaseDate,
+            invMeta?.releaseDate,
+            rawTask?.updatedAt,
+            rawTask?.lastUpdated,
+            rawTask?.invoiceLastUpdated,
+            invMeta?.updatedAt,
+            invMeta?.lastUpdated,
+            keyCreatedAt
+        );
+    }
+
+    if (exactStatus === 'Report') {
+        return wdFirstQueueTimestamp(
+            historyTs,
+            rawTask?.statusQueueAt,
+            invMeta?.statusQueueAt,
+            rawTask?.reportAt,
+            rawTask?.sentToReportAt,
+            invMeta?.reportAt,
+            invMeta?.sentToReportAt,
+            rawTask?.queueAt,
+            invMeta?.queueAt,
+            rawTask?.statusChangedAt,
+            rawTask?.statusUpdatedAt,
+            invMeta?.statusChangedAt,
+            invMeta?.statusUpdatedAt,
+            rawTask?.releaseDate,
+            invMeta?.releaseDate,
+            rawTask?.updatedAt,
+            rawTask?.lastUpdated,
+            rawTask?.invoiceLastUpdated,
+            invMeta?.updatedAt,
+            invMeta?.lastUpdated,
+            keyCreatedAt
+        );
+    }
+
+    return wdFirstQueueTimestamp(
+        historyTs,
+        rawTask?.statusQueueAt,
+        invMeta?.statusQueueAt,
+        rawTask?.queueAt,
+        invMeta?.queueAt,
+        rawTask?.statusChangedAt,
+        rawTask?.statusUpdatedAt,
+        invMeta?.statusChangedAt,
+        invMeta?.statusUpdatedAt,
+        rawTask?.releaseDate,
+        invMeta?.releaseDate,
+        rawTask?.updatedAt,
+        rawTask?.lastUpdated,
+        rawTask?.invoiceLastUpdated,
+        invMeta?.updatedAt,
+        invMeta?.lastUpdated,
+        keyCreatedAt
+    );
+}
+
+function wdQueueTimestampForTask(rawTask, invMeta = {}, status = '', type = '') {
+    const bucket = wdDashboardPersonalBucket(status, type);
+    const effectiveStatus = bucket || status;
+    const keyCreatedAt = wdTaskKeyCreatedTimestamp(rawTask, invMeta);
+    const trustedEnteredAt = wdTrustedTaskEnteredTimestamp(rawTask, invMeta);
+
+    // Correct source rules:
+    // New Entry = Job Records Date Entered.
+    // IPC = Job Records / IPC job date.
+    // For SRV, Report, In Process, Unresolved, Pending, On Hold = Invoice Entry status/history date.
+    if (wdIsJobNewEntryQueue(rawTask, effectiveStatus, type)) {
+        return wdFirstQueueTimestamp(
+            trustedEnteredAt,
+            rawTask?.jobRecordDateEntered,
+            rawTask?.originDateEntered,
+            rawTask?.dateEntered,
+            invMeta?.jobRecordDateEntered,
+            invMeta?.originDateEntered,
+            invMeta?.dateEntered,
+            rawTask?.createdAt,
+            rawTask?.enteredAt,
+            rawTask?.dateAdded,
+            rawTask?.originTimestamp,
+            rawTask?.dateCreated,
+            invMeta?.createdAt,
+            invMeta?.enteredAt,
+            invMeta?.dateAdded,
+            invMeta?.originTimestamp,
+            invMeta?.dateCreated,
+            keyCreatedAt
+        );
+    }
+
+    if (wdIsIPCQueue(rawTask, effectiveStatus, type)) {
+        return wdFirstQueueTimestamp(
+            rawTask?.ipcAt,
+            rawTask?.ipcQueueAt,
+            invMeta?.ipcAt,
+            invMeta?.ipcQueueAt,
+            rawTask?.statusQueueAt,
+            invMeta?.statusQueueAt,
+            rawTask?.queueAt,
+            invMeta?.queueAt,
+            rawTask?.statusChangedAt,
+            rawTask?.statusUpdatedAt,
+            invMeta?.statusChangedAt,
+            invMeta?.statusUpdatedAt,
+            trustedEnteredAt,
+            rawTask?.jobRecordDateEntered,
+            rawTask?.originDateEntered,
+            rawTask?.dateEntered,
+            invMeta?.jobRecordDateEntered,
+            invMeta?.originDateEntered,
+            invMeta?.dateEntered,
+            rawTask?.jobRecordTimestamp,
+            invMeta?.jobRecordTimestamp,
+            rawTask?.originTimestamp,
+            invMeta?.originTimestamp,
+            keyCreatedAt
+        );
+    }
+
+    return wdInvoiceStatusQueueTimestamp(rawTask, invMeta, effectiveStatus);
+}
+
+function wdQueueAgeParts(timestamp) {
+    const ts = Number(timestamp || 0);
+    if (!ts) return { text: 'date not tracked', tone: 'unknown', days: 0 };
+    const now = Date.now();
+    const ageMs = Math.max(0, now - ts);
+    const days = Math.floor(ageMs / 86400000);
+    if (days <= 0) return { text: 'Today', tone: 'fresh', days };
+    if (days === 1) return { text: 'Yesterday', tone: 'watch', days };
+    if (days === 2) return { text: '2 days waiting', tone: 'watch', days };
+    return { text: `${days} days waiting`, tone: 'urgent', days };
+}
+
+function wdQueueFullText(timestamp) {
+    const ts = Number(timestamp || 0);
+    if (!ts) return 'date not tracked yet';
+    const d = new Date(ts);
+    if (Number.isNaN(d.getTime())) return 'date not tracked yet';
+    const age = wdQueueAgeParts(ts).text;
+    const time = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    return `${age} • ${time}`;
+}
+
+function wdQueueTimeText(timestamp) {
+    const ts = Number(timestamp || 0);
+    if (!ts) return 'not tracked';
+    const d = new Date(ts);
+    if (Number.isNaN(d.getTime())) return 'not tracked';
+    return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+}
+
+function wdQueueDateKey(timestamp) {
+    const ts = Number(timestamp || 0);
+    if (!ts) return 'unknown';
+    const d = new Date(ts);
+    if (Number.isNaN(d.getTime())) return 'unknown';
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+function wdDateFromQueueKey(key) {
+    if (!key || key === 'unknown') return null;
+    const parts = String(key).split('-').map(Number);
+    if (parts.length !== 3 || parts.some(n => Number.isNaN(n))) return null;
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+
+function wdQueueTabLabel(key) {
+    const d = wdDateFromQueueKey(key);
+    if (!d) return 'No Date';
+    return d.toLocaleDateString(undefined, { month: 'short', day: '2-digit' });
+}
+
+function wdQueueTabFullLabel(key) {
+    const d = wdDateFromQueueKey(key);
+    if (!d) return 'Date not tracked';
+    return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' });
+}
+
+function wdBuildQueueDateGroups(tasks) {
+    const groups = new Map();
+    (tasks || []).forEach(task => {
+        const key = wdQueueDateKey(task.queueTimestamp || task.timestamp);
+        if (!groups.has(key)) {
+            groups.set(key, {
+                key,
+                label: wdQueueTabLabel(key),
+                fullLabel: wdQueueTabFullLabel(key),
+                tasks: [],
+                timestamp: Number(task.queueTimestamp || task.timestamp || 0) || 0
+            });
+        }
+        groups.get(key).tasks.push(task);
+    });
+    return Array.from(groups.values()).sort((a, b) => {
+        if (a.key === 'unknown' && b.key !== 'unknown') return 1;
+        if (b.key === 'unknown' && a.key !== 'unknown') return -1;
+        return (a.timestamp || 0) - (b.timestamp || 0);
+    });
+}
+
+function wdQueueSortTime(task) {
+    return Number(task?.queueTimestamp || task?.timestamp || 0) || 0;
+}
+
+function wdCompareDashboardPriority(a, b) {
+    const qa = wdQueueSortTime(a);
+    const qb = wdQueueSortTime(b);
+    // Oldest tracked queue item first. Unknown dates go after tracked dates.
+    if (qa && qb && qa !== qb) return qa - qb;
+    if (qa && !qb) return -1;
+    if (!qa && qb) return 1;
+    return (Number(a?.timestamp || 0) || 0) - (Number(b?.timestamp || 0) || 0);
+}
+
 function wdDocButtonZone(invoicePdf, reportPdf) {
     return `
         <div class="wd-doc-zone">
@@ -891,7 +1425,10 @@ async function wdNormalizeActiveTaskForDashboard(task, ipcMap) {
     const invMeta = wdFindInvoiceMetaForActiveTask(task);
 
     let status = wdStatus(task.remarks || task.status || 'Pending');
-    if ((task.for === 'Invoice' || task.source === 'job_entry') && wdIsNewEntryStatus(status)) status = 'New Entry';
+    if (task.source !== 'job_entry' && invMeta && typeof invMeta === 'object' && Object.keys(invMeta).length) {
+        status = wdCurrentInvoiceTaskStatus(task, invMeta);
+    }
+    if (task.source === 'job_entry' && task.for === 'Invoice' && wdIsNewEntryStatus(status)) status = 'New Entry';
 
     const isJobEntry = task.source === 'job_entry';
     const type = isJobEntry ? 'Invoice Job' : 'Invoice';
@@ -909,6 +1446,8 @@ async function wdNormalizeActiveTaskForDashboard(task, ipcMap) {
         wdGetPOValue(poDetails, ['Supplier Name', 'Supplier Name:', 'Supplier', 'Supplier:', 'Vendor Name'], ''),
         'N/A'
     );
+
+    const queueTimestamp = wdQueueTimestampForTask(task, invMeta, bucket || status, type);
 
     return {
         id: `active_${task.key || po || task.ref || Math.random()}`,
@@ -930,8 +1469,18 @@ async function wdNormalizeActiveTaskForDashboard(task, ipcMap) {
         invName: task.invName || invMeta.invName || '',
         reportName: task.reportName || invMeta.reportName || '',
         amount: task.amountPaid || task.amount || invMeta.amountPaid || invMeta.invValue || '',
-        date: task.date || invMeta.invoiceDate || invMeta.releaseDate || '',
-        timestamp: Number(task.invoiceLastUpdated || task.timestamp || wdEntryTimestamp(invMeta) || 0)
+        date: task.date || invMeta.invoiceDate || '',
+        invoiceDate: task.date || invMeta.invoiceDate || '',
+        linkedJobEntryKey: task.linkedJobEntryKey || invMeta.linkedJobEntryKey || '',
+        jobRecordDateEntered: task.jobRecordDateEntered || task.originDateEntered || task.dateEntered || invMeta.jobRecordDateEntered || invMeta.originDateEntered || invMeta.dateEntered || '',
+        originDateEntered: task.originDateEntered || invMeta.originDateEntered || '',
+        dateEntered: task.dateEntered || invMeta.dateEntered || '',
+        jobRecordTimestamp: task.jobRecordTimestamp || invMeta.jobRecordTimestamp || task.originTimestamp || invMeta.originTimestamp || '',
+        queueLabel: wdQueueLabelForTask(bucket || status, type),
+        queueTimestamp,
+        queueText: wdQueueFullText(queueTimestamp),
+        queueTone: wdQueueAgeParts(queueTimestamp).tone,
+        timestamp: Number(queueTimestamp || task.invoiceLastUpdated || wdEntryTimestamp(invMeta) || task.timestamp || 0)
     };
 }
 
@@ -973,7 +1522,7 @@ async function wdBuildPersonalDashboardTasks(sourceList) {
         if (ia !== -1 && ib !== -1 && ia !== ib) return ia - ib;
         if (ia !== -1 && ib === -1) return -1;
         if (ia === -1 && ib !== -1) return 1;
-        return (b.timestamp || 0) - (a.timestamp || 0);
+        return wdCompareDashboardPriority(a, b);
     });
 }
 
@@ -1019,6 +1568,7 @@ async function wdBuildIPCJobRecordTasks(ipcMap) {
 
         const jobKey = wdText(entry.key || entry.id || `${po}_${entry.ref || ''}_${entry.date || entry.timestamp || ''}_${rowIndex}`);
         const ipcInfo = ipcMap.get(po);
+        const queueTimestamp = wdQueueTimestampForTask(entry, {}, 'IPC', 'IPC');
 
         tasks.push({
             id: `ipc_${jobKey || po || entry.ref || Math.random()}`,
@@ -1040,7 +1590,12 @@ async function wdBuildIPCJobRecordTasks(ipcMap) {
             reportName: entry.reportName || '',
             amount: entry.amount || entry.invoiceValue || '',
             date: entry.invoiceDate || entry.date || '',
-            timestamp: wdEntryTimestamp(entry) || (ipcInfo ? ipcInfo.latestTimestamp : 0)
+            invoiceDate: entry.invoiceDate || entry.date || '',
+            queueLabel: wdQueueLabelForTask('IPC', 'IPC'),
+            queueTimestamp,
+            queueText: wdQueueFullText(queueTimestamp),
+            queueTone: wdQueueAgeParts(queueTimestamp).tone,
+            timestamp: wdEntryTimestamp(entry) || (ipcInfo ? ipcInfo.latestTimestamp : 0) || queueTimestamp
         });
     }
 
@@ -1067,15 +1622,16 @@ async function wdBuildInvoiceRecordOverviewTasks(forceRefresh = false) {
             const inv = invoices[invoiceKey] || {};
             if (!inv || typeof inv !== 'object') continue;
 
-            const status = wdInvoiceRecordStatus(inv);
-            const bucket = wdDashboardAllowedBucket(status, 'invoice_record');
-            if (!bucket) continue;
+            const status = wdDashboardInvoiceStatusLabel(wdInvoiceRecordStatus(inv));
+            if (!status) continue;
+            const bucket = status;
 
             const site = wdResolveInvoiceSite(inv, poDetails);
             if (!wdSiteMatchesCurrentUser(site)) continue;
 
             const ref = wdText(inv.invNumber || inv.invoiceNo || inv.ref || inv.invoiceNumber || invoiceKey);
             const invEntryID = wdText(inv.invEntryID || inv.entryId || inv.entryID || '');
+            const queueTimestamp = wdQueueTimestampForTask(inv, inv, bucket || status, 'Invoice');
             source.push({
                 key: `${po}_${invoiceKey}`,
                 originalKey: invoiceKey,
@@ -1092,7 +1648,12 @@ async function wdBuildInvoiceRecordOverviewTasks(forceRefresh = false) {
                 group: 'N/A',
                 attention: inv.attention || inv.Attention || inv.assignedTo || inv.assigned_to || '',
                 enteredBy: inv.enteredBy || inv.updatedBy || inv.createdBy || '',
-                date: inv.invoiceDate || inv.invDate || inv.releaseDate || inv.date || '',
+                date: inv.invoiceDate || inv.invDate || inv.date || '',
+                invoiceDate: inv.invoiceDate || inv.invDate || inv.date || '',
+                queueLabel: wdQueueLabelForTask(bucket || status, 'Invoice'),
+                queueTimestamp,
+                queueText: wdQueueFullText(queueTimestamp),
+                queueTone: wdQueueAgeParts(queueTimestamp).tone,
                 remarks: status,
                 status,
                 bucket,
@@ -1100,7 +1661,7 @@ async function wdBuildInvoiceRecordOverviewTasks(forceRefresh = false) {
                 reportName: inv.reportName || '',
                 vendorName: wdResolveInvoiceVendor(inv, poDetails),
                 note: inv.note || inv.details || inv.description || '',
-                timestamp: Number(inv.invoiceLastUpdated || inv.lastUpdated || inv.updatedAt || inv.enteredAt || 0) || wdEntryTimestamp(inv),
+                timestamp: Number(inv.invoiceLastUpdated || inv.lastUpdated || inv.updatedAt || inv.enteredAt || 0) || wdEntryTimestamp(inv) || queueTimestamp,
                 isUrgent: false
             });
         }
@@ -1117,9 +1678,13 @@ async function wdBuildInvoiceTaskLookupOverviewTasks(forceRefresh = false) {
     if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) return [];
 
     try {
-        const snapshot = await invoiceDb.ref('invoice_tasks_by_user').once('value');
-        if (!snapshot.exists()) return [];
-        const nodes = snapshot.val() || {};
+        let nodes = wdGetLiveInvoiceTaskLookupNodes(forceRefresh);
+        if (!nodes) {
+            const snapshot = await invoiceDb.ref('invoice_tasks_by_user').once('value');
+            if (!snapshot.exists()) return [];
+            nodes = snapshot.val() || {};
+            wdSetInvoiceTaskLookupLiveCache(nodes, 'root-once');
+        }
         const ownerKeys = Object.keys(nodes).sort((a, b) => {
             const aa = wdNormalize(a) === 'all' ? 1 : 0;
             const bb = wdNormalize(b) === 'all' ? 1 : 0;
@@ -1137,17 +1702,14 @@ async function wdBuildInvoiceTaskLookupOverviewTasks(forceRefresh = false) {
                 const task = inbox[invoiceKey] || {};
                 if (!task || typeof task !== 'object') continue;
 
-                const status = wdStatus(task.status || task.remarks || 'Pending');
-                if (wdIsInvoiceLookupComplete(status)) continue;
-
-                // If the full invoice record is already completed, ignore stale lookup rows.
+                // 9.8.6: Use the current invoice_entries status as the source of truth.
+                // The lightweight invoice_tasks_by_user row may still say Report while the
+                // invoice record was already moved to On Hold/In Process/Unresolved/etc.
                 const latestInv = (allInvoiceData && task.po && allInvoiceData[task.po] && allInvoiceData[task.po][invoiceKey])
                     ? allInvoiceData[task.po][invoiceKey]
                     : null;
-                if (latestInv) {
-                    const latestStatus = wdStatus(latestInv.status || latestInv.remarks || '');
-                    if (wdIsInvoiceLookupComplete(latestStatus)) continue;
-                }
+                const status = wdCurrentInvoiceTaskStatus(task, latestInv || {});
+                if (wdIsInvoiceLookupComplete(status)) continue;
 
                 const bucket = wdDashboardAllowedBucket(status, 'invoice_task_lookup');
                 if (!bucket) continue;
@@ -1173,6 +1735,7 @@ async function wdBuildInvoiceTaskLookupOverviewTasks(forceRefresh = false) {
                 );
                 const latestMeta = latestInv || {};
                 const existing = resultByInvoiceKey.get(lookupTaskKey);
+                const queueTimestamp = wdQueueTimestampForTask(task, latestMeta, bucket || status, 'Invoice');
                 const normalized = {
                     key: `${po}_${invoiceKey}`,
                     originalKey: invoiceKey,
@@ -1190,7 +1753,17 @@ async function wdBuildInvoiceTaskLookupOverviewTasks(forceRefresh = false) {
                     group: 'N/A',
                     attention,
                     enteredBy: task.enteredBy || latestMeta.enteredBy || latestMeta.updatedBy || '',
-                    date: task.date || latestMeta.invoiceDate || latestMeta.releaseDate || '',
+                    date: task.date || latestMeta.invoiceDate || '',
+                    invoiceDate: task.date || latestMeta.invoiceDate || '',
+                    linkedJobEntryKey: task.linkedJobEntryKey || latestMeta.linkedJobEntryKey || '',
+                    jobRecordDateEntered: task.jobRecordDateEntered || task.originDateEntered || task.dateEntered || latestMeta.jobRecordDateEntered || latestMeta.originDateEntered || latestMeta.dateEntered || '',
+                    originDateEntered: task.originDateEntered || latestMeta.originDateEntered || '',
+                    dateEntered: task.dateEntered || latestMeta.dateEntered || '',
+                    jobRecordTimestamp: task.jobRecordTimestamp || latestMeta.jobRecordTimestamp || task.originTimestamp || latestMeta.originTimestamp || '',
+                    queueLabel: wdQueueLabelForTask(bucket || status, 'Invoice'),
+                    queueTimestamp,
+                    queueText: wdQueueFullText(queueTimestamp),
+                    queueTone: wdQueueAgeParts(queueTimestamp).tone,
                     remarks: status,
                     status: bucket,
                     bucket,
@@ -1198,7 +1771,7 @@ async function wdBuildInvoiceTaskLookupOverviewTasks(forceRefresh = false) {
                     reportName: task.reportName || latestMeta.reportName || '',
                     vendorName,
                     note: task.note || latestMeta.note || '',
-                    timestamp: Number(task.timestamp || task.invoiceLastUpdated || latestMeta.lastUpdated || latestMeta.updatedAt || latestMeta.enteredAt || 0),
+                    timestamp: Number(queueTimestamp || task.invoiceLastUpdated || latestMeta.lastUpdated || latestMeta.updatedAt || latestMeta.enteredAt || task.timestamp || 0),
                     isUrgent: false
                 };
 
@@ -1215,29 +1788,29 @@ async function wdBuildInvoiceTaskLookupOverviewTasks(forceRefresh = false) {
     return Array.from(resultByInvoiceKey.values());
 }
 
-async function wdBuildDashboardOverviewSourceTasks(forceRefresh = false) {
-    const source = [];
+function wdOverviewInvoiceIdentity(task = {}) {
+    const po = wdText(task.originalPO || task.po || '');
+    const key = wdText(task.originalKey || task.invoiceKey || task.key || '');
+    const ref = wdText(task.invEntryID || task.ref || '');
+    return `${po}||${key || ref}`;
+}
 
-    // 9.3.7: Dashboard status counts must match Invoice Management / Invoice Records.
-    // Do not count Invoice Job Records for For SRV/On Hold/Report/In Process/etc.
-    // Those Job Record rows are historical workflow echoes and can inflate the cards.
-    // All Active invoice-status buckets are built from Firebase invoice_entries
-    // via allInvoiceData. IPC remains the only dashboard bucket rebuilt from Job Records.
+async function wdBuildDashboardOverviewSourceTasks(forceRefresh = false) {
+    const sourceMap = new Map();
+
+    // 9.8.7: Correct source rule before CEO presentation:
+    // - For SRV / On Hold / In Process / Pending / Unresolved / Report come
+    //   directly from Invoice Management invoice_entries.
+    // - IPC comes from Job Records only.
+    // - invoice_tasks_by_user is not used for status tabs because it can be stale.
+    await wdEnsureDashboardInvoiceEntriesFetched(forceRefresh);
+    const currentInvoiceTasks = await wdBuildInvoiceRecordOverviewTasks(forceRefresh);
+    currentInvoiceTasks.forEach(task => sourceMap.set(wdOverviewInvoiceIdentity(task), task));
+
     try { await wdEnsureDashboardJobEntriesFetched(forceRefresh); }
     catch (e) { console.warn('WorkDesk dashboard could not refresh Job Records:', e); }
-    if (typeof ensureApproverDataCached === 'function') {
-        try { await ensureApproverDataCached(forceRefresh); }
-        catch (e) { console.warn('WorkDesk dashboard could not refresh approver data:', e); }
-    }
-    if (typeof ensureInvoiceDataFetched === 'function') {
-        try { await ensureInvoiceDataFetched(forceRefresh); }
-        catch (e) { console.warn('WorkDesk dashboard could not refresh Invoice Records:', e); }
-    }
 
-    const invoiceRecordTasks = await wdBuildInvoiceRecordOverviewTasks(forceRefresh);
-    source.push(...invoiceRecordTasks);
-
-    return source;
+    return Array.from(sourceMap.values());
 }
 
 async function wdBuildDashboardTasks(options = {}) {
@@ -1281,8 +1854,114 @@ async function wdBuildDashboardTasks(options = {}) {
         unique.push(task);
     }
 
-    return unique.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    return unique.sort(wdCompareDashboardPriority);
 }
+async function wdSoftRebuildDashboardFromLiveSource(reason = '') {
+    if (!wdIsDashboardVisible()) return;
+
+    const previousStatus = wdActiveDashboardSelectedStatus || WD_DASHBOARD_NONE;
+    const previousDate = wdActiveDashboardSelectedQueueDate || '';
+
+    try {
+        wdActiveDashboardTasks = await wdBuildDashboardTasks({ forceRefresh: false });
+        wdActiveDashboardCacheMeta = { fromCache: false, savedAt: Date.now(), reason: reason || 'live-sync' };
+        wdSaveDashboardCache(wdActiveDashboardTasks, wdPersonalDashboardTasks);
+
+        wdActiveDashboardSelectedStatus = wdDashboardFilterExists(previousStatus) ? previousStatus : WD_DASHBOARD_NONE;
+        wdActiveDashboardSelectedQueueDate = previousDate;
+
+        wdRenderDashboardCards();
+        wdRenderDashboardList();
+        wdBindDashboardControls();
+    } catch (e) {
+        console.warn('WorkDesk dashboard live sync failed:', e);
+    }
+}
+
+function wdScheduleDashboardLiveSync(reason = 'live-change', delay = 900) {
+    if (!wdIsDashboardVisible()) return;
+    if (wdDashboardLiveSyncTimer) clearTimeout(wdDashboardLiveSyncTimer);
+    wdDashboardLiveSyncTimer = setTimeout(() => {
+        wdDashboardLiveSyncTimer = null;
+        wdClearDashboardCache();
+        wdSoftRebuildDashboardFromLiveSource(reason);
+    }, delay);
+}
+
+function wdStartDashboardActiveTaskLiveSync() {
+    if (wdDashboardLiveSyncStarted) return;
+    wdDashboardLiveSyncStarted = true;
+
+    // 9.7.6: Active Task is the personal source of truth. When Active Task finishes
+    // loading/cleaning stale rows, Dashboard immediately reuses that exact list.
+    try {
+        window.addEventListener('iba:active-tasks-updated', (event) => {
+            const detail = event && event.detail ? event.detail : {};
+            if (String(detail.mode || '').toLowerCase() !== 'workdesk') return;
+            wdScheduleDashboardLiveSync('active-task-updated', 250);
+        });
+    } catch (e) { /* ignore */ }
+
+    // Lightweight Firebase listener: watch only the active task lookup, not full
+    // invoice_entries/job_entries. Normal users listen only to their own inbox + All;
+    // Admin/Super Admin listen to the small lookup root for All Active cards.
+    try {
+        if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) return;
+
+        if (wdCanSeeAllActiveDashboard()) {
+            wdDashboardTaskLookupRootRef = invoiceDb.ref('invoice_tasks_by_user');
+            wdDashboardTaskLookupRootRef.on('value', (snapshot) => {
+                wdSetInvoiceTaskLookupLiveCache(snapshot.val() || {}, 'root-listener');
+                wdScheduleDashboardLiveSync('task-index-root', 1000);
+            });
+        } else {
+            const safeName = wdCurrentSafeUserTaskKey();
+            const personalNodes = {};
+            let personalListenerPrimed = false;
+            let activeTaskReloadTimer = null;
+            const updatePersonalLiveCache = () => {
+                wdSetInvoiceTaskLookupLiveCache(personalNodes, 'personal-listener');
+
+                // The first Firebase .on('value') callback is only the initial small
+                // snapshot. Do not reload Active Task again because Dashboard has just
+                // built it. Later callbacks represent real changes and can be refreshed.
+                if (!personalListenerPrimed) {
+                    personalListenerPrimed = true;
+                    wdScheduleDashboardLiveSync('personal-task-index-initial', 1200);
+                    return;
+                }
+
+                if (activeTaskReloadTimer) clearTimeout(activeTaskReloadTimer);
+                activeTaskReloadTimer = setTimeout(() => {
+                    activeTaskReloadTimer = null;
+                    // Let Active Task perform its existing accurate cleanup/filter logic,
+                    // then Dashboard reuses the saved Active Task snapshot event.
+                    if (typeof populateActiveTasks === 'function') {
+                        try { populateActiveTasks(false); } catch (_) { wdScheduleDashboardLiveSync('personal-task-index', 1000); }
+                    } else {
+                        wdScheduleDashboardLiveSync('personal-task-index', 1000);
+                    }
+                }, 1500);
+            };
+
+            if (safeName) {
+                wdDashboardTaskLookupPersonalRef = invoiceDb.ref(`invoice_tasks_by_user/${safeName}`);
+                wdDashboardTaskLookupPersonalRef.on('value', (snapshot) => {
+                    personalNodes[safeName] = snapshot.val() || {};
+                    updatePersonalLiveCache();
+                });
+            }
+            wdDashboardTaskLookupAllRef = invoiceDb.ref('invoice_tasks_by_user/All');
+            wdDashboardTaskLookupAllRef.on('value', (snapshot) => {
+                personalNodes.All = snapshot.val() || {};
+                updatePersonalLiveCache();
+            });
+        }
+    } catch (e) {
+        console.warn('WorkDesk dashboard live listener could not start:', e);
+    }
+}
+
 async function populateWorkdeskDashboard(forceRefresh = false) {
     const cardsEl = document.getElementById('wd-active-dashboard-cards');
     const listEl = document.getElementById('wd-active-dashboard-list');
@@ -1316,6 +1995,7 @@ async function populateWorkdeskDashboard(forceRefresh = false) {
                 wdRenderDashboardCards();
                 wdRenderDashboardList();
                 wdBindDashboardControls();
+                wdStartDashboardActiveTaskLiveSync();
                 return;
             }
         }
@@ -1330,6 +2010,7 @@ async function populateWorkdeskDashboard(forceRefresh = false) {
         wdRenderDashboardCards();
         wdRenderDashboardList();
         wdBindDashboardControls();
+        wdStartDashboardActiveTaskLiveSync();
     } catch (error) {
         console.error('Error loading WorkDesk dashboard control center:', error);
         cardsEl.innerHTML = '<div class="wd-dashboard-error-card"><i class="fa-solid fa-triangle-exclamation"></i> Unable to load dashboard tasks.</div>';
@@ -1348,6 +2029,7 @@ function wdBindDashboardControls() {
             const card = e.target.closest('.wd-active-status-card');
             if (!card) return;
             wdActiveDashboardSelectedStatus = card.dataset.status || WD_DASHBOARD_ALL;
+            wdActiveDashboardSelectedQueueDate = '';
             wdRenderDashboardCards();
             wdRenderDashboardList();
         });
@@ -1376,6 +2058,17 @@ function wdBindDashboardControls() {
     if (searchInput && !searchInput.dataset.bound) {
         searchInput.dataset.bound = 'true';
         searchInput.addEventListener('input', () => wdRenderDashboardList());
+    }
+
+    const listEl = document.getElementById('wd-active-dashboard-list');
+    if (listEl && !listEl.dataset.dateTabsBound) {
+        listEl.dataset.dateTabsBound = 'true';
+        listEl.addEventListener('click', (e) => {
+            const tab = e.target.closest('.wd-date-tab');
+            if (!tab) return;
+            wdActiveDashboardSelectedQueueDate = tab.dataset.dateKey || '';
+            wdRenderDashboardList();
+        });
     }
 }
 
@@ -1515,6 +2208,8 @@ function wdGetFilteredDashboardTasks() {
                 task.attention,
                 task.note,
                 task.ipc,
+                task.queueLabel,
+                task.queueText,
                 task.type,
                 task.amount
             ].join(' ').toLowerCase();
@@ -1522,7 +2217,7 @@ function wdGetFilteredDashboardTasks() {
         });
     }
 
-    return tasks;
+    return tasks.slice().sort(wdCompareDashboardPriority);
 }
 
 function wdRenderDashboardList() {
@@ -1532,7 +2227,7 @@ function wdRenderDashboardList() {
     if (!listEl) return;
 
     const selected = wdActiveDashboardSelectedStatus || WD_DASHBOARD_NONE;
-    const tasks = wdGetFilteredDashboardTasks();
+    const baseTasks = wdGetFilteredDashboardTasks();
     const selectedLabel = selected === WD_DASHBOARD_NONE
         ? 'Select a status card'
         : ((wdActiveDashboardSelectedStatus || '').startsWith(WD_DASHBOARD_MY_STATUS_PREFIX)
@@ -1540,34 +2235,31 @@ function wdRenderDashboardList() {
             : (wdCanSeeAllActiveDashboard() ? wdDashboardSelectedLabel() : 'My Personal Tasks'));
 
     if (titleEl) titleEl.textContent = selectedLabel;
-    if (summaryEl) {
-        const cacheSuffix = wdActiveDashboardCacheMeta && wdActiveDashboardCacheMeta.fromCache
-            ? ` · browser cache ${wdCacheAgeText(wdActiveDashboardCacheMeta.savedAt)}`
-            : '';
-        summaryEl.textContent = selected === WD_DASHBOARD_NONE
-            ? (wdCanSeeAllActiveDashboard()
-                ? `Click any All Active or My Personal status card to review its list${cacheSuffix}`
-                : `Click a My Personal Task status card to review its list${cacheSuffix}`)
-            : (wdCanSeeAllActiveDashboard()
-                ? `${tasks.length} active task${tasks.length === 1 ? '' : 's'} shown · active-status dashboard only · ${wdAccessLabel()}${cacheSuffix}`
-                : `${tasks.length} personal task${tasks.length === 1 ? '' : 's'} shown · tasks addressed to your name only${cacheSuffix}`);
-    }
 
     if (selected === WD_DASHBOARD_NONE) {
+        if (summaryEl) {
+            const cacheSuffix = wdActiveDashboardCacheMeta && wdActiveDashboardCacheMeta.fromCache
+                ? ` · browser cache ${wdCacheAgeText(wdActiveDashboardCacheMeta.savedAt)}`
+                : '';
+            summaryEl.textContent = wdCanSeeAllActiveDashboard()
+                ? `Click any All Active or My Personal status card to review its date tabs${cacheSuffix}`
+                : `Click a My Personal Task status card to review its date tabs${cacheSuffix}`;
+        }
         listEl.innerHTML = `
             <div class="wd-dashboard-empty-state">
                 <span class="wd-empty-icon"><i class="fa-solid fa-hand-pointer"></i></span>
                 <div>
                     <strong>No list loaded yet</strong>
                     <p>${wdCanSeeAllActiveDashboard()
-                        ? 'Select one status card above to load only that review list.'
-                        : 'Select one My Personal Task card above to load only that personal list.'}</p>
+                        ? 'Select one status card above, then choose a date tab.'
+                        : 'Select one My Personal Task card above, then choose a date tab.'}</p>
                 </div>
             </div>`;
         return;
     }
 
     if (!wdActiveDashboardTasks.length && !wdPersonalDashboardTasks.length) {
+        if (summaryEl) summaryEl.textContent = 'No personal or active dashboard items found for your access.';
         listEl.innerHTML = `
             <div class="wd-dashboard-empty-state success">
                 <span class="wd-empty-icon"><i class="fa-solid fa-circle-check"></i></span>
@@ -1579,17 +2271,51 @@ function wdRenderDashboardList() {
         return;
     }
 
-    if (!tasks.length) {
+    if (!baseTasks.length) {
+        if (summaryEl) summaryEl.textContent = 'No matching task found for the selected card/search.';
         listEl.innerHTML = `
             <div class="wd-dashboard-empty-state">
                 <span class="wd-empty-icon"><i class="fa-solid fa-magnifying-glass"></i></span>
                 <div>
                     <strong>No matching task</strong>
-                    <p>Try another person, status card, or search by PO, vendor, site, attention, note, or status.</p>
+                    <p>Try another status card or search by PO, vendor, site, attention, note, or status.</p>
                 </div>
             </div>`;
         return;
     }
+
+    const dateGroups = wdBuildQueueDateGroups(baseTasks);
+    if (!dateGroups.length) {
+        listEl.innerHTML = '<div class="wd-dashboard-empty-state">No queue date available for this selection.</div>';
+        return;
+    }
+
+    if (!wdActiveDashboardSelectedQueueDate || !dateGroups.some(g => g.key === wdActiveDashboardSelectedQueueDate)) {
+        // Default to the oldest date tab. This guides priority without forcing the user.
+        wdActiveDashboardSelectedQueueDate = dateGroups[0].key;
+    }
+
+    const selectedGroup = dateGroups.find(g => g.key === wdActiveDashboardSelectedQueueDate) || dateGroups[0];
+    const tasks = (selectedGroup.tasks || []).slice().sort(wdCompareDashboardPriority);
+    const queueLabel = tasks[0]?.queueLabel || 'Queue date';
+    const cacheSuffix = wdActiveDashboardCacheMeta && wdActiveDashboardCacheMeta.fromCache
+        ? ` · browser cache ${wdCacheAgeText(wdActiveDashboardCacheMeta.savedAt)}`
+        : '';
+
+    if (summaryEl) {
+        summaryEl.textContent = `${tasks.length} task${tasks.length === 1 ? '' : 's'} shown for ${selectedGroup.fullLabel} · ${baseTasks.length} total in this card${cacheSuffix}`;
+    }
+
+    const tabsHtml = dateGroups.map(group => {
+        const active = group.key === selectedGroup.key ? 'active' : '';
+        const age = group.tasks[0]?.queueTimestamp ? wdQueueAgeParts(group.tasks[0].queueTimestamp).text : '';
+        return `
+            <button class="wd-date-tab ${active}" type="button" data-date-key="${wdSafe(group.key)}" aria-label="Show ${wdSafe(group.fullLabel)} tasks">
+                <span class="wd-date-tab-day">${wdSafe(group.label)}</span>
+                <span class="wd-date-tab-count">${group.tasks.length}</span>
+                ${age ? `<small>${wdSafe(age)}</small>` : ''}
+            </button>`;
+    }).join('');
 
     const cards = tasks.map((task, index) => {
         const statusTone = wdStatusTone(task.bucket || task.status);
@@ -1598,10 +2324,13 @@ function wdRenderDashboardList() {
         const invoicePdf = wdBuildPdfButton('Invoice PDF', PDF_BASE_PATH, task.invName, 'invoice');
         const reportPdf = wdBuildPdfButton('Report PDF', REPORT_BASE_PATH, task.reportName, 'report');
         const poDisplay = task.po || task.ref || 'N/A';
-        const dateText = wdFormatDashboardDate(task.date);
+        const dateText = wdFormatDashboardDate(task.invoiceDate || task.date);
         const amountText = wdText(task.amount);
+        const taskQueueLabel = task.queueLabel || wdQueueLabelForTask(task.personalBucket || task.bucket || task.status, task.type);
+        const queueTime = wdQueueTimeText(task.queueTimestamp || task.timestamp);
         const metaPieces = [];
-        if (dateText) metaPieces.push(`<span><i class="fa-regular fa-calendar"></i> ${wdSafe(dateText)}</span>`);
+        metaPieces.push(`<span class="wd-queue-time"><i class="fa-regular fa-clock"></i> ${wdSafe(taskQueueLabel)}: ${wdSafe(queueTime)}</span>`);
+        if (dateText) metaPieces.push(`<span><i class="fa-regular fa-calendar"></i> Invoice Date: ${wdSafe(dateText)}</span>`);
         if (amountText) metaPieces.push(`<span><i class="fa-solid fa-coins"></i> ${wdSafe(amountText)}</span>`);
         if (task.attention) metaPieces.push(`<span><i class="fa-solid fa-user-check"></i> ${wdSafe(task.attention)}</span>`);
         metaPieces.push(`<span><i class="fa-solid fa-tag"></i> ${wdSafe(task.type || 'Invoice')}</span>`);
@@ -1649,15 +2378,19 @@ function wdRenderDashboardList() {
     }).join('');
 
     listEl.innerHTML = `
-        <div class="wd-task-board">
+        <div class="wd-task-board wd-task-board-date-tabs">
             <div class="wd-task-board-head">
                 <div>
-                    <span class="wd-board-label">Current queue</span>
+                    <span class="wd-board-label">${wdSafe(queueLabel)} date queue</span>
                     <strong>${tasks.length}</strong>
-                    <span>${tasks.length === 1 ? 'entry needs attention' : 'entries need attention'}</span>
+                    <span>${wdSafe(selectedGroup.fullLabel)} · ${tasks.length === 1 ? 'entry' : 'entries'}</span>
                 </div>
                 <div class="wd-board-access-pill"><i class="fa-solid fa-eye"></i> ${wdSafe(wdAccessLabel())}</div>
             </div>
+            <div class="wd-date-tabs-wrap" role="tablist" aria-label="Queue date filter">
+                ${tabsHtml}
+            </div>
+            <div class="wd-date-tabs-note"><i class="fa-solid fa-arrow-down-short-wide"></i> Oldest date is selected first. Users may click any date tab when a newer item is more urgent.</div>
             <div class="wd-task-card-list">${cards}</div>
         </div>`;
 }

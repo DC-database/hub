@@ -293,16 +293,11 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
                     const reportViewLink = (finalReportName && finalReportName.toLowerCase() !== 'nil') ? `<a href="${REPORT_BASE_PATH}${encodeURIComponent(finalReportName)}.pdf" target="_blank" class="action-btn" style="background-color: #6f42c1; color: white;" onclick="event.stopPropagation();" title="View Report PDF">Rpt</a>` : '';
 
                     let historyBtn = (inv.history || inv.createdAt || inv.originTimestamp) ? `<button type="button" class="history-btn action-btn" onclick="event.stopPropagation(); showInvoiceHistory('${poData.poNumber}', '${inv.key}')"><i class="fa-solid fa-clock-rotate-left"></i></button>` : '';
-                    let editBtn = `<button type="button" class="edit-inv-no-btn action-btn" data-po="${poData.poNumber}" data-key="${inv.key}" data-current="${inv.invNumber || ''}"><i class="fa-solid fa-pen-to-square"></i></button>`;
+                    let editBtn = `<button type="button" class="edit-inv-no-btn im-enter-inv-btn action-btn" data-po="${poData.poNumber}" data-key="${inv.key}" data-current="${inv.invNumber || ''}" title="Enter New Invoice Number" aria-label="Enter New Invoice Number"><i class="fa-solid fa-pen-to-square im-enter-inv-icon" style="color:#ffda1f !important; -webkit-text-fill-color:#ffda1f !important; fill:#ffda1f !important; text-shadow:0 1px 2px rgba(0,0,0,.45);"></i></button>`;
             
+                    // 9.5.9: Removed the separate printer + "Report" action button from Invoice Records.
+                    // The compact "Rpt" button above remains the report PDF link.
                     let printReportBtn = '';
-                    if (inv.status === 'Report Approved') {
-                        if (inv.reportPrinted) {
-                            printReportBtn = `<button type="button" class="action-btn" style="background-color: #6c757d; color: white; cursor: not-allowed;" title="Locked"><i class="fa-solid fa-lock"></i> Locked</button>`;
-                        } else {
-                            printReportBtn = `<button type="button" class="action-btn" style="background-color: #00748C; color: white;" onclick="event.stopPropagation(); printFinalFinanceReport('${poData.poNumber}', '${inv.key}')" title="Print Report"><i class="fa-solid fa-print"></i> Report</button>`;
-                        }
-                    }
 
                     let stickerBtn = '';
                     if (canPrintSticker && inv.esn) {
@@ -318,7 +313,7 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
                         </button>`;
                     }
 
-                    actionButtonsHTML = `<div class="modern-action-group" style="display:flex; gap:3px;">${editBtn} ${invPDFLink} ${srvPDFLink} ${reportViewLink} ${printReportBtn} ${historyBtn} ${stickerBtn} ${waBtn}</div>`;
+                    actionButtonsHTML = `<div class="modern-action-group im-record-actions">${editBtn} ${invPDFLink} ${srvPDFLink} ${reportViewLink} ${historyBtn} ${stickerBtn} ${waBtn}</div>`;
                 } else if ((inv.source || '').toLowerCase() === 'ecommit' && isAllowedUser) {
                     actionButtonsHTML = `<span style="font-size:0.8rem; color:#6f42c1; font-weight:bold; cursor:pointer;"><i class="fa-solid fa-file-import"></i> Click to Import</span>`;
                 }
@@ -384,35 +379,35 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
                         <div class="grid-cell" style="font-weight: 800; font-family: monospace; color: ${poData.balance < 0 ? '#ef4444' : '#1e293b'}">${balanceDisplay}</div>
                     </div>
             
-                    <div class="detail-grid-row" style="padding: 15px 20px 25px 20px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; box-sizing: border-box; width: 100%;">
-                        <div style="background: #fff; padding: 15px 20px; border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: 0 4px 6px rgba(0,0,0,0.02); box-sizing: border-box; width: 100%;">
-                            <h4 style="margin: 0 0 15px 0; color: #0f172a; font-size: 15px;">Invoice Entries for PO ${poData.poNumber}</h4>
-                            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
-                                <thead>
-                                    <tr style="border-bottom: 2px solid #cbd5e1; color: #475569; font-size: 11px; text-transform: uppercase;">
-                                        <th style="padding-bottom: 10px; padding-left: 5px;">Inv. Entry</th>
-                                        <th style="padding-bottom: 10px; padding-left: 5px;">Inv. No.</th>
-                                        <th style="padding-bottom: 10px; padding-left: 5px;">Inv. Date</th>
-                                        <th style="padding-bottom: 10px; padding-left: 5px; text-align: right;">Inv. Value</th>
-                                        <th style="padding-bottom: 10px; padding-left: 5px; text-align: right;">Amt. Paid</th>
-                                        <th style="padding-bottom: 10px; padding-left: 5px;">Release Date</th>
-                                        <th style="padding-bottom: 10px; padding-left: 5px;">Status</th>
-                                        <th style="padding-bottom: 10px; padding-left: 5px;">Note</th>
-                                        <th style="padding-bottom: 10px; padding-left: 5px;">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>${innerRows}</tbody>
-                                <tfoot>
-                                    <tr style="border-top: 2px solid #cbd5e1; background-color: #f8fafc;">
-                                        <td colspan="3" style="text-align: right; padding: 12px 5px; font-weight: 700; color: #475569;">TOTAL</td>
-                                        <td style="text-align: right; font-family: monospace; padding: 12px 5px; font-weight: 800; color: #0f172a; font-size: 14px;">${totalInvValueDisplay}</td>
-                                        <td style="text-align: right; font-family: monospace; padding: 12px 5px; font-weight: 800; color: #0f172a; font-size: 14px;">${totalAmountPaidDisplay}</td>
-                                        <td style="color: ${diffColor}; font-family: monospace; padding: 12px 5px; font-weight: 800; font-size: 14px;">${diffDisplay}</td>
-                                        <td colspan="3"></td>
-                                    </tr>
-                                </tfoot>
-                            </table>
+                    <div class="detail-grid-row im-invoice-entries-clean im-invoice-entries-flat" style="padding: 8px 14px 12px 36px; background-color: #fbfdff; border-top: 1px solid #eef2f7; box-sizing: border-box; width: 100%; overflow: visible;">
+                        <div class="im-entries-title-strip" style="display:block; margin:0 0 6px 0; padding:0; border:0; background:transparent; box-shadow:none; line-height:1.2; color:#263238; -webkit-text-fill-color:#263238; font-size:.79rem; font-weight:700; text-transform:none; letter-spacing:0;">
+                            <span class="im-entries-title-label">Invoice Entries</span><strong class="im-entries-title-po" style="margin-left:8px; color:#b42318; -webkit-text-fill-color:#b42318; font-weight:850; font-size:.82rem;">PO ${poData.poNumber}</strong>
                         </div>
+                        <table class="im-nested-invoice-table" style="width: calc(100% - 18px); margin-left: 18px; border-collapse: collapse; text-align: left; font-size: 12px;">
+                            <thead>
+                                <tr class="im-entries-columns-row">
+                                    <th style="padding:5px 5px 6px 5px !important; border:0 !important; border-bottom:1px solid #d9e2ec !important; background:#f8fbfd !important; color:#475467 !important; -webkit-text-fill-color:#475467 !important; font-size:11px !important; font-weight:600 !important; letter-spacing:.035em !important; text-transform:uppercase !important; box-shadow:none !important; white-space:nowrap !important;">Inv. Entry</th>
+                                    <th style="padding:5px 5px 6px 5px !important; border:0 !important; border-bottom:1px solid #d9e2ec !important; background:#f8fbfd !important; color:#475467 !important; -webkit-text-fill-color:#475467 !important; font-size:11px !important; font-weight:600 !important; letter-spacing:.035em !important; text-transform:uppercase !important; box-shadow:none !important; white-space:nowrap !important;">Inv. No.</th>
+                                    <th style="padding:5px 5px 6px 5px !important; border:0 !important; border-bottom:1px solid #d9e2ec !important; background:#f8fbfd !important; color:#475467 !important; -webkit-text-fill-color:#475467 !important; font-size:11px !important; font-weight:600 !important; letter-spacing:.035em !important; text-transform:uppercase !important; box-shadow:none !important; white-space:nowrap !important;">Inv. Date</th>
+                                    <th style="padding:5px 5px 6px 5px !important; border:0 !important; border-bottom:1px solid #d9e2ec !important; background:#f8fbfd !important; color:#475467 !important; -webkit-text-fill-color:#475467 !important; font-size:11px !important; font-weight:600 !important; letter-spacing:.035em !important; text-transform:uppercase !important; box-shadow:none !important; white-space:nowrap !important; text-align:right !important;">Inv. Value</th>
+                                    <th style="padding:5px 5px 6px 5px !important; border:0 !important; border-bottom:1px solid #d9e2ec !important; background:#f8fbfd !important; color:#475467 !important; -webkit-text-fill-color:#475467 !important; font-size:11px !important; font-weight:600 !important; letter-spacing:.035em !important; text-transform:uppercase !important; box-shadow:none !important; white-space:nowrap !important; text-align:right !important;">Amt. Paid</th>
+                                    <th style="padding:5px 5px 6px 5px !important; border:0 !important; border-bottom:1px solid #d9e2ec !important; background:#f8fbfd !important; color:#475467 !important; -webkit-text-fill-color:#475467 !important; font-size:11px !important; font-weight:600 !important; letter-spacing:.035em !important; text-transform:uppercase !important; box-shadow:none !important; white-space:nowrap !important;">Release Date</th>
+                                    <th style="padding:5px 5px 6px 5px !important; border:0 !important; border-bottom:1px solid #d9e2ec !important; background:#f8fbfd !important; color:#475467 !important; -webkit-text-fill-color:#475467 !important; font-size:11px !important; font-weight:600 !important; letter-spacing:.035em !important; text-transform:uppercase !important; box-shadow:none !important; white-space:nowrap !important;">Status</th>
+                                    <th style="padding:5px 5px 6px 5px !important; border:0 !important; border-bottom:1px solid #d9e2ec !important; background:#f8fbfd !important; color:#475467 !important; -webkit-text-fill-color:#475467 !important; font-size:11px !important; font-weight:600 !important; letter-spacing:.035em !important; text-transform:uppercase !important; box-shadow:none !important; white-space:nowrap !important;">Note</th>
+                                    <th style="padding:5px 5px 6px 5px !important; border:0 !important; border-bottom:1px solid #d9e2ec !important; background:#f8fbfd !important; color:#475467 !important; -webkit-text-fill-color:#475467 !important; font-size:11px !important; font-weight:600 !important; letter-spacing:.035em !important; text-transform:uppercase !important; box-shadow:none !important; white-space:nowrap !important;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>${innerRows}</tbody>
+                            <tfoot class="im-entries-total-footer">
+                                <tr class="im-entries-total-row">
+                                    <td colspan="3" class="im-entries-total-label">TOTAL</td>
+                                    <td class="im-entries-total-value im-money-total">${totalInvValueDisplay}</td>
+                                    <td class="im-entries-total-value im-money-paid">${totalAmountPaidDisplay}</td>
+                                    <td class="im-entries-total-balance" style="color: ${diffColor}; -webkit-text-fill-color: ${diffColor};">${diffDisplay}</td>
+                                    <td colspan="3" class="im-entries-total-spacer"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
                     </div>
                 </div>
             `;
@@ -441,7 +436,7 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
                     <div class="summary-wrapper" style="background: linear-gradient(to right, #003A5C, #00748C); border-radius: 12px; box-shadow: 0 8px 20px rgba(0, 58, 92, 0.15); display: flex; justify-content: space-between; align-items: center; padding: 22px 30px; margin-top: 25px; margin-bottom: 30px; width: 100%; box-sizing: border-box; color: white;">
                         
                         <div class="summary-title-group" style="display: flex; align-items: center; gap: 15px;">
-                            <i class="fa-solid fa-calculator" style="font-size: 26px; color: #bae6fd;"></i>
+                            <span class="im-summary-icon-fallback" aria-hidden="true" style="width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(186,230,253,.85);border-radius:7px;color:#bae6fd;font-size:17px;font-weight:700;line-height:1;">Σ</span>
                             <span style="font-size: 18px; font-weight: 800; letter-spacing: 0.5px;">Search Results Summary</span>
                         </div>
                         

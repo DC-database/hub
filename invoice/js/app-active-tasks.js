@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-active-tasks.js
    IBA WorkDesk active-task renderer, filters, mobile cards, and task loader.
-   Version: 9.2.7
+   Version: 9.8.8
 
    Cleanup Phase:
    - Moved Block 14 active-task display/loading helpers out of app.js.
@@ -90,6 +90,7 @@ function renderActiveTaskTable(tasks) {
         (list.length > 0 && list.every(t => isInventoryTaskRecord(t)));
 
     if (inventoryMode) {
+        wdActiveTaskClearDateTabs();
         return renderInventoryActiveTaskTable(list);
     }
     return renderWorkdeskActiveTaskTable(list);
@@ -122,6 +123,451 @@ function wdUiStatusBadge(status, extraClass = '') {
     const tone = wdUiStatusTone(status);
     return `<span class="wd-status-badge tone-${tone} ${extraClass}">${label}</span>`;
 }
+
+
+// 9.7.9: Active Task date-tab queue helpers.
+// Keeps Active Task aligned with the Dashboard idea: older queue dates first,
+// but users can still click any date tab they want to work on.
+let wdActiveTaskSelectedDateKey = '';
+let wdActiveTaskSelectedDateStatus = '';
+
+// 9.8.5: Queue date tabs belong only to WorkDesk/Invoice Active Task.
+// Inventory Active Task is a separate module and must not inherit the WorkDesk date-tab UI.
+function wdActiveTaskClearDateTabs() {
+    const dateTabsEl = document.getElementById('active-task-date-tabs');
+    if (!dateTabsEl) return;
+    dateTabsEl.innerHTML = '';
+    dateTabsEl.style.display = 'none';
+    dateTabsEl.classList.add('wd-date-tabs-disabled');
+}
+
+function wdActiveTaskEnableDateTabs() {
+    const dateTabsEl = document.getElementById('active-task-date-tabs');
+    if (!dateTabsEl) return null;
+    dateTabsEl.style.display = '';
+    dateTabsEl.classList.remove('wd-date-tabs-disabled');
+    return dateTabsEl;
+}
+
+function wdActiveTaskParseQueueTimestamp(value) {
+    if (value == null || value === '') return 0;
+    if (typeof value === 'number' && Number.isFinite(value)) return value < 10000000000 ? value * 1000 : value;
+    const raw = String(value || '').trim();
+    if (!raw) return 0;
+    if (/^\d+$/.test(raw)) {
+        const n = Number(raw);
+        return n < 10000000000 ? n * 1000 : n;
+    }
+    const m = raw.match(/^(\d{1,2})[-\/\s]([A-Za-z]{3,}|\d{1,2})[-\/\s](\d{4})$/);
+    if (m) {
+        const months = { jan:0, january:0, feb:1, february:1, mar:2, march:2, apr:3, april:3, may:4, jun:5, june:5, jul:6, july:6, aug:7, august:7, sep:8, sept:8, september:8, oct:9, october:9, nov:10, november:10, dec:11, december:11 };
+        const day = Number(m[1]);
+        const monthRaw = String(m[2]).toLowerCase();
+        const month = /^\d+$/.test(monthRaw) ? Number(monthRaw) - 1 : months[monthRaw];
+        const year = Number(m[3]);
+        if (day > 0 && month >= 0 && month <= 11 && year > 1900) {
+            const d = new Date(year, month, day);
+            if (!Number.isNaN(d.getTime())) return d.getTime();
+        }
+    }
+    const parsed = Date.parse(raw);
+    return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function wdActiveTaskFindLinkedJobRecord(task = {}) {
+    try {
+        const list = Array.isArray(allSystemEntries) ? allSystemEntries : [];
+        if (!list.length) return null;
+        const linkedKey = task.linkedJobEntryKey || task.originJobEntryKey || task.jobEntryKey || '';
+        if (linkedKey) {
+            const found = list.find(e => e && e.key === linkedKey);
+            if (found) return found;
+        }
+        const targetTs = Number(task.jobRecordTimestamp || task.originTimestamp || 0);
+        if (targetTs) {
+            const found = list.find(e => e && Number(e.timestamp || 0) === targetTs);
+            if (found) return found;
+        }
+        return null;
+    } catch (_) {
+        return null;
+    }
+}
+
+function wdActiveTaskJobRecordEnteredTimestamp(task = {}) {
+    const linked = wdActiveTaskFindLinkedJobRecord(task);
+    const source = String(task?.source || '').toLowerCase();
+    const directJobEntryDate = (source === 'job_entry' || source === 'transfer_entry') ? task?.date : '';
+    return wdActiveTaskFirstQueueTimestamp(
+        linked?.date,
+        directJobEntryDate,
+        task?.jobRecordDateEntered,
+        task?.originDateEntered,
+        task?.dateEntered,
+        task?.entryDate,
+        task?.jobRecordTimestamp,
+        linked?.timestamp
+    );
+}
+
+// 9.8.2: Decode Firebase push IDs so old invoice/task records can still use
+// the true created/entered date for queue tabs when createdAt/enteredAt was not saved.
+// This prevents date tabs from falling back to supplier invoice date or current load time.
+function wdActiveTaskFirebasePushTimestamp(value) {
+    const PUSH_CHARS = '-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz';
+    const raw = String(value || '');
+    const candidates = [];
+    if (raw.length >= 20) {
+        const direct = raw.trim();
+        if (direct.length === 20) candidates.push(direct);
+        const matches = raw.match(/[-0-9A-Z_a-z]{20}/g) || [];
+        candidates.push(...matches);
+    }
+    for (const id of candidates.reverse()) {
+        let ts = 0;
+        let valid = true;
+        for (let i = 0; i < 8; i += 1) {
+            const c = PUSH_CHARS.indexOf(id.charAt(i));
+            if (c < 0) { valid = false; break; }
+            ts = ts * 64 + c;
+        }
+        if (valid && ts > 0) return ts;
+    }
+    return 0;
+}
+
+function wdActiveTaskKeyCreatedTimestamp(task) {
+    return wdActiveTaskFirebasePushTimestamp(
+        task?.originalKey || task?.invoiceKey || task?.firebaseKey || task?.key || task?.id || ''
+    );
+}
+
+function wdActiveTaskJobEnteredTimestamp(task) {
+    // Official New Entry grouping uses the same value shown in Job Records > Date Entered.
+    const officialJobDate = wdActiveTaskJobRecordEnteredTimestamp(task);
+    if (officialJobDate) return officialJobDate;
+
+    // Fallback for direct job_entries if the date field is missing.
+    const source = String(task?.source || '').toLowerCase();
+    const taskFor = String(task?.for || '').toLowerCase();
+    if (source === 'job_entry' || source === 'transfer_entry' || taskFor === 'invoice') {
+        return task?.timestamp;
+    }
+    return '';
+}
+
+function wdActiveTaskFirstQueueTimestamp() {
+    for (let i = 0; i < arguments.length; i += 1) {
+        const ts = wdActiveTaskParseQueueTimestamp(arguments[i]);
+        if (ts > 0) return ts;
+    }
+    return 0;
+}
+
+function wdActiveTaskQueueStatusNorm(value) {
+    return String(value || '').trim().toLowerCase().replace(/[_\-]+/g, ' ').replace(/\s+/g, ' ');
+}
+
+
+// 9.8.8: Official WorkDesk invoice-status queues must be exact matches.
+// Do not convert similar/completed statuses such as "SRV Done" to "For SRV",
+// and do not convert "Report Approved" to "Report".
+const WD_ACTIVE_EXACT_INVOICE_STATUS_MAP = {
+    'for srv': 'For SRV',
+    'on hold': 'On Hold',
+    'in process': 'In Process',
+    'pending': 'Pending',
+    'unresolved': 'Unresolved',
+    'report': 'Report'
+};
+const WD_ACTIVE_COMPLETED_OR_NON_QUEUE_STATUSES = new Set([
+    'with accounts',
+    'srv done',
+    'report approved',
+    'approved',
+    'rejected',
+    'under review',
+    'manager approved',
+    'ceo approved',
+    'cancelled',
+    'canceled',
+    'closed',
+    'paid'
+]);
+
+function wdActiveTaskExactInvoiceStatusLabel(value) {
+    const raw = wdActiveTaskQueueStatusNorm(value);
+    if (!raw || WD_ACTIVE_COMPLETED_OR_NON_QUEUE_STATUSES.has(raw)) return '';
+    return WD_ACTIVE_EXACT_INVOICE_STATUS_MAP[raw] || '';
+}
+
+function wdActiveTaskInvoiceStatusLabel(value) {
+    return wdActiveTaskExactInvoiceStatusLabel(value);
+}
+
+function wdActiveTaskIsTrackedInvoiceStatus(value) {
+    return !!wdActiveTaskInvoiceStatusLabel(value);
+}
+
+function wdActiveTaskHistoryValues(history) {
+    if (!history) return [];
+    if (Array.isArray(history)) return history.filter(Boolean);
+    if (typeof history === 'object') return Object.values(history).filter(Boolean);
+    return [];
+}
+
+function wdActiveTaskHistoryStatusMatches(entryStatus, targetStatus) {
+    const entryLabel = wdActiveTaskExactInvoiceStatusLabel(entryStatus);
+    const targetLabel = wdActiveTaskExactInvoiceStatusLabel(targetStatus);
+    if (entryLabel && targetLabel) return entryLabel === targetLabel;
+    const entry = wdActiveTaskQueueStatusNorm(entryStatus);
+    const target = wdActiveTaskQueueStatusNorm(targetStatus);
+    return !!entry && !!target && entry === target;
+}
+
+function wdActiveTaskInvoiceHistoryTimestamp(task, status) {
+    const target = wdActiveTaskQueueStatusNorm(status || task?.remarks || task?.status || '');
+    const historyList = [
+        ...wdActiveTaskHistoryValues(task?.history),
+        ...wdActiveTaskHistoryValues(task?.invoiceHistory),
+        ...wdActiveTaskHistoryValues(task?.statusHistory)
+    ];
+    let best = 0;
+    historyList.forEach(entry => {
+        const entryStatus = entry?.status || entry?.action || entry?.remarks || '';
+        if (!wdActiveTaskHistoryStatusMatches(entryStatus, target)) return;
+        const ts = wdActiveTaskFirstQueueTimestamp(entry?.timestamp, entry?.updatedAt, entry?.createdAt, entry?.date, entry?.releaseDate);
+        if (ts && ts > best) best = ts;
+    });
+    return best;
+}
+
+function wdActiveTaskIsJobNewEntry(task, status) {
+    const s = wdActiveTaskQueueStatusNorm(status || task?.remarks || task?.status || '');
+    const source = wdActiveTaskQueueStatusNorm(task?.source || '');
+    const taskFor = wdActiveTaskQueueStatusNorm(task?.for || '');
+    if (s.includes('new entry')) return true;
+    // Pending is treated as New Entry only when it is still a Job Records invoice entry.
+    // Invoice-management Pending must use invoice status/history date instead.
+    return (s === 'pending' || s === 'new') && source === 'job entry' && taskFor === 'invoice';
+}
+
+function wdActiveTaskIsIPCQueue(task, status) {
+    const s = wdActiveTaskQueueStatusNorm(status || task?.remarks || task?.status || '');
+    const source = wdActiveTaskQueueStatusNorm(task?.source || '');
+    const taskFor = wdActiveTaskQueueStatusNorm(task?.for || '');
+    return taskFor === 'ipc' || source.includes('ipc') || s.includes('ipc');
+}
+
+function wdActiveTaskInvoiceStatusTimestamp(task, status) {
+    const exactStatus = wdActiveTaskExactInvoiceStatusLabel(status || task?.remarks || task?.status || '');
+    const historyTs = wdActiveTaskInvoiceHistoryTimestamp(task, exactStatus || status);
+    const keyCreatedAt = wdActiveTaskKeyCreatedTimestamp(task);
+
+    if (exactStatus === 'For SRV') {
+        return wdActiveTaskFirstQueueTimestamp(
+            historyTs,
+            task?.statusQueueAt,
+            task?.forSrvAt,
+            task?.sentToSrvAt,
+            task?.srvRequestedAt,
+            task?.queueAt,
+            task?.statusChangedAt,
+            task?.statusUpdatedAt,
+            task?.releaseDate,
+            task?.updatedAt,
+            task?.lastUpdated,
+            task?.invoiceLastUpdated,
+            keyCreatedAt
+        );
+    }
+
+    if (exactStatus === 'Report') {
+        return wdActiveTaskFirstQueueTimestamp(
+            historyTs,
+            task?.statusQueueAt,
+            task?.reportAt,
+            task?.sentToReportAt,
+            task?.queueAt,
+            task?.statusChangedAt,
+            task?.statusUpdatedAt,
+            task?.releaseDate,
+            task?.updatedAt,
+            task?.lastUpdated,
+            task?.invoiceLastUpdated,
+            keyCreatedAt
+        );
+    }
+
+    return wdActiveTaskFirstQueueTimestamp(
+        historyTs,
+        task?.statusQueueAt,
+        task?.queueAt,
+        task?.statusChangedAt,
+        task?.statusUpdatedAt,
+        task?.releaseDate,
+        task?.updatedAt,
+        task?.lastUpdated,
+        task?.invoiceLastUpdated,
+        keyCreatedAt
+    );
+}
+
+function wdActiveTaskQueueTimestamp(task) {
+    const status = String(task?.remarks || task?.status || '').trim();
+    const keyCreatedAt = wdActiveTaskKeyCreatedTimestamp(task);
+    const jobEnteredAt = wdActiveTaskJobEnteredTimestamp(task);
+
+    // IMPORTANT: Date tabs must never use supplier invoice date (task.date / invoiceDate).
+    // New Entry uses Job Records Date Entered; IPC uses Job Records; invoice statuses
+    // use Invoice Entry status/history date.
+    if (wdActiveTaskIsJobNewEntry(task, status)) {
+        return wdActiveTaskFirstQueueTimestamp(
+            jobEnteredAt,
+            task?.jobRecordDateEntered,
+            task?.originDateEntered,
+            task?.dateEntered,
+            task?.entryDate,
+            task?.createdAt,
+            task?.enteredAt,
+            task?.dateAdded,
+            task?.originTimestamp,
+            task?.dateCreated,
+            keyCreatedAt
+        );
+    }
+
+    if (wdActiveTaskIsIPCQueue(task, status)) {
+        return wdActiveTaskFirstQueueTimestamp(
+            task?.ipcAt,
+            task?.ipcQueueAt,
+            task?.statusQueueAt,
+            task?.queueAt,
+            task?.statusChangedAt,
+            task?.statusUpdatedAt,
+            jobEnteredAt,
+            task?.jobRecordDateEntered,
+            task?.originDateEntered,
+            task?.dateEntered,
+            task?.entryDate,
+            task?.jobRecordTimestamp,
+            task?.originTimestamp,
+            keyCreatedAt
+        );
+    }
+
+    return wdActiveTaskInvoiceStatusTimestamp(task, status);
+}
+
+function wdActiveTaskDateKey(timestamp) {
+    const ts = Number(timestamp || 0);
+    if (!ts) return 'unknown';
+    const d = new Date(ts);
+    if (Number.isNaN(d.getTime())) return 'unknown';
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function wdActiveTaskDateFromKey(key) {
+    if (!key || key === 'unknown') return null;
+    const parts = String(key).split('-').map(Number);
+    if (parts.length !== 3 || parts.some(n => Number.isNaN(n))) return null;
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+
+function wdActiveTaskDateLabel(key) {
+    const d = wdActiveTaskDateFromKey(key);
+    return d ? d.toLocaleDateString(undefined, { month: 'short', day: '2-digit' }) : 'No Date';
+}
+
+function wdActiveTaskFullDateLabel(key) {
+    const d = wdActiveTaskDateFromKey(key);
+    return d ? d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' }) : 'Date not tracked';
+}
+
+function wdActiveTaskAgeText(timestamp) {
+    const ts = Number(timestamp || 0);
+    if (!ts) return 'not tracked';
+    const days = Math.floor(Math.max(0, Date.now() - ts) / 86400000);
+    if (days <= 0) return 'Today';
+    if (days === 1) return 'Yesterday';
+    return `${days} days`;
+}
+
+function wdActiveTaskBuildDateGroups(tasks) {
+    const groups = new Map();
+    (Array.isArray(tasks) ? tasks : []).forEach(task => {
+        const queueTs = wdActiveTaskQueueTimestamp(task);
+        const key = wdActiveTaskDateKey(queueTs);
+        if (!groups.has(key)) {
+            groups.set(key, {
+                key,
+                label: wdActiveTaskDateLabel(key),
+                fullLabel: wdActiveTaskFullDateLabel(key),
+                timestamp: queueTs || 0,
+                tasks: []
+            });
+        }
+        groups.get(key).tasks.push({ ...task, _activeQueueTimestamp: queueTs || 0 });
+    });
+    return Array.from(groups.values()).sort((a, b) => {
+        if (a.key === 'unknown' && b.key !== 'unknown') return 1;
+        if (b.key === 'unknown' && a.key !== 'unknown') return -1;
+        return (a.timestamp || 0) - (b.timestamp || 0);
+    });
+}
+
+function wdActiveTaskCompareQueue(a, b) {
+    const qa = Number(a?._activeQueueTimestamp || wdActiveTaskQueueTimestamp(a) || 0);
+    const qb = Number(b?._activeQueueTimestamp || wdActiveTaskQueueTimestamp(b) || 0);
+    if (qa && qb && qa !== qb) return qa - qb;
+    if (qa && !qb) return -1;
+    if (!qa && qb) return 1;
+    return (Number(a?.timestamp || 0) || 0) - (Number(b?.timestamp || 0) || 0);
+}
+
+function wdActiveTaskQueueFields(task, invMeta = {}) {
+    const decodedCreatedAt = wdActiveTaskFirebasePushTimestamp(task?.originalKey || task?.invoiceKey || task?.key || invMeta?.key || '');
+    const jobRecordDateEntered = task?.jobRecordDateEntered || task?.originDateEntered || task?.dateEntered || invMeta?.jobRecordDateEntered || invMeta?.originDateEntered || invMeta?.dateEntered || '';
+    const jobRecordTimestamp = task?.jobRecordTimestamp || invMeta?.jobRecordTimestamp || invMeta?.originTimestamp || task?.originTimestamp || '';
+    const createdAt = jobRecordDateEntered || task?.createdAt || invMeta?.createdAt || invMeta?.enteredAt || task?.enteredAt || task?.originTimestamp || invMeta?.originTimestamp || task?.dateAdded || invMeta?.dateAdded || decodedCreatedAt || '';
+    const enteredAt = jobRecordDateEntered || task?.enteredAt || invMeta?.enteredAt || task?.createdAt || invMeta?.createdAt || task?.originTimestamp || invMeta?.originTimestamp || task?.dateAdded || invMeta?.dateAdded || decodedCreatedAt || '';
+    const releaseDate = task?.releaseDate || invMeta?.releaseDate || '';
+    const statusHistoryAt = wdActiveTaskInvoiceHistoryTimestamp({ ...task, history: task?.history || invMeta?.history }, task?.status || task?.remarks || invMeta?.status || '');
+    const statusChangedAt = task?.statusChangedAt || task?.statusUpdatedAt || invMeta?.statusChangedAt || invMeta?.statusUpdatedAt || task?.queueAt || invMeta?.queueAt || releaseDate || '';
+    const statusQueueAt = task?.statusQueueAt || invMeta?.statusQueueAt || statusHistoryAt || statusChangedAt || '';
+    const queueAt = task?.queueAt || invMeta?.queueAt || statusQueueAt || createdAt || releaseDate || '';
+    return {
+        createdAt,
+        enteredAt,
+        dateAdded: task?.dateAdded || invMeta?.dateAdded || '',
+        originTimestamp: task?.originTimestamp || invMeta?.originTimestamp || '',
+        linkedJobEntryKey: task?.linkedJobEntryKey || invMeta?.linkedJobEntryKey || '',
+        jobRecordDateEntered,
+        originDateEntered: task?.originDateEntered || invMeta?.originDateEntered || jobRecordDateEntered || '',
+        dateEntered: task?.dateEntered || invMeta?.dateEntered || jobRecordDateEntered || '',
+        jobRecordTimestamp,
+        releaseDate,
+        statusChangedAt,
+        statusUpdatedAt: task?.statusUpdatedAt || invMeta?.statusUpdatedAt || statusChangedAt || '',
+        statusQueueAt,
+        queueAt,
+        forSrvAt: task?.forSrvAt || invMeta?.forSrvAt || '',
+        sentToSrvAt: task?.sentToSrvAt || invMeta?.sentToSrvAt || '',
+        srvRequestedAt: task?.srvRequestedAt || invMeta?.srvRequestedAt || '',
+        history: task?.history || invMeta?.history || null,
+        invoiceHistory: task?.invoiceHistory || invMeta?.history || null,
+        invoiceLastUpdated: task?.invoiceLastUpdated || invMeta?.lastUpdated || invMeta?.updatedAt || invMeta?.enteredAt || 0
+    };
+}
+
+window.wdSelectActiveTaskDateTab = function(dateKey) {
+    wdActiveTaskSelectedDateKey = String(dateKey || '');
+    wdActiveTaskSelectedDateStatus = String(currentActiveTaskFilter || '');
+    if (typeof handleActiveTaskSearch === 'function') {
+        const input = document.getElementById('active-task-search');
+        handleActiveTaskSearch(input ? input.value : '');
+    }
+};
 
 function wdUiUpdateMiniMetrics(containerId, entries, modeLabel) {
     const box = document.getElementById(containerId);
@@ -158,6 +604,7 @@ function wdUiUpdateMiniMetrics(containerId, entries, modeLabel) {
 
 function wdUiSetActiveTaskHeroContext(mode) {
     const isInventory = String(mode || '').toLowerCase() === 'inventory';
+    if (isInventory) wdActiveTaskClearDateTabs();
     const hero = document.querySelector('#wd-activetask .wd-page-hero');
     if (hero) {
         hero.classList.toggle('wd-page-hero-inventory', isInventory);
@@ -209,10 +656,45 @@ function renderWorkdeskActiveTaskTable(tasks) {
     const summaryStrip = document.getElementById('active-task-summary-strip');
     if (summaryStrip) summaryStrip.innerHTML = '';
 
-    const filteredTasks = workdeskTasks.filter(function(task) {
+    const statusFilteredTasks = workdeskTasks.filter(function(task) {
         if (currentActiveTaskFilter === 'All') return true;
         return task.remarks === currentActiveTaskFilter;
     });
+
+    const dateTabsEl = wdActiveTaskEnableDateTabs();
+    const dateGroups = wdActiveTaskBuildDateGroups(statusFilteredTasks);
+    if (dateTabsEl) {
+        if (!dateGroups.length) {
+            wdActiveTaskClearDateTabs();
+        } else {
+            if (wdActiveTaskSelectedDateStatus !== String(currentActiveTaskFilter || '')) {
+                wdActiveTaskSelectedDateKey = '';
+                wdActiveTaskSelectedDateStatus = String(currentActiveTaskFilter || '');
+            }
+            if (!wdActiveTaskSelectedDateKey || !dateGroups.some(g => g.key === wdActiveTaskSelectedDateKey)) {
+                wdActiveTaskSelectedDateKey = dateGroups[0].key;
+            }
+            const tabs = dateGroups.map(group => {
+                const active = group.key === wdActiveTaskSelectedDateKey ? 'active' : '';
+                const age = group.timestamp ? wdActiveTaskAgeText(group.timestamp) : '';
+                return `
+                    <button class="wd-date-tab ${active}" type="button" onclick="window.wdSelectActiveTaskDateTab('${wdUiEscape(group.key)}')" title="Show ${wdUiEscape(group.fullLabel)} tasks">
+                        <span class="wd-date-tab-day">${wdUiEscape(group.label)}</span>
+                        <span class="wd-date-tab-count">${group.tasks.length}</span>
+                        ${age ? `<small>${wdUiEscape(age)}</small>` : ''}
+                    </button>`;
+            }).join('');
+            dateTabsEl.innerHTML = `
+                <div class="wd-active-date-tabs-head">
+                    <span><i class="fa-regular fa-calendar-days"></i> Queue Date</span>
+                    <small>Oldest date is selected first. You can still choose any date.</small>
+                </div>
+                <div class="wd-date-tabs-wrap" role="tablist" aria-label="Active task queue date filter">${tabs}</div>`;
+        }
+    }
+
+    const selectedDateGroup = dateGroups.find(g => g.key === wdActiveTaskSelectedDateKey) || dateGroups[0];
+    const filteredTasks = selectedDateGroup ? selectedDateGroup.tasks.slice().sort(wdActiveTaskCompareQueue) : [];
 
     const tableHead = document.querySelector('#wd-activetask table thead');
     if (tableHead) {
@@ -338,17 +820,34 @@ function wdActiveTaskCacheUserKey() {
 }
 
 function wdSaveActiveTaskSessionSnapshot(mode, tasks) {
+    const savedAt = Date.now();
+    const userKey = wdActiveTaskCacheUserKey();
     try {
         window.IBA_ACTIVE_TASK_LAST_MODE = mode;
-        window.IBA_ACTIVE_TASK_LOADED_AT = Date.now();
-        if (mode !== 'workdesk' || !Array.isArray(tasks)) return;
-        window.sessionStorage.setItem('IBA_ACTIVE_TASK_WORKDESK_SNAPSHOT_V2', JSON.stringify({
-            userKey: wdActiveTaskCacheUserKey(),
-            savedAt: Date.now(),
-            tasks: tasks
-        }));
+        window.IBA_ACTIVE_TASK_LOADED_AT = savedAt;
+        if (mode === 'workdesk' && Array.isArray(tasks)) {
+            window.sessionStorage.setItem('IBA_ACTIVE_TASK_WORKDESK_SNAPSHOT_V2', JSON.stringify({
+                userKey,
+                savedAt,
+                tasks: tasks
+            }));
+        }
     } catch (e) {
         // Storage can fail in private mode. Never block task rendering.
+    } finally {
+        // 9.7.6: Let WorkDesk Dashboard reuse the exact Active Task result instead
+        // of rebuilding from another heavy source. This keeps Dashboard and Active
+        // Task in sync after deletes/completions while avoiding extra full reads.
+        try {
+            window.dispatchEvent(new CustomEvent('iba:active-tasks-updated', {
+                detail: {
+                    mode,
+                    userKey,
+                    savedAt,
+                    count: Array.isArray(tasks) ? tasks.length : 0
+                }
+            }));
+        } catch (_) { /* ignore */ }
     }
 }
 
@@ -567,172 +1066,30 @@ const getTaskSiteForMatch = (t) =>
             if (task.remarks === 'SRV Done') isUrgent = false;
             
             const source = ['Transfer', 'Restock', 'Return', 'Usage'].includes(task.for) ? 'transfer_entry' : 'job_entry';
-            return { ...task, source: source, isUrgent: isUrgent, remarks: displayStatus };
+            return {
+                ...task,
+                source: source,
+                jobRecordDateEntered: task.date || '',
+                dateEntered: task.date || '',
+                jobRecordTimestamp: task.timestamp || '',
+                isUrgent: isUrgent,
+                remarks: displayStatus
+            };
         });
 
-        // --- B. INVOICE TASKS (Personal Notifications) ---
-        if (!isInventoryPage) {
-            const sanitizeFirebaseKey = (key) => key.replace(/[.#$[\]]/g, '_');
-            const cleanupPromises = []; // stale invoice task cleanup
-
-            const safeCurrentUserName = sanitizeFirebaseKey(currentUserName);
-            
-            const [personalSnapshot, allSnapshot] = await Promise.all([
-                invoiceDb.ref(`invoice_tasks_by_user/${safeCurrentUserName}`).once('value'),
-                invoiceDb.ref(`invoice_tasks_by_user/All`).once('value')
-            ]);
-
-            const processInvoiceSnapshot = async (snapshot) => {
-                if (snapshot.exists()) {
-                    const tasksData = snapshot.val();
-                    for (const invoiceKey in tasksData) {
-                        if (pulledInvoiceKeys.has(invoiceKey)) continue;
-                        const task = tasksData[invoiceKey];
-                        const isFromAll = (snapshot.key === 'All');
-
-                        // Fast cleanup: Completed invoice tasks should not appear in Active Tasks
-                        // (SRV Done, With Accounts, Paid, etc.). If found in inbox, remove it silently.
-                        try {
-                            const st = String(task.status || task.remarks || '').trim();
-                            const completed = ['With Accounts', 'SRV Done', 'Paid', 'On Hold', 'CLOSED', 'Cancelled'];
-                            if (completed.includes(st)) {
-                                cleanupPromises.push(invoiceDb.ref(`invoice_tasks_by_user/${snapshot.key}/${invoiceKey}`).remove());
-                                continue;
-                            }
-                        } catch (_) { /* ignore */ }
-
-
-                        // --- STALE TASK RECONCILE ---
-                        // If the invoice status/attention changed elsewhere (batch edits, etc.),
-                        // remove this stale inbox item so it won't keep showing.
-                        try {
-                            const latestInv = (allInvoiceData && task.po && allInvoiceData[task.po] && allInvoiceData[task.po][invoiceKey])
-                                ? allInvoiceData[task.po][invoiceKey]
-                                : null;
-
-                            if (latestInv && typeof isInvoiceTaskActive === 'function') {
-                                const latestIsActive = isInvoiceTaskActive(latestInv);
-                                const latestAttn = String(latestInv.attention || '').trim();
-                                const latestAttnKey = latestAttn ? sanitizeFirebaseKey(latestAttn) : '';
-                                const thisInboxKey = snapshot.key; // already sanitized
-
-                                let shouldRemoveFromThisInbox = false;
-
-                                // If task is no longer active (e.g., moved to With Accounts/Paid/etc.) => remove
-                                if (!latestIsActive) shouldRemoveFromThisInbox = true;
-
-                                // If attention moved to someone else => remove from this old inbox
-                                if (!shouldRemoveFromThisInbox) {
-                                    if (thisInboxKey === 'All') {
-                                        if (latestAttnKey && latestAttnKey !== 'All') shouldRemoveFromThisInbox = true;
-                                    } else {
-                                        if (latestAttnKey && latestAttnKey !== thisInboxKey) shouldRemoveFromThisInbox = true;
-                                    }
-                                }
-
-                                if (shouldRemoveFromThisInbox) {
-                                    cleanupPromises.push(
-                                        invoiceDb.ref(`invoice_tasks_by_user/${thisInboxKey}/${invoiceKey}`).remove()
-                                    );
-                                    // Optional repair: ensure it exists in the new attention inbox
-                                    if (latestIsActive && latestAttn && typeof updateInvoiceTaskLookup === 'function') {
-                                        cleanupPromises.push(
-                                            updateInvoiceTaskLookup(task.po, invoiceKey, latestInv, task.attention || '')
-                                        );
-                                    }
-                                    continue;
-                                }
-                            }
-                        } catch (e) {
-                            // ignore cleanup errors (never block UI)
-                        }
-
-                        if ((!task.attention || task.attention.trim() === '') && !isFromAll) { task.attention = (currentApprover ? currentApprover.Name : ''); }
-                        if (isFromAll) {
-                            let allowed = false;
-                            if (currentUserSite === 'All') allowed = true;
-                            else if (!task.site || task.site === 'All') allowed = true;
-                            else if (currentUserSite.includes(task.site.split(' ')[0])) allowed = true;
-                            if (!allowed) continue;
-                        }
-                        pulledInvoiceKeys.add(invoiceKey);
-
-                        let realAmountPaid = task.amountPaid;
-                        if (!realAmountPaid && allInvoiceData && allInvoiceData[task.po] && allInvoiceData[task.po][invoiceKey]) {
-                            realAmountPaid = allInvoiceData[task.po][invoiceKey].amountPaid;
-                        }
-                        let finalAttention = task.attention || (isFromAll ? 'All' : currentUserName);
-                        
-                        const taskSiteForMatch = task.site;
-let isUrgent = isDirectAttentionForUser(finalAttention) &&
-               task.status !== 'On Hold';
-
-                        // Resolve PO details (POVALUE2.csv + invoiceDb/purchase_orders) for Vendor/Site fallback
-                        const poDetails = (typeof getInvoicePurchaseOrderDetails === 'function')
-                            ? await getInvoicePurchaseOrderDetails(task.po)
-                            : ((typeof allPOData !== 'undefined' && allPOData && allPOData[task.po]) ? allPOData[task.po] : {});
-
-                        const resolvedVendor = (task.vendorName && String(task.vendorName).trim() && String(task.vendorName).trim().toUpperCase() !== 'N/A')
-                            ? task.vendorName
-                            : (poDetails['Supplier Name'] || poDetails['Supplier Name:'] || poDetails['Supplier'] || poDetails['Supplier:'] || 'N/A');
-
-                        const resolvedSite = (task.site && String(task.site).trim() && String(task.site).trim().toUpperCase() !== 'N/A')
-                            ? task.site
-                            : (poDetails['Project ID'] || poDetails['Project ID:'] || 'N/A');
-
-                        const resolvedPOAmount = (task.amount && String(task.amount).trim() && String(task.amount).trim().toUpperCase() !== 'N/A')
-                            ? task.amount
-                            : (poDetails['Amount'] || poDetails.Amount || '');
-
-	                        // Pull live invoice metadata (helps dedupe & debugging if duplicate keys exist)
-	                        const invMeta = (allInvoiceData && allInvoiceData[task.po] && allInvoiceData[task.po][invoiceKey])
-	                            ? allInvoiceData[task.po][invoiceKey]
-	                            : {};
-
-                        userTasks.push({
-                            key: `${task.po}_${invoiceKey}`,
-                            originalKey: invoiceKey,
-                            originalPO: task.po,
-                            source: 'invoice',
-                            for: 'Invoice',
-                            ref: task.ref,
-	                            invEntryID: invMeta.invEntryID || task.invEntryID || '',
-                            po: task.po,
-                            amount: task.amount || resolvedPOAmount,
-                            amountPaid: realAmountPaid || task.amount || resolvedPOAmount,
-                            site: resolvedSite,
-                            group: 'N/A',
-                            attention: finalAttention, 
-	                            enteredBy: task.enteredBy || (invMeta.enteredBy || '') || 'Accounting',
-                            date: formatYYYYMMDD(task.date),
-                            remarks: task.status,
-	                            timestamp: Date.now(),
-	                            invoiceLastUpdated: invMeta.lastUpdated || invMeta.updatedAt || invMeta.enteredAt || 0,
-                            invName: task.invName,
-                            vendorName: resolvedVendor,
-                            note: task.note,
-                            isUrgent: isUrgent
-                        });
-                    }
-                }
-            };
-            await processInvoiceSnapshot(personalSnapshot);
-            await processInvoiceSnapshot(allSnapshot);
-
-            // Fire-and-forget cleanup of stale inbox items
-            if (cleanupPromises.length > 0) {
-                Promise.allSettled(cleanupPromises).catch(() => {});
-            }
-        }
+        // --- B. INVOICE TASK LOOKUP (DISABLED FOR WORKDESK INVOICE QUEUES) ---
+        // 9.8.7: WorkDesk invoice-status queues must come directly from
+        // Invoice Management invoice_entries, because invoice_tasks_by_user can
+        // retain stale status copies such as Report after the invoice is already
+        // On Hold. The lightweight lookup is no longer used to create WorkDesk
+        // Active Task rows. Inventory remains separate above, and IPC remains
+        // Job Records below.
 
         // --- C. GLOBAL INVOICE LOOKUP ---
         if (!isInventoryPage && allInvoiceData) { 
             
-            const accStatuses = ['Pending', 'Report', 'Original PO', 'On Hold', 'Unresolved', 'In Process'];
-            
-            // [FIX HERE]: Removed 'For SRV' from this list.
-            // This prevents "Site: All" users from automatically seeing 'For SRV' tasks.
-            const siteStatuses = ['Waiting Signature', 'Waiting Approval']; 
+            const accStatuses = ['For SRV', 'On Hold', 'In Process', 'Pending', 'Unresolved', 'Report'];
+            const siteStatuses = ['For SRV'];
 
             for (const poNumber in allInvoiceData) {
                 const poInvoices = allInvoiceData[poNumber];
@@ -745,8 +1102,8 @@ let isUrgent = isDirectAttentionForUser(finalAttention) &&
                 for (const invoiceKey in poInvoices) {
                     if (pulledInvoiceKeys.has(invoiceKey)) continue; 
                     const inv = poInvoices[invoiceKey];
-                    // Skip completed SRV Done items (never show in Active Tasks)
-                    if (String(inv.status || '').trim() === 'SRV Done') continue;
+                    const invoiceStatus = wdActiveTaskInvoiceStatusLabel(inv.status || inv.remarks || inv.Status || inv.Remarks);
+                    if (!invoiceStatus) continue;
 	                    const poSite = (poSiteFromPO && poSiteFromPO !== 'N/A')
 	                        ? poSiteFromPO
 	                        : (inv.site_name || inv.site || inv.siteName || 'N/A');
@@ -754,14 +1111,13 @@ let isUrgent = isDirectAttentionForUser(finalAttention) &&
                     let isUrgent = false;
 
                     // 1. Accounting/Admin Visibility
-                    if ((isAccounting || isAdmin) && accStatuses.includes(inv.status)) {
+                    if ((isAccounting || isAdmin) && accStatuses.includes(invoiceStatus)) {
                         shouldShow = true;
                         isUrgent = false; 
                     }
 
-                    // 2. Site Visibility
-                    // Because 'For SRV' was removed from siteStatuses, this block is skipped for SRV tasks.
-                    if (siteStatuses.includes(inv.status)) {
+                    // 2. Site Visibility: site users receive For SRV from invoice_entries.
+                    if (siteStatuses.includes(invoiceStatus)) {
                         if (currentUserSite === 'All' || currentUserSite.includes(poSite.split(' ')[0])) {
                             shouldShow = true; 
                         }
@@ -777,7 +1133,7 @@ if (inv.attention === 'All') {
 } 
 else if (isDirectAttentionForUser(inv.attention)) {
     shouldShow = true;
-    isUrgent = inv.status !== 'On Hold';
+    isUrgent = invoiceStatus !== 'On Hold';
 }
 
                     
@@ -800,10 +1156,12 @@ else if (isDirectAttentionForUser(inv.attention)) {
                             group: 'N/A',
                             attention: effAttention, 
                             enteredBy: inv.enteredBy || inv.originEnteredBy || inv.updatedBy || 'Accounting',
-                            date: formatYYYYMMDD(inv.invoiceDate),
-                            remarks: inv.status,
-	                            timestamp: Date.now(),
-	                            invoiceLastUpdated: inv.lastUpdated || inv.updatedAt || inv.enteredAt || 0,
+                            date: formatYYYYMMDD(inv.invoiceDate), // supplier invoice date only
+                            invoiceDate: formatYYYYMMDD(inv.invoiceDate),
+                            ...wdActiveTaskQueueFields({}, inv),
+                            remarks: invoiceStatus,
+                            status: invoiceStatus,
+                            timestamp: wdActiveTaskQueueTimestamp({ ...inv, ...wdActiveTaskQueueFields({}, inv), remarks: invoiceStatus, status: invoiceStatus }) || 0,
                             invName: inv.invName || '',
                             vendorName: poDetails['Supplier Name'] || poDetails['Supplier Name:'] || poDetails['Supplier'] || poDetails['Supplier:'] || inv.vendorName || inv.vendor_name || 'N/A',
                             note: inv.note || '',
@@ -881,7 +1239,7 @@ else if (isDirectAttentionForUser(inv.attention)) {
 	            // Never block task loading due to dedupe logic
 	        }
 
-	        userActiveTasks = userTasks.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+	        userActiveTasks = userTasks.sort(wdActiveTaskCompareQueue);
         wdSaveActiveTaskSessionSnapshot(isInventoryPage ? 'inventory' : 'workdesk', userActiveTasks);
         const totalTaskCount = userActiveTasks.length;
         const urgentCount = userActiveTasks.filter(t => t.isUrgent === true).length;

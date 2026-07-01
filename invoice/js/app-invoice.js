@@ -24,12 +24,13 @@ function isInvoiceTaskActive(invoiceData) {
     const normalized = status.toLowerCase();
 
     // These statuses should not create/keep personal invoice task inbox items.
+    // 9.8.6: On Hold remains an active waiting queue, so it must stay indexed
+    // for WorkDesk Dashboard / Active Task status tabs.
     const inactiveStatuses = new Set([
         'under review',
         'with accounts',
         'srv done',
         'paid',
-        'on hold',
         'closed',
         'cancelled',
         'canceled',
