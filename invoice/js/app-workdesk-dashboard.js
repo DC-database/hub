@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-workdesk-dashboard.js
    IBA WorkDesk Dashboard Active Task Control Center
-   Version: 9.8.8
+   Version: 9.9.3
 
    8.3.6:
    - Replaced the old WorkDesk calendar/date dashboard with a clean view-only
@@ -118,6 +118,7 @@ let wdActiveDashboardTasks = [];
 let wdPersonalDashboardTasks = [];
 let wdActiveDashboardSelectedStatus = '__NONE__';
 let wdActiveDashboardSelectedQueueDate = '';
+let wdAllActiveCorkboardSelectedSiteKey = '';
 let wdActiveDashboardCacheMeta = { fromCache: false, savedAt: 0 };
 let wdDashboardJobEntriesCache = { entries: [], savedAt: 0 };
 let wdInvoiceTaskLookupLiveCache = { nodes: null, savedAt: 0, scope: '' };
@@ -882,6 +883,17 @@ function wdStatusIcon(status) {
     return icons[tone] || icons.default;
 }
 
+function wdTaskDisplayStatus(task = {}) {
+    const bucket = wdText(task.bucket || '');
+    const rawStatus = wdText(task.status || task.remarks || bucket || 'Pending');
+    if (wdNormalize(bucket) === 'ipc' || wdNormalize(rawStatus) === 'ipc' || wdNormalize(task.type || '') === 'ipc') {
+        const ipcStatus = wdText(task.ipc || task.ipcStatus || task.jobStatus || '');
+        if (ipcStatus && wdNormalize(ipcStatus) !== 'no ipc') return ipcStatus;
+        return 'IPC';
+    }
+    return rawStatus || bucket || 'Pending';
+}
+
 function wdStatusMicrocopy(status, count) {
     const tone = wdStatusTone(status);
     if (tone === 'hold') return count === 1 ? 'Needs follow-up' : 'Need follow-up';
@@ -1459,6 +1471,7 @@ async function wdNormalizeActiveTaskForDashboard(task, ipcMap) {
         ref: wdText(task.ref || invMeta.invNumber || ''),
         vendorName,
         site,
+        siteName: task.siteName || invMeta.siteName || invMeta.projectName || wdResolveSiteNameFromPODetails(poDetails),
         status,
         bucket,
         note: wdText(task.note || invMeta.note || ''),
@@ -1579,6 +1592,7 @@ async function wdBuildIPCJobRecordTasks(ipcMap) {
             ref: wdText(entry.ref || entry.ipcNo || ''),
             vendorName: wdText(entry.vendorName || entry.vendor || entry.Supplier || wdGetPOValue(poDetails, ['Supplier Name', 'Supplier Name:', 'Supplier'], ''), 'N/A'),
             site,
+            siteName: entry.siteName || entry.projectName || wdResolveSiteNameFromPODetails(poDetails),
             status: 'IPC',
             bucket: 'IPC',
             note: wdText(entry.note || entry.details || entry.description || ''),
@@ -1645,6 +1659,7 @@ async function wdBuildInvoiceRecordOverviewTasks(forceRefresh = false) {
                 amount: inv.invValue || inv.invoiceValue || inv.amount || '',
                 amountPaid: inv.amountPaid || inv.paidAmount || inv.invValue || inv.invoiceValue || inv.amount || '',
                 site,
+                siteName: inv.siteName || inv.projectName || wdResolveSiteNameFromPODetails(poDetails),
                 group: 'N/A',
                 attention: inv.attention || inv.Attention || inv.assignedTo || inv.assigned_to || '',
                 enteredBy: inv.enteredBy || inv.updatedBy || inv.createdBy || '',
@@ -1750,6 +1765,7 @@ async function wdBuildInvoiceTaskLookupOverviewTasks(forceRefresh = false) {
                     amount: task.amount || latestMeta.invValue || latestMeta.amount || '',
                     amountPaid: task.amountPaid || task.amount || latestMeta.amountPaid || latestMeta.invValue || latestMeta.amount || '',
                     site,
+                    siteName: task.siteName || latestMeta.siteName || latestMeta.projectName || wdResolveSiteNameFromPODetails(poDetails),
                     group: 'N/A',
                     attention,
                     enteredBy: task.enteredBy || latestMeta.enteredBy || latestMeta.updatedBy || '',
@@ -2030,6 +2046,7 @@ function wdBindDashboardControls() {
             if (!card) return;
             wdActiveDashboardSelectedStatus = card.dataset.status || WD_DASHBOARD_ALL;
             wdActiveDashboardSelectedQueueDate = '';
+            wdAllActiveCorkboardSelectedSiteKey = '';
             wdRenderDashboardCards();
             wdRenderDashboardList();
         });
@@ -2064,6 +2081,13 @@ function wdBindDashboardControls() {
     if (listEl && !listEl.dataset.dateTabsBound) {
         listEl.dataset.dateTabsBound = 'true';
         listEl.addEventListener('click', (e) => {
+            const siteCard = e.target.closest('.wd-cork-site-card');
+            if (siteCard) {
+                wdAllActiveCorkboardSelectedSiteKey = siteCard.dataset.siteKey || '';
+                wdRenderDashboardList();
+                return;
+            }
+
             const tab = e.target.closest('.wd-date-tab');
             if (!tab) return;
             wdActiveDashboardSelectedQueueDate = tab.dataset.dateKey || '';
@@ -2220,6 +2244,381 @@ function wdGetFilteredDashboardTasks() {
     return tasks.slice().sort(wdCompareDashboardPriority);
 }
 
+
+function wdIsPersonalDashboardSelection(selected = wdActiveDashboardSelectedStatus) {
+    const filter = String(selected || '');
+    if (!wdCanSeeAllActiveDashboard()) return true;
+    return filter.startsWith(WD_DASHBOARD_MY_STATUS_PREFIX) || filter.startsWith(WD_DASHBOARD_PERSON_PREFIX);
+}
+
+
+
+// 9.9.3: Site.csv helper for All Active site selector.
+// Uses the existing global Site.csv cache when available and only performs a small
+// optional Site.csv refresh if the cache has not been loaded yet.
+let wdSiteCsvLookupMap = null;
+let wdSiteCsvLookupPromise = null;
+
+function wdNormalizeSiteKey(value) {
+    const raw = wdText(value);
+    if (!raw) return '';
+    const numeric = raw.match(/\d{2,}/);
+    return numeric ? numeric[0] : wdNormalize(raw);
+}
+
+function wdBuildSiteCsvLookupMap() {
+    const map = new Map();
+    const rows = (typeof allSitesCSVData !== 'undefined' && Array.isArray(allSitesCSVData)) ? allSitesCSVData : [];
+    rows.forEach(row => {
+        const siteNo = wdText(row?.site || row?.Site || row?.siteNumber || row?.site_no || row?.['Site Number'] || row?.['site number'] || '');
+        const siteName = wdText(row?.description || row?.Description || row?.siteName || row?.['Site Name'] || row?.['site name'] || row?.name || row?.Name || '');
+        if (!siteNo || !siteName) return;
+        const key = wdNormalizeSiteKey(siteNo);
+        if (key && !map.has(key)) map.set(key, siteName);
+        const rawKey = wdNormalize(siteNo);
+        if (rawKey && !map.has(rawKey)) map.set(rawKey, siteName);
+    });
+    wdSiteCsvLookupMap = map;
+    return map;
+}
+
+function wdLookupSiteNameFromCsv(site) {
+    const map = wdSiteCsvLookupMap || wdBuildSiteCsvLookupMap();
+    const key = wdNormalizeSiteKey(site);
+    if (key && map.has(key)) return wdText(map.get(key));
+    const rawKey = wdNormalize(site);
+    if (rawKey && map.has(rawKey)) return wdText(map.get(rawKey));
+    return '';
+}
+
+function wdDisplaySiteName(site, fallbackName = '') {
+    return wdLookupSiteNameFromCsv(site) || wdText(fallbackName || '');
+}
+
+function wdParseSiteCsvForDashboard(csvText) {
+    const lines = wdText(csvText).replace(/^\uFEFF/, '').split(/\r?\n/).filter(line => line.trim());
+    if (lines.length < 2) return [];
+    const parseRow = (rowStr) => {
+        const values = [];
+        let inQuote = false;
+        let current = '';
+        for (let i = 0; i < rowStr.length; i++) {
+            const ch = rowStr[i];
+            if (ch === '"') {
+                if (inQuote && rowStr[i + 1] === '"') { current += '"'; i++; }
+                else inQuote = !inQuote;
+            } else if (ch === ',' && !inQuote) {
+                values.push(current.trim().replace(/^"|"$/g, ''));
+                current = '';
+            } else {
+                current += ch;
+            }
+        }
+        values.push(current.trim().replace(/^"|"$/g, ''));
+        return values;
+    };
+    const headers = parseRow(lines[0]).map(h => wdNormalize(h));
+    let siteIndex = headers.findIndex(h => ['site', 'site no', 'site number', 'site no.', 'site #'].includes(h));
+    let nameIndex = headers.findIndex(h => ['description', 'site name', 'name', 'project name'].includes(h));
+    if (siteIndex < 0) siteIndex = 0;
+    if (nameIndex < 0) nameIndex = 1;
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+        const values = parseRow(lines[i]);
+        const site = wdText(values[siteIndex]);
+        const description = wdText(values[nameIndex]);
+        if (site && description) rows.push({ site, description });
+    }
+    return rows;
+}
+
+async function wdFetchSiteCsvForDashboard() {
+    const urls = [];
+    try {
+        if (typeof getFirebaseCSVUrl === 'function') urls.push(await getFirebaseCSVUrl('Site.csv'));
+    } catch (_) {}
+    urls.push('https://raw.githubusercontent.com/DC-database/Hub/main/Site.csv?v=' + Date.now());
+    urls.push('https://cdn.jsdelivr.net/gh/DC-database/Hub@main/Site.csv?v=' + Date.now());
+    for (const url of urls) {
+        if (!url) continue;
+        try {
+            const res = await fetch(url, { cache: 'no-store' });
+            if (!res.ok) continue;
+            const text = await res.text();
+            const rows = wdParseSiteCsvForDashboard(text);
+            if (rows.length) return rows;
+        } catch (e) {
+            console.warn('Optional Dashboard Site.csv fetch failed:', e);
+        }
+    }
+    return [];
+}
+
+function wdEnsureSiteCsvLookupForDashboard() {
+    if (wdSiteCsvLookupMap && wdSiteCsvLookupMap.size) return Promise.resolve(wdSiteCsvLookupMap);
+    if (typeof allSitesCSVData !== 'undefined' && Array.isArray(allSitesCSVData) && allSitesCSVData.length) {
+        return Promise.resolve(wdBuildSiteCsvLookupMap());
+    }
+    if (wdSiteCsvLookupPromise) return wdSiteCsvLookupPromise;
+    wdSiteCsvLookupPromise = (async () => {
+        try {
+            const data = await wdFetchSiteCsvForDashboard();
+            if (Array.isArray(data) && data.length) {
+                if (typeof allSitesCSVData !== 'undefined') allSitesCSVData = data;
+                wdBuildSiteCsvLookupMap();
+                try {
+                    if (typeof setCache === 'function') setCache('cached_SITES', data);
+                } catch (_) {}
+                // Repaint once so site cards replace fallback labels like "Site 177" with the real project name.
+                setTimeout(() => {
+                    try { wdRenderDashboardList(); } catch (_) {}
+                }, 0);
+            } else {
+                wdBuildSiteCsvLookupMap();
+            }
+        } catch (e) {
+            console.warn('Dashboard Site.csv lookup failed; using site numbers only.', e);
+            wdBuildSiteCsvLookupMap();
+        }
+        return wdSiteCsvLookupMap || new Map();
+    })();
+    return wdSiteCsvLookupPromise;
+}
+
+function wdFormatAccountingAmount(value) {
+    const raw = wdText(value);
+    if (!raw) return '';
+    const hasParentheses = /^\s*\(.*\)\s*$/.test(raw);
+    const cleaned = raw.replace(/,/g, '').replace(/[()]/g, '').replace(/[^0-9.\-]/g, '');
+    const numeric = Number(cleaned);
+    if (!Number.isFinite(numeric)) return raw;
+    const amount = hasParentheses && numeric > 0 ? -numeric : numeric;
+    const formatted = Math.abs(amount).toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+    return amount < 0 ? `(${formatted})` : formatted;
+}
+
+function wdResolveSiteNameFromPODetails(poDetails) {
+    return wdText(wdGetPOValue(poDetails, [
+        'Project Name', 'Project Name:',
+        'Site Name', 'Site Name:',
+        'Project Description', 'Project Description:',
+        'Site Description', 'Site Description:',
+        'Project Title', 'Project Title:'
+    ], ''));
+}
+
+function wdSiteDisplayParts(site, siteName = '') {
+    const label = wdText(site, 'No Site');
+    const numberMatch = label.match(/\b\d{2,}\b/);
+    const siteNo = numberMatch ? numberMatch[0] : label;
+    let cleanName = wdDisplaySiteName(siteNo || label, siteName);
+    if (!cleanName) {
+        cleanName = label
+            .replace(/^\s*site\s*[:#-]?\s*/i, '')
+            .replace(siteNo, '')
+            .replace(/^\s*[-–—:|,/]+\s*/, '')
+            .trim();
+    }
+    if (!cleanName || wdNormalize(cleanName) === wdNormalize(siteNo) || wdNormalize(cleanName) === 'no site') {
+        cleanName = siteNo && siteNo !== 'No Site' ? `Site ${siteNo}` : 'No Site assigned';
+    }
+    return { siteNo, siteName: cleanName, label };
+}
+
+function wdSiteGroupLabel(site) {
+    const raw = wdText(site);
+    return raw || 'No Site';
+}
+
+function wdSiteGroupSortValue(label) {
+    const text = wdText(label).toLowerCase();
+    if (!text || text === 'no site') return 'zzzz-no-site';
+    const numeric = text.match(/\d+/);
+    if (numeric) return String(Number(numeric[0])).padStart(6, '0') + '-' + text;
+    return text;
+}
+
+function wdBuildSiteGroups(tasks) {
+    const groups = new Map();
+    (tasks || []).forEach(task => {
+        const label = wdSiteGroupLabel(task?.site);
+        const key = wdNormalize(label) || 'no-site';
+        if (!groups.has(key)) {
+            groups.set(key, {
+                key,
+                label,
+                siteName: wdDisplaySiteName(label, task?.siteName || task?.projectName || ''),
+                sort: wdSiteGroupSortValue(label),
+                tasks: []
+            });
+        } else if (!groups.get(key).siteName) {
+            groups.get(key).siteName = wdDisplaySiteName(label, task?.siteName || task?.projectName || '');
+        }
+        groups.get(key).tasks.push(task);
+    });
+    return Array.from(groups.values())
+        .map(group => ({ ...group, tasks: group.tasks.slice().sort(wdCompareDashboardPriority) }))
+        .sort((a, b) => String(a.sort).localeCompare(String(b.sort), undefined, { numeric: true, sensitivity: 'base' }));
+}
+
+
+function wdRenderDashboardCorkNote(task, index, options = {}) {
+    const displayStatus = wdTaskDisplayStatus(task);
+    const statusText = wdText(displayStatus || task.status || task.bucket || 'Pending') || 'Pending';
+    // 9.9.6: The top-right note pill is only a simple queue title (IPC, For SRV, Report, etc.).
+    // The detailed/current status remains in the Current Status note box below.
+    const simpleStatusTitle = wdText(
+        options.simpleStatusTitle ||
+        task.personalBucket ||
+        task.bucket ||
+        wdDashboardPersonalBucket(task.status, task.type) ||
+        wdDashboardBucket(task.status, task.type) ||
+        task.status ||
+        'Pending'
+    ) || 'Pending';
+    const statusTone = wdStatusTone(task.bucket || simpleStatusTitle || statusText || task.status);
+    const invoicePdf = wdBuildPdfButton('Invoice PDF', PDF_BASE_PATH, task.invName, 'invoice');
+    const reportPdf = wdBuildPdfButton('Report PDF', REPORT_BASE_PATH, task.reportName, 'report');
+    const poDisplay = task.po || task.ref || 'N/A';
+    const invoiceNo = task.ref && task.ref !== task.po ? task.ref : (task.invoiceNumber || task.invoiceNo || '—');
+    const invoiceDate = wdFormatDashboardDate(task.invoiceDate || task.date) || '—';
+    const amountText = wdFormatAccountingAmount(task.amount) || '—';
+    const taskQueueLabel = task.queueLabel || wdQueueLabelForTask(task.personalBucket || task.bucket || task.status, task.type);
+    const queueTime = wdQueueTimeText(task.queueTimestamp || task.timestamp);
+    const noteText = wdText(task.note) || 'No current note added.';
+    const attentionText = wdText(task.attention) || 'Not assigned';
+    const vendorText = wdText(task.vendorName) || 'N/A';
+    const typeText = wdText(task.type) || 'Invoice';
+    const siteText = wdText(options.siteLabel || task.site) || 'N/A';
+    const tilt = ['-0.18deg', '0.12deg', '-0.08deg', '0.18deg'][index % 4];
+
+    return `
+        <article class="wd-cork-note tone-${statusTone}" style="--note-delay:${Math.min(index, 14) * 18}ms; --note-tilt:${tilt};">
+            <span class="wd-note-pin" aria-hidden="true"></span>
+            <div class="wd-note-head">
+                <div>
+                    <span class="wd-note-kicker">PO Number</span>
+                    <h3>${wdSafe(poDisplay)}</h3>
+                </div>
+                <span class="wd-status-pill tone-${statusTone}"><i class="fa-solid ${wdStatusIcon(simpleStatusTitle)}"></i> ${wdSafe(simpleStatusTitle)}</span>
+            </div>
+
+            <div class="wd-note-vendor" title="${wdSafe(vendorText)}">
+                <i class="fa-regular fa-building"></i>
+                <span>${wdSafe(vendorText)}</span>
+            </div>
+
+            <div class="wd-note-detail-grid">
+                <span><small>Invoice No.</small><strong>${wdSafe(invoiceNo)}</strong></span>
+                <span><small>Amount</small><strong>${wdSafe(amountText)}</strong></span>
+                <span><small>Invoice Date</small><strong>${wdSafe(invoiceDate)}</strong></span>
+                <span><small>${wdSafe(taskQueueLabel)}</small><strong>${wdSafe(queueTime)}</strong></span>
+            </div>
+
+            <div class="wd-note-current-note">
+                <small>Current note</small>
+                <p>${wdSafe(noteText)}</p>
+            </div>
+
+            <div class="wd-note-current-status tone-${statusTone}">
+                <small>Current status</small>
+                <p><i class="fa-solid ${wdStatusIcon(statusText)}"></i> ${wdSafe(statusText)}</p>
+            </div>
+
+            <div class="wd-note-responsible">
+                <span><i class="fa-solid fa-user-check"></i> ${wdSafe(attentionText)}</span>
+                <span><i class="fa-solid fa-location-dot"></i> ${wdSafe(siteText)}</span>
+                <span><i class="fa-solid fa-tag"></i> ${wdSafe(typeText)}</span>
+            </div>
+
+            <div class="wd-note-actions">
+                ${invoicePdf}
+                ${reportPdf}
+            </div>
+        </article>`;
+}
+
+function wdRenderAllActiveCorkboard(baseTasks, selectedLabel, cacheSuffix, summaryEl, listEl) {
+    wdEnsureSiteCsvLookupForDashboard();
+    const tasks = (baseTasks || []).slice().sort(wdCompareDashboardPriority);
+    const siteGroups = wdBuildSiteGroups(tasks);
+    const statusLabel = selectedLabel || 'All Active Tasks';
+
+    if (summaryEl) {
+        summaryEl.textContent = `${tasks.length} active task${tasks.length === 1 ? '' : 's'} in ${siteGroups.length} site group${siteGroups.length === 1 ? '' : 's'}${cacheSuffix}`;
+    }
+
+    if (!siteGroups.length) {
+        wdAllActiveCorkboardSelectedSiteKey = '';
+        listEl.innerHTML = '<div class="wd-dashboard-empty-state">No active item found for this status.</div>';
+        return;
+    }
+
+    if (!wdAllActiveCorkboardSelectedSiteKey || !siteGroups.some(group => group.key === wdAllActiveCorkboardSelectedSiteKey)) {
+        wdAllActiveCorkboardSelectedSiteKey = siteGroups[0].key;
+    }
+
+    const selectedGroup = siteGroups.find(group => group.key === wdAllActiveCorkboardSelectedSiteKey) || siteGroups[0];
+    const selectedTasks = (selectedGroup?.tasks || []).slice().sort(wdCompareDashboardPriority);
+    const selectedParts = wdSiteDisplayParts(selectedGroup?.label || '', selectedGroup?.siteName || '');
+
+    if (summaryEl) {
+        summaryEl.textContent = `${selectedTasks.length} item${selectedTasks.length === 1 ? '' : 's'} shown for ${selectedParts.label} · ${tasks.length} total in ${statusLabel}${cacheSuffix}`;
+    }
+
+    const siteCardsHtml = siteGroups.map(group => {
+        const parts = wdSiteDisplayParts(group.label, group.siteName);
+        const active = group.key === selectedGroup.key ? 'active' : '';
+        const statusCounts = group.tasks.reduce((acc, task) => {
+            const label = wdText(task.bucket || task.status || 'Open');
+            acc[label] = (acc[label] || 0) + 1;
+            return acc;
+        }, {});
+        const statusPreview = Object.entries(statusCounts).slice(0, 2)
+            .map(([label, count]) => `${wdSafe(label)} ${count}`)
+            .join(' · ');
+        return `
+            <button class="wd-cork-site-card ${active}" type="button" data-site-key="${wdSafe(group.key)}" aria-label="Show ${wdSafe(group.label)} tasks">
+                <span class="wd-site-card-pin"><i class="fa-solid fa-thumbtack"></i></span>
+                <span class="wd-site-card-no">${wdSafe(parts.siteNo)}</span>
+                <span class="wd-site-card-name">${wdSafe(parts.siteName)}</span>
+                <span class="wd-site-card-count">${group.tasks.length} item${group.tasks.length === 1 ? '' : 's'}</span>
+                ${statusPreview ? `<small>${statusPreview}</small>` : ''}
+            </button>`;
+    }).join('');
+
+    const cardsHtml = selectedTasks.map((task, index) => wdRenderDashboardCorkNote(task, index, { siteLabel: selectedParts.label })).join('');
+
+    listEl.innerHTML = `
+        <div class="wd-cork-board wd-cork-board-site-filtered">
+            <div class="wd-cork-board-head">
+                <div>
+                    <span class="wd-board-label">All Active Preview Board</span>
+                    <strong>${wdSafe(statusLabel)}</strong>
+                    <span>Pick a site card first, then review the pinned notes below.</span>
+                </div>
+                <div class="wd-board-access-pill"><i class="fa-solid fa-thumbtack"></i> Site preview</div>
+            </div>
+            <div class="wd-cork-site-selector" role="tablist" aria-label="All Active Tasks site selector">
+                ${siteCardsHtml}
+            </div>
+            <section class="wd-cork-site-section active-site">
+                <div class="wd-cork-site-head">
+                    <div>
+                        <span class="wd-cork-site-kicker">Selected site</span>
+                        <strong>${wdSafe(selectedParts.siteNo)}</strong>
+                        <em>${wdSafe(selectedParts.siteName)}</em>
+                    </div>
+                    <span>${selectedTasks.length} item${selectedTasks.length === 1 ? '' : 's'}</span>
+                </div>
+                <div class="wd-cork-note-grid">${cardsHtml}</div>
+            </section>
+        </div>`;
+}
+
 function wdRenderDashboardList() {
     const listEl = document.getElementById('wd-active-dashboard-list');
     const titleEl = document.getElementById('wd-active-dashboard-title');
@@ -2284,6 +2683,18 @@ function wdRenderDashboardList() {
         return;
     }
 
+    const cacheSuffix = wdActiveDashboardCacheMeta && wdActiveDashboardCacheMeta.fromCache
+        ? ` · browser cache ${wdCacheAgeText(wdActiveDashboardCacheMeta.savedAt)}`
+        : '';
+
+    // 9.9.1: All Active Tasks is an overview/help board, not a personal queue.
+    // Keep date tabs only for My Personal Tasks. All Active now uses a compact
+    // yellow note board grouped by site so users can quickly see where they can help.
+    if (!wdIsPersonalDashboardSelection(selected)) {
+        wdRenderAllActiveCorkboard(baseTasks, selectedLabel, cacheSuffix, summaryEl, listEl);
+        return;
+    }
+
     const dateGroups = wdBuildQueueDateGroups(baseTasks);
     if (!dateGroups.length) {
         listEl.innerHTML = '<div class="wd-dashboard-empty-state">No queue date available for this selection.</div>';
@@ -2298,9 +2709,6 @@ function wdRenderDashboardList() {
     const selectedGroup = dateGroups.find(g => g.key === wdActiveDashboardSelectedQueueDate) || dateGroups[0];
     const tasks = (selectedGroup.tasks || []).slice().sort(wdCompareDashboardPriority);
     const queueLabel = tasks[0]?.queueLabel || 'Queue date';
-    const cacheSuffix = wdActiveDashboardCacheMeta && wdActiveDashboardCacheMeta.fromCache
-        ? ` · browser cache ${wdCacheAgeText(wdActiveDashboardCacheMeta.savedAt)}`
-        : '';
 
     if (summaryEl) {
         summaryEl.textContent = `${tasks.length} task${tasks.length === 1 ? '' : 's'} shown for ${selectedGroup.fullLabel} · ${baseTasks.length} total in this card${cacheSuffix}`;
@@ -2317,68 +2725,10 @@ function wdRenderDashboardList() {
             </button>`;
     }).join('');
 
-    const cards = tasks.map((task, index) => {
-        const statusTone = wdStatusTone(task.bucket || task.status);
-        const note = task.note ? wdSafe(task.note) : '<span class="wd-muted">No note added</span>';
-        const ipcClass = task.ipcActive ? 'wd-ipc-active' : 'wd-ipc-empty';
-        const invoicePdf = wdBuildPdfButton('Invoice PDF', PDF_BASE_PATH, task.invName, 'invoice');
-        const reportPdf = wdBuildPdfButton('Report PDF', REPORT_BASE_PATH, task.reportName, 'report');
-        const poDisplay = task.po || task.ref || 'N/A';
-        const dateText = wdFormatDashboardDate(task.invoiceDate || task.date);
-        const amountText = wdText(task.amount);
-        const taskQueueLabel = task.queueLabel || wdQueueLabelForTask(task.personalBucket || task.bucket || task.status, task.type);
-        const queueTime = wdQueueTimeText(task.queueTimestamp || task.timestamp);
-        const metaPieces = [];
-        metaPieces.push(`<span class="wd-queue-time"><i class="fa-regular fa-clock"></i> ${wdSafe(taskQueueLabel)}: ${wdSafe(queueTime)}</span>`);
-        if (dateText) metaPieces.push(`<span><i class="fa-regular fa-calendar"></i> Invoice Date: ${wdSafe(dateText)}</span>`);
-        if (amountText) metaPieces.push(`<span><i class="fa-solid fa-coins"></i> ${wdSafe(amountText)}</span>`);
-        if (task.attention) metaPieces.push(`<span><i class="fa-solid fa-user-check"></i> ${wdSafe(task.attention)}</span>`);
-        metaPieces.push(`<span><i class="fa-solid fa-tag"></i> ${wdSafe(task.type || 'Invoice')}</span>`);
-
-        return `
-            <article class="wd-task-card tone-${statusTone}" style="--wd-delay:${Math.min(index, 12) * 22}ms">
-                <div class="wd-task-accent"></div>
-                <div class="wd-task-main">
-                    <div class="wd-task-topline">
-                        <div class="wd-task-identity">
-                            <span class="wd-task-kicker">PO Number</span>
-                            <h3>${wdSafe(poDisplay)}</h3>
-                            ${task.ref && task.ref !== task.po ? `<p class="wd-task-subref">Invoice ref: ${wdSafe(task.ref)}</p>` : ''}
-                        </div>
-                        <div class="wd-task-status-block">
-                            <span class="wd-status-pill tone-${statusTone}"><i class="fa-solid ${wdStatusIcon(task.status)}"></i> ${wdSafe(task.status || 'Pending')}</span>
-                            <span class="wd-site-pill"><i class="fa-solid fa-location-dot"></i> ${wdSafe(task.site || 'N/A')}</span>
-                        </div>
-                    </div>
-
-                    <div class="wd-task-vendor-line">
-                        <i class="fa-regular fa-building"></i>
-                        <span>${wdSafe(task.vendorName || 'N/A')}</span>
-                    </div>
-
-                    <div class="wd-task-meta-grid">
-                        <div class="wd-task-meta-box">
-                            <label>Note</label>
-                            <div class="wd-task-note-text">${note}</div>
-                        </div>
-                        <div class="wd-task-meta-box compact wd-task-ipc-box">
-                            <label>IPC Status</label>
-                            <span class="${ipcClass}">${wdSafe(task.ipc || 'No IPC')}</span>
-                        </div>
-                    </div>
-
-                    <div class="wd-task-footline">
-                        ${metaPieces.join('')}
-                    </div>
-                </div>
-                <aside class="wd-task-side">
-                    ${wdDocButtonZone(invoicePdf, reportPdf)}
-                </aside>
-            </article>`;
-    }).join('');
+    const cards = tasks.map((task, index) => wdRenderDashboardCorkNote(task, index)).join('');
 
     listEl.innerHTML = `
-        <div class="wd-task-board wd-task-board-date-tabs">
+        <div class="wd-task-board wd-task-board-date-tabs wd-personal-cork-queue">
             <div class="wd-task-board-head">
                 <div>
                     <span class="wd-board-label">${wdSafe(queueLabel)} date queue</span>
@@ -2391,7 +2741,9 @@ function wdRenderDashboardList() {
                 ${tabsHtml}
             </div>
             <div class="wd-date-tabs-note"><i class="fa-solid fa-arrow-down-short-wide"></i> Oldest date is selected first. Users may click any date tab when a newer item is more urgent.</div>
-            <div class="wd-task-card-list">${cards}</div>
+            <div class="wd-cork-board wd-personal-cork-board">
+                <div class="wd-cork-note-grid wd-personal-cork-note-grid">${cards}</div>
+            </div>
         </div>`;
 }
 
