@@ -909,3 +909,183 @@
         display: none !important;
     }
 }
+
+/* =========================================================
+   10.0.2 — Inventory mobile approver readability + bulk UI polish
+   Scoped only to Inventory mobile Active Task / Transfer Approval.
+   Keeps WorkDesk and Invoice mobile views untouched.
+   ========================================================= */
+@media (max-width: 900px) {
+    body.inventory-mode #active-task-mobile-view .mobile-card-body,
+    body.inventory-mode #active-task-mobile-view .mobile-card-body *,
+    #inventory-view #active-task-mobile-view .mobile-card-body,
+    #inventory-view #active-task-mobile-view .mobile-card-body * {
+        color: #2f1414 !important;
+        -webkit-text-fill-color: #2f1414 !important;
+        text-shadow: none !important;
+    }
+
+    body.inventory-mode #active-task-mobile-view .inventory-mobile-task-details,
+    #inventory-view #active-task-mobile-view .inventory-mobile-task-details {
+        background: #fffafa !important;
+        border: 1px solid rgba(77, 0, 0, 0.12) !important;
+        border-radius: 14px !important;
+        padding: 10px 12px !important;
+        box-shadow: none !important;
+    }
+
+    body.inventory-mode #active-task-mobile-view .inventory-mobile-task-details p,
+    #inventory-view #active-task-mobile-view .inventory-mobile-task-details p {
+        margin: 0 0 6px !important;
+        color: #2f1414 !important;
+        -webkit-text-fill-color: #2f1414 !important;
+        font-size: 0.9rem !important;
+        line-height: 1.35 !important;
+    }
+
+    body.inventory-mode #active-task-mobile-view .inventory-mobile-task-details p:last-child,
+    #inventory-view #active-task-mobile-view .inventory-mobile-task-details p:last-child {
+        margin-bottom: 0 !important;
+    }
+
+    body.inventory-mode #active-task-mobile-view .inventory-mobile-task-details strong,
+    #inventory-view #active-task-mobile-view .inventory-mobile-task-details strong {
+        color: #4d0000 !important;
+        -webkit-text-fill-color: #4d0000 !important;
+        font-weight: 800 !important;
+    }
+
+    body.inventory-mode #active-task-mobile-view .inventory-mobile-status-text,
+    #inventory-view #active-task-mobile-view .inventory-mobile-status-text {
+        color: #b42318 !important;
+        -webkit-text-fill-color: #b42318 !important;
+        font-weight: 800 !important;
+    }
+
+    body.inventory-mode #active-task-mobile-view .mobile-bulk-approve-btn,
+    #inventory-view #active-task-mobile-view .mobile-bulk-approve-btn {
+        min-height: 44px !important;
+        letter-spacing: 0.01em !important;
+    }
+
+    body.inventory-mode #active-task-mobile-view .mobile-transfer-select:disabled,
+    #inventory-view #active-task-mobile-view .mobile-transfer-select:disabled {
+        opacity: 0.55 !important;
+    }
+
+    body.inventory-mode #transfer-approval-modal #transfer-modal-details,
+    body.inventory-mode #transfer-approval-modal #transfer-modal-details *,
+    #inventory-view #transfer-approval-modal #transfer-modal-details,
+    #inventory-view #transfer-approval-modal #transfer-modal-details * {
+        color: #2f1414 !important;
+        -webkit-text-fill-color: #2f1414 !important;
+        text-shadow: none !important;
+    }
+
+    body.inventory-mode #transfer-approval-modal #transfer-modal-details,
+    #inventory-view #transfer-approval-modal #transfer-modal-details {
+        background: #fffafa !important;
+        border: 1px solid rgba(77, 0, 0, 0.14) !important;
+        border-radius: 14px !important;
+        box-shadow: none !important;
+    }
+
+    body.inventory-mode #transfer-approval-modal #transfer-modal-details strong,
+    #inventory-view #transfer-approval-modal #transfer-modal-details strong {
+        color: #4d0000 !important;
+        -webkit-text-fill-color: #4d0000 !important;
+    }
+}
+
+
+/* =========================================================
+   10.0.3 — Inventory mobile approver header contrast + action icon colors
+   Scoped only to Inventory transfer approval cards in mobile Active Task.
+   Fixes white item names on light cards and black approve/reject icons.
+   ========================================================= */
+@media (max-width: 900px) {
+    #active-task-mobile-view .inventory-transfer-mobile-header,
+    body.inventory-mode #active-task-mobile-view .inventory-transfer-mobile-header,
+    #inventory-view #active-task-mobile-view .inventory-transfer-mobile-header {
+        background: #fffafa !important;
+        color: #2f1414 !important;
+        -webkit-text-fill-color: #2f1414 !important;
+        text-shadow: none !important;
+    }
+
+    #active-task-mobile-view .inventory-transfer-mobile-header .m-card-main,
+    #active-task-mobile-view .inventory-transfer-mobile-header .m-card-main *,
+    body.inventory-mode #active-task-mobile-view .inventory-transfer-mobile-header .m-card-main,
+    body.inventory-mode #active-task-mobile-view .inventory-transfer-mobile-header .m-card-main *,
+    #inventory-view #active-task-mobile-view .inventory-transfer-mobile-header .m-card-main,
+    #inventory-view #active-task-mobile-view .inventory-transfer-mobile-header .m-card-main * {
+        color: #2f1414 !important;
+        -webkit-text-fill-color: #2f1414 !important;
+        text-shadow: none !important;
+    }
+
+    #active-task-mobile-view .inventory-transfer-mobile-header .m-card-main h3,
+    body.inventory-mode #active-task-mobile-view .inventory-transfer-mobile-header .m-card-main h3,
+    #inventory-view #active-task-mobile-view .inventory-transfer-mobile-header .m-card-main h3 {
+        color: #3a0707 !important;
+        -webkit-text-fill-color: #3a0707 !important;
+        font-weight: 900 !important;
+        opacity: 1 !important;
+        text-shadow: none !important;
+    }
+
+    #active-task-mobile-view .inventory-transfer-mobile-header .m-card-sub,
+    body.inventory-mode #active-task-mobile-view .inventory-transfer-mobile-header .m-card-sub,
+    #inventory-view #active-task-mobile-view .inventory-transfer-mobile-header .m-card-sub {
+        color: #5a1f1f !important;
+        -webkit-text-fill-color: #5a1f1f !important;
+        opacity: 1 !important;
+    }
+
+    #active-task-mobile-view .inventory-transfer-mobile-header .m-card-sub span:first-child,
+    body.inventory-mode #active-task-mobile-view .inventory-transfer-mobile-header .m-card-sub span:first-child,
+    #inventory-view #active-task-mobile-view .inventory-transfer-mobile-header .m-card-sub span:first-child {
+        color: #00748c !important;
+        -webkit-text-fill-color: #00748c !important;
+    }
+
+    #active-task-mobile-view .inventory-transfer-mobile-header .m-card-amount .m-card-val,
+    body.inventory-mode #active-task-mobile-view .inventory-transfer-mobile-header .m-card-amount .m-card-val,
+    #inventory-view #active-task-mobile-view .inventory-transfer-mobile-header .m-card-amount .m-card-val {
+        color: #6b0000 !important;
+        -webkit-text-fill-color: #6b0000 !important;
+        font-weight: 900 !important;
+    }
+
+    #active-task-mobile-view .inventory-transfer-mobile-header .m-card-amount .m-card-ref,
+    body.inventory-mode #active-task-mobile-view .inventory-transfer-mobile-header .m-card-amount .m-card-ref,
+    #inventory-view #active-task-mobile-view .inventory-transfer-mobile-header .m-card-amount .m-card-ref {
+        color: #7f1d1d !important;
+        -webkit-text-fill-color: #7f1d1d !important;
+        opacity: 1 !important;
+    }
+
+    #active-task-mobile-view .inventory-transfer-approve-btn i,
+    #active-task-mobile-view .inventory-transfer-approve-btn .fa,
+    #active-task-mobile-view .inventory-transfer-approve-btn .fas,
+    #active-task-mobile-view .inventory-transfer-approve-icon,
+    body.inventory-mode #active-task-mobile-view .inventory-transfer-approve-btn i,
+    #inventory-view #active-task-mobile-view .inventory-transfer-approve-btn i {
+        color: #22c55e !important;
+        -webkit-text-fill-color: #22c55e !important;
+        fill: #22c55e !important;
+        text-shadow: 0 1px 1px rgba(0,0,0,0.22) !important;
+    }
+
+    #active-task-mobile-view .inventory-transfer-reject-btn i,
+    #active-task-mobile-view .inventory-transfer-reject-btn .fa,
+    #active-task-mobile-view .inventory-transfer-reject-btn .fas,
+    #active-task-mobile-view .inventory-transfer-reject-icon,
+    body.inventory-mode #active-task-mobile-view .inventory-transfer-reject-btn i,
+    #inventory-view #active-task-mobile-view .inventory-transfer-reject-btn i {
+        color: #facc15 !important;
+        -webkit-text-fill-color: #facc15 !important;
+        fill: #facc15 !important;
+        text-shadow: 0 1px 1px rgba(0,0,0,0.30) !important;
+    }
+}
