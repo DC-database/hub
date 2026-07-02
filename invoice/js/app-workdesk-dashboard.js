@@ -1040,14 +1040,60 @@ function wdFirstQueueTimestamp(...values) {
 }
 
 function wdQueueLabelForTask(status, type = '') {
-    const bucket = wdDashboardPersonalBucket(status, type);
+    const bucket = wdDashboardPersonalBucket(status, type) || wdDashboardBucket(status, type) || status;
     const s = wdNormalize(bucket || status);
-    if (bucket === 'For SRV') return 'Sent to SRV';
-    if (bucket === 'New Entry' || s === 'pending' || s === 'new') return 'Entered';
-    if (bucket === 'Report') return 'Sent to Report';
-    if (bucket === 'IPC' || s === 'ipc') return 'IPC since';
-    if (bucket === 'On Hold') return 'Waiting since';
-    return 'Queue since';
+    // 9.9.7: Corkboard notes should show the official date source name,
+    // not the generic "Queue Since" label.
+    // New Entry and IPC are Job Records based, so show Date Entered.
+    // Invoice status queues use the Invoice Entry release/status date.
+    if (s === 'new entry' || s === 'ipc') return 'Date Entered';
+    return 'Release Date';
+}
+
+function wdCorkNoteDateLabel(task = {}) {
+    const bucket = task.personalBucket || task.bucket || wdDashboardPersonalBucket(task.status, task.type) || wdDashboardBucket(task.status, task.type) || task.status || '';
+    const s = wdNormalize(bucket);
+    if (s === 'new entry' || s === 'ipc') return 'Date Entered';
+    return 'Release Date';
+}
+
+function wdQueueDateOnlyText(timestamp) {
+    const ts = Number(timestamp || 0);
+    if (!ts) return 'not tracked';
+    const d = new Date(ts);
+    if (Number.isNaN(d.getTime())) return 'not tracked';
+    return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+
+// 9.9.8: Pending age is calculated locally from the official Date Entered / Release Date.
+// No extra Firebase read is required; the count updates whenever the dashboard is opened/refreshed.
+function wdTaskAgeDaysFromTimestamp(timestamp) {
+    const ts = Number(timestamp || 0);
+    if (!ts) return null;
+    const start = new Date(ts);
+    if (Number.isNaN(start.getTime())) return null;
+    const now = new Date();
+    const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    return Math.max(0, Math.floor((today - startDay) / 86400000));
+}
+
+function wdPendingForText(timestamp) {
+    const days = wdTaskAgeDaysFromTimestamp(timestamp);
+    if (days === null) return 'not tracked';
+    if (days === 0) return 'Today';
+    if (days === 1) return '1 day';
+    return `${days} days`;
+}
+
+function wdPendingForTone(timestamp) {
+    const days = wdTaskAgeDaysFromTimestamp(timestamp);
+    if (days === null) return 'neutral';
+    if (days >= 30) return 'critical';
+    if (days >= 8) return 'alert';
+    if (days >= 3) return 'watch';
+    return 'fresh';
 }
 
 function wdHistoryValues(history) {
@@ -2465,6 +2511,30 @@ function wdBuildSiteGroups(tasks) {
 }
 
 
+function wdPendingToneRank(tone) {
+    const order = { neutral: 0, fresh: 1, watch: 2, alert: 3, critical: 4 };
+    return order[wdNormalize(tone)] ?? 0;
+}
+
+function wdSiteGroupAttentionTone(tasks) {
+    let worstTone = 'neutral';
+    (tasks || []).forEach(task => {
+        const tone = wdPendingForTone(task?.queueTimestamp || task?.timestamp);
+        if (wdPendingToneRank(tone) > wdPendingToneRank(worstTone)) worstTone = tone;
+    });
+    return worstTone;
+}
+
+function wdSiteGroupAttentionLabel(tone) {
+    const t = wdNormalize(tone);
+    if (t === 'critical') return '30+ days attention';
+    if (t === 'alert') return '8+ days yellow attention';
+    if (t === 'watch') return '3-7 days yellow-green attention';
+    if (t === 'fresh') return '0-2 days green';
+    return 'No date tracked';
+}
+
+
 function wdRenderDashboardCorkNote(task, index, options = {}) {
     const displayStatus = wdTaskDisplayStatus(task);
     const statusText = wdText(displayStatus || task.status || task.bucket || 'Pending') || 'Pending';
@@ -2486,8 +2556,11 @@ function wdRenderDashboardCorkNote(task, index, options = {}) {
     const invoiceNo = task.ref && task.ref !== task.po ? task.ref : (task.invoiceNumber || task.invoiceNo || '—');
     const invoiceDate = wdFormatDashboardDate(task.invoiceDate || task.date) || '—';
     const amountText = wdFormatAccountingAmount(task.amount) || '—';
-    const taskQueueLabel = task.queueLabel || wdQueueLabelForTask(task.personalBucket || task.bucket || task.status, task.type);
-    const queueTime = wdQueueTimeText(task.queueTimestamp || task.timestamp);
+    const taskQueueLabel = wdCorkNoteDateLabel(task);
+    const taskDateTimestamp = task.queueTimestamp || task.timestamp;
+    const queueTime = wdQueueDateOnlyText(taskDateTimestamp);
+    const pendingForText = wdPendingForText(taskDateTimestamp);
+    const pendingForTone = wdPendingForTone(taskDateTimestamp);
     const noteText = wdText(task.note) || 'No current note added.';
     const attentionText = wdText(task.attention) || 'Not assigned';
     const vendorText = wdText(task.vendorName) || 'N/A';
@@ -2496,7 +2569,7 @@ function wdRenderDashboardCorkNote(task, index, options = {}) {
     const tilt = ['-0.18deg', '0.12deg', '-0.08deg', '0.18deg'][index % 4];
 
     return `
-        <article class="wd-cork-note tone-${statusTone}" style="--note-delay:${Math.min(index, 14) * 18}ms; --note-tilt:${tilt};">
+        <article class="wd-cork-note tone-${statusTone} pending-${pendingForTone}" style="--note-delay:${Math.min(index, 14) * 18}ms; --note-tilt:${tilt};">
             <span class="wd-note-pin" aria-hidden="true"></span>
             <div class="wd-note-head">
                 <div>
@@ -2516,6 +2589,7 @@ function wdRenderDashboardCorkNote(task, index, options = {}) {
                 <span><small>Amount</small><strong>${wdSafe(amountText)}</strong></span>
                 <span><small>Invoice Date</small><strong>${wdSafe(invoiceDate)}</strong></span>
                 <span><small>${wdSafe(taskQueueLabel)}</small><strong>${wdSafe(queueTime)}</strong></span>
+                <span class="wd-note-age wd-note-age-${pendingForTone}"><small>Pending For</small><strong>${wdSafe(pendingForText)}</strong></span>
             </div>
 
             <div class="wd-note-current-note">
@@ -2530,7 +2604,7 @@ function wdRenderDashboardCorkNote(task, index, options = {}) {
 
             <div class="wd-note-responsible">
                 <span><i class="fa-solid fa-user-check"></i> ${wdSafe(attentionText)}</span>
-                <span><i class="fa-solid fa-location-dot"></i> ${wdSafe(siteText)}</span>
+                <span class="wd-note-site-ref"><i class="fa-solid fa-location-dot"></i> <strong>${wdSafe(siteText)}</strong></span>
                 <span><i class="fa-solid fa-tag"></i> ${wdSafe(typeText)}</span>
             </div>
 
@@ -2580,9 +2654,11 @@ function wdRenderAllActiveCorkboard(baseTasks, selectedLabel, cacheSuffix, summa
         const statusPreview = Object.entries(statusCounts).slice(0, 2)
             .map(([label, count]) => `${wdSafe(label)} ${count}`)
             .join(' · ');
+        const attentionTone = wdSiteGroupAttentionTone(group.tasks);
+        const attentionLabel = wdSiteGroupAttentionLabel(attentionTone);
         return `
-            <button class="wd-cork-site-card ${active}" type="button" data-site-key="${wdSafe(group.key)}" aria-label="Show ${wdSafe(group.label)} tasks">
-                <span class="wd-site-card-pin"><i class="fa-solid fa-thumbtack"></i></span>
+            <button class="wd-cork-site-card ${active} site-age-${wdSafe(attentionTone)}" type="button" data-site-key="${wdSafe(group.key)}" aria-label="Show ${wdSafe(group.label)} tasks · ${wdSafe(attentionLabel)}">
+                <span class="wd-site-card-pin" title="${wdSafe(attentionLabel)}"><i class="fa-solid fa-thumbtack"></i></span>
                 <span class="wd-site-card-no">${wdSafe(parts.siteNo)}</span>
                 <span class="wd-site-card-name">${wdSafe(parts.siteName)}</span>
                 <span class="wd-site-card-count">${group.tasks.length} item${group.tasks.length === 1 ? '' : 's'}</span>
@@ -2708,7 +2784,7 @@ function wdRenderDashboardList() {
 
     const selectedGroup = dateGroups.find(g => g.key === wdActiveDashboardSelectedQueueDate) || dateGroups[0];
     const tasks = (selectedGroup.tasks || []).slice().sort(wdCompareDashboardPriority);
-    const queueLabel = tasks[0]?.queueLabel || 'Queue date';
+    const queueLabel = tasks[0] ? wdCorkNoteDateLabel(tasks[0]) : 'Date';
 
     if (summaryEl) {
         summaryEl.textContent = `${tasks.length} task${tasks.length === 1 ? '' : 's'} shown for ${selectedGroup.fullLabel} · ${baseTasks.length} total in this card${cacheSuffix}`;
@@ -2731,7 +2807,7 @@ function wdRenderDashboardList() {
         <div class="wd-task-board wd-task-board-date-tabs wd-personal-cork-queue">
             <div class="wd-task-board-head">
                 <div>
-                    <span class="wd-board-label">${wdSafe(queueLabel)} date queue</span>
+                    <span class="wd-board-label">${wdSafe(queueLabel)} queue</span>
                     <strong>${tasks.length}</strong>
                     <span>${wdSafe(selectedGroup.fullLabel)} · ${tasks.length === 1 ? 'entry' : 'entries'}</span>
                 </div>
@@ -2805,3 +2881,31 @@ function handleDownloadWorkdeskCSV() {
 }
 
 // #endregion BLOCK 12 — WORKDESK DASHBOARD CONTROL CENTER + REPORTS
+
+// ========================================================================== 
+// 9.9.8 — Shared History Modal Scope Guard
+// Purpose: keep history styling separated by module so WorkDesk, Invoice
+// Management, and Inventory do not accidentally inherit each other's theme.
+// ========================================================================== 
+(function wdInstallHistoryScopeGuard() {
+    if (window.__wdHistoryScopeGuardInstalled) return;
+    window.__wdHistoryScopeGuardInstalled = true;
+
+    document.addEventListener('click', function(event) {
+        const trigger = event.target.closest('.history-btn, .wd-action-history, [data-history-action], [data-open-history]');
+        if (!trigger) return;
+
+        const modal = document.getElementById('history-modal');
+        if (!modal) return;
+
+        modal.classList.remove('history-scope-workdesk', 'history-scope-invoice', 'history-scope-inventory');
+
+        if (trigger.closest('#workdesk-view')) {
+            modal.classList.add('history-scope-workdesk');
+        } else if (trigger.closest('#inventory-view')) {
+            modal.classList.add('history-scope-inventory');
+        } else if (trigger.closest('#invoice-management-view')) {
+            modal.classList.add('history-scope-invoice');
+        }
+    }, true);
+}());
