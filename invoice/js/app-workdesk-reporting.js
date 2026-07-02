@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-workdesk-reporting.js
    IBA WorkDesk/Inventory Job Records table and report filter helpers.
-   Version: 8.4.4
+   Version: 10.1.0
 
    Cleanup Phase:
    - Moved Block 13 out of app.js.
@@ -46,7 +46,7 @@ function wdUiSetRecordsHeroContext(mode) {
     if (searchInput) {
         searchInput.placeholder = isInventory
             ? 'Search control ID, product, route, contact, status...'
-            : 'Search job, PO, vendor, site, attention, status...';
+            : 'Search job, PO, vendor, site, attention, status, note...';
     }
 }
 
@@ -105,7 +105,7 @@ function renderReportingTable(entries) {
                 <th>Job</th><th>Ref</th><th>Site</th><th>PO</th>
                 <th>Vendor Name</th><th>Amount</th><th>Entered By</th>
                 <th>Date Entered</th><th>Attention</th><th>Date Responded</th>
-                <th>Status</th>
+                <th>Note</th><th>Status</th>
             </tr>`;
     }
 
@@ -116,7 +116,7 @@ function renderReportingTable(entries) {
             document.getElementById('job-records-count-display').textContent = `(Total Records: 0)`;
         }
         if (typeof wdUiUpdateMiniMetrics === 'function') wdUiUpdateMiniMetrics('job-records-summary-strip', [], 'Job Records');
-        reportingTableBody.innerHTML = `<tr><td colspan="11"><div class="wd-modern-empty-row"><i class="fa-solid fa-folder-open"></i><strong>No entries found</strong><span>Try another category or search term.</span></div></td></tr>`;
+        reportingTableBody.innerHTML = `<tr><td colspan="12"><div class="wd-modern-empty-row"><i class="fa-solid fa-folder-open"></i><strong>No entries found</strong><span>Try another category or search term.</span></div></td></tr>`;
         return;
     }
 
@@ -136,6 +136,7 @@ function renderReportingTable(entries) {
         const badge = (typeof wdUiStatusBadge === 'function') ? wdUiStatusBadge : (v) => esc(v || 'Pending');
         const tone = (typeof wdUiStatusTone === 'function') ? wdUiStatusTone : () => 'default';
         const status = entry.remarks || 'Pending';
+        const currentNote = String(entry.note || entry.details || entry.currentNote || '').trim();
         row.className = 'wd-modern-row tone-' + tone(status);
         let actions = `<button class="history-btn action-btn wd-row-action wd-action-history wd-history-icon-only" onclick="event.stopPropagation(); showJobHistory('${esc(entry.key)}')" title="View History" aria-label="View History"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
 
@@ -150,6 +151,7 @@ function renderReportingTable(entries) {
             <td><span class="wd-date-chip">${esc(entry.date || '')}</span></td>
             <td><span class="wd-attention-chip">${esc(entry.attention || '')}</span></td>
             <td><span class="wd-date-chip">${esc(entry.dateResponded || '—')}</span></td>
+            <td><div class="wd-record-note-cell" title="${esc(currentNote)}">${currentNote ? esc(currentNote) : '<span class="wd-muted-dash">—</span>'}</div></td>
             <td><div class="wd-record-status-cell">${badge(status)}${actions}</div></td>
         `;
 
@@ -192,7 +194,10 @@ function filterAndRenderReport(baseEntries = null) {
                 check(entry.attention) ||
                 check(entry.enteredBy) ||
                 check(entry.date) ||
-                check(entry.vendorName)
+                check(entry.vendorName) ||
+                check(entry.note) ||
+                check(entry.details) ||
+                check(entry.currentNote)
             );
         });
     }
@@ -205,7 +210,7 @@ function filterAndRenderReport(baseEntries = null) {
 // ==========================================================================
 async function handleReportingSearch() {
     // Show loading initially
-    reportingTableBody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:20px;">Loading categories...</td></tr>';
+    reportingTableBody.innerHTML = '<tr><td colspan="12" style="text-align:center; padding:20px;">Loading categories...</td></tr>';
 
     try {
         // 1. Load All Data (Still required to build the buttons)
@@ -251,7 +256,7 @@ let tabsHTML = '';
         else {
              reportingTableBody.innerHTML = `
                 <tr>
-                    <td colspan="11">
+                    <td colspan="12">
                         <div class="wd-modern-empty-row wd-select-category-state">
                             <i class="fa-solid fa-arrow-up-wide-short"></i>
                             <strong>Select a Category above</strong>
@@ -266,7 +271,7 @@ let tabsHTML = '';
 
     } catch (error) {
         console.error("Error loading reporting:", error);
-        reportingTableBody.innerHTML = '<tr><td colspan="11" style="color:red; text-align:center;">Error loading data.</td></tr>';
+        reportingTableBody.innerHTML = '<tr><td colspan="12" style="color:red; text-align:center;">Error loading data.</td></tr>';
     }
 }
 

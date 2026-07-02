@@ -1072,6 +1072,7 @@ const getTaskSiteForMatch = (t) =>
                 jobRecordDateEntered: task.date || '',
                 dateEntered: task.date || '',
                 jobRecordTimestamp: task.timestamp || '',
+                note: task.note || task.details || task.currentNote || '',
                 isUrgent: isUrgent,
                 remarks: displayStatus
             };

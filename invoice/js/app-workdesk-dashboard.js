@@ -1489,6 +1489,13 @@ async function wdNormalizeActiveTaskForDashboard(task, ipcMap) {
     if (task.source === 'job_entry' && task.for === 'Invoice' && wdIsNewEntryStatus(status)) status = 'New Entry';
 
     const isJobEntry = task.source === 'job_entry';
+    const sourceText = wdNormalize(task.source || '');
+    const taskForText = wdNormalize(task.for || task.type || '');
+    // 10.1.4: IPC / non-Invoice Job Records must never show supplier Invoice Date.
+    // Their task date is the Entered/queue date only.
+    const isNonInvoiceJobRecord = isJobEntry
+        ? taskForText && taskForText !== 'invoice' && taskForText !== 'invoice job'
+        : (sourceText === 'ipc_job_record' || taskForText === 'ipc');
     const type = isJobEntry ? 'Invoice Job' : 'Invoice';
     const bucket = wdDashboardAllowedBucket(status, isJobEntry ? 'job_entry' : type) || wdDashboardBucket(status, type);
     const ipcInfo = ipcMap.get(po);
@@ -1520,7 +1527,7 @@ async function wdNormalizeActiveTaskForDashboard(task, ipcMap) {
         siteName: task.siteName || invMeta.siteName || invMeta.projectName || wdResolveSiteNameFromPODetails(poDetails),
         status,
         bucket,
-        note: wdText(task.note || invMeta.note || ''),
+        note: wdText(task.note || task.details || task.currentNote || invMeta.note || ''),
         attention: task.attention || invMeta.attention || '',
         enteredBy: task.enteredBy || invMeta.enteredBy || invMeta.updatedBy || '',
         ipc: wdFormatIPCText(ipcInfo),
@@ -1528,8 +1535,11 @@ async function wdNormalizeActiveTaskForDashboard(task, ipcMap) {
         invName: task.invName || invMeta.invName || '',
         reportName: task.reportName || invMeta.reportName || '',
         amount: task.amountPaid || task.amount || invMeta.amountPaid || invMeta.invValue || '',
+        // 10.1.3: For Job Entry records, date is the Entered Date. It must not be reused
+        // as supplier Invoice Date. IPC / PR / Payment / Report tasks have no invoiceDate
+        // until they become a real Invoice task.
         date: task.date || invMeta.invoiceDate || '',
-        invoiceDate: task.date || invMeta.invoiceDate || '',
+        invoiceDate: isNonInvoiceJobRecord ? '' : (isJobEntry ? (taskForText === 'invoice' || taskForText === 'invoice job' ? (task.invoiceDate || '') : '') : (invMeta.invoiceDate || task.invoiceDate || '')),
         linkedJobEntryKey: task.linkedJobEntryKey || invMeta.linkedJobEntryKey || '',
         jobRecordDateEntered: task.jobRecordDateEntered || task.originDateEntered || task.dateEntered || invMeta.jobRecordDateEntered || invMeta.originDateEntered || invMeta.dateEntered || '',
         originDateEntered: task.originDateEntered || invMeta.originDateEntered || '',
@@ -1728,8 +1738,14 @@ async function wdBuildIPCJobRecordTasks(ipcMap) {
             invName: entry.invName || '',
             reportName: entry.reportName || '',
             amount: entry.amount || entry.invoiceValue || '',
-            date: entry.invoiceDate || entry.date || '',
-            invoiceDate: entry.invoiceDate || entry.date || '',
+            // 10.1.4: IPC is not an invoice yet. Keep Entered Date separate and
+            // leave supplier Invoice Date blank until IPC is converted to Invoice.
+            date: entry.date || '',
+            invoiceDate: '',
+            jobRecordDateEntered: entry.date || entry.dateEntered || entry.entryDate || '',
+            originDateEntered: entry.date || entry.dateEntered || entry.entryDate || '',
+            dateEntered: entry.date || entry.dateEntered || entry.entryDate || '',
+            jobRecordTimestamp: entry.timestamp || entry.originTimestamp || '',
             queueLabel: wdQueueLabelForTask('IPC', 'IPC'),
             queueTimestamp,
             queueText: wdQueueFullText(queueTimestamp),
@@ -1894,8 +1910,10 @@ async function wdBuildInvoiceTaskLookupOverviewTasks(forceRefresh = false) {
                     group: 'N/A',
                     attention,
                     enteredBy: task.enteredBy || latestMeta.enteredBy || latestMeta.updatedBy || '',
-                    date: task.date || latestMeta.invoiceDate || '',
-                    invoiceDate: task.date || latestMeta.invoiceDate || '',
+                    date: latestMeta.invoiceDate || task.invoiceDate || '',
+                    // 10.1.4: Do not use task.date as Invoice Date because lookup date can be
+                    // a queue/entered date. Only real invoice date fields are valid here.
+                    invoiceDate: latestMeta.invoiceDate || task.invoiceDate || '',
                     linkedJobEntryKey: task.linkedJobEntryKey || latestMeta.linkedJobEntryKey || '',
                     jobRecordDateEntered: task.jobRecordDateEntered || task.originDateEntered || task.dateEntered || latestMeta.jobRecordDateEntered || latestMeta.originDateEntered || latestMeta.dateEntered || '',
                     originDateEntered: task.originDateEntered || latestMeta.originDateEntered || '',
@@ -2640,7 +2658,9 @@ function wdRenderDashboardCorkNote(task, index, options = {}) {
     const reportPdf = wdBuildPdfButton('Report PDF', REPORT_BASE_PATH, task.reportName, 'report');
     const poDisplay = task.po || task.ref || 'N/A';
     const invoiceNo = task.ref && task.ref !== task.po ? task.ref : (task.invoiceNumber || task.invoiceNo || '—');
-    const invoiceDate = wdFormatDashboardDate(task.invoiceDate || task.date) || '—';
+    // 10.1.3: Do not fallback to Entered Date for Invoice Date.
+    // IPC jobs should show blank/— until they are converted to an invoice.
+    const invoiceDate = wdFormatDashboardDate(task.invoiceDate) || '—';
     const amountText = wdFormatAccountingAmount(task.amount) || '—';
     const taskQueueLabel = wdCorkNoteDateLabel(task);
     const taskDateTimestamp = task.queueTimestamp || task.timestamp;

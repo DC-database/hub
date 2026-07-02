@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-standard-job.js
    IBA WorkDesk standard job modal, job history, and approval sticker printing.
-   Version: 8.7.3
+   Version: 10.0.9
 
    Cleanup Phase:
    - Moved Block 25 out of app.js.
@@ -113,11 +113,15 @@
             document.getElementById('job-attachment').value = entryData.attachmentName || '';
             document.getElementById('job-group').value = entryData.group || '';
             document.getElementById('job-status').value = (entryData.remarks === 'Pending') ? '' : entryData.remarks || '';
+            const currentNoteInput = document.getElementById('job-current-note');
+            if (currentNoteInput) currentNoteInput.value = entryData.note || entryData.details || entryData.currentNote || '';
 
             // Invoice-only: vendor + invoice date
-            if (jobInvoiceDateInput) jobInvoiceDateInput.value = entryData.invoiceDate || '';
-            if (jobVendorNameInput) jobVendorNameInput.value = entryData.vendorName || '';
-            if (jobVendorIdInput) jobVendorIdInput.value = entryData.vendorId || '';
+            // 10.1.3: Non-Invoice records such as IPC must not show/carry invoice date.
+            const isInvoiceJobEntry = String(entryData.for || '').trim() === 'Invoice';
+            if (jobInvoiceDateInput) jobInvoiceDateInput.value = isInvoiceJobEntry ? (entryData.invoiceDate || '') : '';
+            if (jobVendorNameInput) jobVendorNameInput.value = isInvoiceJobEntry ? (entryData.vendorName || '') : '';
+            if (jobVendorIdInput) jobVendorIdInput.value = isInvoiceJobEntry ? (entryData.vendorId || '') : '';
 
             if (typeof toggleJobInvoiceFields === 'function') {
                 toggleJobInvoiceFields();
