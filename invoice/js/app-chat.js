@@ -220,6 +220,49 @@ function dmEnsureInlineStyles() {
     document.head.appendChild(style);
 }
 
+
+// 10.0.4: Mobile keyboard safety for Messages.
+// Uses visualViewport when available so the compose/input area stays visible above
+// the mobile keyboard without changing desktop layout.
+function dmUpdateMobileViewportVars() {
+    try {
+        const root = document.documentElement;
+        const vv = window.visualViewport;
+        if (!root) return;
+        if (vv && dmIsMobile()) {
+            const height = Math.max(320, Math.floor(vv.height || window.innerHeight || 0));
+            const fullHeight = Math.max(0, Math.floor(window.innerHeight || height));
+            const keyboardOffset = Math.max(0, Math.floor(fullHeight - height - (vv.offsetTop || 0)));
+            root.style.setProperty('--dm-visual-height', `${height}px`);
+            root.style.setProperty('--dm-keyboard-offset', `${keyboardOffset}px`);
+        } else {
+            root.style.setProperty('--dm-visual-height', '100dvh');
+            root.style.setProperty('--dm-keyboard-offset', '0px');
+        }
+    } catch (_) { /* ignore */ }
+}
+
+function dmBindMobileViewportFix() {
+    if (window.__dmMobileViewportFixBound) return;
+    window.__dmMobileViewportFixBound = true;
+    try {
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', dmUpdateMobileViewportVars);
+            window.visualViewport.addEventListener('scroll', dmUpdateMobileViewportVars);
+        }
+        window.addEventListener('resize', dmUpdateMobileViewportVars);
+        window.addEventListener('orientationchange', () => setTimeout(dmUpdateMobileViewportVars, 250));
+        document.addEventListener('focusin', (event) => {
+            if (!dmState.open) return;
+            if (!event.target || !event.target.closest || !event.target.closest('#dm-modal')) return;
+            setTimeout(() => {
+                dmUpdateMobileViewportVars();
+                try { event.target.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (_) { /* ignore */ }
+            }, 220);
+        });
+    } catch (_) { /* ignore */ }
+}
+
 function dmEnsureUI() {
     dmEnsureInlineStyles();
 
@@ -349,9 +392,11 @@ document.getElementById('dm-full-chat')?.addEventListener('click', () => {
 
 
     // Keep layout correct on rotate / resize
+    dmBindMobileViewportFix();
     window.addEventListener('resize', () => {
         if (!dmState.open) return;
         dmSetMobileScreen(dmState.mobileScreen);
+        dmUpdateMobileViewportVars();
     });
 }
 
@@ -377,6 +422,8 @@ function dmOpen() {
     modal.classList.remove('dm-hidden');
     document.body.classList.add('dm-open');
     dmState.open = true;
+    dmBindMobileViewportFix();
+    dmUpdateMobileViewportVars();
     dmSetMobileScreen('list');
     try {
         if (dmIsMobile() && !window.__dmMobileHistoryOpen) {
@@ -413,6 +460,7 @@ function dmClose() {
     try { dmUnsubscribePresenceList(); } catch (_) { /* ignore */ }
     try { window.__dmMobileHistoryOpen = false; } catch (_) { /* ignore */ }
     dmSetMobileScreen('list');
+    dmUpdateMobileViewportVars();
 }
 
 function dmGetApproversList() {
@@ -589,7 +637,15 @@ function dmOpenThread(toKey, toName) {
 
     // Mobile (touch) mode: switch to chat view immediately (WhatsApp-like)
     dmSetMobileScreen('chat');
-    try { document.getElementById('dm-input')?.focus(); } catch (_) { /* ignore */ }
+    dmUpdateMobileViewportVars();
+    try {
+        const dmInput = document.getElementById('dm-input');
+        dmInput?.focus();
+        setTimeout(() => {
+            dmUpdateMobileViewportVars();
+            dmInput?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }, 260);
+    } catch (_) { /* ignore */ }
 
     // mark read
     if (dmState.threadId) {

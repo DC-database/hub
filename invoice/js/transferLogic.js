@@ -89,6 +89,8 @@ let tfFromSiteChoices, tfToSiteChoices, tfApproverChoices, tfReceiverChoices, tf
 let isMultiMode = false;
 let multiItemBuffer = [];
 let activeTransfersCache = [];
+// 10.0.2: cache material_stock key lookups during mobile/bulk approvals so repeated transactions do not re-query the same product.
+let transferStockItemKeyCache = {};
 
 // ==========================================================================
 // 1. OPEN NEW TRANSFER
@@ -434,9 +436,17 @@ window.handleTransferAction = async (status, options = {}) => {
     };
 
     try {
-        const snapshot = await database.ref(`transfer_entries/${key}`).once('value');
-        const task = snapshot.val();
-        task.key = key;
+        let task = null;
+        if (opts.prefetchedTask && String(opts.prefetchedTask.key || '') === String(key || '')) {
+            // 10.0.2: mobile bulk approval already has this task in memory.
+            // Reuse it to avoid one extra Firebase read per selected item.
+            task = { ...opts.prefetchedTask, key };
+        } else {
+            const snapshot = await database.ref(`transfer_entries/${key}`).once('value');
+            task = snapshot.val();
+            if (!task) throw new Error('Transfer task not found.');
+            task.key = key;
+        }
 
         const destSite = String(task.toLocation || task.toSite || '').trim();
         const sourceSite = String(task.fromLocation || task.fromSite || '').trim();
@@ -620,11 +630,24 @@ async function runStockTransaction(id, qty, action, siteName) {
 
     try {
         // 2. Find the Item Key
-        let snapshot = await database.ref('material_stock').orderByChild('productID').equalTo(cleanId).once('value');
-        if (!snapshot.exists()) snapshot = await database.ref('material_stock').orderByChild('productId').equalTo(cleanId).once('value');
+        // 10.0.2: Prefer already-loaded material stock cache, then local lookup cache,
+        // then Firebase query. This keeps multi-item mobile approvals faster while
+        // preserving the same transaction-safe stock update.
+        let key = transferStockItemKeyCache[cleanId] || '';
 
-        if (snapshot.exists()) {
-            const key = Object.keys(snapshot.val())[0];
+        if (!key && typeof allMaterialStockData !== 'undefined' && Array.isArray(allMaterialStockData)) {
+            const cachedItem = allMaterialStockData.find(i => String(i.productID || i.productId || '').trim() === cleanId);
+            if (cachedItem && cachedItem.key) key = cachedItem.key;
+        }
+
+        if (!key) {
+            let snapshot = await database.ref('material_stock').orderByChild('productID').equalTo(cleanId).once('value');
+            if (!snapshot.exists()) snapshot = await database.ref('material_stock').orderByChild('productId').equalTo(cleanId).once('value');
+            if (snapshot.exists()) key = Object.keys(snapshot.val())[0];
+        }
+
+        if (key) {
+            transferStockItemKeyCache[cleanId] = key;
             const ref = database.ref(`material_stock/${key}`);
 
             // 3. ATOMIC TRANSACTION

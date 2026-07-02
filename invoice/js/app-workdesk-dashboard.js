@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-workdesk-dashboard.js
    IBA WorkDesk Dashboard Active Task Control Center
-   Version: 9.9.3
+   Version: 10.0.4
 
    8.3.6:
    - Replaced the old WorkDesk calendar/date dashboard with a clean view-only
@@ -1608,6 +1608,85 @@ function wdDashboardDedupeKey(task) {
 }
 
 
+// 10.0.4: New Entry should also be visible in Admin/Super Admin All Active Tasks.
+// It comes from WorkDesk Job Records (Date Entered source), not invoice_entries.
+async function wdBuildNewEntryJobRecordTasks() {
+    const tasks = [];
+    const entries = wdGetDashboardJobEntriesList();
+
+    for (const [rowIndex, entry] of entries.entries()) {
+        if (!entry) continue;
+
+        const forText = wdNormalize(entry.for || entry.For || entry.type || entry.Type || '');
+        const isInvoiceJob = forText === 'invoice' || forText === 'invoice job' || forText.includes('invoice');
+        if (!isInvoiceJob) continue;
+
+        const status = wdEntryStatus(entry);
+        if (!wdIsJobNewEntryQueue(entry, status, 'job_entry')) continue;
+        if (typeof isTaskComplete === 'function' && isTaskComplete(entry)) continue;
+
+        const po = wdText(entry.po || entry.originalPO || entry.PO || entry.ref || '');
+        const poDetails = await wdGetPODetails(po);
+        const site = wdText(
+            entry.site || entry.Site || entry.projectId || entry.projectID ||
+            wdGetPOValue(poDetails, ['Project ID', 'Project ID:', 'Project', 'Site'], ''),
+            'N/A'
+        );
+        if (!wdSiteMatchesCurrentUser(site)) continue;
+
+        const vendorName = wdText(
+            entry.vendorName || entry.vendor || entry.Supplier || entry.supplierName ||
+            wdGetPOValue(poDetails, ['Supplier Name', 'Supplier Name:', 'Supplier', 'Supplier:', 'Vendor Name'], ''),
+            'N/A'
+        );
+
+        const jobKey = wdText(entry.key || entry.id || `${po}_${entry.ref || ''}_${entry.date || entry.timestamp || ''}_${rowIndex}`);
+        const queueTimestamp = wdQueueTimestampForTask(entry, {}, 'New Entry', 'job_entry');
+
+        tasks.push({
+            id: `new_entry_${jobKey || po || rowIndex}`,
+            key: entry.key || '',
+            originalKey: entry.key || '',
+            source: 'job_entry',
+            for: 'Invoice',
+            type: 'Invoice Job',
+            po,
+            ref: wdText(entry.ref || entry.invoiceNo || entry.invNumber || entry.invEntryID || ''),
+            invEntryID: wdText(entry.invEntryID || entry.entryId || ''),
+            vendorName,
+            site,
+            siteName: entry.siteName || entry.projectName || wdResolveSiteNameFromPODetails(poDetails),
+            group: 'N/A',
+            status: 'New Entry',
+            remarks: 'New Entry',
+            bucket: 'New Entry',
+            note: wdText(entry.note || entry.details || entry.description || ''),
+            attention: entry.attention || entry.Attention || '',
+            enteredBy: entry.enteredBy || entry.createdBy || entry.updatedBy || '',
+            invName: entry.invName || '',
+            reportName: entry.reportName || '',
+            amount: entry.amount || entry.invoiceValue || entry.invValue || '',
+            amountPaid: entry.amountPaid || entry.amount || entry.invoiceValue || entry.invValue || '',
+            date: entry.invoiceDate || entry.invDate || '',
+            invoiceDate: entry.invoiceDate || entry.invDate || '',
+            linkedJobEntryKey: entry.key || '',
+            jobRecordDateEntered: entry.date || entry.dateEntered || entry.entryDate || '',
+            originDateEntered: entry.date || entry.dateEntered || entry.entryDate || '',
+            dateEntered: entry.date || entry.dateEntered || entry.entryDate || '',
+            jobRecordTimestamp: entry.timestamp || entry.originTimestamp || '',
+            queueLabel: wdQueueLabelForTask('New Entry', 'job_entry'),
+            queueTimestamp,
+            queueText: wdQueueFullText(queueTimestamp),
+            queueTone: wdQueueAgeParts(queueTimestamp).tone,
+            timestamp: queueTimestamp || wdEntryTimestamp(entry),
+            isUrgent: false
+        });
+    }
+
+    return tasks;
+}
+
+
 async function wdBuildIPCJobRecordTasks(ipcMap) {
     const tasks = [];
     const entries = wdGetDashboardJobEntriesList();
@@ -1900,6 +1979,13 @@ async function wdBuildDashboardTasks(options = {}) {
         if (wdDashboardTaskIsAlreadyPersonal(normalized, personalKeySet)) continue;
         tasks.push(normalized);
     }
+
+    // 10.0.4: New Entry is also an All Active open task for Admin/Super Admin.
+    // It is sourced from WorkDesk Job Records so Head Office can see newly received invoices.
+    const newEntryJobRecordTasks = await wdBuildNewEntryJobRecordTasks();
+    newEntryJobRecordTasks.forEach(task => {
+        if (!wdDashboardTaskIsAlreadyPersonal(task, personalKeySet)) tasks.push(task);
+    });
 
     // IPC stays as a separate Job Records list so supplier follow-up remains visible.
     const ipcJobRecordTasks = await wdBuildIPCJobRecordTasks(ipcMap);
