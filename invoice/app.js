@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '10.0.1';
+const APP_VERSION = '10.0.4';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -1029,7 +1029,7 @@ function renderMobileActiveTasks(tasks) {
                 : '';
 
             html += `
-            <div class="mobile-card-header" style="border-left: 5px solid #17a2b8;">
+            <div class="mobile-card-header inventory-transfer-mobile-header" style="border-left: 5px solid #17a2b8;">
                 ${bulkCheckboxHtml}
                 <div class="m-card-main">
                     <h3>${task.productName || 'Unknown Item'}</h3>
@@ -1045,20 +1045,20 @@ function renderMobileActiveTasks(tasks) {
                 </div>
             </div>
             <div class="mobile-card-body">
-                <div class="m-action-group">
-                     <p style="font-size: 0.9rem; color: #333; margin-bottom:5px;"><strong>Status:</strong> <span style="color:#C3502F;">${task.remarks}</span></p>
-                     <p style="font-size: 0.9rem; color: #555;"><strong>Details:</strong> ${task.details || 'N/A'}</p>
+                <div class="m-action-group inventory-mobile-task-details">
+                     <p><strong>Status:</strong> <span class="inventory-mobile-status-text">${task.remarks}</span></p>
+                     <p><strong>Details:</strong> <span>${task.details || 'N/A'}</span></p>
                 </div>
             `;
 
             if (canApprove) {
                 html += `
                 <div class="m-btn-row" style="margin-top:15px;">
-                    <button class="m-btn-approve trf-mobile-action" data-action="Approved" style="background-color: #17a2b8; width:100%; padding:12px; border-radius:8px; border:none; color:white; font-weight:bold;">
-                        <i class="fa-solid fa-check"></i> Confirm / Approve
+                    <button class="m-btn-approve trf-mobile-action inventory-transfer-approve-btn" data-action="Approved" style="background-color: #17a2b8; width:100%; padding:12px; border-radius:8px; border:none; color:white; font-weight:bold;">
+                        <i class="fa-solid fa-check inventory-transfer-approve-icon"></i> Confirm / Approve
                     </button>
-                    <button class="m-btn-reject trf-mobile-action" data-action="Rejected" style="background-color: #dc3545; width:100%; padding:12px; border-radius:8px; border:none; color:white; font-weight:bold;">
-                        <i class="fa-solid fa-xmark"></i> Reject
+                    <button class="m-btn-reject trf-mobile-action inventory-transfer-reject-btn" data-action="Rejected" style="background-color: #dc3545; width:100%; padding:12px; border-radius:8px; border:none; color:white; font-weight:bold;">
+                        <i class="fa-solid fa-xmark inventory-transfer-reject-icon"></i> Reject
                     </button>
                 </div>`;
             } else {
@@ -1350,16 +1350,25 @@ window.processMobileTransferBulkApproval = async function(selectedKeys, buttonEl
     const isSure = confirm(`Approve ${tasks.length} selected inventory item(s)?\n\nThis will process each item using the same stock update logic as one-by-one approval.\nTotal displayed qty: ${totalQty}\n\nContinue?`);
     if (!isSure) return;
 
+    const allChecks = container ? Array.from(container.querySelectorAll('.mobile-transfer-select')) : [];
+    allChecks.forEach(chk => { chk.disabled = true; });
+
     if (buttonElement) {
         buttonElement.disabled = true;
-        buttonElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+        buttonElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing 0/' + tasks.length;
     }
 
     const failed = [];
     const processedKeys = [];
 
     try {
+        let index = 0;
         for (const task of tasks) {
+            index += 1;
+            if (buttonElement) {
+                buttonElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing ' + index + '/' + tasks.length;
+            }
+
             const qty = getMobileInventoryApprovalQty(task);
             if (!qty || qty <= 0) {
                 failed.push(`${task.productName || task.ref || task.key}: invalid quantity`);
@@ -1381,7 +1390,8 @@ window.processMobileTransferBulkApproval = async function(selectedKeys, buttonEl
                     skipConfirm: true,
                     silent: true,
                     deferRefresh: true,
-                    keepModalOpen: true
+                    keepModalOpen: true,
+                    prefetchedTask: task
                 });
 
                 if (actionResult === false) {
@@ -1410,8 +1420,17 @@ window.processMobileTransferBulkApproval = async function(selectedKeys, buttonEl
                 if (idx > -1) userActiveTasks.splice(idx, 1);
             }
 
-            if (typeof ensureAllEntriesFetched === 'function') await ensureAllEntriesFetched(true);
-            if (typeof populateActiveTasks === 'function') await populateActiveTasks();
+            // 10.0.2: Do not run a full Firebase reload after every mobile bulk approval.
+            // The database was already updated by the shared transfer engine. Re-render the
+            // already-loaded task list locally so the mobile approver sees the result quickly.
+            if (typeof renderActiveTaskTable === 'function') {
+                renderActiveTaskTable(userActiveTasks);
+            }
+            if (typeof updateActiveTaskModuleBadges === 'function') {
+                const totalTaskCount = userActiveTasks.length;
+                const urgentCount = userActiveTasks.filter(t => t.isUrgent === true).length;
+                updateActiveTaskModuleBadges(urgentCount, totalTaskCount, 'inventory');
+            }
         }
 
         if (failed.length > 0) {
@@ -1423,6 +1442,7 @@ window.processMobileTransferBulkApproval = async function(selectedKeys, buttonEl
         console.error('Bulk approval error:', error);
         alert('Bulk approval failed. Please refresh and try again.');
     } finally {
+        allChecks.forEach(chk => { chk.disabled = false; });
         if (buttonElement) {
             buttonElement.disabled = false;
             buttonElement.innerHTML = '<i class="fa-solid fa-check-double"></i> Approve Selected';

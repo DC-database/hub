@@ -1,18 +1,10 @@
-IBA WorkDesk 10.0.1 — Site Pin Clear Traffic Color Patch
+IBA WorkDesk 10.0.4 Message Mobile Input + All Active New Entry Patch
 
-Upload these files only:
-- index.html
-- style.css
-- js/app-workdesk-dashboard.js
+Upload the included files to the same paths.
 
 Changed:
-- Updated All Active site card pin colors to avoid orange/red confusion.
-- 0–2 days = green.
-- 3–7 days = yellow-green.
-- 8+ days = yellow.
-- 30+ days = red blinking.
-- Corkboard note top strips follow the same clear color logic.
-- No Firebase save/write/workflow logic changed.
+- Mobile Messages/Chat input stays visible/readable when keyboard opens.
+- Admin/Super Admin All Active Tasks now includes New Entry from WorkDesk Job Records.
+- New Entry is sourced from Job Records/Date Entered and shown in the All Active corkboard preview.
 
-Manual app.js visible version:
-const APP_VERSION = '10.0.1';
+No Firebase write/save/workflow logic changed.

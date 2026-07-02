@@ -28151,3 +28151,111 @@ body.inventory-mode #wd-inv-request-review .inventory-request-review-card,
         animation: none !important;
     }
 }
+
+/* ========================================================================== */
+/* 10.0.4 — Mobile Messages keyboard/input visibility fix                     */
+/* Scope: Messages / Live Chat mobile only. Keeps desktop chat unchanged.      */
+/* ========================================================================== */
+:root {
+    --dm-visual-height: 100dvh;
+    --dm-keyboard-offset: 0px;
+}
+
+@media (max-width: 820px) {
+    #dm-modal .dm-card.dm-mobile {
+        height: var(--dm-visual-height, 100dvh) !important;
+        min-height: 0 !important;
+        max-height: var(--dm-visual-height, 100dvh) !important;
+    }
+
+    #dm-modal .dm-card.dm-mobile .dm-body,
+    #dm-modal .dm-card.dm-mobile .dm-chat {
+        min-height: 0 !important;
+        height: auto !important;
+    }
+
+    #dm-modal .dm-card.dm-mobile .dm-chat {
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    #dm-modal .dm-card.dm-mobile.dm-mobile-list .dm-chat {
+        display: none !important;
+    }
+
+    #dm-modal .dm-card.dm-mobile .dm-message-list {
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 10px !important;
+    }
+
+    #dm-modal .dm-card.dm-mobile .dm-compose {
+        position: sticky !important;
+        bottom: 0 !important;
+        z-index: 45 !important;
+        flex: 0 0 auto !important;
+        background: rgba(18, 18, 24, 0.98) !important;
+        border-top: 1px solid rgba(255,255,255,0.16) !important;
+        padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+        box-shadow: 0 -10px 26px rgba(0,0,0,0.28) !important;
+    }
+
+    #dm-modal .dm-card.dm-mobile .dm-compose input,
+    #dm-modal .dm-card.dm-mobile #dm-input {
+        display: block !important;
+        min-width: 0 !important;
+        height: 44px !important;
+        margin: 0 !important;
+        color: #0f172a !important;
+        background: #ffffff !important;
+        border: 1px solid rgba(148, 163, 184, 0.75) !important;
+        caret-color: #0f766e !important;
+        font-size: 16px !important;
+        line-height: 1.2 !important;
+        -webkit-text-fill-color: #0f172a !important;
+    }
+
+    #dm-modal .dm-card.dm-mobile .dm-compose input::placeholder {
+        color: rgba(71, 85, 105, 0.70) !important;
+        -webkit-text-fill-color: rgba(71, 85, 105, 0.70) !important;
+    }
+
+    .live-chat-panel {
+        right: 8px !important;
+        left: 8px !important;
+        bottom: 8px !important;
+        width: auto !important;
+        height: calc(100dvh - 16px) !important;
+        max-height: calc(100dvh - 16px) !important;
+        border-radius: 18px !important;
+    }
+
+    .live-chat-messages {
+        min-height: 0 !important;
+        flex: 1 1 auto !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .live-chat-inputbar {
+        position: sticky !important;
+        bottom: 0 !important;
+        z-index: 20 !important;
+        flex: 0 0 auto !important;
+        background: rgba(255,255,255,0.96) !important;
+        padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+        box-shadow: 0 -8px 24px rgba(15,23,42,0.16) !important;
+    }
+
+    .live-chat-inputbar input {
+        height: 44px !important;
+        margin: 0 !important;
+        color: #0f172a !important;
+        background: #ffffff !important;
+        -webkit-text-fill-color: #0f172a !important;
+        caret-color: #0f766e !important;
+        font-size: 16px !important;
+    }
+}

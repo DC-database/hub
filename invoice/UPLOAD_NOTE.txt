@@ -1,10 +1,10 @@
-Version: 10.0.1
-Patch: Site Pin Clear Traffic Color
+Patch 10.0.4
 
 Upload/replace:
 - index.html
 - style.css
+- js/app-chat.js
 - js/app-workdesk-dashboard.js
 
-Then update app.js manually if you want the visible version to show:
-const APP_VERSION = '10.0.1';
+Manual visible version in app.js:
+const APP_VERSION = '10.0.4';
