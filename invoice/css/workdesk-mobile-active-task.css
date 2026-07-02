@@ -1,0 +1,160 @@
+/*
+  IBA 10.0.6 WorkDesk / Invoice Mobile Active Task CSS
+  Scope only: Invoice / Task mobile active task.
+  Inventory mobile active task keeps its own inventory-mobile.css styling.
+*/
+@media (max-width: 768px) {
+    body.invoice-mobile-task-active #wd-activetask,
+    #wd-activetask.invoice-mobile-active-task {
+        --task-mobile-accent: #075985;
+        --task-mobile-accent-2: #0f6d8d;
+        --task-mobile-soft: #eff8ff;
+        --task-mobile-text: #0f172a;
+    }
+
+    body.invoice-mobile-task-active #wd-activetask #active-task-filters.report-tabs,
+    #wd-activetask.invoice-mobile-active-task #active-task-filters.report-tabs,
+    #active-task-filters.invoice-mobile-active-task.report-tabs {
+        background: #eff8ff !important;
+        border: 1px solid rgba(14, 116, 144, 0.18) !important;
+        border-radius: 18px !important;
+        padding: 8px !important;
+        gap: 8px !important;
+        box-shadow: 0 8px 20px rgba(7, 89, 133, 0.07) !important;
+    }
+
+    body.invoice-mobile-task-active #wd-activetask #active-task-filters.report-tabs button,
+    #wd-activetask.invoice-mobile-active-task #active-task-filters.report-tabs button,
+    #active-task-filters.invoice-mobile-active-task.report-tabs button {
+        background: #ffffff !important;
+        background-image: none !important;
+        color: #075985 !important;
+        -webkit-text-fill-color: #075985 !important;
+        border: 1px solid rgba(14, 116, 144, 0.22) !important;
+        border-radius: 14px !important;
+        text-shadow: none !important;
+        box-shadow: none !important;
+        font-weight: 850 !important;
+        opacity: 1 !important;
+        min-height: 40px !important;
+    }
+
+    body.invoice-mobile-task-active #wd-activetask #active-task-filters.report-tabs button.active,
+    body.invoice-mobile-task-active #wd-activetask #active-task-filters.report-tabs button.blink-tab,
+    #wd-activetask.invoice-mobile-active-task #active-task-filters.report-tabs button.active,
+    #wd-activetask.invoice-mobile-active-task #active-task-filters.report-tabs button.blink-tab,
+    #active-task-filters.invoice-mobile-active-task.report-tabs button.active,
+    #active-task-filters.invoice-mobile-active-task.report-tabs button.blink-tab {
+        background: linear-gradient(135deg, #075985, #0f6d8d) !important;
+        background-image: linear-gradient(135deg, #075985, #0f6d8d) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border-color: rgba(14, 116, 144, 0.42) !important;
+        text-shadow: none !important;
+        box-shadow: 0 10px 22px rgba(7, 89, 133, 0.16) !important;
+    }
+
+    body.invoice-mobile-task-active #active-task-mobile-view.invoice-mobile-active-task .mobile-task-card,
+    #active-task-mobile-view.invoice-mobile-active-task .mobile-task-card,
+    #active-task-mobile-view .mobile-task-card.invoice-mobile-task-card {
+        border: 1px solid rgba(148,163,184,.24) !important;
+        border-radius: 22px !important;
+        background: #ffffff !important;
+        box-shadow: 0 16px 34px rgba(15,46,71,.10) !important;
+        overflow: hidden !important;
+    }
+
+    body.invoice-mobile-task-active #active-task-mobile-view.invoice-mobile-active-task .mobile-card-header,
+    #active-task-mobile-view.invoice-mobile-active-task .mobile-card-header,
+    #active-task-mobile-view .invoice-mobile-task-card .mobile-card-header {
+        padding: 16px !important;
+        background: linear-gradient(135deg, #073b5c, #0f6d8d) !important;
+        color: #ffffff !important;
+        border-left: none !important;
+    }
+
+    body.invoice-mobile-task-active #active-task-mobile-view.invoice-mobile-active-task .mobile-card-header h3,
+    body.invoice-mobile-task-active #active-task-mobile-view.invoice-mobile-active-task .m-card-main h3,
+    #active-task-mobile-view .invoice-mobile-task-card .mobile-card-header h3,
+    #active-task-mobile-view .invoice-mobile-task-card .m-card-main h3 {
+        color: #facc15 !important;
+        -webkit-text-fill-color: #facc15 !important;
+        letter-spacing: -0.03em !important;
+        text-shadow: none !important;
+    }
+
+    body.invoice-mobile-task-active #active-task-mobile-view.invoice-mobile-active-task .m-card-sub,
+    #active-task-mobile-view .invoice-mobile-task-card .m-card-sub {
+        color: rgba(255,255,255,.86) !important;
+        -webkit-text-fill-color: rgba(255,255,255,.86) !important;
+    }
+
+    body.invoice-mobile-task-active #active-task-mobile-view.invoice-mobile-active-task .m-card-amount,
+    #active-task-mobile-view .invoice-mobile-task-card .m-card-amount {
+        min-width: 92px !important;
+        padding: 10px !important;
+        border-radius: 16px !important;
+        background: rgba(255,255,255,.14) !important;
+        border: 1px solid rgba(255,255,255,.16) !important;
+    }
+
+    body.invoice-mobile-task-active #active-task-mobile-view.invoice-mobile-active-task .m-card-val,
+    #active-task-mobile-view .invoice-mobile-task-card .m-card-val {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        font-weight: 950 !important;
+    }
+
+    body.invoice-mobile-task-active #active-task-mobile-view.invoice-mobile-active-task .m-card-ref,
+    #active-task-mobile-view .invoice-mobile-task-card .m-card-ref {
+        color: rgba(255,255,255,.75) !important;
+        -webkit-text-fill-color: rgba(255,255,255,.75) !important;
+    }
+
+    body.invoice-mobile-task-active #active-task-mobile-view.invoice-mobile-active-task .mobile-card-body,
+    #active-task-mobile-view .invoice-mobile-task-card .mobile-card-body {
+        background: #f8fafc !important;
+        border-top: 1px solid #e2e8f0 !important;
+        color: #0f172a !important;
+        -webkit-text-fill-color: #0f172a !important;
+    }
+
+    body.invoice-mobile-task-active #active-task-mobile-view.invoice-mobile-active-task .m-action-group label,
+    #active-task-mobile-view .invoice-mobile-task-card .m-action-group label {
+        color: #334155 !important;
+        -webkit-text-fill-color: #334155 !important;
+        font-weight: 750 !important;
+    }
+
+    body.invoice-mobile-task-active #active-task-mobile-view.invoice-mobile-active-task input,
+    body.invoice-mobile-task-active #active-task-mobile-view.invoice-mobile-active-task textarea,
+    #active-task-mobile-view .invoice-mobile-task-card input,
+    #active-task-mobile-view .invoice-mobile-task-card textarea {
+        background: #ffffff !important;
+        color: #0f172a !important;
+        -webkit-text-fill-color: #0f172a !important;
+        border: 1px solid rgba(15, 46, 71, 0.16) !important;
+        caret-color: #0f6d8d !important;
+    }
+
+    body.invoice-mobile-task-active #active-task-mobile-view.invoice-mobile-active-task .m-pdf-btn,
+    #active-task-mobile-view .invoice-mobile-task-card .m-pdf-btn {
+        display: block !important;
+        background: #eef4f8 !important;
+        background-image: none !important;
+        color: #0f172a !important;
+        -webkit-text-fill-color: #0f172a !important;
+        text-shadow: none !important;
+        border: 1px solid rgba(15, 46, 71, 0.14) !important;
+        border-radius: 14px !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.70), 0 8px 18px rgba(15,46,71,.08) !important;
+        font-weight: 850 !important;
+    }
+
+    body.invoice-mobile-task-active #active-task-mobile-view.invoice-mobile-active-task .m-pdf-btn i,
+    #active-task-mobile-view .invoice-mobile-task-card .m-pdf-btn i {
+        color: #0f6d8d !important;
+        -webkit-text-fill-color: #0f6d8d !important;
+        text-shadow: none !important;
+    }
+}

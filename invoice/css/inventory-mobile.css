@@ -1089,3 +1089,108 @@
         text-shadow: 0 1px 1px rgba(0,0,0,0.30) !important;
     }
 }
+
+
+/* =========================================================
+   10.0.6 INVENTORY MOBILE ACTIVE TASK STRICT SCOPE
+   Inventory task UI is active only when JS marks the visible mobile task module as inventory.
+   This prevents maroon inventory tabs/cards from bleeding into Invoice / Task mobile active task.
+   ========================================================= */
+@media (max-width: 768px) {
+    body.inventory-mobile-task-active #wd-activetask #active-task-filters.report-tabs,
+    #wd-activetask.inventory-mobile-active-task #active-task-filters.report-tabs,
+    #active-task-filters.inventory-mobile-active-task.report-tabs {
+        background: rgba(255, 248, 248, 0.96) !important;
+        border: 1px solid rgba(77, 0, 0, 0.16) !important;
+        border-radius: 18px !important;
+        padding: 8px !important;
+        gap: 8px !important;
+        box-shadow: 0 8px 20px rgba(43, 0, 0, 0.06) !important;
+    }
+
+    body.inventory-mobile-task-active #wd-activetask #active-task-filters.report-tabs button,
+    #wd-activetask.inventory-mobile-active-task #active-task-filters.report-tabs button,
+    #active-task-filters.inventory-mobile-active-task.report-tabs button {
+        background: #fffafa !important;
+        background-image: none !important;
+        color: #4d0000 !important;
+        -webkit-text-fill-color: #4d0000 !important;
+        border: 1px solid rgba(77, 0, 0, 0.22) !important;
+        border-radius: 14px !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+        font-weight: 900 !important;
+        min-height: 40px !important;
+        opacity: 1 !important;
+    }
+
+    body.inventory-mobile-task-active #wd-activetask #active-task-filters.report-tabs button.active,
+    body.inventory-mobile-task-active #wd-activetask #active-task-filters.report-tabs button.blink-tab,
+    #wd-activetask.inventory-mobile-active-task #active-task-filters.report-tabs button.active,
+    #wd-activetask.inventory-mobile-active-task #active-task-filters.report-tabs button.blink-tab,
+    #active-task-filters.inventory-mobile-active-task.report-tabs button.active,
+    #active-task-filters.inventory-mobile-active-task.report-tabs button.blink-tab {
+        background: linear-gradient(135deg, #2b0000 0%, #4d0000 62%, #7a1111 100%) !important;
+        background-image: linear-gradient(135deg, #2b0000 0%, #4d0000 62%, #7a1111 100%) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border-color: rgba(77, 0, 0, 0.48) !important;
+        box-shadow: 0 10px 22px rgba(43, 0, 0, 0.18) !important;
+    }
+
+    body.inventory-mobile-task-active #active-task-mobile-view.inventory-mobile-active-task .mobile-task-card,
+    #active-task-mobile-view.inventory-mobile-active-task .mobile-task-card,
+    #active-task-mobile-view .inventory-mobile-task-card {
+        background: #fffafa !important;
+        border: 1px solid rgba(77, 0, 0, 0.20) !important;
+        border-left: 5px solid #4d0000 !important;
+        border-radius: 18px !important;
+        box-shadow: 0 14px 28px rgba(43, 0, 0, 0.10) !important;
+        overflow: hidden !important;
+    }
+
+    body.inventory-mobile-task-active #active-task-mobile-view.inventory-mobile-active-task .inventory-transfer-mobile-header,
+    #active-task-mobile-view.inventory-mobile-active-task .inventory-transfer-mobile-header,
+    #active-task-mobile-view .inventory-mobile-task-card .inventory-transfer-mobile-header {
+        background: #fffafa !important;
+        color: #4d0000 !important;
+        -webkit-text-fill-color: #4d0000 !important;
+        border-left: 5px solid #4d0000 !important;
+    }
+
+    body.inventory-mobile-task-active #active-task-mobile-view.inventory-mobile-active-task .inventory-transfer-mobile-header h3,
+    body.inventory-mobile-task-active #active-task-mobile-view.inventory-mobile-active-task .m-card-main h3,
+    #active-task-mobile-view .inventory-mobile-task-card .m-card-main h3 {
+        color: #4d0000 !important;
+        -webkit-text-fill-color: #4d0000 !important;
+        text-shadow: none !important;
+        font-weight: 950 !important;
+    }
+
+    body.inventory-mobile-task-active #active-task-mobile-view.inventory-mobile-active-task .inventory-mobile-task-details,
+    body.inventory-mobile-task-active #active-task-mobile-view.inventory-mobile-active-task .inventory-mobile-task-details *,
+    #active-task-mobile-view .inventory-mobile-task-card .inventory-mobile-task-details,
+    #active-task-mobile-view .inventory-mobile-task-card .inventory-mobile-task-details * {
+        color: #3b0a0a !important;
+        -webkit-text-fill-color: #3b0a0a !important;
+        text-shadow: none !important;
+    }
+
+    body.inventory-mobile-task-active #active-task-mobile-view.inventory-mobile-active-task .inventory-transfer-approve-icon,
+    #active-task-mobile-view .inventory-mobile-task-card .inventory-transfer-approve-icon {
+        color: #22c55e !important;
+        -webkit-text-fill-color: #22c55e !important;
+    }
+
+    body.inventory-mobile-task-active #active-task-mobile-view.inventory-mobile-active-task .inventory-transfer-reject-icon,
+    #active-task-mobile-view .inventory-mobile-task-card .inventory-transfer-reject-icon {
+        color: #facc15 !important;
+        -webkit-text-fill-color: #facc15 !important;
+    }
+
+    /* Hard reset: when invoice module is active, inventory active-task tabs/cards are not allowed to repaint it. */
+    body.invoice-mobile-task-active #wd-activetask #active-task-filters.inventory-task-filters-maroon {
+        background: #eff8ff !important;
+        border-color: rgba(14, 116, 144, 0.18) !important;
+    }
+}
