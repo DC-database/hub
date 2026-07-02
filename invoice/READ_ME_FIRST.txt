@@ -1,10 +1,14 @@
-IBA WorkDesk 10.0.4 Message Mobile Input + All Active New Entry Patch
+IBA WorkDesk 10.1.4 PATCH — Dashboard IPC Invoice Date Display Fix
 
-Upload the included files to the same paths.
+Purpose:
+- Fix Dashboard still showing an Invoice Date for IPC Job Records.
 
-Changed:
-- Mobile Messages/Chat input stays visible/readable when keyboard opens.
-- Admin/Super Admin All Active Tasks now includes New Entry from WorkDesk Job Records.
-- New Entry is sourced from Job Records/Date Entered and shown in the All Active corkboard preview.
+Rule:
+- IPC is not an invoice yet.
+- IPC Dashboard card may use Job Record date as Entered/queue date only.
+- IPC Dashboard Invoice Date must remain blank / — until IPC is converted to Invoice.
+- Existing stale invoiceDate values on IPC records are ignored in Dashboard display.
 
-No Firebase write/save/workflow logic changed.
+Patch type:
+- Patch-only package.
+- Files inside are complete updated files, ready to replace existing live files.

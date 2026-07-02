@@ -56,7 +56,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
 
-    <link rel="stylesheet" href="style.css?v=10.0.4">
+    <link rel="stylesheet" href="style.css?v=10.0.5">
     <link rel="stylesheet" href="css/transfer_stock.css?v=8.6.2">
     <link rel="stylesheet" href="css/mobile.css?v=9.2.7">
     <!-- 9.0.1 module split: page-specific desktop/mobile override layers -->
@@ -65,7 +65,8 @@
     <link rel="stylesheet" href="css/inventory-desktop.css?v=9.2.7">
     <link rel="stylesheet" href="css/workdesk-mobile.css?v=9.2.7">
     <link rel="stylesheet" href="css/invoice-mobile.css?v=9.2.7">
-    <link rel="stylesheet" href="css/inventory-mobile.css?v=10.0.3">
+    <link rel="stylesheet" href="css/inventory-mobile.css?v=10.0.6">
+    <link rel="stylesheet" href="css/workdesk-mobile-active-task.css?v=10.0.6">
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -549,7 +550,7 @@
     <div class="search-and-filter-group wd-premium-searchbar">
         <div class="search-bar-local wd-search-field">
             <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" id="reporting-search" placeholder="Search job, PO, vendor, site, attention, status...">
+            <input type="text" id="reporting-search" placeholder="Search job, PO, vendor, site, attention, status, note...">
         </div>
         <button id="reporting-clear-button" class="secondary-btn wd-clear-chip" type="button">Clear</button>
     </div>
@@ -586,6 +587,7 @@
                         <th>Date Entered</th>
                         <th>Attention</th>
                         <th>Date Responded</th>
+                        <th>Note</th>
                         <th>Status</th>
                     </tr>
                 </thead>
@@ -2668,6 +2670,12 @@
                 </datalist>
             </div>
 
+            <div class="form-group wd-current-note-field">
+                <label>Current Note</label>
+                <textarea id="job-current-note" name="details" rows="3" placeholder="Add a short reason or instruction for this task..."></textarea>
+                <small class="wd-field-helper">Use this for why/details. Keep Status as the workflow stage only.</small>
+            </div>
+
             <!-- Invoice-only fields (does not affect other job types) -->
             <div id="job-invoice-fields" class="hidden" style="background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px dashed #ccc;">
                 <div class="form-group" style="margin-bottom: 10px;">
@@ -3003,18 +3011,18 @@
     <script src="js/app-utils.js?v=8.2.3"></script>
     <script src="js/app-vacation.js?v=8.2.3"></script>
     <script src="js/app-dom-refs.js?v=8.2.9"></script>
-    <script src="app.js?v=10.0.3"></script>
+    <script src="app.js?v=10.1.0"></script>
     <script src="js/app-navigation-settings.js?v=9.5.1"></script>
     <script src="js/app-data-cache.js?v=9.5.2"></script>
     <script src="js/app-job-vendor.js?v=8.2.3"></script>
-    <script src="js/app-workdesk-job-entry.js?v=8.2.5"></script>
-    <script src="js/app-standard-job.js?v=8.7.4"></script>
+    <script src="js/app-workdesk-job-entry.js?v=10.0.8"></script>
+    <script src="js/app-standard-job.js?v=10.0.8"></script>
     <script src="js/app-invoice-dashboard.js?v=8.6.5"></script>
     <script src="js/app-payments.js?v=8.3.0"></script>
     <script src="js/app-invoice-records.js?v=9.7.7"></script>
     <script src="js/app-active-tasks.js?v=9.8.8"></script>
     <script src="js/app-workdesk-dashboard.js?v=10.0.4"></script>
-    <script src="js/app-workdesk-reporting.js?v=9.8.0"></script>
+    <script src="js/app-workdesk-reporting.js?v=10.1.0"></script>
     <script src="js/app-reporting-actions.js?v=9.9.0"></script>
     <script src="js/app-report-workflow.js?v=8.2.3"></script>
     <script src="js/app-ui-shortcuts.js?v=8.2.3"></script>

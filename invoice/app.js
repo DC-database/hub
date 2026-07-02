@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '10.0.4';
+const APP_VERSION = '10.1.4';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -905,6 +905,11 @@ function setupMobileBulkApprovalControls(container) {
 function renderMobileActiveTasks(tasks) {
     const container = document.getElementById('active-task-mobile-view');
     const receiptContainer = document.getElementById('mobile-receipt-action-container');
+    const mobileTaskModule = (typeof window.getActiveMobileTaskModule === 'function') ? window.getActiveMobileTaskModule() : ((typeof isInventoryContext === 'function' && isInventoryContext()) ? 'inventory' : 'invoice');
+
+    if (typeof window.applyMobileActiveTaskModuleScope === 'function') {
+        window.applyMobileActiveTaskModuleScope(mobileTaskModule);
+    }
 
     if (container) container.innerHTML = '';
 
@@ -942,7 +947,8 @@ function renderMobileActiveTasks(tasks) {
 
     // 3. Filter Logic (Restored)
     let filteredTasks = Array.isArray(tasks) ? tasks.slice() : [];
-    if (typeof isInventoryContext === 'function' && isInventoryContext()) {
+    const mobileTaskModuleIsInventory = mobileTaskModule === 'inventory';
+    if (mobileTaskModuleIsInventory) {
         filteredTasks = filteredTasks.filter(t => isInventoryTaskRecord(t));
     } else {
         filteredTasks = filteredTasks.filter(t => isWorkdeskTaskRecord(t));
@@ -987,11 +993,12 @@ function renderMobileActiveTasks(tasks) {
     // 6. Render Cards
     filteredTasks.forEach(task => {
         const card = document.createElement('div');
-        card.className = 'mobile-task-card';
+        const cardIsInventory = ['Transfer', 'Restock', 'Return', 'Usage'].includes(task.for);
+        card.className = `mobile-task-card ${cardIsInventory ? 'inventory-mobile-task-card' : 'invoice-mobile-task-card'}`;
         let html = '';
 
         // --- A. INVENTORY CARD ---
-        if (['Transfer', 'Restock', 'Return', 'Usage'].includes(task.for)) {
+        if (cardIsInventory) {
             let canApprove = false;
             let statusMessage = "";
 
@@ -1121,7 +1128,7 @@ function renderMobileActiveTasks(tasks) {
         });
 
         // Button Actions
-        if (['Transfer', 'Restock', 'Return', 'Usage'].includes(task.for)) {
+        if (cardIsInventory) {
             const trfBtns = card.querySelectorAll('.trf-mobile-action');
             trfBtns.forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -1990,16 +1997,22 @@ function getJobDataFromForm() {
         remarks: status, // <--- Uses the new logic
 
         details: (formData.get('details') || '').trim(),
+        note: (formData.get('details') || '').trim(),
         calendarDate: (formData.get('calendarDate') || ''),
         productName: (document.getElementById('job-product-name')?.value || '').trim(),
         attachmentName: (document.getElementById('job-attachment').value || '').trim()
     };
 
     // 5. Invoice-only fields (safe: does not affect other job types)
+    // 10.1.3: IPC / PR / Payment / Report jobs are not invoices yet, so they must not
+    // carry an invoiceDate. When an IPC is later converted to Invoice, the real invoice
+    // date can be entered on the Invoice form/workflow.
     if (jobType === 'Invoice') {
         data.invoiceDate = String(jobInvoiceDateInput?.value || '').trim();
         data.vendorName = String(jobVendorNameInput?.value || '').trim();
         data.vendorId = String(jobVendorIdInput?.value || '').trim();
+    } else {
+        data.invoiceDate = null;
     }
 
     return data;
@@ -2012,7 +2025,7 @@ function getJobDataFromForm() {
 async function handleAddJobEntry(e) {
     e.preventDefault();
     
-    const btn = document.getElementById('btn-add-job');
+    const btn = document.getElementById('add-job-button') || document.getElementById('btn-add-job');
     if (btn) btn.disabled = true;
 
     // 1. Collect Data from Form
@@ -2353,11 +2366,56 @@ async function handleUpdateJobEntry(e) {
         const originalJobType = normalizeJobType(originalEntry?.for || originalEntry?.jobType || '');
         const convertedToInvoice = !!originalEntry && originalJobType !== 'Invoice' && jobData.for === 'Invoice';
 
+        let noteOnlyEdit = false;
+        let attentionChanged = false;
+        let statusChanged = false;
+
         if (originalEntry) {
             const currentUser = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover.Name : 'System';
             jobData.enteredBy = originalEntry.enteredBy || currentUser;
             jobData.timestamp = originalEntry.timestamp || firebase.database.ServerValue.TIMESTAMP;
-            if (!jobData.date) jobData.date = originalEntry.date;
+
+            // 10.1.2: Preserve the original Entered Date when editing an existing Job Entry.
+            // The hidden job-date input can be blank in edit mode; getJobDataFromForm() may then
+            // default it to today's date. That is correct only for a brand-new entry, not for edits.
+            // IPC/Job Record -> Invoice conversion is a separate workflow and becomes a fresh
+            // New Entry task, so that conversion can receive today's entered date.
+            if (convertedToInvoice) {
+                jobData.date = formatDate(new Date());
+            } else {
+                jobData.date = originalEntry.date || jobData.date || '';
+            }
+
+            // 10.1.3: Non-Invoice Job Entry records like IPC have no supplier invoice yet.
+            // Clear any stale invoiceDate that may have been saved by an earlier version.
+            // This also removes the wrong current-date invoiceDate from IPC records on the next save.
+            if (jobData.for !== 'Invoice') {
+                jobData.invoiceDate = null;
+            }
+
+            const originalAttention = String(originalEntry.attention || '').trim();
+            const newAttention = String(jobData.attention || '').trim();
+            const originalStatus = String(originalEntry.remarks || originalEntry.status || '').trim();
+            const newStatus = String(jobData.remarks || jobData.status || '').trim();
+            const originalNote = String(originalEntry.note || originalEntry.details || originalEntry.currentNote || '').trim();
+            const newNote = String(jobData.note || jobData.details || '').trim();
+
+            attentionChanged = newAttention !== originalAttention;
+            statusChanged = newStatus !== originalStatus;
+
+            const extraFieldsChanged = [
+                'for', 'ref', 'amount', 'po', 'site', 'group', 'date',
+                'vendorName', 'vendorId', 'invoiceDate', 'productName', 'attachmentName'
+            ].some(function (field) {
+                return String(jobData[field] || '').trim() !== String(originalEntry[field] || '').trim();
+            });
+
+            noteOnlyEdit = !convertedToInvoice && !attentionChanged && !statusChanged && !extraFieldsChanged && originalNote !== newNote;
+
+            const currentUserName = String((typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover.Name : '').trim();
+            const assignedUserIsUpdating = !!currentUserName && currentUserName === newAttention;
+            const activeStatuses = new Set(['', 'Pending', 'New Entry', 'For SRV', 'For IPC', 'For Approval', 'Report', 'On Hold', 'In Process', 'Unresolved', 'Under Review', 'Manager Approved']);
+            const completionStatuses = new Set(['With Accounts', 'SRV Done', 'PO Ready', 'Paid', 'CLOSED', 'Closed', 'Cancelled', 'Canceled']);
 
             if (convertedToInvoice) {
                 // Critical: do not carry IPC/old response state into the new Invoice task.
@@ -2365,15 +2423,18 @@ async function handleUpdateJobEntry(e) {
                 jobData.invoiceConvertedFrom = originalJobType || 'Job Record';
                 jobData.invoiceConvertedAt = firebase.database.ServerValue.TIMESTAMP;
                 jobData.invoiceConvertedBy = currentUser;
-            } else if (jobData.attention !== originalEntry.attention) {
+            } else if (attentionChanged) {
+                // Reassignment creates a fresh task for the new Attention user.
+                jobData.dateResponded = null;
+            } else if (statusChanged && completionStatuses.has(newStatus) && assignedUserIsUpdating && !originalEntry.dateResponded) {
+                const today = new Date();
+                jobData.dateResponded = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, '0') + "-" + String(today.getDate()).padStart(2, '0');
+            } else if (statusChanged && activeStatuses.has(newStatus)) {
+                // If a record is moved back to an active queue, keep it visible.
                 jobData.dateResponded = null;
             } else {
-                if (typeof currentApprover !== 'undefined' && currentApprover.Name === jobData.attention && !originalEntry.dateResponded) {
-                    const today = new Date();
-                    jobData.dateResponded = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, '0') + "-" + String(today.getDate()).padStart(2, '0');
-                } else {
-                    jobData.dateResponded = originalEntry.dateResponded || null;
-                }
+                // Dependability fix: editing Current Note/details alone must not complete or hide the task.
+                jobData.dateResponded = originalEntry.dateResponded || null;
             }
         } else {
             const currentUser = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover.Name : 'System';
@@ -2385,45 +2446,68 @@ async function handleUpdateJobEntry(e) {
         await db.ref(`job_entries/${currentlyEditingKey}`).update(jobData);
 
         const updaterName = (typeof currentApprover !== 'undefined') ? currentApprover.Name : "System";
+        const cleanCurrentNote = String(jobData.note || jobData.details || '').trim();
+        const historyNote = convertedToInvoice
+            ? `Converted from ${originalJobType || 'Job Record'} to Invoice and routed to: ${jobData.attention}${cleanCurrentNote ? ' | Note: ' + cleanCurrentNote : ''}`
+            : noteOnlyEdit
+                ? `Updated Current Note${cleanCurrentNote ? ': ' + cleanCurrentNote : ''}`
+                : `Updated${statusChanged ? ' Status to: ' + (jobData.remarks || jobData.status || 'Pending') : ''}${attentionChanged ? ' | Attention to: ' + jobData.attention : ''}${(!statusChanged && !attentionChanged && jobData.attention) ? ' Attention: ' + jobData.attention : ''}${cleanCurrentNote ? ' | Note: ' + cleanCurrentNote : ''}`;
         const historyEntry = {
-            action: convertedToInvoice ? "Converted to Invoice" : "Updated",
+            action: convertedToInvoice ? "Converted to Invoice" : (noteOnlyEdit ? "Updated Current Note" : "Updated"),
             by: updaterName,
             timestamp: Date.now(),
             status: jobData.remarks || "Updated",
-            note: convertedToInvoice
-                ? `Converted from ${originalJobType || 'Job Record'} to Invoice and routed to: ${jobData.attention}`
-                : `Updated Attention to: ${jobData.attention}`
+            note: historyNote
         };
         await db.ref(`job_entries/${currentlyEditingKey}/history`).push(historyEntry);
 
-        alert(convertedToInvoice ? 'Job converted to Invoice successfully!' : 'Job Updated Successfully!');
-
-        // Force all affected WorkDesk lists/cards to refresh after bucket changes.
-        allSystemEntries = [];
-        if (typeof cacheTimestamps !== 'undefined') {
-            cacheTimestamps.systemEntries = 0;
-            cacheTimestamps.invoiceData = 0;
+        // 10.1.1: The Firebase update/history save is complete at this point.
+        // Reset the button immediately before the heavier UI refresh so users do not
+        // get stuck looking at "Saving..." and wondering if the record was saved.
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Update';
+            btn.removeAttribute('disabled');
         }
 
-        try {
-            sessionStorage.removeItem('IBA_ACTIVE_TASK_WORKDESK_SNAPSHOT_V1');
-            localStorage.removeItem('IBA_WD_ACTIVE_DASHBOARD_CACHE_V1');
-            if (typeof wdClearWorkdeskDashboardCache === 'function') wdClearWorkdeskDashboardCache();
-        } catch (_) {}
+        alert(convertedToInvoice ? 'Job converted to Invoice successfully!' : 'Job Updated Successfully!');
 
-        await ensureAllEntriesFetched(true);
-
-        const currentSearch = sessionStorage.getItem('jobEntrySearch') || '';
-        if (typeof handleJobEntrySearch === 'function') handleJobEntrySearch(currentSearch);
-        if (typeof populateActiveTasks === 'function') await populateActiveTasks(true);
-        if (typeof populateWorkdeskDashboard === 'function') await populateWorkdeskDashboard(true);
         if (typeof closeStandardJobModal === 'function') closeStandardJobModal();
+
+        // Force all affected WorkDesk lists/cards to refresh after bucket changes.
+        // This is intentionally separated from the actual save confirmation.
+        try {
+            allSystemEntries = [];
+            if (typeof cacheTimestamps !== 'undefined') {
+                cacheTimestamps.systemEntries = 0;
+                cacheTimestamps.invoiceData = 0;
+            }
+
+            try {
+                sessionStorage.removeItem('IBA_ACTIVE_TASK_WORKDESK_SNAPSHOT_V1');
+                localStorage.removeItem('IBA_WD_ACTIVE_DASHBOARD_CACHE_V1');
+                if (typeof wdClearWorkdeskDashboardCache === 'function') wdClearWorkdeskDashboardCache();
+            } catch (_) {}
+
+            await ensureAllEntriesFetched(true);
+
+            const currentSearch = sessionStorage.getItem('jobEntrySearch') || '';
+            if (typeof handleJobEntrySearch === 'function') handleJobEntrySearch(currentSearch);
+            if (typeof populateActiveTasks === 'function') await populateActiveTasks(true);
+            if (typeof populateWorkdeskDashboard === 'function') await populateWorkdeskDashboard(true);
+        } catch (refreshError) {
+            console.warn('Job saved, but screen refresh was delayed or failed:', refreshError);
+        }
 
     } catch (error) {
         console.error("Error updating job:", error);
         alert('Failed to update. Check console for details.');
     } finally {
-        if (btn) { btn.disabled = false; btn.textContent = 'Update'; }
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Update';
+            btn.removeAttribute('disabled');
+        }
     }
 }
 
@@ -6567,144 +6651,122 @@ try {
 })();
 
 
+
 // =================================================================================================
-// v9.0.1 — Inventory mobile theme flag for Active Task tab color only (UI only)
-// Ensures the Inventory mobile Active Task tabs use maroon even when the shared WorkDesk task view is reused.
+// v10.0.6 — Mobile Active Task Full Module Isolation
+// Invoice/Task mobile active task and Inventory mobile active task now get separate body/container scope.
+// The visible module switcher is the source of truth; hidden/stale inventory-mode flags must not style invoice tasks.
+// UI scope only. No Firebase/save/approval workflow logic changed.
 // =================================================================================================
 (function () {
     function isSmallScreen() {
         return window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
     }
 
-    function selectedMobileModuleIsInventory() {
+    function getVisibleMobileModuleValue() {
         const selectors = Array.from(document.querySelectorAll('.mobile-module-switcher-select'));
-        if (!selectors.length) return false;
-
+        if (!selectors.length) return '';
         const visibleSelected = selectors.find(function (sel) {
             const wrap = sel.closest('.mobile-module-switcher-wrap');
             const visible = !!(sel.offsetWidth || sel.offsetHeight || sel.getClientRects().length);
             const wrapVisible = !wrap || !!(wrap.offsetWidth || wrap.offsetHeight || wrap.getClientRects().length);
             return visible && wrapVisible;
         });
-
-        return !!(visibleSelected && visibleSelected.value === 'inventory');
+        return (visibleSelected && visibleSelected.value ? String(visibleSelected.value).toLowerCase() : '');
     }
 
-    function syncInventoryMobileThemeFlag() {
-        if (!document.body) return;
-        const active = isSmallScreen() && (
-            document.body.classList.contains('inventory-mode') ||
-            document.body.classList.contains('inventory-mobile-finder-active') ||
+    function getActiveMobileTaskModule() {
+        if (!isSmallScreen()) {
+            return (typeof isInventoryContext === 'function' && isInventoryContext()) ? 'inventory' : 'invoice';
+        }
+
+        // The visible selector is the highest authority on mobile.
+        const visibleModule = getVisibleMobileModuleValue();
+        if (visibleModule === 'inventory') return 'inventory';
+        if (visibleModule === 'invoice' || visibleModule === 'workdesk' || visibleModule === 'task') return 'invoice';
+
+        // Fallback only if no visible selector exists.
+        if (document.body && (
             document.body.classList.contains('inventory-request-review-active') ||
-            selectedMobileModuleIsInventory()
-        );
-        document.body.classList.toggle('inventory-mobile-theme-active', !!active);
+            document.body.classList.contains('inventory-mobile-finder-active') ||
+            document.body.classList.contains('inventory-mode')
+        )) return 'inventory';
+        return 'invoice';
     }
 
-    function bootInventoryMobileThemeFlag() {
-        syncInventoryMobileThemeFlag();
-        document.querySelectorAll('.mobile-module-switcher-select').forEach(function (sel) {
-            sel.addEventListener('change', function () {
-                setTimeout(syncInventoryMobileThemeFlag, 0);
-                setTimeout(syncInventoryMobileThemeFlag, 120);
-            });
+    function clearMobileTaskInlineTabStyles(filters) {
+        if (!filters) return;
+        filters.querySelectorAll('button').forEach(function (btn) {
+            [
+                'background', 'background-image', 'color', '-webkit-text-fill-color',
+                'border-color', 'text-shadow', 'opacity', 'box-shadow'
+            ].forEach(function (prop) { btn.style.removeProperty(prop); });
         });
-        document.addEventListener('click', function () {
-            setTimeout(syncInventoryMobileThemeFlag, 60);
-        }, true);
-        window.addEventListener('resize', syncInventoryMobileThemeFlag);
-        setInterval(syncInventoryMobileThemeFlag, 1000);
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', bootInventoryMobileThemeFlag);
-    } else {
-        bootInventoryMobileThemeFlag();
-    }
+    function applyMobileActiveTaskModuleScope(moduleName) {
+        const module = moduleName === 'inventory' ? 'inventory' : 'invoice';
+        const isInventory = module === 'inventory';
+        const body = document.body;
+        const container = document.getElementById('active-task-mobile-view');
+        const filters = document.getElementById('active-task-filters');
+        const header = document.getElementById('active-task-mobile-header');
+        const section = document.getElementById('wd-activetask');
 
-    window.syncInventoryMobileThemeFlag = syncInventoryMobileThemeFlag;
-})();
+        if (body) {
+            body.classList.toggle('inventory-mobile-task-active', isInventory);
+            body.classList.toggle('invoice-mobile-task-active', !isInventory);
+            body.classList.toggle('inventory-mobile-theme-active', isInventory);
 
-// =================================================================================================
-// v9.0.1 — Inventory mobile Active Task tab hard maroon fix (UI only)
-// Applies a direct class + inline fallback to the shared Active Task filter strip when the mobile
-// module dropdown is set to Inventory, so the No Tasks tab cannot keep the old WorkDesk blue.
-// =================================================================================================
-(function () {
-    function isMobileWidth() {
-        return !window.matchMedia || window.matchMedia('(max-width: 768px)').matches;
-    }
+            // Prevent old Inventory body mode from repainting Invoice/Task mobile active task.
+            if (!isInventory && isSmallScreen()) {
+                body.classList.remove('inventory-mode');
+            }
+        }
 
-    function moduleSwitcherSaysInventory() {
-        try {
-            const wd = document.getElementById('mobile-module-switcher-wd');
-            const inv = document.getElementById('mobile-module-switcher-inv');
-            const im = document.getElementById('mobile-module-switcher-im');
-            return !!(
-                (wd && wd.value === 'inventory') ||
-                (inv && inv.value === 'inventory') ||
-                (im && im.value === 'inventory')
-            );
-        } catch (e) {
-            return false;
+        [container, filters, header, section].forEach(function (el) {
+            if (!el) return;
+            el.dataset.mobileTaskModule = module;
+            el.classList.toggle('inventory-mobile-active-task', isInventory);
+            el.classList.toggle('invoice-mobile-active-task', !isInventory);
+        });
+
+        if (filters) {
+            filters.classList.toggle('inventory-task-filters-maroon', isInventory);
+            filters.classList.toggle('invoice-task-filters-blue', !isInventory);
+            clearMobileTaskInlineTabStyles(filters);
         }
     }
 
-    function inventoryTaskContextActive() {
-        return isMobileWidth() && !!document.body && (
-            document.body.classList.contains('inventory-mode') ||
-            document.body.classList.contains('inventory-mobile-theme-active') ||
-            document.body.classList.contains('inventory-mobile-finder-active') ||
-            document.body.classList.contains('inventory-request-review-active') ||
-            moduleSwitcherSaysInventory()
-        );
-    }
+    function bootMobileTaskModuleIsolation() {
+        applyMobileActiveTaskModuleScope(getActiveMobileTaskModule());
 
-    function forceInventoryMobileTaskTabs() {
-        const filters = document.getElementById('active-task-filters');
-        if (!filters) return;
-        const active = inventoryTaskContextActive();
-        filters.classList.toggle('inventory-task-filters-maroon', active);
-        if (!active) return;
-
-        filters.querySelectorAll('button').forEach(function (btn) {
-            const isActive = btn.classList.contains('active') || btn.classList.contains('blink-tab') || btn.disabled;
-            btn.style.setProperty('background', isActive ? '#4d0000' : '#fffafa', 'important');
-            btn.style.setProperty('background-image', isActive ? 'linear-gradient(135deg, #2b0000 0%, #4d0000 65%, #7a1111 100%)' : 'none', 'important');
-            btn.style.setProperty('color', isActive ? '#ffffff' : '#4d0000', 'important');
-            btn.style.setProperty('-webkit-text-fill-color', isActive ? '#ffffff' : '#4d0000', 'important');
-            btn.style.setProperty('border-color', isActive ? '#4d0000' : 'rgba(77, 0, 0, 0.24)', 'important');
-            btn.style.setProperty('text-shadow', 'none', 'important');
-            btn.style.setProperty('opacity', '1', 'important');
-        });
-    }
-
-    function bootInventoryMobileTaskTabHardFix() {
-        forceInventoryMobileTaskTabs();
         const filters = document.getElementById('active-task-filters');
         if (filters && window.MutationObserver) {
             new MutationObserver(function () {
-                setTimeout(forceInventoryMobileTaskTabs, 0);
+                setTimeout(function () { applyMobileActiveTaskModuleScope(getActiveMobileTaskModule()); }, 0);
             }).observe(filters, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'disabled'] });
         }
-        document.addEventListener('change', function (evt) {
-            if (evt && evt.target && evt.target.classList && evt.target.classList.contains('mobile-module-switcher-select')) {
-                setTimeout(forceInventoryMobileTaskTabs, 0);
-                setTimeout(forceInventoryMobileTaskTabs, 120);
-            }
-        }, true);
+
+        document.querySelectorAll('.mobile-module-switcher-select').forEach(function (sel) {
+            sel.addEventListener('change', function () {
+                setTimeout(function () { applyMobileActiveTaskModuleScope(getActiveMobileTaskModule()); }, 0);
+                setTimeout(function () { applyMobileActiveTaskModuleScope(getActiveMobileTaskModule()); }, 120);
+            });
+        });
+
         document.addEventListener('click', function () {
-            setTimeout(forceInventoryMobileTaskTabs, 60);
+            setTimeout(function () { applyMobileActiveTaskModuleScope(getActiveMobileTaskModule()); }, 60);
         }, true);
-        window.addEventListener('resize', forceInventoryMobileTaskTabs);
-        setInterval(forceInventoryMobileTaskTabs, 1000);
+        window.addEventListener('resize', function () { applyMobileActiveTaskModuleScope(getActiveMobileTaskModule()); });
     }
+
+    window.getActiveMobileTaskModule = getActiveMobileTaskModule;
+    window.applyMobileActiveTaskModuleScope = applyMobileActiveTaskModuleScope;
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', bootInventoryMobileTaskTabHardFix);
+        document.addEventListener('DOMContentLoaded', bootMobileTaskModuleIsolation);
     } else {
-        bootInventoryMobileTaskTabHardFix();
+        bootMobileTaskModuleIsolation();
     }
-
-    window.forceInventoryMobileTaskTabs = forceInventoryMobileTaskTabs;
 })();

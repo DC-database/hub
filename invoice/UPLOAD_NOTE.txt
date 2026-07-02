@@ -1,10 +1,11 @@
-Patch 10.0.4
+Upload/replace only this file:
 
-Upload/replace:
-- index.html
-- style.css
-- js/app-chat.js
-- js/app-workdesk-dashboard.js
+js/app-workdesk-dashboard.js
 
-Manual visible version in app.js:
-const APP_VERSION = '10.0.4';
+No app.js, index.html, style.css, Firebase path, save logic, or Job Records table logic changed in this patch.
+
+After upload:
+1. Hard refresh browser / clear cache.
+2. Open WorkDesk Dashboard.
+3. IPC cards should show Invoice Date as —.
+4. Queue/entered aging should still work separately.
