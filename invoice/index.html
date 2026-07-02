@@ -56,7 +56,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
 
-    <link rel="stylesheet" href="style.css?v=9.9.5">
+    <link rel="stylesheet" href="style.css?v=10.0.1">
     <link rel="stylesheet" href="css/transfer_stock.css?v=8.6.2">
     <link rel="stylesheet" href="css/mobile.css?v=9.2.7">
     <!-- 9.0.1 module split: page-specific desktop/mobile override layers -->
@@ -2040,7 +2040,7 @@
             <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
 
     <div style="display: flex; gap: 10px;">
-        <button class="secondary-btn modal-close-btn">Cancel</button>
+        <button type="button" class="secondary-btn wd-modal-cancel-btn" onclick="document.getElementById('modify-task-modal').classList.add('hidden')">Cancel</button>
         <button id="modify-task-save-btn" type="button">Save Changes</button>
     </div>
 
@@ -3013,7 +3013,7 @@
     <script src="js/app-payments.js?v=8.3.0"></script>
     <script src="js/app-invoice-records.js?v=9.7.7"></script>
     <script src="js/app-active-tasks.js?v=9.8.8"></script>
-    <script src="js/app-workdesk-dashboard.js?v=9.9.6"></script>
+    <script src="js/app-workdesk-dashboard.js?v=10.0.1"></script>
     <script src="js/app-workdesk-reporting.js?v=9.8.0"></script>
     <script src="js/app-reporting-actions.js?v=9.9.0"></script>
     <script src="js/app-report-workflow.js?v=8.2.3"></script>
