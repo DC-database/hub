@@ -393,7 +393,15 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
                         checkSite = true; // Match User Site with PO Site
                         break;
                         
-                    case 'For IPC':  // <--- ADDED THIS NEW RULE
+                    case 'IPC Application':
+                        // 10.2.3: WorkDesk IPC Application must show the FULL QS/Senior QS list.
+                        // Reception may not know the QS name and should not be limited by selected site.
+                        validPositions = ['QS', 'Senior QS'];
+                        checkSite = false;
+                        break;
+
+                    case 'For IPC':
+                        // Invoice Management legacy For IPC routing can remain site-matched.
                         validPositions = ['QS', 'Senior QS'];
                         checkSite = true; // Match User Site with PO Site
                         break;
@@ -473,10 +481,21 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
                 const userPos = (user.position || '').toLowerCase();
                 const isPosMatch = validPositions.some(role => {
                     const r = (role || '').toLowerCase();
+                    const compactPos = userPos.replace(/[.\s_\-\/]+/g, '');
+                    const hasQS = (compactPos === 'qs') || compactPos.includes('qs') || userPos.includes('quantity surveyor') || /(^|[^a-z])q\.?\s*s\.?([^a-z]|$)/i.test(user.position || '');
+
                     if (r === 'admin') return userPos.includes('admin');
                     if (r === 'accounts' || r === 'account') return userPos.includes('account');
                     if (r === 'camp boss') return userPos.includes('camp') && userPos.includes('boss');
                     if (r === 'site dc') return userPos.includes('site') && userPos.includes('dc');
+
+                    // 10.2.2: IPC Application should show all QS/Senior QS users from approvers.
+                    // Firebase Position values are not always exactly "QS" or "Senior QS".
+                    // Accept common variants such as "Site QS", "Sr. QS", "Senior Q.S",
+                    // "Quantity Surveyor", and "Senior Quantity Surveyor".
+                    if (r === 'qs') return hasQS;
+                    if (r === 'senior qs') return hasQS && (userPos.includes('senior') || userPos.includes('sr'));
+
                     return userPos === r;
                 });
                 if (!isPosMatch) return false;
@@ -542,7 +561,15 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
             } catch (e) {}
 
             const initialChoices = [...baseOptions, ...selectedExtras, ...suggestedList];
-            choicesInstance.clearChoices();
+            try {
+                if (typeof choicesInstance.clearStore === 'function') {
+                    choicesInstance.clearStore();
+                } else {
+                    choicesInstance.clearChoices();
+                }
+            } catch (_) {
+                try { choicesInstance.clearChoices(); } catch (__) {}
+            }
             choicesInstance.setChoices(initialChoices, 'value', 'label', true);
 
             // --- E. OVERRIDE SEARCH (Batch Entry Use-Case) ---

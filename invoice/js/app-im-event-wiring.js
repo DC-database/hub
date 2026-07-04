@@ -1386,6 +1386,8 @@ if (summaryNotePrintBtn) {
     if (modifyTaskStatus) {
         modifyTaskStatus.addEventListener('change', (e) => {
             modifyTaskStatusOtherContainer.classList.toggle('hidden', e.target.value !== 'Other');
+            if (typeof wdApplyIPCModifyTaskAutomation === 'function') wdApplyIPCModifyTaskAutomation();
+            if (typeof wdToggleModifyTaskInvoiceConvertFields === 'function') wdToggleModifyTaskInvoiceConvertFields();
         });
     }
     if (modifyTaskSaveBtn) {

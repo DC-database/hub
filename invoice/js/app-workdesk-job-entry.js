@@ -1,9 +1,32 @@
 // ==========================================================================
 // IBA SYSTEM - WorkDesk Job Entry UI Helpers
-// Version: 10.0.9
+// Version: 10.1.6
 // Purpose: Job Entry form reset/toggles, dropdown population, table/search UI, edit navigation.
 // Note: Save/update/delete/write logic remains in app.js.
 // ==========================================================================
+
+
+function wdJobEntryIsInvoiceType(value) {
+    return String(value || '').trim() === 'Invoice';
+}
+
+function wdJobEntryIsIPCApplicationType(value) {
+    return String(value || '').trim() === 'IPC Application';
+}
+
+function wdJobEntryIsIPCProcessedType(value) {
+    const raw = String(value || '').trim();
+    return raw === 'IPC Processed' || raw === 'IPC';
+}
+
+function wdJobEntryToggleGroupCategory() {
+    const isInvoice = wdJobEntryIsInvoiceType(jobForSelect ? jobForSelect.value : '');
+    const groupContainer = document.getElementById('job-group-container') || (document.getElementById('job-group') ? document.getElementById('job-group').closest('.form-group') : null);
+    const groupSelect = document.getElementById('job-group');
+
+    if (groupContainer) groupContainer.classList.toggle('hidden', !isInvoice);
+    if (!isInvoice && groupSelect) groupSelect.value = '';
+}
 
 function resetJobEntryForm(keepJobType = false) {
     const jobType = document.getElementById('job-for').value;
@@ -61,7 +84,8 @@ function resetJobEntryForm(keepJobType = false) {
     if (searchInput) searchInput.value = '';
     sessionStorage.removeItem('jobEntrySearch');
 
-    // Keep Invoice-only fields consistent with current Job Type
+    // Keep Invoice-only fields and Group/Category consistent with current Job Type
+    if (typeof wdJobEntryToggleGroupCategory === 'function') wdJobEntryToggleGroupCategory();
     if (typeof toggleJobInvoiceFields === 'function') {
         // fire and forget
         toggleJobInvoiceFields();
@@ -84,6 +108,7 @@ window.toggleJobOtherInput = toggleJobOtherInput;
 
 async function toggleJobInvoiceFields() {
     const isInvoice = (jobForSelect && jobForSelect.value === 'Invoice');
+    if (typeof wdJobEntryToggleGroupCategory === 'function') wdJobEntryToggleGroupCategory();
 
     if (jobInvoiceFieldsContainer) {
         jobInvoiceFieldsContainer.classList.toggle('hidden', !isInvoice);
@@ -104,6 +129,8 @@ async function toggleJobInvoiceFields() {
 
 // Expose so HTML onchange can call it if needed
 window.toggleJobInvoiceFields = toggleJobInvoiceFields;
+window.wdJobEntryToggleGroupCategory = wdJobEntryToggleGroupCategory;
+window.wdJobEntryIsInvoiceType = wdJobEntryIsInvoiceType;
 
 function updateJobTypeDropdown() {
     const select = document.getElementById('job-for');
@@ -117,19 +144,22 @@ function updateJobTypeDropdown() {
 
     const defaultTypes = inInventory
         ? new Set(['Transfer', 'Restock', 'Return', 'Usage', 'Other'])
-        : new Set(['PR', 'Invoice', 'IPC', 'Payment', 'Trip', 'Report', 'Other']);
+        : new Set(['PR', 'Invoice', 'IPC Application', 'IPC Processed', 'Payment', 'Trip', 'Report', 'Other']);
 
     // Learn from history, but keep the two families separated.
     if (allSystemEntries && allSystemEntries.length > 0) {
         allSystemEntries.forEach(entry => {
             const rawType = (entry.for || entry.jobType || '').toString().trim();
             if (!rawType) return;
+            // 10.1.6: legacy plain IPC must not re-appear in Add New Job.
+            // Show it under the new clear name only.
+            const displayType = (rawType === 'IPC') ? 'IPC Processed' : rawType;
 
-            const isInvType = inventoryTypes.has(rawType);
+            const isInvType = inventoryTypes.has(displayType);
             if (inInventory) {
-                if (isInvType) defaultTypes.add(rawType);
+                if (isInvType) defaultTypes.add(displayType);
             } else {
-                if (!isInvType) defaultTypes.add(rawType);
+                if (!isInvType) defaultTypes.add(displayType);
             }
         });
     }

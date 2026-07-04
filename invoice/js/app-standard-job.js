@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-standard-job.js
    IBA WorkDesk standard job modal, job history, and approval sticker printing.
-   Version: 10.0.9
+   Version: 10.1.6
 
    Cleanup Phase:
    - Moved Block 25 out of app.js.
@@ -14,6 +14,31 @@
 // #region BLOCK 25 — STANDARD JOB MODAL + STICKER PRINTING
 // Purpose: Standard job modal open/close, job history, sticker print renderer, approval history saver.
 // =================================================================================================
+
+    function wdStandardResetInvoiceGroupOptions() {
+        const groupSelect = document.getElementById('job-group');
+        if (!groupSelect) return;
+        groupSelect.innerHTML = `
+            <option value="" disabled selected>Select Group / Category</option>
+            <option value="Normal">Normal</option>
+            <option value="Logistic">Logistic</option>
+            <option value="HSE">HSE</option>
+        `;
+    }
+
+    function wdStandardEnsureInvoiceGroupValue(value) {
+        const groupSelect = document.getElementById('job-group');
+        const clean = String(value || '').trim();
+        if (!groupSelect || !clean) return;
+        const hasOption = Array.from(groupSelect.options).some(opt => opt.value === clean);
+        if (!hasOption) {
+            const opt = document.createElement('option');
+            opt.value = clean;
+            opt.textContent = `${clean} (legacy)`;
+            groupSelect.appendChild(opt);
+        }
+        groupSelect.value = clean;
+    }
 
     window.openStandardJobModal = function (mode, entryData = null) {
         const modal = document.getElementById('standard-job-modal');
@@ -33,6 +58,7 @@
         // 1. ADD MODE
         if (mode === 'Add') {
             resetJobEntryForm(false); // Clean form
+            wdStandardResetInvoiceGroupOptions();
             title.textContent = "Add New Job Entry";
 
             // Show Add, Hide Update/Delete
@@ -97,11 +123,15 @@
             else deleteBtn.classList.add('hidden');
 
             // Populate Form Data
-            document.getElementById('job-for').value = entryData.for || 'Other';
+            wdStandardResetInvoiceGroupOptions();
+            // 10.1.6: legacy plain IPC is now edited/saved as IPC Processed.
+            const entryForRaw = String(entryData.for || entryData.jobType || '').trim();
+            const entryForDisplay = (entryForRaw === 'IPC') ? 'IPC Processed' : (entryForRaw || 'Other');
+            document.getElementById('job-for').value = entryForDisplay;
             // Handle "Other" Input Visibility
-            if (!['PR', 'Invoice', 'IPC', 'Payment', 'Report', 'Transfer', 'Restock', 'Return', 'Usage'].includes(entryData.for)) {
+            if (!['PR', 'Invoice', 'IPC Application', 'IPC Processed', 'Payment', 'Report', 'Transfer', 'Restock', 'Return', 'Usage'].includes(entryForDisplay)) {
                 document.getElementById('job-for').value = 'Other';
-                document.getElementById('job-other-specify').value = entryData.for;
+                document.getElementById('job-other-specify').value = entryForDisplay;
                 document.getElementById('job-other-specify').classList.remove('hidden');
             } else {
                 document.getElementById('job-other-specify').classList.add('hidden');
@@ -111,14 +141,19 @@
             document.getElementById('job-po').value = entryData.po || '';
             document.getElementById('job-amount').value = entryData.amount || '';
             document.getElementById('job-attachment').value = entryData.attachmentName || '';
-            document.getElementById('job-group').value = entryData.group || '';
+            if (String(entryForDisplay || '').trim() === 'Invoice') {
+                wdStandardEnsureInvoiceGroupValue(entryData.group || '');
+            } else {
+                const groupSelect = document.getElementById('job-group');
+                if (groupSelect) groupSelect.value = '';
+            }
             document.getElementById('job-status').value = (entryData.remarks === 'Pending') ? '' : entryData.remarks || '';
             const currentNoteInput = document.getElementById('job-current-note');
             if (currentNoteInput) currentNoteInput.value = entryData.note || entryData.details || entryData.currentNote || '';
 
             // Invoice-only: vendor + invoice date
             // 10.1.3: Non-Invoice records such as IPC must not show/carry invoice date.
-            const isInvoiceJobEntry = String(entryData.for || '').trim() === 'Invoice';
+            const isInvoiceJobEntry = String(entryForDisplay || '').trim() === 'Invoice';
             if (jobInvoiceDateInput) jobInvoiceDateInput.value = isInvoiceJobEntry ? (entryData.invoiceDate || '') : '';
             if (jobVendorNameInput) jobVendorNameInput.value = isInvoiceJobEntry ? (entryData.vendorName || '') : '';
             if (jobVendorIdInput) jobVendorIdInput.value = isInvoiceJobEntry ? (entryData.vendorId || '') : '';

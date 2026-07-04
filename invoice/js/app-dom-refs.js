@@ -65,6 +65,7 @@ const jobDateInput = document.getElementById('job-date');
 // Invoice-only fields inside the standard job modal
 const jobInvoiceFieldsContainer = document.getElementById('job-invoice-fields');
 const jobInvoiceDateInput = document.getElementById('job-invoice-date');
+const jobGroupContainer = document.getElementById('job-group-container');
 const jobVendorNameInput = document.getElementById('job-vendor-name');
 const jobVendorIdInput = document.getElementById('job-vendor-id');
 const jobVendorNameList = document.getElementById('job-vendor-name-list');

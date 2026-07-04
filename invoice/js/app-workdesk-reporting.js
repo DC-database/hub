@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-workdesk-reporting.js
    IBA WorkDesk/Inventory Job Records table and report filter helpers.
-   Version: 10.1.0
+   Version: 10.1.6
 
    Cleanup Phase:
    - Moved Block 13 out of app.js.
@@ -12,6 +12,14 @@
 // #region BLOCK 13 — JOB RECORDS TABLE + REPORT FILTERING
 // Purpose: Desktop job records table, inventory grouping rows, totals, search/filter rendering.
 // =================================================================================================
+
+
+function wdReportDisplayJobType(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return 'Other';
+    // 10.1.6: old saved IPC records should appear under the renamed IPC Processed tab.
+    return raw === 'IPC' ? 'IPC Processed' : raw;
+}
 
 
 function wdUiSetRecordsHeroContext(mode) {
@@ -141,7 +149,7 @@ function renderReportingTable(entries) {
         let actions = `<button class="history-btn action-btn wd-row-action wd-action-history wd-history-icon-only" onclick="event.stopPropagation(); showJobHistory('${esc(entry.key)}')" title="View History" aria-label="View History"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
 
         row.innerHTML = `
-            <td><span class="wd-table-kicker">${esc(entry.for || '')}</span></td>
+            <td><span class="wd-table-kicker">${esc(wdReportDisplayJobType(entry.for || ''))}</span></td>
             <td><span class="wd-ref-chip">${esc(entry.ref || '')}</span></td>
             <td><span class="wd-site-badge"><i class="fa-solid fa-location-dot"></i>${esc(entry.site || '')}</span></td>
             <td><span class="wd-po-code">${esc(entry.po || '')}</span></td>
@@ -174,7 +182,7 @@ function filterAndRenderReport(baseEntries = null) {
 
     // 1. Filter by Tab (Job Type)
     if (currentReportFilter && currentReportFilter !== 'All') {
-        filteredEntries = filteredEntries.filter(entry => (entry.for || 'Other') === currentReportFilter);
+        filteredEntries = filteredEntries.filter(entry => wdReportDisplayJobType(entry.for || 'Other') === currentReportFilter);
     }
 
     // 2. Filter by Search Text
@@ -222,7 +230,7 @@ async function handleReportingSearch() {
         // Inventory gets transfer_entries only; WorkDesk gets job_entries only.
         let baseEntries = getJobRecordsBaseEntriesForCurrentContext();
 
-        const uniqueJobTypes = [...new Set(baseEntries.map(entry => entry.for || 'Other'))];
+        const uniqueJobTypes = [...new Set(baseEntries.map(entry => wdReportDisplayJobType(entry.for || 'Other')))];
         uniqueJobTypes.sort();
 
         
@@ -260,7 +268,7 @@ let tabsHTML = '';
                         <div class="wd-modern-empty-row wd-select-category-state">
                             <i class="fa-solid fa-arrow-up-wide-short"></i>
                             <strong>Select a Category above</strong>
-                            <span>${(typeof isInventoryContext === 'function' && isInventoryContext()) ? '(Transfer, Restock, Return, Usage)' : '(e.g., IPC, Invoice, PR)' } to view records.</span>
+                            <span>${(typeof isInventoryContext === 'function' && isInventoryContext()) ? '(Transfer, Restock, Return, Usage)' : '(e.g., IPC Application, IPC Processed, Invoice, PR)' } to view records.</span>
                         </div>
                     </td>
                 </tr>`;

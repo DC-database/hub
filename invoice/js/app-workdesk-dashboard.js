@@ -131,9 +131,9 @@ let wdDashboardTaskLookupAllRef = null;
 // 8.5.1: Keep the WorkDesk Dashboard self-sufficient for short periods.
 // It prevents repeated Firebase downloads when users switch pages or reopen the dashboard.
 // Manual Refresh still bypasses this cache and gets fresh live data.
-const WD_DASHBOARD_CACHE_KEY = 'IBA_WD_ACTIVE_DASHBOARD_CACHE_V14';
-const WD_ACTIVE_TASK_SOURCE_CACHE_KEY = 'IBA_ACTIVE_TASK_WORKDESK_SNAPSHOT_V2';
-const WD_DASHBOARD_CACHE_TTL = 60 * 60 * 1000; // 9.3.1: 60 minutes to reduce Firebase reads; Refresh still forces live data.
+const WD_DASHBOARD_CACHE_KEY = 'IBA_WD_ACTIVE_DASHBOARD_CACHE_V16';
+const WD_ACTIVE_TASK_SOURCE_CACHE_KEY = 'IBA_ACTIVE_TASK_WORKDESK_SNAPSHOT_V3';
+const WD_DASHBOARD_CACHE_TTL = 5 * 60 * 1000; // 10.2.6: shorter cache so completed invoice tasks disappear quickly.
 
 const WD_DASHBOARD_NONE = '__NONE__';
 const WD_DASHBOARD_ALL = '__ALL__';
@@ -147,6 +147,7 @@ const WD_COMPLETED_STATUSES = new Set([
     'cancelled',
     'canceled',
     'completed',
+    'done',
     'deleted'
 ]);
 
@@ -158,6 +159,8 @@ const WD_STATUS_ORDER = [
     'On Hold',
     'In Process',
     'Unresolved',
+    'IPC Application',
+    'IPC Processed',
     'IPC',
     'Report'
 ];
@@ -169,7 +172,11 @@ const WD_DASHBOARD_ALLOWED_BUCKETS = new Set([
     'on hold',
     'in process',
     'unresolved',
+    'ipc application',
+    'ipc processed',
     'ipc',
+    'waiting invoice',
+    'ipc issue',
     'report'
 ]);
 
@@ -442,8 +449,14 @@ const WD_DASHBOARD_COMPLETED_OR_NON_QUEUE_STATUSES = new Set([
 ]);
 
 function wdDashboardExactInvoiceStatusLabel(value) {
-    const raw = wdNormalize(value);
+    const raw = wdNormalize(value).replace(/[_\-]+/g, ' ').replace(/\s+/g, ' ').trim();
     if (!raw || WD_DASHBOARD_COMPLETED_OR_NON_QUEUE_STATUSES.has(raw)) return '';
+
+    // 10.2.7: Keep On Hold visible even if old invoice rows saved the status
+    // with slightly different spacing/punctuation (On-Hold, OnHold, On Hold / Waiting).
+    const compact = raw.replace(/[^a-z0-9]/g, '');
+    if (compact === 'onhold' || raw === 'hold' || raw.includes('on hold')) return 'On Hold';
+
     return WD_DASHBOARD_EXACT_INVOICE_STATUS_MAP[raw] || '';
 }
 
@@ -469,7 +482,10 @@ function wdDashboardBucket(status, type = '') {
     const exactInvoiceStatus = wdDashboardExactInvoiceStatusLabel(status);
     if (exactInvoiceStatus) return exactInvoiceStatus;
 
-    if (typeText === 'ipc' || s === 'ipc') return 'IPC';
+    if (typeText === 'ipc application') return 'IPC Application';
+    if (typeText === 'ipc processed' || typeText === 'ipc' || s === 'waiting invoice') return 'IPC Processed';
+    if (s === 'ipc issue') return 'IPC Application';
+    if (s === 'ipc') return 'IPC Processed';
 
     // New Entry should be the WorkDesk Job Record entry, not every invoice record
     // that happens to have generic Pending status.
@@ -518,7 +534,10 @@ function wdDashboardPersonalBucket(status, type = '') {
 
     if (s === 'new entry' || s === 'new') return 'New Entry';
     if (s === 'pending') return isJobRecordQueue ? 'New Entry' : 'Pending';
-    if (s === 'ipc') return 'IPC';
+    if (typeText === 'ipc application') return 'IPC Application';
+    if (typeText === 'ipc processed' || typeText === 'ipc' || s === 'waiting invoice') return 'IPC Processed';
+    if (s === 'ipc issue') return 'IPC Application';
+    if (s === 'ipc') return 'IPC Processed';
 
     return wdStatus(status, 'Pending');
 }
@@ -665,8 +684,116 @@ function wdIsInvoiceLookupComplete(status) {
     if (WD_COMPLETED_STATUSES.has(raw)) return true;
     if (raw.includes('with accounts')) return true;
     if (raw.includes('srv done') || raw.includes('marked srv done') || raw.includes('completed srv')) return true;
-    if (raw.includes('paid') || raw.includes('closed') || raw.includes('cancel')) return true;
+    if (raw.includes('paid') || raw.includes('closed') || raw.includes('cancel') || raw === 'done') return true;
     return false;
+}
+
+let wdInvoiceSourceTruthCache = new Map();
+
+async function wdGetInvoiceSourceTruth(poNumber, invoiceKey, forceRefresh = false, lookupTask = {}) {
+    const po = wdText(poNumber || '');
+    const key = wdText(invoiceKey || '');
+    if (!po || !key) return null;
+    const cacheKey = `${po}||${key}`;
+
+    if (!forceRefresh && wdInvoiceSourceTruthCache.has(cacheKey)) {
+        return wdInvoiceSourceTruthCache.get(cacheKey);
+    }
+
+    const attachSourceKey = (val, sourceKey) => {
+        if (!val || typeof val !== 'object') return val;
+        return { ...val, __sourceInvoiceKey: sourceKey || key };
+    };
+    const candidateMatches = (inv, sourceKey) => {
+        if (!inv || typeof inv !== 'object') return false;
+        const candidates = [
+            sourceKey,
+            inv.key,
+            inv.invoiceKey,
+            inv.originalKey,
+            inv.invEntryID,
+            inv.entryId,
+            inv.entryID,
+            inv.invNumber,
+            inv.invoiceNo,
+            inv.invoiceNumber,
+            inv.ref
+        ].map(v => wdText(v)).filter(Boolean);
+        const taskCandidates = [
+            key,
+            lookupTask.originalKey,
+            lookupTask.invoiceKey,
+            lookupTask.key,
+            lookupTask.invEntryID,
+            lookupTask.entryId,
+            lookupTask.entryID,
+            lookupTask.ref,
+            lookupTask.invNumber,
+            lookupTask.invoiceNo,
+            lookupTask.invoiceNumber
+        ].map(v => wdText(v)).filter(Boolean);
+        return candidates.some(a => taskCandidates.some(b => wdNormalize(a) === wdNormalize(b)));
+    };
+
+    try {
+        if (!forceRefresh && typeof allInvoiceData !== 'undefined' && allInvoiceData && allInvoiceData[po]) {
+            if (allInvoiceData[po][key]) {
+                const val = attachSourceKey(allInvoiceData[po][key] || null, key);
+                wdInvoiceSourceTruthCache.set(cacheKey, val);
+                return val;
+            }
+            const invoices = allInvoiceData[po] || {};
+            for (const sourceKey of Object.keys(invoices)) {
+                const inv = invoices[sourceKey] || {};
+                if (candidateMatches(inv, sourceKey)) {
+                    const val = attachSourceKey(inv, sourceKey);
+                    wdInvoiceSourceTruthCache.set(cacheKey, val);
+                    return val;
+                }
+            }
+        }
+    } catch (_) { /* ignore */ }
+
+    try {
+        if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) return null;
+        const snap = await invoiceDb.ref(`invoice_entries/${po}/${key}`).once('value');
+        const val = snap.val() || null;
+        if (val) {
+            const directVal = attachSourceKey(val, key);
+            wdInvoiceSourceTruthCache.set(cacheKey, directVal);
+            return directVal;
+        }
+
+        // 10.2.7: Some older lightweight task rows were keyed by invoice number
+        // or entry id instead of the real invoice_entries child key. Do not delete
+        // valid On Hold/active tasks just because the lookup key is legacy.
+        const poSnap = await invoiceDb.ref(`invoice_entries/${po}`).once('value');
+        const invoices = poSnap.val() || {};
+        for (const sourceKey of Object.keys(invoices)) {
+            const inv = invoices[sourceKey] || {};
+            if (candidateMatches(inv, sourceKey)) {
+                const matchedVal = attachSourceKey(inv, sourceKey);
+                wdInvoiceSourceTruthCache.set(cacheKey, matchedVal);
+                return matchedVal;
+            }
+        }
+        wdInvoiceSourceTruthCache.set(cacheKey, null);
+        return null;
+    } catch (e) {
+        console.warn('WorkDesk dashboard could not verify invoice source:', e);
+        return null;
+    }
+}
+
+async function wdCleanupStaleInvoiceLookupRow(ownerKey, invoiceKey) {
+    try {
+        if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref || !invoiceKey) return;
+        const owner = String(ownerKey || '').trim();
+        const removals = [];
+        if (owner) removals.push(invoiceDb.ref(`invoice_tasks_by_user/${owner}/${invoiceKey}`).remove());
+        if (wdNormalize(owner) !== 'all') removals.push(invoiceDb.ref(`invoice_tasks_by_user/All/${invoiceKey}`).remove());
+        await Promise.allSettled(removals);
+    } catch (_) { /* ignore stale cleanup failure */ }
 }
 
 function wdDashboardTaskOwnerAttention(ownerKey, task) {
@@ -823,7 +950,7 @@ function wdIsOpenJobEntry(entry) {
 
     // The new dashboard is for invoice-related WorkDesk follow-up only.
     const entryFor = wdNormalize(entry.for);
-    return entryFor === 'invoice' || entryFor === 'ipc';
+    return entryFor === 'invoice' || entryFor === 'ipc' || entryFor === 'ipc application' || entryFor === 'ipc processed';
 }
 
 function wdBuildIPCMap() {
@@ -831,7 +958,8 @@ function wdBuildIPCMap() {
     const entries = wdGetDashboardJobEntriesList();
 
     entries.forEach(entry => {
-        if (!entry || wdNormalize(entry.for) !== 'ipc') return;
+        const entryForNorm = wdNormalize(entry && entry.for);
+        if (!entry || !['ipc', 'ipc application', 'ipc processed'].includes(entryForNorm)) return;
         const status = wdEntryStatus(entry);
         if (!wdIsOpenIPCJobStatus(status)) return;
 
@@ -886,10 +1014,10 @@ function wdStatusIcon(status) {
 function wdTaskDisplayStatus(task = {}) {
     const bucket = wdText(task.bucket || '');
     const rawStatus = wdText(task.status || task.remarks || bucket || 'Pending');
-    if (wdNormalize(bucket) === 'ipc' || wdNormalize(rawStatus) === 'ipc' || wdNormalize(task.type || '') === 'ipc') {
-        const ipcStatus = wdText(task.ipc || task.ipcStatus || task.jobStatus || '');
+    if (['ipc', 'ipc processed', 'ipc application'].includes(wdNormalize(bucket)) || ['ipc', 'ipc processed', 'ipc application'].includes(wdNormalize(task.type || ''))) {
+        const ipcStatus = wdText(task.ipc || task.ipcStatus || task.jobStatus || rawStatus || '');
         if (ipcStatus && wdNormalize(ipcStatus) !== 'no ipc') return ipcStatus;
-        return 'IPC';
+        return wdNormalize(task.type || '') === 'ipc application' ? 'Pending' : 'Waiting Invoice';
     }
     return rawStatus || bucket || 'Pending';
 }
@@ -1146,7 +1274,7 @@ function wdIsIPCQueue(rawTask = {}, status = '', type = '') {
     const s = wdNormalize(status || rawTask?.status || rawTask?.remarks || '');
     const source = wdNormalize(rawTask?.source || type || '');
     const taskFor = wdNormalize(rawTask?.for || rawTask?.type || '');
-    return taskFor === 'ipc' || source.includes('ipc') || s.includes('ipc');
+    return ['ipc', 'ipc application', 'ipc processed'].includes(taskFor) || source.includes('ipc') || s.includes('ipc') || s === 'waiting invoice';
 }
 
 function wdInvoiceStatusQueueTimestamp(rawTask = {}, invMeta = {}, status = '') {
@@ -1465,7 +1593,7 @@ function wdIsDashboardActiveTaskSourceItem(task) {
 
     // IPC is intentionally added from Job Records only, so Active Task "For IPC" / IPC rows
     // do not create a second wrong card/count.
-    if (taskFor === 'IPC' || source === 'ipc_job' || statusNorm.includes('ipc')) return false;
+    if (['IPC', 'IPC Application', 'IPC Processed'].includes(taskFor) || source === 'ipc_job' || statusNorm.includes('ipc') || statusNorm === 'waiting invoice') return false;
 
     const isInvoiceRelated = taskFor === 'Invoice' || source === 'invoice' || source === 'invoice_record' || source === 'job_entry';
     if (!isInvoiceRelated) return false;
@@ -1496,8 +1624,11 @@ async function wdNormalizeActiveTaskForDashboard(task, ipcMap) {
     const isNonInvoiceJobRecord = isJobEntry
         ? taskForText && taskForText !== 'invoice' && taskForText !== 'invoice job'
         : (sourceText === 'ipc_job_record' || taskForText === 'ipc');
-    const type = isJobEntry ? 'Invoice Job' : 'Invoice';
-    const bucket = wdDashboardAllowedBucket(status, isJobEntry ? 'job_entry' : type) || wdDashboardBucket(status, type);
+    let type = isJobEntry ? 'Invoice Job' : 'Invoice';
+    if (isJobEntry && taskForText === 'ipc application') type = 'IPC Application';
+    if (isJobEntry && (taskForText === 'ipc processed' || taskForText === 'ipc')) type = 'IPC Processed';
+    const bucketType = (type === 'IPC Application' || type === 'IPC Processed') ? type : (isJobEntry ? 'job_entry' : type);
+    const bucket = wdDashboardAllowedBucket(status, bucketType) || wdDashboardBucket(status, type);
     const ipcInfo = ipcMap.get(po);
 
     const site = wdText(
@@ -1535,6 +1666,7 @@ async function wdNormalizeActiveTaskForDashboard(task, ipcMap) {
         invName: task.invName || invMeta.invName || '',
         reportName: task.reportName || invMeta.reportName || '',
         amount: task.amountPaid || task.amount || invMeta.amountPaid || invMeta.invValue || '',
+        group: (isJobEntry && taskForText === 'invoice') ? (task.group || '') : (task.group || invMeta.group || ''),
         // 10.1.3: For Job Entry records, date is the Entered Date. It must not be reused
         // as supplier Invoice Date. IPC / PR / Payment / Report tasks have no invoiceDate
         // until they become a real Invoice task.
@@ -1557,7 +1689,7 @@ async function wdNormalizeActiveTaskForDashboard(task, ipcMap) {
 async function wdNormalizePersonalTaskForDashboard(task) {
     const normalized = await wdNormalizeActiveTaskForDashboard(task, new Map());
     const status = wdStatus(task.remarks || task.status || normalized.status || 'Pending');
-    const personalBucket = wdDashboardPersonalBucket(status, task.source || task.type || task.for || normalized.source || normalized.type);
+    const personalBucket = wdDashboardPersonalBucket(status, normalized.type || task.for || task.type || task.source || normalized.source);
     if (!personalBucket) return null;
     normalized.status = status;
     normalized.personalBucket = personalBucket;
@@ -1666,7 +1798,7 @@ async function wdBuildNewEntryJobRecordTasks() {
             vendorName,
             site,
             siteName: entry.siteName || entry.projectName || wdResolveSiteNameFromPODetails(poDetails),
-            group: 'N/A',
+            group: entry.group || '',
             status: 'New Entry',
             remarks: 'New Entry',
             bucket: 'New Entry',
@@ -1702,7 +1834,8 @@ async function wdBuildIPCJobRecordTasks(ipcMap) {
     const entries = wdGetDashboardJobEntriesList();
 
     for (const [rowIndex, entry] of entries.entries()) {
-        if (!entry || wdNormalize(entry.for) !== 'ipc') continue;
+        const entryForNorm = wdNormalize(entry.for || entry.type || '');
+        if (!entry || !['ipc', 'ipc processed', 'ipc application'].includes(entryForNorm)) continue;
 
         // IPC is a special supplier-follow-up list from Job Records. Do not require it
         // to be in My Active Task; only hide truly completed/closed records.
@@ -1716,22 +1849,28 @@ async function wdBuildIPCJobRecordTasks(ipcMap) {
 
         const jobKey = wdText(entry.key || entry.id || `${po}_${entry.ref || ''}_${entry.date || entry.timestamp || ''}_${rowIndex}`);
         const ipcInfo = ipcMap.get(po);
-        const queueTimestamp = wdQueueTimestampForTask(entry, {}, 'IPC', 'IPC');
+        const isIPCApplication = entryForNorm === 'ipc application';
+        const displayType = isIPCApplication ? 'IPC Application' : 'IPC Processed';
+        const displayStatus = isIPCApplication
+            ? wdText(status, 'Pending')
+            : (wdNormalize(status) === 'ipc' ? 'Waiting Invoice' : wdText(status, 'Waiting Invoice'));
+        const displayBucket = isIPCApplication ? 'IPC Application' : 'IPC Processed';
+        const queueTimestamp = wdQueueTimestampForTask(entry, {}, displayBucket, displayType);
 
         tasks.push({
             id: `ipc_${jobKey || po || entry.ref || Math.random()}`,
             key: entry.key || '',
             source: 'ipc_job_record',
-            type: 'IPC',
+            type: displayType,
             po,
             ref: wdText(entry.ref || entry.ipcNo || ''),
             vendorName: wdText(entry.vendorName || entry.vendor || entry.Supplier || wdGetPOValue(poDetails, ['Supplier Name', 'Supplier Name:', 'Supplier'], ''), 'N/A'),
             site,
             siteName: entry.siteName || entry.projectName || wdResolveSiteNameFromPODetails(poDetails),
-            status: 'IPC',
-            bucket: 'IPC',
+            status: displayStatus,
+            bucket: displayBucket,
             note: wdText(entry.note || entry.details || entry.description || ''),
-            ipc: wdText(status, 'IPC Ready'),
+            ipc: isIPCApplication ? 'Pending IPC application' : 'IPC processed',
             ipcActive: true,
             attention: entry.attention || '',
             enteredBy: entry.enteredBy || entry.updatedBy || '',
@@ -1746,7 +1885,7 @@ async function wdBuildIPCJobRecordTasks(ipcMap) {
             originDateEntered: entry.date || entry.dateEntered || entry.entryDate || '',
             dateEntered: entry.date || entry.dateEntered || entry.entryDate || '',
             jobRecordTimestamp: entry.timestamp || entry.originTimestamp || '',
-            queueLabel: wdQueueLabelForTask('IPC', 'IPC'),
+            queueLabel: wdQueueLabelForTask(displayBucket, displayType),
             queueTimestamp,
             queueText: wdQueueFullText(queueTimestamp),
             queueTone: wdQueueAgeParts(queueTimestamp).tone,
@@ -1858,25 +1997,46 @@ async function wdBuildInvoiceTaskLookupOverviewTasks(forceRefresh = false) {
                 const task = inbox[invoiceKey] || {};
                 if (!task || typeof task !== 'object') continue;
 
-                // 9.8.6: Use the current invoice_entries status as the source of truth.
-                // The lightweight invoice_tasks_by_user row may still say Report while the
-                // invoice record was already moved to On Hold/In Process/Unresolved/etc.
-                const latestInv = (allInvoiceData && task.po && allInvoiceData[task.po] && allInvoiceData[task.po][invoiceKey])
-                    ? allInvoiceData[task.po][invoiceKey]
-                    : null;
+                // 10.2.6: Source-of-truth validation. The lightweight
+                // invoice_tasks_by_user row is only an index; it can be stale.
+                // Always verify the current invoice_entries record before showing it.
+                const po = wdText(task.po || task.originalPO || '');
+                const latestInv = await wdGetInvoiceSourceTruth(po, invoiceKey, forceRefresh, task);
+                if (!latestInv || typeof latestInv !== 'object') {
+                    await wdCleanupStaleInvoiceLookupRow(ownerKey, invoiceKey);
+                    continue;
+                }
+
                 const status = wdCurrentInvoiceTaskStatus(task, latestInv || {});
-                if (wdIsInvoiceLookupComplete(status)) continue;
+                const stillActive = (typeof isInvoiceTaskActive === 'function')
+                    ? isInvoiceTaskActive(latestInv)
+                    : !wdIsInvoiceLookupComplete(status);
+                if (!stillActive || wdIsInvoiceLookupComplete(status)) {
+                    await wdCleanupStaleInvoiceLookupRow(ownerKey, invoiceKey);
+                    continue;
+                }
 
                 const bucket = wdDashboardAllowedBucket(status, 'invoice_task_lookup');
                 if (!bucket) continue;
 
-                const attention = wdDashboardTaskOwnerAttention(ownerKey, task);
+                const latestAttention = wdText(latestInv.attention || latestInv.Attention || latestInv.assignedTo || task.attention || '');
+                const attention = wdDashboardTaskOwnerAttention(ownerKey, { ...task, attention: latestAttention });
+
+                // If this row sits under an old owner inbox, clean that old row.
+                // The rendered card still uses the true latest Attention so the
+                // dashboard remains accurate while the index heals itself.
+                if (!ownerIsAll && latestAttention) {
+                    const safeLatestOwner = wdNormalize(wdSanitizeFirebaseKey(latestAttention));
+                    if (safeLatestOwner && safeLatestOwner !== wdNormalize(ownerKey)) {
+                        await wdCleanupStaleInvoiceLookupRow(ownerKey, invoiceKey);
+                    }
+                }
+
                 // All Active excludes the current user's personal tasks. The caller
                 // also checks against wdPersonalDashboardTasks, but doing it here keeps
                 // counts from bloating before dedupe.
-                if (ownerIsCurrentUser || wdTaskHasAttentionName({ attention }, wdCurrentUserNameNorm())) continue;
+                if (wdTaskHasAttentionName({ attention }, wdCurrentUserNameNorm())) continue;
 
-                const po = wdText(task.po || task.originalPO || '');
                 const lookupTaskKey = `${po}||${invoiceKey}`;
                 const poDetails = await wdGetPODetails(po);
                 const site = wdText(
@@ -1957,11 +2117,10 @@ function wdOverviewInvoiceIdentity(task = {}) {
 async function wdBuildDashboardOverviewSourceTasks(forceRefresh = false) {
     const sourceMap = new Map();
 
-    // 9.8.7: Correct source rule before CEO presentation:
-    // - For SRV / On Hold / In Process / Pending / Unresolved / Report come
-    //   directly from Invoice Management invoice_entries.
-    // - IPC comes from Job Records only.
-    // - invoice_tasks_by_user is not used for status tabs because it can be stale.
+    // 10.2.9: Accuracy restore for Dashboard invoice queues.
+    // For SRV, On Hold, Pending, Report, In Process, and Unresolved must come from
+    // invoice_entries, not invoice_tasks_by_user. The lightweight index can be stale
+    // or missing after Invoice Management updates, which caused valid cards to vanish.
     await wdEnsureDashboardInvoiceEntriesFetched(forceRefresh);
     const currentInvoiceTasks = await wdBuildInvoiceRecordOverviewTasks(forceRefresh);
     currentInvoiceTasks.forEach(task => sourceMap.set(wdOverviewInvoiceIdentity(task), task));
@@ -2671,6 +2830,7 @@ function wdRenderDashboardCorkNote(task, index, options = {}) {
     const attentionText = wdText(task.attention) || 'Not assigned';
     const vendorText = wdText(task.vendorName) || 'N/A';
     const typeText = wdText(task.type) || 'Invoice';
+    const groupText = (wdNormalize(typeText).includes('invoice') && wdText(task.group)) ? `Group: ${wdText(task.group)}` : '';
     const siteText = wdText(options.siteLabel || task.site) || 'N/A';
     const tilt = ['-0.18deg', '0.12deg', '-0.08deg', '0.18deg'][index % 4];
 
@@ -2712,6 +2872,7 @@ function wdRenderDashboardCorkNote(task, index, options = {}) {
                 <span><i class="fa-solid fa-user-check"></i> ${wdSafe(attentionText)}</span>
                 <span class="wd-note-site-ref"><i class="fa-solid fa-location-dot"></i> <strong>${wdSafe(siteText)}</strong></span>
                 <span><i class="fa-solid fa-tag"></i> ${wdSafe(typeText)}</span>
+                ${groupText ? `<span><i class="fa-solid fa-layer-group"></i> ${wdSafe(groupText)}</span>` : ''}
             </div>
 
             <div class="wd-note-actions">

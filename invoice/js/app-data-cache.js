@@ -838,114 +838,148 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
 // ==========================================================================
 // DATA FETCHER (Reverted to 4.7.2 Logic + Force Refresh Support)
 // ==========================================================================
-async function ensureAllEntriesFetched(forceRefresh = false) { 
+function wdRebuildAllSystemEntriesFromFamilyCaches() {
+    // 10.3.0: Invoice Management updates can clear allSystemEntries while the
+    // WorkDesk family cache is still fresh. Rebuild the combined list from the
+    // already-fetched family caches so Active Task tabs such as New Entry do not
+    // disappear until a full refresh happens.
+    const workdesk = Array.isArray(workdeskSystemEntries) ? workdeskSystemEntries : [];
+    const inventory = Array.isArray(inventorySystemEntries) ? inventorySystemEntries : [];
+    allSystemEntries = [...workdesk, ...inventory];
+    allSystemEntries.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    return allSystemEntries;
+}
+
+try { window.wdRebuildAllSystemEntriesFromFamilyCaches = wdRebuildAllSystemEntriesFromFamilyCaches; } catch (_) {}
+
+async function ensureAllEntriesFetched(forceRefresh = false, options = {}) { 
     const now = Date.now();
-    
-    // 1. Check Cache
-    if (!forceRefresh && allSystemEntries.length > 0 && (now - cacheTimestamps.systemEntries < CACHE_DURATION)) {
-        return;
+    const inventoryContext = (typeof isInventoryContext === 'function') ? isInventoryContext() : false;
+    const requestedMode = String(options.mode || (inventoryContext ? 'inventory' : 'workdesk')).toLowerCase();
+    const loadMode = ['inventory', 'workdesk', 'all'].includes(requestedMode) ? requestedMode : 'workdesk';
+    const shouldLoadJobEntries = loadMode !== 'inventory' || options.includeJobEntries === true;
+    const shouldLoadTransferEntries = loadMode === 'inventory' || loadMode === 'all' || options.includeTransfers === true;
+    const cacheFresh = (now - cacheTimestamps.systemEntries < CACHE_DURATION);
+
+    // 10.2.5: Do not make WorkDesk pages download the full Inventory transfer_entries
+    // tree, and do not make Inventory pages redownload Job Entries just because the
+    // other family is already cached. Keep a separate freshness check per family.
+    if (!forceRefresh && cacheFresh) {
+        if (loadMode === 'workdesk' && Array.isArray(workdeskSystemEntries) && workdeskSystemEntries.length > 0) {
+            wdRebuildAllSystemEntriesFromFamilyCaches();
+            return;
+        }
+        if (loadMode === 'inventory' && Array.isArray(inventorySystemEntries) && inventorySystemEntries.length > 0) {
+            wdRebuildAllSystemEntriesFromFamilyCaches();
+            return;
+        }
+        if (loadMode === 'all' && Array.isArray(allSystemEntries) && allSystemEntries.length > 0) return;
     }
 
-    console.log("Loading Data for Workdesk...");
+    console.log(`Loading Data for ${loadMode === 'inventory' ? 'Inventory' : (loadMode === 'all' ? 'All Records' : 'Workdesk')}...`);
 
-    // Added cache-buster to the raw github content link
-    const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv?v=" + new Date().getTime();
-    const { poDataByPO, poDataByRef } = await fetchAndParseCSV(PO_DATA_URL) || {};
+    let poDataByPO = allPOData || {};
+    let poDataByRef = {};
 
-    allPOData = poDataByPO || {};
-    const purchaseOrdersDataByRef = poDataByRef || {};
+    if (shouldLoadJobEntries) {
+        // Added cache-buster to the raw github content link. Job Entries need PO matching;
+        // Inventory-only loads do not.
+        const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv?v=" + new Date().getTime();
+        const csvResult = await fetchAndParseCSV(PO_DATA_URL) || {};
+        poDataByPO = csvResult.poDataByPO || {};
+        poDataByRef = csvResult.poDataByRef || {};
+        allPOData = poDataByPO;
+    }
 
-    // 2. Fetch from Firebase (Standard + Transfers)
-    // Removed orderByChild to ensure we get ALL data, even if timestamp is missing
     const [jobEntriesSnapshot, transferSnapshot] = await Promise.all([
-        db.ref('job_entries').once('value'),
-        db.ref('transfer_entries').once('value')
+        shouldLoadJobEntries ? db.ref('job_entries').once('value') : Promise.resolve(null),
+        shouldLoadTransferEntries ? db.ref('transfer_entries').once('value') : Promise.resolve(null)
     ]);
 
-    const jobEntriesData = jobEntriesSnapshot.val() || {};
-    const transferData = transferSnapshot.val() || {};
+    const jobEntriesData = jobEntriesSnapshot && typeof jobEntriesSnapshot.val === 'function' ? (jobEntriesSnapshot.val() || {}) : null;
+    const transferData = transferSnapshot && typeof transferSnapshot.val === 'function' ? (transferSnapshot.val() || {}) : null;
 
-    const processedEntries = [];
+    const processedWorkdeskEntries = [];
+    const processedInventoryEntries = [];
     const updatesToFirebase = {};
 
-    // 3. Process Job Entries
-    Object.entries(jobEntriesData).forEach(([key, value]) => {
-        let entry = { key, ...value, source: 'job_entry' };
+    if (jobEntriesData) {
+        Object.entries(jobEntriesData).forEach(([key, value]) => {
+            let entry = { key, ...value, source: 'job_entry' };
 
-        // PR Matching Logic
-        if (entry.for === 'PR' && entry.ref) {
-            const refKey = String(entry.ref).trim();
-            const csvMatch = purchaseOrdersDataByRef[refKey] || purchaseOrdersDataByRef[refKey.toUpperCase()];
-            if (csvMatch) {
-                const newPO = csvMatch['PO'] || csvMatch['PO Number'] || '';
-                const newVendor = csvMatch['Supplier Name'] || csvMatch['Supplier'] || 'N/A';
-                const newAmount = csvMatch['Amount'] || '';
-                const newAttention = csvMatch['Buyer Name'] || csvMatch['Entry Person'] || 'Records';
-                let rawDate = csvMatch['Order Date'] || '';
-                let newDate = rawDate ? formatYYYYMMDD(normalizeDateForInput(rawDate)) : rawDate;
-                
-                entry.po = newPO;
-                entry.vendorName = newVendor;
-                entry.amount = newAmount;
-                entry.attention = newAttention;
-                entry.dateResponded = newDate;
-                entry.remarks = 'PO Ready'; 
+            // PR Matching Logic
+            if (entry.for === 'PR' && entry.ref) {
+                const refKey = String(entry.ref).trim();
+                const csvMatch = poDataByRef[refKey] || poDataByRef[refKey.toUpperCase()];
+                if (csvMatch) {
+                    const newPO = csvMatch['PO'] || csvMatch['PO Number'] || '';
+                    const newVendor = csvMatch['Supplier Name'] || csvMatch['Supplier'] || 'N/A';
+                    const newAmount = csvMatch['Amount'] || '';
+                    const newAttention = csvMatch['Buyer Name'] || csvMatch['Entry Person'] || 'Records';
+                    let rawDate = csvMatch['Order Date'] || '';
+                    let newDate = rawDate ? formatYYYYMMDD(normalizeDateForInput(rawDate)) : rawDate;
+                    
+                    entry.po = newPO;
+                    entry.vendorName = newVendor;
+                    entry.amount = newAmount;
+                    entry.attention = newAttention;
+                    entry.dateResponded = newDate;
+                    entry.remarks = 'PO Ready'; 
 
-                if (value.remarks !== 'PO Ready') {
-                    updatesToFirebase[key] = { po: newPO, vendorName: newVendor, amount: newAmount, attention: newAttention, dateResponded: newDate, remarks: 'PO Ready' };
+                    if (value.remarks !== 'PO Ready') {
+                        updatesToFirebase[key] = { po: newPO, vendorName: newVendor, amount: newAmount, attention: newAttention, dateResponded: newDate, remarks: 'PO Ready' };
+                    }
                 }
             }
-        }
-        if (!entry.vendorName && entry.po && allPOData[entry.po]) {
-            entry.vendorName = allPOData[entry.po]['Supplier Name'] || 'N/A';
-        }
-        processedEntries.push(entry);
-    });
-
-    // 4. Process Transfer Entries (THIS IS WHAT POPULATES THE TAB)
-    Object.entries(transferData).forEach(([key, value]) => {
-        const from = value.fromLocation || value.fromSite || 'N/A';
-        const to = value.toLocation || value.toSite || 'N/A';
-        let combinedSite = `${from} ➔ ${to}`;
-        if (value.jobType === 'Usage') combinedSite = `Used at ${from}`;
-
-        let contactPerson = value.receiver || 'N/A';
-        if (value.remarks === 'Pending') contactPerson = value.approver;
-
-        processedEntries.push({
-            key,
-            ...value,
-            source: 'transfer_entry',
-            productID: value.productID || '',
-            jobType: value.jobType || 'Transfer',
-            for: value.jobType || 'Transfer', // <--- This 'for' property creates the Tab
-            ref: value.controlNumber,
-            controlId: value.controlNumber,
-            site: combinedSite,
-            orderedQty: value.requiredQty || 0,
-            deliveredQty: value.receivedQty || 0,
-            // 7.7.6: if no shipping date was entered, show the record date/created date instead of N/A.
-            shippingDate: value.shippingDate || (value.createdAt ? String(value.createdAt).slice(0, 10) : (value.date || 'N/A')),
-            arrivalDate: value.arrivalDate || 'N/A',
-            contactName: contactPerson,
-            vendorName: value.productName,
-            remarks: value.remarks || value.status || 'Pending'
+            if (!entry.vendorName && entry.po && poDataByPO[entry.po]) {
+                entry.vendorName = poDataByPO[entry.po]['Supplier Name'] || 'N/A';
+            }
+            processedWorkdeskEntries.push(entry);
         });
-    });
+    }
+
+    if (transferData) {
+        Object.entries(transferData).forEach(([key, value]) => {
+            const from = value.fromLocation || value.fromSite || 'N/A';
+            const to = value.toLocation || value.toSite || 'N/A';
+            let combinedSite = `${from} ➔ ${to}`;
+            if (value.jobType === 'Usage') combinedSite = `Used at ${from}`;
+
+            let contactPerson = value.receiver || 'N/A';
+            if (value.remarks === 'Pending') contactPerson = value.approver;
+
+            processedInventoryEntries.push({
+                key,
+                ...value,
+                source: 'transfer_entry',
+                productID: value.productID || '',
+                jobType: value.jobType || 'Transfer',
+                for: value.jobType || 'Transfer',
+                ref: value.controlNumber || value.controlId || value.ref || key,
+                po: value.controlNumber || value.controlId || value.ref || key,
+                site: combinedSite,
+                contactName: contactPerson,
+                vendorName: value.productName,
+                remarks: value.remarks || value.status || 'Pending'
+            });
+        });
+    }
 
     if (Object.keys(updatesToFirebase).length > 0) {
         try { await db.ref('job_entries').update(updatesToFirebase); } catch (e) {}
     }
 
-    // 5. Sort & Save
-    allSystemEntries = processedEntries;
-    allSystemEntries.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    if (jobEntriesData) workdeskSystemEntries = processedWorkdeskEntries;
+    if (transferData) inventorySystemEntries = processedInventoryEntries;
 
-    // Inventory Phase 2: keep separate record families for Job Records.
-    // This prevents Inventory Job Records from depending on the WorkDesk/Invoice list renderer source.
-    inventorySystemEntries = allSystemEntries.filter(entry => (typeof isInventoryTaskRecord === 'function') ? isInventoryTaskRecord(entry) : ['Transfer', 'Restock', 'Return', 'Usage'].includes(entry.for));
-    workdeskSystemEntries = allSystemEntries.filter(entry => (typeof isInventoryTaskRecord === 'function') ? !isInventoryTaskRecord(entry) : !['Transfer', 'Restock', 'Return', 'Usage'].includes(entry.for));
-    
+    allSystemEntries = [
+        ...(Array.isArray(workdeskSystemEntries) ? workdeskSystemEntries : []),
+        ...(Array.isArray(inventorySystemEntries) ? inventorySystemEntries : [])
+    ];
+    allSystemEntries.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    if (Array.isArray(workdeskSystemEntries)) workdeskSystemEntries.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    if (Array.isArray(inventorySystemEntries)) inventorySystemEntries.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
     cacheTimestamps.systemEntries = now;
     console.log(`Loaded ${allSystemEntries.length} entries. WorkDesk: ${workdeskSystemEntries.length}, Inventory: ${inventorySystemEntries.length}.`);
 }
