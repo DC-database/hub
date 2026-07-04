@@ -432,17 +432,32 @@ async function showWorkdeskSection(sectionId, newSearchTerm = null) {
     }
 
     if (sectionId === 'wd-reporting') {
-        // --- NEW: Reset filter to clean slate ---
-        currentReportFilter = null;
+        // 10.3.3: WorkDesk Job Records is Admin/Super Admin only and lazy-loaded.
+        // Opening this tab should show the shell only; data loads after tab click/search.
+        const canOpenRecords = (typeof wdReportCanOpenCurrentRecords === 'function')
+            ? wdReportCanOpenCurrentRecords()
+            : true;
+        if (!canOpenRecords) {
+            alert('Job Records is Admin only. Your WorkDesk is limited to tasks addressed to you.');
+            document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a').forEach(a => a.classList.remove('active'));
+            const dashLink = document.querySelector('#workdesk-nav a[data-section="wd-dashboard"]');
+            if (dashLink) dashLink.classList.add('active');
+            sectionId = 'wd-dashboard';
+            const dashboardSection = document.getElementById('wd-dashboard');
+            const reportingSection = document.getElementById('wd-reporting');
+            if (reportingSection) reportingSection.classList.add('hidden');
+            if (dashboardSection) dashboardSection.classList.remove('hidden');
+            await populateWorkdeskDashboard();
+            return;
+        }
 
-        const savedSearch = sessionStorage.getItem('reportingSearch');
-        if (savedSearch) {
-            reportingSearchInput.value = savedSearch;
-        } else {
-            // Clear search input if no saved search
+        currentReportFilter = null;
+        try { sessionStorage.removeItem('reportingSearch'); } catch (_) {}
+
+        if (reportingSearchInput) {
             reportingSearchInput.value = '';
         }
-        await handleReportingSearch();
+        await handleReportingSearch({ userAction: false, reason: 'open' });
     }
 
     // --- NEW: Material Stock Logic ---
@@ -518,11 +533,21 @@ function showIMSection(sectionId) {
 
     // 5. Sidebar Handling
     if (sectionId === 'im-invoice-entry') {
-        if (imEntrySidebar) imEntrySidebar.classList.remove('hidden');
+        // 10.3.5: Keep the Active Jobs side panel visible as a standby shell,
+        // but do NOT fetch Firebase data until the user clicks Active Jobs or searches.
+        if (imEntrySidebar) {
+            imEntrySidebar.classList.remove('hidden');
+            imEntrySidebar.classList.add('visible');
+        }
         if (imMainElement) imMainElement.classList.add('with-sidebar');
-        populateActiveJobsSidebar();
+        if (typeof setActiveJobsSidebarStandby === 'function') {
+            setActiveJobsSidebarStandby('Click Active Jobs or search to load invoice job entries.');
+        }
     } else {
-        if (imEntrySidebar) imEntrySidebar.classList.add('hidden');
+        if (imEntrySidebar) {
+            imEntrySidebar.classList.add('hidden');
+            imEntrySidebar.classList.remove('visible');
+        }
         if (imMainElement) imMainElement.classList.remove('with-sidebar');
     }
 

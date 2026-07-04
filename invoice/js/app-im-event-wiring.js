@@ -175,8 +175,29 @@ imPOSearchInputBottom.addEventListener('keydown', (e) => {
         handleAddSelectedToBatch();
     }
 });
-    if (imShowActiveJobsBtn) imShowActiveJobsBtn.addEventListener('click', () => {
-        imEntrySidebar.classList.toggle('visible');
+    if (imShowActiveJobsBtn) imShowActiveJobsBtn.addEventListener('click', async () => {
+        if (!imEntrySidebar) return;
+
+        const isCurrentlyOpen = !imEntrySidebar.classList.contains('hidden') && imEntrySidebar.classList.contains('visible');
+        const isSidebarLoaded = (typeof imIsActiveJobsSidebarLoaded === 'function') && imIsActiveJobsSidebarLoaded();
+
+        // 10.3.5: If the standby sidebar is already visible but not loaded,
+        // this first click should LOAD the records, not hide the panel.
+        if (isCurrentlyOpen && isSidebarLoaded) {
+            imEntrySidebar.classList.remove('visible');
+            imEntrySidebar.classList.add('hidden');
+            if (imMainElement) imMainElement.classList.remove('with-sidebar');
+            return;
+        }
+
+        imEntrySidebar.classList.remove('hidden');
+        imEntrySidebar.classList.add('visible');
+        if (imMainElement) imMainElement.classList.add('with-sidebar');
+
+        // Fetch only after the user asks to see Active Jobs.
+        if (typeof populateActiveJobsSidebar === 'function') {
+            await populateActiveJobsSidebar(false);
+        }
     });
     if (imEntrySidebarList) imEntrySidebarList.addEventListener('click', handleActiveJobClick);
 

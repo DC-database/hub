@@ -673,20 +673,155 @@ if (!invNoText.includes('retention')) {  // ← CHANGED variable name
 // 14. INVOICE MANAGEMENT: SIDEBAR & ACTIVE JOBS (UPDATED: GREEN APPROVALS)
 // ==========================================================================
 
-async function populateActiveJobsSidebar() {
+// 10.3.4: Lightweight, on-demand loader for Invoice Entry Active Jobs.
+// It reads only WorkDesk job_entries where for = "Invoice" instead of calling
+// populateActiveTasks(), which can download broader WorkDesk + invoice queues.
+let imActiveJobsSidebarLoaded = false;
+let imActiveJobsSidebarLoading = false;
+let imActiveJobsSidebarCache = [];
+function imIsActiveJobsSidebarLoaded() { return !!imActiveJobsSidebarLoaded; }
+window.imIsActiveJobsSidebarLoaded = imIsActiveJobsSidebarLoaded;
+
+function imSidebarEscapeHTML(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function imNormalizeText(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function imAttentionMentionsName(attentionVal, nameVal) {
+    const attention = imNormalizeText(attentionVal);
+    const name = imNormalizeText(nameVal);
+    if (!attention || !name) return false;
+    if (attention === name) return true;
+    if (['all', 'site', 'accounting', 'accounts', 'finance', 'none'].includes(attention)) return false;
+
+    const parts = attention
+        .split(/\s*(?:,|;|\/|\||&|\+|->|➔|\band\b|\bor\b)\s*/i)
+        .map(v => v.trim())
+        .filter(Boolean);
+    if (parts.includes(name)) return true;
+
+    const nameParts = name.split(/\s+/).filter(Boolean);
+    if (nameParts.length >= 2 && nameParts.every(part => attention.includes(part))) return true;
+
+    return false;
+}
+
+function imInvoiceJobBelongsToCurrentUser(job) {
+    const currentName = String(currentApprover?.Name || '').trim();
+    if (!currentName) return false;
+
+    if (imAttentionMentionsName(job.attention, currentName)) return true;
+
+    const delegatedFromNames = (typeof getDelegatorsForReplacement === 'function')
+        ? getDelegatorsForReplacement(currentName)
+        : [];
+    return delegatedFromNames.some(name => imAttentionMentionsName(job.attention, name));
+}
+
+function imInvoiceJobIsEntryStage(job) {
+    const status = String(job.remarks || job.status || '').trim();
+    const normalized = status.toLowerCase();
+
+    // The side panel is for WorkDesk Invoice Job Entries that still need invoice entry.
+    // Once converted to Under Review / For SRV / With Accounts, it belongs to the normal
+    // invoice workflow and must no longer be pulled here.
+    if (!normalized || normalized === 'pending' || normalized === 'new entry') return true;
+    return false;
+}
+
+function imGetInvoiceJobCategory(job) {
+    const raw = String(job.group || job.category || '').trim();
+    if (!raw) return '';
+
+    const lower = raw.toLowerCase();
+    if (lower === 'normal') return 'Normal';
+    if (lower === 'hse') return 'HSE';
+    if (lower === 'logistic' || lower === 'logistics') return 'Logistic';
+
+    // Keep old records visible as their legacy value instead of breaking them.
+    return raw;
+}
+
+function setActiveJobsSidebarStandby(message) {
+    if (activeJobsSidebarCountDisplay) {
+        activeJobsSidebarCountDisplay.textContent = 'Active Jobs';
+    }
+    if (imEntrySidebarList) {
+        imEntrySidebarList.innerHTML = '<li class="im-sidebar-no-jobs" style="padding:10px; text-align:center; color:#d8fae9; font-size:0.8rem;">' +
+            imSidebarEscapeHTML(message || 'Click Active Jobs or search to load invoice job entries.') +
+            '</li>';
+    }
+}
+window.setActiveJobsSidebarStandby = setActiveJobsSidebarStandby;
+
+async function fetchInvoiceEntrySidePanelJobs(forceRefresh = false) {
+    if (!forceRefresh && imActiveJobsSidebarLoaded && Array.isArray(imActiveJobsSidebarCache)) {
+        return imActiveJobsSidebarCache.slice();
+    }
+
+    // 10.3.9: Restore the proven working source for Invoice Entry Active Jobs.
+    // The 10.3.7/10.3.8 job_entry_inbox optimization was too strict and could show
+    // an empty panel even when Active Task had pending New Entry records. This loader
+    // reads only WorkDesk Invoice Job Entries, not full invoice_entries, so it remains
+    // lighter than the old broad Active Task loader while restoring the visible list.
+    const byKey = new Map();
+    const sourcePaths = ['job_entries', 'Job_Entries'];
+
+    for (const path of sourcePaths) {
+        try {
+            const snap = await db.ref(path).orderByChild('for').equalTo('Invoice').once('value');
+            const raw = snap.val() || {};
+
+            Object.entries(raw).forEach(([key, value]) => {
+                const job = { key, ...(value || {}), source: 'job_entry' };
+                if (!imInvoiceJobIsEntryStage(job)) return;
+                if (!imInvoiceJobBelongsToCurrentUser(job)) return;
+                if (typeof isTaskComplete === 'function' && isTaskComplete(job)) return;
+
+                // Prefer already-saved manual Vendor/Site fields. Do not fetch POVALUE2 here;
+                // this side panel must stay limited to active WorkDesk Invoice job entries.
+                if (!job.vendorName && job.po && allPOData && allPOData[job.po]) {
+                    job.vendorName = allPOData[job.po]['Supplier Name'] || allPOData[job.po]['Supplier Name:'] || '';
+                }
+
+                job.group = imGetInvoiceJobCategory(job);
+                job.remarks = String(job.remarks || job.status || 'New Entry').trim() || 'New Entry';
+                job.status = job.remarks;
+                job.jobRecordDateEntered = job.jobRecordDateEntered || job.date || '';
+                job.dateEntered = job.dateEntered || job.date || '';
+                byKey.set(job.key || key, job);
+            });
+
+            // Lowercase job_entries is the normal source. Uppercase is only a safety fallback.
+            if (byKey.size > 0) break;
+        } catch (error) {
+            console.warn('Active Jobs side panel source read failed for', path, error);
+        }
+    }
+
+    const jobs = Array.from(byKey.values());
+    if (typeof wdActiveTaskCompareQueue === 'function') {
+        jobs.sort(wdActiveTaskCompareQueue);
+    } else {
+        jobs.sort((a, b) => Number(a.timestamp || 0) - Number(b.timestamp || 0));
+    }
+
+    imActiveJobsSidebarCache = jobs;
+    imActiveJobsSidebarLoaded = true;
+    return jobs.slice();
+}
+
+function renderActiveJobsSidebar(invoiceJobs) {
     if (!imEntrySidebarList) return;
 
-    // Refresh active tasks first
-    await populateActiveTasks();
-
-    // Filter tasks
-    var tasksToDisplay = userActiveTasks;
-	// Show ONLY Job Entries created under Job Entry -> "Invoice" (no invoice approval tasks, no other job types)
-	var invoiceJobs = tasksToDisplay.filter(function(task) {
-		return (task.source === 'job_entry' && task.for === 'Invoice');
-	});
-
-    // Update Header Count
     if (activeJobsSidebarCountDisplay) {
         activeJobsSidebarCountDisplay.textContent = 'Active Jobs (' + invoiceJobs.length + ')';
     }
@@ -694,7 +829,7 @@ async function populateActiveJobsSidebar() {
     imEntrySidebarList.innerHTML = '';
 
     if (invoiceJobs.length === 0) {
-        imEntrySidebarList.innerHTML = '<li class="im-sidebar-no-jobs" style="padding:10px; text-align:center; color:#888; font-size:0.8rem;">No active jobs.</li>';
+        imEntrySidebarList.innerHTML = '<li class="im-sidebar-no-jobs" style="padding:10px; text-align:center; color:#888; font-size:0.8rem;">No active invoice job entries.</li>';
         return;
     }
 
@@ -702,60 +837,52 @@ async function populateActiveJobsSidebar() {
         var li = document.createElement('li');
         li.className = 'im-sidebar-item';
 
-        var status = job.remarks || job.status || 'Pending';
-        
-        // --- NEW COLOR LOGIC START ---
-        var borderColor = '#fd7e14'; // Default Orange (Pending)
-        var statusTextColor = '#666'; // Default Text Color
+        var status = job.remarks || job.status || 'New Entry';
+        var borderColor = '#fd7e14';
+        var statusTextColor = '#666';
 
         if (status === 'New Entry') {
-            borderColor = '#dc3545'; // RED (Urgent / New)
+            borderColor = '#dc3545';
             statusTextColor = '#dc3545';
-        } 
-        else if (status === 'SRV Done') {
-            borderColor = '#6c757d'; // GREY (Passive)
-            statusTextColor = '#6c757d';
-        }
-        else if (status.includes('Approved') || status === 'CEO Approval') {
-            borderColor = '#28a745'; // GREEN (Approved)
-            statusTextColor = '#28a745';
+        } else if (status === 'Pending') {
+            borderColor = '#fd7e14';
+            statusTextColor = '#fd7e14';
         }
 
-        // Apply the visual border color
         li.style.borderLeft = '4px solid ' + borderColor;
-        // --- NEW COLOR LOGIC END ---
 
-        // Store data for click handling
         li.dataset.po = job.po || '';
         li.dataset.key = job.key;
         li.dataset.ref = job.ref || '';
         li.dataset.amount = job.amount || '';
         li.dataset.date = job.date || '';
-        li.dataset.source = job.source || '';
+        li.dataset.source = job.source || 'job_entry';
         li.dataset.originalKey = job.originalKey || '';
         li.dataset.originalPO = job.originalPO || '';
-
-        // Pass-through Invoice Job Entry details so Invoice Entry side-panel clicks
-        // can reuse captured Vendor/Supplier/Site/Invoice Date (for Manual PO prefill).
-        // These datasets are best-effort and do not change existing task rules.
         li.dataset.vendorName = job.vendorName || '';
         li.dataset.vendorId = job.vendorId || '';
         li.dataset.site = job.site || '';
         li.dataset.invoiceDate = job.invoiceDate || '';
+        li.dataset.category = job.group || '';
 
-        // Truncate Vendor Name if too long
         var vendorDisplay = (job.vendorName || 'No Vendor');
         if (vendorDisplay.length > 20) vendorDisplay = vendorDisplay.substring(0, 18) + '...';
 
-        // --- COMPACT HTML (With Status Color) ---
+        var category = imGetInvoiceJobCategory(job);
+        var categoryChip = category
+            ? `<span class="im-compact-category" style="display:inline-flex; align-items:center; border-radius:999px; padding:2px 7px; font-size:0.68rem; font-weight:800; background:#e8fff4; color:#08734f; border:1px solid rgba(8,115,79,0.18); margin-left:6px; white-space:nowrap;">${imSidebarEscapeHTML(category)}</span>`
+            : '';
+
         var html = `
             <div class="im-compact-row">
-                <span class="im-compact-po"><i class="fa-solid fa-file-invoice" style="margin-right:4px; opacity:0.7;"></i> ${job.po || 'N/A'}</span>
+                <span class="im-compact-po"><i class="fa-solid fa-file-invoice" style="margin-right:4px; opacity:0.7;"></i> ${imSidebarEscapeHTML(job.po || 'N/A')}</span>
                 <span class="im-compact-amount">${formatCurrency(job.amount)}</span>
             </div>
-            <div class="im-compact-row">
-                <span class="im-compact-vendor">${vendorDisplay}</span>
-                <span class="im-compact-status" style="color: ${statusTextColor}; font-weight: bold;">${status}</span>
+            <div class="im-compact-row" style="align-items:flex-start;">
+                <span class="im-compact-vendor">${imSidebarEscapeHTML(vendorDisplay)}</span>
+            </div>
+            <div class="im-compact-row" style="justify-content:flex-start; margin-top:3px;">
+                <span class="im-compact-status" style="color: ${statusTextColor}; font-weight: bold; display:inline-flex; align-items:center; gap:4px;">${imSidebarEscapeHTML(status)}${categoryChip}</span>
             </div>
         `;
 
@@ -764,24 +891,94 @@ async function populateActiveJobsSidebar() {
     });
 }
 
-// --- NEW: SEARCH LISTENER (Place this right after the function above) ---
-const sidebarSearchInput = document.getElementById('im-sidebar-search');
-if (sidebarSearchInput) {
-    sidebarSearchInput.addEventListener('input', (e) => {
-        const term = e.target.value.toLowerCase().trim();
-        const items = document.querySelectorAll('.im-sidebar-item');
-        
-        items.forEach(item => {
-            const po = (item.dataset.po || '').toLowerCase();
-            // Search by PO (you can add Vendor check too if you want: || item.innerText.toLowerCase().includes(term))
-            if (po.includes(term)) {
-                item.style.display = ''; // Show
-            } else {
-                item.style.display = 'none'; // Hide
-            }
-        });
+async function populateActiveJobsSidebar(forceRefresh = false) {
+    if (!imEntrySidebarList) return;
+    if (imActiveJobsSidebarLoading) return;
+
+    imActiveJobsSidebarLoading = true;
+    if (activeJobsSidebarCountDisplay) activeJobsSidebarCountDisplay.textContent = 'Active Jobs (loading...)';
+    imEntrySidebarList.innerHTML = '<li class="im-sidebar-no-jobs" style="padding:10px; text-align:center; color:#d8fae9; font-size:0.8rem;">Loading active invoice job entries...</li>';
+
+    try {
+        const invoiceJobs = await fetchInvoiceEntrySidePanelJobs(forceRefresh);
+        renderActiveJobsSidebar(invoiceJobs);
+        const searchValue = String(document.getElementById('im-sidebar-search')?.value || '').trim();
+        if (searchValue) filterActiveJobsSidebarItems(searchValue);
+    } catch (error) {
+        console.error('Active Jobs side panel failed to load:', error);
+        if (activeJobsSidebarCountDisplay) activeJobsSidebarCountDisplay.textContent = 'Active Jobs';
+        imEntrySidebarList.innerHTML = '<li class="im-sidebar-no-jobs" style="padding:10px; text-align:center; color:#ffdddd; font-size:0.8rem;">Could not load active jobs. Please try again.</li>';
+    } finally {
+        imActiveJobsSidebarLoading = false;
+    }
+}
+
+function filterActiveJobsSidebarItems(termValue) {
+    const term = String(termValue || '').toLowerCase().trim();
+    const items = document.querySelectorAll('.im-sidebar-item');
+
+    items.forEach(item => {
+        const po = (item.dataset.po || '').toLowerCase();
+        const vendor = (item.dataset.vendorName || '').toLowerCase();
+        const category = (item.dataset.category || '').toLowerCase();
+        const text = (item.innerText || '').toLowerCase();
+        item.style.display = (!term || po.includes(term) || vendor.includes(term) || category.includes(term) || text.includes(term)) ? '' : 'none';
     });
 }
+
+// --- ACTIVE JOBS SEARCH: restore immediate working behavior ---
+const sidebarSearchInput = document.getElementById('im-sidebar-search');
+if (sidebarSearchInput) {
+    sidebarSearchInput.addEventListener('focus', async () => {
+        if (!imActiveJobsSidebarLoaded && typeof populateActiveJobsSidebar === 'function') {
+            await populateActiveJobsSidebar(false);
+        }
+    });
+
+    sidebarSearchInput.addEventListener('input', async (e) => {
+        if (!imActiveJobsSidebarLoaded && typeof populateActiveJobsSidebar === 'function') {
+            await populateActiveJobsSidebar(false);
+        }
+        filterActiveJobsSidebarItems(e.target.value);
+    });
+}
+
+function imInvoiceEntrySectionIsVisible() {
+    const section = document.getElementById('im-invoice-entry');
+    if (!section) return false;
+    return !section.classList.contains('hidden') && section.offsetParent !== null;
+}
+
+function imAutoLoadActiveJobsWhenInvoiceEntryVisible() {
+    if (!imEntrySidebarList || imActiveJobsSidebarLoaded || imActiveJobsSidebarLoading) return;
+    if (!imInvoiceEntrySectionIsVisible()) return;
+    if (typeof populateActiveJobsSidebar === 'function') {
+        populateActiveJobsSidebar(false);
+    }
+}
+window.imAutoLoadActiveJobsWhenInvoiceEntryVisible = imAutoLoadActiveJobsWhenInvoiceEntryVisible;
+
+// Load the side panel when Invoice Entry is actually opened, not on the whole app start.
+// This restores the old "see it right away" behavior while avoiding unrelated page loads.
+const imInvoiceEntrySectionForSidebar = document.getElementById('im-invoice-entry');
+if (imInvoiceEntrySectionForSidebar && typeof MutationObserver !== 'undefined') {
+    const imInvoiceEntryObserver = new MutationObserver(() => {
+        setTimeout(imAutoLoadActiveJobsWhenInvoiceEntryVisible, 150);
+    });
+    imInvoiceEntryObserver.observe(imInvoiceEntrySectionForSidebar, { attributes: true, attributeFilter: ['class', 'style'] });
+}
+setTimeout(imAutoLoadActiveJobsWhenInvoiceEntryVisible, 500);
+document.addEventListener('click', (event) => {
+    if (event.target && event.target.closest && event.target.closest('[data-section="im-invoice-entry"], .im-nav-invoice-entry a')) {
+        setTimeout(imAutoLoadActiveJobsWhenInvoiceEntryVisible, 350);
+    }
+});
+
+function imInvalidateActiveJobsSidebarCache() {
+    imActiveJobsSidebarLoaded = false;
+    imActiveJobsSidebarCache = [];
+}
+window.imInvalidateActiveJobsSidebarCache = imInvalidateActiveJobsSidebarCache;
 
 async function handleActiveJobClick(e) {
     const item = e.target.closest('.im-sidebar-item');

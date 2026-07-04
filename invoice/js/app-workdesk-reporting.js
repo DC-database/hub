@@ -1,18 +1,110 @@
 /* ==========================================================================
    js/app-workdesk-reporting.js
    IBA WorkDesk/Inventory Job Records table and report filter helpers.
-   Version: 10.3.1
+   Version: 10.3.3
 
    Cleanup Phase:
    - Moved Block 13 out of app.js.
    - Function names and existing behavior are preserved.
    - No Firebase paths, invoice save logic, or inventory renderer logic changed.
+
+   10.3.3:
+   - WorkDesk Job Records are Admin/Super Admin only. Normal users do not see or
+     initialize the WorkDesk Job Records data loader.
+   - Admin Job Records use lazy loading: opening the tab shows category buttons only;
+     Firebase records load only after a category click or search input.
+   - Download optimization only; no workflow, Firebase path, or invoice save logic changed.
    ========================================================================== */
 
 // #region BLOCK 13 — JOB RECORDS TABLE + REPORT FILTERING
 // Purpose: Desktop job records table, inventory grouping rows, totals, search/filter rendering.
 // =================================================================================================
 
+
+
+function wdReportNormalizeRoleText(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function wdReportIsAdminUser() {
+    if (typeof wdIsWideAccessUser === 'function') {
+        try { return !!wdIsWideAccessUser(); } catch (_) { /* fallback below */ }
+    }
+    const accessText = wdReportNormalizeRoleText([
+        currentApprover?.Role,
+        currentApprover?.role,
+        currentApprover?.AccountRole,
+        currentApprover?.accountRole,
+        currentApprover?.Access,
+        currentApprover?.access
+    ].filter(Boolean).join(' '));
+    const nameText = wdReportNormalizeRoleText(currentApprover?.Name || currentApprover?.username || currentApprover?.name || '');
+    const superNameText = (typeof SUPER_ADMIN_NAME !== 'undefined') ? wdReportNormalizeRoleText(SUPER_ADMIN_NAME) : '';
+    return accessText.includes('admin') || accessText.includes('super') || (!!superNameText && nameText === superNameText);
+}
+
+function wdReportIsInventoryMode() {
+    return (typeof isInventoryContext === 'function' && isInventoryContext()) ||
+        !!(document.body && document.body.classList.contains('inventory-mode')) ||
+        String(window.__ibaActiveModule || '').toLowerCase() === 'inventory';
+}
+
+function wdReportCanOpenCurrentRecords() {
+    // 10.3.3: Normal WorkDesk users do not need Job Records; avoid loading it for them.
+    // Inventory routing keeps its own existing behavior.
+    if (wdReportIsInventoryMode()) return true;
+    return wdReportIsAdminUser();
+}
+
+function wdReportDefaultJobTypes() {
+    return wdReportIsInventoryMode()
+        ? ['Transfer', 'Restock', 'Return', 'Usage']
+        : ['Invoice', 'IPC Application', 'IPC Processed', 'PR', 'Credit Note', 'Cancel', 'Original PO', 'Other'];
+}
+
+function wdReportRenderNoAccessState() {
+    const tabsContainer = document.getElementById('report-tabs');
+    if (tabsContainer) tabsContainer.innerHTML = '';
+    if (reportingCountDisplay) reportingCountDisplay.textContent = '';
+    if (typeof wdUiUpdateMiniMetrics === 'function') wdUiUpdateMiniMetrics('job-records-summary-strip', [], 'Job Records');
+    if (reportingTableBody) {
+        reportingTableBody.innerHTML = `
+            <tr>
+                <td colspan="12">
+                    <div class="wd-modern-empty-row wd-select-category-state">
+                        <i class="fa-solid fa-lock"></i>
+                        <strong>Job Records is Admin only</strong>
+                        <span>Your WorkDesk view is attention-oriented to reduce Firebase downloads.</span>
+                    </div>
+                </td>
+            </tr>`;
+    }
+}
+
+function wdReportRenderLazyShell() {
+    const tabsContainer = document.getElementById('report-tabs');
+    const defaultTypes = wdReportDefaultJobTypes();
+    if (tabsContainer) {
+        tabsContainer.innerHTML = defaultTypes.map(jobType => {
+            const activeClass = (jobType === currentReportFilter) ? 'active' : '';
+            return `<button class="${activeClass}" data-job-type="${jobType}">${jobType}</button>`;
+        }).join('');
+    }
+    if (reportingCountDisplay) reportingCountDisplay.textContent = '';
+    if (typeof wdUiUpdateMiniMetrics === 'function') wdUiUpdateMiniMetrics('job-records-summary-strip', [], wdReportIsInventoryMode() ? 'Inventory Records' : 'Job Records');
+    if (reportingTableBody) {
+        reportingTableBody.innerHTML = `
+            <tr>
+                <td colspan="12">
+                    <div class="wd-modern-empty-row wd-select-category-state">
+                        <i class="fa-solid fa-hand-pointer"></i>
+                        <strong>No records loaded yet</strong>
+                        <span>Select a category or type a search. Firebase data will load only after that action.</span>
+                    </div>
+                </td>
+            </tr>`;
+    }
+}
 
 function wdReportDisplayJobType(value) {
     const raw = String(value || '').trim();
@@ -216,34 +308,48 @@ function filterAndRenderReport(baseEntries = null) {
 // ==========================================================================
 // REPLACED FUNCTION: handleReportingSearch (Clean Start / Lazy Render)
 // ==========================================================================
-async function handleReportingSearch() {
-    // Show loading initially
-    reportingTableBody.innerHTML = '<tr><td colspan="12" style="text-align:center; padding:20px;">Loading categories...</td></tr>';
+async function handleReportingSearch(options = {}) {
+    const userAction = options && options.userAction === true;
+    const reason = String(options && options.reason || '').toLowerCase();
+    const searchTextNow = String(reportingSearchInput?.value || '').trim();
+    const hasSelectedTab = !!(currentReportFilter && currentReportFilter !== 'All');
+    const shouldLoad = userAction && (reason === 'tab' || reason === 'search' || searchTextNow || hasSelectedTab);
+
+    if (!wdReportCanOpenCurrentRecords()) {
+        wdReportRenderNoAccessState();
+        return;
+    }
+
+    // 10.3.3: Opening Job Records must not immediately fetch Firebase data.
+    // Admin sees the tabs/shell first; records load only after a tab click or search.
+    if (!shouldLoad) {
+        wdReportRenderLazyShell();
+        return;
+    }
+
+    // Show loading only after a real user action.
+    reportingTableBody.innerHTML = '<tr><td colspan="12" style="text-align:center; padding:20px;"><i class="fa-solid fa-spinner fa-spin"></i> Loading selected records...</td></tr>';
 
     try {
-        // 10.3.1: WorkDesk Job Records must stay on the WorkDesk database only.
-        // Do not fetch invoiceentry-b15a8/invoice_entries here; full invoice
-        // history such as With Accounts belongs in Invoice Management > Invoice Records.
-        // This prevents Job Records from downloading old completed invoice records.
-        await ensureAllEntriesFetched(false, { mode: (typeof isInventoryContext === 'function' && isInventoryContext()) ? 'inventory' : 'workdesk' });
+        // 10.3.1/10.3.3: WorkDesk Job Records stay on the WorkDesk database only.
+        // Do not fetch invoiceentry-b15a8/invoice_entries here; full invoice history
+        // such as With Accounts belongs in Invoice Management > Invoice Records.
+        await ensureAllEntriesFetched(false, { mode: wdReportIsInventoryMode() ? 'inventory' : 'workdesk' });
         await reconcilePendingPRs();
 
-        // 2. Build Tabs from the current module family only.
-        // Inventory gets transfer_entries only; WorkDesk gets job_entries only.
+        // Build tabs from the current module family only after the first real load.
         let baseEntries = getJobRecordsBaseEntriesForCurrentContext();
 
         const uniqueJobTypes = [...new Set(baseEntries.map(entry => wdReportDisplayJobType(entry.for || 'Other')))];
         uniqueJobTypes.sort();
 
-        
-        // Safety: if the previously-selected tab isn't available (e.g., desktop hides inventory tabs), reset.
-        if (currentReportFilter && !uniqueJobTypes.includes(currentReportFilter)) {
+        // Keep default tabs available even when the selected family has no loaded rows yet.
+        const finalJobTypes = uniqueJobTypes.length ? uniqueJobTypes : wdReportDefaultJobTypes();
+        if (currentReportFilter && !finalJobTypes.includes(currentReportFilter)) {
             currentReportFilter = null;
         }
-let tabsHTML = '';
-
-        // --- CHANGE: Do NOT auto-select the first tab ---
-        uniqueJobTypes.forEach(jobType => {
+        let tabsHTML = '';
+        finalJobTypes.forEach(jobType => {
             const activeClass = (jobType === currentReportFilter) ? 'active' : '';
             tabsHTML += `<button class="${activeClass}" data-job-type="${jobType}">${jobType}</button>`;
         });
@@ -251,32 +357,11 @@ let tabsHTML = '';
         const tabsContainer = document.getElementById('report-tabs');
         if (tabsContainer) tabsContainer.innerHTML = tabsHTML;
 
-        // 3. Render Logic (The "Clean" Check)
         const savedSearch = sessionStorage.getItem('reportingSearch');
-
-        // Condition A: If user typed in Search box, show results immediately
-        if (savedSearch && savedSearch.trim() !== '') {
+        if ((savedSearch && savedSearch.trim() !== '') || (currentReportFilter && currentReportFilter !== 'All')) {
              filterAndRenderReport(baseEntries);
-        }
-        // Condition B: If user clicked a tab (Filter is active), show results
-        else if (currentReportFilter && currentReportFilter !== 'All') {
-             filterAndRenderReport(baseEntries);
-        }
-        // Condition C: CLEAN START (No Search, No Tab Clicked)
-        else {
-             reportingTableBody.innerHTML = `
-                <tr>
-                    <td colspan="12">
-                        <div class="wd-modern-empty-row wd-select-category-state">
-                            <i class="fa-solid fa-arrow-up-wide-short"></i>
-                            <strong>Select a Category above</strong>
-                            <span>${(typeof isInventoryContext === 'function' && isInventoryContext()) ? '(Transfer, Restock, Return, Usage)' : '(e.g., IPC Application, IPC Processed, Invoice, PR)' } to view records.</span>
-                        </div>
-                    </td>
-                </tr>`;
-             // Clear the count display
-             if (reportingCountDisplay) reportingCountDisplay.textContent = '';
-             if (typeof wdUiUpdateMiniMetrics === 'function') wdUiUpdateMiniMetrics('job-records-summary-strip', [], 'Job Records');
+        } else {
+             wdReportRenderLazyShell();
         }
 
     } catch (error) {

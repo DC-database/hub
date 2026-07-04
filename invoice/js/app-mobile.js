@@ -454,10 +454,11 @@ function updateWorkdeskModuleRoutingUI(moduleName) {
     if (addJobLi) addJobLi.style.display = inventoryMode ? 'none' : '';
 
     // Desktop Inventory can keep Material Stock/Job Records in its sidebar.
-    // 7.3.9: Mobile Inventory keeps the compact task-only flow, so Material Stock
-    // and both Reporting/Job Records nav entries are forcibly hidden in Inventory mobile mode.
+    // 10.3.3: In normal WorkDesk mode, Job Records is Admin/Super Admin only.
+    // Normal users should not see it and should not accidentally initialize its data loader.
+    const canSeeWorkdeskJobRecords = inventoryMode || (typeof wdReportIsAdminUser === 'function' ? wdReportIsAdminUser() : (((currentApprover?.Role || '').toLowerCase().includes('admin')) || (typeof SUPER_ADMIN_NAME !== 'undefined' && String(currentApprover?.Name || '').trim().toLowerCase() === String(SUPER_ADMIN_NAME || '').trim().toLowerCase())));
     setLiDisplay('#workdesk-nav .wd-nav-material', inventoryMode && !isMobile);
-    setLiDisplay('#workdesk-nav .wd-nav-reporting', !(inventoryMode && isMobile));
+    setLiDisplay('#workdesk-nav .wd-nav-reporting', canSeeWorkdeskJobRecords && !(inventoryMode && isMobile));
     setLiDisplay('#workdesk-nav .wd-nav-im-reporting-mobile', !(inventoryMode && isMobile));
 
     const wdId = document.getElementById('wd-user-identifier');
@@ -531,6 +532,16 @@ function enforceInventoryMobileNavVisibility() {
             // Material Stock belongs to Inventory only. In normal Invoice/Task mode it must stay hidden.
             if (selector === '#workdesk-nav .wd-nav-material') {
                 if (!inventoryMode || isMobile) {
+                    target.style.setProperty('display', 'none', 'important');
+                } else {
+                    target.style.removeProperty('display');
+                }
+                return;
+            }
+
+            if (selector === '#workdesk-nav .wd-nav-reporting') {
+                const canSeeWorkdeskJobRecords = inventoryMode || (typeof wdReportIsAdminUser === 'function' ? wdReportIsAdminUser() : (((currentApprover?.Role || '').toLowerCase().includes('admin')) || (typeof SUPER_ADMIN_NAME !== 'undefined' && String(currentApprover?.Name || '').trim().toLowerCase() === String(SUPER_ADMIN_NAME || '').trim().toLowerCase())));
+                if ((inventoryMode && isMobile) || !canSeeWorkdeskJobRecords) {
                     target.style.setProperty('display', 'none', 'important');
                 } else {
                     target.style.removeProperty('display');

@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-workdesk-dashboard.js
    IBA WorkDesk Dashboard Active Task Control Center
-   Version: 10.0.4
+   Version: 10.3.3
 
    8.3.6:
    - Replaced the old WorkDesk calendar/date dashboard with a clean view-only
@@ -107,6 +107,22 @@
    - Replaced the queue-age chip layout with clean date tabs for selected dashboard queues.
    - Users can click date tabs such as Jun 30 / Jul 01 and see only that date's entries.
    - Default date tab is the oldest queue date so the system still guides priority without forcing order.
+
+   10.3.2:
+   - Role-based Dashboard download reduction. Normal/User accounts now remain strictly
+     attention-oriented and no longer subscribe to the global invoice_tasks_by_user/All
+     lookup while on Dashboard. Admin/Super Admin keep the full Dashboard with All Active
+     overview and global sorting.
+   - Personal task sorting remains available only inside the user's own assigned queue.
+   - Display/read optimization only; no workflow, Firebase path, or invoice save logic changed.
+
+   10.3.3:
+   - Admin/Super Admin Dashboard All Active is now lazy-loaded. Dashboard opens with
+     My Personal Tasks and lightweight All Active load buttons only; global overview data
+     is fetched only after an Admin clicks an All Active status card.
+   - The dashboard root listener for invoice_tasks_by_user is disabled by default to avoid
+     background global downloads. Manual/card refresh keeps accuracy on demand.
+   - Download optimization only; no workflow, Firebase path, or invoice save logic changed.
    ========================================================================== */
 
 // =================================================================================================
@@ -127,11 +143,13 @@ let wdDashboardLiveSyncTimer = null;
 let wdDashboardTaskLookupRootRef = null;
 let wdDashboardTaskLookupPersonalRef = null;
 let wdDashboardTaskLookupAllRef = null;
+let wdAllActiveDashboardLoaded = false;
+let wdAllActiveDashboardLoading = false;
 
 // 8.5.1: Keep the WorkDesk Dashboard self-sufficient for short periods.
 // It prevents repeated Firebase downloads when users switch pages or reopen the dashboard.
 // Manual Refresh still bypasses this cache and gets fresh live data.
-const WD_DASHBOARD_CACHE_KEY = 'IBA_WD_ACTIVE_DASHBOARD_CACHE_V16';
+const WD_DASHBOARD_CACHE_KEY = 'IBA_WD_ACTIVE_DASHBOARD_CACHE_V17';
 const WD_ACTIVE_TASK_SOURCE_CACHE_KEY = 'IBA_ACTIVE_TASK_WORKDESK_SNAPSHOT_V3';
 const WD_DASHBOARD_CACHE_TTL = 5 * 60 * 1000; // 10.2.6: shorter cache so completed invoice tasks disappear quickly.
 
@@ -179,6 +197,18 @@ const WD_DASHBOARD_ALLOWED_BUCKETS = new Set([
     'ipc issue',
     'report'
 ]);
+
+const WD_DASHBOARD_LAZY_ADMIN_STATUSES = [
+    'New Entry',
+    'For SRV',
+    'Pending',
+    'On Hold',
+    'In Process',
+    'Unresolved',
+    'IPC Application',
+    'IPC Processed',
+    'Report'
+];
 
 function wdText(value, fallback = '') {
     const str = String(value ?? '').trim();
@@ -638,19 +668,19 @@ function wdGetUserPositionText() {
 }
 
 function wdIsWideAccessUser() {
-    // 9.3.2: Dashboard wide-access should recognize both Role and Position
-    // because some accounts store "Super Admin" / "Admin" in Position instead of Role.
-    const accessText = wdNormalize([
+    // 10.3.3: Wide Dashboard access is controlled by Role/permission fields,
+    // not workflow Position labels like QS, Site DC, Engineer, or Accounts.
+    const roleAccessText = wdNormalize([
         currentApprover?.Role,
         currentApprover?.role,
         currentApprover?.AccountRole,
         currentApprover?.accountRole,
-        currentApprover?.Position,
-        currentApprover?.position,
         currentApprover?.Access,
         currentApprover?.access
     ].filter(Boolean).join(' '));
-    return accessText.includes('admin') || accessText.includes('super');
+    const nameText = wdNormalize(currentApprover?.Name || currentApprover?.username || currentApprover?.name || '');
+    const superNameText = (typeof SUPER_ADMIN_NAME !== 'undefined') ? wdNormalize(SUPER_ADMIN_NAME) : '';
+    return roleAccessText.includes('admin') || roleAccessText.includes('super') || (!!superNameText && nameText === superNameText);
 }
 
 function wdCanSeeAllActiveDashboard() {
@@ -2134,15 +2164,15 @@ async function wdBuildDashboardOverviewSourceTasks(forceRefresh = false) {
 async function wdBuildDashboardTasks(options = {}) {
     const tasks = [];
     const forceRefresh = !!options.forceRefresh;
+    const includeAllActive = options.includeAllActive === true;
 
-    // 9.4.8: Build My Personal Tasks first. Normal/User accounts stop here so
-    // the dashboard does not read global invoice_entries/job_entries/transfer_entries.
+    // 9.4.8/10.3.3: Build My Personal Tasks first. Normal/User accounts stop here.
+    // Admin/Super Admin also stop here on first Dashboard open; the global All Active
+    // overview is fetched only after an Admin clicks an All Active status card.
     const exactMyActiveTasks = await wdGetExactMyActiveTaskList(forceRefresh);
     wdPersonalDashboardTasks = await wdBuildPersonalDashboardTasks(exactMyActiveTasks);
 
-    // 9.3.3/9.4.8: Normal User role accounts should not receive the wider All Active dashboard.
-    // They only see their own Personal Tasks and now avoid the expensive All Active overview reads.
-    if (!wdCanSeeAllActiveDashboard()) {
+    if (!wdCanSeeAllActiveDashboard() || !includeAllActive) {
         return [];
     }
 
@@ -2188,9 +2218,9 @@ async function wdSoftRebuildDashboardFromLiveSource(reason = '') {
     const previousDate = wdActiveDashboardSelectedQueueDate || '';
 
     try {
-        wdActiveDashboardTasks = await wdBuildDashboardTasks({ forceRefresh: false });
+        wdActiveDashboardTasks = await wdBuildDashboardTasks({ forceRefresh: false, includeAllActive: wdAllActiveDashboardLoaded });
         wdActiveDashboardCacheMeta = { fromCache: false, savedAt: Date.now(), reason: reason || 'live-sync' };
-        wdSaveDashboardCache(wdActiveDashboardTasks, wdPersonalDashboardTasks);
+        wdSaveDashboardCache(wdAllActiveDashboardLoaded ? wdActiveDashboardTasks : [], wdPersonalDashboardTasks);
 
         wdActiveDashboardSelectedStatus = wdDashboardFilterExists(previousStatus) ? previousStatus : WD_DASHBOARD_NONE;
         wdActiveDashboardSelectedQueueDate = previousDate;
@@ -2228,17 +2258,21 @@ function wdStartDashboardActiveTaskLiveSync() {
     } catch (e) { /* ignore */ }
 
     // Lightweight Firebase listener: watch only the active task lookup, not full
-    // invoice_entries/job_entries. Normal users listen only to their own inbox + All;
-    // Admin/Super Admin listen to the small lookup root for All Active cards.
+    // invoice_entries/job_entries.
+    // 10.3.2: Normal/User accounts are strictly attention-oriented and listen only
+    // to their own task inbox. They no longer subscribe to invoice_tasks_by_user/All,
+    // because All Active/global sorting is Admin/Super Admin only.
+    // Admin/Super Admin keep the small lookup-root listener for the complete overview.
     try {
         if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) return;
 
         if (wdCanSeeAllActiveDashboard()) {
-            wdDashboardTaskLookupRootRef = invoiceDb.ref('invoice_tasks_by_user');
-            wdDashboardTaskLookupRootRef.on('value', (snapshot) => {
-                wdSetInvoiceTaskLookupLiveCache(snapshot.val() || {}, 'root-listener');
-                wdScheduleDashboardLiveSync('task-index-root', 1000);
-            });
+            // 10.3.3: Admin/Super Admin no longer subscribe to the global task lookup
+            // on Dashboard open. Global All Active data is fetched on demand when an
+            // Admin clicks an All Active status card. This avoids background downloads.
+            wdDashboardTaskLookupRootRef = null;
+            wdDashboardTaskLookupAllRef = null;
+            return;
         } else {
             const safeName = wdCurrentSafeUserTaskKey();
             const personalNodes = {};
@@ -2276,11 +2310,10 @@ function wdStartDashboardActiveTaskLiveSync() {
                     updatePersonalLiveCache();
                 });
             }
-            wdDashboardTaskLookupAllRef = invoiceDb.ref('invoice_tasks_by_user/All');
-            wdDashboardTaskLookupAllRef.on('value', (snapshot) => {
-                personalNodes.All = snapshot.val() || {};
-                updatePersonalLiveCache();
-            });
+            // 10.3.2: Do not listen to invoice_tasks_by_user/All for normal users.
+            // Their Dashboard is intentionally limited to My Personal Tasks, so reading
+            // the global All node wastes download and can trigger unnecessary rebuilds.
+            wdDashboardTaskLookupAllRef = null;
         }
     } catch (e) {
         console.warn('WorkDesk dashboard live listener could not start:', e);
@@ -2310,7 +2343,11 @@ async function populateWorkdeskDashboard(forceRefresh = false) {
         if (!forceRefresh) {
             const cached = wdLoadDashboardCache();
             if (cached) {
-                wdActiveDashboardTasks = cached.tasks;
+                // 10.3.3: Do not restore cached global All Active data on first open.
+                // Cache is browser-local, but keeping the default state light prevents
+                // Admins from thinking the global board was refreshed/loaded.
+                wdActiveDashboardTasks = wdCanSeeAllActiveDashboard() ? [] : cached.tasks;
+                wdAllActiveDashboardLoaded = false;
                 wdPersonalDashboardTasks = Array.isArray(cached.personalTasks) ? cached.personalTasks : [];
                 wdActiveDashboardCacheMeta = { fromCache: true, savedAt: cached.savedAt || Date.now() };
 
@@ -2325,9 +2362,10 @@ async function populateWorkdeskDashboard(forceRefresh = false) {
             }
         }
 
-        wdActiveDashboardTasks = await wdBuildDashboardTasks({ forceRefresh });
+        wdAllActiveDashboardLoaded = false;
+        wdActiveDashboardTasks = await wdBuildDashboardTasks({ forceRefresh, includeAllActive: false });
         wdActiveDashboardCacheMeta = { fromCache: false, savedAt: Date.now() };
-        wdSaveDashboardCache(wdActiveDashboardTasks, wdPersonalDashboardTasks);
+        wdSaveDashboardCache(wdAllActiveDashboardLoaded ? wdActiveDashboardTasks : [], wdPersonalDashboardTasks);
 
         // 9.4.8: Do not auto-open any list after loading. User clicks a card first.
         wdActiveDashboardSelectedStatus = WD_DASHBOARD_NONE;
@@ -2343,6 +2381,29 @@ async function populateWorkdeskDashboard(forceRefresh = false) {
     }
 }
 
+async function wdEnsureAdminAllActiveDashboardLoaded(forceRefresh = false) {
+    if (!wdCanSeeAllActiveDashboard()) return;
+    if (wdAllActiveDashboardLoaded && !forceRefresh) return;
+    if (wdAllActiveDashboardLoading) return;
+
+    const listEl = document.getElementById('wd-active-dashboard-list');
+    const summaryEl = document.getElementById('wd-active-dashboard-summary');
+    wdAllActiveDashboardLoading = true;
+    if (summaryEl) summaryEl.textContent = 'Loading selected Admin overview from Firebase...';
+    if (listEl) {
+        listEl.innerHTML = '<div class="wd-dashboard-empty-state"><span class="wd-empty-icon"><i class="fa-solid fa-spinner fa-spin"></i></span><div><strong>Loading Admin overview...</strong><p>Only now the global Dashboard records are being downloaded.</p></div></div>';
+    }
+
+    try {
+        wdActiveDashboardTasks = await wdBuildDashboardTasks({ forceRefresh, includeAllActive: true });
+        wdAllActiveDashboardLoaded = true;
+        wdActiveDashboardCacheMeta = { fromCache: false, savedAt: Date.now(), reason: 'admin-card-click' };
+        wdSaveDashboardCache(wdActiveDashboardTasks, wdPersonalDashboardTasks);
+    } finally {
+        wdAllActiveDashboardLoading = false;
+    }
+}
+
 function wdBindDashboardControls() {
     const cardsEl = document.getElementById('wd-active-dashboard-cards');
     const refreshBtn = document.getElementById('wd-active-dashboard-refresh');
@@ -2350,12 +2411,18 @@ function wdBindDashboardControls() {
 
     if (cardsEl && !cardsEl.dataset.bound) {
         cardsEl.dataset.bound = 'true';
-        cardsEl.addEventListener('click', (e) => {
+        cardsEl.addEventListener('click', async (e) => {
             const card = e.target.closest('.wd-active-status-card');
             if (!card) return;
             wdActiveDashboardSelectedStatus = card.dataset.status || WD_DASHBOARD_ALL;
             wdActiveDashboardSelectedQueueDate = '';
             wdAllActiveCorkboardSelectedSiteKey = '';
+
+            const isPersonalSelection = wdIsPersonalDashboardSelection(wdActiveDashboardSelectedStatus);
+            if (wdCanSeeAllActiveDashboard() && !isPersonalSelection) {
+                await wdEnsureAdminAllActiveDashboardLoaded(false);
+            }
+
             wdRenderDashboardCards();
             wdRenderDashboardList();
         });
@@ -2368,6 +2435,8 @@ function wdBindDashboardControls() {
             if (icon) icon.classList.add('fa-spin');
             try {
                 wdClearDashboardCache();
+                wdAllActiveDashboardLoaded = false;
+                wdActiveDashboardTasks = [];
                 try { window.sessionStorage.removeItem(WD_ACTIVE_TASK_SOURCE_CACHE_KEY); } catch (e) { /* ignore */ }
                 if (typeof cacheTimestamps !== 'undefined') {
                     cacheTimestamps.systemEntries = 0;
@@ -2465,19 +2534,22 @@ function wdRenderDashboardCards() {
         // The section now starts directly with the actionable status cards.
         let activeHtml = '';
 
-        statuses.forEach(status => {
+        const activeStatusesToShow = wdAllActiveDashboardLoaded ? statuses : WD_DASHBOARD_LAZY_ADMIN_STATUSES;
+        activeStatusesToShow.forEach(status => {
             const count = statusCounts.get(status) || 0;
             const tone = wdStatusTone(status);
             const filterKey = wdDashboardStatusFilterKey(status);
             const active = filterKey === wdActiveDashboardSelectedStatus || status === wdActiveDashboardSelectedStatus ? 'active' : '';
+            const countLabel = wdAllActiveDashboardLoaded ? String(count) : '<i class="fa-solid fa-download"></i>';
+            const microcopy = wdAllActiveDashboardLoaded ? wdStatusMicrocopy(status, count) : 'Click to load only when needed';
             activeHtml += `
                 <button class="wd-active-status-card tone-${tone} ${active}" data-status="${wdSafe(filterKey)}" type="button" aria-label="Show ${wdSafe(status)} tasks">
                     <span class="wd-status-card-glow"></span>
                     <span class="wd-status-icon"><i class="fa-solid ${wdStatusIcon(status)}"></i></span>
                     <span class="wd-status-meta">
-                        <strong>${count}</strong>
+                        <strong>${countLabel}</strong>
                         <em>${wdSafe(status)}</em>
-                        <small>${wdSafe(wdStatusMicrocopy(status, count))}</small>
+                        <small>${wdSafe(microcopy)}</small>
                     </span>
                     <span class="wd-status-arrow"><i class="fa-solid fa-arrow-right"></i></span>
                 </button>`;
