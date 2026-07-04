@@ -1,11 +1,10 @@
-UPLOAD ONLY THESE FILES:
+Upload/replace only these files:
 
 1. index.html
-2. app.js
-3. js/app-data-cache.js
+2. js/app-workdesk-reporting.js
 
 After upload:
-- Hard refresh with Ctrl + F5.
-- Test: open WorkDesk Active Task and confirm New Entry tab exists.
-- Go to Invoice Management > Invoice Entry, update a normal existing invoice.
-- Return to WorkDesk Active Task. New Entry tab should remain if New Entry tasks still exist.
+- Hard refresh browser (Ctrl + F5).
+- Open WorkDesk > Job Records.
+- Confirm tabs still show WorkDesk job-entry categories such as Invoice, IPC Application, IPC Processed, PR, Credit Note, Cancel, Original PO, Other.
+- Full With Accounts invoice history should be checked in Invoice Management > Invoice Records.

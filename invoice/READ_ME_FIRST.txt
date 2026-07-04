@@ -1,16 +1,8 @@
-IBA WorkDesk 10.3.0 PATCH
+IBA WorkDesk 10.3.1 PATCH — Job Records Download Reduction
 
 Purpose:
-- Fix Active Task New Entry tab disappearing after updating a normal invoice in Invoice Management.
-- Preserve 10.2.9 accuracy restore for For SRV / On Hold / real invoice source-of-truth.
+- Reduce invoiceentry-b15a8 download usage from WorkDesk Job Records.
+- WorkDesk Job Records now loads WorkDesk Job_Entries only and does not fetch full invoice_entries.
+- Completed invoice history such as With Accounts remains available in Invoice Management > Invoice Records.
 
-Cause fixed:
-- Invoice Entry update could clear allSystemEntries while WorkDesk cached entries were still considered fresh.
-- Active Task then rebuilt from an empty combined list, so Job Entry / New Entry tabs disappeared until full page reload.
-
-Changed files:
-- index.html
-- app.js
-- js/app-data-cache.js
-
-No IPC workflow, Firebase paths, status routing, Dashboard segregation, or style changes were made.
+No Dashboard, Active Task, IPC workflow, Invoice Entry save, Firebase path, or Inventory workflow logic was changed.
