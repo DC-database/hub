@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '10.3.1';
+const APP_VERSION = '10.3.9';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -2172,7 +2172,7 @@ async function handleAddJobEntry(e) {
         // SAVE TO FIREBASE
         // =========================================================
         const newRef = await db.ref('job_entries').push(jobData);
-        
+
         // Update Local Cache immediately so we don't need a hard refresh
         await ensureAllEntriesFetched(true); 
 
@@ -2516,7 +2516,6 @@ async function handleUpdateJobEntry(e) {
         }
 
         await db.ref(`job_entries/${currentlyEditingKey}`).update(jobData);
-
         const updaterName = (typeof currentApprover !== 'undefined') ? currentApprover.Name : "System";
         const cleanCurrentNote = String(jobData.note || jobData.details || '').trim();
         const historyNote = convertedToInvoice
@@ -3538,6 +3537,8 @@ async function handleSaveModifiedTask() {
 // getInvoicePurchaseOrderDetails moved to js/app-invoice.js (7.6.1)
 // ensurePORecordInInvoiceDb moved to js/app-invoice.js (7.6.1)
 
+
+
 async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAttention) {
     const sanitizeFirebaseKey = (key) => String(key || '').replace(/[.#$[\]\/\\]/g, '_').replace(/\s+/g, '_');
 
@@ -4038,7 +4039,6 @@ async function handleAddInvoice(e) {
                 };
                 const completedKey = jobEntryToUpdateAfterInvoice;
                 await db.ref(`job_entries/${jobEntryToUpdateAfterInvoice}`).update(updates);
-
                 try {
                     const local = (Array.isArray(allSystemEntries)
                         ? allSystemEntries.find(e => e && e.key === completedKey)
@@ -4051,7 +4051,7 @@ async function handleAddInvoice(e) {
                 } catch (_) {}
 
                 jobEntryToUpdateAfterInvoice = null;
-                await populateActiveJobsSidebar();
+                await populateActiveJobsSidebar(true);
 
             } catch (updateError) {
                 console.error("Error updating the original job entry:", updateError);
@@ -6367,9 +6367,17 @@ try {
     // --- 9. Workdesk: Reporting Listeners ---
 
     reportingSearchInput.addEventListener('input', debounce(() => {
-        ensureAllEntriesFetched().then(() => {
-            filterAndRenderReport(allSystemEntries);
-        });
+        const searchText = String(reportingSearchInput.value || '').trim();
+        if (!searchText) {
+            try { sessionStorage.removeItem('reportingSearch'); } catch (_) {}
+            if (typeof handleReportingSearch === 'function') {
+                handleReportingSearch({ userAction: false, reason: 'clear' });
+            }
+            return;
+        }
+        if (typeof handleReportingSearch === 'function') {
+            handleReportingSearch({ userAction: true, reason: 'search' });
+        }
     }, 500));
 
     // ==========================================================================
@@ -6692,22 +6700,21 @@ try {
         });
     }
 
-    // FIX: Tab Listener (Safe for Clean Start)
+    // 10.3.3: Job Records lazy-load. A category click is the first time the
+    // WorkDesk/Inventory records source is fetched; opening the tab alone does not download it.
     reportTabsContainer.addEventListener('click', (e) => {
         if (e.target.tagName === 'BUTTON') {
-            // 1. Check if there is an active tab first to avoid NULL error
             const currentActive = reportTabsContainer.querySelector('.active');
             if (currentActive) {
                 currentActive.classList.remove('active');
             }
 
-            // 2. Set the new active tab
             e.target.classList.add('active');
             currentReportFilter = e.target.getAttribute('data-job-type');
 
-            ensureAllEntriesFetched().then(() => {
-                filterAndRenderReport(getJobRecordsBaseEntriesForCurrentContext());
-            });
+            if (typeof handleReportingSearch === 'function') {
+                handleReportingSearch({ userAction: true, reason: 'tab' });
+            }
         }
     });
 

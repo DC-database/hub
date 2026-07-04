@@ -1,10 +1,1 @@
-Upload/replace only these files:
-
-1. index.html
-2. js/app-workdesk-reporting.js
-
-After upload:
-- Hard refresh browser (Ctrl + F5).
-- Open WorkDesk > Job Records.
-- Confirm tabs still show WorkDesk job-entry categories such as Invoice, IPC Application, IPC Processed, PR, Credit Note, Cancel, Original PO, Other.
-- Full With Accounts invoice history should be checked in Invoice Management > Invoice Records.
+Upload: index.html, app.js, js/app-invoice-entry-search.js. Then hard refresh Ctrl+F5.

@@ -1,8 +1,15 @@
-IBA WorkDesk 10.3.1 PATCH — Job Records Download Reduction
+IBA WorkDesk 10.3.9 PATCH
 
-Purpose:
-- Reduce invoiceentry-b15a8 download usage from WorkDesk Job Records.
-- WorkDesk Job Records now loads WorkDesk Job_Entries only and does not fetch full invoice_entries.
-- Completed invoice history such as With Accounts remains available in Invoice Management > Invoice Records.
+Fixes Invoice Management > Invoice Entry > Active Jobs side panel showing no data after 10.3.7/10.3.8.
 
-No Dashboard, Active Task, IPC workflow, Invoice Entry save, Firebase path, or Inventory workflow logic was changed.
+Changes:
+- Restores the proven WorkDesk job_entries source for Active Jobs side panel.
+- Removes/disables the strict job_entry_inbox optimization that caused empty results.
+- Active Jobs now auto-loads when Invoice Entry page is opened, so users see records right away again.
+- Keeps New Entry below vendor name and keeps Normal/HSE/Logistic category chip.
+- Still does not fetch full invoice_entries / With Accounts for this side panel.
+
+Upload only these files:
+- index.html
+- app.js
+- js/app-invoice-entry-search.js
