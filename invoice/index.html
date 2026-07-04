@@ -56,7 +56,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
 
-    <link rel="stylesheet" href="style.css?v=10.0.5">
+    <link rel="stylesheet" href="style.css?v=10.2.4">
     <link rel="stylesheet" href="css/transfer_stock.css?v=8.6.2">
     <link rel="stylesheet" href="css/mobile.css?v=9.2.7">
     <!-- 9.0.1 module split: page-specific desktop/mobile override layers -->
@@ -2014,6 +2014,10 @@
                             <option value="For SRV">For SRV</option>
                             <option value="Pending Signature">Pending Signature</option>
                             <option value="For IPC">For IPC</option>
+                            <option value="IPC Done">IPC Done</option>
+                            <option value="IPC Issue">IPC Issue</option>
+                            <option value="Waiting Invoice">Waiting Invoice</option>
+                            <option value="Convert to Invoice">Convert to Invoice</option>
 			    <option value="Report">Report (Keep Active)</option>
                             <option value="Report Approval">Report Approval</option>
   			    <option value="Report Approved">Report Approved</option>
@@ -2025,6 +2029,23 @@
                     <div id="modify-task-status-other-container" class="form-group hidden">
     <label for="modify-task-status-other">Custom Status</label>
     <input type="text" id="modify-task-status-other" placeholder="Enter custom status">
+</div>
+
+<div id="modify-task-invoice-convert-fields" class="hidden" style="background:#f8f9fa; padding:10px; border-radius:6px; border:1px dashed #ccc; margin:10px 0;">
+    <div class="form-group">
+        <label for="modify-task-invoice-date">Invoice Date</label>
+        <input type="date" id="modify-task-invoice-date">
+    </div>
+    <div class="form-group">
+        <label for="modify-task-invoice-group">Group / Category</label>
+        <select id="modify-task-invoice-group">
+            <option value="" disabled selected>Select Group / Category</option>
+            <option value="Normal">Normal</option>
+            <option value="Logistic">Logistic</option>
+            <option value="HSE">HSE</option>
+        </select>
+        <small class="wd-field-helper">Required only when converting IPC Processed to Invoice.</small>
+    </div>
 </div>
 
 <div id="modify-task-report-actions" class="hidden" style="margin: 15px 0 10px 0; text-align: center;">
@@ -2596,7 +2617,8 @@
                     <option value="" disabled selected>Select a Type</option>
                     <option value="PR">PR</option>
                     <option value="Invoice">Invoice</option>
-                    <option value="IPC">IPC</option>
+                    <option value="IPC Application">IPC Application</option>
+                    <option value="IPC Processed">IPC Processed</option>
                     <option value="Trip">Trip</option>
                     <option value="Payment">Payment</option>
                     <option value="Report">Report</option>
@@ -2639,15 +2661,15 @@
                 <select id="job-site" name="site"></select>
             </div>
 
-            <div class="form-group">
-                <label>Group</label>
+            <div class="form-group hidden" id="job-group-container">
+                <label>Group / Category</label>
                 <select id="job-group" name="group">
-                    <option value="" disabled selected>Select Group</option>
-                    <option value="Civil">Civil</option>
-                    <option value="MEP">MEP</option>
+                    <option value="" disabled selected>Select Group / Category</option>
+                    <option value="Normal">Normal</option>
                     <option value="Logistic">Logistic</option>
-                    <option value="Other">Other</option>
+                    <option value="HSE">HSE</option>
                 </select>
+                <small class="wd-field-helper">Shown only for Invoice jobs.</small>
             </div>
 
             <div class="form-group">
@@ -2659,11 +2681,10 @@
                 <label>Status</label>
                 <input type="text" id="job-status" name="status" list="job-status-options" placeholder="Pending">
                 <datalist id="job-status-options">
-		    <option value="IPC Process"></option>
-		    <option value="IPC Approval"></option>
-		    <option value="IPC Ready"></option>
+		    <option value="IPC Issue"></option>
+                    <option value="Waiting Invoice"></option>
                     <option value="PO Request"></option>
-		    <option value="Awaiting Invoice"></option>
+		    <option value="Waiting Invoice"></option>
                     <option value="Waiting For Approval"></option>
                     <option value="Under Review"></option>
                     <option value="On Hold"></option>
@@ -3003,34 +3024,34 @@
     <script src="js/app-audio.js?v=8.2.3"></script>
     <script src="js/app-core.js?v=8.2.3"></script>
     <script src="js/app-inventory.js?v=8.6.5"></script>
-    <script src="js/app-invoice.js?v=9.8.6"></script>
+    <script src="js/app-invoice.js?v=10.2.8"></script>
     <script src="js/app-mobile.js?v=8.2.3"></script>
     <script src="js/app-finance.js?v=8.2.3"></script>
     <script src="js/app-chat.js?v=10.0.4"></script>
     <script src="js/app-celebration.js?v=8.2.3"></script>
     <script src="js/app-utils.js?v=8.2.3"></script>
     <script src="js/app-vacation.js?v=8.2.3"></script>
-    <script src="js/app-dom-refs.js?v=8.2.9"></script>
-    <script src="app.js?v=10.1.0"></script>
+    <script src="js/app-dom-refs.js?v=10.1.5"></script>
+    <script src="app.js?v=10.3.0"></script>
     <script src="js/app-navigation-settings.js?v=9.5.1"></script>
-    <script src="js/app-data-cache.js?v=9.5.2"></script>
+    <script src="js/app-data-cache.js?v=10.3.0"></script>
     <script src="js/app-job-vendor.js?v=8.2.3"></script>
-    <script src="js/app-workdesk-job-entry.js?v=10.0.8"></script>
-    <script src="js/app-standard-job.js?v=10.0.8"></script>
+    <script src="js/app-workdesk-job-entry.js?v=10.1.6"></script>
+    <script src="js/app-standard-job.js?v=10.1.6"></script>
     <script src="js/app-invoice-dashboard.js?v=8.6.5"></script>
     <script src="js/app-payments.js?v=8.3.0"></script>
     <script src="js/app-invoice-records.js?v=9.7.7"></script>
-    <script src="js/app-active-tasks.js?v=9.8.8"></script>
-    <script src="js/app-workdesk-dashboard.js?v=10.0.4"></script>
-    <script src="js/app-workdesk-reporting.js?v=10.1.0"></script>
+    <script src="js/app-active-tasks.js?v=10.2.9"></script>
+    <script src="js/app-workdesk-dashboard.js?v=10.2.9"></script>
+    <script src="js/app-workdesk-reporting.js?v=10.1.6"></script>
     <script src="js/app-reporting-actions.js?v=9.9.0"></script>
     <script src="js/app-report-workflow.js?v=8.2.3"></script>
     <script src="js/app-ui-shortcuts.js?v=8.2.3"></script>
     <script src="js/app-modal-navigation-clear.js?v=8.2.3"></script>
     <script src="js/app-invoice-entry-search.js?v=9.8.1"></script>
-    <script src="js/app-attention-validation.js?v=8.2.4"></script>
+    <script src="js/app-attention-validation.js?v=10.2.3"></script>
     <script src="js/app-batch-entry-ui.js?v=9.4.2"></script>
-    <script src="js/app-im-event-wiring.js?v=8.2.8"></script>
+    <script src="js/app-im-event-wiring.js?v=10.1.5"></script>
     <script src="js/app-history-transfer.js?v=8.6.5"></script>
     <script src="js/app-help.js?v=8.2.3"></script>
 

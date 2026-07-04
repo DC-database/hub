@@ -1,11 +1,11 @@
-Upload/replace only this file:
+UPLOAD ONLY THESE FILES:
 
-js/app-workdesk-dashboard.js
-
-No app.js, index.html, style.css, Firebase path, save logic, or Job Records table logic changed in this patch.
+1. index.html
+2. app.js
+3. js/app-data-cache.js
 
 After upload:
-1. Hard refresh browser / clear cache.
-2. Open WorkDesk Dashboard.
-3. IPC cards should show Invoice Date as —.
-4. Queue/entered aging should still work separately.
+- Hard refresh with Ctrl + F5.
+- Test: open WorkDesk Active Task and confirm New Entry tab exists.
+- Go to Invoice Management > Invoice Entry, update a normal existing invoice.
+- Return to WorkDesk Active Task. New Entry tab should remain if New Entry tasks still exist.

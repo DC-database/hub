@@ -1,14 +1,16 @@
-IBA WorkDesk 10.1.4 PATCH — Dashboard IPC Invoice Date Display Fix
+IBA WorkDesk 10.3.0 PATCH
 
 Purpose:
-- Fix Dashboard still showing an Invoice Date for IPC Job Records.
+- Fix Active Task New Entry tab disappearing after updating a normal invoice in Invoice Management.
+- Preserve 10.2.9 accuracy restore for For SRV / On Hold / real invoice source-of-truth.
 
-Rule:
-- IPC is not an invoice yet.
-- IPC Dashboard card may use Job Record date as Entered/queue date only.
-- IPC Dashboard Invoice Date must remain blank / — until IPC is converted to Invoice.
-- Existing stale invoiceDate values on IPC records are ignored in Dashboard display.
+Cause fixed:
+- Invoice Entry update could clear allSystemEntries while WorkDesk cached entries were still considered fresh.
+- Active Task then rebuilt from an empty combined list, so Job Entry / New Entry tabs disappeared until full page reload.
 
-Patch type:
-- Patch-only package.
-- Files inside are complete updated files, ready to replace existing live files.
+Changed files:
+- index.html
+- app.js
+- js/app-data-cache.js
+
+No IPC workflow, Firebase paths, status routing, Dashboard segregation, or style changes were made.

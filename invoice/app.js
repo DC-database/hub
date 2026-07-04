@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '10.1.4';
+const APP_VERSION = '10.3.0';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -1982,6 +1982,14 @@ function getJobDataFromForm() {
     if (jobType === 'Invoice' && status === 'Pending') {
         status = 'New Entry';
     }
+    if (jobType === 'IPC Application') {
+        status = 'Pending';
+    }
+    // 10.1.6: a manually-created IPC Processed job means IPC is already done
+    // and Reception is waiting for the actual invoice.
+    if (jobType === 'IPC Processed' && (!status || status === 'Pending')) {
+        status = 'Waiting Invoice';
+    }
 
     // 4. Build Data Object
     const data = {
@@ -1990,7 +1998,9 @@ function getJobDataFromForm() {
         amount: formData.get('amount') || '',
         po: (formData.get('po') || '').trim(),
         site: formData.get('site'),
-        group: formData.get('group'),
+        // 10.1.5: Group / Category is invoice-only (Normal / Logistic / HSE).
+        // IPC Application and IPC Processed must not carry a group/category.
+        group: (jobType === 'Invoice') ? (formData.get('group') || '') : '',
         attention: finalAttention,
         date: document.getElementById('job-date').value || formatDate(new Date()),
         
@@ -2013,6 +2023,7 @@ function getJobDataFromForm() {
         data.vendorId = String(jobVendorIdInput?.value || '').trim();
     } else {
         data.invoiceDate = null;
+        data.group = '';
     }
 
     return data;
@@ -2031,6 +2042,18 @@ async function handleAddJobEntry(e) {
     // 1. Collect Data from Form
     const jobData = getJobDataFromForm();
     if (!jobData) {
+        if (btn) btn.disabled = false;
+        return;
+    }
+
+    if (!jobData.for || !jobData.site || (jobData.for === 'Invoice' && !jobData.group)) {
+        alert(jobData.for === 'Invoice' ? 'Please fill in Job, Site, and Group / Category.' : 'Please fill in Job and Site.');
+        if (btn) btn.disabled = false;
+        return;
+    }
+
+    if (jobData.for !== 'Invoice' && (!jobData.attention || jobData.attention === 'None')) {
+        alert('Please select an Attention user.');
         if (btn) btn.disabled = false;
         return;
     }
@@ -2208,6 +2231,42 @@ function getAccountingUser() {
 }
 
 
+function getWorkdeskInvoiceHandlerSafe() {
+    let handler = '';
+    if (typeof getInvoiceHandlerName === 'function') {
+        handler = getInvoiceHandlerName();
+    } else if (typeof getAccountingUser === 'function') {
+        handler = getAccountingUser();
+    }
+    handler = String(handler || '').trim() || 'Irwin';
+    return (typeof resolveVacationAssignee === 'function') ? resolveVacationAssignee(handler) : handler;
+}
+
+function getIPCReceptionReturnUser(entry = {}) {
+    const preferred = String(entry.enteredBy || entry.createdBy || entry.requestor || '').trim();
+    if (preferred && !['admin', 'system'].includes(preferred.toLowerCase())) {
+        return (typeof resolveVacationAssignee === 'function') ? resolveVacationAssignee(preferred) : preferred;
+    }
+
+    try {
+        if (typeof allApproverData !== 'undefined' && allApproverData) {
+            const users = Object.values(allApproverData);
+            const receptionUser = users.find(u => {
+                const pos = String(u.Position || '').toLowerCase();
+                const name = String(u.Name || '').toLowerCase();
+                const status = String(u.Status || '').toLowerCase();
+                return status !== 'disabled' && (pos.includes('reception') || name.includes('hafiz'));
+            });
+            if (receptionUser && receptionUser.Name) {
+                return (typeof resolveVacationAssignee === 'function') ? resolveVacationAssignee(receptionUser.Name) : receptionUser.Name;
+            }
+        }
+    } catch (_) {}
+
+    return (typeof resolveVacationAssignee === 'function') ? resolveVacationAssignee('Hafiz') : 'Hafiz';
+}
+
+
 async function handleDeleteJobEntry(e) {
     e.preventDefault();
     if (!currentlyEditingKey) {
@@ -2348,8 +2407,8 @@ async function handleUpdateJobEntry(e) {
         jobData.attention = getInvoiceHandlerSafe();
     }
 
-    if (!jobData.for || !jobData.site || !jobData.group) {
-        alert('Please fill in Job, Site, and Group.');
+    if (!jobData.for || !jobData.site || (jobData.for === 'Invoice' && !jobData.group)) {
+        alert(jobData.for === 'Invoice' ? 'Please fill in Job, Site, and Group / Category.' : 'Please fill in Job and Site.');
         if (btn) { btn.disabled = false; btn.textContent = 'Update'; }
         return;
     }
@@ -2391,6 +2450,7 @@ async function handleUpdateJobEntry(e) {
             // This also removes the wrong current-date invoiceDate from IPC records on the next save.
             if (jobData.for !== 'Invoice') {
                 jobData.invoiceDate = null;
+                jobData.group = '';
             }
 
             const originalAttention = String(originalEntry.attention || '').trim();
@@ -2414,7 +2474,7 @@ async function handleUpdateJobEntry(e) {
 
             const currentUserName = String((typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover.Name : '').trim();
             const assignedUserIsUpdating = !!currentUserName && currentUserName === newAttention;
-            const activeStatuses = new Set(['', 'Pending', 'New Entry', 'For SRV', 'For IPC', 'For Approval', 'Report', 'On Hold', 'In Process', 'Unresolved', 'Under Review', 'Manager Approved']);
+            const activeStatuses = new Set(['', 'Pending', 'New Entry', 'For SRV', 'For IPC', 'For Approval', 'Report', 'On Hold', 'In Process', 'Unresolved', 'Under Review', 'Manager Approved', 'Waiting Invoice', 'IPC Issue']);
             const completionStatuses = new Set(['With Accounts', 'SRV Done', 'PO Ready', 'Paid', 'CLOSED', 'Closed', 'Cancelled', 'Canceled']);
 
             if (convertedToInvoice) {
@@ -2435,6 +2495,18 @@ async function handleUpdateJobEntry(e) {
             } else {
                 // Dependability fix: editing Current Note/details alone must not complete or hide the task.
                 jobData.dateResponded = originalEntry.dateResponded || null;
+            }
+
+            // 10.1.7: IPC workflow items remain active while pending/issue/waiting invoice.
+            // Their dedicated IPC timestamps can be kept separately, but dateResponded must
+            // not make them disappear from the responsible QS/Senior QS personal queue.
+            const finalTypeForActiveCheck = String(jobData.for || '').trim();
+            const finalStatusForActiveCheck = String(jobData.remarks || jobData.status || '').trim();
+            if (
+                (finalTypeForActiveCheck === 'IPC Application' && ['', 'Pending', 'IPC Issue'].includes(finalStatusForActiveCheck)) ||
+                (finalTypeForActiveCheck === 'IPC Processed' && (!finalStatusForActiveCheck || finalStatusForActiveCheck === 'Waiting Invoice'))
+            ) {
+                jobData.dateResponded = null;
             }
         } else {
             const currentUser = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover.Name : 'System';
@@ -2669,9 +2741,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // 2. STANDARD JOB LOGIC (For Invoice, PR, IPC, etc.)
             // ============================================================
 
-            const isQS = currentApprover && currentApprover.Position && currentApprover.Position.toLowerCase() === 'qs';
             const isInvoice = (jobType === 'Invoice');
-            const isIPCforQS = (jobType === 'IPC' && isQS);
+            const isIPCApplication = (jobType === 'IPC Application');
 
             // Reset Attention Field based on type
             if (attentionSelectChoices) {
@@ -2680,19 +2751,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     attentionSelectChoices.clearStore();
                     attentionSelectChoices.setChoices([{
                         value: '',
-                        label: 'Auto-assigned to Accounting',
+                        label: 'Auto-assigned to Irwin / Accounting',
                         disabled: true,
                         selected: true
                     }], 'value', 'label', false);
                     attentionSelectChoices.disable();
-                } else if (isIPCforQS) {
-                    attentionSelectChoices.clearStore();
-                    attentionSelectChoices.setChoices([{
-                        value: 'All',
-                        label: 'All',
-                        selected: true
-                    }], 'value', 'label', false);
-                    attentionSelectChoices.disable();
+                } else if (isIPCApplication) {
+                    // 10.1.5: IPC Application routes to site QS / Senior QS based on Position, not Role.
+                    const selectedSite = (siteSelectChoices && typeof siteSelectChoices.getValue === 'function')
+                        ? siteSelectChoices.getValue(true)
+                        : (document.getElementById('job-site')?.value || '');
+                    // 10.2.1: IPC Application should show the full QS/Senior QS list by default.
+                    // Site matching was too strict and only showed one name when the selected site matched one QS.
+                    // Keep search/labels available, but do not require the user to already know the QS name.
+                    if (typeof populateAttentionDropdown === 'function') {
+                        await populateAttentionDropdown(attentionSelectChoices, 'IPC Application', null, true);
+                    }
                 } else {
                     // Repopulate standard approvers
                     if (typeof populateAttentionDropdown === 'function') {
@@ -2987,8 +3061,82 @@ document.addEventListener('DOMContentLoaded', () => {
 // 11. TASK MODIFICATION (Modal Logic)
 // ==========================================================================
 
+
+function wdSetModifyTaskStatusOptions(optionValues, selectedValue = '') {
+    if (!modifyTaskStatus) return;
+    const current = selectedValue || modifyTaskStatus.value || '';
+    modifyTaskStatus.innerHTML = '<option value="" disabled>Select new status...</option>';
+    (optionValues || []).forEach(item => {
+        const value = typeof item === 'string' ? item : item.value;
+        const label = typeof item === 'string' ? item : (item.label || item.value);
+        const opt = document.createElement('option');
+        opt.value = value;
+        opt.textContent = label;
+        modifyTaskStatus.appendChild(opt);
+    });
+    if (current && Array.from(modifyTaskStatus.options).some(opt => opt.value === current)) {
+        modifyTaskStatus.value = current;
+    } else if (optionValues && optionValues.length) {
+        const first = typeof optionValues[0] === 'string' ? optionValues[0] : optionValues[0].value;
+        modifyTaskStatus.value = first || '';
+    }
+}
+
+function wdSetModifyTaskAttentionValue(value) {
+    const finalValue = String(value || '').trim();
+    if (!modifyTaskAttentionChoices || !finalValue) return;
+    try {
+        const hasChoice = modifyTaskAttentionChoices._store?.choices?.some(c => c.value === finalValue);
+        if (!hasChoice) {
+            modifyTaskAttentionChoices.setChoices([{ value: finalValue, label: finalValue }], 'value', 'label', false);
+        }
+        modifyTaskAttentionChoices.setChoiceByValue(finalValue);
+    } catch (_) {
+        try { modifyTaskAttentionChoices.setChoiceByValue(finalValue); } catch (__) {}
+    }
+}
+
+function wdToggleModifyTaskInvoiceConvertFields() {
+    const wrap = document.getElementById('modify-task-invoice-convert-fields');
+    if (!wrap || !modifyTaskStatus) return;
+    const show = modifyTaskStatus.value === 'Convert to Invoice';
+    wrap.classList.toggle('hidden', !show);
+}
+
+function wdApplyIPCModifyTaskAutomation() {
+    const taskData = window.currentModifyTaskData || {};
+    if (!taskData || taskData.source !== 'job_entry' || !modifyTaskStatus) {
+        wdToggleModifyTaskInvoiceConvertFields();
+        return;
+    }
+
+    const jobType = String(taskData.for || taskData.type || '').trim();
+    const selected = modifyTaskStatus.value;
+    const originalAttention = String(taskData.attention || '').trim();
+
+    // 10.1.7: IPC Application and IPC Processed remain QS/Senior QS responsibility.
+    // Reception may update the record/status, but the system must not automatically
+    // return IPC Processed to Reception. Only Convert to Invoice routes to Irwin/Accounting.
+    if (jobType === 'IPC Application') {
+        if (selected === 'IPC Done' || selected === 'IPC Issue') {
+            wdSetModifyTaskAttentionValue(originalAttention);
+        }
+    }
+
+    if (jobType === 'IPC Processed' || jobType === 'IPC') {
+        if (selected === 'Waiting Invoice') {
+            wdSetModifyTaskAttentionValue(originalAttention);
+        } else if (selected === 'Convert to Invoice') {
+            wdSetModifyTaskAttentionValue(getWorkdeskInvoiceHandlerSafe());
+        }
+    }
+
+    wdToggleModifyTaskInvoiceConvertFields();
+}
+
 function openModifyTaskModal(taskData) {
     if (!taskData) return;
+    window.currentModifyTaskData = taskData;
 
     // 1. Set Keys & Identifiers
     modifyTaskKey.value = taskData.key;
@@ -2999,6 +3147,18 @@ function openModifyTaskModal(taskData) {
     document.getElementById('modify-task-originalAttention').value = taskData.attention || '';
     modifyTaskNote.value = taskData.note || '';
 
+    const convertFields = document.getElementById('modify-task-invoice-convert-fields');
+    const convertInvoiceDate = document.getElementById('modify-task-invoice-date');
+    const convertInvoiceGroup = document.getElementById('modify-task-invoice-group');
+    if (convertFields) convertFields.classList.add('hidden');
+    if (convertInvoiceDate) convertInvoiceDate.value = '';
+    if (convertInvoiceGroup) convertInvoiceGroup.value = '';
+
+    if (modifyTaskStatus && !modifyTaskStatus._ibaIpcAutomationBound) {
+        modifyTaskStatus._ibaIpcAutomationBound = true;
+        modifyTaskStatus.addEventListener('change', wdApplyIPCModifyTaskAutomation);
+    }
+
     // Identify User Role
     const userPos = (currentApprover.Position || '').toLowerCase();
     const isFinance = userPos.includes('finance');
@@ -3006,8 +3166,33 @@ function openModifyTaskModal(taskData) {
     // 2. SMART AUTOMATION LOGIC
     // -------------------------------------------------
 
+    const taskJobType = String(taskData.for || taskData.type || '').trim();
+    const taskStatusText = String(taskData.remarks || taskData.status || '').trim();
+    const isIPCApplicationTask = taskData.source === 'job_entry' && taskJobType === 'IPC Application';
+    const isIPCProcessedTask = taskData.source === 'job_entry' && (taskJobType === 'IPC Processed' || taskJobType === 'IPC');
+
+    if (isIPCApplicationTask) {
+        wdSetModifyTaskStatusOptions([
+            { value: 'IPC Done', label: 'IPC Done' },
+            { value: 'IPC Issue', label: 'IPC Issue' },
+            { value: 'Other', label: 'Other (Specify)' }
+        ], taskStatusText === 'IPC Issue' ? 'IPC Issue' : 'IPC Done');
+        modifyTaskStatusOtherContainer.classList.add('hidden');
+        if (modifyTaskAttentionChoices) wdSetModifyTaskAttentionValue(taskData.attention || '');
+        wdApplyIPCModifyTaskAutomation();
+    }
+    else if (isIPCProcessedTask) {
+        wdSetModifyTaskStatusOptions([
+            { value: 'Waiting Invoice', label: 'Waiting Invoice' },
+            { value: 'Convert to Invoice', label: 'Convert to Invoice' },
+            { value: 'Other', label: 'Other (Specify)' }
+        ], taskStatusText === 'Convert to Invoice' ? 'Convert to Invoice' : 'Waiting Invoice');
+        modifyTaskStatusOtherContainer.classList.add('hidden');
+        if (modifyTaskAttentionChoices) wdSetModifyTaskAttentionValue(taskData.attention || '');
+        wdApplyIPCModifyTaskAutomation();
+    }
     // SCENARIO A: FINANCE USER (Status is "Report Approval" -> Send back to Creator)
-    if (isFinance && (taskData.remarks === 'Report Approval')) {
+    else if (isFinance && (taskData.remarks === 'Report Approval')) {
         // Auto-set Status
         modifyTaskStatus.value = 'Report Approved';
         modifyTaskStatusOtherContainer.classList.add('hidden');
@@ -3186,14 +3371,101 @@ async function handleSaveModifiedTask() {
         }
 
         if (source === 'job_entry') {
-            await ensureAllEntriesFetched();
-            const originalEntry = allSystemEntries.find(entry => entry.key === key);
-            if (originalEntry && currentApprover.Name === (originalEntry.attention || '') && updates.attention === originalEntry.attention) {
-                updates.dateResponded = formatDate(new Date());
-            } else if (updates.attention !== (originalEntry ? originalEntry.attention : '')) {
+            await ensureAllEntriesFetched(true);
+            const originalEntry = allSystemEntries.find(entry => entry.key === key) || {};
+            const originalFor = String(originalEntry.for || '').trim();
+            const selectedStatusNorm = String(selectedStatus || '').trim();
+            const todayStr = formatDate(new Date());
+            const nowTs = firebase.database.ServerValue.TIMESTAMP;
+            let historyAction = 'Task Updated';
+            let historyNote = '';
+
+            if (originalFor === 'IPC Application' && selectedStatusNorm === 'IPC Done') {
+                const responsibleUser = originalEntry.attention || updates.attention || '';
+                updates.for = 'IPC Processed';
+                updates.remarks = 'Waiting Invoice';
+                updates.status = 'Waiting Invoice';
+                updates.attention = responsibleUser;
+                updates.invoiceDate = null;
+                updates.group = '';
+                updates.ipcDoneDate = todayStr;
+                updates.ipcDoneAt = nowTs;
+                // 10.1.7: keep IPC Processed active for QS/Senior QS follow-up.
+                // ipcDoneDate/ipcDoneAt records the action time; dateResponded stays null
+                // so it does not disappear from the responsible QS personal queue.
                 updates.dateResponded = null;
+                updates.statusChangedAt = nowTs;
+                updates.statusQueueAt = nowTs;
+                updates.queueAt = nowTs;
+                historyAction = 'IPC Done';
+                historyNote = `Marked IPC Done and changed to IPC Processed / Waiting Invoice. Responsibility remains with: ${responsibleUser}${updates.note ? ' | Note: ' + updates.note : ''}`;
+            } else if (originalFor === 'IPC Application' && selectedStatusNorm === 'IPC Issue') {
+                updates.for = 'IPC Application';
+                updates.remarks = 'IPC Issue';
+                updates.status = 'IPC Issue';
+                updates.attention = originalEntry.attention || updates.attention || '';
+                updates.invoiceDate = null;
+                updates.group = '';
+                updates.dateResponded = null;
+                updates.statusChangedAt = nowTs;
+                historyAction = 'IPC Issue';
+                historyNote = `Marked IPC Issue${updates.note ? ' | Note: ' + updates.note : ''}`;
+            } else if ((originalFor === 'IPC Processed' || originalFor === 'IPC') && selectedStatusNorm === 'Convert to Invoice') {
+                const invoiceDate = String(document.getElementById('modify-task-invoice-date')?.value || '').trim();
+                const invoiceGroup = String(document.getElementById('modify-task-invoice-group')?.value || '').trim();
+                if (!invoiceDate) throw new Error('Please enter the Invoice Date before converting to Invoice.');
+                if (!invoiceGroup) throw new Error('Please select Group / Category before converting to Invoice.');
+
+                updates.for = 'Invoice';
+                updates.remarks = 'New Entry';
+                updates.status = 'New Entry';
+                updates.attention = getWorkdeskInvoiceHandlerSafe();
+                updates.invoiceDate = invoiceDate;
+                updates.group = invoiceGroup;
+                updates.date = todayStr;
+                updates.dateResponded = null;
+                updates.invoiceConvertedFrom = originalFor || 'IPC Processed';
+                updates.invoiceConvertedAt = nowTs;
+                updates.invoiceConvertedBy = currentApprover?.Name || 'System';
+                updates.statusChangedAt = nowTs;
+                updates.statusQueueAt = nowTs;
+                updates.queueAt = nowTs;
+                historyAction = 'Converted to Invoice';
+                historyNote = `Converted IPC Processed to Invoice and routed to: ${updates.attention} | Group: ${invoiceGroup} | Invoice Date: ${invoiceDate}${updates.note ? ' | Note: ' + updates.note : ''}`;
+            } else if ((originalFor === 'IPC Processed' || originalFor === 'IPC') && selectedStatusNorm === 'Waiting Invoice') {
+                updates.for = 'IPC Processed';
+                updates.remarks = 'Waiting Invoice';
+                updates.status = 'Waiting Invoice';
+                updates.attention = originalEntry.attention || updates.attention || '';
+                updates.invoiceDate = null;
+                updates.group = '';
+                // 10.1.7: IPC Processed remains an active QS/Senior QS follow-up task.
+                // Preserve the dedicated IPC done timestamp if present, but do not use
+                // dateResponded as completion for this waiting-invoice stage.
+                updates.dateResponded = null;
+                historyAction = 'Waiting Invoice';
+                historyNote = `IPC Processed remains waiting for invoice under: ${updates.attention || 'current Attention'}${updates.note ? ' | Note: ' + updates.note : ''}`;
+            } else {
+                if (originalEntry && currentApprover.Name === (originalEntry.attention || '') && updates.attention === originalEntry.attention) {
+                    updates.dateResponded = formatDate(new Date());
+                } else if (updates.attention !== (originalEntry ? originalEntry.attention : '')) {
+                    updates.dateResponded = null;
+                }
+                if (String(updates.for || originalFor) !== 'Invoice') {
+                    updates.invoiceDate = null;
+                    updates.group = '';
+                }
+                historyNote = `Updated Status to: ${updates.remarks || updates.status || ''}${updates.attention ? ' | Attention: ' + updates.attention : ''}${updates.note ? ' | Note: ' + updates.note : ''}`;
             }
+
             await db.ref(`job_entries/${key}`).update(updates);
+            await db.ref(`job_entries/${key}/history`).push({
+                action: historyAction,
+                by: currentApprover?.Name || 'System',
+                timestamp: Date.now(),
+                status: updates.remarks || updates.status || selectedStatusNorm,
+                note: historyNote || `Updated Status to: ${updates.remarks || updates.status || selectedStatusNorm}`
+            });
             allSystemEntries = [];
         } else if (source === 'invoice' && originalPO && originalKey) {
             if (!allInvoiceData) await ensureInvoiceDataFetched();
@@ -3267,7 +3539,39 @@ async function handleSaveModifiedTask() {
 // ensurePORecordInInvoiceDb moved to js/app-invoice.js (7.6.1)
 
 async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAttention) {
-    const sanitizeFirebaseKey = (key) => key.replace(/[.#$[\]]/g, '_');
+    const sanitizeFirebaseKey = (key) => String(key || '').replace(/[.#$[\]\/\\]/g, '_').replace(/\s+/g, '_');
+
+    // 10.2.6: Accuracy cleanup for invoice active-task index.
+    // When an invoice is already With Accounts/SRV Done/Paid/Closed, it must be
+    // removed from every possible lightweight inbox so Dashboard/Active Task cannot
+    // keep showing stale tasks after the source invoice is done.
+    const removeInvoiceTaskLookupEverywhere = async () => {
+        if (!invoiceKey || typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) return;
+        const names = new Set();
+        const addName = (v) => {
+            const n = String(v || '').trim();
+            if (n) names.add(n);
+        };
+        ['All', 'Accounting', 'Accounts', 'Finance', 'Irwin'].forEach(addName);
+        addName(oldAttention);
+        addName(invoiceData && invoiceData.attention);
+        addName(invoiceData && invoiceData.assignedTo);
+        addName(invoiceData && invoiceData.enteredBy);
+        try {
+            const src = (typeof allApproverData !== 'undefined' && allApproverData)
+                ? allApproverData
+                : ((typeof allUsersData !== 'undefined' && allUsersData) ? allUsersData : []);
+            const arr = Array.isArray(src) ? src : Object.values(src || {});
+            arr.forEach(u => addName(u && (u.Name || u.name)));
+        } catch (_) { /* ignore */ }
+
+        const removals = [];
+        names.forEach(name => {
+            const safe = sanitizeFirebaseKey(name);
+            if (safe) removals.push(invoiceDb.ref(`invoice_tasks_by_user/${safe}/${invoiceKey}`).remove());
+        });
+        if (removals.length) await Promise.allSettled(removals);
+    };
     const decodeFirebasePushTimestamp = (key) => {
         const PUSH_CHARS = '-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz';
         const raw = String(key || '').trim();
@@ -3309,6 +3613,14 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
 
     const newAttention = invoiceData.attention;
     const isTaskNowActive = isInvoiceTaskActive(invoiceData);
+
+    // 10.2.6: Done is done. If the invoice is now inactive, remove any stale
+    // task-index row first and stop; do not let old invoice_tasks_by_user rows
+    // recreate cards in WorkDesk Dashboard/Active Task.
+    if (!isTaskNowActive) {
+        await removeInvoiceTaskLookupEverywhere();
+        return;
+    }
 
     // 1. Add to new user's inbox
     if (isTaskNowActive && newAttention) {
@@ -3406,6 +3718,10 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
 
             ref: invoiceData.invNumber || '',
             po: poKey,
+            originalPO: poKey,
+            originalKey: invoiceKey,
+            invoiceKey: invoiceKey,
+            key: invoiceKey,
 
             // Save BOTH amounts
             amount: invoiceData.invValue || '', // Total Invoice Value
@@ -3438,6 +3754,7 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
             sentToSrvAt: invoiceData.sentToSrvAt || invoiceData.forSrvAt || '',
             queueAt: invoiceData.queueAt || taskQueueAt || '',
             status: invoiceData.status || 'Pending',
+            group: invoiceData.group || invoiceData.category || '',
             vendorName: vendorName,
             site: site,
             invName: invoiceData.invName || '',
@@ -3445,7 +3762,12 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
         };
 
         const safeNewAttentionKey = sanitizeFirebaseKey(newAttention);
+        // 10.2.8: Keep both the personal inbox and the broad All index in sync.
+        // 10.2.5 reduced downloads by using this lightweight index; if the All row
+        // is not updated when Pending -> For SRV / On Hold, Dashboard can temporarily
+        // lose the card even though the invoice is active.
         await invoiceDb.ref(`invoice_tasks_by_user/${safeNewAttentionKey}/${invoiceKey}`).set(taskData);
+        await invoiceDb.ref(`invoice_tasks_by_user/All/${invoiceKey}`).set(taskData);
     }
 
     // 2. Remove from old user's inbox
@@ -3900,7 +4222,16 @@ async function handleUpdateInvoice(e) {
             refreshNotePickers(invoiceData.note);
         }
 
-        allSystemEntries = [];
+        // 10.3.0: Do not leave the WorkDesk Active Task list with an empty
+        // allSystemEntries array after a normal Invoice Entry update. That made
+        // the New Entry tab disappear until a full page reload. Rebuild from the
+        // cached WorkDesk entries; if a later action needs a forced Job Entry
+        // refresh, ensureAllEntriesFetched(true) will still handle it.
+        try {
+            if (typeof wdRebuildAllSystemEntriesFromFamilyCaches === 'function') {
+                wdRebuildAllSystemEntriesFromFamilyCaches();
+            }
+        } catch (_) {}
         showIMSection('im-invoice-entry');
         fetchAndDisplayInvoices(currentPO);
     } catch (error) {
@@ -5564,12 +5895,24 @@ try {
 
         // Initialize Dropdowns
         if (!siteSelectChoices) {
-            siteSelectChoices = new Choices(document.getElementById('job-site'), {
+            const jobSiteElement = document.getElementById('job-site');
+            siteSelectChoices = new Choices(jobSiteElement, {
                 searchEnabled: true,
                 shouldSort: false,
                 itemSelectText: '',
             });
             populateSiteDropdown();
+            if (jobSiteElement && !jobSiteElement._ibaIpcAttentionSiteBound) {
+                jobSiteElement._ibaIpcAttentionSiteBound = true;
+                jobSiteElement.addEventListener('change', async () => {
+                    if (document.getElementById('job-for')?.value === 'IPC Application' && attentionSelectChoices && typeof populateAttentionDropdown === 'function') {
+                        const selectedSite = (siteSelectChoices && typeof siteSelectChoices.getValue === 'function') ? siteSelectChoices.getValue(true) : jobSiteElement.value;
+                        // 10.2.1: keep IPC Application Attention list broad when site changes too.
+                        // Users should see all QS/Senior QS options without needing to type a name.
+                        await populateAttentionDropdown(attentionSelectChoices, 'IPC Application', null, true);
+                    }
+                });
+            }
         }
         if (!attentionSelectChoices) {
             const attentionElement = document.getElementById('job-attention');

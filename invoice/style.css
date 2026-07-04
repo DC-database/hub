@@ -28322,3 +28322,333 @@ body.inventory-mode #wd-inv-request-review .inventory-request-review-card,
 .wd-muted-dash {
     color: #94a3b8;
 }
+
+/* ========================================================================
+   10.1.8 — WorkDesk Job Entry modal field containment fix
+   Scope: Add/Edit Job Entry modal only.
+   Purpose: keep Current Note textarea and Attachment row inside their cards.
+   No Firebase, save, routing, dashboard, job-record, or workflow logic changes.
+   ======================================================================== */
+#standard-job-modal,
+#standard-job-modal * {
+    box-sizing: border-box !important;
+}
+
+#standard-job-modal .modal-container,
+#standard-job-modal .modal-content,
+#standard-job-modal #jobentry-form,
+#standard-job-modal .transfer-2col-grid,
+#standard-job-modal .transfer-col,
+#standard-job-modal .form-group {
+    min-width: 0 !important;
+}
+
+#standard-job-modal .transfer-col {
+    overflow: hidden !important;
+}
+
+#standard-job-modal #job-attachment-label {
+    display: block !important;
+    max-width: 100% !important;
+    overflow-wrap: anywhere !important;
+}
+
+#standard-job-modal #job-attachment-label + div {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+}
+
+#standard-job-modal #job-attachment {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    width: auto !important;
+    max-width: 100% !important;
+    margin-bottom: 0 !important;
+}
+
+#standard-job-modal #job-attachment-view-btn {
+    flex: 0 0 42px !important;
+    width: 42px !important;
+    max-width: 42px !important;
+}
+
+#standard-job-modal .wd-current-note-field {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+#standard-job-modal #job-current-note {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    min-height: 96px !important;
+    height: 96px !important;
+    max-height: 190px !important;
+    resize: vertical !important;
+    overflow: auto !important;
+    line-height: 1.35 !important;
+    padding: 10px 12px !important;
+}
+
+#standard-job-modal .wd-field-helper {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-top: 7px !important;
+    overflow-wrap: anywhere !important;
+    line-height: 1.35 !important;
+}
+
+@media screen and (max-width: 768px) {
+    #standard-job-modal #job-current-note {
+        min-height: 110px !important;
+        height: 110px !important;
+    }
+
+    #standard-job-modal #job-attachment-label + div {
+        gap: 7px !important;
+    }
+}
+
+/* ========================================================================
+   10.1.9 — WorkDesk Job Entry Current Note vertical clipping fix
+   Scope: Add/Edit Job Entry modal only.
+   Purpose: allow the right card to grow vertically so the Current Note textarea
+            is not clipped at the bottom while keeping horizontal containment.
+   No Firebase, save, routing, dashboard, job-record, or workflow logic changes.
+   ======================================================================== */
+#standard-job-modal .modal-content {
+    padding-bottom: 18px !important;
+}
+
+#standard-job-modal .transfer-2col-grid {
+    align-items: start !important;
+}
+
+#standard-job-modal .transfer-col {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
+    padding-bottom: 20px !important;
+}
+
+#standard-job-modal .wd-current-note-field {
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+#standard-job-modal #job-current-note {
+    min-height: 118px !important;
+    height: 118px !important;
+    max-height: 240px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    resize: vertical !important;
+}
+
+#standard-job-modal .wd-current-note-field + .wd-field-helper,
+#standard-job-modal .wd-current-note-field .wd-field-helper {
+    margin-bottom: 0 !important;
+}
+
+@media screen and (max-width: 768px) {
+    #standard-job-modal .modal-content {
+        padding-bottom: 20px !important;
+    }
+
+    #standard-job-modal .transfer-col {
+        padding-bottom: 18px !important;
+    }
+
+    #standard-job-modal #job-current-note {
+        min-height: 126px !important;
+        height: 126px !important;
+    }
+}
+
+/* ========================================================================
+   10.2.0 — WorkDesk Job Entry modal balanced card layout
+   Scope: Add/Edit Job Entry modal only.
+   Purpose: remove the extra helper text, avoid the modal-content scrollbar on
+            desktop, and make the right card visually align with the left card
+            without overflowing fields outside their card boundaries.
+   No Firebase, save, routing, dashboard, job-record, or workflow logic changes.
+   ======================================================================== */
+#standard-job-modal .modal-container {
+    max-height: none !important;
+}
+
+#standard-job-modal .modal-content {
+    overflow: visible !important;
+    max-height: none !important;
+    padding-bottom: 12px !important;
+}
+
+#standard-job-modal .transfer-2col-grid {
+    align-items: stretch !important;
+    gap: 16px !important;
+}
+
+#standard-job-modal .transfer-col {
+    display: flex !important;
+    flex-direction: column !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    padding-bottom: 10px !important;
+}
+
+#standard-job-modal .form-group {
+    margin-bottom: 8px !important;
+}
+
+#standard-job-modal .wd-current-note-field {
+    margin-bottom: 0 !important;
+}
+
+/* Remove the explanatory helper under Current Note as requested. */
+#standard-job-modal .wd-current-note-field + .wd-field-helper,
+#standard-job-modal .wd-current-note-field .wd-field-helper {
+    display: none !important;
+}
+
+/* Keep Current Note compact and inside the right card; no forced large textarea. */
+#standard-job-modal #job-current-note {
+    min-height: 84px !important;
+    height: 84px !important;
+    max-height: 120px !important;
+    resize: none !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    margin-bottom: 0 !important;
+    line-height: 1.35 !important;
+}
+
+/* Attachment row stays compact inside the left card. */
+#standard-job-modal #job-attachment-label + div {
+    margin-bottom: 0 !important;
+}
+
+#standard-job-modal #job-attachment,
+#standard-job-modal #job-attachment-view-btn {
+    align-self: stretch !important;
+}
+
+@media screen and (max-width: 768px) {
+    #standard-job-modal .modal-container {
+        max-height: 94vh !important;
+    }
+
+    #standard-job-modal .modal-content {
+        overflow-y: auto !important;
+        max-height: calc(94vh - 150px) !important;
+        padding-bottom: 14px !important;
+    }
+
+    #standard-job-modal .transfer-2col-grid {
+        align-items: stretch !important;
+    }
+
+    #standard-job-modal #job-current-note {
+        min-height: 96px !important;
+        height: 96px !important;
+        max-height: 150px !important;
+    }
+}
+
+
+/* ========================================================================
+   10.2.4 — WorkDesk Job Entry Attention dropdown scroll/visibility fix
+   Scope: Add/Edit Job Entry modal only.
+   Purpose: allow Choices.js Attention dropdown to open and scroll fully inside
+            the modal. The previous card containment used overflow:hidden on
+            the column, which could clip the dropdown and make lower QS/Senior
+            QS names unreachable.
+   No Firebase, workflow, IPC, Dashboard, Job Records, or save logic changes.
+   ======================================================================== */
+#standard-job-modal .transfer-2col-grid,
+#standard-job-modal .transfer-col,
+#standard-job-modal .form-group {
+    overflow: visible !important;
+}
+
+/* Keep the card visually contained while allowing dropdown menus to float. */
+#standard-job-modal .transfer-col {
+    position: relative !important;
+    z-index: 1 !important;
+}
+
+#standard-job-modal .transfer-col:has(#job-attention) {
+    z-index: 50 !important;
+}
+
+#standard-job-modal .choices {
+    width: 100% !important;
+    max-width: 100% !important;
+    position: relative !important;
+}
+
+#standard-job-modal .choices.is-open,
+#standard-job-modal .choices.is-focused {
+    z-index: 9999 !important;
+}
+
+#standard-job-modal .choices__inner {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+#standard-job-modal .choices__list--dropdown,
+#standard-job-modal .choices__list[aria-expanded] {
+    z-index: 10000 !important;
+    max-height: 300px !important;
+    overflow: hidden !important;
+    border-radius: 10px !important;
+    box-sizing: border-box !important;
+}
+
+#standard-job-modal .choices__list--dropdown .choices__list,
+#standard-job-modal .choices__list[aria-expanded] .choices__list {
+    max-height: 292px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain !important;
+    -webkit-overflow-scrolling: touch !important;
+}
+
+#standard-job-modal .choices__list--dropdown .choices__item,
+#standard-job-modal .choices__list[aria-expanded] .choices__item {
+    white-space: normal !important;
+    word-break: break-word !important;
+    line-height: 1.35 !important;
+    padding-top: 9px !important;
+    padding-bottom: 9px !important;
+}
+
+/* Keep inputs/textareas from overflowing even though the card overflow is visible. */
+#standard-job-modal input,
+#standard-job-modal select,
+#standard-job-modal textarea,
+#standard-job-modal .choices,
+#standard-job-modal .choices__inner {
+    box-sizing: border-box !important;
+}
+
+@media screen and (max-width: 768px) {
+    #standard-job-modal .choices__list--dropdown,
+    #standard-job-modal .choices__list[aria-expanded] {
+        max-height: 260px !important;
+    }
+
+    #standard-job-modal .choices__list--dropdown .choices__list,
+    #standard-job-modal .choices__list[aria-expanded] .choices__list {
+        max-height: 252px !important;
+    }
+}
