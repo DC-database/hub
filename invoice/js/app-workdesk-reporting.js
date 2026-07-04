@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-workdesk-reporting.js
    IBA WorkDesk/Inventory Job Records table and report filter helpers.
-   Version: 10.1.6
+   Version: 10.3.1
 
    Cleanup Phase:
    - Moved Block 13 out of app.js.
@@ -221,9 +221,11 @@ async function handleReportingSearch() {
     reportingTableBody.innerHTML = '<tr><td colspan="12" style="text-align:center; padding:20px;">Loading categories...</td></tr>';
 
     try {
-        // 1. Load All Data (Still required to build the buttons)
-        await ensureAllEntriesFetched();
-        await ensureInvoiceDataFetched(false);
+        // 10.3.1: WorkDesk Job Records must stay on the WorkDesk database only.
+        // Do not fetch invoiceentry-b15a8/invoice_entries here; full invoice
+        // history such as With Accounts belongs in Invoice Management > Invoice Records.
+        // This prevents Job Records from downloading old completed invoice records.
+        await ensureAllEntriesFetched(false, { mode: (typeof isInventoryContext === 'function' && isInventoryContext()) ? 'inventory' : 'workdesk' });
         await reconcilePendingPRs();
 
         // 2. Build Tabs from the current module family only.
