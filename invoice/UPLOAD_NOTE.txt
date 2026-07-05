@@ -1,1 +1,1 @@
-Upload: index.html, app.js, js/app-invoice-entry-search.js. Then hard refresh Ctrl+F5.
+Upload only index.html, app.js, js/app-active-tasks.js, js/app-workdesk-dashboard.js.

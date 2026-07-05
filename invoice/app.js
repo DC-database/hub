@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '10.3.9';
+const APP_VERSION = '10.4.0';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -3797,22 +3797,38 @@ async function updateLinkedJobEntry(poNumber, invoiceKey, newStatus, note = '') 
     }
     const jobKey = invoiceData?.linkedJobEntryKey;
     if (!jobKey) return;
-    
+
+    // 10.4.0: The original WorkDesk New Entry is only the intake/request record.
+    // After an invoice record exists, it must stay closed/archived so Active Task
+    // and Dashboard do not show both the old Job Entry and the live Invoice task.
+    // Keep the current invoice workflow status in separate fields for history only.
     const updates = {
-        remarks: newStatus,
-        status: newStatus,
+        remarks: 'Converted to Invoice',
+        status: 'Completed',
+        convertedToInvoice: true,
+        archived: true,
+        linkedInvoiceKey: invoiceKey,
+        linkedInvoicePO: poNumber,
+        invoiceWorkflowStatus: newStatus || '',
+        linkedInvoiceStatus: newStatus || '',
         dateResponded: formatDate(new Date()),
         releaseDate: getTodayDateString(),
         statusChangedAt: firebase.database.ServerValue.TIMESTAMP,
         statusQueueAt: firebase.database.ServerValue.TIMESTAMP
     };
     await db.ref(`job_entries/${jobKey}`).update(updates);
+    try {
+        const local = (Array.isArray(allSystemEntries)
+            ? allSystemEntries.find(e => e && e.key === jobKey)
+            : null);
+        if (local) Object.assign(local, updates);
+    } catch (_) {}
     // Optional: push a history entry to the job entry
     await db.ref(`job_entries/${jobKey}/history`).push({
         action: "Invoice Status Updated",
         by: currentApprover?.Name || 'System',
         timestamp: Date.now(),
-        note: `Invoice status changed to ${newStatus}${note ? ': ' + note : ''}`
+        note: `Invoice workflow status changed to ${newStatus}${note ? ': ' + note : ''}`
     });
 }
 
@@ -4033,9 +4049,22 @@ async function handleAddInvoice(e) {
         // Update Origin Job Entry
         if (jobEntryToUpdateAfterInvoice) {
             try {
+                // 10.4.0: Close/archive the original WorkDesk New Entry after it
+                // becomes an Invoice Management record. Do not copy For SRV/Pending
+                // back into the Job Entry, because that creates duplicate Active Tasks.
                 const updates = {
-                    remarks: invoiceData.status,
-                    dateResponded: formatDate(new Date())
+                    remarks: 'Converted to Invoice',
+                    status: 'Completed',
+                    convertedToInvoice: true,
+                    archived: true,
+                    linkedInvoiceKey: newKey,
+                    linkedInvoicePO: currentPO,
+                    invoiceWorkflowStatus: invoiceData.status || '',
+                    linkedInvoiceStatus: invoiceData.status || '',
+                    dateResponded: formatDate(new Date()),
+                    releaseDate: getTodayDateString(),
+                    statusChangedAt: firebase.database.ServerValue.TIMESTAMP,
+                    statusQueueAt: firebase.database.ServerValue.TIMESTAMP
                 };
                 const completedKey = jobEntryToUpdateAfterInvoice;
                 await db.ref(`job_entries/${jobEntryToUpdateAfterInvoice}`).update(updates);
@@ -4044,13 +4073,12 @@ async function handleAddInvoice(e) {
                         ? allSystemEntries.find(e => e && e.key === completedKey)
                         : null);
                     if (local) {
-                        local.remarks = updates.remarks;
-                        local.status = updates.remarks;
-                        local.dateResponded = updates.dateResponded;
+                        Object.assign(local, updates);
                     }
                 } catch (_) {}
 
                 jobEntryToUpdateAfterInvoice = null;
+                if (typeof imInvalidateActiveJobsSidebarCache === 'function') imInvalidateActiveJobsSidebarCache();
                 await populateActiveJobsSidebar(true);
 
             } catch (updateError) {
