@@ -485,43 +485,35 @@ async function showWorkdeskSection(sectionId, newSearchTerm = null) {
 // --- Invoice Management Navigation ---
 function showIMSection(sectionId) {
     // 1. Get User Credentials
-    const userPos = (currentApprover?.Position || '').trim(); // Case sensitive check next
+    const userPos = (currentApprover?.Position || '').trim();
     const userRole = (currentApprover?.Role || '').toLowerCase();
+    const userName = (currentApprover?.Name || '').trim().toLowerCase();
 
-    // 2. Define Permission Flags (Strict Logic)
+    // 2. Define Permission Flags (10.4.1 Invoice Management only)
     const isAdmin = userRole === 'admin';
-    const isAccountingPos = userPos === 'Accounting'; // Case sensitive as per request usually, but let's be safe
-    const isAccountsPos = userPos === 'Accounts';
+    const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
+    const isSuperAdmin = userName === String(SUPER_ADMIN_NAME || '').trim().toLowerCase();
+    const canAccessInvoiceWrite = isSuperAdmin;
+    const canAccessSummaryNote = isSuperAdmin;
+    const canAccessInvoiceRecords = isAdmin || isSuperAdmin || isVacationDelegate;
+    const canAccessPayments = false; // 10.4.1: Payments is disabled/dead for now.
 
-    // "Admin with Accounting" (Has Everything)
-    const isAccountingAdmin = isAdmin && isAccountingPos; // Strictly Admin + Accounting
-
-    // "Admin with Accounts" (Has Payments)
-    // Note: We allow AccountingAdmin to see payments too since they have "everything"
-    const isAccountsAdmin = (isAdmin && isAccountsPos) || isAccountingAdmin;
-
-    // Vacation delegate (replacement for Irwin) gets temporary Invoice Management access
-    const isVacationDelegate = isVacationDelegateUser();
-    const isSuperAdmin = ((currentApprover?.Name || '').trim().toLowerCase() === SUPER_ADMIN_NAME.toLowerCase());
-    const canAccessFullIM = isAccountingAdmin || isVacationDelegate;
-    const canAccessPayments = isAccountsAdmin; // Vacation delegate does NOT get Payments access
-    // Finance/Financial report is read-only and restricted to Super Admin (Irwin) and the active Super Admin replacement.
     // 3. Strict Access Control Checks
-    if (sectionId === 'im-invoice-entry' && !canAccessFullIM) {
-        alert('Access Denied: Restricted to Admin & Accounting position.');
+    if ((sectionId === 'im-invoice-entry' || sectionId === 'im-batch-entry') && !canAccessInvoiceWrite) {
+        alert('Access Denied: Invoice Entry and Batch Entry are Super Admin only.');
         return;
     }
-    if (sectionId === 'im-batch-entry' && !canAccessFullIM) {
-        alert('Access Denied: Restricted to Admin & Accounting position.');
+    if (sectionId === 'im-summary-note' && !canAccessSummaryNote) {
+        alert('Access Denied: Summary Note is Super Admin only.');
         return;
     }
-    if (sectionId === 'im-summary-note' && !canAccessFullIM) {
-        alert('Access Denied: Restricted to Admin & Accounting position.');
+    if (sectionId === 'im-reporting' && !canAccessInvoiceRecords) {
+        alert('Access Denied: Invoice Records is Admin only.');
         return;
     }
 
-    if (sectionId === 'im-payments' && !canAccessPayments) {
-        alert('Access Denied: Restricted to Admin & Accounts/Accounting position.');
+    if (sectionId === 'im-payments') {
+        alert('Payments is currently disabled.');
         return;
     }
 
@@ -533,15 +525,25 @@ function showIMSection(sectionId) {
 
     // 5. Sidebar Handling
     if (sectionId === 'im-invoice-entry') {
-        // 10.3.5: Keep the Active Jobs side panel visible as a standby shell,
-        // but do NOT fetch Firebase data until the user clicks Active Jobs or searches.
+        // 10.4.5: Invoice Entry Active Jobs should be visible every time the user
+        // returns to Invoice Entry. Do not leave the panel in a standby/cleared state
+        // while the cache says it is already loaded.
         if (imEntrySidebar) {
             imEntrySidebar.classList.remove('hidden');
             imEntrySidebar.classList.add('visible');
         }
         if (imMainElement) imMainElement.classList.add('with-sidebar');
-        if (typeof setActiveJobsSidebarStandby === 'function') {
-            setActiveJobsSidebarStandby('Click Active Jobs or search to load invoice job entries.');
+        if (typeof imEnsureActiveJobsSidebarVisibleAndLoaded === 'function') {
+            setTimeout(() => imEnsureActiveJobsSidebarVisibleAndLoaded(true), 150);
+        } else if (typeof populateActiveJobsSidebar === 'function') {
+            setTimeout(() => populateActiveJobsSidebar(true), 150);
+        } else if (typeof setActiveJobsSidebarStandby === 'function') {
+            setActiveJobsSidebarStandby('Loading active invoice job entries...');
+        }
+        if (typeof loadInvoiceFeatureFlags === 'function') {
+            loadInvoiceFeatureFlags(false);
+        } else if (typeof updateInvoicePOFallbackUI === 'function') {
+            updateInvoicePOFallbackUI();
         }
     } else {
         if (imEntrySidebar) {
@@ -549,6 +551,12 @@ function showIMSection(sectionId) {
             imEntrySidebar.classList.remove('visible');
         }
         if (imMainElement) imMainElement.classList.remove('with-sidebar');
+        const imAdminControls = document.getElementById('im-admin-controls');
+        // 10.4.2: Manual PO / Vacation Mode control now lives in WorkDesk Settings.
+        // Do not hide that settings card when switching Invoice Management pages.
+        if (imAdminControls && imAdminControls.closest('#invoice-management-view')) {
+            imAdminControls.classList.add('hidden');
+        }
     }
 
     // 6. Section Specific Initializers
@@ -687,15 +695,17 @@ try {
         // so guard against null to avoid runtime errors.
         if (imDailyReportDateInput) imDailyReportDateInput.value = getTodayDateString();
         const savedSearch = sessionStorage.getItem('imReportingSearch');
+        // 10.4.1: Do not auto-load invoice_entries when opening Invoice Records.
+        // Keep the previous search text for convenience, but load only after Admin clicks Search.
         if (savedSearch) {
             imReportingSearchInput.value = savedSearch;
-            populateInvoiceReporting(savedSearch);
+            imReportingContent.innerHTML = '<p>Previous search restored. Click <strong>Search</strong> to load Invoice Records.</p>';
         } else {
             imReportingContent.innerHTML = '<p>Please enter a PO, Vendor, or Invoice No. and click Search.</p>';
-            if (reportingCountDisplay) reportingCountDisplay.textContent = '';
             imReportingSearchInput.value = '';
-            currentReportData = [];
         }
+        if (reportingCountDisplay) reportingCountDisplay.textContent = '';
+        currentReportData = [];
         populateSiteFilterDropdown();
         if (typeof refreshInvoiceRecordsResponsiveIdentity === 'function') refreshInvoiceRecordsResponsiveIdentity();
         // Visibility rules (V5.5.3 update):
@@ -753,6 +763,13 @@ function populateSettingsForm() {
 
     // Super Admin tools
     populateCelebrationSettingsForm();
+
+    // 10.4.2: System-level Invoice Management toggle is organized in WorkDesk Settings.
+    if (typeof loadInvoiceFeatureFlags === 'function') {
+        loadInvoiceFeatureFlags(false);
+    } else if (typeof updateInvoicePOFallbackUI === 'function') {
+        updateInvoicePOFallbackUI();
+    }
 
 }
 

@@ -119,16 +119,52 @@
     }
 
     imNav.addEventListener('click', (e) => {
+        const groupToggle = e.target.closest('[data-im-nav-group-toggle]');
+        if (groupToggle) {
+            e.preventDefault();
+            const group = groupToggle.closest('.im-nav-group');
+            if (group) {
+                const isOpen = group.classList.toggle('is-open');
+                groupToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            }
+            return;
+        }
+
         const link = e.target.closest('a');
         if (!link || link.classList.contains('disabled') || link.parentElement.style.display === 'none' || link.id === 'im-workdesk-button' || link.id === 'im-activetask-button') return;
+
+        // 10.4.1: external IM links such as Epicore Financial Report must open naturally.
+        if (link.classList.contains('external-link') || link.target === '_blank') {
+            return;
+        }
+
         e.preventDefault();
         const sectionId = link.getAttribute('data-section');
         if (sectionId) {
+            const parentGroup = link.closest('.im-nav-group');
+            if (parentGroup && !parentGroup.classList.contains('is-open')) {
+                parentGroup.classList.add('is-open');
+                const btn = parentGroup.querySelector('[data-im-nav-group-toggle]');
+                if (btn) btn.setAttribute('aria-expanded', 'true');
+            }
             imNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
             link.classList.add('active');
             showIMSection(sectionId);
         }
     });
+
+    const imPOFallbackToggle = document.getElementById('im-po-fallback-toggle');
+    if (imPOFallbackToggle && !imPOFallbackToggle.dataset.bound) {
+        imPOFallbackToggle.dataset.bound = '1';
+        imPOFallbackToggle.addEventListener('change', async (event) => {
+            const desired = event.target.checked === true;
+            if (typeof setInvoiceFirebasePOFallbackEnabled === 'function') {
+                await setInvoiceFirebasePOFallbackEnabled(desired);
+            } else {
+                event.target.checked = false;
+            }
+        });
+    }
 
     imPOSearchButton.addEventListener('click', () => handlePOSearch(imPOSearchInput.value));
     imPOSearchInput.addEventListener('keypress', (e) => {
@@ -222,9 +258,27 @@ if (imNewInvoiceForm) {
 
 
     imUpdateInvoiceButton.addEventListener('click', handleUpdateInvoice);
-    imClearFormButton.addEventListener('click', () => {
-        currentPO ? resetInvoiceForm() : resetInvoiceEntryPage();
+    imClearFormButton.addEventListener('click', async () => {
+        if (currentPO) {
+            resetInvoiceForm();
+        } else if (typeof resetInvoiceEntryPage === 'function') {
+            resetInvoiceEntryPage();
+        } else if (imNewInvoiceForm) {
+            // 10.4.4 safety fallback: some split JS builds do not expose resetInvoiceEntryPage().
+            // Clear the form without throwing an error, then restore the Active Jobs side panel.
+            imNewInvoiceForm.reset();
+            currentlyEditingInvoiceKey = null;
+            jobEntryToUpdateAfterInvoice = null;
+            pendingJobEntryDataForInvoice = null;
+            if (imPODetailsContainer) imPODetailsContainer.innerHTML = '';
+            if (imExistingInvoicesContainer) imExistingInvoicesContainer.classList.add('hidden');
+            if (imPOSearchInput) imPOSearchInput.value = '';
+            if (imPOSearchInputBottom) imPOSearchInputBottom.value = '';
+        }
         showIMSection('im-invoice-entry');
+        if (typeof imEnsureActiveJobsSidebarVisibleAndLoaded === 'function') {
+            setTimeout(() => imEnsureActiveJobsSidebarVisibleAndLoaded(true), 150);
+        }
     });
     imBackToActiveTaskButton.addEventListener('click', () => {
         workdeskButton.click();

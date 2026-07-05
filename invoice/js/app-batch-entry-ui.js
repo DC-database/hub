@@ -144,22 +144,43 @@ async function handleAddPOToBatch() {
     }
 
     try {
-        await ensureInvoiceDataFetched();
+        // 10.4.2: Batch Entry uses lightweight CSV/GitHub PO data first,
+        // then reads only invoice_entries/{PO} instead of the full invoice database.
+        if (typeof ensureInvoicePOBaseDataFetched === 'function') {
+            await ensureInvoicePOBaseDataFetched(false);
+        } else if (!allPOData && typeof ensureInvoiceDataFetched === 'function') {
+            await ensureInvoiceDataFetched(false);
+        }
+        if (typeof loadInvoiceFeatureFlags === 'function') {
+            await loadInvoiceFeatureFlags(false);
+        }
 
-        let poData = null;
-        try {
-            poData = (typeof getInvoicePurchaseOrderDetails === 'function')
-                ? await getInvoicePurchaseOrderDetails(poNumber)
-                : ((allPOData && allPOData[poNumber]) ? allPOData[poNumber] : null);
-        } catch (_) {
-            poData = (allPOData && allPOData[poNumber]) ? allPOData[poNumber] : null;
+        let poData = (allPOData && allPOData[poNumber]) ? allPOData[poNumber] : null;
+
+        if (!poData || Object.keys(poData).length === 0) {
+            const canUseFirebasePO = (typeof isInvoiceFirebasePOFallbackEnabled === 'function')
+                ? isInvoiceFirebasePOFallbackEnabled()
+                : false;
+            if (canUseFirebasePO) {
+                const poSnap = await invoiceDb.ref(`purchase_orders/${poNumber}`).once('value');
+                if (poSnap.exists()) {
+                    poData = poSnap.val() || {};
+                    if (!allPOData) allPOData = {};
+                    allPOData[poNumber] = poData;
+                }
+            }
         }
 
         if (!poData || Object.keys(poData).length === 0) {
-            alert(`PO Number ${poNumber} not found.`);
+            alert(`PO ${poNumber} was not found in POVALUE2.csv${(typeof isInvoiceFirebasePOFallbackEnabled === 'function' && isInvoiceFirebasePOFallbackEnabled()) ? ' or Firebase manual POs' : ''}. Please update the CSV PO file.`);
             return;
         }
         
+        if (!allInvoiceData) allInvoiceData = {};
+        if (!allInvoiceData[poNumber]) {
+            const invSnap = await invoiceDb.ref(`invoice_entries/${poNumber}`).once('value');
+            allInvoiceData[poNumber] = invSnap.val() || {};
+        }
         const invoiceData = allInvoiceData[poNumber];
         let maxInvIdNum = 0;
         if (invoiceData) {

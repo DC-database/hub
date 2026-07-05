@@ -474,6 +474,11 @@ if (saveManualPOBtn) {
             return;
         }
 
+        if (typeof isInvoiceFirebasePOFallbackEnabled === 'function' && !isInvoiceFirebasePOFallbackEnabled()) {
+            alert("Manual PO / Vacation Mode is OFF. Please update POVALUE2.csv instead.");
+            return;
+        }
+
         const manualPOData = {
             'PO': po,
             'Supplier Name': vendor,

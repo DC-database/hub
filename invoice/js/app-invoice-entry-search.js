@@ -269,29 +269,50 @@ async function handlePOSearch(poNumberFromInput) {
     if (imPOSearchInputBottom) imPOSearchInputBottom.value = poNumber;
 
     try {
-        // --- THE FIX IS HERE ---
-        // Old: await ensureAllEntriesFetched();  <-- This only checked CSV
-        // New: await ensureInvoiceDataFetched(); <-- This checks CSV + Firebase DB
-        if (!allPOData) await ensureInvoiceDataFetched(); 
-        // -----------------------
-
-        let poData = allPOData[poNumber];
-
-        // Fallback: If not found in memory, force a DB check for this specific PO
-        // (Just in case the list is huge and didn't load completely)
-        if (!poData) {
-        const snap = await invoiceDb.ref(`purchase_orders/${poNumber}`).once('value');
-        if (snap.exists()) {
-            poData = snap.val();
-            allPOData[poNumber] = poData; // Save to memory
-            window.playSystemSuccess();   // <--- FOUND IN FIREBASE (SUCCESS)
-        } else {
-            window.playSystemError();     // <--- NOT FOUND IN FIREBASE (ERROR)
+        // 10.4.1: Invoice Entry uses lightweight CSV/GitHub PO base data first.
+        // This avoids downloading the full invoice_entries tree just to search one PO.
+        if (typeof ensureInvoicePOBaseDataFetched === 'function') {
+            await ensureInvoicePOBaseDataFetched(false);
+        } else if (!allPOData && typeof ensureInvoiceDataFetched === 'function') {
+            await ensureInvoiceDataFetched(false);
         }
-    } else {
-        window.playSystemSuccess();       // <--- ALREADY FOUND IN CACHE (SUCCESS)
-    }
-        // If STILL not found, show Manual Entry Modal
+        if (typeof loadInvoiceFeatureFlags === 'function') {
+            await loadInvoiceFeatureFlags(false);
+        }
+
+        let poData = allPOData ? allPOData[poNumber] : null;
+
+        // 10.4.2 Manual PO / Vacation Mode:
+        // OFF = POVALUE2.csv only, no Firebase check, no manual PO popup.
+        // ON  = CSV first, then exact Firebase purchase_orders/{PO}, then manual PO popup.
+        const canUseFirebasePO = (typeof isInvoiceFirebasePOFallbackEnabled === 'function')
+            ? isInvoiceFirebasePOFallbackEnabled()
+            : false;
+
+        if (!poData) {
+            if (canUseFirebasePO) {
+                const snap = await invoiceDb.ref(`purchase_orders/${poNumber}`).once('value');
+                if (snap.exists()) {
+                    poData = snap.val();
+                    if (!allPOData) allPOData = {};
+                    allPOData[poNumber] = poData;
+                    window.playSystemSuccess();
+                } else {
+                    window.playSystemError();
+                }
+            } else {
+                window.playSystemError();
+            }
+        } else {
+            window.playSystemSuccess();
+        }
+
+        if (!poData && !canUseFirebasePO) {
+            alert(`PO ${poNumber} was not found in POVALUE2.csv. Please update the CSV PO file.`);
+            return;
+        }
+
+        // If STILL not found and vacation/manual PO mode is ON, show Manual Entry Modal
         if (!poData) {
             const manualPONoEl = document.getElementById('manual-po-number');
             const manualSupplierIdEl = document.getElementById('manual-supplier-id');
@@ -730,11 +751,12 @@ function imInvoiceJobIsEntryStage(job) {
     const status = String(job.remarks || job.status || '').trim();
     const normalized = status.toLowerCase();
 
-    // The side panel is for WorkDesk Invoice Job Entries that still need invoice entry.
-    // Once converted to Under Review / For SRV / With Accounts, it belongs to the normal
-    // invoice workflow and must no longer be pulled here.
-    if (!normalized || normalized === 'pending' || normalized === 'new entry') return true;
-    return false;
+    // 10.4.4: Invoice Entry side panel must show only Reception New Entry jobs.
+    // Pending / For SRV records already belong in My Personal Tasks / Active Task,
+    // so showing them here creates confusion and duplicate-looking work.
+    if (job.convertedToInvoice || job.archived) return false;
+    if (!normalized) return true; // Safety for very old New Entry rows with blank status.
+    return normalized === 'new entry';
 }
 
 function imGetInvoiceJobCategory(job) {
@@ -950,8 +972,20 @@ function imInvoiceEntrySectionIsVisible() {
 }
 
 function imAutoLoadActiveJobsWhenInvoiceEntryVisible() {
-    if (!imEntrySidebarList || imActiveJobsSidebarLoaded || imActiveJobsSidebarLoading) return;
+    if (!imEntrySidebarList || imActiveJobsSidebarLoading) return;
     if (!imInvoiceEntrySectionIsVisible()) return;
+
+    // 10.4.5: Navigation/Clear can replace the list with a standby message while
+    // the in-memory cache still says the sidebar is loaded. In that case, re-render
+    // the cached New Entry jobs instead of leaving the side panel blank.
+    if (imActiveJobsSidebarLoaded) {
+        const hasRenderedJobs = !!imEntrySidebarList.querySelector('.im-sidebar-item');
+        if (!hasRenderedJobs && Array.isArray(imActiveJobsSidebarCache) && imActiveJobsSidebarCache.length) {
+            renderActiveJobsSidebar(imActiveJobsSidebarCache.slice());
+        }
+        return;
+    }
+
     if (typeof populateActiveJobsSidebar === 'function') {
         populateActiveJobsSidebar(false);
     }
@@ -979,6 +1013,23 @@ function imInvalidateActiveJobsSidebarCache() {
     imActiveJobsSidebarCache = [];
 }
 window.imInvalidateActiveJobsSidebarCache = imInvalidateActiveJobsSidebarCache;
+
+async function imEnsureActiveJobsSidebarVisibleAndLoaded(forceRefresh = false) {
+    if (!imEntrySidebar || !imEntrySidebarList) return;
+
+    const searchInput = document.getElementById('im-sidebar-search');
+    if (searchInput) searchInput.value = '';
+
+    imEntrySidebar.classList.remove('hidden');
+    imEntrySidebar.classList.add('visible');
+    if (imMainElement) imMainElement.classList.add('with-sidebar');
+
+    if (forceRefresh) imInvalidateActiveJobsSidebarCache();
+    if (typeof populateActiveJobsSidebar === 'function') {
+        await populateActiveJobsSidebar(!!forceRefresh);
+    }
+}
+window.imEnsureActiveJobsSidebarVisibleAndLoaded = imEnsureActiveJobsSidebarVisibleAndLoaded;
 
 async function handleActiveJobClick(e) {
     const item = e.target.closest('.im-sidebar-item');

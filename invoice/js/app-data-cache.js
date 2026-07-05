@@ -703,6 +703,167 @@ async function ensureEcostDataFetched(forceRefresh = false) {
 // =========================================================
 // DATA FETCHER (Reads from 'purchase_orders' in Invoice DB)
 // =========================================================
+// =========================================================
+// 10.4.2 — INVOICE MANAGEMENT FEATURE FLAGS + LIGHT PO BASE DATA
+// Purpose: keep purchase_orders OFF by default and avoid downloading the full
+// invoice_entries tree for simple Invoice Entry / Batch Entry PO lookup.
+// The Manual PO / Vacation Mode switch is stored under purchase_orders/__settings
+// because purchase_orders is the existing path used by the manual PO popup.
+// =========================================================
+window.imUseFirebasePurchaseOrders = false;
+window.__imFeatureFlagsLoadedAt = 0;
+const IM_PO_FALLBACK_SETTING_PATH = 'purchase_orders/__settings/manualPOFallbackEnabled';
+
+function imNormalizeSuperAdminName(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function imIsCurrentUserSuperAdmin() {
+    try {
+        const userName = imNormalizeSuperAdminName(currentApprover?.Name || window.currentUser?.Name || window.currentUser?.username || '');
+        const superName = imNormalizeSuperAdminName((typeof SUPER_ADMIN_NAME !== 'undefined' && SUPER_ADMIN_NAME) ? SUPER_ADMIN_NAME : 'Irwin');
+        return !!(userName && superName && userName === superName);
+    } catch (_) {
+        return false;
+    }
+}
+
+function isInvoiceFirebasePOFallbackEnabled() {
+    return window.imUseFirebasePurchaseOrders === true;
+}
+
+function updateInvoicePOFallbackUI() {
+    const box = document.getElementById('im-admin-controls');
+    const toggle = document.getElementById('im-po-fallback-toggle');
+    const pill = document.getElementById('im-po-fallback-status');
+    const modeTitle = document.getElementById('im-po-fallback-mode-title');
+    const modeDesc = document.getElementById('im-po-fallback-mode-desc');
+    const canManage = imIsCurrentUserSuperAdmin();
+    const isOn = window.imUseFirebasePurchaseOrders === true;
+
+    if (box) {
+        box.classList.toggle('hidden', !canManage);
+        box.classList.toggle('is-vacation-mode', isOn);
+        box.classList.toggle('is-normal-mode', !isOn);
+    }
+    if (toggle) {
+        toggle.checked = isOn;
+        toggle.disabled = !canManage;
+        toggle.setAttribute('aria-checked', isOn ? 'true' : 'false');
+    }
+    if (pill) {
+        pill.textContent = isOn ? 'ON' : 'OFF';
+        pill.classList.toggle('is-on', isOn);
+        pill.classList.toggle('is-off', !isOn);
+    }
+    if (modeTitle) {
+        modeTitle.textContent = isOn ? 'Vacation Mode' : 'Normal Mode';
+    }
+    if (modeDesc) {
+        modeDesc.textContent = isOn
+            ? 'CSV first. If missing, check exact Firebase manual PO and allow the manual PO popup.'
+            : 'POVALUE2.csv only. Firebase manual PO lookup and popup are disabled.';
+    }
+}
+
+async function loadInvoiceFeatureFlags(forceRefresh = false) {
+    const now = Date.now();
+    if (!forceRefresh && window.__imFeatureFlagsLoadedAt && (now - window.__imFeatureFlagsLoadedAt < CACHE_DURATION)) {
+        updateInvoicePOFallbackUI();
+        return { useFirebasePurchaseOrders: window.imUseFirebasePurchaseOrders === true };
+    }
+
+    try {
+        if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) {
+            window.imUseFirebasePurchaseOrders = false;
+            updateInvoicePOFallbackUI();
+            return { useFirebasePurchaseOrders: false };
+        }
+
+        const snap = await invoiceDb.ref(IM_PO_FALLBACK_SETTING_PATH).once('value');
+        window.imUseFirebasePurchaseOrders = snap.val() === true;
+        window.__imFeatureFlagsLoadedAt = now;
+        updateInvoicePOFallbackUI();
+        return { useFirebasePurchaseOrders: window.imUseFirebasePurchaseOrders === true };
+    } catch (error) {
+        console.warn('Invoice Management feature flags could not be loaded. Firebase PO fallback remains OFF.', error);
+        window.imUseFirebasePurchaseOrders = false;
+        updateInvoicePOFallbackUI();
+        return { useFirebasePurchaseOrders: false };
+    }
+}
+
+async function setInvoiceFirebasePOFallbackEnabled(enabled) {
+    if (!imIsCurrentUserSuperAdmin()) {
+        alert('Access Denied: Super Admin only.');
+        updateInvoicePOFallbackUI();
+        return false;
+    }
+    const nextValue = enabled === true;
+    try {
+        await invoiceDb.ref(IM_PO_FALLBACK_SETTING_PATH).set(nextValue);
+        window.imUseFirebasePurchaseOrders = nextValue;
+        window.__imFeatureFlagsLoadedAt = Date.now();
+        updateInvoicePOFallbackUI();
+        return true;
+    } catch (error) {
+        console.error('Failed to update Firebase PO fallback setting:', error);
+        alert('Could not update Manual PO / Vacation Mode. Please check Firebase permission for purchase_orders/__settings.');
+        updateInvoicePOFallbackUI();
+        return false;
+    }
+}
+
+async function ensureInvoicePOBaseDataFetched(forceRefresh = false) {
+    const now = Date.now();
+    const hasBase = allPOData && allSitesCSVData && allVendorsData;
+    if (!forceRefresh && hasBase) return;
+
+    if (!forceRefresh) {
+        try { loadDataFromLocalStorage(); } catch (_) {}
+    }
+
+    const tasks = [];
+    const taskNames = [];
+
+    if (!allPOData || forceRefresh) {
+        const poUrl = await getFirebaseCSVUrl('POVALUE2.csv');
+        if (poUrl) { tasks.push(fetchAndParseCSV(poUrl)); taskNames.push('po'); }
+    }
+    if (!allSitesCSVData || forceRefresh) {
+        const siteUrl = await getFirebaseCSVUrl('Site.csv');
+        if (siteUrl) { tasks.push(fetchAndParseSitesCSV(siteUrl)); taskNames.push('site'); }
+    }
+    if (!allVendorsData || forceRefresh) {
+        const vendorUrl = await getFirebaseCSVUrl('Vendors.csv');
+        if (vendorUrl) { tasks.push(fetchAndParseVendorsCSV(vendorUrl)); taskNames.push('vendor'); }
+    }
+
+    const results = await Promise.all(tasks);
+    results.forEach((result, index) => {
+        const name = taskNames[index];
+        if (name === 'po' && result) {
+            allPOData = result.poDataByPO || {};
+            allPODataByRef = result.poDataByRef || {};
+            cacheTimestamps.poData = now;
+        } else if (name === 'site') {
+            allSitesCSVData = result || [];
+            cacheTimestamps.sitesCSV = now;
+        } else if (name === 'vendor') {
+            allVendorsData = result || {};
+        }
+    });
+}
+
+try {
+    window.imIsCurrentUserSuperAdmin = imIsCurrentUserSuperAdmin;
+    window.isInvoiceFirebasePOFallbackEnabled = isInvoiceFirebasePOFallbackEnabled;
+    window.loadInvoiceFeatureFlags = loadInvoiceFeatureFlags;
+    window.setInvoiceFirebasePOFallbackEnabled = setInvoiceFirebasePOFallbackEnabled;
+    window.updateInvoicePOFallbackUI = updateInvoicePOFallbackUI;
+    window.ensureInvoicePOBaseDataFetched = ensureInvoicePOBaseDataFetched;
+} catch (_) {}
+
 async function ensureInvoiceDataFetched(forceRefresh = false) {
     const now = Date.now();
 
@@ -723,9 +884,9 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
         const ecommitUrl = (!allEcommitDataProcessed || forceRefresh) ? await getFirebaseCSVUrl('ECommit.csv') : null;
         const vendorUrl = (!allVendorsData || forceRefresh) ? await getFirebaseCSVUrl('Vendors.csv') : null;
 
-        // IMPORTANT: Manual POs live in invoiceDb/purchase_orders and must be merged even if allPOData
-        // was already populated earlier (e.g., from Workdesk).
-        const needManualPOs = forceRefresh || !manualPOsMergedIntoAllPOData;
+        // 10.4.1: Do NOT bulk-download invoiceDb/purchase_orders during normal Invoice Management use.
+        // Firebase PO fallback is controlled by a Super Admin toggle and, when ON, checks only the exact searched PO.
+        const needManualPOs = false;
 
         if (poUrl) {
             console.log("Fetching POVALUE2.csv...");
