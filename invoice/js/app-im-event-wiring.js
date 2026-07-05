@@ -615,9 +615,35 @@ const invoiceRow = e.target.closest('.nested-invoice-row');
     }
 
    
+
+function imUpdateQuickStatusButtons(statusValue) {
+    document.querySelectorAll('[data-im-quick-status]').forEach((btn) => {
+        const isActive = btn.getAttribute('data-im-quick-status') === statusValue;
+        btn.classList.toggle('is-active', isActive);
+        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+}
+
+window.imApplyQuickStatus = function(statusValue) {
+    const select = document.getElementById('im-status');
+    if (!select || !statusValue) return;
+    select.value = statusValue;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    imUpdateQuickStatusButtons(statusValue);
+};
+
+document.querySelectorAll('[data-im-quick-status]').forEach((btn) => {
+    if (btn.dataset.imQuickStatusWired === '1') return;
+    btn.dataset.imQuickStatusWired = '1';
+    btn.addEventListener('click', () => {
+        window.imApplyQuickStatus(btn.getAttribute('data-im-quick-status'));
+    });
+});
+
 if (imStatusSelect) {
     imStatusSelect.addEventListener('change', async (e) => {
         const statusValue = e.target.value;
+        imUpdateQuickStatusButtons(statusValue);
 
         // 1. Update UI (visual required fields)
         imUpdateAttentionRequiredUI(statusValue);
@@ -724,10 +750,30 @@ if (settingsVacationCheckbox) {
         batchPOInput.value = '';
         sessionStorage.removeItem('imBatchSearch');
         sessionStorage.removeItem('imBatchNoteSearch');
-        if (imBatchNoteSearchChoices) imBatchNoteSearchChoices.clearInput();
-        if (imBatchGlobalAttentionChoices) imBatchGlobalAttentionChoices.clearInput();
-        imBatchGlobalStatus.value = '';
-        imBatchGlobalNote.value = '';
+
+        // 10.5.4: Choices clearInput() only clears typed search text; it does not
+        // reliably clear the selected item. Clear the selected Search Note and
+        // Global Attention values completely while keeping their option lists.
+        try {
+            if (imBatchNoteSearchChoices) {
+                imBatchNoteSearchChoices.removeActiveItems();
+                imBatchNoteSearchChoices.clearInput();
+            }
+            const noteSelect = document.getElementById('im-batch-note-search-select');
+            if (noteSelect) noteSelect.value = '';
+        } catch (_) {}
+
+        try {
+            if (imBatchGlobalAttentionChoices) {
+                imBatchGlobalAttentionChoices.removeActiveItems();
+                imBatchGlobalAttentionChoices.clearInput();
+            }
+            const globalAttention = document.getElementById('im-batch-global-attention');
+            if (globalAttention) globalAttention.value = '';
+        } catch (_) {}
+
+        if (imBatchGlobalStatus) imBatchGlobalStatus.value = '';
+        if (imBatchGlobalNote) imBatchGlobalNote.value = '';
         updateBatchCount();
     });
 

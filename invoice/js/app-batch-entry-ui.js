@@ -180,6 +180,7 @@ async function handleAddPOToBatch() {
         if (!allInvoiceData[poNumber]) {
             const invSnap = await invoiceDb.ref(`invoice_entries/${poNumber}`).once('value');
             allInvoiceData[poNumber] = invSnap.val() || {};
+            if (window.__invoiceEntriesFullLoaded !== true) window.__invoiceEntriesFullLoaded = false;
         }
         const invoiceData = allInvoiceData[poNumber];
         let maxInvIdNum = 0;
@@ -244,6 +245,7 @@ async function handleAddPOToBatch() {
                         <option value="Pending">Pending</option>
                         <option value="For IPC">For IPC</option>
                         <option value="Under Review">Under Review</option>
+                        <option value="In Process">In Process</option>
                         <option value="CEO Approval">CEO Approval</option>
                         <option value="Report">Report</option>
                         <option value="Report Approval">Report Approval</option>
@@ -398,17 +400,17 @@ async function addInvoiceToBatchTable(invData) {
                     <option value="For IPC">For IPC</option>
                     <option value="Under Review">Under Review</option>
                     <option value="For Approval">For Approval</option>
-                    <option value="In Process">In Process</option>
                     <option value="Unresolved">Unresolved</option>
+                    <option value="On Hold">On Hold</option>
+                    <option value="CLOSED">CLOSED</option>
+                    <option value="Cancelled">Cancelled</option>
+                    <option value="Original PO">Original PO</option>
+                    <option value="In Process">In Process</option>
                     <option value="CEO Approval">CEO Approval</option>
                     <option value="Report">Report</option>
                     <option value="Report Approval">Report Approval</option>
                     <option value="Report Approved">Report Approved</option>
                     <option value="With Accounts">With Accounts</option>
-                    <option value="On Hold">On Hold</option>
-                    <option value="CLOSED">CLOSED</option>
-                    <option value="Cancelled">Cancelled</option>
-                    <option value="Original PO">Original PO</option>
                 </select>
             </div>
 
@@ -559,83 +561,161 @@ async function handleBatchGlobalSearch(searchType) {
 async function handleBatchModalPOSearch() {
     const modalPOSearchInput = document.getElementById('im-batch-modal-po-input');
     const modalResultsContainer = document.getElementById('im-batch-modal-results');
-    const poNumber = modalPOSearchInput.value.trim().toUpperCase();
+    const poNumber = String(modalPOSearchInput?.value || '').trim().toUpperCase();
     
     if (!poNumber) return;
-    modalResultsContainer.innerHTML = '<p>Searching...</p>';
+    modalResultsContainer.innerHTML = '<p class="batch-modal-standby">Searching this PO only...</p>';
     
     try {
-        await ensureInvoiceDataFetched();
-        const poData = allPOData[poNumber];
-        const invoicesData = allInvoiceData[poNumber];
+        // 10.5.3: Batch Search PO should be fast and reliable again.
+        // Do not call ensureInvoiceDataFetched() here because that can download the full invoice_entries tree.
+        // This modal only needs existing invoices for the exact PO typed by the user.
+        if (typeof ensureInvoicePOBaseDataFetched === 'function') {
+            await ensureInvoicePOBaseDataFetched(false);
+        } else if (!allPOData && typeof ensureInvoiceDataFetched === 'function') {
+            // Legacy fallback only. Normally not used after 10.4.x.
+            await ensureInvoiceDataFetched(false);
+        }
+
+        let invoicesData = null;
+        try {
+            if (typeof invoiceDb !== 'undefined' && invoiceDb && invoiceDb.ref) {
+                const snap = await invoiceDb.ref(`invoice_entries/${poNumber}`).once('value');
+                invoicesData = snap.val() || null;
+                if (invoicesData) {
+                    if (!allInvoiceData) allInvoiceData = {};
+                    allInvoiceData[poNumber] = invoicesData;
+                    if (window.__invoiceEntriesFullLoaded !== true) window.__invoiceEntriesFullLoaded = false;
+                }
+            }
+        } catch (directErr) {
+            console.warn('Batch PO modal direct search failed. Trying existing cache only.', directErr);
+        }
+
+        if (!invoicesData && allInvoiceData && allInvoiceData[poNumber]) {
+            invoicesData = allInvoiceData[poNumber];
+        }
         
-        if (!invoicesData) {
-            modalResultsContainer.innerHTML = '<p>No invoices found for this PO.</p>';
+        if (!invoicesData || !Object.keys(invoicesData).length) {
+            modalResultsContainer.innerHTML = `<p class="batch-modal-empty">No existing invoices found for PO <strong>${escapeHtml(poNumber)}</strong>.</p>`;
             return;
         }
         
-        const site = poData ? poData['Project ID'] || 'N/A' : 'N/A';
-        const vendor = poData ? poData['Supplier Name'] || 'N/A' : 'N/A';
+        const poData = (allPOData && allPOData[poNumber]) ? allPOData[poNumber] : null;
+        let site = poData ? (poData['Project ID'] || poData['Site'] || 'N/A') : 'N/A';
+        let vendor = poData ? (poData['Supplier Name'] || poData['Vendor'] || poData['Supplier'] || 'N/A') : 'N/A';
+
+        // If CSV data is not available for this PO, recover site/vendor from invoice rows when possible.
+        if (site === 'N/A' || vendor === 'N/A') {
+            const firstInvoice = Object.values(invoicesData || {})[0] || {};
+            if (site === 'N/A') site = firstInvoice.site || firstInvoice.Site || firstInvoice.projectID || firstInvoice.projectId || 'N/A';
+            if (vendor === 'N/A') vendor = firstInvoice.vendor || firstInvoice.Vendor || firstInvoice.supplierName || firstInvoice.supplier || 'N/A';
+        }
         
         modalResultsContainer.innerHTML = ''; 
+
+        const summary = document.createElement('div');
+        summary.className = 'batch-modal-result-summary';
+        summary.innerHTML = `
+            <span><strong>PO:</strong> ${escapeHtml(poNumber)}</span>
+            <span><strong>Site:</strong> ${escapeHtml(site)}</span>
+            <span><strong>Vendor:</strong> ${escapeHtml(vendor)}</span>
+            <small>Click a row to highlight/select it, then press Add Selected to Batch.</small>
+        `;
+        modalResultsContainer.appendChild(summary);
+
         const table = document.createElement('table');
+        table.className = 'batch-existing-invoices-table';
         table.innerHTML = `
-            <thead>
+            <thead class="batch-existing-invoices-thead">
                 <tr>
-                    <th><input type="checkbox" id="modal-select-all"></th>
+                    <th><input type="checkbox" id="modal-select-all" title="Select all"></th>
                     <th>Inv. Entry ID</th>
                     <th>Inv. No.</th>
+                    <th>Inv. Date</th>
                     <th>Inv. Value</th>
                     <th>Status</th>
+                    <th>Note</th>
                 </tr>
             </thead>
             <tbody id="batch-modal-tbody"></tbody>
         `;
+
+        // 10.5.7: This modal has multiple global/modal table styles competing in CSS.
+        // Apply the Batch Search PO header theme directly so it stays readable even
+        // when cached CSS or later stylesheets try to turn the header light/white.
+        table.querySelectorAll('thead, thead tr, thead th').forEach((el) => {
+            el.style.setProperty('background', '#0b4b35', 'important');
+            el.style.setProperty('background-color', '#0b4b35', 'important');
+            el.style.setProperty('background-image', 'none', 'important');
+            el.style.setProperty('color', '#facc15', 'important');
+            el.style.setProperty('-webkit-text-fill-color', '#facc15', 'important');
+            el.style.setProperty('font-weight', '900', 'important');
+            el.style.setProperty('text-shadow', 'none', 'important');
+            el.style.setProperty('border-color', 'rgba(255,255,255,.20)', 'important');
+        });
+
         modalResultsContainer.appendChild(table);
         
         const tbody = table.querySelector('tbody');
-        const sortedInvoices = Object.entries(invoicesData).sort(([, a], [, b]) => (a.invEntryID || '').localeCompare(b.invEntryID || ''));
+        const sortedInvoices = Object.entries(invoicesData).sort(([, a], [, b]) => {
+            const aId = String((a && a.invEntryID) || '');
+            const bId = String((b && b.invEntryID) || '');
+            return aId.localeCompare(bId, undefined, { numeric: true, sensitivity: 'base' });
+        });
         
+        const toggleRowSelected = (tr, checked) => {
+            const checkbox = tr.querySelector('.modal-inv-checkbox');
+            if (checkbox) checkbox.checked = !!checked;
+            tr.classList.toggle('is-selected', !!checked);
+        };
+
         for (const [key, inv] of sortedInvoices) {
+            const invData = { key, po: poNumber, site, vendor, ...inv };
             const tr = document.createElement('tr');
-            tr.style.cursor = 'pointer'; 
-            tr.setAttribute('tabindex', '0'); 
+            tr.className = 'batch-modal-result-row';
+            tr.setAttribute('tabindex', '0');
+            tr.setAttribute('title', 'Click to select this invoice');
             
-            const invDataString = encodeURIComponent(JSON.stringify({ key, po: poNumber, site, vendor, ...inv }));
+            const invDataString = encodeURIComponent(JSON.stringify(invData));
+            const shortNote = String(inv.note || inv.currentNote || '').trim();
             
             tr.innerHTML = `
                 <td style="text-align:center;">
                     <input type="checkbox" class="modal-inv-checkbox" data-invoice='${invDataString}' tabindex="-1">
                 </td>
-                <td>${inv.invEntryID || ''}</td>
-                <td>${inv.invNumber || ''}</td>
+                <td>${escapeHtml(inv.invEntryID || '')}</td>
+                <td>${escapeHtml(inv.invNumber || '')}</td>
+                <td>${escapeHtml(typeof formatToDDMMMYY === 'function' ? formatToDDMMMYY(inv.invDate || inv.invoiceDate || '') : (inv.invDate || inv.invoiceDate || ''))}</td>
                 <td>${formatCurrency(inv.invValue)}</td>
-                <td>${inv.status || ''}</td>
+                <td><span class="batch-modal-status-chip">${escapeHtml(inv.status || '')}</span></td>
+                <td class="batch-modal-note-cell">${escapeHtml(shortNote || '—')}</td>
             `;
             
             tr.addEventListener('click', (e) => {
-                if (e.target.type === 'checkbox') return;
                 const checkbox = tr.querySelector('.modal-inv-checkbox');
-                if (checkbox) checkbox.checked = !checkbox.checked;
+                if (!checkbox) return;
+                if (e.target && e.target.type === 'checkbox') {
+                    toggleRowSelected(tr, checkbox.checked);
+                    return;
+                }
+                toggleRowSelected(tr, !checkbox.checked);
             });
 
             tr.addEventListener('keydown', (e) => {
                 if (e.key === ' ' || e.key === 'Spacebar') {
-                    e.preventDefault(); 
+                    e.preventDefault();
                     const checkbox = tr.querySelector('.modal-inv-checkbox');
-                    if (checkbox) checkbox.checked = !checkbox.checked;
+                    if (checkbox) toggleRowSelected(tr, !checkbox.checked);
                 }
                 if (e.key === 'ArrowDown') { e.preventDefault(); if (tr.nextElementSibling) tr.nextElementSibling.focus(); }
                 if (e.key === 'ArrowUp') {
                     e.preventDefault();
                     if (tr.previousElementSibling) tr.previousElementSibling.focus();
-                    else modalPOSearchInput.focus();
+                    else if (modalPOSearchInput) modalPOSearchInput.focus();
                 }
-                if (e.key === 'Enter') { e.preventDefault(); document.getElementById('im-batch-modal-add-selected-btn').click(); }
+                if (e.key === 'Enter') { e.preventDefault(); document.getElementById('im-batch-modal-add-selected-btn')?.click(); }
             });
-
-            tr.addEventListener('focus', () => { tr.style.backgroundColor = '#eaf8f1'; tr.style.outline = '2px solid #116045'; });
-            tr.addEventListener('blur', () => { tr.style.backgroundColor = ''; tr.style.outline = 'none'; });
             
             tbody.appendChild(tr);
         }
@@ -643,7 +723,7 @@ async function handleBatchModalPOSearch() {
         const selectAll = document.getElementById('modal-select-all');
         if (selectAll) {
             selectAll.addEventListener('change', (e) => {
-                modalResultsContainer.querySelectorAll('.modal-inv-checkbox').forEach(chk => chk.checked = e.target.checked);
+                modalResultsContainer.querySelectorAll('.batch-modal-result-row').forEach((tr) => toggleRowSelected(tr, e.target.checked));
             });
         }
 
@@ -651,7 +731,7 @@ async function handleBatchModalPOSearch() {
         
     } catch (error) {
         console.error("Error searching in batch modal:", error);
-        modalResultsContainer.innerHTML = '<p>An error occurred.</p>';
+        modalResultsContainer.innerHTML = '<p class="batch-modal-empty">An error occurred while searching this PO.</p>';
     }
 }
 
@@ -735,63 +815,54 @@ async function initializeNoteSuggestions() {
 async function populateNoteDropdown(choicesInstance) {
     if (!choicesInstance) return;
 
-    if (allUniqueNotes.size > 0) {
-        const sortedNotes = Array.from(allUniqueNotes).sort();
-        const noteOptions = sortedNotes.map(note => ({
-            value: note,
-            label: note
-        }));
+    const applyNoteChoices = (notes) => {
+        const sortedNotes = Array.from(notes || [])
+            .map(note => String(note || '').replace(/\u00A0/g, ' ').trim())
+            .filter(Boolean)
+            .filter((value, index, arr) => arr.indexOf(value) === index)
+            .sort((a, b) => a.localeCompare(b));
+
+        const noteOptions = sortedNotes.map(note => ({ value: note, label: note }));
+
+        if (!noteOptions.length) {
+            choicesInstance.setChoices(
+                [{ value: '', label: 'No saved notes found yet', disabled: true }],
+                'value',
+                'label',
+                true
+            );
+            return;
+        }
 
         choicesInstance.setChoices(
             [
-                {
-                    value: '',
-                    label: 'Select a note to search...',
-                    disabled: true
-                },
+                { value: '', label: 'Select a note to search...', disabled: true },
                 ...noteOptions
             ],
             'value',
             'label',
             true
         );
+    };
+
+    if (allUniqueNotes && allUniqueNotes.size > 0) {
+        applyNoteChoices(allUniqueNotes);
         return;
     }
 
-    choicesInstance.setChoices([{
-        value: '',
-        label: 'Loading notes...',
-        disabled: true
-    }]);
+    choicesInstance.setChoices([{ value: '', label: 'Loading note suggestions...', disabled: true }], 'value', 'label', true);
     try {
-        await ensureInvoiceDataFetched();
-
-        const sortedNotes = Array.from(allUniqueNotes).sort();
-        const noteOptions = sortedNotes.map(note => ({
-            value: note,
-            label: note
-        }));
-
-        choicesInstance.setChoices(
-            [
-                {
-                    value: '',
-                    label: 'Select a note to search...',
-                    disabled: true
-                },
-                ...noteOptions
-            ],
-            'value',
-            'label',
-            true
-        );
+        // 10.5.4: Fast direct-PO searches can leave allInvoiceData as a partial cache.
+        // For the Search Note dropdown, force the proper full-note list when needed.
+        await ensureInvoiceDataFetched(false);
+        applyNoteChoices(allUniqueNotes);
     } catch (error) {
         console.error("Error populating note dropdown:", error);
         choicesInstance.setChoices([{
             value: '',
-            label: 'Error loading notes',
+            label: 'Error loading notes. Try Refresh Data.',
             disabled: true
-        }]);
+        }], 'value', 'label', true);
     }
 }
 

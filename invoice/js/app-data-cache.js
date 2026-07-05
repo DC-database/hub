@@ -866,8 +866,12 @@ try {
 
 async function ensureInvoiceDataFetched(forceRefresh = false) {
     const now = Date.now();
+    // 10.5.4: Direct PO searches store only a partial allInvoiceData cache.
+    // Do not treat a partial PO cache as the full invoice dataset, otherwise
+    // Batch Entry note suggestions stay empty after using fast PO search.
+    const invoiceEntriesFullyLoaded = (window.__invoiceEntriesFullLoaded === true);
 
-    if (!forceRefresh && allPOData && allInvoiceData && allEpicoreData && allSitesCSVData && allEcommitDataProcessed && allVendorsData) {
+    if (!forceRefresh && allPOData && allInvoiceData && invoiceEntriesFullyLoaded && allEpicoreData && allSitesCSVData && allEcommitDataProcessed && allVendorsData) {
         return;
     }
 
@@ -904,7 +908,7 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
         if (ecommitUrl) promisesToRun.push(fetchAndParseEcommitCSV(ecommitUrl));
         if (vendorUrl) promisesToRun.push(fetchAndParseVendorsCSV(vendorUrl));
 
-        if (!allInvoiceData || forceRefresh) {
+        if (!allInvoiceData || forceRefresh || window.__invoiceEntriesFullLoaded !== true) {
             promisesToRun.push(invoiceDb.ref('invoice_entries').once('value'));
         }
 
@@ -974,9 +978,10 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
             allVendorsData = results[resultIndex++] || {};
         }
 
-        if (!allInvoiceData || forceRefresh) {
+        if (!allInvoiceData || forceRefresh || window.__invoiceEntriesFullLoaded !== true) {
             const invoiceSnapshot = results[resultIndex++];
             allInvoiceData = invoiceSnapshot.val() || {};
+            window.__invoiceEntriesFullLoaded = true;
             cacheTimestamps.invoiceData = now;
 
             allUniqueNotes = new Set();
