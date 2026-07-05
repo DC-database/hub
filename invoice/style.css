@@ -29076,3 +29076,353 @@ body.inventory-mode #wd-inv-request-review .inventory-request-review-card,
     .wd-forward-modal-actions { flex-direction: column-reverse; }
     .wd-forward-cancel, .wd-forward-send { width: 100%; justify-content: center; }
 }
+
+/* 10.5.2 — Invoice Entry quick status actions */
+.im-quick-status-footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    padding: 6px 10px;
+    border: 1px solid rgba(17, 96, 69, 0.18);
+    border-radius: 999px;
+    background: linear-gradient(135deg, rgba(17, 96, 69, 0.08), rgba(255, 255, 255, 0.92));
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+}
+
+.im-quick-status-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: #116045;
+    font-size: 0.74rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    padding: 0 4px;
+}
+
+.im-quick-status-btn {
+    height: 30px;
+    border: 1px solid rgba(17, 96, 69, 0.26);
+    background: #ffffff;
+    color: #116045;
+    border-radius: 999px;
+    padding: 0 10px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease, color 0.12s ease;
+}
+
+.im-quick-status-btn:hover,
+.im-quick-status-btn:focus {
+    background: #116045;
+    color: #fff8d6;
+    box-shadow: 0 8px 18px rgba(17, 96, 69, 0.22);
+    transform: translateY(-1px);
+    outline: none;
+}
+
+.im-quick-status-btn.is-active {
+    background: #116045;
+    color: #ffd966;
+    border-color: #116045;
+    box-shadow: inset 0 0 0 1px rgba(255, 217, 102, 0.28), 0 8px 18px rgba(17, 96, 69, 0.18);
+}
+
+.im-quick-status-final {
+    border-color: rgba(183, 121, 31, 0.5);
+    color: #8a5a11;
+    background: #fff9e8;
+}
+
+.im-quick-status-final:hover,
+.im-quick-status-final:focus,
+.im-quick-status-final.is-active {
+    background: #7a4e00;
+    color: #ffe08a;
+    border-color: #7a4e00;
+}
+
+@media (max-width: 900px) {
+    .im-quick-status-footer {
+        order: 3;
+        width: 100%;
+        border-radius: 14px;
+        justify-content: flex-start;
+    }
+    .im-quick-status-btn {
+        flex: 1 1 auto;
+    }
+}
+
+/* 10.5.3 — Invoice Entry quick status cleanup + simple Batch PO modal */
+.im-quick-status-footer {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 4px !important;
+    flex-wrap: wrap !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.im-quick-status-label {
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    color: #64748b !important;
+    letter-spacing: 0 !important;
+    text-transform: none !important;
+    padding: 0 4px 0 0 !important;
+}
+
+.im-quick-status-btn {
+    height: 22px !important;
+    min-height: 22px !important;
+    border: 1px solid #cbd5e1 !important;
+    background: #f8fafc !important;
+    color: #116045 !important;
+    border-radius: 4px !important;
+    padding: 0 7px !important;
+    font-size: 10.5px !important;
+    font-weight: 700 !important;
+    line-height: 20px !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+.im-quick-status-btn:hover,
+.im-quick-status-btn:focus,
+.im-quick-status-btn.is-active {
+    background: #116045 !important;
+    color: #fff8d6 !important;
+    border-color: #116045 !important;
+    box-shadow: none !important;
+    transform: none !important;
+    outline: none !important;
+}
+
+.im-quick-status-final {
+    background: #fff8e1 !important;
+    color: #8a5a11 !important;
+    border-color: #d6b85a !important;
+}
+
+.im-quick-status-final:hover,
+.im-quick-status-final:focus,
+.im-quick-status-final.is-active {
+    background: #8a5a11 !important;
+    color: #fff4c2 !important;
+    border-color: #8a5a11 !important;
+}
+
+@media (max-width: 900px) {
+    .im-quick-status-footer {
+        order: 3 !important;
+        width: 100% !important;
+        justify-content: flex-start !important;
+    }
+    .im-quick-status-btn {
+        flex: 0 0 auto !important;
+    }
+}
+
+body #im-batch-search-modal .modal-container {
+    border: 1px solid #dbe4ef !important;
+    border-radius: 12px !important;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.10) !important;
+    overflow: hidden !important;
+}
+
+body #im-batch-search-modal .modal-content {
+    background: #ffffff !important;
+}
+
+body #im-batch-search-modal #im-batch-modal-results {
+    border: 1px solid #e5e7eb !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+}
+
+body #im-batch-search-modal .batch-modal-result-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    align-items: center;
+    padding: 10px 12px;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 12px;
+}
+
+body #im-batch-search-modal .batch-modal-result-summary small {
+    flex-basis: 100%;
+    color: #64748b;
+    font-size: 11px;
+}
+
+body #im-batch-search-modal .batch-modal-standby,
+body #im-batch-search-modal .batch-modal-empty {
+    margin: 0;
+    padding: 16px;
+    color: #475569;
+    text-align: center;
+}
+
+body #im-batch-search-modal #im-batch-modal-results table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+    box-shadow: none !important;
+}
+
+body #im-batch-search-modal #im-batch-modal-results th {
+    background: #0f5132 !important;
+    color: #ffe08a !important;
+    border: 0 !important;
+    padding: 8px 10px !important;
+    font-size: 11px !important;
+    text-align: left !important;
+}
+
+body #im-batch-search-modal #im-batch-modal-results td {
+    border-bottom: 1px solid #edf2f7 !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    padding: 8px 10px !important;
+    font-size: 12px !important;
+    color: #1f2937 !important;
+    background: transparent !important;
+}
+
+body #im-batch-search-modal #im-batch-modal-results tr.batch-modal-result-row {
+    cursor: pointer !important;
+    transition: background-color 0.12s ease !important;
+}
+
+body #im-batch-search-modal #im-batch-modal-results tr.batch-modal-result-row:hover {
+    background: #f0fdf4 !important;
+}
+
+body #im-batch-search-modal #im-batch-modal-results tr.batch-modal-result-row:focus {
+    outline: 1px solid #116045 !important;
+    outline-offset: -1px !important;
+    background: #f0fdf4 !important;
+}
+
+body #im-batch-search-modal #im-batch-modal-results tr.batch-modal-result-row.is-selected {
+    background: #fff7d6 !important;
+}
+
+body #im-batch-search-modal #im-batch-modal-results tr.batch-modal-result-row.is-selected td:first-child {
+    box-shadow: inset 4px 0 0 #b7791f !important;
+}
+
+body #im-batch-search-modal .batch-modal-status-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 20px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: #eef6f1;
+    color: #116045;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+body #im-batch-search-modal .batch-modal-note-cell {
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* =========================================================
+   10.5.4 — Batch Entry existing-invoice search modal cleanup
+   Keep the modal simple and readable; remove card-like table borders/shadows.
+   ========================================================= */
+body #im-batch-search-modal .modal-container {
+    border: 1px solid #d8dee8 !important;
+    border-radius: 10px !important;
+    box-shadow: none !important;
+}
+body #im-batch-search-modal #im-batch-modal-results {
+    border: 1px solid #e5e7eb !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+}
+body #im-batch-search-modal #im-batch-modal-results table,
+body #im-batch-search-modal #im-batch-modal-results .table-wrapper table {
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+    box-shadow: none !important;
+}
+body #im-batch-search-modal #im-batch-modal-results thead th,
+body #im-batch-search-modal #im-batch-modal-results table thead th,
+body #im-batch-search-modal #im-batch-modal-results th {
+    background: #f8fafc !important;
+    color: #475569 !important;
+    border: 0 !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    letter-spacing: .02em !important;
+    text-transform: none !important;
+    padding: 8px 10px !important;
+}
+body #im-batch-search-modal #im-batch-modal-results td,
+body #im-batch-search-modal #im-batch-modal-results tr td:first-child,
+body #im-batch-search-modal #im-batch-modal-results tr td:last-child {
+    background: #ffffff !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    border-top: 0 !important;
+    border-bottom: 1px solid #edf2f7 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    font-weight: 600 !important;
+}
+body #im-batch-search-modal #im-batch-modal-results tr.batch-modal-result-row.is-selected td:first-child {
+    box-shadow: inset 4px 0 0 #b7791f !important;
+}
+
+/* ========================================================================
+   10.5.7 — Batch Entry Search and Add Existing Invoices header hard fix
+   Scope: only the result table inside #im-batch-search-modal.
+   The JS also applies the same style directly to avoid cache/cascade issues.
+   ======================================================================== */
+#im-batch-search-modal #im-batch-modal-results table.batch-existing-invoices-table thead,
+#im-batch-search-modal #im-batch-modal-results table.batch-existing-invoices-table thead tr,
+#im-batch-search-modal #im-batch-modal-results table.batch-existing-invoices-table thead th,
+#im-batch-search-modal #im-batch-modal-results > table.batch-existing-invoices-table thead,
+#im-batch-search-modal #im-batch-modal-results > table.batch-existing-invoices-table thead tr,
+#im-batch-search-modal #im-batch-modal-results > table.batch-existing-invoices-table thead th {
+    background: #0b4b35 !important;
+    background-color: #0b4b35 !important;
+    background-image: none !important;
+    color: #facc15 !important;
+    -webkit-text-fill-color: #facc15 !important;
+    font-weight: 900 !important;
+    text-shadow: none !important;
+    border-color: rgba(255,255,255,.20) !important;
+}
+
+#im-batch-search-modal #im-batch-modal-results table.batch-existing-invoices-table thead th {
+    padding: 9px 10px !important;
+    line-height: 1.25 !important;
+    opacity: 1 !important;
+}
+

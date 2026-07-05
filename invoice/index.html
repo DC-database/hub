@@ -141,15 +141,15 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
 
-    <link rel="stylesheet" href="style.css?v=10.4.7">
-    <link rel="stylesheet" href="css/transfer_stock.css?v=8.6.2">
+    <link rel="stylesheet" href="style.css?v=10.5.7">
+    <link rel="stylesheet" href="css/transfer_stock.css?v=10.5.7">
     <link rel="stylesheet" href="css/mobile.css?v=9.2.7">
     <!-- 9.0.1 module split: page-specific desktop/mobile override layers -->
     <link rel="stylesheet" href="css/workdesk-desktop.css?v=9.2.7">
-    <link rel="stylesheet" href="css/invoice-desktop.css?v=9.4.2">
+    <link rel="stylesheet" href="css/invoice-desktop.css?v=10.5.7">
     <link rel="stylesheet" href="css/inventory-desktop.css?v=9.2.7">
     <link rel="stylesheet" href="css/workdesk-mobile.css?v=9.2.7">
-    <link rel="stylesheet" href="css/invoice-mobile.css?v=9.2.7">
+    <link rel="stylesheet" href="css/invoice-mobile.css?v=10.5.7">
     <link rel="stylesheet" href="css/inventory-mobile.css?v=10.0.6">
     <link rel="stylesheet" href="css/workdesk-mobile-active-task.css?v=10.0.6">
 
@@ -1476,6 +1476,15 @@
                 </div>
             </div>
 
+            <div class="im-quick-status-footer" aria-label="Quick invoice status actions">
+                <span class="im-quick-status-label"><i class="fa-solid fa-bolt"></i> Quick Status</span>
+                <button type="button" class="im-quick-status-btn" data-im-quick-status="In Process">In Process</button>
+                <button type="button" class="im-quick-status-btn" data-im-quick-status="CEO Approval">CEO Approval</button>
+                <button type="button" class="im-quick-status-btn" data-im-quick-status="Report">Report</button>
+                <button type="button" class="im-quick-status-btn" data-im-quick-status="Report Approved">Report Approved</button>
+                <button type="button" class="im-quick-status-btn im-quick-status-final" data-im-quick-status="With Accounts">With Accounts</button>
+            </div>
+
             <div style="display: flex; gap: 10px; align-items: center;">
                 <button type="button" class="modal-close-btn" style="margin: 0;">Close</button>
             </div>
@@ -1574,17 +1583,17 @@
                 <option value="Pending">Pending</option>
                 <option value="For IPC">For IPC</option>
                 <option value="Under Review">Under Review</option>
-                <option value="In Process">In Process</option>
                 <option value="Unresolved">Unresolved</option>
                 <option value="For Approval">For Approval</option>
+                <option value="On Hold">On Hold</option>
+                <option value="CLOSED">CLOSED</option>
+                <option value="Cancelled">Cancelled</option>
+                <option value="In Process">In Process</option>
                 <option value="CEO Approval">CEO Approval</option>
                 <option value="Report">Report</option>
                 <option value="Report Approval">Report Approval</option>
                 <option value="Report Approved">Report Approved</option>
                 <option value="With Accounts">With Accounts</option>
-                <option value="On Hold">On Hold</option>
-                <option value="CLOSED">CLOSED</option>
-                <option value="Cancelled">Cancelled</option>
             </select>
         </div>
         <div class="form-group" style="flex: 1; min-width: 200px; margin: 0;">
@@ -3200,8 +3209,8 @@
     <script src="js/app-modal-navigation-clear.js?v=8.2.3"></script>
     <script src="js/app-invoice-entry-search.js?v=10.4.5"></script>
     <script src="js/app-attention-validation.js?v=10.2.3"></script>
-    <script src="js/app-batch-entry-ui.js?v=10.4.2"></script>
-    <script src="js/app-im-event-wiring.js?v=10.4.4"></script>
+    <script src="js/app-batch-entry-ui.js?v=10.5.7"></script>
+    <script src="js/app-im-event-wiring.js?v=10.5.2"></script>
     <script src="js/app-history-transfer.js?v=10.4.2"></script>
     <script src="js/app-help.js?v=8.2.3"></script>
 
