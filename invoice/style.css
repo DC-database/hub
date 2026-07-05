@@ -28899,3 +28899,180 @@ body.inventory-mode #wd-inv-request-review .inventory-request-review-card,
         max-height: 252px !important;
     }
 }
+
+/* 10.4.6 — Dashboard task forward-to-message button */
+#wd-dashboard .wd-note-actions .wd-forward-task-btn {
+    flex: 1 1 0;
+    min-height: 34px;
+    border: 0;
+    border-radius: 11px;
+    font-size: .76rem;
+    font-weight: 850;
+    color: #0f172a;
+    background: linear-gradient(135deg, #f8d66d, #f5b841);
+    box-shadow: 0 8px 16px rgba(58, 32, 15, 0.12);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: transform .16s ease, filter .16s ease, box-shadow .16s ease;
+}
+
+#wd-dashboard .wd-note-actions .wd-forward-task-btn:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.02);
+    box-shadow: 0 10px 18px rgba(58, 32, 15, 0.16);
+}
+
+#wd-dashboard .wd-note-actions .wd-forward-task-btn:disabled {
+    cursor: wait;
+    opacity: .72;
+    transform: none;
+}
+
+/* 10.4.7 — Forward task preview modal + recipient selector */
+.wd-forward-modal.hidden { display: none !important; }
+.wd-forward-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000002;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+}
+.wd-forward-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, .52);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+.wd-forward-modal-card {
+    position: relative;
+    width: min(620px, calc(100vw - 32px));
+    border-radius: 22px;
+    background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
+    border: 1px solid rgba(148, 163, 184, .35);
+    box-shadow: 0 28px 90px rgba(15, 23, 42, .28);
+    overflow: hidden;
+    color: #0f172a;
+}
+.wd-forward-modal-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 20px 22px 16px;
+    border-bottom: 1px solid rgba(148, 163, 184, .22);
+    background: linear-gradient(135deg, rgba(15, 83, 64, .08), rgba(245, 184, 65, .10));
+}
+.wd-forward-modal-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: .78rem;
+    font-weight: 900;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: #116149;
+}
+.wd-forward-modal-head h3 {
+    margin: 6px 0 0;
+    font-size: 1.15rem;
+    font-weight: 950;
+    color: #0f172a;
+}
+.wd-forward-modal-x {
+    width: 38px;
+    height: 38px;
+    border: 0;
+    border-radius: 12px;
+    background: rgba(15, 23, 42, .07);
+    color: #334155;
+    cursor: pointer;
+}
+.wd-forward-modal-x:hover { background: rgba(15, 23, 42, .12); }
+.wd-forward-modal-body {
+    padding: 18px 22px 8px;
+    display: grid;
+    gap: 14px;
+}
+.wd-forward-field {
+    display: grid;
+    gap: 7px;
+    font-weight: 850;
+    font-size: .82rem;
+    color: #334155;
+}
+.wd-forward-field select,
+.wd-forward-field textarea {
+    width: 100%;
+    border: 1px solid rgba(148, 163, 184, .45);
+    border-radius: 14px;
+    background: #fff;
+    color: #0f172a;
+    padding: 11px 12px;
+    font: inherit;
+    box-shadow: inset 0 1px 2px rgba(15, 23, 42, .04);
+}
+.wd-forward-field textarea {
+    resize: vertical;
+    min-height: 150px;
+    line-height: 1.48;
+    white-space: pre-wrap;
+}
+.wd-forward-recipient-note {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: rgba(241, 245, 249, .9);
+    color: #475569;
+    font-size: .8rem;
+    font-weight: 750;
+}
+.wd-forward-recipient-note i { color: #116149; }
+.wd-forward-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 22px 20px;
+}
+.wd-forward-cancel,
+.wd-forward-send {
+    min-height: 40px;
+    border: 0;
+    border-radius: 13px;
+    padding: 0 16px;
+    font-weight: 900;
+    cursor: pointer;
+}
+.wd-forward-cancel {
+    background: rgba(100, 116, 139, .12);
+    color: #334155;
+}
+.wd-forward-send {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #116149, #0f513c);
+    color: #fff;
+    box-shadow: 0 12px 26px rgba(17, 97, 73, .24);
+}
+.wd-forward-send:disabled { opacity: .7; cursor: wait; }
+#wd-dashboard .wd-note-actions .wd-forward-task-btn.sent {
+    background: linear-gradient(135deg, #bbf7d0, #86efac);
+}
+#wd-dashboard .wd-site-first-empty {
+    margin-top: 16px;
+}
+@media screen and (max-width: 640px) {
+    .wd-forward-modal { align-items: flex-end; padding: 0; }
+    .wd-forward-modal-card { width: 100%; border-radius: 22px 22px 0 0; max-height: 92vh; overflow-y: auto; }
+    .wd-forward-modal-actions { flex-direction: column-reverse; }
+    .wd-forward-cancel, .wd-forward-send { width: 100%; justify-content: center; }
+}

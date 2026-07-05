@@ -1,4 +1,2 @@
-Upload these files only:
-index.html
-js/app-navigation-settings.js
-js/app-invoice-entry-search.js
+After upload, hard refresh with Ctrl + F5.
+Test: convert IPC Application/IPC Processed to Invoice, then check Active Task > New Entry and Dashboard counts.
