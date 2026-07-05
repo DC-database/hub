@@ -648,3 +648,56 @@
         text-shadow: none !important;
     }
 }
+
+/* ========================================================================
+   10.5.6 — Batch Entry Search PO modal table header readability
+   Scope: only the Search and Add Existing Invoices result table inside
+   #im-batch-search-modal. This fixes the module CSS overriding 10.5.5.
+   ======================================================================== */
+#im-batch-search-modal #im-batch-modal-results > table thead,
+#im-batch-search-modal #im-batch-modal-results > table thead tr,
+#im-batch-search-modal #im-batch-modal-results > table thead th {
+    background: #0b4b35 !important;
+    background-color: #0b4b35 !important;
+    background-image: none !important;
+    color: #facc15 !important;
+    -webkit-text-fill-color: #facc15 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+}
+
+#im-batch-search-modal #im-batch-modal-results > table thead th {
+    font-weight: 900 !important;
+    letter-spacing: 0.01em !important;
+    text-transform: none !important;
+    padding: 8px 10px !important;
+}
+
+/* ========================================================================
+   10.5.7 — Batch Entry Search and Add Existing Invoices header hard fix
+   Scope: only the result table inside #im-batch-search-modal.
+   The JS also applies the same style directly to avoid cache/cascade issues.
+   ======================================================================== */
+#im-batch-search-modal #im-batch-modal-results table.batch-existing-invoices-table thead,
+#im-batch-search-modal #im-batch-modal-results table.batch-existing-invoices-table thead tr,
+#im-batch-search-modal #im-batch-modal-results table.batch-existing-invoices-table thead th,
+#im-batch-search-modal #im-batch-modal-results > table.batch-existing-invoices-table thead,
+#im-batch-search-modal #im-batch-modal-results > table.batch-existing-invoices-table thead tr,
+#im-batch-search-modal #im-batch-modal-results > table.batch-existing-invoices-table thead th {
+    background: #0b4b35 !important;
+    background-color: #0b4b35 !important;
+    background-image: none !important;
+    color: #facc15 !important;
+    -webkit-text-fill-color: #facc15 !important;
+    font-weight: 900 !important;
+    text-shadow: none !important;
+    border-color: rgba(255,255,255,.20) !important;
+}
+
+#im-batch-search-modal #im-batch-modal-results table.batch-existing-invoices-table thead th {
+    padding: 9px 10px !important;
+    line-height: 1.25 !important;
+    opacity: 1 !important;
+}
+
