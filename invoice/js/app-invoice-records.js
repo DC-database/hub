@@ -34,6 +34,79 @@ function formatToDDMMMYY(dateStr) {
 // 7.5.0 — mobile invoice records card helpers moved to js/app-mobile.js
 // populateInvoiceReporting remains in app.js; the mobile renderer is loaded before app.js.
 
+// 10.5.0: Lightweight helpers for fast PO-number search in Invoice Records.
+// Purpose: avoid downloading the full invoice_entries tree when the user searches an exact PO.
+function imNormalizeRecordsPO(value) {
+    return String(value || '').trim().toUpperCase();
+}
+
+function imLooksLikeExactPOSearch(value) {
+    const text = String(value || '').trim();
+    if (!text || text.length < 2) return false;
+    if (/\s/.test(text)) return false;
+    // PO numbers in IBA are usually numeric, but allow safe letter/dash variants for legacy entries.
+    return /^[A-Za-z0-9._\/-]+$/.test(text);
+}
+
+async function imEnsureInvoiceRecordsLightDataFetched(forceRefresh = false) {
+    // Loads CSV/reference data only. This does not read invoice_entries or full purchase_orders.
+    if (typeof ensureInvoicePOBaseDataFetched === 'function') {
+        await ensureInvoicePOBaseDataFetched(forceRefresh);
+    } else if (typeof ensureInvoiceDataFetched === 'function') {
+        // Legacy fallback only; normally not used after 10.4.x.
+        await ensureInvoiceDataFetched(forceRefresh);
+        return;
+    }
+
+    const now = Date.now();
+    if (!forceRefresh && allEcommitDataProcessed && cacheTimestamps?.ecommitData) return;
+
+    try {
+        if (typeof getFirebaseCSVUrl === 'function' && typeof fetchAndParseEcommitCSV === 'function') {
+            const ecommitUrl = await getFirebaseCSVUrl('ECommit.csv');
+            if (ecommitUrl) {
+                allEcommitDataProcessed = await fetchAndParseEcommitCSV(ecommitUrl) || {};
+                if (cacheTimestamps) cacheTimestamps.ecommitData = now;
+            }
+        }
+    } catch (error) {
+        console.warn('Invoice Records fast search: ECommit.csv could not be loaded. Continuing with Firebase/PO CSV only.', error);
+        allEcommitDataProcessed = allEcommitDataProcessed || {};
+    }
+}
+
+async function imTryFastInvoiceRecordsPOSearch(searchTerm) {
+    if (!imLooksLikeExactPOSearch(searchTerm)) return null;
+    const poNumber = imNormalizeRecordsPO(searchTerm);
+    if (!poNumber) return null;
+
+    await imEnsureInvoiceRecordsLightDataFetched(false);
+
+    let firebaseInvoicesForPO = {};
+    try {
+        if (typeof invoiceDb !== 'undefined' && invoiceDb && invoiceDb.ref) {
+            const snap = await invoiceDb.ref(`invoice_entries/${poNumber}`).once('value');
+            firebaseInvoicesForPO = snap.val() || {};
+            if (!allInvoiceData) allInvoiceData = {};
+            allInvoiceData[poNumber] = firebaseInvoicesForPO;
+        }
+    } catch (error) {
+        console.warn(`Invoice Records fast PO search failed for ${poNumber}. Falling back to full search.`, error);
+        return null;
+    }
+
+    const hasPOCsv = !!(allPOData && allPOData[poNumber]);
+    const hasFirebaseInvoices = !!(firebaseInvoicesForPO && Object.keys(firebaseInvoicesForPO).length);
+    const hasEcommit = !!(allEcommitDataProcessed && allEcommitDataProcessed[poNumber] && allEcommitDataProcessed[poNumber].length);
+
+    if (!hasPOCsv && !hasFirebaseInvoices && !hasEcommit) return null;
+
+    if (!allPOData) allPOData = {};
+    if (!allEcommitDataProcessed) allEcommitDataProcessed = {};
+    return [poNumber];
+}
+
+
 async function populateInvoiceReporting(searchTerm = '', options = {}) {
     const openCard = document.querySelector('#im-reporting-content .invoice-card.expanded');
     if (openCard) {
@@ -73,17 +146,32 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
     const statusFilter = document.getElementById('im-reporting-status-filter').value;
 
     try {
-        await ensureInvoiceDataFetched();
+        const rawSearchTerm = String(searchTerm || '').trim();
+        let fastPONumbers = null;
 
-        const allPOs = allPOData;
-        const allInvoicesByPO = allInvoiceData;
-        const allEcommit = allEcommitDataProcessed;
+        // 10.5.0: If the user searches an exact PO, read only invoice_entries/{PO}.
+        // This keeps common Invoice Records lookup fast without re-enabling full invoice_entries auto-download.
+        if (rawSearchTerm) {
+            fastPONumbers = await imTryFastInvoiceRecordsPOSearch(rawSearchTerm);
+        }
 
-        if (!allPOs || !allInvoicesByPO || !allEcommit) throw new Error("Data not loaded.");
-        const searchText = searchTerm.toLowerCase();
+        if (!fastPONumbers) {
+            if (rawSearchTerm && imLooksLikeExactPOSearch(rawSearchTerm) && !silent && contentArea) {
+                contentArea.innerHTML = '<div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> PO not found directly. Running deeper search...</div>';
+            }
+            await ensureInvoiceDataFetched();
+        }
+
+        const allPOs = allPOData || {};
+        const allInvoicesByPO = allInvoiceData || {};
+        const allEcommit = allEcommitDataProcessed || {};
+
+        const searchText = rawSearchTerm.toLowerCase();
         const processedPOData = [];
 
-        const allUniquePOs = new Set([...Object.keys(allPOs), ...Object.keys(allInvoicesByPO), ...Object.keys(allEcommit)]);
+        const allUniquePOs = fastPONumbers
+            ? new Set(fastPONumbers)
+            : new Set([...Object.keys(allPOs), ...Object.keys(allInvoicesByPO), ...Object.keys(allEcommit)]);
 
         const filteredPONumbers = Array.from(allUniquePOs).filter(poNumber => {
             const poDetails = allPOs[poNumber] || {};

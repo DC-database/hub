@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-active-tasks.js
    IBA WorkDesk active-task renderer, filters, mobile cards, and task loader.
-   Version: 9.8.8
+   Version: 10.5.1
 
    Cleanup Phase:
    - Moved Block 14 active-task display/loading helpers out of app.js.
@@ -46,38 +46,39 @@ function wdActiveTaskIsIPCWorkflowTask(task) {
 function isTaskComplete(task) {
     if (!task) return false;
 
-    // 10.4.0: A WorkDesk Invoice Job Entry becomes a closed intake record once
-    // Invoice Management creates/links the real invoice task. Do not allow the
-    // old intake row to reappear as New Entry/Pending beside the live invoice row.
-    const wdInvoiceJobHasInvoiceSyncHistory = (item) => {
-        try {
-            const hist = item && item.history;
-            const rows = Array.isArray(hist) ? hist : Object.values(hist || {});
-            return rows.some(h => /invoice/i.test(String((h && (h.action || h.note || h.status || h.remarks)) || '')));
-        } catch (_) { return false; }
-    };
-
     // 1. Special check for Job Entries (Invoice Type)
     if (task.source === 'job_entry' && task.for === 'Invoice') {
         const invoiceJobStatus = String(task.remarks || task.status || '').trim();
         const invoiceJobStatusLower = invoiceJobStatus.toLowerCase();
+
+        // 10.5.1: IPC Application / IPC Processed can be converted into an Invoice
+        // intake row. That converted intake must remain visible as a fresh New Entry
+        // until Invoice Entry actually creates the real invoice record. Do not treat
+        // invoiceConvertedAt/dateResponded/history text as completed by itself.
+        if (invoiceJobStatusLower === 'new entry' || invoiceJobStatusLower === 'pending' || !invoiceJobStatusLower) {
+            const isHardClosedInvoiceJob = !!(
+                task.convertedToInvoice ||
+                task.archived ||
+                task.linkedInvoiceKey ||
+                task.invoiceWorkflowStatus ||
+                task.linkedInvoiceStatus ||
+                invoiceJobStatusLower === 'converted to invoice'
+            );
+            return isHardClosedInvoiceJob;
+        }
+
         const isConvertedInvoiceJob = !!(
             task.convertedToInvoice ||
             task.archived ||
             task.linkedInvoiceKey ||
             task.invoiceWorkflowStatus ||
             task.linkedInvoiceStatus ||
-            task.invoiceConvertedAt ||
-            invoiceJobStatusLower === 'converted to invoice' ||
-            (task.dateResponded && wdInvoiceJobHasInvoiceSyncHistory(task))
+            invoiceJobStatusLower === 'converted to invoice'
         );
         if (isConvertedInvoiceJob) return true;
 
         // 8.7.0: IPC/Job Record items converted to Invoice must remain visible as
         // fresh invoice tasks even if the old IPC record carried dateResponded.
-        if (invoiceJobStatus === 'New Entry' || invoiceJobStatus === 'Pending' || !invoiceJobStatus) {
-            return false;
-        }
 
         if (invoiceJobStatus === 'Approved' || invoiceJobStatus === 'Rejected') {
             return false;
@@ -180,6 +181,19 @@ function wdUiStatusBadge(status, extraClass = '') {
 // but users can still click any date tab they want to work on.
 let wdActiveTaskSelectedDateKey = '';
 let wdActiveTaskSelectedDateStatus = '';
+
+// 10.4.9: Active Task must not reuse a stale WorkDesk Job Entry cache for too long.
+// Reception can add New Entry rows while the logged-in user keeps the app open;
+// a short freshness window keeps the New Entry tab current without forcing a
+// Firebase reload on every tiny table/search render.
+let wdActiveTaskWorkdeskLastFreshLoadAt = 0;
+const WD_ACTIVE_TASK_WORKDESK_FRESH_MS = 10000;
+
+function wdActiveTaskShouldRefreshWorkdeskSource(forceRefresh, isInventoryPage) {
+    if (isInventoryPage) return !!forceRefresh;
+    if (forceRefresh) return true;
+    return (Date.now() - Number(wdActiveTaskWorkdeskLastFreshLoadAt || 0)) > WD_ACTIVE_TASK_WORKDESK_FRESH_MS;
+}
 
 // 9.8.5: Queue date tabs belong only to WorkDesk/Invoice Active Task.
 // Inventory Active Task is a separate module and must not inherit the WorkDesk date-tab UI.
@@ -1287,7 +1301,13 @@ const getTaskSiteForMatch = (t) =>
         // Pending, Report, In Process, and Unresolved. The lightweight
         // invoice_tasks_by_user index can be stale/missing after Invoice Management updates,
         // so it must not drive WorkDesk personal task visibility.
-        await ensureAllEntriesFetched(forceRefresh, { mode: isInventoryPage ? 'inventory' : 'workdesk' });
+        // 10.4.9: Active Task New Entry must include recent Reception-added rows.
+        // Use a short forced-refresh window for WorkDesk job_entries only; do not rely
+        // on the longer global systemEntries cache when the user returns to Active Task.
+        const forceWorkdeskSourceRefresh = wdActiveTaskShouldRefreshWorkdeskSource(forceRefresh, isInventoryPage);
+        await ensureAllEntriesFetched(forceWorkdeskSourceRefresh, { mode: isInventoryPage ? 'inventory' : 'workdesk' });
+        if (!isInventoryPage) wdActiveTaskWorkdeskLastFreshLoadAt = Date.now();
+
         await ensureApproverDataCached(forceRefresh);
         
         if (!isInventoryPage) {

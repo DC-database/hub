@@ -145,6 +145,10 @@ let wdDashboardTaskLookupPersonalRef = null;
 let wdDashboardTaskLookupAllRef = null;
 let wdAllActiveDashboardLoaded = false;
 let wdAllActiveDashboardLoading = false;
+let wdAllActiveDashboardCountsLoaded = false;
+let wdAllActiveDashboardCountsLoading = false;
+let wdAllActiveDashboardCountMap = new Map();
+let wdAllActiveDashboardCountSavedAt = 0;
 
 // 8.5.1: Keep the WorkDesk Dashboard self-sufficient for short periods.
 // It prevents repeated Firebase downloads when users switch pages or reopen the dashboard.
@@ -955,10 +959,10 @@ function wdIsConvertedInvoiceJobEntry(entry = {}) {
         const taskFor = wdNormalize(entry.for || entry.type || '');
         if (!(taskFor === 'invoice' || taskFor === 'invoice job')) return false;
         const st = wdNormalize(entry.remarks || entry.status || '');
-        if (entry.convertedToInvoice || entry.archived || entry.linkedInvoiceKey || entry.invoiceWorkflowStatus || entry.linkedInvoiceStatus || st === 'converted to invoice') return true;
-        const hist = entry.history;
-        const rows = Array.isArray(hist) ? hist : Object.values(hist || {});
-        return !!entry.dateResponded && rows.some(h => /invoice/i.test(String((h && (h.action || h.note || h.status || h.remarks)) || '')));
+        // 10.5.1: An IPC/Job Record converted into Invoice becomes an active New Entry
+        // intake until Invoice Entry creates the real invoice record. Only explicit
+        // archive/link/completed fields should hide the old WorkDesk intake row.
+        return !!(entry.convertedToInvoice || entry.archived || entry.linkedInvoiceKey || entry.invoiceWorkflowStatus || entry.linkedInvoiceStatus || st === 'converted to invoice');
     } catch (_) { return false; }
 }
 
@@ -2376,6 +2380,7 @@ async function populateWorkdeskDashboard(forceRefresh = false) {
                 wdRenderDashboardList();
                 wdBindDashboardControls();
                 wdStartDashboardActiveTaskLiveSync();
+                wdPrimeAllActiveDashboardCounts(false);
                 return;
             }
         }
@@ -2392,6 +2397,7 @@ async function populateWorkdeskDashboard(forceRefresh = false) {
         wdRenderDashboardList();
         wdBindDashboardControls();
         wdStartDashboardActiveTaskLiveSync();
+        wdPrimeAllActiveDashboardCounts(false);
     } catch (error) {
         console.error('Error loading WorkDesk dashboard control center:', error);
         cardsEl.innerHTML = '<div class="wd-dashboard-error-card"><i class="fa-solid fa-triangle-exclamation"></i> Unable to load dashboard tasks.</div>';
@@ -2415,6 +2421,13 @@ async function wdEnsureAdminAllActiveDashboardLoaded(forceRefresh = false) {
     try {
         wdActiveDashboardTasks = await wdBuildDashboardTasks({ forceRefresh, includeAllActive: true });
         wdAllActiveDashboardLoaded = true;
+        const exactCounts = {};
+        wdActiveDashboardTasks.forEach(task => {
+            const bucket = task.bucket || wdDashboardBucket(task.status, task.type);
+            if (bucket) wdIncrementAllActiveCount(exactCounts, bucket);
+        });
+        wdSetAllActiveDashboardCountMap(exactCounts, Date.now());
+        wdSaveAllActiveDashboardCountsCache(exactCounts);
         wdActiveDashboardCacheMeta = { fromCache: false, savedAt: Date.now(), reason: 'admin-card-click' };
         wdSaveDashboardCache(wdActiveDashboardTasks, wdPersonalDashboardTasks);
     } finally {
@@ -2454,6 +2467,8 @@ function wdBindDashboardControls() {
             try {
                 wdClearDashboardCache();
                 wdAllActiveDashboardLoaded = false;
+                wdAllActiveDashboardCountsLoaded = false;
+                wdAllActiveDashboardCountMap = new Map();
                 wdActiveDashboardTasks = [];
                 try { window.sessionStorage.removeItem(WD_ACTIVE_TASK_SOURCE_CACHE_KEY); } catch (e) { /* ignore */ }
                 if (typeof cacheTimestamps !== 'undefined') {
@@ -2477,6 +2492,14 @@ function wdBindDashboardControls() {
     if (listEl && !listEl.dataset.dateTabsBound) {
         listEl.dataset.dateTabsBound = 'true';
         listEl.addEventListener('click', (e) => {
+            const forwardBtn = e.target.closest('.wd-forward-task-btn');
+            if (forwardBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                wdOpenForwardTaskPreview(forwardBtn.dataset.wdForwardTaskId || '', forwardBtn);
+                return;
+            }
+
             const siteCard = e.target.closest('.wd-cork-site-card');
             if (siteCard) {
                 wdAllActiveCorkboardSelectedSiteKey = siteCard.dataset.siteKey || '';
@@ -2490,6 +2513,131 @@ function wdBindDashboardControls() {
             wdRenderDashboardList();
         });
     }
+}
+
+
+function wdReadAllActiveDashboardCountsCache() {
+    try {
+        const cached = wdReadJSONStorage(window.localStorage, 'IBA_WD_ALL_ACTIVE_COUNT_CACHE_V1');
+        if (!cached || cached.userKey !== wdDashboardUserCacheKey()) return null;
+        if ((Date.now() - Number(cached.savedAt || 0)) > (2 * 60 * 1000)) return null;
+        return cached.counts && typeof cached.counts === 'object' ? cached : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+function wdSaveAllActiveDashboardCountsCache(countsObj) {
+    try {
+        wdWriteJSONStorage(window.localStorage, 'IBA_WD_ALL_ACTIVE_COUNT_CACHE_V1', {
+            userKey: wdDashboardUserCacheKey(),
+            savedAt: Date.now(),
+            counts: countsObj || {}
+        });
+    } catch (e) { /* ignore */ }
+}
+
+function wdSetAllActiveDashboardCountMap(countsObj, savedAt = Date.now()) {
+    wdAllActiveDashboardCountMap = new Map();
+    Object.entries(countsObj || {}).forEach(([status, count]) => {
+        const label = wdText(status);
+        if (!label) return;
+        wdAllActiveDashboardCountMap.set(label, Number(count) || 0);
+    });
+    wdAllActiveDashboardCountSavedAt = savedAt || Date.now();
+    wdAllActiveDashboardCountsLoaded = true;
+}
+
+function wdIncrementAllActiveCount(counts, status, inc = 1) {
+    const label = wdText(status);
+    if (!label) return;
+    counts[label] = (Number(counts[label]) || 0) + (Number(inc) || 1);
+}
+
+function wdAllActiveCountForStatus(status) {
+    const wanted = wdNormalize(status);
+    if (!wanted) return 0;
+    for (const [label, count] of wdAllActiveDashboardCountMap.entries()) {
+        if (wdNormalize(label) === wanted) return Number(count) || 0;
+    }
+    return 0;
+}
+
+async function wdLoadAllActiveDashboardCounts(forceRefresh = false) {
+    if (!wdCanSeeAllActiveDashboard()) return;
+    if (wdAllActiveDashboardCountsLoading) return;
+    if (wdAllActiveDashboardCountsLoaded && !forceRefresh) return;
+
+    if (!forceRefresh) {
+        const cached = wdReadAllActiveDashboardCountsCache();
+        if (cached) {
+            wdSetAllActiveDashboardCountMap(cached.counts, cached.savedAt);
+            wdRenderDashboardCards();
+            return;
+        }
+    }
+
+    // 10.4.8: Keep Dashboard cards informative without opening the full detail board.
+    // This count pass uses only the lightweight task index and any Job Entry rows already
+    // available in memory. It does NOT read full invoice_entries and it does NOT render
+    // yellow pinned notes. Details are still fetched only after Admin clicks a status card.
+    wdAllActiveDashboardCountsLoading = true;
+    const counts = {};
+    try {
+        if (typeof invoiceDb !== 'undefined' && invoiceDb && invoiceDb.ref) {
+            const snap = await invoiceDb.ref('invoice_tasks_by_user/All').once('value');
+            const rows = snap.val() || {};
+            Object.keys(rows || {}).forEach(key => {
+                const task = rows[key] || {};
+                if (!task || typeof task !== 'object') return;
+                const status = wdCurrentInvoiceTaskStatus(task, {});
+                if (!status || wdIsInvoiceLookupComplete(status)) return;
+                const bucket = wdDashboardAllowedBucket(status, 'invoice_task_lookup');
+                if (!bucket) return;
+                if (wdTaskHasAttentionName(task, wdCurrentUserNameNorm())) return;
+                wdIncrementAllActiveCount(counts, bucket);
+            });
+        }
+
+        // 10.4.9: All Active cards should show count/value immediately without
+        // requiring the Admin to click a card first. Count Job Entries here, but
+        // do not render or download the yellow pinned detail cards until a status
+        // card and then a site card are clicked. This reads job_entries only for
+        // count preview; it still avoids full invoice_entries detail loading.
+        try {
+            const entries = await wdEnsureDashboardJobEntriesFetched(forceRefresh);
+            const personalKeySet = wdBuildPersonalTaskKeySet();
+            entries.forEach((entry, index) => {
+                if (!entry || typeof entry !== 'object') return;
+                const status = wdEntryStatus(entry);
+                const forText = wdNormalize(entry.for || entry.For || entry.type || entry.Type || '');
+                const isInvoiceJob = forText === 'invoice' || forText === 'invoice job' || forText.includes('invoice');
+                if (isInvoiceJob && wdIsJobNewEntryQueue(entry, status, 'job_entry')) {
+                    const key = wdText(entry.key || entry.id || entry.po || `${index}`);
+                    const pseudo = { source: 'job_entry', type: 'Invoice Job', key, po: entry.po || entry.originalPO || entry.ref || '', ref: entry.ref || '' };
+                    if (!wdDashboardTaskIsAlreadyPersonal(pseudo, personalKeySet)) wdIncrementAllActiveCount(counts, 'New Entry');
+                    return;
+                }
+                if (['ipc', 'ipc processed', 'ipc application'].includes(forText) && wdIsOpenIPCJobStatus(status)) {
+                    const displayBucket = forText === 'ipc application' ? 'IPC Application' : 'IPC Processed';
+                    wdIncrementAllActiveCount(counts, displayBucket);
+                }
+            });
+        } catch (_) { /* memory-only job count is optional */ }
+
+        wdSetAllActiveDashboardCountMap(counts, Date.now());
+        wdSaveAllActiveDashboardCountsCache(counts);
+    } catch (e) {
+        console.warn('Dashboard All Active count preview could not load:', e);
+    } finally {
+        wdAllActiveDashboardCountsLoading = false;
+        wdRenderDashboardCards();
+    }
+}
+
+function wdPrimeAllActiveDashboardCounts(forceRefresh = false) {
+    if (!wdCanSeeAllActiveDashboard()) return;
+    setTimeout(() => { wdLoadAllActiveDashboardCounts(forceRefresh); }, 50);
 }
 
 function wdRenderDashboardCards() {
@@ -2554,12 +2702,14 @@ function wdRenderDashboardCards() {
 
         const activeStatusesToShow = wdAllActiveDashboardLoaded ? statuses : WD_DASHBOARD_LAZY_ADMIN_STATUSES;
         activeStatusesToShow.forEach(status => {
-            const count = statusCounts.get(status) || 0;
+            const count = wdAllActiveDashboardLoaded ? (statusCounts.get(status) || 0) : wdAllActiveCountForStatus(status);
             const tone = wdStatusTone(status);
             const filterKey = wdDashboardStatusFilterKey(status);
             const active = filterKey === wdActiveDashboardSelectedStatus || status === wdActiveDashboardSelectedStatus ? 'active' : '';
-            const countLabel = wdAllActiveDashboardLoaded ? String(count) : '<i class="fa-solid fa-download"></i>';
-            const microcopy = wdAllActiveDashboardLoaded ? wdStatusMicrocopy(status, count) : 'Click to load only when needed';
+            const countLabel = wdAllActiveDashboardCountsLoading && !wdAllActiveDashboardCountsLoaded ? '<i class="fa-solid fa-spinner fa-spin"></i>' : String(count);
+            const microcopy = wdAllActiveDashboardLoaded
+                ? wdStatusMicrocopy(status, count)
+                : (wdAllActiveDashboardCountsLoaded ? 'Click to show sites' : 'Count preview loading');
             activeHtml += `
                 <button class="wd-active-status-card tone-${tone} ${active}" data-status="${wdSafe(filterKey)}" type="button" aria-label="Show ${wdSafe(status)} tasks">
                     <span class="wd-status-card-glow"></span>
@@ -2888,6 +3038,267 @@ function wdSiteGroupAttentionLabel(tone) {
 }
 
 
+
+// 10.4.7: Forward a compact task detail from Dashboard cards to Message users.
+// Opens a preview/recipient selector first so Admin can confirm or change recipient.
+let wdForwardTaskCounter = 0;
+let wdForwardPending = null;
+window.__wdForwardTaskStore = window.__wdForwardTaskStore || {};
+
+function wdForwardRegisterTask(task) {
+    const id = `wd-fwd-${Date.now()}-${++wdForwardTaskCounter}`;
+    window.__wdForwardTaskStore[id] = task;
+    return id;
+}
+
+function wdForwardTaskKind(task) {
+    const haystack = [
+        task?.type,
+        task?.for,
+        task?.bucket,
+        task?.personalBucket,
+        task?.status,
+        task?.remarks,
+        task?.note
+    ].map(wdText).join(' ').toLowerCase();
+    return haystack.includes('ipc') ? 'IPC' : 'invoice';
+}
+
+function wdBuildForwardTaskMessage(task) {
+    const kind = wdForwardTaskKind(task);
+    const po = wdText(task?.po || task?.originalPO || task?.ref || 'N/A') || 'N/A';
+    const amountRaw = task?.amountPaid || task?.amount || task?.invoiceAmount || task?.poValue || '';
+    const amount = wdFormatAccountingAmount(amountRaw) || wdText(amountRaw) || '—';
+    const vendor = wdText(task?.vendorName || task?.vendor || task?.supplier || 'N/A') || 'N/A';
+    const note = wdText(task?.note || task?.currentNote || task?.remarksNote || '') || 'No current note added.';
+
+    // DM safe text collapses line breaks, so keep the actual message compact.
+    return `Please follow up this ${kind}. | PO No: ${po} | PO Value: ${amount} | Vendor: ${vendor} | Current Note: ${note}`;
+}
+
+function wdBuildForwardPreviewText(task) {
+    const kind = wdForwardTaskKind(task);
+    const po = wdText(task?.po || task?.originalPO || task?.ref || 'N/A') || 'N/A';
+    const amountRaw = task?.amountPaid || task?.amount || task?.invoiceAmount || task?.poValue || '';
+    const amount = wdFormatAccountingAmount(amountRaw) || wdText(amountRaw) || '—';
+    const vendor = wdText(task?.vendorName || task?.vendor || task?.supplier || 'N/A') || 'N/A';
+    const note = wdText(task?.note || task?.currentNote || task?.remarksNote || '') || 'No current note added.';
+    return `Please follow up this ${kind}.\n\nPO No: ${po}\nPO Value: ${amount}\nVendor: ${vendor}\nCurrent Note: ${note}`;
+}
+
+function wdGetForwardRecipients() {
+    const data = (typeof getApproversDataSafe === 'function') ? getApproversDataSafe() : null;
+    if (!data || typeof data !== 'object') return [];
+
+    const seen = new Set();
+    return Object.keys(data).map(key => {
+        const item = data[key] || {};
+        return {
+            key,
+            name: wdText(item.Name || item.name || ''),
+            position: wdText(item.Position || item.position || ''),
+            role: wdText(item.Role || item.role || ''),
+            site: wdText(item.Site || item.site || '')
+        };
+    }).filter(user => {
+        if (!user.key || !user.name) return false;
+        const sig = `${user.key}::${wdNormalize(user.name)}`;
+        if (seen.has(sig)) return false;
+        seen.add(sig);
+        return true;
+    }).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+}
+
+function wdEnsureForwardModal() {
+    let modal = document.getElementById('wd-forward-task-modal');
+    if (modal) return modal;
+
+    modal = document.createElement('div');
+    modal.id = 'wd-forward-task-modal';
+    modal.className = 'wd-forward-modal hidden';
+    modal.innerHTML = `
+        <div class="wd-forward-modal-backdrop" data-wd-forward-close="1"></div>
+        <div class="wd-forward-modal-card" role="dialog" aria-modal="true" aria-labelledby="wd-forward-modal-title">
+            <div class="wd-forward-modal-head">
+                <div>
+                    <span class="wd-forward-modal-kicker"><i class="fa-solid fa-paper-plane"></i> Forward task details</span>
+                    <h3 id="wd-forward-modal-title">Send message preview</h3>
+                </div>
+                <button type="button" class="wd-forward-modal-x" data-wd-forward-close="1" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="wd-forward-modal-body">
+                <label class="wd-forward-field">
+                    <span>Send to</span>
+                    <select id="wd-forward-recipient"></select>
+                </label>
+                <div id="wd-forward-recipient-note" class="wd-forward-recipient-note"></div>
+                <label class="wd-forward-field">
+                    <span>Message preview</span>
+                    <textarea id="wd-forward-preview" readonly rows="7"></textarea>
+                </label>
+            </div>
+            <div class="wd-forward-modal-actions">
+                <button type="button" class="wd-forward-cancel" data-wd-forward-close="1">Cancel</button>
+                <button type="button" class="wd-forward-send" id="wd-forward-send-btn"><i class="fa-solid fa-paper-plane"></i> Send Message</button>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+
+    modal.addEventListener('click', (e) => {
+        if (e.target.closest('[data-wd-forward-close]')) {
+            wdCloseForwardTaskModal();
+        }
+    });
+
+    const select = modal.querySelector('#wd-forward-recipient');
+    if (select) {
+        select.addEventListener('change', wdUpdateForwardRecipientNote);
+    }
+
+    const sendBtn = modal.querySelector('#wd-forward-send-btn');
+    if (sendBtn) {
+        sendBtn.addEventListener('click', wdSendForwardTaskMessageFromModal);
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !modal.classList.contains('hidden')) wdCloseForwardTaskModal();
+    });
+
+    return modal;
+}
+
+function wdUpdateForwardRecipientNote() {
+    const modal = document.getElementById('wd-forward-task-modal');
+    if (!modal || !wdForwardPending) return;
+    const select = modal.querySelector('#wd-forward-recipient');
+    const note = modal.querySelector('#wd-forward-recipient-note');
+    if (!select || !note) return;
+
+    const selectedName = select.options[select.selectedIndex]?.textContent || '';
+    const original = wdText(wdForwardPending.attention || '');
+    if (original && selectedName && wdNormalize(selectedName) !== wdNormalize(original)) {
+        note.innerHTML = `<i class="fa-solid fa-circle-info"></i> Original Attention: <strong>${wdSafe(original)}</strong> · Sending to: <strong>${wdSafe(selectedName)}</strong>`;
+    } else if (original) {
+        note.innerHTML = `<i class="fa-solid fa-user-check"></i> Default recipient follows Attention: <strong>${wdSafe(original)}</strong>`;
+    } else {
+        note.innerHTML = `<i class="fa-solid fa-circle-info"></i> Choose the recipient who should follow up this task.`;
+    }
+}
+
+async function wdOpenForwardTaskPreview(taskId, triggerBtn) {
+    const task = window.__wdForwardTaskStore?.[taskId];
+    if (!task) {
+        alert('Task details are no longer available. Please refresh the Dashboard and try again.');
+        return;
+    }
+
+    try {
+        if (typeof ensureApproverDataCached === 'function') {
+            await ensureApproverDataCached(false);
+        }
+    } catch (e) {
+        console.warn('Could not refresh approver list for forward modal:', e);
+    }
+
+    const recipients = wdGetForwardRecipients();
+    if (!recipients.length) {
+        alert('No Message recipients are available. Please refresh and try again.');
+        return;
+    }
+
+    const attention = wdText(task.attention || task.Attention || task.assignedTo || '');
+    let defaultRecipient = null;
+    if (attention && typeof window.dmResolveUserByDisplayName === 'function') {
+        defaultRecipient = window.dmResolveUserByDisplayName(attention);
+    }
+    if (!defaultRecipient || !defaultRecipient.key) {
+        defaultRecipient = recipients.find(user => wdNormalize(user.name) === wdNormalize(attention)) || recipients[0];
+    }
+
+    wdForwardPending = {
+        taskId,
+        task,
+        attention,
+        message: wdBuildForwardTaskMessage(task),
+        preview: wdBuildForwardPreviewText(task),
+        triggerBtn: triggerBtn || null
+    };
+
+    const modal = wdEnsureForwardModal();
+    const select = modal.querySelector('#wd-forward-recipient');
+    const preview = modal.querySelector('#wd-forward-preview');
+    const sendBtn = modal.querySelector('#wd-forward-send-btn');
+
+    if (select) {
+        select.innerHTML = recipients.map(user => {
+            const meta = [user.position, user.site].filter(Boolean).join(' · ');
+            const label = meta ? `${user.name} (${meta})` : user.name;
+            const selected = user.key === defaultRecipient.key ? 'selected' : '';
+            return `<option value="${wdSafe(user.key)}" data-name="${wdSafe(user.name)}" ${selected}>${wdSafe(label)}</option>`;
+        }).join('');
+    }
+    if (preview) preview.value = wdForwardPending.preview;
+    if (sendBtn) {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send Message';
+    }
+
+    wdUpdateForwardRecipientNote();
+    modal.classList.remove('hidden');
+    setTimeout(() => { try { select?.focus(); } catch (_) {} }, 60);
+}
+
+function wdCloseForwardTaskModal() {
+    const modal = document.getElementById('wd-forward-task-modal');
+    if (modal) modal.classList.add('hidden');
+    wdForwardPending = null;
+}
+
+async function wdSendForwardTaskMessageFromModal() {
+    const modal = document.getElementById('wd-forward-task-modal');
+    const select = modal?.querySelector('#wd-forward-recipient');
+    const sendBtn = modal?.querySelector('#wd-forward-send-btn');
+    if (!wdForwardPending || !select) return;
+
+    const toKey = select.value;
+    const toName = select.options[select.selectedIndex]?.dataset?.name || select.options[select.selectedIndex]?.textContent || '';
+    if (!toKey || !toName) {
+        alert('Please choose a recipient.');
+        return;
+    }
+
+    if (typeof window.dmSendDirectMessage !== 'function') {
+        alert('Message module is not ready. Please open Messages once or refresh and try again.');
+        return;
+    }
+
+    if (sendBtn) {
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending...';
+    }
+
+    try {
+        await window.dmSendDirectMessage(toKey, toName, wdForwardPending.message);
+        const triggerBtn = wdForwardPending.triggerBtn;
+        wdCloseForwardTaskModal();
+        if (triggerBtn) {
+            triggerBtn.classList.add('sent');
+            setTimeout(() => triggerBtn.classList.remove('sent'), 1200);
+        }
+        alert(`Task detail forwarded to ${toName}.`);
+    } catch (err) {
+        console.error('Forward task detail failed:', err);
+        alert('Could not forward the task detail. Please try again.');
+    } finally {
+        if (sendBtn) {
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send Message';
+        }
+    }
+}
+
+window.wdOpenForwardTaskPreview = wdOpenForwardTaskPreview;
+
 function wdRenderDashboardCorkNote(task, index, options = {}) {
     const displayStatus = wdTaskDisplayStatus(task);
     const statusText = wdText(displayStatus || task.status || task.bucket || 'Pending') || 'Pending';
@@ -2905,6 +3316,8 @@ function wdRenderDashboardCorkNote(task, index, options = {}) {
     const statusTone = wdStatusTone(task.bucket || simpleStatusTitle || statusText || task.status);
     const invoicePdf = wdBuildPdfButton('Invoice PDF', PDF_BASE_PATH, task.invName, 'invoice');
     const reportPdf = wdBuildPdfButton('Report PDF', REPORT_BASE_PATH, task.reportName, 'report');
+    const forwardTaskId = wdForwardRegisterTask(task);
+    const forwardBtn = `<button class="wd-forward-task-btn" type="button" data-wd-forward-task-id="${wdSafe(forwardTaskId)}" title="Forward PO value, vendor, and current note to Attention user"><i class="fa-solid fa-paper-plane"></i> Forward</button>`;
     const poDisplay = task.po || task.ref || 'N/A';
     const invoiceNo = task.ref && task.ref !== task.po ? task.ref : (task.invoiceNumber || task.invoiceNo || '—');
     // 10.1.3: Do not fallback to Entered Date for Invoice Date.
@@ -2968,6 +3381,7 @@ function wdRenderDashboardCorkNote(task, index, options = {}) {
             <div class="wd-note-actions">
                 ${invoicePdf}
                 ${reportPdf}
+                ${forwardBtn}
             </div>
         </article>`;
 }
@@ -2988,21 +3402,27 @@ function wdRenderAllActiveCorkboard(baseTasks, selectedLabel, cacheSuffix, summa
         return;
     }
 
-    if (!wdAllActiveCorkboardSelectedSiteKey || !siteGroups.some(group => group.key === wdAllActiveCorkboardSelectedSiteKey)) {
-        wdAllActiveCorkboardSelectedSiteKey = siteGroups[0].key;
+    // 10.4.7: After an Admin clicks a status card, show the site selector first.
+    // Do not auto-open the yellow pinned notes. Notes render only after a site is chosen.
+    if (wdAllActiveCorkboardSelectedSiteKey && !siteGroups.some(group => group.key === wdAllActiveCorkboardSelectedSiteKey)) {
+        wdAllActiveCorkboardSelectedSiteKey = '';
     }
 
-    const selectedGroup = siteGroups.find(group => group.key === wdAllActiveCorkboardSelectedSiteKey) || siteGroups[0];
-    const selectedTasks = (selectedGroup?.tasks || []).slice().sort(wdCompareDashboardPriority);
-    const selectedParts = wdSiteDisplayParts(selectedGroup?.label || '', selectedGroup?.siteName || '');
+    const selectedGroup = wdAllActiveCorkboardSelectedSiteKey
+        ? siteGroups.find(group => group.key === wdAllActiveCorkboardSelectedSiteKey)
+        : null;
+    const selectedTasks = selectedGroup ? (selectedGroup.tasks || []).slice().sort(wdCompareDashboardPriority) : [];
+    const selectedParts = selectedGroup ? wdSiteDisplayParts(selectedGroup.label || '', selectedGroup.siteName || '') : null;
 
     if (summaryEl) {
-        summaryEl.textContent = `${selectedTasks.length} item${selectedTasks.length === 1 ? '' : 's'} shown for ${selectedParts.label} · ${tasks.length} total in ${statusLabel}${cacheSuffix}`;
+        summaryEl.textContent = selectedGroup
+            ? `${selectedTasks.length} item${selectedTasks.length === 1 ? '' : 's'} shown for ${selectedParts.label} · ${tasks.length} total in ${statusLabel}${cacheSuffix}`
+            : `${tasks.length} active item${tasks.length === 1 ? '' : 's'} in ${siteGroups.length} site group${siteGroups.length === 1 ? '' : 's'} for ${statusLabel}. Choose a site to show pinned notes${cacheSuffix}`;
     }
 
     const siteCardsHtml = siteGroups.map(group => {
         const parts = wdSiteDisplayParts(group.label, group.siteName);
-        const active = group.key === selectedGroup.key ? 'active' : '';
+        const active = selectedGroup && group.key === selectedGroup.key ? 'active' : '';
         const statusCounts = group.tasks.reduce((acc, task) => {
             const label = wdText(task.bucket || task.status || 'Open');
             acc[label] = (acc[label] || 0) + 1;
@@ -3023,7 +3443,30 @@ function wdRenderAllActiveCorkboard(baseTasks, selectedLabel, cacheSuffix, summa
             </button>`;
     }).join('');
 
-    const cardsHtml = selectedTasks.map((task, index) => wdRenderDashboardCorkNote(task, index, { siteLabel: selectedParts.label })).join('');
+    const cardsHtml = selectedGroup
+        ? selectedTasks.map((task, index) => wdRenderDashboardCorkNote(task, index, { siteLabel: selectedParts.label })).join('')
+        : '';
+    const selectedSiteHtml = selectedGroup
+        ? `
+            <section class="wd-cork-site-section active-site">
+                <div class="wd-cork-site-head">
+                    <div>
+                        <span class="wd-cork-site-kicker">Selected site</span>
+                        <strong>${wdSafe(selectedParts.siteNo)}</strong>
+                        <em>${wdSafe(selectedParts.siteName)}</em>
+                    </div>
+                    <span>${selectedTasks.length} item${selectedTasks.length === 1 ? '' : 's'}</span>
+                </div>
+                <div class="wd-cork-note-grid">${cardsHtml}</div>
+            </section>`
+        : `
+            <div class="wd-dashboard-empty-state wd-site-first-empty">
+                <span class="wd-empty-icon"><i class="fa-solid fa-location-dot"></i></span>
+                <div>
+                    <strong>Choose a site first</strong>
+                    <p>The pinned task notes are intentionally hidden until you select a site. This keeps the Dashboard light and focused.</p>
+                </div>
+            </div>`;
 
     listEl.innerHTML = `
         <div class="wd-cork-board wd-cork-board-site-filtered">
@@ -3038,17 +3481,7 @@ function wdRenderAllActiveCorkboard(baseTasks, selectedLabel, cacheSuffix, summa
             <div class="wd-cork-site-selector" role="tablist" aria-label="All Active Tasks site selector">
                 ${siteCardsHtml}
             </div>
-            <section class="wd-cork-site-section active-site">
-                <div class="wd-cork-site-head">
-                    <div>
-                        <span class="wd-cork-site-kicker">Selected site</span>
-                        <strong>${wdSafe(selectedParts.siteNo)}</strong>
-                        <em>${wdSafe(selectedParts.siteName)}</em>
-                    </div>
-                    <span>${selectedTasks.length} item${selectedTasks.length === 1 ? '' : 's'}</span>
-                </div>
-                <div class="wd-cork-note-grid">${cardsHtml}</div>
-            </section>
+            ${selectedSiteHtml}
         </div>`;
 }
 
@@ -3148,7 +3581,7 @@ function wdRenderDashboardList() {
     }
 
     const tabsHtml = dateGroups.map(group => {
-        const active = group.key === selectedGroup.key ? 'active' : '';
+        const active = selectedGroup && group.key === selectedGroup.key ? 'active' : '';
         const age = group.tasks[0]?.queueTimestamp ? wdQueueAgeParts(group.tasks[0].queueTimestamp).text : '';
         return `
             <button class="wd-date-tab ${active}" type="button" data-date-key="${wdSafe(group.key)}" aria-label="Show ${wdSafe(group.fullLabel)} tasks">

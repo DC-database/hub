@@ -750,6 +750,62 @@ async function dmSendMessage(toKey, toName, text) {
     }
 }
 
+
+// 10.4.6: Public helper for WorkDesk task cards to forward a short task summary
+// through the existing Direct Messages module without opening the full chat window.
+function dmNormalizeLookupName(value) {
+    return String(value || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9\s.]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function dmResolveUserByDisplayName(nameOrAttention) {
+    const raw = String(nameOrAttention || '').trim();
+    if (!raw) return null;
+
+    const data = (typeof getApproversDataSafe === 'function') ? getApproversDataSafe() : null;
+    if (!data) return null;
+
+    const users = Object.keys(data).map(key => ({
+        key,
+        name: String(data[key]?.Name || '').trim(),
+        position: String(data[key]?.Position || '').trim(),
+        role: String(data[key]?.Role || '').trim(),
+        site: String(data[key]?.Site || '').trim()
+    })).filter(u => u.name);
+
+    const chunks = raw.split(/[,;\/|]+/).map(x => x.trim()).filter(Boolean);
+    const candidates = chunks.length ? chunks : [raw];
+
+    for (const c of candidates) {
+        const cNorm = dmNormalizeLookupName(c);
+        if (!cNorm) continue;
+        let found = users.find(u => dmNormalizeLookupName(u.name) === cNorm);
+        if (found) return found;
+        found = users.find(u => {
+            const n = dmNormalizeLookupName(u.name);
+            return n && (n.includes(cNorm) || cNorm.includes(n));
+        });
+        if (found) return found;
+    }
+
+    return null;
+}
+
+async function dmSendDirectMessage(toKey, toName, text) {
+    try {
+        if ((!dmState.initialized || !dmState.userKey) && typeof initDirectMessages === 'function') {
+            initDirectMessages();
+        }
+    } catch (_) { /* ignore */ }
+    return dmSendMessage(toKey, toName, text);
+}
+
+window.dmResolveUserByDisplayName = dmResolveUserByDisplayName;
+window.dmSendDirectMessage = dmSendDirectMessage;
+
 function dmInjectMessagesButtons() {
     // We place Messages next to Logout (desktop footer), and also in the mobile bottom bar.
     const targets = [
