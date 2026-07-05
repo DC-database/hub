@@ -46,9 +46,32 @@ function wdActiveTaskIsIPCWorkflowTask(task) {
 function isTaskComplete(task) {
     if (!task) return false;
 
+    // 10.4.0: A WorkDesk Invoice Job Entry becomes a closed intake record once
+    // Invoice Management creates/links the real invoice task. Do not allow the
+    // old intake row to reappear as New Entry/Pending beside the live invoice row.
+    const wdInvoiceJobHasInvoiceSyncHistory = (item) => {
+        try {
+            const hist = item && item.history;
+            const rows = Array.isArray(hist) ? hist : Object.values(hist || {});
+            return rows.some(h => /invoice/i.test(String((h && (h.action || h.note || h.status || h.remarks)) || '')));
+        } catch (_) { return false; }
+    };
+
     // 1. Special check for Job Entries (Invoice Type)
     if (task.source === 'job_entry' && task.for === 'Invoice') {
         const invoiceJobStatus = String(task.remarks || task.status || '').trim();
+        const invoiceJobStatusLower = invoiceJobStatus.toLowerCase();
+        const isConvertedInvoiceJob = !!(
+            task.convertedToInvoice ||
+            task.archived ||
+            task.linkedInvoiceKey ||
+            task.invoiceWorkflowStatus ||
+            task.linkedInvoiceStatus ||
+            task.invoiceConvertedAt ||
+            invoiceJobStatusLower === 'converted to invoice' ||
+            (task.dateResponded && wdInvoiceJobHasInvoiceSyncHistory(task))
+        );
+        if (isConvertedInvoiceJob) return true;
 
         // 8.7.0: IPC/Job Record items converted to Invoice must remain visible as
         // fresh invoice tasks even if the old IPC record carried dateResponded.

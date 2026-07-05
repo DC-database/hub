@@ -950,6 +950,18 @@ function wdEntryStatus(entry) {
     return wdStatus(entry?.remarks || entry?.status || entry?.Status || 'Pending');
 }
 
+function wdIsConvertedInvoiceJobEntry(entry = {}) {
+    try {
+        const taskFor = wdNormalize(entry.for || entry.type || '');
+        if (!(taskFor === 'invoice' || taskFor === 'invoice job')) return false;
+        const st = wdNormalize(entry.remarks || entry.status || '');
+        if (entry.convertedToInvoice || entry.archived || entry.linkedInvoiceKey || entry.invoiceWorkflowStatus || entry.linkedInvoiceStatus || st === 'converted to invoice') return true;
+        const hist = entry.history;
+        const rows = Array.isArray(hist) ? hist : Object.values(hist || {});
+        return !!entry.dateResponded && rows.some(h => /invoice/i.test(String((h && (h.action || h.note || h.status || h.remarks)) || '')));
+    } catch (_) { return false; }
+}
+
 function wdEntryTimestamp(entry) {
     const candidates = [
         entry?.invoiceLastUpdated,
@@ -1291,6 +1303,10 @@ function wdInvoiceHistoryTimestampForStatus(rawTask = {}, invMeta = {}, status =
 }
 
 function wdIsJobNewEntryQueue(rawTask = {}, status = '', type = '') {
+    // 10.4.0: Do not count old WorkDesk intake rows once they already became
+    // Invoice Management records. The real invoice row owns For SRV/Pending/etc.
+    if (wdIsConvertedInvoiceJobEntry(rawTask)) return false;
+
     const s = wdNormalize(status || rawTask?.status || rawTask?.remarks || '');
     const source = wdNormalize(rawTask?.source || type || '');
     const taskFor = wdNormalize(rawTask?.for || rawTask?.type || '');
@@ -1617,6 +1633,8 @@ function wdIsDashboardActiveTaskSourceItem(task) {
     const source = wdText(task.source || '');
     const status = wdStatus(task.remarks || task.status || 'Pending');
     const statusNorm = wdNormalize(status);
+
+    if (wdIsConvertedInvoiceJobEntry(task)) return false;
 
     // Dashboard source must mirror WorkDesk Active Task, but only invoice-related items.
     if (['Transfer', 'Restock', 'Return', 'Usage'].includes(taskFor) || source === 'transfer_entry') return false;
