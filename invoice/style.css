@@ -24449,6 +24449,253 @@ body.inventory-mode #wd-inv-request-review .inventory-request-review-card,
     text-align: left !important;
 }
 
+
+/* ========================================================================== 
+   10.4.3 — WorkDesk Settings: System Feature Controls polish
+   Scope: Manual PO / Vacation Mode card only. No workflow logic changes.
+   ========================================================================== */
+#wd-settings .settings-card-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    color: #0b5f8a;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+#wd-settings .settings-system-controls-card {
+    overflow: hidden;
+    border-color: rgba(0, 58, 92, 0.14);
+    background:
+        radial-gradient(circle at top right, rgba(212, 175, 55, 0.13), transparent 30%),
+        linear-gradient(180deg, rgba(255,255,255,0.99), rgba(247, 250, 252, 0.97));
+}
+
+#wd-settings .settings-system-controls-card.hidden {
+    display: none !important;
+}
+
+#wd-settings .im-admin-control-surface {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+#wd-settings .im-admin-mode-panel {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #f8fafc, #eef6fb);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+#wd-settings .im-admin-mode-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    color: #0b5f8a;
+    border: 1px solid rgba(11, 95, 138, .14);
+    box-shadow: 0 10px 22px rgba(15, 23, 42, .06);
+}
+
+#wd-settings .im-admin-mini-label {
+    display: block;
+    margin-bottom: 2px;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .10em;
+    text-transform: uppercase;
+}
+
+#wd-settings .im-admin-mode-copy strong {
+    display: block;
+    color: #0f2740;
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: -.02em;
+}
+
+#wd-settings .im-admin-mode-copy p {
+    margin-top: 4px !important;
+    color: #64748b !important;
+}
+
+#wd-settings .im-admin-status-pill {
+    min-width: 64px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 950;
+    letter-spacing: .08em;
+    border: 1px solid transparent;
+}
+
+#wd-settings .im-admin-status-pill.is-off {
+    background: #ecfdf5;
+    color: #166534;
+    border-color: rgba(22, 163, 74, .18);
+}
+
+#wd-settings .im-admin-status-pill.is-on {
+    background: #fff7ed;
+    color: #c2410c;
+    border-color: rgba(249, 115, 22, .22);
+}
+
+#wd-settings .im-admin-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 16px;
+    border-radius: 18px;
+    background: #ffffff;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+#wd-settings .im-admin-toggle-copy {
+    min-width: 0;
+}
+
+#wd-settings .im-admin-toggle-copy strong {
+    display: block;
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 900;
+}
+
+#wd-settings .im-admin-toggle-copy span {
+    display: block;
+    margin-top: 4px;
+    color: #64748b;
+    font-size: 12.5px;
+    line-height: 1.45;
+}
+
+#wd-settings .im-admin-switch {
+    position: relative;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+#wd-settings .im-admin-switch input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    min-height: 1px;
+    margin: 0;
+    pointer-events: none;
+}
+
+#wd-settings .im-admin-switch-track {
+    width: 58px;
+    height: 32px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    padding: 4px;
+    background: #cbd5e1;
+    box-shadow: inset 0 1px 3px rgba(15, 23, 42, .18);
+    transition: background .2s ease, box-shadow .2s ease;
+}
+
+#wd-settings .im-admin-switch-knob {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 4px 10px rgba(15, 23, 42, .18);
+    transition: transform .2s ease;
+}
+
+#wd-settings .im-admin-switch input[type="checkbox"]:checked + .im-admin-switch-track {
+    background: linear-gradient(135deg, #c2410c, #f97316);
+    box-shadow: inset 0 1px 3px rgba(124, 45, 18, .28), 0 8px 18px rgba(249, 115, 22, .18);
+}
+
+#wd-settings .im-admin-switch input[type="checkbox"]:checked + .im-admin-switch-track .im-admin-switch-knob {
+    transform: translateX(26px);
+}
+
+#wd-settings .im-admin-switch input[type="checkbox"]:focus-visible + .im-admin-switch-track {
+    outline: 3px solid rgba(11, 95, 138, .22);
+    outline-offset: 3px;
+}
+
+#wd-settings .im-admin-control-rules {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+#wd-settings .im-admin-rule {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 13px 14px;
+    border-radius: 16px;
+    background: rgba(248, 250, 252, .86);
+    border: 1px solid rgba(148, 163, 184, .24);
+    color: #475569;
+    font-size: 12.5px;
+    line-height: 1.45;
+}
+
+#wd-settings .im-admin-rule i {
+    margin-top: 2px;
+    color: #0b5f8a;
+}
+
+#wd-settings .im-admin-rule strong {
+    color: #0f2740;
+}
+
+#wd-settings .settings-system-controls-card.is-vacation-mode .im-admin-mode-panel {
+    background: linear-gradient(135deg, #fff7ed, #fff1df);
+    border-color: rgba(249, 115, 22, .18);
+}
+
+#wd-settings .settings-system-controls-card.is-vacation-mode .im-admin-mode-icon {
+    color: #c2410c;
+    border-color: rgba(249, 115, 22, .18);
+}
+
+@media (max-width: 700px) {
+    #wd-settings .im-admin-mode-panel,
+    #wd-settings .im-admin-toggle-row,
+    #wd-settings .im-admin-control-rules {
+        grid-template-columns: 1fr;
+    }
+
+    #wd-settings .im-admin-mode-panel {
+        align-items: flex-start;
+    }
+
+    #wd-settings .im-admin-toggle-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    #wd-settings .im-admin-switch {
+        justify-content: flex-start;
+    }
+}
+
 @media (max-width: 900px) {
     #wd-settings .settings-hero {
         align-items: flex-start;

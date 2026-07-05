@@ -1,1 +1,4 @@
-Upload only index.html, app.js, js/app-active-tasks.js, js/app-workdesk-dashboard.js.
+Upload these files only:
+index.html
+js/app-navigation-settings.js
+js/app-invoice-entry-search.js

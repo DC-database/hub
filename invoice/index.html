@@ -44,6 +44,91 @@
         display: none !important;
         pointer-events: none !important;
       }
+
+
+      /* 10.4.1: Invoice Management professional grouped sidebar (scoped only). */
+      #invoice-management-view .im-nav-group { margin: 6px 0; }
+      #invoice-management-view .im-nav-group-toggle {
+        width: 100%;
+        border: 0;
+        background: rgba(255,255,255,0.08);
+        color: inherit;
+        border-radius: 14px;
+        padding: 11px 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 800;
+        letter-spacing: .01em;
+        transition: background .18s ease, transform .18s ease;
+      }
+      #invoice-management-view .im-nav-group-toggle:hover { background: rgba(255,255,255,0.14); transform: translateX(1px); }
+      #invoice-management-view .im-nav-group-title { display: inline-flex; align-items: center; gap: 10px; }
+      #invoice-management-view .im-nav-group-chevron { transition: transform .18s ease; opacity: .85; }
+      #invoice-management-view .im-nav-group.is-open .im-nav-group-chevron { transform: rotate(90deg); }
+      #invoice-management-view .im-nav-submenu {
+        list-style: none;
+        margin: 6px 0 8px 0;
+        padding: 0 0 0 12px;
+        border-left: 1px solid rgba(255,255,255,0.16);
+        display: none;
+      }
+      #invoice-management-view .im-nav-group.is-open > .im-nav-submenu { display: block; }
+      #invoice-management-view .im-nav-submenu li { margin: 4px 0; }
+      #invoice-management-view .im-nav-submenu a { font-size: .94rem; padding-left: 12px !important; }
+      #invoice-management-view .im-admin-controls,
+      #wd-settings .im-admin-controls {
+        margin: 10px 0 14px 0;
+        padding: 12px 14px;
+        border: 1px solid rgba(17,96,69,.18);
+        border-radius: 16px;
+        background: linear-gradient(135deg, rgba(240,253,244,.94), rgba(236,253,245,.78));
+        box-shadow: 0 8px 20px rgba(15, 23, 42, .06);
+      }
+      #invoice-management-view .im-admin-controls-title,
+      #wd-settings .im-admin-controls-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #0f5132;
+        font-weight: 900;
+        margin-bottom: 8px;
+      }
+      #invoice-management-view .im-admin-toggle-row,
+      #wd-settings .im-admin-toggle-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      #invoice-management-view .im-admin-toggle-copy strong,
+      #wd-settings .im-admin-toggle-copy strong { color: #073d2b; }
+      #invoice-management-view .im-admin-toggle-copy span,
+      #wd-settings .im-admin-toggle-copy span { display:block; color:#64748b; font-size:.82rem; margin-top:2px; }
+      #invoice-management-view .im-admin-switch,
+      #wd-settings .im-admin-switch { display:inline-flex; align-items:center; gap:8px; font-weight:900; color:#073d2b; }
+      #invoice-management-view .im-admin-switch input,
+      #wd-settings .im-admin-switch input { transform: scale(1.18); accent-color: #116045; }
+      #invoice-management-view .im-admin-status-pill,
+      #wd-settings .im-admin-status-pill {
+        display:inline-flex;
+        align-items:center;
+        border-radius:999px;
+        padding:5px 10px;
+        background:#e2e8f0;
+        color:#334155;
+        font-size:.78rem;
+        font-weight:900;
+        letter-spacing:.04em;
+      }
+      #invoice-management-view .im-admin-status-pill.is-on,
+      #wd-settings .im-admin-status-pill.is-on { background:#dcfce7; color:#166534; }
+      #invoice-management-view .im-admin-status-pill.is-off,
+      #wd-settings .im-admin-status-pill.is-off { background:#fee2e2; color:#991b1b; }
     </style>
 <script>
       (function () {
@@ -56,7 +141,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
 
-    <link rel="stylesheet" href="style.css?v=10.2.4">
+    <link rel="stylesheet" href="style.css?v=10.4.3">
     <link rel="stylesheet" href="css/transfer_stock.css?v=8.6.2">
     <link rel="stylesheet" href="css/mobile.css?v=9.2.7">
     <!-- 9.0.1 module split: page-specific desktop/mobile override layers -->
@@ -857,6 +942,53 @@
                             </button>
                         </div>
 
+
+                        <!-- Super Admin: Manual PO / Vacation Mode for Invoice Management -->
+                        <div id="im-admin-controls" class="settings-card settings-system-controls-card settings-po-fallback-card im-admin-controls hidden" aria-live="polite">
+                            <div class="settings-card-header">
+                                <div class="settings-card-icon"><i class="fa-solid fa-sliders"></i></div>
+                                <div>
+                                    <span class="settings-card-eyebrow">System Feature Controls</span>
+                                    <h2>Manual PO / Vacation Mode</h2>
+                                    <p>Control how Invoice Management handles a PO that is not yet available in POVALUE2.csv.</p>
+                                </div>
+                            </div>
+
+                            <div class="im-admin-control-surface">
+                                <div class="im-admin-mode-panel">
+                                    <div class="im-admin-mode-icon"><i class="fa-solid fa-file-csv"></i></div>
+                                    <div class="im-admin-mode-copy">
+                                        <span class="im-admin-mini-label">Current Mode</span>
+                                        <strong id="im-po-fallback-mode-title">Normal Mode</strong>
+                                        <p id="im-po-fallback-mode-desc">POVALUE2.csv only. Manual PO popup is disabled.</p>
+                                    </div>
+                                    <span id="im-po-fallback-status" class="im-admin-status-pill is-off">OFF</span>
+                                </div>
+
+                                <div class="im-admin-toggle-row">
+                                    <div class="im-admin-toggle-copy">
+                                        <strong>Firebase Manual PO Fallback</strong>
+                                        <span>Keep OFF while you are available. Turn ON only during vacation coverage so the replacement user can save missing POs without editing GitHub CSV.</span>
+                                    </div>
+                                    <label class="im-admin-switch" for="im-po-fallback-toggle" aria-label="Toggle Manual PO Vacation Mode">
+                                        <input type="checkbox" id="im-po-fallback-toggle">
+                                        <span class="im-admin-switch-track"><span class="im-admin-switch-knob"></span></span>
+                                    </label>
+                                </div>
+
+                                <div class="im-admin-control-rules">
+                                    <div class="im-admin-rule">
+                                        <i class="fa-solid fa-lock"></i>
+                                        <span><strong>OFF:</strong> use POVALUE2.csv only. If the PO is missing, show “Please update CSV.”</span>
+                                    </div>
+                                    <div class="im-admin-rule">
+                                        <i class="fa-solid fa-plane-departure"></i>
+                                        <span><strong>ON:</strong> use CSV first, then exact Firebase manual PO, then show the manual PO popup if still missing.</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Super Admin: Celebration Banner Settings -->
                         <div id="celebration-settings-container" class="celebration-settings settings-card settings-celebration-card hidden">
                             <div class="settings-card-header">
@@ -1017,20 +1149,36 @@
                             <i class="fa-solid fa-table-columns"></i> Dashboard
                         </a>
                     </li>
-                    <li class="im-nav-reporting"><a href="#" data-section="im-reporting"><i class="fa-solid fa-chart-line"></i> Invoice Records</a></li>
 
                     <li class="wd-nav-im-reporting-mobile"><a href="#" id="im-nav-reporting-link-mobile"><i class="fa-solid fa-chart-line"></i> Invoice Records</a></li>
 
-                    <li class="nav-section-divider im-nav-invoice-entry desktop-only-li" style="border-top: 1px solid transparent !important;"><a href="#" data-section="im-invoice-entry"><i class="fa-solid fa-file-pen"></i> Invoice Entry</a></li>
-                    <li class="im-nav-batch-entry desktop-only-li"><a href="#" id="batch-entry-nav-link" data-section="im-batch-entry"><i class="fa-solid fa-file-excel"></i> Batch Entry</a></li>
-                    <li class="im-nav-summary-note desktop-only-li"><a href="#" id="summary-note-nav-link" data-section="im-summary-note"><i class="fa-solid fa-receipt"></i> Summary Note</a></li>
+                    <li class="im-nav-group im-nav-group-invoice desktop-only-li is-open" data-im-nav-group="invoice">
+                        <button type="button" class="im-nav-group-toggle" data-im-nav-group-toggle="invoice" aria-expanded="true">
+                            <span class="im-nav-group-title"><i class="fa-solid fa-file-invoice"></i> Invoice Management</span>
+                            <i class="fa-solid fa-chevron-right im-nav-group-chevron"></i>
+                        </button>
+                        <ul class="im-nav-submenu">
+                            <li class="im-nav-invoice-entry desktop-only-li"><a href="#" data-section="im-invoice-entry"><i class="fa-solid fa-file-pen"></i> Invoice Entry</a></li>
+                            <li class="im-nav-batch-entry desktop-only-li"><a href="#" id="batch-entry-nav-link" data-section="im-batch-entry"><i class="fa-solid fa-file-excel"></i> Batch Entry</a></li>
+                            <li class="im-nav-summary-note desktop-only-li"><a href="#" id="summary-note-nav-link" data-section="im-summary-note"><i class="fa-solid fa-receipt"></i> Summary Note</a></li>
+                        </ul>
+                    </li>
 
-                    <li class="nav-section-divider im-nav-payments desktop-only-li" style="border-top: 1px solid transparent !important;"><a href="#" id="payments-nav-link" data-section="im-payments" class="hidden"><i class="fa-solid fa-money-check-dollar"></i> Payments</a></li>
-                    <li class="im-nav-finance-report desktop-only-li">
-    <a href="https://ibaport.site/Epicore/" id="im-finance-report-nav-link" class="external-link" target="_blank">
-        <i class="fa-solid fa-building-columns"></i> Financial Report
-    </a>
-</li>
+                    <li class="im-nav-group im-nav-group-reports desktop-only-li" data-im-nav-group="reports">
+                        <button type="button" class="im-nav-group-toggle" data-im-nav-group-toggle="reports" aria-expanded="false">
+                            <span class="im-nav-group-title"><i class="fa-solid fa-chart-pie"></i> Reports & Finance</span>
+                            <i class="fa-solid fa-chevron-right im-nav-group-chevron"></i>
+                        </button>
+                        <ul class="im-nav-submenu">
+                            <li class="im-nav-reporting"><a href="#" data-section="im-reporting"><i class="fa-solid fa-chart-line"></i> Invoice Records</a></li>
+                            <li class="im-nav-payments desktop-only-li"><a href="#" id="payments-nav-link" data-section="im-payments" class="hidden"><i class="fa-solid fa-money-check-dollar"></i> Payments</a></li>
+                            <li class="im-nav-finance-report desktop-only-li">
+                                <a href="https://ibaport.site/Epicore/" id="im-finance-report-nav-link" class="external-link" target="_blank" rel="noopener">
+                                    <i class="fa-solid fa-building-columns"></i> Financial Report
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
 
                     <!-- Help Center (Vacation Replacement Guide) -->
                     <li class="im-nav-help"><a href="#" data-section="im-help"><i class="fa-solid fa-circle-question"></i> Help</a></li>
@@ -1097,6 +1245,8 @@
                             </button>
                         </div>
                     </div>
+
+
                    <div id="im-po-search-container">
     <div class="search-bar-local">
         <i class="fa-solid fa-magnifying-glass"></i>
@@ -3032,15 +3182,15 @@
     <script src="js/app-utils.js?v=8.2.3"></script>
     <script src="js/app-vacation.js?v=8.2.3"></script>
     <script src="js/app-dom-refs.js?v=10.1.5"></script>
-    <script src="app.js?v=10.4.0"></script>
-    <script src="js/app-navigation-settings.js?v=10.3.5"></script>
-    <script src="js/app-data-cache.js?v=10.3.0"></script>
+    <script src="app.js?v=10.4.2"></script>
+    <script src="js/app-navigation-settings.js?v=10.4.2"></script>
+    <script src="js/app-data-cache.js?v=10.4.3"></script>
     <script src="js/app-job-vendor.js?v=8.2.3"></script>
     <script src="js/app-workdesk-job-entry.js?v=10.1.6"></script>
     <script src="js/app-standard-job.js?v=10.1.6"></script>
     <script src="js/app-invoice-dashboard.js?v=8.6.5"></script>
     <script src="js/app-payments.js?v=8.3.0"></script>
-    <script src="js/app-invoice-records.js?v=9.7.7"></script>
+    <script src="js/app-invoice-records.js?v=10.4.1"></script>
     <script src="js/app-active-tasks.js?v=10.4.0"></script>
     <script src="js/app-workdesk-dashboard.js?v=10.4.0"></script>
     <script src="js/app-workdesk-reporting.js?v=10.3.3"></script>
@@ -3048,11 +3198,11 @@
     <script src="js/app-report-workflow.js?v=8.2.3"></script>
     <script src="js/app-ui-shortcuts.js?v=8.2.3"></script>
     <script src="js/app-modal-navigation-clear.js?v=8.2.3"></script>
-    <script src="js/app-invoice-entry-search.js?v=10.3.9"></script>
+    <script src="js/app-invoice-entry-search.js?v=10.4.5"></script>
     <script src="js/app-attention-validation.js?v=10.2.3"></script>
-    <script src="js/app-batch-entry-ui.js?v=9.4.2"></script>
-    <script src="js/app-im-event-wiring.js?v=10.3.5"></script>
-    <script src="js/app-history-transfer.js?v=8.6.5"></script>
+    <script src="js/app-batch-entry-ui.js?v=10.4.2"></script>
+    <script src="js/app-im-event-wiring.js?v=10.4.4"></script>
+    <script src="js/app-history-transfer.js?v=10.4.2"></script>
     <script src="js/app-help.js?v=8.2.3"></script>
 
     </body>

@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '10.4.0';
+const APP_VERSION = '10.4.5';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -4312,8 +4312,11 @@ async function handleDeleteInvoice(key) {
 // --- GUARANTEED SITE FILTER POPULATOR ---
 async function populateSiteFilterDropdown() {
     try {
-        // 1. Ensure databases are loaded first
-        if (typeof ensureInvoiceDataFetched === 'function') {
+        // 10.4.1: Site filter only needs POVALUE2.csv site/project data.
+        // Do not download full invoice_entries just to build the site dropdown.
+        if (typeof ensureInvoicePOBaseDataFetched === 'function') {
+            await ensureInvoicePOBaseDataFetched(false);
+        } else if (typeof ensureInvoiceDataFetched === 'function') {
             await ensureInvoiceDataFetched();
         }
         
@@ -6789,27 +6792,26 @@ try {
         await populateAttentionDropdown(imAttentionSelectChoices);
         imAttentionSelect.addEventListener('choice', handleIMAttentionChoice);
 
-        // 1. Define Roles strictly
+        // 1. Define Roles strictly (10.4.1 Invoice Management access cleanup)
         const userPos = (currentApprover?.Position || '').trim();
         const userRole = (currentApprover?.Role || '').toLowerCase();
+        const userName = (currentApprover?.Name || '').trim().toLowerCase();
         const isAdmin = userRole === 'admin';
-        const isSuperAdmin = ((currentApprover?.Name || '').trim().toLowerCase() === SUPER_ADMIN_NAME.toLowerCase());
-        const isAccountingPos = userPos === 'Accounting';
-        const isAccountsPos = userPos === 'Accounts';
+        const isSuperAdmin = userName === String(SUPER_ADMIN_NAME || '').trim().toLowerCase();
+        const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
 
-        // 2. Define Access Groups
-        const isAccountingAdmin = isAdmin && isAccountingPos; // Strictly Admin + Accounting
-        const isAccountsAdmin = (isAdmin && isAccountsPos) || isAccountingAdmin; // Admin + Accounts (or Accounting)
-        const isVacationDelegate = isVacationDelegateUser();
+        const canAccessInvoiceWrite = isSuperAdmin;
+        const canAccessSummaryNote = isSuperAdmin;
+        const canAccessInvoiceRecords = isAdmin || isSuperAdmin || isVacationDelegate;
+        const canAccessPayments = false; // Payments is disabled/dead for now.
+        const financeTokens = String(userPos || '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+        const hasFinancePosition = financeTokens.some(t => ['finance', 'accounts', 'accounting', 'ceo', 'coo'].includes(t));
+        const canAccessEpicoreFinance = isSuperAdmin || isVacationDelegate || (isAdmin && hasFinancePosition);
 
-        const imNavLinks = imNav.querySelectorAll('li');
+        const imNavItems = imNav.querySelectorAll('li');
 
-        imNavLinks.forEach(li => {
-            const link = li.querySelector('a');
-            if (!link) return;
-            const section = link.dataset.section;
-
-            li.style.display = ''; // Reset
+        imNavItems.forEach(li => {
+            li.style.display = '';
 
             // Mobile link hiding on Desktop
             if (li.classList.contains('wd-nav-activetask-mobile')) {
@@ -6819,24 +6821,41 @@ try {
                 }
             }
 
-            // --- STRICT MENU HIDING RULES ---
+            // Only apply rules to the direct anchor of this <li>; grouped parent <li> contains child anchors.
+            const link = li.querySelector(':scope > a');
+            if (!link) return;
+            const section = link.dataset.section;
 
-            // 1. Entry Group: Strictly Admin + Accounting
-            if ((section === 'im-invoice-entry' || section === 'im-batch-entry' || section === 'im-summary-note') && !(isAccountingAdmin || isVacationDelegate)) {
+            if ((section === 'im-invoice-entry' || section === 'im-batch-entry') && !canAccessInvoiceWrite) {
                 li.style.display = 'none';
             }
 
-            // 2. Payments: Admin + Accounts (or Accounting)
+            if (section === 'im-summary-note' && !canAccessSummaryNote) {
+                li.style.display = 'none';
+            }
+
+            if (section === 'im-reporting' && !canAccessInvoiceRecords) {
+                li.style.display = 'none';
+            }
+
             if (section === 'im-payments') {
-                // Vacation delegate does NOT get Payments access
-                if (!isAccountsAdmin) li.style.display = 'none';
-                else link.classList.remove('hidden');
+                li.style.display = 'none';
+                link.classList.add('hidden');
             }
 
-
-            if (section === 'im-dashboard' && !(isAdmin || isVacationDelegate)) {
+            if (section === 'im-dashboard' && !(isAdmin || isVacationDelegate || isSuperAdmin)) {
                 li.style.display = 'none';
             }
+
+            if (link.id === 'im-finance-report-nav-link' && !canAccessEpicoreFinance) {
+                li.style.display = 'none';
+            }
+        });
+
+        // Hide a grouped sidebar header when all of its child links are hidden.
+        imNav.querySelectorAll('.im-nav-group').forEach(group => {
+            const visibleChildren = Array.from(group.querySelectorAll('.im-nav-submenu > li')).filter(item => item.style.display !== 'none');
+            group.style.display = visibleChildren.length ? '' : 'none';
         });
 
         document.getElementById('im-nav-workdesk').classList.remove('hidden');
