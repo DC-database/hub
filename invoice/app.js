@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '10.5.7';
+const APP_VERSION = '10.6.3';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -3573,6 +3573,29 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
         });
         if (removals.length) await Promise.allSettled(removals);
     };
+    const markWorkdeskDashboardRecent = async (activeFlag, extra = {}) => {
+        try {
+            if (!invoiceKey || typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) return;
+            const poKey = String(poNumber || invoiceData?.po_number || invoiceData?.po || '').trim().toUpperCase();
+            await invoiceDb.ref(`workdesk_dashboard_recent/${invoiceKey}`).set({
+                po: poKey,
+                originalPO: poKey,
+                invoiceKey,
+                originalKey: invoiceKey,
+                active: !!activeFlag,
+                status: invoiceData?.status || invoiceData?.remarks || '',
+                attention: invoiceData?.attention || invoiceData?.assignedTo || '',
+                ref: invoiceData?.invNumber || invoiceData?.invoiceNo || invoiceData?.ref || '',
+                site: invoiceData?.site || invoiceData?.site_name || invoiceData?.siteName || '',
+                vendorName: invoiceData?.vendorName || invoiceData?.vendor_name || invoiceData?.vendor || '',
+                invoiceLastUpdated: invoiceData?.lastUpdated || invoiceData?.updatedAt || invoiceData?.statusChangedAt || invoiceData?.enteredAt || firebase.database.ServerValue.TIMESTAMP,
+                updatedAt: firebase.database.ServerValue.TIMESTAMP,
+                ...extra
+            });
+        } catch (e) {
+            console.warn('WorkDesk Dashboard recent index update failed:', e);
+        }
+    };
     const decodeFirebasePushTimestamp = (key) => {
         const PUSH_CHARS = '-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz';
         const raw = String(key || '').trim();
@@ -3620,6 +3643,7 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
     // recreate cards in WorkDesk Dashboard/Active Task.
     if (!isTaskNowActive) {
         await removeInvoiceTaskLookupEverywhere();
+        await markWorkdeskDashboardRecent(false);
         return;
     }
 
@@ -3759,7 +3783,14 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
             vendorName: vendorName,
             site: site,
             invName: invoiceData.invName || '',
-            note: invoiceData.note || ''
+            note: invoiceData.note || '',
+
+            // 10.5.8: lightweight WorkDesk Dashboard sync fields. These let the
+            // dashboard ask Firebase for only recently changed invoice tasks and
+            // merge/overwrite the browser cache by PO + invoice key.
+            invoiceLastUpdated: invoiceData.lastUpdated || invoiceData.updatedAt || invoiceData.statusChangedAt || invoiceData.enteredAt || firebase.database.ServerValue.TIMESTAMP,
+            dashboardUpdatedAt: firebase.database.ServerValue.TIMESTAMP,
+            updatedAt: invoiceData.updatedAt || invoiceData.lastUpdated || firebase.database.ServerValue.TIMESTAMP
         };
 
         const safeNewAttentionKey = sanitizeFirebaseKey(newAttention);
@@ -3769,6 +3800,7 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
         // lose the card even though the invoice is active.
         await invoiceDb.ref(`invoice_tasks_by_user/${safeNewAttentionKey}/${invoiceKey}`).set(taskData);
         await invoiceDb.ref(`invoice_tasks_by_user/All/${invoiceKey}`).set(taskData);
+        await markWorkdeskDashboardRecent(true, taskData);
     }
 
     // 2. Remove from old user's inbox
