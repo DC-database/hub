@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-workdesk-dashboard.js
    IBA WorkDesk Dashboard Active Task Control Center
-   Version: 10.3.3
+   Version: 10.6.0
 
    8.3.6:
    - Replaced the old WorkDesk calendar/date dashboard with a clean view-only
@@ -123,6 +123,21 @@
    - The dashboard root listener for invoice_tasks_by_user is disabled by default to avoid
      background global downloads. Manual/card refresh keeps accuracy on demand.
    - Download optimization only; no workflow, Firebase path, or invoice save logic changed.
+
+
+   10.5.8:
+   - WorkDesk Dashboard now keeps a day/session browser snapshot, shows cached counts as
+     cached/updating instead of fake zeroes, and starts a lightweight recent-change sync
+     on every Dashboard open plus every 30 seconds while visible.
+   - Recent sync reads the small workdesk_dashboard_recent index written by invoice updates
+     and merges/removes changed invoice tasks by PO + invoice key instead of redownloading
+     the whole invoice_entries tree.
+
+   10.6.0:
+   - Dashboard now writes a verified All Active browser cache as soon as the exact
+     All Active dataset finishes loading in the background. First-open cards and
+     clicked-card details use the same verified source instead of different preview
+     counts, preventing count changes only after an Admin clicks a card.
    ========================================================================== */
 
 // =================================================================================================
@@ -149,13 +164,21 @@ let wdAllActiveDashboardCountsLoaded = false;
 let wdAllActiveDashboardCountsLoading = false;
 let wdAllActiveDashboardCountMap = new Map();
 let wdAllActiveDashboardCountSavedAt = 0;
+let wdAllActiveDashboardCountItemsMap = new Map();
+let wdDashboardRecentSyncTimer = null;
+let wdDashboardRecentSyncRunning = false;
+let wdDashboardVerifiedRefreshRunning = false;
+let wdDashboardLastRecentSyncAt = 0;
 
 // 8.5.1: Keep the WorkDesk Dashboard self-sufficient for short periods.
 // It prevents repeated Firebase downloads when users switch pages or reopen the dashboard.
 // Manual Refresh still bypasses this cache and gets fresh live data.
 const WD_DASHBOARD_CACHE_KEY = 'IBA_WD_ACTIVE_DASHBOARD_CACHE_V17';
 const WD_ACTIVE_TASK_SOURCE_CACHE_KEY = 'IBA_ACTIVE_TASK_WORKDESK_SNAPSHOT_V3';
-const WD_DASHBOARD_CACHE_TTL = 5 * 60 * 1000; // 10.2.6: shorter cache so completed invoice tasks disappear quickly.
+const WD_DASHBOARD_CACHE_TTL = 24 * 60 * 60 * 1000; // 10.5.8: day/session cache; recent sync repairs changes on open/interval.
+const WD_DASHBOARD_COUNT_CACHE_TTL = 24 * 60 * 60 * 1000;
+const WD_DASHBOARD_RECENT_SYNC_INTERVAL = 30 * 1000;
+const WD_DASHBOARD_RECENT_SYNC_OVERLAP = 2 * 60 * 1000;
 
 const WD_DASHBOARD_NONE = '__NONE__';
 const WD_DASHBOARD_ALL = '__ALL__';
@@ -302,14 +325,28 @@ function wdLoadDashboardCache() {
     return cached;
 }
 
-function wdSaveDashboardCache(tasks, personalTasks) {
+function wdSaveDashboardCache(tasks, personalTasks, meta = {}) {
     if (!Array.isArray(tasks)) return;
+    const now = Date.now();
     wdWriteJSONStorage(window.localStorage, WD_DASHBOARD_CACHE_KEY, {
         userKey: wdDashboardUserCacheKey(),
-        savedAt: Date.now(),
+        savedAt: now,
         tasks,
-        personalTasks: Array.isArray(personalTasks) ? personalTasks : []
+        personalTasks: Array.isArray(personalTasks) ? personalTasks : [],
+        allActiveVerified: meta.allActiveVerified === true,
+        verifiedAt: meta.allActiveVerified === true ? (meta.verifiedAt || now) : 0,
+        reason: meta.reason || ''
     });
+}
+
+function wdDashboardCacheHasVerifiedAllActive(cached) {
+    return !!(
+        wdCanSeeAllActiveDashboard() &&
+        cached &&
+        cached.allActiveVerified === true &&
+        Array.isArray(cached.tasks) &&
+        (Date.now() - Number(cached.savedAt || 0)) <= WD_DASHBOARD_CACHE_TTL
+    );
 }
 
 function wdClearDashboardCache() {
@@ -2233,6 +2270,99 @@ async function wdBuildDashboardTasks(options = {}) {
 
     return unique.sort(wdCompareDashboardPriority);
 }
+
+function wdBuildAllActiveCountItemsFromTasks(tasks = [], savedAt = Date.now()) {
+    const counts = {};
+    const items = [];
+    (Array.isArray(tasks) ? tasks : []).forEach(task => {
+        if (!task || typeof task !== 'object') return;
+        const bucket = task.bucket || wdDashboardBucket(task.status, task.type);
+        if (!bucket) return;
+        wdIncrementAllActiveCount(counts, bucket);
+        const source = wdNormalize(task.source || task.type || '');
+        const kind = source.includes('job') ? 'job' : 'invoice';
+        const identityKey = wdDashboardTaskIdentityKey(task);
+        items.push({
+            kind,
+            itemKey: kind === 'job' ? `job|${wdNormalize(task.key || task.id || identityKey)}` : identityKey,
+            po: task.po || task.originalPO || '',
+            invoiceKey: task.originalKey || task.invoiceKey || task.key || '',
+            key: task.key || task.id || '',
+            bucket,
+            active: true,
+            updatedAt: Number(task.timestamp || task.queueTimestamp || task.updatedAt || savedAt || Date.now()) || Date.now(),
+            task
+        });
+    });
+    return { counts, items };
+}
+
+function wdApplyVerifiedAllActiveDashboardCache(tasks = [], reason = 'verified-all-active') {
+    const verifiedTasks = (Array.isArray(tasks) ? tasks.slice() : []).sort(wdCompareDashboardPriority);
+    const savedAt = Date.now();
+    wdActiveDashboardTasks = verifiedTasks;
+    wdAllActiveDashboardLoaded = true;
+
+    const exact = wdBuildAllActiveCountItemsFromTasks(verifiedTasks, savedAt);
+    wdSetAllActiveDashboardCountMap(exact.counts, savedAt, exact.items);
+    wdSaveAllActiveDashboardCountsCache(exact.counts, exact.items);
+
+    wdActiveDashboardCacheMeta = { fromCache: false, savedAt, reason, verified: true };
+    wdSaveDashboardCache(verifiedTasks, wdPersonalDashboardTasks, {
+        allActiveVerified: true,
+        verifiedAt: savedAt,
+        reason
+    });
+}
+
+function wdRestoreVerifiedAllActiveDashboardCache(cached) {
+    if (!wdDashboardCacheHasVerifiedAllActive(cached)) return false;
+    wdActiveDashboardTasks = (Array.isArray(cached.tasks) ? cached.tasks.slice() : []).sort(wdCompareDashboardPriority);
+    wdAllActiveDashboardLoaded = true;
+    const savedAt = Number(cached.verifiedAt || cached.savedAt || Date.now()) || Date.now();
+    const exact = wdBuildAllActiveCountItemsFromTasks(wdActiveDashboardTasks, savedAt);
+    wdSetAllActiveDashboardCountMap(exact.counts, savedAt, exact.items);
+    wdActiveDashboardCacheMeta = { fromCache: true, savedAt, reason: 'verified-cache', verified: true };
+    return true;
+}
+
+async function wdRefreshVerifiedAllActiveDashboardCache(options = {}) {
+    if (!wdCanSeeAllActiveDashboard() || !wdIsDashboardVisible()) return false;
+    if (wdDashboardVerifiedRefreshRunning || wdAllActiveDashboardLoading) return false;
+
+    const forceRefresh = !!options.forceRefresh;
+    const reason = options.reason || 'verified-dashboard-refresh';
+    const skipVerifiedCacheCheck = options.skipVerifiedCacheCheck === true;
+
+    if (!forceRefresh && !skipVerifiedCacheCheck) {
+        const cached = wdLoadDashboardCache();
+        if (wdRestoreVerifiedAllActiveDashboardCache(cached)) {
+            wdRenderDashboardCards();
+            return true;
+        }
+    }
+
+    wdDashboardVerifiedRefreshRunning = true;
+    wdAllActiveDashboardLoading = true;
+    wdRenderDashboardCards();
+
+    try {
+        const verifiedTasks = await wdBuildDashboardTasks({ forceRefresh, includeAllActive: true });
+        wdApplyVerifiedAllActiveDashboardCache(verifiedTasks, reason);
+        return true;
+    } catch (e) {
+        console.warn('WorkDesk dashboard verified All Active refresh failed:', e);
+        return false;
+    } finally {
+        wdDashboardVerifiedRefreshRunning = false;
+        wdAllActiveDashboardLoading = false;
+        wdRenderDashboardCards();
+        if ((wdActiveDashboardSelectedStatus || WD_DASHBOARD_NONE) !== WD_DASHBOARD_NONE) {
+            wdRenderDashboardList();
+        }
+    }
+}
+
 async function wdSoftRebuildDashboardFromLiveSource(reason = '') {
     if (!wdIsDashboardVisible()) return;
 
@@ -2241,8 +2371,12 @@ async function wdSoftRebuildDashboardFromLiveSource(reason = '') {
 
     try {
         wdActiveDashboardTasks = await wdBuildDashboardTasks({ forceRefresh: false, includeAllActive: wdAllActiveDashboardLoaded });
-        wdActiveDashboardCacheMeta = { fromCache: false, savedAt: Date.now(), reason: reason || 'live-sync' };
-        wdSaveDashboardCache(wdAllActiveDashboardLoaded ? wdActiveDashboardTasks : [], wdPersonalDashboardTasks);
+        wdActiveDashboardCacheMeta = { fromCache: false, savedAt: Date.now(), reason: reason || 'live-sync', verified: wdAllActiveDashboardLoaded };
+        if (wdAllActiveDashboardLoaded) {
+            wdApplyVerifiedAllActiveDashboardCache(wdActiveDashboardTasks, reason || 'live-sync');
+        } else {
+            wdSaveDashboardCache([], wdPersonalDashboardTasks, { allActiveVerified: false, reason: reason || 'live-sync' });
+        }
 
         wdActiveDashboardSelectedStatus = wdDashboardFilterExists(previousStatus) ? previousStatus : WD_DASHBOARD_NONE;
         wdActiveDashboardSelectedQueueDate = previousDate;
@@ -2365,13 +2499,24 @@ async function populateWorkdeskDashboard(forceRefresh = false) {
         if (!forceRefresh) {
             const cached = wdLoadDashboardCache();
             if (cached) {
-                // 10.3.3: Do not restore cached global All Active data on first open.
-                // Cache is browser-local, but keeping the default state light prevents
-                // Admins from thinking the global board was refreshed/loaded.
-                wdActiveDashboardTasks = wdCanSeeAllActiveDashboard() ? [] : cached.tasks;
-                wdAllActiveDashboardLoaded = false;
                 wdPersonalDashboardTasks = Array.isArray(cached.personalTasks) ? cached.personalTasks : [];
-                wdActiveDashboardCacheMeta = { fromCache: true, savedAt: cached.savedAt || Date.now() };
+
+                // 10.6.0: Restore the verified All Active dataset when it exists.
+                // If the cache is only a preview/old cache, do not trust its counts;
+                // trigger the verified builder below so the cards and clicked details
+                // are corrected automatically without requiring the Admin to click first.
+                const restoredVerifiedAllActive = wdRestoreVerifiedAllActiveDashboardCache(cached);
+                if (!restoredVerifiedAllActive) {
+                    wdActiveDashboardTasks = wdCanSeeAllActiveDashboard() ? [] : cached.tasks;
+                    wdAllActiveDashboardLoaded = false;
+                    if (wdCanSeeAllActiveDashboard()) {
+                        wdAllActiveDashboardCountsLoaded = false;
+                        wdAllActiveDashboardCountMap = new Map();
+                        wdAllActiveDashboardCountItemsMap = new Map();
+                        wdAllActiveDashboardCountSavedAt = 0;
+                    }
+                    wdActiveDashboardCacheMeta = { fromCache: true, savedAt: cached.savedAt || Date.now(), verified: false };
+                }
 
                 // 9.4.8: Never auto-open the table after loading cache.
                 wdActiveDashboardSelectedStatus = WD_DASHBOARD_NONE;
@@ -2380,15 +2525,20 @@ async function populateWorkdeskDashboard(forceRefresh = false) {
                 wdRenderDashboardList();
                 wdBindDashboardControls();
                 wdStartDashboardActiveTaskLiveSync();
-                wdPrimeAllActiveDashboardCounts(false);
+                wdStartDashboardRecentUpdateSync();
+                wdPrimeAllActiveDashboardCounts(!restoredVerifiedAllActive);
                 return;
             }
         }
 
         wdAllActiveDashboardLoaded = false;
+        wdAllActiveDashboardCountsLoaded = false;
+        wdAllActiveDashboardCountMap = new Map();
+        wdAllActiveDashboardCountItemsMap = new Map();
+        wdAllActiveDashboardCountSavedAt = 0;
         wdActiveDashboardTasks = await wdBuildDashboardTasks({ forceRefresh, includeAllActive: false });
-        wdActiveDashboardCacheMeta = { fromCache: false, savedAt: Date.now() };
-        wdSaveDashboardCache(wdAllActiveDashboardLoaded ? wdActiveDashboardTasks : [], wdPersonalDashboardTasks);
+        wdActiveDashboardCacheMeta = { fromCache: false, savedAt: Date.now(), verified: false };
+        wdSaveDashboardCache([], wdPersonalDashboardTasks, { allActiveVerified: false, reason: 'personal-cache' });
 
         // 9.4.8: Do not auto-open any list after loading. User clicks a card first.
         wdActiveDashboardSelectedStatus = WD_DASHBOARD_NONE;
@@ -2397,7 +2547,8 @@ async function populateWorkdeskDashboard(forceRefresh = false) {
         wdRenderDashboardList();
         wdBindDashboardControls();
         wdStartDashboardActiveTaskLiveSync();
-        wdPrimeAllActiveDashboardCounts(false);
+        wdStartDashboardRecentUpdateSync();
+        wdPrimeAllActiveDashboardCounts(true);
     } catch (error) {
         console.error('Error loading WorkDesk dashboard control center:', error);
         cardsEl.innerHTML = '<div class="wd-dashboard-error-card"><i class="fa-solid fa-triangle-exclamation"></i> Unable to load dashboard tasks.</div>';
@@ -2408,31 +2559,20 @@ async function populateWorkdeskDashboard(forceRefresh = false) {
 async function wdEnsureAdminAllActiveDashboardLoaded(forceRefresh = false) {
     if (!wdCanSeeAllActiveDashboard()) return;
     if (wdAllActiveDashboardLoaded && !forceRefresh) return;
-    if (wdAllActiveDashboardLoading) return;
+    if (wdAllActiveDashboardLoading || wdDashboardVerifiedRefreshRunning) return;
 
     const listEl = document.getElementById('wd-active-dashboard-list');
     const summaryEl = document.getElementById('wd-active-dashboard-summary');
-    wdAllActiveDashboardLoading = true;
     if (summaryEl) summaryEl.textContent = 'Loading selected Admin overview from Firebase...';
     if (listEl) {
-        listEl.innerHTML = '<div class="wd-dashboard-empty-state"><span class="wd-empty-icon"><i class="fa-solid fa-spinner fa-spin"></i></span><div><strong>Loading Admin overview...</strong><p>Only now the global Dashboard records are being downloaded.</p></div></div>';
+        listEl.innerHTML = '<div class="wd-dashboard-empty-state"><span class="wd-empty-icon"><i class="fa-solid fa-spinner fa-spin"></i></span><div><strong>Loading Admin overview...</strong><p>The verified dashboard cache is being prepared now.</p></div></div>';
     }
 
-    try {
-        wdActiveDashboardTasks = await wdBuildDashboardTasks({ forceRefresh, includeAllActive: true });
-        wdAllActiveDashboardLoaded = true;
-        const exactCounts = {};
-        wdActiveDashboardTasks.forEach(task => {
-            const bucket = task.bucket || wdDashboardBucket(task.status, task.type);
-            if (bucket) wdIncrementAllActiveCount(exactCounts, bucket);
-        });
-        wdSetAllActiveDashboardCountMap(exactCounts, Date.now());
-        wdSaveAllActiveDashboardCountsCache(exactCounts);
-        wdActiveDashboardCacheMeta = { fromCache: false, savedAt: Date.now(), reason: 'admin-card-click' };
-        wdSaveDashboardCache(wdActiveDashboardTasks, wdPersonalDashboardTasks);
-    } finally {
-        wdAllActiveDashboardLoading = false;
-    }
+    await wdRefreshVerifiedAllActiveDashboardCache({
+        forceRefresh,
+        reason: 'admin-card-click',
+        skipVerifiedCacheCheck: true
+    });
 }
 
 function wdBindDashboardControls() {
@@ -2469,6 +2609,8 @@ function wdBindDashboardControls() {
                 wdAllActiveDashboardLoaded = false;
                 wdAllActiveDashboardCountsLoaded = false;
                 wdAllActiveDashboardCountMap = new Map();
+                wdAllActiveDashboardCountItemsMap = new Map();
+                wdDashboardLastRecentSyncAt = 0;
                 wdActiveDashboardTasks = [];
                 try { window.sessionStorage.removeItem(WD_ACTIVE_TASK_SOURCE_CACHE_KEY); } catch (e) { /* ignore */ }
                 if (typeof cacheTimestamps !== 'undefined') {
@@ -2516,34 +2658,271 @@ function wdBindDashboardControls() {
 }
 
 
+function wdDashboardTaskIdentityKey(task = {}) {
+    const po = wdText(task.originalPO || task.po || '');
+    const direct = wdText(task.originalKey || task.invoiceKey || task.key || task.id || '');
+    const ref = wdText(task.invEntryID || task.ref || task.invNumber || task.invoiceNo || '');
+    if (po && direct) return `invoice|${wdNormalize(po)}|${wdNormalize(direct)}`;
+    if (po && ref) return `invoice-ref|${wdNormalize(po)}|${wdNormalize(ref)}`;
+    const source = wdNormalize(task.source || task.type || 'task');
+    return `${source}|${wdNormalize(direct || ref || Math.random())}`;
+}
+
+function wdDashboardCountItemKey(item = {}) {
+    if (item.itemKey) return item.itemKey;
+    if (item.kind === 'job') return `job|${wdNormalize(item.key || item.jobKey || '')}`;
+    return wdDashboardTaskIdentityKey(item);
+}
+
+function wdDashboardUpdatedMillis(...values) {
+    let best = 0;
+    values.forEach(value => {
+        const ts = wdParseQueueTimestamp(value);
+        if (ts && ts > best) best = ts;
+    });
+    return best;
+}
+
+function wdSetAllActiveDashboardCountItems(items = []) {
+    wdAllActiveDashboardCountItemsMap = new Map();
+    (Array.isArray(items) ? items : []).forEach(item => {
+        if (!item || !item.bucket) return;
+        const key = wdDashboardCountItemKey(item);
+        if (!key) return;
+        wdAllActiveDashboardCountItemsMap.set(key, { ...item, itemKey: key });
+    });
+}
+
+function wdRecalculateAllActiveCountMapFromItems(save = true) {
+    const counts = {};
+    wdAllActiveDashboardCountItemsMap.forEach(item => {
+        if (!item || item.active === false) return;
+        const bucket = item.bucket || item.status;
+        if (bucket) wdIncrementAllActiveCount(counts, bucket);
+    });
+    wdSetAllActiveDashboardCountMap(counts, Date.now(), Array.from(wdAllActiveDashboardCountItemsMap.values()));
+    if (save) wdSaveAllActiveDashboardCountsCache(counts, Array.from(wdAllActiveDashboardCountItemsMap.values()));
+}
+
+function wdRemoveCachedDashboardTaskByRecentKey(po, invoiceKey) {
+    const wanted = wdNormalize(`invoice|${wdNormalize(po)}|${wdNormalize(invoiceKey)}`);
+    const same = (task) => wdNormalize(wdDashboardTaskIdentityKey(task)) === wanted;
+    wdActiveDashboardTasks = (Array.isArray(wdActiveDashboardTasks) ? wdActiveDashboardTasks : []).filter(task => !same(task));
+    wdPersonalDashboardTasks = (Array.isArray(wdPersonalDashboardTasks) ? wdPersonalDashboardTasks : []).filter(task => !same(task));
+}
+
+function wdUpsertCachedDashboardTask(task) {
+    if (!task || !task.bucket) return;
+    const key = wdDashboardTaskIdentityKey(task);
+    const upsert = (arr) => {
+        const list = Array.isArray(arr) ? arr.slice() : [];
+        const idx = list.findIndex(existing => wdDashboardTaskIdentityKey(existing) === key);
+        if (idx >= 0) list[idx] = { ...list[idx], ...task };
+        else list.push(task);
+        return list.sort(wdCompareDashboardPriority);
+    };
+    if (wdAllActiveDashboardLoaded) wdActiveDashboardTasks = upsert(wdActiveDashboardTasks);
+}
+
+async function wdNormalizeRecentInvoiceRowForDashboard(recent = {}, invoiceKey = '') {
+    const po = wdText(recent.po || recent.originalPO || '');
+    const key = wdText(invoiceKey || recent.invoiceKey || recent.originalKey || '');
+    if (!po || !key) return null;
+    const active = recent.active !== false && !wdIsInvoiceLookupComplete(recent.status || '');
+    if (!active) return { active: false, po, invoiceKey: key, itemKey: `invoice|${wdNormalize(po)}|${wdNormalize(key)}` };
+
+    const latestInv = await wdGetInvoiceSourceTruth(po, key, true, recent);
+    if (!latestInv || typeof latestInv !== 'object') {
+        return { active: false, po, invoiceKey: key, itemKey: `invoice|${wdNormalize(po)}|${wdNormalize(key)}` };
+    }
+
+    const status = wdCurrentInvoiceTaskStatus(recent, latestInv || {});
+    const stillActive = (typeof isInvoiceTaskActive === 'function')
+        ? isInvoiceTaskActive(latestInv)
+        : !wdIsInvoiceLookupComplete(status);
+    if (!stillActive || wdIsInvoiceLookupComplete(status)) {
+        return { active: false, po, invoiceKey: key, itemKey: `invoice|${wdNormalize(po)}|${wdNormalize(key)}` };
+    }
+
+    const bucket = wdDashboardAllowedBucket(status, 'invoice_task_lookup');
+    if (!bucket) return null;
+
+    const latestAttention = wdText(latestInv.attention || latestInv.Attention || latestInv.assignedTo || recent.attention || '');
+    if (wdTaskHasAttentionName({ attention: latestAttention }, wdCurrentUserNameNorm())) {
+        return { active: false, po, invoiceKey: key, itemKey: `invoice|${wdNormalize(po)}|${wdNormalize(key)}` };
+    }
+
+    const poDetails = await wdGetPODetails(po);
+    const site = wdText(
+        latestInv.site || latestInv.site_name || latestInv.siteName || recent.site || recent.Site || wdGetPOValue(poDetails, ['Project ID', 'Project ID:', 'Site'], ''),
+        'N/A'
+    );
+    if (!wdSiteMatchesCurrentUser(site)) return null;
+
+    const vendorName = wdText(
+        latestInv.vendorName || latestInv.vendor_name || recent.vendorName || recent.vendor || wdGetPOValue(poDetails, ['Supplier Name', 'Supplier Name:', 'Supplier', 'Supplier:', 'Vendor Name'], ''),
+        'N/A'
+    );
+    const queueTimestamp = wdQueueTimestampForTask(recent, latestInv, bucket || status, 'Invoice');
+    const updatedAt = wdDashboardUpdatedMillis(
+        recent.dashboardUpdatedAt,
+        recent.invoiceLastUpdated,
+        recent.updatedAt,
+        latestInv.lastUpdated,
+        latestInv.updatedAt,
+        latestInv.statusChangedAt,
+        latestInv.enteredAt,
+        queueTimestamp
+    );
+    const task = {
+        key: `${po}_${key}`,
+        originalKey: key,
+        originalPO: po,
+        source: 'invoice_task_lookup',
+        ownerKey: recent.ownerKey || 'All',
+        for: 'Invoice',
+        type: 'Invoice',
+        ref: wdText(latestInv.invNumber || latestInv.invoiceNo || recent.ref || key),
+        invEntryID: latestInv.invEntryID || recent.invEntryID || '',
+        po,
+        amount: latestInv.invValue || latestInv.amount || recent.amount || '',
+        amountPaid: latestInv.amountPaid || latestInv.invValue || latestInv.amount || recent.amountPaid || recent.amount || '',
+        site,
+        siteName: latestInv.siteName || latestInv.projectName || recent.siteName || wdResolveSiteNameFromPODetails(poDetails),
+        group: 'N/A',
+        attention: latestAttention,
+        enteredBy: latestInv.enteredBy || latestInv.updatedBy || recent.enteredBy || '',
+        date: latestInv.invoiceDate || recent.invoiceDate || '',
+        invoiceDate: latestInv.invoiceDate || recent.invoiceDate || '',
+        linkedJobEntryKey: latestInv.linkedJobEntryKey || recent.linkedJobEntryKey || '',
+        jobRecordDateEntered: latestInv.jobRecordDateEntered || latestInv.originDateEntered || latestInv.dateEntered || recent.jobRecordDateEntered || recent.originDateEntered || recent.dateEntered || '',
+        originDateEntered: latestInv.originDateEntered || recent.originDateEntered || '',
+        dateEntered: latestInv.dateEntered || recent.dateEntered || '',
+        jobRecordTimestamp: latestInv.jobRecordTimestamp || latestInv.originTimestamp || recent.jobRecordTimestamp || recent.originTimestamp || '',
+        queueLabel: wdQueueLabelForTask(bucket || status, 'Invoice'),
+        queueTimestamp,
+        queueText: wdQueueFullText(queueTimestamp),
+        queueTone: wdQueueAgeParts(queueTimestamp).tone,
+        remarks: status,
+        status: bucket,
+        bucket,
+        invName: latestInv.invName || recent.invName || '',
+        reportName: latestInv.reportName || recent.reportName || '',
+        vendorName,
+        note: latestInv.note || recent.note || '',
+        timestamp: Number(queueTimestamp || updatedAt || 0),
+        isUrgent: false
+    };
+    return {
+        active: true,
+        itemKey: `invoice|${wdNormalize(po)}|${wdNormalize(key)}`,
+        kind: 'invoice',
+        po,
+        invoiceKey: key,
+        bucket,
+        updatedAt,
+        task
+    };
+}
+
+async function wdApplyRecentDashboardChange(recent = {}, invoiceKey = '') {
+    const item = await wdNormalizeRecentInvoiceRowForDashboard(recent, invoiceKey);
+    if (!item) return false;
+    const itemKey = item.itemKey || `invoice|${wdNormalize(item.po)}|${wdNormalize(item.invoiceKey)}`;
+    if (item.active === false) {
+        wdAllActiveDashboardCountItemsMap.delete(itemKey);
+        wdRemoveCachedDashboardTaskByRecentKey(item.po, item.invoiceKey);
+    } else {
+        wdAllActiveDashboardCountItemsMap.set(itemKey, item);
+        wdUpsertCachedDashboardTask(item.task);
+    }
+    return true;
+}
+
+async function wdDashboardSyncRecentUpdates(reason = 'recent-sync') {
+    if (!wdCanSeeAllActiveDashboard() || !wdIsDashboardVisible()) return;
+    if (wdDashboardRecentSyncRunning) return;
+    if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) return;
+
+    const now = Date.now();
+    const lastSync = Number(wdDashboardLastRecentSyncAt || wdAllActiveDashboardCountSavedAt || wdActiveDashboardCacheMeta?.savedAt || 0) || (now - WD_DASHBOARD_RECENT_SYNC_INTERVAL);
+    const cutoff = Math.max(0, lastSync - WD_DASHBOARD_RECENT_SYNC_OVERLAP);
+
+    wdDashboardRecentSyncRunning = true;
+    try {
+        const snap = await invoiceDb.ref('workdesk_dashboard_recent')
+            .orderByChild('updatedAt')
+            .startAt(cutoff)
+            .once('value');
+        const rows = snap.val() || {};
+        let changed = false;
+        for (const invoiceKey of Object.keys(rows || {})) {
+            const row = rows[invoiceKey] || {};
+            if (!row || typeof row !== 'object') continue;
+            // Safety overlap means the same row may arrive more than once; upsert makes it harmless.
+            const applied = await wdApplyRecentDashboardChange(row, invoiceKey);
+            changed = changed || applied;
+        }
+        wdDashboardLastRecentSyncAt = now;
+        if (changed) {
+            wdRecalculateAllActiveCountMapFromItems(true);
+            wdActiveDashboardCacheMeta = { fromCache: false, savedAt: Date.now(), reason, verified: wdAllActiveDashboardLoaded };
+            wdSaveDashboardCache(wdAllActiveDashboardLoaded ? wdActiveDashboardTasks : [], wdPersonalDashboardTasks, {
+                allActiveVerified: wdAllActiveDashboardLoaded,
+                reason
+            });
+            wdRenderDashboardCards();
+            wdRenderDashboardList();
+        }
+    } catch (e) {
+        // Missing Firebase index/rules should not break Dashboard. The normal count refresh remains available.
+        console.warn('WorkDesk dashboard recent update sync could not complete:', e);
+    } finally {
+        wdDashboardRecentSyncRunning = false;
+    }
+}
+
+function wdStartDashboardRecentUpdateSync() {
+    if (!wdCanSeeAllActiveDashboard()) return;
+    if (wdDashboardRecentSyncTimer) clearInterval(wdDashboardRecentSyncTimer);
+    setTimeout(() => { wdDashboardSyncRecentUpdates('dashboard-open'); }, 900);
+    wdDashboardRecentSyncTimer = setInterval(() => {
+        if (!wdIsDashboardVisible()) return;
+        wdDashboardSyncRecentUpdates('dashboard-30s');
+    }, WD_DASHBOARD_RECENT_SYNC_INTERVAL);
+}
+
+
 function wdReadAllActiveDashboardCountsCache() {
     try {
         const cached = wdReadJSONStorage(window.localStorage, 'IBA_WD_ALL_ACTIVE_COUNT_CACHE_V1');
         if (!cached || cached.userKey !== wdDashboardUserCacheKey()) return null;
-        if ((Date.now() - Number(cached.savedAt || 0)) > (2 * 60 * 1000)) return null;
+        if ((Date.now() - Number(cached.savedAt || 0)) > WD_DASHBOARD_COUNT_CACHE_TTL) return null;
         return cached.counts && typeof cached.counts === 'object' ? cached : null;
     } catch (e) {
         return null;
     }
 }
 
-function wdSaveAllActiveDashboardCountsCache(countsObj) {
+function wdSaveAllActiveDashboardCountsCache(countsObj, items = null) {
     try {
         wdWriteJSONStorage(window.localStorage, 'IBA_WD_ALL_ACTIVE_COUNT_CACHE_V1', {
             userKey: wdDashboardUserCacheKey(),
             savedAt: Date.now(),
-            counts: countsObj || {}
+            counts: countsObj || {},
+            items: Array.isArray(items) ? items : Array.from(wdAllActiveDashboardCountItemsMap.values())
         });
     } catch (e) { /* ignore */ }
 }
 
-function wdSetAllActiveDashboardCountMap(countsObj, savedAt = Date.now()) {
+function wdSetAllActiveDashboardCountMap(countsObj, savedAt = Date.now(), items = null) {
     wdAllActiveDashboardCountMap = new Map();
     Object.entries(countsObj || {}).forEach(([status, count]) => {
         const label = wdText(status);
         if (!label) return;
         wdAllActiveDashboardCountMap.set(label, Number(count) || 0);
     });
+    if (Array.isArray(items)) wdSetAllActiveDashboardCountItems(items);
     wdAllActiveDashboardCountSavedAt = savedAt || Date.now();
     wdAllActiveDashboardCountsLoaded = true;
 }
@@ -2563,6 +2942,27 @@ function wdAllActiveCountForStatus(status) {
     return 0;
 }
 
+function wdPreviewStatusesWithCount() {
+    const labels = [];
+    wdAllActiveDashboardCountMap.forEach((count, label) => {
+        const text = wdText(label);
+        if (!text) return;
+        if ((Number(count) || 0) <= 0) return;
+        labels.push(text);
+    });
+    return wdSortStatuses(labels);
+}
+
+function wdAllActiveStatusesToShowWhileLazy() {
+    // 10.5.9: Once count preview/cache is available, do not show status cards
+    // with value 0. Those zero placeholder cards caused confusion because they
+    // disappeared after an Admin clicked any card and the exact list loaded.
+    if (wdAllActiveDashboardCountsLoaded) {
+        return wdPreviewStatusesWithCount();
+    }
+    return WD_DASHBOARD_LAZY_ADMIN_STATUSES.slice();
+}
+
 async function wdLoadAllActiveDashboardCounts(forceRefresh = false) {
     if (!wdCanSeeAllActiveDashboard()) return;
     if (wdAllActiveDashboardCountsLoading) return;
@@ -2571,39 +2971,70 @@ async function wdLoadAllActiveDashboardCounts(forceRefresh = false) {
     if (!forceRefresh) {
         const cached = wdReadAllActiveDashboardCountsCache();
         if (cached) {
-            wdSetAllActiveDashboardCountMap(cached.counts, cached.savedAt);
+            wdSetAllActiveDashboardCountMap(cached.counts, cached.savedAt, Array.isArray(cached.items) ? cached.items : null);
             wdRenderDashboardCards();
             return;
         }
     }
 
-    // 10.4.8: Keep Dashboard cards informative without opening the full detail board.
-    // This count pass uses only the lightweight task index and any Job Entry rows already
-    // available in memory. It does NOT read full invoice_entries and it does NOT render
-    // yellow pinned notes. Details are still fetched only after Admin clicks a status card.
+    // 10.5.8: A forced count refresh is still lightweight compared with the old
+    // full dashboard detail load. It reads the small task index, validates each
+    // visible invoice against its exact source record, and stores count-items so
+    // later 30-second recent-sync passes can update the cached counts incrementally.
     wdAllActiveDashboardCountsLoading = true;
+    wdRenderDashboardCards();
     const counts = {};
+    const countItems = [];
     try {
         if (typeof invoiceDb !== 'undefined' && invoiceDb && invoiceDb.ref) {
             const snap = await invoiceDb.ref('invoice_tasks_by_user/All').once('value');
             const rows = snap.val() || {};
-            Object.keys(rows || {}).forEach(key => {
+            for (const key of Object.keys(rows || {})) {
                 const task = rows[key] || {};
-                if (!task || typeof task !== 'object') return;
-                const status = wdCurrentInvoiceTaskStatus(task, {});
-                if (!status || wdIsInvoiceLookupComplete(status)) return;
+                if (!task || typeof task !== 'object') continue;
+
+                let status = wdCurrentInvoiceTaskStatus(task, {});
+                let latestInv = null;
+                if (forceRefresh) {
+                    const po = wdText(task.po || task.originalPO || '');
+                    latestInv = await wdGetInvoiceSourceTruth(po, key, true, task);
+                    if (!latestInv || typeof latestInv !== 'object') {
+                        await wdCleanupStaleInvoiceLookupRow('All', key);
+                        continue;
+                    }
+                    status = wdCurrentInvoiceTaskStatus(task, latestInv || {});
+                    const stillActive = (typeof isInvoiceTaskActive === 'function')
+                        ? isInvoiceTaskActive(latestInv)
+                        : !wdIsInvoiceLookupComplete(status);
+                    if (!stillActive || wdIsInvoiceLookupComplete(status)) {
+                        await wdCleanupStaleInvoiceLookupRow('All', key);
+                        continue;
+                    }
+                }
+
+                if (!status || wdIsInvoiceLookupComplete(status)) continue;
                 const bucket = wdDashboardAllowedBucket(status, 'invoice_task_lookup');
-                if (!bucket) return;
-                if (wdTaskHasAttentionName(task, wdCurrentUserNameNorm())) return;
+                if (!bucket) continue;
+                const attention = wdText((latestInv && (latestInv.attention || latestInv.Attention || latestInv.assignedTo)) || task.attention || '');
+                if (wdTaskHasAttentionName({ ...task, attention }, wdCurrentUserNameNorm())) continue;
+                const po = wdText(task.po || task.originalPO || (latestInv && latestInv.po_number) || '');
                 wdIncrementAllActiveCount(counts, bucket);
-            });
+                countItems.push({
+                    kind: 'invoice',
+                    itemKey: `invoice|${wdNormalize(po)}|${wdNormalize(key)}`,
+                    po,
+                    invoiceKey: key,
+                    bucket,
+                    active: true,
+                    updatedAt: wdDashboardUpdatedMillis(task.dashboardUpdatedAt, task.invoiceLastUpdated, task.updatedAt, latestInv?.lastUpdated, latestInv?.updatedAt, latestInv?.statusChangedAt)
+                });
+            }
         }
 
         // 10.4.9: All Active cards should show count/value immediately without
         // requiring the Admin to click a card first. Count Job Entries here, but
         // do not render or download the yellow pinned detail cards until a status
-        // card and then a site card are clicked. This reads job_entries only for
-        // count preview; it still avoids full invoice_entries detail loading.
+        // card and then a site card are clicked.
         try {
             const entries = await wdEnsureDashboardJobEntriesFetched(forceRefresh);
             const personalKeySet = wdBuildPersonalTaskKeySet();
@@ -2615,18 +3046,23 @@ async function wdLoadAllActiveDashboardCounts(forceRefresh = false) {
                 if (isInvoiceJob && wdIsJobNewEntryQueue(entry, status, 'job_entry')) {
                     const key = wdText(entry.key || entry.id || entry.po || `${index}`);
                     const pseudo = { source: 'job_entry', type: 'Invoice Job', key, po: entry.po || entry.originalPO || entry.ref || '', ref: entry.ref || '' };
-                    if (!wdDashboardTaskIsAlreadyPersonal(pseudo, personalKeySet)) wdIncrementAllActiveCount(counts, 'New Entry');
+                    if (!wdDashboardTaskIsAlreadyPersonal(pseudo, personalKeySet)) {
+                        wdIncrementAllActiveCount(counts, 'New Entry');
+                        countItems.push({ kind: 'job', itemKey: `job|${wdNormalize(key)}`, key, bucket: 'New Entry', active: true, updatedAt: wdEntryTimestamp(entry) });
+                    }
                     return;
                 }
                 if (['ipc', 'ipc processed', 'ipc application'].includes(forText) && wdIsOpenIPCJobStatus(status)) {
                     const displayBucket = forText === 'ipc application' ? 'IPC Application' : 'IPC Processed';
+                    const key = wdText(entry.key || entry.id || `${entry.po || ''}_${entry.ref || ''}_${index}`);
                     wdIncrementAllActiveCount(counts, displayBucket);
+                    countItems.push({ kind: 'job', itemKey: `job|${wdNormalize(key)}`, key, bucket: displayBucket, active: true, updatedAt: wdEntryTimestamp(entry) });
                 }
             });
-        } catch (_) { /* memory-only job count is optional */ }
+        } catch (_) { /* job count is optional */ }
 
-        wdSetAllActiveDashboardCountMap(counts, Date.now());
-        wdSaveAllActiveDashboardCountsCache(counts);
+        wdSetAllActiveDashboardCountMap(counts, Date.now(), countItems);
+        wdSaveAllActiveDashboardCountsCache(counts, countItems);
     } catch (e) {
         console.warn('Dashboard All Active count preview could not load:', e);
     } finally {
@@ -2637,7 +3073,14 @@ async function wdLoadAllActiveDashboardCounts(forceRefresh = false) {
 
 function wdPrimeAllActiveDashboardCounts(forceRefresh = false) {
     if (!wdCanSeeAllActiveDashboard()) return;
-    setTimeout(() => { wdLoadAllActiveDashboardCounts(forceRefresh); }, 50);
+    setTimeout(() => {
+        // 10.6.0: Prime the verified cache, not the older preview-only count cache.
+        // This makes first-open cards and clicked-card details use the same source.
+        wdRefreshVerifiedAllActiveDashboardCache({
+            forceRefresh,
+            reason: forceRefresh ? 'dashboard-open-verified-refresh' : 'dashboard-open-verified-cache'
+        });
+    }, 50);
 }
 
 function wdRenderDashboardCards() {
@@ -2700,16 +3143,26 @@ function wdRenderDashboardCards() {
         // The section now starts directly with the actionable status cards.
         let activeHtml = '';
 
-        const activeStatusesToShow = wdAllActiveDashboardLoaded ? statuses : WD_DASHBOARD_LAZY_ADMIN_STATUSES;
+        const activeStatusesToShow = wdAllActiveDashboardLoaded ? statuses : wdAllActiveStatusesToShowWhileLazy();
+        if (!activeStatusesToShow.length && wdAllActiveDashboardCountsLoaded && !wdAllActiveDashboardCountsLoading) {
+            activeHtml = `
+                <div class="wd-dashboard-mini-empty">
+                    <i class="fa-regular fa-circle-check"></i>
+                    No open system task is currently outside your personal queue.
+                </div>`;
+        }
         activeStatusesToShow.forEach(status => {
             const count = wdAllActiveDashboardLoaded ? (statusCounts.get(status) || 0) : wdAllActiveCountForStatus(status);
             const tone = wdStatusTone(status);
             const filterKey = wdDashboardStatusFilterKey(status);
             const active = filterKey === wdActiveDashboardSelectedStatus || status === wdActiveDashboardSelectedStatus ? 'active' : '';
-            const countLabel = wdAllActiveDashboardCountsLoading && !wdAllActiveDashboardCountsLoaded ? '<i class="fa-solid fa-spinner fa-spin"></i>' : String(count);
+            const hasCount = wdAllActiveDashboardCountsLoaded || wdAllActiveDashboardLoaded;
+            const countLabel = (!hasCount && wdAllActiveDashboardCountsLoading) ? '<i class="fa-solid fa-spinner fa-spin"></i>' : (hasCount ? String(count) : '—');
             const microcopy = wdAllActiveDashboardLoaded
                 ? wdStatusMicrocopy(status, count)
-                : (wdAllActiveDashboardCountsLoaded ? 'Click to show sites' : 'Count preview loading');
+                : (wdAllActiveDashboardCountsLoading && wdAllActiveDashboardCountsLoaded
+                    ? `Updating • cached ${wdCacheAgeText(wdAllActiveDashboardCountSavedAt)}`
+                    : (wdAllActiveDashboardCountsLoaded ? `Click to show sites • ${wdCacheAgeText(wdAllActiveDashboardCountSavedAt)}` : 'Checking current count...'));
             activeHtml += `
                 <button class="wd-active-status-card tone-${tone} ${active}" data-status="${wdSafe(filterKey)}" type="button" aria-label="Show ${wdSafe(status)} tasks">
                     <span class="wd-status-card-glow"></span>

@@ -444,31 +444,46 @@ async function proceedWithPOLoading(poNumber, poData) {
     document.querySelectorAll('.im-po-vendor').forEach(el => el.textContent = poData['Supplier Name'] || 'N/A');
 
 
+    // Final UI Display
+    // 10.6.1: Show the invoice results as soon as the exact PO invoice data is ready.
+    // The original PO-file/deletion-list lookup can be slow on large Progress records,
+    // so it now runs in the background and no longer blocks Invoice Entry search results.
+    document.getElementById('im-modal-po-details')?.classList.remove('hidden');
+    fetchAndDisplayInvoices(poNumber);
+    document.getElementById('im-invoice-form-trigger')?.classList.remove('hidden');
+    imRunPOFileCheckInBackground(poNumber);
+}
 
-// ============================================================
-    // PO RECORDS SEARCH & BUTTON LOGIC
+function imRunPOFileCheckInBackground(poNumber) {
+    // ============================================================
+    // PO RECORDS SEARCH & BUTTON LOGIC (non-blocking)
     // ============================================================
     const poRecordEl = document.querySelector('.im-po-record');
     const modalDeletionBtn = document.getElementById('im-modal-deletion-list-btn');
 
     const setPoRecordStatus = (status, label, iconClass) => {
-        if (!poRecordEl) return;
+        if (!poRecordEl || poRecordEl.dataset.poCheckFor !== poNumber) return;
         poRecordEl.className = `im-po-record im-po-record-status im-po-record-status-${status}`;
         poRecordEl.innerHTML = `<i class="${iconClass}"></i> <span>${escapeHtml(label)}</span>`;
     };
 
-    if (poRecordEl) {
-        setPoRecordStatus('checking', 'Checking PO file...', 'fa-solid fa-circle-notch fa-spin');
+    if (!poRecordEl) return;
 
-        // Remove the old inline add button and reset the modal folder action on every new PO search.
-        document.getElementById('im-po-collect-btn')?.remove();
-        if (modalDeletionBtn) {
-            modalDeletionBtn.classList.add('hidden');
-            modalDeletionBtn.classList.remove('im-po-file-action-btn--active');
-            modalDeletionBtn.onclick = null;
-        }
+    poRecordEl.dataset.poCheckFor = poNumber;
+    setPoRecordStatus('checking', 'Checking PO file...', 'fa-solid fa-circle-notch fa-spin');
 
+    // Remove the old inline add button and reset the modal folder action on every new PO search.
+    document.getElementById('im-po-collect-btn')?.remove();
+    if (modalDeletionBtn) {
+        modalDeletionBtn.classList.add('hidden');
+        modalDeletionBtn.classList.remove('im-po-file-action-btn--active');
+        modalDeletionBtn.onclick = null;
+    }
+
+    setTimeout(async () => {
         try {
+            if (poRecordEl.dataset.poCheckFor !== poNumber) return;
+
             const searchVal = poNumber.replace(/[^0-9]/g, '');
             const ref = progressDb.ref('records');
 
@@ -477,6 +492,8 @@ async function proceedWithPOLoading(poNumber, poData) {
             if (!snapshot.exists()) {
                 snapshot = await ref.orderByChild('PO').equalTo(parseInt(searchVal, 10)).once('value');
             }
+
+            if (poRecordEl.dataset.poCheckFor !== poNumber) return;
 
             if (snapshot.exists()) {
                 // Attention state: this PO has an original file record. Make it obvious.
@@ -505,15 +522,8 @@ async function proceedWithPOLoading(poNumber, poData) {
             console.error("Query Error:", error);
             setPoRecordStatus('error', 'PO file check error', 'fa-solid fa-triangle-exclamation');
         }
-    }
-
-    // Final UI Display
-    document.getElementById('im-modal-po-details')?.classList.remove('hidden');
-    fetchAndDisplayInvoices(poNumber);
-    document.getElementById('im-invoice-form-trigger')?.classList.remove('hidden');
+    }, 0);
 }
-
-
 
 function fetchAndDisplayInvoices(poNumber) {
     const invoicesData = allInvoiceData[poNumber];
@@ -620,7 +630,7 @@ if (!invNoText.includes('retention')) {  // ← CHANGED variable name
                 <td>${amountPaidDisplay}</td>
                 <td>${inv.status || ''}</td>
                 <td>${releaseDateDisplay}</td>
-                <td><div class="action-btn-group">${invPDFLink} ${srvPDFLink} ${reportPDFLink} ${historyBtn} ${deleteBtnHTML}</div></td>
+                <td><div class="action-btn-group">${invPDFLink} ${reportPDFLink} ${srvPDFLink} ${historyBtn} ${deleteBtnHTML}</div></td>
             `;
             imInvoicesTableBody.appendChild(row);
         });

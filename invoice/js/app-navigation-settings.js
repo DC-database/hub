@@ -315,35 +315,49 @@ function handleSuccessfulLogin() {
     }
 
     // --- Deep Link: open a specific invoice (shared via WhatsApp / URL) ---
-    // Safe: no-op unless URL contains ?open=invoice&po=...&invKey=...
-    try {
-        const dl = imParseInvoiceDeepLinkFromUrl();
-        if (dl && dl.po && dl.invKey) {
-            // Prevent repeated opens on refresh/back
-            imClearInvoiceDeepLinkFromUrl();
-            // Give UI a moment to finish view rendering
-            setTimeout(() => {
-                imOpenInvoiceFromDeepLink(dl.po, dl.invKey);
-            }, 700);
+    // Safe optional feature: only run when the deep-link helpers are present.
+    // 10.6.2: avoid console "not defined" noise when deep-link modules are not loaded.
+    if (
+        typeof imParseInvoiceDeepLinkFromUrl === 'function' &&
+        typeof imClearInvoiceDeepLinkFromUrl === 'function' &&
+        typeof imOpenInvoiceFromDeepLink === 'function'
+    ) {
+        try {
+            const dl = imParseInvoiceDeepLinkFromUrl();
+            if (dl && dl.po && dl.invKey) {
+                // Prevent repeated opens on refresh/back
+                imClearInvoiceDeepLinkFromUrl();
+                // Give UI a moment to finish view rendering
+                setTimeout(() => {
+                    imOpenInvoiceFromDeepLink(dl.po, dl.invKey);
+                }, 700);
+            }
+        } catch (e) {
+            console.warn('Invoice deep link open skipped:', e);
         }
-    } catch (e) {
-        console.log('Deep link parse failed:', e);
     }
 
 
 
     // --- Deep Link: open Workdesk Active Task for a specific invoice task ---
     // URL: ?open=wdtask&po=...&invKey=...
-    try {
-        const wdl = wdParseActiveTaskDeepLinkFromUrl();
-        if (wdl && wdl.po && wdl.invKey) {
-            wdClearActiveTaskDeepLinkFromUrl();
-            setTimeout(() => {
-                wdOpenActiveTaskFromDeepLink(wdl.po, wdl.invKey);
-            }, 700);
+    // 10.6.2: avoid console "not defined" noise when deep-link modules are not loaded.
+    if (
+        typeof wdParseActiveTaskDeepLinkFromUrl === 'function' &&
+        typeof wdClearActiveTaskDeepLinkFromUrl === 'function' &&
+        typeof wdOpenActiveTaskFromDeepLink === 'function'
+    ) {
+        try {
+            const wdl = wdParseActiveTaskDeepLinkFromUrl();
+            if (wdl && wdl.po && wdl.invKey) {
+                wdClearActiveTaskDeepLinkFromUrl();
+                setTimeout(() => {
+                    wdOpenActiveTaskFromDeepLink(wdl.po, wdl.invKey);
+                }, 700);
+            }
+        } catch (e) {
+            console.warn('WorkDesk active-task deep link open skipped:', e);
         }
-    } catch (e) {
-        console.log('Workdesk deep link parse failed:', e);
     }
 }
 

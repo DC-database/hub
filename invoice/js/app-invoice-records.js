@@ -48,8 +48,42 @@ function imLooksLikeExactPOSearch(value) {
     return /^[A-Za-z0-9._\/-]+$/.test(text);
 }
 
-async function imEnsureInvoiceRecordsLightDataFetched(forceRefresh = false) {
-    // Loads CSV/reference data only. This does not read invoice_entries or full purchase_orders.
+function imRecordsHasEcommitLoaded() {
+    return !!(allEcommitDataProcessed && cacheTimestamps && cacheTimestamps.ecommitData);
+}
+
+function imIsInvoiceRecordsSectionVisible() {
+    const section = document.getElementById('im-reporting');
+    return !!section && !section.classList.contains('hidden');
+}
+
+function imScheduleInvoiceRecordsExactPOBackgroundRefresh(searchTerm) {
+    // 10.6.3: Exact PO searches should display Firebase/local results quickly.
+    // ECommit.csv is large, so complete/merge Epicor/SRV records in the background.
+    if (!searchTerm || imRecordsHasEcommitLoaded()) return;
+    if (window.__imRecordsEcommitBackgroundLoading) return;
+
+    window.__imRecordsEcommitBackgroundLoading = true;
+    setTimeout(async () => {
+        try {
+            await imEnsureInvoiceRecordsLightDataFetched(false, { includeEcommit: true });
+            const activeSearch = String(sessionStorage.getItem('imReportingSearch') || '').trim();
+            if (activeSearch === String(searchTerm || '').trim() && imIsInvoiceRecordsSectionVisible()) {
+                await populateInvoiceReporting(activeSearch, { silent: true });
+            }
+        } catch (error) {
+            console.warn('Invoice Records background Epicor/SRV refresh could not complete:', error);
+        } finally {
+            window.__imRecordsEcommitBackgroundLoading = false;
+        }
+    }, 100);
+}
+
+async function imEnsureInvoiceRecordsLightDataFetched(forceRefresh = false, options = {}) {
+    // Loads lightweight PO/reference data only. This does not read full invoice_entries or purchase_orders.
+    // 10.6.3: Do not block exact-PO searches on ECommit.csv unless explicitly requested.
+    const includeEcommit = options && options.includeEcommit === true;
+
     if (typeof ensureInvoicePOBaseDataFetched === 'function') {
         await ensureInvoicePOBaseDataFetched(forceRefresh);
     } else if (typeof ensureInvoiceDataFetched === 'function') {
@@ -57,6 +91,8 @@ async function imEnsureInvoiceRecordsLightDataFetched(forceRefresh = false) {
         await ensureInvoiceDataFetched(forceRefresh);
         return;
     }
+
+    if (!includeEcommit) return;
 
     const now = Date.now();
     if (!forceRefresh && allEcommitDataProcessed && cacheTimestamps?.ecommitData) return;
@@ -80,7 +116,7 @@ async function imTryFastInvoiceRecordsPOSearch(searchTerm) {
     const poNumber = imNormalizeRecordsPO(searchTerm);
     if (!poNumber) return null;
 
-    await imEnsureInvoiceRecordsLightDataFetched(false);
+    await imEnsureInvoiceRecordsLightDataFetched(false, { includeEcommit: false });
 
     let firebaseInvoicesForPO = {};
     try {
@@ -160,6 +196,8 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
                 contentArea.innerHTML = '<div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> PO not found directly. Running deeper search...</div>';
             }
             await ensureInvoiceDataFetched();
+        } else if (rawSearchTerm && !imRecordsHasEcommitLoaded()) {
+            imScheduleInvoiceRecordsExactPOBackgroundRefresh(rawSearchTerm);
         }
 
         const allPOs = allPOData || {};
@@ -286,6 +324,13 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
         }
 
        if (currentReportData.length === 0) {
+            if (fastPONumbers && rawSearchTerm && !imRecordsHasEcommitLoaded()) {
+                imScheduleInvoiceRecordsExactPOBackgroundRefresh(rawSearchTerm);
+                if (contentArea) contentArea.innerHTML = '<div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Checking Epicor/SRV records for this PO...</div>';
+                const sleekBar = document.getElementById('im-sleek-totals-bar');
+                if (sleekBar) sleekBar.innerHTML = '<span>Checking Epicor/SRV records...</span>';
+                return;
+            }
             if (typeof window.playSystemError === 'function') window.playSystemError();
             if (contentArea) contentArea.innerHTML = '<div class="loading-state">No records found for your search criteria.</div>';
             const sleekBar = document.getElementById('im-sleek-totals-bar');
