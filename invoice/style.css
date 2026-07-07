@@ -30076,3 +30076,171 @@ body #im-batch-search-modal.modal-overlay:not(.hidden) {
     }
 }
 
+
+
+/* ========================================================================
+   10.8.6 — WorkDesk Dashboard selected site/vendor card focus
+   Scope: WorkDesk Dashboard > All Active Tasks card selector.
+   Purpose: Keep the clicked site/vendor card visibly selected while the cork board
+   below is showing. This is UI-only; no Firebase/read/workflow logic changed.
+   ======================================================================== */
+@keyframes wdSelectedDashboardCardPulse {
+    0%, 100% {
+        box-shadow:
+            0 20px 36px rgba(4, 120, 87, 0.22),
+            0 0 0 3px rgba(250, 204, 21, 0.55),
+            0 0 0 7px rgba(34, 197, 94, 0.20),
+            inset 0 0 0 2px rgba(4, 120, 87, 0.22);
+    }
+    50% {
+        box-shadow:
+            0 24px 42px rgba(4, 120, 87, 0.30),
+            0 0 0 5px rgba(250, 204, 21, 0.78),
+            0 0 0 11px rgba(34, 197, 94, 0.30),
+            inset 0 0 0 2px rgba(4, 120, 87, 0.30);
+    }
+}
+
+#wd-dashboard .wd-site-selector-panel.has-selection .wd-cork-site-card:not(.active) {
+    opacity: 0.46 !important;
+    filter: grayscale(0.12) saturate(0.72) !important;
+    transform: scale(0.96) !important;
+}
+
+#wd-dashboard .wd-site-selector-panel.has-selection .wd-cork-site-card:not(.active):hover {
+    opacity: 0.82 !important;
+    filter: none !important;
+    transform: translateY(-2px) scale(0.98) !important;
+}
+
+#wd-dashboard .wd-cork-site-card.active {
+    position: relative !important;
+    z-index: 4 !important;
+    transform: translateY(-3px) scale(1.035) !important;
+    border-color: rgba(217, 119, 6, 0.90) !important;
+    background:
+        radial-gradient(circle at 92% 9%, rgba(250,204,21,0.46), transparent 30%),
+        linear-gradient(145deg, #fffbeb 0%, #bbf7d0 100%) !important;
+    animation: wdSelectedDashboardCardPulse 1.25s ease-in-out infinite !important;
+}
+
+#wd-dashboard .wd-cork-site-card.active::after {
+    content: "Selected";
+    position: absolute;
+    top: -9px;
+    left: 12px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: #f59e0b;
+    color: #3b2600;
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    box-shadow: 0 8px 14px rgba(120, 53, 15, 0.22);
+}
+
+#wd-dashboard .wd-cork-site-card.active .wd-site-card-pin {
+    animation: wdSelectedDashboardCardPulse 1.25s ease-in-out infinite !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #wd-dashboard .wd-cork-site-card.active,
+    #wd-dashboard .wd-cork-site-card.active .wd-site-card-pin {
+        animation: none !important;
+    }
+}
+
+
+/* 10.8.7 — Dashboard selected status-card focus + compact cork-board action buttons */
+#wd-dashboard .wd-dashboard-status-grid:has(.wd-active-status-card.active) .wd-active-status-card:not(.active) {
+    opacity: 0.50 !important;
+    filter: grayscale(0.10) saturate(0.78) !important;
+    transform: scale(0.965) !important;
+}
+
+#wd-dashboard .wd-dashboard-status-grid:has(.wd-active-status-card.active) .wd-active-status-card:not(.active):hover {
+    opacity: 0.88 !important;
+    filter: none !important;
+    transform: translateY(-2px) scale(0.985) !important;
+}
+
+#wd-dashboard .wd-dashboard-status-grid .wd-active-status-card.active {
+    position: relative !important;
+    z-index: 3 !important;
+    transform: translateY(-4px) scale(1.035) !important;
+    border-color: rgba(37, 99, 235, 0.58) !important;
+    background:
+        radial-gradient(circle at 88% 10%, rgba(147,197,253,0.42), transparent 32%),
+        linear-gradient(180deg, #ffffff 0%, #eff6ff 100%) !important;
+    box-shadow:
+        0 26px 58px rgba(37, 99, 235, 0.22),
+        0 0 0 3px rgba(37, 99, 235, 0.16),
+        0 0 0 8px rgba(14, 165, 233, 0.08) !important;
+    animation: wdSelectedStatusCategoryPulse 1.35s ease-in-out infinite !important;
+}
+
+#wd-dashboard .wd-dashboard-status-grid .wd-active-status-card.active .wd-status-card-glow {
+    background: rgba(59, 130, 246, 0.22) !important;
+}
+
+@keyframes wdSelectedStatusCategoryPulse {
+    0%, 100% {
+        box-shadow:
+            0 24px 52px rgba(37, 99, 235, 0.20),
+            0 0 0 3px rgba(37, 99, 235, 0.16),
+            0 0 0 8px rgba(14, 165, 233, 0.08);
+    }
+    50% {
+        box-shadow:
+            0 30px 66px rgba(37, 99, 235, 0.30),
+            0 0 0 5px rgba(37, 99, 235, 0.24),
+            0 0 0 13px rgba(14, 165, 233, 0.13);
+    }
+}
+
+#wd-dashboard .wd-note-actions {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    margin-top: auto !important;
+}
+
+#wd-dashboard .wd-note-actions .wd-dashboard-pdf-btn,
+#wd-dashboard .wd-note-actions .wd-forward-task-btn,
+#wd-dashboard .wd-note-actions .wd-pdf-empty {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 32px !important;
+    padding: 0 7px !important;
+    font-size: .70rem !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    box-sizing: border-box !important;
+}
+
+#wd-dashboard .wd-note-actions .wd-dashboard-pdf-btn i,
+#wd-dashboard .wd-note-actions .wd-forward-task-btn i {
+    margin-right: 3px !important;
+}
+
+#wd-dashboard .wd-note-actions .wd-dashboard-pdf-btn.srv {
+    background: linear-gradient(135deg, #ecfdf5, #a7f3d0) !important;
+    color: #065f46 !important;
+}
+
+@media (max-width: 480px) {
+    #wd-dashboard .wd-note-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #wd-dashboard .wd-dashboard-status-grid .wd-active-status-card.active {
+        animation: none !important;
+    }
+}
