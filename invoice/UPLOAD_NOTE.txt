@@ -1,17 +1,18 @@
-10.8.3 PATCH ONLY
+10.8.4 PATCH ONLY
 
 Upload/replace only:
 - index.html
-- js/app-invoice-records.js
+- js/app-workdesk-dashboard.js
 - UPLOAD_NOTE.txt
 
 Change:
-- Fixed Invoice Records action-column PDF button order.
-- PDF buttons now display in this order: INV, RPT, SRV.
-- Standardized labels to uppercase INV / RPT / SRV.
-- Edit, History, Sticker, and WhatsApp buttons stay in their existing positions around the PDF buttons.
+- Added “For Approval” to WorkDesk Dashboard active queues.
+- For Approval uses normal Site cards, same as Retention and other normal statuses.
+- For Summary remains Vendor cards.
+- CEO Approval is still not added.
+- With Accounts is still excluded.
+- No dropdown/status-save logic changed.
 - No Firebase rules change.
-- No save/workflow logic change.
 - No app.js change.
 
 After upload: hard refresh with Ctrl + F5.
