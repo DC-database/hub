@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-data-cache.js
    IBA shared local cache, CSV fetchers/parsers, and Firebase data loaders.
-   Version: 9.5.2
+   Version: 10.7.4
 
    Cleanup Phase:
    - Moved Block 06 out of app.js intact.
@@ -50,6 +50,52 @@ function getCache(key) {
     }
 }
 
+
+// 10.7.4: POVALUE2.csv is a GitHub CSV source, not Firebase billing data.
+// Keep Invoice PO lookup fresh so newly uploaded POs can be used immediately.
+const IM_ALWAYS_REFRESH_POVALUE2_CSV = true;
+window.__imPOVALUE2InFlight = null;
+window.__imLastPOVALUE2RefreshAt = 0;
+
+function clearPOVALUE2MemoryCache() {
+    try {
+        allPOData = null;
+        allPODataByRef = null;
+        if (typeof cacheTimestamps !== 'undefined') cacheTimestamps.poData = 0;
+        localStorage.removeItem('cached_POVALUE2');
+        localStorage.removeItem('cached_PO_DATA');
+    } catch (_) {}
+}
+
+async function refreshPOVALUE2CsvNow(reason = 'manual') {
+    if (window.__imPOVALUE2InFlight) return window.__imPOVALUE2InFlight;
+
+    window.__imPOVALUE2InFlight = (async () => {
+        const startedAt = Date.now();
+        try {
+            const poUrl = await getFirebaseCSVUrl('POVALUE2.csv');
+            console.log(`Refreshing latest POVALUE2.csv (${reason})...`);
+            const csvData = await fetchAndParseCSV(poUrl);
+            if (!csvData) throw new Error('POVALUE2.csv could not be parsed.');
+            allPOData = csvData.poDataByPO || {};
+            allPODataByRef = csvData.poDataByRef || {};
+            if (typeof cacheTimestamps !== 'undefined') cacheTimestamps.poData = startedAt;
+            window.__imLastPOVALUE2RefreshAt = Date.now();
+            console.log(`Latest POVALUE2.csv ready. ${Object.keys(allPOData || {}).length} POs indexed.`);
+            return csvData;
+        } finally {
+            window.__imPOVALUE2InFlight = null;
+        }
+    })();
+
+    return window.__imPOVALUE2InFlight;
+}
+
+try {
+    window.refreshPOVALUE2CsvNow = refreshPOVALUE2CsvNow;
+    window.clearPOVALUE2MemoryCache = clearPOVALUE2MemoryCache;
+} catch (_) {}
+
 function loadDataFromLocalStorage() {
     const epicoreCache = getCache('cached_EPICORE');
     const sitesCache = getCache('cached_SITES');
@@ -89,11 +135,19 @@ async function getFirebaseCSVUrl(filename) {
         return "https://raw.githubusercontent.com/DC-database/Hub/main/Site.csv" + cacheBuster;
     }
 
+    // 10.7.4: POVALUE2.csv must always be fresh after GitHub upload.
+    // Add both time and random cache-busters. This is a free GitHub CSV read,
+    // not a Firebase read/download.
+    if (filename === 'POVALUE2.csv') {
+        const cacheBuster = "?v=" + Date.now() + "&fresh=" + Math.random().toString(36).slice(2);
+        return `https://raw.githubusercontent.com/DC-database/Hub/refs/heads/main/POVALUE2.csv${cacheBuster}`;
+    }
+
     // 9.4.0: Prefer GitHub raw for critical Invoice Management CSV files.
     // jsDelivr sometimes returns 503 or omits CORS headers during local testing,
     // which can block Batch Entry PO Search / ECommit loading.
     const cacheBuster = "?v=" + new Date().getTime();
-    const criticalRawCsv = ['POVALUE2.csv', 'Vendors.csv', 'ECommit.csv', 'ECommit2.csv'];
+    const criticalRawCsv = ['Vendors.csv', 'ECommit.csv', 'ECommit2.csv'];
     if (criticalRawCsv.includes(filename)) {
         return `https://raw.githubusercontent.com/DC-database/Hub/main/${filename}${cacheBuster}`;
     }
@@ -140,20 +194,43 @@ async function silentlyRefreshStaleCaches() {
 // --- CSV Parsers ---
 
 async function fetchCsvTextWithFallback(url, label = 'CSV') {
-    const urlsToTry = [url];
+    const urlsToTry = [];
+    const addUrl = (candidate) => {
+        if (candidate && !urlsToTry.includes(candidate)) urlsToTry.push(candidate);
+    };
+
+    addUrl(url);
+
+    const filenamePart = (typeof url === 'string') ? url.split('/').pop().split('?')[0] : '';
 
     // If any older code still passes a jsDelivr URL, retry the same file from GitHub raw.
-    if (typeof url === 'string' && url.includes('cdn.jsdelivr.net/gh/DC-database/Hub@main/')) {
-        const filenamePart = url.split('/').pop().split('?')[0];
-        if (filenamePart) {
-            urlsToTry.push(`https://raw.githubusercontent.com/DC-database/Hub/main/${filenamePart}?v=${Date.now()}`);
-        }
+    if (typeof url === 'string' && url.includes('cdn.jsdelivr.net/gh/DC-database/Hub@main/') && filenamePart) {
+        addUrl(`https://raw.githubusercontent.com/DC-database/Hub/main/${filenamePart}?v=${Date.now()}&fresh=${Math.random().toString(36).slice(2)}`);
+    }
+
+    // Extra GitHub raw variants. This helps when GitHub serves an older cached object
+    // for one raw URL shape immediately after a CSV upload.
+    if (typeof url === 'string' && url.includes('raw.githubusercontent.com/DC-database/Hub/main/') && filenamePart) {
+        addUrl(`https://raw.githubusercontent.com/DC-database/Hub/refs/heads/main/${filenamePart}?v=${Date.now()}&fresh=${Math.random().toString(36).slice(2)}`);
+    }
+    if (typeof url === 'string' && url.includes('raw.githubusercontent.com/DC-database/Hub/refs/heads/main/') && filenamePart) {
+        addUrl(`https://raw.githubusercontent.com/DC-database/Hub/main/${filenamePart}?v=${Date.now()}&fresh=${Math.random().toString(36).slice(2)}`);
+    }
+    if (filenamePart) {
+        addUrl(`https://cdn.jsdelivr.net/gh/DC-database/Hub@main/${filenamePart}?v=${Date.now()}&fresh=${Math.random().toString(36).slice(2)}`);
     }
 
     let lastError = null;
     for (const candidateUrl of urlsToTry) {
         try {
-            const response = await fetch(candidateUrl, { cache: 'no-store', mode: 'cors' });
+            // 10.7.5: Keep this as a simple CORS GET.
+            // Do NOT send Cache-Control/Pragma request headers to raw.githubusercontent.com.
+            // Those custom headers trigger an OPTIONS preflight, and GitHub raw can reject it,
+            // especially when testing locally from file:// (origin 'null').
+            const response = await fetch(candidateUrl, {
+                cache: 'no-store',
+                mode: 'cors'
+            });
             if (!response.ok) throw new Error(`${label} fetch failed: ${response.status} ${response.statusText}`);
             return await response.text();
         } catch (error) {
@@ -816,8 +893,7 @@ async function setInvoiceFirebasePOFallbackEnabled(enabled) {
 
 async function ensureInvoicePOBaseDataFetched(forceRefresh = false) {
     const now = Date.now();
-    const hasBase = allPOData && allSitesCSVData && allVendorsData;
-    if (!forceRefresh && hasBase) return;
+    const hasSupportingBase = allSitesCSVData && allVendorsData;
 
     if (!forceRefresh) {
         try { loadDataFromLocalStorage(); } catch (_) {}
@@ -826,9 +902,12 @@ async function ensureInvoicePOBaseDataFetched(forceRefresh = false) {
     const tasks = [];
     const taskNames = [];
 
-    if (!allPOData || forceRefresh) {
-        const poUrl = await getFirebaseCSVUrl('POVALUE2.csv');
-        if (poUrl) { tasks.push(fetchAndParseCSV(poUrl)); taskNames.push('po'); }
+    // 10.7.4: Always refresh POVALUE2.csv for Invoice PO lookup so GitHub-uploaded
+    // PO changes take effect immediately. Use an in-flight guard to avoid duplicate
+    // parallel downloads if multiple modules ask at the same time.
+    if (IM_ALWAYS_REFRESH_POVALUE2_CSV || !allPOData || forceRefresh) {
+        tasks.push(refreshPOVALUE2CsvNow(forceRefresh ? 'force' : 'invoice-po-lookup'));
+        taskNames.push('po');
     }
     if (!allSitesCSVData || forceRefresh) {
         const siteUrl = await getFirebaseCSVUrl('Site.csv');
@@ -882,7 +961,7 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
     try {
         const promisesToRun = [];
         // URLs
-        const poUrl = (!allPOData || forceRefresh) ? await getFirebaseCSVUrl('POVALUE2.csv') : null;
+        const poUrl = (IM_ALWAYS_REFRESH_POVALUE2_CSV || !allPOData || forceRefresh) ? await getFirebaseCSVUrl('POVALUE2.csv') : null;
         const poDetailsUrl = (!allEpicoreData || forceRefresh) ? await getFirebaseCSVUrl('POdetails.csv') : null;
         const siteUrl = (!allSitesCSVData || forceRefresh) ? await getFirebaseCSVUrl('Site.csv') : null;
         const ecommitUrl = (!allEcommitDataProcessed || forceRefresh) ? await getFirebaseCSVUrl('ECommit.csv') : null;

@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-workdesk-reporting.js
    IBA WorkDesk/Inventory Job Records table and report filter helpers.
-   Version: 10.3.3
+   Version: 10.7.6
 
    Cleanup Phase:
    - Moved Block 13 out of app.js.
@@ -14,6 +14,11 @@
    - Admin Job Records use lazy loading: opening the tab shows category buttons only;
      Firebase records load only after a category click or search input.
    - Download optimization only; no workflow, Firebase path, or invoice save logic changed.
+
+   10.7.5:
+   - Admin Job Records search is global again. Searching a PO/vendor/site/status does
+     not require choosing the exact category tab first.
+   - When a search result belongs to one category, the matching tab is auto-highlighted.
    ========================================================================== */
 
 // #region BLOCK 13 — JOB RECORDS TABLE + REPORT FILTERING
@@ -111,6 +116,15 @@ function wdReportDisplayJobType(value) {
     if (!raw) return 'Other';
     // 10.1.6: old saved IPC records should appear under the renamed IPC Processed tab.
     return raw === 'IPC' ? 'IPC Processed' : raw;
+}
+
+function wdReportSetActiveTab(jobType) {
+    currentReportFilter = jobType || null;
+    const tabsContainer = document.getElementById('report-tabs');
+    if (!tabsContainer) return;
+    tabsContainer.querySelectorAll('button[data-job-type]').forEach(btn => {
+        btn.classList.toggle('active', !!jobType && btn.dataset.jobType === jobType);
+    });
 }
 
 
@@ -272,13 +286,10 @@ function filterAndRenderReport(baseEntries = null) {
     const chosenSource = Array.isArray(baseEntries) ? baseEntries : getWorkdeskJobRecordEntries();
     let filteredEntries = [...chosenSource].filter(entry => isWorkdeskTaskRecord(entry));
 
-    // 1. Filter by Tab (Job Type)
-    if (currentReportFilter && currentReportFilter !== 'All') {
-        filteredEntries = filteredEntries.filter(entry => wdReportDisplayJobType(entry.for || 'Other') === currentReportFilter);
-    }
-
-    // 2. Filter by Search Text
-    const searchText = reportingSearchInput.value.toLowerCase();
+    // Search text is intentionally applied BEFORE category filtering.
+    // 10.7.5: Admin Job Records search should be global, so an admin does not
+    // need to know the exact category tab before searching a PO/job.
+    const searchText = String(reportingSearchInput?.value || '').toLowerCase().trim();
     sessionStorage.setItem('reportingSearch', searchText);
 
     if (searchText) {
@@ -300,8 +311,26 @@ function filterAndRenderReport(baseEntries = null) {
                 check(entry.currentNote)
             );
         });
+
+        const matchingTypes = [...new Set(filteredEntries.map(entry => wdReportDisplayJobType(entry.for || 'Other')).filter(Boolean))];
+        if (matchingTypes.length === 1) {
+            // One clear result category: auto-highlight that tab.
+            wdReportSetActiveTab(matchingTypes[0]);
+        } else if (matchingTypes.length !== 1) {
+            // Multiple/no categories: do not force the search into the old selected tab.
+            wdReportSetActiveTab(null);
+        }
+
+        renderReportingTable(filteredEntries);
+        return;
     }
 
+    // No search text: keep normal selected-tab behavior.
+    if (currentReportFilter && currentReportFilter !== 'All') {
+        filteredEntries = filteredEntries.filter(entry => wdReportDisplayJobType(entry.for || 'Other') === currentReportFilter);
+    }
+
+    wdReportSetActiveTab(currentReportFilter);
     renderReportingTable(filteredEntries);
 }
 
@@ -358,7 +387,15 @@ async function handleReportingSearch(options = {}) {
         if (tabsContainer) tabsContainer.innerHTML = tabsHTML;
 
         const savedSearch = sessionStorage.getItem('reportingSearch');
-        if ((savedSearch && savedSearch.trim() !== '') || (currentReportFilter && currentReportFilter !== 'All')) {
+        // 10.7.6: First search after opening Job Records must render from the live
+        // input value, not only from the old sessionStorage value or selected tab.
+        // Without this, searching a PO before choosing a tab can show 0/lazy state,
+        // while choosing the Invoice tab first shows the correct record.
+        if (
+            searchTextNow ||
+            (savedSearch && savedSearch.trim() !== '') ||
+            (currentReportFilter && currentReportFilter !== 'All')
+        ) {
              filterAndRenderReport(baseEntries);
         } else {
              wdReportRenderLazyShell();

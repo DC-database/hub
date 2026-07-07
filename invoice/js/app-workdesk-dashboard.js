@@ -3899,43 +3899,25 @@ function wdRenderAllActiveCorkboard(baseTasks, selectedLabel, cacheSuffix, summa
     const cardsHtml = selectedGroup
         ? selectedTasks.map((task, index) => wdRenderDashboardCorkNote(task, index, { siteLabel: selectedParts.label })).join('')
         : '';
-    const selectedSiteHtml = selectedGroup
-        ? `
-            <section class="wd-cork-site-section active-site">
-                <div class="wd-cork-site-head">
-                    <div>
-                        <span class="wd-cork-site-kicker">Selected site</span>
-                        <strong>${wdSafe(selectedParts.siteNo)}</strong>
-                        <em>${wdSafe(selectedParts.siteName)}</em>
-                    </div>
-                    <span>${selectedTasks.length} item${selectedTasks.length === 1 ? '' : 's'}</span>
-                </div>
-                <div class="wd-cork-note-grid">${cardsHtml}</div>
-            </section>`
-        : `
-            <div class="wd-dashboard-empty-state wd-site-first-empty">
-                <span class="wd-empty-icon"><i class="fa-solid fa-location-dot"></i></span>
-                <div>
-                    <strong>Choose a site first</strong>
-                    <p>The pinned task notes are intentionally hidden until you select a site. This keeps the Dashboard light and focused.</p>
-                </div>
-            </div>`;
 
-    listEl.innerHTML = `
-        <div class="wd-cork-board wd-cork-board-site-filtered">
-            <div class="wd-cork-board-head">
-                <div>
-                    <span class="wd-board-label">All Active Preview Board</span>
-                    <strong>${wdSafe(statusLabel)}</strong>
-                    <span>Pick a site card first, then review the pinned notes below.</span>
-                </div>
-                <div class="wd-board-access-pill"><i class="fa-solid fa-thumbtack"></i> Site preview</div>
-            </div>
+    // 10.6.4: Keep the first click result as site cards only. The cork board
+    // appears only after a site card is selected, and the old duplicated
+    // "Selected site" banner/card is intentionally removed.
+    const siteSelectorHtml = `
+        <div class="wd-site-selector-panel ${selectedGroup ? 'has-selection' : 'site-only'}">
             <div class="wd-cork-site-selector" role="tablist" aria-label="All Active Tasks site selector">
                 ${siteCardsHtml}
             </div>
-            ${selectedSiteHtml}
         </div>`;
+
+    const corkNotesHtml = selectedGroup
+        ? `
+            <div class="wd-cork-board wd-cork-board-site-filtered wd-cork-notes-board">
+                <div class="wd-cork-note-grid">${cardsHtml}</div>
+            </div>`
+        : '';
+
+    listEl.innerHTML = `${siteSelectorHtml}${corkNotesHtml}`;
 }
 
 function wdRenderDashboardList() {

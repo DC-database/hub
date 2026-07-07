@@ -172,7 +172,19 @@ async function handleAddPOToBatch() {
         }
 
         if (!poData || Object.keys(poData).length === 0) {
-            alert(`PO ${poNumber} was not found in POVALUE2.csv${(typeof isInvoiceFirebasePOFallbackEnabled === 'function' && isInvoiceFirebasePOFallbackEnabled()) ? ' or Firebase manual POs' : ''}. Please update the CSV PO file.`);
+            // 10.7.4: Before showing not found, force one latest POVALUE2.csv refresh.
+            try {
+                if (typeof refreshPOVALUE2CsvNow === 'function') {
+                    await refreshPOVALUE2CsvNow('batch-entry-not-found-retry');
+                    poData = (allPOData && allPOData[poNumber]) ? allPOData[poNumber] : null;
+                }
+            } catch (refreshError) {
+                console.warn('Latest POVALUE2.csv retry failed before Batch Entry not-found alert:', refreshError);
+            }
+        }
+
+        if (!poData || Object.keys(poData).length === 0) {
+            alert(`PO ${poNumber} was not found in the latest POVALUE2.csv${(typeof isInvoiceFirebasePOFallbackEnabled === 'function' && isInvoiceFirebasePOFallbackEnabled()) ? ' or Firebase manual POs' : ''}. Please check that the GitHub CSV upload is committed to main.`);
             return;
         }
         

@@ -308,7 +308,21 @@ async function handlePOSearch(poNumberFromInput) {
         }
 
         if (!poData && !canUseFirebasePO) {
-            alert(`PO ${poNumber} was not found in POVALUE2.csv. Please update the CSV PO file.`);
+            // 10.7.4: Before showing not found, force one latest POVALUE2.csv refresh.
+            // GitHub CSV reads are free and newly uploaded POs should take effect immediately.
+            try {
+                if (typeof refreshPOVALUE2CsvNow === 'function') {
+                    await refreshPOVALUE2CsvNow('invoice-entry-not-found-retry');
+                    poData = allPOData ? allPOData[poNumber] : null;
+                    if (poData) window.playSystemSuccess();
+                }
+            } catch (refreshError) {
+                console.warn('Latest POVALUE2.csv retry failed before not-found alert:', refreshError);
+            }
+        }
+
+        if (!poData && !canUseFirebasePO) {
+            alert(`PO ${poNumber} was not found in the latest POVALUE2.csv. Please check that the GitHub CSV upload is committed to main.`);
             return;
         }
 
