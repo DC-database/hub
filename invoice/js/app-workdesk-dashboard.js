@@ -203,6 +203,8 @@ const WD_STATUS_ORDER = [
     'Pending',
     'On Hold',
     'In Process',
+    'For Summary',
+    'Retention',
     'Unresolved',
     'IPC Application',
     'IPC Processed',
@@ -216,6 +218,8 @@ const WD_DASHBOARD_ALLOWED_BUCKETS = new Set([
     'pending',
     'on hold',
     'in process',
+    'for summary',
+    'retention',
     'unresolved',
     'ipc application',
     'ipc processed',
@@ -500,6 +504,8 @@ const WD_DASHBOARD_EXACT_INVOICE_STATUS_MAP = {
     'for srv': 'For SRV',
     'on hold': 'On Hold',
     'in process': 'In Process',
+    'for summary': 'For Summary',
+    'retention': 'Retention',
     'pending': 'Pending',
     'unresolved': 'Unresolved',
     'report': 'Report'
@@ -1072,6 +1078,7 @@ function wdFormatIPCText(ipcInfo) {
 function wdStatusTone(status) {
     const s = wdNormalize(status);
     if (s.includes('hold')) return 'hold';
+    if (s.includes('summary')) return 'report';
     if (s.includes('report')) return 'report';
     if (s.includes('approval') || s === 'approved') return 'approval';
     if (s.includes('ipc')) return 'ipc';
@@ -1453,7 +1460,7 @@ function wdQueueTimestampForTask(rawTask, invMeta = {}, status = '', type = '') 
     // Correct source rules:
     // New Entry = Job Records Date Entered.
     // IPC = Job Records / IPC job date.
-    // For SRV, Report, In Process, Unresolved, Pending, On Hold = Invoice Entry status/history date.
+    // For SRV, For Summary, Retention, Report, In Process, Unresolved, Pending, On Hold = Invoice Entry status/history date.
     if (wdIsJobNewEntryQueue(rawTask, effectiveStatus, type)) {
         return wdFirstQueueTimestamp(
             trustedEnteredAt,
@@ -1603,6 +1610,37 @@ function wdCompareDashboardPriority(a, b) {
     if (qa && !qb) return -1;
     if (!qa && qb) return 1;
     return (Number(a?.timestamp || 0) || 0) - (Number(b?.timestamp || 0) || 0);
+}
+
+function wdTaskVendorSortName(task) {
+    const raw = wdText(
+        task?.vendorName || task?.vendor || task?.supplierName || task?.Supplier ||
+        task?.supplier || task?.vendor_name || ''
+    );
+    const clean = raw && wdNormalize(raw) !== 'n/a' ? raw : 'ZZZ No Vendor';
+    return clean.toLowerCase();
+}
+
+function wdIsForSummaryDashboardLabel(label) {
+    return wdNormalize(label) === 'for summary';
+}
+
+function wdCompareForSummaryByVendor(a, b) {
+    const va = wdTaskVendorSortName(a);
+    const vb = wdTaskVendorSortName(b);
+    const vendorCompare = va.localeCompare(vb, undefined, { numeric: true, sensitivity: 'base' });
+    if (vendorCompare !== 0) return vendorCompare;
+
+    const pa = wdText(a?.po || a?.ref || '');
+    const pb = wdText(b?.po || b?.ref || '');
+    const poCompare = pa.localeCompare(pb, undefined, { numeric: true, sensitivity: 'base' });
+    if (poCompare !== 0) return poCompare;
+
+    return wdCompareDashboardPriority(a, b);
+}
+
+function wdDashboardSorterForLabel(label) {
+    return wdIsForSummaryDashboardLabel(label) ? wdCompareForSummaryByVendor : wdCompareDashboardPriority;
 }
 
 function wdDocButtonZone(invoicePdf, reportPdf) {
@@ -2207,7 +2245,7 @@ async function wdBuildDashboardOverviewSourceTasks(forceRefresh = false) {
     const sourceMap = new Map();
 
     // 10.2.9: Accuracy restore for Dashboard invoice queues.
-    // For SRV, On Hold, Pending, Report, In Process, and Unresolved must come from
+    // For SRV, On Hold, Pending, Report, For Summary, Retention, In Process, and Unresolved must come from
     // invoice_entries, not invoice_tasks_by_user. The lightweight index can be stale
     // or missing after Invoice Management updates, which caused valid cards to vanish.
     await wdEnsureDashboardInvoiceEntriesFetched(forceRefresh);
@@ -3443,7 +3481,7 @@ function wdSiteGroupSortValue(label) {
     return text;
 }
 
-function wdBuildSiteGroups(tasks) {
+function wdBuildSiteGroups(tasks, taskSorter = wdCompareDashboardPriority) {
     const groups = new Map();
     (tasks || []).forEach(task => {
         const label = wdSiteGroupLabel(task?.site);
@@ -3462,7 +3500,45 @@ function wdBuildSiteGroups(tasks) {
         groups.get(key).tasks.push(task);
     });
     return Array.from(groups.values())
-        .map(group => ({ ...group, tasks: group.tasks.slice().sort(wdCompareDashboardPriority) }))
+        .map(group => ({ ...group, tasks: group.tasks.slice().sort(taskSorter) }))
+        .sort((a, b) => String(a.sort).localeCompare(String(b.sort), undefined, { numeric: true, sensitivity: 'base' }));
+}
+
+function wdVendorGroupLabel(task) {
+    const raw = wdText(
+        task?.vendorName || task?.vendor || task?.supplierName || task?.Supplier ||
+        task?.supplier || task?.vendor_name || ''
+    );
+    return raw && wdNormalize(raw) !== 'n/a' ? raw : 'No Vendor';
+}
+
+function wdVendorGroupSortValue(label) {
+    const text = wdText(label).toLowerCase();
+    if (!text || text === 'no vendor') return 'zzzz-no-vendor';
+    return text;
+}
+
+function wdVendorGroupKey(label) {
+    return wdNormalize(label) || 'no-vendor';
+}
+
+function wdBuildVendorGroups(tasks, taskSorter = wdCompareForSummaryByVendor) {
+    const groups = new Map();
+    (tasks || []).forEach(task => {
+        const label = wdVendorGroupLabel(task);
+        const key = wdVendorGroupKey(label);
+        if (!groups.has(key)) {
+            groups.set(key, {
+                key,
+                label,
+                sort: wdVendorGroupSortValue(label),
+                tasks: []
+            });
+        }
+        groups.get(key).tasks.push(task);
+    });
+    return Array.from(groups.values())
+        .map(group => ({ ...group, tasks: group.tasks.slice().sort(taskSorter) }))
         .sort((a, b) => String(a.sort).localeCompare(String(b.sort), undefined, { numeric: true, sensitivity: 'base' }));
 }
 
@@ -3841,40 +3917,48 @@ function wdRenderDashboardCorkNote(task, index, options = {}) {
 
 function wdRenderAllActiveCorkboard(baseTasks, selectedLabel, cacheSuffix, summaryEl, listEl) {
     wdEnsureSiteCsvLookupForDashboard();
-    const tasks = (baseTasks || []).slice().sort(wdCompareDashboardPriority);
-    const siteGroups = wdBuildSiteGroups(tasks);
     const statusLabel = selectedLabel || 'All Active Tasks';
+    const taskSorter = wdDashboardSorterForLabel(statusLabel);
+    const isForSummaryView = wdIsForSummaryDashboardLabel(statusLabel);
+    const tasks = (baseTasks || []).slice().sort(taskSorter);
+    const groupLabel = isForSummaryView ? 'vendor' : 'site';
+    const groupLabelPlural = isForSummaryView ? 'vendor groups' : 'site groups';
+    const groups = isForSummaryView
+        ? wdBuildVendorGroups(tasks, taskSorter)
+        : wdBuildSiteGroups(tasks, taskSorter);
 
     if (summaryEl) {
-        summaryEl.textContent = `${tasks.length} active task${tasks.length === 1 ? '' : 's'} in ${siteGroups.length} site group${siteGroups.length === 1 ? '' : 's'}${cacheSuffix}`;
+        summaryEl.textContent = `${tasks.length} active task${tasks.length === 1 ? '' : 's'} in ${groups.length} ${groupLabel} group${groups.length === 1 ? '' : 's'}${cacheSuffix}`;
     }
 
-    if (!siteGroups.length) {
+    if (!groups.length) {
         wdAllActiveCorkboardSelectedSiteKey = '';
         listEl.innerHTML = '<div class="wd-dashboard-empty-state">No active item found for this status.</div>';
         return;
     }
 
-    // 10.4.7: After an Admin clicks a status card, show the site selector first.
-    // Do not auto-open the yellow pinned notes. Notes render only after a site is chosen.
-    if (wdAllActiveCorkboardSelectedSiteKey && !siteGroups.some(group => group.key === wdAllActiveCorkboardSelectedSiteKey)) {
+    // 10.4.7: After an Admin clicks a status card, show the selector first.
+    // 10.8.0: For Summary uses vendor cards instead of site cards.
+    if (wdAllActiveCorkboardSelectedSiteKey && !groups.some(group => group.key === wdAllActiveCorkboardSelectedSiteKey)) {
         wdAllActiveCorkboardSelectedSiteKey = '';
     }
 
     const selectedGroup = wdAllActiveCorkboardSelectedSiteKey
-        ? siteGroups.find(group => group.key === wdAllActiveCorkboardSelectedSiteKey)
+        ? groups.find(group => group.key === wdAllActiveCorkboardSelectedSiteKey)
         : null;
-    const selectedTasks = selectedGroup ? (selectedGroup.tasks || []).slice().sort(wdCompareDashboardPriority) : [];
-    const selectedParts = selectedGroup ? wdSiteDisplayParts(selectedGroup.label || '', selectedGroup.siteName || '') : null;
+    const selectedTasks = selectedGroup ? (selectedGroup.tasks || []).slice().sort(taskSorter) : [];
+    const selectedSiteParts = selectedGroup && !isForSummaryView ? wdSiteDisplayParts(selectedGroup.label || '', selectedGroup.siteName || '') : null;
+    const selectedDisplayLabel = selectedGroup
+        ? (isForSummaryView ? selectedGroup.label : selectedSiteParts.label)
+        : '';
 
     if (summaryEl) {
         summaryEl.textContent = selectedGroup
-            ? `${selectedTasks.length} item${selectedTasks.length === 1 ? '' : 's'} shown for ${selectedParts.label} · ${tasks.length} total in ${statusLabel}${cacheSuffix}`
-            : `${tasks.length} active item${tasks.length === 1 ? '' : 's'} in ${siteGroups.length} site group${siteGroups.length === 1 ? '' : 's'} for ${statusLabel}. Choose a site to show pinned notes${cacheSuffix}`;
+            ? `${selectedTasks.length} item${selectedTasks.length === 1 ? '' : 's'} shown for ${selectedDisplayLabel} · ${tasks.length} total in ${statusLabel}${cacheSuffix}`
+            : `${tasks.length} active item${tasks.length === 1 ? '' : 's'} in ${groups.length} ${groupLabel} group${groups.length === 1 ? '' : 's'} for ${statusLabel}. Choose a ${groupLabel} to show pinned notes${cacheSuffix}`;
     }
 
-    const siteCardsHtml = siteGroups.map(group => {
-        const parts = wdSiteDisplayParts(group.label, group.siteName);
+    const groupCardsHtml = groups.map(group => {
         const active = selectedGroup && group.key === selectedGroup.key ? 'active' : '';
         const statusCounts = group.tasks.reduce((acc, task) => {
             const label = wdText(task.bucket || task.status || 'Open');
@@ -3886,6 +3970,26 @@ function wdRenderAllActiveCorkboard(baseTasks, selectedLabel, cacheSuffix, summa
             .join(' · ');
         const attentionTone = wdSiteGroupAttentionTone(group.tasks);
         const attentionLabel = wdSiteGroupAttentionLabel(attentionTone);
+
+        if (isForSummaryView) {
+            const vendorLabel = wdText(group.label, 'No Vendor');
+            const initials = vendorLabel
+                .split(/\s+/)
+                .filter(Boolean)
+                .slice(0, 2)
+                .map(part => part.charAt(0).toUpperCase())
+                .join('') || 'V';
+            return `
+            <button class="wd-cork-site-card wd-cork-vendor-card ${active} site-age-${wdSafe(attentionTone)}" type="button" data-site-key="${wdSafe(group.key)}" aria-label="Show ${wdSafe(vendorLabel)} For Summary tasks · ${wdSafe(attentionLabel)}">
+                <span class="wd-site-card-pin" title="${wdSafe(attentionLabel)}"><i class="fa-solid fa-thumbtack"></i></span>
+                <span class="wd-site-card-no"><i class="fa-regular fa-building"></i> ${wdSafe(initials)}</span>
+                <span class="wd-site-card-name">${wdSafe(vendorLabel)}</span>
+                <span class="wd-site-card-count">${group.tasks.length} item${group.tasks.length === 1 ? '' : 's'}</span>
+                ${statusPreview ? `<small>${statusPreview}</small>` : ''}
+            </button>`;
+        }
+
+        const parts = wdSiteDisplayParts(group.label, group.siteName);
         return `
             <button class="wd-cork-site-card ${active} site-age-${wdSafe(attentionTone)}" type="button" data-site-key="${wdSafe(group.key)}" aria-label="Show ${wdSafe(group.label)} tasks · ${wdSafe(attentionLabel)}">
                 <span class="wd-site-card-pin" title="${wdSafe(attentionLabel)}"><i class="fa-solid fa-thumbtack"></i></span>
@@ -3897,16 +4001,13 @@ function wdRenderAllActiveCorkboard(baseTasks, selectedLabel, cacheSuffix, summa
     }).join('');
 
     const cardsHtml = selectedGroup
-        ? selectedTasks.map((task, index) => wdRenderDashboardCorkNote(task, index, { siteLabel: selectedParts.label })).join('')
+        ? selectedTasks.map((task, index) => wdRenderDashboardCorkNote(task, index, isForSummaryView ? {} : { siteLabel: selectedSiteParts.label })).join('')
         : '';
 
-    // 10.6.4: Keep the first click result as site cards only. The cork board
-    // appears only after a site card is selected, and the old duplicated
-    // "Selected site" banner/card is intentionally removed.
-    const siteSelectorHtml = `
-        <div class="wd-site-selector-panel ${selectedGroup ? 'has-selection' : 'site-only'}">
-            <div class="wd-cork-site-selector" role="tablist" aria-label="All Active Tasks site selector">
-                ${siteCardsHtml}
+    const selectorHtml = `
+        <div class="wd-site-selector-panel ${selectedGroup ? 'has-selection' : 'site-only'} ${isForSummaryView ? 'vendor-selector' : ''}">
+            <div class="wd-cork-site-selector" role="tablist" aria-label="All Active Tasks ${groupLabel} selector">
+                ${groupCardsHtml}
             </div>
         </div>`;
 
@@ -3917,7 +4018,7 @@ function wdRenderAllActiveCorkboard(baseTasks, selectedLabel, cacheSuffix, summa
             </div>`
         : '';
 
-    listEl.innerHTML = `${siteSelectorHtml}${corkNotesHtml}`;
+    listEl.innerHTML = `${selectorHtml}${corkNotesHtml}`;
 }
 
 function wdRenderDashboardList() {
@@ -4008,7 +4109,8 @@ function wdRenderDashboardList() {
     }
 
     const selectedGroup = dateGroups.find(g => g.key === wdActiveDashboardSelectedQueueDate) || dateGroups[0];
-    const tasks = (selectedGroup.tasks || []).slice().sort(wdCompareDashboardPriority);
+    const personalTaskSorter = wdDashboardSorterForLabel(selectedLabel);
+    const tasks = (selectedGroup.tasks || []).slice().sort(personalTaskSorter);
     const queueLabel = tasks[0] ? wdCorkNoteDateLabel(tasks[0]) : 'Date';
 
     if (summaryEl) {

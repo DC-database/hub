@@ -1,5 +1,5 @@
 // js/app-batch-entry-ui.js
-// Version 9.4.2 — Batch Entry UI/search helpers + invoice theme contrast cleanup.
+// Version 10.7.7 — Batch Entry UI/search helpers + invoice theme contrast cleanup.
 // Cleanup only: public function names preserved; save/write logic remains in app.js.
 
 function updateBatchRowAttentionButton(row) {
@@ -258,6 +258,8 @@ async function handleAddPOToBatch() {
                         <option value="For IPC">For IPC</option>
                         <option value="Under Review">Under Review</option>
                         <option value="In Process">In Process</option>
+                        <option value="For Summary">For Summary</option>
+                <option value="Retention">Retention</option>
                         <option value="CEO Approval">CEO Approval</option>
                         <option value="Report">Report</option>
                         <option value="Report Approval">Report Approval</option>
@@ -418,6 +420,8 @@ async function addInvoiceToBatchTable(invData) {
                     <option value="Cancelled">Cancelled</option>
                     <option value="Original PO">Original PO</option>
                     <option value="In Process">In Process</option>
+                    <option value="For Summary">For Summary</option>
+                <option value="Retention">Retention</option>
                     <option value="CEO Approval">CEO Approval</option>
                     <option value="Report">Report</option>
                     <option value="Report Approval">Report Approval</option>
@@ -641,13 +645,12 @@ async function handleBatchModalPOSearch() {
         table.innerHTML = `
             <thead class="batch-existing-invoices-thead">
                 <tr>
-                    <th><input type="checkbox" id="modal-select-all" title="Select all"></th>
+                    <th style="width: 34px;"><input type="checkbox" id="modal-select-all" title="Select all"></th>
                     <th>Inv. Entry ID</th>
                     <th>Inv. No.</th>
-                    <th>Inv. Date</th>
                     <th>Inv. Value</th>
+                    <th>Amt. Paid</th>
                     <th>Status</th>
-                    <th>Note</th>
                 </tr>
             </thead>
             <tbody id="batch-modal-tbody"></tbody>
@@ -691,6 +694,12 @@ async function handleBatchModalPOSearch() {
             
             const invDataString = encodeURIComponent(JSON.stringify(invData));
             const shortNote = String(inv.note || inv.currentNote || '').trim();
+            const invDateText = (typeof formatToDDMMMYY === 'function') ? formatToDDMMMYY(inv.invDate || inv.invoiceDate || '') : (inv.invDate || inv.invoiceDate || '');
+            const rowTitle = [
+                invDateText ? `Invoice Date: ${invDateText}` : '',
+                shortNote ? `Note: ${shortNote}` : ''
+            ].filter(Boolean).join(' | ') || 'Click to select this invoice';
+            tr.setAttribute('title', rowTitle);
             
             tr.innerHTML = `
                 <td style="text-align:center;">
@@ -698,10 +707,9 @@ async function handleBatchModalPOSearch() {
                 </td>
                 <td>${escapeHtml(inv.invEntryID || '')}</td>
                 <td>${escapeHtml(inv.invNumber || '')}</td>
-                <td>${escapeHtml(typeof formatToDDMMMYY === 'function' ? formatToDDMMMYY(inv.invDate || inv.invoiceDate || '') : (inv.invDate || inv.invoiceDate || ''))}</td>
                 <td>${formatCurrency(inv.invValue)}</td>
+                <td>${formatCurrency(inv.amountPaid || 0)}</td>
                 <td><span class="batch-modal-status-chip">${escapeHtml(inv.status || '')}</span></td>
-                <td class="batch-modal-note-cell">${escapeHtml(shortNote || '—')}</td>
             `;
             
             tr.addEventListener('click', (e) => {
