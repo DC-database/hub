@@ -1,18 +1,15 @@
-10.8.2 PATCH ONLY
+10.8.3 PATCH ONLY
 
 Upload/replace only:
 - index.html
-- js/app-batch-entry-ui.js
+- js/app-invoice-records.js
 - UPLOAD_NOTE.txt
 
 Change:
-- Corrected the Retention dropdown insertion from 10.8.1.
-- Retention is now included in the Invoice Entry status dropdown.
-- Retention is now included in the Batch Entry global status dropdown.
-- Retention is now included in all Batch Entry row status dropdown templates.
-- Removed duplicate Retention option that appeared in one dropdown/template.
-- Dashboard Retention support from 10.8.1 is unchanged: Retention uses normal Site cards.
-- For Summary remains Vendor cards.
+- Fixed Invoice Records action-column PDF button order.
+- PDF buttons now display in this order: INV, RPT, SRV.
+- Standardized labels to uppercase INV / RPT / SRV.
+- Edit, History, Sticker, and WhatsApp buttons stay in their existing positions around the PDF buttons.
 - No Firebase rules change.
 - No save/workflow logic change.
 - No app.js change.
