@@ -428,9 +428,9 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
 
                     const exactPdfUrl = (finalInvName && finalInvName.toLowerCase() !== 'nil') ? `${PDF_BASE_PATH}${encodeURIComponent(finalInvName)}.pdf` : '';
 
-                    const invPDFLink = (finalInvName && finalInvName.toLowerCase() !== 'nil') ? `<a href="${exactPdfUrl}" target="_blank" class="action-btn invoice-pdf-btn" onclick="event.stopPropagation();" title="View Invoice">Inv</a>` : '';
-                    const srvPDFLink = (finalSrvName && finalSrvName.toLowerCase() !== 'nil') ? `<a href="${SRV_BASE_PATH}${encodeURIComponent(finalSrvName)}.pdf" target="_blank" class="action-btn srv-pdf-btn" onclick="event.stopPropagation();" title="View SRV">SRV</a>` : '';
-                    const reportViewLink = (finalReportName && finalReportName.toLowerCase() !== 'nil') ? `<a href="${REPORT_BASE_PATH}${encodeURIComponent(finalReportName)}.pdf" target="_blank" class="action-btn" style="background-color: #6f42c1; color: white;" onclick="event.stopPropagation();" title="View Report PDF">Rpt</a>` : '';
+                    const invPDFLink = (finalInvName && finalInvName.toLowerCase() !== 'nil') ? `<a href="${exactPdfUrl}" target="_blank" class="action-btn invoice-pdf-btn" onclick="event.stopPropagation();" title="View Invoice PDF">INV</a>` : '';
+                    const srvPDFLink = (finalSrvName && finalSrvName.toLowerCase() !== 'nil') ? `<a href="${SRV_BASE_PATH}${encodeURIComponent(finalSrvName)}.pdf" target="_blank" class="action-btn srv-pdf-btn" onclick="event.stopPropagation();" title="View SRV PDF">SRV</a>` : '';
+                    const reportViewLink = (finalReportName && finalReportName.toLowerCase() !== 'nil') ? `<a href="${REPORT_BASE_PATH}${encodeURIComponent(finalReportName)}.pdf" target="_blank" class="action-btn" style="background-color: #6f42c1; color: white;" onclick="event.stopPropagation();" title="View Report PDF">RPT</a>` : '';
 
                     let historyBtn = (inv.history || inv.createdAt || inv.originTimestamp) ? `<button type="button" class="history-btn action-btn" onclick="event.stopPropagation(); showInvoiceHistory('${poData.poNumber}', '${inv.key}')"><i class="fa-solid fa-clock-rotate-left"></i></button>` : '';
                     let editBtn = `<button type="button" class="edit-inv-no-btn im-enter-inv-btn action-btn" data-po="${poData.poNumber}" data-key="${inv.key}" data-current="${inv.invNumber || ''}" title="Enter New Invoice Number" aria-label="Enter New Invoice Number"><i class="fa-solid fa-pen-to-square im-enter-inv-icon" style="color:#ffda1f !important; -webkit-text-fill-color:#ffda1f !important; fill:#ffda1f !important; text-shadow:0 1px 2px rgba(0,0,0,.45);"></i></button>`;
@@ -453,7 +453,7 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
                         </button>`;
                     }
 
-                    actionButtonsHTML = `<div class="modern-action-group im-record-actions">${editBtn} ${invPDFLink} ${srvPDFLink} ${reportViewLink} ${historyBtn} ${stickerBtn} ${waBtn}</div>`;
+                    actionButtonsHTML = `<div class="modern-action-group im-record-actions">${editBtn} ${invPDFLink} ${reportViewLink} ${srvPDFLink} ${historyBtn} ${stickerBtn} ${waBtn}</div>`;
                 } else if ((inv.source || '').toLowerCase() === 'ecommit' && isAllowedUser) {
                     actionButtonsHTML = `<span style="font-size:0.8rem; color:#6f42c1; font-weight:bold; cursor:pointer;"><i class="fa-solid fa-file-import"></i> Click to Import</span>`;
                 }
