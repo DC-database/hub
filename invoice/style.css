@@ -30244,3 +30244,14 @@ body #im-batch-search-modal.modal-overlay:not(.hidden) {
         animation: none !important;
     }
 }
+
+
+/* 10.8.8 — Stop yellow cork-board note blinking
+   Keep selected status/site/vendor card highlight, but do not animate the yellow notes themselves. */
+#wd-dashboard .wd-cork-notes-board .wd-cork-note,
+#wd-dashboard .wd-cork-notes-board .wd-cork-note::before,
+#wd-dashboard .wd-cork-notes-board .wd-cork-note::after,
+#wd-dashboard .wd-cork-notes-board .wd-cork-note .wd-note-age,
+#wd-dashboard .wd-cork-notes-board .wd-cork-note .wd-note-pin {
+    animation: none !important;
+}

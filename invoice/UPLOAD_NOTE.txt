@@ -1,21 +1,19 @@
-10.8.7 PATCH ONLY
+10.8.8 PATCH ONLY
 
 Upload/replace only:
 - index.html
 - style.css
-- js/app-workdesk-dashboard.js
 - UPLOAD_NOTE.txt
 
 Change:
-- Dashboard main status/category cards now keep a visible selected highlight and soft pulse after click.
-- Other status/category cards are lightly dimmed while one category is selected.
-- Yellow cork-board note PDF/action buttons are compact and no longer cut off when INV, RPT, SRV, and Forward are all present.
-- Dashboard cork-board notes now include SRV PDF button when an SRV file name exists.
-- Fixed a small duplicate Current Status wrapper in the dashboard note layout.
-- UI-only dashboard change.
+- Fixed Dashboard cork-board yellow notes blinking.
+- Yellow task notes no longer animate/blink.
+- Selected main status card highlight remains.
+- Selected site/vendor card highlight remains.
 - No Firebase rules change.
 - No download/read logic change.
 - No save/workflow logic change.
 - No app.js change.
+- No dashboard JS change.
 
 After upload: hard refresh with Ctrl + F5.
