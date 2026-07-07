@@ -1,15 +1,18 @@
-10.7.6 PATCH ONLY
+10.8.2 PATCH ONLY
 
 Upload/replace only:
 - index.html
-- js/app-workdesk-reporting.js
+- js/app-batch-entry-ui.js
 - UPLOAD_NOTE.txt
 
 Change:
-- Fixed WorkDesk > Job Records first search without selecting a tab.
-- Searching a PO first now renders from the live search input instead of waiting for a selected tab.
-- Admin global search still works across Job Records categories.
-- If one matching category is found, the tab auto-highlights.
+- Corrected the Retention dropdown insertion from 10.8.1.
+- Retention is now included in the Invoice Entry status dropdown.
+- Retention is now included in the Batch Entry global status dropdown.
+- Retention is now included in all Batch Entry row status dropdown templates.
+- Removed duplicate Retention option that appeared in one dropdown/template.
+- Dashboard Retention support from 10.8.1 is unchanged: Retention uses normal Site cards.
+- For Summary remains Vendor cards.
 - No Firebase rules change.
 - No save/workflow logic change.
 - No app.js change.

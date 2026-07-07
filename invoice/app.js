@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '10.7.6';
+const APP_VERSION = '10.8.2';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -4843,7 +4843,11 @@ async function handleSaveBatchInvoices() {
         
         alert(`Batch Process Complete!\n\nNew Invoices: ${newInvoicesCount}\nUpdated Invoices: ${updatedInvoicesCount}`);
         
-        document.getElementById('im-batch-table-body').innerHTML = '';
+        if (typeof imClearBatchEntryAfterSuccessfulSave === 'function') {
+            imClearBatchEntryAfterSuccessfulSave();
+        } else {
+            document.getElementById('im-batch-table-body').innerHTML = '';
+        }
         if (typeof imBatchSearchModal !== 'undefined' && imBatchSearchModal) imBatchSearchModal.classList.add('hidden');
         if (typeof loadActiveTasks === 'function') loadActiveTasks();
     } catch (error) {
@@ -4855,6 +4859,53 @@ async function handleSaveBatchInvoices() {
 // --------------------------------------------------------------------------
 // SECTION D: MODAL POPUP LOGIC
 // --------------------------------------------------------------------------
+
+function imClearBatchEntryAfterSuccessfulSave() {
+    try {
+        const tableBody = document.getElementById('im-batch-table-body');
+        if (tableBody) tableBody.innerHTML = '';
+
+        const batchInput = document.getElementById('im-batch-po-input');
+        if (batchInput) batchInput.value = '';
+
+        const modalInput = document.getElementById('im-batch-modal-po-input');
+        if (modalInput) modalInput.value = '';
+
+        const modalResults = document.getElementById('im-batch-modal-results');
+        if (modalResults) modalResults.innerHTML = '<p class="batch-modal-standby">Search a PO to add existing invoices.</p>';
+
+        const globalStatus = document.getElementById('im-batch-global-status');
+        if (globalStatus) globalStatus.value = '';
+
+        const globalNote = document.getElementById('im-batch-global-note');
+        if (globalNote) globalNote.value = '';
+
+        try {
+            if (typeof imBatchGlobalAttentionChoices !== 'undefined' && imBatchGlobalAttentionChoices) {
+                imBatchGlobalAttentionChoices.removeActiveItems();
+                imBatchGlobalAttentionChoices.clearInput();
+            }
+            const globalAttention = document.getElementById('im-batch-global-attention');
+            if (globalAttention) globalAttention.value = '';
+        } catch (_) {}
+
+        try {
+            if (typeof imBatchNoteSearchChoices !== 'undefined' && imBatchNoteSearchChoices) {
+                imBatchNoteSearchChoices.removeActiveItems();
+                imBatchNoteSearchChoices.clearInput();
+            }
+            const noteSearch = document.getElementById('im-batch-note-search-select');
+            if (noteSearch) noteSearch.value = '';
+        } catch (_) {}
+
+        try { sessionStorage.removeItem('imBatchSearch'); } catch (_) {}
+        try { sessionStorage.removeItem('imBatchNoteSearch'); } catch (_) {}
+
+        if (typeof updateBatchCount === 'function') updateBatchCount();
+    } catch (err) {
+        console.warn('Batch Entry post-save clear failed:', err);
+    }
+}
 
 // handleBatchModalPOSearch moved to js/app-batch-entry-ui.js in v8.2.7 (cleanup only).
 // handleAddSelectedToBatch moved to js/app-batch-entry-ui.js in v8.2.7 (cleanup only).
