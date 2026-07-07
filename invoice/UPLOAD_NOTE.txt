@@ -1,4 +1,4 @@
-10.8.4 PATCH ONLY
+10.8.5 PATCH ONLY
 
 Upload/replace only:
 - index.html
@@ -6,13 +6,15 @@ Upload/replace only:
 - UPLOAD_NOTE.txt
 
 Change:
-- Added “For Approval” to WorkDesk Dashboard active queues.
-- For Approval uses normal Site cards, same as Retention and other normal statuses.
-- For Summary remains Vendor cards.
-- CEO Approval is still not added.
-- With Accounts is still excluded.
-- No dropdown/status-save logic changed.
+- WorkDesk Dashboard search can now search globally when no status card is selected.
+- Admin can type PO number, vendor name, invoice number, site, attention, or status and find matching cached Dashboard tasks.
+- Search uses already-loaded/browser-cached Dashboard data only; typing in search does not trigger extra Firebase reads.
+- If the global search result belongs to only one queue, that queue behavior is preserved:
+  - For Summary keeps Vendor cards.
+  - Retention, IPC, For SRV, etc. keep Site cards.
+- If the search matches multiple queues, results show as global search results.
 - No Firebase rules change.
+- No save/workflow logic change.
 - No app.js change.
 
 After upload: hard refresh with Ctrl + F5.
