@@ -3242,12 +3242,71 @@ function wdGetFilteredDashboardTasks() {
     const search = wdNormalize(searchInput?.value || '');
     const canSeeAllActive = wdCanSeeAllActiveDashboard();
 
+    const selected = wdActiveDashboardSelectedStatus || WD_DASHBOARD_NONE;
+    const isGlobalDashboardSearch = !!search && selected === WD_DASHBOARD_NONE;
+
+    const searchableText = (task = {}) => [
+        task.po,
+        task.ref,
+        task.invNumber,
+        task.invoiceNumber,
+        task.invoiceNo,
+        task.invEntryID,
+        task.vendorName,
+        task.vendor,
+        task.supplierName,
+        task.site,
+        task.status,
+        task.bucket,
+        task.personalBucket,
+        task.attention,
+        task.note,
+        task.details,
+        task.currentNote,
+        task.ipc,
+        task.queueLabel,
+        task.queueText,
+        task.type,
+        task.group,
+        task.amount
+    ].join(' ').toLowerCase();
+
+    const applySearch = (items) => {
+        if (!search) return items;
+        return items.filter(task => searchableText(task).includes(search));
+    };
+
+    const dedupeTasks = (items) => {
+        const seen = new Set();
+        const output = [];
+        (Array.isArray(items) ? items : []).forEach(task => {
+            const key = (typeof wdDashboardTaskIdentityKey === 'function')
+                ? wdDashboardTaskIdentityKey(task)
+                : [task.po, task.ref, task.key, task.invoiceKey, task.invEntryID].join('|');
+            const normKey = wdNormalize(key || JSON.stringify(task || {}));
+            if (seen.has(normKey)) return;
+            seen.add(normKey);
+            output.push(task);
+        });
+        return output;
+    };
+
+    // 10.8.5: If the admin/user types a PO/vendor before choosing a status card,
+    // search only the already-loaded browser dashboard arrays. Do not fetch Firebase
+    // again on every keystroke. This allows finding whether the task is Retention,
+    // IPC, For Summary, For SRV, etc. without knowing the card first.
+    if (isGlobalDashboardSearch) {
+        const visibleSources = canSeeAllActive
+            ? [...(Array.isArray(wdActiveDashboardTasks) ? wdActiveDashboardTasks : []), ...(Array.isArray(wdPersonalDashboardTasks) ? wdPersonalDashboardTasks : [])]
+            : (Array.isArray(wdPersonalDashboardTasks) ? wdPersonalDashboardTasks.slice() : []);
+        return dedupeTasks(applySearch(visibleSources)).sort(wdCompareDashboardPriority);
+    }
+
     // 9.4.7: Normal/User accounts must also respect the clicked My Personal
     // status card. Previously non-admin users were always forced back to the
     // whole personal queue, so cards such as My For SRV or My On Hold changed
     // the active card but not the list below.
     let tasks = canSeeAllActive ? wdActiveDashboardTasks.slice() : wdPersonalDashboardTasks.slice();
-    const selected = wdActiveDashboardSelectedStatus || WD_DASHBOARD_NONE;
 
     if (selected === WD_DASHBOARD_NONE) return [];
 
@@ -3269,29 +3328,7 @@ function wdGetFilteredDashboardTasks() {
         }
     }
 
-    if (search) {
-        tasks = tasks.filter(task => {
-            const haystack = [
-                task.po,
-                task.ref,
-                task.vendorName,
-                task.site,
-                task.status,
-                task.bucket,
-                task.personalBucket,
-                task.attention,
-                task.note,
-                task.ipc,
-                task.queueLabel,
-                task.queueText,
-                task.type,
-                task.amount
-            ].join(' ').toLowerCase();
-            return haystack.includes(search);
-        });
-    }
-
-    return tasks.slice().sort(wdCompareDashboardPriority);
+    return applySearch(tasks).slice().sort(wdCompareDashboardPriority);
 }
 
 
@@ -4038,16 +4075,26 @@ function wdRenderDashboardList() {
     if (!listEl) return;
 
     const selected = wdActiveDashboardSelectedStatus || WD_DASHBOARD_NONE;
+    const searchInput = document.getElementById('wd-active-dashboard-search');
+    const globalSearch = wdNormalize(searchInput?.value || '');
     const baseTasks = wdGetFilteredDashboardTasks();
-    const selectedLabel = selected === WD_DASHBOARD_NONE
-        ? 'Select a status card'
+    let selectedLabel = selected === WD_DASHBOARD_NONE
+        ? (globalSearch ? 'Global search results' : 'Select a status card')
         : ((wdActiveDashboardSelectedStatus || '').startsWith(WD_DASHBOARD_MY_STATUS_PREFIX)
             ? wdDashboardSelectedLabel()
             : (wdCanSeeAllActiveDashboard() ? wdDashboardSelectedLabel() : 'My Personal Tasks'));
 
+    // 10.8.5: For a global search with exactly one matching queue, reuse that
+    // queue label so special grouping still applies. Example: For Summary keeps
+    // Vendor cards; Retention/IPC/For SRV keep Site cards.
+    if (selected === WD_DASHBOARD_NONE && globalSearch && baseTasks.length) {
+        const matchingBuckets = [...new Set(baseTasks.map(task => wdText(task.bucket || task.personalBucket || wdDashboardBucket(task.status, task.type) || wdDashboardPersonalBucket(task.status, task.type))).filter(Boolean))];
+        if (matchingBuckets.length === 1) selectedLabel = matchingBuckets[0];
+    }
+
     if (titleEl) titleEl.textContent = selectedLabel;
 
-    if (selected === WD_DASHBOARD_NONE) {
+    if (selected === WD_DASHBOARD_NONE && !globalSearch) {
         if (summaryEl) {
             const cacheSuffix = wdActiveDashboardCacheMeta && wdActiveDashboardCacheMeta.fromCache
                 ? ` · browser cache ${wdCacheAgeText(wdActiveDashboardCacheMeta.savedAt)}`
@@ -4083,13 +4130,18 @@ function wdRenderDashboardList() {
     }
 
     if (!baseTasks.length) {
-        if (summaryEl) summaryEl.textContent = 'No matching task found for the selected card/search.';
+        const globalSearchEmpty = selected === WD_DASHBOARD_NONE && globalSearch;
+        if (summaryEl) summaryEl.textContent = globalSearchEmpty
+            ? 'No matching task found in the already-loaded Dashboard cache.'
+            : 'No matching task found for the selected card/search.';
         listEl.innerHTML = `
             <div class="wd-dashboard-empty-state">
                 <span class="wd-empty-icon"><i class="fa-solid fa-magnifying-glass"></i></span>
                 <div>
                     <strong>No matching task</strong>
-                    <p>Try another status card or search by PO, vendor, site, attention, note, or status.</p>
+                    <p>${globalSearchEmpty
+                        ? 'The global search used the Dashboard data already loaded in this browser. Refresh the Dashboard only if you need to verify newest records.'
+                        : 'Try another status card or search by PO, vendor, site, attention, note, or status.'}</p>
                 </div>
             </div>`;
         return;
