@@ -161,8 +161,18 @@ function addCheckedToCollection(){
   checks.forEach(chk=>{ const key=chk.getAttribute('data-key'); if(key && lastRenderedRows[key]) selectedPOs[key]=lastRenderedRows[key]; });
   persistSelected();
 }
-function viewCollection(){
-  const tbody=document.querySelector('#poTable tbody'); tbody.innerHTML='';
+function viewCollection(skipReload){
+  // When View is clicked by the user, refresh the page first,
+  // then automatically show the saved collection after reload.
+  if (!skipReload) {
+    sessionStorage.setItem('showPOCollectionAfterReload', '1');
+    window.location.reload();
+    return;
+  }
+
+  const tbody=document.querySelector('#poTable tbody');
+  if (!tbody) return;
+  tbody.innerHTML='';
   Object.keys(selectedPOs).forEach(key=>tbody.appendChild(renderRow(key, selectedPOs[key])));
   updateResultCount();
 }
@@ -395,7 +405,14 @@ function toggleMenu() {
 // ---------- Initializers ----------
 window.onload = () => { 
     generateAZFilter(); 
-    updateSelectedCount(); 
+    updateSelectedCount();
+
+    // If the View button triggered a refresh, show the collection after reload
+    if (sessionStorage.getItem('showPOCollectionAfterReload') === '1') {
+      sessionStorage.removeItem('showPOCollectionAfterReload');
+      viewCollection(true);
+    }
+
     loadGitHubMasterData(); 
     loadAvailableDates();
 
