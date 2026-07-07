@@ -1802,6 +1802,7 @@ async function wdNormalizeActiveTaskForDashboard(task, ipcMap) {
         ipcActive: !!ipcInfo,
         invName: task.invName || invMeta.invName || '',
         reportName: task.reportName || invMeta.reportName || '',
+        srvName: task.srvName || invMeta.srvName || '',
         amount: task.amountPaid || task.amount || invMeta.amountPaid || invMeta.invValue || '',
         group: (isJobEntry && taskForText === 'invoice') ? (task.group || '') : (task.group || invMeta.group || ''),
         // 10.1.3: For Job Entry records, date is the Entered Date. It must not be reused
@@ -1944,6 +1945,7 @@ async function wdBuildNewEntryJobRecordTasks() {
             enteredBy: entry.enteredBy || entry.createdBy || entry.updatedBy || '',
             invName: entry.invName || '',
             reportName: entry.reportName || '',
+            srvName: entry.srvName || '',
             amount: entry.amount || entry.invoiceValue || entry.invValue || '',
             amountPaid: entry.amountPaid || entry.amount || entry.invoiceValue || entry.invValue || '',
             date: entry.invoiceDate || entry.invDate || '',
@@ -2013,6 +2015,7 @@ async function wdBuildIPCJobRecordTasks(ipcMap) {
             enteredBy: entry.enteredBy || entry.updatedBy || '',
             invName: entry.invName || '',
             reportName: entry.reportName || '',
+            srvName: entry.srvName || '',
             amount: entry.amount || entry.invoiceValue || '',
             // 10.1.4: IPC is not an invoice yet. Keep Entered Date separate and
             // leave supplier Invoice Date blank until IPC is converted to Invoice.
@@ -2091,6 +2094,7 @@ async function wdBuildInvoiceRecordOverviewTasks(forceRefresh = false) {
                 bucket,
                 invName: inv.invName || inv.invoiceName || '',
                 reportName: inv.reportName || '',
+                srvName: inv.srvName || inv.srvPDF || inv.srvPdf || '',
                 vendorName: wdResolveInvoiceVendor(inv, poDetails),
                 note: inv.note || inv.details || inv.description || '',
                 timestamp: Number(inv.invoiceLastUpdated || inv.lastUpdated || inv.updatedAt || inv.enteredAt || 0) || wdEntryTimestamp(inv) || queueTimestamp,
@@ -2225,6 +2229,7 @@ async function wdBuildInvoiceTaskLookupOverviewTasks(forceRefresh = false) {
                     bucket,
                     invName: task.invName || latestMeta.invName || '',
                     reportName: task.reportName || latestMeta.reportName || '',
+                    srvName: task.srvName || latestMeta.srvName || '',
                     vendorName,
                     note: task.note || latestMeta.note || '',
                     timestamp: Number(queueTimestamp || task.invoiceLastUpdated || latestMeta.lastUpdated || latestMeta.updatedAt || latestMeta.enteredAt || task.timestamp || 0),
@@ -2856,6 +2861,7 @@ async function wdNormalizeRecentInvoiceRowForDashboard(recent = {}, invoiceKey =
         bucket,
         invName: latestInv.invName || recent.invName || '',
         reportName: latestInv.reportName || recent.reportName || '',
+        srvName: latestInv.srvName || recent.srvName || '',
         vendorName,
         note: latestInv.note || recent.note || '',
         timestamp: Number(queueTimestamp || updatedAt || 0),
@@ -3890,8 +3896,11 @@ function wdRenderDashboardCorkNote(task, index, options = {}) {
         'Pending'
     ) || 'Pending';
     const statusTone = wdStatusTone(task.bucket || simpleStatusTitle || statusText || task.status);
-    const invoicePdf = wdBuildPdfButton('Invoice PDF', PDF_BASE_PATH, task.invName, 'invoice');
-    const reportPdf = wdBuildPdfButton('Report PDF', REPORT_BASE_PATH, task.reportName, 'report');
+    // 10.8.7: Cork-board note actions use compact labels and support SRV,
+    // so INV/RPT/SRV + Forward can fit without being cut.
+    const invoicePdf = wdHasPdfName(task.invName) ? wdBuildPdfButton('INV', PDF_BASE_PATH, task.invName, 'invoice') : '';
+    const reportPdf = wdHasPdfName(task.reportName) ? wdBuildPdfButton('RPT', REPORT_BASE_PATH, task.reportName, 'report') : '';
+    const srvPdf = (typeof SRV_BASE_PATH !== 'undefined' && SRV_BASE_PATH && wdHasPdfName(task.srvName)) ? wdBuildPdfButton('SRV', SRV_BASE_PATH, task.srvName, 'srv') : '';
     const forwardTaskId = wdForwardRegisterTask(task);
     const forwardBtn = `<button class="wd-forward-task-btn" type="button" data-wd-forward-task-id="${wdSafe(forwardTaskId)}" title="Forward PO value, vendor, and current note to Attention user"><i class="fa-solid fa-paper-plane"></i> Forward</button>`;
     const poDisplay = task.po || task.ref || 'N/A';
@@ -3957,6 +3966,7 @@ function wdRenderDashboardCorkNote(task, index, options = {}) {
             <div class="wd-note-actions">
                 ${invoicePdf}
                 ${reportPdf}
+                ${srvPdf}
                 ${forwardBtn}
             </div>
         </article>`;
