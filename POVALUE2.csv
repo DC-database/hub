@@ -39049,3 +39049,13 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Order Date,Buyer Name,Entr
 22526,65015,11832,Casting Trading Contracting & Services,178,1900,06-Jul-26,Eng. Seif Awwad,i.reza,TRUE
 ,65016,31003,Teyseer Motors WLL,100,1340,06-Jul-26,IBA Head Office,i.reza,TRUE
 ,65017,11318,Aamal Cement Industries WLL,173,2531.86,06-Jul-26,IBA Head Office,Irwin,TRUE
+22524,65018,10166,Teyseer Industrial Supplies and Services TISCO,173,0,07-Jul-26,Eng. Khamis Farhan,Cyril,TRUE
+22524,65019,11732,Nay Trading Co WLL,173,1525,07-Jul-26,Eng. Khamis Farhan,Cyril,TRUE
+,65020,19999,Cash,100,500,07-Jul-26,IBA Head Office,i.reza,TRUE
+,65021,19999,Cash,100,1230,07-Jul-26,IBA Head Office,i.reza,TRUE
+,65022,19999,Cash,176,20,30-Jun-26,IBA Head Office,i.reza,FALSE
+,65023,19999,Cash,100,80,30-Jun-26,IBA Head Office,i.reza,FALSE
+,65024,19999,Cash,100,40,30-Jun-26,IBA Head Office,i.reza,TRUE
+22538,65025,30513,Mostafa Khalil,1061,1300,07-Jul-26,Muhammed Siddique,Cyril,TRUE
+,65026,10130,Khalifa Steel Industries Co,173,1891.86,07-Jul-26,IBA Head Office,Irwin,TRUE
+,65027,19999,Cash,1061,175,07-Jul-26,IBA Head Office,H.Abbas,FALSE
