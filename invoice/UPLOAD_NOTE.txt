@@ -1,0 +1,17 @@
+10.7.6 PATCH ONLY
+
+Upload/replace only:
+- index.html
+- js/app-workdesk-reporting.js
+- UPLOAD_NOTE.txt
+
+Change:
+- Fixed WorkDesk > Job Records first search without selecting a tab.
+- Searching a PO first now renders from the live search input instead of waiting for a selected tab.
+- Admin global search still works across Job Records categories.
+- If one matching category is found, the tab auto-highlights.
+- No Firebase rules change.
+- No save/workflow logic change.
+- No app.js change.
+
+After upload: hard refresh with Ctrl + F5.

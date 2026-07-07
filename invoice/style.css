@@ -27603,9 +27603,19 @@ body.inventory-mode #wd-inv-request-review .inventory-request-review-card,
     padding: 18px;
     border-radius: 0 0 26px 26px;
     background:
-        radial-gradient(circle at 18% 10%, rgba(255, 255, 255, 0.22), transparent 24%),
-        linear-gradient(135deg, #b7793c 0%, #8a572d 45%, #6f4526 100%);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.18);
+        radial-gradient(circle at 16% 12%, rgba(255, 255, 255, 0.18), transparent 20%),
+        radial-gradient(circle at 76% 18%, rgba(255, 244, 200, 0.10), transparent 24%),
+        radial-gradient(circle at 24% 78%, rgba(78, 49, 26, 0.12) 0 1px, transparent 1.4px),
+        radial-gradient(circle at 68% 38%, rgba(92, 58, 31, 0.11) 0 1px, transparent 1.5px),
+        radial-gradient(circle at 88% 62%, rgba(255, 240, 201, 0.10) 0 1px, transparent 1.6px),
+        radial-gradient(circle at 40% 30%, rgba(255, 248, 214, 0.10) 0 0.9px, transparent 1.3px),
+        repeating-linear-gradient(12deg, rgba(255,255,255,0.035) 0 2px, rgba(0,0,0,0) 2px 14px),
+        repeating-linear-gradient(102deg, rgba(83, 51, 25, 0.10) 0 1px, rgba(0,0,0,0) 1px 13px),
+        linear-gradient(135deg, #ba7c3f 0%, #946032 38%, #774928 72%, #653d23 100%);
+    background-size: auto, auto, 48px 48px, 62px 62px, 74px 74px, 56px 56px, auto, auto, auto;
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.18),
+        inset 0 0 0 1px rgba(86, 51, 23, 0.12);
 }
 
 #wd-dashboard .wd-cork-board-head {
@@ -27767,13 +27777,47 @@ body.inventory-mode #wd-inv-request-review .inventory-request-review-card,
     position: absolute;
     top: 7px;
     left: 50%;
-    width: 15px;
-    height: 15px;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
     transform: translateX(-50%);
-    background: radial-gradient(circle at 35% 30%, #ffffff 0 12%, #dc2626 35%, #991b1b 100%);
-    box-shadow: 0 3px 8px rgba(127, 29, 29, 0.35);
-    z-index: 2;
+    background:
+        radial-gradient(circle at 34% 28%, #ffd7d1 0 18%, #ff6d55 29%, #e9362d 57%, #a91218 100%);
+    border: 1px solid rgba(128, 18, 18, 0.32);
+    box-shadow:
+        0 2px 3px rgba(100, 20, 20, 0.22),
+        inset 0 1px 0 rgba(255,255,255,0.30);
+    z-index: 4;
+    overflow: visible;
+}
+
+#wd-dashboard .wd-note-pin::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 14px;
+    width: 8px;
+    height: 8px;
+    border-radius: 0 0 7px 7px;
+    transform: translateX(-50%);
+    background: linear-gradient(180deg, #b9161b 0%, #7e0d11 100%);
+    box-shadow: none;
+    z-index: -1;
+}
+
+#wd-dashboard .wd-note-pin::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 20px;
+    width: 25px;
+    height: 4px;
+    border-radius: 999px;
+    transform-origin: left center;
+    transform: translateX(-2px) rotate(38deg);
+    background: linear-gradient(90deg, #8b949e 0%, #f3f4f6 28%, #c7b779 63%, #6f623a 100%);
+    box-shadow: 10px 7px 0 0 rgba(163, 127, 55, 0.18);
+    z-index: -2;
 }
 
 #wd-dashboard .wd-note-head {
@@ -29424,5 +29468,588 @@ body #im-batch-search-modal #im-batch-modal-results tr.batch-modal-result-row.is
     padding: 9px 10px !important;
     line-height: 1.25 !important;
     opacity: 1 !important;
+}
+
+
+/* ========================================================================
+   10.6.4 — WorkDesk All Active site cards + realistic cork board cleanup
+   Scope: WorkDesk Dashboard > All Active Tasks only.
+   Purpose: Site cards stay fixed-size and do not stretch. The cork board
+   appears only after a site is selected. Pinned task notes keep a more
+   realistic cork-board/yellow-paper feel with no duplicate Selected Site card.
+   ======================================================================== */
+#wd-dashboard .wd-site-selector-panel {
+    margin: 14px 0 16px;
+    padding: 14px;
+    border-radius: 22px;
+    background:
+        radial-gradient(circle at 12% 10%, rgba(22, 163, 74, 0.10), transparent 24%),
+        linear-gradient(135deg, rgba(255,255,255,0.96), rgba(240,253,244,0.92));
+    border: 1px solid rgba(22, 101, 52, 0.14);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+}
+
+#wd-dashboard .wd-site-selector-panel .wd-cork-site-selector,
+#wd-dashboard .wd-cork-site-selector {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(148px, 166px)) !important;
+    justify-content: start !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    margin: 0 !important;
+}
+
+#wd-dashboard .wd-cork-site-card {
+    width: 100% !important;
+    min-height: 104px !important;
+    padding: 12px 12px 10px !important;
+    border-radius: 16px !important;
+    border: 1px solid rgba(21, 128, 61, 0.20) !important;
+    background:
+        radial-gradient(circle at 92% 9%, rgba(34,197,94,0.16), transparent 26%),
+        linear-gradient(145deg, #ffffff 0%, #f0fdf4 58%, #dcfce7 100%) !important;
+    color: #123524 !important;
+    box-shadow: 0 10px 20px rgba(15, 81, 50, 0.08), inset 0 1px 0 rgba(255,255,255,0.84) !important;
+}
+
+#wd-dashboard .wd-cork-site-card:hover {
+    transform: translateY(-2px) !important;
+    border-color: rgba(22, 101, 52, 0.34) !important;
+    box-shadow: 0 16px 28px rgba(15, 81, 50, 0.14), inset 0 1px 0 rgba(255,255,255,0.92) !important;
+}
+
+#wd-dashboard .wd-cork-site-card.active {
+    border-color: rgba(4, 120, 87, 0.66) !important;
+    background:
+        radial-gradient(circle at 92% 9%, rgba(250,204,21,0.30), transparent 28%),
+        linear-gradient(145deg, #ecfdf5 0%, #bbf7d0 100%) !important;
+    box-shadow: 0 18px 32px rgba(4, 120, 87, 0.18), inset 0 0 0 2px rgba(4, 120, 87, 0.18) !important;
+}
+
+#wd-dashboard .wd-cork-site-card .wd-site-card-no {
+    color: #065f46 !important;
+    font-size: 1.22rem !important;
+    line-height: 1.05 !important;
+}
+
+#wd-dashboard .wd-cork-site-card .wd-site-card-name {
+    color: #166534 !important;
+    min-height: 28px !important;
+    font-size: 0.8rem !important;
+}
+
+#wd-dashboard .wd-cork-site-card .wd-site-card-count {
+    background: rgba(255,255,255,0.74) !important;
+    color: #047857 !important;
+    border: 1px solid rgba(16, 185, 129, 0.18) !important;
+}
+
+#wd-dashboard .wd-cork-site-card small {
+    color: rgba(6, 95, 70, 0.76) !important;
+}
+
+#wd-dashboard .wd-cork-notes-board {
+    margin-top: 12px;
+    padding: 20px;
+    border-radius: 26px;
+    border: 10px solid rgba(94, 53, 25, 0.50);
+    background:
+        radial-gradient(circle at 12px 18px, rgba(255,255,255,0.13) 0 1px, transparent 2px),
+        radial-gradient(circle at 44px 38px, rgba(69,38,18,0.18) 0 1.5px, transparent 2.5px),
+        radial-gradient(circle at 84px 20px, rgba(255,236,179,0.10) 0 1px, transparent 2px),
+        linear-gradient(135deg, #b7793c 0%, #8a572d 48%, #6f4526 100%);
+    background-size: 58px 58px, 72px 72px, 96px 96px, auto;
+    box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,0.13),
+        inset 0 18px 38px rgba(255,255,255,0.07),
+        0 24px 46px rgba(58, 32, 15, 0.18);
+}
+
+#wd-dashboard .wd-cork-notes-board .wd-cork-note-grid {
+    grid-template-columns: repeat(auto-fill, minmax(265px, 300px));
+    justify-content: start;
+    align-items: stretch;
+}
+
+#wd-dashboard .wd-cork-notes-board .wd-cork-note {
+    border-radius: 8px 16px 16px 10px;
+    background:
+        linear-gradient(135deg, rgba(255,255,255,0.42), transparent 34%),
+        linear-gradient(180deg, #fff8b8 0%, #ffe778 100%);
+    box-shadow:
+        0 2px 1px rgba(255,255,255,0.55) inset,
+        0 19px 32px rgba(58, 32, 15, 0.26),
+        4px 5px 0 rgba(123, 70, 26, 0.10);
+}
+
+#wd-dashboard .wd-cork-notes-board .wd-cork-note::before {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 18px 0 8px 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.42), rgba(234,179,8,0.18));
+    box-shadow: -5px -5px 12px rgba(123, 70, 26, 0.08);
+    pointer-events: none;
+}
+
+#wd-dashboard .wd-cork-notes-board .wd-note-pin {
+    top: 6px;
+    width: 18px;
+    height: 18px;
+    background:
+        radial-gradient(circle at 35% 28%, #ffffff 0 10%, #ff7373 18%, #dc2626 48%, #7f1d1d 100%);
+    box-shadow:
+        0 2px 0 rgba(255,255,255,0.55) inset,
+        0 3px 0 rgba(127, 29, 29, 0.28),
+        0 8px 14px rgba(69, 38, 18, 0.34);
+}
+
+#wd-dashboard .wd-cork-notes-board .wd-note-pin::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 12px;
+    width: 2px;
+    height: 15px;
+    transform: translateX(-50%) rotate(7deg);
+    border-radius: 999px;
+    background: rgba(75, 45, 23, 0.28);
+    filter: blur(0.2px);
+    z-index: -1;
+}
+
+#wd-dashboard .wd-cork-site-head,
+#wd-dashboard .wd-cork-site-section.active-site .wd-cork-site-head {
+    display: none !important;
+}
+
+@media (max-width: 768px) {
+    #wd-dashboard .wd-site-selector-panel {
+        padding: 12px;
+        border-radius: 18px;
+    }
+
+    #wd-dashboard .wd-site-selector-panel .wd-cork-site-selector,
+    #wd-dashboard .wd-cork-site-selector {
+        grid-template-columns: repeat(auto-fill, minmax(136px, 158px)) !important;
+        gap: 9px !important;
+    }
+
+    #wd-dashboard .wd-cork-site-card {
+        min-height: 98px !important;
+        padding: 11px !important;
+    }
+
+    #wd-dashboard .wd-cork-notes-board {
+        padding: 14px;
+        border-width: 6px;
+        border-radius: 20px;
+    }
+
+    #wd-dashboard .wd-cork-notes-board .wd-cork-note-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* ========================================================================
+   10.6.5 — WorkDesk cork board depth + note shadow refinement
+   Scope: WorkDesk Dashboard > All Active selected-site cork board only.
+   Purpose: Make the yellow pinned notes visually lift away from the cork
+   board and add a richer cork texture without changing task/workflow logic.
+   ======================================================================== */
+#wd-dashboard .wd-cork-notes-board {
+    position: relative !important;
+    overflow: hidden !important;
+    background:
+        radial-gradient(circle at 9px 11px, rgba(255, 238, 194, 0.22) 0 1px, transparent 2.4px),
+        radial-gradient(circle at 35px 27px, rgba(56, 31, 14, 0.24) 0 1.6px, transparent 3px),
+        radial-gradient(circle at 78px 44px, rgba(255, 255, 255, 0.12) 0 1.1px, transparent 2.6px),
+        radial-gradient(circle at 115px 18px, rgba(68, 39, 18, 0.18) 0 2px, transparent 3.3px),
+        repeating-linear-gradient(22deg, rgba(255,255,255,0.040) 0 2px, transparent 2px 9px),
+        repeating-linear-gradient(112deg, rgba(59, 31, 14, 0.070) 0 1px, transparent 1px 8px),
+        linear-gradient(135deg, #c98b4c 0%, #a76a35 38%, #83502a 70%, #6d4224 100%) !important;
+    background-size: 44px 44px, 66px 66px, 88px 88px, 124px 124px, auto, auto, auto !important;
+    box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,0.14),
+        inset 0 22px 46px rgba(255, 244, 214, 0.08),
+        inset 0 -28px 48px rgba(50, 25, 9, 0.16),
+        0 26px 50px rgba(58, 32, 15, 0.20) !important;
+}
+
+#wd-dashboard .wd-cork-notes-board::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: .48;
+    background:
+        radial-gradient(circle at 18% 22%, rgba(255,255,255,.12), transparent 17%),
+        radial-gradient(circle at 72% 18%, rgba(65,34,14,.14), transparent 18%),
+        radial-gradient(circle at 36% 78%, rgba(55,29,13,.12), transparent 20%),
+        repeating-linear-gradient(0deg, rgba(255,255,255,.018) 0 1px, transparent 1px 4px);
+    mix-blend-mode: overlay;
+}
+
+#wd-dashboard .wd-cork-notes-board .wd-cork-note-grid {
+    position: relative !important;
+    z-index: 1 !important;
+}
+
+#wd-dashboard .wd-cork-notes-board .wd-cork-note {
+    border: 1px solid rgba(132, 86, 19, 0.16) !important;
+    background:
+        linear-gradient(135deg, rgba(255,255,255,0.56), rgba(255,255,255,0.10) 31%, transparent 48%),
+        linear-gradient(180deg, #fff9be 0%, #ffef8a 54%, #ffe173 100%) !important;
+    box-shadow:
+        0 1px 0 rgba(255,255,255,0.70) inset,
+        0 9px 10px rgba(66, 38, 17, 0.18),
+        0 22px 32px rgba(52, 28, 12, 0.24),
+        7px 9px 0 rgba(79, 46, 18, 0.10) !important;
+    filter: drop-shadow(0 18px 14px rgba(48, 27, 12, 0.20));
+}
+
+#wd-dashboard .wd-cork-notes-board .wd-cork-note:hover {
+    box-shadow:
+        0 1px 0 rgba(255,255,255,0.74) inset,
+        0 12px 16px rgba(66, 38, 17, 0.20),
+        0 30px 44px rgba(52, 28, 12, 0.28),
+        8px 10px 0 rgba(79, 46, 18, 0.12) !important;
+    filter: drop-shadow(0 22px 18px rgba(48, 27, 12, 0.24));
+}
+
+#wd-dashboard .wd-cork-notes-board .wd-cork-note::before {
+    width: 38px !important;
+    height: 38px !important;
+    background: linear-gradient(135deg, rgba(255,255,255,0.52), rgba(229, 168, 16, 0.20)) !important;
+    box-shadow: -7px -7px 14px rgba(115, 69, 22, 0.12) !important;
+}
+
+#wd-dashboard .wd-cork-notes-board .wd-note-pin {
+    box-shadow:
+        0 2px 0 rgba(255,255,255,0.60) inset,
+        0 4px 0 rgba(127, 29, 29, 0.30),
+        0 9px 14px rgba(47, 24, 11, 0.42),
+        0 15px 24px rgba(47, 24, 11, 0.20) !important;
+}
+
+
+/* ========================================================================
+   10.6.6 — WorkDesk cork note comfort cleanup
+   Scope: WorkDesk Dashboard > All Active selected-site cork board only.
+   Purpose: Remove the blurry/red pin effect and soften note shadows so the
+   pinned notes are easier on the eyes while keeping the cork-board layout.
+   ======================================================================== */
+#wd-dashboard .wd-cork-notes-board .wd-note-pin,
+#wd-dashboard .wd-cork-notes-board .wd-note-pin::before,
+#wd-dashboard .wd-cork-notes-board .wd-note-pin::after {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    box-shadow: none !important;
+    filter: none !important;
+}
+
+#wd-dashboard .wd-cork-notes-board .wd-cork-note {
+    filter: none !important;
+    box-shadow:
+        0 1px 0 rgba(255,255,255,0.62) inset,
+        0 8px 14px rgba(52, 28, 12, 0.16),
+        4px 5px 0 rgba(79, 46, 18, 0.055) !important;
+}
+
+#wd-dashboard .wd-cork-notes-board .wd-cork-note:hover {
+    filter: none !important;
+    box-shadow:
+        0 1px 0 rgba(255,255,255,0.66) inset,
+        0 10px 18px rgba(52, 28, 12, 0.18),
+        5px 6px 0 rgba(79, 46, 18, 0.065) !important;
+}
+
+#wd-dashboard .wd-cork-notes-board .wd-cork-note::before {
+    box-shadow: -4px -4px 9px rgba(115, 69, 22, 0.08) !important;
+}
+
+#wd-dashboard .wd-cork-notes-board::before {
+    opacity: .30 !important;
+}
+
+
+/* ========================================================================
+   10.6.7 — WorkDesk cork note crisp red pin restore
+   Scope: WorkDesk Dashboard > All Active selected-site cork board only.
+   Purpose: Restore the red push pin, remove the blurry/double pin effects,
+   and slightly increase the yellow note lift/shadow without changing logic.
+   ======================================================================== */
+#wd-dashboard .wd-cork-notes-board .wd-note-pin {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: absolute !important;
+    top: 7px !important;
+    left: 50% !important;
+    width: 15px !important;
+    height: 15px !important;
+    border-radius: 50% !important;
+    transform: translateX(-50%) !important;
+    background: #dc2626 !important;
+    border: 1px solid rgba(127, 29, 29, 0.70) !important;
+    box-shadow:
+        0 1px 0 rgba(255,255,255,0.50) inset,
+        0 2px 0 rgba(127,29,29,0.65),
+        0 4px 5px rgba(58,32,15,0.20) !important;
+    filter: none !important;
+    z-index: 4 !important;
+}
+
+#wd-dashboard .wd-cork-notes-board .wd-note-pin::before {
+    content: "" !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: absolute !important;
+    top: 3px !important;
+    left: 4px !important;
+    width: 4px !important;
+    height: 4px !important;
+    border-radius: 50% !important;
+    background: rgba(255,255,255,0.72) !important;
+    box-shadow: none !important;
+    filter: none !important;
+}
+
+#wd-dashboard .wd-cork-notes-board .wd-note-pin::after {
+    display: none !important;
+    content: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    box-shadow: none !important;
+    filter: none !important;
+}
+
+#wd-dashboard .wd-cork-notes-board .wd-cork-note {
+    filter: none !important;
+    box-shadow:
+        0 1px 0 rgba(255,255,255,0.66) inset,
+        0 10px 18px rgba(52, 28, 12, 0.20),
+        0 18px 28px rgba(52, 28, 12, 0.16),
+        6px 7px 0 rgba(79, 46, 18, 0.075) !important;
+}
+
+#wd-dashboard .wd-cork-notes-board .wd-cork-note:hover {
+    filter: none !important;
+    box-shadow:
+        0 1px 0 rgba(255,255,255,0.70) inset,
+        0 12px 22px rgba(52, 28, 12, 0.22),
+        0 22px 34px rgba(52, 28, 12, 0.18),
+        7px 8px 0 rgba(79, 46, 18, 0.085) !important;
+}
+
+/* ========================================================================
+   10.7.0 — WorkDesk cork-board real push-pin body override
+   Scope: WorkDesk Dashboard > All Active selected-site cork board only.
+   Purpose: The earlier note-pin body was being overridden by the later
+   cork-notes-board selector, leaving only a round red dot. This final scoped
+   override makes the red pin neck/body and angled needle visible while
+   keeping the pin crisp and comfortable.
+   ======================================================================== */
+#wd-dashboard .wd-cork-notes-board .wd-note-pin {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: absolute !important;
+    top: 4px !important;
+    left: 50% !important;
+    width: 20px !important;
+    height: 20px !important;
+    border-radius: 50% !important;
+    transform: translateX(-50%) !important;
+    overflow: visible !important;
+    background: radial-gradient(circle at 34% 27%, #ffd5cf 0 19%, #ff725c 29%, #ea4335 56%, #a51318 100%) !important;
+    border: 1px solid rgba(132, 17, 17, 0.38) !important;
+    box-shadow:
+        0 1px 0 rgba(255,255,255,0.55) inset,
+        0 2px 3px rgba(127,29,29,0.20) !important;
+    filter: none !important;
+    z-index: 7 !important;
+}
+
+#wd-dashboard .wd-cork-notes-board .wd-note-pin::before {
+    content: "" !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: absolute !important;
+    left: 50% !important;
+    top: 14px !important;
+    width: 11px !important;
+    height: 15px !important;
+    border-radius: 7px 7px 8px 8px !important;
+    transform: translateX(-50%) rotate(-8deg) !important;
+    background:
+        linear-gradient(90deg, rgba(255,255,255,0.18), transparent 36%),
+        linear-gradient(180deg, #c91f26 0%, #861116 78%, #5f0b0f 100%) !important;
+    border: 0 !important;
+    box-shadow:
+        0 2px 3px rgba(92,18,18,0.18),
+        inset 0 1px 0 rgba(255,255,255,0.12) !important;
+    filter: none !important;
+    z-index: 6 !important;
+}
+
+#wd-dashboard .wd-cork-notes-board .wd-note-pin::after {
+    content: "" !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: absolute !important;
+    left: 50% !important;
+    top: 27px !important;
+    width: 22px !important;
+    height: 3px !important;
+    border-radius: 999px !important;
+    transform-origin: left center !important;
+    transform: translateX(-4%) rotate(36deg) !important;
+    background: linear-gradient(90deg, #747c86 0%, #f4f4f5 34%, #b8aa6d 68%, #706036 100%) !important;
+    box-shadow: 7px 5px 0 0 rgba(170,130,55,0.18) !important;
+    filter: none !important;
+    z-index: 5 !important;
+}
+
+
+/* ========================================================================
+   10.7.1 — WorkDesk cork-board push-pin layer cleanup
+   Scope: WorkDesk Dashboard > All Active selected-site cork board only.
+   Purpose: Put the round red head visually on top of the neck, keep the neck
+   under the head, and remove the extra double shadow so only one soft needle
+   shadow remains.
+   ======================================================================== */
+#wd-dashboard .wd-cork-notes-board .wd-note-pin {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: absolute !important;
+    top: 4px !important;
+    left: 50% !important;
+    width: 21px !important;
+    height: 21px !important;
+    border-radius: 50% !important;
+    transform: translateX(-50%) !important;
+    overflow: visible !important;
+    isolation: isolate !important;
+    background: radial-gradient(circle at 34% 27%, #ffd7d1 0 18%, #ff735f 30%, #e53935 56%, #a50f16 100%) !important;
+    border: 1px solid rgba(132, 17, 17, 0.36) !important;
+    box-shadow:
+        0 1px 0 rgba(255,255,255,0.54) inset,
+        0 2px 3px rgba(83, 21, 16, 0.18) !important;
+    filter: none !important;
+    z-index: 9 !important;
+}
+
+#wd-dashboard .wd-cork-notes-board .wd-note-pin::before {
+    content: "" !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: absolute !important;
+    left: 50% !important;
+    top: 16px !important;
+    width: 11px !important;
+    height: 14px !important;
+    border-radius: 7px 7px 8px 8px !important;
+    transform: translateX(-50%) rotate(-7deg) !important;
+    background:
+        linear-gradient(90deg, rgba(255,255,255,0.14), transparent 38%),
+        linear-gradient(180deg, #c91f26 0%, #871115 78%, #5f0b0f 100%) !important;
+    border: 0 !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.10) !important;
+    filter: none !important;
+    z-index: -1 !important;
+}
+
+#wd-dashboard .wd-cork-notes-board .wd-note-pin::after {
+    content: "" !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: absolute !important;
+    left: 50% !important;
+    top: 29px !important;
+    width: 23px !important;
+    height: 3px !important;
+    border-radius: 999px !important;
+    transform-origin: left center !important;
+    transform: translateX(-4%) rotate(36deg) !important;
+    background: linear-gradient(90deg, #747c86 0%, #f4f4f5 34%, #b8aa6d 68%, #706036 100%) !important;
+    box-shadow: 8px 6px 0 0 rgba(170, 130, 55, 0.18) !important;
+    filter: none !important;
+    z-index: -2 !important;
+}
+
+
+
+/* 10.7.2 — Final clean push-pin layering for WorkDesk cork-board notes */
+#wd-dashboard .wd-cork-notes-board .wd-note-pin,
+#wd-dashboard .wd-cork-board .wd-note-pin {
+    top: 7px !important;
+    width: 20px !important;
+    height: 20px !important;
+    overflow: visible !important;
+    z-index: 4 !important;
+    box-shadow:
+        0 2px 3px rgba(100, 20, 20, 0.22),
+        inset 0 1px 0 rgba(255,255,255,0.30) !important;
+}
+
+#wd-dashboard .wd-cork-notes-board .wd-note-pin::before,
+#wd-dashboard .wd-cork-board .wd-note-pin::before {
+    top: 14px !important;
+    width: 8px !important;
+    height: 8px !important;
+    border-radius: 0 0 7px 7px !important;
+    background: linear-gradient(180deg, #b9161b 0%, #7e0d11 100%) !important;
+    box-shadow: none !important;
+    z-index: -1 !important;
+}
+
+#wd-dashboard .wd-cork-notes-board .wd-note-pin::after,
+#wd-dashboard .wd-cork-board .wd-note-pin::after {
+    top: 20px !important;
+    width: 25px !important;
+    height: 4px !important;
+    transform: translateX(-2px) rotate(38deg) !important;
+    background: linear-gradient(90deg, #8b949e 0%, #f3f4f6 28%, #c7b779 63%, #6f623a 100%) !important;
+    box-shadow: 10px 7px 0 0 rgba(163, 127, 55, 0.18) !important;
+    z-index: -2 !important;
+}
+
+
+/* 10.7.3 — Replace broken multi-piece cork-board pin with one clean SVG pin */
+#wd-dashboard .wd-cork-notes-board .wd-note-pin,
+#wd-dashboard .wd-cork-board .wd-note-pin {
+    position: absolute !important;
+    top: -1px !important;
+    left: 50% !important;
+    width: 52px !important;
+    height: 64px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    transform: translateX(-50%) !important;
+    background: url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2064%2078%22%3E%0A%20%20%3Cdefs%3E%0A%20%20%20%20%3CradialGradient%20id=%22head%22%20cx=%2234%25%22%20cy=%2227%25%22%20r=%2272%25%22%3E%0A%20%20%20%20%20%20%3Cstop%20offset=%220%25%22%20stop-color=%22%23ffd8d2%22/%3E%0A%20%20%20%20%20%20%3Cstop%20offset=%2224%25%22%20stop-color=%22%23ff7059%22/%3E%0A%20%20%20%20%20%20%3Cstop%20offset=%2258%25%22%20stop-color=%22%23e7342b%22/%3E%0A%20%20%20%20%20%20%3Cstop%20offset=%22100%25%22%20stop-color=%22%23a30f16%22/%3E%0A%20%20%20%20%3C/radialGradient%3E%0A%20%20%20%20%3ClinearGradient%20id=%22neck%22%20x1=%220%22%20y1=%220%22%20x2=%220%22%20y2=%221%22%3E%0A%20%20%20%20%20%20%3Cstop%20offset=%220%25%22%20stop-color=%22%23c91620%22/%3E%0A%20%20%20%20%20%20%3Cstop%20offset=%22100%25%22%20stop-color=%22%23760a10%22/%3E%0A%20%20%20%20%3C/linearGradient%3E%0A%20%20%20%20%3ClinearGradient%20id=%22needle%22%20x1=%220%22%20y1=%220%22%20x2=%221%22%20y2=%221%22%3E%0A%20%20%20%20%20%20%3Cstop%20offset=%220%25%22%20stop-color=%22%23f1f5f9%22/%3E%0A%20%20%20%20%20%20%3Cstop%20offset=%2242%25%22%20stop-color=%22%239ca3af%22/%3E%0A%20%20%20%20%20%20%3Cstop%20offset=%22100%25%22%20stop-color=%22%2362552f%22/%3E%0A%20%20%20%20%3C/linearGradient%3E%0A%20%20%3C/defs%3E%0A%0A%20%20%3C!--%20one%20soft%20shadow%20only%20--%3E%0A%20%20%3Cpath%20d=%22M37%2049%20L57%2070%22%20stroke=%22%23b99b4c%22%20stroke-width=%226%22%20stroke-linecap=%22round%22%20opacity=%22.22%22/%3E%0A%0A%20%20%3C!--%20needle%20--%3E%0A%20%20%3Cpath%20d=%22M32%2042%20L51%2064%22%20stroke=%22url(%23needle)%22%20stroke-width=%225%22%20stroke-linecap=%22round%22/%3E%0A%0A%20%20%3C!--%20neck/body%20under%20the%20head%20--%3E%0A%20%20%3Crect%20x=%2225%22%20y=%2229%22%20width=%2214%22%20height=%2220%22%20rx=%227%22%20fill=%22url(%23neck)%22/%3E%0A%0A%20%20%3C!--%20round%20head%20drawn%20last%20so%20it%20sits%20above%20the%20neck%20--%3E%0A%20%20%3Ccircle%20cx=%2232%22%20cy=%2223%22%20r=%2218%22%20fill=%22url(%23head)%22%20stroke=%22%238f1016%22%20stroke-width=%221.5%22/%3E%0A%20%20%3Ccircle%20cx=%2225%22%20cy=%2216%22%20r=%225.5%22%20fill=%22%23fff%22%20opacity=%22.62%22/%3E%0A%20%20%3Cpath%20d=%22M17%2022%20C18%2010%2028%204%2039%207%22%20fill=%22none%22%20stroke=%22%23fff%22%20stroke-width=%222%22%20opacity=%22.32%22%20stroke-linecap=%22round%22/%3E%0A%3C/svg%3E") center / contain no-repeat !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    z-index: 6 !important;
+}
+
+#wd-dashboard .wd-cork-notes-board .wd-note-pin::before,
+#wd-dashboard .wd-cork-notes-board .wd-note-pin::after,
+#wd-dashboard .wd-cork-board .wd-note-pin::before,
+#wd-dashboard .wd-cork-board .wd-note-pin::after {
+    content: none !important;
+    display: none !important;
 }
 
