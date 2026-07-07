@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-workdesk-dashboard.js
    IBA WorkDesk Dashboard Active Task Control Center
-   Version: 10.6.0
+   Version: 10.8.4
 
    8.3.6:
    - Replaced the old WorkDesk calendar/date dashboard with a clean view-only
@@ -138,6 +138,10 @@
      All Active dataset finishes loading in the background. First-open cards and
      clicked-card details use the same verified source instead of different preview
      counts, preventing count changes only after an Admin clicks a card.
+
+   10.8.4:
+   - Added For Approval to WorkDesk Dashboard active queues.
+   - For Approval uses normal site-card grouping.
    ========================================================================== */
 
 // =================================================================================================
@@ -205,6 +209,7 @@ const WD_STATUS_ORDER = [
     'In Process',
     'For Summary',
     'Retention',
+    'For Approval',
     'Unresolved',
     'IPC Application',
     'IPC Processed',
@@ -220,6 +225,7 @@ const WD_DASHBOARD_ALLOWED_BUCKETS = new Set([
     'in process',
     'for summary',
     'retention',
+    'for approval',
     'unresolved',
     'ipc application',
     'ipc processed',
@@ -235,6 +241,9 @@ const WD_DASHBOARD_LAZY_ADMIN_STATUSES = [
     'Pending',
     'On Hold',
     'In Process',
+    'For Summary',
+    'Retention',
+    'For Approval',
     'Unresolved',
     'IPC Application',
     'IPC Processed',
@@ -506,6 +515,7 @@ const WD_DASHBOARD_EXACT_INVOICE_STATUS_MAP = {
     'in process': 'In Process',
     'for summary': 'For Summary',
     'retention': 'Retention',
+    'for approval': 'For Approval',
     'pending': 'Pending',
     'unresolved': 'Unresolved',
     'report': 'Report'
