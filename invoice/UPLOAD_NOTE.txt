@@ -1,19 +1,15 @@
-10.8.8 PATCH ONLY
+10.9.3 PATCH ONLY
 
-Upload/replace only:
-- index.html
+Issue fixed:
+- WorkDesk Dashboard cards now treat the icon, number, title text, helper text, and empty body as one unified click target.
+- Clicking anywhere inside My Personal Tasks, All Active status cards, site cards, or vendor cards should immediately run the card action.
+
+Changed files:
 - style.css
-- UPLOAD_NOTE.txt
+- index.html
 
-Change:
-- Fixed Dashboard cork-board yellow notes blinking.
-- Yellow task notes no longer animate/blink.
-- Selected main status card highlight remains.
-- Selected site/vendor card highlight remains.
-- No Firebase rules change.
-- No download/read logic change.
-- No save/workflow logic change.
-- No app.js change.
-- No dashboard JS change.
-
-After upload: hard refresh with Ctrl + F5.
+Upload instructions:
+1. Upload/replace style.css in the main invoice folder.
+2. Upload/replace index.html in the main invoice folder.
+3. No app.js logic change is included. If you want the visible app version to show 10.9.3, manually change APP_VERSION in app.js from 10.9.2 to 10.9.3.
+4. After upload, refresh the browser. The index.html style.css cache link is already updated to ?v=10.9.3.

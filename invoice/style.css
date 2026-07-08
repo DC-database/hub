@@ -30255,3 +30255,231 @@ body #im-batch-search-modal.modal-overlay:not(.hidden) {
 #wd-dashboard .wd-cork-notes-board .wd-cork-note .wd-note-pin {
     animation: none !important;
 }
+
+
+/* 10.8.9 — Stop cork-board yellow note hover vibration
+   Reason: hover lift/translate can move the note away from the cursor edge,
+   causing enter/leave flicker. Keep notes stable; only selected cards pulse. */
+#wd-dashboard .wd-cork-notes-board .wd-cork-note,
+#wd-dashboard .wd-cork-board .wd-cork-note {
+    will-change: auto !important;
+}
+
+#wd-dashboard .wd-cork-notes-board .wd-cork-note:hover,
+#wd-dashboard .wd-cork-board .wd-cork-note:hover {
+    transform: rotate(var(--note-tilt, 0deg)) !important;
+    animation: none !important;
+}
+
+#wd-dashboard .wd-cork-notes-board .wd-cork-note:hover .wd-note-pin,
+#wd-dashboard .wd-cork-board .wd-cork-note:hover .wd-note-pin {
+    animation: none !important;
+}
+
+/* 10.9.0 — Stop Dashboard card hover vibration
+   Scope: WorkDesk Dashboard main status cards and site/vendor selector cards.
+   Keep selected glow/pulse, but remove hover lift/scale movement that causes edge flicker. */
+#wd-dashboard .wd-active-status-card,
+#wd-dashboard .wd-cork-site-card {
+    will-change: auto !important;
+}
+
+#wd-dashboard .wd-active-status-card:hover,
+#wd-dashboard .wd-dashboard-status-grid .wd-active-status-card:hover,
+#wd-dashboard .wd-dashboard-status-grid:has(.wd-active-status-card.active) .wd-active-status-card:not(.active):hover,
+#wd-dashboard .wd-cork-site-card:hover,
+#wd-dashboard .wd-site-selector-panel.has-selection .wd-cork-site-card:not(.active):hover {
+    transform: none !important;
+}
+
+#wd-dashboard .wd-dashboard-status-grid:has(.wd-active-status-card.active) .wd-active-status-card:not(.active),
+#wd-dashboard .wd-site-selector-panel.has-selection .wd-cork-site-card:not(.active) {
+    transform: none !important;
+}
+
+#wd-dashboard .wd-dashboard-status-grid .wd-active-status-card.active,
+#wd-dashboard .wd-cork-site-card.active {
+    transform: none !important;
+}
+
+@media (hover: hover) {
+    #wd-dashboard .wd-active-status-card:hover,
+    #wd-dashboard .wd-cork-site-card:hover {
+        transition-property: box-shadow, border-color, background, opacity, filter !important;
+    }
+}
+
+/* 10.9.1 — Fully stabilize Dashboard card hover states
+   Reason: dimmed/non-selected cards were still visually flickering/vibrating on hover
+   because hover opacity/filter/transition rules were still changing while selected context was active.
+   Keep selected card glow, but make every dashboard card physically and visually stable on hover. */
+#wd-dashboard .wd-active-status-card,
+#wd-dashboard .wd-active-status-card:hover,
+#wd-dashboard .wd-active-status-card:focus,
+#wd-dashboard .wd-active-status-card:active,
+#wd-dashboard .wd-cork-site-card,
+#wd-dashboard .wd-cork-site-card:hover,
+#wd-dashboard .wd-cork-site-card:focus,
+#wd-dashboard .wd-cork-site-card:active {
+    transform: none !important;
+    will-change: auto !important;
+}
+
+#wd-dashboard .wd-dashboard-status-grid .wd-active-status-card,
+#wd-dashboard .wd-site-selector-panel .wd-cork-site-card,
+#wd-dashboard .wd-cork-site-selector .wd-cork-site-card {
+    transition-property: box-shadow, border-color, background, background-color, color !important;
+    transition-duration: 0.16s !important;
+}
+
+/* Keep non-selected cards stable while a category/site/vendor is selected.
+   No hover brighten/lift/scale. They stay dimmed but readable. */
+#wd-dashboard .wd-dashboard-status-grid:has(.wd-active-status-card.active) .wd-active-status-card:not(.active),
+#wd-dashboard .wd-dashboard-status-grid:has(.wd-active-status-card.active) .wd-active-status-card:not(.active):hover,
+#wd-dashboard .wd-dashboard-status-grid:has(.wd-active-status-card.active) .wd-active-status-card:not(.active):focus,
+#wd-dashboard .wd-site-selector-panel.has-selection .wd-cork-site-card:not(.active),
+#wd-dashboard .wd-site-selector-panel.has-selection .wd-cork-site-card:not(.active):hover,
+#wd-dashboard .wd-site-selector-panel.has-selection .wd-cork-site-card:not(.active):focus {
+    opacity: 0.58 !important;
+    filter: grayscale(0.08) saturate(0.82) !important;
+    transform: none !important;
+    animation: none !important;
+}
+
+/* Selected cards remain highlighted, but without physical movement. */
+#wd-dashboard .wd-dashboard-status-grid .wd-active-status-card.active,
+#wd-dashboard .wd-dashboard-status-grid .wd-active-status-card.active:hover,
+#wd-dashboard .wd-dashboard-status-grid .wd-active-status-card.active:focus,
+#wd-dashboard .wd-cork-site-card.active,
+#wd-dashboard .wd-cork-site-card.active:hover,
+#wd-dashboard .wd-cork-site-card.active:focus {
+    transform: none !important;
+}
+
+/* Some browsers still apply old transform transitions from earlier rules.
+   Hard-disable transform transition on Dashboard selector cards only. */
+#wd-dashboard .wd-active-status-card,
+#wd-dashboard .wd-cork-site-card {
+    transition-property: box-shadow, border-color, background, background-color, opacity, filter, color !important;
+}
+
+
+
+/* 10.9.2 — Dashboard card click stability cleanup
+   Reason: pulsing/hover animations made hovered cards blink and sometimes required multiple clicks.
+   Keep the selected card obvious, but make all Dashboard selector cards physically/visually stable. */
+#wd-dashboard .wd-active-status-card,
+#wd-dashboard .wd-active-status-card:hover,
+#wd-dashboard .wd-active-status-card:focus,
+#wd-dashboard .wd-active-status-card:active,
+#wd-dashboard .wd-cork-site-card,
+#wd-dashboard .wd-cork-site-card:hover,
+#wd-dashboard .wd-cork-site-card:focus,
+#wd-dashboard .wd-cork-site-card:active {
+    transform: none !important;
+    animation: none !important;
+    transition: none !important;
+    will-change: auto !important;
+    backface-visibility: hidden !important;
+    cursor: pointer !important;
+}
+
+#wd-dashboard .wd-active-status-card *,
+#wd-dashboard .wd-cork-site-card * {
+    animation: none !important;
+    transition: none !important;
+}
+
+/* Decorative layers must never catch/steal the click. */
+#wd-dashboard .wd-active-status-card::before,
+#wd-dashboard .wd-active-status-card::after,
+#wd-dashboard .wd-active-status-card .wd-status-card-glow,
+#wd-dashboard .wd-cork-site-card::before,
+#wd-dashboard .wd-cork-site-card::after,
+#wd-dashboard .wd-cork-site-card .wd-site-card-pin {
+    pointer-events: none !important;
+}
+
+/* Non-selected cards: stay dimmed and stable, even when hovered. */
+#wd-dashboard .wd-dashboard-status-grid:has(.wd-active-status-card.active) .wd-active-status-card:not(.active),
+#wd-dashboard .wd-dashboard-status-grid:has(.wd-active-status-card.active) .wd-active-status-card:not(.active):hover,
+#wd-dashboard .wd-dashboard-status-grid:has(.wd-active-status-card.active) .wd-active-status-card:not(.active):focus,
+#wd-dashboard .wd-dashboard-status-grid:has(.wd-active-status-card.active) .wd-active-status-card:not(.active):active,
+#wd-dashboard .wd-site-selector-panel.has-selection .wd-cork-site-card:not(.active),
+#wd-dashboard .wd-site-selector-panel.has-selection .wd-cork-site-card:not(.active):hover,
+#wd-dashboard .wd-site-selector-panel.has-selection .wd-cork-site-card:not(.active):focus,
+#wd-dashboard .wd-site-selector-panel.has-selection .wd-cork-site-card:not(.active):active {
+    opacity: 0.62 !important;
+    filter: grayscale(0.08) saturate(0.82) !important;
+    transform: none !important;
+    animation: none !important;
+    transition: none !important;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08) !important;
+}
+
+/* Selected cards: static highlight only, no blinking/pulse. */
+#wd-dashboard .wd-dashboard-status-grid .wd-active-status-card.active,
+#wd-dashboard .wd-dashboard-status-grid .wd-active-status-card.active:hover,
+#wd-dashboard .wd-dashboard-status-grid .wd-active-status-card.active:focus,
+#wd-dashboard .wd-dashboard-status-grid .wd-active-status-card.active:active {
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+    animation: none !important;
+    transition: none !important;
+    border-color: rgba(37, 99, 235, 0.72) !important;
+    background:
+        radial-gradient(circle at 88% 10%, rgba(147,197,253,0.36), transparent 32%),
+        linear-gradient(180deg, #ffffff 0%, #eff6ff 100%) !important;
+    box-shadow:
+        0 22px 46px rgba(37, 99, 235, 0.22),
+        0 0 0 3px rgba(37, 99, 235, 0.20),
+        0 0 0 8px rgba(14, 165, 233, 0.10) !important;
+}
+
+#wd-dashboard .wd-cork-site-card.active,
+#wd-dashboard .wd-cork-site-card.active:hover,
+#wd-dashboard .wd-cork-site-card.active:focus,
+#wd-dashboard .wd-cork-site-card.active:active {
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+    animation: none !important;
+    transition: none !important;
+    border-color: rgba(217, 119, 6, 0.90) !important;
+    background:
+        radial-gradient(circle at 92% 9%, rgba(250,204,21,0.40), transparent 30%),
+        linear-gradient(145deg, #fffbeb 0%, #bbf7d0 100%) !important;
+    box-shadow:
+        0 18px 36px rgba(4, 120, 87, 0.20),
+        0 0 0 3px rgba(250, 204, 21, 0.55),
+        0 0 0 7px rgba(34, 197, 94, 0.18) !important;
+}
+
+/* 10.9.3 — WorkDesk Dashboard full-card click target
+   Reason: clicking directly on the icon, count, title, or small helper text could feel
+   inconsistent because the child element received the pointer target instead of the card.
+   Make the inner decoration/text transparent to pointer events so every click lands on
+   the parent dashboard card button. */
+#wd-dashboard button.wd-active-status-card,
+#wd-dashboard button.wd-cork-site-card {
+    cursor: pointer !important;
+    touch-action: manipulation !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+
+#wd-dashboard button.wd-active-status-card *,
+#wd-dashboard button.wd-cork-site-card * {
+    pointer-events: none !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+
+#wd-dashboard button.wd-active-status-card::before,
+#wd-dashboard button.wd-active-status-card::after,
+#wd-dashboard button.wd-cork-site-card::before,
+#wd-dashboard button.wd-cork-site-card::after {
+    pointer-events: none !important;
+}
+
