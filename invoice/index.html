@@ -141,7 +141,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
 
-    <link rel="stylesheet" href="style.css?v=10.9.3">
+    <link rel="stylesheet" href="style.css?v=10.9.8">
     <link rel="stylesheet" href="css/transfer_stock.css?v=10.5.7">
     <link rel="stylesheet" href="css/mobile.css?v=9.2.7">
     <!-- 9.0.1 module split: page-specific desktop/mobile override layers -->
@@ -1304,7 +1304,8 @@
         </div>
 
 
-        <div class="modal-content">
+        <div class="im-entry-body-shell">
+            <div class="modal-content im-entry-main-pane">
 
 
 <form id="im-new-invoice-form" class="hidden">
@@ -1459,36 +1460,41 @@
 </div>
 
 </form>
-</div>
+            </div>
+
+            <aside class="im-entry-quick-panel" aria-label="Quick invoice status actions">
+                <div class="im-quick-status-footer">
+                    <span class="im-quick-status-label"><i class="fa-solid fa-bolt"></i> Quick Access</span>
+                    <div class="im-quick-status-buttons">
+                        <button type="button" class="im-quick-status-btn" data-im-quick-status="In Process">In Process</button>
+                        <button type="button" class="im-quick-status-btn" data-im-quick-status="CEO Approval">CEO Approval</button>
+                        <button type="button" class="im-quick-status-btn" data-im-quick-status="Report">Report</button>
+                        <button type="button" class="im-quick-status-btn" data-im-quick-status="Report Approved">Report Approved</button>
+                        <button type="button" class="im-quick-status-btn im-quick-status-final" data-im-quick-status="With Accounts">With Accounts</button>
+                    </div>
+                </div>
+            </aside>
+        </div>
 
 
-<div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 25px;">
-            <div style="display: flex; gap: 20px; align-items: center; font-size: 0.9rem; color: #555;">
-                <div style="white-space: nowrap;">
-                    <strong style="color: #116045;">PO:</strong>
-                    <span class="im-po-no" style="font-weight: 600; color: #000;">---</span>
+<div class="modal-footer im-entry-modal-footer">
+            <div class="im-footer-po-summary">
+                <div class="im-footer-po-item">
+                    <strong>PO:</strong>
+                    <span class="im-po-no">---</span>
                 </div>
-                <div style="white-space: nowrap;">
-                    <strong style="color: #116045;">Site:</strong>
-                    <span class="im-po-site" style="font-weight: 600; color: #000;">---</span>
+                <div class="im-footer-po-item">
+                    <strong>Site:</strong>
+                    <span class="im-po-site">---</span>
                 </div>
-                <div style="white-space: nowrap; max-width: 300px; overflow: hidden; text-overflow: ellipsis;">
-                    <strong style="color: #116045;">Vendor:</strong>
-                    <span class="im-po-vendor" style="font-weight: 600; color: #000;">---</span>
+                <div class="im-footer-po-item im-footer-po-vendor">
+                    <strong>Vendor:</strong>
+                    <span class="im-po-vendor">---</span>
                 </div>
             </div>
 
-            <div class="im-quick-status-footer" aria-label="Quick invoice status actions">
-                <span class="im-quick-status-label"><i class="fa-solid fa-bolt"></i> Quick Status</span>
-                <button type="button" class="im-quick-status-btn" data-im-quick-status="In Process">In Process</button>
-                <button type="button" class="im-quick-status-btn" data-im-quick-status="CEO Approval">CEO Approval</button>
-                <button type="button" class="im-quick-status-btn" data-im-quick-status="Report">Report</button>
-                <button type="button" class="im-quick-status-btn" data-im-quick-status="Report Approved">Report Approved</button>
-                <button type="button" class="im-quick-status-btn im-quick-status-final" data-im-quick-status="With Accounts">With Accounts</button>
-            </div>
-
-            <div style="display: flex; gap: 10px; align-items: center;">
-                <button type="button" class="modal-close-btn" style="margin: 0;">Close</button>
+            <div class="im-footer-close-area">
+                <button type="button" class="modal-close-btn im-footer-close-btn">Close</button>
             </div>
         </div> </div> </div> <div id="im-existing-invoices-container" class="hidden">
      <hr class="section-divider">

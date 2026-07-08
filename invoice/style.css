@@ -30483,3 +30483,559 @@ body #im-batch-search-modal.modal-overlay:not(.hidden) {
     pointer-events: none !important;
 }
 
+
+
+/* 10.9.7 — Invoice Entry modal footer compact spacing cleanup
+   Left: PO/Site/Vendor aligned with the form fields.
+   Center: Quick Status actions.
+   Right: Close button separated at the far edge. */
+#im-invoice-entry-modal .modal-footer.im-entry-modal-footer {
+    width: 100% !important;
+    align-self: stretch !important;
+    box-sizing: border-box !important;
+    display: grid !important;
+    grid-template-columns: minmax(300px, 1fr) minmax(390px, max-content) minmax(96px, 1fr) !important;
+    align-items: center !important;
+    column-gap: 16px !important;
+    row-gap: 8px !important;
+    min-height: 0 !important;
+    padding: 12px 20px 12px 24px !important;
+    background: linear-gradient(180deg, #f7fffb 0%, #eef9f4 100%) !important;
+    border-top: 1px solid rgba(17, 96, 69, 0.14) !important;
+}
+
+#im-invoice-entry-modal .im-footer-po-summary {
+    grid-column: 1 !important;
+    justify-self: start !important;
+    align-self: center !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    flex-wrap: wrap !important;
+    gap: 6px 0 !important;
+    color: #334155 !important;
+    font-size: 0.82rem !important;
+    line-height: 1.15 !important;
+    text-align: left !important;
+    margin: 0 !important;
+}
+
+#im-invoice-entry-modal .im-footer-po-item {
+    position: relative !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    min-width: 0 !important;
+    padding-right: 12px !important;
+    margin-right: 11px !important;
+    white-space: nowrap !important;
+}
+
+#im-invoice-entry-modal .im-footer-po-item:not(:last-child)::after {
+    content: "" !important;
+    position: absolute !important;
+    right: 0 !important;
+    top: 50% !important;
+    width: 1px !important;
+    height: 13px !important;
+    transform: translateY(-50%) !important;
+    background: rgba(17, 96, 69, 0.22) !important;
+}
+
+#im-invoice-entry-modal .im-footer-po-item strong {
+    color: #116045 !important;
+    font-weight: 900 !important;
+}
+
+#im-invoice-entry-modal .im-footer-po-item span {
+    color: #0f172a !important;
+    font-weight: 800 !important;
+    min-width: 0 !important;
+}
+
+#im-invoice-entry-modal .im-footer-po-vendor {
+    max-width: min(240px, 100%) !important;
+}
+
+#im-invoice-entry-modal .im-footer-po-vendor .im-po-vendor {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+#im-invoice-entry-modal .im-entry-modal-footer .im-quick-status-footer {
+    grid-column: 2 !important;
+    justify-self: center !important;
+    align-self: center !important;
+    width: min(410px, 100%) !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    text-align: center !important;
+    margin: 0 !important;
+}
+
+#im-invoice-entry-modal .im-entry-modal-footer .im-quick-status-label {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    color: #475569 !important;
+    font-size: 10px !important;
+    font-weight: 900 !important;
+    letter-spacing: .02em !important;
+    text-transform: uppercase !important;
+    line-height: 1 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    white-space: nowrap !important;
+}
+
+#im-invoice-entry-modal .im-entry-modal-footer .im-quick-status-buttons {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-wrap: wrap !important;
+    gap: 7px !important;
+    min-width: 0 !important;
+}
+
+#im-invoice-entry-modal .im-entry-modal-footer .im-quick-status-btn {
+    height: 29px !important;
+    min-height: 29px !important;
+    border-radius: 999px !important;
+    padding: 0 12px !important;
+    border: 1px solid rgba(17, 96, 69, 0.22) !important;
+    background: rgba(255, 255, 255, 0.88) !important;
+    color: #116045 !important;
+    font-size: 10.8px !important;
+    font-weight: 900 !important;
+    line-height: 27px !important;
+    box-shadow: 0 3px 10px rgba(15, 23, 42, 0.05) !important;
+    transform: none !important;
+    white-space: nowrap !important;
+}
+
+#im-invoice-entry-modal .im-entry-modal-footer .im-quick-status-btn:hover,
+#im-invoice-entry-modal .im-entry-modal-footer .im-quick-status-btn:focus,
+#im-invoice-entry-modal .im-entry-modal-footer .im-quick-status-btn.is-active {
+    background: #116045 !important;
+    color: #fff8d6 !important;
+    border-color: #116045 !important;
+    box-shadow: 0 7px 16px rgba(17, 96, 69, 0.18) !important;
+    transform: none !important;
+    outline: none !important;
+}
+
+#im-invoice-entry-modal .im-entry-modal-footer .im-quick-status-final {
+    background: #fff8e6 !important;
+    color: #8a5a11 !important;
+    border-color: rgba(190, 132, 32, 0.38) !important;
+}
+
+#im-invoice-entry-modal .im-entry-modal-footer .im-quick-status-final:hover,
+#im-invoice-entry-modal .im-entry-modal-footer .im-quick-status-final:focus,
+#im-invoice-entry-modal .im-entry-modal-footer .im-quick-status-final.is-active {
+    background: #8a5a11 !important;
+    color: #fff4c2 !important;
+    border-color: #8a5a11 !important;
+}
+
+#im-invoice-entry-modal .im-footer-close-area {
+    grid-column: 3 !important;
+    justify-self: end !important;
+    align-self: center !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    min-width: 96px !important;
+    padding-left: 16px !important;
+    margin-left: 0 !important;
+    border-left: 1px solid rgba(17, 96, 69, 0.18) !important;
+}
+
+#im-invoice-entry-modal .im-footer-close-btn {
+    margin: 0 !important;
+    height: 34px !important;
+    min-width: 82px !important;
+    border-radius: 14px !important;
+    padding: 0 18px !important;
+    font-weight: 900 !important;
+    box-shadow: 0 5px 14px rgba(17, 96, 69, 0.10) !important;
+}
+
+@media (max-width: 1100px) {
+    #im-invoice-entry-modal .modal-footer.im-entry-modal-footer {
+        grid-template-columns: minmax(270px, 1fr) minmax(365px, max-content) minmax(92px, 1fr) !important;
+        column-gap: 14px !important;
+        padding-left: 24px !important;
+    }
+
+    #im-invoice-entry-modal .im-entry-modal-footer .im-quick-status-footer {
+        width: min(385px, 100%) !important;
+    }
+
+    #im-invoice-entry-modal .im-entry-modal-footer .im-quick-status-buttons {
+        justify-content: center !important;
+        gap: 7px !important;
+    }
+
+    #im-invoice-entry-modal .im-footer-po-vendor {
+        max-width: 210px !important;
+    }
+}
+
+@media (max-width: 900px) {
+    #im-invoice-entry-modal .modal-footer.im-entry-modal-footer {
+        grid-template-columns: 1fr auto !important;
+        align-items: start !important;
+        padding: 12px 18px !important;
+    }
+
+    #im-invoice-entry-modal .im-footer-po-summary {
+        grid-column: 1 !important;
+        grid-row: 1 !important;
+    }
+
+    #im-invoice-entry-modal .im-footer-close-area {
+        grid-column: 2 !important;
+        grid-row: 1 !important;
+    }
+
+    #im-invoice-entry-modal .im-entry-modal-footer .im-quick-status-footer {
+        grid-column: 1 / -1 !important;
+        grid-row: 2 !important;
+        justify-self: center !important;
+        width: 100% !important;
+    }
+}
+
+@media (max-width: 680px) {
+    #im-invoice-entry-modal .modal-footer.im-entry-modal-footer {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+        padding: 14px 16px !important;
+    }
+
+    #im-invoice-entry-modal .im-footer-po-summary,
+    #im-invoice-entry-modal .im-footer-close-area,
+    #im-invoice-entry-modal .im-entry-modal-footer .im-quick-status-footer {
+        grid-column: auto !important;
+        grid-row: auto !important;
+    }
+
+    #im-invoice-entry-modal .im-footer-close-area {
+        justify-self: stretch !important;
+        padding-left: 0 !important;
+        margin-left: 0 !important;
+        border-left: 0 !important;
+        min-width: 0 !important;
+    }
+
+    #im-invoice-entry-modal .im-footer-close-btn {
+        width: 100% !important;
+    }
+
+    #im-invoice-entry-modal .im-entry-modal-footer .im-quick-status-footer {
+        justify-self: stretch !important;
+        width: 100% !important;
+    }
+
+    #im-invoice-entry-modal .im-entry-modal-footer .im-quick-status-btn {
+        flex: 1 1 auto !important;
+    }
+}
+
+/* 10.9.8 — Invoice Entry modal Quick Access side panel
+   Purpose: move the Quick Status actions out of the footer so PO/Site/Vendor,
+   quick status buttons, and Close no longer fight for the same horizontal row. */
+#im-invoice-entry-modal.modal-overlay:not(.hidden) .modal-container {
+    width: min(94vw, 1120px) !important;
+    max-width: 1120px !important;
+}
+
+#im-invoice-entry-modal .im-entry-body-shell {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 168px !important;
+    align-items: stretch !important;
+    overflow: hidden !important;
+    background: #ffffff !important;
+}
+
+#im-invoice-entry-modal .im-entry-body-shell > .modal-content.im-entry-main-pane {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 18px 20px 14px 24px !important;
+    border-right: 1px solid rgba(17, 96, 69, 0.12) !important;
+}
+
+#im-invoice-entry-modal .im-entry-quick-panel {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: center !important;
+    padding: 18px 12px !important;
+    background: linear-gradient(180deg, #f7fffb 0%, #eef9f4 100%) !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+}
+
+#im-invoice-entry-modal .im-entry-quick-panel .im-quick-status-footer {
+    width: 100% !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    gap: 12px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    text-align: center !important;
+}
+
+#im-invoice-entry-modal .im-entry-quick-panel .im-quick-status-label {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    color: #116045 !important;
+    font-size: 10.5px !important;
+    font-weight: 950 !important;
+    letter-spacing: .04em !important;
+    text-transform: uppercase !important;
+    line-height: 1.1 !important;
+    white-space: nowrap !important;
+    margin: 0 !important;
+    padding: 0 0 2px !important;
+}
+
+#im-invoice-entry-modal .im-entry-quick-panel .im-quick-status-buttons {
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    gap: 9px !important;
+    min-width: 0 !important;
+}
+
+#im-invoice-entry-modal .im-entry-quick-panel .im-quick-status-btn {
+    width: 100% !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    border-radius: 999px !important;
+    padding: 0 10px !important;
+    border: 1px solid rgba(17, 96, 69, 0.22) !important;
+    background: rgba(255, 255, 255, 0.92) !important;
+    color: #116045 !important;
+    font-size: 10.8px !important;
+    font-weight: 900 !important;
+    line-height: 32px !important;
+    box-shadow: 0 5px 14px rgba(15, 23, 42, 0.06) !important;
+    transform: none !important;
+    white-space: nowrap !important;
+    cursor: pointer !important;
+}
+
+#im-invoice-entry-modal .im-entry-quick-panel .im-quick-status-btn:hover,
+#im-invoice-entry-modal .im-entry-quick-panel .im-quick-status-btn:focus,
+#im-invoice-entry-modal .im-entry-quick-panel .im-quick-status-btn.is-active {
+    background: #116045 !important;
+    color: #fff8d6 !important;
+    border-color: #116045 !important;
+    box-shadow: 0 8px 18px rgba(17, 96, 69, 0.18) !important;
+    transform: none !important;
+    outline: none !important;
+}
+
+#im-invoice-entry-modal .im-entry-quick-panel .im-quick-status-final {
+    background: #fff8e6 !important;
+    color: #8a5a11 !important;
+    border-color: rgba(190, 132, 32, 0.38) !important;
+}
+
+#im-invoice-entry-modal .im-entry-quick-panel .im-quick-status-final:hover,
+#im-invoice-entry-modal .im-entry-quick-panel .im-quick-status-final:focus,
+#im-invoice-entry-modal .im-entry-quick-panel .im-quick-status-final.is-active {
+    background: #8a5a11 !important;
+    color: #fff4c2 !important;
+    border-color: #8a5a11 !important;
+}
+
+#im-invoice-entry-modal .modal-footer.im-entry-modal-footer {
+    width: 100% !important;
+    align-self: stretch !important;
+    box-sizing: border-box !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    column-gap: 18px !important;
+    row-gap: 8px !important;
+    min-height: 0 !important;
+    padding: 10px 20px 10px 24px !important;
+    background: linear-gradient(180deg, #f7fffb 0%, #eef9f4 100%) !important;
+    border-top: 1px solid rgba(17, 96, 69, 0.14) !important;
+}
+
+#im-invoice-entry-modal .im-footer-po-summary {
+    grid-column: 1 !important;
+    justify-self: start !important;
+    align-self: center !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    flex-wrap: nowrap !important;
+    gap: 0 !important;
+    color: #334155 !important;
+    font-size: 0.82rem !important;
+    line-height: 1.15 !important;
+    text-align: left !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+}
+
+#im-invoice-entry-modal .im-footer-po-item {
+    position: relative !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    min-width: 0 !important;
+    padding-right: 12px !important;
+    margin-right: 11px !important;
+    white-space: nowrap !important;
+    flex: 0 0 auto !important;
+}
+
+#im-invoice-entry-modal .im-footer-po-vendor {
+    flex: 1 1 auto !important;
+    max-width: none !important;
+    overflow: hidden !important;
+}
+
+#im-invoice-entry-modal .im-footer-po-vendor .im-po-vendor {
+    display: inline-block !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    vertical-align: bottom !important;
+}
+
+#im-invoice-entry-modal .im-footer-close-area {
+    grid-column: 2 !important;
+    justify-self: end !important;
+    align-self: center !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    min-width: 96px !important;
+    padding-left: 16px !important;
+    margin-left: 0 !important;
+    border-left: 1px solid rgba(17, 96, 69, 0.18) !important;
+}
+
+#im-invoice-entry-modal .im-footer-close-btn {
+    margin: 0 !important;
+    height: 34px !important;
+    min-width: 82px !important;
+    border-radius: 14px !important;
+    padding: 0 18px !important;
+    font-weight: 900 !important;
+    box-shadow: 0 5px 14px rgba(17, 96, 69, 0.10) !important;
+}
+
+@media (max-width: 980px) {
+    #im-invoice-entry-modal.modal-overlay:not(.hidden) .modal-container {
+        width: min(96vw, 900px) !important;
+        max-width: 900px !important;
+    }
+
+    #im-invoice-entry-modal .im-entry-body-shell {
+        grid-template-columns: minmax(0, 1fr) !important;
+        overflow: visible !important;
+    }
+
+    #im-invoice-entry-modal .im-entry-body-shell > .modal-content.im-entry-main-pane {
+        border-right: 0 !important;
+        border-bottom: 1px solid rgba(17, 96, 69, 0.12) !important;
+    }
+
+    #im-invoice-entry-modal .im-entry-quick-panel {
+        padding: 12px 18px !important;
+    }
+
+    #im-invoice-entry-modal .im-entry-quick-panel .im-quick-status-footer {
+        align-items: center !important;
+        gap: 8px !important;
+    }
+
+    #im-invoice-entry-modal .im-entry-quick-panel .im-quick-status-buttons {
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        gap: 7px !important;
+    }
+
+    #im-invoice-entry-modal .im-entry-quick-panel .im-quick-status-btn {
+        width: auto !important;
+        min-width: 112px !important;
+        height: 31px !important;
+        min-height: 31px !important;
+        line-height: 29px !important;
+    }
+}
+
+@media (max-width: 680px) {
+    #im-invoice-entry-modal .modal-footer.im-entry-modal-footer {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+        padding: 12px 16px !important;
+    }
+
+    #im-invoice-entry-modal .im-footer-po-summary,
+    #im-invoice-entry-modal .im-footer-close-area {
+        grid-column: auto !important;
+        grid-row: auto !important;
+    }
+
+    #im-invoice-entry-modal .im-footer-po-summary {
+        flex-wrap: wrap !important;
+        gap: 6px 0 !important;
+    }
+
+    #im-invoice-entry-modal .im-footer-close-area {
+        justify-self: stretch !important;
+        padding-left: 0 !important;
+        margin-left: 0 !important;
+        border-left: 0 !important;
+        min-width: 0 !important;
+    }
+
+    #im-invoice-entry-modal .im-footer-close-btn {
+        width: 100% !important;
+    }
+}

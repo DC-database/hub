@@ -1,22 +1,23 @@
-IBA 10.9.4 - Invoice Entry Deletion List Button Duplicate Patch
+IBA 10.9.8 — Invoice Entry Quick Access Side Panel UI Patch
 
-Issue fixed:
-- Invoice Entry sometimes shows multiple "Add to Deletion List" buttons after searching/loading a PO.
+Upload after 10.9.7.
 
-Cause:
-- The PO-file check runs in the background.
-- If the check is triggered more than once, each completed async result can append another inline deletion-list button.
-
-Files to upload/replace:
+Changed files:
 1. index.html
-2. js/app-invoice-entry-search.js
-3. js/app-ui-shortcuts.js
+2. style.css
 
 What changed:
-- app-invoice-entry-search.js now removes any existing inline deletion-list buttons before starting the check and again right before appending the result.
-- Overlapping async PO-file checks can no longer stack duplicate buttons.
-- The modal deletion-list icon button is reset cleanly on each PO search.
-- app-ui-shortcuts.js now updates all inline collect buttons safely if any old duplicate is still present in the live DOM.
-- index.html cache versions updated to v=10.9.4 for the changed JS files.
+- Moved Invoice Entry quick status buttons out of the footer.
+- Added a slim right-side Quick Access panel inside the Invoice Entry modal body.
+- Footer is now simple again:
+  Left: PO / Site / Vendor
+  Right: Close
+- Quick Access buttons are vertically arranged in their own side column.
+- Updated style.css cache version in index.html to ?v=10.9.8.
 
-No invoice saving, status workflow, Firebase path, WorkDesk dashboard logic, or PDF logic was changed.
+Not changed:
+- No Firebase/database logic changed.
+- No invoice saving/update/delete logic changed.
+- No status workflow logic changed.
+- No WorkDesk Dashboard logic changed.
+- No PDF/report/SRV logic changed.
