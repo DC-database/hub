@@ -61,11 +61,17 @@ window.imAddToDeletionCollection = async function(poNumber) {
             localStorage.setItem('selectedPOs', JSON.stringify(selectedPOs));
 
             // Update Button UI
-            const btn = document.getElementById('im-po-collect-btn');
-            if (btn) {
+            document.querySelectorAll('#im-po-collect-btn, .im-po-collect-btn').forEach(btn => {
                 btn.innerHTML = `<i class="fa-solid fa-check"></i> Added to List`;
                 btn.style.background = "#059669";
                 btn.disabled = true;
+            });
+
+            const modalDeletionBtn = document.getElementById('im-modal-deletion-list-btn');
+            if (modalDeletionBtn) {
+                modalDeletionBtn.innerHTML = `<i class="fa-solid fa-check"></i>`;
+                modalDeletionBtn.title = 'Added to deletion list';
+                modalDeletionBtn.disabled = true;
             }
         }
     } catch (error) {
