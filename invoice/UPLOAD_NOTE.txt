@@ -1,15 +1,22 @@
-10.9.3 PATCH ONLY
+IBA 10.9.4 - Invoice Entry Deletion List Button Duplicate Patch
 
 Issue fixed:
-- WorkDesk Dashboard cards now treat the icon, number, title text, helper text, and empty body as one unified click target.
-- Clicking anywhere inside My Personal Tasks, All Active status cards, site cards, or vendor cards should immediately run the card action.
+- Invoice Entry sometimes shows multiple "Add to Deletion List" buttons after searching/loading a PO.
 
-Changed files:
-- style.css
-- index.html
+Cause:
+- The PO-file check runs in the background.
+- If the check is triggered more than once, each completed async result can append another inline deletion-list button.
 
-Upload instructions:
-1. Upload/replace style.css in the main invoice folder.
-2. Upload/replace index.html in the main invoice folder.
-3. No app.js logic change is included. If you want the visible app version to show 10.9.3, manually change APP_VERSION in app.js from 10.9.2 to 10.9.3.
-4. After upload, refresh the browser. The index.html style.css cache link is already updated to ?v=10.9.3.
+Files to upload/replace:
+1. index.html
+2. js/app-invoice-entry-search.js
+3. js/app-ui-shortcuts.js
+
+What changed:
+- app-invoice-entry-search.js now removes any existing inline deletion-list buttons before starting the check and again right before appending the result.
+- Overlapping async PO-file checks can no longer stack duplicate buttons.
+- The modal deletion-list icon button is reset cleanly on each PO search.
+- app-ui-shortcuts.js now updates all inline collect buttons safely if any old duplicate is still present in the live DOM.
+- index.html cache versions updated to v=10.9.4 for the changed JS files.
+
+No invoice saving, status workflow, Firebase path, WorkDesk dashboard logic, or PDF logic was changed.
