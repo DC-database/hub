@@ -1,23 +1,26 @@
-IBA 10.9.8 — Invoice Entry Quick Access Side Panel UI Patch
+IBA System Patch 11.0.0
+WorkDesk Dashboard Search / Clear / Category Highlight Patch
 
-Upload after 10.9.7.
+UPLOAD AFTER: 10.9.9
 
 Changed files:
-1. index.html
-2. style.css
+- index.html
+- style.css
+- js/app-workdesk-dashboard.js
 
 What changed:
-- Moved Invoice Entry quick status buttons out of the footer.
-- Added a slim right-side Quick Access panel inside the Invoice Entry modal body.
-- Footer is now simple again:
-  Left: PO / Site / Vendor
-  Right: Close
-- Quick Access buttons are vertically arranged in their own side column.
-- Updated style.css cache version in index.html to ?v=10.9.8.
+1. Added a Clear button beside the WorkDesk Dashboard search box.
+2. Clear resets Dashboard search text, selected All Active category card, selected site/vendor card, search highlights/grey-out, and the yellow-note result area.
+3. Dashboard search remains flexible/contains-based.
+4. In Dashboard global search mode, matching results are grouped by Site for all matching categories, including For Summary.
+5. Direct click on For Summary still keeps the existing vendor-grouped For Summary behavior.
+6. When a searched site card is selected, the All Active category cards above highlight only the categories represented by that selected site. Unrelated category cards are greyed out.
 
 Not changed:
-- No Firebase/database logic changed.
-- No invoice saving/update/delete logic changed.
-- No status workflow logic changed.
-- No WorkDesk Dashboard logic changed.
-- No PDF/report/SRV logic changed.
+- WorkDesk Job Records search behavior
+- WorkDesk Active Task page
+- Inventory module
+- Invoice Entry / Batch Entry
+- Firebase workflow/status saving logic
+- Attention routing logic
+- Dashboard category names/count rules

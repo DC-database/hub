@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '10.9.8';
+const APP_VERSION = '11.0.0';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -6825,6 +6825,8 @@ try {
 
             e.target.classList.add('active');
             currentReportFilter = e.target.getAttribute('data-job-type');
+            // 10.9.9: Only a real user tab click should make Job Records search tab-restricted.
+            try { window.__wdReportManualTabFilter = true; } catch (_) {}
 
             if (typeof handleReportingSearch === 'function') {
                 handleReportingSearch({ userAction: true, reason: 'tab' });

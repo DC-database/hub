@@ -31039,3 +31039,99 @@ body #im-batch-search-modal.modal-overlay:not(.hidden) {
         width: 100% !important;
     }
 }
+
+/* 11.0.0 — WorkDesk Dashboard search clear + category result context
+   Scope: WorkDesk Dashboard only.
+   Purpose: add a clean Clear action and show which All Active categories belong
+   to the current global-search result/site while greying out unrelated cards. */
+#wd-dashboard .wd-active-dashboard-search-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 8px !important;
+    min-width: min(470px, 100%) !important;
+}
+
+#wd-dashboard .wd-active-dashboard-search-row .wd-active-dashboard-search-wrap {
+    flex: 1 1 320px !important;
+    min-width: min(340px, 100%) !important;
+}
+
+#wd-dashboard .wd-active-dashboard-clear-btn {
+    height: 42px !important;
+    padding: 0 14px !important;
+    border: 1px solid rgba(15, 76, 117, 0.16) !important;
+    border-radius: 999px !important;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+    color: #0f4c75 !important;
+    font-size: 0.84rem !important;
+    font-weight: 800 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 7px !important;
+    cursor: pointer !important;
+    white-space: nowrap !important;
+    box-shadow: 0 8px 18px rgba(15, 46, 71, 0.06) !important;
+}
+
+#wd-dashboard .wd-active-dashboard-clear-btn:hover,
+#wd-dashboard .wd-active-dashboard-clear-btn:focus {
+    border-color: rgba(15, 76, 117, 0.30) !important;
+    box-shadow: 0 10px 22px rgba(15, 46, 71, 0.10) !important;
+    outline: none !important;
+}
+
+#wd-dashboard .wd-dashboard-status-grid .wd-active-status-card.wd-search-category-muted,
+#wd-dashboard .wd-dashboard-status-grid .wd-active-status-card.wd-search-category-muted:hover,
+#wd-dashboard .wd-dashboard-status-grid .wd-active-status-card.wd-search-category-muted:focus,
+#wd-dashboard .wd-dashboard-status-grid .wd-active-status-card.wd-search-category-muted:active {
+    opacity: 0.36 !important;
+    filter: grayscale(0.22) saturate(0.62) !important;
+    transform: none !important;
+    animation: none !important;
+    transition: none !important;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06) !important;
+}
+
+#wd-dashboard .wd-dashboard-status-grid .wd-active-status-card.wd-search-category-match,
+#wd-dashboard .wd-dashboard-status-grid .wd-active-status-card.wd-search-category-match:hover,
+#wd-dashboard .wd-dashboard-status-grid .wd-active-status-card.wd-search-category-match:focus,
+#wd-dashboard .wd-dashboard-status-grid .wd-active-status-card.wd-search-category-match:active {
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+    animation: none !important;
+    transition: none !important;
+    border-color: rgba(37, 99, 235, 0.76) !important;
+    background:
+        radial-gradient(circle at 88% 10%, rgba(147,197,253,0.36), transparent 32%),
+        linear-gradient(180deg, #ffffff 0%, #eff6ff 100%) !important;
+    box-shadow:
+        0 22px 46px rgba(37, 99, 235, 0.22),
+        0 0 0 3px rgba(37, 99, 235, 0.20),
+        0 0 0 8px rgba(14, 165, 233, 0.10) !important;
+}
+
+@media (max-width: 900px) {
+    #wd-dashboard .wd-active-dashboard-search-row {
+        width: 100% !important;
+        min-width: 0 !important;
+        justify-content: stretch !important;
+    }
+
+    #wd-dashboard .wd-active-dashboard-search-row .wd-active-dashboard-search-wrap {
+        min-width: 0 !important;
+    }
+}
+
+@media (max-width: 520px) {
+    #wd-dashboard .wd-active-dashboard-search-row {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+
+    #wd-dashboard .wd-active-dashboard-clear-btn {
+        width: 100% !important;
+    }
+}
