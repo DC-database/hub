@@ -94,7 +94,8 @@ async function getApproverByKey(key) {
 // Financial Report and PO System must never appear for Logistics/Admin or normal users.
 // Default rule:
 // - Everyone logged in: WorkDesk, Invoice Management, Inventory, Requisition
-// - Financial Report: Super Admin, or Admin with finance/accounts/accounting/CEO/COO/QS/Senior QS position only
+// - Welcome Financial Report: Super Admin, or Admin with finance/accounts/accounting/CEO/COO position only
+//   QS/Senior QS access is allowed only inside Invoice Management → Financial Report, not this Welcome button.
 // - PO System: Super Admin only
 function normalizeWelcomeRoleText(value) {
     return String(value || '').trim().toLowerCase();
@@ -117,15 +118,15 @@ function getWelcomePermissionState() {
     // 9.5.1: strict finance permission.
     // Logistics / Logistic Admin / Coordinator must NOT match CEO/COO/Finance by substring.
     const financeTokens = posLower.split(/[^a-z0-9]+/).filter(Boolean);
+    // 11.0.3: Keep the Welcome Screen Financial Report button strict.
+    // QS/Senior QS must NOT be included here; their added permission belongs only
+    // to Invoice Management → Financial Report in app.js.
     const hasFinancePosition =
         financeTokens.includes('ceo') ||
         financeTokens.includes('coo') ||
         financeTokens.includes('finance') ||
         financeTokens.includes('accounts') ||
-        financeTokens.includes('accounting') ||
-        // 11.0.2: QS and Senior QS are allowed to open Invoice Management → Financial Report.
-        financeTokens.includes('qs') ||
-        financeTokens.includes('seniorqs');
+        financeTokens.includes('accounting');
 
     return {
         canCoreModules: hasUser,
