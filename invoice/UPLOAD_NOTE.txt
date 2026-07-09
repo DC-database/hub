@@ -1,26 +1,36 @@
-IBA System Patch 11.0.0
-WorkDesk Dashboard Search / Clear / Category Highlight Patch
+IBA 11.0.1 - System Version Update Notice Patch
 
-UPLOAD AFTER: 10.9.9
+Upload these files/folders to the SAME live folder where index.html is located:
 
-Changed files:
-- index.html
-- style.css
-- js/app-workdesk-dashboard.js
+1. index.html
+2. style.css
+3. js/app-version-checker.js
+4. version.json
 
-What changed:
-1. Added a Clear button beside the WorkDesk Dashboard search box.
-2. Clear resets Dashboard search text, selected All Active category card, selected site/vendor card, search highlights/grey-out, and the yellow-note result area.
-3. Dashboard search remains flexible/contains-based.
-4. In Dashboard global search mode, matching results are grouped by Site for all matching categories, including For Summary.
-5. Direct click on For Summary still keeps the existing vendor-grouped For Summary behavior.
-6. When a searched site card is selected, the All Active category cards above highlight only the categories represented by that selected site. Unrelated category cards are greyed out.
+IMPORTANT:
+- version.json must be beside index.html, not inside the js folder.
+- Current version inside this patch is 11.0.1.
+- version.json is also set to 11.0.1.
+
+How it works:
+- Users who refresh/load 11.0.1 will now have the update checker.
+- The browser checks ./version.json when the page opens, every 2 minutes, and when the tab becomes active again.
+- If version.json is newer than the browser-loaded version, a System Update Available notice appears.
+- Clicking Update Now refreshes the page with a cache-busting URL.
+- Clicking Later hides the notice for about 15 minutes.
+
+How to test:
+1. Upload this 11.0.1 patch.
+2. Open the system and confirm no update notice appears while version.json says 11.0.1.
+3. Change only version.json to 11.0.2 and upload it.
+4. Wait up to 2 minutes or switch away/back to the browser tab.
+5. The update notice should appear.
+6. After testing, set version.json back to 11.0.1 unless the actual system is already updated to 11.0.2.
 
 Not changed:
-- WorkDesk Job Records search behavior
-- WorkDesk Active Task page
-- Inventory module
+- Dashboard logic
+- Job Records logic
+- Active Task
+- Inventory
 - Invoice Entry / Batch Entry
-- Firebase workflow/status saving logic
-- Attention routing logic
-- Dashboard category names/count rules
+- Firebase data or workflow rules

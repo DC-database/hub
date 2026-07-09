@@ -31135,3 +31135,105 @@ body #im-batch-search-modal.modal-overlay:not(.hidden) {
         width: 100% !important;
     }
 }
+
+/* =========================================================
+   IBA 11.0.1 - System Version Update Notice
+   UI only: popup/banner when a newer version is live.
+   ========================================================= */
+.iba-system-update-notice {
+    position: fixed;
+    right: 22px;
+    bottom: 22px;
+    z-index: 999999;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    width: min(420px, calc(100vw - 32px));
+    padding: 16px 16px 14px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 205, 91, 0.55);
+    background: linear-gradient(135deg, rgba(8, 40, 64, 0.98), rgba(14, 80, 72, 0.98));
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.32), 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+    color: #fff;
+    font-family: inherit;
+}
+
+.iba-system-update-icon {
+    flex: 0 0 42px;
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border-radius: 14px;
+    background: rgba(255, 205, 91, 0.18);
+    color: #ffd35f;
+    font-size: 23px;
+    font-weight: 900;
+    box-shadow: 0 0 0 1px rgba(255, 211, 95, 0.28) inset;
+}
+
+.iba-system-update-body {
+    min-width: 0;
+    flex: 1;
+}
+
+.iba-system-update-title {
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: 0.2px;
+    color: #ffd35f;
+    margin-bottom: 4px;
+}
+
+.iba-system-update-text {
+    font-size: 13px;
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.92);
+    margin-bottom: 7px;
+}
+
+.iba-system-update-version {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.72);
+    margin-bottom: 12px;
+}
+
+.iba-system-update-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.iba-system-update-actions button {
+    border: 0;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.iba-system-update-later {
+    background: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.iba-system-update-now {
+    background: linear-gradient(135deg, #ffd35f, #ffb627);
+    color: #16324a;
+    box-shadow: 0 8px 18px rgba(255, 182, 39, 0.28);
+}
+
+.iba-system-update-actions button:hover {
+    filter: brightness(1.04);
+}
+
+@media (max-width: 640px) {
+    .iba-system-update-notice {
+        right: 12px;
+        bottom: 12px;
+        width: calc(100vw - 24px);
+        border-radius: 16px;
+    }
+}
