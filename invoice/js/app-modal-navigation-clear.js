@@ -200,6 +200,7 @@ if (imNavNext) {
     const jobRecordsInput = document.getElementById('reporting-search');
     const jobRecordsBody = document.getElementById('reporting-table-body');
     const jobRecordsCount = document.getElementById('reporting-count-display');
+    const jobRecordsHeroCount = document.getElementById('job-records-count-display');
 
     if (jobRecordsClearBtn) {
         jobRecordsClearBtn.addEventListener('click', () => {
@@ -208,24 +209,50 @@ if (imNavNext) {
                 jobRecordsInput.value = '';
                 jobRecordsInput.focus();
             }
-            
+
             // 2. Clear Memory
             sessionStorage.removeItem('reportingSearch');
-            // IMPORTANT: Reset the filter so no tab is "active" logic-wise until clicked again
-            // (Optional: You might want to keep the tab highlighted but show empty data. 
-            //  If you want to un-highlight tabs, add: 
-            //  document.querySelectorAll('#report-tabs button').forEach(b => b.classList.remove('active')); )
+
+            // 10.9.9: WorkDesk Job Records Clear must also remove the selected/highlighted tab.
+            // Scope this to WorkDesk records so the shared Inventory records behavior is not changed.
+            const isInventoryRecords = (typeof isInventoryContext === 'function' && isInventoryContext()) ||
+                !!(document.body && document.body.classList.contains('inventory-mode')) ||
+                String(window.__ibaActiveModule || '').toLowerCase() === 'inventory';
+
+            if (!isInventoryRecords) {
+                if (typeof wdReportMarkManualTabFilter === 'function') {
+                    wdReportMarkManualTabFilter(false);
+                } else {
+                    try { window.__wdReportManualTabFilter = false; } catch (_) {}
+                }
+
+                if (typeof wdReportSetActiveTab === 'function') {
+                    wdReportSetActiveTab(null);
+                } else {
+                    currentReportFilter = null;
+                    document.querySelectorAll('#report-tabs button').forEach(b => b.classList.remove('active'));
+                }
+            }
 
             // 3. WIPE TABLE CLEAN
             if (jobRecordsBody) {
-                jobRecordsBody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:30px; color:#888;">List cleared. Select a Category above to view records.</td></tr>';
+                const message = isInventoryRecords
+                    ? 'List cleared. Select a Category above to view records.'
+                    : 'List cleared. Select a Job Records tab, or type a search to search all tabs.';
+                jobRecordsBody.innerHTML = `<tr><td colspan="12" style="text-align:center; padding:30px; color:#888;">${message}</td></tr>`;
             }
 
             // 4. Reset Count
             if (jobRecordsCount) {
                 jobRecordsCount.textContent = '';
             }
-            
+            if (jobRecordsHeroCount) {
+                jobRecordsHeroCount.textContent = '';
+            }
+            if (typeof wdUiUpdateMiniMetrics === 'function' && !((typeof isInventoryContext === 'function' && isInventoryContext()))) {
+                wdUiUpdateMiniMetrics('job-records-summary-strip', [], 'Job Records');
+            }
+
             // We DO NOT call handleReportingSearch() here, because that would reload data.
         });
     }

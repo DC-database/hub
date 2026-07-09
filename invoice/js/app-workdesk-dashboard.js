@@ -142,6 +142,15 @@
    10.8.4:
    - Added For Approval to WorkDesk Dashboard active queues.
    - For Approval uses normal site-card grouping.
+
+   11.0.0:
+   - Dashboard global search remains flexible/contains-based, but search mode now
+     always groups matching results by Site, including For Summary records. Direct
+     For Summary clicks still keep the existing vendor grouping.
+   - Added Dashboard Clear behavior to reset search text, selected status card,
+     selected site/vendor card, highlighted categories, and the yellow-note area.
+   - In global search mode, All Active category cards highlight only the categories
+     present in the current result/site selection and grey out unrelated categories.
    ========================================================================== */
 
 // =================================================================================================
@@ -2632,6 +2641,7 @@ function wdBindDashboardControls() {
     const cardsEl = document.getElementById('wd-active-dashboard-cards');
     const refreshBtn = document.getElementById('wd-active-dashboard-refresh');
     const searchInput = document.getElementById('wd-active-dashboard-search');
+    const clearBtn = document.getElementById('wd-active-dashboard-clear');
 
     if (cardsEl && !cardsEl.dataset.bound) {
         cardsEl.dataset.bound = 'true';
@@ -2680,7 +2690,24 @@ function wdBindDashboardControls() {
 
     if (searchInput && !searchInput.dataset.bound) {
         searchInput.dataset.bound = 'true';
-        searchInput.addEventListener('input', () => wdRenderDashboardList());
+        searchInput.addEventListener('input', () => {
+            // 11.0.0: Dashboard search is global. Typing a search clears any
+            // previously picked All Active category/site so results are not trapped
+            // inside the old card selection.
+            wdActiveDashboardSelectedStatus = WD_DASHBOARD_NONE;
+            wdActiveDashboardSelectedQueueDate = '';
+            wdAllActiveCorkboardSelectedSiteKey = '';
+            wdRenderDashboardCards();
+            wdRenderDashboardList();
+        });
+    }
+
+    if (clearBtn && !clearBtn.dataset.bound) {
+        clearBtn.dataset.bound = 'true';
+        clearBtn.addEventListener('click', () => {
+            wdResetDashboardSearchAndSelection();
+            try { searchInput?.focus(); } catch (_) {}
+        });
     }
 
     const listEl = document.getElementById('wd-active-dashboard-list');
@@ -2699,6 +2726,7 @@ function wdBindDashboardControls() {
             if (siteCard) {
                 wdAllActiveCorkboardSelectedSiteKey = siteCard.dataset.siteKey || '';
                 wdRenderDashboardList();
+                wdRenderDashboardCards();
                 return;
             }
 
@@ -3137,11 +3165,60 @@ function wdPrimeAllActiveDashboardCounts(forceRefresh = false) {
     }, 50);
 }
 
+function wdDashboardSearchValue() {
+    const input = document.getElementById('wd-active-dashboard-search');
+    return wdNormalize(input?.value || '');
+}
+
+function wdDashboardTaskCategoryLabel(task = {}) {
+    return wdText(task.bucket || task.personalBucket || wdDashboardBucket(task.status, task.type) || wdDashboardPersonalBucket(task.status, task.type) || '');
+}
+
+function wdDashboardSearchContextStatusKeys() {
+    const selected = wdActiveDashboardSelectedStatus || WD_DASHBOARD_NONE;
+    const search = wdDashboardSearchValue();
+    if (!search || selected !== WD_DASHBOARD_NONE) return new Set();
+
+    let tasks = (typeof wdGetFilteredDashboardTasks === 'function')
+        ? wdGetFilteredDashboardTasks()
+        : [];
+
+    // In global Dashboard search mode, results are site-based even when one
+    // matching item belongs to For Summary. If a site card is selected, highlight
+    // only the categories represented inside that selected site.
+    if (wdAllActiveCorkboardSelectedSiteKey) {
+        const groups = wdBuildSiteGroups(tasks, wdCompareDashboardPriority);
+        const selectedGroup = groups.find(group => group.key === wdAllActiveCorkboardSelectedSiteKey);
+        tasks = selectedGroup ? (selectedGroup.tasks || []) : [];
+    }
+
+    return new Set((Array.isArray(tasks) ? tasks : [])
+        .map(task => wdNormalize(wdDashboardTaskCategoryLabel(task)))
+        .filter(Boolean));
+}
+
+function wdResetDashboardSearchAndSelection() {
+    const input = document.getElementById('wd-active-dashboard-search');
+    if (input) input.value = '';
+    wdActiveDashboardSelectedStatus = WD_DASHBOARD_NONE;
+    wdActiveDashboardSelectedQueueDate = '';
+    wdAllActiveCorkboardSelectedSiteKey = '';
+    wdRenderDashboardCards();
+    wdRenderDashboardList();
+}
+
 function wdRenderDashboardCards() {
     const cardsEl = document.getElementById('wd-active-dashboard-cards');
     if (!cardsEl) return;
 
     const canSeeAllActive = wdCanSeeAllActiveDashboard();
+    const dashboardSearch = wdDashboardSearchValue();
+    const selectedFilter = wdActiveDashboardSelectedStatus || WD_DASHBOARD_NONE;
+    const dashboardGlobalSearchMode = !!dashboardSearch && selectedFilter === WD_DASHBOARD_NONE;
+    const searchStatusKeys = (canSeeAllActive && dashboardGlobalSearchMode)
+        ? wdDashboardSearchContextStatusKeys()
+        : new Set();
+    const shouldShowSearchCategoryContext = searchStatusKeys.size > 0;
     const statusCounts = new Map();
 
     wdActiveDashboardTasks.forEach(task => {
@@ -3209,7 +3286,13 @@ function wdRenderDashboardCards() {
             const count = wdAllActiveDashboardLoaded ? (statusCounts.get(status) || 0) : wdAllActiveCountForStatus(status);
             const tone = wdStatusTone(status);
             const filterKey = wdDashboardStatusFilterKey(status);
-            const active = filterKey === wdActiveDashboardSelectedStatus || status === wdActiveDashboardSelectedStatus ? 'active' : '';
+            const searchKey = wdNormalize(status);
+            const searchContextMatch = shouldShowSearchCategoryContext && searchStatusKeys.has(searchKey);
+            const directActive = filterKey === wdActiveDashboardSelectedStatus || status === wdActiveDashboardSelectedStatus;
+            const active = (!shouldShowSearchCategoryContext && directActive) || searchContextMatch ? 'active' : '';
+            const searchContextClass = shouldShowSearchCategoryContext
+                ? (searchContextMatch ? 'wd-search-category-match' : 'wd-search-category-muted')
+                : '';
             const hasCount = wdAllActiveDashboardCountsLoaded || wdAllActiveDashboardLoaded;
             const countLabel = (!hasCount && wdAllActiveDashboardCountsLoading) ? '<i class="fa-solid fa-spinner fa-spin"></i>' : (hasCount ? String(count) : '—');
             const microcopy = wdAllActiveDashboardLoaded
@@ -3218,7 +3301,7 @@ function wdRenderDashboardCards() {
                     ? `Updating • cached ${wdCacheAgeText(wdAllActiveDashboardCountSavedAt)}`
                     : (wdAllActiveDashboardCountsLoaded ? `Click to show sites • ${wdCacheAgeText(wdAllActiveDashboardCountSavedAt)}` : 'Checking current count...'));
             activeHtml += `
-                <button class="wd-active-status-card tone-${tone} ${active}" data-status="${wdSafe(filterKey)}" type="button" aria-label="Show ${wdSafe(status)} tasks">
+                <button class="wd-active-status-card tone-${tone} ${active} ${searchContextClass}" data-status="${wdSafe(filterKey)}" type="button" aria-label="Show ${wdSafe(status)} tasks">
                     <span class="wd-status-card-glow"></span>
                     <span class="wd-status-icon"><i class="fa-solid ${wdStatusIcon(status)}"></i></span>
                     <span class="wd-status-meta">
@@ -3263,6 +3346,8 @@ function wdGetFilteredDashboardTasks() {
         task.supplierName,
         task.site,
         task.status,
+        task.remarks,
+        task.currentStatus,
         task.bucket,
         task.personalBucket,
         task.attention,
@@ -4094,13 +4179,10 @@ function wdRenderDashboardList() {
             ? wdDashboardSelectedLabel()
             : (wdCanSeeAllActiveDashboard() ? wdDashboardSelectedLabel() : 'My Personal Tasks'));
 
-    // 10.8.5: For a global search with exactly one matching queue, reuse that
-    // queue label so special grouping still applies. Example: For Summary keeps
-    // Vendor cards; Retention/IPC/For SRV keep Site cards.
-    if (selected === WD_DASHBOARD_NONE && globalSearch && baseTasks.length) {
-        const matchingBuckets = [...new Set(baseTasks.map(task => wdText(task.bucket || task.personalBucket || wdDashboardBucket(task.status, task.type) || wdDashboardPersonalBucket(task.status, task.type))).filter(Boolean))];
-        if (matchingBuckets.length === 1) selectedLabel = matchingBuckets[0];
-    }
+    // 11.0.0: In Dashboard global search mode, always keep one consistent
+    // site-card result flow. This intentionally does not switch the title to
+    // "For Summary" when For Summary is the only matched queue, because direct
+    // For Summary clicks are vendor-grouped while global search must be site-grouped.
 
     if (titleEl) titleEl.textContent = selectedLabel;
 

@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-workdesk-reporting.js
    IBA WorkDesk/Inventory Job Records table and report filter helpers.
-   Version: 10.7.6
+   Version: 10.9.9
 
    Cleanup Phase:
    - Moved Block 13 out of app.js.
@@ -19,6 +19,12 @@
    - Admin Job Records search is global again. Searching a PO/vendor/site/status does
      not require choosing the exact category tab first.
    - When a search result belongs to one category, the matching tab is auto-highlighted.
+
+   10.9.9:
+   - WorkDesk Job Records search now respects a manually selected Job Records tab.
+   - If no tab was manually selected, search remains global across existing Job Records tabs.
+   - Search remains contains-based/flexible and now includes Status/remarks explicitly.
+   - Clear button support removes the selected tab/highlight through the companion clear patch.
    ========================================================================== */
 
 // #region BLOCK 13 — JOB RECORDS TABLE + REPORT FILTERING
@@ -125,6 +131,14 @@ function wdReportSetActiveTab(jobType) {
     tabsContainer.querySelectorAll('button[data-job-type]').forEach(btn => {
         btn.classList.toggle('active', !!jobType && btn.dataset.jobType === jobType);
     });
+}
+
+function wdReportHasManualTabFilter() {
+    return !!(window.__wdReportManualTabFilter === true && currentReportFilter && currentReportFilter !== 'All');
+}
+
+function wdReportMarkManualTabFilter(isManual) {
+    try { window.__wdReportManualTabFilter = !!isManual; } catch (_) {}
 }
 
 
@@ -286,11 +300,19 @@ function filterAndRenderReport(baseEntries = null) {
     const chosenSource = Array.isArray(baseEntries) ? baseEntries : getWorkdeskJobRecordEntries();
     let filteredEntries = [...chosenSource].filter(entry => isWorkdeskTaskRecord(entry));
 
-    // Search text is intentionally applied BEFORE category filtering.
-    // 10.7.5: Admin Job Records search should be global, so an admin does not
-    // need to know the exact category tab before searching a PO/job.
     const searchText = String(reportingSearchInput?.value || '').toLowerCase().trim();
     sessionStorage.setItem('reportingSearch', searchText);
+
+    const selectedJobType = (currentReportFilter && currentReportFilter !== 'All') ? currentReportFilter : null;
+    const restrictSearchToSelectedTab = !!(searchText && selectedJobType && wdReportHasManualTabFilter());
+
+    // 10.9.9:
+    // - If the admin manually clicked a Job Records tab, search only that tab.
+    // - If no tab was manually selected, search remains global across the existing Job Records tabs.
+    // - Text matching stays flexible/contains-based, same as before.
+    if (restrictSearchToSelectedTab) {
+        filteredEntries = filteredEntries.filter(entry => wdReportDisplayJobType(entry.for || 'Other') === selectedJobType);
+    }
 
     if (searchText) {
         filteredEntries = filteredEntries.filter(entry => {
@@ -308,17 +330,26 @@ function filterAndRenderReport(baseEntries = null) {
                 check(entry.vendorName) ||
                 check(entry.note) ||
                 check(entry.details) ||
-                check(entry.currentNote)
+                check(entry.currentNote) ||
+                check(entry.remarks) ||
+                check(entry.status)
             );
         });
 
-        const matchingTypes = [...new Set(filteredEntries.map(entry => wdReportDisplayJobType(entry.for || 'Other')).filter(Boolean))];
-        if (matchingTypes.length === 1) {
-            // One clear result category: auto-highlight that tab.
-            wdReportSetActiveTab(matchingTypes[0]);
-        } else if (matchingTypes.length !== 1) {
-            // Multiple/no categories: do not force the search into the old selected tab.
-            wdReportSetActiveTab(null);
+        if (restrictSearchToSelectedTab) {
+            // User specifically chose this tab, so keep that tab highlighted even if no rows match.
+            wdReportSetActiveTab(selectedJobType);
+        } else {
+            const matchingTypes = [...new Set(filteredEntries.map(entry => wdReportDisplayJobType(entry.for || 'Other')).filter(Boolean))];
+            if (matchingTypes.length === 1) {
+                // Auto-highlight for clarity only. Do not treat this as a user-selected tab filter.
+                wdReportMarkManualTabFilter(false);
+                wdReportSetActiveTab(matchingTypes[0]);
+            } else {
+                // Multiple/no categories: keep search global and clear forced tab selection.
+                wdReportMarkManualTabFilter(false);
+                wdReportSetActiveTab(null);
+            }
         }
 
         renderReportingTable(filteredEntries);
@@ -326,11 +357,11 @@ function filterAndRenderReport(baseEntries = null) {
     }
 
     // No search text: keep normal selected-tab behavior.
-    if (currentReportFilter && currentReportFilter !== 'All') {
-        filteredEntries = filteredEntries.filter(entry => wdReportDisplayJobType(entry.for || 'Other') === currentReportFilter);
+    if (selectedJobType) {
+        filteredEntries = filteredEntries.filter(entry => wdReportDisplayJobType(entry.for || 'Other') === selectedJobType);
     }
 
-    wdReportSetActiveTab(currentReportFilter);
+    wdReportSetActiveTab(selectedJobType);
     renderReportingTable(filteredEntries);
 }
 
