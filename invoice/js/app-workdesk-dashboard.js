@@ -151,6 +151,11 @@
      selected site/vendor card, highlighted categories, and the yellow-note area.
    - In global search mode, All Active category cards highlight only the categories
      present in the current result/site selection and grey out unrelated categories.
+
+   11.0.4:
+   - Dashboard Job Record cache can now be overwritten/removed by Firebase job key.
+   - This prevents stale IPC Application dashboard copies when the same record moves
+     to IPC Processed in another open browser.
    ========================================================================== */
 
 // =================================================================================================
@@ -373,17 +378,64 @@ function wdDashboardCacheHasVerifiedAllActive(cached) {
 
 function wdClearDashboardCache() {
     try { window.localStorage.removeItem(WD_DASHBOARD_CACHE_KEY); } catch (e) { /* ignore */ }
+    try { window.localStorage.removeItem('IBA_WD_ALL_ACTIVE_COUNT_CACHE_V1'); } catch (e) { /* ignore */ }
+}
+
+function wdNormalizeDashboardJobEntry(key, entry = {}) {
+    return { ...(entry || {}), key, source: 'job_entry' };
+}
+
+function wdUpsertDashboardJobEntryCache(key, entry = {}) {
+    if (!key) return;
+    const normalized = wdNormalizeDashboardJobEntry(key, entry);
+    const existing = Array.isArray(wdDashboardJobEntriesCache.entries) ? wdDashboardJobEntriesCache.entries : [];
+    wdDashboardJobEntriesCache = {
+        entries: existing.filter(item => String(item?.key || '') !== String(key)).concat([normalized]),
+        savedAt: Date.now()
+    };
+    try {
+        if (Array.isArray(workdeskSystemEntries)) {
+            workdeskSystemEntries = workdeskSystemEntries.filter(item => String(item?.key || '') !== String(key)).concat([normalized]);
+        }
+    } catch (_) {}
+    try {
+        if (Array.isArray(allSystemEntries)) {
+            allSystemEntries = allSystemEntries.filter(item => !(item && item.source === 'job_entry' && String(item.key || '') === String(key))).concat([normalized]);
+        }
+    } catch (_) {}
+}
+
+function wdRemoveDashboardJobEntryCache(key) {
+    if (!key) return;
+    const sameKey = (item) => String(item?.key || '') === String(key);
+    wdDashboardJobEntriesCache = {
+        entries: (Array.isArray(wdDashboardJobEntriesCache.entries) ? wdDashboardJobEntriesCache.entries : []).filter(item => !sameKey(item)),
+        savedAt: Date.now()
+    };
+    wdActiveDashboardTasks = (Array.isArray(wdActiveDashboardTasks) ? wdActiveDashboardTasks : []).filter(task => !(String(task?.key || '') === String(key) && wdNormalize(task?.source || '').includes('job')));
+    wdPersonalDashboardTasks = (Array.isArray(wdPersonalDashboardTasks) ? wdPersonalDashboardTasks : []).filter(task => !(String(task?.key || '') === String(key) && wdNormalize(task?.source || '').includes('job')));
+    try { if (Array.isArray(workdeskSystemEntries)) workdeskSystemEntries = workdeskSystemEntries.filter(item => !sameKey(item)); } catch (_) {}
+    try { if (Array.isArray(allSystemEntries)) allSystemEntries = allSystemEntries.filter(item => !(item && item.source === 'job_entry' && sameKey(item))); } catch (_) {}
+    try { wdAllActiveDashboardCountItemsMap.delete(`job|${wdNormalize(key)}`); } catch (_) {}
 }
 
 // 8.5.2: Public safe cache clearer for save/update flows that change task buckets
 // such as converting an IPC Job Record to an Invoice Job Record.
 function wdClearWorkdeskDashboardCache() {
-    try { window.localStorage.removeItem(WD_DASHBOARD_CACHE_KEY); } catch (e) { /* ignore */ }
+    wdClearDashboardCache();
     try { window.sessionStorage.removeItem(WD_ACTIVE_TASK_SOURCE_CACHE_KEY); } catch (e) { /* ignore */ }
+    wdDashboardJobEntriesCache = { entries: [], savedAt: 0 };
+    wdInvoiceTaskLookupLiveCache = { nodes: null, savedAt: 0, scope: '' };
     wdActiveDashboardCacheMeta = { fromCache: false, savedAt: 0 };
     wdPersonalDashboardTasks = [];
+    wdAllActiveDashboardLoaded = false;
+    wdAllActiveDashboardCountsLoaded = false;
+    wdAllActiveDashboardCountMap = new Map();
+    wdAllActiveDashboardCountItemsMap = new Map();
 }
 window.wdClearWorkdeskDashboardCache = wdClearWorkdeskDashboardCache;
+window.wdUpsertDashboardJobEntryCache = wdUpsertDashboardJobEntryCache;
+window.wdRemoveDashboardJobEntryCache = wdRemoveDashboardJobEntryCache;
 
 function wdLoadActiveTaskSourceSnapshot() {
     const cached = wdReadJSONStorage(window.sessionStorage, WD_ACTIVE_TASK_SOURCE_CACHE_KEY);
@@ -2743,9 +2795,12 @@ function wdDashboardTaskIdentityKey(task = {}) {
     const po = wdText(task.originalPO || task.po || '');
     const direct = wdText(task.originalKey || task.invoiceKey || task.key || task.id || '');
     const ref = wdText(task.invEntryID || task.ref || task.invNumber || task.invoiceNo || '');
+    const source = wdNormalize(task.source || task.type || 'task');
+    if (source.includes('job') || source.includes('ipc')) {
+        return `job|${wdNormalize(direct || ref || po || Math.random())}`;
+    }
     if (po && direct) return `invoice|${wdNormalize(po)}|${wdNormalize(direct)}`;
     if (po && ref) return `invoice-ref|${wdNormalize(po)}|${wdNormalize(ref)}`;
-    const source = wdNormalize(task.source || task.type || 'task');
     return `${source}|${wdNormalize(direct || ref || Math.random())}`;
 }
 

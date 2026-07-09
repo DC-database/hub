@@ -1,13 +1,13 @@
 /* ==========================================================================
    js/app-standard-job.js
    IBA WorkDesk standard job modal, job history, and approval sticker printing.
-   Version: 10.1.6
+   Version: 11.0.4
 
    Cleanup Phase:
    - Moved Block 25 out of app.js.
    - Public function names and window bindings are preserved.
-   - No job save/update/delete logic, invoice save logic, batch save logic,
-     Firebase path names, or inventory stock logic changed.
+   - 11.0.4: Reception delete button now appears for their own initial-stage IPC Application / IPC Processed records.
+   - No invoice save logic, batch save logic, Firebase path names, or inventory stock logic changed.
    ========================================================================== */
 
 // =================================================================================================
@@ -92,29 +92,33 @@
 
             // Check permission for Delete button
             // - Irwin (Accounting) can delete any job entry (existing behavior)
-            // - Hafiz can ONLY delete Invoice job entries he created that are still "New Entry"
+            // - Reception can delete their own initial-stage Invoice New Entry.
+            // - 11.0.4: Reception can also delete their own initial-stage
+            //   IPC Application / IPC Processed records before completion/conversion.
             const userName = (currentApprover?.Name || '').trim();
+            const userNameLower = String(userName || '').trim().toLowerCase();
             const userPositionLower = (currentApprover?.Position || '').toLowerCase();
 
             let canShowDelete = false;
             if (userName === 'Irwin' && userPositionLower === 'accounting') {
                 canShowDelete = true;
             } else {
-                const userNameLower = String(userName || '').trim().toLowerCase();
-                const isHafizUser = userNameLower.includes('hafiz');
-                if (isHafizUser) {
+                const isReceptionUser = userNameLower.includes('hafiz') || userPositionLower.includes('reception');
+                if (isReceptionUser) {
                     const jobType = String(entryData.for || entryData.jobType || '').trim().toLowerCase();
                     const creator = String(entryData.createdBy || entryData.enteredBy || entryData.requestor || '').trim().toLowerCase();
-                    const remarks = String(entryData.remarks || '').trim().toLowerCase();
-                    const allowedRemarks = ['new entry', 'pending', ''];
+                    const remarks = String(entryData.remarks || entryData.status || '').trim().toLowerCase();
                     const hasResponded = !!entryData.dateResponded;
+                    const creatorOk = (!creator) || creator === userNameLower || creator.includes('hafiz') || creator.includes('reception') || ['admin','system'].includes(creator);
 
-                    // Allow Hafiz to delete ONLY Invoice job entries in the initial stage.
-                    // Creator may be blank/"admin" in some legacy records, so we accept those too
-                    // but still require the entry to be an Invoice + New Entry + not responded.
-                    const creatorOk = (!creator) || creator.includes('hafiz') || ['admin','system'].includes(creator);
-                    if (jobType === 'invoice' && creatorOk && allowedRemarks.includes(remarks) && !hasResponded) {
-                        canShowDelete = true;
+                    if (creatorOk && !hasResponded) {
+                        if (jobType === 'invoice' && ['new entry', 'pending', ''].includes(remarks)) {
+                            canShowDelete = true;
+                        } else if (jobType === 'ipc application' && ['pending', 'ipc issue', ''].includes(remarks)) {
+                            canShowDelete = true;
+                        } else if ((jobType === 'ipc processed' || jobType === 'ipc') && ['waiting invoice', 'pending', 'ipc', ''].includes(remarks)) {
+                            canShowDelete = true;
+                        }
                     }
                 }
             }
