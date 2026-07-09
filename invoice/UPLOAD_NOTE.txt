@@ -1,22 +1,38 @@
-IBA 11.0.3 PATCH
-Welcome Screen Financial Report Strict Access Fix
+IBA System Patch 11.0.4
+WorkDesk Job Record Cache Sync + Reception IPC Delete Permission
 
 UPLOAD THESE FILES:
-- index.html
-- app.js
-- js/app-navigation-settings.js
-- version.json
+1. index.html
+2. app.js
+3. js/app-workdesk-dashboard.js
+4. js/app-standard-job.js
+5. version.json
 
-WHAT CHANGED:
-- Restored the Welcome Screen Financial Report button to the strict old access rule.
-- QS and Senior QS are NOT allowed through the Welcome Screen Financial Report button.
-- QS and Senior QS remain allowed only inside Invoice Management → Financial Report.
+WHAT THIS PATCH DOES:
+- Adds WorkDesk Job Record recent-update sync using a small Firebase index: workdesk_job_recent.
+- When a Job Record is updated, the updater browser overwrites its local cached copy immediately.
+- Other already-open WorkDesk browsers check recent Job Record updates every 30 seconds and overwrite/remove only changed Firebase keys.
+- Helps prevent stale visual duplicates such as the same Firebase record appearing as IPC Application and IPC Processed after it was moved.
+- Clears/rebuilds Dashboard cache safely after Job Record bucket/category changes.
+- Gives Reception permission to delete their own initial-stage IPC Application and IPC Processed records, same safety idea as Invoice New Entry delete.
+
+RECEPTION DELETE RULE:
+Reception can delete only their own/legacy initial-stage records:
+- Invoice: New Entry / Pending / blank status
+- IPC Application: Pending / IPC Issue / blank status
+- IPC Processed: Waiting Invoice / Pending / IPC / blank status
+Blocked if the record has dateResponded/completed/conversion state.
+Irwin Accounting can still delete any Job Entry.
 
 NOT TOUCHED:
-- Dashboard
-- Active Task
-- Job Records
-- Inventory
-- Invoice workflow
-- Firebase paths
-- Attention routing
+- Invoice Management save workflow
+- Inventory workflow
+- Firebase database structure for existing job_entries records
+- Dashboard categories list
+- Attention routing rules
+- Financial Report permission rules from 11.0.3
+
+VERSION:
+- APP_VERSION: 11.0.4
+- version.json: 11.0.4
+- index.html version checker: 11.0.4

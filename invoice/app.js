@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '11.0.3';
+const APP_VERSION = '11.0.4';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -2147,6 +2147,8 @@ async function handleAddJobEntry(e) {
 
         // 3. Add Timestamps & User Info
         jobData.timestamp = firebase.database.ServerValue.TIMESTAMP;
+        jobData.createdAt = firebase.database.ServerValue.TIMESTAMP;
+        jobData.updatedAt = firebase.database.ServerValue.TIMESTAMP;
         
         // Prefer logged-in approver name (Workdesk user)
         let currentUserName = (currentApprover && currentApprover.Name) ? String(currentApprover.Name).trim() : 'Admin';
@@ -2157,6 +2159,7 @@ async function handleAddJobEntry(e) {
             currentUserName = String(window.currentUser.username).trim() || currentUserName;
         }
         jobData.createdBy = currentUserName;
+        jobData.updatedBy = currentUserName;
         // Explicitly track who entered it (used for Workdesk ownership / delete permission)
         jobData.enteredBy = (currentApprover && currentApprover.Name) ? String(currentApprover.Name).trim() : currentUserName;
 
@@ -2172,6 +2175,10 @@ async function handleAddJobEntry(e) {
         // SAVE TO FIREBASE
         // =========================================================
         const newRef = await db.ref('job_entries').push(jobData);
+        const localCreatedJob = { ...jobData, key: newRef.key, source: 'job_entry', updatedAt: Date.now(), timestamp: Date.now() };
+        wdUpsertLocalWorkdeskJobEntryCache(newRef.key, localCreatedJob);
+        await wdWriteWorkdeskJobRecentMarker(newRef.key, localCreatedJob, 'created');
+        try { if (typeof wdClearWorkdeskDashboardCache === 'function') wdClearWorkdeskDashboardCache(); } catch (_) {}
 
         // Update Local Cache immediately so we don't need a hard refresh
         await ensureAllEntriesFetched(true); 
@@ -2267,6 +2274,233 @@ function getIPCReceptionReturnUser(entry = {}) {
 }
 
 
+// =========================================================
+// 11.0.4: WorkDesk Job Record local cache + recent sync helpers
+// Purpose:
+// - Updating the same Firebase job_entries key immediately overwrites this browser cache.
+// - Other open browsers poll a small recent-update index and overwrite/remove only changed keys.
+// - Prevent stale IPC Application copies when the same record moves to IPC Processed.
+// =========================================================
+const WD_JOB_RECENT_PATH = 'workdesk_job_recent';
+const WD_JOB_RECENT_SYNC_INTERVAL = 30 * 1000;
+const WD_JOB_RECENT_SYNC_OVERLAP = 2 * 60 * 1000;
+let wdJobRecentSyncTimer = null;
+let wdJobRecentSyncRunning = false;
+let wdJobRecentLastSyncAt = 0;
+
+function wdJobRecordSortByTimestamp(a, b) {
+    return (Number(b?.updatedAt || b?.timestamp || 0) || 0) - (Number(a?.updatedAt || a?.timestamp || 0) || 0);
+}
+
+function wdNormalizeLocalJobEntry(key, entry = {}) {
+    return {
+        ...(entry || {}),
+        key,
+        source: 'job_entry'
+    };
+}
+
+function wdRebuildAllEntriesAfterWorkdeskCacheChange() {
+    try {
+        const workdesk = Array.isArray(workdeskSystemEntries) ? workdeskSystemEntries : [];
+        const inventory = Array.isArray(inventorySystemEntries) ? inventorySystemEntries : [];
+        allSystemEntries = [...workdesk, ...inventory];
+        allSystemEntries.sort(wdJobRecordSortByTimestamp);
+    } catch (_) {}
+}
+
+function wdUpsertLocalWorkdeskJobEntryCache(key, entry = {}) {
+    if (!key) return;
+    const normalized = wdNormalizeLocalJobEntry(key, entry);
+
+    try {
+        const currentWorkdesk = Array.isArray(workdeskSystemEntries) ? workdeskSystemEntries : [];
+        workdeskSystemEntries = currentWorkdesk.filter(item => String(item?.key || '') !== String(key));
+        workdeskSystemEntries.push(normalized);
+        workdeskSystemEntries.sort(wdJobRecordSortByTimestamp);
+    } catch (_) {}
+
+    wdRebuildAllEntriesAfterWorkdeskCacheChange();
+
+    try {
+        if (typeof cacheTimestamps !== 'undefined') cacheTimestamps.systemEntries = Date.now();
+    } catch (_) {}
+
+    try {
+        sessionStorage.removeItem('IBA_ACTIVE_TASK_WORKDESK_SNAPSHOT_V1');
+        sessionStorage.removeItem('IBA_ACTIVE_TASK_WORKDESK_SNAPSHOT_V2');
+        sessionStorage.removeItem('IBA_ACTIVE_TASK_WORKDESK_SNAPSHOT_V3');
+    } catch (_) {}
+
+    try {
+        if (typeof window.wdUpsertDashboardJobEntryCache === 'function') {
+            window.wdUpsertDashboardJobEntryCache(key, normalized);
+        }
+    } catch (_) {}
+}
+
+function wdRemoveLocalWorkdeskJobEntryCache(key) {
+    if (!key) return;
+    try {
+        if (Array.isArray(workdeskSystemEntries)) {
+            workdeskSystemEntries = workdeskSystemEntries.filter(item => String(item?.key || '') !== String(key));
+        }
+    } catch (_) {}
+    try {
+        if (Array.isArray(allSystemEntries)) {
+            allSystemEntries = allSystemEntries.filter(item => !(item && item.source === 'job_entry' && String(item.key || '') === String(key)));
+        }
+    } catch (_) {}
+    wdRebuildAllEntriesAfterWorkdeskCacheChange();
+
+    try {
+        if (typeof cacheTimestamps !== 'undefined') cacheTimestamps.systemEntries = Date.now();
+    } catch (_) {}
+
+    try {
+        sessionStorage.removeItem('IBA_ACTIVE_TASK_WORKDESK_SNAPSHOT_V1');
+        sessionStorage.removeItem('IBA_ACTIVE_TASK_WORKDESK_SNAPSHOT_V2');
+        sessionStorage.removeItem('IBA_ACTIVE_TASK_WORKDESK_SNAPSHOT_V3');
+    } catch (_) {}
+
+    try {
+        if (typeof window.wdRemoveDashboardJobEntryCache === 'function') {
+            window.wdRemoveDashboardJobEntryCache(key);
+        }
+    } catch (_) {}
+}
+
+async function wdWriteWorkdeskJobRecentMarker(key, entry = {}, action = 'updated') {
+    if (!key || typeof db === 'undefined' || !db || !db.ref) return;
+    const actor = String(currentApprover?.Name || currentApprover?.username || 'System').trim() || 'System';
+    const marker = {
+        key,
+        action: action || 'updated',
+        updatedAt: firebase.database.ServerValue.TIMESTAMP,
+        updatedBy: actor,
+        for: String(entry?.for || entry?.jobType || ''),
+        status: String(entry?.remarks || entry?.status || ''),
+        po: String(entry?.po || ''),
+        ref: String(entry?.ref || ''),
+        site: String(entry?.site || '')
+    };
+    try {
+        await db.ref(`${WD_JOB_RECENT_PATH}/${key}`).set(marker);
+    } catch (err) {
+        console.warn('Could not write WorkDesk Job recent marker:', err);
+    }
+}
+
+function wdIsWorkdeskOpenForRecentSync() {
+    try {
+        const view = document.getElementById('workdesk-view');
+        return !!view && !view.classList.contains('hidden');
+    } catch (_) {
+        return false;
+    }
+}
+
+function wdIsSectionVisible(sectionId) {
+    try {
+        const section = document.getElementById(sectionId);
+        return !!section && !section.classList.contains('hidden') && section.offsetParent !== null;
+    } catch (_) {
+        return false;
+    }
+}
+
+async function wdApplyRecentJobRecordMarker(key, marker = {}) {
+    if (!key || !marker) return false;
+    const action = String(marker.action || '').toLowerCase();
+
+    if (action === 'deleted' || marker.deleted === true) {
+        wdRemoveLocalWorkdeskJobEntryCache(key);
+        return true;
+    }
+
+    try {
+        const snap = await db.ref(`job_entries/${key}`).once('value');
+        if (!snap.exists()) {
+            wdRemoveLocalWorkdeskJobEntryCache(key);
+            return true;
+        }
+        const latest = wdNormalizeLocalJobEntry(key, snap.val() || {});
+        wdUpsertLocalWorkdeskJobEntryCache(key, latest);
+        return true;
+    } catch (err) {
+        console.warn('Could not apply recent WorkDesk Job update:', err);
+        return false;
+    }
+}
+
+async function wdSyncRecentJobRecordUpdates(reason = 'job-recent-sync') {
+    if (wdJobRecentSyncRunning) return;
+    if (!wdIsWorkdeskOpenForRecentSync()) return;
+    if (typeof db === 'undefined' || !db || !db.ref) return;
+
+    const now = Date.now();
+    const lastSync = Number(wdJobRecentLastSyncAt || 0) || (now - WD_JOB_RECENT_SYNC_INTERVAL);
+    const cutoff = Math.max(0, lastSync - WD_JOB_RECENT_SYNC_OVERLAP);
+
+    wdJobRecentSyncRunning = true;
+    try {
+        const snap = await db.ref(WD_JOB_RECENT_PATH)
+            .orderByChild('updatedAt')
+            .startAt(cutoff)
+            .once('value');
+        const rows = snap.val() || {};
+        let changed = false;
+        for (const key of Object.keys(rows || {})) {
+            const row = rows[key] || {};
+            const applied = await wdApplyRecentJobRecordMarker(key, row);
+            changed = changed || applied;
+        }
+        wdJobRecentLastSyncAt = now;
+
+        if (changed) {
+            try { if (typeof wdClearWorkdeskDashboardCache === 'function') wdClearWorkdeskDashboardCache(); } catch (_) {}
+
+            if (wdIsSectionVisible('wd-reporting') && typeof handleReportingSearch === 'function') {
+                try { await handleReportingSearch({ userAction: true, reason: 'search' }); } catch (_) {}
+            }
+            if (wdIsSectionVisible('wd-activetask') && typeof populateActiveTasks === 'function') {
+                try { await populateActiveTasks(true); } catch (_) {}
+            }
+            if (wdIsSectionVisible('wd-dashboard') && typeof populateWorkdeskDashboard === 'function') {
+                try { await populateWorkdeskDashboard(true); } catch (_) {}
+            }
+        }
+    } catch (err) {
+        console.warn('WorkDesk Job recent sync could not complete:', err);
+    } finally {
+        wdJobRecentSyncRunning = false;
+    }
+}
+
+function wdStartRecentJobRecordSync() {
+    if (wdJobRecentSyncTimer) return;
+    wdJobRecentSyncTimer = setInterval(() => {
+        wdSyncRecentJobRecordUpdates('job-recent-30s');
+    }, WD_JOB_RECENT_SYNC_INTERVAL);
+    setTimeout(() => wdSyncRecentJobRecordUpdates('job-recent-open'), 2500);
+}
+
+try {
+    window.wdUpsertLocalWorkdeskJobEntryCache = wdUpsertLocalWorkdeskJobEntryCache;
+    window.wdRemoveLocalWorkdeskJobEntryCache = wdRemoveLocalWorkdeskJobEntryCache;
+    window.wdSyncRecentJobRecordUpdates = wdSyncRecentJobRecordUpdates;
+    window.wdStartRecentJobRecordSync = wdStartRecentJobRecordSync;
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) wdSyncRecentJobRecordUpdates('tab-visible');
+    });
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', wdStartRecentJobRecordSync);
+    } else {
+        wdStartRecentJobRecordSync();
+    }
+} catch (_) {}
+
+
 async function handleDeleteJobEntry(e) {
     e.preventDefault();
     if (!currentlyEditingKey) {
@@ -2276,9 +2510,10 @@ async function handleDeleteJobEntry(e) {
 
     // =========================================================
     // DELETE PERMISSIONS (SAFE, MINIMAL)
-    // - Irwin (Accounting) can delete any job entry (existing behavior)
-    // - Hafiz can ONLY delete Invoice job entries that he created AND
-    //   that are still "New Entry" (no dateResponded yet)
+    // - Irwin (Accounting) can delete any job entry (existing behavior).
+    // - Reception can delete their own initial-stage Invoice New Entry.
+    // - 11.0.4: Reception can also delete their own initial-stage
+    //   IPC Application / IPC Processed records before completion/conversion.
     // =========================================================
     const canDeleteJobEntryForUser = (entry, user) => {
         const userName = (user?.Name || '').trim();
@@ -2287,26 +2522,33 @@ async function handleDeleteJobEntry(e) {
         const isIrwinAdmin = (userName === 'Irwin' && userPos === 'accounting');
         if (isIrwinAdmin) return true;
 
-        // Hafiz limited permission (Invoice only, initial stage only)
         const userNameLower = String(userName || '').trim().toLowerCase();
-        const isHafizUser = userNameLower.includes('hafiz');
-        if (!isHafizUser) return false;
+        const isReceptionUser = userNameLower.includes('hafiz') || userPos.includes('reception');
+        if (!isReceptionUser) return false;
 
         const jobType = String(entry?.for || entry?.jobType || '').trim().toLowerCase();
-        if (jobType !== 'invoice') return false;
-
         const creator = String(entry?.createdBy || entry?.enteredBy || entry?.requestor || '').trim().toLowerCase();
+        const remarks = String(entry?.remarks || entry?.status || '').trim().toLowerCase();
+        const hasResponded = !!entry?.dateResponded;
 
-        // If the record has an explicit creator and it is not Hafiz (and not legacy/admin/system), block.
-        if (creator && !creator.includes('hafiz') && !['admin','system'].includes(creator)) return false;
+        // If there is an explicit creator and it is not this Reception user
+        // (and not a legacy/admin/system value), block the delete.
+        const creatorOk = !creator || creator === userNameLower || creator.includes('hafiz') || creator.includes('reception') || ['admin', 'system'].includes(creator);
+        if (!creatorOk || hasResponded) return false;
 
-        // Only allow deleting duplicates that are still in the initial stage
-        const remarks = String(entry?.remarks || '').trim().toLowerCase();
-        const allowedRemarks = ['new entry', 'pending', ''];
-        if (!allowedRemarks.includes(remarks)) return false;
-        if (entry?.dateResponded) return false;
+        if (jobType === 'invoice') {
+            return ['new entry', 'pending', ''].includes(remarks);
+        }
 
-        return true;
+        if (jobType === 'ipc application') {
+            return ['pending', 'ipc issue', ''].includes(remarks);
+        }
+
+        if (jobType === 'ipc processed' || jobType === 'ipc') {
+            return ['waiting invoice', 'pending', 'ipc', ''].includes(remarks);
+        }
+
+        return false;
     };
 
     // Get the entry data for permission checks (prefer local cache, fallback to DB)
@@ -2321,7 +2563,7 @@ async function handleDeleteJobEntry(e) {
     }
 
     if (!canDeleteJobEntryForUser(entry, currentApprover)) {
-        alert("Access Denied: Only Irwin can permanently delete entries. Hafiz can delete only his own Invoice entries that are still 'New Entry'.");
+        alert("Access Denied: Only Irwin can permanently delete entries. Reception can delete only their own initial-stage Invoice New Entry, IPC Application, or IPC Processed records.");
         return;
     }
 
@@ -2330,7 +2572,11 @@ async function handleDeleteJobEntry(e) {
     }
 
     try {
-        await db.ref(`job_entries/${currentlyEditingKey}`).remove();
+        const deletedKey = currentlyEditingKey;
+        await db.ref(`job_entries/${deletedKey}`).remove();
+        await wdWriteWorkdeskJobRecentMarker(deletedKey, entry || {}, 'deleted');
+        wdRemoveLocalWorkdeskJobEntryCache(deletedKey);
+        try { if (typeof wdClearWorkdeskDashboardCache === 'function') wdClearWorkdeskDashboardCache(); } catch (_) {}
 
         alert('Job Entry Deleted Successfully!');
 
@@ -2515,8 +2761,14 @@ async function handleUpdateJobEntry(e) {
             if (jobData.for === 'Invoice') jobData.dateResponded = null;
         }
 
+        const updaterName = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover.Name : "System";
+        jobData.updatedAt = firebase.database.ServerValue.TIMESTAMP;
+        jobData.updatedBy = updaterName;
+
         await db.ref(`job_entries/${currentlyEditingKey}`).update(jobData);
-        const updaterName = (typeof currentApprover !== 'undefined') ? currentApprover.Name : "System";
+        const localUpdatedJob = { ...(originalEntry || {}), ...jobData, key: currentlyEditingKey, source: 'job_entry', updatedAt: Date.now() };
+        wdUpsertLocalWorkdeskJobEntryCache(currentlyEditingKey, localUpdatedJob);
+        await wdWriteWorkdeskJobRecentMarker(currentlyEditingKey, localUpdatedJob, 'updated');
         const cleanCurrentNote = String(jobData.note || jobData.details || '').trim();
         const historyNote = convertedToInvoice
             ? `Converted from ${originalJobType || 'Job Record'} to Invoice and routed to: ${jobData.attention}${cleanCurrentNote ? ' | Note: ' + cleanCurrentNote : ''}`
@@ -3457,7 +3709,12 @@ async function handleSaveModifiedTask() {
                 historyNote = `Updated Status to: ${updates.remarks || updates.status || ''}${updates.attention ? ' | Attention: ' + updates.attention : ''}${updates.note ? ' | Note: ' + updates.note : ''}`;
             }
 
+            updates.updatedAt = firebase.database.ServerValue.TIMESTAMP;
+            updates.updatedBy = currentApprover?.Name || 'System';
             await db.ref(`job_entries/${key}`).update(updates);
+            const localJobUpdate = { ...(originalEntry || {}), ...updates, key, source: 'job_entry', updatedAt: Date.now() };
+            wdUpsertLocalWorkdeskJobEntryCache(key, localJobUpdate);
+            await wdWriteWorkdeskJobRecentMarker(key, localJobUpdate, 'updated');
             await db.ref(`job_entries/${key}/history`).push({
                 action: historyAction,
                 by: currentApprover?.Name || 'System',
@@ -3465,7 +3722,7 @@ async function handleSaveModifiedTask() {
                 status: updates.remarks || updates.status || selectedStatusNorm,
                 note: historyNote || `Updated Status to: ${updates.remarks || updates.status || selectedStatusNorm}`
             });
-            allSystemEntries = [];
+            try { if (typeof cacheTimestamps !== 'undefined') cacheTimestamps.systemEntries = 0; } catch (_) {}
         } else if (source === 'invoice' && originalPO && originalKey) {
             if (!allInvoiceData) await ensureInvoiceDataFetched();
             const originalInvoice = (allInvoiceData && allInvoiceData[originalPO]) ? allInvoiceData[originalPO][originalKey] : {};
@@ -3848,12 +4105,16 @@ async function updateLinkedJobEntry(poNumber, invoiceKey, newStatus, note = '') 
         statusChangedAt: firebase.database.ServerValue.TIMESTAMP,
         statusQueueAt: firebase.database.ServerValue.TIMESTAMP
     };
+    updates.updatedAt = firebase.database.ServerValue.TIMESTAMP;
+    updates.updatedBy = currentApprover?.Name || 'System';
     await db.ref(`job_entries/${jobKey}`).update(updates);
     try {
         const local = (Array.isArray(allSystemEntries)
             ? allSystemEntries.find(e => e && e.key === jobKey)
             : null);
-        if (local) Object.assign(local, updates);
+        const localJobUpdate = { ...(local || {}), ...updates, key: jobKey, source: 'job_entry', updatedAt: Date.now() };
+        wdUpsertLocalWorkdeskJobEntryCache(jobKey, localJobUpdate);
+        await wdWriteWorkdeskJobRecentMarker(jobKey, localJobUpdate, 'updated');
     } catch (_) {}
     // Optional: push a history entry to the job entry
     await db.ref(`job_entries/${jobKey}/history`).push({
@@ -4099,14 +4360,16 @@ async function handleAddInvoice(e) {
                     statusQueueAt: firebase.database.ServerValue.TIMESTAMP
                 };
                 const completedKey = jobEntryToUpdateAfterInvoice;
+                updates.updatedAt = firebase.database.ServerValue.TIMESTAMP;
+                updates.updatedBy = currentApprover?.Name || 'System';
                 await db.ref(`job_entries/${jobEntryToUpdateAfterInvoice}`).update(updates);
                 try {
                     const local = (Array.isArray(allSystemEntries)
                         ? allSystemEntries.find(e => e && e.key === completedKey)
                         : null);
-                    if (local) {
-                        Object.assign(local, updates);
-                    }
+                    const localJobUpdate = { ...(local || {}), ...updates, key: completedKey, source: 'job_entry', updatedAt: Date.now() };
+                    wdUpsertLocalWorkdeskJobEntryCache(completedKey, localJobUpdate);
+                    await wdWriteWorkdeskJobRecentMarker(completedKey, localJobUpdate, 'updated');
                 } catch (_) {}
 
                 jobEntryToUpdateAfterInvoice = null;
