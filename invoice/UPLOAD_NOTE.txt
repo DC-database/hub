@@ -1,38 +1,35 @@
-IBA System Patch 11.0.4
-WorkDesk Job Record Cache Sync + Reception IPC Delete Permission
+IBA SYSTEM PATCH 11.0.5
+WorkDesk + Invoice Management Firebase Download Reduction Patch
 
 UPLOAD THESE FILES:
 1. index.html
 2. app.js
 3. js/app-workdesk-dashboard.js
-4. js/app-standard-job.js
-5. version.json
+4. js/app-active-tasks.js
+5. js/app-data-cache.js
+6. js/app-payments.js
+7. version.json
+8. UPLOAD_NOTE.txt
 
-WHAT THIS PATCH DOES:
-- Adds WorkDesk Job Record recent-update sync using a small Firebase index: workdesk_job_recent.
-- When a Job Record is updated, the updater browser overwrites its local cached copy immediately.
-- Other already-open WorkDesk browsers check recent Job Record updates every 30 seconds and overwrite/remove only changed Firebase keys.
-- Helps prevent stale visual duplicates such as the same Firebase record appearing as IPC Application and IPC Processed after it was moved.
-- Clears/rebuilds Dashboard cache safely after Job Record bucket/category changes.
-- Gives Reception permission to delete their own initial-stage IPC Application and IPC Processed records, same safety idea as Invoice New Entry delete.
+WHAT CHANGED:
+- WorkDesk Dashboard All Active no longer downloads the full invoice_entries tree.
+- Dashboard All Active now reads the compact invoice_tasks_by_user/All index and validates each visible active invoice using exact invoice_entries/{PO}/{invoiceKey} reads.
+- WorkDesk Active Task no longer scans full invoice_entries for personal invoice tasks.
+- Active Task now reads only the logged-in user/delegated user task inbox and validates exact invoice records.
+- Payment modal PO search now fetches only invoice_entries/{PO}, not the whole invoice_entries database.
+- Added a safe light-data option in app-data-cache.js so modules can load PO/site/vendor data without forcing the full invoice tree.
+- Added console warning when a true full invoice_entries read is requested, so heavy pages can be identified.
 
-RECEPTION DELETE RULE:
-Reception can delete only their own/legacy initial-stage records:
-- Invoice: New Entry / Pending / blank status
-- IPC Application: Pending / IPC Issue / blank status
-- IPC Processed: Waiting Invoice / Pending / IPC / blank status
-Blocked if the record has dateResponded/completed/conversion state.
-Irwin Accounting can still delete any Job Entry.
+NOT CHANGED:
+- Invoice saving logic
+- Firebase write paths
+- Status workflow
+- Attention routing
+- Job Records rules
+- Inventory logic
+- Financial Report calculations
+- Invoice Records broad search accuracy
 
-NOT TOUCHED:
-- Invoice Management save workflow
-- Inventory workflow
-- Firebase database structure for existing job_entries records
-- Dashboard categories list
-- Attention routing rules
-- Financial Report permission rules from 11.0.3
-
-VERSION:
-- APP_VERSION: 11.0.4
-- version.json: 11.0.4
-- index.html version checker: 11.0.4
+IMPORTANT:
+- Full invoice_entries reads are still allowed for broad Invoice Records searches, Summary Note, Financial Reports, exports, and other reports where full historical data is required for accuracy.
+- Dashboard and Active Task should now be much lighter for users who leave WorkDesk open all day.
