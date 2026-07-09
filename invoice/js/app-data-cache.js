@@ -941,17 +941,24 @@ try {
     window.setInvoiceFirebasePOFallbackEnabled = setInvoiceFirebasePOFallbackEnabled;
     window.updateInvoicePOFallbackUI = updateInvoicePOFallbackUI;
     window.ensureInvoicePOBaseDataFetched = ensureInvoicePOBaseDataFetched;
+    window.ensureInvoiceLightDataFetched = async function(forceRefresh = false) {
+        return ensureInvoiceDataFetched(forceRefresh, { includeInvoiceEntries: false });
+    };
 } catch (_) {}
 
-async function ensureInvoiceDataFetched(forceRefresh = false) {
+async function ensureInvoiceDataFetched(forceRefresh = false, options = {}) {
     const now = Date.now();
+    const includeInvoiceEntries = !(options && options.includeInvoiceEntries === false);
+    // 11.0.5: Some pages only need PO/site/vendor CSV data. They can pass
+    // { includeInvoiceEntries:false } to avoid the heavy invoice_entries full-tree read.
+    // Existing callers keep the old accurate behavior because the default remains true.
     // 10.5.4: Direct PO searches store only a partial allInvoiceData cache.
     // Do not treat a partial PO cache as the full invoice dataset, otherwise
     // Batch Entry note suggestions stay empty after using fast PO search.
     const invoiceEntriesFullyLoaded = (window.__invoiceEntriesFullLoaded === true);
 
-    if (!forceRefresh && allPOData && allInvoiceData && invoiceEntriesFullyLoaded && allEpicoreData && allSitesCSVData && allEcommitDataProcessed && allVendorsData) {
-        return;
+    if (!forceRefresh && allPOData && allEpicoreData && allSitesCSVData && allEcommitDataProcessed && allVendorsData) {
+        if (!includeInvoiceEntries || (allInvoiceData && invoiceEntriesFullyLoaded)) return;
     }
 
     if (!forceRefresh) {
@@ -987,7 +994,9 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
         if (ecommitUrl) promisesToRun.push(fetchAndParseEcommitCSV(ecommitUrl));
         if (vendorUrl) promisesToRun.push(fetchAndParseVendorsCSV(vendorUrl));
 
-        if (!allInvoiceData || forceRefresh || window.__invoiceEntriesFullLoaded !== true) {
+        const shouldFetchFullInvoiceEntries = includeInvoiceEntries && (!allInvoiceData || forceRefresh || window.__invoiceEntriesFullLoaded !== true);
+        if (shouldFetchFullInvoiceEntries) {
+            try { console.warn('[IBA Firebase Download] Full invoice_entries read requested by ensureInvoiceDataFetched(). This should be limited to Invoice Records/Financial Reports/export/report actions only.'); } catch (_) {}
             promisesToRun.push(invoiceDb.ref('invoice_entries').once('value'));
         }
 
@@ -1057,7 +1066,7 @@ async function ensureInvoiceDataFetched(forceRefresh = false) {
             allVendorsData = results[resultIndex++] || {};
         }
 
-        if (!allInvoiceData || forceRefresh || window.__invoiceEntriesFullLoaded !== true) {
+        if (shouldFetchFullInvoiceEntries) {
             const invoiceSnapshot = results[resultIndex++];
             allInvoiceData = invoiceSnapshot.val() || {};
             window.__invoiceEntriesFullLoaded = true;

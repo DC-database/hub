@@ -2168,140 +2168,115 @@ async function wdBuildInvoiceRecordOverviewTasks(forceRefresh = false) {
 }
 
 async function wdBuildInvoiceTaskLookupOverviewTasks(forceRefresh = false) {
-    // 9.3.7: All Active Tasks should use the same active task lookup source that
-    // feeds the work queues, not the full historical invoice records. This prevents
-    // stale invoice statuses from inflating cards such as For SRV.
-    const resultByInvoiceKey = new Map(); // key = PO + invoice task key (invoice key can repeat across POs)
+    // 11.0.5: Download reduction. All Active Dashboard must NOT read the full
+    // invoice_entries tree. Use the compact active-task index at
+    // invoice_tasks_by_user/All, then verify each visible row by its exact
+    // invoice_entries/{PO}/{invoiceKey} record. This keeps accuracy while avoiding
+    // multi-MB full-tree reads when many users leave WorkDesk open.
+    const resultByInvoiceKey = new Map();
     if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) return [];
 
     try {
         let nodes = wdGetLiveInvoiceTaskLookupNodes(forceRefresh);
-        if (!nodes) {
-            const snapshot = await invoiceDb.ref('invoice_tasks_by_user').once('value');
+        let allInbox = nodes && nodes.All && typeof nodes.All === 'object' ? nodes.All : null;
+        if (!allInbox) {
+            const snapshot = await invoiceDb.ref('invoice_tasks_by_user/All').once('value');
             if (!snapshot.exists()) return [];
-            nodes = snapshot.val() || {};
-            wdSetInvoiceTaskLookupLiveCache(nodes, 'root-once');
+            allInbox = snapshot.val() || {};
+            nodes = { All: allInbox };
+            wdSetInvoiceTaskLookupLiveCache(nodes, 'all-once');
         }
-        const ownerKeys = Object.keys(nodes).sort((a, b) => {
-            const aa = wdNormalize(a) === 'all' ? 1 : 0;
-            const bb = wdNormalize(b) === 'all' ? 1 : 0;
-            if (aa !== bb) return aa - bb; // person inboxes before All inbox
-            return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
-        });
 
-        for (const ownerKey of ownerKeys) {
-            const inbox = nodes[ownerKey] || {};
-            if (!inbox || typeof inbox !== 'object') continue;
-            const ownerIsAll = wdNormalize(ownerKey) === 'all';
-            const ownerIsCurrentUser = wdDashboardOwnerKeyMatchesCurrentUser(ownerKey);
+        const ownerKey = 'All';
+        const ownerIsAll = true;
+        const invoiceKeys = Object.keys(allInbox || {});
+        for (const invoiceKey of invoiceKeys) {
+            const task = allInbox[invoiceKey] || {};
+            if (!task || typeof task !== 'object') continue;
 
-            for (const invoiceKey in inbox) {
-                const task = inbox[invoiceKey] || {};
-                if (!task || typeof task !== 'object') continue;
-
-                // 10.2.6: Source-of-truth validation. The lightweight
-                // invoice_tasks_by_user row is only an index; it can be stale.
-                // Always verify the current invoice_entries record before showing it.
-                const po = wdText(task.po || task.originalPO || '');
-                const latestInv = await wdGetInvoiceSourceTruth(po, invoiceKey, forceRefresh, task);
-                if (!latestInv || typeof latestInv !== 'object') {
-                    await wdCleanupStaleInvoiceLookupRow(ownerKey, invoiceKey);
-                    continue;
-                }
-
-                const status = wdCurrentInvoiceTaskStatus(task, latestInv || {});
-                const stillActive = (typeof isInvoiceTaskActive === 'function')
-                    ? isInvoiceTaskActive(latestInv)
-                    : !wdIsInvoiceLookupComplete(status);
-                if (!stillActive || wdIsInvoiceLookupComplete(status)) {
-                    await wdCleanupStaleInvoiceLookupRow(ownerKey, invoiceKey);
-                    continue;
-                }
-
-                const bucket = wdDashboardAllowedBucket(status, 'invoice_task_lookup');
-                if (!bucket) continue;
-
-                const latestAttention = wdText(latestInv.attention || latestInv.Attention || latestInv.assignedTo || task.attention || '');
-                const attention = wdDashboardTaskOwnerAttention(ownerKey, { ...task, attention: latestAttention });
-
-                // If this row sits under an old owner inbox, clean that old row.
-                // The rendered card still uses the true latest Attention so the
-                // dashboard remains accurate while the index heals itself.
-                if (!ownerIsAll && latestAttention) {
-                    const safeLatestOwner = wdNormalize(wdSanitizeFirebaseKey(latestAttention));
-                    if (safeLatestOwner && safeLatestOwner !== wdNormalize(ownerKey)) {
-                        await wdCleanupStaleInvoiceLookupRow(ownerKey, invoiceKey);
-                    }
-                }
-
-                // All Active excludes the current user's personal tasks. The caller
-                // also checks against wdPersonalDashboardTasks, but doing it here keeps
-                // counts from bloating before dedupe.
-                if (wdTaskHasAttentionName({ attention }, wdCurrentUserNameNorm())) continue;
-
-                const lookupTaskKey = `${po}||${invoiceKey}`;
-                const poDetails = await wdGetPODetails(po);
-                const site = wdText(
-                    task.site || task.Site || wdGetPOValue(poDetails, ['Project ID', 'Project ID:', 'Site'], ''),
-                    'N/A'
-                );
-                if (!wdSiteMatchesCurrentUser(site)) continue;
-
-                const vendorName = wdText(
-                    task.vendorName || task.vendor || wdGetPOValue(poDetails, ['Supplier Name', 'Supplier Name:', 'Supplier', 'Supplier:', 'Vendor Name'], ''),
-                    'N/A'
-                );
-                const latestMeta = latestInv || {};
-                const existing = resultByInvoiceKey.get(lookupTaskKey);
-                const queueTimestamp = wdQueueTimestampForTask(task, latestMeta, bucket || status, 'Invoice');
-                const normalized = {
-                    key: `${po}_${invoiceKey}`,
-                    originalKey: invoiceKey,
-                    originalPO: po,
-                    source: 'invoice_task_lookup',
-                    ownerKey,
-                    for: 'Invoice',
-                    type: 'Invoice',
-                    ref: wdText(task.ref || latestMeta.invNumber || latestMeta.invoiceNo || invoiceKey),
-                    invEntryID: latestMeta.invEntryID || task.invEntryID || '',
-                    po,
-                    amount: task.amount || latestMeta.invValue || latestMeta.amount || '',
-                    amountPaid: task.amountPaid || task.amount || latestMeta.amountPaid || latestMeta.invValue || latestMeta.amount || '',
-                    site,
-                    siteName: task.siteName || latestMeta.siteName || latestMeta.projectName || wdResolveSiteNameFromPODetails(poDetails),
-                    group: 'N/A',
-                    attention,
-                    enteredBy: task.enteredBy || latestMeta.enteredBy || latestMeta.updatedBy || '',
-                    date: latestMeta.invoiceDate || task.invoiceDate || '',
-                    // 10.1.4: Do not use task.date as Invoice Date because lookup date can be
-                    // a queue/entered date. Only real invoice date fields are valid here.
-                    invoiceDate: latestMeta.invoiceDate || task.invoiceDate || '',
-                    linkedJobEntryKey: task.linkedJobEntryKey || latestMeta.linkedJobEntryKey || '',
-                    jobRecordDateEntered: task.jobRecordDateEntered || task.originDateEntered || task.dateEntered || latestMeta.jobRecordDateEntered || latestMeta.originDateEntered || latestMeta.dateEntered || '',
-                    originDateEntered: task.originDateEntered || latestMeta.originDateEntered || '',
-                    dateEntered: task.dateEntered || latestMeta.dateEntered || '',
-                    jobRecordTimestamp: task.jobRecordTimestamp || latestMeta.jobRecordTimestamp || task.originTimestamp || latestMeta.originTimestamp || '',
-                    queueLabel: wdQueueLabelForTask(bucket || status, 'Invoice'),
-                    queueTimestamp,
-                    queueText: wdQueueFullText(queueTimestamp),
-                    queueTone: wdQueueAgeParts(queueTimestamp).tone,
-                    remarks: status,
-                    status: bucket,
-                    bucket,
-                    invName: task.invName || latestMeta.invName || '',
-                    reportName: task.reportName || latestMeta.reportName || '',
-                    srvName: task.srvName || latestMeta.srvName || '',
-                    vendorName,
-                    note: task.note || latestMeta.note || '',
-                    timestamp: Number(queueTimestamp || task.invoiceLastUpdated || latestMeta.lastUpdated || latestMeta.updatedAt || latestMeta.enteredAt || task.timestamp || 0),
-                    isUrgent: false
-                };
-
-                // Prefer a direct person's inbox over the broad All inbox when both exist.
-                if (!existing || (wdNormalize(existing.ownerKey) === 'all' && !ownerIsAll)) {
-                    resultByInvoiceKey.set(lookupTaskKey, normalized);
-                }
+            const po = wdText(task.po || task.originalPO || '');
+            const latestInv = await wdGetInvoiceSourceTruth(po, invoiceKey, forceRefresh, task);
+            if (!latestInv || typeof latestInv !== 'object') {
+                await wdCleanupStaleInvoiceLookupRow(ownerKey, invoiceKey);
+                continue;
             }
+
+            const status = wdCurrentInvoiceTaskStatus(task, latestInv || {});
+            const stillActive = (typeof isInvoiceTaskActive === 'function')
+                ? isInvoiceTaskActive(latestInv)
+                : !wdIsInvoiceLookupComplete(status);
+            if (!stillActive || wdIsInvoiceLookupComplete(status)) {
+                await wdCleanupStaleInvoiceLookupRow(ownerKey, invoiceKey);
+                continue;
+            }
+
+            const bucket = wdDashboardAllowedBucket(status, 'invoice_task_lookup');
+            if (!bucket) continue;
+
+            const latestAttention = wdText(latestInv.attention || latestInv.Attention || latestInv.assignedTo || task.attention || '');
+            const attention = wdDashboardTaskOwnerAttention(ownerKey, { ...task, attention: latestAttention });
+
+            // All Active excludes the current user's personal tasks. The caller
+            // also checks against wdPersonalDashboardTasks, but doing it here keeps
+            // counts from bloating before dedupe.
+            if (wdTaskHasAttentionName({ attention }, wdCurrentUserNameNorm())) continue;
+
+            const lookupTaskKey = `${po}||${invoiceKey}`;
+            const poDetails = await wdGetPODetails(po);
+            const site = wdText(
+                task.site || task.Site || latestInv.site || latestInv.site_name || latestInv.siteName || wdGetPOValue(poDetails, ['Project ID', 'Project ID:', 'Site'], ''),
+                'N/A'
+            );
+            if (!wdSiteMatchesCurrentUser(site)) continue;
+
+            const vendorName = wdText(
+                task.vendorName || task.vendor || latestInv.vendorName || latestInv.vendor_name || latestInv.vendor || wdGetPOValue(poDetails, ['Supplier Name', 'Supplier Name:', 'Supplier', 'Supplier:', 'Vendor Name'], ''),
+                'N/A'
+            );
+            const latestMeta = latestInv || {};
+            const queueTimestamp = wdQueueTimestampForTask(task, latestMeta, bucket || status, 'Invoice');
+            const normalized = {
+                key: `${po}_${invoiceKey}`,
+                originalKey: invoiceKey,
+                originalPO: po,
+                source: 'invoice_task_lookup',
+                ownerKey,
+                for: 'Invoice',
+                type: 'Invoice',
+                ref: wdText(task.ref || latestMeta.invNumber || latestMeta.invoiceNo || invoiceKey),
+                invEntryID: latestMeta.invEntryID || task.invEntryID || '',
+                po,
+                amount: task.amount || latestMeta.invValue || latestMeta.invoiceValue || latestMeta.amount || '',
+                amountPaid: task.amountPaid || task.amount || latestMeta.amountPaid || latestMeta.invValue || latestMeta.invoiceValue || latestMeta.amount || '',
+                site,
+                siteName: task.siteName || latestMeta.siteName || latestMeta.projectName || wdResolveSiteNameFromPODetails(poDetails),
+                group: 'N/A',
+                attention,
+                enteredBy: task.enteredBy || latestMeta.enteredBy || latestMeta.updatedBy || '',
+                date: latestMeta.invoiceDate || task.invoiceDate || '',
+                invoiceDate: latestMeta.invoiceDate || task.invoiceDate || '',
+                linkedJobEntryKey: task.linkedJobEntryKey || latestMeta.linkedJobEntryKey || '',
+                jobRecordDateEntered: task.jobRecordDateEntered || task.originDateEntered || task.dateEntered || latestMeta.jobRecordDateEntered || latestMeta.originDateEntered || latestMeta.dateEntered || '',
+                originDateEntered: task.originDateEntered || latestMeta.originDateEntered || '',
+                dateEntered: task.dateEntered || latestMeta.dateEntered || '',
+                jobRecordTimestamp: task.jobRecordTimestamp || latestMeta.jobRecordTimestamp || task.originTimestamp || latestMeta.originTimestamp || '',
+                queueLabel: wdQueueLabelForTask(bucket || status, 'Invoice'),
+                queueTimestamp,
+                queueText: wdQueueFullText(queueTimestamp),
+                queueTone: wdQueueAgeParts(queueTimestamp).tone,
+                remarks: status,
+                status: bucket,
+                bucket,
+                invName: task.invName || latestMeta.invName || '',
+                reportName: task.reportName || latestMeta.reportName || '',
+                srvName: task.srvName || latestMeta.srvName || latestMeta.srvPDF || latestMeta.srvPdf || '',
+                vendorName,
+                note: task.note || latestMeta.note || latestMeta.details || '',
+                timestamp: Number(queueTimestamp || task.invoiceLastUpdated || latestMeta.lastUpdated || latestMeta.updatedAt || latestMeta.enteredAt || task.timestamp || 0),
+                isUrgent: false
+            };
+
+            resultByInvoiceKey.set(lookupTaskKey, normalized);
         }
     } catch (e) {
         console.warn('WorkDesk dashboard could not read invoice task lookup:', e);
@@ -2320,12 +2295,11 @@ function wdOverviewInvoiceIdentity(task = {}) {
 async function wdBuildDashboardOverviewSourceTasks(forceRefresh = false) {
     const sourceMap = new Map();
 
-    // 10.2.9: Accuracy restore for Dashboard invoice queues.
-    // For SRV, On Hold, Pending, Report, For Summary, Retention, In Process, and Unresolved must come from
-    // invoice_entries, not invoice_tasks_by_user. The lightweight index can be stale
-    // or missing after Invoice Management updates, which caused valid cards to vanish.
-    await wdEnsureDashboardInvoiceEntriesFetched(forceRefresh);
-    const currentInvoiceTasks = await wdBuildInvoiceRecordOverviewTasks(forceRefresh);
+    // 11.0.5: Dashboard All Active now uses the compact active-task index and
+    // exact per-invoice validation. Do not call wdEnsureDashboardInvoiceEntriesFetched()
+    // here because that downloads the whole invoice_entries tree and quickly burns
+    // Firebase download quota when multiple users leave WorkDesk open.
+    const currentInvoiceTasks = await wdBuildInvoiceTaskLookupOverviewTasks(forceRefresh);
     currentInvoiceTasks.forEach(task => sourceMap.set(wdOverviewInvoiceIdentity(task), task));
 
     try { await wdEnsureDashboardJobEntriesFetched(forceRefresh); }

@@ -42,8 +42,24 @@ async function handlePaymentModalPOSearch() {
     imPaymentModalResults.innerHTML = '<p>Searching...</p>';
 
     try {
-        await ensureInvoiceDataFetched();
-        const invoicesData = allInvoiceData[poNumber];
+        // 11.0.5: Payment PO search only needs one PO bucket. Do not download the
+        // full invoice_entries tree just to find payable invoices for a typed PO.
+        if (typeof ensureInvoicePOBaseDataFetched === 'function') {
+            await ensureInvoicePOBaseDataFetched(false);
+        } else if (typeof ensureInvoiceLightDataFetched === 'function') {
+            await ensureInvoiceLightDataFetched(false);
+        }
+
+        let invoicesData = (allInvoiceData && allInvoiceData[poNumber]) ? allInvoiceData[poNumber] : null;
+        if (!invoicesData && typeof invoiceDb !== 'undefined' && invoiceDb && invoiceDb.ref) {
+            const snap = await invoiceDb.ref(`invoice_entries/${poNumber}`).once('value');
+            invoicesData = snap.val() || null;
+            if (invoicesData) {
+                if (!allInvoiceData) allInvoiceData = {};
+                allInvoiceData[poNumber] = invoicesData;
+                if (window.__invoiceEntriesFullLoaded !== true) window.__invoiceEntriesFullLoaded = false;
+            }
+        }
 
         if (!invoicesData) {
              imPaymentModalResults.innerHTML = '<p>No invoices found for this PO.</p>';
@@ -140,8 +156,26 @@ async function handleAddSelectedToPayments() {
 
     let addedCount = 0;
 
-    if (!allInvoiceData) await ensureInvoiceDataFetched();
-    if (!allPOData) await ensureAllEntriesFetched();
+    if (typeof ensureInvoicePOBaseDataFetched === 'function') {
+        await ensureInvoicePOBaseDataFetched(false);
+    } else if (typeof ensureInvoiceLightDataFetched === 'function') {
+        await ensureInvoiceLightDataFetched(false);
+    }
+
+    // The modal already fetched each selected PO bucket. As a safety net, fetch only
+    // any exact PO that is missing from the local partial cache.
+    const missingPOs = Array.from(new Set(Array.from(selectedCheckboxes).map(chk => String(chk.dataset.po || '').trim().toUpperCase()).filter(Boolean)))
+        .filter(po => !(allInvoiceData && allInvoiceData[po]));
+    for (const po of missingPOs) {
+        try {
+            const snap = await invoiceDb.ref(`invoice_entries/${po}`).once('value');
+            if (!allInvoiceData) allInvoiceData = {};
+            allInvoiceData[po] = snap.val() || {};
+            if (window.__invoiceEntriesFullLoaded !== true) window.__invoiceEntriesFullLoaded = false;
+        } catch (err) {
+            console.warn('Payment selected PO fetch failed:', po, err);
+        }
+    }
 
     selectedCheckboxes.forEach(checkbox => {
         const key = checkbox.dataset.key;

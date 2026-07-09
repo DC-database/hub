@@ -1311,7 +1311,17 @@ const getTaskSiteForMatch = (t) =>
         await ensureApproverDataCached(forceRefresh);
         
         if (!isInventoryPage) {
-            await ensureInvoiceDataFetched(forceRefresh);
+            // 11.0.5: Active Task no longer downloads the full invoice_entries tree.
+            // Load only PO/site/vendor reference data; personal invoice tasks are read
+            // from invoice_tasks_by_user/{current user} and then validated against the
+            // exact invoice_entries/{PO}/{invoiceKey} record below.
+            if (typeof ensureInvoicePOBaseDataFetched === 'function') {
+                await ensureInvoicePOBaseDataFetched(forceRefresh);
+            } else if (typeof ensureInvoiceLightDataFetched === 'function') {
+                await ensureInvoiceLightDataFetched(forceRefresh);
+            } else if (typeof ensureInvoiceDataFetched === 'function') {
+                await ensureInvoiceDataFetched(forceRefresh, { includeInvoiceEntries: false });
+            }
         }
 
         if (typeof reconcilePendingPRs === 'function') {
@@ -1414,93 +1424,19 @@ const getTaskSiteForMatch = (t) =>
             };
         });
 
-        // --- B. INVOICE QUEUES FROM SOURCE-OF-TRUTH ---
-        // 10.2.9: Restored from invoice_entries so For SRV / On Hold / Pending
-        // remain accurate immediately after Invoice Management updates.
-        if (!isInventoryPage && allInvoiceData) { 
-            
-            const accStatuses = ['For SRV', 'On Hold', 'In Process', 'Pending', 'Unresolved', 'Report'];
-            const siteStatuses = ['For SRV'];
-
-            for (const poNumber in allInvoiceData) {
-                const poInvoices = allInvoiceData[poNumber];
-                const poDetails = (typeof getInvoicePurchaseOrderDetails === 'function')
-				? await getInvoicePurchaseOrderDetails(poNumber)
-				: (allPOData[poNumber] || {});
-	                // Prefer site from POVALUE2/allPOData. Fall back to invoice fields after inv is defined.
-	                const poSiteFromPO = poDetails['Project ID'] || poDetails['Project ID:'] || 'N/A';
-
-                for (const invoiceKey in poInvoices) {
-                    if (pulledInvoiceKeys.has(invoiceKey)) continue; 
-                    const inv = poInvoices[invoiceKey];
-                    const invoiceStatus = wdActiveTaskInvoiceStatusLabel(inv.status || inv.remarks || inv.Status || inv.Remarks);
-                    if (!invoiceStatus) continue;
-	                    const poSite = (poSiteFromPO && poSiteFromPO !== 'N/A')
-	                        ? poSiteFromPO
-	                        : (inv.site_name || inv.site || inv.siteName || 'N/A');
-                    let shouldShow = false;
-                    let isUrgent = false;
-
-                    // 1. Accounting/Admin Visibility
-                    if ((isAccounting || isAdmin) && accStatuses.includes(invoiceStatus)) {
-                        shouldShow = true;
-                        isUrgent = false; 
-                    }
-
-                    // 2. Site Visibility: site users receive For SRV from invoice_entries.
-                    if (siteStatuses.includes(invoiceStatus)) {
-                        if (currentUserSite === 'All' || currentUserSite.includes(poSite.split(' ')[0])) {
-                            shouldShow = true; 
-                        }
-                    }
-
-                    // [7.5.1] ATTENTION CHECK (Manual Attention override)
-// Visibility may still be granted by the blocks above, but
-// blink/color/count must trigger for direct Attention even if the site is not
-// registered under that helper's profile.
-if (inv.attention === 'All') {
-    shouldShow = true;
-    isUrgent = false; // "All" = visible but NOT a direct action for a specific user
-} 
-else if (isDirectAttentionForUser(inv.attention)) {
-    shouldShow = true;
-    isUrgent = invoiceStatus !== 'On Hold';
-}
-
-                    
-                    if (shouldShow) {
-                        let effAttention = inv.attention;
-                        if (!effAttention || effAttention === '') effAttention = isAccounting ? 'Accounting' : 'Site';
-
-                        userTasks.push({
-                            key: `${poNumber}_${invoiceKey}`,
-                            originalKey: invoiceKey,
-                            originalPO: poNumber,
-                            source: 'invoice',
-                            for: 'Invoice',
-                            ref: inv.invNumber || '',
-	                            invEntryID: inv.invEntryID || '',
-                            po: poNumber,
-                            amount: inv.invValue || '',
-                            amountPaid: inv.amountPaid || inv.invValue || '',
-                            site: (poSite && poSite !== 'N/A') ? poSite : (inv.site || inv.site_name || 'N/A'),
-                            group: 'N/A',
-                            attention: effAttention, 
-                            enteredBy: inv.enteredBy || inv.originEnteredBy || inv.updatedBy || 'Accounting',
-                            date: formatYYYYMMDD(inv.invoiceDate), // supplier invoice date only
-                            invoiceDate: formatYYYYMMDD(inv.invoiceDate),
-                            ...wdActiveTaskQueueFields({}, inv),
-                            remarks: invoiceStatus,
-                            status: invoiceStatus,
-                            timestamp: wdActiveTaskQueueTimestamp({ ...inv, ...wdActiveTaskQueueFields({}, inv), remarks: invoiceStatus, status: invoiceStatus }) || 0,
-                            invName: inv.invName || '',
-                            vendorName: poDetails['Supplier Name'] || poDetails['Supplier Name:'] || poDetails['Supplier'] || poDetails['Supplier:'] || inv.vendorName || inv.vendor_name || 'N/A',
-                            note: inv.note || '',
-                            isUrgent: isUrgent 
-                        });
-                    }
-                }
-            }
+        // --- B. PERSONAL INVOICE QUEUES FROM LIGHTWEIGHT LOOKUP ---
+        // 11.0.5: Do not scan full invoice_entries for My Active Task.
+        // Read only this user's/delegated users' active task inboxes, then validate each
+        // row against its exact source invoice entry. This preserves accuracy and avoids
+        // repeated multi-MB downloads on every Active Task refresh.
+        if (!isInventoryPage && typeof wdLoadPersonalInvoiceLookupTasksForActiveTask === 'function') {
+            const invoiceLookupTasks = await wdLoadPersonalInvoiceLookupTasksForActiveTask([currentUserName, ...delegatedFromNames], forceRefresh);
+            invoiceLookupTasks.forEach(t => {
+                if (!t) return;
+                const invKey = t.originalKey || (String(t.key || '').includes('_') ? String(t.key).split('_').slice(1).join('_') : '');
+                if (invKey) pulledInvoiceKeys.add(invKey);
+                userTasks.push(t);
+            });
         }
         // INVENTORY PHASE 1: separate task identity.
         // Inventory mode keeps only inventory tasks. Normal WorkDesk/Invoice mode
