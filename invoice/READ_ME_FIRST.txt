@@ -1,32 +1,16 @@
-IBA SYSTEM PATCH 11.0.2
+IBA 11.0.3 — Welcome Financial Report Strict Fix
 
-Patch name:
-Financial Report QS / Senior QS Access Patch
+This is a follow-up correction to 11.0.2.
 
-Upload these files to the live system:
-1. index.html
-2. app.js
-3. js/app-navigation-settings.js
-4. version.json
+11.0.2 added QS / Senior QS access to Financial Report.
+11.0.3 keeps that access only inside Invoice Management → Financial Report.
 
-What changed:
-- Invoice Management → Financial Report access now also allows Admin users whose Position is QS or Senior QS.
-- Existing allowed access remains unchanged: Super Admin, vacation delegate, Admin + Finance/Accounts/Accounting/CEO/COO.
-- This patch keeps the Admin-role requirement for QS/Senior QS access, same as the existing finance-position rule.
+The Welcome Screen Financial Report button uses the stricter original rule:
+- Super Admin / Irwin
+- Admin + Finance
+- Admin + Accounts
+- Admin + Accounting
+- Admin + CEO
+- Admin + COO
 
-Not changed:
-- Dashboard
-- Active Task
-- Job Records
-- Inventory
-- Invoice workflow/status logic
-- Firebase paths
-- Attention routing
-
-Version note:
-- version.json is set to 11.0.2.
-- index.html window.IBA_SYSTEM_VERSION is set to 11.0.2.
-- app.js APP_VERSION is set to 11.0.2.
-
-After upload:
-- Use Ctrl + F5 once if the old menu is cached.
+QS / Senior QS should not see or open the Welcome Screen Financial Report button.
