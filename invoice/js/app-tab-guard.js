@@ -1,12 +1,12 @@
 /*
- * IBA 11.0.8 — Chrome Only + Single Active Tab Guard
+ * IBA 11.0.9 — Chrome Only + Single Active Tab Guard
  * Purpose: reduce duplicate Firebase reads by allowing only one active IBA tab
  * per browser/profile and blocking unsupported browsers.
  */
 (function () {
   'use strict';
 
-  const VERSION = '11.0.6';
+  const VERSION = '11.0.9';
   const TAB_ID_KEY = 'IBA_SINGLE_TAB_ID_V1';
   const ACTIVE_KEY = 'IBA_SINGLE_ACTIVE_TAB_V1';
   const CHANNEL_NAME = 'IBA_SINGLE_TAB_GUARD_V1';

@@ -1,5 +1,5 @@
 /*
- * IBA 11.0.8 — Desktop Time Identity Clock
+ * IBA 11.0.9 — Desktop Time Identity Clock
  * Purpose: replace desktop sidebar user profile card visuals with a live analog clock.
  * Scope: UI only. No Firebase, no permissions, no workflow logic.
  */

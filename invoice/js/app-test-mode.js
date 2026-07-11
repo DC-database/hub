@@ -1,15 +1,15 @@
 /*
- * IBA 11.0.8 — Test Mode / Firebase Blocker
+ * IBA 11.0.9 — Test Mode / Firebase Blocker
  * Purpose: allow safe local/UI testing without downloading or writing Firebase data.
  * Rules:
  *   - file:/// localhost 127.0.0.1 = TEST MODE by default (Firebase OFF)
- *   - ?testmode=1 = force TEST MODE anywhere
- *   - ?livefirebase=1 = allow Firebase for intentional local workflow testing
+ *   - ?testmode=1 = force TEST MODE only on local/localhost
+ *   - ?livefirebase=1 = allow Firebase only for intentional local workflow testing
  */
 (function () {
   'use strict';
 
-  const VERSION = '11.0.8';
+  const VERSION = '11.0.9';
   const MODE_BADGE_ID = 'iba-test-mode-badge';
   const TOAST_ID = 'iba-test-mode-toast';
   const LOG_PREFIX = '[IBA Test Mode]';
@@ -27,9 +27,13 @@
   }
 
   const isLocal = protocol === 'file:' || host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]';
-  const forceTestMode = truthy(params.get('testmode')) || truthy(params.get('firebaseoff')) || truthy(params.get('cacheonly'));
-  const forceLiveFirebase = truthy(params.get('livefirebase')) || truthy(params.get('firebaseon')) || falsey(params.get('testmode'));
-  const firebaseBlocked = forceTestMode || (isLocal && !forceLiveFirebase);
+  // 11.0.9 privacy rule:
+  // Test Mode is a Super Admin local testing tool only.
+  // Normal live GitHub links must always run as LIVE and must not show Test/Firebase prompts to users/admins.
+  const liveTestParamIgnored = !isLocal && (truthy(params.get('testmode')) || truthy(params.get('firebaseoff')) || truthy(params.get('cacheonly')));
+  const forceTestMode = isLocal && (truthy(params.get('testmode')) || truthy(params.get('firebaseoff')) || truthy(params.get('cacheonly')));
+  const forceLiveFirebase = isLocal && (truthy(params.get('livefirebase')) || truthy(params.get('firebaseon')) || falsey(params.get('testmode')));
+  const firebaseBlocked = isLocal && (forceTestMode || !forceLiveFirebase);
   const mode = firebaseBlocked ? 'test' : 'live';
 
   let lastNoticeAt = 0;
@@ -215,21 +219,27 @@
 
   function renderBadge() {
     if (badgeReady || !document.body) return;
+
+    // Do not show any environment/Firebase/Test prompt on the normal live system.
+    // Users/admins should simply see the normal login and live workflow.
+    if (!isLocal) {
+      badgeReady = true;
+      return;
+    }
+
     badgeReady = true;
     const badge = document.createElement('div');
     badge.id = MODE_BADGE_ID;
     const isTest = firebaseBlocked;
-    const title = isTest ? 'TEST MODE — Firebase Disabled' : 'LIVE MODE — Firebase Active';
+    const title = isTest ? 'TEST MODE — Firebase Disabled' : 'LOCAL FIREBASE OVERRIDE';
     const sub = isTest
-      ? (isLocal && !forceTestMode ? 'Local testing is using cache only. Real save/search/update/delete is blocked.' : 'Manual test mode is active. Real Firebase is blocked.')
-      : (isLocal && forceLiveFirebase ? 'Local override is active. This can consume real Firebase data.' : 'Real system mode. Firebase reads/writes are allowed.');
+      ? (forceTestMode ? 'Manual local test mode is active. Real Firebase is blocked.' : 'Local testing is using cache only. Real save/search/update/delete is blocked.')
+      : 'Local override is active. This can consume real Firebase data. Use only for intentional workflow testing.';
 
     const actionUrl = isTest
-      ? (isLocal && !forceTestMode
-          ? setParamUrl({ livefirebase: '1' }, ['testmode', 'firebaseoff', 'cacheonly'])
-          : setParamUrl({}, ['testmode', 'firebaseoff', 'cacheonly']))
-      : setParamUrl({ testmode: '1' }, ['livefirebase', 'firebaseon']);
-    const actionText = isTest ? 'Reload Firebase ON' : 'Safe Test';
+      ? setParamUrl({ livefirebase: '1' }, ['testmode', 'firebaseoff', 'cacheonly'])
+      : setParamUrl({}, ['livefirebase', 'firebaseon']);
+    const actionText = isTest ? 'Reload Firebase ON' : 'Return to Test Mode';
 
     badge.innerHTML = '' +
       '<div class="iba-test-mode-title">' + title + '</div>' +
@@ -249,7 +259,7 @@
       '#iba-test-mode-badge .iba-test-mode-action,#iba-test-mode-badge .iba-test-mode-close{border:0;border-radius:999px;padding:7px 10px;font-size:11px;font-weight:950;text-decoration:none;cursor:pointer;}' +
       '#iba-test-mode-badge .iba-test-mode-close{margin-left:auto;width:28px;height:28px;padding:0;}' +
       '#iba-test-mode-badge.is-test{background:linear-gradient(135deg,#991b1b,#f59e0b);color:#fff;}' +
-      '#iba-test-mode-badge.is-live{background:linear-gradient(135deg,#064e3b,#16a34a);color:#fff;opacity:.94;}' +
+      '#iba-test-mode-badge.is-live{background:linear-gradient(135deg,#92400e,#f59e0b);color:#fff;opacity:.96;}' +
       '#iba-test-mode-badge.is-live .iba-test-mode-action,#iba-test-mode-badge.is-test .iba-test-mode-action{background:#fff;color:#0f172a;}' +
       '#iba-test-mode-badge .iba-test-mode-close{background:rgba(255,255,255,.24);color:#fff;}' +
       '#iba-test-preview-login-note{margin:12px 0 8px;padding:10px 12px;border-radius:14px;background:linear-gradient(135deg,rgba(153,27,27,.12),rgba(245,158,11,.14));border:1px solid rgba(245,158,11,.42);color:#7c2d12;font:800 12px/1.35 Inter,Arial,sans-serif;text-align:left;}' +
@@ -295,5 +305,9 @@
   }
 
   installFirebaseBlocker();
-  try { console.info(LOG_PREFIX, mode === 'test' ? 'TEST MODE active: Firebase disabled.' : 'LIVE MODE active: Firebase allowed.'); } catch (_) {}
+  try {
+    if (firebaseBlocked) console.info(LOG_PREFIX, 'TEST MODE active: Firebase disabled.');
+    else if (isLocal && forceLiveFirebase) console.info(LOG_PREFIX, 'LOCAL FIREBASE OVERRIDE active.');
+    else if (liveTestParamIgnored) console.info(LOG_PREFIX, 'Live ?testmode parameter ignored. Normal live mode is enforced.');
+  } catch (_) {}
 })();
