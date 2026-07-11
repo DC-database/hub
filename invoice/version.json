@@ -1,4 +1,4 @@
 {
-  "version": "11.0.8",
-  "message": "11.0.8 final safety update is available: Chrome-only tab guard, Test Mode Preview, and desktop analog clock cleanup. Please refresh to use the latest controls."
+  "version": "11.0.9",
+  "message": "11.0.9 update is available: live users stay in normal live mode with no Firebase/Test prompts, while local Super Admin testing keeps Test Preview, Chrome-only guard, one-tab guard, and desktop clock."
 }

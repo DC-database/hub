@@ -1,33 +1,54 @@
-IBA 11.0.8 FINAL UPLOAD NOTE
+IBA 11.0.9 FINAL UPLOAD NOTE
 
 Purpose:
-- Final merged safety/UI update after 11.0.7 testing.
-- Keeps the Chrome-only + single active tab guard.
-- Keeps Test Mode / Firebase Blocker with Enter Test Preview.
-- Keeps desktop numbered analog clock with no square/card background.
-- Improves unsupported-browser screen: instead of a confusing Recheck-only action, it now provides a Copy Link for Chrome button.
+- Final privacy/safety correction after 11.0.8.
+- Normal live users/admins must not see Test Mode or Firebase Active prompts.
+- Test Mode remains available only for local/localhost Super Admin UI testing.
 
-Important behavior:
-- Edge/unsupported browsers are blocked even in local/Test Mode.
-- A browser page cannot reliably launch Google Chrome automatically because browsers block that for security.
-- The button copies the current link so the user can paste it in Google Chrome.
-- Duplicate Chrome tabs are still blocked/paused; only one active tab runs Firebase sync.
+What is included:
+1. Chrome-only browser guard remains active.
+   - Edge, Firefox, Safari, Opera, etc. are blocked even for local/test mode.
+   - Unsupported browser screen shows Copy Link for Chrome.
 
-Upload/replace these files:
+2. One active Chrome tab guard remains active.
+   - Only one active IBA tab runs.
+   - Duplicate tabs are blocked/paused and do not run Firebase-heavy sync.
+
+3. Local Test Mode / Firebase Blocker remains active for local testing only.
+   - file:/// local folder = Test Mode ON, Firebase OFF.
+   - localhost / 127.0.0.1 = Test Mode ON, Firebase OFF.
+   - Enter Test Preview allows UI checking without real login/database.
+   - Real save/search/update/delete remains blocked in Test Mode.
+
+4. Live system privacy correction.
+   - Normal live GitHub link is always LIVE mode.
+   - No LIVE MODE / Firebase Active badge is shown.
+   - No Test Mode / Test Preview option is shown on live.
+   - ?testmode=1 on live is ignored so users/admins cannot see or use Test Mode from live.
+
+5. Desktop clock remains included.
+   - Desktop-only numbered analog clock replaces the old name/email/profile card area.
+   - No square background behind clock.
+   - Mobile layout remains unchanged.
+
+Files in this patch:
 - index.html
 - app.js
 - version.json
-- js/app-tab-guard.js
 - js/app-test-mode.js
-- js/app-data-cache.js
+- js/app-tab-guard.js
 - js/app-time-clock.js
+- js/app-data-cache.js
+- READ_ME_FIRST.txt
+- UPLOAD_NOTE.txt
 
-Testing:
-1. Open index.html in Edge. It must show Google Chrome Required and must not allow Test Preview.
-2. Click Copy Link for Chrome. It should copy the current link / show instruction.
-3. Open index.html in Chrome from local folder. It should show Test Mode and Enter Test Preview.
-4. Open a second Chrome tab. It should show the one-active-tab guard.
-5. Open live GitHub link in Chrome. It should run LIVE MODE / Firebase Active.
+Upload instruction:
+- Upload/replace the included files in your live system.
+- Keep 11.0.6 as rollback if needed, but 11.0.9 is intended as the clean final version after the 11.0.8 corrections.
 
-Rollback:
-- If any issue appears, restore 11.0.6.
+Quick test:
+1. Open live link in Chrome: normal login, no Test/Firebase badge.
+2. Open live link in Edge: Chrome Required block.
+3. Open local index.html in Chrome: Test Mode + Enter Test Preview.
+4. Open local index.html in Edge: Chrome Required block.
+5. Open second Chrome tab: duplicate tab guard appears.

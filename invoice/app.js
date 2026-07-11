@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '11.0.8';
+const APP_VERSION = '11.0.9';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -6002,7 +6002,7 @@ try {
 } catch (e) { /* ignore */ }
 
 
-    // --- 11.0.8 REVISED: Test Mode Preview Login (Firebase stays OFF) ---
+    // --- 11.0.9: Local Test Mode Preview Login (Firebase stays OFF) ---
     function ibaIsTestModeActiveForPreview() {
         try {
             if (typeof window.ibaIsFirebaseBlocked === 'function') return !!window.ibaIsFirebaseBlocked();
@@ -6035,7 +6035,7 @@ try {
             }
         } catch (_) {}
         if (!ibaIsTestModeActiveForPreview()) {
-            alert('Test Preview is available only when Firebase is disabled. Use ?testmode=1 or open from a local folder.');
+            alert('Test Preview is available only in local Test Mode. Open from a local folder/localhost in Chrome.');
             return;
         }
         currentApprover = ibaCreateTestPreviewApprover();
@@ -6076,7 +6076,7 @@ try {
 
         const note = document.createElement('div');
         note.id = 'iba-test-preview-login-note';
-        note.innerHTML = '<strong>TEST MODE:</strong> Firebase is disabled. Use Test Preview to check UI without real database download.';
+        note.innerHTML = '<strong>LOCAL TEST MODE:</strong> Firebase is disabled. Use Test Preview to check UI without real database download.';
 
         const btn = document.createElement('button');
         btn.type = 'button';
