@@ -115,6 +115,12 @@ function loadDataFromLocalStorage() {
 
 // NEW HELPER: Get URL from Firebase Storage
 async function getFirebaseCSVUrl(filename) {
+    // 11.0.8: Local/Test Mode uses browser cache only. Do not fetch Firebase/CSV URLs
+    // while testing patch UI from file://, localhost, or ?testmode=1.
+    if (window.ibaShouldUseCacheOnly && window.ibaShouldUseCacheOnly('csv-url:' + filename, true)) {
+        return null;
+    }
+
     // For Ecost.csv, use raw GitHub URL to bypass CDN cache
     if (filename === 'Ecost.csv') {
         const cacheBuster = "?v=" + new Date().getTime();
@@ -157,6 +163,10 @@ async function getFirebaseCSVUrl(filename) {
 }
 
 async function silentlyRefreshStaleCaches() {
+    if (window.ibaShouldUseCacheOnly && window.ibaShouldUseCacheOnly('silent-background-cache-refresh', true)) {
+        try { loadDataFromLocalStorage(); } catch (_) {}
+        return;
+    }
     console.log("Checking for stale background caches...");
     const now = Date.now();
 
@@ -748,6 +758,10 @@ async function fetchAndParseEcostCSV(url) {
 // FIX: ensureEcostDataFetched (Uses correct URL generator)
 // ==========================================================================
 async function ensureEcostDataFetched(forceRefresh = false) {
+    if (window.ibaShouldUseCacheOnly && window.ibaShouldUseCacheOnly('ensure-ecost-data-fetched', true)) {
+        try { loadDataFromLocalStorage(); } catch (_) {}
+        return allEcostData || [];
+    }
     const now = Date.now();
     if (!forceRefresh && allEcostData && (now - ecostDataTimestamp < CACHE_DURATION)) {
         return allEcostData;
@@ -844,6 +858,11 @@ function updateInvoicePOFallbackUI() {
 }
 
 async function loadInvoiceFeatureFlags(forceRefresh = false) {
+    if (window.ibaShouldUseCacheOnly && window.ibaShouldUseCacheOnly('load-invoice-feature-flags', true)) {
+        window.imUseFirebasePurchaseOrders = false;
+        updateInvoicePOFallbackUI();
+        return { useFirebasePurchaseOrders: false };
+    }
     const now = Date.now();
     if (!forceRefresh && window.__imFeatureFlagsLoadedAt && (now - window.__imFeatureFlagsLoadedAt < CACHE_DURATION)) {
         updateInvoicePOFallbackUI();
@@ -871,6 +890,11 @@ async function loadInvoiceFeatureFlags(forceRefresh = false) {
 }
 
 async function setInvoiceFirebasePOFallbackEnabled(enabled) {
+    if (window.ibaShouldUseCacheOnly && window.ibaShouldUseCacheOnly('set-invoice-firebase-po-fallback', false)) {
+        alert('TEST MODE: Firebase is disabled. Use the live system to change Manual PO / Vacation Mode.');
+        updateInvoicePOFallbackUI();
+        return false;
+    }
     if (!imIsCurrentUserSuperAdmin()) {
         alert('Access Denied: Super Admin only.');
         updateInvoicePOFallbackUI();
@@ -892,6 +916,10 @@ async function setInvoiceFirebasePOFallbackEnabled(enabled) {
 }
 
 async function ensureInvoicePOBaseDataFetched(forceRefresh = false) {
+    if (window.ibaShouldUseCacheOnly && window.ibaShouldUseCacheOnly('ensure-invoice-po-base-data-fetched', true)) {
+        try { loadDataFromLocalStorage(); } catch (_) {}
+        return;
+    }
     const now = Date.now();
     const hasSupportingBase = allSitesCSVData && allVendorsData;
 
@@ -947,6 +975,11 @@ try {
 } catch (_) {}
 
 async function ensureInvoiceDataFetched(forceRefresh = false, options = {}) {
+    if (window.ibaShouldUseCacheOnly && window.ibaShouldUseCacheOnly('ensure-invoice-data-fetched', true)) {
+        try { loadDataFromLocalStorage(); } catch (_) {}
+        return;
+    }
+    if (window.ibaShouldPauseFirebase && window.ibaShouldPauseFirebase('ensure-invoice-data-fetched', true)) return;
     const now = Date.now();
     const includeInvoiceEntries = !(options && options.includeInvoiceEntries === false);
     // 11.0.5: Some pages only need PO/site/vendor CSV data. They can pass

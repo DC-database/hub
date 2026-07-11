@@ -2565,6 +2565,7 @@ function wdStartDashboardActiveTaskLiveSync() {
 }
 
 async function populateWorkdeskDashboard(forceRefresh = false) {
+    if (window.ibaShouldPauseFirebase && window.ibaShouldPauseFirebase('populate-workdesk-dashboard')) return;
     const cardsEl = document.getElementById('wd-active-dashboard-cards');
     const listEl = document.getElementById('wd-active-dashboard-list');
     const titleEl = document.getElementById('wd-active-dashboard-title');
@@ -2951,6 +2952,7 @@ async function wdApplyRecentDashboardChange(recent = {}, invoiceKey = '') {
 }
 
 async function wdDashboardSyncRecentUpdates(reason = 'recent-sync') {
+    if (window.ibaShouldPauseFirebase && window.ibaShouldPauseFirebase('workdesk-dashboard-recent-sync', true)) return;
     if (!wdCanSeeAllActiveDashboard() || !wdIsDashboardVisible()) return;
     if (wdDashboardRecentSyncRunning) return;
     if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) return;
@@ -2994,6 +2996,7 @@ async function wdDashboardSyncRecentUpdates(reason = 'recent-sync') {
 }
 
 function wdStartDashboardRecentUpdateSync() {
+    if (window.ibaShouldPauseFirebase && window.ibaShouldPauseFirebase('start-dashboard-recent-sync', true)) return;
     if (!wdCanSeeAllActiveDashboard()) return;
     if (wdDashboardRecentSyncTimer) clearInterval(wdDashboardRecentSyncTimer);
     setTimeout(() => { wdDashboardSyncRecentUpdates('dashboard-open'); }, 900);
@@ -3002,6 +3005,14 @@ function wdStartDashboardRecentUpdateSync() {
         wdDashboardSyncRecentUpdates('dashboard-30s');
     }, WD_DASHBOARD_RECENT_SYNC_INTERVAL);
 }
+
+try {
+    document.addEventListener('iba:tabguardchange', (ev) => {
+        if (ev && ev.detail && ev.detail.active && typeof wdDashboardSyncRecentUpdates === 'function') {
+            wdDashboardSyncRecentUpdates('tabguard-active');
+        }
+    });
+} catch (_) {}
 
 
 function wdReadAllActiveDashboardCountsCache() {

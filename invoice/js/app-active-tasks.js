@@ -1176,6 +1176,7 @@ async function wdLoadPersonalInvoiceLookupTasksForActiveTask(names = [], forceRe
 }
 
 async function populateActiveTasks(forceRefresh = false) {
+    if (window.ibaShouldPauseFirebase && window.ibaShouldPauseFirebase('populate-active-tasks')) return;
     activeTaskTableBody.innerHTML = `<tr><td colspan="10">Loading tasks...</td></tr>`;
 
     // --- SAFETY DEFINITIONS ---
