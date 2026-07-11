@@ -1,35 +1,33 @@
-IBA SYSTEM PATCH 11.0.5
-WorkDesk + Invoice Management Firebase Download Reduction Patch
+IBA 11.0.8 FINAL UPLOAD NOTE
 
-UPLOAD THESE FILES:
-1. index.html
-2. app.js
-3. js/app-workdesk-dashboard.js
-4. js/app-active-tasks.js
-5. js/app-data-cache.js
-6. js/app-payments.js
-7. version.json
-8. UPLOAD_NOTE.txt
+Purpose:
+- Final merged safety/UI update after 11.0.7 testing.
+- Keeps the Chrome-only + single active tab guard.
+- Keeps Test Mode / Firebase Blocker with Enter Test Preview.
+- Keeps desktop numbered analog clock with no square/card background.
+- Improves unsupported-browser screen: instead of a confusing Recheck-only action, it now provides a Copy Link for Chrome button.
 
-WHAT CHANGED:
-- WorkDesk Dashboard All Active no longer downloads the full invoice_entries tree.
-- Dashboard All Active now reads the compact invoice_tasks_by_user/All index and validates each visible active invoice using exact invoice_entries/{PO}/{invoiceKey} reads.
-- WorkDesk Active Task no longer scans full invoice_entries for personal invoice tasks.
-- Active Task now reads only the logged-in user/delegated user task inbox and validates exact invoice records.
-- Payment modal PO search now fetches only invoice_entries/{PO}, not the whole invoice_entries database.
-- Added a safe light-data option in app-data-cache.js so modules can load PO/site/vendor data without forcing the full invoice tree.
-- Added console warning when a true full invoice_entries read is requested, so heavy pages can be identified.
+Important behavior:
+- Edge/unsupported browsers are blocked even in local/Test Mode.
+- A browser page cannot reliably launch Google Chrome automatically because browsers block that for security.
+- The button copies the current link so the user can paste it in Google Chrome.
+- Duplicate Chrome tabs are still blocked/paused; only one active tab runs Firebase sync.
 
-NOT CHANGED:
-- Invoice saving logic
-- Firebase write paths
-- Status workflow
-- Attention routing
-- Job Records rules
-- Inventory logic
-- Financial Report calculations
-- Invoice Records broad search accuracy
+Upload/replace these files:
+- index.html
+- app.js
+- version.json
+- js/app-tab-guard.js
+- js/app-test-mode.js
+- js/app-data-cache.js
+- js/app-time-clock.js
 
-IMPORTANT:
-- Full invoice_entries reads are still allowed for broad Invoice Records searches, Summary Note, Financial Reports, exports, and other reports where full historical data is required for accuracy.
-- Dashboard and Active Task should now be much lighter for users who leave WorkDesk open all day.
+Testing:
+1. Open index.html in Edge. It must show Google Chrome Required and must not allow Test Preview.
+2. Click Copy Link for Chrome. It should copy the current link / show instruction.
+3. Open index.html in Chrome from local folder. It should show Test Mode and Enter Test Preview.
+4. Open a second Chrome tab. It should show the one-active-tab guard.
+5. Open live GitHub link in Chrome. It should run LIVE MODE / Firebase Active.
+
+Rollback:
+- If any issue appears, restore 11.0.6.

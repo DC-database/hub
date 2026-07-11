@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '11.0.5';
+const APP_VERSION = '11.0.8';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -2434,6 +2434,7 @@ async function wdApplyRecentJobRecordMarker(key, marker = {}) {
 }
 
 async function wdSyncRecentJobRecordUpdates(reason = 'job-recent-sync') {
+    if (window.ibaShouldPauseFirebase && window.ibaShouldPauseFirebase('workdesk-job-recent-sync', true)) return;
     if (wdJobRecentSyncRunning) return;
     if (!wdIsWorkdeskOpenForRecentSync()) return;
     if (typeof db === 'undefined' || !db || !db.ref) return;
@@ -2492,6 +2493,9 @@ try {
     window.wdStartRecentJobRecordSync = wdStartRecentJobRecordSync;
     document.addEventListener('visibilitychange', () => {
         if (!document.hidden) wdSyncRecentJobRecordUpdates('tab-visible');
+    });
+    document.addEventListener('iba:tabguardchange', (ev) => {
+        if (ev && ev.detail && ev.detail.active) wdSyncRecentJobRecordUpdates('tabguard-active');
     });
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', wdStartRecentJobRecordSync);
@@ -5996,6 +6000,103 @@ try {
     bindDblClickCopy(document.getElementById('im-srv-name'));
     bindDblClickCopy(document.getElementById('im-report-name'));
 } catch (e) { /* ignore */ }
+
+
+    // --- 11.0.8 REVISED: Test Mode Preview Login (Firebase stays OFF) ---
+    function ibaIsTestModeActiveForPreview() {
+        try {
+            if (typeof window.ibaIsFirebaseBlocked === 'function') return !!window.ibaIsFirebaseBlocked();
+            if (typeof window.IBA_FIREBASE_BLOCKED !== 'undefined') return !!window.IBA_FIREBASE_BLOCKED;
+            if (window.IBA_TEST_MODE && typeof window.IBA_TEST_MODE.firebaseBlocked !== 'undefined') return !!window.IBA_TEST_MODE.firebaseBlocked;
+        } catch (_) {}
+        return false;
+    }
+
+    function ibaCreateTestPreviewApprover() {
+        return {
+            key: '__IBA_TEST_PREVIEW__',
+            Name: 'Test Admin',
+            Email: 'testmode@iba.local',
+            Mobile: 'TEST-MODE',
+            Role: 'Admin',
+            Position: 'CEO',
+            Site: '175,176,181,173',
+            Password: '',
+            Vacation: 'No',
+            __testPreview: true
+        };
+    }
+
+    function ibaEnterTestPreviewLogin() {
+        try {
+            if (window.IBA_TAB_GUARD && typeof window.IBA_TAB_GUARD.isUnsupportedBrowser === 'function' && window.IBA_TAB_GUARD.isUnsupportedBrowser()) {
+                alert('IBA System is allowed only in Google Chrome. Please open this system using Google Chrome.');
+                return;
+            }
+        } catch (_) {}
+        if (!ibaIsTestModeActiveForPreview()) {
+            alert('Test Preview is available only when Firebase is disabled. Use ?testmode=1 or open from a local folder.');
+            return;
+        }
+        currentApprover = ibaCreateTestPreviewApprover();
+        try { window.currentApprover = currentApprover; } catch (_) {}
+        try { window.IBA_TEST_PREVIEW_ACTIVE = true; } catch (_) {}
+        try { sessionStorage.setItem('IBA_TEST_PREVIEW_ACTIVE', '1'); } catch (_) {}
+        try { localStorage.setItem('IBA_LAST_USER_NAME', currentApprover.Name); } catch (_) {}
+        try { document.body.classList.add('iba-test-preview-active'); } catch (_) {}
+
+        const sound = document.getElementById('login-sound');
+        if (sound) sound.play().catch(() => {});
+
+        if (typeof handleSuccessfulLogin === 'function') {
+            handleSuccessfulLogin();
+            // Keep Test Preview temporary. Do not leave a fake approver key for the real live system.
+            setTimeout(() => {
+                try {
+                    if (localStorage.getItem('approverKey') === '__IBA_TEST_PREVIEW__') {
+                        localStorage.removeItem('approverKey');
+                    }
+                } catch (_) {}
+            }, 250);
+        } else {
+            showView('dashboard');
+        }
+    }
+
+    window.ibaEnterTestPreviewLogin = ibaEnterTestPreviewLogin;
+
+    function ibaInstallTestPreviewLoginButton() {
+        try {
+            if (window.IBA_TAB_GUARD && typeof window.IBA_TAB_GUARD.isUnsupportedBrowser === 'function' && window.IBA_TAB_GUARD.isUnsupportedBrowser()) return;
+        } catch (_) {}
+        if (!ibaIsTestModeActiveForPreview()) return;
+        const loginView = document.getElementById('login-view');
+        const form = document.getElementById('login-form') || loginForm;
+        if (!loginView || !form || document.getElementById('iba-test-preview-login-btn')) return;
+
+        const note = document.createElement('div');
+        note.id = 'iba-test-preview-login-note';
+        note.innerHTML = '<strong>TEST MODE:</strong> Firebase is disabled. Use Test Preview to check UI without real database download.';
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.id = 'iba-test-preview-login-btn';
+        btn.innerHTML = '<i class="fa-solid fa-eye"></i> Enter Test Preview';
+        btn.addEventListener('click', ibaEnterTestPreviewLogin);
+
+        const realBtn = form.querySelector('button[type="submit"]');
+        if (realBtn && realBtn.parentNode) {
+            realBtn.insertAdjacentElement('afterend', note);
+            note.insertAdjacentElement('afterend', btn);
+        } else {
+            form.appendChild(note);
+            form.appendChild(btn);
+        }
+    }
+
+    ibaInstallTestPreviewLoginButton();
+    setTimeout(ibaInstallTestPreviewLoginButton, 250);
+    setTimeout(ibaInstallTestPreviewLoginButton, 1000);
 
     // --- 2. Session Restoration ---
     const savedApproverKey = localStorage.getItem('approverKey');
