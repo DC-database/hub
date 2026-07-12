@@ -161,7 +161,7 @@
 // =================================================================================================
 // #region BLOCK 12 — WORKDESK DASHBOARD CONTROL CENTER + REPORTS
 // Purpose: WorkDesk dashboard counts/list for incomplete invoice tasks + clean Job Records CSV export.
-// 11.1.9: Stable Dashboard counts - do not clear status-card counts to dash during background/live refresh.
+// 11.2.1: Stable Dashboard counts - never blank All Active cards during background refresh.
 // =================================================================================================
 
 let wdActiveDashboardTasks = [];
@@ -2474,6 +2474,21 @@ function wdBuildAllActiveCountItemsFromTasks(tasks = [], savedAt = Date.now()) {
 function wdApplyVerifiedAllActiveDashboardCache(tasks = [], reason = 'verified-all-active') {
     const verifiedTasks = (Array.isArray(tasks) ? tasks.slice() : []).sort(wdCompareDashboardPriority);
     const savedAt = Date.now();
+
+    // 11.2.1: If a background refresh gives an empty temporary result, keep the
+    // last known good All Active cards/counts on screen. This prevents the
+    // visible section from blinking 3 -> dash/empty -> 3 while loaders settle.
+    if (!verifiedTasks.length && wdShouldProtectAllActiveFromBlank(reason)) {
+        wdActiveDashboardCacheMeta = {
+            fromCache: true,
+            savedAt: wdAllActiveDashboardCountSavedAt || savedAt,
+            reason: `${reason || 'refresh'}-blank-protected`,
+            verified: true,
+            protectedBlank: true
+        };
+        return false;
+    }
+
     wdActiveDashboardTasks = verifiedTasks;
     wdAllActiveDashboardLoaded = true;
 
@@ -2487,6 +2502,7 @@ function wdApplyVerifiedAllActiveDashboardCache(tasks = [], reason = 'verified-a
         verifiedAt: savedAt,
         reason
     });
+    return true;
 }
 
 function wdRestoreVerifiedAllActiveDashboardCache(cached) {
@@ -3172,6 +3188,27 @@ function wdAllActiveCountForStatus(status) {
     return 0;
 }
 
+// 11.2.1: Background/live refresh can temporarily return an empty dataset while
+// cache/index loaders are still settling. Never let that temporary empty state wipe
+// the visible All Active cards. Manual refresh and confirmed card-click loads can
+// still replace the dashboard when genuinely empty.
+function wdAllActiveHasStableVisibleCounts() {
+    if (!wdAllActiveDashboardCountMap || typeof wdAllActiveDashboardCountMap.forEach !== 'function') return false;
+    let has = false;
+    wdAllActiveDashboardCountMap.forEach(count => {
+        if ((Number(count) || 0) > 0) has = true;
+    });
+    return has;
+}
+
+function wdShouldProtectAllActiveFromBlank(reason = '') {
+    const r = wdNormalize(reason || '');
+    if (!wdAllActiveHasStableVisibleCounts()) return false;
+    if (r.includes('manual') || r.includes('refresh button') || r.includes('refresh-button')) return false;
+    if (r.includes('admin card click') || r.includes('admin-card-click')) return false;
+    return true;
+}
+
 function wdPreviewStatusesWithCount() {
     const labels = [];
     wdAllActiveDashboardCountMap.forEach((count, label) => {
@@ -3295,6 +3332,14 @@ async function wdLoadAllActiveDashboardCounts(forceRefresh = false) {
                 }
             });
         } catch (_) { /* job count is optional */ }
+
+        // 11.2.1: Do not let a background count preview temporarily wipe a
+        // previously visible All Active count set. A true empty result is still
+        // accepted from manual/forced refresh paths.
+        const hasNewCount = Object.values(counts || {}).some(v => (Number(v) || 0) > 0);
+        if (!hasNewCount && !forceRefresh && wdShouldProtectAllActiveFromBlank('count-preview')) {
+            return;
+        }
 
         wdSetAllActiveDashboardCountMap(counts, Date.now(), countItems);
         wdSaveAllActiveDashboardCountsCache(counts, countItems);
@@ -3427,8 +3472,13 @@ function wdRenderDashboardCards() {
         // The section now starts directly with the actionable status cards.
         let activeHtml = '';
 
-        const activeStatusesToShow = wdAllActiveDashboardLoaded ? statuses : wdAllActiveStatusesToShowWhileLazy();
-        if (!activeStatusesToShow.length && wdAllActiveDashboardCountsLoaded && !wdAllActiveDashboardCountsLoading) {
+        let activeStatusesToShow = wdAllActiveDashboardLoaded ? statuses : wdAllActiveStatusesToShowWhileLazy();
+        // 11.2.1: During background/live refresh, keep the section visible instead
+        // of rendering it empty while the verified set is being rebuilt.
+        if (!activeStatusesToShow.length && (wdAllActiveDashboardCountsLoading || wdAllActiveDashboardLoading || wdDashboardVerifiedRefreshRunning) && wdAllActiveHasStableVisibleCounts()) {
+            activeStatusesToShow = wdPreviewStatusesWithCount();
+        }
+        if (!activeStatusesToShow.length && wdAllActiveDashboardCountsLoaded && !wdAllActiveDashboardCountsLoading && !wdAllActiveDashboardLoading && !wdDashboardVerifiedRefreshRunning) {
             activeHtml = `
                 <div class="wd-dashboard-mini-empty">
                     <i class="fa-regular fa-circle-check"></i>
@@ -3436,7 +3486,9 @@ function wdRenderDashboardCards() {
                 </div>`;
         }
         activeStatusesToShow.forEach(status => {
-            const count = wdAllActiveDashboardLoaded ? (statusCounts.get(status) || 0) : wdAllActiveCountForStatus(status);
+            const count = wdAllActiveDashboardLoaded
+                ? (statusCounts.get(status) || wdAllActiveCountForStatus(status) || 0)
+                : wdAllActiveCountForStatus(status);
             const tone = wdStatusTone(status);
             const filterKey = wdDashboardStatusFilterKey(status);
             const searchKey = wdNormalize(status);
