@@ -1949,14 +1949,86 @@ function wdDashboardDedupeKey(task) {
 }
 
 
+// 11.1.0: Dashboard duplicate-source cleanup.
+// A WorkDesk Job Record is only the intake/source record. When an invoice entry
+// already exists for that same job/PO and is active in invoice_tasks_by_user/All,
+// Dashboard must show only the live invoice task (Report/In Process/For SRV/etc.)
+// and hide the old New Entry job card. This uses only the already-loaded compact
+// active invoice index, not a full invoice_entries or job_entries scan.
+function wdJobEntryIsClosedForDashboard(entry = {}) {
+    if (!entry || typeof entry !== 'object') return false;
+    const flagValues = [
+        entry.convertedToInvoice,
+        entry.archived,
+        entry.closed,
+        entry.completed,
+        entry.activeDashboard === false,
+        entry.dashboardActive === false,
+        entry.hideFromDashboard,
+        entry.hideFromWorkdeskDashboard
+    ];
+    if (flagValues.some(Boolean)) return true;
+
+    const status = wdNormalize(entry.remarks || entry.status || entry.currentStatus || entry.Status || entry.Remarks || '');
+    if (status === 'converted to invoice' || status === 'completed' || status === 'closed') return true;
+    if (status.includes('converted') && status.includes('invoice')) return true;
+    return false;
+}
+
+function wdAddDashboardLinkKey(set, value, prefix = '') {
+    if (!set) return;
+    const raw = wdText(value || '');
+    if (!raw) return;
+    set.add(`${prefix}${wdNormalize(raw)}`);
+}
+
+function wdActiveInvoiceLinkKeySet(invoiceTasks = []) {
+    const set = new Set();
+    (Array.isArray(invoiceTasks) ? invoiceTasks : []).forEach(task => {
+        if (!task || typeof task !== 'object') return;
+        const po = wdText(task.po || task.originalPO || task.linkedInvoicePO || '');
+        const ref = wdText(task.ref || task.invEntryID || task.invoiceNo || task.invNumber || '');
+        const invoiceKey = wdText(task.originalKey || task.invoiceKey || task.key || '');
+
+        wdAddDashboardLinkKey(set, task.linkedJobEntryKey || task.originJobEntryKey || task.jobEntryKey, 'jobkey|');
+        wdAddDashboardLinkKey(set, task.jobRecordTimestamp || task.originTimestamp, 'jobts|');
+        wdAddDashboardLinkKey(set, task.linkedInvoiceKey || invoiceKey, 'invkey|');
+        if (po) wdAddDashboardLinkKey(set, po, 'po|');
+        if (po && ref) wdAddDashboardLinkKey(set, `${po}|${ref}`, 'poref|');
+    });
+    return set;
+}
+
+function wdJobEntryMatchesActiveInvoice(entry = {}, activeInvoiceLinkKeys) {
+    if (!activeInvoiceLinkKeys || !activeInvoiceLinkKeys.size || !entry) return false;
+    const po = wdText(entry.po || entry.originalPO || entry.PO || entry.ref || '');
+    const ref = wdText(entry.ref || entry.invEntryID || entry.invoiceNo || entry.invNumber || '');
+
+    const candidates = [
+        ['jobkey|', entry.key || entry.id || entry.linkedJobEntryKey || entry.originJobEntryKey || entry.jobEntryKey],
+        ['jobts|', entry.timestamp || entry.originTimestamp || entry.jobRecordTimestamp],
+        ['invkey|', entry.linkedInvoiceKey || entry.invoiceKey || entry.originalKey],
+        ['po|', po]
+    ];
+    for (const [prefix, value] of candidates) {
+        const raw = wdText(value || '');
+        if (raw && activeInvoiceLinkKeys.has(`${prefix}${wdNormalize(raw)}`)) return true;
+    }
+    if (po && ref && activeInvoiceLinkKeys.has(`poref|${wdNormalize(`${po}|${ref}`)}`)) return true;
+    return false;
+}
+
+
 // 10.0.4: New Entry should also be visible in Admin/Super Admin All Active Tasks.
 // It comes from WorkDesk Job Records (Date Entered source), not invoice_entries.
-async function wdBuildNewEntryJobRecordTasks() {
+async function wdBuildNewEntryJobRecordTasks(activeInvoiceLinkKeys = null) {
     const tasks = [];
     const entries = wdGetDashboardJobEntriesList();
 
     for (const [rowIndex, entry] of entries.entries()) {
         if (!entry) continue;
+        if (wdJobEntryIsClosedForDashboard(entry)) continue;
+        if (wdJobEntryMatchesActiveInvoice(entry, activeInvoiceLinkKeys)) continue;
 
         const forText = wdNormalize(entry.for || entry.For || entry.type || entry.Type || '');
         const isInvoiceJob = forText === 'invoice' || forText === 'invoice job' || forText.includes('invoice');
@@ -2324,6 +2396,7 @@ async function wdBuildDashboardTasks(options = {}) {
     }
 
     const activeSource = await wdBuildDashboardOverviewSourceTasks(forceRefresh);
+    const activeInvoiceLinkKeys = wdActiveInvoiceLinkKeySet(activeSource.filter(task => wdNormalize(task?.source || '').includes('invoice')));
     const personalKeySet = wdBuildPersonalTaskKeySet();
     const ipcMap = wdBuildIPCMap();
     const activeSourceTasks = activeSource.filter(wdIsDashboardActiveTaskSourceItem);
@@ -2336,7 +2409,7 @@ async function wdBuildDashboardTasks(options = {}) {
 
     // 10.0.4: New Entry is also an All Active open task for Admin/Super Admin.
     // It is sourced from WorkDesk Job Records so Head Office can see newly received invoices.
-    const newEntryJobRecordTasks = await wdBuildNewEntryJobRecordTasks();
+    const newEntryJobRecordTasks = await wdBuildNewEntryJobRecordTasks(activeInvoiceLinkKeys);
     newEntryJobRecordTasks.forEach(task => {
         if (!wdDashboardTaskIsAlreadyPersonal(task, personalKeySet)) tasks.push(task);
     });
@@ -2347,9 +2420,17 @@ async function wdBuildDashboardTasks(options = {}) {
         if (!wdDashboardTaskIsAlreadyPersonal(task, personalKeySet)) tasks.push(task);
     });
 
+    const finalInvoiceLinkKeys = wdActiveInvoiceLinkKeySet(tasks.filter(task => wdNormalize(task?.source || '').includes('invoice')));
+    const filteredTasks = tasks.filter(task => {
+        const source = wdNormalize(task?.source || '');
+        if (!source.includes('job')) return true;
+        if (task.bucket !== 'New Entry' && !wdIsNewEntryStatus(task.status || task.remarks)) return true;
+        return !wdJobEntryMatchesActiveInvoice(task, finalInvoiceLinkKeys);
+    });
+
     const seen = new Set();
     const unique = [];
-    for (const task of tasks) {
+    for (const task of filteredTasks) {
         const key = wdDashboardDedupeKey(task);
         if (seen.has(key)) continue;
         seen.add(key);
@@ -3108,6 +3189,7 @@ async function wdLoadAllActiveDashboardCounts(forceRefresh = false) {
     const counts = {};
     const countItems = [];
     try {
+        const activeInvoiceLinkKeysForCounts = new Set();
         if (typeof invoiceDb !== 'undefined' && invoiceDb && invoiceDb.ref) {
             const snap = await invoiceDb.ref('invoice_tasks_by_user/All').once('value');
             const rows = snap.val() || {};
@@ -3140,6 +3222,8 @@ async function wdLoadAllActiveDashboardCounts(forceRefresh = false) {
                 const attention = wdText((latestInv && (latestInv.attention || latestInv.Attention || latestInv.assignedTo)) || task.attention || '');
                 if (wdTaskHasAttentionName({ ...task, attention }, wdCurrentUserNameNorm())) continue;
                 const po = wdText(task.po || task.originalPO || (latestInv && latestInv.po_number) || '');
+                const mergedInvoiceForLink = { ...task, ...(latestInv || {}), po, originalPO: po, originalKey: key, invoiceKey: key, key };
+                wdActiveInvoiceLinkKeySet([mergedInvoiceForLink]).forEach(v => activeInvoiceLinkKeysForCounts.add(v));
                 wdIncrementAllActiveCount(counts, bucket);
                 countItems.push({
                     kind: 'invoice',
@@ -3162,6 +3246,8 @@ async function wdLoadAllActiveDashboardCounts(forceRefresh = false) {
             const personalKeySet = wdBuildPersonalTaskKeySet();
             entries.forEach((entry, index) => {
                 if (!entry || typeof entry !== 'object') return;
+                if (wdJobEntryIsClosedForDashboard(entry)) return;
+                if (wdJobEntryMatchesActiveInvoice(entry, activeInvoiceLinkKeysForCounts)) return;
                 const status = wdEntryStatus(entry);
                 const forText = wdNormalize(entry.for || entry.For || entry.type || entry.Type || '');
                 const isInvoiceJob = forText === 'invoice' || forText === 'invoice job' || forText.includes('invoice');
