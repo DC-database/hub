@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-data-cache.js
    IBA shared local cache, CSV fetchers/parsers, and Firebase data loaders.
-   Version: 11.1.8
+   Version: 11.2.0
 
    Cleanup Phase:
    - Moved Block 06 out of app.js intact.
@@ -1788,6 +1788,9 @@ try { window.wdRebuildAllSystemEntriesFromFamilyCaches = wdRebuildAllSystemEntri
 // keep the screen accurate from local/recent markers without reloading job_entries + CSV every few seconds.
 const WD_ALL_ENTRIES_FORCE_REFRESH_MIN_MS = 5 * 60 * 1000; // 11.1.9: WorkDesk must not full-reload/reset counts every few seconds.
 window.__wdLastAllEntriesFullFetchAt = window.__wdLastAllEntriesFullFetchAt || 0;
+// 11.2.0: stop fetch storms. Multiple Dashboard/Job Entry callers can fire at the same time
+// during page resume/open. Share one WorkDesk load instead of starting 2-5 full job_entries reads.
+window.__wdAllEntriesInFlight = window.__wdAllEntriesInFlight || {};
 
 async function ensureAllEntriesFetched(forceRefresh = false, options = {}) { 
     const now = Date.now();
@@ -1800,6 +1803,15 @@ async function ensureAllEntriesFetched(forceRefresh = false, options = {}) {
     const hasWorkdeskCache = Array.isArray(workdeskSystemEntries) && workdeskSystemEntries.length > 0;
     const hasInventoryCache = Array.isArray(inventorySystemEntries) && inventorySystemEntries.length > 0;
     const modeHasCache = (loadMode === 'workdesk' && hasWorkdeskCache) || (loadMode === 'inventory' && hasInventoryCache) || (loadMode === 'all' && (hasWorkdeskCache || hasInventoryCache || (Array.isArray(allSystemEntries) && allSystemEntries.length > 0)));
+    const inFlightKey = loadMode;
+
+    // 11.2.0: If another caller already started the same WorkDesk/Inventory load, wait for it.
+    // This prevents duplicate job_entries downloads during initial Dashboard + Job Entry startup.
+    if (window.__wdAllEntriesInFlight && window.__wdAllEntriesInFlight[inFlightKey]) {
+        await window.__wdAllEntriesInFlight[inFlightKey];
+        wdRebuildAllSystemEntriesFromFamilyCaches();
+        return;
+    }
 
     // 11.1.9: If a legacy caller asks for force repeatedly, do not redownload WorkDesk
     // job_entries/CSV every few seconds. Local cache + recent markers keep the UI current
@@ -1827,6 +1839,7 @@ async function ensureAllEntriesFetched(forceRefresh = false, options = {}) {
         if (loadMode === 'all' && Array.isArray(allSystemEntries) && allSystemEntries.length > 0) return;
     }
 
+    const __wdDoFullLoad = async () => {
     console.log(`Loading Data for ${loadMode === 'inventory' ? 'Inventory' : (loadMode === 'all' ? 'All Records' : 'Workdesk')}...`);
 
     let poDataByPO = allPOData || {};
@@ -1934,37 +1947,61 @@ async function ensureAllEntriesFetched(forceRefresh = false, options = {}) {
     if (Array.isArray(workdeskSystemEntries)) workdeskSystemEntries.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     if (Array.isArray(inventorySystemEntries)) inventorySystemEntries.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
-    cacheTimestamps.systemEntries = now;
+    cacheTimestamps.systemEntries = Date.now();
     window.__wdLastAllEntriesFullFetchAt = Date.now();
     console.log(`Loaded ${allSystemEntries.length} entries. WorkDesk: ${workdeskSystemEntries.length}, Inventory: ${inventorySystemEntries.length}.`);
+    };
+
+    window.__wdAllEntriesInFlight[inFlightKey] = __wdDoFullLoad();
+    try {
+        await window.__wdAllEntriesInFlight[inFlightKey];
+    } finally {
+        if (window.__wdAllEntriesInFlight && window.__wdAllEntriesInFlight[inFlightKey]) {
+            delete window.__wdAllEntriesInFlight[inFlightKey];
+        }
+    }
 }
+
+window.__ibaApproverDataInFlight = window.__ibaApproverDataInFlight || null;
+window.__ibaLastApproverDataFetchAt = window.__ibaLastApproverDataFetchAt || 0;
 
 async function ensureApproverDataCached(force = false) {
     // Keep this cache reasonably fresh because Vacation Delegation depends on it.
-    // We re-fetch when:
-    //  - force == true, OR
-    //  - cache is empty, OR
-    //  - cache is older than MAX_AGE_MS.
+    // 11.2.0: Dashboard/WorkDesk can call this several times during startup.
+    // Share one request and ignore repeated force calls inside the safe one-minute window.
     const MAX_AGE_MS = 60 * 1000; // 1 minute (safe + light)
     const now = Date.now();
 
     try {
-        if (!force && allApproverDataCache && cacheTimestamps && cacheTimestamps.approverData && (now - cacheTimestamps.approverData) < MAX_AGE_MS) {
+        const lastFetch = Number((cacheTimestamps && cacheTimestamps.approverData) || window.__ibaLastApproverDataFetchAt || 0);
+        if (allApproverDataCache && lastFetch && (now - lastFetch) < MAX_AGE_MS) {
             return;
         }
         if (!force && allApproverDataCache && (!cacheTimestamps || !cacheTimestamps.approverData)) {
             // Backward compatibility: if old builds never set the timestamp, keep current cache.
             return;
         }
+        if (window.__ibaApproverDataInFlight) {
+            await window.__ibaApproverDataInFlight;
+            return;
+        }
 
-        const snapshot = await db.ref('approvers').once('value');
-        allApproverDataCache = snapshot.val() || {};
-        allApproverData = allApproverDataCache; // keep in sync for older logic paths
-        if (cacheTimestamps) cacheTimestamps.approverData = now;
-        console.log("Approver data cached/refreshed for position-matching.");
+        window.__ibaApproverDataInFlight = (async () => {
+            const snapshot = await db.ref('approvers').once('value');
+            allApproverDataCache = snapshot.val() || {};
+            allApproverData = allApproverDataCache; // keep in sync for older logic paths
+            const fetchedAt = Date.now();
+            window.__ibaLastApproverDataFetchAt = fetchedAt;
+            if (cacheTimestamps) cacheTimestamps.approverData = fetchedAt;
+            console.log("Approver data cached/refreshed for position-matching.");
+        })();
+
+        await window.__ibaApproverDataInFlight;
     } catch (e) {
         // Never hard-fail the UI if caching fails.
         console.warn("ensureApproverDataCached failed:", e);
+    } finally {
+        window.__ibaApproverDataInFlight = null;
     }
 }
 
