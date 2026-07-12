@@ -1,15 +1,16 @@
-IBA 11.1.2 Upload Note
+IBA 11.1.3 Upload Note
 
-Upload/replace these files from this patch:
+Upload/replace these files:
 - index.html
 - app.js
 - version.json
 - js/app-data-cache.js
 - js/app-workdesk-dashboard.js
 
-Purpose:
-- Fixes the 11.1.1 console error: RangeError Maximum call stack size exceeded.
-- Keeps CSV refresh throttle so Dashboard does not repeatedly reload POVALUE2.csv.
-- Keeps Dashboard duplicate cleanup so old WorkDesk New Entry and live Invoice Entry status do not both appear.
+This patch includes all 11.1.2 fixes and adds a guard for /workdesk_job_recent permission_denied.
 
-After upload, hard refresh Chrome once.
+After upload:
+1. Hard refresh Chrome.
+2. Open WorkDesk Dashboard/Active Task.
+3. Console should no longer repeat /workdesk_job_recent permission_denied every 30 seconds.
+4. Dashboard duplicate cleanup and CSV throttle remain active.

@@ -1,18 +1,13 @@
-IBA 11.1.2 - CSV Stack Guard Fix + CSV Throttle + Dashboard Duplicate Cleanup
+IBA 11.1.3 - WorkDesk Job Recent Permission Guard + CSV/Dashboard Fixes
 
-Use this patch directly over 11.0.9 or 11.1.1. It includes the 11.1.0 Dashboard duplicate cleanup and 11.1.1 CSV refresh throttle, plus a correction for the 11.1.1 maximum call stack console error.
+Use this patch directly over 11.0.9, 11.1.1, or 11.1.2. It includes the 11.1.0 Dashboard duplicate cleanup, 11.1.1 CSV refresh throttle, 11.1.2 CSV stack guard fix, and a new 11.1.3 guard for /workdesk_job_recent permission warnings.
 
-Fix included in 11.1.2:
-- Corrects app-data-cache.js recursion where the public refreshPOVALUE2CsvNow wrapper could call itself repeatedly.
-- Prevents RangeError: Maximum call stack size exceeded from app-data-cache.js line around the CSV refresh wrapper.
-- Keeps POVALUE2.csv single-load/throttle behavior so Dashboard does not reload CSV every second.
-- Keeps Dashboard duplicate cleanup: prefer live Invoice Entry over old WorkDesk New Entry duplicate.
+Fix included in 11.1.3:
+- If Firebase rules deny /workdesk_job_recent, the system disables that optional recent-sync helper after one warning.
+- It stops repeated permission_denied console warnings every 30 seconds.
+- It does not add a full invoice_entries read.
+- Dashboard continues using normal cache/index/exact-record validation.
 
-Testing after upload:
-1. Open WorkDesk Dashboard.
-2. Console should not show Maximum call stack size exceeded.
-3. POVALUE2.csv should not refresh every second.
-4. The duplicate New Entry/Report card should show only the current live invoice status.
-
-Rollback:
+Important:
+- This is a code fallback only. If you later add Firebase rules for /workdesk_job_recent, the recent-sync helper can be re-enabled in a future patch.
 - 11.0.9 remains the safe rollback if needed.

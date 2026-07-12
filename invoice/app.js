@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '11.1.2';
+const APP_VERSION = '11.1.3';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -2287,6 +2287,27 @@ const WD_JOB_RECENT_SYNC_OVERLAP = 2 * 60 * 1000;
 let wdJobRecentSyncTimer = null;
 let wdJobRecentSyncRunning = false;
 let wdJobRecentLastSyncAt = 0;
+let wdJobRecentSyncDisabled = false;
+let wdJobRecentPermissionWarned = false;
+
+function wdIsPermissionDeniedError(err) {
+    const msg = String(err && (err.code || err.message || err) || '').toLowerCase();
+    return msg.includes('permission_denied') || msg.includes('permission denied');
+}
+
+function wdDisableRecentJobRecordSync(reason = 'permission-denied') {
+    wdJobRecentSyncDisabled = true;
+    try {
+        if (wdJobRecentSyncTimer) {
+            clearInterval(wdJobRecentSyncTimer);
+            wdJobRecentSyncTimer = null;
+        }
+    } catch (_) {}
+    if (!wdJobRecentPermissionWarned) {
+        wdJobRecentPermissionWarned = true;
+        console.warn('WorkDesk Job recent sync disabled. Firebase rules do not allow /workdesk_job_recent. Dashboard will continue using normal cache/exact record refresh.', reason);
+    }
+}
 
 function wdJobRecordSortByTimestamp(a, b) {
     return (Number(b?.updatedAt || b?.timestamp || 0) || 0) - (Number(a?.updatedAt || a?.timestamp || 0) || 0);
@@ -2371,7 +2392,7 @@ function wdRemoveLocalWorkdeskJobEntryCache(key) {
 }
 
 async function wdWriteWorkdeskJobRecentMarker(key, entry = {}, action = 'updated') {
-    if (!key || typeof db === 'undefined' || !db || !db.ref) return;
+    if (!key || wdJobRecentSyncDisabled || typeof db === 'undefined' || !db || !db.ref) return;
     const actor = String(currentApprover?.Name || currentApprover?.username || 'System').trim() || 'System';
     const marker = {
         key,
@@ -2387,6 +2408,10 @@ async function wdWriteWorkdeskJobRecentMarker(key, entry = {}, action = 'updated
     try {
         await db.ref(`${WD_JOB_RECENT_PATH}/${key}`).set(marker);
     } catch (err) {
+        if (wdIsPermissionDeniedError(err)) {
+            wdDisableRecentJobRecordSync('write-permission-denied');
+            return;
+        }
         console.warn('Could not write WorkDesk Job recent marker:', err);
     }
 }
@@ -2434,6 +2459,7 @@ async function wdApplyRecentJobRecordMarker(key, marker = {}) {
 }
 
 async function wdSyncRecentJobRecordUpdates(reason = 'job-recent-sync') {
+    if (wdJobRecentSyncDisabled) return;
     if (window.ibaShouldPauseFirebase && window.ibaShouldPauseFirebase('workdesk-job-recent-sync', true)) return;
     if (wdJobRecentSyncRunning) return;
     if (!wdIsWorkdeskOpenForRecentSync()) return;
@@ -2472,14 +2498,18 @@ async function wdSyncRecentJobRecordUpdates(reason = 'job-recent-sync') {
             }
         }
     } catch (err) {
-        console.warn('WorkDesk Job recent sync could not complete:', err);
+        if (wdIsPermissionDeniedError(err)) {
+            wdDisableRecentJobRecordSync('read-permission-denied');
+        } else {
+            console.warn('WorkDesk Job recent sync could not complete:', err);
+        }
     } finally {
         wdJobRecentSyncRunning = false;
     }
 }
 
 function wdStartRecentJobRecordSync() {
-    if (wdJobRecentSyncTimer) return;
+    if (wdJobRecentSyncDisabled || wdJobRecentSyncTimer) return;
     wdJobRecentSyncTimer = setInterval(() => {
         wdSyncRecentJobRecordUpdates('job-recent-30s');
     }, WD_JOB_RECENT_SYNC_INTERVAL);

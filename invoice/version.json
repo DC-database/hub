@@ -1,5 +1,5 @@
 {
-  "version": "11.1.2",
+  "version": "11.1.3",
   "title": "CSV Refresh Throttle + Dashboard Duplicate Cleanup",
   "message": "This update keeps Dashboard duplicate cleanup and prevents repeated POVALUE2.csv reloads during Dashboard refresh.",
   "createdAt": "2026-07-12"
