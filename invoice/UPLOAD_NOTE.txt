@@ -1,22 +1,28 @@
-IBA 11.2.3 - Invoice Entry Active Jobs Side Panel Guard
+IBA 11.2.4 — Batch Entry Attention Routing Restore
 
-Upload these files:
+Upload these files to the site root preserving folders:
+
 - app.js
 - index.html
 - version.json
 - js/app-data-cache.js
 - js/app-workdesk-dashboard.js
 - js/app-invoice-entry-search.js
+- js/app-attention-validation.js
+- js/app-batch-entry-ui.js
+- js/app-im-event-wiring.js
 
 Purpose:
-- Stop Invoice Entry Active Jobs side panel from trying forbidden legacy /Job_Entries path.
-- Use only /job_entries for active WorkDesk invoice job entries.
-- Prevent PO search fallback from calling ensureInvoiceDataFetched(), which downloads full invoice_entries.
-- Keep 11.2.2 Retention invoice value auto-zero.
-- Keep 11.2.1 WorkDesk Dashboard no-blank/stable count guard.
+- Restores Batch Entry auto Attention routing after the no-attention status guard.
+- For SRV: uses site-matched Site DC/Camp Boss when one match exists; if multiple, manual picker/available filtered list remains.
+- Report: auto routes to GIO.
+- CEO Approval: auto routes to Hamad.
+- In Process: auto routes to COO.
+- Under Review, For Summary, With Accounts, Pending, Report Approved, On Hold still save with Attention None/blank.
+- Keeps 11.2.3 Invoice Entry Active Jobs side panel guard, 11.2.2 Retention auto-zero, and WorkDesk Dashboard stability fixes.
 
 After upload:
-- Hard refresh Chrome (Ctrl + F5).
-- Open Invoice Entry.
-- Check console: the /Job_Entries permission_denied warning should stop.
-- Full invoice_entries warning should not appear from opening/searching Invoice Entry side panel.
+1. Hard refresh Chrome with Ctrl + F5.
+2. Open Batch Entry.
+3. Add/search an invoice row.
+4. Test status changes: Report, CEO Approval, In Process, For SRV.

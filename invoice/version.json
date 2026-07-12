@@ -1,6 +1,7 @@
 {
-  "version": "11.2.3",
-  "title": "Invoice Entry Active Jobs Side Panel Guard",
-  "message": "Stops Invoice Entry Active Jobs side panel from reading legacy /Job_Entries and prevents full invoice_entries fallback for PO lookup. Keeps 11.2.2 Retention auto-zero and 11.2.1 WorkDesk dashboard stability fixes.",
-  "required": false
+  "version": "11.2.4",
+  "title": "Batch Entry Attention Routing Restore",
+  "message": "Restores Batch Entry automatic Attention routing: For SRV site attention/available picker, Report to GIO, CEO Approval to Hamad, and In Process to COO, while keeping no-attention statuses and 11.2.3 side-panel guard.",
+  "required": false,
+  "releasedAt": "2026-07-12T00:00:00+03:00"
 }

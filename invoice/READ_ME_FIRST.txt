@@ -1,1 +1,2 @@
-Use this patch if 11.2.0 stopped repeated fetches but All Active dashboard cards still blink/show/gone.
+This patch is cumulative from 11.2.3 and is focused on Batch Entry Attention routing.
+WorkDesk and Inventory layout/logic are not intentionally changed.
