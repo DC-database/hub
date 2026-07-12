@@ -1,5 +1,3 @@
-11.1.6 is cumulative over 11.1.5 for the changed files included here.
+11.1.7 fixes old Summary Note searches after note-index migration.
 
-Purpose: keep Summary Note accurate for previous/current notes without making Summary Note depend on full Firebase invoice_entries downloads each time.
-
-Important: Old historical notes cannot already have note-index references. The first time you generate a summary for an old non-indexed note, the system can ask to run a one-time legacy search. After that, the matching references are saved into invoice_note_index for lighter future use.
+The new invoice_note_index starts empty for old historical notes. For old searches like DON 2026, click Generate and allow the one-time refresh prompt. The system will build the small note index for matching historical notes, then future searches will not need full invoice_entries for that same search.

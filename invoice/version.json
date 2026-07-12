@@ -1,6 +1,6 @@
 {
-  "version": "11.1.6",
-  "title": "Summary Note Vendor Note Index Backfill",
-  "message": "Summary Note now uses invoice_note_index refs to fetch previous/current notes by small index + exact invoice reads, with vendor-targeted backfill and one-time legacy migration only when needed. Keeps 11.1.5 attention/status rules. WorkDesk and Inventory are not changed.",
-  "critical": false
+  "version": "11.1.7",
+  "title": "Summary Note One-Time Note Index Refresh",
+  "message": "Summary Note can now refresh/build the invoice_note_index one time for old note searches such as vendor/year labels (example DON 2026). It keeps light note-index search first and only uses full invoice_entries after user confirmation. Keeps 11.1.6 and 11.1.5 fixes. WorkDesk and Inventory are not changed.",
+  "updatedAt": "2026-07-12T09:28:00+03:00"
 }

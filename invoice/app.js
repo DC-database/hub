@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '11.1.6';
+const APP_VERSION = '11.1.7';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -5307,7 +5307,7 @@ async function handleGenerateSummary() {
     summaryNoteGenerateBtn.disabled = true;
 
     try {
-        // 11.1.6: Summary Note no longer starts with a full invoice_entries download.
+        // 11.1.7: Summary Note no longer starts with a full invoice_entries download.
         // It loads CSV/base data, then reads the small invoice_note_index refs and exact invoice records only.
         if (typeof ensureInvoicePOBaseDataFetched === 'function') {
             await ensureInvoicePOBaseDataFetched(false);
@@ -5641,7 +5641,7 @@ async function handleUpdateSummaryChanges(sendToAccounts = false) {
                 const updatedInvoiceData = { ...originalInvoice, ...updates };
                 updatePromises.push(updateInvoiceTaskLookup(poNumber, invoiceKey, updatedInvoiceData, originalInvoice.attention));
 
-                // 11.1.6: Keep Summary Note's small note index accurate after status/SRV updates.
+                // 11.1.7: Keep Summary Note's small note index accurate after status/SRV updates.
                 const summaryIndexNote = (originalInvoice.note || (summaryNoteCurrentInput ? summaryNoteCurrentInput.value : '') || '').trim();
                 if (summaryIndexNote && typeof saveInvoiceNoteToIndex === 'function') {
                     updatePromises.push(Promise.resolve().then(() => saveInvoiceNoteToIndex(summaryIndexNote, {

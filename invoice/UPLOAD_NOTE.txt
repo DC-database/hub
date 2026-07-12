@@ -1,36 +1,26 @@
-IBA System Patch 11.1.6 — Summary Note Vendor Note Index Backfill
+IBA SYSTEM PATCH 11.1.7 - SUMMARY NOTE ONE-TIME NOTE INDEX REFRESH
 
-Upload/replace only these files:
+Upload/replace these files only:
+- app.js
+- index.html
+- version.json
+- js/app-data-cache.js
 
-1) app.js
-2) index.html
-3) version.json
-4) js/app-data-cache.js
+Purpose:
+- Summary Note still opens light and uses invoice_note_index first.
+- Old historical Summary Note searches such as DON 2026 may not exist in invoice_note_index yet.
+- If no indexed invoices are found, Generate Summary can ask for one-time legacy refresh.
+- The one-time refresh reads invoice_entries only after confirmation, builds invoice_note_index for the typed note/search, then future searches are light.
+- Supports flexible note matching: exact text, contains text, and all typed tokens (example DON 2026).
 
-Scope:
-- Invoice Management only.
-- WorkDesk is not changed.
-- Inventory is not changed.
+Protected:
+- WorkDesk not touched.
+- Inventory not touched.
+- Invoice Management Summary Note note-index/backfill only.
 
-What changed:
-- Summary Note no longer starts by downloading full invoice_entries.
-- Summary Note reads the small invoice_note_index reference list first.
-- It exact-reads only the invoice records referenced by the note index.
-- When a current note is indexed, previous-note lookup can backfill only the same vendor's PO folders, not all invoice_entries.
-- If the note is old and no index exists yet, the system asks before doing a one-time legacy full scan. That one-time scan builds the note index so future Summary Note searches are light.
-- Invoice Entry / Batch Entry / Summary Note saves continue updating invoice_note_index.
-
-Expected test:
-1) Hard refresh Chrome.
-2) Open Summary Note.
-3) Opening the page should not show the full invoice_entries warning.
-4) Generate Summary using a newly indexed note should use invoice_note_index + exact reads.
-5) For old notes not yet indexed, the system may ask for one-time migration before using the old data.
-
-Firebase rules:
-- No new rule is required if invoice_note_index was already added:
-  "invoice_note_index": {
-    ".read": true,
-    ".write": true,
-    ".indexOn": ["lastUsedAt", "count", "text"]
-  }
+After upload:
+1. Hard refresh Chrome.
+2. Open Summary Note.
+3. Type DON 2026 in Current Note and click Generate.
+4. If prompted, click OK to run the one-time index refresh.
+5. Future DON 2026 searches should use invoice_note_index/exact reads instead of scanning all invoice_entries.
