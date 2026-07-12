@@ -368,6 +368,129 @@ function imNoteIndexIsExactNote(inv, note) {
     return imNormalizeInvoiceNoteText(inv && inv.note).toLowerCase() === imNormalizeInvoiceNoteText(note).toLowerCase();
 }
 
+
+// 11.1.7: Summary Note search may be typed as a group label like "DON 2026".
+// Keep exact matching first, but allow safe keyword matching against the small note index
+// and against a one-time confirmed legacy scan. This avoids full invoice downloads on open.
+function imNoteIndexQueryTokens(query) {
+    return imNormalizeInvoiceNoteText(query)
+        .toLowerCase()
+        .split(/\s+/)
+        .map(t => t.trim())
+        .filter(t => t && t.length >= 2);
+}
+
+function imNoteIndexMatchesQuery(noteText, queryText) {
+    const note = imNormalizeInvoiceNoteText(noteText).toLowerCase();
+    const query = imNormalizeInvoiceNoteText(queryText).toLowerCase();
+    if (!note || !query) return false;
+    if (note === query) return true;
+    if (note.includes(query)) return true;
+    const tokens = imNoteIndexQueryTokens(query);
+    if (!tokens.length) return false;
+    return tokens.every(t => note.includes(t));
+}
+
+function imNoteIndexIsQueryMatch(inv, noteQuery) {
+    return imNoteIndexMatchesQuery(inv && inv.note, noteQuery);
+}
+
+async function loadInvoiceNoteIndexDataForSearch(forceRefresh = false, limit = 2000) {
+    const local = imReadLocalNoteIndex();
+    if (!forceRefresh && local && local.data) return local.data;
+    if (window.ibaShouldUseCacheOnly && window.ibaShouldUseCacheOnly('load-invoice-note-index-search', true)) return (local && local.data) || {};
+    if (window.ibaShouldPauseFirebase && window.ibaShouldPauseFirebase('load-invoice-note-index-search', true)) return (local && local.data) || {};
+    try {
+        if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) return (local && local.data) || {};
+        const snap = await invoiceDb.ref(IM_NOTE_INDEX_PATH)
+            .orderByChild('lastUsedAt')
+            .limitToLast(Number(limit || 2000))
+            .once('value');
+        const data = snap.val() || {};
+        imApplyNoteIndexToMemory(data);
+        try { setCache(IM_NOTE_INDEX_CACHE_KEY, data); } catch (_) {}
+        return data;
+    } catch (error) {
+        console.warn('Invoice note index search could not be loaded. Using local note cache only.', error);
+        return (local && local.data) || {};
+    }
+}
+
+async function loadInvoiceNoteRefsByQuery(noteQuery, options = {}) {
+    const query = imNormalizeInvoiceNoteText(noteQuery);
+    if (!query) return [];
+    const data = await loadInvoiceNoteIndexDataForSearch(!!options.forceRefresh, Number(options.noteIndexLimit || 2000));
+    const refs = [];
+    const seen = new Set();
+    try {
+        Object.values(data || {}).forEach(item => {
+            if (!item || typeof item !== 'object') return;
+            const text = imNormalizeInvoiceNoteText(item.text || item.note || '');
+            if (!imNoteIndexMatchesQuery(text, query)) return;
+            const itemRefs = item.refs || {};
+            Object.values(itemRefs || {}).forEach(r => {
+                if (!r || !r.po || !r.invoiceKey) return;
+                const id = `${r.po}::${r.invoiceKey}`;
+                if (seen.has(id)) return;
+                seen.add(id);
+                refs.push(r);
+            });
+        });
+    } catch (_) {}
+    return refs;
+}
+
+async function loadInvoicesByNoteSearch(noteQuery, options = {}) {
+    const query = imNormalizeInvoiceNoteText(noteQuery);
+    if (!query) return [];
+
+    const rows = [];
+    const seen = new Set();
+    try {
+        if (allInvoiceData) {
+            for (const po in allInvoiceData) {
+                const invoices = allInvoiceData[po] || {};
+                for (const key in invoices) {
+                    const inv = invoices[key] || {};
+                    if (imNoteIndexIsQueryMatch(inv, query)) {
+                        const id = `${po}::${key}`;
+                        if (!seen.has(id)) {
+                            rows.push(imNoteIndexRowFromInvoice(inv.note || query, po, key, inv));
+                            seen.add(id);
+                        }
+                    }
+                }
+            }
+        }
+    } catch (_) {}
+
+    // Exact key first, then flexible small-index refs such as "DON 2026" -> matching note texts.
+    const exactRefs = await loadInvoiceNoteRefs(query);
+    const queryRefs = await loadInvoiceNoteRefsByQuery(query, options);
+    const refList = [...exactRefs, ...queryRefs].slice(-Number(options.limit || 900));
+
+    for (const ref of refList) {
+        const po = imNormalizeIndexText(ref.po);
+        const invoiceKey = imNormalizeIndexText(ref.invoiceKey);
+        if (!po || !invoiceKey || seen.has(`${po}::${invoiceKey}`)) continue;
+        try {
+            const snap = await invoiceDb.ref(`invoice_entries/${po}/${invoiceKey}`).once('value');
+            const inv = snap.val() || {};
+            if (!imNoteIndexIsQueryMatch(inv, query)) continue;
+            if (!allInvoiceData) allInvoiceData = {};
+            if (!allInvoiceData[po]) allInvoiceData[po] = {};
+            allInvoiceData[po][invoiceKey] = { ...inv, key: invoiceKey };
+            if (window.__invoiceEntriesFullLoaded !== true) window.__invoiceEntriesFullLoaded = false;
+            rows.push(imNoteIndexRowFromInvoice(inv.note || query, po, invoiceKey, inv));
+            seen.add(`${po}::${invoiceKey}`);
+        } catch (error) {
+            console.warn('Invoice note query ref read skipped:', po, invoiceKey, error);
+        }
+    }
+
+    return rows;
+}
+
 async function loadInvoiceNoteRefs(note) {
     const text = imNormalizeInvoiceNoteText(note);
     if (!text) return [];
@@ -466,10 +589,17 @@ async function backfillInvoiceNoteIndexForVendor(noteList, vendorName, options =
             for (const key in invoices) {
                 const inv = invoices[key] || {};
                 const invNote = imNormalizeInvoiceNoteText(inv.note);
-                if (!invNote || !(invNote.toLowerCase() in noteMap)) continue;
+                if (!invNote) continue;
+                const matchedQueries = notes.filter(q => imNoteIndexMatchesQuery(invNote, q));
+                if (!matchedQueries.length) continue;
                 allInvoiceData[po][key] = { ...inv, key };
                 const row = imNoteIndexRowFromInvoice(invNote, po, key, inv);
-                noteMap[invNote.toLowerCase()].push(row);
+                matchedQueries.forEach(q => {
+                    const k = q.toLowerCase();
+                    if (noteMap[k] && !noteMap[k].some(existing => `${existing.po}::${existing.key}` === `${row.po}::${row.key}`)) {
+                        noteMap[k].push(row);
+                    }
+                });
                 try {
                     await saveInvoiceNoteToIndex(invNote, {
                         po,
@@ -504,9 +634,16 @@ async function buildInvoiceNoteIndexFromLoadedInvoicesForNotes(noteList) {
         for (const key in invoices) {
             const inv = invoices[key] || {};
             const invNote = imNormalizeInvoiceNoteText(inv.note);
-            if (!invNote || !(invNote.toLowerCase() in noteMap)) continue;
+            if (!invNote) continue;
+            const matchedQueries = notes.filter(q => imNoteIndexMatchesQuery(invNote, q));
+            if (!matchedQueries.length) continue;
             const row = imNoteIndexRowFromInvoice(invNote, po, key, inv);
-            noteMap[invNote.toLowerCase()].push(row);
+            matchedQueries.forEach(q => {
+                const k = q.toLowerCase();
+                if (noteMap[k] && !noteMap[k].some(existing => `${existing.po}::${existing.key}` === `${row.po}::${row.key}`)) {
+                    noteMap[k].push(row);
+                }
+            });
             try {
                 await saveInvoiceNoteToIndex(invNote, {
                     po,
@@ -533,8 +670,14 @@ async function loadSummaryNoteInvoicesFromIndex(prevNote, currentNote, options =
     const result = { previous: [], current: [], vendorBackfilled: false, currentVendor: '' };
     if (!currentText) return result;
 
-    result.current = await loadInvoicesByNoteIndex(currentText, options);
-    if (prevText) result.previous = await loadInvoicesByNoteIndex(prevText, options);
+    result.current = (typeof loadInvoicesByNoteSearch === 'function')
+        ? await loadInvoicesByNoteSearch(currentText, options)
+        : await loadInvoicesByNoteIndex(currentText, options);
+    if (prevText) {
+        result.previous = (typeof loadInvoicesByNoteSearch === 'function')
+            ? await loadInvoicesByNoteSearch(prevText, options)
+            : await loadInvoicesByNoteIndex(prevText, options);
+    }
 
     // If current rows are indexed, use their vendor to recover older previous-note rows for the same vendor only.
     const currentVendor = (result.current[0] && result.current[0].vendor && result.current[0].vendor !== 'N/A') ? result.current[0].vendor : '';
@@ -566,6 +709,8 @@ try {
     window.imNoteIndexKey = imNoteIndexKey;
     window.loadInvoiceNoteRefs = loadInvoiceNoteRefs;
     window.loadInvoicesByNoteIndex = loadInvoicesByNoteIndex;
+    window.loadInvoicesByNoteSearch = loadInvoicesByNoteSearch;
+    window.imNoteIndexMatchesQuery = imNoteIndexMatchesQuery;
     window.backfillInvoiceNoteIndexForVendor = backfillInvoiceNoteIndexForVendor;
     window.buildInvoiceNoteIndexFromLoadedInvoicesForNotes = buildInvoiceNoteIndexFromLoadedInvoicesForNotes;
     window.loadSummaryNoteInvoicesFromIndex = loadSummaryNoteInvoicesFromIndex;
