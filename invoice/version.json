@@ -1,6 +1,5 @@
 {
-  "version": "11.1.7",
-  "title": "Summary Note One-Time Note Index Refresh",
-  "message": "Summary Note can now refresh/build the invoice_note_index one time for old note searches such as vendor/year labels (example DON 2026). It keeps light note-index search first and only uses full invoice_entries after user confirmation. Keeps 11.1.6 and 11.1.5 fixes. WorkDesk and Inventory are not changed.",
-  "updatedAt": "2026-07-12T09:28:00+03:00"
+  "version": "11.1.9",
+  "title": "WorkDesk Dashboard Stable Count Refresh",
+  "message": "Prevents repeated WorkDesk/Dashboard background refresh from clearing status-card counts to dash while preserving Invoice Note Index light mode."
 }
