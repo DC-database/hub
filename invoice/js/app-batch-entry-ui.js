@@ -1,5 +1,5 @@
 // js/app-batch-entry-ui.js
-// Version 11.1.4 — Batch Entry note suggestions use invoice_note_index instead of full invoice download.
+// Version 11.1.5 — Note index light mode + no-attention status guard.
 // Cleanup only: public function names preserved; save/write logic remains in app.js.
 
 function updateBatchRowAttentionButton(row) {
@@ -75,6 +75,10 @@ async function openBatchAttentionPicker(row) {
 
     const statusEl = row ? row.querySelector('select[name="status"]') : null;
     const status = statusEl ? statusEl.value : null;
+    if (typeof imShouldForceAttentionNoneForStatus === 'function' && imShouldForceAttentionNoneForStatus(status)) {
+        if (typeof setBatchRowAttentionValue === 'function') setBatchRowAttentionValue(row, 'None', 'None (Clear Selection)');
+        return;
+    }
     const site = row ? (row.dataset.site || null) : null;
     await populateAttentionDropdown(imAttentionPickerChoices, status, site, true);
 
@@ -328,6 +332,10 @@ async function handleAddPOToBatch() {
         if (imBatchGlobalStatus.value) statusSelect.value = imBatchGlobalStatus.value;
         if (imBatchGlobalNote.value) noteInput.value = imBatchGlobalNote.value;
 
+        if (typeof imShouldForceAttentionNoneForStatus === 'function' && imShouldForceAttentionNoneForStatus(statusSelect.value)) {
+            setBatchRowAttentionValue(row, 'None', 'None (Clear Selection)');
+        }
+
         updateBatchRowAttentionButton(row);
         updateBatchCount();
 
@@ -494,6 +502,10 @@ async function addInvoiceToBatchTable(invData) {
 
     if (imBatchGlobalStatus.value) statusSelect.value = imBatchGlobalStatus.value;
     if (imBatchGlobalNote.value) noteInput.value = imBatchGlobalNote.value;
+
+    if (typeof imShouldForceAttentionNoneForStatus === 'function' && imShouldForceAttentionNoneForStatus(statusSelect.value)) {
+        setBatchRowAttentionValue(row, 'None', 'None (Clear Selection)');
+    }
 
     updateBatchRowAttentionButton(row);
     updateBatchCount();
@@ -964,6 +976,28 @@ function autoFillSummarySrvIfWithAccounts() {
         }
     }
 }
+
+// Watch for manual Batch Entry row status changes.
+// 11.1.5: no-attention statuses immediately clear Attention to None and avoid approver filtering.
+document.addEventListener('change', (e) => {
+    const statusEl = e.target && e.target.matches ? (e.target.matches('.batch-invoice-card select[name="status"]') ? e.target : null) : null;
+    if (!statusEl) return;
+    const row = statusEl.closest('.batch-invoice-card');
+    if (!row) return;
+    const statusValue = statusEl.value;
+    if (typeof imShouldForceAttentionNoneForStatus === 'function' && imShouldForceAttentionNoneForStatus(statusValue)) {
+        if (typeof setBatchRowAttentionValue === 'function') setBatchRowAttentionValue(row, 'None', 'None (Clear Selection)');
+        return;
+    }
+    if (row.choicesInstance && typeof populateAttentionDropdown === 'function') {
+        const site = row.dataset.site || null;
+        Promise.resolve(populateAttentionDropdown(row.choicesInstance, statusValue, site, true))
+            .then(() => updateBatchRowAttentionButton(row))
+            .catch(() => updateBatchRowAttentionButton(row));
+    } else {
+        updateBatchRowAttentionButton(row);
+    }
+});
 
 // Watch for manual dropdown changes
 document.addEventListener('change', (e) => {

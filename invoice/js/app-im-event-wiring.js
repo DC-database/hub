@@ -649,8 +649,12 @@ if (imStatusSelect) {
         imUpdateAttentionRequiredUI(statusValue);
 
         // 2. Clear attention if status does not require it
-        if (imAttentionSelectChoices && (statusValue === 'Under Review' || statusValue === 'With Accounts')) {
-            imAttentionSelectChoices.removeActiveItems();
+        const noAttentionStatus = (typeof imShouldForceAttentionNoneForStatus === 'function')
+            ? imShouldForceAttentionNoneForStatus(statusValue)
+            : (statusValue === 'Under Review' || statusValue === 'With Accounts');
+        if (noAttentionStatus && imAttentionSelectChoices) {
+            if (typeof imClearAttentionToNone === 'function') imClearAttentionToNone(imAttentionSelectChoices);
+            else imAttentionSelectChoices.removeActiveItems();
         }
         if (imAttentionGroup) imAttentionGroup.classList.remove('im-invalid');
 
@@ -660,17 +664,17 @@ if (imStatusSelect) {
             currentSite = allPOData[currentPO]['Project ID'];
         }
 
-        // 4. Apply normal dropdown filtering (already existing)
-        if (imAttentionSelectChoices) {
+        // 4. Apply normal dropdown filtering only for statuses that need Attention
+        if (imAttentionSelectChoices && !noAttentionStatus) {
             const currentSelection = imAttentionSelectChoices.getValue(true);
             await populateAttentionDropdown(imAttentionSelectChoices, statusValue, currentSite, true);
-            if (currentSelection) {
+            if (currentSelection && currentSelection !== 'None') {
                 imAttentionSelectChoices.setChoiceByValue(currentSelection);
             }
         }
 
         // 5. AUTO‑ATTENTION LOGIC (new)
-        if (imAttentionSelectChoices && currentPO) {
+        if (imAttentionSelectChoices && currentPO && !noAttentionStatus) {
             await autoSetAttentionForStatus(statusValue, currentSite, imAttentionSelectChoices);
         }
     });
@@ -1060,6 +1064,16 @@ if (imBatchGlobalAttention) {
             // 💡 FIX: Now targets the new cards instead of old table rows
             const cards = document.getElementById('im-batch-table-body').querySelectorAll('.batch-invoice-card');
             cards.forEach(card => {
+                const statusSelect = card.querySelector('select[name="status"]');
+                const rowStatus = statusSelect ? statusSelect.value : '';
+                const noAttentionStatus = (typeof imShouldForceAttentionNoneForStatus === 'function')
+                    ? imShouldForceAttentionNoneForStatus(rowStatus)
+                    : (rowStatus === 'Under Review' || rowStatus === 'With Accounts');
+                if (noAttentionStatus) {
+                    if (typeof setBatchRowAttentionValue === 'function') setBatchRowAttentionValue(card, 'None', 'None (Clear Selection)');
+                    updateBatchRowAttentionButton(card);
+                    return;
+                }
                 if (card.choicesInstance) {
                     if (selectedValue === 'None') {
                         card.choicesInstance.removeActiveItems(); // Clear if None
@@ -1086,14 +1100,23 @@ if (imBatchGlobalAttention) {
                 // 2. Re-run the filter logic for this card
                 if (card.choicesInstance) {
                     const site = card.dataset.site; // Get site from card data
-                    const currentSelection = card.choicesInstance.getValue(true);
+                    const noAttentionStatus = (typeof imShouldForceAttentionNoneForStatus === 'function')
+                        ? imShouldForceAttentionNoneForStatus(newValue)
+                        : (newValue === 'Under Review' || newValue === 'With Accounts');
 
-                    // Apply filter (e.g., if "For SRV", show only Site DCs for this site)
-                    await populateAttentionDropdown(card.choicesInstance, newValue, site, true);
+                    if (noAttentionStatus) {
+                        if (typeof setBatchRowAttentionValue === 'function') setBatchRowAttentionValue(card, 'None', 'None (Clear Selection)');
+                        else if (typeof imClearAttentionToNone === 'function') imClearAttentionToNone(card.choicesInstance);
+                    } else {
+                        const currentSelection = card.choicesInstance.getValue(true);
 
-                    // Restore previous selection if they are still allowed
-                    if (currentSelection) {
-                        card.choicesInstance.setChoiceByValue(currentSelection);
+                        // Apply filter (e.g., if "For SRV", show only Site DCs for this site)
+                        await populateAttentionDropdown(card.choicesInstance, newValue, site, true);
+
+                        // Restore previous selection if they are still allowed
+                        if (currentSelection && currentSelection !== 'None') {
+                            card.choicesInstance.setChoiceByValue(currentSelection);
+                        }
                     }
                 }
 

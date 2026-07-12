@@ -48,7 +48,12 @@ function resetInvoiceForm() {
         if (typeof currentPO !== 'undefined' && currentPO && typeof allPOData !== 'undefined' && allPOData && allPOData[currentPO]) {
             currentSite = allPOData[currentPO]['Project ID'];
         }
-        populateAttentionDropdown(imAttentionSelectChoices, defaultStatus, currentSite, true);
+        if (typeof imUpdateAttentionRequiredUI === 'function') imUpdateAttentionRequiredUI(defaultStatus);
+        if (typeof imShouldForceAttentionNoneForStatus === 'function' && imShouldForceAttentionNoneForStatus(defaultStatus)) {
+            if (typeof imClearAttentionToNone === 'function') imClearAttentionToNone(imAttentionSelectChoices);
+        } else {
+            populateAttentionDropdown(imAttentionSelectChoices, defaultStatus, currentSite, true);
+        }
     }
 
     // 5. Navigation Logic (Show "New")
@@ -471,16 +476,9 @@ async function proceedWithPOLoading(poNumber, poData) {
 function imRunPOFileCheckInBackground(poNumber) {
     // ============================================================
     // PO RECORDS SEARCH & BUTTON LOGIC (non-blocking)
-    // 10.9.4: De-duplicate the inline deletion-list button.
-    // Several invoice-entry refresh/search paths can start this background check;
-    // the result must leave only one visible "Add to Deletion List" action.
     // ============================================================
     const poRecordEl = document.querySelector('.im-po-record');
     const modalDeletionBtn = document.getElementById('im-modal-deletion-list-btn');
-
-    const removeInlineCollectButtons = () => {
-        document.querySelectorAll('#im-po-collect-btn, .im-po-collect-btn').forEach(btn => btn.remove());
-    };
 
     const setPoRecordStatus = (status, label, iconClass) => {
         if (!poRecordEl || poRecordEl.dataset.poCheckFor !== poNumber) return;
@@ -493,13 +491,11 @@ function imRunPOFileCheckInBackground(poNumber) {
     poRecordEl.dataset.poCheckFor = poNumber;
     setPoRecordStatus('checking', 'Checking PO file...', 'fa-solid fa-circle-notch fa-spin');
 
-    // Reset the inline add button and modal folder action on every new PO search.
-    removeInlineCollectButtons();
+    // Remove the old inline add button and reset the modal folder action on every new PO search.
+    document.getElementById('im-po-collect-btn')?.remove();
     if (modalDeletionBtn) {
         modalDeletionBtn.classList.add('hidden');
         modalDeletionBtn.classList.remove('im-po-file-action-btn--active');
-        modalDeletionBtn.disabled = false;
-        modalDeletionBtn.innerHTML = `<i class="fa-solid fa-folder-minus"></i>`;
         modalDeletionBtn.onclick = null;
     }
 
@@ -522,18 +518,14 @@ function imRunPOFileCheckInBackground(poNumber) {
                 // Attention state: this PO has an original file record. Make it obvious.
                 setPoRecordStatus('found', 'Original PO in File', 'fa-solid fa-folder-open');
 
-                // Remove again immediately before append so overlapping async checks cannot stack duplicates.
-                removeInlineCollectButtons();
-
                 const collectBtn = document.createElement('button');
                 collectBtn.id = 'im-po-collect-btn';
                 collectBtn.type = 'button';
                 collectBtn.className = 'im-po-collect-btn';
-                collectBtn.dataset.poNumber = poNumber;
                 collectBtn.title = 'Original PO is in file — add to deletion list';
                 collectBtn.innerHTML = `<i class="fa-solid fa-folder-minus"></i> Add to Deletion List`;
                 collectBtn.onclick = () => window.imAddToDeletionCollection(poNumber);
-                poRecordEl.parentElement?.appendChild(collectBtn);
+                poRecordEl.parentElement.appendChild(collectBtn);
 
                 if (modalDeletionBtn) {
                     modalDeletionBtn.classList.remove('hidden');
@@ -543,12 +535,10 @@ function imRunPOFileCheckInBackground(poNumber) {
                 }
 
             } else {
-                removeInlineCollectButtons();
                 setPoRecordStatus('none', 'No PO file found', 'fa-regular fa-circle');
             }
         } catch (error) {
             console.error("Query Error:", error);
-            removeInlineCollectButtons();
             setPoRecordStatus('error', 'PO file check error', 'fa-solid fa-triangle-exclamation');
         }
     }, 0);
@@ -1215,11 +1205,17 @@ function populateInvoiceFormForEditing(invoiceKey) {
         if (currentPO && allPOData && allPOData[currentPO]) {
             currentSite = allPOData[currentPO]['Project ID'];
         }
-        populateAttentionDropdown(imAttentionSelectChoices, invData.status, currentSite, true).then(() => {
-            if (invData.attention) {
-                imAttentionSelectChoices.setChoiceByValue(invData.attention);
-            }
-        });
+        const formStatus = imStatusSelect.value || invData.status || 'Under Review';
+        if (typeof imUpdateAttentionRequiredUI === 'function') imUpdateAttentionRequiredUI(formStatus);
+        if (typeof imShouldForceAttentionNoneForStatus === 'function' && imShouldForceAttentionNoneForStatus(formStatus)) {
+            if (typeof imClearAttentionToNone === 'function') imClearAttentionToNone(imAttentionSelectChoices);
+        } else {
+            populateAttentionDropdown(imAttentionSelectChoices, formStatus, currentSite, true).then(() => {
+                if (invData.attention && invData.attention !== 'None') {
+                    imAttentionSelectChoices.setChoiceByValue(invData.attention);
+                }
+            });
+        }
     }
 
     // --- PRINT REPORT BUTTON LOGIC ---

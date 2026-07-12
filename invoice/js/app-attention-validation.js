@@ -61,6 +61,10 @@ function refreshNotePickers(latestNote) {
 // ------------------------------------------------------------
 async function autoSetAttentionForStatus(status, siteCode, choicesInstance) {
     if (!choicesInstance) return;
+    if (typeof imShouldForceAttentionNoneForStatus === 'function' && imShouldForceAttentionNoneForStatus(status)) {
+        imClearAttentionToNone(choicesInstance);
+        return;
+    }
 
     if (!allApproverData || Object.keys(allApproverData).length === 0) {
         await ensureApproverDataCached(true);
@@ -269,8 +273,42 @@ function getSiteMatchedAttentionCandidatesForSRV(siteCode) {
 // ------------------------------------------------------------
 // imIsAttentionRequiredForStatus
 // ------------------------------------------------------------
+function imNormalizeAttentionStatus(statusValue) {
+    return String(statusValue || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+// 11.1.5: These invoice statuses are holding/final/reference statuses.
+// They must always use Attention = None/blank and must not create personal active tasks.
+function imShouldForceAttentionNoneForStatus(statusValue) {
+    const st = imNormalizeAttentionStatus(statusValue);
+    return [
+        'under review',
+        'for summary',
+        'with accounts',
+        'pending',
+        'report approved',
+        'on hold'
+    ].includes(st);
+}
+
 function imIsAttentionRequiredForStatus(statusValue) {
-    return statusValue !== 'Under Review' && statusValue !== 'With Accounts';
+    return !imShouldForceAttentionNoneForStatus(statusValue);
+}
+
+function imClearAttentionToNone(choicesInstance) {
+    if (!choicesInstance) return;
+    try {
+        if (typeof choicesInstance.removeActiveItems === 'function') choicesInstance.removeActiveItems();
+        if (typeof choicesInstance.setChoices === 'function') {
+            choicesInstance.setChoices([{ value: 'None', label: 'None (Clear Selection)' }], 'value', 'label', false);
+        }
+        if (typeof choicesInstance.setChoiceByValue === 'function') choicesInstance.setChoiceByValue('None');
+        else if (typeof choicesInstance.setValue === 'function') choicesInstance.setValue(['None']);
+    } catch (_) {
+        try { if (typeof choicesInstance.removeActiveItems === 'function') choicesInstance.removeActiveItems(); } catch (__) {}
+    }
+    const attentionSelect = document.getElementById('im-attention');
+    if (attentionSelect) attentionSelect.value = 'None';
 }
 
 // ------------------------------------------------------------
@@ -367,6 +405,12 @@ function imWireInvoiceValidationUI() {
 async function populateAttentionDropdown(choicesInstance, filterStatus = null, filterSite = null, allowOverrideSearch = false) {
     try {
         if (!choicesInstance) return;
+
+        // 11.1.5: No-attention statuses should not fetch/prepare approver choices.
+        if (typeof imShouldForceAttentionNoneForStatus === 'function' && imShouldForceAttentionNoneForStatus(filterStatus)) {
+            imClearAttentionToNone(choicesInstance);
+            return;
+        }
 
         // 1. Fetch Data (if missing)
         if (!allApproverData) {
