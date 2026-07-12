@@ -815,6 +815,91 @@ if (settingsVacationCheckbox) {
         });
     }
 
+
+    // 11.2.4: Shared Batch auto-attention helper.
+    // Restores the working routing rules that were accidentally weakened by the no-attention guard:
+    // For SRV = site-matched Site DC/Camp Boss, Report = GIO, CEO Approval = Hamad, In Process = COO.
+    const findBatchApproverName = (keyword, fallback = '') => {
+        const needle = String(keyword || '').toLowerCase().trim();
+        if (!needle || !allApproverData) return fallback || keyword;
+        for (const user of Object.values(allApproverData || {})) {
+            const n = String(user && user.Name ? user.Name : '').trim();
+            const p = String(user && user.Position ? user.Position : '').trim();
+            const hay = `${n} ${p}`.toLowerCase();
+            if (hay.includes(needle)) return n || fallback || keyword;
+        }
+        return fallback || keyword;
+    };
+
+    const applyBatchAutoAttentionForStatus = async (card, newStatus, options = {}) => {
+        if (!card || !card.choicesInstance) return;
+        const statusText = String(newStatus || '').trim();
+        const statusLower = statusText.toLowerCase();
+        const site = card.dataset ? (card.dataset.site || '') : '';
+        const allowPicker = options.allowPicker === true;
+
+        if (typeof imShouldForceAttentionNoneForStatus === 'function' && imShouldForceAttentionNoneForStatus(statusText)) {
+            if (typeof setBatchRowAttentionValue === 'function') setBatchRowAttentionValue(card, 'None', 'None (Clear Selection)');
+            else if (typeof imClearAttentionToNone === 'function') imClearAttentionToNone(card.choicesInstance);
+            if (typeof updateBatchRowAttentionButton === 'function') updateBatchRowAttentionButton(card);
+            return;
+        }
+
+        if (!allApproverData || Object.keys(allApproverData || {}).length === 0) {
+            try { if (typeof ensureApproverDataCached === 'function') await ensureApproverDataCached(true); } catch (_) {}
+            if (!allApproverData || Object.keys(allApproverData || {}).length === 0) {
+                try {
+                    const snap = await db.ref('approvers').once('value');
+                    allApproverData = snap.val() || allApproverData;
+                } catch (_) {}
+            }
+        }
+
+        // First populate the available choices for the selected status/site.
+        if (typeof populateAttentionDropdown === 'function') {
+            await populateAttentionDropdown(card.choicesInstance, statusText, site, true);
+        }
+
+        let autoAttention = '';
+        if (statusLower === 'report') {
+            autoAttention = findBatchApproverName('gio', 'GIO');
+        } else if (statusLower === 'ceo approval') {
+            autoAttention = findBatchApproverName('hamad', 'Hamad');
+        } else if (statusLower === 'in process') {
+            autoAttention = findBatchApproverName('coo', 'COO');
+        } else if (statusLower === 'for srv') {
+            let candidatesObj = [];
+            try {
+                const siteId = String(site || '').split('-')[0].trim().toLowerCase();
+                if (siteId && typeof getSiteMatchedAttentionCandidatesForSRV === 'function') {
+                    candidatesObj = getSiteMatchedAttentionCandidatesForSRV(siteId).filter(c => c && c.name && String(c.name).trim());
+                }
+            } catch (_) { candidatesObj = []; }
+
+            if (candidatesObj.length === 1) {
+                autoAttention = candidatesObj[0].name;
+            } else if (candidatesObj.length > 1 && allowPicker && typeof showCandidatePicker === 'function') {
+                autoAttention = await new Promise((resolve) => {
+                    showCandidatePicker(candidatesObj, 'Select Person for SRV', (selectedName) => resolve(selectedName || ''));
+                });
+            } else {
+                // For global For SRV with multiple candidates, do not guess.
+                // Leave the filtered Site DC/Camp Boss choices available for manual selection.
+                autoAttention = '';
+            }
+        }
+
+        if (autoAttention) {
+            if (typeof setBatchRowAttentionValue === 'function') setBatchRowAttentionValue(card, autoAttention);
+            else card.choicesInstance.setChoiceByValue(autoAttention);
+        } else if (statusLower === 'for srv') {
+            // Do not keep an old Hamad/GIO/COO selection when switching to For SRV.
+            try { if (typeof setBatchRowAttentionValue === 'function') setBatchRowAttentionValue(card, '', 'Select Attention'); } catch (_) {}
+        }
+
+        if (typeof updateBatchRowAttentionButton === 'function') updateBatchRowAttentionButton(card);
+    };
+
    if (batchTableBody) {
         // 1. CLICK LISTENER (Delete, Attention, IPC, FIVE)
         batchTableBody.addEventListener('click', (e) => {
@@ -862,88 +947,10 @@ if (settingsVacationCheckbox) {
 
         // 2. SMART FILTER & AUTO-ATTENTION LISTENER
         batchTableBody.addEventListener('change', async (e) => {
-            if (e.target.name === 'status') {
-                // Looks for the new card container instead of a tr
-                const row = e.target.closest('.batch-invoice-card') || e.target.closest('tr');
-                const newStatus = e.target.value;
-                const site = row.dataset.site;
-
-                // Find the Choices instance for this row
-                if (row.choicesInstance) {
-                    const currentSelection = row.choicesInstance.getValue(true);
-                    
-                    // Apply Smart Filter to update the dropdown options normally
-                    await populateAttentionDropdown(row.choicesInstance, newStatus, site, true);
-                    
-                    // ==========================================
-                    // --- NEW AUTO-ATTENTION LOGIC START ---
-                    // ==========================================
-                    let autoAttention = null;
-                    const statusLower = (newStatus || '').toLowerCase();
-                    
-                    // Helper to safely find the exact formatted name from your database
-                    const findName = (keyword) => {
-                        if (!allApproverData) return keyword; // fallback
-                        for (let user of Object.values(allApproverData)) {
-                            let n = user.Name || '';
-                            if (n.toLowerCase().includes(keyword.toLowerCase())) return n;
-                        }
-                        return keyword; 
-                    };
-
-                    if (statusLower === 'report') {
-                        autoAttention = findName('gio');
-                    } 
-                    else if (statusLower === 'ceo approval') {
-                        autoAttention = findName('hamad');
-                    } 
-                    // Checks for "In process" (or "For IPC" depending on what your dropdown says)
-                    else if (statusLower === 'in process' || statusLower === 'for ipc') {
-                        autoAttention = findName('ali');
-                    } 
-                   else if (statusLower === 'for srv') {
-    // Get candidates as objects { name, position }
-    let candidatesObj = [];
-    if (allApproverData && site) {
-        const siteId = (site || '').split('-')[0].trim().toLowerCase();
-        if (siteId) {
-            candidatesObj = getSiteMatchedAttentionCandidatesForSRV(siteId);
-            // Filter out any invalid objects
-            candidatesObj = candidatesObj.filter(c => c && c.name && c.name.trim().length > 0);
-        }
-    }
-    // Extract names array for quick checks
-    const candidateNames = candidatesObj.map(c => c.name);
-    
-    if (candidateNames.length === 1) {
-        autoAttention = candidateNames[0];
-    } else if (candidateNames.length > 1) {
-        // Use the same showCandidatePicker (already handles objects)
-        const selected = await new Promise((resolve) => {
-            showCandidatePicker(candidatesObj, 'Select Person for SRV', (selectedName) => {
-                resolve(selectedName);
-            });
-        });
-        autoAttention = selected || findName('irwin');
-    } else {
-        autoAttention = findName('irwin');
-    }
-}
-
-                    // Apply the Auto-Attention if a rule matched, otherwise restore previous selection
-                    if (autoAttention) {
-                        setBatchRowAttentionValue(row, autoAttention);
-                    } else if (currentSelection) {
-                        row.choicesInstance.setChoiceByValue(currentSelection);
-                    }
-                    // ==========================================
-                    // --- NEW AUTO-ATTENTION LOGIC END ---
-                    // ==========================================
-                }
-                
-                // Keep the UI button label updated
-                updateBatchRowAttentionButton(row);
-            }
+            if (e.target.name !== 'status') return;
+            const row = e.target.closest('.batch-invoice-card') || e.target.closest('tr');
+            if (!row) return;
+            await applyBatchAutoAttentionForStatus(row, e.target.value, { allowPicker: true });
         });
     }
    
@@ -1089,38 +1096,13 @@ if (imBatchGlobalAttention) {
     if (imBatchGlobalStatus) {
         imBatchGlobalStatus.addEventListener('change', (e) => {
             const newValue = e.target.value;
-            // 💡 FIX: Now targets the new cards instead of old table rows
-            const cards = document.getElementById('im-batch-table-body').querySelectorAll('.batch-invoice-card');
-            
+            const body = document.getElementById('im-batch-table-body');
+            const cards = body ? body.querySelectorAll('.batch-invoice-card') : [];
+
             cards.forEach(async (card) => {
-                // 1. Update the status dropdown value
                 const statusSelect = card.querySelector('select[name="status"]');
                 if (statusSelect) statusSelect.value = newValue;
-
-                // 2. Re-run the filter logic for this card
-                if (card.choicesInstance) {
-                    const site = card.dataset.site; // Get site from card data
-                    const noAttentionStatus = (typeof imShouldForceAttentionNoneForStatus === 'function')
-                        ? imShouldForceAttentionNoneForStatus(newValue)
-                        : (newValue === 'Under Review' || newValue === 'With Accounts');
-
-                    if (noAttentionStatus) {
-                        if (typeof setBatchRowAttentionValue === 'function') setBatchRowAttentionValue(card, 'None', 'None (Clear Selection)');
-                        else if (typeof imClearAttentionToNone === 'function') imClearAttentionToNone(card.choicesInstance);
-                    } else {
-                        const currentSelection = card.choicesInstance.getValue(true);
-
-                        // Apply filter (e.g., if "For SRV", show only Site DCs for this site)
-                        await populateAttentionDropdown(card.choicesInstance, newValue, site, true);
-
-                        // Restore previous selection if they are still allowed
-                        if (currentSelection && currentSelection !== 'None') {
-                            card.choicesInstance.setChoiceByValue(currentSelection);
-                        }
-                    }
-                }
-
-                updateBatchRowAttentionButton(card);
+                await applyBatchAutoAttentionForStatus(card, newValue, { allowPicker: false });
             });
         });
     }

@@ -1,4 +1,5 @@
 // js/app-attention-validation.js
+// Version 11.2.4 — Restore Batch/Invoice automatic Attention routing while preserving no-attention statuses.
 // Moved from app.js in v8.2.3 (cleanup only).
 // Public function names preserved for existing app.js listeners and inline handlers.
 
@@ -78,7 +79,8 @@ async function autoSetAttentionForStatus(status, siteCode, choicesInstance) {
     if (st === 'ceo approval') {
         targetName = findPersonByKeyword('hamad', true);
     } else if (st === 'in process') {
-        targetName = findPersonByKeyword('e.ali', true);
+        // 11.2.4: In Process should route to COO (not the old E.Ali fallback).
+        targetName = findPersonByKeyword('coo', true);
     } else if (st === 'report') {
         targetName = findPersonByKeyword('gio', true);
     } else if (st === 'for srv') {
@@ -458,6 +460,11 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
                     case 'CEO Approval':
                         validPositions = ['CEO'];
                         break;
+
+                    case 'In Process':
+                        // 11.2.4: In Process should suggest COO first/only.
+                        validPositions = ['COO'];
+                        break;
                         
                     case 'Report':
                         // Report should suggest Accounts users (GIO first)
@@ -530,6 +537,7 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
 
                     if (r === 'admin') return userPos.includes('admin');
                     if (r === 'accounts' || r === 'account') return userPos.includes('account');
+                    if (r === 'coo') return userPos.includes('coo') || userPos.includes('chief operating');
                     if (r === 'camp boss') return userPos.includes('camp') && userPos.includes('boss');
                     if (r === 'site dc') return userPos.includes('site') && userPos.includes('dc');
 

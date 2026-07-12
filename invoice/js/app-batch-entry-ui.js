@@ -1,5 +1,5 @@
 // js/app-batch-entry-ui.js
-// Version 11.1.5 — Note index light mode + no-attention status guard.
+// Version 11.2.4 — Note index light mode + no-attention status guard; do not override Batch auto-attention routing.
 // Cleanup only: public function names preserved; save/write logic remains in app.js.
 
 function updateBatchRowAttentionButton(row) {
@@ -978,7 +978,9 @@ function autoFillSummarySrvIfWithAccounts() {
 }
 
 // Watch for manual Batch Entry row status changes.
-// 11.1.5: no-attention statuses immediately clear Attention to None and avoid approver filtering.
+// 11.2.4: this guard only clears Attention for true no-attention statuses.
+// Do NOT repopulate normal status attention here, because app-im-event-wiring owns
+// the Batch auto-routing rules: For SRV site person, Report=GIO, CEO Approval=Hamad, In Process=COO.
 document.addEventListener('change', (e) => {
     const statusEl = e.target && e.target.matches ? (e.target.matches('.batch-invoice-card select[name="status"]') ? e.target : null) : null;
     if (!statusEl) return;
@@ -987,15 +989,7 @@ document.addEventListener('change', (e) => {
     const statusValue = statusEl.value;
     if (typeof imShouldForceAttentionNoneForStatus === 'function' && imShouldForceAttentionNoneForStatus(statusValue)) {
         if (typeof setBatchRowAttentionValue === 'function') setBatchRowAttentionValue(row, 'None', 'None (Clear Selection)');
-        return;
-    }
-    if (row.choicesInstance && typeof populateAttentionDropdown === 'function') {
-        const site = row.dataset.site || null;
-        Promise.resolve(populateAttentionDropdown(row.choicesInstance, statusValue, site, true))
-            .then(() => updateBatchRowAttentionButton(row))
-            .catch(() => updateBatchRowAttentionButton(row));
-    } else {
-        updateBatchRowAttentionButton(row);
+        if (typeof updateBatchRowAttentionButton === 'function') updateBatchRowAttentionButton(row);
     }
 });
 
