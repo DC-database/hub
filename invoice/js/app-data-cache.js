@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-data-cache.js
    IBA shared local cache, CSV fetchers/parsers, and Firebase data loaders.
-   Version: 11.1.2
+   Version: 11.1.3
 
    Cleanup Phase:
    - Moved Block 06 out of app.js intact.
