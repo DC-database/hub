@@ -1,5 +1,5 @@
 {
-  "version": "11.1.9",
-  "title": "WorkDesk Dashboard Stable Count Refresh",
-  "message": "Prevents repeated WorkDesk/Dashboard background refresh from clearing status-card counts to dash while preserving Invoice Note Index light mode."
+  "version": "11.2.0",
+  "title": "WorkDesk Fetch Storm Stopper",
+  "message": "Stops duplicate WorkDesk job_entries/approver fetch storms during Dashboard startup while preserving stable counts and Invoice Note Index light mode."
 }

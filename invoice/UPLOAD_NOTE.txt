@@ -1,22 +1,16 @@
-IBA System Patch 11.1.9 - WorkDesk Dashboard Stable Count Refresh
+IBA System Patch 11.2.0 - WorkDesk Fetch Storm Stopper
 
-Upload only these files:
+UPLOAD ONLY THESE FILES:
 - app.js
 - index.html
 - version.json
 - js/app-data-cache.js
-- js/app-workdesk-dashboard.js
 
 Purpose:
-- Fix WorkDesk Dashboard status cards flashing/resetting from a real count like 3 to dash/blank during background refresh.
-- Stop repeated live/force refresh events from clearing the verified Dashboard count cache.
-- Debounce Dashboard live-sync events so Active Task/Job Entry updates do not rebuild the board every few seconds.
-- Keep 11.1.7/11.1.8 Invoice Note Index light-mode behavior.
+- Stop duplicate WorkDesk job_entries reads during Dashboard/Job Entry startup.
+- Add in-flight guard so simultaneous WorkDesk reload calls share one Firebase read.
+- Throttle repeated approver cache refresh calls.
+- Preserve Invoice Note Index light mode and 11.1.9 stable Dashboard counts.
 
-Test after upload:
-1. Hard refresh Chrome (Ctrl+F5).
-2. Open WorkDesk > Dashboard.
-3. Watch the status cards for 1 minute. Counts should stay stable and not reset to dash every few seconds.
-4. Console should not repeatedly show Loading Data for Workdesk / POVALUE2 force loop every few seconds.
-
-WorkDesk/Inventory business logic unchanged; this is a refresh/cache guard only.
+After upload: Ctrl+F5, open WorkDesk Dashboard, watch console for 1 minute.
+Expected: Loading Data for Workdesk should appear once during opening, not repeatedly every few seconds.
