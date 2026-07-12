@@ -1,5 +1,5 @@
 // js/app-batch-entry-ui.js
-// Version 10.7.7 — Batch Entry UI/search helpers + invoice theme contrast cleanup.
+// Version 11.1.4 — Batch Entry note suggestions use invoice_note_index instead of full invoice download.
 // Cleanup only: public function names preserved; save/write logic remains in app.js.
 
 function updateBatchRowAttentionButton(row) {
@@ -530,14 +530,67 @@ async function handleBatchGlobalSearch(searchType) {
         sessionStorage.removeItem('imBatchSearch');
     }
 
-    if (!confirm(`This will scan all locally cached invoices.\n\nContinue searching for all invoices with ${searchType} "${finalSearchTerm}"?`)) return;
+    const searchMessage = (searchType === 'status')
+        ? `This will search the lightweight active-task index and exact-read only matching invoices.\n\nContinue searching for status "${finalSearchTerm}"?`
+        : `This note search may need the full invoice cache if the note index has no matching invoice references yet.\n\nContinue searching for note "${finalSearchTerm}"?`;
+    if (!confirm(searchMessage)) return;
 
     batchPOInput.disabled = true;
     const originalPlaceholder = batchPOInput.placeholder;
-    batchPOInput.placeholder = 'Searching local cache...';
+    batchPOInput.placeholder = (searchType === 'status') ? 'Searching active index...' : 'Searching local cache...';
     if (imBatchNoteSearchChoices) imBatchNoteSearchChoices.disable();
 
     try {
+        // 11.1.4: Daily Batch status searches should not download full invoice_entries.
+        // Use the lightweight active index, then exact-read only matched invoice records.
+        if (searchType === 'status') {
+            if (typeof ensureInvoicePOBaseDataFetched === 'function') {
+                await ensureInvoicePOBaseDataFetched(false);
+            }
+            const statusNeedle = String(finalSearchTerm || '').trim().toLowerCase();
+            const indexSnap = await invoiceDb.ref('invoice_tasks_by_user/All').once('value');
+            const taskIndex = indexSnap.val() || {};
+            const matchedTasks = Object.entries(taskIndex).filter(([key, task]) => {
+                const st = String((task && (task.status || task.remarks)) || '').trim().toLowerCase();
+                return st === statusNeedle;
+            });
+
+            let invoicesFound = 0;
+            const promises = matchedTasks.map(async ([indexKey, task]) => {
+                const poNumber = String(task.originalPO || task.po || task.po_number || '').trim().toUpperCase();
+                const key = String(task.invoiceKey || task.originalKey || task.key || indexKey || '').trim();
+                if (!poNumber || !key) return;
+
+                let inv = null;
+                try {
+                    const exactSnap = await invoiceDb.ref(`invoice_entries/${poNumber}/${key}`).once('value');
+                    inv = exactSnap.val() || null;
+                    if (inv) {
+                        if (!allInvoiceData) allInvoiceData = {};
+                        if (!allInvoiceData[poNumber]) allInvoiceData[poNumber] = {};
+                        allInvoiceData[poNumber][key] = { ...inv, key };
+                        if (window.__invoiceEntriesFullLoaded !== true) window.__invoiceEntriesFullLoaded = false;
+                    }
+                } catch (exactErr) {
+                    console.warn('Batch status search exact invoice read failed for', poNumber, key, exactErr);
+                }
+                if (!inv) inv = task || {};
+
+                const poData = (allPOData && allPOData[poNumber]) ? allPOData[poNumber] : {};
+                const site = normalizeNameText(inv.site || inv.site_name || inv.siteName || task.site || poData['Project ID'] || poData['Project ID:'] || 'N/A');
+                const vendor = normalizeNameText(inv.vendor || inv.vendor_name || inv.vendorName || task.vendorName || poData['Supplier Name'] || poData['Supplier Name:'] || poData['Supplier'] || poData['Supplier:'] || 'N/A');
+                invoicesFound++;
+                return addInvoiceToBatchTable({ key, po: poNumber, site, vendor, ...inv });
+            });
+
+            await Promise.all(promises);
+            if (invoicesFound === 0) alert(`No active invoices found with status "${finalSearchTerm}".`);
+            else alert(`Added ${invoicesFound} invoice(s) to the batch list.`);
+            return;
+        }
+
+        // Note search keeps legacy full-cache behavior only when user intentionally clicks Search by Note.
+        // Opening Batch Entry / Summary Note no longer reaches this path.
         await ensureInvoiceDataFetched();
         const allPOs = allPOData, allInvoicesByPO = allInvoiceData;
         let invoicesFound = 0;
@@ -548,11 +601,8 @@ async function handleBatchGlobalSearch(searchType) {
                 const inv = invoices[key];
                 const site = normalizeNameText(inv.site || inv.site_name || inv.siteName || poData['Project ID'] || poData['Project ID:'] || 'N/A');
                 const vendor = normalizeNameText(inv.vendor || inv.vendor_name || inv.vendorName || poData['Supplier Name'] || poData['Supplier Name:'] || poData['Supplier'] || poData['Supplier:'] || 'N/A');
-                
                 let isMatch = false;
-                if (searchType === 'status' && inv.status && inv.status.toLowerCase() === finalSearchTerm.toLowerCase()) isMatch = true;
-                else if (searchType === 'note' && inv.note && inv.note === finalSearchTerm) isMatch = true;
-
+                if (searchType === 'note' && inv.note && inv.note === finalSearchTerm) isMatch = true;
                 if (isMatch) {
                     invoicesFound++;
                     promises.push(addInvoiceToBatchTable({ key, po: poNumber, site, vendor, ...inv }));
@@ -570,6 +620,7 @@ async function handleBatchGlobalSearch(searchType) {
         batchPOInput.placeholder = originalPlaceholder;
         if (imBatchNoteSearchChoices) imBatchNoteSearchChoices.enable();
     }
+
 }
 
 
@@ -807,20 +858,21 @@ async function handleAddSelectedToBatch() {
 
 
 async function initializeNoteSuggestions() {
-    if (allUniqueNotes.size > 0) {
-        noteSuggestionsDatalist.innerHTML = '';
-        const sortedNotes = Array.from(allUniqueNotes).sort();
-        sortedNotes.forEach(note => {
-            const option = document.createElement('option');
-            option.value = note;
-            noteSuggestionsDatalist.appendChild(option);
-        });
-        return;
-    }
+    // 11.1.4: Summary Note datalist must not call ensureInvoiceDataFetched(),
+    // because that downloads the full invoice_entries tree just to collect notes.
+    // Load the small invoice_note_index + browser note cache instead.
     try {
-        await ensureInvoiceDataFetched();
+        if (typeof loadInvoiceNoteIndex === 'function') {
+            await loadInvoiceNoteIndex(false);
+        }
+
         noteSuggestionsDatalist.innerHTML = '';
-        const sortedNotes = Array.from(allUniqueNotes).sort();
+        const sortedNotes = Array.from(allUniqueNotes || [])
+            .map(note => String(note || '').replace(/ /g, ' ').trim())
+            .filter(Boolean)
+            .filter((value, index, arr) => arr.indexOf(value) === index)
+            .sort((a, b) => a.localeCompare(b));
+
         sortedNotes.forEach(note => {
             const option = document.createElement('option');
             option.value = note;
@@ -872,15 +924,17 @@ async function populateNoteDropdown(choicesInstance) {
 
     choicesInstance.setChoices([{ value: '', label: 'Loading note suggestions...', disabled: true }], 'value', 'label', true);
     try {
-        // 10.5.4: Fast direct-PO searches can leave allInvoiceData as a partial cache.
-        // For the Search Note dropdown, force the proper full-note list when needed.
-        await ensureInvoiceDataFetched(false);
-        applyNoteChoices(allUniqueNotes);
+        // 11.1.4: Load only the small invoice_note_index / local note cache.
+        // Do not call ensureInvoiceDataFetched() here; that caused full invoice_entries downloads on page open.
+        if (typeof loadInvoiceNoteIndex === 'function') {
+            await loadInvoiceNoteIndex(false);
+        }
+        applyNoteChoices(allUniqueNotes || new Set());
     } catch (error) {
         console.error("Error populating note dropdown:", error);
         choicesInstance.setChoices([{
             value: '',
-            label: 'Error loading notes. Try Refresh Data.',
+            label: 'Error loading notes. Try again.',
             disabled: true
         }], 'value', 'label', true);
     }

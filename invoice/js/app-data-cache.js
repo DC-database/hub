@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-data-cache.js
    IBA shared local cache, CSV fetchers/parsers, and Firebase data loaders.
-   Version: 11.1.3
+   Version: 11.1.4
 
    Cleanup Phase:
    - Moved Block 06 out of app.js intact.
@@ -129,6 +129,156 @@ try {
     window.refreshPOVALUE2CsvNow = function(reason) { return imRefreshPOVALUE2CsvNowInternal(reason || 'manual', { force: true }); };
     window.clearPOVALUE2MemoryCache = clearPOVALUE2MemoryCache;
     window.__ibaHasPOVALUE2MemoryIndex = hasPOVALUE2MemoryIndex;
+} catch (_) {}
+
+
+// 11.1.4: Invoice Management note suggestions must not scan full invoice_entries.
+// Use a tiny Firebase index + browser cache for Summary Note / Batch Entry note pickers.
+const IM_NOTE_INDEX_PATH = 'invoice_note_index';
+const IM_NOTE_INDEX_CACHE_KEY = 'cached_INVOICE_NOTE_INDEX';
+const IM_NOTE_INDEX_CACHE_MS = 12 * 60 * 60 * 1000; // 12 hours: notes are not high-frequency data.
+const IM_NOTE_INDEX_LIMIT = 500; // Small list only; avoids large Firebase downloads.
+
+function imNormalizeInvoiceNoteText(note) {
+    return String(note == null ? '' : note).replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function imNoteIndexHash(text) {
+    const str = String(text || '');
+    let hash = 5381;
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) + hash) + str.charCodeAt(i);
+        hash = hash >>> 0;
+    }
+    return hash.toString(36);
+}
+
+function imNoteIndexKey(note) {
+    const normalized = imNormalizeInvoiceNoteText(note).toLowerCase();
+    const slug = normalized
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .substring(0, 44) || 'note';
+    return `${slug}_${imNoteIndexHash(normalized)}`;
+}
+
+function imApplyNoteIndexToMemory(indexData) {
+    try {
+        if (typeof allUniqueNotes === 'undefined' || !allUniqueNotes) allUniqueNotes = new Set();
+        const list = Array.isArray(indexData)
+            ? indexData
+            : Object.values(indexData || {});
+        list.forEach(item => {
+            const text = imNormalizeInvoiceNoteText((item && typeof item === 'object') ? (item.text || item.note || '') : item);
+            if (text) allUniqueNotes.add(text);
+        });
+    } catch (_) {}
+}
+
+function imReadLocalNoteIndex() {
+    try {
+        const cache = getCache(IM_NOTE_INDEX_CACHE_KEY);
+        if (cache && cache.data) {
+            imApplyNoteIndexToMemory(cache.data);
+            return { data: cache.data, isStale: cache.isStale };
+        }
+    } catch (_) {}
+    return null;
+}
+
+function imWriteLocalNoteIndexFromSet() {
+    try {
+        const notes = Array.from(allUniqueNotes || [])
+            .map(imNormalizeInvoiceNoteText)
+            .filter(Boolean)
+            .slice(-IM_NOTE_INDEX_LIMIT)
+            .map(text => ({ text, lastUsedAt: Date.now(), localOnly: true }));
+        setCache(IM_NOTE_INDEX_CACHE_KEY, notes);
+    } catch (_) {}
+}
+
+async function loadInvoiceNoteIndex(forceRefresh = false) {
+    // Always make local cached notes available first so the UI opens fast.
+    const local = imReadLocalNoteIndex();
+    if (!forceRefresh && local && !local.isStale && allUniqueNotes && allUniqueNotes.size > 0) {
+        return allUniqueNotes;
+    }
+
+    if (window.ibaShouldUseCacheOnly && window.ibaShouldUseCacheOnly('load-invoice-note-index', true)) {
+        return allUniqueNotes || new Set();
+    }
+    if (window.ibaShouldPauseFirebase && window.ibaShouldPauseFirebase('load-invoice-note-index', true)) {
+        return allUniqueNotes || new Set();
+    }
+
+    try {
+        if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) {
+            return allUniqueNotes || new Set();
+        }
+        const snap = await invoiceDb.ref(IM_NOTE_INDEX_PATH)
+            .orderByChild('lastUsedAt')
+            .limitToLast(IM_NOTE_INDEX_LIMIT)
+            .once('value');
+        const data = snap.val() || {};
+        imApplyNoteIndexToMemory(data);
+        try { setCache(IM_NOTE_INDEX_CACHE_KEY, data); } catch (_) {}
+        return allUniqueNotes || new Set();
+    } catch (error) {
+        console.warn('Invoice note index could not be loaded. Using local note cache only.', error);
+        return allUniqueNotes || new Set();
+    }
+}
+
+async function saveInvoiceNoteToIndex(note, meta = {}) {
+    const text = imNormalizeInvoiceNoteText(note);
+    if (!text) return false;
+
+    try {
+        if (typeof allUniqueNotes === 'undefined' || !allUniqueNotes) allUniqueNotes = new Set();
+        allUniqueNotes.add(text);
+        imWriteLocalNoteIndexFromSet();
+    } catch (_) {}
+
+    if (window.ibaShouldUseCacheOnly && window.ibaShouldUseCacheOnly('save-invoice-note-index', false)) return true;
+    if (window.ibaShouldPauseFirebase && window.ibaShouldPauseFirebase('save-invoice-note-index', false)) return true;
+
+    try {
+        if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) return true;
+        const key = imNoteIndexKey(text);
+        const now = Date.now();
+        const ref = invoiceDb.ref(`${IM_NOTE_INDEX_PATH}/${key}`);
+        await ref.transaction(current => {
+            const existing = (current && typeof current === 'object') ? current : {};
+            const count = Number(existing.count || 0) + 1;
+            const next = {
+                ...existing,
+                text,
+                count,
+                lastUsedAt: (typeof firebase !== 'undefined' && firebase.database && firebase.database.ServerValue)
+                    ? firebase.database.ServerValue.TIMESTAMP
+                    : now,
+                lastPO: meta.po || meta.poNumber || existing.lastPO || '',
+                lastInvoiceKey: meta.invoiceKey || meta.key || existing.lastInvoiceKey || '',
+                lastStatus: meta.status || existing.lastStatus || '',
+                lastSource: meta.source || existing.lastSource || 'invoice-management'
+            };
+            // Keep one small reference for future troubleshooting/search without copying full invoice data.
+            if (meta.po || meta.invoiceKey) {
+                next.lastRef = `${meta.po || ''}${meta.invoiceKey ? '/' + meta.invoiceKey : ''}`;
+            }
+            return next;
+        });
+        return true;
+    } catch (error) {
+        console.warn('Invoice note index update skipped. Invoice save is still safe.', error);
+        return false;
+    }
+}
+
+try {
+    window.loadInvoiceNoteIndex = loadInvoiceNoteIndex;
+    window.saveInvoiceNoteToIndex = saveInvoiceNoteToIndex;
+    window.imNormalizeInvoiceNoteText = imNormalizeInvoiceNoteText;
 } catch (_) {}
 
 function loadDataFromLocalStorage() {
