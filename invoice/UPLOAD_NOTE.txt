@@ -1,18 +1,22 @@
-IBA 11.2.2 - Retention Invoice Value Auto-Zero Patch
+IBA 11.2.3 - Invoice Entry Active Jobs Side Panel Guard
 
-Upload only these files:
+Upload these files:
 - app.js
 - index.html
 - version.json
+- js/app-data-cache.js
+- js/app-workdesk-dashboard.js
+- js/app-invoice-entry-search.js
 
 Purpose:
-- Invoice Entry modal: when Invoice No. contains "Retention", Value becomes 0.00 automatically.
-- Amt Paid is not changed or cleared.
-- Save/update also enforces invValue = 0 for retention invoice numbers.
-- Includes all previous 11.2.1 WorkDesk Dashboard stability fixes because this patch is based on 11.2.1.
+- Stop Invoice Entry Active Jobs side panel from trying forbidden legacy /Job_Entries path.
+- Use only /job_entries for active WorkDesk invoice job entries.
+- Prevent PO search fallback from calling ensureInvoiceDataFetched(), which downloads full invoice_entries.
+- Keep 11.2.2 Retention invoice value auto-zero.
+- Keep 11.2.1 WorkDesk Dashboard no-blank/stable count guard.
 
 After upload:
 - Hard refresh Chrome (Ctrl + F5).
-- Open Invoice Entry modal.
-- Type Retention in Invoice No.
-- Confirm Value becomes 0.00 and Amt Paid stays as typed.
+- Open Invoice Entry.
+- Check console: the /Job_Entries permission_denied warning should stop.
+- Full invoice_entries warning should not appear from opening/searching Invoice Entry side panel.
