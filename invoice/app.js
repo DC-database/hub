@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '11.1.4';
+const APP_VERSION = '11.1.5';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -3619,7 +3619,7 @@ async function handleSaveModifiedTask() {
         } catch (e) { /* ignore */ }
     }
 
-    if (updates.status === 'Under Review' || updates.status === 'With Accounts') {
+    if (source === 'invoice' && imStatusUsesNoAttention(updates.status)) {
         updates.attention = '';
     }
 
@@ -4172,6 +4172,28 @@ async function updateLinkedJobEntry(poNumber, invoiceKey, newStatus, note = '') 
 
 
 
+
+// 11.1.5: Invoice statuses below are record/holding/final statuses.
+// They should always save with Attention = None/blank so they do not create personal active tasks.
+function imStatusUsesNoAttention(statusValue) {
+    const st = String(statusValue || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    return [
+        'under review',
+        'for summary',
+        'with accounts',
+        'pending',
+        'report approved',
+        'on hold'
+    ].includes(st);
+}
+
+function imApplyInvoiceAttentionRule(invoiceData) {
+    if (invoiceData && imStatusUsesNoAttention(invoiceData.status || invoiceData.remarks)) {
+        invoiceData.attention = '';
+    }
+    return invoiceData;
+}
+
 function buildInvoiceReportNameForSave(poNumber, invoiceData = {}, fallbackInvoiceData = {}) {
     try {
         const po = normalizeNameText(poNumber || invoiceData.po_number || fallbackInvoiceData.po_number || 'PO');
@@ -4218,12 +4240,10 @@ async function handleAddInvoice(e) {
     invoiceData.attention = (attentionValue === 'None') ? '' : attentionValue;
 
     // Handle status-based clearing
-    if (invoiceData.status === 'Under Review' || invoiceData.status === 'With Accounts') {
-        invoiceData.attention = '';
-    }
+    imApplyInvoiceAttentionRule(invoiceData);
 
     // --- NEW: STRICT VALIDATION ---
-    const isAttentionRequired = (invoiceData.status !== 'Under Review' && invoiceData.status !== 'With Accounts');
+    const isAttentionRequired = !imStatusUsesNoAttention(invoiceData.status);
 
     if (!invoiceData.invNumber || !invoiceData.invValue || !invoiceData.invoiceDate || !invoiceData.status) {
         alert("Please fill in all highlighted fields:\n- Invoice No.\n- Invoice Value\n- Invoice Date\n- Status");
@@ -4449,9 +4469,7 @@ async function handleUpdateInvoice(e) {
     let attentionValue = imAttentionSelectChoices.getValue(true);
     invoiceData.attention = (attentionValue === 'None') ? '' : attentionValue;
 
-    if (invoiceData.status === 'Under Review' || invoiceData.status === 'With Accounts') {
-        invoiceData.attention = '';
-    }
+    imApplyInvoiceAttentionRule(invoiceData);
 
     const originalInvoiceData = currentPOInvoices[currentlyEditingInvoiceKey];
     const newStatus = invoiceData.status;
@@ -5013,7 +5031,7 @@ async function handleSaveBatchInvoices() {
         if (batchGlobalAttention) invoiceData.attention = batchGlobalAttention;
 
         if (invoiceData.attention === 'None') invoiceData.attention = '';
-        if (invoiceData.status === 'Under Review' || invoiceData.status === 'With Accounts') invoiceData.attention = '';
+        imApplyInvoiceAttentionRule(invoiceData);
 
         try {
             const n = (invoiceData.note || '').replace(/\u00A0/g, ' ').trim();
@@ -5546,7 +5564,7 @@ async function handleUpdateSummaryChanges(sendToAccounts = false) {
                     updates.srvName = newGlobalSRV;
                 }
 
-                if (newGlobalStatus === 'With Accounts') updates.attention = '';
+                if (imStatusUsesNoAttention(newGlobalStatus)) updates.attention = '';
 
                 const statusChangedForSummaryHistory = !!(newGlobalStatus && newGlobalStatus !== originalStatus);
                 const updatePromise = invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}`).update(updates);

@@ -1,24 +1,43 @@
-IBA 11.1.4 — Invoice Management Note Index Light Mode
+IBA 11.1.5 — Invoice Status Attention None Patch
 
-Upload these changed files only:
-1) app.js
-2) index.html
-3) version.json
-4) js/app-data-cache.js
-5) js/app-batch-entry-ui.js
+UPLOAD THESE FILES/FOLDERS ONLY:
+- app.js
+- index.html
+- version.json
+- js/app-data-cache.js
+- js/app-batch-entry-ui.js
+- js/app-attention-validation.js
+- js/app-im-event-wiring.js
+- js/app-invoice-entry-search.js
 
-Purpose:
-- Batch Entry and Summary Note note suggestions now use the small invoice_note_index folder + browser cache.
-- Opening Batch Entry / Summary Note must no longer call ensureInvoiceDataFetched() just to collect notes.
-- Batch Entry status search now uses invoice_tasks_by_user/All active index, then exact-reads only matching invoices.
-- Batch Entry save no longer full-downloads invoice_entries; it loads CSV/base data and exact-reads missing selected invoices only.
-- Summary Note update no longer re-downloads all invoice_entries; it exact-reads missing visible rows only.
+WHAT CHANGED:
+1) Invoice Entry Quick Access side panel now includes "For Summary".
+2) Invoice status Attention=None/blank rule expanded for:
+   - Under Review
+   - For Summary
+   - With Accounts
+   - Pending
+   - Report Approved
+   - On Hold
+3) These statuses are treated as no-attention statuses in:
+   - Invoice Entry add/update save
+   - Invoice Entry modal status change / quick buttons
+   - Invoice Entry form loading
+   - Batch Entry row/global status changes
+   - Batch Entry save
+   - Summary Note status updates
+4) Keeps 11.1.4 note index light mode:
+   - Note suggestions use invoice_note_index/browser cache.
+   - Opening Batch Entry/Summary Note should not full-download invoice_entries for notes.
 
-Firebase rule required and already added by user:
-"invoice_note_index": {
-  ".read": true,
-  ".write": true,
-  ".indexOn": ["lastUsedAt", "count", "text"]
-}
+NOT TOUCHED:
+- WorkDesk dashboard logic
+- Inventory logic
 
-WorkDesk and Inventory files were not touched.
+AFTER UPLOAD:
+1) Hard refresh Chrome.
+2) Open Invoice Entry.
+3) Click For Summary quick access.
+4) Attention should become None/blank and should not be required.
+5) Test the same for Pending, On Hold, Report Approved, Under Review, With Accounts.
+6) Open Batch Entry/Summary Note and confirm no full invoice_entries warning appears just from opening note suggestions.

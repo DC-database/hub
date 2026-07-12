@@ -1,12 +1,9 @@
-After uploading 11.1.4:
+This patch is cumulative from 11.1.4 and adds the requested Invoice Management status/attention behavior.
 
-1) Hard refresh Chrome.
-2) Open Batch Entry.
-3) Open Summary Note.
-4) Confirm this warning does NOT appear during page open:
-   [IBA Firebase Download] Full invoice_entries read requested by ensureInvoiceDataFetched()
+For Summary was added only to the Invoice Entry Quick Access side panel.
+The status dropdown already had For Summary.
 
-Important:
-- Searching by status in Batch Entry should use the light active index.
-- Searching by note may still use the old full-cache search only when you intentionally press Search by Note; page opening and note dropdown suggestions should not.
-- New notes will be saved into invoice_note_index as you save/update invoices.
+No-attention statuses now save Attention blank/None:
+Under Review, For Summary, With Accounts, Pending, Report Approved, On Hold.
+
+This prevents these statuses from creating personal active-task routing by mistake.

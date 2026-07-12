@@ -1,6 +1,6 @@
 {
-  "version": "11.1.4",
-  "title": "Invoice Note Index Light Mode",
-  "message": "Batch Entry and Summary Note now load note suggestions from invoice_note_index/browser cache instead of scanning full invoice_entries. Batch save and Summary update use CSV/base data plus exact selected invoice reads only.",
+  "version": "11.1.5",
+  "title": "Invoice Status Attention None Patch",
+  "message": "Adds For Summary to Invoice Entry Quick Access and forces Under Review, For Summary, With Accounts, Pending, Report Approved, and On Hold to save with Attention = None/blank. Keeps 11.1.4 note-index light mode; WorkDesk and Inventory are not changed.",
   "createdAt": "2026-07-12"
 }
