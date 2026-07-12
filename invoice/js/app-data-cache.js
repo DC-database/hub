@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-data-cache.js
    IBA shared local cache, CSV fetchers/parsers, and Firebase data loaders.
-   Version: 11.1.6
+   Version: 11.1.8
 
    Cleanup Phase:
    - Moved Block 06 out of app.js intact.
@@ -56,6 +56,9 @@ function getCache(key) {
 // Keep one in-flight request, reuse memory cache, and throttle automatic refreshes.
 const IM_ALWAYS_REFRESH_POVALUE2_CSV = false; // legacy flag kept for compatibility; do not force every caller.
 const IM_POVALUE2_AUTO_REFRESH_MIN_MS = 10 * 60 * 1000; // 10 minutes minimum between automatic CSV refreshes.
+// 11.1.8: Some legacy WorkDesk/Job Entry paths call public force refresh repeatedly.
+// Treat repeated force calls as unsafe unless the memory cache is missing or the cooldown has passed.
+const IM_POVALUE2_FORCE_REFRESH_MIN_MS = 10 * 60 * 1000;
 window.__imPOVALUE2InFlight = null;
 window.__imLastPOVALUE2RefreshAt = window.__imLastPOVALUE2RefreshAt || 0;
 // 11.1.2: Internal function name is intentionally different from window.refreshPOVALUE2CsvNow
@@ -70,12 +73,21 @@ function hasPOVALUE2MemoryIndex() {
 }
 
 function shouldRefreshPOVALUE2Csv(forceRefresh = false, reason = '') {
-    if (forceRefresh) return true;
-    if (!hasPOVALUE2MemoryIndex()) return true;
     const now = Date.now();
     const last = Number(window.__imLastPOVALUE2RefreshAt || (cacheTimestamps && cacheTimestamps.poData) || 0);
-    // Dashboard/invoice lookup may call this often. Reuse the indexed CSV unless the
-    // automatic refresh gap has passed. Manual force-refresh still bypasses this.
+    if (!hasPOVALUE2MemoryIndex()) return true;
+
+    // 11.1.8: protect WorkDesk/Dashboard from repeated legacy force refresh calls.
+    // A caller saying "force" every few seconds must not redownload the 39k PO CSV each time.
+    if (forceRefresh) {
+        const age = now - last;
+        if (age < IM_POVALUE2_FORCE_REFRESH_MIN_MS) {
+            return false;
+        }
+        return true;
+    }
+
+    // Dashboard/invoice lookup may call this often. Reuse the indexed CSV.
     if (now - last < IM_POVALUE2_AUTO_REFRESH_MIN_MS) return false;
     return false; // keep automatic Dashboard refresh from reloading CSV; manual/force only.
 }
@@ -126,7 +138,14 @@ async function imRefreshPOVALUE2CsvNowInternal(reason = 'manual', options = {}) 
 }
 
 try {
-    window.refreshPOVALUE2CsvNow = function(reason) { return imRefreshPOVALUE2CsvNowInternal(reason || 'manual', { force: true }); };
+    window.refreshPOVALUE2CsvNow = function(reason) {
+        const reasonText = String(reason || 'manual').toLowerCase();
+        // 11.1.8: Legacy modules sometimes call refreshPOVALUE2CsvNow('force') on a loop.
+        // Only a real manual/user refresh may request force; all automatic/force-string calls are throttled.
+        const manualForce = /manual|user|button|settings/.test(reasonText) && !/auto|workdesk|dashboard|force/.test(reasonText);
+        return imRefreshPOVALUE2CsvNowInternal(reason || 'manual', { force: manualForce });
+    };
+    window.forceRefreshPOVALUE2CsvNow = function(reason) { return imRefreshPOVALUE2CsvNowInternal(reason || 'manual-force', { force: true }); };
     window.clearPOVALUE2MemoryCache = clearPOVALUE2MemoryCache;
     window.__ibaHasPOVALUE2MemoryIndex = hasPOVALUE2MemoryIndex;
 } catch (_) {}
@@ -1542,25 +1561,28 @@ async function ensureInvoicePOBaseDataFetched(forceRefresh = false) {
     }
     const now = Date.now();
     const hasSupportingBase = allSitesCSVData && allVendorsData;
+    const hasBaseMemory = !!(hasPOVALUE2MemoryIndex() && allSitesCSVData && allVendorsData);
+    const lastPOBaseRefresh = Number(window.__imLastPOBaseRefreshAt || 0);
+    const effectiveForceRefresh = !!forceRefresh && !(hasBaseMemory && (now - lastPOBaseRefresh < IM_POVALUE2_FORCE_REFRESH_MIN_MS));
 
-    if (!forceRefresh) {
+    if (!forceRefresh || !effectiveForceRefresh) {
         try { loadDataFromLocalStorage(); } catch (_) {}
     }
 
     const tasks = [];
     const taskNames = [];
 
-    // 11.1.2: Dashboard may call this repeatedly. Load POVALUE2.csv only when missing
-    // or when an intentional force refresh is requested; otherwise reuse the indexed cache.
-    if (shouldRefreshPOVALUE2Csv(forceRefresh, 'invoice-po-lookup')) {
-        tasks.push(imRefreshPOVALUE2CsvNowInternal(forceRefresh ? 'force' : 'invoice-po-lookup', { force: forceRefresh }));
+    // 11.1.2/11.1.8: Dashboard may call this repeatedly. Load POVALUE2.csv only when missing
+    // or when the safe force cooldown allows it; otherwise reuse the indexed cache.
+    if (shouldRefreshPOVALUE2Csv(effectiveForceRefresh, 'invoice-po-lookup')) {
+        tasks.push(imRefreshPOVALUE2CsvNowInternal(effectiveForceRefresh ? 'force' : 'invoice-po-lookup', { force: effectiveForceRefresh }));
         taskNames.push('po');
     }
-    if (!allSitesCSVData || forceRefresh) {
+    if (!allSitesCSVData || effectiveForceRefresh) {
         const siteUrl = await getFirebaseCSVUrl('Site.csv');
         if (siteUrl) { tasks.push(fetchAndParseSitesCSV(siteUrl)); taskNames.push('site'); }
     }
-    if (!allVendorsData || forceRefresh) {
+    if (!allVendorsData || effectiveForceRefresh) {
         const vendorUrl = await getFirebaseCSVUrl('Vendors.csv');
         if (vendorUrl) { tasks.push(fetchAndParseVendorsCSV(vendorUrl)); taskNames.push('vendor'); }
     }
@@ -1579,6 +1601,7 @@ async function ensureInvoicePOBaseDataFetched(forceRefresh = false) {
             allVendorsData = result || {};
         }
     });
+    if (tasks.length > 0) window.__imLastPOBaseRefreshAt = Date.now();
 }
 
 try {
@@ -1601,6 +1624,8 @@ async function ensureInvoiceDataFetched(forceRefresh = false, options = {}) {
     if (window.ibaShouldPauseFirebase && window.ibaShouldPauseFirebase('ensure-invoice-data-fetched', true)) return;
     const now = Date.now();
     const includeInvoiceEntries = !(options && options.includeInvoiceEntries === false);
+    const hasInvoiceBaseMemory = !!(hasPOVALUE2MemoryIndex() && allEpicoreData && allSitesCSVData && allEcommitDataProcessed && allVendorsData);
+    const effectiveForceRefresh = !!forceRefresh && !(hasInvoiceBaseMemory && (now - Number(window.__imLastInvoiceBaseRefreshAt || 0) < IM_POVALUE2_FORCE_REFRESH_MIN_MS));
     // 11.0.5: Some pages only need PO/site/vendor CSV data. They can pass
     // { includeInvoiceEntries:false } to avoid the heavy invoice_entries full-tree read.
     // Existing callers keep the old accurate behavior because the default remains true.
@@ -1620,11 +1645,11 @@ async function ensureInvoiceDataFetched(forceRefresh = false, options = {}) {
     try {
         const promisesToRun = [];
         // URLs
-        const poUrl = shouldRefreshPOVALUE2Csv(forceRefresh, 'ensure-invoice-data') ? await getFirebaseCSVUrl('POVALUE2.csv') : null;
-        const poDetailsUrl = (!allEpicoreData || forceRefresh) ? await getFirebaseCSVUrl('POdetails.csv') : null;
-        const siteUrl = (!allSitesCSVData || forceRefresh) ? await getFirebaseCSVUrl('Site.csv') : null;
-        const ecommitUrl = (!allEcommitDataProcessed || forceRefresh) ? await getFirebaseCSVUrl('ECommit.csv') : null;
-        const vendorUrl = (!allVendorsData || forceRefresh) ? await getFirebaseCSVUrl('Vendors.csv') : null;
+        const poUrl = shouldRefreshPOVALUE2Csv(effectiveForceRefresh, 'ensure-invoice-data') ? await getFirebaseCSVUrl('POVALUE2.csv') : null;
+        const poDetailsUrl = (!allEpicoreData || effectiveForceRefresh) ? await getFirebaseCSVUrl('POdetails.csv') : null;
+        const siteUrl = (!allSitesCSVData || effectiveForceRefresh) ? await getFirebaseCSVUrl('Site.csv') : null;
+        const ecommitUrl = (!allEcommitDataProcessed || effectiveForceRefresh) ? await getFirebaseCSVUrl('ECommit.csv') : null;
+        const vendorUrl = (!allVendorsData || effectiveForceRefresh) ? await getFirebaseCSVUrl('Vendors.csv') : null;
 
         // 10.4.1: Do NOT bulk-download invoiceDb/purchase_orders during normal Invoice Management use.
         // Firebase PO fallback is controlled by a Super Admin toggle and, when ON, checks only the exact searched PO.
@@ -1647,6 +1672,7 @@ async function ensureInvoiceDataFetched(forceRefresh = false, options = {}) {
         if (vendorUrl) promisesToRun.push(fetchAndParseVendorsCSV(vendorUrl));
 
         const shouldFetchFullInvoiceEntries = includeInvoiceEntries && (!allInvoiceData || forceRefresh || window.__invoiceEntriesFullLoaded !== true);
+        if (promisesToRun.length > 0) window.__imLastInvoiceBaseRefreshAt = Date.now();
         if (shouldFetchFullInvoiceEntries) {
             try { console.warn('[IBA Firebase Download] Full invoice_entries read requested by ensureInvoiceDataFetched(). This should be limited to Invoice Records/Financial Reports/export/report actions only.'); } catch (_) {}
             promisesToRun.push(invoiceDb.ref('invoice_entries').once('value'));
@@ -1758,6 +1784,11 @@ function wdRebuildAllSystemEntriesFromFamilyCaches() {
 
 try { window.wdRebuildAllSystemEntriesFromFamilyCaches = wdRebuildAllSystemEntriesFromFamilyCaches; } catch (_) {}
 
+// 11.1.8: WorkDesk refresh guard. Recent-sync/UI refresh can request force repeatedly;
+// keep the screen accurate from local/recent markers without reloading job_entries + CSV every few seconds.
+const WD_ALL_ENTRIES_FORCE_REFRESH_MIN_MS = 5 * 60 * 1000; // 11.1.9: WorkDesk must not full-reload/reset counts every few seconds.
+window.__wdLastAllEntriesFullFetchAt = window.__wdLastAllEntriesFullFetchAt || 0;
+
 async function ensureAllEntriesFetched(forceRefresh = false, options = {}) { 
     const now = Date.now();
     const inventoryContext = (typeof isInventoryContext === 'function') ? isInventoryContext() : false;
@@ -1766,6 +1797,20 @@ async function ensureAllEntriesFetched(forceRefresh = false, options = {}) {
     const shouldLoadJobEntries = loadMode !== 'inventory' || options.includeJobEntries === true;
     const shouldLoadTransferEntries = loadMode === 'inventory' || loadMode === 'all' || options.includeTransfers === true;
     const cacheFresh = (now - cacheTimestamps.systemEntries < CACHE_DURATION);
+    const hasWorkdeskCache = Array.isArray(workdeskSystemEntries) && workdeskSystemEntries.length > 0;
+    const hasInventoryCache = Array.isArray(inventorySystemEntries) && inventorySystemEntries.length > 0;
+    const modeHasCache = (loadMode === 'workdesk' && hasWorkdeskCache) || (loadMode === 'inventory' && hasInventoryCache) || (loadMode === 'all' && (hasWorkdeskCache || hasInventoryCache || (Array.isArray(allSystemEntries) && allSystemEntries.length > 0)));
+
+    // 11.1.9: If a legacy caller asks for force repeatedly, do not redownload WorkDesk
+    // job_entries/CSV every few seconds. Local cache + recent markers keep the UI current
+    // and prevent Dashboard status-card counts from flashing to dash/loading.
+    if (forceRefresh && modeHasCache && options.allowImmediateForce !== true) {
+        const lastFull = Number(window.__wdLastAllEntriesFullFetchAt || cacheTimestamps.systemEntries || 0);
+        if (now - lastFull < WD_ALL_ENTRIES_FORCE_REFRESH_MIN_MS) {
+            wdRebuildAllSystemEntriesFromFamilyCaches();
+            return;
+        }
+    }
 
     // 10.2.5: Do not make WorkDesk pages download the full Inventory transfer_entries
     // tree, and do not make Inventory pages redownload Job Entries just because the
@@ -1788,13 +1833,16 @@ async function ensureAllEntriesFetched(forceRefresh = false, options = {}) {
     let poDataByRef = {};
 
     if (shouldLoadJobEntries) {
-        // Added cache-buster to the raw github content link. Job Entries need PO matching;
-        // Inventory-only loads do not.
-        const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv?v=" + new Date().getTime();
-        const csvResult = await fetchAndParseCSV(PO_DATA_URL) || {};
-        poDataByPO = csvResult.poDataByPO || {};
-        poDataByRef = csvResult.poDataByRef || {};
+        // 11.1.8: Job Entries need PO matching, but WorkDesk must not re-download
+        // POVALUE2.csv on every refresh. Reuse the shared indexed CSV and only load it when missing.
+        let csvResult = { poDataByPO: allPOData || {}, poDataByRef: allPODataByRef || {} };
+        if (!csvResult.poDataByPO || Object.keys(csvResult.poDataByPO || {}).length === 0) {
+            csvResult = await imRefreshPOVALUE2CsvNowInternal('workdesk-job-po-match', { force: false }) || {};
+        }
+        poDataByPO = csvResult.poDataByPO || allPOData || {};
+        poDataByRef = csvResult.poDataByRef || allPODataByRef || {};
         allPOData = poDataByPO;
+        allPODataByRef = poDataByRef;
     }
 
     const [jobEntriesSnapshot, transferSnapshot] = await Promise.all([
@@ -1887,6 +1935,7 @@ async function ensureAllEntriesFetched(forceRefresh = false, options = {}) {
     if (Array.isArray(inventorySystemEntries)) inventorySystemEntries.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
     cacheTimestamps.systemEntries = now;
+    window.__wdLastAllEntriesFullFetchAt = Date.now();
     console.log(`Loaded ${allSystemEntries.length} entries. WorkDesk: ${workdeskSystemEntries.length}, Inventory: ${inventorySystemEntries.length}.`);
 }
 

@@ -161,6 +161,7 @@
 // =================================================================================================
 // #region BLOCK 12 — WORKDESK DASHBOARD CONTROL CENTER + REPORTS
 // Purpose: WorkDesk dashboard counts/list for incomplete invoice tasks + clean Job Records CSV export.
+// 11.1.9: Stable Dashboard counts - do not clear status-card counts to dash during background/live refresh.
 // =================================================================================================
 
 let wdActiveDashboardTasks = [];
@@ -183,6 +184,10 @@ let wdAllActiveDashboardCountsLoading = false;
 let wdAllActiveDashboardCountMap = new Map();
 let wdAllActiveDashboardCountSavedAt = 0;
 let wdAllActiveDashboardCountItemsMap = new Map();
+// 11.1.9: prevent repeated live/force refresh from wiping count cards to dash.
+let wdPopulateDashboardRunning = false;
+let wdDashboardLastSoftSyncAt = 0;
+const WD_DASHBOARD_SOFT_SYNC_MIN_MS = 10000;
 let wdDashboardRecentSyncTimer = null;
 let wdDashboardRecentSyncRunning = false;
 let wdDashboardVerifiedRefreshRunning = false;
@@ -2560,12 +2565,19 @@ async function wdSoftRebuildDashboardFromLiveSource(reason = '') {
 
 function wdScheduleDashboardLiveSync(reason = 'live-change', delay = 900) {
     if (!wdIsDashboardVisible()) return;
+    const now = Date.now();
+    // 11.1.9: Active Task/live events can fire repeatedly. Debounce and do not clear
+    // the verified count cache; otherwise cards flash from their real count to dash.
+    const elapsed = now - Number(wdDashboardLastSoftSyncAt || 0);
+    const safeDelay = elapsed < WD_DASHBOARD_SOFT_SYNC_MIN_MS
+        ? Math.max(delay, WD_DASHBOARD_SOFT_SYNC_MIN_MS - elapsed)
+        : delay;
     if (wdDashboardLiveSyncTimer) clearTimeout(wdDashboardLiveSyncTimer);
     wdDashboardLiveSyncTimer = setTimeout(() => {
         wdDashboardLiveSyncTimer = null;
-        wdClearDashboardCache();
+        wdDashboardLastSoftSyncAt = Date.now();
         wdSoftRebuildDashboardFromLiveSource(reason);
-    }, delay);
+    }, safeDelay);
 }
 
 function wdStartDashboardActiveTaskLiveSync() {
@@ -2647,6 +2659,7 @@ function wdStartDashboardActiveTaskLiveSync() {
 
 async function populateWorkdeskDashboard(forceRefresh = false) {
     if (window.ibaShouldPauseFirebase && window.ibaShouldPauseFirebase('populate-workdesk-dashboard')) return;
+    if (wdPopulateDashboardRunning) return;
     const cardsEl = document.getElementById('wd-active-dashboard-cards');
     const listEl = document.getElementById('wd-active-dashboard-list');
     const titleEl = document.getElementById('wd-active-dashboard-title');
@@ -2654,16 +2667,24 @@ async function populateWorkdeskDashboard(forceRefresh = false) {
 
     if (!cardsEl || !listEl) return;
 
-    cardsEl.innerHTML = `
-        <div class="wd-dashboard-loading-card">
-            <i class="fa-solid fa-spinner fa-spin"></i>
-            Loading open tasks...
-        </div>`;
-    listEl.innerHTML = '<div class="wd-dashboard-empty-state">Loading task cards...</div>';
-    if (titleEl) titleEl.textContent = 'Select a status card';
-    if (summaryEl) summaryEl.textContent = wdCanSeeAllActiveDashboard()
+    // 11.1.9: Background refresh must not blank the cards/counts.
+    // Show the loading placeholder only when the Dashboard has no usable cards/cache yet.
+    const hasExistingDashboardCards = !!cardsEl.querySelector('.wd-active-status-card, .wd-dashboard-card-section');
+    const hasCountCache = !!(wdAllActiveDashboardCountsLoaded && wdAllActiveDashboardCountMap && wdAllActiveDashboardCountMap.size);
+    if (!hasExistingDashboardCards && !hasCountCache) {
+        cardsEl.innerHTML = `
+            <div class="wd-dashboard-loading-card">
+                <i class="fa-solid fa-spinner fa-spin"></i>
+                Loading open tasks...
+            </div>`;
+        listEl.innerHTML = '<div class="wd-dashboard-empty-state">Loading task cards...</div>';
+    }
+    if (titleEl && !hasExistingDashboardCards) titleEl.textContent = 'Select a status card';
+    if (summaryEl && !hasExistingDashboardCards) summaryEl.textContent = wdCanSeeAllActiveDashboard()
         ? 'Cards are loaded. Click a status card to review the list.'
         : 'Cards are loaded. Click a My Personal Task card to review the list.';
+
+    wdPopulateDashboardRunning = true;
 
     try {
         if (!forceRefresh) {
@@ -2702,10 +2723,14 @@ async function populateWorkdeskDashboard(forceRefresh = false) {
         }
 
         wdAllActiveDashboardLoaded = false;
-        wdAllActiveDashboardCountsLoaded = false;
-        wdAllActiveDashboardCountMap = new Map();
-        wdAllActiveDashboardCountItemsMap = new Map();
-        wdAllActiveDashboardCountSavedAt = 0;
+        // 11.1.9: preserve already verified/count-preview All Active counts during background refresh.
+        // Clearing these maps is what made cards flash from 3 to dash every few seconds.
+        if (!wdAllActiveDashboardCountsLoaded || !wdAllActiveDashboardCountMap || wdAllActiveDashboardCountMap.size === 0) {
+            wdAllActiveDashboardCountsLoaded = false;
+            wdAllActiveDashboardCountMap = new Map();
+            wdAllActiveDashboardCountItemsMap = new Map();
+            wdAllActiveDashboardCountSavedAt = 0;
+        }
         wdActiveDashboardTasks = await wdBuildDashboardTasks({ forceRefresh, includeAllActive: false });
         wdActiveDashboardCacheMeta = { fromCache: false, savedAt: Date.now(), verified: false };
         wdSaveDashboardCache([], wdPersonalDashboardTasks, { allActiveVerified: false, reason: 'personal-cache' });
@@ -2723,6 +2748,8 @@ async function populateWorkdeskDashboard(forceRefresh = false) {
         console.error('Error loading WorkDesk dashboard control center:', error);
         cardsEl.innerHTML = '<div class="wd-dashboard-error-card"><i class="fa-solid fa-triangle-exclamation"></i> Unable to load dashboard tasks.</div>';
         listEl.innerHTML = '<div class="wd-dashboard-empty-state">Please refresh or check the console error.</div>';
+    } finally {
+        wdPopulateDashboardRunning = false;
     }
 }
 
