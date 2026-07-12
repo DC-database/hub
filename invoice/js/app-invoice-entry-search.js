@@ -278,8 +278,12 @@ async function handlePOSearch(poNumberFromInput) {
         // This avoids downloading the full invoice_entries tree just to search one PO.
         if (typeof ensureInvoicePOBaseDataFetched === 'function') {
             await ensureInvoicePOBaseDataFetched(false);
-        } else if (!allPOData && typeof ensureInvoiceDataFetched === 'function') {
-            await ensureInvoiceDataFetched(false);
+        } else if (!allPOData) {
+            // 11.2.3: Do NOT fall back to ensureInvoiceDataFetched() here.
+            // Invoice Entry PO search must use CSV/light PO base data only and must not
+            // download the full invoice_entries tree just because the PO base loader
+            // was unavailable or delayed.
+            console.warn('Invoice Entry PO base data is not ready; skipping full invoice_entries fallback.');
         }
         if (typeof loadInvoiceFeatureFlags === 'function') {
             await loadInvoiceFeatureFlags(false);
@@ -818,13 +822,12 @@ async function fetchInvoiceEntrySidePanelJobs(forceRefresh = false) {
         return imActiveJobsSidebarCache.slice();
     }
 
-    // 10.3.9: Restore the proven working source for Invoice Entry Active Jobs.
-    // The 10.3.7/10.3.8 job_entry_inbox optimization was too strict and could show
-    // an empty panel even when Active Task had pending New Entry records. This loader
-    // reads only WorkDesk Invoice Job Entries, not full invoice_entries, so it remains
-    // lighter than the old broad Active Task loader while restoring the visible list.
+    // 11.2.3: Use only the real lowercase WorkDesk node.
+    // The old uppercase legacy fallback (Job_Entries) is not allowed by current
+    // Firebase rules and caused repeated permission_denied console spam.
+    // This side panel must also never fall back to full invoice_entries.
     const byKey = new Map();
-    const sourcePaths = ['job_entries', 'Job_Entries'];
+    const sourcePaths = ['job_entries'];
 
     for (const path of sourcePaths) {
         try {
@@ -851,10 +854,14 @@ async function fetchInvoiceEntrySidePanelJobs(forceRefresh = false) {
                 byKey.set(job.key || key, job);
             });
 
-            // Lowercase job_entries is the normal source. Uppercase is only a safety fallback.
             if (byKey.size > 0) break;
         } catch (error) {
-            console.warn('Active Jobs side panel source read failed for', path, error);
+            // 11.2.3: Log once and return cached/empty list. Do not retry forbidden legacy paths
+            // and do not call ensureInvoiceDataFetched() as a fallback.
+            if (!window.__imActiveJobsSidebarJobEntriesDeniedLogged) {
+                window.__imActiveJobsSidebarJobEntriesDeniedLogged = true;
+                console.warn('Active Jobs side panel could not read job_entries. Using cached/empty side panel instead of full invoice_entries fallback.', error);
+            }
         }
     }
 
