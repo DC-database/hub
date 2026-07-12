@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-data-cache.js
    IBA shared local cache, CSV fetchers/parsers, and Firebase data loaders.
-   Version: 11.1.1
+   Version: 11.1.2
 
    Cleanup Phase:
    - Moved Block 06 out of app.js intact.
@@ -51,13 +51,15 @@ function getCache(key) {
 }
 
 
-// 11.1.1: POVALUE2.csv is a GitHub/static CSV source, not Firebase billing data.
+// 11.1.2: POVALUE2.csv is a GitHub/static CSV source, not Firebase billing data.
 // It is large enough that Dashboard must never re-download it during every refresh.
 // Keep one in-flight request, reuse memory cache, and throttle automatic refreshes.
 const IM_ALWAYS_REFRESH_POVALUE2_CSV = false; // legacy flag kept for compatibility; do not force every caller.
 const IM_POVALUE2_AUTO_REFRESH_MIN_MS = 10 * 60 * 1000; // 10 minutes minimum between automatic CSV refreshes.
 window.__imPOVALUE2InFlight = null;
 window.__imLastPOVALUE2RefreshAt = window.__imLastPOVALUE2RefreshAt || 0;
+// 11.1.2: Internal function name is intentionally different from window.refreshPOVALUE2CsvNow
+// to avoid a browser global recursion / maximum call stack error.
 
 function hasPOVALUE2MemoryIndex() {
     try {
@@ -92,7 +94,7 @@ function clearPOVALUE2MemoryCache() {
     } catch (_) {}
 }
 
-async function refreshPOVALUE2CsvNow(reason = 'manual', options = {}) {
+async function imRefreshPOVALUE2CsvNowInternal(reason = 'manual', options = {}) {
     const forceRefresh = !!(options && options.force);
 
     if (!shouldRefreshPOVALUE2Csv(forceRefresh, reason)) {
@@ -124,7 +126,7 @@ async function refreshPOVALUE2CsvNow(reason = 'manual', options = {}) {
 }
 
 try {
-    window.refreshPOVALUE2CsvNow = function(reason) { return refreshPOVALUE2CsvNow(reason || 'manual', { force: true }); };
+    window.refreshPOVALUE2CsvNow = function(reason) { return imRefreshPOVALUE2CsvNowInternal(reason || 'manual', { force: true }); };
     window.clearPOVALUE2MemoryCache = clearPOVALUE2MemoryCache;
     window.__ibaHasPOVALUE2MemoryIndex = hasPOVALUE2MemoryIndex;
 } catch (_) {}
@@ -963,10 +965,10 @@ async function ensureInvoicePOBaseDataFetched(forceRefresh = false) {
     const tasks = [];
     const taskNames = [];
 
-    // 11.1.1: Dashboard may call this repeatedly. Load POVALUE2.csv only when missing
+    // 11.1.2: Dashboard may call this repeatedly. Load POVALUE2.csv only when missing
     // or when an intentional force refresh is requested; otherwise reuse the indexed cache.
     if (shouldRefreshPOVALUE2Csv(forceRefresh, 'invoice-po-lookup')) {
-        tasks.push(refreshPOVALUE2CsvNow(forceRefresh ? 'force' : 'invoice-po-lookup', { force: forceRefresh }));
+        tasks.push(imRefreshPOVALUE2CsvNowInternal(forceRefresh ? 'force' : 'invoice-po-lookup', { force: forceRefresh }));
         taskNames.push('po');
     }
     if (!allSitesCSVData || forceRefresh) {
