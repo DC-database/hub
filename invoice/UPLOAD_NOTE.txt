@@ -1,16 +1,24 @@
-IBA 11.1.3 Upload Note
+IBA 11.1.4 — Invoice Management Note Index Light Mode
 
-Upload/replace these files:
-- index.html
-- app.js
-- version.json
-- js/app-data-cache.js
-- js/app-workdesk-dashboard.js
+Upload these changed files only:
+1) app.js
+2) index.html
+3) version.json
+4) js/app-data-cache.js
+5) js/app-batch-entry-ui.js
 
-This patch includes all 11.1.2 fixes and adds a guard for /workdesk_job_recent permission_denied.
+Purpose:
+- Batch Entry and Summary Note note suggestions now use the small invoice_note_index folder + browser cache.
+- Opening Batch Entry / Summary Note must no longer call ensureInvoiceDataFetched() just to collect notes.
+- Batch Entry status search now uses invoice_tasks_by_user/All active index, then exact-reads only matching invoices.
+- Batch Entry save no longer full-downloads invoice_entries; it loads CSV/base data and exact-reads missing selected invoices only.
+- Summary Note update no longer re-downloads all invoice_entries; it exact-reads missing visible rows only.
 
-After upload:
-1. Hard refresh Chrome.
-2. Open WorkDesk Dashboard/Active Task.
-3. Console should no longer repeat /workdesk_job_recent permission_denied every 30 seconds.
-4. Dashboard duplicate cleanup and CSV throttle remain active.
+Firebase rule required and already added by user:
+"invoice_note_index": {
+  ".read": true,
+  ".write": true,
+  ".indexOn": ["lastUsedAt", "count", "text"]
+}
+
+WorkDesk and Inventory files were not touched.

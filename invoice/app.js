@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '11.1.3';
+const APP_VERSION = '11.1.4';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -4371,6 +4371,11 @@ async function handleAddInvoice(e) {
         if (invoiceData.note && invoiceData.note.trim() !== '') {
             allUniqueNotes.add(invoiceData.note.trim());
             refreshNotePickers(invoiceData.note);
+            try {
+                if (typeof saveInvoiceNoteToIndex === 'function') {
+                    saveInvoiceNoteToIndex(invoiceData.note, { po: currentPO, invoiceKey: newKey, status: invoiceData.status, source: 'invoice-entry-add' });
+                }
+            } catch (_) {}
         }
 
         // Update Origin Job Entry
@@ -4577,6 +4582,11 @@ async function handleUpdateInvoice(e) {
         if (invoiceData.note && invoiceData.note.trim() !== '') {
             allUniqueNotes.add(invoiceData.note.trim());
             refreshNotePickers(invoiceData.note);
+            try {
+                if (typeof saveInvoiceNoteToIndex === 'function') {
+                    saveInvoiceNoteToIndex(invoiceData.note, { po: currentPO, invoiceKey: currentlyEditingInvoiceKey, status: invoiceData.status, source: 'invoice-entry-update' });
+                }
+            } catch (_) {}
         }
 
         // 10.3.0: Do not leave the WorkDesk Active Task list with an empty
@@ -4939,7 +4949,13 @@ async function handleSaveBatchInvoices() {
         return normalizeNameText(`${po}-${id}-${shortVendor}-Report`);
     };
 
-    if (typeof ensureInvoiceDataFetched === 'function') await ensureInvoiceDataFetched();
+    // 11.1.4: Batch Entry save must not full-download invoice_entries.
+    // Rows already come from exact PO reads; load only CSV/base data, then exact-read any missing selected invoice below.
+    if (typeof ensureInvoicePOBaseDataFetched === 'function') {
+        await ensureInvoicePOBaseDataFetched(false);
+    } else if (typeof ensureInvoiceDataFetched === 'function') {
+        await ensureInvoiceDataFetched(false, { includeInvoiceEntries: false });
+    }
 
     for (const row of rows) {
         const poNumber = row.dataset.po;
@@ -4955,6 +4971,22 @@ async function handleSaveBatchInvoices() {
                 if (match && match[1]) invEntryID = match[1];
             } else if (allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][existingKey]) {
                 invEntryID = allInvoiceData[poNumber][existingKey].invEntryID;
+            }
+
+            // 11.1.4: If this selected invoice is not already in the browser cache,
+            // read only its exact Firebase record. Never load the whole invoice_entries folder.
+            if (!allInvoiceData || !allInvoiceData[poNumber] || !allInvoiceData[poNumber][existingKey]) {
+                try {
+                    const exactSnap = await invoiceDb.ref(`invoice_entries/${poNumber}/${existingKey}`).once('value');
+                    const exactInvoice = exactSnap.val() || {};
+                    if (!allInvoiceData) allInvoiceData = {};
+                    if (!allInvoiceData[poNumber]) allInvoiceData[poNumber] = {};
+                    allInvoiceData[poNumber][existingKey] = { ...exactInvoice, key: existingKey };
+                    if (!invEntryID && exactInvoice.invEntryID) invEntryID = exactInvoice.invEntryID;
+                    if (window.__invoiceEntriesFullLoaded !== true) window.__invoiceEntriesFullLoaded = false;
+                } catch (exactErr) {
+                    console.warn('Batch Entry exact invoice read failed; continuing with row data only.', exactErr);
+                }
             }
         }
 
@@ -5085,6 +5117,9 @@ async function handleSaveBatchInvoices() {
             if (statusChangedForHistory && window.logInvoiceHistory) {
                 savePromises.push(p.then(() => window.logInvoiceHistory(poNumber, existingKey, finalBatchStatus, invoiceData.note || 'Updated via Batch Entry')));
             }
+            if (invoiceData.note && typeof saveInvoiceNoteToIndex === 'function') {
+                savePromises.push(p.then(() => saveInvoiceNoteToIndex(invoiceData.note, { po: poNumber, invoiceKey: existingKey, status: invoiceData.status, source: 'batch-entry-update' })).catch(() => null));
+            }
             updatedInvoicesCount++;
             
             if (allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][existingKey]) {
@@ -5106,6 +5141,9 @@ async function handleSaveBatchInvoices() {
             savePromises.push(p.then(() => updateInvoiceTaskLookup(poNumber, newKey, invoiceData, null)));
             if (window.logInvoiceHistory) {
                 savePromises.push(p.then(() => window.logInvoiceHistory(poNumber, newKey, invoiceData.status, 'Initial Entry via Batch Entry')));
+            }
+            if (invoiceData.note && typeof saveInvoiceNoteToIndex === 'function') {
+                savePromises.push(p.then(() => saveInvoiceNoteToIndex(invoiceData.note, { po: poNumber, invoiceKey: newKey, status: invoiceData.status, source: 'batch-entry-add' })).catch(() => null));
             }
             newInvoicesCount++;
 
@@ -5458,7 +5496,13 @@ async function handleUpdateSummaryChanges(sendToAccounts = false) {
     const localCacheUpdates = [];
 
     try {
-        await ensureInvoiceDataFetched();
+        // 11.1.4: Updating visible Summary Note rows must not re-download all invoice_entries.
+        // The generated rows carry PO/key; exact-read any missing original invoice only when needed.
+        if (typeof ensureInvoicePOBaseDataFetched === 'function') {
+            await ensureInvoicePOBaseDataFetched(false);
+        } else if (typeof ensureInvoiceDataFetched === 'function') {
+            await ensureInvoiceDataFetched(false, { includeInvoiceEntries: false });
+        }
 
         for (const row of rows) {
             const poNumber = row.dataset.po,
@@ -5467,7 +5511,20 @@ async function handleUpdateSummaryChanges(sendToAccounts = false) {
                 newInvoiceDate = row.querySelector('input[name="invoiceDate"]').value;
 
             if (poNumber && invoiceKey) {
-                const originalInvoice = (allInvoiceData && allInvoiceData[poNumber]) ? (allInvoiceData[poNumber][invoiceKey] || {}) : {};
+                let originalInvoice = (allInvoiceData && allInvoiceData[poNumber]) ? (allInvoiceData[poNumber][invoiceKey] || {}) : {};
+                if (!originalInvoice || !Object.keys(originalInvoice).length) {
+                    try {
+                        const exactSnap = await invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}`).once('value');
+                        originalInvoice = exactSnap.val() || {};
+                        if (!allInvoiceData) allInvoiceData = {};
+                        if (!allInvoiceData[poNumber]) allInvoiceData[poNumber] = {};
+                        allInvoiceData[poNumber][invoiceKey] = { ...originalInvoice, key: invoiceKey };
+                        if (window.__invoiceEntriesFullLoaded !== true) window.__invoiceEntriesFullLoaded = false;
+                    } catch (exactErr) {
+                        console.warn('Summary Note exact invoice read failed; continuing with row data only.', exactErr);
+                        originalInvoice = {};
+                    }
+                }
                 const originalStatus = (originalInvoice.status || '').toString().trim();
 
                 const updates = {
