@@ -1,17 +1,18 @@
-IBA System Patch 11.2.1 - WorkDesk Dashboard No-Blank Guard
+IBA 11.2.2 - Retention Invoice Value Auto-Zero Patch
 
-Upload these files only:
+Upload only these files:
 - app.js
 - index.html
 - version.json
-- js/app-data-cache.js
-- js/app-workdesk-dashboard.js
 
 Purpose:
-- Fix WorkDesk Dashboard All Active cards/counts appearing, disappearing, and appearing again.
-- Keep the last verified All Active counts visible while a background/live refresh is rebuilding.
-- Keep 11.2.0 WorkDesk fetch-storm stopper.
-- Keep Invoice Management note index light-mode patches.
-- Inventory not touched.
+- Invoice Entry modal: when Invoice No. contains "Retention", Value becomes 0.00 automatically.
+- Amt Paid is not changed or cleared.
+- Save/update also enforces invValue = 0 for retention invoice numbers.
+- Includes all previous 11.2.1 WorkDesk Dashboard stability fixes because this patch is based on 11.2.1.
 
-After upload: Ctrl+F5 hard refresh Chrome.
+After upload:
+- Hard refresh Chrome (Ctrl + F5).
+- Open Invoice Entry modal.
+- Type Retention in Invoice No.
+- Confirm Value becomes 0.00 and Amt Paid stays as typed.

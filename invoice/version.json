@@ -1,5 +1,6 @@
 {
-  "version": "11.2.1",
-  "title": "WorkDesk Fetch Storm Stopper",
-  "message": "Stops duplicate WorkDesk job_entries/approver fetch storms during Dashboard startup while preserving stable counts and Invoice Note Index light mode."
+  "version": "11.2.2",
+  "title": "Retention Invoice Value Auto-Zero",
+  "message": "Invoice Entry now forces Value to 0.00 when Invoice No. contains Retention, while preserving the Amt Paid value. Includes 11.2.1 WorkDesk dashboard no-blank guard.",
+  "required": false
 }

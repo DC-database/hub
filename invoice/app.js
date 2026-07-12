@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '11.2.1';
+const APP_VERSION = '11.2.2';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -4194,6 +4194,59 @@ function imApplyInvoiceAttentionRule(invoiceData) {
     return invoiceData;
 }
 
+
+// 11.2.2: Retention invoices are payments against retained amounts.
+// When Invoice No. contains "Retention", the invoice Value must be zero,
+// while Amt Paid must keep whatever value the user typed.
+function imIsRetentionInvoiceNumber(value) {
+    return /\bretention\b/i.test(String(value || '').trim());
+}
+
+function imApplyRetentionInvoiceNoRuleToForm() {
+    try {
+        const invNoInput = document.getElementById('im-inv-no');
+        const invValueInput = document.getElementById('im-inv-value');
+        if (!invNoInput || !invValueInput) return false;
+        if (!imIsRetentionInvoiceNumber(invNoInput.value)) return false;
+
+        // Do not touch Amt Paid. Only force the invoice value to zero.
+        invValueInput.value = '0.00';
+        invValueInput.dataset.retentionAutoZero = '1';
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
+function imApplyRetentionInvoiceDataRule(invoiceData) {
+    if (invoiceData && imIsRetentionInvoiceNumber(invoiceData.invNumber)) {
+        invoiceData.invValue = '0';
+    }
+    return invoiceData;
+}
+
+function imInstallRetentionInvoiceValueRule() {
+    try {
+        const invNoInput = document.getElementById('im-inv-no');
+        if (!invNoInput || invNoInput.dataset.retentionValueRuleAttached === '1') return;
+        invNoInput.dataset.retentionValueRuleAttached = '1';
+        const handler = () => imApplyRetentionInvoiceNoRuleToForm();
+        invNoInput.addEventListener('input', handler);
+        invNoInput.addEventListener('change', handler);
+        invNoInput.addEventListener('blur', handler);
+    } catch (_) {}
+}
+
+try {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', imInstallRetentionInvoiceValueRule);
+    } else {
+        imInstallRetentionInvoiceValueRule();
+    }
+    setTimeout(imInstallRetentionInvoiceValueRule, 300);
+    setTimeout(imInstallRetentionInvoiceValueRule, 1200);
+} catch (_) {}
+
 function buildInvoiceReportNameForSave(poNumber, invoiceData = {}, fallbackInvoiceData = {}) {
     try {
         const po = normalizeNameText(poNumber || invoiceData.po_number || fallbackInvoiceData.po_number || 'PO');
@@ -4229,12 +4282,14 @@ async function handleAddInvoice(e) {
         return;
     }
 
+    imApplyRetentionInvoiceNoRuleToForm();
     const formData = new FormData(imNewInvoiceForm);
     const invoiceData = Object.fromEntries(formData.entries());
     
     // SANITIZE: Remove commas before saving
     if (invoiceData.invValue) invoiceData.invValue = invoiceData.invValue.replace(/,/g, '');
     if (invoiceData.amountPaid) invoiceData.amountPaid = invoiceData.amountPaid.replace(/,/g, '');
+    imApplyRetentionInvoiceDataRule(invoiceData);
     
     let attentionValue = imAttentionSelectChoices.getValue(true);
     invoiceData.attention = (attentionValue === 'None') ? '' : attentionValue;
@@ -4459,12 +4514,14 @@ async function handleUpdateInvoice(e) {
         alert('No invoice selected for update.');
         return;
     }
+    imApplyRetentionInvoiceNoRuleToForm();
     const formData = new FormData(imNewInvoiceForm);
     const invoiceData = Object.fromEntries(formData.entries());
 
     // SANITIZE: Remove commas before saving
     if (invoiceData.invValue) invoiceData.invValue = invoiceData.invValue.replace(/,/g, '');
     if (invoiceData.amountPaid) invoiceData.amountPaid = invoiceData.amountPaid.replace(/,/g, '');
+    imApplyRetentionInvoiceDataRule(invoiceData);
 
     let attentionValue = imAttentionSelectChoices.getValue(true);
     invoiceData.attention = (attentionValue === 'None') ? '' : attentionValue;
