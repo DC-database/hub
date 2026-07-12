@@ -1,20 +1,16 @@
-IBA 11.0.9 Final
+IBA 11.1.1 - CSV Refresh Throttle + Dashboard Duplicate Cleanup
 
-This update keeps the 11.0.8 safety/UI improvements but hides technical Test/Firebase prompts from normal live users/admins.
+This patch includes the 11.1.0 Dashboard duplicate source cleanup and adds a CSV refresh guard.
 
-Included:
-1. Chrome-only browser guard.
-2. One active Chrome tab guard.
-3. Local-only Test Mode / Firebase Blocker with Enter Test Preview.
-4. Desktop-only analog numbered clock, no square background.
-5. Live privacy correction: no LIVE MODE / Firebase Active badge on the real system, and no Test Preview on live.
+Main fixes:
+1. Dashboard duplicate fix remains included.
+   - If the same invoice appears from old WorkDesk Job Entry and live Invoice Entry, Dashboard prefers the live Invoice Entry.
+   - The old job record is kept as history but hidden from active Dashboard.
 
-How to use Test Mode:
-- Open index.html from local folder or localhost in Google Chrome.
-- The system will show Test Mode and Enter Test Preview.
-- Firebase stays disabled for safe UI checking.
+2. POVALUE2.csv refresh throttle added.
+   - Dashboard will not repeatedly reload POVALUE2.csv every refresh/second.
+   - If the PO CSV is already indexed in memory, Dashboard reuses it.
+   - One in-flight CSV request is shared instead of starting multiple downloads.
+   - Manual forced reload remains available through refreshPOVALUE2CsvNow().
 
-Live system behavior:
-- Open the normal GitHub/live link in Chrome.
-- It should show normal login only.
-- No user/admin should see Test Mode or Firebase Active messages.
+No workflow change. No permission change. No full invoice_entries read added.

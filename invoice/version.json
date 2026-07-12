@@ -1,4 +1,6 @@
 {
-  "version": "11.0.9",
-  "message": "11.0.9 update is available: live users stay in normal live mode with no Firebase/Test prompts, while local Super Admin testing keeps Test Preview, Chrome-only guard, one-tab guard, and desktop clock."
+  "version": "11.1.1",
+  "title": "CSV Refresh Throttle + Dashboard Duplicate Cleanup",
+  "message": "This update keeps Dashboard duplicate cleanup and prevents repeated POVALUE2.csv reloads during Dashboard refresh.",
+  "createdAt": "2026-07-12"
 }

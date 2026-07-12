@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '11.0.9';
+const APP_VERSION = '11.1.1';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -6002,7 +6002,7 @@ try {
 } catch (e) { /* ignore */ }
 
 
-    // --- 11.0.9: Local Test Mode Preview Login (Firebase stays OFF) ---
+    // --- 11.1.1: Local Test Mode Preview Login (Firebase stays OFF) ---
     function ibaIsTestModeActiveForPreview() {
         try {
             if (typeof window.ibaIsFirebaseBlocked === 'function') return !!window.ibaIsFirebaseBlocked();
