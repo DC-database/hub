@@ -1,16 +1,18 @@
-IBA 11.1.1 - CSV Refresh Throttle + Dashboard Duplicate Cleanup
+IBA 11.1.2 - CSV Stack Guard Fix + CSV Throttle + Dashboard Duplicate Cleanup
 
-This patch includes the 11.1.0 Dashboard duplicate source cleanup and adds a CSV refresh guard.
+Use this patch directly over 11.0.9 or 11.1.1. It includes the 11.1.0 Dashboard duplicate cleanup and 11.1.1 CSV refresh throttle, plus a correction for the 11.1.1 maximum call stack console error.
 
-Main fixes:
-1. Dashboard duplicate fix remains included.
-   - If the same invoice appears from old WorkDesk Job Entry and live Invoice Entry, Dashboard prefers the live Invoice Entry.
-   - The old job record is kept as history but hidden from active Dashboard.
+Fix included in 11.1.2:
+- Corrects app-data-cache.js recursion where the public refreshPOVALUE2CsvNow wrapper could call itself repeatedly.
+- Prevents RangeError: Maximum call stack size exceeded from app-data-cache.js line around the CSV refresh wrapper.
+- Keeps POVALUE2.csv single-load/throttle behavior so Dashboard does not reload CSV every second.
+- Keeps Dashboard duplicate cleanup: prefer live Invoice Entry over old WorkDesk New Entry duplicate.
 
-2. POVALUE2.csv refresh throttle added.
-   - Dashboard will not repeatedly reload POVALUE2.csv every refresh/second.
-   - If the PO CSV is already indexed in memory, Dashboard reuses it.
-   - One in-flight CSV request is shared instead of starting multiple downloads.
-   - Manual forced reload remains available through refreshPOVALUE2CsvNow().
+Testing after upload:
+1. Open WorkDesk Dashboard.
+2. Console should not show Maximum call stack size exceeded.
+3. POVALUE2.csv should not refresh every second.
+4. The duplicate New Entry/Report card should show only the current live invoice status.
 
-No workflow change. No permission change. No full invoice_entries read added.
+Rollback:
+- 11.0.9 remains the safe rollback if needed.

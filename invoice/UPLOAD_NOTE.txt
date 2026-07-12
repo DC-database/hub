@@ -1,23 +1,15 @@
-IBA 11.1.1 Upload Note
+IBA 11.1.2 Upload Note
 
-Upload/replace these files:
+Upload/replace these files from this patch:
 - index.html
 - app.js
 - version.json
 - js/app-data-cache.js
 - js/app-workdesk-dashboard.js
 
-What changed:
-- Keeps 11.1.0 WorkDesk Dashboard duplicate source cleanup.
-- Adds POVALUE2.csv single-load/throttle guard to stop repeated CSV reload in Dashboard.
-- Dashboard should reuse indexed PO CSV instead of re-downloading every refresh.
+Purpose:
+- Fixes the 11.1.1 console error: RangeError Maximum call stack size exceeded.
+- Keeps CSV refresh throttle so Dashboard does not repeatedly reload POVALUE2.csv.
+- Keeps Dashboard duplicate cleanup so old WorkDesk New Entry and live Invoice Entry status do not both appear.
 
-After upload:
-1. Open in Chrome only.
-2. Refresh once / clear cache if needed.
-3. Go to WorkDesk Dashboard and watch console.
-4. You should not see POVALUE2.csv refreshing every second.
-5. Duplicate New Entry + Report should show as only the correct live invoice status.
-
-Rollback:
-- Use 11.0.9 or 11.1.0 backup if needed.
+After upload, hard refresh Chrome once.
