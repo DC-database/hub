@@ -1,9 +1,5 @@
-This patch is cumulative from 11.1.4 and adds the requested Invoice Management status/attention behavior.
+11.1.6 is cumulative over 11.1.5 for the changed files included here.
 
-For Summary was added only to the Invoice Entry Quick Access side panel.
-The status dropdown already had For Summary.
+Purpose: keep Summary Note accurate for previous/current notes without making Summary Note depend on full Firebase invoice_entries downloads each time.
 
-No-attention statuses now save Attention blank/None:
-Under Review, For Summary, With Accounts, Pending, Report Approved, On Hold.
-
-This prevents these statuses from creating personal active-task routing by mistake.
+Important: Old historical notes cannot already have note-index references. The first time you generate a summary for an old non-indexed note, the system can ask to run a one-time legacy search. After that, the matching references are saved into invoice_note_index for lighter future use.

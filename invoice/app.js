@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '11.1.5';
+const APP_VERSION = '11.1.6';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -5273,6 +5273,25 @@ async function handleGenerateSummary() {
         return n + (s[(v - 20) % 10] || s[v] || s[0]);
     };
 
+    const summaryNormalizeText = (value) => String(value == null ? '' : value).replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
+    const summaryNormalizeKey = (value) => summaryNormalizeText(value).toLowerCase();
+    const getSummaryVendorForInvoice = (inv) => {
+        const po = inv && inv.po ? String(inv.po) : '';
+        const poData = (allPOData && (allPOData[po] || allPOData[String(po).toUpperCase()])) ? (allPOData[po] || allPOData[String(po).toUpperCase()]) : {};
+        return summaryNormalizeText(
+            (inv && (inv.vendor || inv.vendor_name || inv.vendorName)) ||
+            poData['Supplier Name'] || poData['Supplier Name:'] || poData.Supplier || poData['Supplier'] || 'N/A'
+        );
+    };
+    const getSummarySiteForInvoice = (inv) => {
+        const po = inv && inv.po ? String(inv.po) : '';
+        const poData = (allPOData && (allPOData[po] || allPOData[String(po).toUpperCase()])) ? (allPOData[po] || allPOData[String(po).toUpperCase()]) : {};
+        return summaryNormalizeText(
+            (inv && (inv.site || inv.site_name || inv.siteName)) ||
+            poData['Project ID'] || poData['Project ID:'] || poData.Site || poData.site || 'N/A'
+        );
+    };
+
     const prevNote = summaryNotePreviousInput.value.trim();
     const currentNote = summaryNoteCurrentInput.value.trim();
 
@@ -5288,18 +5307,77 @@ async function handleGenerateSummary() {
     summaryNoteGenerateBtn.disabled = true;
 
     try {
-        await ensureInvoiceDataFetched();
+        // 11.1.6: Summary Note no longer starts with a full invoice_entries download.
+        // It loads CSV/base data, then reads the small invoice_note_index refs and exact invoice records only.
+        if (typeof ensureInvoicePOBaseDataFetched === 'function') {
+            await ensureInvoicePOBaseDataFetched(false);
+        } else if (typeof ensureInvoiceDataFetched === 'function') {
+            await ensureInvoiceDataFetched(false, { includeInvoiceEntries: false });
+        }
         // Summary Note only: always refresh POdetails.csv so newly uploaded Bill Descriptions are available.
         await refreshSummaryPODetailsCSV();
 
-        const allInvoicesByPO = allInvoiceData;
-        const allPOs = allPOData;
-        const epicoreData = allEpicoreData;
+        let summaryLookup = { previous: [], current: [] };
+        if (typeof loadSummaryNoteInvoicesFromIndex === 'function') {
+            summaryLookup = await loadSummaryNoteInvoicesFromIndex(prevNote, currentNote, { maxPOs: 300, limit: 900 });
+        }
+
+        let allCurrentInvoices = Array.isArray(summaryLookup.current) ? [...summaryLookup.current] : [];
+        let previousInvoices = Array.isArray(summaryLookup.previous) ? [...summaryLookup.previous] : [];
+
+        // First-time migration support: old historical notes do not have refs in invoice_note_index yet.
+        // Only when the user intentionally clicks Generate and no indexed current note is found, offer a one-time legacy scan.
+        // After that, matching notes are saved into the small note index for future fast use.
+        if (allCurrentInvoices.length === 0) {
+            const allowLegacy = confirm(
+                `No indexed invoices were found for current note: "${currentNote}".\n\n` +
+                `This can happen for old Summary Notes created before the new note index.\n\n` +
+                `Run one-time legacy search now to build the note index for this note?\n` +
+                `This may download invoice_entries once, but future searches will use the small note index.`
+            );
+            if (!allowLegacy) {
+                summaryNotePrintArea.classList.add('hidden');
+                return;
+            }
+            await ensureInvoiceDataFetched(false);
+            if (typeof buildInvoiceNoteIndexFromLoadedInvoicesForNotes === 'function') {
+                const rebuilt = await buildInvoiceNoteIndexFromLoadedInvoicesForNotes([prevNote, currentNote]);
+                allCurrentInvoices = (rebuilt && rebuilt[summaryNormalizeKey(currentNote)]) ? rebuilt[summaryNormalizeKey(currentNote)] : [];
+                previousInvoices = (rebuilt && rebuilt[summaryNormalizeKey(prevNote)]) ? rebuilt[summaryNormalizeKey(prevNote)] : [];
+            } else {
+                // Very old fallback if helper is missing: keep legacy behavior but only after user confirmation.
+                const currentRows = [];
+                const prevRows = [];
+                for (const poNumber in (allInvoiceData || {})) {
+                    const invoices = allInvoiceData[poNumber] || {};
+                    for (const key in invoices) {
+                        const inv = invoices[key] || {};
+                        if (summaryNormalizeKey(inv.note) === summaryNormalizeKey(currentNote)) currentRows.push({ po: poNumber, key, ...inv });
+                        if (prevNote && summaryNormalizeKey(inv.note) === summaryNormalizeKey(prevNote)) prevRows.push({ po: poNumber, key, ...inv });
+                    }
+                }
+                allCurrentInvoices = currentRows;
+                previousInvoices = prevRows;
+            }
+        }
+
+        const allPOs = allPOData || {};
+        const epicoreData = allEpicoreData || {};
+
+        // Summary Note is vendor/group focused. If a note text exists in multiple vendors,
+        // use the first current invoice vendor as the active vendor and keep the summary accurate for that vendor.
+        const activeVendorKey = allCurrentInvoices.length ? summaryNormalizeKey(getSummaryVendorForInvoice(allCurrentInvoices[0])) : '';
+        if (activeVendorKey) {
+            allCurrentInvoices = allCurrentInvoices.filter(inv => summaryNormalizeKey(getSummaryVendorForInvoice(inv)) === activeVendorKey);
+            previousInvoices = previousInvoices.filter(inv => summaryNormalizeKey(getSummaryVendorForInvoice(inv)) === activeVendorKey);
+        }
 
         let previousPaymentTotal = 0;
         let currentPaymentTotal = 0;
-
         let prevSummaryDateObj = null;
+        let srvNameForQR = null;
+        let foundSrv = false;
+
         const maybeSetPrevSummaryDate = (inv) => {
             try {
                 const st = (inv?.status || '').toString().trim().toLowerCase();
@@ -5328,39 +5406,20 @@ async function handleGenerateSummary() {
             } catch (_) {}
         };
 
-        let allCurrentInvoices = [];
-        let srvNameForQR = null;
-        let foundSrv = false;
-
-        for (const poNumber in allInvoicesByPO) {
-            const invoices = allInvoicesByPO[poNumber];
-            for (const key in invoices) {
-                const inv = invoices[key];
-
-                if (prevNote !== "" && inv.note === prevNote) {
-                    previousPaymentTotal += parseFloat(inv.invValue) || 0;
-                    maybeSetPrevSummaryDate(inv);
-
-                    if (!foundSrv && inv.srvName && inv.srvName.toLowerCase() !== 'nil' && inv.srvName.trim() !== '') {
-                        srvNameForQR = inv.srvName;
-                        foundSrv = true;
-                    }
-                }
-
-                if (inv.note === currentNote) {
-                    const vendorName = (allPOs[poNumber] && allPOs[poNumber]['Supplier Name']) ? allPOs[poNumber]['Supplier Name'] : 'N/A';
-                    const site = (allPOs[poNumber] && allPOs[poNumber]['Project ID']) ? allPOs[poNumber]['Project ID'] : 'N/A';
-                    currentPaymentTotal += parseFloat(inv.invValue) || 0;
-                    allCurrentInvoices.push({
-                        po: poNumber,
-                        key: key,
-                        site,
-                        vendor: vendorName,
-                        ...inv
-                    });
-                }
+        previousInvoices.forEach(inv => {
+            previousPaymentTotal += parseFloat(inv.invValue) || 0;
+            maybeSetPrevSummaryDate(inv);
+            if (!foundSrv && inv.srvName && inv.srvName.toLowerCase() !== 'nil' && inv.srvName.trim() !== '') {
+                srvNameForQR = inv.srvName;
+                foundSrv = true;
             }
-        }
+        });
+
+        allCurrentInvoices.forEach(inv => {
+            inv.vendor = getSummaryVendorForInvoice(inv);
+            inv.site = getSummarySiteForInvoice(inv);
+            currentPaymentTotal += parseFloat(inv.invValue) || 0;
+        });
 
         const count = allCurrentInvoices.length;
         if (summaryNoteCountDisplay) {
@@ -5381,12 +5440,12 @@ async function handleGenerateSummary() {
                     const pdfUrl = buildSharePointPdfUrl(SRV_BASE_PATH, srvNameForQR);
                     if (pdfUrl) {
                         new QRCode(qrElement, {
-                        text: pdfUrl,
-                        width: 60,
-                        height: 60,
-                        colorDark: "#000000",
-                        colorLight: "#ffffff",
-                        correctLevel: QRCode.CorrectLevel.L
+                            text: pdfUrl,
+                            width: 60,
+                            height: 60,
+                            colorDark: "#000000",
+                            colorLight: "#ffffff",
+                            correctLevel: QRCode.CorrectLevel.L
                         });
                     }
                 } catch (e) {
@@ -5396,8 +5455,8 @@ async function handleGenerateSummary() {
         }
 
         allCurrentInvoices.sort((a, b) => (a.site || '').localeCompare(b.site || ''));
-        const vendorData = allPOs[allCurrentInvoices[0].po];
-        snVendorName.textContent = vendorData ? vendorData['Supplier Name'] : 'N/A';
+        const vendorData = allPOs[allCurrentInvoices[0].po] || allPOs[String(allCurrentInvoices[0].po).toUpperCase()] || null;
+        snVendorName.textContent = getSummaryVendorForInvoice(allCurrentInvoices[0]) || (vendorData ? vendorData['Supplier Name'] : 'N/A');
 
         const today = new Date();
         snDate.textContent = `Date: ${today.toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' }).replace(/ /g, '-')}`;
@@ -5465,8 +5524,6 @@ async function handleGenerateSummary() {
         snTotalNumeric.textContent = formatCurrency(currentPaymentTotal);
         snTotalInWords.textContent = numberToWords(currentPaymentTotal);
         summaryNotePrintArea.classList.remove('hidden');
-        
-        // 💡 NEW ADDITION: Run the auto-filler right after the table builds, just in case!
         autoFillSummarySrvIfWithAccounts();
 
     } catch (error) {
@@ -5583,6 +5640,23 @@ async function handleUpdateSummaryChanges(sendToAccounts = false) {
 
                 const updatedInvoiceData = { ...originalInvoice, ...updates };
                 updatePromises.push(updateInvoiceTaskLookup(poNumber, invoiceKey, updatedInvoiceData, originalInvoice.attention));
+
+                // 11.1.6: Keep Summary Note's small note index accurate after status/SRV updates.
+                const summaryIndexNote = (originalInvoice.note || (summaryNoteCurrentInput ? summaryNoteCurrentInput.value : '') || '').trim();
+                if (summaryIndexNote && typeof saveInvoiceNoteToIndex === 'function') {
+                    updatePromises.push(Promise.resolve().then(() => saveInvoiceNoteToIndex(summaryIndexNote, {
+                        po: poNumber,
+                        invoiceKey,
+                        status: updatedInvoiceData.status || newGlobalStatus || '',
+                        vendor: snVendorName ? snVendorName.textContent.trim() : '',
+                        site: updatedInvoiceData.site || updatedInvoiceData.site_name || '',
+                        group: updatedInvoiceData.group || updatedInvoiceData.jobType || '',
+                        srvName: updatedInvoiceData.srvName || newGlobalSRV || '',
+                        invoiceDate: updatedInvoiceData.invoiceDate || newInvoiceDate || '',
+                        invValue: updatedInvoiceData.invValue || '',
+                        source: 'summary-note-update'
+                    })).catch(() => null));
+                }
             }
         }
 
