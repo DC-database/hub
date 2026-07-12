@@ -1,5 +1,5 @@
 {
-  "version": "11.2.0",
+  "version": "11.2.1",
   "title": "WorkDesk Fetch Storm Stopper",
   "message": "Stops duplicate WorkDesk job_entries/approver fetch storms during Dashboard startup while preserving stable counts and Invoice Note Index light mode."
 }

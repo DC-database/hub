@@ -1,16 +1,17 @@
-IBA System Patch 11.2.0 - WorkDesk Fetch Storm Stopper
+IBA System Patch 11.2.1 - WorkDesk Dashboard No-Blank Guard
 
-UPLOAD ONLY THESE FILES:
+Upload these files only:
 - app.js
 - index.html
 - version.json
 - js/app-data-cache.js
+- js/app-workdesk-dashboard.js
 
 Purpose:
-- Stop duplicate WorkDesk job_entries reads during Dashboard/Job Entry startup.
-- Add in-flight guard so simultaneous WorkDesk reload calls share one Firebase read.
-- Throttle repeated approver cache refresh calls.
-- Preserve Invoice Note Index light mode and 11.1.9 stable Dashboard counts.
+- Fix WorkDesk Dashboard All Active cards/counts appearing, disappearing, and appearing again.
+- Keep the last verified All Active counts visible while a background/live refresh is rebuilding.
+- Keep 11.2.0 WorkDesk fetch-storm stopper.
+- Keep Invoice Management note index light-mode patches.
+- Inventory not touched.
 
-After upload: Ctrl+F5, open WorkDesk Dashboard, watch console for 1 minute.
-Expected: Loading Data for Workdesk should appear once during opening, not repeatedly every few seconds.
+After upload: Ctrl+F5 hard refresh Chrome.
