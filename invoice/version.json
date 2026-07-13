@@ -1,7 +1,7 @@
 {
-  "version": "11.2.6",
-  "title": "WorkDesk Dashboard Smart Sync",
-  "message": "Keeps WorkDesk Dashboard cards stable while refreshing stale counts in the background and applying Job Entry recent changes without clearing the visible dashboard.",
+  "version": "11.2.7",
+  "title": "WorkDesk Dashboard Hide Zero Cards",
+  "message": "Keeps WorkDesk Dashboard stable while hiding verified zero-count All Active cards and preserving background smart sync accuracy.",
   "required": false,
   "releasedAt": "2026-07-12T00:00:00+03:00"
 }

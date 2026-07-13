@@ -1,25 +1,21 @@
-IBA System Patch 11.2.6 — WorkDesk Dashboard Smart Sync
+IBA SYSTEM PATCH 11.2.7 - WorkDesk Dashboard Hide Zero Cards
 
-Upload these files only:
+UPLOAD ONLY THESE FILES:
 - app.js
 - index.html
 - version.json
 - js/app-workdesk-dashboard.js
 
-Purpose:
-- Keep WorkDesk Dashboard visible and stable.
-- If cached counts are old, show cache first then quietly rebuild verified counts in the background.
-- When WorkDesk Job Entry / IPC changes arrive through workdesk_job_recent, apply the changed job record and recompute Dashboard cards without clearing the visible All Active section.
-- Prevent the old visible cycle: count/card visible -> dash/blank/checking -> visible again.
+PURPOSE:
+- WorkDesk Dashboard should know that zero means zero.
+- After verified counts are loaded, All Active should show only status cards with count > 0.
+- Zero-count cards such as New Entry 0, Retention 0, Unresolved 0 should be hidden.
+- IPC Application / IPC Processed still show normally when their verified count is above zero.
+- Keeps the 11.2.6 smart background sync so cards do not blink or disappear while checking.
 
-Protected:
-- 11.2.5 IPC Application / IPC Processed cards remain visible.
-- 11.2.4 Batch Entry attention routing remains included through existing uploaded files.
-- 11.2.3 Invoice Entry side panel guard remains included through existing uploaded files.
-- Inventory is not touched.
-
-After upload:
-1. Hard refresh Chrome (Ctrl + F5).
-2. Open WorkDesk Dashboard.
-3. Leave it idle for 3 minutes.
-4. Counts should not disappear. If old cached counts are shown first, they should update quietly without needing manual Refresh.
+EXPECTED TEST:
+1. Upload files.
+2. Hard refresh Chrome (Ctrl + F5).
+3. Open WorkDesk Dashboard.
+4. Zero-count cards should disappear after verified refresh.
+5. Non-zero cards should stay visible and update quietly.

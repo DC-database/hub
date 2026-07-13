@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '11.2.6';
+const APP_VERSION = '11.2.7';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -2485,7 +2485,7 @@ async function wdSyncRecentJobRecordUpdates(reason = 'job-recent-sync') {
         wdJobRecentLastSyncAt = now;
 
         if (changed) {
-            // 11.2.6: Do not clear the visible Dashboard cache after a Job Record recent sync.
+            // 11.2.7: Do not clear the visible Dashboard cache after a Job Record recent sync.
             // Clearing made All Active cards/counts disappear until a full rebuild finished.
             // The changed job record has already been upserted/removed in local cache, so the
             // Dashboard can recompute from cache and keep the last good cards visible.
