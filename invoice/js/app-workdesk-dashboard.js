@@ -269,6 +269,24 @@ const WD_DASHBOARD_LAZY_ADMIN_STATUSES = [
     'Report'
 ];
 
+// 11.2.5: These are the fixed WorkDesk All Active command-board cards.
+// Keep them visible even when the current count is zero, so important queues
+// like IPC Application / IPC Processed do not disappear after count refresh.
+const WD_DASHBOARD_FIXED_ALL_ACTIVE_CARDS = [
+    'New Entry',
+    'For SRV',
+    'Pending',
+    'On Hold',
+    'In Process',
+    'For Summary',
+    'Retention',
+    'For Approval',
+    'Unresolved',
+    'IPC Application',
+    'IPC Processed',
+    'Report'
+];
+
 function wdText(value, fallback = '') {
     const str = String(value ?? '').trim();
     return str || fallback;
@@ -3209,6 +3227,20 @@ function wdShouldProtectAllActiveFromBlank(reason = '') {
     return true;
 }
 
+function wdMergeFixedAllActiveCards(statuses = []) {
+    const map = new Map();
+    const add = (label) => {
+        const text = wdText(label);
+        if (!text) return;
+        const key = wdNormalize(text);
+        if (!key || map.has(key)) return;
+        map.set(key, text);
+    };
+    WD_DASHBOARD_FIXED_ALL_ACTIVE_CARDS.forEach(add);
+    (Array.isArray(statuses) ? statuses : []).forEach(add);
+    return wdSortStatuses(Array.from(map.values()));
+}
+
 function wdPreviewStatusesWithCount() {
     const labels = [];
     wdAllActiveDashboardCountMap.forEach((count, label) => {
@@ -3217,13 +3249,14 @@ function wdPreviewStatusesWithCount() {
         if ((Number(count) || 0) <= 0) return;
         labels.push(text);
     });
-    return wdSortStatuses(labels);
+    // 11.2.5: show the fixed category cards even if the count is zero.
+    return wdMergeFixedAllActiveCards(labels);
 }
 
 function wdAllActiveStatusesToShowWhileLazy() {
-    // 10.5.9: Once count preview/cache is available, do not show status cards
-    // with value 0. Those zero placeholder cards caused confusion because they
-    // disappeared after an Admin clicked any card and the exact list loaded.
+    // 11.2.5: The command board must keep fixed category cards visible.
+    // Counts may be zero, but categories such as IPC Application / IPC Processed
+    // should not vanish after the count cache is loaded.
     if (wdAllActiveDashboardCountsLoaded) {
         return wdPreviewStatusesWithCount();
     }
@@ -3472,7 +3505,7 @@ function wdRenderDashboardCards() {
         // The section now starts directly with the actionable status cards.
         let activeHtml = '';
 
-        let activeStatusesToShow = wdAllActiveDashboardLoaded ? statuses : wdAllActiveStatusesToShowWhileLazy();
+        let activeStatusesToShow = wdAllActiveDashboardLoaded ? wdMergeFixedAllActiveCards(statuses) : wdAllActiveStatusesToShowWhileLazy();
         // 11.2.1: During background/live refresh, keep the section visible instead
         // of rendering it empty while the verified set is being rebuilt.
         if (!activeStatusesToShow.length && (wdAllActiveDashboardCountsLoading || wdAllActiveDashboardLoading || wdDashboardVerifiedRefreshRunning) && wdAllActiveHasStableVisibleCounts()) {
