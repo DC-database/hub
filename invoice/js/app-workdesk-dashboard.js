@@ -273,9 +273,10 @@ const WD_DASHBOARD_LAZY_ADMIN_STATUSES = [
     'Report'
 ];
 
-// 11.2.6: These are the fixed WorkDesk All Active command-board cards.
-// Keep them visible even when the current count is zero, so important queues
-// like IPC Application / IPC Processed do not disappear after count refresh.
+// 11.2.7: Fixed WorkDesk All Active command-board order/fallback.
+// Important: verified zero-count cards must be hidden. These labels are used only
+// before a verified count exists, so the board can show a clean first-load state
+// without making zero cards permanent.
 const WD_DASHBOARD_FIXED_ALL_ACTIVE_CARDS = [
     'New Entry',
     'For SRV',
@@ -3286,14 +3287,16 @@ function wdPreviewStatusesWithCount() {
         if ((Number(count) || 0) <= 0) return;
         labels.push(text);
     });
-    // 11.2.6: show the fixed category cards even if the count is zero.
-    return wdMergeFixedAllActiveCards(labels);
+    // 11.2.7: Zero means zero. After a verified/preview count exists, show only
+    // statuses with real active work. This keeps IPC visible when it has a count,
+    // but hides New Entry/Retention/Unresolved/etc. when verified count is 0.
+    return wdSortStatuses(labels);
 }
 
 function wdAllActiveStatusesToShowWhileLazy() {
-    // 11.2.6: The command board must keep fixed category cards visible.
-    // Counts may be zero, but categories such as IPC Application / IPC Processed
-    // should not vanish after the count cache is loaded.
+    // 11.2.7: Before the first verified count, a short checking state is allowed.
+    // Once counts are available, never keep zero-count cards just because they are
+    // fixed categories.
     if (wdAllActiveDashboardCountsLoaded) {
         return wdPreviewStatusesWithCount();
     }
@@ -3542,7 +3545,10 @@ function wdRenderDashboardCards() {
         // The section now starts directly with the actionable status cards.
         let activeHtml = '';
 
-        let activeStatusesToShow = wdAllActiveDashboardLoaded ? wdMergeFixedAllActiveCards(statuses) : wdAllActiveStatusesToShowWhileLazy();
+        // 11.2.7: When verified tasks are loaded, use only buckets that actually
+        // have tasks. Do not merge fixed categories here, because that shows 0-count
+        // cards and makes the command board look inaccurate.
+        let activeStatusesToShow = wdAllActiveDashboardLoaded ? statuses : wdAllActiveStatusesToShowWhileLazy();
         // 11.2.1: During background/live refresh, keep the section visible instead
         // of rendering it empty while the verified set is being rebuilt.
         if (!activeStatusesToShow.length && (wdAllActiveDashboardCountsLoading || wdAllActiveDashboardLoading || wdDashboardVerifiedRefreshRunning) && wdAllActiveHasStableVisibleCounts()) {
