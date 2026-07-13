@@ -161,7 +161,7 @@
 // =================================================================================================
 // #region BLOCK 12 — WORKDESK DASHBOARD CONTROL CENTER + REPORTS
 // Purpose: WorkDesk dashboard counts/list for incomplete invoice tasks + clean Job Records CSV export.
-// 11.2.1: Stable Dashboard counts - never blank All Active cards during background refresh.
+// 11.2.6: Smart Dashboard sync - stable visible cards plus background accuracy refresh.
 // =================================================================================================
 
 let wdActiveDashboardTasks = [];
@@ -191,6 +191,7 @@ const WD_DASHBOARD_SOFT_SYNC_MIN_MS = 10000;
 let wdDashboardRecentSyncTimer = null;
 let wdDashboardRecentSyncRunning = false;
 let wdDashboardVerifiedRefreshRunning = false;
+let wdDashboardJobRecentApplyRunning = false;
 let wdDashboardLastRecentSyncAt = 0;
 
 // 8.5.1: Keep the WorkDesk Dashboard self-sufficient for short periods.
@@ -202,6 +203,9 @@ const WD_DASHBOARD_CACHE_TTL = 24 * 60 * 60 * 1000; // 10.5.8: day/session cache
 const WD_DASHBOARD_COUNT_CACHE_TTL = 24 * 60 * 60 * 1000;
 const WD_DASHBOARD_RECENT_SYNC_INTERVAL = 30 * 1000;
 const WD_DASHBOARD_RECENT_SYNC_OVERLAP = 2 * 60 * 1000;
+// 11.2.6: cached cards are displayed immediately, but if verified counts are old
+// they are quietly rebuilt in the background so manual Refresh is not required.
+const WD_DASHBOARD_AUTO_VERIFY_REFRESH_MS = 5 * 60 * 1000;
 
 const WD_DASHBOARD_NONE = '__NONE__';
 const WD_DASHBOARD_ALL = '__ALL__';
@@ -269,7 +273,7 @@ const WD_DASHBOARD_LAZY_ADMIN_STATUSES = [
     'Report'
 ];
 
-// 11.2.5: These are the fixed WorkDesk All Active command-board cards.
+// 11.2.6: These are the fixed WorkDesk All Active command-board cards.
 // Keep them visible even when the current count is zero, so important queues
 // like IPC Application / IPC Processed do not disappear after count refresh.
 const WD_DASHBOARD_FIXED_ALL_ACTIVE_CARDS = [
@@ -441,6 +445,37 @@ function wdRemoveDashboardJobEntryCache(key) {
     try { if (Array.isArray(allSystemEntries)) allSystemEntries = allSystemEntries.filter(item => !(item && item.source === 'job_entry' && sameKey(item))); } catch (_) {}
     try { wdAllActiveDashboardCountItemsMap.delete(`job|${wdNormalize(key)}`); } catch (_) {}
 }
+
+
+// 11.2.6: Apply WorkDesk Job recent changes without clearing the visible Dashboard.
+// The recent-sync code already upserts/removes the changed job record in local cache.
+// This recomputes the cards/counts from the current cache, preserving the UI until
+// the new verified set is ready. It avoids the old pattern: clear -> dash -> rebuild.
+async function wdHandleWorkdeskJobRecentDashboardChanged(reason = 'job-recent-sync') {
+    if (!wdCanSeeAllActiveDashboard() || !wdIsDashboardVisible()) return false;
+    if (wdDashboardJobRecentApplyRunning) return false;
+    if (window.ibaShouldPauseFirebase && window.ibaShouldPauseFirebase('workdesk-dashboard-job-recent-apply', true)) return false;
+
+    wdDashboardJobRecentApplyRunning = true;
+    const previousStatus = wdActiveDashboardSelectedStatus || WD_DASHBOARD_NONE;
+    const previousDate = wdActiveDashboardSelectedQueueDate || '';
+    try {
+        const verifiedTasks = await wdBuildDashboardTasks({ forceRefresh: false, includeAllActive: true });
+        wdApplyVerifiedAllActiveDashboardCache(verifiedTasks, reason || 'job-recent-sync');
+        wdActiveDashboardSelectedStatus = wdDashboardFilterExists(previousStatus) ? previousStatus : WD_DASHBOARD_NONE;
+        wdActiveDashboardSelectedQueueDate = previousDate;
+        wdRenderDashboardCards();
+        wdRenderDashboardList();
+        wdBindDashboardControls();
+        return true;
+    } catch (e) {
+        console.warn('WorkDesk dashboard could not apply recent Job Record update without clearing:', e);
+        return false;
+    } finally {
+        wdDashboardJobRecentApplyRunning = false;
+    }
+}
+window.wdHandleWorkdeskJobRecentDashboardChanged = wdHandleWorkdeskJobRecentDashboardChanged;
 
 // 8.5.2: Public safe cache clearer for save/update flows that change task buckets
 // such as converting an IPC Job Record to an Invoice Job Record.
@@ -2751,7 +2786,9 @@ async function populateWorkdeskDashboard(forceRefresh = false) {
                 wdBindDashboardControls();
                 wdStartDashboardActiveTaskLiveSync();
                 wdStartDashboardRecentUpdateSync();
-                wdPrimeAllActiveDashboardCounts(!restoredVerifiedAllActive);
+                const verifiedAge = Date.now() - Number(cached.verifiedAt || cached.savedAt || 0);
+                const shouldQuietlyVerify = !restoredVerifiedAllActive || verifiedAge > WD_DASHBOARD_AUTO_VERIFY_REFRESH_MS;
+                wdPrimeAllActiveDashboardCounts(shouldQuietlyVerify);
                 return;
             }
         }
@@ -3249,12 +3286,12 @@ function wdPreviewStatusesWithCount() {
         if ((Number(count) || 0) <= 0) return;
         labels.push(text);
     });
-    // 11.2.5: show the fixed category cards even if the count is zero.
+    // 11.2.6: show the fixed category cards even if the count is zero.
     return wdMergeFixedAllActiveCards(labels);
 }
 
 function wdAllActiveStatusesToShowWhileLazy() {
-    // 11.2.5: The command board must keep fixed category cards visible.
+    // 11.2.6: The command board must keep fixed category cards visible.
     // Counts may be zero, but categories such as IPC Application / IPC Processed
     // should not vanish after the count cache is loaded.
     if (wdAllActiveDashboardCountsLoaded) {
