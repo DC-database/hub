@@ -1,7 +1,7 @@
 {
-  "version": "11.2.4",
+  "version": "11.2.5",
   "title": "Batch Entry Attention Routing Restore",
-  "message": "Restores Batch Entry automatic Attention routing: For SRV site attention/available picker, Report to GIO, CEO Approval to Hamad, and In Process to COO, while keeping no-attention statuses and 11.2.3 side-panel guard.",
+  "message": "Restores fixed WorkDesk All Active dashboard category cards, including IPC Application and IPC Processed, so zero-count required queues do not disappear after background count refresh.",
   "required": false,
   "releasedAt": "2026-07-12T00:00:00+03:00"
 }
