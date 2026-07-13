@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '11.2.5';
+const APP_VERSION = '11.2.6';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -2485,7 +2485,10 @@ async function wdSyncRecentJobRecordUpdates(reason = 'job-recent-sync') {
         wdJobRecentLastSyncAt = now;
 
         if (changed) {
-            try { if (typeof wdClearWorkdeskDashboardCache === 'function') wdClearWorkdeskDashboardCache(); } catch (_) {}
+            // 11.2.6: Do not clear the visible Dashboard cache after a Job Record recent sync.
+            // Clearing made All Active cards/counts disappear until a full rebuild finished.
+            // The changed job record has already been upserted/removed in local cache, so the
+            // Dashboard can recompute from cache and keep the last good cards visible.
 
             if (wdIsSectionVisible('wd-reporting') && typeof handleReportingSearch === 'function') {
                 try { await handleReportingSearch({ userAction: true, reason: 'search' }); } catch (_) {}
@@ -2493,8 +2496,14 @@ async function wdSyncRecentJobRecordUpdates(reason = 'job-recent-sync') {
             if (wdIsSectionVisible('wd-activetask') && typeof populateActiveTasks === 'function') {
                 try { await populateActiveTasks(true); } catch (_) {}
             }
-            if (wdIsSectionVisible('wd-dashboard') && typeof populateWorkdeskDashboard === 'function') {
-                try { await populateWorkdeskDashboard(true); } catch (_) {}
+            if (wdIsSectionVisible('wd-dashboard')) {
+                try {
+                    if (typeof window.wdHandleWorkdeskJobRecentDashboardChanged === 'function') {
+                        await window.wdHandleWorkdeskJobRecentDashboardChanged('job-recent-sync');
+                    } else if (typeof populateWorkdeskDashboard === 'function') {
+                        await populateWorkdeskDashboard(false);
+                    }
+                } catch (_) {}
             }
         }
     } catch (err) {
