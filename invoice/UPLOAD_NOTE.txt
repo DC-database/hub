@@ -1,21 +1,22 @@
-IBA SYSTEM PATCH 11.2.7 - WorkDesk Dashboard Hide Zero Cards
+IBA Patch 11.2.8 - Invoice Entry For SRV Quick Access
 
-UPLOAD ONLY THESE FILES:
+Upload only these files to the live site root:
 - app.js
 - index.html
 - version.json
-- js/app-workdesk-dashboard.js
 
-PURPOSE:
-- WorkDesk Dashboard should know that zero means zero.
-- After verified counts are loaded, All Active should show only status cards with count > 0.
-- Zero-count cards such as New Entry 0, Retention 0, Unresolved 0 should be hidden.
-- IPC Application / IPC Processed still show normally when their verified count is above zero.
-- Keeps the 11.2.6 smart background sync so cards do not blink or disappear while checking.
+Changed files and reason:
+- index.html: Added the "For SRV" quick access button in the Invoice Entry modal side quick-access panel. Updated app.js and version-checker query strings to 11.2.8.
+- app.js: Bumped visible APP_VERSION to 11.2.8 only.
+- version.json: Bumped update notice metadata to 11.2.8.
 
-EXPECTED TEST:
-1. Upload files.
-2. Hard refresh Chrome (Ctrl + F5).
-3. Open WorkDesk Dashboard.
-4. Zero-count cards should disappear after verified refresh.
-5. Non-zero cards should stay visible and update quietly.
+Behavior:
+- Clicking For SRV uses the existing Invoice Entry status change logic.
+- Existing For SRV auto-attention / site picker behavior is preserved.
+- WorkDesk Dashboard, Batch Entry routing, Inventory, and Firebase fetch-control logic are not changed by this patch.
+
+After upload:
+1. Hard refresh Chrome with Ctrl + F5.
+2. Open Invoice Entry modal.
+3. Confirm Quick Access shows For SRV.
+4. Click For SRV and confirm Attention behaves exactly like selecting For SRV from the status dropdown.

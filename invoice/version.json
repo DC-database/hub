@@ -1,7 +1,7 @@
 {
-  "version": "11.2.7",
-  "title": "WorkDesk Dashboard Hide Zero Cards",
-  "message": "Keeps WorkDesk Dashboard stable while hiding verified zero-count All Active cards and preserving background smart sync accuracy.",
+  "version": "11.2.8",
+  "title": "Invoice Entry For SRV Quick Access",
+  "message": "Adds For SRV to the Invoice Entry modal Quick Access side panel while keeping the existing For SRV auto-attention routing behavior.",
   "required": false,
-  "releasedAt": "2026-07-12T00:00:00+03:00"
+  "releasedAt": "2026-07-13T00:00:00+03:00"
 }
