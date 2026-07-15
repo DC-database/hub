@@ -1,1 +1,1 @@
-Upload the files listed in UPLOAD_NOTE.txt only. This patch does not touch WorkDesk Dashboard, Inventory, Batch Entry routing, or Firebase fetch logic.
+11.3.0 fixes stale modal deletion-list folder state. Upload listed files only and hard refresh.
