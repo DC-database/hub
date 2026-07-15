@@ -1,22 +1,18 @@
-IBA Patch 11.2.8 - Invoice Entry For SRV Quick Access
+IBA 11.2.9 — Invoice Entry Modal Deletion Button State Guard
 
-Upload only these files to the live site root:
+Upload only these files:
 - app.js
 - index.html
 - version.json
 
-Changed files and reason:
-- index.html: Added the "For SRV" quick access button in the Invoice Entry modal side quick-access panel. Updated app.js and version-checker query strings to 11.2.8.
-- app.js: Bumped visible APP_VERSION to 11.2.8 only.
-- version.json: Bumped update notice metadata to 11.2.8.
-
-Behavior:
-- Clicking For SRV uses the existing Invoice Entry status change logic.
-- Existing For SRV auto-attention / site picker behavior is preserved.
-- WorkDesk Dashboard, Batch Entry routing, Inventory, and Firebase fetch-control logic are not changed by this patch.
+Purpose:
+- Fixes Invoice Entry modal folder icon/add-to-deletion-list button showing as already checked/disabled before you click it.
+- The modal button now resets per current invoice/PO and mirrors the outside row button when a matching outside row is available.
+- The actual add-to-deletion-list save logic remains the existing system logic.
 
 After upload:
-1. Hard refresh Chrome with Ctrl + F5.
-2. Open Invoice Entry modal.
-3. Confirm Quick Access shows For SRV.
-4. Click For SRV and confirm Attention behaves exactly like selecting For SRV from the status dropdown.
+1. Hard refresh Chrome (Ctrl + F5).
+2. Open Invoice Entry.
+3. Open an invoice modal whose outside folder button is available.
+4. The modal folder icon should also be clickable.
+5. After clicking it, only then it should become check/disabled.

@@ -3217,7 +3217,7 @@
     <script src="js/app-utils.js?v=8.2.3"></script>
     <script src="js/app-vacation.js?v=8.2.3"></script>
     <script src="js/app-dom-refs.js?v=10.1.5"></script>
-    <script src="app.js?v=11.2.8"></script>
+    <script src="app.js?v=11.2.9"></script>
     <script src="js/app-time-clock.js?v=11.0.9"></script>
     <script src="js/app-navigation-settings.js?v=11.0.3"></script>
     <script src="js/app-data-cache.js?v=11.2.7"></script>
@@ -3242,10 +3242,178 @@
     <script src="js/app-help.js?v=8.2.3"></script>
 
     <script>
-      window.IBA_SYSTEM_VERSION = '11.2.8';
+      window.IBA_SYSTEM_VERSION = '11.2.9';
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
-    <script src="js/app-version-checker.js?v=11.2.8"></script>
+    <script src="js/app-version-checker.js?v=11.2.9"></script>
+
+
+
+    <script>
+    // 11.2.9 — Invoice Entry modal deletion-list folder state guard.
+    // Keeps the modal folder button aligned with the actual current invoice/PO instead of
+    // inheriting an "already added" check/disabled state from a previously opened entry.
+    (function () {
+      'use strict';
+
+      const MODAL_BTN_ID = 'im-modal-deletion-list-btn';
+      const MODAL_ID = 'im-invoice-entry-modal';
+      let syncTimer = null;
+
+      function el(id) { return document.getElementById(id); }
+      function clean(v) { return String(v == null ? '' : v).trim(); }
+      function norm(v) { return clean(v).toLowerCase().replace(/\s+/g, ' '); }
+
+      function getCurrentModalSignature() {
+        const po = clean(el('im-po-search-input-bottom')?.value || el('im-po-search-input')?.value || window.currentIMPO || window.currentPoNumber || '');
+        const entryId = clean(el('im-inv-entry-id')?.value || window.currentInvoiceEntryId || '');
+        const invNo = clean(el('im-inv-no')?.value || '');
+        return `${po}||${entryId}||${invNo}`;
+      }
+
+      function isModalOpen() {
+        const modal = el(MODAL_ID);
+        return !!modal && !modal.classList.contains('hidden') && modal.offsetParent !== null;
+      }
+
+      function hasAddedLook(btn) {
+        const txt = norm((btn.title || '') + ' ' + (btn.textContent || '') + ' ' + (btn.className || '') + ' ' + (btn.getAttribute('aria-label') || ''));
+        return /already|added|done|check|checked|listed|success/.test(txt);
+      }
+
+      function setAvailable(btn) {
+        if (!btn) return;
+        btn.disabled = false;
+        btn.removeAttribute('disabled');
+        btn.removeAttribute('aria-disabled');
+        btn.classList.remove('disabled', 'is-disabled', 'is-added', 'added', 'checked', 'success', 'done');
+        btn.dataset.imDeletionState = 'available';
+        btn.title = 'Original PO is in file — add to deletion list';
+        const icon = btn.querySelector('i');
+        if (icon) icon.className = 'fa-solid fa-folder-minus';
+      }
+
+      function setAdded(btn) {
+        if (!btn) return;
+        btn.disabled = true;
+        btn.setAttribute('disabled', 'disabled');
+        btn.setAttribute('aria-disabled', 'true');
+        btn.classList.add('is-added');
+        btn.dataset.imDeletionState = 'added';
+        btn.title = 'Already added to deletion list';
+        const icon = btn.querySelector('i');
+        if (icon) icon.className = 'fa-solid fa-check';
+      }
+
+      function candidateMatchesCurrent(btn, signature) {
+        if (!btn || btn.id === MODAL_BTN_ID) return false;
+        const [po, entryId, invNo] = signature.split('||');
+        const row = btn.closest('tr, .im-invoice-card, .invoice-card, .result-card, .im-existing-invoice-row, .im-record-row');
+        const dataText = norm([
+          btn.dataset?.po, btn.dataset?.poNo, btn.dataset?.entryId, btn.dataset?.invEntryId,
+          btn.dataset?.invoiceKey, btn.dataset?.invoiceNo, btn.title, btn.getAttribute('aria-label'),
+          row ? row.textContent : ''
+        ].join(' '));
+        if (entryId && dataText.includes(norm(entryId))) return true;
+        if (po && invNo && dataText.includes(norm(po)) && dataText.includes(norm(invNo))) return true;
+        return false;
+      }
+
+      function findOutsideCounterpart(signature) {
+        const buttons = Array.from(document.querySelectorAll('button, a'));
+        return buttons.find(function (btn) {
+          if (btn.id === MODAL_BTN_ID) return false;
+          const info = norm((btn.id || '') + ' ' + (btn.className || '') + ' ' + (btn.title || '') + ' ' + (btn.getAttribute('aria-label') || '') + ' ' + (btn.textContent || ''));
+          if (!/(deletion|delete list|folder|file|original po)/.test(info)) return false;
+          return candidateMatchesCurrent(btn, signature);
+        }) || null;
+      }
+
+      function syncModalDeletionButton(reason) {
+        const btn = el(MODAL_BTN_ID);
+        if (!btn || !isModalOpen() || btn.classList.contains('hidden')) return;
+
+        const signature = getCurrentModalSignature();
+        if (!signature.replace(/\|/g, '')) return;
+
+        // If this exact modal entry was clicked in this session, keep the completed state.
+        if (btn.dataset.imDeletionClickedSignature === signature) {
+          setAdded(btn);
+          return;
+        }
+
+        // If the outside/current row has a reliable counterpart, mirror its availability.
+        const counterpart = findOutsideCounterpart(signature);
+        if (counterpart) {
+          const counterpartDisabled = counterpart.disabled || counterpart.getAttribute('aria-disabled') === 'true' || counterpart.classList.contains('disabled') || counterpart.classList.contains('is-disabled') || hasAddedLook(counterpart);
+          counterpartDisabled ? setAdded(btn) : setAvailable(btn);
+          btn.dataset.imDeletionMirror = 'counterpart';
+          return;
+        }
+
+        // Fallback: opening a modal must start available. Do not inherit stale check/disabled state
+        // from another invoice unless this exact button was clicked during the current modal session.
+        setAvailable(btn);
+        btn.dataset.imDeletionMirror = reason || 'fallback';
+      }
+
+      function scheduleSync(reason) {
+        clearTimeout(syncTimer);
+        syncTimer = setTimeout(function () { syncModalDeletionButton(reason); }, 80);
+      }
+
+      document.addEventListener('click', function (ev) {
+        const btn = ev.target && ev.target.closest ? ev.target.closest('#' + MODAL_BTN_ID) : null;
+        if (!btn) return;
+
+        const signature = getCurrentModalSignature();
+        // If stale disabled/check state blocks the user, repair it before the legacy handler runs.
+        if (btn.disabled || btn.getAttribute('aria-disabled') === 'true') {
+          setAvailable(btn);
+        }
+        btn.dataset.imDeletionClickedSignature = signature;
+        // Let the existing legacy add-to-deletion-list handler perform the actual save.
+        setTimeout(function () { setAdded(btn); }, 350);
+      }, true);
+
+      ['input', 'change'].forEach(function (evt) {
+        document.addEventListener(evt, function (ev) {
+          if (ev.target && ['im-po-search-input', 'im-po-search-input-bottom', 'im-inv-entry-id', 'im-inv-no'].includes(ev.target.id)) {
+            const btn = el(MODAL_BTN_ID);
+            if (btn) delete btn.dataset.imDeletionClickedSignature;
+            scheduleSync('field-change');
+          }
+        }, true);
+      });
+
+      document.addEventListener('click', function (ev) {
+        const trigger = ev.target && ev.target.closest ? ev.target.closest('#im-open-invoice-form-btn, #im-invoices-table-body button, .im-sidebar-list button, .im-sidebar-list li, .im-entry-sidebar button') : null;
+        if (trigger) {
+          const btn = el(MODAL_BTN_ID);
+          if (btn) delete btn.dataset.imDeletionClickedSignature;
+          scheduleSync('modal-open-or-row-change');
+          setTimeout(function () { scheduleSync('modal-open-late'); }, 450);
+        }
+      }, true);
+
+      const observer = new MutationObserver(function () { scheduleSync('mutation'); });
+      function startObserver() {
+        const modal = el(MODAL_ID);
+        const btn = el(MODAL_BTN_ID);
+        if (modal) observer.observe(modal, { attributes: true, childList: true, subtree: true, attributeFilter: ['class', 'style', 'disabled', 'aria-disabled', 'title'] });
+        if (btn) observer.observe(btn, { attributes: true, childList: true, subtree: true, attributeFilter: ['class', 'style', 'disabled', 'aria-disabled', 'title'] });
+        scheduleSync('boot');
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', startObserver);
+      } else {
+        startObserver();
+      }
+
+      window.imSyncModalDeletionListButtonState = syncModalDeletionButton;
+    })();
+    </script>
 
     </body>
 </html>

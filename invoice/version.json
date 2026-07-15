@@ -1,7 +1,7 @@
 {
-  "version": "11.2.8",
-  "title": "Invoice Entry For SRV Quick Access",
-  "message": "Adds For SRV to the Invoice Entry modal Quick Access side panel while keeping the existing For SRV auto-attention routing behavior.",
+  "version": "11.2.9",
+  "title": "Invoice Entry Modal Deletion Button State Guard",
+  "message": "Keeps the modal folder/add-to-deletion-list button available until the current invoice is actually added, preventing stale checked/disabled state from a previously opened entry.",
   "required": false,
-  "releasedAt": "2026-07-13T00:00:00+03:00"
+  "releasedAt": "2026-07-15T00:00:00+03:00"
 }
