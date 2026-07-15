@@ -1,10 +1,18 @@
-IBA 11.3.0 — Invoice Entry Modal Deletion Context Reset
+IBA 11.3.2 WorkDesk Recovery Safe Base
 
-Upload only these files:
+Upload files:
 - app.js
 - index.html
 - version.json
+- js/app-data-cache.js
+- js/app-workdesk-dashboard.js
+- js/app-workdesk-reporting.js
+- js/app-modal-navigation-clear.js
 
-After upload, hard refresh Chrome with Ctrl+F5.
+Purpose:
+- Restore WorkDesk Dashboard count/card behavior from stable 11.2.7 line.
+- Restore Job Records tab/search/clear scripts from accepted 10.9.9 line.
+- Keep Invoice Entry modal For SRV Quick Access from 11.2.8.
+- Remove the 11.3.x inline modal deletion mirror script for now because WorkDesk regression was reported after it.
 
-This patch fixes the Invoice Entry modal folder/add-to-deletion-list icon so it resets per current PO/invoice and does not keep the checked/disabled state from the previously opened PO.
+After upload: Ctrl+F5, test WorkDesk Dashboard and Job Records first.

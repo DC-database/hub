@@ -3217,10 +3217,10 @@
     <script src="js/app-utils.js?v=8.2.3"></script>
     <script src="js/app-vacation.js?v=8.2.3"></script>
     <script src="js/app-dom-refs.js?v=10.1.5"></script>
-    <script src="app.js?v=11.2.9"></script>
+    <script src="app.js?v=11.3.2"></script>
     <script src="js/app-time-clock.js?v=11.0.9"></script>
     <script src="js/app-navigation-settings.js?v=11.0.3"></script>
-    <script src="js/app-data-cache.js?v=11.2.7"></script>
+    <script src="js/app-data-cache.js?v=11.3.2"></script>
     <script src="js/app-job-vendor.js?v=8.2.3"></script>
     <script src="js/app-workdesk-job-entry.js?v=10.1.6"></script>
     <script src="js/app-standard-job.js?v=11.0.4"></script>
@@ -3228,12 +3228,12 @@
     <script src="js/app-payments.js?v=11.0.5"></script>
     <script src="js/app-invoice-records.js?v=10.8.3"></script>
     <script src="js/app-active-tasks.js?v=11.0.6"></script>
-    <script src="js/app-workdesk-dashboard.js?v=11.2.7"></script>
-    <script src="js/app-workdesk-reporting.js?v=10.9.9"></script>
+    <script src="js/app-workdesk-dashboard.js?v=11.3.2"></script>
+    <script src="js/app-workdesk-reporting.js?v=11.3.2"></script>
     <script src="js/app-reporting-actions.js?v=9.9.0"></script>
     <script src="js/app-report-workflow.js?v=8.2.3"></script>
     <script src="js/app-ui-shortcuts.js?v=10.9.4"></script>
-    <script src="js/app-modal-navigation-clear.js?v=10.9.9"></script>
+    <script src="js/app-modal-navigation-clear.js?v=11.3.2"></script>
     <script src="js/app-invoice-entry-search.js?v=11.2.7"></script>
     <script src="js/app-attention-validation.js?v=11.2.7"></script>
     <script src="js/app-batch-entry-ui.js?v=11.2.7"></script>
@@ -3242,246 +3242,10 @@
     <script src="js/app-help.js?v=8.2.3"></script>
 
     <script>
-      window.IBA_SYSTEM_VERSION = '11.3.0';
+      window.IBA_SYSTEM_VERSION = '11.3.2';
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
-    <script src="js/app-version-checker.js?v=11.3.0"></script>
-
-
-
-    <script>
-    // 11.3.0 — Invoice Entry modal deletion-list folder context reset guard.
-    // Keeps the modal folder button tied to the CURRENT PO/Invoice entry.
-    // It resets when another invoice is opened, even when the modal fields are filled programmatically.
-    (function () {
-      'use strict';
-
-      const MODAL_BTN_ID = 'im-modal-deletion-list-btn';
-      const MODAL_ID = 'im-invoice-entry-modal';
-      let syncTimer = null;
-      let watchTimer = null;
-      let lastSeenSignature = '';
-
-      function el(id) { return document.getElementById(id); }
-      function clean(v) { return String(v == null ? '' : v).trim(); }
-      function norm(v) { return clean(v).toLowerCase().replace(/\s+/g, ' '); }
-
-      function validText(v) {
-        const s = clean(v);
-        if (!s || s === '---' || /^search po/i.test(s)) return '';
-        return s;
-      }
-
-      function firstVisibleText(selector, scope) {
-        const root = scope || document;
-        const nodes = Array.from(root.querySelectorAll(selector));
-        for (const node of nodes) {
-          const style = window.getComputedStyle ? window.getComputedStyle(node) : null;
-          const visible = !!(node.offsetWidth || node.offsetHeight || node.getClientRects().length);
-          if (style && (style.display === 'none' || style.visibility === 'hidden')) continue;
-          if (!visible) continue;
-          const txt = validText(node.textContent || node.value || '');
-          if (txt) return txt;
-        }
-        return '';
-      }
-
-      function currentModalPo() {
-        const modal = el(MODAL_ID);
-        return validText(el('im-po-search-input-bottom')?.value)
-          || validText(el('im-po-search-input')?.value)
-          || firstVisibleText('.im-po-no', modal)
-          || firstVisibleText('.im-po-no', document)
-          || validText(window.currentIMPO)
-          || validText(window.currentPoNumber)
-          || '';
-      }
-
-      function getCurrentModalSignature() {
-        const po = currentModalPo();
-        const entryId = validText(el('im-inv-entry-id')?.value) || validText(window.currentInvoiceEntryId) || '';
-        const invNo = validText(el('im-inv-no')?.value) || '';
-        const invName = validText(el('im-inv-name')?.value) || '';
-        const site = firstVisibleText('.im-po-site', el(MODAL_ID)) || '';
-        // Include multiple stable fields so a new PO/invoice never inherits a previous clicked/check state.
-        return `${po}||${entryId}||${invNo}||${invName}||${site}`;
-      }
-
-      function isModalOpen() {
-        const modal = el(MODAL_ID);
-        return !!modal && !modal.classList.contains('hidden') && modal.offsetParent !== null;
-      }
-
-      function hasAddedLook(btn) {
-        const txt = norm((btn.title || '') + ' ' + (btn.textContent || '') + ' ' + (btn.className || '') + ' ' + (btn.getAttribute('aria-label') || ''));
-        return /already|added|done|check|checked|listed|success/.test(txt);
-      }
-
-      function setAvailable(btn) {
-        if (!btn) return;
-        btn.disabled = false;
-        btn.removeAttribute('disabled');
-        btn.removeAttribute('aria-disabled');
-        btn.classList.remove('disabled', 'is-disabled', 'is-added', 'added', 'checked', 'success', 'done');
-        btn.dataset.imDeletionState = 'available';
-        btn.title = 'Original PO is in file — add to deletion list';
-        const icon = btn.querySelector('i');
-        if (icon) icon.className = 'fa-solid fa-folder-minus';
-      }
-
-      function setAdded(btn) {
-        if (!btn) return;
-        btn.disabled = true;
-        btn.setAttribute('disabled', 'disabled');
-        btn.setAttribute('aria-disabled', 'true');
-        btn.classList.add('is-added');
-        btn.dataset.imDeletionState = 'added';
-        btn.title = 'Already added to deletion list';
-        const icon = btn.querySelector('i');
-        if (icon) icon.className = 'fa-solid fa-check';
-      }
-
-      function candidateMatchesCurrent(btn, signature) {
-        if (!btn || btn.id === MODAL_BTN_ID) return false;
-        const parts = signature.split('||');
-        const po = norm(parts[0] || '');
-        const entryId = norm(parts[1] || '');
-        const invNo = norm(parts[2] || '');
-        const invName = norm(parts[3] || '');
-        const row = btn.closest('tr, .im-invoice-card, .invoice-card, .result-card, .im-existing-invoice-row, .im-record-row, .im-search-result-row');
-        const dataText = norm([
-          btn.dataset?.po, btn.dataset?.poNo, btn.dataset?.entryId, btn.dataset?.invEntryId,
-          btn.dataset?.invoiceKey, btn.dataset?.invoiceNo, btn.title, btn.getAttribute('aria-label'),
-          row ? row.textContent : ''
-        ].join(' '));
-        if (entryId && dataText.includes(entryId)) return true;
-        if (po && invNo && dataText.includes(po) && dataText.includes(invNo)) return true;
-        if (po && invName && dataText.includes(po) && dataText.includes(invName)) return true;
-        // Header-level PO file/delete-list button may only know the PO. That is still safe to mirror
-        // because the deletion list action is for the original PO file, not for a specific invoice row.
-        if (po && dataText.includes(po) && /deletion|delete list|original po|po in file|folder/.test(dataText)) return true;
-        return false;
-      }
-
-      function findOutsideCounterpart(signature) {
-        const buttons = Array.from(document.querySelectorAll('button, a'));
-        return buttons.find(function (btn) {
-          if (btn.id === MODAL_BTN_ID) return false;
-          const info = norm((btn.id || '') + ' ' + (btn.className || '') + ' ' + (btn.title || '') + ' ' + (btn.getAttribute('aria-label') || '') + ' ' + (btn.textContent || ''));
-          if (!/(deletion|delete list|folder|file|original po)/.test(info)) return false;
-          return candidateMatchesCurrent(btn, signature);
-        }) || null;
-      }
-
-      function signatureHasUsefulContext(signature) {
-        return signature.split('||').some(function (p) { return !!clean(p); });
-      }
-
-      function syncModalDeletionButton(reason) {
-        const btn = el(MODAL_BTN_ID);
-        if (!btn || !isModalOpen() || btn.classList.contains('hidden')) return;
-
-        const signature = getCurrentModalSignature();
-        if (!signatureHasUsefulContext(signature)) {
-          setAvailable(btn);
-          return;
-        }
-
-        // Key fix: whenever the modal changes to a different PO/invoice, forget the old clicked/check state.
-        if (lastSeenSignature && lastSeenSignature !== signature) {
-          delete btn.dataset.imDeletionClickedSignature;
-          setAvailable(btn);
-        }
-        lastSeenSignature = signature;
-
-        // If this exact modal entry was clicked in this session, keep the completed state.
-        if (btn.dataset.imDeletionClickedSignature === signature) {
-          setAdded(btn);
-          return;
-        }
-
-        // If the outside/current PO button is available, the modal button must also be available.
-        const counterpart = findOutsideCounterpart(signature);
-        if (counterpart) {
-          const counterpartDisabled = counterpart.disabled || counterpart.getAttribute('aria-disabled') === 'true' || counterpart.classList.contains('disabled') || counterpart.classList.contains('is-disabled') || hasAddedLook(counterpart);
-          counterpartDisabled ? setAdded(btn) : setAvailable(btn);
-          btn.dataset.imDeletionMirror = 'counterpart';
-          return;
-        }
-
-        // Fallback: opening/switching a modal must start available. Do not inherit stale check/disabled state.
-        setAvailable(btn);
-        btn.dataset.imDeletionMirror = reason || 'fallback';
-      }
-
-      function scheduleSync(reason, delay) {
-        clearTimeout(syncTimer);
-        syncTimer = setTimeout(function () { syncModalDeletionButton(reason); }, delay == null ? 80 : delay);
-      }
-
-      function startContextWatcher() {
-        if (watchTimer) return;
-        watchTimer = setInterval(function () {
-          if (!isModalOpen()) return;
-          scheduleSync('context-watch', 0);
-        }, 350);
-      }
-
-      document.addEventListener('click', function (ev) {
-        const btn = ev.target && ev.target.closest ? ev.target.closest('#' + MODAL_BTN_ID) : null;
-        if (!btn) return;
-
-        const signature = getCurrentModalSignature();
-        // If stale disabled/check state blocks the user, repair it before the legacy handler runs.
-        if (btn.disabled || btn.getAttribute('aria-disabled') === 'true') {
-          setAvailable(btn);
-        }
-        btn.dataset.imDeletionClickedSignature = signature;
-        lastSeenSignature = signature;
-        // Let the existing legacy add-to-deletion-list handler perform the actual save.
-        setTimeout(function () { setAdded(btn); }, 350);
-      }, true);
-
-      ['input', 'change'].forEach(function (evt) {
-        document.addEventListener(evt, function (ev) {
-          if (ev.target && ['im-po-search-input', 'im-po-search-input-bottom', 'im-inv-entry-id', 'im-inv-no', 'im-inv-name'].includes(ev.target.id)) {
-            const btn = el(MODAL_BTN_ID);
-            if (btn) delete btn.dataset.imDeletionClickedSignature;
-            scheduleSync('field-change');
-          }
-        }, true);
-      });
-
-      document.addEventListener('click', function (ev) {
-        const trigger = ev.target && ev.target.closest ? ev.target.closest('#im-open-invoice-form-btn, #im-invoices-table-body button, .im-sidebar-list button, .im-sidebar-list li, .im-entry-sidebar button, #im-search-results button, .im-results-table button') : null;
-        if (trigger) {
-          const btn = el(MODAL_BTN_ID);
-          if (btn) delete btn.dataset.imDeletionClickedSignature;
-          lastSeenSignature = '';
-          scheduleSync('modal-open-or-row-change', 60);
-          setTimeout(function () { scheduleSync('modal-open-late'); }, 450);
-          setTimeout(function () { scheduleSync('modal-open-later'); }, 900);
-        }
-      }, true);
-
-      const observer = new MutationObserver(function () { scheduleSync('mutation'); });
-      function startObserver() {
-        const modal = el(MODAL_ID);
-        const btn = el(MODAL_BTN_ID);
-        if (modal) observer.observe(modal, { attributes: true, childList: true, subtree: true, attributeFilter: ['class', 'style', 'disabled', 'aria-disabled', 'title', 'value'] });
-        if (btn) observer.observe(btn, { attributes: true, childList: true, subtree: true, attributeFilter: ['class', 'style', 'disabled', 'aria-disabled', 'title'] });
-        startContextWatcher();
-        scheduleSync('boot');
-      }
-
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', startObserver);
-      } else {
-        startObserver();
-      }
-
-      window.imSyncModalDeletionListButtonState = syncModalDeletionButton;
-    })();    </script>
+    <script src="js/app-version-checker.js?v=11.3.2"></script>
 
     </body>
 </html>

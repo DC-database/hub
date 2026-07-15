@@ -1,7 +1,5 @@
 {
-  "version": "11.3.0",
-  "title": "Invoice Entry Modal Deletion Context Reset",
-  "message": "Fixes the modal add-to-deletion-list folder icon so it resets when a different PO/invoice is opened and mirrors the current outside PO button instead of keeping a stale checked state.",
-  "required": false,
-  "releasedAt": "2026-07-15T00:00:00+03:00"
+  "version": "11.3.2",
+  "title": "WorkDesk Recovery Safe Base",
+  "message": "Restores WorkDesk Dashboard and Job Records behavior to the last stable WorkDesk base while keeping Invoice Entry For SRV Quick Access. Modal deletion mirror script from 11.3.x is removed pending a narrower fix."
 }
