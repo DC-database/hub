@@ -1,5 +1,5 @@
 {
-  "version": "11.3.2",
-  "title": "WorkDesk Recovery Safe Base",
-  "message": "Restores WorkDesk Dashboard and Job Records behavior to the last stable WorkDesk base while keeping Invoice Entry For SRV Quick Access. Modal deletion mirror script from 11.3.x is removed pending a narrower fix."
+  "version": "11.3.3",
+  "title": "Batch Entry Undefined Attention Guard",
+  "message": "Fixes Batch Entry multi-row save failing when attention is blank or intentionally cleared. Firebase payloads no longer contain undefined attention values. WorkDesk recovery from 11.3.2 is retained."
 }

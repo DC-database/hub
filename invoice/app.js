@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '11.3.2';
+const APP_VERSION = '11.3.3';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -5098,6 +5098,17 @@ async function handleSaveBatchInvoices() {
 
         if (invoiceData.attention === 'None') invoiceData.attention = '';
         imApplyInvoiceAttentionRule(invoiceData);
+
+        // 11.3.3: Firebase update()/set() rejects undefined values.
+        // Batch Entry multi-save can leave attention undefined when a row has no selected
+        // attention or a global status intentionally clears attention. Normalize it before
+        // any invoice_entries write so multi-row updates do not fail.
+        if (typeof invoiceData.attention === 'undefined' || invoiceData.attention === null) {
+            invoiceData.attention = '';
+        }
+        Object.keys(invoiceData).forEach((key) => {
+            if (typeof invoiceData[key] === 'undefined') invoiceData[key] = '';
+        });
 
         try {
             const n = (invoiceData.note || '').replace(/\u00A0/g, ' ').trim();

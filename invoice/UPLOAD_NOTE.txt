@@ -1,18 +1,15 @@
-IBA 11.3.2 WorkDesk Recovery Safe Base
+IBA System Patch 11.3.3 — Batch Entry Undefined Attention Guard
 
-Upload files:
+Upload only these files:
 - app.js
 - index.html
 - version.json
-- js/app-data-cache.js
-- js/app-workdesk-dashboard.js
-- js/app-workdesk-reporting.js
-- js/app-modal-navigation-clear.js
 
 Purpose:
-- Restore WorkDesk Dashboard count/card behavior from stable 11.2.7 line.
-- Restore Job Records tab/search/clear scripts from accepted 10.9.9 line.
-- Keep Invoice Entry modal For SRV Quick Access from 11.2.8.
-- Remove the 11.3.x inline modal deletion mirror script for now because WorkDesk regression was reported after it.
+- Fix Batch Entry multi-row update error: Firebase update failed because attention was undefined.
+- Keep blank/None attention as an empty string instead of undefined.
+- Preserve WorkDesk recovery behavior from 11.3.2.
 
-After upload: Ctrl+F5, test WorkDesk Dashboard and Job Records first.
+After upload:
+- Hard refresh Chrome with Ctrl + F5.
+- Test Batch Entry with multiple selected invoices.
