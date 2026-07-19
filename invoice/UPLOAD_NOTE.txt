@@ -1,20 +1,7 @@
-IBA 11.3.4 — Batch Entry Group-Aware Attention Routing Patch
-
-Upload only:
+Upload only these files:
 - app.js
 - index.html
 - version.json
-- js/app-attention-validation.js
-- js/app-batch-entry-ui.js
-- js/app-im-event-wiring.js
+- js/app-data-cache.js
 
-Fixes Batch Entry per-row status dropdown routing:
-- For SRV + Normal group -> site-matched Site DC. If no Site DC, fallback Irwin.
-- For SRV + non-Normal group -> site-matched Logistic. If no Logistic, fallback Irwin.
-- Report -> GIO.
-- CEO Approval -> Hamad / CEO.
-- In Process -> COO.
-- Report Approved, With Accounts, Under Review, Pending, On Hold, For Summary, Retention, Unresolved, For Approval, No Need SRV, CLOSED, Cancelled, Original PO, and all other statuses -> Attention None/blank.
-
-Also preserves group/invoiceGroup on Batch Entry save so the routing remains accurate after Job Entry conversion.
-This patch is focused on Invoice Management Batch Entry. It does not modify WorkDesk Dashboard JS or Inventory JS.
+After upload, hard refresh Chrome with Ctrl + F5. Test Summary Note with the previous note that was showing 0.00.

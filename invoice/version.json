@@ -1,6 +1,6 @@
 {
-  "version": "11.3.4",
+  "version": "11.3.9",
   "releasedAt": "2026-07-19",
-  "title": "Batch Entry Group-Aware Attention Routing",
-  "message": "Restores accurate Batch Entry per-row status-to-attention routing using invoice group and site for For SRV, fixed approvers for Report/CEO/In Process, and None for all other statuses."
+  "title": "Summary Note Previous Payment Vendor Match Fix",
+  "message": "Fixes Summary Note previous payment recovery when vendor names differ slightly between note text, CSV, and Firebase. Uses Amount Paid only and keeps targeted vendor-only recovery."
 }

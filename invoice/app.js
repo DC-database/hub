@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '11.3.4';
+const APP_VERSION = '11.3.9';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -5388,6 +5388,31 @@ async function handleGenerateSummary() {
         );
     };
 
+    // 11.3.6: Summary Note totals must use payment value only.
+    // Do not use Invoice Value / INV Amount as a fallback, because Summary Note is based on paid amount.
+    const parseSummaryMoney = (value) => {
+        const text = String(value == null ? '' : value).replace(/,/g, '').replace(/[^0-9.-]/g, '').trim();
+        if (!text) return 0;
+        const num = Number(text);
+        return Number.isFinite(num) ? num : 0;
+    };
+    const getSummaryPaymentAmount = (inv) => {
+        if (!inv || typeof inv !== 'object') return 0;
+        const paidCandidates = [
+            inv.amountPaid,
+            inv.amtPaid,
+            inv.paidAmount,
+            inv.amount_paid,
+            inv.paymentAmount,
+            inv.actualPaid
+        ];
+        for (const value of paidCandidates) {
+            const amount = parseSummaryMoney(value);
+            if (amount > 0) return amount;
+        }
+        return 0;
+    };
+
     const prevNote = summaryNotePreviousInput.value.trim();
     const currentNote = summaryNoteCurrentInput.value.trim();
 
@@ -5415,7 +5440,7 @@ async function handleGenerateSummary() {
 
         let summaryLookup = { previous: [], current: [] };
         if (typeof loadSummaryNoteInvoicesFromIndex === 'function') {
-            summaryLookup = await loadSummaryNoteInvoicesFromIndex(prevNote, currentNote, { maxPOs: 300, limit: 900 });
+            summaryLookup = await loadSummaryNoteInvoicesFromIndex(prevNote, currentNote, { maxPOs: 1500, limit: 1500, noteOnly: true, disableVendorBackfill: true });
         }
 
         let allCurrentInvoices = Array.isArray(summaryLookup.current) ? [...summaryLookup.current] : [];
@@ -5460,12 +5485,32 @@ async function handleGenerateSummary() {
         const allPOs = allPOData || {};
         const epicoreData = allEpicoreData || {};
 
-        // Summary Note is vendor/group focused. If a note text exists in multiple vendors,
-        // use the first current invoice vendor as the active vendor and keep the summary accurate for that vendor.
-        const activeVendorKey = allCurrentInvoices.length ? summaryNormalizeKey(getSummaryVendorForInvoice(allCurrentInvoices[0])) : '';
-        if (activeVendorKey) {
-            allCurrentInvoices = allCurrentInvoices.filter(inv => summaryNormalizeKey(getSummaryVendorForInvoice(inv)) === activeVendorKey);
-            previousInvoices = previousInvoices.filter(inv => summaryNormalizeKey(getSummaryVendorForInvoice(inv)) === activeVendorKey);
+        // 11.3.9: Previous Payment must be note-only.
+        // Do not filter previous invoices by vendor/group/current-note vendor.
+        // The user's Summary Note workflow treats the note text itself as the matching key.
+        if (prevNote && previousInvoices.length === 0) {
+            const allowLegacyPrev = confirm(
+                `No indexed invoices were found for previous note: "${prevNote}".\n\n` +
+                `Run one-time note-only legacy search now to rebuild the previous-note index?\n` +
+                `This may download invoice_entries once, but future searches for this note will use the small note index.`
+            );
+            if (allowLegacyPrev) {
+                await ensureInvoiceDataFetched(false);
+                if (typeof buildInvoiceNoteIndexFromLoadedInvoicesForNotes === 'function') {
+                    const rebuiltPrev = await buildInvoiceNoteIndexFromLoadedInvoicesForNotes([prevNote]);
+                    previousInvoices = (rebuiltPrev && rebuiltPrev[summaryNormalizeKey(prevNote)]) ? rebuiltPrev[summaryNormalizeKey(prevNote)] : [];
+                } else {
+                    const prevRows = [];
+                    for (const poNumber in (allInvoiceData || {})) {
+                        const invoices = allInvoiceData[poNumber] || {};
+                        for (const key in invoices) {
+                            const inv = invoices[key] || {};
+                            if (summaryNormalizeKey(inv.note) === summaryNormalizeKey(prevNote)) prevRows.push({ po: poNumber, key, ...inv });
+                        }
+                    }
+                    previousInvoices = prevRows;
+                }
+            }
         }
 
         let previousPaymentTotal = 0;
@@ -5503,7 +5548,7 @@ async function handleGenerateSummary() {
         };
 
         previousInvoices.forEach(inv => {
-            previousPaymentTotal += parseFloat(inv.invValue) || 0;
+            previousPaymentTotal += getSummaryPaymentAmount(inv);
             maybeSetPrevSummaryDate(inv);
             if (!foundSrv && inv.srvName && inv.srvName.toLowerCase() !== 'nil' && inv.srvName.trim() !== '') {
                 srvNameForQR = inv.srvName;
@@ -5514,7 +5559,7 @@ async function handleGenerateSummary() {
         allCurrentInvoices.forEach(inv => {
             inv.vendor = getSummaryVendorForInvoice(inv);
             inv.site = getSummarySiteForInvoice(inv);
-            currentPaymentTotal += parseFloat(inv.invValue) || 0;
+            currentPaymentTotal += getSummaryPaymentAmount(inv);
         });
 
         const count = allCurrentInvoices.length;
@@ -5613,7 +5658,7 @@ async function handleGenerateSummary() {
                 <td>${inv.site}</td>
                 <td><input type="text" class="summary-edit-input" name="details" value="${truncatedDescription}"></td>
                 <td><input type="date" class="summary-edit-input" name="invoiceDate" value="${normalizeDateForInput(inv.invoiceDate) || ''}"></td>
-                <td>${formatCurrency(inv.invValue)}</td>
+                <td>${formatCurrency(getSummaryPaymentAmount(inv))}</td>
             `;
             snTableBody.appendChild(row);
         }
@@ -5750,6 +5795,7 @@ async function handleUpdateSummaryChanges(sendToAccounts = false) {
                         srvName: updatedInvoiceData.srvName || newGlobalSRV || '',
                         invoiceDate: updatedInvoiceData.invoiceDate || newInvoiceDate || '',
                         invValue: updatedInvoiceData.invValue || '',
+                        amountPaid: updatedInvoiceData.amountPaid || updatedInvoiceData.amtPaid || updatedInvoiceData.paidAmount || '',
                         source: 'summary-note-update'
                     })).catch(() => null));
                 }
