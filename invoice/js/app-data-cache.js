@@ -157,6 +157,10 @@ const IM_NOTE_INDEX_PATH = 'invoice_note_index';
 const IM_NOTE_INDEX_CACHE_KEY = 'cached_INVOICE_NOTE_INDEX';
 const IM_NOTE_INDEX_CACHE_MS = 12 * 60 * 60 * 1000; // 12 hours: notes are not high-frequency data.
 const IM_NOTE_INDEX_LIMIT = 500; // Small list only; avoids large Firebase downloads.
+// 11.4.1: Summary Note generation must be fast.
+// POdetails.csv is large, so do not refetch it on every Generate click.
+const IM_SUMMARY_PO_DETAILS_REFRESH_MS = 30 * 60 * 1000; // refresh at most once per 30 minutes unless forced.
+let __ibaSummaryPODetailsRefreshPromise = null;
 
 function imNormalizeInvoiceNoteText(note) {
     return String(note == null ? '' : note).replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
@@ -260,6 +264,58 @@ function imNoteIndexNormalizeLookup(value) {
     return imNormalizeIndexText(value).toLowerCase();
 }
 
+// 11.3.8: Summary Note previous-payment recovery must tolerate vendor text differences.
+// Example: "Al Kuwaiti Store" vs "Al Kuwaiti Stores WLL" or W.L.L punctuation in CSV.
+function imNoteIndexVendorComparableText(value) {
+    return imNormalizeIndexText(value)
+        .toLowerCase()
+        .replace(/w\s*\.?\s*l\s*\.?\s*l\s*\.?/g, ' wll ')
+        .replace(/[^a-z0-9]+/g, ' ')
+        .replace(/\b(wll|llc|ltd|limited|company|co)\b/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function imNoteIndexVendorTokens(value) {
+    return imNoteIndexVendorComparableText(value)
+        .split(/\s+/)
+        .map(imNoteIndexCanonicalToken)
+        .filter(t => t && t.length >= 2 && !/^(wll|llc|ltd|co)$/.test(t));
+}
+
+function imNoteIndexVendorTokenMatches(targetSet, token) {
+    if (!token) return true;
+    if (targetSet.has(token)) return true;
+    if (token.endsWith('s') && token.length > 3 && targetSet.has(token.slice(0, -1))) return true;
+    if (!token.endsWith('s') && targetSet.has(token + 's')) return true;
+    return false;
+}
+
+function imNoteIndexVendorMatches(targetVendor, queryVendor) {
+    const target = imNoteIndexVendorComparableText(targetVendor);
+    const query = imNoteIndexVendorComparableText(queryVendor);
+    if (!target || !query) return false;
+    if (target === query) return true;
+    if (target.includes(query) || query.includes(target)) return true;
+    const queryTokens = imNoteIndexVendorTokens(query);
+    if (!queryTokens.length) return false;
+    const targetSet = new Set(imNoteIndexVendorTokens(target));
+    return queryTokens.every(t => imNoteIndexVendorTokenMatches(targetSet, t));
+}
+
+function imSummaryNoteVendorCandidateFromNote(noteText) {
+    // Strip date/month tokens from a Summary Note label to obtain a vendor-like candidate.
+    // "Al Kuwaiti Stores 17-June-2026" -> "Al Kuwaiti Stores".
+    const monthWords = 'jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|sept|september|oct|october|nov|november|dec|december';
+    return imNormalizeIndexText(noteText)
+        .replace(new RegExp('\\b(' + monthWords + ')\\b', 'ig'), ' ')
+        .replace(/\b\d{1,2}(st|nd|rd|th)?\b/ig, ' ')
+        .replace(/\b20\d{2}\b/g, ' ')
+        .replace(/[-_/.,]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
 function imNoteIndexGetPOMeta(po) {
     const poText = imNormalizeIndexText(po);
     const variants = [poText, poText.toUpperCase(), poText.replace(/^0+/, ''), poText.padStart(10, '0')].filter(Boolean);
@@ -302,6 +358,7 @@ function imNoteIndexBuildRefPayload(note, meta = {}) {
         srvName: imNormalizeIndexText(meta.srvName || ''),
         invoiceDate: imNormalizeIndexText(meta.invoiceDate || ''),
         invValue: imNormalizeIndexText(meta.invValue || meta.amount || ''),
+        amountPaid: imNormalizeIndexText(meta.amountPaid || meta.amtPaid || meta.paidAmount || meta.paymentAmount || ''),
         updatedAt: (typeof firebase !== 'undefined' && firebase.database && firebase.database.ServerValue)
             ? firebase.database.ServerValue.TIMESTAMP
             : now,
@@ -345,6 +402,7 @@ async function saveInvoiceNoteToIndex(note, meta = {}) {
                 lastPO: meta.po || meta.poNumber || existing.lastPO || '',
                 lastInvoiceKey: meta.invoiceKey || meta.key || existing.lastInvoiceKey || '',
                 lastStatus: meta.status || existing.lastStatus || '',
+                lastAmountPaid: (refPayload && refPayload.amountPaid) || existing.lastAmountPaid || '',
                 lastVendor: (refPayload && refPayload.vendor) || existing.lastVendor || '',
                 lastVendorKey: (refPayload && refPayload.vendorKey) || existing.lastVendorKey || '',
                 lastGroup: (refPayload && refPayload.group) || existing.lastGroup || '',
@@ -391,12 +449,49 @@ function imNoteIndexIsExactNote(inv, note) {
 // 11.1.7: Summary Note search may be typed as a group label like "DON 2026".
 // Keep exact matching first, but allow safe keyword matching against the small note index
 // and against a one-time confirmed legacy scan. This avoids full invoice downloads on open.
-function imNoteIndexQueryTokens(query) {
-    return imNormalizeInvoiceNoteText(query)
+function imNoteIndexCanonicalToken(token) {
+    const t = String(token || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+    if (!t) return '';
+    const monthMap = {
+        january: 'jan', jan: 'jan',
+        february: 'feb', feb: 'feb',
+        march: 'mar', mar: 'mar',
+        april: 'apr', apr: 'apr',
+        may: 'may',
+        june: 'jun', jun: 'jun',
+        july: 'jul', jul: 'jul',
+        august: 'aug', aug: 'aug',
+        september: 'sep', sept: 'sep', sep: 'sep',
+        october: 'oct', oct: 'oct',
+        november: 'nov', nov: 'nov',
+        december: 'dec', dec: 'dec'
+    };
+    return monthMap[t] || t;
+}
+
+function imNoteIndexTextTokens(value) {
+    return imNormalizeInvoiceNoteText(value)
         .toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ')
         .split(/\s+/)
-        .map(t => t.trim())
+        .map(imNoteIndexCanonicalToken)
         .filter(t => t && t.length >= 2);
+}
+
+function imNoteIndexQueryTokens(query) {
+    return imNoteIndexTextTokens(query);
+}
+
+function imNoteIndexTokenMatches(noteTokenSet, token) {
+    if (!token) return true;
+    if (noteTokenSet.has(token)) return true;
+    // 11.3.7: tolerate small human differences in Summary Note names, e.g. Store/Stores.
+    if (token.endsWith('s') && token.length > 3 && noteTokenSet.has(token.slice(0, -1))) return true;
+    if (!token.endsWith('s') && noteTokenSet.has(token + 's')) return true;
+    // 11.3.8: tolerate year labels like 2026 vs 26 in old notes.
+    if (/^20\d{2}$/.test(token) && noteTokenSet.has(token.slice(2))) return true;
+    if (/^\d{2}$/.test(token) && noteTokenSet.has('20' + token)) return true;
+    return false;
 }
 
 function imNoteIndexMatchesQuery(noteText, queryText) {
@@ -407,7 +502,8 @@ function imNoteIndexMatchesQuery(noteText, queryText) {
     if (note.includes(query)) return true;
     const tokens = imNoteIndexQueryTokens(query);
     if (!tokens.length) return false;
-    return tokens.every(t => note.includes(t));
+    const noteTokenSet = new Set(imNoteIndexTextTokens(note));
+    return tokens.every(t => imNoteIndexTokenMatches(noteTokenSet, t));
 }
 
 function imNoteIndexIsQueryMatch(inv, noteQuery) {
@@ -483,9 +579,14 @@ async function loadInvoicesByNoteSearch(noteQuery, options = {}) {
         }
     } catch (_) {}
 
-    // Exact key first, then flexible small-index refs such as "DON 2026" -> matching note texts.
+    // 11.4.1: Fast path for Summary Note.
+    // Exact note refs are the normal/accurate workflow. If exact refs exist, do NOT also load/search the
+    // larger note index list. That broad scan made first Generate feel slow even when the exact note was indexed.
     const exactRefs = await loadInvoiceNoteRefs(query);
-    const queryRefs = await loadInvoiceNoteRefsByQuery(query, options);
+    let queryRefs = [];
+    if (!exactRefs.length && options.allowBroadNoteIndex !== false) {
+        queryRefs = await loadInvoiceNoteRefsByQuery(query, options);
+    }
     const refList = [...exactRefs, ...queryRefs].slice(-Number(options.limit || 900));
 
     for (const ref of refList) {
@@ -573,14 +674,20 @@ async function loadInvoicesByNoteIndex(note, options = {}) {
     return rows;
 }
 
-function imFindPOsForVendor(vendorName) {
-    const vendorKey = imNoteIndexNormalizeLookup(vendorName);
-    if (!vendorKey || !allPOData) return [];
+function imFindPOsForVendor(vendorName, extraCandidates = []) {
+    const candidates = Array.from(new Set([vendorName, ...(extraCandidates || [])]
+        .map(imNormalizeIndexText)
+        .filter(Boolean)));
+    if (!candidates.length || !allPOData) return [];
+    const exactKeys = new Set(candidates.map(imNoteIndexNormalizeLookup));
     const out = [];
     try {
         for (const po in allPOData) {
             const poMeta = imNoteIndexGetPOMeta(po);
-            if (poMeta.vendorKey && poMeta.vendorKey === vendorKey) out.push(String(po));
+            const poVendor = poMeta.vendor || '';
+            const exactOk = poMeta.vendorKey && exactKeys.has(poMeta.vendorKey);
+            const fuzzyOk = candidates.some(c => imNoteIndexVendorMatches(poVendor, c));
+            if (exactOk || fuzzyOk) out.push(String(po));
         }
     } catch (_) {}
     return out;
@@ -593,9 +700,15 @@ async function backfillInvoiceNoteIndexForVendor(noteList, vendorName, options =
     try {
         if (typeof ensureInvoicePOBaseDataFetched === 'function') await ensureInvoicePOBaseDataFetched(false);
     } catch (_) {}
-    const poList = imFindPOsForVendor(vendor);
-    const maxPOs = Number(options.maxPOs || 300);
-    const selectedPOs = poList.slice(0, maxPOs);
+    const noteVendorCandidates = notes
+        .map(imSummaryNoteVendorCandidateFromNote)
+        .filter(Boolean);
+    const poList = imFindPOsForVendor(vendor, noteVendorCandidates);
+    // 11.3.5: Some vendors have more than 300 POs. Previous-note recovery was missing newer months.
+    // 11.3.8: Keep the lookup vendor-only but make vendor matching fuzzy, so WLL/punctuation/plural differences
+    // do not prevent previous payment from being recovered.
+    const maxPOs = Number(options.maxPOs || 3000);
+    const selectedPOs = poList.slice(-maxPOs);
     const noteMap = {};
     notes.forEach(n => { noteMap[n.toLowerCase()] = []; });
 
@@ -630,6 +743,7 @@ async function backfillInvoiceNoteIndexForVendor(noteList, vendorName, options =
                         srvName: inv.srvName || '',
                         invoiceDate: inv.invoiceDate || '',
                         invValue: inv.invValue || '',
+                        amountPaid: inv.amountPaid || inv.amtPaid || inv.paidAmount || '',
                         source: 'summary-note-vendor-backfill'
                     });
                 } catch (_) {}
@@ -674,6 +788,7 @@ async function buildInvoiceNoteIndexFromLoadedInvoicesForNotes(noteList) {
                     srvName: inv.srvName || '',
                     invoiceDate: inv.invoiceDate || '',
                     invValue: inv.invValue || '',
+                    amountPaid: inv.amountPaid || inv.amtPaid || inv.paidAmount || '',
                     source: 'summary-note-one-time-full-backfill'
                 });
             } catch (_) {}
@@ -698,7 +813,13 @@ async function loadSummaryNoteInvoicesFromIndex(prevNote, currentNote, options =
             : await loadInvoicesByNoteIndex(prevText, options);
     }
 
-    // If current rows are indexed, use their vendor to recover older previous-note rows for the same vendor only.
+    // 11.3.9: Summary Note Previous Payment is note-only.
+    // When noteOnly/disableVendorBackfill is enabled, do not use vendor/group matching to recover or filter notes.
+    if (options.noteOnly === true || options.disableVendorBackfill === true) {
+        return result;
+    }
+
+    // Legacy targeted recovery remains available only for older flows that explicitly allow it.
     const currentVendor = (result.current[0] && result.current[0].vendor && result.current[0].vendor !== 'N/A') ? result.current[0].vendor : '';
     result.currentVendor = currentVendor;
     if (currentVendor && notes.length) {
@@ -1003,23 +1124,47 @@ function getSummaryPOKeyVariants(value) {
     return [...new Set(variants)];
 }
 
-async function refreshSummaryPODetailsCSV() {
+async function refreshSummaryPODetailsCSV(options = {}) {
+    const opts = (options && typeof options === 'object') ? options : {};
+    const force = options === true || opts.force === true;
+    const maxAgeMs = Number(opts.maxAgeMs || IM_SUMMARY_PO_DETAILS_REFRESH_MS);
     try {
-        const url = await getFirebaseCSVUrl('POdetails.csv');
-        if (!url) return false;
+        const now = Date.now();
+        const hasData = !!(allEpicoreData && Object.keys(allEpicoreData || {}).length);
+        const age = now - Number(cacheTimestamps.epicoreData || 0);
 
-        console.log('Refreshing POdetails.csv for Summary Note...');
-        const freshEpicoreData = await fetchAndParseEpicoreCSV(url, { silent: true });
-        if (!freshEpicoreData) return false;
+        // 11.4.1: Use the already-loaded/cached POdetails data during normal Summary Note Generate.
+        // This file has ~38k rows and was making Generate slower than before. Manual Full Refresh can still force it.
+        if (!force && hasData && cacheTimestamps.epicoreData && age >= 0 && age < maxAgeMs) {
+            return true;
+        }
 
-        allEpicoreData = freshEpicoreData;
-        setCache('cached_EPICORE', allEpicoreData);
-        cacheTimestamps.epicoreData = Date.now();
-        console.log('Summary Note POdetails.csv refreshed successfully.');
-        return true;
+        // Share one in-flight refresh if the user clicks Generate twice or another module asks at the same time.
+        if (!force && __ibaSummaryPODetailsRefreshPromise) {
+            return __ibaSummaryPODetailsRefreshPromise;
+        }
+
+        __ibaSummaryPODetailsRefreshPromise = (async () => {
+            const url = await getFirebaseCSVUrl('POdetails.csv');
+            if (!url) return false;
+
+            console.log(force ? 'Refreshing POdetails.csv for Summary Note (force)...' : 'Refreshing POdetails.csv for Summary Note...');
+            const freshEpicoreData = await fetchAndParseEpicoreCSV(url, { silent: true });
+            if (!freshEpicoreData) return false;
+
+            allEpicoreData = freshEpicoreData;
+            setCache('cached_EPICORE', allEpicoreData);
+            cacheTimestamps.epicoreData = Date.now();
+            console.log('Summary Note POdetails.csv refreshed successfully.');
+            return true;
+        })();
+
+        return await __ibaSummaryPODetailsRefreshPromise;
     } catch (error) {
         console.warn('Summary Note POdetails refresh failed. Existing data will be used if available.', error);
         return false;
+    } finally {
+        __ibaSummaryPODetailsRefreshPromise = null;
     }
 }
 
