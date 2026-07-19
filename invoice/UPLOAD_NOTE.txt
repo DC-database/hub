@@ -1,7 +1,13 @@
-Upload only these files:
+IBA 11.4.1 - Summary Note Fast Note Lookup Patch
+
+Upload only:
 - app.js
 - index.html
 - version.json
 - js/app-data-cache.js
 
-After upload, hard refresh Chrome with Ctrl + F5. Test Summary Note with the previous note that was showing 0.00.
+Then hard refresh Chrome with Ctrl + F5.
+
+Important:
+- Normal Generate now uses exact note refs first and avoids broad note-index scans when exact refs exist.
+- POdetails.csv is no longer re-downloaded on every Generate click; use Summary Note Full Refresh when you intentionally need fresh POdetails.csv.

@@ -1,5 +1,13 @@
-IBA 11.3.9 Summary Note Note-Only Previous Payment Fix
+11.4.1 speeds up Summary Note generation.
 
-Summary Note Previous Payment now matches by Previous Note text only. It does not filter previous records by vendor/group/current vendor. Totals use Amt Paid only. If an old previous note is not yet indexed, Generate Summary asks for a one-time note-only legacy search to build the small invoice_note_index.
+Fixes:
+- Uses exact note refs first for Previous Note and Current Note.
+- Avoids loading/searching the larger note index list when exact note refs already exist.
+- Throttles POdetails.csv refresh so Generate does not fetch the large POdetails file every time.
+- Keeps Previous Payment = Previous Note only.
+- Keeps Current Payment = Current Note only.
+- Keeps Summary Note totals = Amt Paid only.
+- Keeps 11.4.0 Generate button no-stuck guard.
 
-Upload only: app.js, index.html, version.json, js/app-data-cache.js
+Note:
+If an old note is not indexed yet, the system may still ask once for legacy index build. After that note is indexed, future generation should be fast.

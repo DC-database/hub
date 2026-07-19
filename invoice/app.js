@@ -5361,7 +5361,42 @@ function imClearBatchEntryAfterSuccessfulSave() {
 // initializeNoteSuggestions moved to js/app-batch-entry-ui.js in v8.2.7 (cleanup only).
 // populateNoteDropdown moved to js/app-batch-entry-ui.js in v8.2.7 (cleanup only).
 // autoFillSummarySrvIfWithAccounts moved to js/app-batch-entry-ui.js in v8.2.7 (cleanup only).
+// 11.4.0: Summary Note generation guard.
+// 11.4.1: Summary Note fast note lookup + throttled POdetails refresh.
+// Prevent the Generate button from getting stuck when a legacy note-index search is cleared/cancelled.
+function ibaSummaryGetGenerateButton() {
+    return document.getElementById('summary-note-generate-btn') || (typeof summaryNoteGenerateBtn !== 'undefined' ? summaryNoteGenerateBtn : null);
+}
+
+function ibaSummaryResetGenerateButton() {
+    const btn = ibaSummaryGetGenerateButton();
+    if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Generate Summary';
+    }
+}
+
+function ibaSummaryCancelPendingGeneration() {
+    window.__ibaSummaryGenerateToken = (Number(window.__ibaSummaryGenerateToken || 0) + 1);
+    ibaSummaryResetGenerateButton();
+}
+
+(function ibaInstallSummaryClearGenerateResetGuard() {
+    if (window.__ibaSummaryClearGenerateResetGuardInstalled) return;
+    window.__ibaSummaryClearGenerateResetGuardInstalled = true;
+    document.addEventListener('click', function (event) {
+        const clearBtn = event.target && event.target.closest ? event.target.closest('#summary-note-clear-btn') : null;
+        if (!clearBtn) return;
+        // Let the existing clear logic run first, then reset/cancel any pending generation state.
+        setTimeout(ibaSummaryCancelPendingGeneration, 0);
+    }, true);
+})();
+
 async function handleGenerateSummary() {
+    const generationToken = (Number(window.__ibaSummaryGenerateToken || 0) + 1);
+    window.__ibaSummaryGenerateToken = generationToken;
+    const isSummaryGenerationStale = () => window.__ibaSummaryGenerateToken !== generationToken;
+
     const getOrdinal = (n) => {
         if (isNaN(n) || n <= 0) return '';
         const s = ["th", "st", "nd", "rd"];
@@ -5424,8 +5459,11 @@ async function handleGenerateSummary() {
         return;
     }
 
-    summaryNoteGenerateBtn.textContent = 'Generating...';
-    summaryNoteGenerateBtn.disabled = true;
+    const summaryGenerateBtn = ibaSummaryGetGenerateButton();
+    if (summaryGenerateBtn) {
+        summaryGenerateBtn.textContent = 'Generating...';
+        summaryGenerateBtn.disabled = true;
+    }
 
     try {
         // 11.1.7: Summary Note no longer starts with a full invoice_entries download.
@@ -5435,13 +5473,25 @@ async function handleGenerateSummary() {
         } else if (typeof ensureInvoiceDataFetched === 'function') {
             await ensureInvoiceDataFetched(false, { includeInvoiceEntries: false });
         }
-        // Summary Note only: always refresh POdetails.csv so newly uploaded Bill Descriptions are available.
-        await refreshSummaryPODetailsCSV();
+        if (isSummaryGenerationStale()) return;
+        // 11.4.1: POdetails.csv is large, so use cached/loaded data during normal Generate.
+        // Use the Summary Note Full Refresh button if you intentionally need to reload the latest POdetails.csv.
+        await refreshSummaryPODetailsCSV({ maxAgeMs: 30 * 60 * 1000 });
+        if (isSummaryGenerationStale()) return;
 
         let summaryLookup = { previous: [], current: [] };
         if (typeof loadSummaryNoteInvoicesFromIndex === 'function') {
-            summaryLookup = await loadSummaryNoteInvoicesFromIndex(prevNote, currentNote, { maxPOs: 1500, limit: 1500, noteOnly: true, disableVendorBackfill: true });
+            summaryLookup = await loadSummaryNoteInvoicesFromIndex(prevNote, currentNote, {
+                maxPOs: 1500,
+                limit: 1500,
+                noteOnly: true,
+                disableVendorBackfill: true,
+                // 11.4.1: Exact-note refs first; broad note-index search only if exact refs are missing.
+                allowBroadNoteIndex: true,
+                noteIndexLimit: 600
+            });
         }
+        if (isSummaryGenerationStale()) return;
 
         let allCurrentInvoices = Array.isArray(summaryLookup.current) ? [...summaryLookup.current] : [];
         let previousInvoices = Array.isArray(summaryLookup.previous) ? [...summaryLookup.previous] : [];
@@ -5461,8 +5511,10 @@ async function handleGenerateSummary() {
                 return;
             }
             await ensureInvoiceDataFetched(false);
+            if (isSummaryGenerationStale()) return;
             if (typeof buildInvoiceNoteIndexFromLoadedInvoicesForNotes === 'function') {
                 const rebuilt = await buildInvoiceNoteIndexFromLoadedInvoicesForNotes([prevNote, currentNote]);
+                if (isSummaryGenerationStale()) return;
                 allCurrentInvoices = (rebuilt && rebuilt[summaryNormalizeKey(currentNote)]) ? rebuilt[summaryNormalizeKey(currentNote)] : [];
                 previousInvoices = (rebuilt && rebuilt[summaryNormalizeKey(prevNote)]) ? rebuilt[summaryNormalizeKey(prevNote)] : [];
             } else {
@@ -5496,8 +5548,10 @@ async function handleGenerateSummary() {
             );
             if (allowLegacyPrev) {
                 await ensureInvoiceDataFetched(false);
+                if (isSummaryGenerationStale()) return;
                 if (typeof buildInvoiceNoteIndexFromLoadedInvoicesForNotes === 'function') {
                     const rebuiltPrev = await buildInvoiceNoteIndexFromLoadedInvoicesForNotes([prevNote]);
+                    if (isSummaryGenerationStale()) return;
                     previousInvoices = (rebuiltPrev && rebuiltPrev[summaryNormalizeKey(prevNote)]) ? rebuiltPrev[summaryNormalizeKey(prevNote)] : [];
                 } else {
                     const prevRows = [];
@@ -5595,6 +5649,7 @@ async function handleGenerateSummary() {
             }
         }
 
+        if (isSummaryGenerationStale()) return;
         allCurrentInvoices.sort((a, b) => (a.site || '').localeCompare(b.site || ''));
         const vendorData = allPOs[allCurrentInvoices[0].po] || allPOs[String(allCurrentInvoices[0].po).toUpperCase()] || null;
         snVendorName.textContent = getSummaryVendorForInvoice(allCurrentInvoices[0]) || (vendorData ? vendorData['Supplier Name'] : 'N/A');
@@ -5671,8 +5726,9 @@ async function handleGenerateSummary() {
         console.error("Error generating summary:", error);
         alert("An error occurred. Please check the notes and try again.");
     } finally {
-        summaryNoteGenerateBtn.textContent = 'Generate Summary';
-        summaryNoteGenerateBtn.disabled = false;
+        if (!isSummaryGenerationStale()) {
+            ibaSummaryResetGenerateButton();
+        }
     }
 }
 
