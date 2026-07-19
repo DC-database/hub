@@ -1,5 +1,5 @@
 // js/app-attention-validation.js
-// Version 11.2.4 — Restore Batch/Invoice automatic Attention routing while preserving no-attention statuses.
+// Version 11.3.4 — Adds Batch Entry group-aware attention routing while preserving Invoice Entry behavior.
 // Moved from app.js in v8.2.3 (cleanup only).
 // Public function names preserved for existing app.js listeners and inline handlers.
 
@@ -399,6 +399,159 @@ function imWireInvoiceValidationUI() {
             if (imAttentionGroup) imAttentionGroup.classList.remove('im-invalid');
         });
     }
+}
+
+
+// ------------------------------------------------------------
+// Batch Entry status/group-specific Attention routing helpers
+// Version 11.3.4
+// ------------------------------------------------------------
+function imBatchNormalizeText(value) {
+    return String(value == null ? '' : value).replace(/\u00A0/g, ' ').trim().replace(/\s+/g, ' ');
+}
+function imBatchNormalizeKey(value) { return imBatchNormalizeText(value).toLowerCase(); }
+function imBatchStatusRequiresAttention(statusValue) {
+    const st = imBatchNormalizeKey(statusValue);
+    return ['for srv', 'report', 'in process', 'ceo approval'].includes(st);
+}
+function imBatchShouldForceAttentionNoneForStatus(statusValue) { return !imBatchStatusRequiresAttention(statusValue); }
+function imBatchNormalizeGroup(value) { return imBatchNormalizeText(value) || 'Normal'; }
+function imBatchIsNormalGroup(value) {
+    const group = imBatchNormalizeKey(imBatchNormalizeGroup(value));
+    return !group || group === 'normal';
+}
+function imBatchSiteToken(value) {
+    const raw = imBatchNormalizeText(value);
+    if (!raw) return '';
+    const m = raw.match(/\d+/);
+    return m ? m[0].toLowerCase() : raw.split(/[\s\-\/]+/)[0].toLowerCase();
+}
+function imBatchSiteMatches(userSite, targetSite) {
+    const targetToken = imBatchSiteToken(targetSite);
+    if (!targetToken) return false;
+    const parts = String(userSite || '').split(',').map(s => imBatchNormalizeText(s)).filter(Boolean);
+    for (const part of parts) {
+        const userToken = imBatchSiteToken(part);
+        if (userToken && userToken === targetToken) return true;
+        const u = part.toLowerCase();
+        const t = imBatchNormalizeText(targetSite).toLowerCase();
+        if (u && t && (u.includes(t) || t.includes(u))) return true;
+    }
+    return false;
+}
+async function imBatchEnsureApproverData() {
+    if (!allApproverData || Object.keys(allApproverData || {}).length === 0) {
+        try { if (typeof ensureApproverDataCached === 'function') await ensureApproverDataCached(true); } catch (_) {}
+    }
+    if (!allApproverData || Object.keys(allApproverData || {}).length === 0) {
+        try {
+            const snap = await db.ref('approvers').once('value');
+            allApproverData = snap.val() || allApproverData || {};
+        } catch (e) { console.warn('Batch Entry attention routing could not load approvers.', e); }
+    }
+    return allApproverData || {};
+}
+function imBatchApproverUsers() {
+    return Object.values(allApproverData || {}).map((approver) => {
+        const name = imBatchNormalizeText(approver && (approver.Name || approver.Username || approver.FullName));
+        if (!name) return null;
+        const position = imBatchNormalizeText(approver && approver.Position);
+        const site = imBatchNormalizeText(approver && approver.Site);
+        return { name, value: name, label: `${name}${position ? ' - ' + position : ''}${site ? ' - ' + site : ''}`, position, site };
+    }).filter(Boolean);
+}
+function imBatchPositionMatches(position, role) {
+    const pos = imBatchNormalizeKey(position);
+    const compact = pos.replace(/[.\s_\-\/]+/g, '');
+    const r = imBatchNormalizeKey(role);
+    if (r === 'site dc') return pos.includes('site') && (pos.includes('dc') || compact.includes('sitedc'));
+    if (r === 'logistic') return pos.includes('logistic') || pos.includes('logistics');
+    if (r === 'accounts' || r === 'account') return pos.includes('account');
+    if (r === 'ceo') return pos.includes('ceo') || pos.includes('chief executive');
+    if (r === 'coo') return pos.includes('coo') || pos.includes('chief operating');
+    return pos.includes(r);
+}
+function imBatchFindPersonByNameOrPosition(nameNeedle, positionNeedle, fallbackName) {
+    const users = imBatchApproverUsers();
+    const nameKey = imBatchNormalizeKey(nameNeedle);
+    const posKey = imBatchNormalizeKey(positionNeedle);
+    if (nameKey) {
+        const exact = users.find(u => imBatchNormalizeKey(u.name) === nameKey);
+        if (exact) return (typeof resolveVacationAssignee === 'function') ? resolveVacationAssignee(exact.name) : exact.name;
+        const contains = users.find(u => imBatchNormalizeKey(u.name).includes(nameKey));
+        if (contains) return (typeof resolveVacationAssignee === 'function') ? resolveVacationAssignee(contains.name) : contains.name;
+    }
+    if (posKey) {
+        const byPos = users.find(u => imBatchPositionMatches(u.position, posKey));
+        if (byPos) return (typeof resolveVacationAssignee === 'function') ? resolveVacationAssignee(byPos.name) : byPos.name;
+    }
+    return fallbackName || '';
+}
+function imBatchFixedAttentionForStatus(statusValue) {
+    const st = imBatchNormalizeKey(statusValue);
+    if (st === 'report') return imBatchFindPersonByNameOrPosition('gio', 'accounts', 'GIO');
+    if (st === 'ceo approval') return imBatchFindPersonByNameOrPosition('hamad', 'ceo', 'Hamad');
+    if (st === 'in process') return imBatchFindPersonByNameOrPosition('', 'coo', 'COO');
+    return '';
+}
+async function imBatchGetAttentionCandidatesForSRV(siteCode, groupValue) {
+    await imBatchEnsureApproverData();
+    const group = imBatchNormalizeGroup(groupValue);
+    const wantedRole = imBatchIsNormalGroup(group) ? 'site dc' : 'logistic';
+    const candidates = [];
+    const seen = new Set();
+    imBatchApproverUsers().forEach((user) => {
+        if (!imBatchPositionMatches(user.position, wantedRole)) return;
+        if (!imBatchSiteMatches(user.site, siteCode)) return;
+        const name = (typeof resolveVacationAssignee === 'function') ? resolveVacationAssignee(user.name) : user.name;
+        if (!name || seen.has(name)) return;
+        seen.add(name);
+        candidates.push({ name, position: user.position, group, role: wantedRole, site: user.site });
+    });
+    if (candidates.length === 0) {
+        const fallback = (typeof resolveVacationAssignee === 'function') ? resolveVacationAssignee('Irwin') : 'Irwin';
+        return [{ name: fallback || 'Irwin', position: 'Fallback', group, role: 'fallback', site: siteCode, isFallback: true }];
+    }
+    return candidates;
+}
+async function populateBatchAttentionDropdownForRow(choicesInstance, statusValue, siteCode, groupValue, allowOverrideSearch = true) {
+    if (!choicesInstance) return;
+    const st = imBatchNormalizeKey(statusValue);
+    const baseOptions = [
+        { value: '', label: 'Select Attention', disabled: true, selected: true },
+        { value: 'None', label: 'None (Clear Selection)' }
+    ];
+    if (imBatchShouldForceAttentionNoneForStatus(statusValue)) {
+        if (typeof imClearAttentionToNone === 'function') imClearAttentionToNone(choicesInstance);
+        return;
+    }
+    await imBatchEnsureApproverData();
+    let choices = [];
+    if (st === 'for srv') {
+        const candidates = await imBatchGetAttentionCandidatesForSRV(siteCode, groupValue);
+        choices = candidates.map(c => ({ value: c.name, label: `${c.name}${c.position ? ' - ' + c.position : ''}${c.isFallback ? ' (Fallback)' : ''}` }));
+    } else {
+        const target = imBatchFixedAttentionForStatus(statusValue);
+        if (target) choices = [{ value: target, label: target }];
+    }
+    try { if (typeof choicesInstance.clearStore === 'function') choicesInstance.clearStore(); else if (typeof choicesInstance.clearChoices === 'function') choicesInstance.clearChoices(); } catch (_) {}
+    choicesInstance.setChoices([...baseOptions, ...choices], 'value', 'label', true);
+}
+async function imBatchResolveAttentionForSave(statusValue, siteCode, groupValue, currentAttention, row) {
+    const st = imBatchNormalizeKey(statusValue);
+    let attn = imBatchNormalizeText(currentAttention);
+    if (attn === 'None') attn = '';
+    if (imBatchShouldForceAttentionNoneForStatus(statusValue)) return '';
+    await imBatchEnsureApproverData();
+    if (st === 'report' || st === 'ceo approval' || st === 'in process') return attn || imBatchFixedAttentionForStatus(statusValue) || '';
+    if (st === 'for srv') {
+        if (attn) return attn;
+        const candidates = await imBatchGetAttentionCandidatesForSRV(siteCode, groupValue);
+        if (candidates.length === 1) return candidates[0].name || '';
+        const po = row && row.dataset ? (row.dataset.po || '') : '';
+        throw new Error(`Please select Attention for PO ${po || ''} / For SRV. Multiple ${imBatchIsNormalGroup(groupValue) ? 'Site DC' : 'Logistic'} candidates are available.`);
+    }
+    return '';
 }
 
 // ------------------------------------------------------------

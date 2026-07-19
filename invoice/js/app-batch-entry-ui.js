@@ -1,5 +1,5 @@
 // js/app-batch-entry-ui.js
-// Version 11.2.4 — Note index light mode + no-attention status guard; do not override Batch auto-attention routing.
+// Version 11.3.4 — Batch Entry group-aware attention routing for single-row status changes.
 // Cleanup only: public function names preserved; save/write logic remains in app.js.
 
 function updateBatchRowAttentionButton(row) {
@@ -75,12 +75,20 @@ async function openBatchAttentionPicker(row) {
 
     const statusEl = row ? row.querySelector('select[name="status"]') : null;
     const status = statusEl ? statusEl.value : null;
-    if (typeof imShouldForceAttentionNoneForStatus === 'function' && imShouldForceAttentionNoneForStatus(status)) {
+    const site = row ? (row.dataset.site || null) : null;
+    const group = row && row.dataset ? (row.dataset.group || row.dataset.invoiceGroup || 'Normal') : 'Normal';
+    const batchNoAttention = (typeof imBatchShouldForceAttentionNoneForStatus === 'function')
+        ? imBatchShouldForceAttentionNoneForStatus(status)
+        : (typeof imShouldForceAttentionNoneForStatus === 'function' && imShouldForceAttentionNoneForStatus(status));
+    if (batchNoAttention) {
         if (typeof setBatchRowAttentionValue === 'function') setBatchRowAttentionValue(row, 'None', 'None (Clear Selection)');
         return;
     }
-    const site = row ? (row.dataset.site || null) : null;
-    await populateAttentionDropdown(imAttentionPickerChoices, status, site, true);
+    if (typeof populateBatchAttentionDropdownForRow === 'function') {
+        await populateBatchAttentionDropdownForRow(imAttentionPickerChoices, status, site, group, true);
+    } else {
+        await populateAttentionDropdown(imAttentionPickerChoices, status, site, true);
+    }
 
     let currentVal = '';
     try {
@@ -212,12 +220,15 @@ async function handleAddPOToBatch() {
 
         const site = normalizeNameText(poData['Project ID'] || poData['Project ID:'] || 'N/A');
         const vendor = normalizeNameText(poData['Supplier Name'] || poData['Supplier Name:'] || poData['Supplier'] || poData['Supplier:'] || 'N/A');
+        const batchGroup = normalizeNameText(poData.Group || poData.group || poData.Category || poData.category || 'Normal') || 'Normal';
         
         const row = document.createElement('div');
         row.className = 'batch-invoice-card';
         row.setAttribute('data-po', poNumber);
         row.setAttribute('data-site', site);
         row.setAttribute('data-vendor', vendor);
+        row.setAttribute('data-group', batchGroup);
+        row.setAttribute('data-invoice-group', batchGroup);
         row.setAttribute('data-next-invid', nextInvId);
 
         row.innerHTML = `
@@ -324,7 +335,11 @@ async function handleAddPOToBatch() {
             searchEnabled: true, shouldSort: false, itemSelectText: '', removeItemButton: true
         });
         row.choicesInstance = choices;
-        await populateAttentionDropdown(choices, statusSelect.value, site, true);
+        if (typeof populateBatchAttentionDropdownForRow === 'function') {
+            await populateBatchAttentionDropdownForRow(choices, statusSelect.value, site, batchGroup, true);
+        } else {
+            await populateAttentionDropdown(choices, statusSelect.value, site, true);
+        }
 
         const globalAttnValue = imBatchGlobalAttentionChoices ? imBatchGlobalAttentionChoices.getValue(true) : null;
         if (globalAttnValue) choices.setValue([globalAttnValue]);
@@ -371,6 +386,7 @@ async function addInvoiceToBatchTable(invData) {
 
     if (isNA(resolvedSite)) resolvedSite = 'N/A';
     if (isNA(resolvedVendor)) resolvedVendor = 'N/A';
+    const resolvedGroup = normalizeNameText(invData.group || invData.invoiceGroup || invData.jobType || invData.category || 'Normal') || 'Normal';
 
     const row = document.createElement('div');
     row.className = 'batch-invoice-card';
@@ -378,6 +394,8 @@ async function addInvoiceToBatchTable(invData) {
     row.setAttribute('data-key', invData.key);
     row.setAttribute('data-site', resolvedSite);
     row.setAttribute('data-vendor', resolvedVendor);
+    row.setAttribute('data-group', resolvedGroup);
+    row.setAttribute('data-invoice-group', resolvedGroup);
 
     row.innerHTML = `
         <div class="batch-card-header" style="background: linear-gradient(135deg, #073d2b 0%, #116045 68%, #1c7a59 100%) !important; border-bottom: 4px solid #d8fae9 !important; padding: 12px 15px !important; display: flex !important; flex-wrap: nowrap !important; gap: 15px !important; align-items: flex-end !important; overflow-x: auto !important; overflow-y: hidden !important;">
@@ -491,7 +509,11 @@ async function addInvoiceToBatchTable(invData) {
         searchEnabled: true, shouldSort: false, itemSelectText: '', removeItemButton: true
     });
     row.choicesInstance = choices;
-    await populateAttentionDropdown(choices, statusSelect.value, resolvedSite, true);
+    if (typeof populateBatchAttentionDropdownForRow === 'function') {
+        await populateBatchAttentionDropdownForRow(choices, statusSelect.value, resolvedSite, resolvedGroup, true);
+    } else {
+        await populateAttentionDropdown(choices, statusSelect.value, resolvedSite, true);
+    }
 
     const globalAttentionVal = imBatchGlobalAttentionChoices ? imBatchGlobalAttentionChoices.getValue(true) : null;
     if (globalAttentionVal) {
@@ -987,7 +1009,7 @@ document.addEventListener('change', (e) => {
     const row = statusEl.closest('.batch-invoice-card');
     if (!row) return;
     const statusValue = statusEl.value;
-    if (typeof imShouldForceAttentionNoneForStatus === 'function' && imShouldForceAttentionNoneForStatus(statusValue)) {
+    if (typeof imBatchShouldForceAttentionNoneForStatus === 'function' ? imBatchShouldForceAttentionNoneForStatus(statusValue) : (typeof imShouldForceAttentionNoneForStatus === 'function' && imShouldForceAttentionNoneForStatus(statusValue))) {
         if (typeof setBatchRowAttentionValue === 'function') setBatchRowAttentionValue(row, 'None', 'None (Clear Selection)');
         if (typeof updateBatchRowAttentionButton === 'function') updateBatchRowAttentionButton(row);
     }
