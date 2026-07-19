@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '11.3.3';
+const APP_VERSION = '11.3.4';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -5047,6 +5047,7 @@ async function handleSaveBatchInvoices() {
         const existingKey = row.dataset.key;
         let vendor = row.dataset.vendor;
         let invEntryID = row.dataset.nextInvid;
+        let invoiceGroup = (row.dataset && (row.dataset.group || row.dataset.invoiceGroup)) || '';
 
         if (existingKey) {
             const existingIDSpan = row.querySelector('span.existing-indicator');
@@ -5074,6 +5075,15 @@ async function handleSaveBatchInvoices() {
             }
         }
 
+        try {
+            const originalForGroup = (existingKey && allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][existingKey])
+                ? allInvoiceData[poNumber][existingKey]
+                : null;
+            if (!invoiceGroup && originalForGroup) invoiceGroup = originalForGroup.group || originalForGroup.invoiceGroup || originalForGroup.jobType || originalForGroup.category || '';
+        } catch (_) {}
+        invoiceGroup = normalizeNameText(invoiceGroup || 'Normal') || 'Normal';
+        try { row.dataset.group = invoiceGroup; row.dataset.invoiceGroup = invoiceGroup; } catch (_) {}
+
         // 1. Build Data Object (💡 FIX: COMMAS ARE NOW STRIPPED IN THE BACKGROUND!)
         const invoiceData = {
             invNumber: row.querySelector('[name="invNumber"]').value,
@@ -5085,6 +5095,8 @@ async function handleSaveBatchInvoices() {
             amountPaid: row.querySelector('[name="amountPaid"]').value.replace(/,/g, ''), // Commas stripped!
             status: row.querySelector('[name="status"]').value,
             note: row.querySelector('[name="note"]').value,
+            group: invoiceGroup,
+            invoiceGroup: invoiceGroup,
             releaseDate: row.querySelector('[name="releaseDate"]') ? row.querySelector('[name="releaseDate"]').value : (typeof getTodayDateString === 'function' ? getTodayDateString() : new Date().toISOString().split('T')[0])
         };
 
@@ -5096,10 +5108,17 @@ async function handleSaveBatchInvoices() {
         if (batchGlobalNote) invoiceData.note = batchGlobalNote;
         if (batchGlobalAttention) invoiceData.attention = batchGlobalAttention;
 
+        try {
+            if (typeof imBatchResolveAttentionForSave === 'function') invoiceData.attention = await imBatchResolveAttentionForSave(invoiceData.status, site, invoiceData.group, invoiceData.attention, row);
+        } catch (attentionError) {
+            alert(attentionError && attentionError.message ? attentionError.message : 'Please select Attention before saving this Batch Entry row.');
+            return;
+        }
         if (invoiceData.attention === 'None') invoiceData.attention = '';
-        imApplyInvoiceAttentionRule(invoiceData);
+        if (typeof imBatchShouldForceAttentionNoneForStatus === 'function' && imBatchShouldForceAttentionNoneForStatus(invoiceData.status)) invoiceData.attention = '';
+        else imApplyInvoiceAttentionRule(invoiceData);
 
-        // 11.3.3: Firebase update()/set() rejects undefined values.
+        // 11.3.4: Firebase update()/set() rejects undefined values.
         // Batch Entry multi-save can leave attention undefined when a row has no selected
         // attention or a global status intentionally clears attention. Normalize it before
         // any invoice_entries write so multi-row updates do not fail.

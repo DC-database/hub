@@ -1,15 +1,20 @@
-IBA System Patch 11.3.3 — Batch Entry Undefined Attention Guard
+IBA 11.3.4 — Batch Entry Group-Aware Attention Routing Patch
 
-Upload only these files:
+Upload only:
 - app.js
 - index.html
 - version.json
+- js/app-attention-validation.js
+- js/app-batch-entry-ui.js
+- js/app-im-event-wiring.js
 
-Purpose:
-- Fix Batch Entry multi-row update error: Firebase update failed because attention was undefined.
-- Keep blank/None attention as an empty string instead of undefined.
-- Preserve WorkDesk recovery behavior from 11.3.2.
+Fixes Batch Entry per-row status dropdown routing:
+- For SRV + Normal group -> site-matched Site DC. If no Site DC, fallback Irwin.
+- For SRV + non-Normal group -> site-matched Logistic. If no Logistic, fallback Irwin.
+- Report -> GIO.
+- CEO Approval -> Hamad / CEO.
+- In Process -> COO.
+- Report Approved, With Accounts, Under Review, Pending, On Hold, For Summary, Retention, Unresolved, For Approval, No Need SRV, CLOSED, Cancelled, Original PO, and all other statuses -> Attention None/blank.
 
-After upload:
-- Hard refresh Chrome with Ctrl + F5.
-- Test Batch Entry with multiple selected invoices.
+Also preserves group/invoiceGroup on Batch Entry save so the routing remains accurate after Job Entry conversion.
+This patch is focused on Invoice Management Batch Entry. It does not modify WorkDesk Dashboard JS or Inventory JS.

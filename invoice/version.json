@@ -1,5 +1,6 @@
 {
-  "version": "11.3.3",
-  "title": "Batch Entry Undefined Attention Guard",
-  "message": "Fixes Batch Entry multi-row save failing when attention is blank or intentionally cleared. Firebase payloads no longer contain undefined attention values. WorkDesk recovery from 11.3.2 is retained."
+  "version": "11.3.4",
+  "releasedAt": "2026-07-19",
+  "title": "Batch Entry Group-Aware Attention Routing",
+  "message": "Restores accurate Batch Entry per-row status-to-attention routing using invoice group and site for For SRV, fixed approvers for Report/CEO/In Process, and None for all other statuses."
 }

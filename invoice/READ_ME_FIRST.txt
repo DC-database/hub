@@ -1,1 +1,1 @@
-Upload app.js, index.html, and version.json only. Then hard refresh Chrome with Ctrl + F5.
+Upload these files only. Hard refresh Chrome with Ctrl+F5 after upload.
