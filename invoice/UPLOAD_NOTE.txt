@@ -1,13 +1,9 @@
-IBA 11.4.1 - Summary Note Fast Note Lookup Patch
+IBA 11.4.2 Batch Entry Delete Immediate Fix
 
-Upload only:
+Upload only these files:
 - app.js
 - index.html
 - version.json
-- js/app-data-cache.js
+- js/app-im-event-wiring.js
 
-Then hard refresh Chrome with Ctrl + F5.
-
-Important:
-- Normal Generate now uses exact note refs first and avoids broad note-index scans when exact refs exist.
-- POdetails.csv is no longer re-downloaded on every Generate click; use Summary Note Full Refresh when you intentionally need fresh POdetails.csv.
+Fix: Batch Entry remove/trash button now works immediately even when clicking the trash icon inside the button. It destroys the row Choices instance safely, removes the row, and updates the batch count without waiting for background processing.

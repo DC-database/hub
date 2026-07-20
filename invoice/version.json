@@ -1,5 +1,5 @@
 {
-  "version": "11.4.1",
+  "version": "11.4.2",
   "releasedAt": "2026-07-19",
   "title": "Summary Note Fast Note Lookup Patch",
   "message": "Speeds up Summary Note generation by using exact note refs first, avoiding broad note-index scans when exact refs exist, and throttling POdetails.csv refresh. Keeps previous/current note-only matching and Amt Paid only totals."
