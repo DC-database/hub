@@ -879,13 +879,25 @@ if (settingsVacationCheckbox) {
 
    if (batchTableBody) {
         // 1. CLICK LISTENER (Delete, Attention, IPC, FIVE)
+        // 11.4.2: Batch delete must react immediately even when the user clicks
+        // the trash icon <i> inside the button.  The old check looked only at
+        // e.target.classList, so clicking the icon could be ignored until a later
+        // click/background refresh.  Use closest() and remove the row immediately.
         batchTableBody.addEventListener('click', (e) => {
-            if (e.target.classList.contains('batch-remove-btn')) {
-                // Looks for the new card container instead of a tr
-                const row = e.target.closest('.batch-invoice-card') || e.target.closest('tr');
+            const removeBtn = e.target && e.target.closest ? e.target.closest('.batch-remove-btn') : null;
+            if (removeBtn && batchTableBody.contains(removeBtn)) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const row = removeBtn.closest('.batch-invoice-card') || removeBtn.closest('tr');
                 if (row) {
+                    try {
+                        if (row.choicesInstance && typeof row.choicesInstance.destroy === 'function') {
+                            row.choicesInstance.destroy();
+                        }
+                    } catch (_) {}
                     row.remove();
-                    updateBatchCount();
+                    if (typeof updateBatchCount === 'function') updateBatchCount();
                 }
                 return;
             }
