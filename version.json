@@ -1,6 +1,0 @@
-{
-  "version": "11.3.9",
-  "releasedAt": "2026-07-19",
-  "title": "Summary Note Previous Payment Vendor Match Fix",
-  "message": "Fixes Summary Note previous payment recovery when vendor names differ slightly between note text, CSV, and Firebase. Uses Amount Paid only and keeps targeted vendor-only recovery."
-}
