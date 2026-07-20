@@ -1,7 +1,0 @@
-Upload only these files:
-- app.js
-- index.html
-- version.json
-- js/app-data-cache.js
-
-After upload, hard refresh Chrome with Ctrl + F5. Test Summary Note with the previous note that was showing 0.00.
