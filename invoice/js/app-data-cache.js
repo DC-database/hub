@@ -628,11 +628,39 @@ async function loadInvoiceNoteRefs(note) {
     }
 }
 
+// 11.4.4: Summary Note strict mode must not let stale note-index refs keep returning old rows.
+// If a ref is under the selected note but the live invoice record now has a different note,
+// remove that stale pointer from the tiny note index. This keeps future Generates clean.
+async function removeStaleInvoiceNoteRef(note, po, invoiceKey) {
+    const text = imNormalizeInvoiceNoteText(note);
+    const poText = imNormalizeIndexText(po);
+    const keyText = imNormalizeIndexText(invoiceKey);
+    if (!text || !poText || !keyText) return false;
+    if (window.ibaShouldUseCacheOnly && window.ibaShouldUseCacheOnly('remove-stale-invoice-note-ref', false)) return false;
+    if (window.ibaShouldPauseFirebase && window.ibaShouldPauseFirebase('remove-stale-invoice-note-ref', false)) return false;
+    try {
+        if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) return false;
+        const noteKey = imNoteIndexKey(text);
+        const refKey = imNoteIndexRefKey(poText, keyText);
+        await invoiceDb.ref(`${IM_NOTE_INDEX_PATH}/${noteKey}/refs/${refKey}`).remove();
+        return true;
+    } catch (error) {
+        console.warn('Stale Summary Note ref cleanup skipped:', poText, keyText, error);
+        return false;
+    }
+}
+
 async function loadInvoicesByNoteIndex(note, options = {}) {
     const text = imNormalizeInvoiceNoteText(note);
     if (!text) return [];
 
+    // 11.4.4: Summary Note Generate must be strict to the live note, not old browser memory.
+    // Browser/allInvoiceData cache can contain stale rows after note updates. In strict mode,
+    // use note refs as candidates and exact-read the live invoice before including it.
+    const strictFresh = options.strictFresh === true || options.trustMemory === false || options.exactNoteOnly === true || options.strictExactNote === true;
+
     const fromMemory = [];
+    const memoryCandidates = [];
     try {
         if (allInvoiceData) {
             for (const po in allInvoiceData) {
@@ -640,7 +668,12 @@ async function loadInvoicesByNoteIndex(note, options = {}) {
                 for (const key in invoices) {
                     const inv = invoices[key] || {};
                     if (imNoteIndexIsExactNote(inv, text)) {
-                        fromMemory.push(imNoteIndexRowFromInvoice(text, po, key, inv));
+                        const row = imNoteIndexRowFromInvoice(text, po, key, inv);
+                        if (strictFresh) {
+                            memoryCandidates.push(row);
+                        } else {
+                            fromMemory.push(row);
+                        }
                     }
                 }
             }
@@ -648,9 +681,16 @@ async function loadInvoicesByNoteIndex(note, options = {}) {
     } catch (_) {}
 
     const refs = await loadInvoiceNoteRefs(text);
+    const candidateMap = new Map();
+    [...memoryCandidates, ...refs].forEach(r => {
+        const po = imNormalizeIndexText(r && r.po);
+        const invoiceKey = imNormalizeIndexText((r && (r.invoiceKey || r.key)) || '');
+        if (po && invoiceKey) candidateMap.set(`${po}::${invoiceKey}`, { po, invoiceKey });
+    });
+
     const seen = new Set(fromMemory.map(r => `${r.po}::${r.key}`));
     const rows = [...fromMemory];
-    const refList = refs.slice(-Number(options.limit || 800));
+    const refList = Array.from(candidateMap.values()).slice(-Number(options.limit || 800));
 
     for (const ref of refList) {
         const po = imNormalizeIndexText(ref.po);
@@ -659,7 +699,11 @@ async function loadInvoicesByNoteIndex(note, options = {}) {
         try {
             const snap = await invoiceDb.ref(`invoice_entries/${po}/${invoiceKey}`).once('value');
             const inv = snap.val() || {};
-            if (!imNoteIndexIsExactNote(inv, text)) continue;
+            if (!imNoteIndexIsExactNote(inv, text)) {
+                // Clean stale pointer so old previous-note rows do not reappear in future current-note tables.
+                removeStaleInvoiceNoteRef(text, po, invoiceKey);
+                continue;
+            }
             if (!allInvoiceData) allInvoiceData = {};
             if (!allInvoiceData[po]) allInvoiceData[po] = {};
             allInvoiceData[po][invoiceKey] = { ...inv, key: invoiceKey };
@@ -804,13 +848,18 @@ async function loadSummaryNoteInvoicesFromIndex(prevNote, currentNote, options =
     const result = { previous: [], current: [], vendorBackfilled: false, currentVendor: '' };
     if (!currentText) return result;
 
-    result.current = (typeof loadInvoicesByNoteSearch === 'function')
-        ? await loadInvoicesByNoteSearch(currentText, options)
-        : await loadInvoicesByNoteIndex(currentText, options);
+    // 11.4.3: Summary Note is strict to the note fields.
+    // Current table must come from Current Note exact matches only.
+    // Previous Payment must come from Previous Note exact matches only.
+    // Broad/fuzzy query matching remains available for note suggestions/search helpers, but not here.
+    const exactSummaryMode = options.exactNoteOnly === true || options.strictExactNote === true || options.noteOnly === true;
+    const summaryNoteLoader = exactSummaryMode
+        ? loadInvoicesByNoteIndex
+        : ((typeof loadInvoicesByNoteSearch === 'function') ? loadInvoicesByNoteSearch : loadInvoicesByNoteIndex);
+
+    result.current = await summaryNoteLoader(currentText, options);
     if (prevText) {
-        result.previous = (typeof loadInvoicesByNoteSearch === 'function')
-            ? await loadInvoicesByNoteSearch(prevText, options)
-            : await loadInvoicesByNoteIndex(prevText, options);
+        result.previous = await summaryNoteLoader(prevText, options);
     }
 
     // 11.3.9: Summary Note Previous Payment is note-only.
@@ -848,6 +897,7 @@ try {
     window.imNormalizeInvoiceNoteText = imNormalizeInvoiceNoteText;
     window.imNoteIndexKey = imNoteIndexKey;
     window.loadInvoiceNoteRefs = loadInvoiceNoteRefs;
+    window.removeStaleInvoiceNoteRef = removeStaleInvoiceNoteRef;
     window.loadInvoicesByNoteIndex = loadInvoicesByNoteIndex;
     window.loadInvoicesByNoteSearch = loadInvoicesByNoteSearch;
     window.imNoteIndexMatchesQuery = imNoteIndexMatchesQuery;
