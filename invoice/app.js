@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '11.4.2';
+const APP_VERSION = '11.4.4';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -5451,6 +5451,17 @@ async function handleGenerateSummary() {
     const prevNote = summaryNotePreviousInput.value.trim();
     const currentNote = summaryNoteCurrentInput.value.trim();
 
+    // 11.4.3: Summary Note must be strict to the selected note.
+    // 11.4.4: strict Summary Note must use live exact invoice rows, not stale allInvoiceData/cache rows.
+    // Previous Note is used only for Previous Payment total.
+    // Current Note is used only for the generated table + Current Payment total.
+    // Do not let previous-note rows or broad/fuzzy note matches enter the current table.
+    const ibaSummaryExactNoteRows = (rows, note) => {
+        const exactKey = summaryNormalizeKey(note);
+        if (!exactKey) return [];
+        return (Array.isArray(rows) ? rows : []).filter(inv => summaryNormalizeKey(inv && inv.note) === exactKey);
+    };
+
     sessionStorage.setItem('imSummaryPrevNote', prevNote);
     sessionStorage.setItem('imSummaryCurrNote', currentNote);
 
@@ -5487,14 +5498,18 @@ async function handleGenerateSummary() {
                 noteOnly: true,
                 disableVendorBackfill: true,
                 // 11.4.1: Exact-note refs first; broad note-index search only if exact refs are missing.
-                allowBroadNoteIndex: true,
-                noteIndexLimit: 600
+                // 11.4.3: strict note-only mode. Broad/fuzzy note search is disabled for Summary Note.
+                exactNoteOnly: true,
+                allowBroadNoteIndex: false,
+                noteIndexLimit: 600,
+                strictFresh: true,
+                trustMemory: false
             });
         }
         if (isSummaryGenerationStale()) return;
 
-        let allCurrentInvoices = Array.isArray(summaryLookup.current) ? [...summaryLookup.current] : [];
-        let previousInvoices = Array.isArray(summaryLookup.previous) ? [...summaryLookup.previous] : [];
+        let allCurrentInvoices = ibaSummaryExactNoteRows(Array.isArray(summaryLookup.current) ? [...summaryLookup.current] : [], currentNote);
+        let previousInvoices = ibaSummaryExactNoteRows(Array.isArray(summaryLookup.previous) ? [...summaryLookup.previous] : [], prevNote);
 
         // First-time migration support: old historical notes do not have refs in invoice_note_index yet.
         // Only when the user intentionally clicks Generate and no indexed current note is found, offer a one-time legacy scan.
@@ -5533,6 +5548,10 @@ async function handleGenerateSummary() {
                 previousInvoices = prevRows;
             }
         }
+
+        // 11.4.3 final safety: before totals/rendering, keep only exact note matches.
+        allCurrentInvoices = ibaSummaryExactNoteRows(allCurrentInvoices, currentNote);
+        previousInvoices = ibaSummaryExactNoteRows(previousInvoices, prevNote);
 
         const allPOs = allPOData || {};
         const epicoreData = allEpicoreData || {};

@@ -1,5 +1,19 @@
-IBA 11.4.2 - Batch Entry Delete Immediate Fix
+IBA 11.4.4 - Summary Note Strict Live Note Rows Patch
 
-This is a narrow Invoice Management / Batch Entry event-handler fix. It does not change WorkDesk Dashboard, Job Records, Inventory, Summary Note calculation, or Firebase fetch logic.
+Upload these files only:
+- app.js
+- index.html
+- version.json
+- js/app-data-cache.js
 
-After upload, hard refresh Chrome with Ctrl+F5.
+Fix:
+- Summary Note no longer trusts stale browser/allInvoiceData rows for the generated table.
+- Current Note controls the table list and Current Payment only.
+- Previous Note controls Previous Payment only.
+- Strict Generate exact-reads live invoice rows from note refs and excludes stale refs where the live invoice note no longer matches.
+- Stale refs are cleaned from invoice_note_index when detected.
+
+After upload:
+1. Hard refresh Chrome with Ctrl + F5.
+2. Test Summary Note with Computer Mart 26-Jul-2026.
+3. Table should show only the current-note rows.
