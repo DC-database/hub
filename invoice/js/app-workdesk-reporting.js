@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-workdesk-reporting.js
    IBA WorkDesk/Inventory Job Records table and report filter helpers.
-   Version: 10.9.9
+   Version: 11.5.0
 
    Cleanup Phase:
    - Moved Block 13 out of app.js.
@@ -25,6 +25,11 @@
    - If no tab was manually selected, search remains global across existing Job Records tabs.
    - Search remains contains-based/flexible and now includes Status/remarks explicitly.
    - Clear button support removes the selected tab/highlight through the companion clear patch.
+
+   11.5.0:
+   - Job Records can print the exact rows produced by the current tab/search filters.
+   - The report includes a current category, optional search term, visible-row count,
+     and generated timestamp without changing filtering or Firebase data.
    ========================================================================== */
 
 // #region BLOCK 13 — JOB RECORDS TABLE + REPORT FILTERING
@@ -74,6 +79,7 @@ function wdReportDefaultJobTypes() {
 }
 
 function wdReportRenderNoAccessState() {
+    wdReportUpdateJobRecordsPrintHeader([]);
     const tabsContainer = document.getElementById('report-tabs');
     if (tabsContainer) tabsContainer.innerHTML = '';
     if (reportingCountDisplay) reportingCountDisplay.textContent = '';
@@ -93,6 +99,7 @@ function wdReportRenderNoAccessState() {
 }
 
 function wdReportRenderLazyShell() {
+    wdReportUpdateJobRecordsPrintHeader([]);
     const tabsContainer = document.getElementById('report-tabs');
     const defaultTypes = wdReportDefaultJobTypes();
     if (tabsContainer) {
@@ -141,6 +148,55 @@ function wdReportMarkManualTabFilter(isManual) {
     try { window.__wdReportManualTabFilter = !!isManual; } catch (_) {}
 }
 
+function wdReportSetPrintButtonState(hasRecords) {
+    const button = document.getElementById('print-report-button');
+    if (!button) return;
+
+    const isInventory = wdReportIsInventoryMode();
+    button.style.display = isInventory ? 'none' : 'inline-flex';
+    button.disabled = isInventory || !hasRecords;
+    button.setAttribute('aria-disabled', button.disabled ? 'true' : 'false');
+    button.title = button.disabled
+        ? 'Select a Job Records category or search to load records first'
+        : 'Print every record currently listed in the Job Records table';
+}
+
+function wdReportUpdateJobRecordsPrintHeader(entries) {
+    const visibleEntries = Array.isArray(entries) ? entries : [];
+    const searchText = String(reportingSearchInput?.value || '').trim();
+    const selectedCategory = (currentReportFilter && currentReportFilter !== 'All')
+        ? currentReportFilter
+        : '';
+    const categoryLabel = selectedCategory || 'All Job Records';
+    const reportTitle = selectedCategory
+        ? `${selectedCategory} Job Records Report`
+        : (searchText ? 'Filtered Job Records Report' : 'Job Records Report');
+
+    const title = document.getElementById('wd-job-records-print-title');
+    const category = document.getElementById('wd-job-records-print-category');
+    const search = document.getElementById('wd-job-records-print-search');
+    const searchItem = document.getElementById('wd-job-records-print-search-item');
+    const total = document.getElementById('wd-job-records-print-total');
+    const generated = document.getElementById('wd-job-records-print-generated');
+
+    if (title) title.textContent = reportTitle;
+    if (category) category.textContent = categoryLabel;
+    if (search) search.textContent = searchText;
+    if (searchItem) searchItem.style.display = searchText ? '' : 'none';
+    if (total) total.textContent = String(visibleEntries.length);
+    if (generated) {
+        generated.textContent = `Generated: ${new Date().toLocaleString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        })}`;
+    }
+
+    wdReportSetPrintButtonState(visibleEntries.length > 0);
+}
+
 
 function wdUiSetRecordsHeroContext(mode) {
     const isInventory = String(mode || '').toLowerCase() === 'inventory';
@@ -175,6 +231,15 @@ function wdUiSetRecordsHeroContext(mode) {
         searchInput.placeholder = isInventory
             ? 'Search control ID, product, route, contact, status...'
             : 'Search job, PO, vendor, site, attention, status, note...';
+    }
+
+    const printButton = document.getElementById('print-report-button');
+    if (printButton) {
+        printButton.style.display = isInventory ? 'none' : 'inline-flex';
+        if (isInventory) {
+            printButton.disabled = true;
+            printButton.setAttribute('aria-disabled', 'true');
+        }
     }
 }
 
@@ -238,6 +303,7 @@ function renderReportingTable(entries) {
     }
 
     const totalRecords = Array.isArray(entries) ? entries.length : 0;
+    wdReportUpdateJobRecordsPrintHeader(entries);
 
     if (!entries || totalRecords === 0) {
         if (document.getElementById('job-records-count-display')) {
@@ -388,6 +454,7 @@ async function handleReportingSearch(options = {}) {
     }
 
     // Show loading only after a real user action.
+    wdReportSetPrintButtonState(false);
     reportingTableBody.innerHTML = '<tr><td colspan="12" style="text-align:center; padding:20px;"><i class="fa-solid fa-spinner fa-spin"></i> Loading selected records...</td></tr>';
 
     try {
@@ -434,6 +501,7 @@ async function handleReportingSearch(options = {}) {
 
     } catch (error) {
         console.error("Error loading reporting:", error);
+        wdReportSetPrintButtonState(false);
         reportingTableBody.innerHTML = '<tr><td colspan="12" style="color:red; text-align:center;">Error loading data.</td></tr>';
     }
 }
