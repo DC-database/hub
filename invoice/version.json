@@ -1,6 +1,6 @@
 {
-  "version": "11.4.4",
-  "releasedAt": "2026-07-26",
-  "title": "Summary Note Strict Live Note Rows Patch",
-  "message": "Fixes Summary Note current table mixing old cached/previous-note rows. Previous Note is used only for Previous Payment, Current Note is used only for listed rows/current total, and strict Generate verifies live invoice notes before including rows."
+  "version": "11.4.6",
+  "releasedAt": "2026-07-28",
+  "title": "Portal Domain Migration Notification Patch",
+  "message": "Adds an important login notice and persistent responsive countdown informing users that the IBA Portal will move from ibaport.site to port.iba.com.qa on 1 August 2026. Existing domains and system links remain unchanged in this notification-only patch."
 }

@@ -31237,3 +31237,402 @@ body #im-batch-search-modal.modal-overlay:not(.hidden) {
         border-radius: 16px;
     }
 }
+
+/* =========================================================
+   IBA 11.4.6 - Temporary Portal Domain Migration Notice
+   UI only: login notice + persistent migration countdown.
+   ========================================================= */
+.iba-domain-migration-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000005;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(3, 20, 32, 0.76);
+    backdrop-filter: blur(9px);
+    -webkit-backdrop-filter: blur(9px);
+}
+
+.iba-domain-migration-overlay.is-visible {
+    display: flex;
+}
+
+body.iba-domain-migration-dialog-open {
+    overflow: hidden;
+}
+
+.iba-domain-migration-dialog {
+    position: relative;
+    width: min(660px, 100%);
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    padding: 30px;
+    border: 1px solid rgba(255, 205, 91, 0.62);
+    border-radius: 26px;
+    background:
+        radial-gradient(circle at 88% 2%, rgba(255, 205, 91, 0.19), transparent 35%),
+        linear-gradient(145deg, #07324a 0%, #07524c 100%);
+    box-shadow:
+        0 30px 80px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+    color: #ffffff;
+    text-align: center;
+}
+
+.iba-domain-migration-alert-icon {
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 12px;
+    border: 1px solid rgba(255, 211, 95, 0.46);
+    border-radius: 20px;
+    background: rgba(255, 211, 95, 0.15);
+    color: #ffd35f;
+    font-size: 31px;
+    box-shadow: 0 0 30px rgba(255, 197, 52, 0.13);
+}
+
+.iba-domain-migration-kicker {
+    margin-bottom: 6px;
+    color: #ffd35f;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 1.8px;
+}
+
+.iba-domain-migration-dialog h2 {
+    margin: 0;
+    color: #ffffff;
+    font-size: clamp(24px, 4vw, 34px);
+    font-weight: 900;
+    line-height: 1.13;
+}
+
+.iba-domain-migration-intro {
+    margin: 12px 0 20px;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+.iba-domain-migration-route {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 18px;
+}
+
+.iba-domain-migration-domain {
+    min-width: 0;
+    padding: 14px 12px;
+    border-radius: 16px;
+    text-align: left;
+}
+
+.iba-domain-migration-domain span {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.7px;
+    text-transform: uppercase;
+}
+
+.iba-domain-migration-domain strong {
+    display: block;
+    overflow-wrap: anywhere;
+    font-size: 17px;
+    line-height: 1.25;
+}
+
+.iba-domain-migration-domain-old {
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    background: rgba(255, 255, 255, 0.07);
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.iba-domain-migration-domain-new {
+    border: 1px solid rgba(255, 211, 95, 0.48);
+    background: rgba(255, 211, 95, 0.13);
+    color: #ffe08a;
+}
+
+.iba-domain-migration-arrow {
+    color: #ffd35f;
+    font-size: 22px;
+}
+
+.iba-domain-migration-guidance {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 14px;
+    line-height: 1.58;
+}
+
+.iba-domain-migration-guidance code {
+    padding: 2px 5px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffe08a;
+    font-family: inherit;
+    font-size: 0.95em;
+    font-weight: 800;
+}
+
+.iba-domain-migration-example {
+    margin: 18px 0;
+    padding: 13px 15px;
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    border-radius: 15px;
+    background: rgba(0, 0, 0, 0.13);
+    text-align: left;
+}
+
+.iba-domain-migration-example > span {
+    display: block;
+    margin-bottom: 7px;
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+}
+
+.iba-domain-migration-example div {
+    overflow-wrap: anywhere;
+    color: rgba(255, 255, 255, 0.68);
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+.iba-domain-migration-example div:last-child {
+    color: #ffe08a;
+}
+
+.iba-domain-migration-understand {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 190px;
+    min-height: 46px;
+    padding: 11px 22px;
+    border: 0;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #ffd35f, #ffb627);
+    box-shadow: 0 10px 24px rgba(255, 182, 39, 0.25);
+    color: #16324a;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 900;
+}
+
+.iba-domain-migration-understand:hover {
+    filter: brightness(1.05);
+}
+
+.iba-domain-migration-understand:focus-visible,
+.iba-domain-migration-countdown:focus-visible {
+    outline: 3px solid rgba(255, 255, 255, 0.9);
+    outline-offset: 3px;
+}
+
+.iba-domain-migration-countdown {
+    position: fixed;
+    top: 96px;
+    right: 18px;
+    z-index: 999990;
+    display: none;
+    align-items: center;
+    gap: 10px;
+    width: min(300px, calc(100vw - 36px));
+    padding: 10px 13px;
+    border: 1px solid rgba(255, 198, 54, 0.72);
+    border-radius: 17px;
+    background: linear-gradient(135deg, rgba(6, 43, 64, 0.97), rgba(7, 84, 75, 0.97));
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.27);
+    color: #ffffff;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+    animation: iba-domain-migration-pulse 1.7s ease-in-out infinite;
+}
+
+.iba-domain-migration-countdown.is-visible {
+    display: flex;
+}
+
+.iba-domain-migration-countdown-icon {
+    flex: 0 0 40px;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 13px;
+    background: rgba(255, 211, 95, 0.16);
+    color: #ffd35f;
+    font-size: 21px;
+}
+
+.iba-domain-migration-countdown-copy {
+    display: block;
+    min-width: 0;
+    flex: 1;
+}
+
+.iba-domain-migration-countdown-label {
+    display: block;
+    margin-bottom: 2px;
+    color: #ffd35f;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 1px;
+}
+
+.iba-domain-migration-countdown-time {
+    display: flex;
+    align-items: baseline;
+    gap: 3px;
+    color: #ffffff;
+    font-size: 16px;
+    font-variant-numeric: tabular-nums;
+    font-weight: 900;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+
+.iba-domain-migration-countdown-time small {
+    margin-right: 2px;
+    color: rgba(255, 255, 255, 0.62);
+    font-size: 8px;
+    font-weight: 800;
+}
+
+.iba-domain-migration-countdown-domain {
+    display: block;
+    margin-top: 3px;
+    overflow: hidden;
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 10px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.iba-domain-migration-countdown.is-migration-live {
+    border-color: rgba(98, 224, 166, 0.82);
+    animation-name: iba-domain-migration-live-pulse;
+}
+
+.iba-domain-migration-countdown.is-migration-live .iba-domain-migration-countdown-icon,
+.iba-domain-migration-countdown.is-migration-live .iba-domain-migration-countdown-label {
+    color: #8ef0bf;
+}
+
+@keyframes iba-domain-migration-pulse {
+    0%, 100% {
+        border-color: rgba(255, 198, 54, 0.6);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.27), 0 0 0 rgba(255, 190, 46, 0);
+    }
+    50% {
+        border-color: rgba(255, 86, 73, 0.92);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.27), 0 0 22px rgba(255, 77, 64, 0.42);
+    }
+}
+
+@keyframes iba-domain-migration-live-pulse {
+    0%, 100% {
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.27), 0 0 0 rgba(74, 222, 128, 0);
+    }
+    50% {
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.27), 0 0 22px rgba(74, 222, 128, 0.4);
+    }
+}
+
+@media (max-width: 700px) {
+    .iba-domain-migration-overlay {
+        align-items: flex-start;
+        padding: 14px;
+        overflow-y: auto;
+    }
+
+    .iba-domain-migration-dialog {
+        width: 100%;
+        max-height: none;
+        margin: 12px 0;
+        padding: 22px 17px;
+        border-radius: 21px;
+    }
+
+    .iba-domain-migration-alert-icon {
+        width: 54px;
+        height: 54px;
+        border-radius: 17px;
+        font-size: 26px;
+    }
+
+    .iba-domain-migration-dialog h2 {
+        font-size: 25px;
+    }
+
+    .iba-domain-migration-intro {
+        margin-bottom: 16px;
+        font-size: 14px;
+    }
+
+    .iba-domain-migration-route {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .iba-domain-migration-arrow {
+        transform: rotate(90deg);
+        font-size: 18px;
+    }
+
+    .iba-domain-migration-domain {
+        padding: 11px 12px;
+        text-align: center;
+    }
+
+    .iba-domain-migration-guidance {
+        font-size: 13px;
+    }
+
+    .iba-domain-migration-example {
+        margin: 14px 0;
+    }
+
+    .iba-domain-migration-understand {
+        width: 100%;
+    }
+
+    .iba-domain-migration-countdown {
+        top: 64px;
+        right: 10px;
+        left: 10px;
+        width: auto;
+        min-height: 58px;
+        padding: 8px 12px;
+        border-radius: 15px;
+    }
+
+    .iba-domain-migration-countdown-icon {
+        flex-basis: 36px;
+        width: 36px;
+        height: 36px;
+        border-radius: 11px;
+        font-size: 18px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .iba-domain-migration-countdown {
+        animation: none;
+    }
+}
