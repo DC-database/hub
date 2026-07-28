@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-data-cache.js
    IBA shared local cache, CSV fetchers/parsers, and Firebase data loaders.
-   Version: 11.2.1
+   Version: 11.4.9
 
    Cleanup Phase:
    - Moved Block 06 out of app.js intact.
@@ -157,6 +157,9 @@ const IM_NOTE_INDEX_PATH = 'invoice_note_index';
 const IM_NOTE_INDEX_CACHE_KEY = 'cached_INVOICE_NOTE_INDEX';
 const IM_NOTE_INDEX_CACHE_MS = 12 * 60 * 60 * 1000; // 12 hours: notes are not high-frequency data.
 const IM_NOTE_INDEX_LIMIT = 500; // Small list only; avoids large Firebase downloads.
+// 11.4.9: Preserve each note's real last-used time so Summary Note suggestions
+// can be ranked newest-first instead of alphabetically.
+const __imInvoiceNoteUsageMeta = new Map();
 // 11.4.1: Summary Note generation must be fast.
 // POdetails.csv is large, so do not refetch it on every Generate click.
 const IM_SUMMARY_PO_DETAILS_REFRESH_MS = 30 * 60 * 1000; // refresh at most once per 30 minutes unless forced.
@@ -164,6 +167,53 @@ let __ibaSummaryPODetailsRefreshPromise = null;
 
 function imNormalizeInvoiceNoteText(note) {
     return String(note == null ? '' : note).replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function imInvoiceNoteUsageKey(note) {
+    return imNormalizeInvoiceNoteText(note).toLowerCase();
+}
+
+function imInvoiceNoteUsageTimestamp(value) {
+    const timestamp = Number(value || 0);
+    return Number.isFinite(timestamp) && timestamp > 0 ? timestamp : 0;
+}
+
+function imRememberInvoiceNoteUsage(note, lastUsedAt = 0) {
+    const text = imNormalizeInvoiceNoteText(note);
+    if (!text) return;
+
+    const key = imInvoiceNoteUsageKey(text);
+    const timestamp = imInvoiceNoteUsageTimestamp(lastUsedAt);
+    const existing = __imInvoiceNoteUsageMeta.get(key);
+    if (!existing || timestamp >= existing.lastUsedAt) {
+        __imInvoiceNoteUsageMeta.set(key, { text, lastUsedAt: timestamp });
+    }
+}
+
+function getInvoiceNotesLatestFirst() {
+    const uniqueNotes = new Map();
+
+    try {
+        Array.from(allUniqueNotes || []).forEach(note => {
+            const text = imNormalizeInvoiceNoteText(note);
+            if (!text) return;
+
+            const key = imInvoiceNoteUsageKey(text);
+            const usage = __imInvoiceNoteUsageMeta.get(key);
+            const candidate = {
+                text: (usage && usage.text) || text,
+                lastUsedAt: (usage && usage.lastUsedAt) || 0
+            };
+            const existing = uniqueNotes.get(key);
+            if (!existing || candidate.lastUsedAt >= existing.lastUsedAt) {
+                uniqueNotes.set(key, candidate);
+            }
+        });
+    } catch (_) {}
+
+    return Array.from(uniqueNotes.values())
+        .sort((a, b) => (b.lastUsedAt - a.lastUsedAt) || a.text.localeCompare(b.text))
+        .map(item => item.text);
 }
 
 function imNoteIndexHash(text) {
@@ -193,9 +243,29 @@ function imApplyNoteIndexToMemory(indexData) {
             : Object.values(indexData || {});
         list.forEach(item => {
             const text = imNormalizeInvoiceNoteText((item && typeof item === 'object') ? (item.text || item.note || '') : item);
-            if (text) allUniqueNotes.add(text);
+            if (text) {
+                allUniqueNotes.add(text);
+                const isLegacyLocalTimestamp = item
+                    && typeof item === 'object'
+                    && item.localOnly === true
+                    && Number(item.usageOrderVersion || 0) < 2;
+                imRememberInvoiceNoteUsage(
+                    text,
+                    (item && typeof item === 'object' && !isLegacyLocalTimestamp) ? item.lastUsedAt : 0
+                );
+            }
         });
     } catch (_) {}
+}
+
+function imNoteIndexHasReliableUsageOrder(indexData) {
+    const list = Array.isArray(indexData)
+        ? indexData
+        : Object.values(indexData || {});
+    return list.some(item => item
+        && typeof item === 'object'
+        && imInvoiceNoteUsageTimestamp(item.lastUsedAt) > 0
+        && (item.localOnly !== true || Number(item.usageOrderVersion || 0) >= 2));
 }
 
 function imReadLocalNoteIndex() {
@@ -209,13 +279,36 @@ function imReadLocalNoteIndex() {
     return null;
 }
 
-function imWriteLocalNoteIndexFromSet() {
+function imWriteLocalNoteIndexFromSet(activeNote = '') {
     try {
-        const notes = Array.from(allUniqueNotes || [])
-            .map(imNormalizeInvoiceNoteText)
-            .filter(Boolean)
-            .slice(-IM_NOTE_INDEX_LIMIT)
-            .map(text => ({ text, lastUsedAt: Date.now(), localOnly: true }));
+        const activeText = imNormalizeInvoiceNoteText(activeNote);
+        if (activeText) imRememberInvoiceNoteUsage(activeText, Date.now());
+
+        const existingByKey = new Map();
+        const existingCache = getCache(IM_NOTE_INDEX_CACHE_KEY);
+        const existingList = existingCache && existingCache.data
+            ? (Array.isArray(existingCache.data) ? existingCache.data : Object.values(existingCache.data))
+            : [];
+        existingList.forEach(item => {
+            if (!item || typeof item !== 'object') return;
+            const text = imNormalizeInvoiceNoteText(item.text || item.note || '');
+            if (text) existingByKey.set(imInvoiceNoteUsageKey(text), item);
+        });
+
+        const notes = getInvoiceNotesLatestFirst()
+            .slice(0, IM_NOTE_INDEX_LIMIT)
+            .map(text => {
+                const key = imInvoiceNoteUsageKey(text);
+                const existing = existingByKey.get(key) || {};
+                const usage = __imInvoiceNoteUsageMeta.get(key);
+                return {
+                    ...existing,
+                    text,
+                    lastUsedAt: (usage && usage.lastUsedAt) || imInvoiceNoteUsageTimestamp(existing.lastUsedAt),
+                    localOnly: existing.localOnly === true || Object.keys(existing).length === 0,
+                    usageOrderVersion: 2
+                };
+            });
         setCache(IM_NOTE_INDEX_CACHE_KEY, notes);
     } catch (_) {}
 }
@@ -223,7 +316,12 @@ function imWriteLocalNoteIndexFromSet() {
 async function loadInvoiceNoteIndex(forceRefresh = false) {
     // Always make local cached notes available first so the UI opens fast.
     const local = imReadLocalNoteIndex();
-    if (!forceRefresh && local && !local.isStale && allUniqueNotes && allUniqueNotes.size > 0) {
+    if (!forceRefresh
+        && local
+        && !local.isStale
+        && imNoteIndexHasReliableUsageOrder(local.data)
+        && allUniqueNotes
+        && allUniqueNotes.size > 0) {
         return allUniqueNotes;
     }
 
@@ -377,7 +475,7 @@ async function saveInvoiceNoteToIndex(note, meta = {}) {
     try {
         if (typeof allUniqueNotes === 'undefined' || !allUniqueNotes) allUniqueNotes = new Set();
         allUniqueNotes.add(text);
-        imWriteLocalNoteIndexFromSet();
+        imWriteLocalNoteIndexFromSet(text);
     } catch (_) {}
 
     if (window.ibaShouldUseCacheOnly && window.ibaShouldUseCacheOnly('save-invoice-note-index', false)) return true;
@@ -893,6 +991,7 @@ async function loadSummaryNoteInvoicesFromIndex(prevNote, currentNote, options =
 
 try {
     window.loadInvoiceNoteIndex = loadInvoiceNoteIndex;
+    window.getInvoiceNotesLatestFirst = getInvoiceNotesLatestFirst;
     window.saveInvoiceNoteToIndex = saveInvoiceNoteToIndex;
     window.imNormalizeInvoiceNoteText = imNormalizeInvoiceNoteText;
     window.imNoteIndexKey = imNoteIndexKey;

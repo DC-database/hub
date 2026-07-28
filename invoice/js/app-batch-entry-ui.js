@@ -1,5 +1,5 @@
 // js/app-batch-entry-ui.js
-// Version 11.3.4 — Batch Entry group-aware attention routing for single-row status changes.
+// Version 11.4.9 — Latest-used Summary Note suggestions and existing Batch Entry behavior.
 // Cleanup only: public function names preserved; save/write logic remains in app.js.
 
 function updateBatchRowAttentionButton(row) {
@@ -890,6 +890,21 @@ async function handleAddSelectedToBatch() {
 // 19. INVOICE MANAGEMENT: SUMMARY NOTES
 // ==========================================================================
 
+function imGetLatestFirstNoteSuggestions(notes) {
+    try {
+        if (typeof getInvoiceNotesLatestFirst === 'function') {
+            const latestFirst = getInvoiceNotesLatestFirst();
+            if (latestFirst.length > 0) return latestFirst;
+        }
+    } catch (_) {}
+
+    // Compatibility fallback for older/local caches that do not yet have usage metadata.
+    return Array.from(notes || [])
+        .map(note => String(note || '').replace(/\u00A0/g, ' ').trim())
+        .filter(Boolean)
+        .filter((value, index, arr) => arr.indexOf(value) === index)
+        .sort((a, b) => a.localeCompare(b));
+}
 
 async function initializeNoteSuggestions() {
     // 11.1.4: Summary Note datalist must not call ensureInvoiceDataFetched(),
@@ -901,11 +916,7 @@ async function initializeNoteSuggestions() {
         }
 
         noteSuggestionsDatalist.innerHTML = '';
-        const sortedNotes = Array.from(allUniqueNotes || [])
-            .map(note => String(note || '').replace(/ /g, ' ').trim())
-            .filter(Boolean)
-            .filter((value, index, arr) => arr.indexOf(value) === index)
-            .sort((a, b) => a.localeCompare(b));
+        const sortedNotes = imGetLatestFirstNoteSuggestions(allUniqueNotes || new Set());
 
         sortedNotes.forEach(note => {
             const option = document.createElement('option');
@@ -922,11 +933,7 @@ async function populateNoteDropdown(choicesInstance) {
     if (!choicesInstance) return;
 
     const applyNoteChoices = (notes) => {
-        const sortedNotes = Array.from(notes || [])
-            .map(note => String(note || '').replace(/\u00A0/g, ' ').trim())
-            .filter(Boolean)
-            .filter((value, index, arr) => arr.indexOf(value) === index)
-            .sort((a, b) => a.localeCompare(b));
+        const sortedNotes = imGetLatestFirstNoteSuggestions(notes);
 
         const noteOptions = sortedNotes.map(note => ({ value: note, label: note }));
 
@@ -952,6 +959,11 @@ async function populateNoteDropdown(choicesInstance) {
     };
 
     if (allUniqueNotes && allUniqueNotes.size > 0) {
+        // 11.4.9: A full-invoice fallback can populate the Set without usage
+        // metadata, so still load the lightweight note index before ranking it.
+        if (typeof loadInvoiceNoteIndex === 'function') {
+            await loadInvoiceNoteIndex(false);
+        }
         applyNoteChoices(allUniqueNotes);
         return;
     }
@@ -1021,4 +1033,3 @@ document.addEventListener('change', (e) => {
         autoFillSummarySrvIfWithAccounts();
     }
 });
-

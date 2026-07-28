@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-invoice-records.js
    Invoice Management reporting / records renderer.
-   Version: 8.1.7
+   Version: 11.4.9
 
    Cleanup Phase:
    - Moved the Invoice Reporting / Invoice Records display renderer out of app.js.
@@ -17,6 +17,47 @@ function formatToDDMMMYY(dateStr) {
     if (isNaN(d)) return dateStr;
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return `${String(d.getDate()).padStart(2, '0')}-${months[d.getMonth()]}-${String(d.getFullYear()).slice(-2)}`;
+}
+
+// 11.4.9: Saved invoice entry IDs are permanent record identities.
+// ECommit rows are supporting records only and must never renumber saved invoices.
+function imIsEcommitInvoiceRecord(invoice) {
+    return String((invoice && invoice.source) || '').trim().toLowerCase() === 'ecommit';
+}
+
+function imInvoiceEntrySequence(invoice) {
+    const match = String((invoice && invoice.invEntryID) || '').match(/INV\s*-\s*0*(\d+)/i);
+    return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
+}
+
+function imInvoiceRecordDateValue(invoice) {
+    const value = new Date((invoice && invoice.invoiceDate) || '2099-01-01').getTime();
+    return Number.isFinite(value) ? value : new Date('2099-01-01').getTime();
+}
+
+function imCompareSavedInvoiceRecords(a, b) {
+    const sequenceDifference = imInvoiceEntrySequence(a) - imInvoiceEntrySequence(b);
+    if (sequenceDifference !== 0) return sequenceDifference;
+
+    const entryDifference = String((a && a.invEntryID) || '').localeCompare(
+        String((b && b.invEntryID) || ''),
+        undefined,
+        { numeric: true, sensitivity: 'base' }
+    );
+    if (entryDifference !== 0) return entryDifference;
+
+    return (imInvoiceRecordDateValue(a) - imInvoiceRecordDateValue(b))
+        || String((a && a.invNumber) || '').localeCompare(String((b && b.invNumber) || ''));
+}
+
+function imCompareEcommitInvoiceRecords(a, b) {
+    return (imInvoiceRecordDateValue(a) - imInvoiceRecordDateValue(b))
+        || String((a && a.invNumber) || '').localeCompare(String((b && b.invNumber) || ''));
+}
+
+function imInvoiceRecordEntryLabel(invoice) {
+    if (imIsEcommitInvoiceRecord(invoice)) return 'EPICOR – Not Imported';
+    return String((invoice && invoice.invEntryID) || '');
 }
 
 
@@ -250,7 +291,10 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
             const firebaseInvoices = allInvoicesByPO[poNumber] ? Object.entries(allInvoicesByPO[poNumber]).map(([key, value]) => ({ key, ...value, source: 'firebase' })) : [];
             const firebasePackingSlips = new Set(firebaseInvoices.map(inv => String(inv.invNumber || '').trim().toLowerCase()).filter(Boolean));
             
-            const ecommitInvoices = allEcommit[poNumber] || [];
+            const ecommitInvoices = (allEcommit[poNumber] || []).map(inv => ({
+                ...inv,
+                source: (inv && inv.source) || 'ECommit'
+            }));
             const filteredEcommitInvoices = ecommitInvoices.filter(inv => {
                 const csvInvNum = String(inv.invNumber || '').trim().toLowerCase();
                 return !csvInvNum || !firebasePackingSlips.has(csvInvNum);
@@ -264,7 +308,12 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
                 }
             });
 
-            let invoices = [...firebaseInvoices, ...filteredEcommitInvoices];
+            // Keep permanent Firebase IDs in their saved numeric order.
+            // Supporting ECommit-only rows stay after them and receive no fake INV ID.
+            let invoices = [
+                ...firebaseInvoices.sort(imCompareSavedInvoiceRecords),
+                ...filteredEcommitInvoices.sort(imCompareEcommitInvoiceRecords)
+            ];
 
             let totalInvSum = 0;
             invoices.forEach(inv => totalInvSum += parseFloat(inv.invValue) || 0);
@@ -274,14 +323,6 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
             if (poVal === 0) balance = 0;
 
             if (statusFilter === 'Negative Balance' && balance >= -0.01) continue;
-
-            invoices.sort((a, b) => {
-                const dateA = new Date(a.invoiceDate || '2099-01-01');
-                const dateB = new Date(b.invoiceDate || '2099-01-01');
-                return (dateA - dateB) || (a.invNumber || '').localeCompare(b.invNumber || '');
-            });
-
-            invoices.forEach((inv, index) => { inv.invEntryID = `INV-${String(index + 1).padStart(2, '0')}`; });
 
             const poMatchBySearch = !!searchText && poNumber.toLowerCase().includes(searchText);
             const vendorMatchBySearch = !!searchText && vendor.toLowerCase().includes(searchText);
@@ -407,6 +448,8 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
             poData.filteredInvoices.forEach(inv => {
                 if (inv.status !== 'With Accounts') allWithAccounts = false;
 
+                const isEcommitRecord = imIsEcommitInvoiceRecord(inv);
+                const invEntryDisplay = imInvoiceRecordEntryLabel(inv);
                 const invValue = parseFloat(inv.invValue) || 0;
                 const amountPaid = parseFloat(inv.amountPaid) || 0;
                 const invNoText = (inv.invNumber || '').toLowerCase();   // retention check on INV. NO.
@@ -421,7 +464,7 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
                 const amountPaidDisplay = canViewAmounts ? formatCurrency(amountPaid) : '---';
 
                 let actionButtonsHTML = '';
-                if (inv.source !== 'ecommit' && isAllowedUser) {
+                if (!isEcommitRecord && isAllowedUser) {
                     const finalInvName = getSharePointPdfBaseName(inv.invName);
                     const finalSrvName = getSharePointPdfBaseName(inv.srvName);
                     const finalReportName = getSharePointPdfBaseName(inv.reportName);
@@ -454,7 +497,7 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
                     }
 
                     actionButtonsHTML = `<div class="modern-action-group im-record-actions">${editBtn} ${invPDFLink} ${reportViewLink} ${srvPDFLink} ${historyBtn} ${stickerBtn} ${waBtn}</div>`;
-                } else if ((inv.source || '').toLowerCase() === 'ecommit' && isAllowedUser) {
+                } else if (isEcommitRecord && isAllowedUser) {
                     actionButtonsHTML = `<span style="font-size:0.8rem; color:#6f42c1; font-weight:bold; cursor:pointer;"><i class="fa-solid fa-file-import"></i> Click to Import</span>`;
                 }
 
@@ -467,9 +510,9 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
                         data-inv-date="${inv.invoiceDate || ''}"
                         data-release-date="${inv.releaseDate || ''}" 
                         data-inv-value="${inv.invValue || ''}"
-                        title="${inv.source === 'ecommit' ? 'Click to Import' : 'Click to Edit'}"
+                        title="${isEcommitRecord ? 'Click to Import' : 'Click to Edit'}"
                         style="cursor: pointer; border-bottom: 1px solid #f1f5f9; transition: 0.2s;">
-                        <td style="padding: 10px 5px; color: #64748b;">${inv.invEntryID || ''}</td>
+                        <td style="padding: 10px 5px; color: #64748b;">${escapeHtml(invEntryDisplay)}</td>
                         <td style="padding: 10px 5px; font-weight: 700; color: #00748C;">${inv.invNumber || 'N/A'}</td>
                         <td style="padding: 10px 5px;">${invoiceDateDisplay}</td>
                         <td style="padding: 10px 5px; text-align: right; font-family: monospace; font-weight: 600; color: #334155;">${invValueDisplay}</td>
@@ -676,7 +719,7 @@ currentReportData.forEach(poData => {
     if (isDetailed) {
             let invRows = poData.filteredInvoices.map(inv => `
                 <tr class="detail-row">
-                    <td style="color: #64748b;">${inv.invEntryID || '---'}</td>
+                    <td style="color: #64748b;">${escapeHtml(imInvoiceRecordEntryLabel(inv) || '---')}</td>
                     <td><span style="color: #00748C; font-weight: 600;">${inv.invNumber || 'N/A'}</span></td>
                     <td>${formatForPrint(inv.invoiceDate)}</td>
                     <td class="right-align" style="font-family: monospace; font-weight: 600;">${formatCurrency(inv.invValue)}</td>
@@ -847,4 +890,3 @@ document.addEventListener("DOMContentLoaded", () => {
 // #region BLOCK 20 — BATCH ENTRY + SUMMARY NOTES
 // Purpose: Batch row attention picker, add PO/invoice to batch, batch global search, save batch invoices, note dropdowns, summary generation/update.
 // =================================================================================================
-
