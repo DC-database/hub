@@ -1,6 +1,6 @@
 {
-  "version": "11.5.0",
+  "version": "11.5.1",
   "releasedAt": "2026-07-28",
-  "title": "Job Records Current-View Print Report",
-  "message": "Adds a professional Print Current Report option to WorkDesk Job Records. The landscape report prints exactly the rows produced by the selected tab, search term, or combined filters, with category, search, record count, and generated-time details."
+  "title": "Job Records Landscape Print Repair",
+  "message": "Repairs Job Records printing with a dedicated plain-text table and a temporary A4 landscape page override. Current filtered rows print in compact multi-page table format without responsive cards, action icons, clipping, or changes to records and filters."
 }

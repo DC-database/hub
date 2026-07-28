@@ -141,7 +141,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
 
-    <link rel="stylesheet" href="style.css?v=11.5.0">
+    <link rel="stylesheet" href="style.css?v=11.5.1">
     <link rel="stylesheet" href="css/transfer_stock.css?v=10.5.7">
     <link rel="stylesheet" href="css/mobile.css?v=9.2.7">
     <!-- 9.0.1 module split: page-specific desktop/mobile override layers -->
@@ -693,6 +693,41 @@
                     <strong id="wd-job-records-print-total">0</strong>
                 </div>
             </div>
+        </div>
+        <div class="wd-job-records-print-table-wrap" aria-hidden="true">
+            <table id="wd-job-records-print-table">
+                <colgroup>
+                    <col class="wd-print-col-job">
+                    <col class="wd-print-col-ref">
+                    <col class="wd-print-col-site">
+                    <col class="wd-print-col-po">
+                    <col class="wd-print-col-vendor">
+                    <col class="wd-print-col-amount">
+                    <col class="wd-print-col-entered-by">
+                    <col class="wd-print-col-entered-date">
+                    <col class="wd-print-col-attention">
+                    <col class="wd-print-col-responded-date">
+                    <col class="wd-print-col-note">
+                    <col class="wd-print-col-status">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th>Job</th>
+                        <th>Ref</th>
+                        <th>Site</th>
+                        <th>PO</th>
+                        <th>Vendor Name</th>
+                        <th>Amount</th>
+                        <th>Entered By</th>
+                        <th>Date Entered</th>
+                        <th>Attention</th>
+                        <th>Date Responded</th>
+                        <th>Note</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="wd-job-records-print-body"></tbody>
+            </table>
         </div>
         <div class="table-wrapper">
             <table id="job-records-table">
@@ -3246,7 +3281,7 @@
     <script src="js/app-utils.js?v=8.2.3"></script>
     <script src="js/app-vacation.js?v=8.2.3"></script>
     <script src="js/app-dom-refs.js?v=10.1.5"></script>
-    <script src="app.js?v=11.4.7"></script>
+    <script src="app.js?v=11.5.1"></script>
     <script src="js/app-time-clock.js?v=11.0.9"></script>
     <script src="js/app-domain-migration-notice.js?v=11.4.6"></script>
     <script src="js/app-navigation-settings.js?v=11.4.6"></script>
@@ -3259,7 +3294,7 @@
     <script src="js/app-invoice-records.js?v=11.4.9"></script>
     <script src="js/app-active-tasks.js?v=11.0.6"></script>
     <script src="js/app-workdesk-dashboard.js?v=11.4.0"></script>
-    <script src="js/app-workdesk-reporting.js?v=11.5.0"></script>
+    <script src="js/app-workdesk-reporting.js?v=11.5.1"></script>
     <script src="js/app-reporting-actions.js?v=9.9.0"></script>
     <script src="js/app-report-workflow.js?v=8.2.3"></script>
     <script src="js/app-ui-shortcuts.js?v=10.9.4"></script>
@@ -3272,10 +3307,10 @@
     <script src="js/app-help.js?v=8.2.3"></script>
 
     <script>
-      window.IBA_SYSTEM_VERSION = '11.5.0';
+      window.IBA_SYSTEM_VERSION = '11.5.1';
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
-    <script src="js/app-version-checker.js?v=11.5.0"></script>
+    <script src="js/app-version-checker.js?v=11.5.1"></script>
 
     </body>
 </html>

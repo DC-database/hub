@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '11.5.0';
+const APP_VERSION = '11.5.1';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -7519,9 +7519,16 @@ try {
     }
 
 
-// Safeguard: Only add listener if button exists
+    // Safeguard: Only add listener if button exists
     if (printReportButton) {
         printReportButton.addEventListener('click', () => {
+            if (
+                typeof prepareWorkdeskJobRecordsPrint !== 'function'
+                || prepareWorkdeskJobRecordsPrint() === false
+            ) {
+                return alert("No Job Records are currently available to print.");
+            }
+
             if (summaryNotePrintArea) summaryNotePrintArea.classList.add('hidden');
             if (imReportingPrintableArea) imReportingPrintableArea.classList.add('hidden');
             if (imFinanceReportModal) imFinanceReportModal.classList.add('hidden');
@@ -7530,14 +7537,23 @@ try {
             if (wdPrintArea) {
                 wdPrintArea.classList.add('printing');
                 document.body.classList.add('workdesk-print-active');
+                document.documentElement.classList.add('workdesk-print-active');
             }
-            window.print();
-            setTimeout(() => {
-                if (wdPrintArea) {
-                    wdPrintArea.classList.remove('printing');
-                    document.body.classList.remove('workdesk-print-active');
+
+            let cleanupTimer = null;
+            const clearWorkdeskPrintState = () => {
+                if (cleanupTimer) clearTimeout(cleanupTimer);
+                if (wdPrintArea) wdPrintArea.classList.remove('printing');
+                document.body.classList.remove('workdesk-print-active');
+                document.documentElement.classList.remove('workdesk-print-active');
+                if (typeof cleanupWorkdeskJobRecordsPrint === 'function') {
+                    cleanupWorkdeskJobRecordsPrint();
                 }
-            }, 1000);
+            };
+
+            window.addEventListener('afterprint', clearWorkdeskPrintState, { once: true });
+            cleanupTimer = setTimeout(clearWorkdeskPrintState, 5 * 60 * 1000);
+            window.print();
         });
     }
 

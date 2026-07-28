@@ -7498,7 +7498,8 @@ body.inventory-mode .wd-nav-material {
     cursor: not-allowed;
     box-shadow: none;
 }
-.wd-job-records-print-header {
+.wd-job-records-print-header,
+.wd-job-records-print-table-wrap {
     display: none;
 }
 .detailed-btn { color: #00748C; border-color: #00748C; }
@@ -31728,5 +31729,262 @@ body.iba-domain-migration-dialog-open {
 @media (prefers-reduced-motion: reduce) {
     .iba-domain-migration-countdown {
         animation: none;
+    }
+}
+
+/* ========================================================================
+   11.5.1 — WorkDesk Job Records dedicated print-table repair
+   The screen table keeps its premium responsive layout. Printing uses a
+   separate plain table so mobile/card rules cannot collapse report rows.
+   ======================================================================== */
+@media print {
+    html.workdesk-print-active,
+    html.workdesk-print-active body {
+        width: auto !important;
+        height: auto !important;
+        min-height: 0 !important;
+        overflow: visible !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+    }
+
+    html.workdesk-print-active body #app-container,
+    html.workdesk-print-active body #workdesk-view,
+    html.workdesk-print-active body #workdesk-view .workdesk-main,
+    html.workdesk-print-active body #workdesk-content-area,
+    html.workdesk-print-active body #wd-reporting,
+    html.workdesk-print-active body #reporting-printable-area.printing,
+    html.workdesk-print-active body #reporting-printable-area.printing * {
+        visibility: visible !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+
+    html.workdesk-print-active body #app-container,
+    html.workdesk-print-active body #workdesk-view,
+    html.workdesk-print-active body #workdesk-view .workdesk-main,
+    html.workdesk-print-active body #workdesk-content-area,
+    html.workdesk-print-active body #wd-reporting {
+        position: static !important;
+        display: block !important;
+        width: 100% !important;
+        max-width: none !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        background: #ffffff !important;
+    }
+
+    html.workdesk-print-active body #workdesk-view > .workdesk-sidebar {
+        display: none !important;
+        visibility: hidden !important;
+        width: 0 !important;
+        height: 0 !important;
+    }
+
+    html.workdesk-print-active body #reporting-printable-area.printing {
+        page: auto !important;
+        position: relative !important;
+        inset: auto !important;
+        display: block !important;
+        width: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        background: #ffffff !important;
+        color: #111827 !important;
+        font-family: Arial, Helvetica, sans-serif !important;
+    }
+
+    html.workdesk-print-active body #reporting-printable-area.printing > .table-wrapper,
+    html.workdesk-print-active body #reporting-printable-area.printing > .table-wrapper * {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        overflow: hidden !important;
+    }
+
+    html.workdesk-print-active body #reporting-printable-area.printing .wd-job-records-print-header {
+        display: block !important;
+        margin: 0 0 4mm 0 !important;
+        padding: 0 0 3mm 0 !important;
+        border-bottom: 1.5px solid #003a5c !important;
+        page-break-inside: avoid !important;
+    }
+
+    html.workdesk-print-active body #reporting-printable-area.printing .wd-job-records-print-heading {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) !important;
+        align-items: end !important;
+        gap: 8mm !important;
+    }
+
+    html.workdesk-print-active body #reporting-printable-area.printing .wd-job-records-print-heading > div {
+        min-width: 0 !important;
+    }
+
+    html.workdesk-print-active body #reporting-printable-area.printing .wd-job-records-print-heading h1 {
+        margin: 0 !important;
+        color: #003a5c !important;
+        font-size: 13pt !important;
+        line-height: 1.15 !important;
+        white-space: normal !important;
+    }
+
+    html.workdesk-print-active body #reporting-printable-area.printing .wd-job-records-print-heading p {
+        margin: 1.2mm 0 0 0 !important;
+        color: #475569 !important;
+        font-size: 7.5pt !important;
+        line-height: 1.2 !important;
+    }
+
+    html.workdesk-print-active body #reporting-printable-area.printing .wd-job-records-print-title {
+        max-width: none !important;
+        text-align: right !important;
+    }
+
+    html.workdesk-print-active body #reporting-printable-area.printing .wd-job-records-print-title h2 {
+        margin: 0 !important;
+        color: #111827 !important;
+        font-size: 12pt !important;
+        line-height: 1.15 !important;
+        white-space: normal !important;
+        overflow-wrap: anywhere !important;
+    }
+
+    html.workdesk-print-active body #reporting-printable-area.printing .wd-job-records-print-meta {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 3mm !important;
+        margin-top: 3mm !important;
+    }
+
+    html.workdesk-print-active body #reporting-printable-area.printing .wd-job-records-print-meta.has-search {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+
+    html.workdesk-print-active body #reporting-printable-area.printing .wd-job-records-print-meta > div {
+        display: block !important;
+        min-width: 0 !important;
+        padding: 2mm 2.5mm !important;
+        border: 1px solid #cbd5e1 !important;
+        background: #f8fafc !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    html.workdesk-print-active body #reporting-printable-area.printing .wd-job-records-print-meta:not(.has-search) #wd-job-records-print-search-item {
+        display: none !important;
+    }
+
+    html.workdesk-print-active body #reporting-printable-area.printing .wd-job-records-print-meta span {
+        display: block !important;
+        color: #64748b !important;
+        font-size: 6.5pt !important;
+        font-weight: 700 !important;
+        text-transform: uppercase !important;
+        letter-spacing: .035em !important;
+    }
+
+    html.workdesk-print-active body #reporting-printable-area.printing .wd-job-records-print-meta strong {
+        display: block !important;
+        margin-top: .7mm !important;
+        color: #0f172a !important;
+        font-size: 8pt !important;
+        line-height: 1.2 !important;
+        overflow-wrap: anywhere !important;
+    }
+
+    html.workdesk-print-active body #reporting-printable-area.printing .wd-job-records-print-table-wrap {
+        display: block !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    html.workdesk-print-active body #wd-job-records-print-table {
+        display: table !important;
+        width: 100% !important;
+        table-layout: fixed !important;
+        border-collapse: collapse !important;
+        border-spacing: 0 !important;
+        margin: 0 !important;
+        background: #ffffff !important;
+        color: #111827 !important;
+        font-size: 6.6pt !important;
+        line-height: 1.2 !important;
+    }
+
+    html.workdesk-print-active body #wd-job-records-print-table col.wd-print-col-job { width: 7% !important; }
+    html.workdesk-print-active body #wd-job-records-print-table col.wd-print-col-ref { width: 5.5% !important; }
+    html.workdesk-print-active body #wd-job-records-print-table col.wd-print-col-site { width: 4% !important; }
+    html.workdesk-print-active body #wd-job-records-print-table col.wd-print-col-po { width: 6% !important; }
+    html.workdesk-print-active body #wd-job-records-print-table col.wd-print-col-vendor { width: 15% !important; }
+    html.workdesk-print-active body #wd-job-records-print-table col.wd-print-col-amount { width: 7% !important; }
+    html.workdesk-print-active body #wd-job-records-print-table col.wd-print-col-entered-by { width: 7.5% !important; }
+    html.workdesk-print-active body #wd-job-records-print-table col.wd-print-col-entered-date { width: 8% !important; }
+    html.workdesk-print-active body #wd-job-records-print-table col.wd-print-col-attention { width: 9% !important; }
+    html.workdesk-print-active body #wd-job-records-print-table col.wd-print-col-responded-date { width: 8% !important; }
+    html.workdesk-print-active body #wd-job-records-print-table col.wd-print-col-note { width: 15% !important; }
+    html.workdesk-print-active body #wd-job-records-print-table col.wd-print-col-status { width: 8% !important; }
+
+    html.workdesk-print-active body #wd-job-records-print-table thead {
+        display: table-header-group !important;
+    }
+
+    html.workdesk-print-active body #wd-job-records-print-table tbody {
+        display: table-row-group !important;
+    }
+
+    html.workdesk-print-active body #wd-job-records-print-table tr {
+        display: table-row !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
+    html.workdesk-print-active body #wd-job-records-print-table th,
+    html.workdesk-print-active body #wd-job-records-print-table td {
+        display: table-cell !important;
+        height: auto !important;
+        padding: 1.4mm 1mm !important;
+        border: .6px solid #64748b !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        background: #ffffff !important;
+        color: #111827 !important;
+        font: inherit !important;
+        text-align: left !important;
+        vertical-align: top !important;
+        white-space: normal !important;
+        overflow: visible !important;
+        overflow-wrap: anywhere !important;
+        word-break: break-word !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    html.workdesk-print-active body #wd-job-records-print-table thead th {
+        padding: 1.6mm 1mm !important;
+        background: #e2e8f0 !important;
+        color: #0f172a !important;
+        font-size: 6.2pt !important;
+        font-weight: 800 !important;
+        line-height: 1.15 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0 !important;
+    }
+
+    html.workdesk-print-active body #wd-job-records-print-table tbody tr:nth-child(even) td {
+        background: #f8fafc !important;
+    }
+
+    html.workdesk-print-active body #wd-job-records-print-table th:nth-child(6),
+    html.workdesk-print-active body #wd-job-records-print-table td:nth-child(6) {
+        text-align: right !important;
     }
 }
