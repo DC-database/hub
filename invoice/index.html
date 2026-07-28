@@ -141,7 +141,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
 
-    <link rel="stylesheet" href="style.css?v=11.4.8">
+    <link rel="stylesheet" href="style.css?v=11.5.0">
     <link rel="stylesheet" href="css/transfer_stock.css?v=10.5.7">
     <link rel="stylesheet" href="css/mobile.css?v=9.2.7">
     <!-- 9.0.1 module split: page-specific desktop/mobile override layers -->
@@ -654,6 +654,9 @@
         </div>
 
         <div style="display: flex; gap: 5px;">
+            <button id="print-report-button" class="print-btn wd-job-records-print-button" type="button" disabled>
+                <i class="fa-solid fa-print"></i> Print Current Report
+            </button>
             <!-- Inventory context only (desktop): Print In-Transit inventory report -->
             <select id="wd-inventory-intransit-contact-filter" style="display:none; height:45px; padding:0 10px; border-radius:8px; border:1px solid #cfcfcf; background:white; min-width:180px;"></select>
             <button id="wd-inventory-intransit-report-btn" class="download-btn" type="button" style="display:none; background-color:#4d0000; color:white; height:45px; align-items:center; gap:8px;">
@@ -665,6 +668,32 @@
     <div id="job-records-summary-strip" class="wd-mini-metrics hidden-mobile"></div>
 
     <div id="reporting-printable-area">
+        <div id="wd-job-records-print-header" class="wd-job-records-print-header" aria-hidden="true">
+            <div class="wd-job-records-print-heading">
+                <div>
+                    <h1>ISMAIL BIN ALI TRADING &amp; CONT. CO. W.L.L</h1>
+                    <p>WorkDesk Records Center</p>
+                </div>
+                <div class="wd-job-records-print-title">
+                    <h2 id="wd-job-records-print-title">Job Records Report</h2>
+                    <p id="wd-job-records-print-generated"></p>
+                </div>
+            </div>
+            <div class="wd-job-records-print-meta">
+                <div>
+                    <span>Category</span>
+                    <strong id="wd-job-records-print-category">All Job Records</strong>
+                </div>
+                <div id="wd-job-records-print-search-item">
+                    <span>Search</span>
+                    <strong id="wd-job-records-print-search"></strong>
+                </div>
+                <div>
+                    <span>Total Records</span>
+                    <strong id="wd-job-records-print-total">0</strong>
+                </div>
+            </div>
+        </div>
         <div class="table-wrapper">
             <table id="job-records-table">
                 <thead>
@@ -3230,7 +3259,7 @@
     <script src="js/app-invoice-records.js?v=11.4.9"></script>
     <script src="js/app-active-tasks.js?v=11.0.6"></script>
     <script src="js/app-workdesk-dashboard.js?v=11.4.0"></script>
-    <script src="js/app-workdesk-reporting.js?v=11.4.0"></script>
+    <script src="js/app-workdesk-reporting.js?v=11.5.0"></script>
     <script src="js/app-reporting-actions.js?v=9.9.0"></script>
     <script src="js/app-report-workflow.js?v=8.2.3"></script>
     <script src="js/app-ui-shortcuts.js?v=10.9.4"></script>
@@ -3243,10 +3272,10 @@
     <script src="js/app-help.js?v=8.2.3"></script>
 
     <script>
-      window.IBA_SYSTEM_VERSION = '11.4.9';
+      window.IBA_SYSTEM_VERSION = '11.5.0';
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
-    <script src="js/app-version-checker.js?v=11.4.9"></script>
+    <script src="js/app-version-checker.js?v=11.5.0"></script>
 
     </body>
 </html>

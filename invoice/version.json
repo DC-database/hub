@@ -1,6 +1,6 @@
 {
-  "version": "11.4.9",
+  "version": "11.5.0",
   "releasedAt": "2026-07-28",
-  "title": "Latest Notes and Stable Invoice Records Patch",
-  "message": "Shows Summary Note suggestions by most recent use, preserves permanent invoice entry IDs and their numeric order in Invoice Records, and labels unmatched ECommit records as not imported without changing Invoice Value, Amt. Paid, SRV, or balance calculations."
+  "title": "Job Records Current-View Print Report",
+  "message": "Adds a professional Print Current Report option to WorkDesk Job Records. The landscape report prints exactly the rows produced by the selected tab, search term, or combined filters, with category, search, record count, and generated-time details."
 }
