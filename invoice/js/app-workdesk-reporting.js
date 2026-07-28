@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-workdesk-reporting.js
    IBA WorkDesk/Inventory Job Records table and report filter helpers.
-   Version: 11.5.0
+   Version: 11.5.1
 
    Cleanup Phase:
    - Moved Block 13 out of app.js.
@@ -30,6 +30,11 @@
    - Job Records can print the exact rows produced by the current tab/search filters.
    - The report includes a current category, optional search term, visible-row count,
      and generated timestamp without changing filtering or Firebase data.
+
+   11.5.1:
+   - Build a dedicated plain-text print table so responsive screen cards and buttons
+     cannot collapse or leak into the printed report.
+   - Install a temporary A4 landscape page override only while Job Records prints.
    ========================================================================== */
 
 // #region BLOCK 13 — JOB RECORDS TABLE + REPORT FILTERING
@@ -161,6 +166,52 @@ function wdReportSetPrintButtonState(hasRecords) {
         : 'Print every record currently listed in the Job Records table';
 }
 
+function wdReportRefreshPrintGeneratedAt() {
+    const generated = document.getElementById('wd-job-records-print-generated');
+    if (!generated) return;
+
+    generated.textContent = `Generated: ${new Date().toLocaleString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    })}`;
+}
+
+function wdReportBuildPrintRows(entries) {
+    const printBody = document.getElementById('wd-job-records-print-body');
+    if (!printBody) return;
+
+    printBody.innerHTML = '';
+    const visibleEntries = Array.isArray(entries) ? entries : [];
+    visibleEntries.forEach(entry => {
+        const row = document.createElement('tr');
+        const currentNote = String(entry.note || entry.details || entry.currentNote || '').trim();
+        const values = [
+            wdReportDisplayJobType(entry.for || ''),
+            entry.ref || '',
+            entry.site || '',
+            entry.po || '',
+            entry.vendorName || 'N/A',
+            entry.amount || '',
+            entry.enteredBy || '',
+            entry.date || '',
+            entry.attention || '',
+            entry.dateResponded || '—',
+            currentNote || '—',
+            entry.remarks || 'Pending'
+        ];
+
+        values.forEach(value => {
+            const cell = document.createElement('td');
+            cell.textContent = String(value == null ? '' : value);
+            row.appendChild(cell);
+        });
+        printBody.appendChild(row);
+    });
+}
+
 function wdReportUpdateJobRecordsPrintHeader(entries) {
     const visibleEntries = Array.isArray(entries) ? entries : [];
     const searchText = String(reportingSearchInput?.value || '').trim();
@@ -176,25 +227,41 @@ function wdReportUpdateJobRecordsPrintHeader(entries) {
     const category = document.getElementById('wd-job-records-print-category');
     const search = document.getElementById('wd-job-records-print-search');
     const searchItem = document.getElementById('wd-job-records-print-search-item');
+    const printMeta = document.querySelector('.wd-job-records-print-meta');
     const total = document.getElementById('wd-job-records-print-total');
-    const generated = document.getElementById('wd-job-records-print-generated');
 
     if (title) title.textContent = reportTitle;
     if (category) category.textContent = categoryLabel;
     if (search) search.textContent = searchText;
     if (searchItem) searchItem.style.display = searchText ? '' : 'none';
+    if (printMeta) printMeta.classList.toggle('has-search', !!searchText);
     if (total) total.textContent = String(visibleEntries.length);
-    if (generated) {
-        generated.textContent = `Generated: ${new Date().toLocaleString('en-GB', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        })}`;
-    }
 
+    wdReportRefreshPrintGeneratedAt();
+    wdReportBuildPrintRows(visibleEntries);
     wdReportSetPrintButtonState(visibleEntries.length > 0);
+}
+
+function prepareWorkdeskJobRecordsPrint() {
+    const printBody = document.getElementById('wd-job-records-print-body');
+    if (!printBody || printBody.querySelectorAll('tr').length === 0) return false;
+
+    wdReportRefreshPrintGeneratedAt();
+
+    let pageStyle = document.getElementById('wd-job-records-page-override');
+    if (!pageStyle) {
+        pageStyle = document.createElement('style');
+        pageStyle.id = 'wd-job-records-page-override';
+        pageStyle.media = 'print';
+        document.head.appendChild(pageStyle);
+    }
+    pageStyle.textContent = '@page { size: A4 landscape; margin: 6mm; }';
+    return true;
+}
+
+function cleanupWorkdeskJobRecordsPrint() {
+    const pageStyle = document.getElementById('wd-job-records-page-override');
+    if (pageStyle) pageStyle.remove();
 }
 
 
