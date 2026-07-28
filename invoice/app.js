@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '11.4.6';
+const APP_VERSION = '11.4.7';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -6336,7 +6336,6 @@ document.querySelectorAll('.sidebar-version-display').forEach(el => {
             const timeText = now.toLocaleTimeString('en-QA', {
                 hour: '2-digit',
                 minute: '2-digit',
-                second: '2-digit',
                 hour12: true
             });
 

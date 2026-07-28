@@ -1,6 +1,6 @@
 {
-  "version": "11.4.6",
+  "version": "11.4.7",
   "releasedAt": "2026-07-28",
-  "title": "Portal Domain Migration Notification Patch",
-  "message": "Adds an important login notice and persistent responsive countdown informing users that the IBA Portal will move from ibaport.site to port.iba.com.qa on 1 August 2026. Existing domains and system links remain unchanged in this notification-only patch."
+  "title": "Welcome Screen Time Display Patch",
+  "message": "Removes seconds from the Welcome screen digital time so it displays hours and minutes only. The full date, Today label, analog clocks, module time displays, domain notification, and all workflow behavior remain unchanged."
 }
