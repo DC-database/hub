@@ -1,6 +1,6 @@
 {
-  "version": "11.4.7",
+  "version": "11.4.8",
   "releasedAt": "2026-07-28",
-  "title": "Welcome Screen Time Display Patch",
-  "message": "Removes seconds from the Welcome screen digital time so it displays hours and minutes only. The full date, Today label, analog clocks, module time displays, domain notification, and all workflow behavior remain unchanged."
+  "title": "Domain Countdown Top-Center Placement Patch",
+  "message": "Moves the persistent domain-migration countdown from the upper-right corner to a responsive top-center position so it does not block module buttons. The popup, countdown timing, blinking effect, click behavior, domain links, and all system workflows remain unchanged."
 }

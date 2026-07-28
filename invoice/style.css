@@ -31444,8 +31444,9 @@ body.iba-domain-migration-dialog-open {
 
 .iba-domain-migration-countdown {
     position: fixed;
-    top: 96px;
-    right: 18px;
+    top: 18px;
+    left: 50%;
+    right: auto;
     z-index: 999990;
     display: none;
     align-items: center;
@@ -31460,6 +31461,7 @@ body.iba-domain-migration-dialog-open {
     cursor: pointer;
     font-family: inherit;
     text-align: left;
+    transform: translateX(-50%);
     animation: iba-domain-migration-pulse 1.7s ease-in-out infinite;
 }
 
@@ -31614,12 +31616,13 @@ body.iba-domain-migration-dialog-open {
 
     .iba-domain-migration-countdown {
         top: 64px;
-        right: 10px;
-        left: 10px;
-        width: auto;
+        left: 50%;
+        right: auto;
+        width: min(420px, calc(100vw - 20px));
         min-height: 58px;
         padding: 8px 12px;
         border-radius: 15px;
+        transform: translateX(-50%);
     }
 
     .iba-domain-migration-countdown-icon {
