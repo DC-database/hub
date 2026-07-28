@@ -1,19 +1,17 @@
-IBA 11.4.4 - Summary Note Strict Live Note Rows Patch
+IBA 11.4.5 — Batch Entry Attention Routing + Manual Override Patch
 
-Upload these files only:
-- app.js
+Upload/replace only these files:
 - index.html
 - version.json
-- js/app-data-cache.js
+- js/app-attention-validation.js
+- js/app-im-event-wiring.js
 
-Fix:
-- Summary Note no longer trusts stale browser/allInvoiceData rows for the generated table.
-- Current Note controls the table list and Current Payment only.
-- Previous Note controls Previous Payment only.
-- Strict Generate exact-reads live invoice rows from note refs and excludes stale refs where the live invoice note no longer matches.
-- Stale refs are cleaned from invoice_note_index when detected.
+Purpose:
+- Batch Entry For SRV + Group Normal = site-matched Site DC/Camp Boss logic.
+- Batch Entry For SRV + Group Logistic = Imran/logistic person regardless of site.
+- Report = GIO, CEO Approval = Hamad, In Process = COO/Ali.
+- No-attention statuses remain blank/None.
+- If no routing match exists, fallback is Irwin.
+- Manual Attention picker remains allowed so the user can override before saving.
 
-After upload:
-1. Hard refresh Chrome with Ctrl + F5.
-2. Test Summary Note with Computer Mart 26-Jul-2026.
-3. Table should show only the current-note rows.
+After upload: hard refresh Chrome using Ctrl + F5.
