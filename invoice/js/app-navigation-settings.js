@@ -310,6 +310,16 @@ function handleSuccessfulLogin() {
         console.log('Celebration banner failed:', e);
     }
 
+    // --- 11.4.6: Temporary IBA Portal domain migration notice ---
+    // UI only. The current ibaport.site links remain unchanged in this patch.
+    try {
+        if (typeof window.showDomainMigrationNoticeIfNeeded === 'function') {
+            window.showDomainMigrationNoticeIfNeeded();
+        }
+    } catch (e) {
+        console.warn('Domain migration notice failed:', e);
+    }
+
     // --- Direct Messages (1:1) ---
     // Works across WorkDesk + Invoice Management + Inventory.
     try {
@@ -877,4 +887,3 @@ function updateIMDateTime() {}
 // --- Helper: Check Task Completion ---
 
 // #endregion BLOCK 11 — MAIN NAVIGATION + SETTINGS
-
