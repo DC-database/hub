@@ -1,6 +1,6 @@
 {
-  "version": "11.4.8",
+  "version": "11.4.9",
   "releasedAt": "2026-07-28",
-  "title": "Domain Countdown Top-Center Placement Patch",
-  "message": "Moves the persistent domain-migration countdown from the upper-right corner to a responsive top-center position so it does not block module buttons. The popup, countdown timing, blinking effect, click behavior, domain links, and all system workflows remain unchanged."
+  "title": "Latest Notes and Stable Invoice Records Patch",
+  "message": "Shows Summary Note suggestions by most recent use, preserves permanent invoice entry IDs and their numeric order in Invoice Records, and labels unmatched ECommit records as not imported without changing Invoice Value, Amt. Paid, SRV, or balance calculations."
 }
