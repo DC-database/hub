@@ -1,6 +1,6 @@
 {
-  "version": "11.5.1",
-  "releasedAt": "2026-07-28",
-  "title": "Job Records Landscape Print Repair",
-  "message": "Repairs Job Records printing with a dedicated plain-text table and a temporary A4 landscape page override. Current filtered rows print in compact multi-page table format without responsive cards, action icons, clipping, or changes to records and filters."
+  "version": "11.5.2",
+  "releasedAt": "2026-07-29",
+  "title": "Analog Clock Date Display",
+  "message": "Replaces the DAY and digital time text beneath the WorkDesk analog clock with the automatically updating current date in DD MMM YYYY format. The analog clock and all system workflows remain unchanged."
 }
