@@ -1,6 +1,6 @@
 /*
- * IBA 11.0.9 — Desktop Time Identity Clock
- * Purpose: replace desktop sidebar user profile card visuals with a live analog clock.
+ * IBA 11.5.2 — Desktop Time Identity Clock
+ * Purpose: show a live analog clock with the current date beneath it.
  * Scope: UI only. No Firebase, no permissions, no workflow logic.
  */
 (function () {
@@ -12,10 +12,6 @@
 
   function isDesktop() {
     return !window.matchMedia || window.matchMedia('(min-width: 769px)').matches;
-  }
-
-  function pad(n) {
-    return String(n).padStart(2, '0');
   }
 
   function getTimePhase(date) {
@@ -261,24 +257,17 @@
           border: 0 !important;
           box-shadow: none !important;
         }
-        .iba-time-label {
-          font-size: 12px;
-          font-weight: 1000;
-          letter-spacing: .15em;
-          text-transform: uppercase;
-          color: rgba(255,255,255,.92);
-          text-shadow: 0 2px 8px rgba(0,0,0,.32);
-        }
-        .iba-time-digital {
+        .iba-time-date {
           font-size: 18px;
           font-weight: 1000;
           color: #fff;
           text-shadow: 0 2px 10px rgba(0,0,0,.40);
           white-space: nowrap;
+          letter-spacing: .04em;
         }
-        .iba-time-phase-morning .iba-time-label { color: #ffe8ae; }
-        .iba-time-phase-day .iba-time-label { color: #dff7ff; }
-        .iba-time-phase-evening .iba-time-label { color: #dce4ff; }
+        .iba-time-phase-morning .iba-time-date { color: #ffe8ae; }
+        .iba-time-phase-day .iba-time-date { color: #dff7ff; }
+        .iba-time-phase-evening .iba-time-date { color: #dce4ff; }
       }
       @media (max-width: 768px) {
         .iba-sidebar-time-clock { display: none !important; }
@@ -325,8 +314,7 @@
         <span class="iba-time-center"></span>
       </div>
       <div class="iba-time-meta">
-        <span class="iba-time-label">Time</span>
-        <span class="iba-time-digital">--:-- --</span>
+        <span class="iba-time-date">-- --- ----</span>
       </div>
     `;
     const face = wrap.querySelector('.iba-time-face');
@@ -382,8 +370,11 @@
     const secondDeg = ((second + ms / 1000) * 6);
     const minuteDeg = ((minute + second / 60) * 6);
     const hourDeg = (((hour % 12) + minute / 60) * 30);
-    const digitalHour = hour % 12 || 12;
-    const digital = pad(digitalHour) + ':' + pad(minute) + ' ' + (hour >= 12 ? 'PM' : 'AM');
+    const currentDate = new Intl.DateTimeFormat('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    }).format(now).toUpperCase();
 
     document.querySelectorAll('.' + CLOCK_CLASS).forEach(function (clock) {
       clock.classList.remove('iba-time-phase-morning', 'iba-time-phase-day', 'iba-time-phase-evening');
@@ -391,14 +382,12 @@
       const hourHand = clock.querySelector('.iba-time-hand.hour');
       const minuteHand = clock.querySelector('.iba-time-hand.minute');
       const secondHand = clock.querySelector('.iba-time-hand.second');
-      const label = clock.querySelector('.iba-time-label');
-      const digitalEl = clock.querySelector('.iba-time-digital');
+      const dateEl = clock.querySelector('.iba-time-date');
       if (hourHand) hourHand.style.transform = 'rotate(' + hourDeg + 'deg)';
       if (minuteHand) minuteHand.style.transform = 'rotate(' + minuteDeg + 'deg)';
       if (secondHand) secondHand.style.transform = 'rotate(' + secondDeg + 'deg)';
-      if (label) label.textContent = phase.label;
-      if (digitalEl) digitalEl.textContent = digital;
-      clock.setAttribute('aria-label', phase.label + ' current time ' + digital);
+      if (dateEl) dateEl.textContent = currentDate;
+      clock.setAttribute('aria-label', 'Analog clock. Current date ' + currentDate);
     });
   }
 
