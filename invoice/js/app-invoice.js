@@ -632,7 +632,16 @@ if (imDeleteInvoiceBtn) {
                 console.warn("Invoice deleted but task lookup cleanup failed:", taskErr);
             }
 
-            // 3) Local cache + UI cleanup so it disappears immediately (no manual refresh needed)
+            // 3) Remove any lightweight Payments search row for the deleted invoice.
+            try {
+                if (typeof window.removeInvoicePaymentReadyIndex === 'function') {
+                    await window.removeInvoicePaymentReadyIndex(currentPO, keyToDelete);
+                }
+            } catch (paymentIndexError) {
+                console.warn("Invoice deleted but payment-ready cleanup failed:", paymentIndexError);
+            }
+
+            // 4) Local cache + UI cleanup so it disappears immediately (no manual refresh needed)
             removeFromLocalInvoiceCache(currentPO, keyToDelete);
             try { if (currentPOInvoices && currentPOInvoices[keyToDelete]) delete currentPOInvoices[keyToDelete]; } catch (_) { /* ignore */ }
 

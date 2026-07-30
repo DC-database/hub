@@ -1,11 +1,23 @@
 // ============================================================================
-// IBA 11.5.7 — Continuous Multi-Company Payment Search
-// Lets authorized users collect With Accounts invoices from one or more
-// companies and mark the complete payment cart Paid in one atomic checkout.
+// IBA 11.5.9 — Cache-First Vendor Payment Recovery
+// Uses a compact Firebase index for partial vendor/PO/invoice searches. Vendors
+// without completion metadata receive one indexed With Accounts-only legacy scan;
+// later vendor searches use only the compact index.
 // ============================================================================
 
 let paymentSearchResults = new Map();
 let paymentRestoredStorageKey = '';
+let paymentReadyIndex = new Map();
+let paymentReadyIndexLoadPromise = null;
+let paymentReadyIndexCacheRestored = false;
+let paymentReadyMeta = new Map();
+let paymentReadyMetaLoadPromise = null;
+let paymentReadyMetaCacheRestored = false;
+
+const PAYMENT_READY_INDEX_PATH = 'invoice_payments_ready';
+const PAYMENT_READY_CACHE_KEY = 'iba_invoice_payments_ready_v1';
+const PAYMENT_READY_META_PATH = 'invoice_payments_ready_meta';
+const PAYMENT_READY_META_CACHE_KEY = 'iba_invoice_payments_ready_meta_v1';
 
 function paymentText(value) {
     return String(value == null ? '' : value).trim();
@@ -61,6 +73,32 @@ function paymentCartId(poNumber, invoiceKey) {
     return `${paymentText(poNumber).toUpperCase()}::${paymentText(invoiceKey)}`;
 }
 
+function paymentReadyIndexKey(poNumber, invoiceKey) {
+    const raw = paymentCartId(poNumber, invoiceKey);
+    try {
+        return encodeURIComponent(raw).replace(/\./g, '%2E');
+    } catch (_) {
+        return raw.replace(/[.#$[\]/]/g, character => `_${character.charCodeAt(0).toString(16)}_`);
+    }
+}
+
+function paymentSafeFirebaseKey(value) {
+    const raw = paymentText(value);
+    try {
+        return encodeURIComponent(raw).replace(/\./g, '%2E');
+    } catch (_) {
+        return raw.replace(/[.#$[\]/]/g, character => `_${character.charCodeAt(0).toString(16)}_`);
+    }
+}
+
+function paymentVendorMetaKey(supplierId, vendorName) {
+    const normalizedId = paymentNormalizeSupplierId(supplierId);
+    const identity = normalizedId
+        ? `supplier::${normalizedId}`
+        : `vendor::${paymentNormalize(vendorName)}`;
+    return paymentSafeFirebaseKey(identity);
+}
+
 function paymentCartItems() {
     if (!invoicesToPay || typeof invoicesToPay !== 'object') invoicesToPay = {};
     return Object.values(invoicesToPay).filter(Boolean);
@@ -97,6 +135,280 @@ function paymentGetSupplierDetails(poNumber, invoiceData = {}) {
     return { supplierName, supplierId, site };
 }
 
+function paymentReadyPayload(poNumber, invoiceKey, invoiceData = {}, updatedAtValue) {
+    const po = paymentText(poNumber).toUpperCase();
+    const key = paymentText(invoiceKey);
+    const supplier = paymentGetSupplierDetails(po, invoiceData);
+    const invoiceValue = Number(invoiceData.invValue) || 0;
+    const savedAmount = Number(invoiceData.amountPaid);
+    const amountPaid = Number.isFinite(savedAmount) && savedAmount > 0 ? savedAmount : invoiceValue;
+    const updatedAt = updatedAtValue !== undefined
+        ? updatedAtValue
+        : ((typeof firebase !== 'undefined' && firebase.database)
+            ? firebase.database.ServerValue.TIMESTAMP
+            : Date.now());
+
+    return {
+        indexKey: paymentReadyIndexKey(po, key),
+        po,
+        invoiceKey: key,
+        invoiceNo: paymentText(invoiceData.invNumber || invoiceData.invoiceNo),
+        invEntryID: paymentText(invoiceData.invEntryID),
+        vendorName: supplier.supplierName,
+        vendorNameLower: paymentNormalize(supplier.supplierName),
+        supplierId: supplier.supplierId,
+        site: supplier.site,
+        amountPaid,
+        invoiceValue,
+        status: 'With Accounts',
+        originalAttention: paymentText(invoiceData.attention),
+        updatedAt
+    };
+}
+
+function paymentReadyItemFromRow(row = {}, fallbackIndexKey = '') {
+    const po = paymentText(row.po || row.poNumber).toUpperCase();
+    const key = paymentText(row.invoiceKey || row.key);
+    if (!po || !key) return null;
+    const invoiceValue = Number(row.invoiceValue ?? row.invValue) || 0;
+    const savedAmount = Number(row.amountPaid);
+    return {
+        id: paymentCartId(po, key),
+        key,
+        po,
+        indexKey: paymentText(row.indexKey || fallbackIndexKey) || paymentReadyIndexKey(po, key),
+        invoiceNo: paymentText(row.invoiceNo || row.invNumber),
+        invEntryID: paymentText(row.invEntryID),
+        supplierName: paymentText(row.vendorName || row.supplierName) || 'N/A',
+        supplierId: paymentNormalizeSupplierId(row.supplierId || row.vendorId),
+        site: paymentText(row.site) || 'N/A',
+        amountPaid: Number.isFinite(savedAmount) && savedAmount > 0 ? savedAmount : invoiceValue,
+        invoiceValue,
+        status: paymentText(row.status) || 'With Accounts',
+        originalAttention: paymentText(row.originalAttention || row.attention)
+    };
+}
+
+function paymentPersistReadyIndexCache() {
+    try {
+        localStorage.setItem(PAYMENT_READY_CACHE_KEY, JSON.stringify({
+            version: '11.5.9',
+            savedAt: Date.now(),
+            items: Array.from(paymentReadyIndex.entries())
+        }));
+    } catch (error) {
+        console.warn('Payment-ready browser cache could not be saved:', error);
+    }
+}
+
+function paymentRestoreReadyIndexCache() {
+    if (paymentReadyIndexCacheRestored) return;
+    paymentReadyIndexCacheRestored = true;
+    try {
+        const parsed = JSON.parse(localStorage.getItem(PAYMENT_READY_CACHE_KEY) || 'null');
+        const items = parsed && Array.isArray(parsed.items) ? parsed.items : [];
+        items.forEach(([indexKey, row]) => {
+            if (indexKey && row) paymentReadyIndex.set(indexKey, row);
+        });
+    } catch (error) {
+        console.warn('Payment-ready browser cache could not be restored:', error);
+    }
+}
+
+function paymentApplyReadyIndexSnapshot(snapshotValue) {
+    const next = new Map();
+    Object.entries(snapshotValue || {}).forEach(([indexKey, row]) => {
+        if (!row || typeof row !== 'object') return;
+        const item = paymentReadyItemFromRow(row, indexKey);
+        if (!item || paymentNormalize(item.status) !== 'with accounts') return;
+        next.set(indexKey, { ...row, indexKey });
+    });
+    paymentReadyIndex = next;
+    paymentPersistReadyIndexCache();
+}
+
+async function paymentEnsureReadyIndexLoaded() {
+    paymentRestoreReadyIndexCache();
+    if (paymentReadyIndexLoadPromise) return paymentReadyIndexLoadPromise;
+    if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) {
+        return paymentReadyIndex;
+    }
+
+    paymentReadyIndexLoadPromise = new Promise(resolve => {
+        const ref = invoiceDb.ref(PAYMENT_READY_INDEX_PATH);
+        let resolved = false;
+        const fallbackTimer = setTimeout(() => {
+            if (!resolved) {
+                resolved = true;
+                resolve(paymentReadyIndex);
+            }
+        }, 4000);
+        const applyAndResolve = snapshot => {
+            paymentApplyReadyIndexSnapshot(snapshot && snapshot.val ? snapshot.val() : {});
+            if (!resolved) {
+                clearTimeout(fallbackTimer);
+                resolved = true;
+                resolve(paymentReadyIndex);
+            }
+        };
+        const handleError = error => {
+            console.warn('Payment-ready index could not be loaded. Using targeted PO fallback.', error);
+            if (!resolved) {
+                clearTimeout(fallbackTimer);
+                resolved = true;
+                resolve(paymentReadyIndex);
+            }
+        };
+
+        if (ref && typeof ref.on === 'function') {
+            ref.on('value', applyAndResolve, handleError);
+            return;
+        }
+        if (ref && typeof ref.once === 'function') {
+            ref.once('value').then(applyAndResolve).catch(handleError);
+            return;
+        }
+        resolve(paymentReadyIndex);
+    });
+    return paymentReadyIndexLoadPromise;
+}
+
+function paymentPersistReadyMetaCache() {
+    try {
+        localStorage.setItem(PAYMENT_READY_META_CACHE_KEY, JSON.stringify({
+            version: '11.5.9',
+            savedAt: Date.now(),
+            items: Array.from(paymentReadyMeta.entries())
+        }));
+    } catch (error) {
+        console.warn('Payment-ready completion cache could not be saved:', error);
+    }
+}
+
+function paymentRestoreReadyMetaCache() {
+    if (paymentReadyMetaCacheRestored) return;
+    paymentReadyMetaCacheRestored = true;
+    try {
+        const parsed = JSON.parse(localStorage.getItem(PAYMENT_READY_META_CACHE_KEY) || 'null');
+        const items = parsed && Array.isArray(parsed.items) ? parsed.items : [];
+        items.forEach(([metaKey, row]) => {
+            if (metaKey && row) paymentReadyMeta.set(metaKey, row);
+        });
+    } catch (error) {
+        console.warn('Payment-ready completion cache could not be restored:', error);
+    }
+}
+
+function paymentApplyReadyMetaSnapshot(snapshotValue) {
+    const next = new Map();
+    Object.entries(snapshotValue || {}).forEach(([metaKey, row]) => {
+        if (!metaKey || !row || typeof row !== 'object') return;
+        next.set(metaKey, { ...row, metaKey });
+    });
+    paymentReadyMeta = next;
+    paymentPersistReadyMetaCache();
+}
+
+async function paymentEnsureReadyMetaLoaded() {
+    paymentRestoreReadyMetaCache();
+    if (paymentReadyMetaLoadPromise) return paymentReadyMetaLoadPromise;
+    if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) {
+        return paymentReadyMeta;
+    }
+
+    paymentReadyMetaLoadPromise = new Promise(resolve => {
+        const ref = invoiceDb.ref(PAYMENT_READY_META_PATH);
+        let resolved = false;
+        const fallbackTimer = setTimeout(() => {
+            if (!resolved) {
+                resolved = true;
+                resolve(paymentReadyMeta);
+            }
+        }, 4000);
+        const applyAndResolve = snapshot => {
+            paymentApplyReadyMetaSnapshot(snapshot && snapshot.val ? snapshot.val() : {});
+            if (!resolved) {
+                clearTimeout(fallbackTimer);
+                resolved = true;
+                resolve(paymentReadyMeta);
+            }
+        };
+        const handleError = error => {
+            console.warn('Payment-ready completion metadata could not be loaded.', error);
+            if (!resolved) {
+                clearTimeout(fallbackTimer);
+                resolved = true;
+                resolve(paymentReadyMeta);
+            }
+        };
+
+        if (ref && typeof ref.on === 'function') {
+            ref.on('value', applyAndResolve, handleError);
+            return;
+        }
+        if (ref && typeof ref.once === 'function') {
+            ref.once('value').then(applyAndResolve).catch(handleError);
+            return;
+        }
+        resolve(paymentReadyMeta);
+    });
+    return paymentReadyMetaLoadPromise;
+}
+
+function paymentUpdateReadyIndexMemory(indexKey, row) {
+    if (!indexKey) return;
+    if (row) paymentReadyIndex.set(indexKey, { ...row, indexKey });
+    else paymentReadyIndex.delete(indexKey);
+    paymentPersistReadyIndexCache();
+}
+
+function paymentUpdateReadyMetaMemory(metaKey, row) {
+    if (!metaKey) return;
+    if (row) paymentReadyMeta.set(metaKey, { ...row, metaKey });
+    else paymentReadyMeta.delete(metaKey);
+    paymentPersistReadyMetaCache();
+}
+
+async function syncInvoicePaymentReadyIndex(poNumber, invoiceKey, invoiceData = {}) {
+    const po = paymentText(poNumber).toUpperCase();
+    const key = paymentText(invoiceKey);
+    if (!po || !key || typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) return false;
+
+    const indexKey = paymentReadyIndexKey(po, key);
+    const ref = invoiceDb.ref(`${PAYMENT_READY_INDEX_PATH}/${indexKey}`);
+    if (paymentNormalize(invoiceData.status) !== 'with accounts') {
+        await ref.remove();
+        paymentUpdateReadyIndexMemory(indexKey, null);
+        return true;
+    }
+
+    const payload = paymentReadyPayload(po, key, invoiceData);
+    await ref.set(payload);
+    paymentUpdateReadyIndexMemory(indexKey, payload);
+    return true;
+}
+
+async function removeInvoicePaymentReadyIndex(poNumber, invoiceKey) {
+    const po = paymentText(poNumber).toUpperCase();
+    const key = paymentText(invoiceKey);
+    if (!po || !key || typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) return false;
+    const indexKey = paymentReadyIndexKey(po, key);
+    await invoiceDb.ref(`${PAYMENT_READY_INDEX_PATH}/${indexKey}`).remove();
+    paymentUpdateReadyIndexMemory(indexKey, null);
+    return true;
+}
+
+async function paymentRemoveReadyItems(items) {
+    const list = (items || []).filter(item => item && item.po && item.key);
+    if (!list.length || typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) return;
+    const updates = {};
+    list.forEach(item => {
+        updates[`${PAYMENT_READY_INDEX_PATH}/${paymentReadyIndexKey(item.po, item.key)}`] = null;
+    });
+    await invoiceDb.ref().update(updates);
+    list.forEach(item => paymentUpdateReadyIndexMemory(paymentReadyIndexKey(item.po, item.key), null));
+}
+
 function paymentStorageKey() {
     const user = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover : {};
     const identity = paymentText(user.Email || user.Name || user.Mobile || 'unknown')
@@ -114,7 +426,7 @@ function persistPaymentCart() {
             return;
         }
         localStorage.setItem(key, JSON.stringify({
-            version: '11.5.7',
+            version: '11.5.9',
             savedAt: Date.now(),
             items
         }));
@@ -239,6 +551,8 @@ async function initializePaymentsWorkspace() {
     if (!canCurrentUserAccessPayments()) return;
     restorePaymentCart();
     renderPaymentsCart();
+    paymentEnsureReadyIndexLoaded();
+    paymentEnsureReadyMetaLoaded();
     const statusEl = document.getElementById('im-payment-status-message');
     if (statusEl) statusEl.textContent = '';
 }
@@ -269,17 +583,32 @@ async function paymentEnsurePOBaseData() {
     }
 }
 
-async function paymentFetchPOBucket(poNumber) {
+async function paymentFetchWithAccountsPOBucket(poNumber) {
     const po = paymentText(poNumber).toUpperCase();
     if (!po) return {};
-    if (allInvoiceData && Object.prototype.hasOwnProperty.call(allInvoiceData, po)) {
-        return allInvoiceData[po] || {};
-    }
     if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) return {};
-    const snap = await invoiceDb.ref(`invoice_entries/${po}`).once('value');
+    const poRef = invoiceDb.ref(`invoice_entries/${po}`);
+    if (!poRef || typeof poRef.orderByChild !== 'function') {
+        throw new Error(`Indexed payment status lookup is unavailable for PO ${po}.`);
+    }
+    const statusQuery = poRef.orderByChild('status');
+    if (!statusQuery || typeof statusQuery.equalTo !== 'function') {
+        throw new Error(`Indexed With Accounts filter is unavailable for PO ${po}.`);
+    }
+    const withAccountsQuery = statusQuery.equalTo('With Accounts');
+    const snap = await withAccountsQuery.once('value');
     const bucket = snap.val() || {};
     if (!allInvoiceData) allInvoiceData = {};
-    allInvoiceData[po] = bucket;
+    const mergedBucket = { ...(allInvoiceData[po] || {}) };
+    Object.entries(mergedBucket).forEach(([key, invoice]) => {
+        if (
+            paymentNormalize(invoice && invoice.status) === 'with accounts' &&
+            !Object.prototype.hasOwnProperty.call(bucket, key)
+        ) {
+            delete mergedBucket[key];
+        }
+    });
+    allInvoiceData[po] = { ...mergedBucket, ...bucket };
     if (window.__invoiceEntriesFullLoaded !== true) window.__invoiceEntriesFullLoaded = false;
     return bucket;
 }
@@ -325,7 +654,9 @@ function paymentCollectMatches(poNumbers, queryText) {
             const item = paymentResultFromInvoice(po, key, invoice || {});
             const invoiceMatch = paymentNormalize(item.invoiceNo).includes(query);
             const entryMatch = paymentNormalize(item.invEntryID).includes(query);
-            if (!(poMatch || supplierMatch || supplierIdMatch || invoiceMatch || entryMatch)) return;
+            const invoiceSupplierMatch = paymentNormalize(item.supplierName).includes(query);
+            const invoiceSupplierIdMatch = paymentNormalizeSupplierId(item.supplierId).toLowerCase().includes(query);
+            if (!(poMatch || supplierMatch || supplierIdMatch || invoiceMatch || entryMatch || invoiceSupplierMatch || invoiceSupplierIdMatch)) return;
             if (!cartIds.has(item.id)) results.push(item);
         });
     });
@@ -336,6 +667,230 @@ function paymentCollectMatches(poNumbers, queryText) {
         (a.invoiceNo || a.invEntryID).localeCompare(b.invoiceNo || b.invEntryID, undefined, { numeric: true })
     );
     return results;
+}
+
+function paymentCollectReadyMatches(queryText) {
+    const query = paymentNormalize(queryText);
+    const cartIds = new Set(paymentCartItems().map(item => item.id));
+    const results = [];
+
+    paymentReadyIndex.forEach((row, indexKey) => {
+        const item = paymentReadyItemFromRow(row, indexKey);
+        if (!item || paymentNormalize(item.status) !== 'with accounts' || cartIds.has(item.id)) return;
+        const fields = [
+            item.po,
+            item.invoiceNo,
+            item.invEntryID,
+            item.supplierName,
+            item.supplierId
+        ];
+        if (fields.some(value => paymentNormalize(value).includes(query))) results.push(item);
+    });
+    return paymentSortAndDedupeResults(results);
+}
+
+function paymentSortAndDedupeResults(results) {
+    const unique = new Map();
+    (results || []).forEach(item => {
+        if (item && item.id) unique.set(item.id, item);
+    });
+    return Array.from(unique.values()).sort((a, b) =>
+        a.supplierName.localeCompare(b.supplierName) ||
+        a.po.localeCompare(b.po, undefined, { numeric: true }) ||
+        (a.invoiceNo || a.invEntryID).localeCompare(b.invoiceNo || b.invEntryID, undefined, { numeric: true })
+    );
+}
+
+function paymentVendorTargetsForQuery(queryText) {
+    const query = paymentNormalize(queryText);
+    const targets = new Map();
+    const addTarget = (supplierIdValue, vendorNameValue) => {
+        const supplierId = paymentNormalizeSupplierId(supplierIdValue);
+        const vendorName = paymentText(vendorNameValue);
+        if (!supplierId && !paymentNormalize(vendorName)) return;
+        const metaKey = paymentVendorMetaKey(supplierId, vendorName);
+        const current = targets.get(metaKey);
+        targets.set(metaKey, {
+            metaKey,
+            supplierId: supplierId || (current && current.supplierId) || '',
+            vendorName: vendorName || (current && current.vendorName) || 'N/A',
+            vendorNameLower: paymentNormalize(vendorName || (current && current.vendorName))
+        });
+    };
+
+    const vendors = (typeof allVendorsData !== 'undefined' && allVendorsData) ? allVendorsData : {};
+    Object.entries(vendors).forEach(([supplierId, vendorName]) => {
+        if (
+            paymentNormalize(vendorName).includes(query) ||
+            paymentNormalizeSupplierId(supplierId).toLowerCase().includes(query)
+        ) {
+            addTarget(supplierId, vendorName);
+        }
+    });
+
+    const matchedSupplierIds = new Set(
+        Array.from(targets.values()).map(target => target.supplierId).filter(Boolean)
+    );
+    const allPOs = (typeof allPOData !== 'undefined' && allPOData) ? allPOData : {};
+    Object.values(allPOs).forEach(poData => {
+        const supplierName = paymentText(
+            poData['Supplier Name'] ||
+            poData['Supplier Name:'] ||
+            poData.Supplier ||
+            poData['Supplier']
+        );
+        const supplierId = paymentNormalizeSupplierId(
+            poData['Supplier ID'] ||
+            poData['Supplier ID:'] ||
+            poData['Vendor ID'] ||
+            poData.vendor_id
+        );
+        if (
+            paymentNormalize(supplierName).includes(query) ||
+            supplierId.toLowerCase().includes(query) ||
+            matchedSupplierIds.has(supplierId)
+        ) {
+            addTarget(supplierId, supplierName);
+        }
+    });
+
+    return Array.from(targets.values());
+}
+
+function paymentPOVendorDetails(poData = {}) {
+    return {
+        supplierName: paymentText(
+            poData['Supplier Name'] ||
+            poData['Supplier Name:'] ||
+            poData.Supplier ||
+            poData['Supplier']
+        ),
+        supplierId: paymentNormalizeSupplierId(
+            poData['Supplier ID'] ||
+            poData['Supplier ID:'] ||
+            poData['Vendor ID'] ||
+            poData.vendor_id
+        )
+    };
+}
+
+function paymentPOsForVendorTargets(targets) {
+    const requestedTargets = (targets || []).filter(Boolean);
+    if (!requestedTargets.length) return [];
+    const targetIds = new Set(requestedTargets.map(target => target.supplierId).filter(Boolean));
+    const targetNames = new Set(
+        requestedTargets.map(target => paymentNormalize(target.vendorName)).filter(Boolean)
+    );
+    const candidatePOs = new Set();
+    const allPOs = (typeof allPOData !== 'undefined' && allPOData) ? allPOData : {};
+
+    Object.entries(allPOs).forEach(([poNumber, poData]) => {
+        const supplier = paymentPOVendorDetails(poData);
+        if (
+            (supplier.supplierId && targetIds.has(supplier.supplierId)) ||
+            targetNames.has(paymentNormalize(supplier.supplierName))
+        ) {
+            candidatePOs.add(paymentText(poNumber).toUpperCase());
+        }
+    });
+
+    return Array.from(candidatePOs).filter(Boolean);
+}
+
+function paymentVendorTargetIsComplete(target) {
+    if (!target || !target.metaKey) return false;
+    const row = paymentReadyMeta.get(target.metaKey);
+    return Boolean(row && Object.prototype.hasOwnProperty.call(row, 'completedAt'));
+}
+
+function paymentCandidatePOsForQuery(queryText) {
+    const query = paymentNormalize(queryText);
+    const queryUpper = paymentText(queryText).toUpperCase();
+    const candidatePOs = new Set();
+    const allPOs = (typeof allPOData !== 'undefined' && allPOData) ? allPOData : {};
+
+    Object.entries(allPOs).forEach(([poNumber, poData]) => {
+        const supplier = paymentPOVendorDetails(poData);
+        if (
+            paymentNormalize(poNumber).includes(query) ||
+            paymentNormalize(supplier.supplierName).includes(query) ||
+            supplier.supplierId.toLowerCase().includes(query)
+        ) {
+            candidatePOs.add(paymentText(poNumber).toUpperCase());
+        }
+    });
+
+    Object.entries(allInvoiceData || {}).forEach(([poNumber, bucket]) => {
+        if (Object.values(bucket || {}).some(invoice => {
+            const supplier = paymentGetSupplierDetails(poNumber, invoice || {});
+            return [
+                invoice && (invoice.invNumber || invoice.invoiceNo),
+                invoice && invoice.invEntryID,
+                supplier.supplierName,
+                supplier.supplierId
+            ].some(value => paymentNormalize(value).includes(query));
+        })) {
+            candidatePOs.add(paymentText(poNumber).toUpperCase());
+        }
+    });
+
+    // Direct PO fallback is only useful for numeric PO searches. Treating a
+    // one-word vendor query such as "Khalifa" as a Firebase PO path creates an
+    // unnecessary empty read.
+    if (/^\d{3,}$/.test(queryUpper)) candidatePOs.add(queryUpper);
+    return Array.from(candidatePOs).filter(Boolean);
+}
+
+async function paymentCommitReadyBackfill(items, completedTargets = []) {
+    if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) return;
+    const updates = {};
+    const localRows = [];
+    const localMetaRows = [];
+    const serverTimestamp = (typeof firebase !== 'undefined' && firebase.database)
+        ? firebase.database.ServerValue.TIMESTAMP
+        : Date.now();
+
+    (items || []).forEach(item => {
+        const invoiceData = allInvoiceData && allInvoiceData[item.po]
+            ? allInvoiceData[item.po][item.key]
+            : null;
+        if (!invoiceData || paymentNormalize(invoiceData.status) !== 'with accounts') return;
+        const payload = paymentReadyPayload(item.po, item.key, invoiceData, serverTimestamp);
+        const current = paymentReadyIndex.get(payload.indexKey);
+        if (
+            current &&
+            paymentText(current.invoiceNo) === payload.invoiceNo &&
+            paymentNormalize(current.vendorName) === payload.vendorNameLower &&
+            Number(current.amountPaid) === Number(payload.amountPaid)
+        ) {
+            return;
+        }
+        updates[`${PAYMENT_READY_INDEX_PATH}/${payload.indexKey}`] = payload;
+        localRows.push(payload);
+    });
+
+    (completedTargets || []).forEach(target => {
+        if (!target || !target.metaKey) return;
+        const targetPOs = paymentPOsForVendorTargets([target]);
+        const targetPOSet = new Set(targetPOs);
+        const metaRow = {
+            metaKey: target.metaKey,
+            supplierId: target.supplierId,
+            vendorName: target.vendorName,
+            vendorNameLower: paymentNormalize(target.vendorName),
+            completedAt: serverTimestamp,
+            poCount: targetPOs.length,
+            invoiceCount: (items || []).filter(item => targetPOSet.has(item.po)).length,
+            schemaVersion: 1
+        };
+        updates[`${PAYMENT_READY_META_PATH}/${target.metaKey}`] = metaRow;
+        localMetaRows.push(metaRow);
+    });
+
+    if (!Object.keys(updates).length) return;
+    await invoiceDb.ref().update(updates);
+    localRows.forEach(payload => paymentUpdateReadyIndexMemory(payload.indexKey, payload));
+    localMetaRows.forEach(metaRow => paymentUpdateReadyMetaMemory(metaRow.metaKey, metaRow));
 }
 
 function paymentRenderSearchResults(results) {
@@ -445,59 +1000,56 @@ async function handlePaymentModalPOSearch() {
     if (totalDisplay) totalDisplay.textContent = paymentCurrency(0);
 
     try {
-        await paymentEnsurePOBaseData();
-        const queryLower = paymentNormalize(query);
-        const queryUpper = paymentText(query).toUpperCase();
-        const candidatePOs = new Set();
-        const allPOs = (typeof allPOData !== 'undefined' && allPOData) ? allPOData : {};
+        await Promise.all([
+            paymentEnsureReadyIndexLoaded(),
+            paymentEnsureReadyMetaLoaded(),
+            paymentEnsurePOBaseData()
+        ]);
 
-        Object.entries(allPOs).forEach(([poNumber, poData]) => {
-            const supplierName = paymentText(
-                poData['Supplier Name'] || poData['Supplier Name:'] || poData.Supplier
-            );
-            const supplierId = paymentNormalizeSupplierId(
-                poData['Supplier ID'] || poData['Vendor ID'] || poData.vendor_id
-            );
-            if (
-                paymentNormalize(poNumber).includes(queryLower) ||
-                paymentNormalize(supplierName).includes(queryLower) ||
-                supplierId.toLowerCase().includes(queryLower)
-            ) {
-                candidatePOs.add(paymentText(poNumber).toUpperCase());
-            }
-        });
+        const indexedResults = paymentCollectReadyMatches(query);
+        const vendorTargets = paymentVendorTargetsForQuery(query);
+        const incompleteVendorTargets = vendorTargets.filter(target => !paymentVendorTargetIsComplete(target));
 
-        Object.entries(allInvoiceData || {}).forEach(([poNumber, bucket]) => {
-            if (Object.values(bucket || {}).some(invoice =>
-                paymentNormalize(invoice && (invoice.invNumber || invoice.invoiceNo || invoice.invEntryID)).includes(queryLower)
-            )) {
-                candidatePOs.add(paymentText(poNumber).toUpperCase());
-            }
-        });
-
-        if (!/[\s.#$/[\]]/.test(queryUpper)) candidatePOs.add(queryUpper);
-        if (candidatePOs.size > 150) {
-            imPaymentModalResults.innerHTML = '<p>Too many POs match this company search. Please enter a more specific company name, PO number, or invoice number.</p>';
+        // Completion metadata means every legacy With Accounts invoice for each
+        // matching vendor has already been recovered into the compact index.
+        if (vendorTargets.length && !incompleteVendorTargets.length) {
+            paymentRenderSearchResults(indexedResults);
             return;
         }
 
-        const candidateList = Array.from(candidatePOs).filter(Boolean);
+        const candidateList = incompleteVendorTargets.length
+            ? paymentPOsForVendorTargets(incompleteVendorTargets)
+            : paymentCandidatePOsForQuery(query);
+
+        if (candidateList.length > 150) {
+            if (indexedResults.length) {
+                paymentRenderSearchResults(indexedResults);
+            } else {
+                imPaymentModalResults.innerHTML = '<p>Too many POs match this company search. Please enter a more specific company name, PO number, or invoice number.</p>';
+            }
+            return;
+        }
+
         for (let index = 0; index < candidateList.length; index += 12) {
             const batch = candidateList.slice(index, index + 12);
-            await Promise.all(batch.map(po => paymentFetchPOBucket(po)));
+            await Promise.all(batch.map(po => paymentFetchWithAccountsPOBucket(po)));
         }
 
-        let results = paymentCollectMatches(candidateList, query);
-
-        // Invoice-number searches cannot be addressed directly in the nested Firebase
-        // tree without the PO. Run the existing deeper search only after a direct
-        // PO/company/cache search returns nothing and only because the user requested it.
-        if (!results.length && window.__invoiceEntriesFullLoaded !== true && typeof ensureInvoiceDataFetched === 'function') {
-            imPaymentModalResults.innerHTML = '<p><i class="fa-solid fa-spinner fa-spin"></i> Running deeper invoice-number search…</p>';
-            await ensureInvoiceDataFetched(false);
-            results = paymentCollectMatches(Object.keys(allInvoiceData || {}), query);
+        const targetedResults = paymentCollectMatches(candidateList, query);
+        if (targetedResults.length || incompleteVendorTargets.length) {
+            try {
+                // Only mark vendors complete after every indexed PO query and the
+                // combined ready-index/metadata update have succeeded.
+                await paymentCommitReadyBackfill(targetedResults, incompleteVendorTargets);
+            } catch (indexError) {
+                console.warn('Targeted payment-ready vendor backfill skipped:', indexError);
+            }
         }
 
+        const results = paymentSortAndDedupeResults([
+            ...indexedResults,
+            ...targetedResults
+        ]);
         paymentRenderSearchResults(results);
     } catch (error) {
         console.error('Payment invoice search failed:', error);
@@ -614,10 +1166,20 @@ async function handleSavePayments() {
 
         const missing = currentRecords.filter(record => !record.invoice);
         if (missing.length) {
+            try {
+                await paymentRemoveReadyItems(missing.map(record => record.item));
+            } catch (cleanupError) {
+                console.warn('Missing payment-ready rows could not be cleaned:', cleanupError);
+            }
             throw new Error(`${missing.length} invoice record(s) could not be found. No checkout was completed.`);
         }
         const changed = currentRecords.filter(record => paymentNormalize(record.invoice.status) !== 'with accounts');
         if (changed.length) {
+            try {
+                await paymentRemoveReadyItems(changed.map(record => record.item));
+            } catch (cleanupError) {
+                console.warn('Stale payment-ready rows could not be cleaned:', cleanupError);
+            }
             throw new Error(
                 `${changed.length} invoice record(s) are no longer With Accounts. Refresh the payment list before checkout.`
             );
@@ -637,6 +1199,7 @@ async function handleSavePayments() {
             batchUpdates[`${basePath}/statusChangedAt`] = serverTimestamp;
             batchUpdates[`${basePath}/statusQueueAt`] = serverTimestamp;
             batchUpdates[`${basePath}/lastUpdated`] = serverTimestamp;
+            batchUpdates[`${PAYMENT_READY_INDEX_PATH}/${paymentReadyIndexKey(item.po, item.key)}`] = null;
         });
 
         if (statusEl) statusEl.textContent = 'Marking invoices Paid…';
@@ -654,6 +1217,7 @@ async function handleSavePayments() {
             if (!allInvoiceData) allInvoiceData = {};
             if (!allInvoiceData[item.po]) allInvoiceData[item.po] = {};
             allInvoiceData[item.po][item.key] = { ...invoice, ...localUpdates };
+            paymentUpdateReadyIndexMemory(paymentReadyIndexKey(item.po, item.key), null);
         });
 
         if (statusEl) statusEl.textContent = 'Synchronizing linked payment records…';
@@ -716,7 +1280,10 @@ window.initializePaymentsWorkspace = initializePaymentsWorkspace;
 window.openPaymentSearchModal = openPaymentSearchModal;
 window.removePaymentCartItem = removePaymentCartItem;
 window.clearPaymentCart = clearPaymentCart;
+window.syncInvoicePaymentReadyIndex = syncInvoicePaymentReadyIndex;
+window.removeInvoicePaymentReadyIndex = removeInvoicePaymentReadyIndex;
 window.ibaPaymentTools = {
     parseAmount: paymentParseAmount,
-    normalizeSupplierId: paymentNormalizeSupplierId
+    normalizeSupplierId: paymentNormalizeSupplierId,
+    readyIndexKey: paymentReadyIndexKey
 };
