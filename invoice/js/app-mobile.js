@@ -11,10 +11,35 @@
 //   and existing app.js calls continue to work without changing Firebase/data logic.
 // =================================================================================================
 
+// 11.6.2: Chrome Android "Desktop site" changes to a desktop user agent and
+// normally exposes a desktop-width viewport. Respect that explicit browser
+// choice while keeping ordinary phone/tablet and rotated-phone layouts mobile.
+function isDesktopSiteLayoutRequested() {
+    try {
+        const viewportWidth = Math.max(
+            Number(window.innerWidth) || 0,
+            Number(document.documentElement && document.documentElement.clientWidth) || 0
+        );
+        if (viewportWidth <= 900) return false;
+
+        const ua = String(navigator.userAgent || '').toLowerCase();
+        const uaLooksMobile = /android|iphone|ipad|ipod|mobile/.test(ua);
+        const uaDataMobile = navigator.userAgentData &&
+            typeof navigator.userAgentData.mobile === 'boolean'
+            ? navigator.userAgentData.mobile
+            : null;
+
+        return uaDataMobile === false || !uaLooksMobile;
+    } catch (_) {
+        return false;
+    }
+}
+
 function isMobileViewport() {
     // 7.4.1: Treat real phone/tablet mobile UI as mobile even if the browser
     // reports a wider layout width. This keeps Inventory mobile routing stable.
     try {
+        if (isDesktopSiteLayoutRequested()) return false;
         if (window.matchMedia && window.matchMedia('(max-width: 900px)').matches) return true;
         if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches && (window.innerWidth || 0) <= 1180) return true;
         const ua = String(navigator.userAgent || '').toLowerCase();
