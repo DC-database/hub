@@ -141,7 +141,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
 
-    <link rel="stylesheet" href="style.css?v=11.5.3">
+    <link rel="stylesheet" href="style.css?v=11.5.4">
     <link rel="stylesheet" href="css/transfer_stock.css?v=10.5.7">
     <link rel="stylesheet" href="css/mobile.css?v=9.2.7">
     <!-- 9.0.1 module split: page-specific desktop/mobile override layers -->
@@ -2416,6 +2416,41 @@
         </div>
     </div>
 
+    <!-- ====================================================================== -->
+    <!-- INVOICE MANAGEMENT - FORMATTED PAYMENT EMAIL READY MODAL -->
+    <!-- ====================================================================== -->
+    <div id="im-payment-email-ready-modal" class="modal-overlay hidden">
+        <div class="modal-container im-payment-email-ready-modal" role="dialog" aria-modal="true" aria-labelledby="im-payment-email-ready-title">
+            <div class="modal-header">
+                <h2 id="im-payment-email-ready-title">Cheque Collection Email Ready</h2>
+                <button type="button" class="modal-close-btn" data-payment-email-close aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-content">
+                <div class="im-payment-email-instruction">
+                    <i class="fa-solid fa-envelope-open-text"></i>
+                    <div>
+                        <strong>Your formatted email is ready.</strong>
+                        <span>Click the button below. Outlook Classic will open with your automatic signature; press <kbd>Ctrl</kbd> + <kbd>V</kbd> once above the signature.</span>
+                    </div>
+                </div>
+                <div class="im-payment-email-envelope">
+                    <div><span>To</span><strong id="im-payment-email-ready-recipient"></strong></div>
+                    <div><span>Subject</span><strong id="im-payment-email-ready-subject"></strong></div>
+                </div>
+                <div class="im-payment-email-preview-shell">
+                    <div id="im-payment-email-preview" class="im-payment-email-preview"></div>
+                </div>
+                <p id="im-payment-email-copy-feedback" class="im-payment-email-copy-feedback" aria-live="polite"></p>
+            </div>
+            <div class="modal-footer im-payment-email-ready-actions">
+                <button type="button" id="im-payment-copy-open-outlook" class="download-btn">
+                    <i class="fa-solid fa-copy"></i> Copy Email &amp; Open Outlook Classic
+                </button>
+                <button type="button" class="secondary-btn" data-payment-email-close>Close</button>
+            </div>
+        </div>
+    </div>
+
     <div id="im-manual-po-modal" class="modal-overlay hidden">
         <div class="modal-container" style="max-width: 500px;">
             <div class="modal-header">
@@ -3320,7 +3355,7 @@
     <script src="js/app-utils.js?v=8.2.3"></script>
     <script src="js/app-vacation.js?v=8.2.3"></script>
     <script src="js/app-dom-refs.js?v=10.1.5"></script>
-    <script src="app.js?v=11.5.3"></script>
+    <script src="app.js?v=11.5.4"></script>
     <script src="js/app-time-clock.js?v=11.5.2"></script>
     <script src="js/app-domain-migration-notice.js?v=11.4.6"></script>
     <script src="js/app-navigation-settings.js?v=11.5.3"></script>
@@ -3329,7 +3364,7 @@
     <script src="js/app-workdesk-job-entry.js?v=10.1.6"></script>
     <script src="js/app-standard-job.js?v=11.0.4"></script>
     <script src="js/app-invoice-dashboard.js?v=11.5.3"></script>
-    <script src="js/app-payments.js?v=11.5.3"></script>
+    <script src="js/app-payments.js?v=11.5.4"></script>
     <script src="js/app-invoice-records.js?v=11.4.9"></script>
     <script src="js/app-active-tasks.js?v=11.0.6"></script>
     <script src="js/app-workdesk-dashboard.js?v=11.4.0"></script>
@@ -3346,10 +3381,10 @@
     <script src="js/app-help.js?v=8.2.3"></script>
 
     <script>
-      window.IBA_SYSTEM_VERSION = '11.5.3';
+      window.IBA_SYSTEM_VERSION = '11.5.4';
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
-    <script src="js/app-version-checker.js?v=11.5.3"></script>
+    <script src="js/app-version-checker.js?v=11.5.4"></script>
 
     </body>
 </html>

@@ -1,6 +1,6 @@
 {
-  "version": "11.5.3",
+  "version": "11.5.4",
   "releasedAt": "2026-07-30",
-  "title": "Supplier Payment Email Checkout",
-  "message": "Reconstructs Payments as a one-company cheque collection workflow. Authorized Finance, Accounts, and Accounting Admin users can search With Accounts invoices, build a multi-invoice and multi-PO cart, mark the checkout Paid with the actual checkout date, and open a supplier email populated from VendorEmail.csv."
+  "title": "Formatted Outlook Payment Email",
+  "message": "Formats the cheque collection email in Calibri with aligned, underlined invoice columns and a clear collection notice. Amount Paid fields now use accounting formatting, while Outlook Classic opens with the current user's automatic signature ready for the formatted email to be pasted above it."
 }
