@@ -1,6 +1,6 @@
 {
-  "version": "11.6.1",
+  "version": "11.6.2",
   "releasedAt": "2026-08-01",
-  "title": "Complete Payment Search Results",
-  "message": "The Payments search modal now keeps its search controls and footer visible while every matching With Accounts invoice remains reachable through one clear results-table scrollbar."
+  "title": "Mobile Desktop Site Routing",
+  "message": "Invoice Management now opens its full desktop interface when Chrome Desktop Site is requested, while ordinary mobile and rotated-phone sessions keep the existing mobile Invoice and Active Task experience."
 }
