@@ -1,6 +1,6 @@
 {
-  "version": "11.5.2",
-  "releasedAt": "2026-07-29",
-  "title": "Analog Clock Date Display",
-  "message": "Replaces the DAY and digital time text beneath the WorkDesk analog clock with the automatically updating current date in DD MMM YYYY format. The analog clock and all system workflows remain unchanged."
+  "version": "11.5.3",
+  "releasedAt": "2026-07-30",
+  "title": "Supplier Payment Email Checkout",
+  "message": "Reconstructs Payments as a one-company cheque collection workflow. Authorized Finance, Accounts, and Accounting Admin users can search With Accounts invoices, build a multi-invoice and multi-PO cart, mark the checkout Paid with the actual checkout date, and open a supplier email populated from VendorEmail.csv."
 }

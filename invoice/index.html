@@ -141,7 +141,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
 
-    <link rel="stylesheet" href="style.css?v=11.5.1">
+    <link rel="stylesheet" href="style.css?v=11.5.3">
     <link rel="stylesheet" href="css/transfer_stock.css?v=10.5.7">
     <link rel="stylesheet" href="css/mobile.css?v=9.2.7">
     <!-- 9.0.1 module split: page-specific desktop/mobile override layers -->
@@ -1998,18 +1998,55 @@
                 <section id="im-payments" class="workdesk-section hidden">
                     <div class="im-standard-hero im-hero-payments">
                         <div class="im-standard-hero-main">
-                            <span class="im-standard-eyebrow"><i class="fa-solid fa-wallet"></i> Accounts Payment Queue</span>
-                            <h1>Process Payments <span id="payments-count-display" class="table-count-display"></span></h1>
-                            <p>Add invoices with status "With Accounts" to process payments.</p>
+                            <span class="im-standard-eyebrow"><i class="fa-solid fa-envelope-open-text"></i> Supplier Cheque Collection</span>
+                            <h1>Payment Email Checkout <span id="payments-count-display" class="table-count-display"></span></h1>
+                            <p>Build one company payment list, mark the selected invoices Paid, and prepare the cheque collection email.</p>
                         </div>
                         <div class="im-standard-hero-actions">
-                            <button type="button" id="im-add-payment-button"><i class="fa-solid fa-plus"></i> Add Invoice for Payment</button>
+                            <button type="button" id="im-add-payment-button"><i class="fa-solid fa-magnifying-glass-plus"></i> Search Invoices</button>
                         </div>
                     </div>
-                     <div class="table-wrapper"><table id="im-payments-table"><thead><tr><th>PO</th><th>Site</th><th>Vendor</th><th>Inv. Entry</th><th>Inv. Value</th><th>Amount To Paid</th><th>Release Date</th><th>Status</th><th></th></tr></thead><tbody id="im-payments-table-body"></tbody></table></div>
-                    <div class="form-buttons-container" style="justify-content: flex-end; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
-                        <button id="im-save-payments-button" type="button" class="download-btn"><i class="fa-solid fa-save"></i> Save All Payments as Paid</button>
+
+                    <div class="im-payment-company-strip" aria-live="polite">
+                        <div><span>Company</span><strong id="im-payment-company-name">No company selected</strong></div>
+                        <div><span>Supplier ID</span><strong id="im-payment-supplier-id">—</strong></div>
+                        <div><span>Email Recipient</span><strong id="im-payment-recipient">Add invoices to begin</strong></div>
                     </div>
+
+                    <div id="im-payment-cart-empty" class="im-payment-empty-state">
+                        <i class="fa-solid fa-cart-plus"></i>
+                        <strong>Your payment list is empty</strong>
+                        <span>Search With Accounts invoices and add the records that belong to one company.</span>
+                    </div>
+
+                    <div class="table-wrapper im-payment-cart-table-wrap">
+                        <table id="im-payments-table">
+                            <thead>
+                                <tr>
+                                    <th>Invoice No.</th>
+                                    <th>PO No.</th>
+                                    <th>Company</th>
+                                    <th>Amount Paid</th>
+                                    <th>Release Date</th>
+                                    <th>Status</th>
+                                    <th aria-label="Remove"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="im-payments-table-body"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="form-buttons-container im-payment-checkout-bar">
+                        <div class="im-payment-cart-total">
+                            <span>Total Sum</span>
+                            <strong id="im-payment-cart-total-value">0.00</strong>
+                        </div>
+                        <div class="im-payment-checkout-actions">
+                            <button id="im-clear-payments-button" type="button" class="secondary-btn"><i class="fa-solid fa-trash-can"></i> Clear List</button>
+                            <button id="im-save-payments-button" type="button" class="download-btn"><i class="fa-solid fa-envelope-circle-check"></i> Checkout &amp; Mark Paid</button>
+                        </div>
+                    </div>
+                    <p id="im-payment-status-message" class="im-payment-status-message" aria-live="polite"></p>
                 </section>
 
                 <section id="im-help" class="workdesk-section hidden">
@@ -2356,20 +2393,22 @@
     <!-- INVOICE MANAGEMENT - ADD PAYMENT MODAL -->
     <!-- ====================================================================== -->
     <div id="im-add-payment-modal" class="modal-overlay hidden">
-        <div class="modal-container" style="max-width: 700px;">
-            <div class="modal-header"><h2>Add Invoices for Payment</h2><button class="modal-close-btn">&times;</button></div>
+        <div class="modal-container im-payment-search-modal">
+            <div class="modal-header"><h2>Find With Accounts Invoices</h2><button class="modal-close-btn">&times;</button></div>
             <div class="modal-content">
-                <p>Search for a PO to find invoices with status "With Accounts".</p>
-                <div class="search-and-filter-group" style="margin-bottom: 15px;"><input type="text" id="im-payment-modal-po-input" placeholder="Enter PO to Search..." style="flex-grow: 1;"><button id="im-payment-modal-search-btn">Search PO</button></div>
-                <div id="im-payment-modal-results" class="table-wrapper" style="max-height: 40vh; overflow-y: auto;"><p>Enter a PO number to see invoices ready for payment.</p></div>
-            </div>
-            <div class="modal-footer" style="justify-content: space-between; align-items: center;">
-                <div style="font-weight: bold; font-size: 1.1rem; color: #333;">
-                    Selected Total: <span id="payment-modal-total-value" style="color: #003A5C;">0.00</span>
+                <p>Search using a PO number, invoice number, or company name. Only records currently marked With Accounts can be selected.</p>
+                <div class="search-and-filter-group im-payment-search-row">
+                    <input type="text" id="im-payment-modal-po-input" placeholder="Search PO, invoice number, or company..." autocomplete="off">
+                    <button id="im-payment-modal-search-btn" type="button"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
                 </div>
-
-
-                <div style="display: flex; gap: 10px;">
+                <div id="im-payment-modal-results" class="table-wrapper im-payment-search-results"><p>Enter a PO number, invoice number, or company to begin.</p></div>
+            </div>
+            <div class="modal-footer im-payment-search-footer">
+                <div class="im-payment-selected-total">
+                    <span>Selected Total</span>
+                    <strong id="payment-modal-total-value">0.00</strong>
+                </div>
+                <div class="im-payment-search-actions">
                     <button id="im-payment-modal-add-selected-btn" class="download-btn"><i class="fa-solid fa-plus"></i> Add Selected</button>
                     <button class="secondary-btn modal-close-btn">Cancel</button>
                 </div>
@@ -3281,16 +3320,16 @@
     <script src="js/app-utils.js?v=8.2.3"></script>
     <script src="js/app-vacation.js?v=8.2.3"></script>
     <script src="js/app-dom-refs.js?v=10.1.5"></script>
-    <script src="app.js?v=11.5.2"></script>
+    <script src="app.js?v=11.5.3"></script>
     <script src="js/app-time-clock.js?v=11.5.2"></script>
     <script src="js/app-domain-migration-notice.js?v=11.4.6"></script>
-    <script src="js/app-navigation-settings.js?v=11.4.6"></script>
-    <script src="js/app-data-cache.js?v=11.4.9"></script>
+    <script src="js/app-navigation-settings.js?v=11.5.3"></script>
+    <script src="js/app-data-cache.js?v=11.5.3"></script>
     <script src="js/app-job-vendor.js?v=8.2.3"></script>
     <script src="js/app-workdesk-job-entry.js?v=10.1.6"></script>
     <script src="js/app-standard-job.js?v=11.0.4"></script>
-    <script src="js/app-invoice-dashboard.js?v=8.6.5"></script>
-    <script src="js/app-payments.js?v=11.0.5"></script>
+    <script src="js/app-invoice-dashboard.js?v=11.5.3"></script>
+    <script src="js/app-payments.js?v=11.5.3"></script>
     <script src="js/app-invoice-records.js?v=11.4.9"></script>
     <script src="js/app-active-tasks.js?v=11.0.6"></script>
     <script src="js/app-workdesk-dashboard.js?v=11.4.0"></script>
@@ -3302,15 +3341,15 @@
     <script src="js/app-invoice-entry-search.js?v=11.2.7"></script>
     <script src="js/app-attention-validation.js?v=11.4.5"></script>
     <script src="js/app-batch-entry-ui.js?v=11.4.9"></script>
-    <script src="js/app-im-event-wiring.js?v=11.4.5"></script>
+    <script src="js/app-im-event-wiring.js?v=11.5.3"></script>
     <script src="js/app-history-transfer.js?v=10.4.2"></script>
     <script src="js/app-help.js?v=8.2.3"></script>
 
     <script>
-      window.IBA_SYSTEM_VERSION = '11.5.2';
+      window.IBA_SYSTEM_VERSION = '11.5.3';
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
-    <script src="js/app-version-checker.js?v=11.5.1"></script>
+    <script src="js/app-version-checker.js?v=11.5.3"></script>
 
     </body>
 </html>

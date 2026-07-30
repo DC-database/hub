@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '11.5.2';
+const APP_VERSION = '11.5.3';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -7663,7 +7663,9 @@ try {
         const canAccessInvoiceWrite = isSuperAdmin;
         const canAccessSummaryNote = isSuperAdmin;
         const canAccessInvoiceRecords = isAdmin || isSuperAdmin || isVacationDelegate;
-        const canAccessPayments = false; // Payments is disabled/dead for now.
+        const canAccessPayments = (typeof canCurrentUserAccessPayments === 'function')
+            ? canCurrentUserAccessPayments()
+            : false;
         const financeTokens = String(userPos || '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
         // 11.0.3: Allow QS and Senior QS positions to access Invoice Management → Financial Report.
         const hasFinancePosition = financeTokens.some(t => ['finance', 'accounts', 'accounting', 'ceo', 'coo', 'qs', 'seniorqs'].includes(t));
@@ -7699,9 +7701,12 @@ try {
                 li.style.display = 'none';
             }
 
-            if (section === 'im-payments') {
+            if (section === 'im-payments' && !canAccessPayments) {
                 li.style.display = 'none';
                 link.classList.add('hidden');
+            } else if (section === 'im-payments' && canAccessPayments) {
+                li.style.display = '';
+                link.classList.remove('hidden');
             }
 
             if (section === 'im-dashboard' && !(isAdmin || isVacationDelegate || isSuperAdmin)) {
