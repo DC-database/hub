@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '11.5.7';
+const APP_VERSION = '11.5.9';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -3842,6 +3842,18 @@ async function handleSaveModifiedTask() {
 async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAttention) {
     const sanitizeFirebaseKey = (key) => String(key || '').replace(/[.#$[\]\/\\]/g, '_').replace(/\s+/g, '_');
 
+    // 11.5.8: Keep the compact Payments index aligned with the master invoice.
+    // With Accounts records are added; every other status removes the index row.
+    // The master invoice remains authoritative and invoice saving must not fail
+    // if this lightweight search index is temporarily unavailable.
+    try {
+        if (typeof window.syncInvoicePaymentReadyIndex === 'function') {
+            await window.syncInvoicePaymentReadyIndex(poNumber, invoiceKey, invoiceData || {});
+        }
+    } catch (paymentIndexError) {
+        console.warn('Payment-ready index synchronization skipped:', paymentIndexError);
+    }
+
     // 10.2.6: Accuracy cleanup for invoice active-task index.
     // When an invoice is already With Accounts/SRV Done/Paid/Closed, it must be
     // removed from every possible lightweight inbox so Dashboard/Active Task cannot
@@ -4715,6 +4727,13 @@ async function handleDeleteInvoice(key) {
         try {
             await invoiceDb.ref(`invoice_entries/${currentPO}/${key}`).remove();
             await removeInvoiceTaskFromUser(key, invoiceToDelete);
+            try {
+                if (typeof window.removeInvoicePaymentReadyIndex === 'function') {
+                    await window.removeInvoicePaymentReadyIndex(currentPO, key);
+                }
+            } catch (paymentIndexError) {
+                console.warn('Deleted invoice payment-ready cleanup skipped:', paymentIndexError);
+            }
 
             alert("Invoice deleted successfully.");
             removeFromLocalInvoiceCache(currentPO, key);

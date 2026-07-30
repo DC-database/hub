@@ -1,6 +1,6 @@
 {
-  "version": "11.5.7",
+  "version": "11.5.9",
   "releasedAt": "2026-07-30",
-  "title": "Continuous Company Payment Search",
-  "message": "Company searches load all matching With Accounts invoices across their POs. Add Selected & Continue keeps the search modal open, clears the completed search, preserves the growing multi-company payment cart, and immediately prepares the field for the next company."
+  "title": "Cache-First Vendor Payment Recovery",
+  "message": "The first search for an unindexed vendor now recovers only that vendor's With Accounts invoices using indexed PO queries, records completion, and fills the compact payment index. Later searches for that vendor use the compact index only."
 }
