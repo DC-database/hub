@@ -1,5 +1,5 @@
 // ============================================================================
-// IBA 11.5.3 — Supplier Payment Email Checkout
+// IBA 11.5.4 — Formatted Supplier Payment Email Checkout
 // Reconstructs the retired payment updater as a one-company cart that marks
 // With Accounts invoices Paid and prepares the cheque collection email.
 // ============================================================================
@@ -8,6 +8,7 @@ let paymentSearchResults = new Map();
 let paymentVendorEmailMap = null;
 let paymentVendorEmailPromise = null;
 let paymentRestoredStorageKey = '';
+let paymentPreparedEmail = null;
 
 function paymentText(value) {
     return String(value == null ? '' : value).trim();
@@ -26,6 +27,20 @@ function paymentCurrency(value) {
     const amount = Number(value) || 0;
     if (typeof formatCurrency === 'function') return formatCurrency(amount);
     return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function paymentParseAmount(value) {
+    const parsed = Number(paymentText(value).replace(/,/g, ''));
+    return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+}
+
+function paymentEscapeHtml(value) {
+    return paymentText(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 function paymentToday() {
@@ -117,7 +132,7 @@ function persistPaymentCart() {
             return;
         }
         localStorage.setItem(key, JSON.stringify({
-            version: '11.5.3',
+            version: '11.5.4',
             savedAt: Date.now(),
             items
         }));
@@ -292,18 +307,22 @@ function renderPaymentsCart() {
 
         const amountCell = document.createElement('td');
         const amountInput = document.createElement('input');
-        amountInput.type = 'number';
-        amountInput.min = '0';
-        amountInput.step = '0.01';
+        amountInput.type = 'text';
+        amountInput.inputMode = 'decimal';
         amountInput.className = 'payment-input highlight-field im-payment-amount-input';
         amountInput.name = 'amountPaid';
-        amountInput.value = (Number(item.amountPaid) || 0).toFixed(2);
+        amountInput.value = paymentCurrency(item.amountPaid);
         amountInput.setAttribute('aria-label', `Amount paid for ${item.invoiceNo || item.po}`);
         amountInput.addEventListener('input', () => {
-            item.amountPaid = Math.max(0, Number(amountInput.value) || 0);
+            item.amountPaid = paymentParseAmount(amountInput.value);
             persistPaymentCart();
             const nextTotal = paymentCartItems().reduce((sum, current) => sum + (Number(current.amountPaid) || 0), 0);
             if (totalEl) totalEl.textContent = paymentCurrency(nextTotal);
+        });
+        amountInput.addEventListener('blur', () => {
+            item.amountPaid = paymentParseAmount(amountInput.value);
+            amountInput.value = paymentCurrency(item.amountPaid);
+            persistPaymentCart();
         });
         amountCell.appendChild(amountInput);
 
@@ -651,9 +670,9 @@ function clearPaymentCart(skipConfirmation = false) {
     return true;
 }
 
-function buildPaymentCollectionEmailBody(items) {
-    const rows = items.map(item =>
-        `${item.invoiceNo || item.invEntryID || 'N/A'}\t${item.po}\t${paymentCurrency(item.amountPaid)}`
+function buildPaymentCollectionEmailText(items) {
+    const rows = items.map((item, index) =>
+        `${index + 1}. ${item.invoiceNo || item.invEntryID || 'N/A'}\t${item.po}\t${paymentCurrency(item.amountPaid)}`
     );
     const total = items.reduce((sum, item) => sum + (Number(item.amountPaid) || 0), 0);
 
@@ -675,10 +694,138 @@ function buildPaymentCollectionEmailBody(items) {
     ].join('\r\n');
 }
 
-function openPaymentCollectionEmail(recipient, subject, body) {
+function buildPaymentCollectionEmailHtml(items) {
+    const total = items.reduce((sum, item) => sum + (Number(item.amountPaid) || 0), 0);
+    const rows = items.map((item, index) => `
+        <tr>
+            <td style="padding:0 30px 3px 0;white-space:nowrap;">${index + 1}. ${paymentEscapeHtml(item.invoiceNo || item.invEntryID || 'N/A')}</td>
+            <td style="padding:0 30px 3px 0;white-space:nowrap;">${paymentEscapeHtml(item.po)}</td>
+            <td style="padding:0 0 3px 0;text-align:right;white-space:nowrap;">${paymentEscapeHtml(paymentCurrency(item.amountPaid))}</td>
+        </tr>
+    `).join('');
+
+    return `
+        <div style="font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.25;color:#000000;">
+            <p style="margin:0 0 18px 0;">ATTENTION: ACCOUNTS DEPARTMENT</p>
+            <p style="margin:0 0 18px 0;">I hope this email finds you well.</p>
+            <p style="margin:0 0 18px 0;">Kindly be advised that the payment for the following invoice is ready for collection at our Main Office; please arrange for a collector to collect your payment</p>
+            <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 20px 0;font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.25;color:#000000;">
+                <thead>
+                    <tr>
+                        <th style="padding:0 30px 4px 0;text-align:left;font-weight:400;white-space:nowrap;text-decoration:underline;">Invoice No.</th>
+                        <th style="padding:0 30px 4px 0;text-align:left;font-weight:400;white-space:nowrap;text-decoration:underline;">PO No.</th>
+                        <th style="padding:0 0 4px 0;text-align:right;font-weight:400;white-space:nowrap;text-decoration:underline;">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows}
+                    <tr>
+                        <td colspan="2" style="padding:0 30px 0 0;white-space:nowrap;">Total Sum</td>
+                        <td style="padding:0;text-align:right;white-space:nowrap;">${paymentEscapeHtml(paymentCurrency(total))}</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p style="margin:0 0 18px 0;text-decoration:underline;">Upon Collection kindly take note of the following:</p>
+            <ol style="margin:0;padding-left:34px;">
+                <li style="margin:0 0 3px 0;padding-left:8px;">The Collection timing is between 1:00 pm to 4:00 pm from Saturday-Wednesday and 9:00 am to 1:00 pm on Thursday.</li>
+                <li style="margin:0;padding-left:8px;">The Collector must have the Original Receipt and Valid ID. However, If the collector is not sponsored by the same company. He must bring an authorization letter on corporate letterhead, stamped, and signed by an authorized signatory, as well as a copy of the company computer card.</li>
+            </ol>
+        </div>
+    `.trim();
+}
+
+function openPaymentCollectionEmail(recipient, subject) {
     const safeRecipient = paymentText(recipient).replace(/[\r\n?&#]/g, '');
-    const mailto = `mailto:${safeRecipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const mailto = `mailto:${safeRecipient}?subject=${encodeURIComponent(subject)}`;
     window.location.href = mailto;
+}
+
+function paymentRenderPreparedEmail(emailData) {
+    paymentPreparedEmail = emailData;
+    const modal = document.getElementById('im-payment-email-ready-modal');
+    const recipientEl = document.getElementById('im-payment-email-ready-recipient');
+    const subjectEl = document.getElementById('im-payment-email-ready-subject');
+    const previewEl = document.getElementById('im-payment-email-preview');
+    const actionButton = document.getElementById('im-payment-copy-open-outlook');
+    const feedbackEl = document.getElementById('im-payment-email-copy-feedback');
+
+    if (recipientEl) recipientEl.textContent = emailData.recipient || 'Blank — enter the recipient in Outlook';
+    if (subjectEl) subjectEl.textContent = emailData.subject;
+    if (previewEl) previewEl.innerHTML = emailData.html;
+    if (feedbackEl) feedbackEl.textContent = '';
+    if (actionButton) {
+        actionButton.disabled = false;
+        actionButton.innerHTML = '<i class="fa-solid fa-copy"></i> Copy Email &amp; Open Outlook Classic';
+    }
+    if (modal) modal.classList.remove('hidden');
+}
+
+function paymentCopyPreviewFallback() {
+    const previewEl = document.getElementById('im-payment-email-preview');
+    if (!previewEl || typeof document.execCommand !== 'function') return false;
+
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(previewEl);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    const copied = document.execCommand('copy');
+    selection.removeAllRanges();
+    return copied;
+}
+
+async function copyPreparedPaymentEmailAndOpenOutlook() {
+    if (!paymentPreparedEmail) {
+        alert('No prepared payment email is available.');
+        return;
+    }
+
+    const actionButton = document.getElementById('im-payment-copy-open-outlook');
+    const feedbackEl = document.getElementById('im-payment-email-copy-feedback');
+    if (actionButton) {
+        actionButton.disabled = true;
+        actionButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Copying…';
+    }
+
+    try {
+        let copied = false;
+        if (
+            navigator.clipboard &&
+            typeof navigator.clipboard.write === 'function' &&
+            typeof ClipboardItem !== 'undefined'
+        ) {
+            const clipboardItem = new ClipboardItem({
+                'text/html': new Blob([paymentPreparedEmail.html], { type: 'text/html' }),
+                'text/plain': new Blob([paymentPreparedEmail.text], { type: 'text/plain' })
+            });
+            await navigator.clipboard.write([clipboardItem]);
+            copied = true;
+        } else {
+            copied = paymentCopyPreviewFallback();
+        }
+
+        if (!copied) throw new Error('The formatted email could not be copied.');
+        if (feedbackEl) {
+            feedbackEl.textContent = 'Copied. When Outlook opens, press Ctrl+V above your automatic signature.';
+        }
+        if (actionButton) {
+            actionButton.innerHTML = '<i class="fa-solid fa-check"></i> Copied — Opening Outlook';
+        }
+        openPaymentCollectionEmail(paymentPreparedEmail.recipient, paymentPreparedEmail.subject);
+    } catch (error) {
+        console.error('Payment email copy failed:', error);
+        if (feedbackEl) {
+            feedbackEl.textContent = 'Copy was blocked. Allow clipboard access in Chrome, then try again.';
+        }
+        alert('Chrome could not copy the formatted email. Allow clipboard access for this site, then try again.');
+    } finally {
+        if (actionButton) {
+            window.setTimeout(() => {
+                actionButton.disabled = false;
+                actionButton.innerHTML = '<i class="fa-solid fa-copy"></i> Copy Email &amp; Open Outlook Classic';
+            }, 1200);
+        }
+    }
 }
 
 async function handleSavePayments() {
@@ -802,7 +949,12 @@ async function handleSavePayments() {
         }));
         const recipient = paymentRecipientFor(finalItems[0]);
         const subject = `Cheque Collection - ${supplierName}`;
-        const body = buildPaymentCollectionEmailBody(finalItems);
+        const emailData = {
+            recipient,
+            subject,
+            text: buildPaymentCollectionEmailText(finalItems),
+            html: buildPaymentCollectionEmailHtml(finalItems)
+        };
 
         try {
             allSystemEntries = [];
@@ -812,9 +964,9 @@ async function handleSavePayments() {
         clearPaymentCart(true);
         if (statusEl) {
             statusEl.className = 'im-payment-status-message is-success';
-            statusEl.textContent = `${finalItems.length} invoice(s) marked Paid. Opening the cheque collection email${recipient ? '' : ' with a blank recipient'}…`;
+            statusEl.textContent = `${finalItems.length} invoice(s) marked Paid. The formatted cheque collection email is ready${recipient ? '' : ' with a blank recipient'}.`;
         }
-        openPaymentCollectionEmail(recipient, subject, body);
+        paymentRenderPreparedEmail(emailData);
     } catch (error) {
         console.error('Payment checkout failed:', error);
         if (statusEl) {
@@ -836,6 +988,23 @@ document.addEventListener('DOMContentLoaded', () => {
         clearButton.dataset.paymentBound = '1';
         clearButton.addEventListener('click', () => clearPaymentCart(false));
     }
+
+    const copyOpenButton = document.getElementById('im-payment-copy-open-outlook');
+    if (copyOpenButton && !copyOpenButton.dataset.paymentBound) {
+        copyOpenButton.dataset.paymentBound = '1';
+        copyOpenButton.addEventListener('click', copyPreparedPaymentEmailAndOpenOutlook);
+    }
+
+    const emailReadyModal = document.getElementById('im-payment-email-ready-modal');
+    if (emailReadyModal && !emailReadyModal.dataset.paymentBound) {
+        emailReadyModal.dataset.paymentBound = '1';
+        emailReadyModal.querySelectorAll('[data-payment-email-close]').forEach(button => {
+            button.addEventListener('click', () => emailReadyModal.classList.add('hidden'));
+        });
+        emailReadyModal.addEventListener('click', event => {
+            if (event.target === emailReadyModal) emailReadyModal.classList.add('hidden');
+        });
+    }
 });
 
 window.canCurrentUserAccessPayments = canCurrentUserAccessPayments;
@@ -845,6 +1014,8 @@ window.removePaymentCartItem = removePaymentCartItem;
 window.clearPaymentCart = clearPaymentCart;
 window.ibaPaymentEmailTools = {
     parseVendorEmailCsv: paymentParseVendorEmailCsv,
-    buildEmailBody: buildPaymentCollectionEmailBody,
+    buildEmailBody: buildPaymentCollectionEmailText,
+    buildEmailHtml: buildPaymentCollectionEmailHtml,
+    parseAmount: paymentParseAmount,
     normalizeSupplierId: paymentNormalizeSupplierId
 };
