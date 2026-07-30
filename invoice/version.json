@@ -1,6 +1,6 @@
 {
-  "version": "11.5.9",
-  "releasedAt": "2026-07-30",
-  "title": "2026 Cache-First Vendor Payment Recovery",
-  "message": "Payments now searches the compact ready index first. For a vendor not yet recovered, it checks only matching Firebase invoice POs, collects With Accounts invoices dated 2026, fills the ready index, and uses the cache for later searches."
+  "version": "11.6.0",
+  "releasedAt": "2026-08-01",
+  "title": "IBA Portal New Domain",
+  "message": "The IBA Portal is now operating at port.iba.com.qa. Internal links for Chat, Procure, Finance, PO, and Epicore now use the new official domain."
 }
